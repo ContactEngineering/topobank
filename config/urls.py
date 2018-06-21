@@ -21,6 +21,12 @@ urlpatterns = [
     ),
     path("accounts/", include("allauth.urls")),
     # Your stuff: custom urls includes go here
+    path(
+        "topography/",
+        include("topobank.manager.urls", namespace="manager"),
+    ),
+
+
 ] + static(
     settings.MEDIA_URL, document_root=settings.MEDIA_ROOT
 )

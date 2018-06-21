@@ -1,0 +1,34 @@
+
+{% extends 'base.html' %}
+{% load fontawesome %}
+
+{% block content %}
+
+
+<table class="table">
+  <thead>
+    <tr>
+      <th scope="col">#</th>
+      <th scope="col">Measurement Date</th>
+      <th scope="col">Filename</th>
+      <th scope="col">Description</th>
+      <th scope="col">User</th>
+      <th scope="col">{% fontawesome_icon 'edit' %}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {%  for topo in topographies %}
+    <tr>
+      <th scope="row">{{ topo.id }}</th>
+      <td>{{ topo.measurement_date }}</td>
+      <td>{{ topo.datafile.name }}</td>
+      <td>{{ topo.description }}</td>
+      <td>{{ topo.user.username }}</td>
+      <td></td>
+    </tr>
+    {%  endfor %}
+
+  </tbody>
+</table>
+
+{% endblock content %}
