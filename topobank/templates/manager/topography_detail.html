@@ -1,0 +1,56 @@
+
+{% extends 'base.html' %}
+{% load fontawesome %}
+
+{% block content %}
+
+
+<div class="card text-center">
+  <div class="card-header">
+    <h2>Topography {{ topography.id }}</h2>
+    <div class="pull-right">
+
+    <a href="{% url 'manager:delete' topography.id %}">
+        {% fontawesome_icon 'trash' %}
+    </a>
+    <span></span>
+    <a href="{% url 'manager:update' topography.id %}">
+        {% fontawesome_icon 'edit' %}
+    </a>
+
+    </div>
+    <ul class="nav nav-tabs card-header-tabs">
+      <li class="nav-item">
+        <a class="nav-link active" href="#">Meta Data</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#">Analysis</a>
+      </li>
+    </ul>
+  </div>
+  <div class="card-body">
+    <h5 class="card-title"></h5>
+    <p class="card-text">{{ topography.description }}</p>
+
+    <table class="table">
+      <thead>
+        <th scope="col">Key</th>
+        <th scope="col">Value</th>
+      </thead>
+      <tbody>
+        <tr>
+          <th scope="row">Measurement Date</th>
+          <td>{{ topography.measurement_date }}</td>
+        </tr>
+        <tr>
+          <th scope="row">Name of Data File</th>
+          <td>{{ topography.datafile.name }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock content %}
+
+
