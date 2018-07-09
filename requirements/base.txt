@@ -21,3 +21,12 @@ coreapi==2.3.3  # https://github.com/core-api/python-client
 
 # Icons
 django-fontawesome==1.0
+
+#
+# Contact Mechanics
+#
+# because the setup.py of PyCo already needs numpy, we install it here separately (workaround)
+git+ssh://git@github.com/pastewka/PyCo.git@0.17.0#egg=PyCo
+#git+https://github.com/pastewka/PyCo.git
+#pyco==0.17.0
+
