@@ -25,8 +25,8 @@ django-fontawesome==1.0
 #
 # Contact Mechanics
 #
-# because the setup.py of PyCo already needs numpy, we install it here separately (workaround)
-git+ssh://git@github.com/pastewka/PyCo.git@0.17.0#egg=PyCo
+# Currently it is not possible to install pyco via pip
+#git+ssh://git@github.com/pastewka/PyCo.git@0.17.0#egg=PyCo
 #git+https://github.com/pastewka/PyCo.git
 #pyco==0.17.0
 
