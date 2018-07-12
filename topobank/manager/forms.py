@@ -25,7 +25,7 @@ class TopographyForm(forms.ModelForm):
 
     class Meta:
         model = Topography
-        fields = ('description', 'measurement_date', 'datafile', 'user')
+        fields = ('name', 'description', 'measurement_date', 'datafile', 'user')
 
     helper = FormHelper()
     helper.form_method = 'POST'
@@ -37,6 +37,7 @@ class TopographyForm(forms.ModelForm):
 
     helper.layout = Layout(
         Div(
+            Field('name'),
             Field('datafile'),
             Field('measurement_date'),
             Field('description'),

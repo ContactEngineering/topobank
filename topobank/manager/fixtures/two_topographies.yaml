@@ -184,11 +184,11 @@
 - model: manager.topography
   pk: 1
   fields: {user: 1, datafile: topographies/user_1/example4.txt, measurement_date: 2018-01-01,
-    description: asdasd}
+    description: asdasd, name: surface1}
 - model: manager.topography
   pk: 2
   fields: {user: 1, datafile: topographies/user_1/example4_VBYUbBc.txt, measurement_date: 2018-07-01,
-    description: sdfsdfas}
+    description: sdfsdfas, name: surface2}
 - model: account.emailaddress
   pk: 1
   fields: {user: 1, email: testuser@tf.uni-freiburg.de, verified: true, primary: true}

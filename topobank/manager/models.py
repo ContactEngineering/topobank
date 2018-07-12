@@ -8,6 +8,7 @@ def user_directory_path(instance, filename):
 
 class Topography(models.Model):
 
+    name = models.CharField(max_length=80)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     datafile = models.FileField(upload_to=user_directory_path)
     measurement_date = models.DateField()
@@ -16,5 +17,5 @@ class Topography(models.Model):
     verbose_name_plural = 'topographies'
 
     def __str__(self):
-        return "Topography measured on {0}, file {1}".format(\
-            self.measurement_date, self.datafile.name)
+        return "Topography '{0}' from {1}".format(\
+            self.name, self.measurement_date)

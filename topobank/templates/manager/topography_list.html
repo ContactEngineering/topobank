@@ -8,7 +8,7 @@
 
 <div class="card ">
   <h3 class="card-header">
-      Topographies
+      My Topographies
       <div class="pull-right">
         <a href="{% url 'manager:create' %}" class="btn btn-primary">New</a>
       </div>
@@ -20,21 +20,19 @@
 
         <thead>
           <tr>
-            <th scope="col">#</th>
+            <th scope="col">Name</th>
             <th scope="col">Measurement Date</th>
             <th scope="col">Name of Data File</th>
             <th scope="col">Description</th>
-            <th scope="col">User</th>
           </tr>
         </thead>
         <tbody>
           {%  for topo in topographies %}
           <tr class="clickable-table-row" data-href="{% url 'manager:detail' topo.id %}">
-            <th scope="row">{{ topo.id }}</th>
+            <th scope="row">{{ topo.name }}</th>
             <td>{{ topo.measurement_date }}</td>
             <td>{{ topo.datafile.name }}</td>
             <td>{{ topo.description }}</td>
-            <td>{{ topo.user.username }}</td>
           </tr>
           {%  endfor %}
 
