@@ -138,5 +138,6 @@ def test_edit_topography(client, two_topos, django_user_model):
     #
     response = client.get(reverse('manager:list'))
     assert bytes(new_description, 'utf-8') in response.content
+    assert bytes(new_name, 'utf-8') in response.content
 
 
