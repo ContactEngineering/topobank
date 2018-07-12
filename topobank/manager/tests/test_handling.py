@@ -141,3 +141,26 @@ def test_edit_topography(client, two_topos, django_user_model):
     assert bytes(new_name, 'utf-8') in response.content
 
 
+@pytest.mark.django_db
+def test_delete_topography(client, two_topos, django_user_model):
+
+    # topography 1 is still in database
+    assert Topography.objects.filter(pk=1).exists()
+
+    username = 'testuser'
+    password = 'abcd$1234'
+
+    assert client.login(username=username, password=password)
+
+    response = client.get(reverse('manager:delete', kwargs=dict(pk=1)))
+
+    # user should be asked if he/she is sure
+    assert b'Are you sure' in response.content
+
+    response = client.post(reverse('manager:delete', kwargs=dict(pk=1)))
+
+    assert reverse('manager:list') == response.url
+
+    # topography 1 is no more in database
+    assert not Topography.objects.filter(pk=1).exists()
+

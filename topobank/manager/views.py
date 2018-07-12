@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from django.views.generic import DetailView, ListView, UpdateView, CreateView, DeleteView
-from django.urls import reverse
+from django.urls import reverse, reverse_lazy
 
 from .models import Topography
 from .forms import TopographyForm
@@ -46,6 +46,8 @@ class TopographyDetailView(DetailView):
 
 class TopographyDeleteView(DeleteView):
     model = Topography
+    context_object_name = 'topography'
+    success_url = reverse_lazy('manager:list')
 
 
 
