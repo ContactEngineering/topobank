@@ -20,18 +20,20 @@
 
         <thead>
           <tr>
+            <th scope="col">Thumbnail</th>
             <th scope="col">Name</th>
             <th scope="col">Measurement Date</th>
-            <th scope="col">Name of Data File</th>
             <th scope="col">Description</th>
           </tr>
         </thead>
         <tbody>
           {%  for topo in topographies %}
           <tr class="clickable-table-row" data-href="{% url 'manager:detail' topo.id %}">
+            <td><img src="{{ topo.surface_thumbnail.url }}" alt="Thumbnail of surface image"
+                     width="{{ topo.surface_thumbnail.width }}"
+                     height="{{ topo.surface_thumbnail.height }}"></img></td>
             <th scope="row">{{ topo.name }}</th>
             <td>{{ topo.measurement_date }}</td>
-            <td>{{ topo.datafile.name }}</td>
             <td>{{ topo.description }}</td>
           </tr>
           {%  endfor %}

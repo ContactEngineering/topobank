@@ -22,7 +22,8 @@ urlpatterns = [
     ),
     url(
         regex=r'create/$',
-        view=login_required(views.TopographyCreateView.as_view()),
+        # view=login_required(views.TopographyCreateView.as_view()),
+        view=login_required(views.TopographyCreateWizard.as_view()),
         name='create'
     ),
     url(

@@ -30,3 +30,13 @@ django-fontawesome==1.0
 #git+https://github.com/pastewka/PyCo.git
 #pyco==0.17.0
 
+# image manipulation like thumbnails etc.
+django-imagekit==4.0.2
+# TODO check whether really needed, if we create plots with bokeh
+# TODO maybe there is another thunbnail library which is better suited
+
+# plotting
+bokeh==0.13.0
+
+# form wizard for defining a topography in several steps
+django-formtools==2.1

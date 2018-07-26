@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load fontawesome %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+
+<div class="card">
+  <h3 class="card-header">
+      {% if object %}
+        {% fontawesome_icon 'edit' %}
+        Edit topography <b>{{ topography.id }}</b>
+      {% else %}
+        Create new topography
+      {% endif %}
+      <div class="pull-right">
+        Step {{ wizard.steps.step1 }} of {{ wizard.steps.count }}
+      </div>
+  </h3>
+  <div class="card-body">
+
+      <form method="post" enctype="multipart/form-data">{% csrf_token %}
+          <table>
+          {{ wizard.management_form }}
+          </table>
+          {% if wizard.form.errors %}
+            {% for field in wizard.form %}
+              {% for error in field.errors %}
+                <div class="alert alert-danger">
+                  <strong>Field {{ field.name }}: {{ error|escape }}</strong>
+                </div>
+              {% endfor %}
+            {% endfor %}
+            {% for error in wizard.form.non_field_errors %}
+              <div class="alert alert-danger">
+                <strong>{{ error|escape }}</strong>
+              </div>
+            {% endfor %}
+          {% endif %}
+
+          {% crispy wizard.form wizard.form.helper %}
+
+      </form>
+
+  </div>
+</div>
+{% endblock content %}

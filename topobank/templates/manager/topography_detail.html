@@ -5,49 +5,75 @@
 {% block content %}
 
 
-<div class="card text-center">
+<div class="card text-center container-fluid">
   <div class="card-header">
-    <h2>Topography <b>{{ topography.name }}</b></h2>
-    <div class="pull-right">
 
-    <a href="{% url 'manager:delete' topography.id %}">
-        {% fontawesome_icon 'trash' %}
-    </a>
-    <span></span>
-    <a href="{% url 'manager:update' topography.id %}">
-        {% fontawesome_icon 'edit' %}
-    </a>
+    <h2>
+      <div class="pull-left">
+      <img src="{{ topography.surface_thumbnail.url }}" alt="Thumbnail of surface image"
+          width="{{ topography.surface_thumbnail.width }}"
+          height="{{ topography.surface_thumbnail.height }}">
+      </div>
+      <b>{{ topography.name }}</b>
+      <div class="pull-right">
 
-    </div>
-    <ul class="nav nav-tabs card-header-tabs">
-      <li class="nav-item">
-        <a class="nav-link active" href="#">Meta Data</a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link" href="#">Analysis</a>
-      </li>
-    </ul>
+      <a href="{% url 'manager:delete' topography.id %}">
+          {% fontawesome_icon 'trash' %}
+      </a>
+      <span></span>
+      <a href="{% url 'manager:update' topography.id %}">
+          {% fontawesome_icon 'edit' %}
+      </a>
+      </div>
+     </h2>
   </div>
   <div class="card-body">
-    <h5 class="card-title"></h5>
-    <p class="card-text">{{ topography.description }}</p>
 
-    <table class="table">
-      <thead>
-        <th scope="col">Key</th>
-        <th scope="col">Value</th>
-      </thead>
-      <tbody>
-        <tr>
-          <th scope="row">Measurement Date</th>
-          <td>{{ topography.measurement_date }}</td>
-        </tr>
-        <tr>
-          <th scope="row">Name of Data File</th>
-          <td>{{ topography.datafile.name }}</td>
-        </tr>
-      </tbody>
-    </table>
+    <ul class="nav nav-tabs">
+      <li class="nav-item">
+        <a class="nav-link active" data-toggle="tab" href="#meta" role="tab">Meta Data</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" data-toggle="tab" href="#image" role="tab">Image</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" data-toggle="tab" href="#analysis" role="tab">Analysis</a>
+      </li>
+    </ul>
+
+
+    <div class="tab-content">
+      <div class="tab-pane fade show active" id="meta" role="tabpanel" aria-labelledby="meta-tab">
+        <table class="table table-responsive text-left">
+          <tbody>
+            <tr>
+              <th scope="row">Measurement Date</th>
+              <td>{{ topography.measurement_date }}</td>
+            </tr>
+            <tr>
+              <th scope="row">Name of Data File</th>
+              <td>{{ topography.datafile.name }}</td>
+            </tr>
+            <tr>
+              <th scope="row">Data Source</th>
+              <td>{{ topography.data_source }}</td>
+            </tr>
+            <tr>
+              <th scope="row">Description</th>
+              <td>{{ topography.description }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="tab-pane fade" id="image" role="tabpanel" aria-labelledby="image-tab">
+        <img src="{{ topography.surface_image.url }}"
+             width="{{ topography.surface_image.width }}"
+             height="{{ topography.surface_image.height }}">
+      </div>
+      <div class="tab-pane" id="analysis" role="tabpanel" aria-labelledby="analysis-tab">
+      </div>
+    </div>
+
   </div>
 </div>
 

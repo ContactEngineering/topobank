@@ -70,6 +70,8 @@ THIRD_PARTY_APPS = [
     'allauth.socialaccount',
     'rest_framework',
     'fontawesome',
+    'imagekit',
+    'formtools',
 ]
 LOCAL_APPS = [
     'topobank.users.apps.UsersAppConfig',
