@@ -62,6 +62,19 @@
               <th scope="row">Description</th>
               <td>{{ topography.description }}</td>
             </tr>
+            <tr>
+              <th scope="row">Physical Size</th>
+              <td>{{ topography.size_x }} {{ topography.size_unit }} x {{ topography.size_y }} {{ topography.size_unit }}
+              </td>
+            </tr>
+            <tr>
+              <th scope="row">Height Conversion Factor</th>
+              <td>{{ topography.height_scale }} {{ topography.height_unit }}</td>
+            </tr>
+            <tr>
+              <th scope="row">Detrending Mode</th>
+              <td>{{ topography.get_detrend_mode_display }}</td>
+            </tr>
           </tbody>
         </table>
       </div>

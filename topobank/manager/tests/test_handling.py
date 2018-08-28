@@ -120,6 +120,9 @@ def test_topography_list(client, two_topos, django_user_model):
 
         # TODO real test for click should be done with selenium
 
+# TODO add test with predefined height conversion
+# TODO add test with predefined physical size
+
 
 @pytest.mark.django_db
 def test_edit_topography(client, two_topos, django_user_model):
@@ -144,6 +147,11 @@ def test_edit_topography(client, two_topos, django_user_model):
                             'measurement_date': new_measurement_date,
                             'description': new_description,
                             'user': user.id,
+                            'size_x': 500,
+                            'size_y': 1000,
+                            'size_unit': 'nm',
+                            'height_conv_scale': 0.1,
+                            'height_conv_unit': 'nm',
                            })
 
 

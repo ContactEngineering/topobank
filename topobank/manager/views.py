@@ -8,24 +8,59 @@ import os.path
 
 from .models import Topography
 from .forms import TopographyForm
-from .forms import TopographyFileUploadForm, TopographyMetaDataForm
-from .utils import TopographyFile
+from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyUnitsForm
+from .utils import TopographyFile, optimal_unit
 
 class TopographyCreateWizard(SessionWizardView):
-    form_list = [TopographyFileUploadForm, TopographyMetaDataForm]
+    form_list = [TopographyFileUploadForm, TopographyMetaDataForm, TopographyUnitsForm]
     template_name = 'manager/topography_wizard.html'
     file_storage = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT,'topographies/wizard'))
 
     def get_form_initial(self, step):
 
+        session = self.request.session
+
         initial = {'user': self.request.user}
 
-        if step == '1':
-            # provide datafile attribute from previous step
+        if step in ['1','2']:
+            # provide datafile attribute from first step
             step0_data = self.get_cleaned_data_for_step('0')
 
             datafile = step0_data['datafile']
             initial['datafile'] = datafile.file.name
+
+        if step == '2':
+            # provide datafile attribute from previous step
+            step1_data = self.get_cleaned_data_for_step('1')
+
+            data_source = step1_data['data_source']
+            name = step1_data['name']
+            measurement_date = step1_data['measurement_date']
+
+            # TODO shorten!
+
+            initial['data_source'] = data_source
+            initial['name'] = name
+            initial['measurement_date'] = measurement_date
+
+
+
+            initial_unit, conversion_factor = optimal_unit(
+                session['initial_size'],
+                session['initial_size_unit'])
+
+            initial_size_x, initial_size_y = session['initial_size']
+            initial_size_x *= conversion_factor
+            initial_size_y *= conversion_factor
+
+            initial['size_x'] = int(initial_size_x)
+            initial['size_y'] = int(initial_size_y)
+            initial['size_unit'] = initial_unit
+
+            initial['height_scale'] = session['initial_height_scale']
+            initial['height_unit'] = session['initial_size_unit'] # TODO choose directly from surface?
+
+            initial['detrend_mode'] = session['detrend_mode']
 
         return self.initial_dict.get(step, initial)
 
@@ -33,13 +68,31 @@ class TopographyCreateWizard(SessionWizardView):
 
         kwargs = super(TopographyCreateWizard, self).get_form_kwargs(step)
 
-        if step == '1':
+        if step in ['1', '2']:
             step0_data = self.get_cleaned_data_for_step('0')
 
             datafile_fname = step0_data['datafile'].file.name
+
+            #
+            # Set good default based on file contents
+            #
             topofile = TopographyFile(datafile_fname)
+
+        if step == '1':
             kwargs['data_source_choices'] = [(k, ds) for k, ds in
                                              enumerate(topofile.data_sources)]
+
+        elif step == '2':
+            step1_data = self.get_cleaned_data_for_step('1')
+
+            surface = topofile.surface(int(step1_data['data_source']))
+
+            session = self.request.session
+
+            session['initial_size'] = surface.size
+            session['initial_size_unit'] = surface.unit
+            session['initial_height_scale'] = surface.surf.coeff
+            session['detrend_mode'] = surface.detrend_mode
 
         return kwargs
 

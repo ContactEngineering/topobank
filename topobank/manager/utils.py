@@ -1,8 +1,14 @@
 
+import numpy as np
+
 from PyCo.Surface import FromFile
 from PyCo.Surface.SurfaceDescription import ScaledSurface, DetrendedSurface
 
 DEFAULT_DATASOURCE_NAME = 'Default'
+UNIT_TO_METERS = {'A': 1e-10, 'nm': 1e-9, 'µm': 1e-6, 'mm': 1e-3, 'm': 1.0,
+                  'unknown': 1.0}
+
+
 
 class TopographyFile:
     """Provide a simple generic interface to topography files independent of format."""
@@ -48,3 +54,26 @@ class TopographyFile:
         return self._surfaces[data_source]
 
 
+def optimal_unit(length, unit='m'): # TODO write unit tests
+    """
+    Return a unit and a scale factor that minimizes the display width of a
+    length.
+    """
+    if unit is None:
+        return 'unknown', 1
+    unit_fac = UNIT_TO_METERS[unit]
+    if unit_fac is None:
+        return unit, 1
+
+    # Convert length to meters
+    length = np.mean(length)*unit_fac
+
+    # Length is meters now
+    new_unit = 'm'
+    conversion_factor = unit_fac / UNIT_TO_METERS['m']
+    for name, meters in sorted(UNIT_TO_METERS.items(), key=lambda x: x[1]):
+        if meters is not None and length > 1.1*meters:
+            new_unit = name
+            conversion_factor = unit_fac/meters
+
+    return new_unit, conversion_factor

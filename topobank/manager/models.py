@@ -16,12 +16,37 @@ def user_directory_path(instance, filename):
 
 class Topography(models.Model):
 
+    LENGTH_UNIT_CHOICES = [
+        # (None, '(unknown)') # TODO should this be allowed?
+        ('km', 'kilometers'),
+        ('m','meters'),
+        ('mm', 'millimeters'),
+        ('µm', 'micrometers'),
+        ('nm', 'nanometers'),
+        ('Å', 'angstrom'),
+    ]
+
+    DETREND_MODE_CHOICES = [
+        ('center', 'No detrending'),
+        ('height', 'Remove tilt'),
+        ('curvature', 'Remove curvature'),
+    ]
+
     name = models.CharField(max_length=80)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     datafile = models.FileField(upload_to=user_directory_path)
     data_source = models.IntegerField()
     measurement_date = models.DateField()
     description = models.TextField(blank=True)
+
+    size_x = models.IntegerField()
+    size_y = models.IntegerField()
+    size_unit = models.TextField(choices=LENGTH_UNIT_CHOICES) # TODO allow null?
+
+    height_scale = models.FloatField(default=1)
+    height_unit = models.TextField(choices=LENGTH_UNIT_CHOICES) # TODO allow null?
+
+    detrend_mode = models.TextField(choices=DETREND_MODE_CHOICES, default='center')
 
     surface_image = models.ImageField(default='topographies/not_available.png')
     surface_thumbnail = ImageSpecField(source='surface_image',
