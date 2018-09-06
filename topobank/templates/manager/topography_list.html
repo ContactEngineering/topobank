@@ -2,17 +2,13 @@
 {% extends 'base.html' %}
 {% load fontawesome %}
 
+{% block content-title %}
+  Uploaded Topographies
+{% endblock content-title %}
+
 {% block content %}
 
-
-
 <div class="card ">
-  <h3 class="card-header">
-      My Topographies
-      <div class="pull-right">
-        <a href="{% url 'manager:create' %}" class="btn btn-primary">New</a>
-      </div>
-  </h3>
 
   <div class="card-body">
     <div class="table-responsive">
@@ -22,17 +18,19 @@
           <tr>
             <th scope="col">Thumbnail</th>
             <th scope="col">Name</th>
+            <th scope="col">Surface</th>
             <th scope="col">Measurement Date</th>
             <th scope="col">Description</th>
           </tr>
         </thead>
         <tbody>
           {%  for topo in topographies %}
-          <tr class="clickable-table-row" data-href="{% url 'manager:detail' topo.id %}">
+          <tr class="clickable-table-row" data-href="{% url 'manager:topography-detail' topo.id %}">
             <td><img src="{{ topo.surface_thumbnail.url }}" alt="Thumbnail of surface image"
                      width="{{ topo.surface_thumbnail.width }}"
-                     height="{{ topo.surface_thumbnail.height }}"></img></td>
+                     height="{{ topo.surface_thumbnail.height }}"></td>
             <th scope="row">{{ topo.name }}</th>
+            <td><a href="{% url 'manager:surface-detail' topo.surface.id %}">{{ topo.surface.name }}</a></td>
             <td>{{ topo.measurement_date }}</td>
             <td>{{ topo.description }}</td>
           </tr>

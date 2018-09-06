@@ -1,5 +1,5 @@
-from django.db import models
-from django.db.models.signals import pre_save
+from django.db import models, transaction
+from django.db.models.signals import pre_save, post_save
 from django.dispatch import receiver
 from imagekit.models import ImageSpecField
 from imagekit.processors import ResizeToFill
@@ -10,11 +10,33 @@ import io
 from .utils import TopographyFile
 from topobank.users.models import User
 
+from topobank.taskapp.tasks import height_distribution, perform_analysis
+
 def user_directory_path(instance, filename):
     # file will be uploaded to MEDIA_ROOT/user_<id>/<filename>
     return 'topographies/user_{0}/{1}'.format(instance.user.id, filename)
 
+class Surface(models.Model):
+    """Physical Surface.
+
+    There can be many topographies (measurements) for one surface.
+    """
+    name = models.CharField(max_length=80)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    # TODO add more meta data
+
+    def thumbnail(self):
+        # TODO what if there is not topography yet?
+
+        if self.topography_set.count() > 0:
+            return self.topography_set.first().surface_thumbnail
+        else:
+            return None
+
+
 class Topography(models.Model):
+    """Topography Measurement of a Surface.
+    """
 
     LENGTH_UNIT_CHOICES = [
         # (None, '(unknown)') # TODO should this be allowed?
@@ -32,8 +54,10 @@ class Topography(models.Model):
         ('curvature', 'Remove curvature'),
     ]
 
+    surface = models.ForeignKey('Surface', on_delete=models.CASCADE)
+
     name = models.CharField(max_length=80)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+
     datafile = models.FileField(upload_to=user_directory_path)
     data_source = models.IntegerField()
     measurement_date = models.DateField()
@@ -44,7 +68,7 @@ class Topography(models.Model):
     size_unit = models.TextField(choices=LENGTH_UNIT_CHOICES) # TODO allow null?
 
     height_scale = models.FloatField(default=1)
-    height_unit = models.TextField(choices=LENGTH_UNIT_CHOICES) # TODO allow null?
+    height_unit = models.TextField(choices=LENGTH_UNIT_CHOICES) # TODO remove
 
     detrend_mode = models.TextField(choices=DETREND_MODE_CHOICES, default='center')
 
@@ -65,13 +89,9 @@ class Topography(models.Model):
 
         :return: None
         """
-        topofile = TopographyFile(self.datafile.path) # TODO use datafile.open here
+        surface = self.topography()
 
-        surface = topofile.surface(int(self.data_source))
-        # int() is a fix for SQLite which cannot return real int??
         arr = surface.profile()
-
-        nx, ny = arr.shape
 
         fig = plt.figure()
         ax = fig.add_subplot(1,1,1)
@@ -81,10 +101,33 @@ class Topography(models.Model):
         buffer = io.BytesIO()
         fig.savefig(buffer, format='png')
         self.surface_image.save('images/surface-{}.png'.format(self.pk), buffer, save=False)
-
         # save=False in order to avoid recursion
+        # TODO later also create image in a task
+
+    def topography(self):
+        """Return PyCo Topography instance"""
+        topofile = TopographyFile(self.datafile.path)  # TODO use datafile.open here
+
+        surface = topofile.topography(int(self.data_source))
+        # TODO int() is a fix for SQLite which cannot return real int?? remove for PG
+
+        surface.unit = self.size_unit
+        surface.surf.coeff = self.height_scale
+        surface.size = self.size_x, self.size_y
+
+        surface.detrend_mode = self.detrend_mode
+
+        return surface
+
+
 
 @receiver(pre_save, sender=Topography)
 def update_surface_image(sender, instance, **kwargs):
     instance.update_surface_image()
+
+@receiver(post_save, sender=Topography)
+def compute_surface_properties(sender, instance, **kwargs):
+    surface = instance.topography()
+    transaction.on_commit(lambda: perform_analysis.delay(instance.id, height_distribution, surface))
+
 

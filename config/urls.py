@@ -8,6 +8,11 @@ from django.views import defaults as default_views
 urlpatterns = [
     path("", TemplateView.as_view(template_name="pages/home.html"), name="home"),
     path(
+        "dashboard/",
+        TemplateView.as_view(template_name="pages/dashboard.html"),
+        name="dashboard",
+    ),
+    path(
         "about/",
         TemplateView.as_view(template_name="pages/about.html"),
         name="about",
@@ -22,8 +27,12 @@ urlpatterns = [
     path("accounts/", include("allauth.urls")),
     # Your stuff: custom urls includes go here
     path(
-        "topography/",
+        "manager/",
         include("topobank.manager.urls", namespace="manager"),
+    ),
+    path(
+        "analysis/",
+        include("topobank.analysis.urls", namespace="analysis"),
     ),
 
 

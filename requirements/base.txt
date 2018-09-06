@@ -22,6 +22,9 @@ coreapi==2.3.3  # https://github.com/core-api/python-client
 # Icons
 django-fontawesome==1.0
 
+# Celery
+django-celery-results==1.0.1
+
 #
 # Contact Mechanics
 #

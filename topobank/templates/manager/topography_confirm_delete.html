@@ -14,7 +14,7 @@
    <form method="post">
      {%  csrf_token %}
      <button class="btn btn-danger" type="submit">Yes, delete</button>
-     <a href="{% url 'manager:detail' topography.id %}" class="btn btn-default" type="button">Cancel</a>
+     <a href="{% url 'manager:topography-detail' topography.id %}" class="btn btn-default" type="button">Cancel</a>
    </form>
  </div>
 </div>

@@ -1,0 +1,46 @@
+
+{% extends 'base.html' %}
+{% load fontawesome %}
+
+{% block content-title %}
+  My Surfaces
+  <div class="pull-right">
+        <a href="{% url 'manager:surface-create' %}" class="btn btn-primary">New Surface</a>
+  </div>
+{% endblock content-title %}
+
+{% block content %}
+
+<div class="card ">
+
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-hover" >
+
+        <thead>
+          <tr>
+            <th scope="col">Thumbnail</th>
+            <th scope="col">Name</th>
+          </tr>
+        </thead>
+        <tbody>
+          {%  for surface in surfaces %}
+          {%  with surface.thumbnail as thumbnail %}
+          <tr class="clickable-table-row" data-href="{% url 'manager:surface-detail' surface.id %}">
+            <td><img src="{{ thumbnail.url }}" alt="Placeholder for thumbnail"
+                     width="{{ thumbnail.width }}"
+                     height="{{ thumbnail.height }}"></td>
+            <th scope="row">{{ surface.name }}</th>
+          </tr>
+          {% endwith %}
+          {% endfor %}
+
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% endblock content %}
+
+

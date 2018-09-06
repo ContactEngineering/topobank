@@ -2,9 +2,10 @@
 {% extends 'base.html' %}
 {% load fontawesome %}
 
+{% block content-title %}Details for Topography <i>{{ topography.name }}</i>
+{% endblock content-title %}
+
 {% block content %}
-
-
 <div class="card text-center container-fluid">
   <div class="card-header">
 
@@ -17,11 +18,11 @@
       <b>{{ topography.name }}</b>
       <div class="pull-right">
 
-      <a href="{% url 'manager:delete' topography.id %}">
+      <a href="{% url 'manager:topography-delete' topography.id %}">
           {% fontawesome_icon 'trash' %}
       </a>
       <span></span>
-      <a href="{% url 'manager:update' topography.id %}">
+      <a href="{% url 'manager:topography-update' topography.id %}">
           {% fontawesome_icon 'edit' %}
       </a>
       </div>
@@ -36,9 +37,6 @@
       <li class="nav-item">
         <a class="nav-link" data-toggle="tab" href="#image" role="tab">Image</a>
       </li>
-      <li class="nav-item">
-        <a class="nav-link" data-toggle="tab" href="#analysis" role="tab">Analysis</a>
-      </li>
     </ul>
 
 
@@ -46,6 +44,10 @@
       <div class="tab-pane fade show active" id="meta" role="tabpanel" aria-labelledby="meta-tab">
         <table class="table table-responsive text-left">
           <tbody>
+            <tr>
+              <th scope="row">Surface</th>
+              <td><a href="{% url 'manager:surface-detail' topography.surface.id %}">{{ topography.surface.name }}</a></td>
+            </tr>
             <tr>
               <th scope="row">Measurement Date</th>
               <td>{{ topography.measurement_date }}</td>
@@ -83,8 +85,7 @@
              width="{{ topography.surface_image.width }}"
              height="{{ topography.surface_image.height }}">
       </div>
-      <div class="tab-pane" id="analysis" role="tabpanel" aria-labelledby="analysis-tab">
-      </div>
+
     </div>
 
   </div>

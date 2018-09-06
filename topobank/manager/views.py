@@ -5,9 +5,10 @@ from django.core.files.storage import FileSystemStorage, DefaultStorage
 from django.conf import settings
 from formtools.wizard.views import SessionWizardView
 import os.path
+from django_celery_results.models import TaskResult
 
-from .models import Topography
-from .forms import TopographyForm
+from .models import Topography, Surface
+from .forms import TopographyForm, SurfaceForm
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyUnitsForm
 from .utils import TopographyFile, optimal_unit
 
@@ -20,7 +21,9 @@ class TopographyCreateWizard(SessionWizardView):
 
         session = self.request.session
 
-        initial = {'user': self.request.user}
+        surface_id = int(self.kwargs['surface_id'])
+
+        initial = {'surface': Surface.objects.get(id=surface_id)}
 
         if step in ['1','2']:
             # provide datafile attribute from first step
@@ -85,7 +88,7 @@ class TopographyCreateWizard(SessionWizardView):
         elif step == '2':
             step1_data = self.get_cleaned_data_for_step('1')
 
-            surface = topofile.surface(int(step1_data['data_source']))
+            surface = topofile.topography(int(step1_data['data_source']))
 
             session = self.request.session
 
@@ -103,6 +106,11 @@ class TopographyCreateWizard(SessionWizardView):
             if 'pk' in self.kwargs:
                 return Topography.objects.get(pk=self.kwargs['pk'])
         return None
+
+    def get_context_data(self, form, **kwargs):
+        context = super().get_context_data(form, **kwargs)
+        context['surface'] = Surface.objects.get(id=int(self.kwargs['surface_id']))
+        return context
 
     def done(self, form_list, **kwargs):
         """Finally use form data when finished the wizard
@@ -128,7 +136,7 @@ class TopographyCreateWizard(SessionWizardView):
         instance = Topography(**d)
         instance.save()
 
-        return redirect(reverse('manager:detail', kwargs=dict(pk=instance.pk)))
+        return redirect(reverse('manager:topography-detail', kwargs=dict(pk=instance.pk)))
 
 class TopographyCreateView(CreateView):
     model = Topography
@@ -140,8 +148,13 @@ class TopographyCreateView(CreateView):
         initial['user'] = self.request.user
         return initial
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['surface'] = Surface.objects.get(id=kwargs['surface_id'])
+        return context
+
     def get_success_url(self):
-        return reverse('manager:detail', kwargs=dict(pk=self.object.pk))
+        return reverse('manager:topography-detail', kwargs=dict(pk=self.object.pk))
 
 class TopographyUpdateView(UpdateView):
     model = Topography
@@ -154,7 +167,7 @@ class TopographyUpdateView(UpdateView):
         return initial
 
     def get_success_url(self):
-        return reverse('manager:detail', kwargs=dict(pk=self.object.pk))
+        return reverse('manager:topography-detail', kwargs=dict(pk=self.object.pk))
         # TODO check if it is the correct user or add user later (do not send in form)
 
 class TopographyListView(ListView):
@@ -162,7 +175,7 @@ class TopographyListView(ListView):
     context_object_name = 'topographies'
 
     def get_queryset(self):
-        topos = Topography.objects.filter(user=self.request.user)
+        topos = Topography.objects.filter(surface__user=self.request.user)
         return topos
 
 class TopographyDetailView(DetailView):
@@ -172,15 +185,55 @@ class TopographyDetailView(DetailView):
     def get_context_data(self, **kwargs):
         context = super(TopographyDetailView, self).get_context_data(**kwargs)
 
+        all_results = TaskResult.objects.all()
+        import pickle
+        task_results = []
+        for r in all_results:
+
+            # x = pickle.loads(bytes(r.result, encoding='utf-8'))
+
+            task_results.append({
+                'task_id': r.task_id,
+                'state': r.status,
+                'result': '?',
+            })
+
+        context['task_results'] = task_results # TODO filter only relevant tasks, just for debugging here
         return context
 
 class TopographyDeleteView(DeleteView):
     model = Topography
     context_object_name = 'topography'
-    success_url = reverse_lazy('manager:list')
+    success_url = reverse_lazy('manager:surface-list') # TODO return to surface detail of related surface
 
+class SurfaceListView(ListView):
+    model = Surface
+    context_object_name = 'surfaces'
 
+    def get_queryset(self):
+        surfaces = Surface.objects.filter(user=self.request.user)
+        return surfaces
 
+class SurfaceCreateView(CreateView):
+    model = Surface
+    form_class = SurfaceForm
+
+    def get_initial(self, *args, **kwargs):
+        initial = super(SurfaceCreateView, self).get_initial()
+        initial = initial.copy()
+        initial['user'] = self.request.user
+        return initial
+
+    def get_success_url(self):
+        return reverse('manager:surface-detail', kwargs=dict(pk=self.object.pk))
+
+class SurfaceDetailView(DetailView):
+    model = Surface
+    context_object_name = 'surface'
+
+    #def get_context_data(self, **kwargs):
+    #    context = super(SurfaceDetailView, self).get_context_data(**kwargs)
+    #   context['topographies'] = Topography.objects.filter(surface=self.object)
 
 
 

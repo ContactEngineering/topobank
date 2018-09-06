@@ -43,7 +43,7 @@ def test_upload_topography(client, django_user_model):
     #
     with open(str(input_file_path), mode='rb') as fp:
 
-        response = client.post(reverse('manager:create'),
+        response = client.post(reverse('manager:topography-create'),
                                data={
                                 'topography_create_wizard-current_step': '0',
                                 '0-datafile': fp,
@@ -63,7 +63,7 @@ def test_upload_topography(client, django_user_model):
     #
 
 
-    response = client.post(reverse('manager:create'),
+    response = client.post(reverse('manager:topography-create'),
                            data={
                             'topography_create_wizard-current_step': '1',
                             '1-name': 'surface1',
@@ -75,7 +75,7 @@ def test_upload_topography(client, django_user_model):
                            })
 
     assert response.status_code == 302
-    assert reverse('manager:detail', kwargs=dict(pk=1)) == response.url
+    assert reverse('manager:topography-detail', kwargs=dict(pk=1)) == response.url
 
 
 
@@ -92,7 +92,7 @@ def test_upload_topography(client, django_user_model):
     #
     # should also appear in the list of topographies
     #
-    response = client.get(reverse('manager:list'))
+    response = client.get(reverse('manager:topography-list'))
     assert bytes(description, 'utf-8') in response.content
 
 
@@ -107,7 +107,7 @@ def test_topography_list(client, two_topos, django_user_model):
     # all topographies for 'testuser' should be listed
     #
     topos = Topography.objects.filter(user__username=user.username)
-    response = client.get(reverse('manager:list'))
+    response = client.get(reverse('manager:topography-list'))
 
     content = str(response.content)
     for t in topos:
@@ -116,7 +116,7 @@ def test_topography_list(client, two_topos, django_user_model):
         assert t.name in content
 
         # click on a row should lead to details, so URL must be included
-        assert reverse('manager:detail', kwargs=dict(pk=t.pk)) in content
+        assert reverse('manager:topography-detail', kwargs=dict(pk=t.pk)) in content
 
         # TODO real test for click should be done with selenium
 
@@ -141,7 +141,7 @@ def test_edit_topography(client, two_topos, django_user_model):
 
     #with open(str(input_file_path)) as fp:
 
-    response = client.post(reverse('manager:update', kwargs=dict(pk=1)),
+    response = client.post(reverse('manager:topography-update', kwargs=dict(pk=1)),
                            data={
                             'name': new_name,
                             'measurement_date': new_measurement_date,
@@ -158,7 +158,7 @@ def test_edit_topography(client, two_topos, django_user_model):
     # assert 'form' not in response.context, "Still on form: {}".format(response.context['form'].errors)
 
     assert response.status_code == 302
-    assert reverse('manager:detail', kwargs=dict(pk=1)) == response.url
+    assert reverse('manager:topography-detail', kwargs=dict(pk=1)) == response.url
 
     # export_reponse_as_html(response) # TODO remove, only for debugging
 
@@ -175,7 +175,7 @@ def test_edit_topography(client, two_topos, django_user_model):
     #
     # should also appear in the list of topographies
     #
-    response = client.get(reverse('manager:list'))
+    response = client.get(reverse('manager:topography-list'))
     assert bytes(new_description, 'utf-8') in response.content
     assert bytes(new_name, 'utf-8') in response.content
 
@@ -191,14 +191,14 @@ def test_delete_topography(client, two_topos, django_user_model):
 
     assert client.login(username=username, password=password)
 
-    response = client.get(reverse('manager:delete', kwargs=dict(pk=1)))
+    response = client.get(reverse('manager:topography-delete', kwargs=dict(pk=1)))
 
     # user should be asked if he/she is sure
     assert b'Are you sure' in response.content
 
-    response = client.post(reverse('manager:delete', kwargs=dict(pk=1)))
+    response = client.post(reverse('manager:topography-delete', kwargs=dict(pk=1)))
 
-    assert reverse('manager:list') == response.url
+    assert reverse('manager:topography-list') == response.url
 
     # topography 1 is no more in database
     assert not Topography.objects.filter(pk=1).exists()

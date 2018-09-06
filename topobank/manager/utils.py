@@ -2,7 +2,7 @@
 import numpy as np
 
 from PyCo.Surface import FromFile
-from PyCo.Surface.SurfaceDescription import ScaledSurface, DetrendedSurface
+from PyCo.Surface.SurfaceDescription import ScaledSurface, DetrendedSurface # TODO adjust to new PyCo naming
 
 DEFAULT_DATASOURCE_NAME = 'Default'
 UNIT_TO_METERS = {'A': 1e-10, 'nm': 1e-9, 'µm': 1e-6, 'mm': 1e-3, 'm': 1.0,
@@ -44,14 +44,14 @@ class TopographyFile:
         return [ s.info['data_source'] if 'data_source' in s.info else DEFAULT_DATASOURCE_NAME
                  for s in self._surfaces ]
 
-    def surface(self, data_source):
-        """Get ScaledSurface instance based on data_source.
+    def topography(self, data_source):
+        """Get ScaledTopography instance based on data_source.
 
         :param data_source: integer
         :return: PyCo.Surface.SurfaceDescription.ScaledSurface
         """
 
-        return self._surfaces[data_source]
+        return self._surfaces[data_source] # TODO adjust to new PyCo naming
 
 
 def optimal_unit(length, unit='m'): # TODO write unit tests
@@ -77,3 +77,12 @@ def optimal_unit(length, unit='m'): # TODO write unit tests
             conversion_factor = unit_fac/meters
 
     return new_unit, conversion_factor
+
+def mangle_unit(unit): # TODO needed?
+    """
+    Matplotlib does not support 'MICRO SIGN' unicode character - convert to
+    'GREEK SMALL LETTER MU'.
+    """
+    if unit == 'µm':
+        return 'μm'
+    return unit

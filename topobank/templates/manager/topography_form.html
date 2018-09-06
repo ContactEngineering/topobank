@@ -11,9 +11,9 @@
   <h3 class="card-header">
       {% if object %}
         {% fontawesome_icon 'edit' %}
-        Edit topography <b>{{ topography.id }}</b>
+        Edit topography <b>{{ topography.name }}</b> of surface <i>{{ topography.surface.name }}</i>
       {% else %}
-        Create new topography
+        Create new topography for surface <i>{{ surface.name }}</i>
       {% endif %}
   </h3>
   <div class="card-body">

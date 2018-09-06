@@ -39,8 +39,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/dev/ref/settings/#databases
 
 DATABASES = {
-    # 'default': env.db('DATABASE_URL', default='postgres:///topobank'),
-    'default': env.db('DATABASE_URL', default='sqlite:///topobank.db'),
+    'default': env.db('DATABASE_URL', default='postgres:///topobank'),
+    # 'default': env.db('DATABASE_URL', default='sqlite:///topobank.db'),
 }
 DATABASES['default']['ATOMIC_REQUESTS'] = True
 
@@ -72,11 +72,13 @@ THIRD_PARTY_APPS = [
     'fontawesome',
     'imagekit',
     'formtools',
+    'django_celery_results',
 ]
 LOCAL_APPS = [
     'topobank.users.apps.UsersAppConfig',
     # Your stuff: custom apps go here
-    'topobank.manager.apps.ManagerAppConfig'
+    'topobank.manager.apps.ManagerAppConfig',
+    'topobank.analysis.apps.AnalysisAppConfig',
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -231,16 +233,18 @@ INSTALLED_APPS += ['topobank.taskapp.celery.CeleryAppConfig']
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-broker_url
 CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='django://')
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-result_backend
-if CELERY_BROKER_URL == 'django://':
-    CELERY_RESULT_BACKEND = 'redis://'
-else:
-    CELERY_RESULT_BACKEND = CELERY_BROKER_URL
+#if CELERY_BROKER_URL == 'django://':
+#    CELERY_RESULT_BACKEND = 'redis://'
+#else:
+#    CELERY_RESULT_BACKEND = CELERY_BROKER_URL
+CELERY_RESULT_BACKEND = 'django-db' # TODO really needed? better RabbitMQ when extrra saving in analysis model
+
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-accept_content
-CELERY_ACCEPT_CONTENT = ['json']
+CELERY_ACCEPT_CONTENT = ['json', 'pickle'] # TODO remove JSON?
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-task_serializer
-CELERY_TASK_SERIALIZER = 'json'
+CELERY_TASK_SERIALIZER = 'pickle'
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-result_serializer
-CELERY_RESULT_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'pickle' # because of arrays
 # django-allauth
 # ------------------------------------------------------------------------------
 ACCOUNT_ALLOW_REGISTRATION = env.bool('DJANGO_ACCOUNT_ALLOW_REGISTRATION', True)

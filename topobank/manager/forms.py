@@ -8,7 +8,7 @@ from crispy_forms.layout import Submit, Layout, Field, Button, HTML, Div, Hidden
 from crispy_forms.bootstrap import (InlineCheckboxes, TabHolder, Tab,
     PrependedText, PrependedAppendedText, FormActions, InlineRadios)
 
-from .models import Topography
+from .models import Topography, Surface
 
 _log = logging.getLogger('manager')
 
@@ -36,7 +36,7 @@ class TopographyFileUploadForm(forms.ModelForm):
         FormActions(
             Submit('save', 'Next'),
             HTML("""
-                <a href="{% url 'manager:list' %}"><button class="btn btn-default" id="cancel-btn">Cancel</button></a>
+                <a href="{% url 'manager:surface-list' %}"><button class="btn btn-default" id="cancel-btn">Cancel</button></a>
             """),
         ),
     )
@@ -46,7 +46,7 @@ class TopographyMetaDataForm(forms.ModelForm):
     class Meta:
         model = Topography
         fields = ('name', 'description', 'measurement_date',
-                  'data_source', 'datafile', 'user',
+                  'data_source', 'datafile', 'surface',
                   )
 
     def __init__(self, *args, **kwargs):
@@ -66,8 +66,8 @@ class TopographyMetaDataForm(forms.ModelForm):
 
     helper.layout = Layout(
         Div(
+            Field('surface', type="hidden"),
             Field('datafile', type="hidden"),
-            Field('user', type="hidden"),
             Field('data_source'),
             Field('name'),
             Field('measurement_date'),
@@ -81,8 +81,8 @@ class TopographyMetaDataForm(forms.ModelForm):
             #    """), # Add this if user should be able to go back - but currently form is also validated before
             Submit('save', 'Next'),
             HTML("""
-                    <a href="{% url 'manager:list' %}"><button class="btn btn-default" id="cancel-btn">Cancel</button></a>
-            """),
+                    <a href="{% url 'manager:surface-list' %}"><button class="btn btn-default" id="cancel-btn">Cancel</button></a>
+            """), # TODO check back link
         ),
     )
 
@@ -93,7 +93,7 @@ class TopographyUnitsForm(forms.ModelForm):
 
     class Meta:
         model = Topography
-        fields = ( 'datafile', 'user',
+        fields = ( 'datafile', 'surface',
                    'name', 'description', 'measurement_date',
                    'data_source',
                    'size_x', 'size_y', 'size_unit',
@@ -112,8 +112,8 @@ class TopographyUnitsForm(forms.ModelForm):
 
     helper.layout = Layout(
         Div(
+            Field('surface', type="hidden"),
             Field('datafile', type="hidden"),
-            Field('user', type="hidden"),
             Field('measurement_date', type="hidden"),
             Field('data_source', type="hidden"),
             Field('name', type="hidden"),
@@ -129,7 +129,7 @@ class TopographyUnitsForm(forms.ModelForm):
             #    """), # Add this if user should be able to go back - but currently form is also validated before
             Submit('save', 'Save new topography'),
             HTML("""
-                    <a href="{% url 'manager:list' %}"><button class="btn btn-default" id="cancel-btn">Cancel</button></a>
+                    <a href="{% url 'manager:surface-list' %}"><button class="btn btn-default" id="cancel-btn">Cancel</button></a>
             """),
         ),
     )
@@ -142,19 +142,20 @@ class TopographyForm(forms.ModelForm):
     """Form for creating or updating topographies-
     """
 
-    def __init__(self, *args, **kwargs):
-        #data_source_choices = kwargs.pop('data_source_choices')
-        super(TopographyForm, self).__init__(*args, **kwargs)
-        self.fields['user'].label = False
-        #self.fields['data_source'] = forms.ChoiceField(choices=data_source_choices)
-
     class Meta:
         model = Topography
         fields = ('name', 'description', 'measurement_date',
                   'datafile', 'data_source',
                   'size_x', 'size_y', 'size_unit',
                   'height_scale', 'height_unit', 'detrend_mode',
-                  'user')
+                  'surface')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        for fn in ['surface', 'data_source']:
+            self.fields[fn].label = False
+
 
     helper = FormHelper()
     helper.form_method = 'POST'
@@ -167,20 +168,44 @@ class TopographyForm(forms.ModelForm):
     helper.layout = Layout(
         Div(
             #Field('datafile', readonly=True, hidden=True),
-            Field('data_source', hidden=True),
+            Field('surface', readonly=True, hidden=True),
+            Field('data_source', readonly=True, hidden=True),
             Field('name'),
             Field('measurement_date'),
             Field('description'),
             Fieldset('Physical Size', 'size_x', 'size_y', 'size_unit'),
             Fieldset('Height Conversion', 'height_scale', 'height_unit'),
             Field('detrend_mode'),
-            Field('user', type="hidden"), # TODO check whether data could be manipulated in client
         ),
         FormActions(
                 Submit('save', 'Save'),
                 HTML("""
-                    <a href="{% url 'manager:list' %}" class="btn btn-default" id="cancel-btn">Cancel</a>
-                """),
+                    <a href="{% url 'manager:topography-detail' object.id %}" class="btn btn-default" id="cancel-btn">Cancel</a>
+                """),# TODO check back point
             ),
     )
 
+class SurfaceForm(forms.ModelForm):
+    """Form for creating or updating surfaces.
+    """
+
+    class Meta:
+        model = Surface
+        fields = ('name', 'user')
+
+    helper = FormHelper()
+    helper.form_method = 'POST'
+    helper.form_show_errors = False  # crispy forms has nicer template code for errors
+
+    helper.layout = Layout(
+        Div(
+            Field('name'),
+            Field('user', type="hidden"),
+        ),
+        FormActions(
+                Submit('save', 'Save'),
+                HTML("""
+                    <a href="{% url 'manager:surface-list' %}" class="btn btn-default" id="cancel-btn">Cancel</a>
+                """),# TODO check back point for cancel
+            ),
+    )
