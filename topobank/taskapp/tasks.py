@@ -1,51 +1,68 @@
-import numpy as np
 import pickle
+import traceback
 
 from .celery import app
 from topobank.analysis.models import Analysis
+from topobank.manager.models import Topography
+import topobank.analysis.functions # so functions can be found by eval
 
-def height_distribution(surface, bins=None):
+def submit_analysis(analysis_func, topography, *other_args, **kwargs):
+    """Create an analysis entry and submit a task to the task queue.
 
-    if bins is None:
-        bins = int(np.sqrt(np.prod(surface.shape))+1.0)
-
-    profile = surface.profile()
-
-    mean_height = np.mean(profile)
-    rms_height = surface.compute_rms_height()
-
-    hist, bin_edges = np.histogram(np.ma.compressed(profile), bins=bins, normed=True)
-
-    return {
-        'mean_height': mean_height,
-        'rms_height': rms_height,
-        'hist': hist,
-        'bin_edges': bin_edges,
-    }
-
-@app.task(bind=True, ignore_result=True)
-def perform_analysis(self, topography_id, analysis_func, *args, **kwargs):
+    :param topography: Topography instance which will be used to extract first argument to analysis function
+    :param analysis_func: AnalysisFunc instance
+    :param other_args: other positional arguments for analysis_func
+    :param kwargs: keyword arguments for analysis func
+    """
     #
     # create entry in Analysis table
     #
     analysis = Analysis.objects.create(
-                                    topography_id=topography_id,
-                                    task_id=self.request.id,
-                                    args=pickle.dumps(args),
-                                    kwargs=pickle.dumps(kwargs))
+        topography=topography,
+        function=analysis_func,
+        task_state=Analysis.PENDING,
+        args=pickle.dumps(other_args),
+        kwargs=pickle.dumps(kwargs))
 
     #
-    # perform analysis
+    # Send task to the queue
     #
+    perform_analysis.delay(analysis.id)
+
+@app.task(bind=True, ignore_result=True)
+def perform_analysis(self, analysis_id):
+    """Perform an analysis which is already present in the database.
+
+    :param self: Celery task on execution (because of bind=True)
+    :param analysis_id: ID of Analysis entry in database
+    """
+    #
+    # update entry in Analysis table
+    #
+    analysis = Analysis.objects.get(id=analysis_id)
+    analysis.task_state = Analysis.STARTED
+    analysis.task_id = self.request.id
+    analysis.save()
+
+    #
+    # actually perform analysis
+    #
+
     try:
-        result = analysis_func(*args, **kwargs)
-        analysis.successful = True
+        other_args = pickle.loads(analysis.args)
+        kwargs = pickle.loads(analysis.kwargs)
+        compute_func = eval('topobank.analysis.functions.'+analysis.function.pyfunc)
+        topography = Topography.objects.get(id=analysis.topography_id).topography()
+        result = compute_func(topography, *other_args, **kwargs)
+        analysis.task_state = Analysis.SUCCESS
     except Exception as exc:
-        analysis.failed = True
+        analysis.task_state = Analysis.FAILURE
+        # TODO add logging
+        result = traceback.format_exc()
 
     #
     # update entry with result
     #
-    analysis.result = pickle.dumps(result)
-
+    analysis.result = pickle.dumps(result) # can also be an exception in case of errors!
     analysis.save()
+

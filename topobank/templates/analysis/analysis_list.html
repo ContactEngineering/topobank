@@ -19,8 +19,7 @@
             <th scope="col">Topography</th>
             <th scope="col">Analysis</th>
             <th scope="col">Result</th>
-            <th scope="col">Success?</th>
-            <th scope="col">Failure?</th>
+            <th scope="col">Task State</th>
             <th scope="col">Task ID</th>
           </tr>
         </thead>
@@ -28,10 +27,9 @@
           {%  for analysis in analyses %}
           <tr>
             <td><a href="{% url 'manager:topography-detail' analysis.topography.id %}">{{ analysis.topography.name }}</a></td>
-            <td>Height Distribution</td>
-            <td>{{ analysis.result_unpickled }}</td>
-            <td>{{ analysis.successful }}</td>
-            <td>{{ analysis.failed }}</td> <!-- TODO show traceback? -->
+            <td>{{ analysis.func_name }}</td>
+            <td>{{ analysis.result }}</td>
+            <td>{{ analysis.task_state }}</td>
             <td>{{ analysis.task_id }}</td>
           </tr>
           {%  endfor %}

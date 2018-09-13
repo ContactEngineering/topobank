@@ -5,7 +5,6 @@ from django.core.files.storage import FileSystemStorage, DefaultStorage
 from django.conf import settings
 from formtools.wizard.views import SessionWizardView
 import os.path
-from django_celery_results.models import TaskResult
 
 from .models import Topography, Surface
 from .forms import TopographyForm, SurfaceForm
@@ -181,25 +180,6 @@ class TopographyListView(ListView):
 class TopographyDetailView(DetailView):
     model = Topography
     context_object_name = 'topography'
-
-    def get_context_data(self, **kwargs):
-        context = super(TopographyDetailView, self).get_context_data(**kwargs)
-
-        all_results = TaskResult.objects.all()
-        import pickle
-        task_results = []
-        for r in all_results:
-
-            # x = pickle.loads(bytes(r.result, encoding='utf-8'))
-
-            task_results.append({
-                'task_id': r.task_id,
-                'state': r.status,
-                'result': '?',
-            })
-
-        context['task_results'] = task_results # TODO filter only relevant tasks, just for debugging here
-        return context
 
 class TopographyDeleteView(DeleteView):
     model = Topography
