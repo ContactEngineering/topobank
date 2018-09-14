@@ -38,20 +38,15 @@ function render_scatter_plot(element, json_data) {
     var xAxisLabel = new Plottable.Components.AxisLabel("Height").yAlignment("center");
     var yAxisLabel = new Plottable.Components.AxisLabel("Probability").xAlignment("center").angle(-90);
 
-    var plot = new Plottable.Plots.Line();
-    plot.x(function (d) {
-        return d.x;
-    }, xScale);
-    plot.y(function (d) {
-        return d.y;
-    }, yScale);
+    var plot = new Plottable.Plots.Line()
+        .x(function (d) { return d.x; }, xScale)
+        .y(function (d) { return d.y; }, yScale);
 
     var data = json_data.result.hist.map(function (value, index) {
         return {x: (this[index] + this[index + 1]) / 2, y: value};
     }, json_data.result.bin_edges);
 
     var dataset = new Plottable.Dataset(data);
-    console.log(dataset);
     plot.addDataset(dataset);
 
     var chart = new Plottable.Components.Table([
