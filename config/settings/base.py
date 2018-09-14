@@ -39,8 +39,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/dev/ref/settings/#databases
 
 DATABASES = {
-    'default': env.db('DATABASE_URL', default='postgres:///topobank'),
-    # 'default': env.db('DATABASE_URL', default='sqlite:///topobank.db'),
+    # 'default': env.db('DATABASE_URL', default='postgres:///topobank'),
+    'default': env.db('DATABASE_URL', default='sqlite:///topobank.db'),
 }
 DATABASES['default']['ATOMIC_REQUESTS'] = True
 
@@ -230,7 +230,8 @@ MANAGERS = ADMINS
 # ------------------------------------------------------------------------------
 INSTALLED_APPS += ['topobank.taskapp.celery.CeleryAppConfig']
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-broker_url
-CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='django://')
+#CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='django://')
+CELERY_BROKER_URL = 'amqp://guest:guest@localhost:5672//'
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-result_backend
 if CELERY_BROKER_URL == 'django://':
     CELERY_RESULT_BACKEND = 'redis://'
