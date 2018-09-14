@@ -36,11 +36,28 @@ function update_scatter_plot(div) {
         if (error)
             return console.warn(error);
 
+        console.log(json.result);
+
         if (json.task_state == 'pe' || json.task_state == 'st') {
             setTimeout(function() { update_scatter_plot(div); }, 1000);
         }
         else {
-            console.log(json);
+            var data = json.result.hist.map(function(value, index) {
+               return {x: (this[index]+this[index+1])/2, y: value};
+            }, json.result.bin_edges);
+            var scatter_plot = new Rickshaw.Graph({
+                element: div,
+                width: 500,
+                height: 250,
+                renderer: 'lineplot',
+                series: [
+                    {
+                        name: "Series 1",
+                        color: "steelblue",
+                        data: data
+                    }]
+            });
+            scatter_plot.render();
         }
     });
 }
