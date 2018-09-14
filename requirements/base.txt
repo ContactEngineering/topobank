@@ -24,6 +24,7 @@ django-fontawesome==1.0
 
 # Celery
 django-celery-results==1.0.1
+django-kombu>=0.9.4
 
 #
 # Contact Mechanics
