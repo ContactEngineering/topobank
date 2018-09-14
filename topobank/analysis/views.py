@@ -1,8 +1,9 @@
-from django.shortcuts import render
 from django.views.generic import ListView
-import pickle
+from django.views.generic.detail import SingleObjectMixin
+from rest_framework.generics import RetrieveAPIView
 
 from .models import Analysis
+from .serializers import AnalysisSerializer
 
 class AnalysisListView(ListView):
     model = Analysis
@@ -12,3 +13,8 @@ class AnalysisListView(ListView):
         analyses = Analysis.objects.filter(topography__surface__user=self.request.user)
         # TODO add column with unpickled data
         return analyses
+
+
+class AnalysisDetailView(RetrieveAPIView):
+    queryset = Analysis.objects.all()
+    serializer_class = AnalysisSerializer

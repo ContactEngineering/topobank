@@ -27,3 +27,19 @@ $(document).ready(function($) {
     });
 });
 
+/*
+ * Updated scatter plot for a certain task. Continually poll task results if data not yet available.
+ */
+function update_scatter_plot(div) {
+    console.log(div.dataset.src);
+    d3.json(div.dataset.src, function(error, json) {
+        if (error)
+            return console.warn(error);
+
+        console.log(json);
+    });
+}
+
+d3.selectAll('.topobank-scatter-plot').each(function() {
+    update_scatter_plot(this);
+});
