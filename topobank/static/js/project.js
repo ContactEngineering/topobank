@@ -36,7 +36,12 @@ function update_scatter_plot(div) {
         if (error)
             return console.warn(error);
 
-        console.log(json);
+        if (json.task_state == 'pe' || json.task_state == 'st') {
+            setTimeout(function() { update_scatter_plot(div); }, 1000);
+        }
+        else {
+            console.log(json);
+        }
     });
 }
 
