@@ -27,41 +27,61 @@ $(document).ready(function($) {
     });
 });
 
+
+function render_scatter_plot(element, json_data) {
+    var xScale = new Plottable.Scales.Linear();
+    var yScale = new Plottable.Scales.Linear();
+
+    var xAxis = new Plottable.Axes.Numeric(xScale, "bottom");
+    var yAxis = new Plottable.Axes.Numeric(yScale, "left");
+
+    var xAxisLabel = new Plottable.Components.AxisLabel("Height").yAlignment("center");
+    var yAxisLabel = new Plottable.Components.AxisLabel("Probability").xAlignment("center").angle(-90);
+
+    var plot = new Plottable.Plots.Line();
+    plot.x(function (d) {
+        return d.x;
+    }, xScale);
+    plot.y(function (d) {
+        return d.y;
+    }, yScale);
+
+    var data = json_data.result.hist.map(function (value, index) {
+        return {x: (this[index] + this[index + 1]) / 2, y: value};
+    }, json_data.result.bin_edges);
+
+    var dataset = new Plottable.Dataset(data);
+    console.log(dataset);
+    plot.addDataset(dataset);
+
+    var chart = new Plottable.Components.Table([
+        [yAxisLabel, yAxis, plot],
+        [null, null, xAxis],
+        [null, null, xAxisLabel]
+    ]);
+
+    chart.renderTo(element);
+    element.style.width = "100%";
+    element.style.height = "300px";
+    chart.redraw();
+}
+
 /*
  * Updated scatter plot for a certain task. Continually poll task results if data not yet available.
  */
-function update_scatter_plot(div) {
-    console.log(div.dataset.src);
-    d3.json(div.dataset.src, function(error, json) {
-        if (error)
-            return console.warn(error);
-
-        console.log(json.result);
-
-        if (json.task_state == 'pe' || json.task_state == 'st') {
-            setTimeout(function() { update_scatter_plot(div); }, 1000);
+function scatter_plot(element) {
+    d3.json(element.dataset.src).then(function (data) {
+        if (data.task_state == 'pe' || data.task_state == 'st') {
+            setTimeout(function () {
+                scatter_plot(element);
+            }, 1000);
         }
         else {
-            var data = json.result.hist.map(function(value, index) {
-               return {x: (this[index]+this[index+1])/2, y: value};
-            }, json.result.bin_edges);
-            var scatter_plot = new Rickshaw.Graph({
-                element: div,
-                width: 500,
-                height: 250,
-                renderer: 'lineplot',
-                series: [
-                    {
-                        name: "Series 1",
-                        color: "steelblue",
-                        data: data
-                    }]
-            });
-            scatter_plot.render();
+            render_scatter_plot(element, data);
         }
     });
 }
 
 d3.selectAll('.topobank-scatter-plot').each(function() {
-    update_scatter_plot(this);
+    scatter_plot(this);
 });

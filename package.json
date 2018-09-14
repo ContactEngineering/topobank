@@ -2,7 +2,8 @@
   "name": "topobank",
   "version": "0.1.0",
   "dependencies": {
-    "rickshaw": "^1.6.6"
+    "d3": "^5.7.0",
+    "plottable": "^3.8.3"
   },
   "devDependencies": {
     "browser-sync": "^2.14.0",

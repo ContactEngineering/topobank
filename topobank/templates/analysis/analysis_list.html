@@ -16,8 +16,7 @@
             <a href="{% url 'manager:topography-detail' analysis.topography.id %}">{{ analysis.topography.name }}</a>
           </div>
           <div class="card-body">
-            <div class="topobank-scatter-plot" data-src="{% url 'analysis:retrieve' analysis.id %}">
-            </div>
+            <div class="topobank-scatter-plot" data-src="{% url 'analysis:retrieve' analysis.id %}"></div>
           </div>
         </div>
       </div>
