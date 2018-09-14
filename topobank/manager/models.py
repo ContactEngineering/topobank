@@ -10,7 +10,6 @@ import io
 from .utils import TopographyFile
 from topobank.users.models import User
 
-from topobank.taskapp.tasks import height_distribution, perform_analysis
 
 def user_directory_path(instance, filename):
     # file will be uploaded to MEDIA_ROOT/user_<id>/<filename>
@@ -123,11 +122,25 @@ class Topography(models.Model):
 
 @receiver(pre_save, sender=Topography)
 def update_surface_image(sender, instance, **kwargs):
+    # TODO also calculate the image in a task
     instance.update_surface_image()
 
 @receiver(post_save, sender=Topography)
 def compute_surface_properties(sender, instance, **kwargs):
-    surface = instance.topography()
-    transaction.on_commit(lambda: perform_analysis.delay(instance.id, height_distribution, surface))
+    #
+    # Submit here all functions which should be called by default
+    # on new topographies
+    #
+    # These imports are done here in order to avoid import conflicts
+    from topobank.taskapp.tasks import submit_analysis
+    from topobank.analysis.models import AnalysisFunction
+
+    auto_analysis_funcs = AnalysisFunction.objects.filter(automatic=True)
+
+    def submit_all(instance=instance):
+        for af in auto_analysis_funcs:
+            submit_analysis(af, instance)
+
+    transaction.on_commit(lambda: submit_all(instance))
 
 

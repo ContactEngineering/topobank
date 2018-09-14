@@ -18,8 +18,6 @@ class CeleryAppConfig(AppConfig):
     verbose_name = 'Celery Config'
 
     def ready(self):
-
-        import topobank.taskapp.signals # TODO remove
         # Using a string here means the worker will not have to
         # pickle the object when using Windows.
         app.config_from_object('django.conf:settings', namespace='CELERY')

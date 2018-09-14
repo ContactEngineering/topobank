@@ -4,11 +4,26 @@ import pickle
 
 from .models import Analysis
 
-class AnalysisListView(ListView):
-    model = Analysis
-    context_object_name = 'analyses'
+def analyses(request):
 
-    def get_queryset(self):
-        analyses = Analysis.objects.filter(topography__surface__user=self.request.user)
-        # TODO add column with unpickled data
-        return analyses
+    analyses = Analysis.objects.filter(topography__surface__user=request.user)
+
+    analyses = [
+            {
+                'func_name': a.function.name,
+                'topography': a.topography,
+                'result': pickle.loads(a.result),
+                'task_state': a.get_task_state_display(),
+                'task_id': a.task_id,
+            }
+            for a in analyses
+        ]
+
+    return render(request, 'analysis/analysis_list.html', context=dict(analyses=analyses))
+
+
+
+
+
+
+
