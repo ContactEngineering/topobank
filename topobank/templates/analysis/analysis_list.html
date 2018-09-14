@@ -2,7 +2,7 @@
 {% load fontawesome %}
 
 {% block content-title %}
-  Analysis
+  Results
 {% endblock content-title %}
 
 {% block content %}
@@ -12,7 +12,7 @@
       <div class="col-xl-12">
         <div class="card">
           <div class="card-header">
-            Height Distribution of
+            {{ analysis.function.name }} of
             <a href="{% url 'manager:topography-detail' analysis.topography.id %}">{{ analysis.topography.name }}</a>
           </div>
           <div class="card-body">
