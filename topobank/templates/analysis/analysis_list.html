@@ -7,9 +7,9 @@
 
 {% block content %}
 
+  <div class="row">
   {% for analysis in analyses %}
-    {% cycle '<div class="row">' '' %}
-      <div class="col-xl-6">
+      <div class="col-xl-6 mb-4">
         <div class="card">
           <div class="card-header">
             {{ analysis.function.name }} of
@@ -20,7 +20,7 @@
           </div>
         </div>
       </div>
-    {% cycle '' '</div>' %}
   {% endfor %}
+  </div>
 
 {% endblock content %}
