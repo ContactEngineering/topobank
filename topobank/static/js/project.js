@@ -51,16 +51,18 @@ function render_scatter_plot(element, json_data) {
     ]);
 
     chart.renderTo(element);
-    element.style.width = "100%";
-    element.style.height = "300px";
+    $(element).width('100%');
+    $(element).height('300px');
     chart.redraw();
+
+    $(element).data('chart', chart);
 }
 
 /*
  * Updated scatter plot for a certain task. Continually poll task results if data not yet available.
  */
 function scatter_plot(element) {
-    $.get(element.dataset.src, function (data) {
+    $.get($(element).data('src'), function (data) {
         if (data.task_state == 'pe' || data.task_state == 'st') {
             setTimeout(function () {
                 scatter_plot(element);
@@ -73,11 +75,18 @@ function scatter_plot(element) {
 }
 
 $(document).ready(function($) {
-    $(".clickable-table-row").click(function () {
+    $('.clickable-table-row').click(function () {
         window.document.location = $(this).data("href");
     });
 
     $('.topobank-scatter-plot').each(function () {
         scatter_plot(this);
+    });
+
+    /* Resize all plots when window is resized. */
+    $(window).on('resize', function() {
+       $('.topobank-plot-resize').each(function () {
+          $(this).data('chart').redraw();
+       });
     });
 });
