@@ -20,14 +20,6 @@ Issues with the above approach:
 */
 $('.form-group').removeClass('row');
 
-
-$(document).ready(function($) {
-    $(".clickable-table-row").click(function() {
-        window.document.location = $(this).data("href");
-    });
-});
-
-
 function render_scatter_plot(element, json_data) {
     var xScale = new Plottable.Scales.Linear();
     var yScale = new Plottable.Scales.Linear();
@@ -35,19 +27,22 @@ function render_scatter_plot(element, json_data) {
     var xAxis = new Plottable.Axes.Numeric(xScale, "bottom");
     var yAxis = new Plottable.Axes.Numeric(yScale, "left");
 
-    var xAxisLabel = new Plottable.Components.AxisLabel("Height").yAlignment("center");
-    var yAxisLabel = new Plottable.Components.AxisLabel("Probability").xAlignment("center").angle(-90);
-
-    var plot = new Plottable.Plots.Line()
-        .x(function (d) { return d.x; }, xScale)
-        .y(function (d) { return d.y; }, yScale);
+    var xAxisLabel = new Plottable.Components.AxisLabel("Height")
+        .yAlignment("center");
+    var yAxisLabel = new Plottable.Components.AxisLabel("Probability")
+        .xAlignment("center")
+        .angle(-90);
 
     var data = json_data.result.hist.map(function (value, index) {
         return {x: (this[index] + this[index + 1]) / 2, y: value};
     }, json_data.result.bin_edges);
 
     var dataset = new Plottable.Dataset(data);
-    plot.addDataset(dataset);
+
+    var plot = new Plottable.Plots.Line()
+        .x(function (d) { return d.x; }, xScale)
+        .y(function (d) { return d.y; }, yScale)
+        .addDataset(dataset);
 
     var chart = new Plottable.Components.Table([
         [yAxisLabel, yAxis, plot],
@@ -65,7 +60,7 @@ function render_scatter_plot(element, json_data) {
  * Updated scatter plot for a certain task. Continually poll task results if data not yet available.
  */
 function scatter_plot(element) {
-    d3.json(element.dataset.src).then(function (data) {
+    $.get(element.dataset.src, function (data) {
         if (data.task_state == 'pe' || data.task_state == 'st') {
             setTimeout(function () {
                 scatter_plot(element);
@@ -77,6 +72,12 @@ function scatter_plot(element) {
     });
 }
 
-d3.selectAll('.topobank-scatter-plot').each(function() {
-    scatter_plot(this);
+$(document).ready(function($) {
+    $(".clickable-table-row").click(function () {
+        window.document.location = $(this).data("href");
+    });
+
+    $('.topobank-scatter-plot').each(function () {
+        scatter_plot(this);
+    });
 });
