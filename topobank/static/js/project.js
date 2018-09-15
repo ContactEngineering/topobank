@@ -20,32 +20,40 @@ Issues with the above approach:
 */
 $('.form-group').removeClass('row');
 
-function render_scatter_plot(element, json_data) {
+function render_plot(element, descr) {
     var xScale = new Plottable.Scales.Linear();
     var yScale = new Plottable.Scales.Linear();
 
     var xAxis = new Plottable.Axes.Numeric(xScale, "bottom");
     var yAxis = new Plottable.Axes.Numeric(yScale, "left");
 
-    var xAxisLabel = new Plottable.Components.AxisLabel("Height")
+    var xAxisLabel = new Plottable.Components.Label(descr.xlabel)
         .yAlignment("center");
-    var yAxisLabel = new Plottable.Components.AxisLabel("Probability")
+    var yAxisLabel = new Plottable.Components.Label(descr.ylabel)
         .xAlignment("center")
         .angle(-90);
 
-    var data = json_data.result.hist.map(function (value, index) {
-        return {x: (this[index] + this[index + 1]) / 2, y: value};
-    }, json_data.result.bin_edges);
+    var plots = [];
+    descr.series.forEach(function (item) {
+        var dataset = new Plottable.Dataset(
+            item.y.map(function (value, index) {
+                return {x: (this[index] + this[index + 1]) / 2, y: value};
+            }, item.x));
 
-    var dataset = new Plottable.Dataset(data);
+        var plot = new Plottable.Plots.Line()
+            .x(function (d) {
+                return d.x;
+            }, xScale)
+            .y(function (d) {
+                return d.y;
+            }, yScale)
+            .addDataset(dataset);
 
-    var plot = new Plottable.Plots.Line()
-        .x(function (d) { return d.x; }, xScale)
-        .y(function (d) { return d.y; }, yScale)
-        .addDataset(dataset);
+        plots.push(plot);
+    });
 
     var chart = new Plottable.Components.Table([
-        [yAxisLabel, yAxis, plot],
+        [yAxisLabel, yAxis, new Plottable.Components.Group(plots)],
         [null, null, xAxis],
         [null, null, xAxisLabel]
     ]);
@@ -61,15 +69,15 @@ function render_scatter_plot(element, json_data) {
 /*
  * Updated scatter plot for a certain task. Continually poll task results if data not yet available.
  */
-function scatter_plot(element) {
+function plot(element) {
     $.get($(element).data('src'), function (data) {
         if (data.task_state == 'pe' || data.task_state == 'st') {
             setTimeout(function () {
-                scatter_plot(element);
+                plot(element);
             }, 1000);
         }
         else {
-            render_scatter_plot(element, data);
+            render_plot(element, data.result);
         }
     });
 }
@@ -79,8 +87,9 @@ $(document).ready(function($) {
         window.document.location = $(this).data("href");
     });
 
+    /* Initiate all plots, or rather first AJAX request to get plot data. */
     $('.topobank-scatter-plot').each(function () {
-        scatter_plot(this);
+        plot(this);
     });
 
     /* Resize all plots when window is resized. */
