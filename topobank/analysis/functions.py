@@ -29,6 +29,7 @@ def unicode_superscript(s):
         '9': '⁹',
         '+': '⁺',
         '-': '⁻',
+        '.': '⋅',
     }
     return ''.join(superscript_dict[c] if c in superscript_dict else c for c in s)
 
