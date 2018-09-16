@@ -112,8 +112,13 @@ function plot(element) {
             }, 1000);
         }
         else {
-            render_plot(element, data.result);
-            $('.spinner', $(element).parent()).hide();
+            if ('error' in data.result) {
+                $(element).html('Server reported error: ' + data.result.error);
+            }
+            else {
+                render_plot(element, data.result);
+                $('.spinner', $(element).parent()).hide();
+            }
         }
     }).fail(function () {
         $(element).html('Failed obtaining resource from server: ' + $(element).data('src'));
