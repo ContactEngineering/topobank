@@ -42,7 +42,7 @@ def float_to_unicode(f, dig=3):
     :param dig: Number of significant digits.
     :return: Human-readable unicode string.
     """
-    e = np.floor(np.log10(f))
+    e = int(np.floor(np.log10(f)))
     m = f / 10 ** e
 
     e3 = (e // 3) * 3
