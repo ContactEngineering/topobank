@@ -113,7 +113,11 @@ function plot(element) {
         }
         else {
             render_plot(element, data.result);
+            $('.spinner', $(element).parent()).hide();
         }
+    }).fail(function () {
+        $(element).html('Failed obtaining resource from server: ' + $(element).data('src'));
+        $('.spinner', $(element).parent()).hide();
     });
 }
 
