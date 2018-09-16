@@ -30,7 +30,7 @@ def unicode_superscript(s):
         '+': '⁺',
         '-': '⁻',
     }
-    return ''.join(superscript_dict[c] for c in s)
+    return ''.join(superscript_dict[c] if c in superscript_dict else c for c in s)
 
 
 def float_to_unicode(f, dig=3):
@@ -127,6 +127,47 @@ def slope_distribution(topography, bins=None, wfac=5):
                  style='k-',
                  ),
             dict(name='RMS slope: {}'.format(float_to_unicode(rms_slope)),
+                 x=x_gauss,
+                 y=y_gauss,
+                 style='r-',
+                 )
+        ]
+    )
+
+
+def curvature_distribution(topography, bins=None, wfac=5):
+    if bins is None:
+        bins = int(np.sqrt(np.prod(topography.shape)) + 1.0)
+
+    curv_x, curv_y = compute_derivative(topography, n=2)
+    curv = curv_x[:, 1:-1] + curv_y[1:-1, :]
+
+    mean_curv = np.mean(curv)
+    rms_curv = topography.compute_rms_curvature()
+
+    hist, bin_edges = np.histogram(np.ma.compressed(curv), bins=bins,
+                                   density=True)
+
+    minval = mean_curv - wfac * rms_curv
+    maxval = mean_curv + wfac * rms_curv
+    x_gauss = np.linspace(minval, maxval, 1001)
+    y_gauss = np.exp(-(x_gauss - mean_curv) ** 2 / (2 * rms_curv ** 2)) / (np.sqrt(2 * np.pi) * rms_curv)
+
+    return dict(
+        name='Curvature distribution',
+        scalars=dict(
+            mean_curvature=mean_curv,
+            rms_curvature=rms_curv,
+        ),
+        xlabel='Curvature ({}⁻¹)'.format(topography.unit),
+        ylabel='Probability ({})'.format(topography.unit),
+        series=[
+            dict(name='Curvature distribution',
+                 x=(bin_edges[:-1] + bin_edges[1:]) / 2,
+                 y=hist,
+                 style='k-',
+                 ),
+            dict(name='RMS curvature: {} {}⁻¹'.format(float_to_unicode(rms_curv), topography.unit),
                  x=x_gauss,
                  y=y_gauss,
                  style='r-',
