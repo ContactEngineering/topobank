@@ -9,6 +9,52 @@ import numpy as np
 from PyCo.Tools import compute_derivative
 
 
+def unicode_superscript(s):
+    """
+    Convert numerals inside a string into the unicode superscript equivalent.
+
+    :param s: Input string
+    :return: String with superscript numerals
+    """
+    superscript_dict = {
+        '0': '⁰',
+        '1': '¹',
+        '2': '²',
+        '3': '³',
+        '4': '⁴',
+        '5': '⁵',
+        '6': '⁶',
+        '7': '⁷',
+        '8': '⁸',
+        '9': '⁹',
+        '+': '⁺',
+        '-': '⁻',
+    }
+    return ''.join(superscript_dict[c] for c in s)
+
+
+def float_to_unicode(f, dig=3):
+    """
+    Convert a floating point number into a human-readable unicode representation.
+    Examples are: 1.2×10³, 120.43, 120×10⁻³. Exponents will be multiples of three.
+
+    :param f: Floating-point number for conversion.
+    :param dig: Number of significant digits.
+    :return: Human-readable unicode string.
+    """
+    e = np.floor(np.log10(f))
+    m = f / 10 ** e
+
+    e3 = (e // 3) * 3
+    m *= 10 ** (e - e3)
+
+    if e3 == 0:
+        return ('{{:.{}g}}'.format(dig)).format(m)
+
+    else:
+        return ('{{:.{}g}}×10{{}}'.format(dig)).format(m, unicode_superscript(str(e3)))
+
+
 def height_distribution(topography, bins=None, wfac=5):
     if bins is None:
         bins = int(np.sqrt(np.prod(topography.shape)) + 1.0)
@@ -39,7 +85,7 @@ def height_distribution(topography, bins=None, wfac=5):
                  y=hist,
                  style='k-',
                  ),
-            dict(name='Gaussian',
+            dict(name='RMS height: {} {}'.format(float_to_unicode(rms_height), topography.unit),
                  x=x_gauss,
                  y=y_gauss,
                  style='r-',
@@ -80,7 +126,7 @@ def slope_distribution(topography, bins=None, wfac=5):
                  y=hist,
                  style='k-',
                  ),
-            dict(name='Gaussian',
+            dict(name='RMS slope: {}'.format(float_to_unicode(rms_slope)),
                  x=x_gauss,
                  y=y_gauss,
                  style='r-',

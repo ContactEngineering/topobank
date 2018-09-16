@@ -33,29 +33,64 @@ function render_plot(element, descr) {
         .xAlignment("center")
         .angle(-90);
 
+    var names = [];
+    descr.series.forEach(function (item) {
+       names.push(item.name);
+    });
+
+    var color_scale = new Plottable.Scales.Color();
+    color_scale.domain(names);
+
+    var legend = new Plottable.Components.Legend(color_scale);
+    legend.maxEntriesPerRow(Infinity);
+
     var plots = [];
     descr.series.forEach(function (item) {
+        var style = typeof item.style == 'undefined' ? 'k-' : item.style;
+
         var dataset = new Plottable.Dataset(
             item.y.map(function (value, index) {
                 return {x: (this[index] + this[index + 1]) / 2, y: value};
             }, item.x));
 
-        var plot = new Plottable.Plots.Line()
-            .x(function (d) {
-                return d.x;
-            }, xScale)
-            .y(function (d) {
-                return d.y;
-            }, yScale)
-            .addDataset(dataset);
+        var lines = false;
+        var symbols = false;
+        for (var c of style) {
+            if (c == '-') lines = true;
+            else if (c == 'x') symbols = true;
+        }
 
-        plots.push(plot);
+        if (lines) {
+            var plot = new Plottable.Plots.Line()
+                .x(function (d) {
+                    return d.x;
+                }, xScale)
+                .y(function (d) {
+                    return d.y;
+                }, yScale)
+                .addDataset(dataset);
+            plot.attr('stroke', item.name, color_scale);
+            plots.push(plot);
+        }
+        if (symbols) {
+            var plot = new Plottable.Plots.Scatter()
+                .x(function (d) {
+                    return d.x;
+                }, xScale)
+                .y(function (d) {
+                    return d.y;
+                }, yScale)
+                .addDataset(dataset);
+            plot.attr('stroke', item.name, color_scale);
+            plots.push(plot);
+        }
     });
 
     var chart = new Plottable.Components.Table([
+        [null,       null,  legend],
         [yAxisLabel, yAxis, new Plottable.Components.Group(plots)],
-        [null, null, xAxis],
-        [null, null, xAxisLabel]
+        [null,       null,  xAxis],
+        [null,       null,  xAxisLabel]
     ]);
 
     chart.renderTo(element);
