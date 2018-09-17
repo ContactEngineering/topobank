@@ -6,7 +6,7 @@ The first argument is always a PyCo Topography!
 
 import numpy as np
 
-from PyCo.Tools import compute_derivative
+from PyCo.Tools import compute_derivative, power_spectrum_1D, power_spectrum_2D, autocorrelation_1D, autocorrelation_2D
 
 
 def unicode_superscript(s):
@@ -100,8 +100,8 @@ def slope_distribution(topography, bins=None, wfac=5):
         bins = int(np.sqrt(np.prod(topography.shape)) + 1.0)
 
     slope_x, slope_y = compute_derivative(topography)
-    slope = np.sqrt(2)*np.append(np.ma.compressed(slope_x),
-                                 np.ma.compressed(slope_y))
+    slope = np.sqrt(2) * np.append(np.ma.compressed(slope_x),
+                                   np.ma.compressed(slope_y))
 
     mean_slope = np.mean(slope)
     rms_slope = topography.compute_rms_slope()
@@ -172,6 +172,85 @@ def curvature_distribution(topography, bins=None, wfac=5):
                  x=x_gauss,
                  y=y_gauss,
                  style='r-',
+                 )
+        ]
+    )
+
+
+def power_spectrum(topography, window='hann'):
+    if window == 'None':
+        window = None
+
+    q_1D, C_1D = power_spectrum_1D(topography, window=window)
+    sx, sy = topography.size
+    q_1D_T, C_1D_T = power_spectrum_1D(topography.profile().T,
+                                       size=(sy, sx),
+                                       window=window)
+    q_2D, C_2D = power_spectrum_2D(topography, window=window,
+                                   nbins=len(q_1D) - 1)
+
+    return dict(
+        name='Power-spectral density (PSD)',
+        xlabel='Wavevector ({}⁻¹)'.format(topography.unit),
+        ylabel='PSD ({}³)'.format(topography.unit),
+        xscale='log',
+        yscale='log',
+        series=[
+            dict(name='q/π × 2D PSD',
+                 x=q_2D,
+                 y=q_2D*C_2D/np.pi,
+                 style='o',
+                 ),
+            dict(name='1D PSD along x',
+                 x=q_1D,
+                 y=C_1D,
+                 style='x',
+                 ),
+            dict(name='1D PSD along y',
+                 x=q_1D_T,
+                 y=C_1D_T,
+                 style='x',
+                 )
+        ]
+    )
+
+
+def autocorrelation(topography):
+    r, A = autocorrelation_1D(topography)
+    sx, sy = topography.size
+    r_T, A_T = autocorrelation_1D(topography.profile().T, size=(sy, sx))
+    r_2D, A_2D = autocorrelation_2D(topography)
+
+    # Truncate ACF at half the system size
+    s = min(sx, sy) / 2
+    A = A[r < s]
+    r = r[r < s]
+    A_T = A_T[r_T < s]
+    r_T = r_T[r_T < s]
+    A_2D = A_2D[r_2D < s]
+    r_2D = r_2D[r_2D < s]
+
+    return dict(
+        name='Height-difference autocorrelation function (ACF)',
+        xlabel='Distance ({})'.format(topography.unit),
+        ylabel='ACF ({}²)'.format(topography.unit),
+        xscale='log',
+        yscale='log',
+        series=[
+            dict(name='Radial average',
+                 x=r_2D,
+                 y=A_2D,
+                 style='o',
+                 ),
+            dict(name='Along x',
+                 x=r,
+                 y=A,
+                 style='x',
+                 ),
+            dict(name='Along y',
+                 x=r_T,
+                 y=A_T,
+                 style='x',
                  )
         ]
     )
