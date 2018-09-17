@@ -21,8 +21,19 @@ Issues with the above approach:
 $('.form-group').removeClass('row');
 
 function render_plot(element, descr) {
-    var xScale = new Plottable.Scales.Linear();
-    var yScale = new Plottable.Scales.Linear();
+    var xScale, yScale;
+    if (descr.xscale == 'log') {
+        xScale = new Plottable.Scales.Log();
+    }
+    else {
+        xScale = new Plottable.Scales.Linear();
+    }
+    if (descr.yscale == 'log') {
+        yScale = new Plottable.Scales.Log();
+    }
+    else {
+        yScale = new Plottable.Scales.Linear();
+    }
 
     var xAxis = new Plottable.Axes.Numeric(xScale, "bottom");
     var yAxis = new Plottable.Axes.Numeric(yScale, "left");
