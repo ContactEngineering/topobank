@@ -21,6 +21,19 @@ Issues with the above approach:
 $('.form-group').removeClass('row');
 
 function render_plot(element, descr) {
+    var color_abbreviations = {
+        'k': 'black',
+        'r': 'red',
+    };
+    var symbol_factories = {
+        'o': Plottable.SymbolFactories.circle(),
+        '+': Plottable.SymbolFactories.cross(),
+        'd': Plottable.SymbolFactories.diamond(),
+        's': Plottable.SymbolFactories.square(),
+        '^': Plottable.SymbolFactories.triangle(),
+        'y': Plottable.SymbolFactories.wye(),
+    };
+
     var xScale, yScale;
     if (descr.xscale == 'log') {
         xScale = new Plottable.Scales.Log();
@@ -38,9 +51,15 @@ function render_plot(element, descr) {
     var xAxis = new Plottable.Axes.Numeric(xScale, "bottom");
     var yAxis = new Plottable.Axes.Numeric(yScale, "left");
 
-    var xAxisLabel = new Plottable.Components.Label(descr.xlabel)
+    var xlabel = descr.xlabel;
+    var ylabel = descr.ylabel;
+
+    if (descr.xunit)  xlabel += ' ('+descr.xunit+')';
+    if (descr.yunit)  ylabel += ' ('+descr.yunit+')';
+
+    var xAxisLabel = new Plottable.Components.Label(xlabel)
         .yAlignment("center");
-    var yAxisLabel = new Plottable.Components.Label(descr.ylabel)
+    var yAxisLabel = new Plottable.Components.Label(ylabel)
         .xAlignment("center")
         .angle(-90);
 
@@ -52,10 +71,8 @@ function render_plot(element, descr) {
     var color_scale = new Plottable.Scales.Color();
     color_scale.domain(names);
 
-    var legend = new Plottable.Components.Legend(color_scale);
-    legend.maxEntriesPerRow(Infinity);
-
     var plots = [];
+    var symbols = [];
     descr.series.forEach(function (item) {
         var style = typeof item.style == 'undefined' ? 'k-' : item.style;
 
@@ -64,14 +81,25 @@ function render_plot(element, descr) {
                 return {x: (this[index] + this[index + 1]) / 2, y: value};
             }, item.x));
 
-        var lines = false;
-        var symbols = false;
+        var line = false;
+        var color = undefined;
+        var symbol = undefined;
         for (var c of style) {
-            if (c == '-') lines = true;
-            else if (c == 'x') symbols = true;
+            if (c == '-') {
+                line = true;
+            }
+            else if (c in color_abbreviations) {
+                color = color_abbreviations[c];
+            }
+            else if (c in symbol_factories) {
+                symbol = symbol_factories[c];
+            }
+            else {
+                throw TypeError('Cannot interpret style string: ' + style);
+            }
         }
 
-        if (lines) {
+        if (line) {
             var plot = new Plottable.Plots.Line()
                 .x(function (d) {
                     return d.x;
@@ -80,10 +108,15 @@ function render_plot(element, descr) {
                     return d.y;
                 }, yScale)
                 .addDataset(dataset);
-            plot.attr('stroke', item.name, color_scale);
+            if (color) {
+                plot.attr('stroke', color);
+            }
+            else {
+                plot.attr('stroke', item.name, color_scale);
+            }
             plots.push(plot);
         }
-        if (symbols) {
+        if (symbol) {
             var plot = new Plottable.Plots.Scatter()
                 .x(function (d) {
                     return d.x;
@@ -91,17 +124,30 @@ function render_plot(element, descr) {
                 .y(function (d) {
                     return d.y;
                 }, yScale)
+                .symbol(function () {
+                    return symbol;
+                })
                 .addDataset(dataset);
-            plot.attr('stroke', item.name, color_scale);
+            if (color) {
+                plot.attr('stroke', color).attr('fill', color);
+            }
+            else {
+                plot.attr('stroke', item.name, color_scale).attr('fill', item.name, color_scale);
+            }
             plots.push(plot);
         }
+
+        symbols.push(symbol);
     });
+
+    var legend = new Plottable.Components.Legend(color_scale);
+    legend.symbol(function (datum, index) { s = symbols[index]; return s ? s : Plottable.SymbolFactories.circle(); });
 
     var chart = new Plottable.Components.Table([
         [null,       null,  legend],
         [yAxisLabel, yAxis, new Plottable.Components.Group(plots)],
-        [null,       null,  xAxis],
-        [null,       null,  xAxisLabel]
+        [null,       null,  xAxis, null],
+        [null,       null,  xAxisLabel, null]
     ]);
 
     chart.renderTo(element);
