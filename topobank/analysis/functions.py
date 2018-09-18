@@ -34,13 +34,13 @@ def unicode_superscript(s):
     return ''.join(superscript_dict[c] if c in superscript_dict else c for c in s)
 
 
-def float_to_unicode(f, dig=3):
+def float_to_unicode(f, digits=3):
     """
     Convert a floating point number into a human-readable unicode representation.
     Examples are: 1.2×10³, 120.43, 120×10⁻³. Exponents will be multiples of three.
 
     :param f: Floating-point number for conversion.
-    :param dig: Number of significant digits.
+    :param digits: Number of significant digits.
     :return: Human-readable unicode string.
     """
     e = int(np.floor(np.log10(f)))
@@ -50,10 +50,10 @@ def float_to_unicode(f, dig=3):
     m *= 10 ** (e - e3)
 
     if e3 == 0:
-        return ('{{:.{}g}}'.format(dig)).format(m)
+        return ('{{:.{}g}}'.format(digits)).format(m)
 
     else:
-        return ('{{:.{}g}}×10{{}}'.format(dig)).format(m, unicode_superscript(str(e3)))
+        return ('{{:.{}g}}×10{{}}'.format(digits)).format(m, unicode_superscript(str(e3)))
 
 
 def height_distribution(topography, bins=None, wfac=5):
@@ -78,8 +78,10 @@ def height_distribution(topography, bins=None, wfac=5):
             mean_height=mean_height,
             rms_height=rms_height,
         ),
-        xlabel='Height ({})'.format(topography.unit),
-        ylabel='Probability ({}⁻¹)'.format(topography.unit),
+        xlabel='Height',
+        ylabel='Probability',
+        xunit=topography.unit,
+        yunit='{}⁻¹'.format(topography.unit),
         series=[
             dict(name='Height distribution',
                  x=(bin_edges[:-1] + bin_edges[1:]) / 2,
@@ -160,8 +162,10 @@ def curvature_distribution(topography, bins=None, wfac=5):
             mean_curvature=mean_curv,
             rms_curvature=rms_curv,
         ),
-        xlabel='Curvature ({}⁻¹)'.format(topography.unit),
-        ylabel='Probability ({})'.format(topography.unit),
+        xlabel='Curvature',
+        ylabel='Probability',
+        xunit='{}⁻¹'.format(topography.unit),
+        yunit=topography.unit,
         series=[
             dict(name='Curvature distribution',
                  x=(bin_edges[:-1] + bin_edges[1:]) / 2,
@@ -191,8 +195,10 @@ def power_spectrum(topography, window='hann'):
 
     return dict(
         name='Power-spectral density (PSD)',
-        xlabel='Wavevector ({}⁻¹)'.format(topography.unit),
-        ylabel='PSD ({}³)'.format(topography.unit),
+        xlabel='Wavevector',
+        ylabel='PSD',
+        xunit='{}⁻¹'.format(topography.unit),
+        yunit='{}³'.format(topography.unit),
         xscale='log',
         yscale='log',
         series=[
@@ -204,12 +210,12 @@ def power_spectrum(topography, window='hann'):
             dict(name='1D PSD along x',
                  x=q_1D,
                  y=C_1D,
-                 style='x',
+                 style='+',
                  ),
             dict(name='1D PSD along y',
                  x=q_1D_T,
                  y=C_1D_T,
-                 style='x',
+                 style='y',
                  )
         ]
     )
@@ -232,8 +238,10 @@ def autocorrelation(topography):
 
     return dict(
         name='Height-difference autocorrelation function (ACF)',
-        xlabel='Distance ({})'.format(topography.unit),
-        ylabel='ACF ({}²)'.format(topography.unit),
+        xlabel='Distance',
+        ylabel='ACF',
+        xunit=topography.unit,
+        yunit='{}²'.format(topography.unit),
         xscale='log',
         yscale='log',
         series=[
@@ -245,12 +253,12 @@ def autocorrelation(topography):
             dict(name='Along x',
                  x=r,
                  y=A,
-                 style='x',
+                 style='+',
                  ),
             dict(name='Along y',
                  x=r_T,
                  y=A_T,
-                 style='x',
+                 style='y',
                  )
         ]
     )
