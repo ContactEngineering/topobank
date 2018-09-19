@@ -20,7 +20,95 @@ Issues with the above approach:
 */
 $('.form-group').removeClass('row');
 
-function render_plot(element, descr) {
+
+/* Split a unit string into the base unit and an exponent. E.g.
+ *   µm³ => µm, 3
+ */
+function split_unit(unit_str) {
+    if (!unit_str) {
+        return {
+            unit: undefined,
+            exponent: 1,
+        }
+    }
+
+    var superscript_dict = {
+        '⁰': '0',
+        '¹': '1',
+        '²': '2',
+        '³': '3',
+        '⁴': '4',
+        '⁵': '5',
+        '⁶': '6',
+        '⁷': '7',
+        '⁸': '8',
+        '⁹': '9',
+        '⁺': '+',
+        '⁻': '-',
+        '⋅': '.',
+    };
+
+    var unit = '';
+    var exponent = '';
+
+    for (var c of unit_str) {
+        if (c in superscript_dict) {
+            exponent += superscript_dict[c];
+        }
+        else {
+            unit += c;
+        }
+    }
+    return {
+        unit: unit,
+        exponent: exponent.length ? parseInt(exponent) : 1
+    };
+}
+
+/*
+ * Convert numerals inside a string into the unicode superscript equivalent, e.g.
+ *   µm3 => µm³
+ */
+function unicode_superscript(s) {
+    superscript_dict = {
+        '0': '⁰',
+        '1': '¹',
+        '2': '²',
+        '3': '³',
+        '4': '⁴',
+        '5': '⁵',
+        '6': '⁶',
+        '7': '⁷',
+        '8': '⁸',
+        '9': '⁹',
+        '+': '⁺',
+        '-': '⁻',
+        '.': '⋅',
+    };
+    return s.split('').map(c => c in superscript_dict ? superscript_dict[c] : c).join('');
+}
+
+
+/*
+ * Convert a base unit and an exponent into a unicode string, e.g.
+ *   µm, 3 => µm³
+ */
+function unicode_unit(unit, exponent) {
+    if (exponent == 1) {
+        return unit;
+    }
+    else {
+        return unicode_superscript(unit + exponent);
+    }
+}
+
+
+/*
+ * Render data to SVG. This function can be called multiple times for the same element, if multiple data sources are
+ * listed for the respective element. The resulting data will then be presented in a single plot. Function handles
+ * unit conversion between data sources.
+ */
+function render_plot(element, descr, unit = undefined) {
     var color_abbreviations = {
         'k': 'black',
         'r': 'red',
@@ -34,6 +122,26 @@ function render_plot(element, descr) {
         'y': Plottable.SymbolFactories.wye(),
     };
 
+    /* Figure out units. */
+    xunit = split_unit(descr.xunit);
+    yunit = split_unit(descr.yunit);
+
+    if (xunit.unit != yunit.unit) {
+        throw TypeError('X- and y-axis have different (base) units. Cannot at present handle this.');
+    }
+
+    /* If no unit was passed to this function, we default to the unit reported by the server. */
+    if (!unit) unit = xunit.unit;
+
+    /* If we have a unit, determine the scale factor between chosen unit and the unit reported by the server. */
+    var scale_factor = 1, scale_factor_x = 1, scale_factor_y = 1;
+    if (unit) {
+        scale_factor = convert(1).from(xunit.unit).to(unit);
+        scale_factor_x = scale_factor**xunit.exponent;
+        scale_factor_y = scale_factor**yunit.exponent;
+    }
+
+    /* Create (linear, log) scales. */
     var xScale, yScale;
     if (descr.xscale == 'log') {
         xScale = new Plottable.Scales.Log();
@@ -48,14 +156,15 @@ function render_plot(element, descr) {
         yScale = new Plottable.Scales.Linear();
     }
 
+    /* Create axes. */
     var xAxis = new Plottable.Axes.Numeric(xScale, "bottom");
     var yAxis = new Plottable.Axes.Numeric(yScale, "left");
 
     var xlabel = descr.xlabel;
     var ylabel = descr.ylabel;
 
-    if (descr.xunit)  xlabel += ' ('+descr.xunit+')';
-    if (descr.yunit)  ylabel += ' ('+descr.yunit+')';
+    if (xunit.unit) xlabel += ' (' + unicode_unit(unit, xunit.exponent) + ')';
+    if (yunit.unit) ylabel += ' (' + unicode_unit(unit, yunit.exponent) + ')';
 
     var xAxisLabel = new Plottable.Components.Label(xlabel)
         .yAlignment("center");
@@ -65,7 +174,7 @@ function render_plot(element, descr) {
 
     var names = [];
     descr.series.forEach(function (item) {
-       names.push(item.name);
+        names.push(item.name);
     });
 
     var color_scale = new Plottable.Scales.Color();
@@ -78,7 +187,7 @@ function render_plot(element, descr) {
 
         var dataset = new Plottable.Dataset(
             item.y.map(function (value, index) {
-                return {x: (this[index] + this[index + 1]) / 2, y: value};
+                return {x: scale_factor_x*this[index], y: scale_factor_y*value};
             }, item.x));
 
         var line = false;
@@ -141,13 +250,16 @@ function render_plot(element, descr) {
     });
 
     var legend = new Plottable.Components.Legend(color_scale);
-    legend.symbol(function (datum, index) { s = symbols[index]; return s ? s : Plottable.SymbolFactories.circle(); });
+    legend.symbol(function (datum, index) {
+        s = symbols[index];
+        return s ? s : Plottable.SymbolFactories.circle();
+    });
 
     var chart = new Plottable.Components.Table([
-        [null,       null,  legend],
+        [null, null, legend],
         [yAxisLabel, yAxis, new Plottable.Components.Group(plots)],
-        [null,       null,  xAxis, null],
-        [null,       null,  xAxisLabel, null]
+        [null, null, xAxis, null],
+        [null, null, xAxisLabel, null]
     ]);
 
     chart.renderTo(element);
@@ -158,10 +270,11 @@ function render_plot(element, descr) {
     $(element).data('chart', chart);
 }
 
+
 /*
  * Updated scatter plot for a certain task. Continually poll task results if data not yet available.
  */
-function plot(element) {
+function plot(element, unit = undefined) {
     $.get($(element).data('src'), function (data) {
         if (data.task_state == 'pe' || data.task_state == 'st') {
             setTimeout(function () {
@@ -173,7 +286,7 @@ function plot(element) {
                 $(element).html('Server reported error: ' + data.result.error);
             }
             else {
-                render_plot(element, data.result);
+                render_plot(element, data.result, unit);
                 $('.spinner', $(element).parent()).hide();
             }
         }
@@ -183,7 +296,11 @@ function plot(element) {
     });
 }
 
-$(document).ready(function($) {
+
+/*
+ * Setup document handlers.
+ */
+$(document).ready(function ($) {
     $('.clickable-table-row').click(function () {
         window.document.location = $(this).data("href");
     });
@@ -194,9 +311,9 @@ $(document).ready(function($) {
     });
 
     /* Resize all plots when window is resized. */
-    $(window).on('resize', function() {
-       $('.topobank-plot-resize').each(function () {
-          $(this).data('chart').redraw();
-       });
+    $(window).on('resize', function () {
+        $('.topobank-plot-resize').each(function () {
+            $(this).data('chart').redraw();
+        });
     });
 });
