@@ -8,20 +8,35 @@
 {% block content %}
 
   <div class="row">
-  {% for analysis in analyses %}
+    {% for analysis in analyses %}
       <div class="col-xl-6 mb-4">
         <div class="card">
           <div class="card-header">
             {{ analysis.function.name }} of
             <a href="{% url 'manager:topography-detail' analysis.topography.id %}">{{ analysis.topography.name }}</a>
+            <div class="btn-group btn-group-sm pull-right dropdown">
+              <button type="button" class="btn btn-default" data-toggle="dropdown"
+                      aria-haspopup="true" aria-expanded="false">
+                <i class="fa fa-chevron-down"></i>
+              </button>
+              <div class="dropdown-menu dropdown-menu-right">
+                <a class="dropdown-item" href="#">Display in units of nm</a>
+                <a class="dropdown-item" href="#">Display in units of µm</a>
+                <a class="dropdown-item" href="#">Display in units of mm</a>
+                <div class="dropdown-divider"></div>
+                <a class="dropdown-item" href="#">Download as SVG</a>
+                <a class="dropdown-item" href="#">Download data</a>
+              </div>
+            </div>
           </div>
           <div class="card-body">
             <div class="spinner"></div>
-            <div class="topobank-scatter-plot topobank-plot-resize" data-src="{% url 'analysis:retrieve' analysis.id %}"></div>
+            <div class="topobank-scatter-plot topobank-plot-resize"
+                 data-src="{% url 'analysis:retrieve' analysis.id %}"></div>
           </div>
         </div>
       </div>
-  {% endfor %}
+    {% endfor %}
   </div>
 
 {% endblock content %}
