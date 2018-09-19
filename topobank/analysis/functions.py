@@ -11,7 +11,8 @@ from PyCo.Topography import compute_derivative, power_spectrum_1D, power_spectru
 
 def unicode_superscript(s):
     """
-    Convert numerals inside a string into the unicode superscript equivalent.
+    Convert numerals inside a string into the unicode superscript equivalent, e.g.
+      µm3 => µm³
 
     :param s: Input string
     :return: String with superscript numerals
