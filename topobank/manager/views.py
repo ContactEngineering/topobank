@@ -87,14 +87,14 @@ class TopographyCreateWizard(SessionWizardView):
         elif step == '2':
             step1_data = self.get_cleaned_data_for_step('1')
 
-            surface = topofile.topography(int(step1_data['data_source']))
+            topo = topofile.topography(int(step1_data['data_source']))
 
             session = self.request.session
 
-            session['initial_size'] = surface.size
-            session['initial_size_unit'] = surface.unit
-            session['initial_height_scale'] = surface.surf.coeff
-            session['detrend_mode'] = surface.detrend_mode
+            session['initial_size'] = topo.size
+            session['initial_size_unit'] = topo.unit
+            session['initial_height_scale'] = topo.parent_topography.coeff
+            session['detrend_mode'] = topo.detrend_mode
 
         return kwargs
 

@@ -6,7 +6,7 @@ The first argument is always a PyCo Topography!
 
 import numpy as np
 
-from PyCo.Tools import compute_derivative, power_spectrum_1D, power_spectrum_2D, autocorrelation_1D, autocorrelation_2D
+from PyCo.Topography import compute_derivative, power_spectrum_1D, power_spectrum_2D, autocorrelation_1D, autocorrelation_2D
 
 
 def unicode_superscript(s):
@@ -60,10 +60,10 @@ def height_distribution(topography, bins=None, wfac=5):
     if bins is None:
         bins = int(np.sqrt(np.prod(topography.shape)) + 1.0)
 
-    profile = topography.profile()
+    profile = topography.array()
 
     mean_height = np.mean(profile)
-    rms_height = topography.compute_rms_height()
+    rms_height = topography.rms_height()
 
     hist, bin_edges = np.histogram(np.ma.compressed(profile), bins=bins, density=True)
 
@@ -106,7 +106,7 @@ def slope_distribution(topography, bins=None, wfac=5):
                                    np.ma.compressed(slope_y))
 
     mean_slope = np.mean(slope)
-    rms_slope = topography.compute_rms_slope()
+    rms_slope = topography.rms_slope()
 
     hist, bin_edges = np.histogram(slope, bins=bins, density=True)
 
@@ -146,7 +146,7 @@ def curvature_distribution(topography, bins=None, wfac=5):
     curv = curv_x[:, 1:-1] + curv_y[1:-1, :]
 
     mean_curv = np.mean(curv)
-    rms_curv = topography.compute_rms_curvature()
+    rms_curv = topography.rms_curvature()
 
     hist, bin_edges = np.histogram(np.ma.compressed(curv), bins=bins,
                                    density=True)
@@ -187,7 +187,7 @@ def power_spectrum(topography, window='hann'):
 
     q_1D, C_1D = power_spectrum_1D(topography, window=window)
     sx, sy = topography.size
-    q_1D_T, C_1D_T = power_spectrum_1D(topography.profile().T,
+    q_1D_T, C_1D_T = power_spectrum_1D(topography.array().T,
                                        size=(sy, sx),
                                        window=window)
     q_2D, C_2D = power_spectrum_2D(topography, window=window,
@@ -224,7 +224,7 @@ def power_spectrum(topography, window='hann'):
 def autocorrelation(topography):
     r, A = autocorrelation_1D(topography)
     sx, sy = topography.size
-    r_T, A_T = autocorrelation_1D(topography.profile().T, size=(sy, sx))
+    r_T, A_T = autocorrelation_1D(topography.array().T, size=(sy, sx))
     r_2D, A_2D = autocorrelation_2D(topography)
 
     # Truncate ACF at half the system size

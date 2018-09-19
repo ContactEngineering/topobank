@@ -1,8 +1,8 @@
 
 import numpy as np
 
-from PyCo.Surface import FromFile
-from PyCo.Surface.SurfaceDescription import ScaledSurface, DetrendedSurface # TODO adjust to new PyCo naming
+from PyCo.Topography import FromFile
+from PyCo.Topography.TopographyDescription import ScaledTopography, DetrendedTopography
 
 DEFAULT_DATASOURCE_NAME = 'Default'
 UNIT_TO_METERS = {'A': 1e-10, 'nm': 1e-9, 'µm': 1e-6, 'mm': 1e-3, 'm': 1.0,
@@ -32,9 +32,9 @@ class TopographyFile:
             if type(surface.unit) is not tuple:
                 # If this is not a tuple, that x-, y- and z-units are all
                 # lengths. Discard all other channels.
-                if not isinstance(surface, ScaledSurface):
-                    surface = ScaledSurface(surface, 1.0)
-                surfaces += [DetrendedSurface(surface, detrend_mode='height')]
+                if not isinstance(surface, ScaledTopography):
+                    surface = ScaledTopography(surface, 1.0)
+                surfaces += [DetrendedTopography(surface, detrend_mode='height')]
         self._surfaces = surfaces
 
 

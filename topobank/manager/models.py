@@ -88,9 +88,9 @@ class Topography(models.Model):
 
         :return: None
         """
-        surface = self.topography()
+        topo = self.topography()
 
-        arr = surface.profile()
+        arr = topo.array()
 
         fig = plt.figure()
         ax = fig.add_subplot(1,1,1)
@@ -107,16 +107,16 @@ class Topography(models.Model):
         """Return PyCo Topography instance"""
         topofile = TopographyFile(self.datafile.path)  # TODO use datafile.open here
 
-        surface = topofile.topography(int(self.data_source))
+        topo = topofile.topography(int(self.data_source))
         # TODO int() is a fix for SQLite which cannot return real int?? remove for PG
 
-        surface.unit = self.size_unit
-        surface.surf.coeff = self.height_scale
-        surface.size = self.size_x, self.size_y
+        topo.unit = self.size_unit
+        topo.parent_topography.coeff = self.height_scale
+        topo.size = self.size_x, self.size_y
 
-        surface.detrend_mode = self.detrend_mode
+        topo.detrend_mode = self.detrend_mode
 
-        return surface
+        return topo
 
 
 
