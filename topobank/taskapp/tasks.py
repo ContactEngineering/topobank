@@ -5,6 +5,7 @@ from .celery import app
 from topobank.analysis.models import Analysis
 from topobank.manager.models import Topography
 import topobank.analysis.functions # so functions can be found by eval
+from django.db import transaction
 
 def submit_analysis(analysis_func, topography, *other_args, **kwargs):
     """Create an analysis entry and submit a task to the task queue.
@@ -27,7 +28,7 @@ def submit_analysis(analysis_func, topography, *other_args, **kwargs):
     #
     # Send task to the queue
     #
-    perform_analysis.delay(analysis.id)
+    transaction.on_commit(lambda : perform_analysis.delay(analysis.id))
 
 @app.task(bind=True, ignore_result=True)
 def perform_analysis(self, analysis_id):
