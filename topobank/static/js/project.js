@@ -108,7 +108,7 @@ function unicode_unit(unit, exponent) {
  * listed for the respective element. The resulting data will then be presented in a single plot. Function handles
  * unit conversion between data sources.
  */
-function render_plot(element, descr, unit) {
+function render_plot(element, plot_descr_array, unit) {
     /* Static dictionaries. */
     var color_abbreviations = {
         'k': 'black',
@@ -127,133 +127,148 @@ function render_plot(element, descr, unit) {
     chart = $(element).data('chart');
     if (chart)  chart.destroy();
 
+    /* Scales. */
+    var xScale, yScale, xAxis, yAxis, xAxisLabel, yAxisLabel, color_scale;
+    var plots = [], symbols = [];
 
-    /* Figure out units. */
-    xunit = split_unit(descr.xunit);
-    yunit = split_unit(descr.yunit);
+    /* Loop over all plot descriptor dictionaries passed here. */
+    for (var plot_descr of plot_descr_array) {
+        /* Figure out units. */
+        xunit = split_unit(plot_descr.xunit);
+        yunit = split_unit(plot_descr.yunit);
 
-    if (xunit.unit != yunit.unit) {
-        throw TypeError('X- and y-axis have different (base) units. Cannot at present handle this.');
-    }
+        if (xunit.unit != yunit.unit) {
+            throw TypeError('X- and y-axis have different (base) units. Cannot at present handle this.');
+        }
 
-    /* If no unit was passed to this function, we default to the unit reported by the server. */
-    if (!unit) unit = xunit.unit;
+        /* If no unit was passed to this function, we default to the unit of the first dataset reported by the
+           server. */
+        if (!unit) unit = xunit.unit;
 
-    /* If we have a unit, determine the scale factor between chosen unit and the unit reported by the server. */
-    var scale_factor = 1, scale_factor_x = 1, scale_factor_y = 1;
-    if (unit) {
-        scale_factor = convert(1).from(xunit.unit).to(unit);
-        scale_factor_x = scale_factor**xunit.exponent;
-        scale_factor_y = scale_factor**yunit.exponent;
-    }
+        /* Now we have a unit, determine the scale factor between chosen unit and the unit reported by the server for
+           the present dataset. */
+        var scale_factor = 1, scale_factor_x = 1, scale_factor_y = 1;
+        if (unit) {
+            scale_factor = convert(1).from(xunit.unit).to(unit);
+            scale_factor_x = scale_factor ** xunit.exponent;
+            scale_factor_y = scale_factor ** yunit.exponent;
+        }
 
-    /* Create (linear, log) scales. */
-    var xScale, yScale;
-    if (descr.xscale == 'log') {
-        xScale = new Plottable.Scales.Log();
-    }
-    else {
-        xScale = new Plottable.Scales.Linear();
-    }
-    if (descr.yscale == 'log') {
-        yScale = new Plottable.Scales.Log();
-    }
-    else {
-        yScale = new Plottable.Scales.Linear();
-    }
-
-    /* Create axes. */
-    var xAxis = new Plottable.Axes.Numeric(xScale, "bottom");
-    var yAxis = new Plottable.Axes.Numeric(yScale, "left");
-
-    var xlabel = descr.xlabel;
-    var ylabel = descr.ylabel;
-
-    if (xunit.unit) xlabel += ' (' + unicode_unit(unit, xunit.exponent) + ')';
-    if (yunit.unit) ylabel += ' (' + unicode_unit(unit, yunit.exponent) + ')';
-
-    var xAxisLabel = new Plottable.Components.Label(xlabel)
-        .yAlignment("center");
-    var yAxisLabel = new Plottable.Components.Label(ylabel)
-        .xAlignment("center")
-        .angle(-90);
-
-    var names = [];
-    descr.series.forEach(function (item) {
-        names.push(item.name);
-    });
-
-    var color_scale = new Plottable.Scales.Color();
-    color_scale.domain(names);
-
-    var plots = [];
-    var symbols = [];
-    descr.series.forEach(function (item) {
-        var style = typeof item.style == 'undefined' ? 'k-' : item.style;
-
-        var dataset = new Plottable.Dataset(
-            item.y.map(function (value, index) {
-                return {x: scale_factor_x*this[index], y: scale_factor_y*value};
-            }, item.x));
-
-        var line = false;
-        var color = undefined;
-        var symbol = undefined;
-        for (var c of style) {
-            if (c == '-') {
-                line = true;
-            }
-            else if (c in color_abbreviations) {
-                color = color_abbreviations[c];
-            }
-            else if (c in symbol_factories) {
-                symbol = symbol_factories[c];
+        /* Create (linear, log) scales. */
+        if (!xScale) {
+            if (plot_descr.xscale == 'log') {
+                xScale = new Plottable.Scales.Log();
             }
             else {
-                throw TypeError('Cannot interpret style string: ' + style);
+                xScale = new Plottable.Scales.Linear();
+            }
+        }
+        if (!yScale) {
+            if (plot_descr.yscale == 'log') {
+                yScale = new Plottable.Scales.Log();
+            }
+            else {
+                yScale = new Plottable.Scales.Linear();
             }
         }
 
-        if (line) {
-            var plot = new Plottable.Plots.Line()
-                .x(function (d) {
-                    return d.x;
-                }, xScale)
-                .y(function (d) {
-                    return d.y;
-                }, yScale)
-                .addDataset(dataset);
-            if (color) {
-                plot.attr('stroke', color);
-            }
-            else {
-                plot.attr('stroke', item.name, color_scale);
-            }
-            plots.push(plot);
+        /* Create axes. */
+        if (!xAxis)  xAxis = new Plottable.Axes.Numeric(xScale, "bottom");
+        if (!yAxis)  yAxis = new Plottable.Axes.Numeric(yScale, "left");
+
+        if (!xAxisLabel) {
+            xlabel = plot_descr.xlabel;
+            if (xunit.unit) xlabel += ' (' + unicode_unit(unit, xunit.exponent) + ')';
+
+            xAxisLabel = new Plottable.Components.Label(xlabel)
+                .yAlignment("center");
         }
-        if (symbol) {
-            var plot = new Plottable.Plots.Scatter()
-                .x(function (d) {
-                    return d.x;
-                }, xScale)
-                .y(function (d) {
-                    return d.y;
-                }, yScale)
-                .symbol(function () {
-                    return symbol;
-                })
-                .addDataset(dataset);
-            if (color) {
-                plot.attr('stroke', color).attr('fill', color);
-            }
-            else {
-                plot.attr('stroke', item.name, color_scale).attr('fill', item.name, color_scale);
-            }
-            plots.push(plot);
+        if (!yAxisLabel) {
+            ylabel = plot_descr.ylabel;
+            if (yunit.unit) ylabel += ' (' + unicode_unit(unit, yunit.exponent) + ')';
+
+            yAxisLabel = new Plottable.Components.Label(ylabel)
+                .xAlignment("center")
+                .angle(-90);
         }
 
-        symbols.push(symbol);
-    });
+        if (!color_scale) {
+            var names = [];
+            plot_descr.series.forEach(function (item) {
+                names.push(item.name);
+            });
+
+            color_scale = new Plottable.Scales.Color();
+            color_scale.domain(names);
+        }
+
+        plot_descr.series.forEach(function (item) {
+            var style = item.style ? item.style : 'k-';
+
+            var dataset = new Plottable.Dataset(
+                item.y.map(function (value, index) {
+                    return {x: scale_factor_x * this[index], y: scale_factor_y * value};
+                }, item.x));
+
+            var line = false;
+            var color = undefined;
+            var symbol = undefined;
+            for (var c of style) {
+                if (c == '-') {
+                    line = true;
+                }
+                else if (c in color_abbreviations) {
+                    color = color_abbreviations[c];
+                }
+                else if (c in symbol_factories) {
+                    symbol = symbol_factories[c];
+                }
+                else {
+                    throw TypeError('Cannot interpret style string: ' + style);
+                }
+            }
+
+            if (line) {
+                var plot = new Plottable.Plots.Line()
+                    .x(function (d) {
+                        return d.x;
+                    }, xScale)
+                    .y(function (d) {
+                        return d.y;
+                    }, yScale)
+                    .addDataset(dataset);
+                if (color) {
+                    plot.attr('stroke', color);
+                }
+                else {
+                    plot.attr('stroke', item.name, color_scale);
+                }
+                plots.push(plot);
+            }
+            if (symbol) {
+                var plot = new Plottable.Plots.Scatter()
+                    .x(function (d) {
+                        return d.x;
+                    }, xScale)
+                    .y(function (d) {
+                        return d.y;
+                    }, yScale)
+                    .symbol(function () {
+                        return symbol;
+                    })
+                    .addDataset(dataset);
+                if (color) {
+                    plot.attr('stroke', color).attr('fill', color);
+                }
+                else {
+                    plot.attr('stroke', item.name, color_scale).attr('fill', item.name, color_scale);
+                }
+                plots.push(plot);
+            }
+
+            symbols.push(symbol);
+        });
+    }
 
     var legend = new Plottable.Components.Legend(color_scale);
     legend.symbol(function (datum, index) {
@@ -278,24 +293,19 @@ function render_plot(element, descr, unit) {
 
 
 /*
- * Merge multiple plot dictionaries (each can contain multiple xy-series) into a single plot dictionary.
- */
-function merge_plots(...data_array) {
-    return data_array[0];
-}
-
-
-/*
  * Updated scatter plot for a certain task. Continually poll task results if data not yet available.
  */
 function plot(element, unit) {
+    /* Show spinner. */
     $('.spinner', $(element).parent()).show();
 
+    /* Enumerate all data request URLs into a single array. */
     var requests = [];
     for (var src_index = 1; $(element).data('src'+src_index); src_index++) {
         requests.push($.get($(element).data('src'+src_index)));
     }
 
+    /* AJAX requests to all URLs in parallel. */
     $.when(...requests).done(function (...data_array) {
         /* The last two entries are the success string and the XMLHttpRequest object. We don't need them. */
         data_array = data_array.slice(0, -2);
@@ -316,12 +326,11 @@ function plot(element, unit) {
             }
         }
 
-        /* Merge all data dictionaries into a single one and plot. */
-        data = merge_plots(...data_array.map(data => data.result));
-        render_plot(element, data, unit);
+        /* Render plot. */
+        render_plot(element, data_array.map(data => data.result), unit);
         $('.spinner', $(element).parent()).hide();
     }).fail(function () {
-        $(element).html('Failed obtaining resource from server: ' + $(element).data('src'));
+        $(element).html('Failed obtaining resources from server.');
         $('.spinner', $(element).parent()).hide();
     });
 }
