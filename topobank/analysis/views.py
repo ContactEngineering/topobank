@@ -10,7 +10,7 @@ class AnalysisListView(ListView):
     context_object_name = 'analyses'
 
     def get_queryset(self):
-        analyses = Analysis.objects.filter(topography__surface__user=self.request.user)
+        analyses = Analysis.objects.filter(topography__surface__user=self.request.user).order_by('function')
         # TODO add column with unpickled data
         return analyses
 
