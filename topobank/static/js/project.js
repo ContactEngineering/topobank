@@ -128,7 +128,7 @@ function render_plot(element, plot_descr_array, unit) {
     if (chart)  chart.destroy();
 
     /* Scales. */
-    var xScale, yScale, xAxis, yAxis, xAxisLabel, yAxisLabel, color_scale;
+    var x_scale, y_scale, x_axis, y_axis, x_axis_label, y_axis_label, color_scale;
     var plots = [], symbols = [];
 
     /* Loop over all plot descriptor dictionaries passed here. */
@@ -155,39 +155,39 @@ function render_plot(element, plot_descr_array, unit) {
         }
 
         /* Create (linear, log) scales. */
-        if (!xScale) {
+        if (!x_scale) {
             if (plot_descr.xscale == 'log') {
-                xScale = new Plottable.Scales.Log();
+                x_scale = new Plottable.Scales.Log();
             }
             else {
-                xScale = new Plottable.Scales.Linear();
+                x_scale = new Plottable.Scales.Linear();
             }
         }
-        if (!yScale) {
+        if (!y_scale) {
             if (plot_descr.yscale == 'log') {
-                yScale = new Plottable.Scales.Log();
+                y_scale = new Plottable.Scales.Log();
             }
             else {
-                yScale = new Plottable.Scales.Linear();
+                y_scale = new Plottable.Scales.Linear();
             }
         }
 
         /* Create axes. */
-        if (!xAxis)  xAxis = new Plottable.Axes.Numeric(xScale, "bottom");
-        if (!yAxis)  yAxis = new Plottable.Axes.Numeric(yScale, "left");
+        if (!x_axis)  x_axis = new Plottable.Axes.Numeric(x_scale, "bottom");
+        if (!y_axis)  y_axis = new Plottable.Axes.Numeric(y_scale, "left");
 
-        if (!xAxisLabel) {
+        if (!x_axis_label) {
             xlabel = plot_descr.xlabel;
             if (xunit.unit) xlabel += ' (' + unicode_unit(unit, xunit.exponent) + ')';
 
-            xAxisLabel = new Plottable.Components.Label(xlabel)
+            x_axis_label = new Plottable.Components.Label(xlabel)
                 .yAlignment("center");
         }
-        if (!yAxisLabel) {
+        if (!y_axis_label) {
             ylabel = plot_descr.ylabel;
             if (yunit.unit) ylabel += ' (' + unicode_unit(unit, yunit.exponent) + ')';
 
-            yAxisLabel = new Plottable.Components.Label(ylabel)
+            y_axis_label = new Plottable.Components.Label(ylabel)
                 .xAlignment("center")
                 .angle(-90);
         }
@@ -232,10 +232,10 @@ function render_plot(element, plot_descr_array, unit) {
                 var plot = new Plottable.Plots.Line()
                     .x(function (d) {
                         return d.x;
-                    }, xScale)
+                    }, x_scale)
                     .y(function (d) {
                         return d.y;
-                    }, yScale)
+                    }, y_scale)
                     .addDataset(dataset);
                 if (color) {
                     plot.attr('stroke', color);
@@ -249,10 +249,10 @@ function render_plot(element, plot_descr_array, unit) {
                 var plot = new Plottable.Plots.Scatter()
                     .x(function (d) {
                         return d.x;
-                    }, xScale)
+                    }, x_scale)
                     .y(function (d) {
                         return d.y;
-                    }, yScale)
+                    }, y_scale)
                     .symbol(function () {
                         return symbol;
                     })
@@ -278,9 +278,9 @@ function render_plot(element, plot_descr_array, unit) {
 
     var chart = new Plottable.Components.Table([
         [null, null, legend],
-        [yAxisLabel, yAxis, new Plottable.Components.Group(plots)],
-        [null, null, xAxis, null],
-        [null, null, xAxisLabel, null]
+        [y_axis_label, y_axis, new Plottable.Components.Group(plots)],
+        [null, null, x_axis, null],
+        [null, null, x_axis_label, null]
     ]);
 
     chart.renderTo(element);
