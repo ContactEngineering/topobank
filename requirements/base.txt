@@ -4,7 +4,7 @@ Pillow==5.1.0  # https://github.com/python-pillow/Pillow
 argon2-cffi==18.1.0  # https://github.com/hynek/argon2_cffi
 whitenoise==3.3.1  # https://github.com/evansd/whitenoise
 redis>=2.10.5  # https://github.com/antirez/redis
-celery==3.1.26.post2  # pyup: <4.0  # https://github.com/celery/celery
+# celery==3.1.26.post2  # pyup: <4.0  # https://github.com/celery/celery
 
 # Django
 # ------------------------------------------------------------------------------
@@ -23,8 +23,9 @@ coreapi==2.3.3  # https://github.com/core-api/python-client
 django-fontawesome==1.0
 
 # Celery
-django-celery-results==1.0.1
+# django-celery-results==1.0.1
 django-kombu>=0.9.4
+celery==4.2
 
 #
 # Contact Mechanics
@@ -44,3 +45,6 @@ bokeh==0.13.0
 
 # form wizard for defining a topography in several steps
 django-formtools==2.1
+
+# multiple select widget
+django-select2==6.3.1

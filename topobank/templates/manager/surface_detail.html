@@ -48,6 +48,8 @@
     <div class="tab-content">
       <div class="tab-pane fade show active" id="topographies" role="tabpanel" aria-labelledby="topographies-tab">
         <div class="table-responsive">
+          <form>
+          {%  csrf_token %}
           <table class="table table-hover">
 
             <thead>
@@ -56,22 +58,35 @@
               <th scope="col">Name</th>
               <th scope="col">Measurement Date</th>
               <th scope="col">Description</th>
+              <th scope="col">
+                  <div class="checkbox-inline">
+                    <label><input id="select_all" type="checkbox" value=""></label>
+                  </div>
+              </th>
             </tr>
             </thead>
             <tbody>
             {% for topo in surface.topography_set.all %}
               <tr class="clickable-table-row" data-href="{% url 'manager:topography-detail' topo.id %}">
+
                 <td><img src="{{ topo.surface_thumbnail.url }}" alt="Thumbnail of surface image"
                          width="{{ topo.surface_thumbnail.width }}"
                          height="{{ topo.surface_thumbnail.height }}"></td>
                 <th scope="row">{{ topo.name }}</th>
                 <td>{{ topo.measurement_date }}</td>
                 <td>{{ topo.description }}</td>
+                <td>
+                  <div class="checkbox-inline">
+                    <label><input class="cb-topography" id="toggle-select-topo-{{ topo.id }}" type="checkbox"
+                                  data-href="{% url 'manager:topography-toggle-select' topo.id %}"></label>
+                  </div>
+                </td>
               </tr>
             {% endfor %}
 
             </tbody>
           </table>
+          </form>
         </div>
       </div>
 
@@ -94,5 +109,26 @@
 </div>
 
 {% endblock content %}
+
+{% block javascript %}
+  <script>
+  $('#select_all').change(function() {
+      var checkboxes = $('.cb-topography');
+      checkboxes.prop('checked', $(this).is(':checked'));
+  });
+
+
+  $('.cb-topography').change( function(e) {
+      console.log(this);
+      $.ajax($(this).attr("data-href"));
+    }
+  );
+
+  // do not propagate click when selecting checkbox, so no details are shown
+  $('.cb-topography').click( function(e) {
+    e.stopPropagation();
+  })
+  </script>
+{% endblock javascript %}
 
 

@@ -1,11 +1,41 @@
 {% extends 'base.html' %}
 {% load fontawesome %}
+{% load crispy_forms_tags %}
 
 {% block content-title %}
-  Results
+  Analysis Results
 {% endblock content-title %}
 
+{% block extra_css %}
+  {{ form.media.css }}
+{% endblock extra_css %}
+
 {% block content %}
+
+  <div>
+    <div class="card">
+      <div class="card-header">
+        Filter results by topographies and analysis functions
+      </div>
+      <div class="card-body">
+        {% crispy form form.helper %}
+      </div>
+    </div>
+  </div>
+
+  <!--
+  <div class="row">
+  <form>
+    <div class="form-control">
+      <label for="selectTopographies">Filter topographies</label>
+      <input type="email" class="form-control" id="exampleInputEmail1" aria-describedby="emailHelp" placeholder="Enter email">
+      <small id="selectTopographiesHelp" class="form-text text-muted">
+        Choose one or multiple topographies. You can search interactively by name.
+      </small>
+    </div>
+    <button type="submit" class="btn btn-primary">Update</button>
+  </form>
+  </div>-->
 
   <div class="row">
   {% for analysis in analyses %}
@@ -25,3 +55,7 @@
   </div>
 
 {% endblock content %}
+
+{% block javascript %}
+  {{ form.media.js }}
+{% endblock javascript %}

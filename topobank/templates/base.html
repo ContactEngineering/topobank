@@ -29,6 +29,8 @@
     <!-- This file stores project-specific CSS -->
     <link href="{% static 'css/project.css' %}" rel="stylesheet">
 
+    {% block extra_css %}{% endblock extra_css %}
+
 </head>
 
 <body id="page-top">
@@ -149,8 +151,8 @@
           </a>
           <div class="dropdown-menu dropdown-menu-right user-dropdown" aria-labelledby="userDropdown">
             {% if request.user.is_authenticated %}
-            <a class="dropdown-item" href="#"><i class="fa fa-user fa-fw"></i> User Profile</a>
-            <a class="dropdown-item" href="#"><i class="fa fa-cog fa-fw"></i> Settings</a>
+            <a class="dropdown-item" href="{% url 'users:detail' request.user.username %}"><i class="fa fa-user fa-fw"></i> User Profile</a>
+            <!-- a class="dropdown-item" href="#"><i class="fa fa-cog fa-fw"></i> Settings<a> -->
             <div class="dropdown-divider"></div>
             <a class="dropdown-item" href="#" data-toggle="modal" data-target="#logoutModal"><i
               class="fa fa-sign-out-alt fa-fw"></i> Logout</a>

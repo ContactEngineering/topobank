@@ -4,7 +4,13 @@ from django.urls import reverse, reverse_lazy
 from django.core.files.storage import FileSystemStorage, DefaultStorage
 from django.conf import settings
 from formtools.wizard.views import SessionWizardView
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+
 import os.path
+
+from rest_framework.decorators import api_view
+from rest_framework.views import Response
 
 from .models import Topography, Surface
 from .forms import TopographyForm, SurfaceForm
@@ -214,6 +220,25 @@ class SurfaceDetailView(DetailView):
     #def get_context_data(self, **kwargs):
     #    context = super(SurfaceDetailView, self).get_context_data(**kwargs)
     #   context['topographies'] = Topography.objects.filter(surface=self.object)
+
+
+# @csrf_exempt
+@api_view(["GET"]) # TODO should be POST
+def toggle_topography_selection(request, pk):
+    selected_topos = request.session.get('selected_topographies', [])
+    if pk in selected_topos:
+        selected_topos.pop(pk)
+        is_selected = False
+    else:
+        selected_topos.append(pk)
+        is_selected = True
+    return JsonResponse(dict(is_selected=is_selected))
+
+@api_view(["GET"])
+def is_topography_selected(request, pk):
+    selected_topos = request.session.get('selected_topographies', [])
+    is_selected = pk in selected_topos
+    return JsonResponse(dict(is_selected=is_selected))
 
 
 

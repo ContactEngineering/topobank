@@ -31,6 +31,9 @@ class Analysis(models.Model):
 
     result = models.BinaryField(null=True, default=None)  # for pickle, in case of failure, can be Exception instance
 
+    def __str__(self):
+        return "Task {} with state {}".format(self.task_id, self.get_task_state_display())
+
 class AnalysisFunction(models.Model):
     name = models.CharField(max_length=80, help_text="A human-readable name.", unique=True)
     pyfunc = models.CharField(max_length=256,
@@ -38,4 +41,7 @@ class AnalysisFunction(models.Model):
     # this reference to python function may change in future
     automatic  = models.BooleanField(default=False,
                                      help_text="If set, this analysis is automatically triggered for new topographies.")
+
+    def __str__(self):
+        return self.name
 

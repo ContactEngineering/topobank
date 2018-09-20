@@ -21,6 +21,7 @@
             <th scope="col">Surface</th>
             <th scope="col">Measurement Date</th>
             <th scope="col">Description</th>
+            <th scope="col">Selected?</th>
           </tr>
         </thead>
         <tbody>
@@ -33,6 +34,11 @@
             <td><a href="{% url 'manager:surface-detail' topo.surface.id %}">{{ topo.surface.name }}</a></td>
             <td>{{ topo.measurement_date }}</td>
             <td>{{ topo.description }}</td>
+            <td>
+              <div class="checkbox-inline">
+                <input id="" type="checkbox" value="" disabled>
+              </div>
+            </td>
           </tr>
           {%  endfor %}
 
