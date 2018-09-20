@@ -108,7 +108,8 @@ function unicode_unit(unit, exponent) {
  * listed for the respective element. The resulting data will then be presented in a single plot. Function handles
  * unit conversion between data sources.
  */
-function render_plot(element, descr, unit = undefined) {
+function render_plot(element, descr, unit) {
+    /* Static dictionaries. */
     var color_abbreviations = {
         'k': 'black',
         'r': 'red',
@@ -121,6 +122,11 @@ function render_plot(element, descr, unit = undefined) {
         '^': Plottable.SymbolFactories.triangle(),
         'y': Plottable.SymbolFactories.wye(),
     };
+
+    /* Check if chart already exists. */
+    chart = $(element).data('chart');
+    if (chart)  chart.destroy();
+
 
     /* Figure out units. */
     xunit = split_unit(descr.xunit);
@@ -272,24 +278,48 @@ function render_plot(element, descr, unit = undefined) {
 
 
 /*
+ * Merge multiple plot dictionaries (each can contain multiple xy-series) into a single plot dictionary.
+ */
+function merge_plots(...data_array) {
+    return data_array[0];
+}
+
+
+/*
  * Updated scatter plot for a certain task. Continually poll task results if data not yet available.
  */
-function plot(element, unit = undefined) {
-    $.get($(element).data('src'), function (data) {
-        if (data.task_state == 'pe' || data.task_state == 'st') {
-            setTimeout(function () {
-                plot(element);
-            }, 1000);
-        }
-        else {
-            if ('error' in data.result) {
-                $(element).html('Server reported error: ' + data.result.error);
+function plot(element, unit) {
+    $('.spinner', $(element).parent()).show();
+
+    var requests = [];
+    for (var src_index = 1; $(element).data('src'+src_index); src_index++) {
+        requests.push($.get($(element).data('src'+src_index)));
+    }
+
+    $.when(...requests).done(function (...data_array) {
+        /* The last two entries are the success string and the XMLHttpRequest object. We don't need them. */
+        data_array = data_array.slice(0, -2);
+
+        /* Loop over all data dictionaries and see if calculations have finished or failed. */
+        for (var data of data_array) {
+            if (data.task_state == 'pe' || data.task_state == 'st') {
+                setTimeout(function () {
+                    plot(element, unit);
+                }, 1000);
+                return;
             }
             else {
-                render_plot(element, data.result, unit);
-                $('.spinner', $(element).parent()).hide();
+                if ('error' in data.result) {
+                    $(element).html('Server reported error: ' + data.result.error);
+                    return;
+                }
             }
         }
+
+        /* Merge all data dictionaries into a single one and plot. */
+        data = merge_plots(...data_array.map(data => data.result));
+        render_plot(element, data, unit);
+        $('.spinner', $(element).parent()).hide();
     }).fail(function () {
         $(element).html('Failed obtaining resource from server: ' + $(element).data('src'));
         $('.spinner', $(element).parent()).hide();
@@ -305,6 +335,8 @@ $(document).ready(function ($) {
         window.document.location = $(this).data("href");
     });
 
+    /* === VISUALIZATION === */
+
     /* Initiate all plots, or rather first AJAX request to get plot data. */
     $('.topobank-scatter-plot').each(function () {
         plot(this);
@@ -315,5 +347,15 @@ $(document).ready(function ($) {
         $('.topobank-plot-resize').each(function () {
             $(this).data('chart').redraw();
         });
+    });
+
+    /* Change units. */
+    $('.topobank-change-unit').on('click', function (e) {
+        /* Extract unit string from dropdown text. */
+        t = $(this).html()
+        unit = t.slice(t.length-2, t.length);
+
+        /* Trigger refresh of plot. */
+        plot($('.topobank-scatter-plot', $(this).closest('.card')), unit);
     });
 });
