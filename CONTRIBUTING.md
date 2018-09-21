@@ -16,14 +16,14 @@ work in 2018, the branch could be called "18_line_scans".
 Commits
 -------
 Prepend you commits with a shortcut indicating the type of changes they contain:
+* BUG: Bug fix
+* CI: Changes to the CI configuration
+* DEP: Update in 3rd-party dependencies
+* DOC: Changes to documentation strings
 * ENH: Enhancement (e.g. a new feature)
 * MAINT: Maintenance (e.g. fixing a typo)
-* DOC: Changes to documentation strings
-* BUG: Bug fix
 * TST: Changes to the unit test environment
-* CI: Changes to the CI configuration
 * WIP: Work in progress
-* DEP: Update in 3rd-party dependencies
 
 User-interface guidelines
 -------------------------
