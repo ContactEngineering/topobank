@@ -288,11 +288,11 @@ var Array = __webpack_require__(113);
 exports.Array = Array;
 var Color = __webpack_require__(116);
 exports.Color = Color;
-var DOM = __webpack_require__(59);
+var DOM = __webpack_require__(58);
 exports.DOM = DOM;
-var Math = __webpack_require__(60);
+var Math = __webpack_require__(59);
 exports.Math = Math;
-var RTree = __webpack_require__(61);
+var RTree = __webpack_require__(60);
 exports.RTree = RTree;
 var Stacking = __webpack_require__(121);
 exports.Stacking = Stacking;
@@ -304,7 +304,7 @@ tslib_1.__exportStar(__webpack_require__(13), exports);
 tslib_1.__exportStar(__webpack_require__(117), exports);
 tslib_1.__exportStar(__webpack_require__(118), exports);
 tslib_1.__exportStar(__webpack_require__(119), exports);
-tslib_1.__exportStar(__webpack_require__(62), exports);
+tslib_1.__exportStar(__webpack_require__(61), exports);
 tslib_1.__exportStar(__webpack_require__(122), exports);
 
 
@@ -1140,10 +1140,10 @@ var tslib_1 = __webpack_require__(0);
 var TickGenerators = __webpack_require__(111);
 exports.TickGenerators = TickGenerators;
 tslib_1.__exportStar(__webpack_require__(57), exports);
+tslib_1.__exportStar(__webpack_require__(106), exports);
 tslib_1.__exportStar(__webpack_require__(107), exports);
 tslib_1.__exportStar(__webpack_require__(108), exports);
 tslib_1.__exportStar(__webpack_require__(109), exports);
-tslib_1.__exportStar(__webpack_require__(58), exports);
 tslib_1.__exportStar(__webpack_require__(110), exports);
 tslib_1.__exportStar(__webpack_require__(112), exports);
 // ---------------------------------------------------------
@@ -1177,11 +1177,11 @@ function __export(m) {
     for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
 }
 Object.defineProperty(exports, "__esModule", { value: true });
-__export(__webpack_require__(65));
-__export(__webpack_require__(68));
+__export(__webpack_require__(64));
+__export(__webpack_require__(67));
 __export(__webpack_require__(139));
 __export(__webpack_require__(22));
-__export(__webpack_require__(70));
+__export(__webpack_require__(69));
 __export(__webpack_require__(29));
 //# sourceMappingURL=index.js.map
 
@@ -2107,8 +2107,8 @@ exports.ProxyDrawer = ProxyDrawer;
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 var tslib_1 = __webpack_require__(0);
+tslib_1.__exportStar(__webpack_require__(74), exports);
 tslib_1.__exportStar(__webpack_require__(75), exports);
-tslib_1.__exportStar(__webpack_require__(76), exports);
 
 
 /***/ }),
@@ -2596,9 +2596,9 @@ exports.coerceExternalD3 = coerceExternalD3;
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 var tslib_1 = __webpack_require__(0);
+tslib_1.__exportStar(__webpack_require__(87), exports);
 tslib_1.__exportStar(__webpack_require__(88), exports);
 tslib_1.__exportStar(__webpack_require__(89), exports);
-tslib_1.__exportStar(__webpack_require__(90), exports);
 
 
 /***/ }),
@@ -3346,15 +3346,15 @@ var tslib_1 = __webpack_require__(0);
 tslib_1.__exportStar(__webpack_require__(53), exports);
 tslib_1.__exportStar(__webpack_require__(28), exports);
 tslib_1.__exportStar(__webpack_require__(54), exports);
-tslib_1.__exportStar(__webpack_require__(99), exports);
+tslib_1.__exportStar(__webpack_require__(98), exports);
 tslib_1.__exportStar(__webpack_require__(56), exports);
+tslib_1.__exportStar(__webpack_require__(99), exports);
 tslib_1.__exportStar(__webpack_require__(100), exports);
 tslib_1.__exportStar(__webpack_require__(101), exports);
 tslib_1.__exportStar(__webpack_require__(102), exports);
 tslib_1.__exportStar(__webpack_require__(103), exports);
 tslib_1.__exportStar(__webpack_require__(104), exports);
 tslib_1.__exportStar(__webpack_require__(105), exports);
-tslib_1.__exportStar(__webpack_require__(106), exports);
 
 
 /***/ }),
@@ -3369,9 +3369,9 @@ tslib_1.__exportStar(__webpack_require__(106), exports);
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 var tslib_1 = __webpack_require__(0);
-tslib_1.__exportStar(__webpack_require__(97), exports);
-tslib_1.__exportStar(__webpack_require__(98), exports);
 tslib_1.__exportStar(__webpack_require__(96), exports);
+tslib_1.__exportStar(__webpack_require__(97), exports);
+tslib_1.__exportStar(__webpack_require__(95), exports);
 var signature_1 = __webpack_require__(52);
 exports.sign = signature_1.sign;
 
@@ -4202,11 +4202,11 @@ exports.Dispatcher = Dispatcher;
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 var tslib_1 = __webpack_require__(0);
+tslib_1.__exportStar(__webpack_require__(91), exports);
 tslib_1.__exportStar(__webpack_require__(92), exports);
-tslib_1.__exportStar(__webpack_require__(93), exports);
 tslib_1.__exportStar(__webpack_require__(42), exports);
+tslib_1.__exportStar(__webpack_require__(93), exports);
 tslib_1.__exportStar(__webpack_require__(94), exports);
-tslib_1.__exportStar(__webpack_require__(95), exports);
 var panZoomConstraints_1 = __webpack_require__(27);
 exports.zoomOut = panZoomConstraints_1.zoomOut;
 
@@ -6600,19 +6600,19 @@ exports.AbstractMeasurer = AbstractMeasurer;
 Object.defineProperty(exports, "__esModule", { value: true });
 var tslib_1 = __webpack_require__(0);
 tslib_1.__exportStar(__webpack_require__(34), exports);
+tslib_1.__exportStar(__webpack_require__(78), exports);
 tslib_1.__exportStar(__webpack_require__(79), exports);
-tslib_1.__exportStar(__webpack_require__(80), exports);
 tslib_1.__exportStar(__webpack_require__(43), exports);
 tslib_1.__exportStar(__webpack_require__(44), exports);
-tslib_1.__exportStar(__webpack_require__(81), exports);
+tslib_1.__exportStar(__webpack_require__(80), exports);
 tslib_1.__exportStar(__webpack_require__(45), exports);
+tslib_1.__exportStar(__webpack_require__(81), exports);
 tslib_1.__exportStar(__webpack_require__(82), exports);
-tslib_1.__exportStar(__webpack_require__(83), exports);
 tslib_1.__exportStar(__webpack_require__(46), exports);
+tslib_1.__exportStar(__webpack_require__(83), exports);
 tslib_1.__exportStar(__webpack_require__(84), exports);
 tslib_1.__exportStar(__webpack_require__(85), exports);
 tslib_1.__exportStar(__webpack_require__(86), exports);
-tslib_1.__exportStar(__webpack_require__(87), exports);
 
 
 /***/ }),
@@ -7653,7 +7653,7 @@ exports.SegmentSVGDrawer = SegmentSVGDrawer;
 Object.defineProperty(exports, "__esModule", { value: true });
 var tslib_1 = __webpack_require__(0);
 var canvasDrawer_1 = __webpack_require__(19);
-var canvasBuffer_1 = __webpack_require__(91);
+var canvasBuffer_1 = __webpack_require__(90);
 var svgDrawer_1 = __webpack_require__(10);
 var SymbolSVGDrawer = /** @class */ (function (_super) {
     tslib_1.__extends(SymbolSVGDrawer, _super);
@@ -9082,192 +9082,6 @@ exports.Category = Category;
  * @license MIT
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-var tslib_1 = __webpack_require__(0);
-var d3 = __webpack_require__(2);
-var Utils = __webpack_require__(1);
-var Scales = __webpack_require__(4);
-var quantitativeScale_1 = __webpack_require__(12);
-var Log = /** @class */ (function (_super) {
-    tslib_1.__extends(Log, _super);
-    /**
-     * A Log Scale acts as a regular log scale. Data points with values <= 0 will
-     * not be displayed.
-     *
-     * The range and domain for the scale should be set, using the
-     * range() and domain() accessors, respectively.
-     *
-     * For `range`, provide a two-element array giving the minimum and
-     * maximum of values produced when scaling.
-     *
-     * For `domain` provide a two-element array giving the minimum and
-     * maximum of the values that will be scaled.
-     *
-     * @constructor
-     * @param {number} [base=10]
-     *        The base of the log. Must be > 1.
-     *
-     */
-    function Log(base) {
-        if (base === void 0) { base = 10; }
-        var _this = _super.call(this) || this;
-        _this._logTickGenerator = function (scale) {
-            var min = Utils.Math.min(_this._untransformedDomain, 0);
-            var max = Utils.Math.max(_this._untransformedDomain, 0);
-            var ticks = _this._logTicks(min, max);
-            // If you only have 1 tick, you can't tell how big the scale is.
-            if (ticks.length <= 1) {
-                ticks = d3.scaleLinear().domain([min, max]).ticks(Scales.ModifiedLog._DEFAULT_NUM_TICKS);
-            }
-            return ticks;
-        };
-        _this._d3Scale = d3.scaleLinear();
-        _this._base = base;
-        _this._setDomain(_this._defaultExtent());
-        _this.tickGenerator(_this._logTickGenerator);
-        if (base <= 1) {
-            throw new Error("LogScale: The base must be > 1");
-        }
-        return _this;
-    }
-    Log.prototype._log = function (x) {
-        return Math.log(x) / Math.log(this._base);
-    };
-    Log.prototype._invertedLog = function (x) {
-        return Math.pow(this._base, x);
-    };
-    Log.prototype.scale = function (x) {
-        return this._d3Scale(this._log(x));
-    };
-    Log.prototype.invert = function (x) {
-        return this._invertedLog(this._d3Scale.invert(x));
-    };
-    Log.prototype.scaleTransformation = function (value) {
-        return this.scale(value);
-    };
-    Log.prototype.invertedTransformation = function (value) {
-        return this.invert(value);
-    };
-    Log.prototype.getTransformationExtent = function () {
-        return this._getUnboundedExtent(true);
-    };
-    Log.prototype.getTransformationDomain = function () {
-        return this.domain();
-    };
-    Log.prototype.setTransformationDomain = function (domain) {
-        this.domain(domain);
-    };
-    Log.prototype._getBase = function () {
-        return this._base;
-    };
-    Log.prototype._getDomain = function () {
-        return this._untransformedDomain;
-    };
-    Log.prototype._setDomain = function (values) {
-        this._untransformedDomain = values;
-        var transformedDomain = [this._log(values[0]), this._log(values[1])];
-        _super.prototype._setDomain.call(this, transformedDomain);
-    };
-    Log.prototype._backingScaleDomain = function (values) {
-        if (values == null) {
-            return this._d3Scale.domain();
-        }
-        else {
-            this._d3Scale.domain(values);
-            return this;
-        }
-    };
-    /**
-     * Return an appropriate number of ticks from lower to upper.
-     *
-     * This will first try to fit as many powers of this.base as it can from
-     * lower to upper.
-     *
-     * If it still has ticks after that, it will generate ticks in "clusters",
-     * e.g. [20, 30, ... 90, 100] would be a cluster, [200, 300, ... 900, 1000]
-     * would be another cluster.
-     *
-     * This function will generate clusters as large as it can while not
-     * drastically exceeding its number of ticks.
-     */
-    Log.prototype._logTicks = function (lower, upper) {
-        var _this = this;
-        var nTicks = this._howManyTicks(lower, upper);
-        if (nTicks === 0) {
-            return [];
-        }
-        var startLogged = Math.floor(Math.log(lower) / Math.log(this._base));
-        var endLogged = Math.ceil(Math.log(upper) / Math.log(this._base));
-        var bases = d3.range(endLogged, startLogged, -Math.ceil((endLogged - startLogged) / nTicks));
-        var multiples = d3.range(this._base, 1, -(this._base - 1)).map(Math.floor);
-        var uniqMultiples = Utils.Array.uniq(multiples);
-        var clusters = bases.map(function (b) { return uniqMultiples.map(function (x) { return Math.pow(_this._base, b - 1) * x; }); });
-        var flattened = Utils.Array.flatten(clusters);
-        var filtered = flattened.filter(function (x) { return lower <= x && x <= upper; });
-        var sorted = filtered.sort(function (x, y) { return x - y; });
-        return sorted;
-    };
-    /**
-     * How many ticks does the range [lower, upper] deserve?
-     *
-     * e.g. if your domain was [10, 1000] and I asked _howManyTicks(10, 100),
-     * I would get 1/2 of the ticks. The range 10, 100 takes up 1/2 of the
-     * distance when plotted.
-     */
-    Log.prototype._howManyTicks = function (lower, upper) {
-        var logMin = this._log(Utils.Math.min(this._untransformedDomain, 0));
-        var logMax = this._log(Utils.Math.max(this._untransformedDomain, 0));
-        var logLower = this._log(lower);
-        var logUpper = this._log(upper);
-        var proportion = (logUpper - logLower) / (logMax - logMin);
-        var ticks = Math.ceil(proportion * Scales.Log._DEFAULT_NUM_TICKS);
-        return ticks;
-    };
-    Log.prototype._niceDomain = function (domain, count) {
-        return domain;
-    };
-    Log.prototype._defaultExtent = function () {
-        return [0, this._base];
-    };
-    Log.prototype._expandSingleValueDomain = function (singleValueDomain) {
-        if (singleValueDomain[0] === singleValueDomain[1]) {
-            var singleValue = singleValueDomain[0];
-            if (singleValue > 0) {
-                return [singleValue / this._base, singleValue * this._base];
-            }
-            else if (singleValue === 0) {
-                return [-this._base, this._base];
-            }
-            else {
-                return [singleValue * this._base, singleValue / this._base];
-            }
-        }
-        return singleValueDomain;
-    };
-    Log.prototype._getRange = function () {
-        return this._d3Scale.range();
-    };
-    Log.prototype._setRange = function (values) {
-        this._d3Scale.range(values);
-    };
-    Log.prototype.defaultTicks = function () {
-        return this._d3Scale.ticks(Scales.ModifiedLog._DEFAULT_NUM_TICKS);
-    };
-    return Log;
-}(quantitativeScale_1.QuantitativeScale));
-exports.Log = Log;
-
-
-/***/ }),
-/* 59 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-/**
- * Copyright 2014-present Palantir Technologies
- * @license MIT
- */
-Object.defineProperty(exports, "__esModule", { value: true });
 var d3 = __webpack_require__(2);
 var nativeMath = window.Math;
 /**
@@ -9569,7 +9383,7 @@ function parseTransformMatrix(transform) {
 
 
 /***/ }),
-/* 60 */
+/* 59 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -9580,7 +9394,7 @@ function parseTransformMatrix(transform) {
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 var d3 = __webpack_require__(2);
-var domUtils_1 = __webpack_require__(59);
+var domUtils_1 = __webpack_require__(58);
 var nativeMath = window.Math;
 var _IDENTITY_TRANSFORM = [1, 0, 0, 1, 0, 0];
 /**
@@ -9813,7 +9627,7 @@ exports.applyTransform = applyTransform;
 
 
 /***/ }),
-/* 61 */
+/* 60 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -10310,7 +10124,7 @@ exports.RTreeBounds = RTreeBounds;
 
 
 /***/ }),
-/* 62 */
+/* 61 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -10383,7 +10197,7 @@ exports.Set = Set;
 
 
 /***/ }),
-/* 63 */
+/* 62 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /* WEBPACK VAR INJECTION */(function(global, module) {var __WEBPACK_AMD_DEFINE_RESULT__;/**
@@ -27496,7 +27310,7 @@ exports.Set = Set;
 /* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(146), __webpack_require__(147)(module)))
 
 /***/ }),
-/* 64 */
+/* 63 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -27645,7 +27459,7 @@ exports.HtmlContext = HtmlContext;
 //# sourceMappingURL=html.js.map
 
 /***/ }),
-/* 65 */
+/* 64 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -27661,11 +27475,11 @@ function __export(m) {
 Object.defineProperty(exports, "__esModule", { value: true });
 __export(__webpack_require__(137));
 __export(__webpack_require__(136));
-__export(__webpack_require__(64));
+__export(__webpack_require__(63));
 //# sourceMappingURL=index.js.map
 
 /***/ }),
-/* 66 */
+/* 65 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -27688,7 +27502,7 @@ var __extends = (this && this.__extends) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 var utils_1 = __webpack_require__(22);
-var characterMeasurer_1 = __webpack_require__(67);
+var characterMeasurer_1 = __webpack_require__(66);
 var CacheCharacterMeasurer = (function (_super) {
     __extends(CacheCharacterMeasurer, _super);
     function CacheCharacterMeasurer(ruler, useGuards) {
@@ -27713,7 +27527,7 @@ exports.CacheCharacterMeasurer = CacheCharacterMeasurer;
 //# sourceMappingURL=cacheCharacterMeasurer.js.map
 
 /***/ }),
-/* 67 */
+/* 66 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -27735,7 +27549,7 @@ var __extends = (this && this.__extends) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-var measurer_1 = __webpack_require__(69);
+var measurer_1 = __webpack_require__(68);
 var CharacterMeasurer = (function (_super) {
     __extends(CharacterMeasurer, _super);
     function CharacterMeasurer() {
@@ -27758,7 +27572,7 @@ exports.CharacterMeasurer = CharacterMeasurer;
 //# sourceMappingURL=characterMeasurer.js.map
 
 /***/ }),
-/* 68 */
+/* 67 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -27773,14 +27587,14 @@ function __export(m) {
 }
 Object.defineProperty(exports, "__esModule", { value: true });
 __export(__webpack_require__(38));
-__export(__webpack_require__(66));
+__export(__webpack_require__(65));
 __export(__webpack_require__(138));
-__export(__webpack_require__(67));
-__export(__webpack_require__(69));
+__export(__webpack_require__(66));
+__export(__webpack_require__(68));
 //# sourceMappingURL=index.js.map
 
 /***/ }),
-/* 69 */
+/* 68 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -27846,7 +27660,7 @@ exports.Measurer = Measurer;
 //# sourceMappingURL=measurer.js.map
 
 /***/ }),
-/* 70 */
+/* 69 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -27861,11 +27675,11 @@ function __export(m) {
 }
 Object.defineProperty(exports, "__esModule", { value: true });
 __export(__webpack_require__(144));
-__export(__webpack_require__(71));
+__export(__webpack_require__(70));
 //# sourceMappingURL=index.js.map
 
 /***/ }),
-/* 71 */
+/* 70 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -28091,7 +27905,7 @@ exports.Wrapper = Wrapper;
 //# sourceMappingURL=wrapper.js.map
 
 /***/ }),
-/* 72 */
+/* 71 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -28102,13 +27916,13 @@ exports.Wrapper = Wrapper;
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 var tslib_1 = __webpack_require__(0);
+tslib_1.__exportStar(__webpack_require__(76), exports);
 tslib_1.__exportStar(__webpack_require__(77), exports);
-tslib_1.__exportStar(__webpack_require__(78), exports);
 tslib_1.__exportStar(__webpack_require__(30), exports);
 
 
 /***/ }),
-/* 73 */
+/* 72 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -28127,7 +27941,7 @@ exports.version = "3.9.0-dev-21-g2d9a4b93b";
 
 
 /***/ }),
-/* 74 */
+/* 73 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -28227,7 +28041,7 @@ d3Transition.transition.prototype.styles = transition_styles;
 
 
 /***/ }),
-/* 75 */
+/* 74 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -28445,7 +28259,7 @@ exports.Easing = Easing;
 
 
 /***/ }),
-/* 76 */
+/* 75 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -28476,7 +28290,7 @@ exports.Null = Null;
 
 
 /***/ }),
-/* 77 */
+/* 76 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -28833,7 +28647,7 @@ exports.Category = Category;
 
 
 /***/ }),
-/* 78 */
+/* 77 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -29126,7 +28940,7 @@ exports.Numeric = Numeric;
 
 
 /***/ }),
-/* 79 */
+/* 78 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -29312,7 +29126,7 @@ exports.DragLineLayer = DragLineLayer;
 
 
 /***/ }),
-/* 80 */
+/* 79 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -29463,7 +29277,7 @@ exports.Gridlines = Gridlines;
 
 
 /***/ }),
-/* 81 */
+/* 80 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -29720,7 +29534,7 @@ exports.InterpolatedColorLegend = InterpolatedColorLegend;
 
 
 /***/ }),
-/* 82 */
+/* 81 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -30230,7 +30044,7 @@ exports.Legend = Legend;
 
 
 /***/ }),
-/* 83 */
+/* 82 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -30284,7 +30098,7 @@ exports.PlotGroup = PlotGroup;
 
 
 /***/ }),
-/* 84 */
+/* 83 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -30680,7 +30494,7 @@ exports.Table = Table;
 
 
 /***/ }),
-/* 85 */
+/* 84 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -30727,7 +30541,7 @@ exports.WrappedLabel = WrappedLabel;
 
 
 /***/ }),
-/* 86 */
+/* 85 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -30791,7 +30605,7 @@ exports.XDragBoxLayer = XDragBoxLayer;
 
 
 /***/ }),
-/* 87 */
+/* 86 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -30855,7 +30669,7 @@ exports.YDragBoxLayer = YDragBoxLayer;
 
 
 /***/ }),
-/* 88 */
+/* 87 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -30948,7 +30762,7 @@ exports.Key = Key;
 
 
 /***/ }),
-/* 89 */
+/* 88 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -31142,7 +30956,7 @@ exports.Mouse = Mouse;
 
 
 /***/ }),
-/* 90 */
+/* 89 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -31314,7 +31128,7 @@ exports.Touch = Touch;
 
 
 /***/ }),
-/* 91 */
+/* 90 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -31406,7 +31220,7 @@ exports.CanvasBuffer = CanvasBuffer;
 
 
 /***/ }),
-/* 92 */
+/* 91 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -31537,7 +31351,7 @@ exports.Click = Click;
 
 
 /***/ }),
-/* 93 */
+/* 92 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -31713,7 +31527,7 @@ exports.Drag = Drag;
 
 
 /***/ }),
-/* 94 */
+/* 93 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -32197,7 +32011,7 @@ exports.PanZoom = PanZoom;
 
 
 /***/ }),
-/* 95 */
+/* 94 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -32325,7 +32139,7 @@ exports.Pointer = Pointer;
 
 
 /***/ }),
-/* 96 */
+/* 95 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -32369,7 +32183,7 @@ exports.memThunk = memThunk;
 
 
 /***/ }),
-/* 97 */
+/* 96 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -32454,13 +32268,13 @@ exports.memoize = memoize;
 
 
 /***/ }),
-/* 98 */
+/* 97 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-var lodash_1 = __webpack_require__(63);
+var lodash_1 = __webpack_require__(62);
 /**
  * An index that stores values by numeric key.
  *
@@ -32538,7 +32352,7 @@ exports.memoizeProjectors = memoizeProjectors;
 
 
 /***/ }),
-/* 99 */
+/* 98 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -32609,7 +32423,7 @@ exports.ClusteredBar = ClusteredBar;
 
 
 /***/ }),
-/* 100 */
+/* 99 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -33115,7 +32929,7 @@ exports.Pie = Pie;
 
 
 /***/ }),
-/* 101 */
+/* 100 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -33458,7 +33272,7 @@ exports.Rectangle = Rectangle;
 
 
 /***/ }),
-/* 102 */
+/* 101 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -33709,7 +33523,7 @@ exports.Scatter = Scatter;
 
 
 /***/ }),
-/* 103 */
+/* 102 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -33902,7 +33716,7 @@ exports.Segment = Segment;
 
 
 /***/ }),
-/* 104 */
+/* 103 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -34130,7 +33944,7 @@ exports.StackedArea = StackedArea;
 
 
 /***/ }),
-/* 105 */
+/* 104 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -34355,7 +34169,7 @@ exports.StackedBar = StackedBar;
 
 
 /***/ }),
-/* 106 */
+/* 105 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -34566,7 +34380,7 @@ exports.Waterfall = Waterfall;
 
 
 /***/ }),
-/* 107 */
+/* 106 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -34741,7 +34555,7 @@ exports.Color = Color;
 
 
 /***/ }),
-/* 108 */
+/* 107 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -34905,7 +34719,7 @@ exports.InterpolatedColor = InterpolatedColor;
 
 
 /***/ }),
-/* 109 */
+/* 108 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -34988,6 +34802,90 @@ exports.Linear = Linear;
 
 
 /***/ }),
+/* 109 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+/**
+ * Copyright 2014-present Palantir Technologies
+ * @license MIT
+ */
+Object.defineProperty(exports, "__esModule", { value: true });
+var tslib_1 = __webpack_require__(0);
+var d3 = __webpack_require__(2);
+var quantitativeScale_1 = __webpack_require__(12);
+var Log = /** @class */ (function (_super) {
+    tslib_1.__extends(Log, _super);
+    /**
+     * @constructor
+     */
+    function Log(base) {
+        if (base === void 0) { base = 10; }
+        var _this = _super.call(this) || this;
+        _this._d3Scale = d3.scaleLog().base(base);
+        return _this;
+    }
+    Log.prototype._defaultExtent = function () {
+        return [0, 1];
+    };
+    Log.prototype._expandSingleValueDomain = function (singleValueDomain) {
+        if (singleValueDomain[0] === singleValueDomain[1]) {
+            return [singleValueDomain[0] - 1, singleValueDomain[1] + 1];
+        }
+        return singleValueDomain;
+    };
+    Log.prototype.scale = function (value) {
+        return this._d3Scale(value);
+    };
+    Log.prototype.scaleTransformation = function (value) {
+        return this.scale(value);
+    };
+    Log.prototype.invertedTransformation = function (value) {
+        return this.invert(value);
+    };
+    Log.prototype.getTransformationExtent = function () {
+        return this._getUnboundedExtent(true);
+    };
+    Log.prototype.getTransformationDomain = function () {
+        return this.domain();
+    };
+    Log.prototype.setTransformationDomain = function (domain) {
+        this.domain(domain);
+    };
+    Log.prototype._getDomain = function () {
+        return this._backingScaleDomain();
+    };
+    Log.prototype._backingScaleDomain = function (values) {
+        if (values == null) {
+            return this._d3Scale.domain();
+        }
+        else {
+            this._d3Scale.domain(values);
+            return this;
+        }
+    };
+    Log.prototype._getRange = function () {
+        return this._d3Scale.range();
+    };
+    Log.prototype._setRange = function (values) {
+        this._d3Scale.range(values);
+    };
+    Log.prototype.invert = function (value) {
+        return this._d3Scale.invert(value);
+    };
+    Log.prototype.defaultTicks = function () {
+        return this._d3Scale.ticks(Log._DEFAULT_NUM_TICKS);
+    };
+    Log.prototype._niceDomain = function (domain, count) {
+        return this._d3Scale.copy().domain(domain).nice().domain();
+    };
+    return Log;
+}(quantitativeScale_1.QuantitativeScale));
+exports.Log = Log;
+
+
+/***/ }),
 /* 110 */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -35002,7 +34900,7 @@ var tslib_1 = __webpack_require__(0);
 var d3 = __webpack_require__(2);
 var Utils = __webpack_require__(1);
 var Scales = __webpack_require__(4);
-var logScale_1 = __webpack_require__(58);
+var quantitativeScale_1 = __webpack_require__(12);
 var ModifiedLog = /** @class */ (function (_super) {
     tslib_1.__extends(ModifiedLog, _super);
     /**
@@ -35035,14 +34933,14 @@ var ModifiedLog = /** @class */ (function (_super) {
      */
     function ModifiedLog(base) {
         if (base === void 0) { base = 10; }
-        var _this = _super.call(this, base) || this;
+        var _this = _super.call(this) || this;
         _this._logTickGenerator = function (scale) {
             // Say your domain is [-100, 100] and your pivot is 10.
             // then we're going to draw negative log ticks from -100 to -10,
             // linear ticks from -10 to 10, and positive log ticks from 10 to 100.
             var middle = function (x, y, z) { return [x, y, z].sort(function (a, b) { return a - b; })[1]; };
-            var min = Utils.Math.min(_this._getDomain(), 0);
-            var max = Utils.Math.max(_this._getDomain(), 0);
+            var min = Utils.Math.min(_this._untransformedDomain, 0);
+            var max = Utils.Math.max(_this._untransformedDomain, 0);
             var negativeLower = min;
             var negativeUpper = middle(min, max, -_this._pivot);
             var positiveLower = middle(min, max, _this._pivot);
@@ -35059,7 +34957,14 @@ var ModifiedLog = /** @class */ (function (_super) {
             }
             return ticks;
         };
-        _this._pivot = _this._getBase();
+        _this._d3Scale = d3.scaleLinear();
+        _this._base = base;
+        _this._pivot = _this._base;
+        _this._setDomain(_this._defaultExtent());
+        _this.tickGenerator(_this._logTickGenerator);
+        if (base <= 1) {
+            throw new Error("ModifiedLogScale: The base must be > 1");
+        }
         return _this;
     }
     /**
@@ -35070,28 +34975,142 @@ var ModifiedLog = /** @class */ (function (_super) {
      * (0 to 1) scaling factor is added such that at 0 the value is
      * adjusted to 1, resulting in a returned result of 0.
      */
-    ModifiedLog.prototype._log = function (x) {
+    ModifiedLog.prototype._adjustedLog = function (x) {
         var negationFactor = x < 0 ? -1 : 1;
         x *= negationFactor;
         if (x < this._pivot) {
             x += (this._pivot - x) / this._pivot;
         }
-        x = Math.log(x) / Math.log(this._getBase());
+        x = Math.log(x) / Math.log(this._base);
         x *= negationFactor;
         return x;
     };
-    ModifiedLog.prototype._invertedLog = function (x) {
+    ModifiedLog.prototype._invertedAdjustedLog = function (x) {
         var negationFactor = x < 0 ? -1 : 1;
         x *= negationFactor;
-        x = Math.pow(this._getBase(), x);
+        x = Math.pow(this._base, x);
         if (x < this._pivot) {
             x = (this._pivot * (x - 1)) / (this._pivot - 1);
         }
         x *= negationFactor;
         return x;
     };
+    ModifiedLog.prototype.scale = function (x) {
+        return this._d3Scale(this._adjustedLog(x));
+    };
+    ModifiedLog.prototype.invert = function (x) {
+        return this._invertedAdjustedLog(this._d3Scale.invert(x));
+    };
+    ModifiedLog.prototype.scaleTransformation = function (value) {
+        return this.scale(value);
+    };
+    ModifiedLog.prototype.invertedTransformation = function (value) {
+        return this.invert(value);
+    };
+    ModifiedLog.prototype.getTransformationExtent = function () {
+        return this._getUnboundedExtent(true);
+    };
+    ModifiedLog.prototype.getTransformationDomain = function () {
+        return this.domain();
+    };
+    ModifiedLog.prototype.setTransformationDomain = function (domain) {
+        this.domain(domain);
+    };
+    ModifiedLog.prototype._getDomain = function () {
+        return this._untransformedDomain;
+    };
+    ModifiedLog.prototype._setDomain = function (values) {
+        this._untransformedDomain = values;
+        var transformedDomain = [this._adjustedLog(values[0]), this._adjustedLog(values[1])];
+        _super.prototype._setDomain.call(this, transformedDomain);
+    };
+    ModifiedLog.prototype._backingScaleDomain = function (values) {
+        if (values == null) {
+            return this._d3Scale.domain();
+        }
+        else {
+            this._d3Scale.domain(values);
+            return this;
+        }
+    };
+    /**
+     * Return an appropriate number of ticks from lower to upper.
+     *
+     * This will first try to fit as many powers of this.base as it can from
+     * lower to upper.
+     *
+     * If it still has ticks after that, it will generate ticks in "clusters",
+     * e.g. [20, 30, ... 90, 100] would be a cluster, [200, 300, ... 900, 1000]
+     * would be another cluster.
+     *
+     * This function will generate clusters as large as it can while not
+     * drastically exceeding its number of ticks.
+     */
+    ModifiedLog.prototype._logTicks = function (lower, upper) {
+        var _this = this;
+        var nTicks = this._howManyTicks(lower, upper);
+        if (nTicks === 0) {
+            return [];
+        }
+        var startLogged = Math.floor(Math.log(lower) / Math.log(this._base));
+        var endLogged = Math.ceil(Math.log(upper) / Math.log(this._base));
+        var bases = d3.range(endLogged, startLogged, -Math.ceil((endLogged - startLogged) / nTicks));
+        var multiples = d3.range(this._base, 1, -(this._base - 1)).map(Math.floor);
+        var uniqMultiples = Utils.Array.uniq(multiples);
+        var clusters = bases.map(function (b) { return uniqMultiples.map(function (x) { return Math.pow(_this._base, b - 1) * x; }); });
+        var flattened = Utils.Array.flatten(clusters);
+        var filtered = flattened.filter(function (x) { return lower <= x && x <= upper; });
+        var sorted = filtered.sort(function (x, y) { return x - y; });
+        return sorted;
+    };
+    /**
+     * How many ticks does the range [lower, upper] deserve?
+     *
+     * e.g. if your domain was [10, 1000] and I asked _howManyTicks(10, 100),
+     * I would get 1/2 of the ticks. The range 10, 100 takes up 1/2 of the
+     * distance when plotted.
+     */
+    ModifiedLog.prototype._howManyTicks = function (lower, upper) {
+        var adjustedMin = this._adjustedLog(Utils.Math.min(this._untransformedDomain, 0));
+        var adjustedMax = this._adjustedLog(Utils.Math.max(this._untransformedDomain, 0));
+        var adjustedLower = this._adjustedLog(lower);
+        var adjustedUpper = this._adjustedLog(upper);
+        var proportion = (adjustedUpper - adjustedLower) / (adjustedMax - adjustedMin);
+        var ticks = Math.ceil(proportion * Scales.ModifiedLog._DEFAULT_NUM_TICKS);
+        return ticks;
+    };
+    ModifiedLog.prototype._niceDomain = function (domain, count) {
+        return domain;
+    };
+    ModifiedLog.prototype._defaultExtent = function () {
+        return [0, this._base];
+    };
+    ModifiedLog.prototype._expandSingleValueDomain = function (singleValueDomain) {
+        if (singleValueDomain[0] === singleValueDomain[1]) {
+            var singleValue = singleValueDomain[0];
+            if (singleValue > 0) {
+                return [singleValue / this._base, singleValue * this._base];
+            }
+            else if (singleValue === 0) {
+                return [-this._base, this._base];
+            }
+            else {
+                return [singleValue * this._base, singleValue / this._base];
+            }
+        }
+        return singleValueDomain;
+    };
+    ModifiedLog.prototype._getRange = function () {
+        return this._d3Scale.range();
+    };
+    ModifiedLog.prototype._setRange = function (values) {
+        this._d3Scale.range(values);
+    };
+    ModifiedLog.prototype.defaultTicks = function () {
+        return this._d3Scale.ticks(Scales.ModifiedLog._DEFAULT_NUM_TICKS);
+    };
     return ModifiedLog;
-}(logScale_1.Log));
+}(quantitativeScale_1.QuantitativeScale));
 exports.ModifiedLog = ModifiedLog;
 
 
@@ -35420,7 +35439,7 @@ exports.Bucket = Bucket;
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 var tslib_1 = __webpack_require__(0);
-var set_1 = __webpack_require__(62);
+var set_1 = __webpack_require__(61);
 /**
  * A set of callbacks which can be all invoked at once.
  * Each callback exists at most once in the set (based on reference equality).
@@ -35546,7 +35565,7 @@ function luminance(color) {
  * @license MIT
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-var rTree_1 = __webpack_require__(61);
+var rTree_1 = __webpack_require__(60);
 /**
  * Implementation of {IEntityStore} that uses an array for easy iteration as
  * well as a quad tree for fast nearest-point queries.
@@ -35618,7 +35637,7 @@ exports.EntityStore = EntityStore;
  * @license MIT
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-var Math = __webpack_require__(60);
+var Math = __webpack_require__(59);
 /**
  * Shim for ES6 map.
  * https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map
@@ -35851,7 +35870,7 @@ exports.SplitStrategyLinear = SplitStrategyLinear;
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 var d3 = __webpack_require__(2);
-var lodash_1 = __webpack_require__(63);
+var lodash_1 = __webpack_require__(62);
 var Utils = __webpack_require__(1);
 var makeEnum_1 = __webpack_require__(11);
 /**
@@ -36579,7 +36598,7 @@ exports.CanvasContext = CanvasContext;
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 var writers_1 = __webpack_require__(29);
-var html_1 = __webpack_require__(64);
+var html_1 = __webpack_require__(63);
 var SvgUtils = (function () {
     function SvgUtils() {
     }
@@ -36763,7 +36782,7 @@ var __extends = (this && this.__extends) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 var utils_1 = __webpack_require__(22);
 var abstractMeasurer_1 = __webpack_require__(38);
-var cacheCharacterMeasurer_1 = __webpack_require__(66);
+var cacheCharacterMeasurer_1 = __webpack_require__(65);
 var CacheMeasurer = (function (_super) {
     __extends(CacheMeasurer, _super);
     function CacheMeasurer(ruler) {
@@ -36801,9 +36820,9 @@ exports.CacheMeasurer = CacheMeasurer;
  * license at https://github.com/palantir/typesettable/blob/develop/LICENSE
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-var contexts_1 = __webpack_require__(65);
-var measurers_1 = __webpack_require__(68);
-var wrappers_1 = __webpack_require__(70);
+var contexts_1 = __webpack_require__(64);
+var measurers_1 = __webpack_require__(67);
+var wrappers_1 = __webpack_require__(69);
 var writers_1 = __webpack_require__(29);
 /**
  * This is a convenience interface for typesetting strings using the default
@@ -37097,7 +37116,7 @@ var __extends = (this && this.__extends) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-var wrapper_1 = __webpack_require__(71);
+var wrapper_1 = __webpack_require__(70);
 var SingleLineWrapper = (function (_super) {
     __extends(SingleLineWrapper, _super);
     function SingleLineWrapper() {
@@ -37332,10 +37351,10 @@ var tslib_1 = __webpack_require__(0);
 // HACKHACK d3-selection-multi doesn't play well with default "d3" package in a
 // bundler environment (e.g. webpack) - see https://github.com/d3/d3-selection-multi/issues/11
 // we add it manually to the default "d3" bundle
-__webpack_require__(74);
+__webpack_require__(73);
 var Animators = __webpack_require__(9);
 exports.Animators = Animators;
-var Axes = __webpack_require__(72);
+var Axes = __webpack_require__(71);
 exports.Axes = Axes;
 var Components = __webpack_require__(39);
 exports.Components = Components;
@@ -37367,7 +37386,7 @@ exports.TimeInterval = timeAxis_1.TimeInterval;
 tslib_1.__exportStar(__webpack_require__(6), exports);
 tslib_1.__exportStar(__webpack_require__(31), exports);
 tslib_1.__exportStar(__webpack_require__(40), exports);
-var version_1 = __webpack_require__(73);
+var version_1 = __webpack_require__(72);
 exports.version = version_1.version;
 tslib_1.__exportStar(__webpack_require__(25), exports);
 tslib_1.__exportStar(__webpack_require__(8), exports);
