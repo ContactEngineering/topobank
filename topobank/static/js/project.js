@@ -125,7 +125,7 @@ function render_plot(element, plot_descr_array, unit) {
 
     /* Check if chart already exists. */
     chart = $(element).data('chart');
-    if (chart)  chart.destroy();
+    if (chart) chart.destroy();
 
     /* Scales. */
     var x_scale, y_scale, x_axis, y_axis, x_axis_label, y_axis_label, color_scale;
@@ -173,8 +173,14 @@ function render_plot(element, plot_descr_array, unit) {
         }
 
         /* Create axes. */
-        if (!x_axis)  x_axis = new Plottable.Axes.Numeric(x_scale, "bottom");
-        if (!y_axis)  y_axis = new Plottable.Axes.Numeric(y_scale, "left");
+        if (!x_axis) {
+            x_axis = new Plottable.Axes.Numeric(x_scale, "bottom")
+                .formatter(Plottable.Formatters.siSuffix());
+        }
+        if (!y_axis) {
+            y_axis = new Plottable.Axes.Numeric(y_scale, "left")
+                .formatter(Plottable.Formatters.siSuffix());
+        }
 
         if (!x_axis_label) {
             xlabel = plot_descr.xlabel;
@@ -230,13 +236,14 @@ function render_plot(element, plot_descr_array, unit) {
 
             if (line) {
                 var plot = new Plottable.Plots.Line()
+                    .deferredRendering(true)
+                    .addDataset(dataset)
                     .x(function (d) {
                         return d.x;
                     }, x_scale)
                     .y(function (d) {
                         return d.y;
-                    }, y_scale)
-                    .addDataset(dataset);
+                    }, y_scale);
                 if (color) {
                     plot.attr('stroke', color);
                 }
@@ -247,6 +254,8 @@ function render_plot(element, plot_descr_array, unit) {
             }
             if (symbol) {
                 var plot = new Plottable.Plots.Scatter()
+                    .deferredRendering(true)
+                    .addDataset(dataset)
                     .x(function (d) {
                         return d.x;
                     }, x_scale)
@@ -255,8 +264,7 @@ function render_plot(element, plot_descr_array, unit) {
                     }, y_scale)
                     .symbol(function () {
                         return symbol;
-                    })
-                    .addDataset(dataset);
+                    });
                 if (color) {
                     plot.attr('stroke', color).attr('fill', color);
                 }
@@ -276,9 +284,10 @@ function render_plot(element, plot_descr_array, unit) {
         return s ? s : Plottable.SymbolFactories.circle();
     });
 
+    var plot_group = new Plottable.Components.Group(plots);
     var chart = new Plottable.Components.Table([
         [null, null, legend],
-        [y_axis_label, y_axis, new Plottable.Components.Group(plots)],
+        [y_axis_label, y_axis, plot_group],
         [null, null, x_axis, null],
         [null, null, x_axis_label, null]
     ]);
@@ -300,18 +309,15 @@ function plot(element, unit) {
     $('.spinner', $(element).parent()).show();
 
     /* Enumerate all data request URLs into a single array. */
-    var requests = [];
-    for (var src_index = 1; $(element).data('src'+src_index); src_index++) {
-        requests.push($.get($(element).data('src'+src_index)));
-    }
+    var requests = $(element).data('src').map(url => $.get(url));
 
-    /* AJAX requests to all URLs in parallel. */
-    $.when(...requests).done(function (...data_array) {
-        /* The last two entries are the success string and the XMLHttpRequest object. We don't need them. */
-        data_array = data_array.slice(0, -2);
-
+    done_func = function (element, ...data_array) {
         /* Loop over all data dictionaries and see if calculations have finished or failed. */
         for (var data of data_array) {
+            /* Each data entry contains the JSON dictionary plus textStatus and jqHDR entries. */
+            data = data[0];
+
+            /* Check if task is PEnding or has STarted. */
             if (data.task_state == 'pe' || data.task_state == 'st') {
                 setTimeout(function () {
                     plot(element, unit);
@@ -327,12 +333,18 @@ function plot(element, unit) {
         }
 
         /* Render plot. */
-        render_plot(element, data_array.map(data => data.result), unit);
+        render_plot(element, data_array.map(data => data[0].result), unit);
         $('.spinner', $(element).parent()).hide();
-    }).fail(function () {
-        $(element).html('Failed obtaining resources from server.');
-        $('.spinner', $(element).parent()).hide();
-    });
+    };
+
+    /* AJAX requests to all URLs in parallel. */
+    $.when(...requests)
+        .done(requests.length == 1 ?
+                x => done_func(element, [x]) : function (...data_array) { done_func(element, ...data_array) })
+        .fail(function () {
+            $(element).html('Failed obtaining resources from server.');
+            $('.spinner', $(element).parent()).hide();
+        });
 }
 
 
@@ -362,7 +374,7 @@ $(document).ready(function ($) {
     $('.topobank-change-unit').on('click', function (e) {
         /* Extract unit string from dropdown text. */
         t = $(this).html()
-        unit = t.slice(t.length-2, t.length);
+        unit = t.slice(t.length - 2, t.length);
 
         /* Trigger refresh of plot. */
         plot($('.topobank-scatter-plot', $(this).closest('.card')), unit);

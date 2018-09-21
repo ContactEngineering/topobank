@@ -9,8 +9,15 @@
 
   <div class="row">
     {% for analysis in analyses %}
-      <div class="col-xl-6 mb-4">
-        <div class="card">
+      {% ifchanged analysis.function.id %}
+        {% if not forloop.first %}
+              ]'></div>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+        <div class="col-xl-6 mb-4">
+          <div class="card">
           <div class="card-header">
             {{ analysis.function.name }} of
             <a href="{% url 'manager:topography-detail' analysis.topography.id %}">{{ analysis.topography.name }}</a>
@@ -31,11 +38,17 @@
           </div>
           <div class="card-body">
             <div class="spinner"></div>
-            <div class="topobank-scatter-plot topobank-plot-resize"
-                 data-src1="{% url 'analysis:retrieve' analysis.id %}"></div>
+              <div class="topobank-scatter-plot topobank-plot-resize"
+                   data-src='["{% url 'analysis:retrieve' analysis.id %}"
+      {% else %}
+                             ,"{% url 'analysis:retrieve' analysis.id %}"
+      {% endifchanged %}
+      {% if forloop.last %}
+              ]'></div>
+            </div>
           </div>
         </div>
-      </div>
+      {% endif %}
     {% endfor %}
   </div>
 
