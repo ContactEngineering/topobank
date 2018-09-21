@@ -378,5 +378,7 @@ $(document).ready(function ($) {
 
         /* Trigger refresh of plot. */
         plot($('.topobank-scatter-plot', $(this).closest('.card')), unit);
+
+        e.preventDefault();
     });
 });
