@@ -194,6 +194,14 @@ def power_spectrum(topography, window='hann'):
     q_2D, C_2D = power_spectrum_2D(topography, window=window,
                                    nbins=len(q_1D) - 1)
 
+    # Remove NaNs and Infs
+    q_1D = q_1D[np.isfinite(C_1D)]
+    C_1D = C_1D[np.isfinite(C_1D)]
+    q_1D_T = q_1D_T[np.isfinite(C_1D_T)]
+    C_1D_T = C_1D_T[np.isfinite(C_1D_T)]
+    q_2D = q_2D[np.isfinite(C_2D)]
+    C_2D = C_2D[np.isfinite(C_2D)]
+
     return dict(
         name='Power-spectral density (PSD)',
         xlabel='Wavevector',
@@ -204,18 +212,18 @@ def power_spectrum(topography, window='hann'):
         yscale='log',
         series=[
             dict(name='q/π × 2D PSD',
-                 x=q_2D,
-                 y=q_2D*C_2D/np.pi,
+                 x=q_2D[1:],
+                 y=q_2D[1:]*C_2D[1:]/np.pi,
                  style='o',
                  ),
             dict(name='1D PSD along x',
-                 x=q_1D,
-                 y=C_1D,
+                 x=q_1D[1:],
+                 y=C_1D[1:],
                  style='+',
                  ),
             dict(name='1D PSD along y',
-                 x=q_1D_T,
-                 y=C_1D_T,
+                 x=q_1D_T[1:],
+                 y=C_1D_T[1:],
                  style='y',
                  )
         ]
@@ -236,6 +244,14 @@ def autocorrelation(topography):
     r_T = r_T[r_T < s]
     A_2D = A_2D[r_2D < s]
     r_2D = r_2D[r_2D < s]
+
+    # Remove NaNs and Infs
+    r = r[np.isfinite(A)]
+    A = A[np.isfinite(A)]
+    r_T = r_T[np.isfinite(A_T)]
+    A_T = A_T[np.isfinite(A_T)]
+    r_2D = r_2D[np.isfinite(A_2D)]
+    A_2D = A_2D[np.isfinite(A_2D)]
 
     return dict(
         name='Height-difference autocorrelation function (ACF)',
