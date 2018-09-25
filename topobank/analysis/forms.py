@@ -8,7 +8,7 @@ from ..manager.models import Topography
 from .models import AnalysisFunction
 
 
-class TopographySelectForm(forms.Form):
+class TopographyFunctionSelectForm(forms.Form):
 
     topographies = ModelMultipleChoiceField(queryset=Topography.objects.all(),
                                             widget=Select2MultipleWidget,
@@ -22,19 +22,17 @@ class TopographySelectForm(forms.Form):
     # TODO select only Topographies from current user
 
     helper = FormHelper()
-    helper.form_method = 'GET'
+    helper.form_method = 'POST'
 
     # helper.form_class = 'form-horizontal'
     #helper.label_class = 'col-sm-2'
     # helper.field_class = 'col-sm-6'
 
-
-
     helper.layout = Layout(
         Field('topographies'),
         Field('functions'),
         FormActions(
-            Submit('save', 'Update results', css_class='btn-primary'),
+            Submit('save', 'Save selection and update results', css_class='btn-primary'),
         ),
     )
 

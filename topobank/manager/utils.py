@@ -8,8 +8,6 @@ DEFAULT_DATASOURCE_NAME = 'Default'
 UNIT_TO_METERS = {'A': 1e-10, 'nm': 1e-9, 'µm': 1e-6, 'mm': 1e-3, 'm': 1.0,
                   'unknown': 1.0}
 
-
-
 class TopographyFile:
     """Provide a simple generic interface to topography files independent of format."""
 
@@ -86,3 +84,19 @@ def mangle_unit(unit): # TODO needed?
     if unit == 'µm':
         return 'μm'
     return unit
+
+def selected_topographies(request, surface=None):
+    """Returns selected topographies as saved in session.
+
+    If surface is given, return only topographies for this
+    Surface model object
+    """
+    from .models import Topography
+    topography_ids = request.session.get('selected_topographies', [])
+
+    filter_args = dict(surface__user=request.user, id__in=topography_ids)
+    if surface is not None:
+        filter_args['surface']=surface
+    topographies = Topography.objects.filter(**filter_args)
+
+    return topographies

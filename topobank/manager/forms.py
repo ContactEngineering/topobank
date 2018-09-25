@@ -1,12 +1,11 @@
+from django.forms import ModelMultipleChoiceField, forms
 from django import forms
-from django.conf import settings
+from django_select2.forms import Select2MultipleWidget
 import logging
-import re
 
 from crispy_forms.helper import FormHelper
-from crispy_forms.layout import Submit, Layout, Field, Button, HTML, Div, Hidden, Fieldset
-from crispy_forms.bootstrap import (InlineCheckboxes, TabHolder, Tab,
-    PrependedText, PrependedAppendedText, FormActions, InlineRadios)
+from crispy_forms.layout import Submit, Layout, Field, HTML, Div, Fieldset
+from crispy_forms.bootstrap import FormActions
 
 from .models import Topography, Surface
 
@@ -208,4 +207,30 @@ class SurfaceForm(forms.ModelForm):
                     <a href="{% url 'manager:surface-list' %}" class="btn btn-default" id="cancel-btn">Cancel</a>
                 """),# TODO check back point for cancel
             ),
+    )
+
+
+class TopographySelectForm(forms.Form):
+
+    topographies = ModelMultipleChoiceField(
+        required=False,
+        queryset=Topography.objects.all(),
+        widget=Select2MultipleWidget,
+        label="Selected Topographies",
+        help_text="Select one or multiple topographies. Search by name.")
+
+    # TODO select only Topographies from current user
+
+    helper = FormHelper()
+    helper.form_method = 'POST'
+
+    # helper.form_class = 'form-horizontal'
+    #helper.label_class = 'col-sm-2'
+    # helper.field_class = 'col-sm-6'
+
+    helper.layout = Layout(
+        Field('topographies'),
+        FormActions(
+            Submit('save', 'Save selection', css_class='btn-primary'),
+        ),
     )

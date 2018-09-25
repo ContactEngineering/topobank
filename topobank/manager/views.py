@@ -5,7 +5,8 @@ from django.core.files.storage import FileSystemStorage, DefaultStorage
 from django.conf import settings
 from formtools.wizard.views import SessionWizardView
 from django.views.decorators.csrf import csrf_exempt
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponseForbidden
+from django.views.generic.edit import FormMixin, ProcessFormView
 
 import os.path
 
@@ -13,9 +14,9 @@ from rest_framework.decorators import api_view
 from rest_framework.views import Response
 
 from .models import Topography, Surface
-from .forms import TopographyForm, SurfaceForm
+from .forms import TopographyForm, SurfaceForm, TopographySelectForm
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyUnitsForm
-from .utils import TopographyFile, optimal_unit
+from .utils import TopographyFile, optimal_unit, selected_topographies
 
 class TopographyCreateWizard(SessionWizardView):
     form_list = [TopographyFileUploadForm, TopographyMetaDataForm, TopographyUnitsForm]
@@ -192,13 +193,63 @@ class TopographyDeleteView(DeleteView):
     context_object_name = 'topography'
     success_url = reverse_lazy('manager:surface-list') # TODO return to surface detail of related surface
 
-class SurfaceListView(ListView):
+class SelectedTopographyView(FormMixin, ListView):
+    model = Topography
+    context_object_name = 'topographies'
+    form_class = TopographySelectForm
+
+    def get_queryset(self):
+        user = self.request.user
+
+        topography_ids = self.request.GET.get('topographies',[])
+
+        filter_kwargs = dict(
+            surface__user=user
+        )
+
+        if len(topography_ids) > 0:
+            filter_kwargs['id__in'] = topography_ids
+
+        topographies = Topography.objects.filter(**filter_kwargs)
+
+        return topographies
+
+
+class SurfaceListView(FormMixin, ListView):
     model = Surface
     context_object_name = 'surfaces'
+    form_class = TopographySelectForm
+    success_url = reverse_lazy('manager:surface-list') # stay on same view
 
     def get_queryset(self):
         surfaces = Surface.objects.filter(user=self.request.user)
         return surfaces
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['selected_topographies'] = selected_topographies(self.request)
+
+        return context
+
+    def get_initial(self):
+        # make sure the form is already filled with earlier selection
+        return dict(topographies=selected_topographies(self.request))
+
+    def post(self, request, *args, **kwargs): # TODO is this really needed?
+        if not request.user.is_authenticated:
+            return HttpResponseForbidden()
+        form = self.get_form()
+        if form.is_valid():
+            return self.form_valid(form)
+        else:
+            return self.form_invalid(form)
+
+    def form_valid(self, form):
+        # save selection from form in session as list of integers
+        topographies = form.cleaned_data.get('topographies', [])
+        self.request.session['selected_topographies'] = list(t.id for t in topographies)
+        return super().form_valid(form)
+
 
 class SurfaceCreateView(CreateView):
     model = Surface
@@ -221,24 +272,21 @@ class SurfaceDetailView(DetailView):
     #    context = super(SurfaceDetailView, self).get_context_data(**kwargs)
     #   context['topographies'] = Topography.objects.filter(surface=self.object)
 
-
-# @csrf_exempt
-@api_view(["GET"]) # TODO should be POST
 def toggle_topography_selection(request, pk):
     selected_topos = request.session.get('selected_topographies', [])
     if pk in selected_topos:
-        selected_topos.pop(pk)
+        selected_topos.remove(pk)
         is_selected = False
     else:
         selected_topos.append(pk)
         is_selected = True
+    request.session['selected_topographies'] = selected_topos
     return JsonResponse(dict(is_selected=is_selected))
 
-@api_view(["GET"])
 def is_topography_selected(request, pk):
     selected_topos = request.session.get('selected_topographies', [])
     is_selected = pk in selected_topos
-    return JsonResponse(dict(is_selected=is_selected))
+    return JsonResponse(is_selected)
 
 
 

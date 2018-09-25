@@ -30,11 +30,11 @@ urlpatterns = [
         view=login_required(views.is_topography_selected),
         name='topography-is-selected'
     ),
-    #url(
-    #    regex=r'topography/$',
-    #    view=login_required(views.TopographyListView.as_view()),
-    #    name='topography-list'
-    #),
+    url(
+        regex=r'topography/$',
+        view=login_required(views.SelectedTopographyView.as_view()),
+        name='topography-list'
+    ),
     url(
         regex=r'surface/(?P<surface_id>\d+)/new-topography/$',
         # view=login_required(views.TopographyCreateView.as_view()),
@@ -42,19 +42,23 @@ urlpatterns = [
         name='topography-create'
     ),
     url(
-        regex=r'surface/$',
-        view=login_required(views.SurfaceListView.as_view()),
-        name='surface-list'
-    ),
-    url(
         regex=r'surface/(?P<pk>\d+)/$',
         view=login_required(views.SurfaceDetailView.as_view()),
         name='surface-detail'
     ),
+    #url(
+    #    regex=r'surface/(?P<pk>\d+)/delete/$',
+    #    view=login_required(views.SurfaceDeleteView.as_view()),
+    #    name='surface-detail'
+    #),
     url(
         regex=r'surface/new/$',
         view=login_required(views.SurfaceCreateView.as_view()),
         name='surface-create'
     ),
-
+    url(
+        regex=r'surface/$',
+        view=login_required(views.SurfaceListView.as_view()),
+        name='surface-list'
+    ),
 ]
