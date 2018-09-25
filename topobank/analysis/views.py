@@ -2,6 +2,7 @@ from django.http import HttpResponseForbidden
 from django.views.generic import ListView
 from django.views.generic.edit import FormMixin
 from django.urls import reverse_lazy
+from django.contrib import messages
 from rest_framework.generics import RetrieveAPIView
 
 from ..manager.models import Topography
@@ -44,8 +45,10 @@ class AnalysisListView(FormMixin, ListView):
         # save selection from form in session as list of integers
         topographies = form.cleaned_data.get('topographies', [])
         self.request.session['selected_topographies'] = list(t.id for t in topographies)
+        messages.info(self.request, "Topography selection saved.")
         functions = form.cleaned_data.get('functions', [])
         self.request.session['selected_functions'] = list(t.id for t in functions)
+        # messages.info(self.request, "Analysis function selection saved.")
         return super().form_valid(form)
 
     @staticmethod

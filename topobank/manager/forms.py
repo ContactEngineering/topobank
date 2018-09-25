@@ -232,5 +232,6 @@ class TopographySelectForm(forms.Form):
         Field('topographies'),
         FormActions(
             Submit('save', 'Save selection', css_class='btn-primary'),
+            Submit('analyze', 'Trigger analysis for selection', css_class='btn-primary'),
         ),
     )

@@ -220,8 +220,13 @@
       <div id="content-wrapper">
 
         <div class="container-fluid">
-          <!-- /.row -->
-          <!-- Breadcrumbs-->
+          {% if messages %}
+            {% for message in messages %}
+              <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+
+          <!-- TODO add Breadcrumbs?! -->
 
           <div class="row">
             <div class="col-xl-12">

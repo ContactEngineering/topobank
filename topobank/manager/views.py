@@ -7,6 +7,7 @@ from formtools.wizard.views import SessionWizardView
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse, HttpResponseForbidden
 from django.views.generic.edit import FormMixin, ProcessFormView
+from django.contrib import messages
 
 import os.path
 
@@ -248,6 +249,24 @@ class SurfaceListView(FormMixin, ListView):
         # save selection from form in session as list of integers
         topographies = form.cleaned_data.get('topographies', [])
         self.request.session['selected_topographies'] = list(t.id for t in topographies)
+        messages.info(self.request, "Topography selection saved.")
+
+        if 'analyze' in self.request.POST:
+            #
+            # trigger analysis for all functions
+            #
+            from topobank.taskapp.tasks import submit_analysis
+            from topobank.analysis.models import AnalysisFunction
+
+            auto_analysis_funcs = AnalysisFunction.objects.filter(automatic=True)
+
+            for topo in topographies:
+                for af in auto_analysis_funcs:
+                    submit_analysis(af, topo)
+
+            messages.info(self.request, "Submitted analyses for all topographies.")
+
+
         return super().form_valid(form)
 
 
