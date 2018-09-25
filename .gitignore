@@ -336,5 +336,5 @@ pip-selfcheck.json
 
 MailHog
 topobank/media/
-
+topobank.db
 .pytest_cache/
