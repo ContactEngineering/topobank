@@ -5,7 +5,7 @@ from django.shortcuts import reverse
 from pathlib import Path
 import datetime
 
-from ..models import Topography
+from ..models import Topography, Surface
 from .utils import two_topos
 
 def export_reponse_as_html(response, fname='/tmp/response.html'):
@@ -38,12 +38,23 @@ def test_upload_topography(client, django_user_model):
 
     assert client.login(username=username, password=password)
 
+    # first create a surface
+    response = client.post(reverse('manager:surface-create'),
+                               data={
+                                'name': 'surface1',
+                                'user': user.id,
+                               }, follow=True)
+    assert response.status_code == 200
+
+    surface = Surface.objects.get(name='surface1')
+
     #
     # open first step of wizard: file upload
     #
     with open(str(input_file_path), mode='rb') as fp:
 
-        response = client.post(reverse('manager:topography-create'),
+        response = client.post(reverse('manager:topography-create',
+                                       kwargs=dict(surface_id=surface.id)),
                                data={
                                 'topography_create_wizard-current_step': '0',
                                 '0-datafile': fp,
@@ -51,7 +62,7 @@ def test_upload_topography(client, django_user_model):
 
     assert response.status_code == 200
     # now we should be on the page with second step
-    assert b"Step 2 of 2" in response.content, "Errors:"+str(response.context['form'].errors)
+    assert b"Step 2 of 3" in response.content, "Errors:"+str(response.context['form'].errors)
 
     # we should have two datasources as options, "ZSensor" and "Height"
 
@@ -59,27 +70,51 @@ def test_upload_topography(client, django_user_model):
     assert b'<option value="1">Height</option>' in response.content
 
     #
-    # Send rest of the data
+    # Send data for second page
     #
-
-
-    response = client.post(reverse('manager:topography-create'),
+    response = client.post(reverse('manager:topography-create',
+                                   kwargs=dict(surface_id=surface.id)),
                            data={
                             'topography_create_wizard-current_step': '1',
-                            '1-name': 'surface1',
+                            '1-name': 'topo1',
                             '1-measurement_date': '2018-06-21',
                             '1-datafile': str(input_file_path),
                             '1-data_source': 0,
                             '1-description': description,
-                            '1-user': user.id,
+                            '1-surface': surface.id,
                            })
 
-    assert response.status_code == 302
-    assert reverse('manager:topography-detail', kwargs=dict(pk=1)) == response.url
+    assert response.status_code == 200
+    assert b"Step 3 of 3" in response.content, "Errors:" + str(response.context['form'].errors)
 
+    #
+    # Send data for third page
+    #
+    # TODO Do we have to really repeat all fields here?
+    response = client.post(reverse('manager:topography-create',
+                                   kwargs=dict(surface_id=surface.id)),
+                           data={
+                               'topography_create_wizard-current_step': '2',
+                               '2-name': 'topo1',
+                               '2-measurement_date': '2018-06-21',
+                               '2-data_source': 0,
+                               '2-description': description,
+                               '2-size_x': '9000',
+                               '2-size_y': '9000',
+                               '2-size_unit': 'nm',
+                               '2-height_scale': 0.3,
+                               '2-height_unit': 'nm',
+                               '2-detrend_mode': 'height',
+                               '2-surface': surface.id,
+                           }, follow=True)
 
+    assert response.status_code == 200
+    # assert reverse('manager:topography-detail', kwargs=dict(pk=1)) == response.url
+    export_reponse_as_html(response)
+    assert b'Details for Topography' in response.content
 
-    topos = Topography.objects.filter(user__username=username)
+    surface = Surface.objects.get(name='surface1')
+    topos = surface.topography_set.all()
 
     assert len(topos) == 1
 
@@ -90,9 +125,9 @@ def test_upload_topography(client, django_user_model):
     assert "example3" in t.datafile.name
 
     #
-    # should also appear in the list of topographies
+    # should also appear in the list of topographies for the surface
     #
-    response = client.get(reverse('manager:topography-list'))
+    response = client.get(reverse('manager:surface-detail', kwargs=dict(pk=surface.id)))
     assert bytes(description, 'utf-8') in response.content
 
 
