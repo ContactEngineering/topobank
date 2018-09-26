@@ -20,21 +20,21 @@ urlpatterns = [
         view=login_required(views.TopographyDeleteView.as_view()),
         name='topography-delete'
     ),
-    url(
+    url( # TODO needed?
         regex=r'topography/(?P<pk>\d+)/toggle-select/$',
         view=login_required(views.toggle_topography_selection),
         name='topography-toggle-select'
     ),
-    url(
+    url( # TODO needed?
         regex=r'topography/(?P<pk>\d+)/is-selected/$',
         view=login_required(views.is_topography_selected),
         name='topography-is-selected'
     ),
-    url(
-        regex=r'topography/$',
-        view=login_required(views.SelectedTopographyView.as_view()),
-        name='topography-list'
-    ),
+    # url( # TODO needed?
+    #     regex=r'topography/$',
+    #     view=login_required(views.SelectedTopographyView.as_view()),
+    #     name='topography-list'
+    # ),
     url(
         regex=r'surface/(?P<surface_id>\d+)/new-topography/$',
         # view=login_required(views.TopographyCreateView.as_view()),
