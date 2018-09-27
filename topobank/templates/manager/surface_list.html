@@ -11,7 +11,9 @@
 {% block content-title %}
   My Surfaces and Topographies
   <div class="pull-right">
-        <a href="{% url 'manager:surface-create' %}" class="btn btn-primary">New Surface</a>
+    <a href="{% url 'manager:surface-create' %}" class="btn btn-primary">
+      {% fontawesome_icon 'plus-square-o' %} Add Surface
+    </a>
   </div>
 {% endblock content-title %}
 
@@ -49,7 +51,7 @@
                   {% fontawesome_icon 'edit' %} Edit
               </a>
               -->
-              <a href="{% url 'manager:topography-create' surface.id %}" class="btn btn-default">
+              <a href="{% url 'manager:topography-create' surface.id %}" class="btn btn-primary">
                 {% fontawesome_icon 'plus-square-o' %} Add Topography
               </a>
             </div>
