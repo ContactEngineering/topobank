@@ -121,7 +121,9 @@ class Topography(models.Model):
 @receiver(pre_save, sender=Topography)
 def update_surface_image(sender, instance, **kwargs):
     # TODO also calculate the image in a task
-    instance.update_surface_image()
+    # instance.update_surface_image()
+    # TODO commenting out here because of error "main thread is not in main loop" when creating test database
+    pass
 
 @receiver(post_save, sender=Topography)
 def compute_surface_properties(sender, instance, **kwargs):

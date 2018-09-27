@@ -192,7 +192,7 @@ class TopographyDetailView(DetailView):
 class TopographyDeleteView(DeleteView):
     model = Topography
     context_object_name = 'topography'
-    success_url = reverse_lazy('manager:surface-list') # TODO return to surface detail of related surface
+    success_url = reverse_lazy('manager:surface-list')
 
 class SelectedTopographyView(FormMixin, ListView):
     model = Topography
