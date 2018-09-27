@@ -75,13 +75,6 @@ def test_login_logout(live_server, webdriver, two_topos):
         logout_button.click()
 
     #
-    # Press Sign Out again, will be removed soon
-    #
-    btn = webdriver.find_element_by_xpath("//*[@id='content-wrapper']/div/div[2]/div/form/button")
-    with wait_for_page_load(webdriver):
-        btn.click()
-
-    #
     # Sign Out is no longer there, but Sign In
     #
     user_dropwdown = webdriver.find_element_by_id('userDropdown')
