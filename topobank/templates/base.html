@@ -154,8 +154,8 @@
             <a class="dropdown-item" href="{% url 'users:detail' request.user.username %}"><i class="fa fa-user fa-fw"></i> User Profile</a>
             <!-- a class="dropdown-item" href="#"><i class="fa fa-cog fa-fw"></i> Settings<a> -->
             <div class="dropdown-divider"></div>
-            <a class="dropdown-item" href="#" data-toggle="modal" data-target="#logoutModal"><i
-              class="fa fa-sign-out-alt fa-fw"></i> Logout</a>
+            <a class="dropdown-item" href="#" data-toggle="modal" data-target="#logoutModal">
+              <i class="fa fa-sign-out-alt fa-fw"></i>Sign Out</a>
 
             {% else %}
             <a id="sign-up-link" class="dropdown-item" href="{% url 'account_signup' %}">{% trans "Sign Up" %}</a>
@@ -267,7 +267,7 @@
               <span aria-hidden="true">×</span>
             </button>
           </div>
-          <div class="modal-body">Select "Logout" below if you are ready to end your current session.</div>
+          <div class="modal-body">Select "Sign Out" below if you are ready to end your current session.</div>
           <div class="modal-footer">
             <button class="btn btn-secondary" type="button" data-dismiss="modal">Cancel</button>
             <a class="btn btn-primary" href="{% url 'account_logout' %}">{% trans "Sign Out" %}</a>
