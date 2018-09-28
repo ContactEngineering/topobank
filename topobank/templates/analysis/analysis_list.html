@@ -44,6 +44,18 @@
           <div class="card-header">
             {{ analysis.function.name }} of
             <a href="{% url 'manager:topography-detail' analysis.topography.id %}">{{ analysis.topography.name }}</a>
+            <div class="pull-right">
+              <small>
+              State: {{ analysis.get_task_state_display }}
+              {% if analysis.start_time %}
+                | Started: {{ analysis.start_time }}
+                {% if analysis.end_time %}
+                | Ended: {{ analysis.end_time }}
+                | Duration: {{ analysis.duration }}
+                {% endif %}
+              {% endif %}
+              </small>
+            </div>
           </div>
           <div class="card-body">
             <div class="spinner"></div>

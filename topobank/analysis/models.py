@@ -29,7 +29,7 @@ class Analysis(models.Model):
     task_state = models.CharField(max_length=7,
                                   choices=TASK_STATE_CHOICES)
 
-    start_time = models.DateTimeField()
+    start_time = models.DateTimeField(null=True)
     end_time = models.DateTimeField(null=True)
 
     result = models.BinaryField(null=True, default=None)  # for pickle, in case of failure, can be Exception instance
@@ -39,6 +39,8 @@ class Analysis(models.Model):
 
     def duration(self):
         """Returns duration of computation or None if not finished yet.
+
+        Does not take into account the queue time.
 
         :return: Returns datetime.timedelta or None
         """

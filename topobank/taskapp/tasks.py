@@ -1,5 +1,6 @@
 import pickle
 import traceback
+import datetime
 
 from .celery import app
 from topobank.analysis.models import Analysis
@@ -43,6 +44,7 @@ def perform_analysis(self, analysis_id):
     analysis = Analysis.objects.get(id=analysis_id)
     analysis.task_state = Analysis.STARTED
     analysis.task_id = self.request.id
+    analysis.start_time = datetime.datetime.now() # TODO check timezone
     analysis.save()
 
     #
@@ -65,5 +67,6 @@ def perform_analysis(self, analysis_id):
     # update entry with result
     #
     analysis.result = pickle.dumps(result) # can also be an exception in case of errors!
+    analysis.end_time = datetime.datetime.now()  # TODO check timezone
     analysis.save()
 
