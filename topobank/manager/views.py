@@ -246,11 +246,21 @@ class SurfaceListView(FormMixin, ListView):
             return self.form_invalid(form)
 
     def form_valid(self, form):
+
+        # when pressing "select all" button, select all topographies
+        # of current user
+        if 'select-all' in self.request.POST:
+            topographies = Topography.objects.filter(surface__user=self.request.user)
+        else:
+            # take selection from form
+            topographies = form.cleaned_data.get('topographies', [])
+
         # save selection from form in session as list of integers
-        topographies = form.cleaned_data.get('topographies', [])
         self.request.session['selected_topographies'] = list(t.id for t in topographies)
         messages.info(self.request, "Topography selection saved.")
 
+        # when pressing the analyze button, trigger analysis for
+        # all selected topographies
         if 'analyze' in self.request.POST:
             #
             # trigger analysis for all functions
@@ -265,6 +275,7 @@ class SurfaceListView(FormMixin, ListView):
                     submit_analysis(af, topo)
 
             messages.info(self.request, "Submitted analyses for all topographies.")
+
 
 
         return super().form_valid(form)
