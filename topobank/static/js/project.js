@@ -175,11 +175,11 @@ function render_plot(element, plot_descr_array, unit) {
         /* Create axes. */
         if (!x_axis) {
             x_axis = new Plottable.Axes.Numeric(x_scale, "bottom")
-                .formatter(Plottable.Formatters.siSuffix());
+                .formatter(Plottable.Formatters.exponential());
         }
         if (!y_axis) {
             y_axis = new Plottable.Axes.Numeric(y_scale, "left")
-                .formatter(Plottable.Formatters.siSuffix());
+                .formatter(Plottable.Formatters.exponential());
         }
 
         if (!x_axis_label) {
@@ -266,10 +266,10 @@ function render_plot(element, plot_descr_array, unit) {
                         return symbol;
                     });
                 if (color) {
-                    plot.attr('stroke', color).attr('fill', color);
+                    plot.attr('stroke', 'black').attr('fill', color);
                 }
                 else {
-                    plot.attr('stroke', item.name, color_scale).attr('fill', item.name, color_scale);
+                    plot.attr('stroke', 'black').attr('fill', item.name, color_scale);
                 }
                 plots.push(plot);
             }

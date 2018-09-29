@@ -1851,6 +1851,67 @@ function general(maxNumberOfDecimalPlaces) {
 }
 exports.general = general;
 /**
+ * Convert numerals inside a string into the unicode superscript equivalent, e.g.
+ *   µm3 => µm³
+ *
+ * @param {string} [s] The input string.
+ *
+ * @returns {string} The output string.
+ */
+function unicode_superscript(s) {
+    var superscript_dict = {
+        0: "⁰",
+        1: "¹",
+        2: "²",
+        3: "³",
+        4: "⁴",
+        5: "⁵",
+        6: "⁶",
+        7: "⁷",
+        8: "⁸",
+        9: "⁹",
+        "+": "⁺",
+        "-": "⁻",
+        ".": "⋅",
+    };
+    return s.split("").map(function (c) { return c in superscript_dict ? superscript_dict[c] : c; }).join("");
+}
+/**
+ * Creates a formatter that formats numbers to show no more than
+ * [maxNumberOfDecimalPlaces] decimal places in exponential notation.
+ * Exponentials will be displayed human readably, i.e. 1.3×10³.
+ *
+ * @param {number} [maxNumberOfDecimalPlaces] The number of decimal places to show (default 3).
+ *
+ * @returns {Formatter} A formatter for general values.
+ */
+function exponential(maxNumberOfDecimalPlaces) {
+    if (maxNumberOfDecimalPlaces === void 0) { maxNumberOfDecimalPlaces = 3; }
+    verifyPrecision(maxNumberOfDecimalPlaces);
+    return function (d) {
+        if (d == 0 || d === undefined || isNaN(d) || Math.abs(d) == Infinity) {
+            return String(d);
+        }
+        else if (typeof d === "number") {
+            var multiplier = Math.pow(10, maxNumberOfDecimalPlaces);
+            var sign = d < 0 ? -1 : 1;
+            var e = Math.floor(Math.log(sign * d) / Math.log(10));
+            var m = sign * d / Math.pow(10, e);
+            var m_rounded = Math.round(m * multiplier) / multiplier;
+            if (e == 0) {
+                return String(sign * m_rounded); // do not attach ×10⁰ == 1
+            }
+            else {
+                return String(sign * m_rounded) + "×10" + unicode_superscript(String(e));
+            }
+        }
+        else {
+            return String(d);
+        }
+    };
+}
+exports.exponential = exponential;
+/**
  * Creates a formatter that stringifies its input.
  *
  * @returns {Formatter} A formatter that stringifies its input.
@@ -34824,14 +34885,16 @@ var Log = /** @class */ (function (_super) {
         if (base === void 0) { base = 10; }
         var _this = _super.call(this) || this;
         _this._d3Scale = d3.scaleLog().base(base);
+        _this._setDomain(_this._defaultExtent());
         return _this;
     }
     Log.prototype._defaultExtent = function () {
-        return [0, 1];
+        return [1, this._d3Scale.base()];
     };
     Log.prototype._expandSingleValueDomain = function (singleValueDomain) {
         if (singleValueDomain[0] === singleValueDomain[1]) {
-            return [singleValueDomain[0] - 1, singleValueDomain[1] + 1];
+            return [singleValueDomain[0] / this._d3Scale.base(),
+                singleValueDomain[1] * this._d3Scale.base()];
         }
         return singleValueDomain;
     };
