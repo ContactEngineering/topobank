@@ -6,8 +6,11 @@ The first argument is always a PyCo Topography!
 
 import numpy as np
 
-from PyCo.Topography import compute_derivative, power_spectrum_1D, power_spectrum_2D, autocorrelation_1D, \
-    autocorrelation_2D
+from PyCo.Topography import rms_height
+from PyCo.Topography.common import _get_size, compute_derivative
+from PyCo.Topography.PowerSpectrum import power_spectrum_1D, power_spectrum_2D
+from PyCo.Topography.Autocorrelation import autocorrelation_1D, autocorrelation_2D
+from PyCo.Topography.VariableBandwidth import checkerboard_tilt_correction
 
 # TODO: _unicode_map and super and subscript functions should be moved to some support module.
 
@@ -359,3 +362,39 @@ def autocorrelation(topography):
                  )
         ]
     )
+
+
+def variable_bandwidth(topography):
+    size = _get_size(topography)
+    scale_factor = 1
+    no_exception = True
+    bandwidths = []
+    rms_heights = []
+    while no_exception and scale_factor < 128:
+        no_exception = False
+        try:
+            s = checkerboard_tilt_correction(topography, sd=(scale_factor, )*topography.dim)
+            bandwidths += [np.mean(size)/scale_factor]
+            rms_heights += [rms_height(s)]
+            no_exception = True
+        except np.linalg.LinAlgError:
+            pass
+        scale_factor *= 2
+
+    return dict(
+        name='Variable-bandwidth analysis',
+        xlabel='Bandwidth',
+        ylabel='RMS Height',
+        xunit=topography.unit,
+        yunit=topography.unit,
+        xscale='log',
+        yscale='log',
+        series=[
+            dict(name='Variable-bandwidth analysis',
+                 x=bandwidths,
+                 y=rms_heights,
+                 style='o-',
+                 ),
+        ]
+    )
+
