@@ -12,13 +12,15 @@
 
 {% block content %}
 
-  <div>
-    <div class="card">
-      <div class="card-header">
-        Filter results by topographies and analysis functions
-      </div>
-      <div class="card-body">
-        {% crispy form form.helper %}
+  <div class="row">
+    <div class="col-xl-12 mb-4">
+      <div class="card">
+        <div class="card-header">
+          Filter results by topographies and analysis functions
+        </div>
+        <div class="card-body">
+          {% crispy form form.helper %}
+        </div>
       </div>
     </div>
   </div>
