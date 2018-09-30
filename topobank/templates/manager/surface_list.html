@@ -1,11 +1,19 @@
 
 {% extends 'base.html' %}
 {% load fontawesome %}
+{% load crispy_forms_tags %}
+{% load surface_tags %}
+
+{% block extra_css %}
+  {{ form.media.css }}
+{% endblock extra_css %}
 
 {% block content-title %}
-  My Surfaces
+  My Surfaces and Topographies
   <div class="pull-right">
-        <a href="{% url 'manager:surface-create' %}" class="btn btn-primary">New Surface</a>
+    <a href="{% url 'manager:surface-create' %}" class="btn btn-primary">
+      {% fontawesome_icon 'plus-square-o' %} Add Surface
+    </a>
   </div>
 {% endblock content-title %}
 
@@ -13,34 +21,76 @@
 
 <div class="card ">
 
+  <div>
+    <div class="card">
+      <div class="card-header">
+        Select topographies
+      </div>
+      <div class="card-body">
+        {% crispy form form.helper %}
+      </div>
+    </div>
+  </div>
+
   <div class="card-body">
-    <div class="table-responsive">
-      <table class="table table-hover" >
 
-        <thead>
-          <tr>
-            <th scope="col">Thumbnail</th>
-            <th scope="col">Name</th>
-          </tr>
-        </thead>
-        <tbody>
-          {%  for surface in surfaces %}
-          {%  with surface.thumbnail as thumbnail %}
-          <tr class="clickable-table-row" data-href="{% url 'manager:surface-detail' surface.id %}">
-            <td><img src="{{ thumbnail.url }}" alt="Placeholder for thumbnail"
-                     width="{{ thumbnail.width }}"
-                     height="{{ thumbnail.height }}"></td>
-            <th scope="row">{{ surface.name }}</th>
-          </tr>
-          {% endwith %}
-          {% endfor %}
+    <div class="row">
+    {% for surface in surfaces %}
+      <div class="col-xl-6 mb-4">
+        <div class="card">
+          <div class="card-header">
+            <a href="{% url 'manager:surface-detail' surface.id %}"><b>{{ surface.name }}</b></a>
+            <div class="pull-right">
+              <!--
+              <a href="{ url 'manager:surface-delete' surface.id}" class="btn btn-danger">
+                  {% fontawesome_icon 'trash' %} Delete
+              </a>
 
-        </tbody>
-      </table>
+              <span></span>
+              <a href="{ url 'manager:surface-update' surface.id }" class="btn btn-default">
+                  {% fontawesome_icon 'edit' %} Edit
+              </a>
+              -->
+              <a href="{% url 'manager:topography-create' surface.id %}" class="btn btn-primary">
+                {% fontawesome_icon 'plus-square-o' %} Add Topography
+              </a>
+            </div>
+          </div>
+          <div class="card-body">
+
+            <div class="table-responsive">
+              <table class="table table-hover" >
+                <tbody>
+                  {% selected_topographies request surface as selected_topographies_for_surface  %}
+                  {% if selected_topographies.exists %}
+                    {% for topo in selected_topographies_for_surface  %}
+                      {%  with topo.surface_thumbnail as thumbnail %}
+                      <tr class="clickable-table-row"
+                          data-href="{% url 'manager:topography-detail' topo.id %}">
+                        <td><img src="{{ thumbnail.url }}" alt="Placeholder for topography thumbnail"
+                                 width="{{ thumbnail.width }}"
+                                 height="{{ thumbnail.height }}"></td>
+                        <td>{{ topo.name }}</td>
+                      </tr>
+                      {% endwith %}
+                    {% endfor %}
+                  {% else %}
+                  <em>No topography selected from this surface</em>
+                  {% endif %}
+                </tbody>
+              </table>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
     </div>
   </div>
 </div>
 
 {% endblock content %}
 
-
+{% block javascript %}
+  {{ form.media.js }}
+{% endblock javascript %}

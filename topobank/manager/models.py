@@ -7,9 +7,8 @@ from imagekit.processors import ResizeToFill
 import matplotlib.pyplot as plt
 import io
 
-from .utils import TopographyFile
+from .utils import TopographyFile, selected_topographies
 from topobank.users.models import User
-
 
 def user_directory_path(instance, filename):
     # file will be uploaded to MEDIA_ROOT/user_<id>/<filename>
@@ -31,7 +30,6 @@ class Surface(models.Model):
             return self.topography_set.first().surface_thumbnail
         else:
             return None
-
 
 class Topography(models.Model):
     """Topography Measurement of a Surface.

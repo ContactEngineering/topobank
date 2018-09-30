@@ -16,15 +16,15 @@
           height="{{ topography.surface_thumbnail.height }}">
       </div>
       <b>{{ topography.name }}</b>
-      <div class="pull-right">
 
-      <a href="{% url 'manager:topography-delete' topography.id %}">
-          {% fontawesome_icon 'trash' %}
-      </a>
-      <span></span>
-      <a href="{% url 'manager:topography-update' topography.id %}">
-          {% fontawesome_icon 'edit' %}
-      </a>
+      <div class="pull-right">
+        <a href="{% url 'manager:topography-delete' topography.id %}" class="btn btn-danger">
+            {% fontawesome_icon 'trash' %} Delete
+        </a>
+        <span></span>
+        <a href="{% url 'manager:topography-update' topography.id %}" class="btn btn-default">
+            {% fontawesome_icon 'edit' %} Edit
+        </a>
       </div>
      </h2>
   </div>

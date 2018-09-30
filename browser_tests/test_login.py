@@ -2,8 +2,9 @@
 import pytest
 from selenium.webdriver import Firefox, Chrome
 from selenium.webdriver.support.ui import WebDriverWait, Select
-from selenium.webdriver.support.expected_conditions import staleness_of
+from selenium.webdriver.support import expected_conditions
 from selenium.common.exceptions import NoSuchElementException
+from selenium.webdriver.common.by import By
 from contextlib import contextmanager
 
 from topobank.manager.tests.utils import two_topos
@@ -24,13 +25,16 @@ def wait_for_page_load(browser, timeout=10):
     old_page = browser.find_element_by_tag_name('html')
     yield
     WebDriverWait(browser, timeout).until(
-        staleness_of(old_page)
+        expected_conditions.staleness_of(old_page)
     )
 
 @pytest.mark.django_db
 def test_login_logout(live_server, webdriver, two_topos):
 
     webdriver.get(live_server.url + '/')
+
+    user_dropwdown = webdriver.find_element_by_id('userDropdown')
+    user_dropwdown.click()
 
     link = webdriver.find_element_by_partial_link_text("Sign In")
     with wait_for_page_load(webdriver):
@@ -52,18 +56,30 @@ def test_login_logout(live_server, webdriver, two_topos):
     with pytest.raises(NoSuchElementException):
         webdriver.find_element_by_partial_link_text("Sign In")
 
+    user_dropwdown = webdriver.find_element_by_id('userDropdown')
+    user_dropwdown.click()
+
     link = webdriver.find_element_by_partial_link_text("Sign Out") # only available when signed in
 
-    # Sign Out again..
+    first_logout_link_xpath = "//a[@data-target='#logoutModal']"
+    wait = WebDriverWait(webdriver, 10)
+    logout_button = wait.until(expected_conditions.element_to_be_clickable((By.XPATH, first_logout_link_xpath)))
+    logout_button.click()
+
+    footer_link_xpath = "//div[@class='modal-footer']/a"
+
+    wait = WebDriverWait(webdriver, 10)
+    logout_button = wait.until(expected_conditions.element_to_be_clickable((By.XPATH, footer_link_xpath)))
+
     with wait_for_page_load(webdriver):
-        link.click()
-    btn = webdriver.find_element_by_xpath("//button[contains(text(),'Sign Out')]")
-    with wait_for_page_load(webdriver):
-        btn.click()
+        logout_button.click()
 
     #
     # Sign Out is no longer there, but Sign In
     #
+    user_dropwdown = webdriver.find_element_by_id('userDropdown')
+    user_dropwdown.click()
+
     with pytest.raises(NoSuchElementException):
         webdriver.find_element_by_partial_link_text("Sign Out")
 

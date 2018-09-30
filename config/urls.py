@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.urls import include, path
 from django.conf.urls.static import static
+from django.conf.urls import url
 from django.contrib import admin
 from django.views.generic import TemplateView
 from django.views import defaults as default_views
@@ -35,6 +36,7 @@ urlpatterns = [
         include("topobank.analysis.urls", namespace="analysis"),
     ),
 
+    url(r'^select2/', include('django_select2.urls')),
 
 ] + static(
     settings.MEDIA_URL, document_root=settings.MEDIA_ROOT

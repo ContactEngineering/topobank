@@ -29,7 +29,25 @@ class Analysis(models.Model):
     task_state = models.CharField(max_length=7,
                                   choices=TASK_STATE_CHOICES)
 
+    start_time = models.DateTimeField(null=True)
+    end_time = models.DateTimeField(null=True)
+
     result = models.BinaryField(null=True, default=None)  # for pickle, in case of failure, can be Exception instance
+
+    def __str__(self):
+        return "Task {} with state {}".format(self.task_id, self.get_task_state_display())
+
+    def duration(self):
+        """Returns duration of computation or None if not finished yet.
+
+        Does not take into account the queue time.
+
+        :return: Returns datetime.timedelta or None
+        """
+        if self.end_time is None:
+            return None
+
+        return self.end_time-self.start_time
 
 class AnalysisFunction(models.Model):
     name = models.CharField(max_length=80, help_text="A human-readable name.", unique=True)
@@ -38,4 +56,7 @@ class AnalysisFunction(models.Model):
     # this reference to python function may change in future
     automatic  = models.BooleanField(default=False,
                                      help_text="If set, this analysis is automatically triggered for new topographies.")
+
+    def __str__(self):
+        return self.name
 

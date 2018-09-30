@@ -62,6 +62,7 @@ DJANGO_APPS = [
     'django.contrib.staticfiles',
     # 'django.contrib.humanize', # Handy template tags
     'django.contrib.admin',
+    'django_select2',
 ]
 THIRD_PARTY_APPS = [
     'crispy_forms',
@@ -257,7 +258,7 @@ ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
 ACCOUNT_ADAPTER = 'topobank.users.adapters.AccountAdapter'
 # https://django-allauth.readthedocs.io/en/latest/configuration.html
 SOCIALACCOUNT_ADAPTER = 'topobank.users.adapters.SocialAccountAdapter'
-
+ACCOUNT_LOGOUT_ON_GET = True # True: disable intermediate page
 
 # Your stuff...
 # ------------------------------------------------------------------------------
