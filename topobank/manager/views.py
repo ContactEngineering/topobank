@@ -99,7 +99,10 @@ class TopographyCreateWizard(SessionWizardView):
 
             session = self.request.session
 
-            session['initial_size'] = topo.size
+            if topo.size is None:
+                session['initial_size'] = topo.shape
+            else:
+                session['initial_size'] = topo.size
             session['initial_size_unit'] = topo.unit
             session['initial_height_scale'] = topo.parent_topography.coeff
             session['detrend_mode'] = topo.detrend_mode
