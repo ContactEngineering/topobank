@@ -1901,6 +1901,14 @@ function exponential(maxNumberOfDecimalPlaces) {
             if (e == 0) {
                 return String(sign * m_rounded); // do not attach ×10⁰ == 1
             }
+            else if (m_rounded == 1) {
+                if (sign > 0) {
+                    return "10" + unicode_superscript(String(e));
+                }
+                else {
+                    return "-10" + unicode_superscript(String(e));
+                }
+            }
             else {
                 return String(sign * m_rounded) + "×10" + unicode_superscript(String(e));
             }

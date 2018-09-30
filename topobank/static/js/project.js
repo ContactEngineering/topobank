@@ -172,16 +172,6 @@ function render_plot(element, plot_descr_array, unit) {
             }
         }
 
-        /* Create axes. */
-        if (!x_axis) {
-            x_axis = new Plottable.Axes.Numeric(x_scale, "bottom")
-                .formatter(Plottable.Formatters.exponential());
-        }
-        if (!y_axis) {
-            y_axis = new Plottable.Axes.Numeric(y_scale, "left")
-                .formatter(Plottable.Formatters.exponential());
-        }
-
         if (!x_axis_label) {
             xlabel = plot_descr.xlabel;
             if (xunit.unit) xlabel += ' (' + unicode_unit(unit, xunit.exponent) + ')';
@@ -238,12 +228,8 @@ function render_plot(element, plot_descr_array, unit) {
                 var plot = new Plottable.Plots.Line()
                     .deferredRendering(true)
                     .addDataset(dataset)
-                    .x(function (d) {
-                        return d.x;
-                    }, x_scale)
-                    .y(function (d) {
-                        return d.y;
-                    }, y_scale);
+                    .x((d) => d.x, x_scale)
+                    .y((d) => d.y, y_scale);
                 if (color) {
                     plot.attr('stroke', color);
                 }
@@ -256,12 +242,8 @@ function render_plot(element, plot_descr_array, unit) {
                 var plot = new Plottable.Plots.Scatter()
                     .deferredRendering(true)
                     .addDataset(dataset)
-                    .x(function (d) {
-                        return d.x;
-                    }, x_scale)
-                    .y(function (d) {
-                        return d.y;
-                    }, y_scale)
+                    .x((d) => d.x, x_scale)
+                    .y((d) => d.y, y_scale)
                     .symbol(function () {
                         return symbol;
                     });
@@ -278,6 +260,12 @@ function render_plot(element, plot_descr_array, unit) {
         });
     }
 
+    /* Create axes. */
+    x_axis = new Plottable.Axes.Numeric(x_scale, "bottom")
+        .formatter(Plottable.Formatters.exponential());
+    y_axis = new Plottable.Axes.Numeric(y_scale, "left")
+        .formatter(Plottable.Formatters.exponential());
+
     var legend = new Plottable.Components.Legend(color_scale);
     legend.symbol(function (datum, index) {
         s = symbols[index];
@@ -292,12 +280,18 @@ function render_plot(element, plot_descr_array, unit) {
         [null, null, x_axis_label, null]
     ]);
 
+    var panZoom = new Plottable.Interactions.PanZoom(x_scale, y_scale)
+        .attachTo(chart);
+
     chart.renderTo(element);
     $(element).width('100%');
     $(element).height('300px');
     chart.redraw();
 
     $(element).data('chart', chart);
+
+    //panZoom.setMinMaxDomainValuesTo(x_scale);
+    //panZoom.setMinMaxDomainValuesTo(y_scale);
 }
 
 
