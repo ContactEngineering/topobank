@@ -11,7 +11,7 @@ from django.urls import reverse
 from ..models import Analysis, AnalysisFunction
 from topobank.manager.tests.utils import two_topos
 from topobank.manager.models import Topography
-from topobank.manager.tests.utils import export_reponse_as_html
+# from topobank.manager.tests.utils import export_reponse_as_html
 
 @pytest.mark.django_db
 def test_analysis_times(client, two_topos):
@@ -42,8 +42,6 @@ def test_analysis_times(client, two_topos):
                            }, follow=True)
 
     assert response.status_code == 200
-
-    export_reponse_as_html(response)
 
     assert b"State: success" in response.content
     assert b"Started: 2018-01-01 12:00:00" in response.content
