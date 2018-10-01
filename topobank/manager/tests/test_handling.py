@@ -5,20 +5,8 @@ from django.shortcuts import reverse
 from pathlib import Path
 import datetime
 
+# from topobank.manager.tests.utils import export_reponse_as_html
 from ..models import Topography, Surface
-from .utils import two_topos
-
-def export_reponse_as_html(response, fname='/tmp/response.html'):
-    """
-    Helper function which can be used for debugging.
-
-    :param response: HTTPResponse
-    :param fname: name of HTML output file
-    """
-    f = open(fname, mode='w')
-
-    f.write(response.content.decode('utf-8').replace('\\n','\n'))
-    f.close()
 
 #
 # Different formats are handled by PyCo
@@ -110,7 +98,7 @@ def test_upload_topography(client, django_user_model):
 
     assert response.status_code == 200
     # assert reverse('manager:topography-detail', kwargs=dict(pk=1)) == response.url
-    export_reponse_as_html(response)
+    # export_reponse_as_html(response)
     assert b'Details for Topography' in response.content
 
     surface = Surface.objects.get(name='surface1')

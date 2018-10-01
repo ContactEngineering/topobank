@@ -48,9 +48,9 @@
               <small>
               State: {{ analysis.get_task_state_display }}
               {% if analysis.start_time %}
-                | Started: {{ analysis.start_time }}
+                | Started: {{ analysis.start_time|date:"Y-m-d H:i:s" }}
                 {% if analysis.end_time %}
-                | Ended: {{ analysis.end_time }}
+                | Ended: {{ analysis.end_time|date:"Y-m-d H:i:s" }}
                 | Duration: {{ analysis.duration }}
                 {% endif %}
               {% endif %}

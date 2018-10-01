@@ -42,3 +42,16 @@ def two_topos(django_db_setup, django_db_blocker):
             user.save()
 
         # like this we can have clear-text passwords in test fixtures
+
+
+def export_reponse_as_html(response, fname='/tmp/response.html'):
+    """
+    Helper function which can be used for debugging.
+
+    :param response: HTTPResponse
+    :param fname: name of HTML output file
+    """
+    f = open(fname, mode='w')
+
+    f.write(response.content.decode('utf-8').replace('\\n','\n'))
+    f.close()
