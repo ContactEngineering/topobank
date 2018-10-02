@@ -3,9 +3,9 @@ from django.views.generic import ListView
 from django.views.generic.edit import FormMixin
 from django.urls import reverse_lazy
 from django.contrib import messages
+from django.db.models import OuterRef, Subquery
 from rest_framework.generics import RetrieveAPIView
 
-from ..manager.models import Topography
 from ..manager.utils import selected_topographies
 from .models import Analysis, AnalysisFunction
 from .serializers import AnalysisSerializer
@@ -21,9 +21,22 @@ class AnalysisListView(FormMixin, ListView):
     def get_queryset(self):
         topographies = selected_topographies(self.request)
         functions = AnalysisListView._selected_functions(self.request)
-        analyses = Analysis.objects.filter(topography__surface__user=self.request.user,
-                                           topography__in=topographies,
-                                           function__in=functions).order_by('function')
+        sq_analyses = Analysis.objects \
+            .filter(topography__surface__user=self.request.user,
+                    topography__in=topographies,
+                    function__in=functions) \
+            .filter(topography=OuterRef('topography'), function=OuterRef('function'))\
+            .order_by('-start_time')
+
+        # Use this subquery for finding only latest analyses for each (topography, function) group
+        analyses = Analysis.objects\
+            .filter(pk=Subquery(sq_analyses.values('pk')[:1]))
+
+        # thanks to minkwe for the contribution at https://gist.github.com/ryanpitts/1304725
+
+        #
+        # maybe be better solved with PostGreSQL and Window functions
+        #
         return analyses
 
     def get_initial(self):
