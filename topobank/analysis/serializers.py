@@ -11,8 +11,10 @@ class PickledResult(serializers.DictField):
 
 
 class AnalysisSerializer(serializers.ModelSerializer):
+    topography_name = serializers.CharField(source='topography.name')
     result = PickledResult()
 
     class Meta:
         model = Analysis
-        fields = ('id', 'task_id', 'task_state', 'result')
+        fields = ('id', 'task_id', 'task_state', 'start_time', 'end_time', 'result',
+                  'topography', 'topography_name')

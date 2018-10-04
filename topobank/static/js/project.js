@@ -108,13 +108,15 @@ function unicode_unit(unit, exponent) {
  * listed for the respective element. The resulting data will then be presented in a single plot. Function handles
  * unit conversion between data sources.
  */
-function render_plot(element, plot_descr_array, unit) {
+function render_plot(element, name_array, plot_descr_array, unit) {
     /* Static dictionaries. */
     var color_abbreviations = {
         'k': 'black',
         'r': 'red',
+        'g': 'green',
+        'b': 'blue'
     };
-    var symbol_factories = {
+    var symbol_abbreviations = {
         'o': Plottable.SymbolFactories.circle(),
         '+': Plottable.SymbolFactories.cross(),
         'd': Plottable.SymbolFactories.diamond(),
@@ -131,8 +133,22 @@ function render_plot(element, plot_descr_array, unit) {
     var x_scale, y_scale, x_axis, y_axis, x_axis_label, y_axis_label, color_scale;
     var plots = [], symbols = [];
 
+    var names = [];
+    for (var i in plot_descr_array) {
+        plot_name = name_array[i];
+        plot_descr = plot_descr_array[i];
+        plot_descr.series.forEach(function (item) {
+            names.push(plot_name + ': ' + item.name);
+        });
+    }
+
+    color_scale = new Plottable.Scales.Color();
+    color_scale.domain(names);
+
     /* Loop over all plot descriptor dictionaries passed here. */
-    for (var plot_descr of plot_descr_array) {
+    for (var i in plot_descr_array) {
+        plot_name = name_array[i];
+        plot_descr = plot_descr_array[i];
         /* Figure out units. */
         xunit = split_unit(plot_descr.xunit);
         yunit = split_unit(plot_descr.yunit);
@@ -188,16 +204,6 @@ function render_plot(element, plot_descr_array, unit) {
                 .angle(-90);
         }
 
-        if (!color_scale) {
-            var names = [];
-            plot_descr.series.forEach(function (item) {
-                names.push(item.name);
-            });
-
-            color_scale = new Plottable.Scales.Color();
-            color_scale.domain(names);
-        }
-
         plot_descr.series.forEach(function (item) {
             var style = item.style ? item.style : 'k-';
 
@@ -216,26 +222,23 @@ function render_plot(element, plot_descr_array, unit) {
                 else if (c in color_abbreviations) {
                     color = color_abbreviations[c];
                 }
-                else if (c in symbol_factories) {
-                    symbol = symbol_factories[c];
+                else if (c in symbol_abbreviations) {
+                    symbol = symbol_abbreviations[c];
                 }
                 else {
                     throw TypeError('Cannot interpret style string: ' + style);
                 }
             }
 
+            symbol = Object.values(symbol_abbreviations)[plots.length % Object.values(symbol_abbreviations).length];
+
             if (line) {
                 var plot = new Plottable.Plots.Line()
                     .deferredRendering(true)
                     .addDataset(dataset)
                     .x((d) => d.x, x_scale)
-                    .y((d) => d.y, y_scale);
-                if (color) {
-                    plot.attr('stroke', color);
-                }
-                else {
-                    plot.attr('stroke', item.name, color_scale);
-                }
+                    .y((d) => d.y, y_scale)
+                    .attr('stroke', plot_name + ': ' + item.name, color_scale);
                 plots.push(plot);
             }
             if (symbol) {
@@ -246,13 +249,8 @@ function render_plot(element, plot_descr_array, unit) {
                     .y((d) => d.y, y_scale)
                     .symbol(function () {
                         return symbol;
-                    });
-                if (color) {
-                    plot.attr('stroke', 'black').attr('fill', color);
-                }
-                else {
-                    plot.attr('stroke', 'black').attr('fill', item.name, color_scale);
-                }
+                    })
+                    .attr('stroke', 'black').attr('fill', plot_name + ': ' + item.name, color_scale);
                 plots.push(plot);
             }
 
@@ -285,7 +283,7 @@ function render_plot(element, plot_descr_array, unit) {
 
     chart.renderTo(element);
     $(element).width('100%');
-    $(element).height('300px');
+    $(element).height('400px');
     chart.redraw();
 
     $(element).data('chart', chart);
@@ -327,7 +325,10 @@ function plot(element, unit) {
         }
 
         /* Render plot. */
-        render_plot(element, data_array.map(data => data[0].result), unit);
+        render_plot(element,
+                    data_array.map(data => data[0].topography_name),
+                    data_array.map(data => data[0].result),
+                    unit);
         $('.spinner', $(element).parent()).hide();
     };
 
