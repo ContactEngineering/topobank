@@ -140,7 +140,12 @@ function render_plot(element, name_array, plot_descr_array, unit) {
         plot_name = name_array[i];
         plot_descr = plot_descr_array[i];
         plot_descr.series.forEach(function (item) {
-            names.push(plot_name + ': ' + item.name);
+            if (plot_descr.series.length > 1) {
+                names.push(plot_name + ': ' + item.name);
+            }
+            else {
+                names.push(plot_name);
+            }
         });
     }
 
@@ -209,7 +214,8 @@ function render_plot(element, name_array, plot_descr_array, unit) {
         }
 
         plot_descr.series.forEach(function (item) {
-            var legend_str = plot_name + ': ' + item.name;
+            var legend_str = plot_name;
+            if (plot_descr.series.length > 1)  legend_str += ': ' + item.name;
 
             var style = item.style ? item.style : 'k-';
 
