@@ -297,17 +297,17 @@ def power_spectrum(topography, window='hann'):
             dict(name='q/π × 2D PSD',
                  x=q_2D[1:],
                  y=q_2D[1:] * C_2D[1:] / np.pi,
-                 style='o',
+                 style='o-',
                  ),
             dict(name='1D PSD along x',
                  x=q_1D[1:],
                  y=C_1D[1:],
-                 style='+',
+                 style='+-',
                  ),
             dict(name='1D PSD along y',
                  x=q_1D_T[1:],
                  y=C_1D_T[1:],
-                 style='y',
+                 style='y-',
                  )
         ]
     )
@@ -348,17 +348,17 @@ def autocorrelation(topography):
             dict(name='Radial average',
                  x=r_2D,
                  y=A_2D,
-                 style='o',
+                 style='o-',
                  ),
             dict(name='Along x',
                  x=r,
                  y=A,
-                 style='+',
+                 style='+-',
                  ),
             dict(name='Along y',
                  x=r_T,
                  y=A_T,
-                 style='y',
+                 style='y-',
                  )
         ]
     )
