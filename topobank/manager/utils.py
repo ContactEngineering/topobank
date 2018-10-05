@@ -109,6 +109,11 @@ def mangle_unit(unit): # TODO needed?
 
 
 def selection_choices(user):
+    """Compile all choices for selection topographies and surfaces.
+
+    :param user: Django user
+    :return: list of choices which are 2-tuples, see documentation
+    """
     from topobank.manager.models import Surface
 
     surfaces = Surface.objects.filter(user=user)
@@ -121,9 +126,22 @@ def selection_choices(user):
     return choices
 
 def selection_from_session(session):
+    """Get selection from session.
+
+    The selection is a list of strings like
+
+    [ 'topography-1', 'surface-4']
+
+    which represents the selected objects.
+    """
     return session.get(SELECTION_SESSION_VARNAME, [])
 
 def selection_for_select_all(user):
+    """Return selection if given user wants to select all topographies and surfaces.
+
+    :param user: Django user
+    :return:
+    """
     from .models import Surface
     return ['surface-{}'.format(s.id)
             for s in Surface.objects.filter(user=user)]
@@ -162,6 +180,11 @@ def selection_to_topographies(selection, user, surface=None):  # TODO rename to 
     return topographies
 
 def selected_topographies(request, surface=None):
+    """Return list of topography instances which are currently selected.
+
+    :request: HTTP request
+    :surface: if given, return only topographies of this Surface instance
+    """
     return selection_to_topographies(selection_from_session(request.session), request.user, surface=surface)
 
 
