@@ -131,6 +131,8 @@ function render_plot(element, name_array, plot_descr_array, unit) {
 
     /* Scales. */
     var x_scale, y_scale, x_axis, y_axis, x_axis_label, y_axis_label, color_scale;
+
+    /* Individual plots and symbols beloging to those. */
     var plots = {}, symbols = {};
 
     var names = [];
@@ -142,6 +144,7 @@ function render_plot(element, name_array, plot_descr_array, unit) {
         });
     }
 
+    /* Automatic color selection. */
     color_scale = new Plottable.Scales.Color();
     color_scale.domain(names);
 
@@ -252,9 +255,7 @@ function render_plot(element, name_array, plot_descr_array, unit) {
                     .addDataset(dataset)
                     .x((d) => d.x, x_scale)
                     .y((d) => d.y, y_scale)
-                    .symbol(function () {
-                        return symbol;
-                    })
+                    .symbol(() => symbol)
                     .attr('stroke', 'black').attr('fill', legend_str, color_scale);
             }
             plots[legend_str] = [plot_with_lines, plot_with_symbols];
