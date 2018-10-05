@@ -1,4 +1,4 @@
-from django.forms import ModelMultipleChoiceField, forms
+from django.forms import forms, TypedMultipleChoiceField
 from django import forms
 from django_select2.forms import Select2MultipleWidget
 import logging
@@ -7,6 +7,7 @@ from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Submit, Layout, Field, HTML, Div, Fieldset
 from crispy_forms.bootstrap import FormActions
 
+from topobank.manager.utils import selection_choices
 from .models import Topography, Surface
 
 _log = logging.getLogger('manager')
@@ -212,24 +213,24 @@ class SurfaceForm(forms.ModelForm):
 
 class TopographySelectForm(forms.Form):
 
-    topographies = ModelMultipleChoiceField(
-        required=False,
-        queryset=Topography.objects.all(),
-        widget=Select2MultipleWidget,
-        label="Selected Topographies",
-        help_text="Select one or multiple topographies. Search by name.")
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user')
+        super().__init__(*args, **kwargs)
 
-    # TODO select only Topographies from current user
+        self.fields['selection'].choices = lambda : selection_choices(user)
+
+    selection = TypedMultipleChoiceField(
+        required=False,
+        widget=Select2MultipleWidget,
+        label="Selected Topographies or Surfaces",
+        help_text="Select one or multiple topographies or surfaces. Search by name.")
 
     helper = FormHelper()
     helper.form_method = 'POST'
 
-    # helper.form_class = 'form-horizontal'
-    #helper.label_class = 'col-sm-2'
-    # helper.field_class = 'col-sm-6'
-
     helper.layout = Layout(
-        Field('topographies'),
+        Field('selection'),
+
         FormActions(
             Submit('save', 'Save selection', css_class='btn-primary'),
             Submit('select-all', 'Select all', css_class='btn-primary'),

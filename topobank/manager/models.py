@@ -31,6 +31,9 @@ class Surface(models.Model):
         else:
             return None
 
+    def num_topographies(self):
+        return self.topography_set.count()
+
 class Topography(models.Model):
     """Topography Measurement of a Surface.
     """

@@ -4,9 +4,15 @@ import numpy as np
 from PyCo.Topography import FromFile
 from PyCo.Topography.TopographyDescription import ScaledTopography, DetrendedTopography
 
+import logging
+
+_log = logging.getLogger(__name__)
+
 DEFAULT_DATASOURCE_NAME = 'Default'
 UNIT_TO_METERS = {'A': 1e-10, 'nm': 1e-9, 'µm': 1e-6, 'mm': 1e-3, 'm': 1.0,
                   'unknown': 1.0}
+
+SELECTION_SESSION_VARNAME = 'selection'
 
 class TopographyFile:
     """Provide a simple generic interface to topography files independent of format."""
@@ -85,18 +91,78 @@ def mangle_unit(unit): # TODO needed?
         return 'μm'
     return unit
 
-def selected_topographies(request, surface=None):
-    """Returns selected topographies as saved in session.
+# def selected_topographies(request, surface=None):
+#     """Returns selected topographies as saved in session.
+#
+#     If surface is given, return only topographies for this
+#     Surface model object
+#     """
+#     from .models import Topography
+#     topography_ids = request.session.get('selected_topographies', [])
+#
+#     filter_args = dict(surface__user=request.user, id__in=topography_ids)
+#     if surface is not None:
+#         filter_args['surface']=surface
+#     topographies = Topography.objects.filter(**filter_args)
+#
+#     return topographies
+
+
+def selection_choices(user):
+    from topobank.manager.models import Surface
+
+    surfaces = Surface.objects.filter(user=user)
+
+    choices = []
+    for s in surfaces:
+        choices.append(('surface-{}'.format(s.id), s.name))
+        choices.extend([('topography-{}'.format(t.id), t.name) for t in s.topography_set.all().order_by('id')])
+
+    return choices
+
+def selection_from_session(session):
+    return session.get(SELECTION_SESSION_VARNAME, [])
+
+def selection_for_select_all(user):
+    from .models import Surface
+    return ['surface-{}'.format(s.id)
+            for s in Surface.objects.filter(user=user)]
+
+def selection_to_topographies(selection, user, surface=None):  # TODO rename to "selected_topographies"
+    """Returns selected topographies from current user as saved in session.
 
     If surface is given, return only topographies for this
-    Surface model object
+    Surface model object.
+
+    TODO make more efficicient if only topographies for a single surface needed
     """
     from .models import Topography
-    topography_ids = request.session.get('selected_topographies', [])
 
-    filter_args = dict(surface__user=request.user, id__in=topography_ids)
+    topography_ids = set()
+
+    for type_id in selection:
+        type, id = type_id.split('-')
+        id = int(id)
+        if type == 'topography':
+            topography_ids.add(id)
+        elif type == 'surface':
+            if (surface is not None) and (surface.id != id):
+                continue # skip this surface, it is not relevant
+
+            topography_ids.update(list(Topography.objects.filter(surface__id=id).values_list('id', flat=True)))
+
+    topography_ids = list(topography_ids)
+
+    # filter for user and optionally also for a single surface
+    filter_args = dict(surface__user=user, id__in=topography_ids)
     if surface is not None:
-        filter_args['surface']=surface
+        filter_args['surface'] = surface # todo needed?
     topographies = Topography.objects.filter(**filter_args)
 
     return topographies
+
+def selected_topographies(request, surface=None):
+    return selection_to_topographies(selection_from_session(request.session), request.user, surface=surface)
+
+
+

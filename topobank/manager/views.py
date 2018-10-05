@@ -10,6 +10,7 @@ from django.views.generic.edit import FormMixin, ProcessFormView
 from django.contrib import messages
 
 import os.path
+import logging
 
 from rest_framework.decorators import api_view
 from rest_framework.views import Response
@@ -17,7 +18,10 @@ from rest_framework.views import Response
 from .models import Topography, Surface
 from .forms import TopographyForm, SurfaceForm, TopographySelectForm
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyUnitsForm
-from .utils import TopographyFile, optimal_unit, selected_topographies
+# from .utils import TopographyFile, optimal_unit, selected_topographies
+from .utils import TopographyFile, optimal_unit, selected_topographies, selection_from_session, selection_for_select_all
+
+_log = logging.getLogger(__name__)
 
 class TopographyCreateWizard(SessionWizardView):
     form_list = [TopographyFileUploadForm, TopographyMetaDataForm, TopographyUnitsForm]
@@ -226,15 +230,19 @@ class SurfaceListView(FormMixin, ListView):
         surfaces = Surface.objects.filter(user=self.request.user)
         return surfaces
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['selected_topographies'] = selected_topographies(self.request)
-
-        return context
+    # def get_context_data(self, **kwargs):
+    #     context = super().get_context_data(**kwargs)
+    #     context['selection'] = selected_topographies(self.request)
+    #     return context
 
     def get_initial(self):
         # make sure the form is already filled with earlier selection
-        return dict(topographies=selected_topographies(self.request))
+        return dict(selection=selection_from_session(self.request.session))
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
 
     def post(self, request, *args, **kwargs): # TODO is this really needed?
         if not request.user.is_authenticated:
@@ -250,14 +258,18 @@ class SurfaceListView(FormMixin, ListView):
         # when pressing "select all" button, select all topographies
         # of current user
         if 'select-all' in self.request.POST:
-            topographies = Topography.objects.filter(surface__user=self.request.user)
+            selection = selection_for_select_all(self.request.user)
         else:
             # take selection from form
-            topographies = form.cleaned_data.get('topographies', [])
+            selection = form.cleaned_data.get('selection', [])
+
+        _log.info('Form valid, selection: %s', selection)
 
         # save selection from form in session as list of integers
-        self.request.session['selected_topographies'] = list(t.id for t in topographies)
-        messages.info(self.request, "Topography selection saved.")
+        self.request.session['selection'] = tuple(selection)
+        messages.info(self.request, "Topography selection saved: {}".format(self.request.session.get('selection')))
+
+        topographies = selected_topographies(self.request)
 
         # when pressing the analyze button, trigger analysis for
         # all selected topographies
@@ -274,9 +286,7 @@ class SurfaceListView(FormMixin, ListView):
                 for af in auto_analysis_funcs:
                     submit_analysis(af, topo)
 
-            messages.info(self.request, "Submitted analyses for all topographies.")
-
-
+            messages.info(self.request, "Submitted analyses for {} topographies.".format(len(topographies)))
 
         return super().form_valid(form)
 
@@ -302,21 +312,21 @@ class SurfaceDetailView(DetailView):
     #    context = super(SurfaceDetailView, self).get_context_data(**kwargs)
     #   context['topographies'] = Topography.objects.filter(surface=self.object)
 
-def toggle_topography_selection(request, pk):
-    selected_topos = request.session.get('selected_topographies', [])
-    if pk in selected_topos:
-        selected_topos.remove(pk)
-        is_selected = False
-    else:
-        selected_topos.append(pk)
-        is_selected = True
-    request.session['selected_topographies'] = selected_topos
-    return JsonResponse(dict(is_selected=is_selected))
-
-def is_topography_selected(request, pk):
-    selected_topos = request.session.get('selected_topographies', [])
-    is_selected = pk in selected_topos
-    return JsonResponse(is_selected)
+# def toggle_topography_selection(request, pk):
+#     selected_topos = request.session.get('selected_topographies', [])
+#     if pk in selected_topos:
+#         selected_topos.remove(pk)
+#         is_selected = False
+#     else:
+#         selected_topos.append(pk)
+#         is_selected = True
+#     request.session['selected_topographies'] = selected_topos
+#     return JsonResponse(dict(is_selected=is_selected))
+#
+# def is_topography_selected(request, pk):
+#     selected_topos = request.session.get('selected_topographies', [])
+#     is_selected = pk in selected_topos
+#     return JsonResponse(is_selected)
 
 
 
