@@ -6,6 +6,7 @@ from pathlib import Path
 import datetime
 
 # from topobank.manager.tests.utils import export_reponse_as_html
+from ..tests.utils import two_topos
 from ..models import Topography, Surface
 
 #
