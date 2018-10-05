@@ -230,11 +230,6 @@ class SurfaceListView(FormMixin, ListView):
         surfaces = Surface.objects.filter(user=self.request.user)
         return surfaces
 
-    # def get_context_data(self, **kwargs):
-    #     context = super().get_context_data(**kwargs)
-    #     context['selection'] = selected_topographies(self.request)
-    #     return context
-
     def get_initial(self):
         # make sure the form is already filled with earlier selection
         return dict(selection=selection_from_session(self.request.session))
@@ -265,11 +260,8 @@ class SurfaceListView(FormMixin, ListView):
 
         _log.info('Form valid, selection: %s', selection)
 
-        # save selection from form in session as list of integers
         self.request.session['selection'] = tuple(selection)
         messages.info(self.request, "Topography selection saved: {}".format(self.request.session.get('selection')))
-
-        topographies = selected_topographies(self.request)
 
         # when pressing the analyze button, trigger analysis for
         # all selected topographies
@@ -282,6 +274,7 @@ class SurfaceListView(FormMixin, ListView):
 
             auto_analysis_funcs = AnalysisFunction.objects.filter(automatic=True)
 
+            topographies = selected_topographies(self.request)
             for topo in topographies:
                 for af in auto_analysis_funcs:
                     submit_analysis(af, topo)
