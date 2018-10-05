@@ -131,7 +131,7 @@ function render_plot(element, name_array, plot_descr_array, unit) {
 
     /* Scales. */
     var x_scale, y_scale, x_axis, y_axis, x_axis_label, y_axis_label, color_scale;
-    var plots = [], symbols = [];
+    var plots = {}, symbols = {};
 
     var names = [];
     for (var i in plot_descr_array) {
@@ -149,6 +149,7 @@ function render_plot(element, name_array, plot_descr_array, unit) {
     for (var i in plot_descr_array) {
         plot_name = name_array[i];
         plot_descr = plot_descr_array[i];
+
         /* Figure out units. */
         xunit = split_unit(plot_descr.xunit);
         yunit = split_unit(plot_descr.yunit);
@@ -205,6 +206,8 @@ function render_plot(element, name_array, plot_descr_array, unit) {
         }
 
         plot_descr.series.forEach(function (item) {
+            var legend_str = plot_name + ': ' + item.name;
+
             var style = item.style ? item.style : 'k-';
 
             var dataset = new Plottable.Dataset(
@@ -230,19 +233,21 @@ function render_plot(element, name_array, plot_descr_array, unit) {
                 }
             }
 
-            symbol = Object.values(symbol_abbreviations)[plots.length % Object.values(symbol_abbreviations).length];
+            symbol = Object.values(symbol_abbreviations)[Object.values(plots).length % Object.values(symbol_abbreviations).length];
 
+            if (line && item.y.length > 20) symbol = undefined;
+
+            var plot_with_lines, plot_with_symbols;
             if (line) {
-                var plot = new Plottable.Plots.Line()
+                plot_with_lines = new Plottable.Plots.Line()
                     .deferredRendering(true)
                     .addDataset(dataset)
                     .x((d) => d.x, x_scale)
                     .y((d) => d.y, y_scale)
-                    .attr('stroke', plot_name + ': ' + item.name, color_scale);
-                plots.push(plot);
+                    .attr('stroke', legend_str, color_scale);
             }
             if (symbol) {
-                var plot = new Plottable.Plots.Scatter()
+                plot_with_symbols = new Plottable.Plots.Scatter()
                     .deferredRendering(true)
                     .addDataset(dataset)
                     .x((d) => d.x, x_scale)
@@ -250,11 +255,9 @@ function render_plot(element, name_array, plot_descr_array, unit) {
                     .symbol(function () {
                         return symbol;
                     })
-                    .attr('stroke', 'black').attr('fill', plot_name + ': ' + item.name, color_scale);
-                plots.push(plot);
+                    .attr('stroke', 'black').attr('fill', legend_str, color_scale);
             }
-
-            symbols.push(symbol);
+            plots[legend_str] = [plot_with_lines, plot_with_symbols];
         });
     }
 
@@ -264,13 +267,43 @@ function render_plot(element, name_array, plot_descr_array, unit) {
     y_axis = new Plottable.Axes.Numeric(y_scale, "left")
         .formatter(Plottable.Formatters.exponential());
 
-    var legend = new Plottable.Components.Legend(color_scale);
-    legend.symbol(function (datum, index) {
-        s = symbols[index];
-        return s ? s : Plottable.SymbolFactories.circle();
-    });
+    var legend = new Plottable.Components.Legend(color_scale)
+        .symbol(function (datum) {
+            s = symbols[datum];
+            return s ? s : Plottable.SymbolFactories.circle();
+        })
+        .maxEntriesPerRow(3);
 
-    var plot_group = new Plottable.Components.Group(plots);
+    var legend_interaction = new Plottable.Interactions.Click();
+    legend_interaction.onClick(function (point) {
+        var datum = legend.entitiesAt(point)[0].datum;
+        for (var plot of plots[datum]) {
+            if (plot) {
+                var sel = plot.selections();
+                if (sel.attr("visibility") == "hidden") {
+                    sel.attr("visibility", "visible");
+                }
+                else {
+                    sel.attr("visibility", "hidden");
+                }
+            }
+        }
+        legend.symbolOpacity(function (datum) {
+            for (var plot of plots[datum]) {
+                if (plot) {
+                    if (plot.selections().attr("visibility") == "hidden") {
+                        return .3;
+                    }
+                    else {
+                        return 1;
+                    }
+                }
+            }
+        });
+    });
+    legend_interaction.attachTo(legend);
+
+    var plot_group = new Plottable.Components.Group([].concat(...Object.values(plots)).filter(x => x));
     var chart = new Plottable.Components.Table([
         [null, null, legend],
         [y_axis_label, y_axis, plot_group],
