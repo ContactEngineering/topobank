@@ -10,8 +10,33 @@ from django.urls import reverse
 
 from ..models import Analysis, AnalysisFunction
 from topobank.manager.tests.utils import two_topos
-from topobank.manager.models import Topography
+from topobank.manager.models import Topography, Surface
 # from topobank.manager.tests.utils import export_reponse_as_html
+
+def selection_from_instances(instances):
+    """A little helper for constructing a selection."""
+    x = []
+    for i in instances:
+        prefix = i.__class__.__name__.lower()
+        x.append("{}-{}".format(prefix, i.id))
+
+    return x
+
+def test_selection_from_instances(mocker):
+    mocker.patch('topobank.manager.models.Topography')
+    mocker.patch('topobank.manager.models.Surface')
+
+    instances = [Surface(id=1, name="S1"),
+                 Surface(id=2, name="S2"),
+                 Topography(id=1, name="T1"),
+                 Topography(id=2, name="T2"),
+                 Topography(id=3, name="T3"),
+                 ]
+
+    expected = [ 'surface-1', 'surface-2', 'topography-1', 'topography-2', 'topography-3']
+
+    assert expected == selection_from_instances(instances)
+
 
 @pytest.mark.django_db
 def test_analysis_times(client, two_topos):
@@ -37,7 +62,7 @@ def test_analysis_times(client, two_topos):
 
     response = client.post(reverse("analysis:list"),
                            data={
-                               'topographies': [topo.id],
+                               'selection': selection_from_instances([topo]),
                                'functions': [af.id],
                            }, follow=True)
 
@@ -118,7 +143,7 @@ def test_show_only_last_analysis(client, two_topos):
     #
     response = client.post(reverse("analysis:list"),
                            data={
-                               'topographies': [topo1.id, topo2.id],
+                               'selection': selection_from_instances([topo1, topo2]),
                                'functions': [af.id],
                            }, follow=True)
 

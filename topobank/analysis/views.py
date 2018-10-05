@@ -6,7 +6,7 @@ from django.contrib import messages
 from django.db.models import OuterRef, Subquery
 from rest_framework.generics import RetrieveAPIView
 
-from ..manager.utils import selected_topographies
+from ..manager.utils import selected_topographies, selection_from_session
 from .models import Analysis, AnalysisFunction
 from .serializers import AnalysisSerializer
 
@@ -41,9 +41,14 @@ class AnalysisListView(FormMixin, ListView):
 
     def get_initial(self):
         return dict(
-            topographies=selected_topographies(self.request),
+            selection=selection_from_session(self.request.session),
             functions=AnalysisListView._selected_functions(self.request),
         )
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
 
     def post(self, request, *args, **kwargs):  # TODO is this really needed?
         if not request.user.is_authenticated:
@@ -55,13 +60,15 @@ class AnalysisListView(FormMixin, ListView):
             return self.form_invalid(form)
 
     def form_valid(self, form):
-        # save selection from form in session as list of integers
-        topographies = form.cleaned_data.get('topographies', [])
-        self.request.session['selected_topographies'] = list(t.id for t in topographies)
-        messages.info(self.request, "Topography selection saved.")
+
+        selection = form.cleaned_data.get('selection', [])
+
+        self.request.session['selection'] = tuple(selection)
+        messages.info(self.request, "Topography selection saved: {}".format(self.request.session.get('selection')))
+
         functions = form.cleaned_data.get('functions', [])
         self.request.session['selected_functions'] = list(t.id for t in functions)
-        # messages.info(self.request, "Analysis function selection saved.")
+
         return super().form_valid(form)
 
     @staticmethod
