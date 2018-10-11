@@ -107,8 +107,14 @@ function unicode_unit(unit, exponent) {
  * Render data to SVG. This function can be called multiple times for the same element, if multiple data sources are
  * listed for the respective element. The resulting data will then be presented in a single plot. Function handles
  * unit conversion between data sources.
+ *
+ * Arguments
+ * ---------
+ * element: DOM element to render to
+ * data: Array of dictinaries containing 'name' and 'data' entries
+ * unit: Unit to use for displaying the data
  */
-function render_plot(element, name_array, plot_descr_array, unit) {
+function render_plot(element, data, unit) {
     /* Static dictionaries. */
     var color_abbreviations = {
         'k': 'black',
@@ -136,17 +142,15 @@ function render_plot(element, name_array, plot_descr_array, unit) {
     var plots = {}, symbols = {};
 
     var names = [];
-    for (var i in plot_descr_array) {
-        plot_name = name_array[i];
-        plot_descr = plot_descr_array[i];
-        plot_descr.series.forEach(function (item) {
-            if (plot_descr.series.length > 1) {
-                names.push(plot_name + ': ' + item.name);
+    for (const d of data) {
+        for (const item of d.data.series) {
+            if (d.data.series.length > 1) {
+                names.push(d.name + ': ' + item.name);
             }
             else {
-                names.push(plot_name);
+                names.push(d.name);
             }
-        });
+        }
     }
 
     /* Automatic color selection. */
@@ -154,13 +158,10 @@ function render_plot(element, name_array, plot_descr_array, unit) {
     color_scale.domain(names);
 
     /* Loop over all plot descriptor dictionaries passed here. */
-    for (var i in plot_descr_array) {
-        plot_name = name_array[i];
-        plot_descr = plot_descr_array[i];
-
+    for (const d of data) {
         /* Figure out units. */
-        xunit = split_unit(plot_descr.xunit);
-        yunit = split_unit(plot_descr.yunit);
+        xunit = split_unit(d.data.xunit);
+        yunit = split_unit(d.data.yunit);
 
         if (xunit.unit != yunit.unit) {
             throw TypeError('X- and y-axis have different (base) units. Cannot at present handle this.');
@@ -181,7 +182,7 @@ function render_plot(element, name_array, plot_descr_array, unit) {
 
         /* Create (linear, log) scales. */
         if (!x_scale) {
-            if (plot_descr.xscale == 'log') {
+            if (d.data.xscale == 'log') {
                 x_scale = new Plottable.Scales.Log();
             }
             else {
@@ -189,7 +190,7 @@ function render_plot(element, name_array, plot_descr_array, unit) {
             }
         }
         if (!y_scale) {
-            if (plot_descr.yscale == 'log') {
+            if (d.data.yscale == 'log') {
                 y_scale = new Plottable.Scales.Log();
             }
             else {
@@ -198,14 +199,14 @@ function render_plot(element, name_array, plot_descr_array, unit) {
         }
 
         if (!x_axis_label) {
-            xlabel = plot_descr.xlabel;
+            xlabel = d.data.xlabel;
             if (xunit.unit) xlabel += ' (' + unicode_unit(unit, xunit.exponent) + ')';
 
             x_axis_label = new Plottable.Components.Label(xlabel)
                 .yAlignment("center");
         }
         if (!y_axis_label) {
-            ylabel = plot_descr.ylabel;
+            ylabel = d.data.ylabel;
             if (yunit.unit) ylabel += ' (' + unicode_unit(unit, yunit.exponent) + ')';
 
             y_axis_label = new Plottable.Components.Label(ylabel)
@@ -213,9 +214,9 @@ function render_plot(element, name_array, plot_descr_array, unit) {
                 .angle(-90);
         }
 
-        plot_descr.series.forEach(function (item) {
-            var legend_str = plot_name;
-            if (plot_descr.series.length > 1)  legend_str += ': ' + item.name;
+        for (const item of d.data.series) {
+            var legend_str = d.name;
+            if (d.data.series.length > 1)  legend_str += ': ' + item.name;
 
             var style = item.style ? item.style : 'k-';
 
@@ -265,7 +266,7 @@ function render_plot(element, name_array, plot_descr_array, unit) {
                     .attr('stroke', 'black').attr('fill', legend_str, color_scale);
             }
             plots[legend_str] = [plot_with_lines, plot_with_symbols];
-        });
+        }
     }
 
     /* Create axes. */
@@ -278,37 +279,36 @@ function render_plot(element, name_array, plot_descr_array, unit) {
         .symbol(function (datum) {
             s = symbols[datum];
             return s ? s : Plottable.SymbolFactories.circle();
-        })
-        .maxEntriesPerRow(3);
+        });
 
-    var legend_interaction = new Plottable.Interactions.Click();
-    legend_interaction.onClick(function (point) {
-        var datum = legend.entitiesAt(point)[0].datum;
-        for (var plot of plots[datum]) {
-            if (plot) {
-                var sel = plot.selections();
-                if (sel.attr("visibility") == "hidden") {
-                    sel.attr("visibility", "visible");
-                }
-                else {
-                    sel.attr("visibility", "hidden");
-                }
-            }
-        }
-        legend.symbolOpacity(function (datum) {
+    new Plottable.Interactions.Click()
+        .onClick(function (point) {
+            var datum = legend.entitiesAt(point)[0].datum;
             for (var plot of plots[datum]) {
                 if (plot) {
-                    if (plot.selections().attr("visibility") == "hidden") {
-                        return .3;
+                    var sel = plot.selections();
+                    if (sel.attr("visibility") == "hidden") {
+                        sel.attr("visibility", "visible");
                     }
                     else {
-                        return 1;
+                        sel.attr("visibility", "hidden");
                     }
                 }
             }
-        });
-    });
-    legend_interaction.attachTo(legend);
+            legend.symbolOpacity(function (datum) {
+                for (var plot of plots[datum]) {
+                    if (plot) {
+                        if (plot.selections().attr("visibility") == "hidden") {
+                            return .3;
+                        }
+                        else {
+                            return 1;
+                        }
+                    }
+                }
+            });
+        })
+        .attachTo(legend);
 
     var plot_group = new Plottable.Components.Group([].concat(...Object.values(plots)).filter(x => x));
     var chart = new Plottable.Components.Table([
@@ -366,8 +366,7 @@ function plot(element, unit) {
 
         /* Render plot. */
         render_plot(element,
-                    data_array.map(data => data[0].topography_name),
-                    data_array.map(data => data[0].result),
+                    data_array.map(data => ({'name': data[0].topography_name, 'data': data[0].result})),
                     unit);
         $('.spinner', $(element).parent()).hide();
     };
