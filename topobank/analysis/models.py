@@ -1,4 +1,6 @@
 from django.db import models
+import pickle
+
 from topobank.manager.models import Topography
 
 class Analysis(models.Model):
@@ -48,6 +50,12 @@ class Analysis(models.Model):
             return None
 
         return self.end_time-self.start_time
+
+    def get_args_display(self):
+        return str(pickle.loads(self.args))
+
+    def get_kwargs_display(self):
+        return str(pickle.loads(self.kwargs))
 
 class AnalysisFunction(models.Model):
     name = models.CharField(max_length=80, help_text="A human-readable name.", unique=True)

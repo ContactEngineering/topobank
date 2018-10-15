@@ -47,12 +47,11 @@
             <div class="pull-right">
               <small>
               State: {{ analysis.get_task_state_display }}
-              {% if analysis.start_time %}
-                | Started: {{ analysis.start_time|date:"Y-m-d H:i:s" }}
-                {% if analysis.end_time %}
-                | Ended: {{ analysis.end_time|date:"Y-m-d H:i:s" }}
-                | Duration: {{ analysis.duration }}
-                {% endif %}
+              {% if analysis.get_args_display %}
+              | args: {{ analysis.get_args_display }}
+              {% endif %}
+              {% if analysis.get_kwargs_display %}
+              | kwargs: {{ analysis.get_kwargs_display }}
               {% endif %}
               </small>
             </div>
@@ -60,6 +59,17 @@
           <div class="card-body">
             <div class="spinner"></div>
             <div class="topobank-scatter-plot topobank-plot-resize" data-src="{% url 'analysis:retrieve' analysis.id %}"></div>
+          </div>
+          <div class="card-footer">
+            <small>
+              {% if analysis.start_time %}
+                Started: {{ analysis.start_time|date:"Y-m-d H:i:s" }}
+                {% if analysis.end_time %}
+                | Ended: {{ analysis.end_time|date:"Y-m-d H:i:s" }}
+                | Duration: {{ analysis.duration }}
+                {% endif %}
+              {% endif %}
+            </small>
           </div>
         </div>
       </div>

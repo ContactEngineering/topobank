@@ -161,5 +161,81 @@ def test_show_only_last_analysis(client, two_topos):
     assert b"Started: 2018-01-03 12:00:00" not in response.content
     assert b"Ended: 2018-01-03 13:01:01" not in response.content
 
+@pytest.mark.django_db
+def test_show_analysis_with_different_arguments(client, two_topos):
+
+    username = 'testuser'
+    password = 'abcd$1234'
+
+    assert client.login(username=username, password=password)
+
+    topo1 = Topography.objects.first()
+    topo2 = Topography.objects.last()
+    af = AnalysisFunction.objects.first()
+
+    #
+    # Create analyses for same function and topography but with different arguments
+    #
+    analysis = Analysis.objects.create(
+        topography=topo1,
+        function=af,
+        task_state=Analysis.SUCCESS,
+        args=pickle.dumps(()),
+        kwargs=pickle.dumps({'bins':10}),
+        start_time=datetime.datetime(2018, 1, 1, 12),
+        end_time=datetime.datetime(2018, 1, 1, 13, 1, 1),
+    )
+    analysis.save()
+
+    # save a second only, which has a later start time
+    analysis = Analysis.objects.create(
+        topography=topo1,
+        function=af,
+        task_state=Analysis.SUCCESS,
+        args=pickle.dumps(()),
+        kwargs=pickle.dumps({'bins':20}),
+        start_time=datetime.datetime(2018, 1, 2, 12),
+        end_time=datetime.datetime(2018, 1, 2, 13, 1, 1),
+    )
+    analysis.save()
+
+    # save a second only, which has a later start time
+    analysis = Analysis.objects.create(
+        topography=topo1,
+        function=af,
+        task_state=Analysis.SUCCESS,
+        args=pickle.dumps((30,)), # TODO If we had 20 here, these would be same arguments than bins=20, but not recognized
+        kwargs=pickle.dumps({}),
+        start_time=datetime.datetime(2018, 1, 3, 12),
+        end_time=datetime.datetime(2018, 1, 3, 13, 1, 1),
+    )
+    analysis.save()
+
+    #
+    # Check response, all three analyses should be shown
+    #
+    response = client.post(reverse("analysis:list"),
+                           data={
+                               'selection': selection_from_instances([topo1, ]),
+                               'functions': [af.id],
+                           }, follow=True)
+
+    assert response.status_code == 200
+
+    assert b"State: success" in response.content
+
+    assert b"Started: 2018-01-01 12:00:00" in response.content
+    assert b"Started: 2018-01-02 12:00:00" in response.content
+    assert b"Started: 2018-01-03 12:00:00" in response.content
+
+    # arguments should be visible in output
+
+    import html.parser
+    html_parser = html.parser.HTMLParser()
+    unescaped = html_parser.unescape(response.content.decode())
+
+    assert str(dict(bins=10)) in unescaped
+    assert str(dict(bins=20)) in unescaped
+
 
 

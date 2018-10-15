@@ -14,8 +14,8 @@ def test_analysis_times(two_topos):
             topography=Topography.objects.first(),
             function=AnalysisFunction.objects.first(),
             task_state=Analysis.SUCCESS,
-            args=pickle.dumps(()),
-            kwargs=pickle.dumps({}),
+            args=pickle.dumps((10,'a')),
+            kwargs=pickle.dumps({'bins':2, 'mode': 'test'}),
             start_time=datetime.datetime(2018,1,1,12),
             end_time=datetime.datetime(2018,1,1,13),
         )
@@ -24,4 +24,7 @@ def test_analysis_times(two_topos):
     assert analysis.start_time == datetime.datetime(2018,1,1,12)
     assert analysis.end_time == datetime.datetime(2018, 1, 1, 13)
     assert analysis.duration() == datetime.timedelta(0, 3600)
+
+    assert analysis.get_args_display() == str((10, 'a'))
+    assert analysis.get_kwargs_display() == str({'bins':2, 'mode': 'test'})
 

@@ -25,10 +25,11 @@ class AnalysisListView(FormMixin, ListView):
             .filter(topography__surface__user=self.request.user,
                     topography__in=topographies,
                     function__in=functions) \
-            .filter(topography=OuterRef('topography'), function=OuterRef('function'))\
+            .filter(topography=OuterRef('topography'), function=OuterRef('function'),\
+                    args=OuterRef('args'), kwargs=OuterRef('kwargs'))\
             .order_by('-start_time')
 
-        # Use this subquery for finding only latest analyses for each (topography, function) group
+        # Use this subquery for finding only latest analyses for each (topography, function, args, kwargs) group
         analyses = Analysis.objects\
             .filter(pk=Subquery(sq_analyses.values('pk')[:1]))
 
