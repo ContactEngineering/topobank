@@ -28,6 +28,11 @@ class TopographyCreateWizard(SessionWizardView):
     template_name = 'manager/topography_wizard.html'
     file_storage = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT,'topographies/wizard'))
 
+    def dispatch(self, request, *args, **kwargs):
+        if request.POST.get('cancel'):
+            return redirect(reverse('manager:surface-list'))
+        return super().dispatch(request, *args, **kwargs)
+
     def get_form_initial(self, step):
 
         session = self.request.session

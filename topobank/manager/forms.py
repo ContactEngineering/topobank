@@ -35,9 +35,10 @@ class TopographyFileUploadForm(forms.ModelForm):
         ),
         FormActions(
             Submit('save', 'Next'),
-            HTML("""
-                <a href="{% url 'manager:surface-list' %}"><button class="btn btn-default" id="cancel-btn">Cancel</button></a>
-            """),
+            Submit('cancel', 'Cancel', formnovalidate="formnovalidate"),
+            # HTML("""
+            #     <a href="{% url 'manager:surface-list' %}"><button class="btn btn-default" id="cancel-btn">Cancel</button></a>
+            # """),
         ),
     )
 
@@ -80,9 +81,7 @@ class TopographyMetaDataForm(forms.ModelForm):
             #    {% endif %}
             #    """), # Add this if user should be able to go back - but currently form is also validated before
             Submit('save', 'Next'),
-            HTML("""
-                    <a href="{% url 'manager:surface-list' %}"><button class="btn btn-default" id="cancel-btn">Cancel</button></a>
-            """), # TODO check back link
+            Submit('cancel', 'Cancel', formnovalidate="formnovalidate"),
         ),
     )
 
@@ -128,9 +127,7 @@ class TopographyUnitsForm(forms.ModelForm):
             #    {% endif %}
             #    """), # Add this if user should be able to go back - but currently form is also validated before
             Submit('save', 'Save new topography'),
-            HTML("""
-                    <a href="{% url 'manager:surface-list' %}"><button class="btn btn-default" id="cancel-btn">Cancel</button></a>
-            """),
+            Submit('cancel', 'Cancel', formnovalidate="formnovalidate"),
         ),
     )
 
