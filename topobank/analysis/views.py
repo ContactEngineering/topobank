@@ -65,7 +65,7 @@ class AnalysisListView(FormMixin, ListView):
         selection = form.cleaned_data.get('selection', [])
 
         self.request.session['selection'] = tuple(selection)
-        messages.info(self.request, "Topography selection saved: {}".format(self.request.session.get('selection')))
+        messages.info(self.request, "Topography selection saved.")
 
         functions = form.cleaned_data.get('functions', [])
         self.request.session['selected_functions'] = list(t.id for t in functions)

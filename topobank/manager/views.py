@@ -257,7 +257,7 @@ class SurfaceListView(FormMixin, ListView):
         _log.info('Form valid, selection: %s', selection)
 
         self.request.session['selection'] = tuple(selection)
-        messages.info(self.request, "Topography selection saved: {}".format(self.request.session.get('selection')))
+        messages.info(self.request, "Topography selection saved.")
 
         # when pressing the analyze button, trigger analysis for
         # all selected topographies

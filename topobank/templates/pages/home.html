@@ -1,1 +1,43 @@
 {% extends "base.html" %}
+
+{% block content %}
+
+
+    <div class="jumbotron">
+      <div class="container">
+        <h1 class="display-3">Welcome to <b>TopoBank</b>!</h1>
+        <p>This is an application for organizing surfaces and related topography measurements. You can perform
+        various analyses and compare the results.</p>
+        {#  <p><a class="btn btn-primary btn-lg" href="#" role="button">Learn more &raquo;</a></p> #}
+      </div>
+    </div>
+
+    <div class="container">
+      <!-- Example row of columns -->
+      <div class="row">
+        <div class="col-md-4">
+          <h2>Surfaces</h2>
+          <p>A <em>Surface</em> represents a physical surface together with some metadata. Each surface
+          can be measured several times. These measurements are the <em>topographies</em>.</p>
+          <p><a class="btn btn-secondary" href="{% url 'manager:surface-create' %}" role="button">Create a surface &raquo;</a></p>
+        </div>
+        <div class="col-md-4">
+          <h2>Topographies</h2>
+          <p>For each surface you can upload one or more topographies, specify meta data for them
+            or run pre-defined analyses on them.</p>
+          <p><a class="btn btn-secondary" href="{% url 'manager:surface-list' %}" role="button">Select topographies &raquo;</a></p>
+       </div>
+        <div class="col-md-4">
+          <h2>Analyses</h2>
+          <p>All analyses are stored, can be retriggered or compared.
+          Pre-defined analyis functions available.</p>
+          <p><a class="btn btn-secondary" href="{% url 'analysis:list' %}" role="button">Show analyses &raquo;</a></p>
+        </div>
+      </div>
+
+    </div> <!-- /container -->
+
+
+
+
+{% endblock %}
