@@ -63,8 +63,6 @@ class TopographyCreateWizard(SessionWizardView):
             initial['name'] = name
             initial['measurement_date'] = measurement_date
 
-
-
             initial_unit, conversion_factor = optimal_unit(
                 session['initial_size'],
                 session['initial_size_unit'])
@@ -180,7 +178,7 @@ class TopographyUpdateView(UpdateView):
     def get_initial(self, *args, **kwargs):
         initial = super(TopographyUpdateView, self).get_initial()
         initial = initial.copy()
-        initial['user'] = self.request.user # TODO reuse code
+        initial['user'] = self.request.user # TODO needed?
         return initial
 
     def get_success_url(self):
@@ -307,9 +305,18 @@ class SurfaceDetailView(DetailView):
     model = Surface
     context_object_name = 'surface'
 
-    #def get_context_data(self, **kwargs):
-    #    context = super(SurfaceDetailView, self).get_context_data(**kwargs)
-    #   context['topographies'] = Topography.objects.filter(surface=self.object)
+class SurfaceUpdateView(UpdateView):
+    model = Surface
+    form_class = SurfaceForm
+
+    def get_initial(self, *args, **kwargs):
+        initial = super().get_initial(*args, **kwargs)
+        initial = initial.copy()
+        initial['user'] = self.request.user
+        return initial
+
+    def get_success_url(self):
+        return reverse('manager:surface-detail', kwargs=dict(pk=self.object.pk))
 
 # def toggle_topography_selection(request, pk):
 #     selected_topos = request.session.get('selected_topographies', [])
