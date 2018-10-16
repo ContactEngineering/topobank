@@ -57,8 +57,6 @@ class TopographyCreateWizard(SessionWizardView):
             name = step1_data['name']
             measurement_date = step1_data['measurement_date']
 
-            # TODO shorten!
-
             initial['data_source'] = data_source
             initial['name'] = name
             initial['measurement_date'] = measurement_date
@@ -174,12 +172,6 @@ class TopographyCreateView(CreateView):
 class TopographyUpdateView(UpdateView):
     model = Topography
     form_class = TopographyForm
-
-    def get_initial(self, *args, **kwargs):
-        initial = super(TopographyUpdateView, self).get_initial()
-        initial = initial.copy()
-        initial['user'] = self.request.user # TODO needed?
-        return initial
 
     def get_success_url(self):
         return reverse('manager:topography-detail', kwargs=dict(pk=self.object.pk))
