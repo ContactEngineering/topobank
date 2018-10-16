@@ -46,7 +46,8 @@ class TopographyCreateWizard(SessionWizardView):
             step0_data = self.get_cleaned_data_for_step('0')
 
             datafile = step0_data['datafile']
-            initial['datafile'] = datafile.file.name
+            initial['datafile'] = datafile.file.name # the file name in the upload directory
+            initial['name'] = os.path.basename(datafile.name) # the original file name
 
         if step == '2':
             # provide datafile attribute from previous step

@@ -50,6 +50,11 @@ def test_upload_topography(client, django_user_model):
                                }, follow=True)
 
     assert response.status_code == 200
+
+    #
+    # check contents of second page
+    #
+
     # now we should be on the page with second step
     assert b"Step 2 of 3" in response.content, "Errors:"+str(response.context['form'].errors)
 
@@ -57,6 +62,8 @@ def test_upload_topography(client, django_user_model):
 
     assert b'<option value="0">ZSensor</option>' in response.content
     assert b'<option value="1">Height</option>' in response.content
+
+    assert response.context['form'].initial['name'] == 'example3.di'
 
     #
     # Send data for second page
