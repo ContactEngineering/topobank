@@ -51,11 +51,11 @@ urlpatterns = [
         view=login_required(views.SurfaceUpdateView.as_view()),
         name='surface-update'
     ),
-    #url(
-    #    regex=r'surface/(?P<pk>\d+)/delete/$',
-    #    view=login_required(views.SurfaceDeleteView.as_view()),
-    #    name='surface-detail'
-    #),
+    url(
+       regex=r'surface/(?P<pk>\d+)/delete/$',
+       view=login_required(views.SurfaceDeleteView.as_view()),
+       name='surface-delete'
+    ),
     url(
         regex=r'surface/new/$',
         view=login_required(views.SurfaceCreateView.as_view()),

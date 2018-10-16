@@ -310,6 +310,12 @@ class SurfaceUpdateView(UpdateView):
     def get_success_url(self):
         return reverse('manager:surface-detail', kwargs=dict(pk=self.object.pk))
 
+class SurfaceDeleteView(DeleteView):
+    model = Surface
+    context_object_name = 'surface'
+    success_url = reverse_lazy('manager:surface-list')
+
+
 # def toggle_topography_selection(request, pk):
 #     selected_topos = request.session.get('selected_topographies', [])
 #     if pk in selected_topos:

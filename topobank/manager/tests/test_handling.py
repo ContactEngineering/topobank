@@ -274,3 +274,33 @@ def test_edit_surface(client, django_user_model):
     surface = Surface.objects.get(pk=surface_id)
 
     assert new_name == surface.name
+
+@pytest.mark.django_db
+def test_delete_surface(client, django_user_model):
+
+    surface_id = 1
+    username = 'testuser'
+    password = 'abcd$1234'
+
+    user = django_user_model.objects.create_user(username=username, password=password)
+
+    assert client.login(username=username, password=password)
+
+    surface = Surface.objects.create(id=surface_id, name="Surface 1", user=user)
+    surface.save()
+
+    assert Surface.objects.all().count() == 1
+
+    response = client.get(reverse('manager:surface-delete', kwargs=dict(pk=surface_id)))
+
+    # user should be asked if he/she is sure
+    assert b'Are you sure' in response.content
+
+    response = client.post(reverse('manager:surface-delete', kwargs=dict(pk=surface_id)))
+
+    assert ('context' not in response) or ('form' not in response.context), "Still on form: {}".format(response.context['form'].errors)
+
+    assert response.status_code == 302
+    assert reverse('manager:surface-list') == response.url
+
+    assert Surface.objects.all().count() == 0
