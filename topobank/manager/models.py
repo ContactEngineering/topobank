@@ -21,10 +21,9 @@ class Surface(models.Model):
     """
     name = models.CharField(max_length=80)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    # TODO add more meta data
 
     def thumbnail(self):
-        # TODO what if there is not topography yet?
+        # TODO probably thumbnail of surface should show a plot with summary, but not a random topography!
 
         if self.topography_set.count() > 0:
             return self.topography_set.first().surface_thumbnail
