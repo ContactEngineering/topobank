@@ -317,7 +317,8 @@ footer.sticky-footer {
 	position: absolute;
 	right: 0;
 	bottom: 0;
-	width: calc(100% - 90px);
+	/* width: calc(100% - 90px); use this with sidebar */
+  width: 100%;
 	height: 80px;
 	background-color: #e9ecef;
 }
@@ -328,7 +329,8 @@ footer.sticky-footer .copyright {
 
 @media (min-width: 768px) {
 footer.sticky-footer {
-	width: calc(100% - 225px);
+	/* width: calc(100% - 225px); use this with sidebar */
+  width: 100%;
 }
 }
 body.sidebar-toggled footer.sticky-footer {
