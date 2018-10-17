@@ -6,6 +6,7 @@ from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.by import By
 
 from contextlib import contextmanager
+import os, os.path
 
 from topobank.manager.tests.utils import two_topos
 
@@ -127,4 +128,39 @@ def one_empty_surface_testuser_signed_in(no_surfaces_testuser_signed_in, webdriv
     link = webdriver.find_element_by_id("submit-id-save")
     link.click()
 
+@pytest.fixture(scope="function")
+def surface_1_with_topographies_testuser_logged_in(one_empty_surface_testuser_signed_in, webdriver):
 
+    datafile_paths_prefix = 'topobank/manager/fixtures/'
+    datafile_paths_prefix = os.path.join(os.getcwd(), datafile_paths_prefix)
+
+    data_paths = [ os.path.join(datafile_paths_prefix, fn)
+                   for fn in ['example3.di', 'example4.txt']]
+
+
+    for dp in data_paths:
+
+        link = webdriver.find_element_by_link_text("Surfaces")
+        link.click()
+
+        link = webdriver.find_element_by_link_text("Add Topography")
+
+        link.click()
+
+        input = webdriver.find_element_by_id("id_0-datafile")
+        input.send_keys(dp)
+
+        # go to step 2
+        link = webdriver.find_element_by_id("submit-id-save")
+        link.click()
+
+        input = webdriver.find_element_by_id('id_1-measurement_date')
+        input.send_keys("2018-02-01")
+
+        # go to step 3
+        link = webdriver.find_element_by_id("submit-id-save")
+        link.click()
+
+        # finally save
+        link = webdriver.find_element_by_id("submit-id-save")
+        link.click()
