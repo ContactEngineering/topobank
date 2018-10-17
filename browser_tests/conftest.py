@@ -8,9 +8,6 @@ from selenium.webdriver.common.by import By
 from contextlib import contextmanager
 import os, os.path
 
-from topobank.manager.tests.utils import two_topos
-
-# TODO put this and other common code in conftest.py
 @pytest.fixture(scope='session')
 def webdriver():
     # driver = Firefox(
