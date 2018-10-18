@@ -1,6 +1,7 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse
 from django.views.generic import DetailView, ListView, RedirectView, UpdateView
+from django.core.exceptions import PermissionDenied
 
 from .models import User
 
@@ -10,6 +11,11 @@ class UserDetailView(LoginRequiredMixin, DetailView):
     # These next two lines tell the view to index lookups by username
     slug_field = "username"
     slug_url_kwarg = "username"
+
+    def dispatch(self, request, *args, **kwargs):
+        if kwargs['username'] != request.user.username:
+            raise PermissionDenied
+        return super().dispatch(request, *args, **kwargs)
 
 
 class UserRedirectView(LoginRequiredMixin, RedirectView):
