@@ -8,6 +8,46 @@ import numpy as np
 
 from PyCo.Topography import compute_derivative, power_spectrum_1D, power_spectrum_2D, autocorrelation_1D, autocorrelation_2D
 
+_analysis_funcs = [] # is used in register_all
+
+def register_all():
+    """Registers all analysis functions in the database.
+
+    Use @analysis_function decorator to mark analysis functions
+    in the code.
+
+    :returns: number of registered analysis functions
+    """
+    from .models import AnalysisFunction
+    for rf in _analysis_funcs:
+        AnalysisFunction.objects.update_or_create(name=rf['name'],
+                                                  pyfunc=rf['pyfunc'],
+                                                  automatic=rf['automatic'])
+    return len(_analysis_funcs)
+
+def analysis_function(name=None, automatic=False):
+    """Decorator for marking a function as analysis function for a topography.
+
+    :param name: human-readable name, default is to create this from function name
+    :param automatic: choose True, if you want to calculate this for every new topography
+    """
+    def register_decorator(func):
+        """
+        :param func: function to be registered, first arg must be a Topography
+        :return: decorated function
+        """
+        if name is None:
+            name_ = func.__name__.replace('_', ' ').title()
+        else:
+            name_ = name
+
+        _analysis_funcs.append(dict(
+            name = name_,
+            pyfunc = func.__name__,
+            automatic = automatic
+        ))
+        return func
+    return register_decorator
 
 def unicode_superscript(s):
     """
@@ -55,7 +95,7 @@ def float_to_unicode(f, digits=3):
     else:
         return ('{{:.{}g}}×10{{}}'.format(digits)).format(m, unicode_superscript(str(e3)))
 
-
+@analysis_function(automatic=True)
 def height_distribution(topography, bins=None, wfac=5):
     if bins is None:
         bins = int(np.sqrt(np.prod(topography.shape)) + 1.0)
@@ -96,7 +136,7 @@ def height_distribution(topography, bins=None, wfac=5):
         ]
     )
 
-
+@analysis_function(automatic=True)
 def slope_distribution(topography, bins=None, wfac=5):
     if bins is None:
         bins = int(np.sqrt(np.prod(topography.shape)) + 1.0)
@@ -137,7 +177,7 @@ def slope_distribution(topography, bins=None, wfac=5):
         ]
     )
 
-
+@analysis_function(automatic=True)
 def curvature_distribution(topography, bins=None, wfac=5):
     if bins is None:
         bins = int(np.sqrt(np.prod(topography.shape)) + 1.0)
@@ -180,7 +220,7 @@ def curvature_distribution(topography, bins=None, wfac=5):
         ]
     )
 
-
+@analysis_function(automatic=True)
 def power_spectrum(topography, window='hann'):
     if window == 'None':
         window = None
@@ -220,7 +260,7 @@ def power_spectrum(topography, window='hann'):
         ]
     )
 
-
+@analysis_function(automatic=True)
 def autocorrelation(topography):
     r, A = autocorrelation_1D(topography)
     sx, sy = topography.size

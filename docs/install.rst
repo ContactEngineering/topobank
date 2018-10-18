@@ -77,3 +77,13 @@ Bevor Du unter "My Topographies" -> "New" eine Topographie anlegst, bitte noch h
 
 Hier werden die Dateien vom User mit der ID 1 abgelegt.
 (TODO Noch nötig??)
+
+Register existing analysis functions to the database
+----------------------------------------------------
+
+On command line, in the correct environment, call
+
+    $ python manage.py register_analysis_functions
+
+All available analysis functions will be added to the database if
+not already happend. Currently errors during the database operations are not catched.
