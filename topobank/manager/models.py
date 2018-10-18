@@ -21,6 +21,7 @@ class Surface(models.Model):
     """
     name = models.CharField(max_length=80)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
+    description = models.TextField(blank=True)
 
     def thumbnail(self):
         # TODO probably thumbnail of surface should show a plot with summary, but not a random topography!
