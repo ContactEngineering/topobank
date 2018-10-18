@@ -1,5 +1,6 @@
 from django.conf.urls import url
 from django.contrib.auth.decorators import login_required
+from django.views.generic import TemplateView
 
 from . import views
 
@@ -65,5 +66,10 @@ urlpatterns = [
         regex=r'surface/$',
         view=login_required(views.SurfaceListView.as_view()),
         name='surface-list'
+    ),
+    url(
+        regex=r'access-denied/$',
+        view=TemplateView.as_view(template_name="manager/access_denied.html"),
+        name='access-denied'
     ),
 ]

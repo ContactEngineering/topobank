@@ -4,24 +4,36 @@ from django.urls import reverse, reverse_lazy
 from django.core.files.storage import FileSystemStorage, DefaultStorage
 from django.conf import settings
 from formtools.wizard.views import SessionWizardView
-from django.views.decorators.csrf import csrf_exempt
+
 from django.http import JsonResponse, HttpResponseForbidden
 from django.views.generic.edit import FormMixin, ProcessFormView
+from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib import messages
 
 import os.path
 import logging
 
-from rest_framework.decorators import api_view
-from rest_framework.views import Response
+#from rest_framework.decorators import api_view
+#from rest_framework.views import Response
 
 from .models import Topography, Surface
 from .forms import TopographyForm, SurfaceForm, TopographySelectForm
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyUnitsForm
-# from .utils import TopographyFile, optimal_unit, selected_topographies
 from .utils import TopographyFile, optimal_unit, selected_topographies, selection_from_session, selection_for_select_all
 
 _log = logging.getLogger(__name__)
+
+class SurfaceAccessMixin(UserPassesTestMixin):
+
+    login_url = reverse_lazy("manager:access-denied")
+    redirect_field_name = None
+
+    def test_func(self):
+        if 'pk' not in self.kwargs:
+            return True
+
+        surface = Surface.objects.get(pk=self.kwargs['pk'])
+        return surface.user == self.request.user
 
 class TopographyCreateWizard(SessionWizardView):
     form_list = [TopographyFileUploadForm, TopographyMetaDataForm, TopographyUnitsForm]
@@ -293,11 +305,11 @@ class SurfaceCreateView(CreateView):
     def get_success_url(self):
         return reverse('manager:surface-detail', kwargs=dict(pk=self.object.pk))
 
-class SurfaceDetailView(DetailView):
+class SurfaceDetailView(SurfaceAccessMixin, DetailView):
     model = Surface
     context_object_name = 'surface'
 
-class SurfaceUpdateView(UpdateView):
+class SurfaceUpdateView(SurfaceAccessMixin, UpdateView):
     model = Surface
     form_class = SurfaceForm
 
@@ -310,7 +322,7 @@ class SurfaceUpdateView(UpdateView):
     def get_success_url(self):
         return reverse('manager:surface-detail', kwargs=dict(pk=self.object.pk))
 
-class SurfaceDeleteView(DeleteView):
+class SurfaceDeleteView(SurfaceAccessMixin, DeleteView):
     model = Surface
     context_object_name = 'surface'
     success_url = reverse_lazy('manager:surface-list')
