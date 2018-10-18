@@ -35,6 +35,19 @@ class SurfaceAccessMixin(UserPassesTestMixin):
         surface = Surface.objects.get(pk=self.kwargs['pk'])
         return surface.user == self.request.user
 
+class TopographyAccessMixin(UserPassesTestMixin):
+
+    login_url = reverse_lazy("manager:access-denied")
+    redirect_field_name = None
+
+    def test_func(self):
+        if 'pk' not in self.kwargs:
+            return True
+
+        topo = Topography.objects.get(pk=self.kwargs['pk'])
+        return topo.surface.user == self.request.user
+
+
 class TopographyCreateWizard(SessionWizardView):
     form_list = [TopographyFileUploadForm, TopographyMetaDataForm, TopographyUnitsForm]
     template_name = 'manager/topography_wizard.html'
@@ -181,7 +194,7 @@ class TopographyCreateView(CreateView):
     def get_success_url(self):
         return reverse('manager:topography-detail', kwargs=dict(pk=self.object.pk))
 
-class TopographyUpdateView(UpdateView):
+class TopographyUpdateView(TopographyAccessMixin, UpdateView):
     model = Topography
     form_class = TopographyForm
 
@@ -197,11 +210,11 @@ class TopographyListView(ListView):
         topos = Topography.objects.filter(surface__user=self.request.user)
         return topos
 
-class TopographyDetailView(DetailView):
+class TopographyDetailView(TopographyAccessMixin, DetailView):
     model = Topography
     context_object_name = 'topography'
 
-class TopographyDeleteView(DeleteView):
+class TopographyDeleteView(TopographyAccessMixin, DeleteView):
     model = Topography
     context_object_name = 'topography'
     success_url = reverse_lazy('manager:surface-list')
