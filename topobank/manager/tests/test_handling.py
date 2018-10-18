@@ -159,6 +159,9 @@ def test_topography_list(client, two_topos, django_user_model):
 # TODO add test with predefined physical size
 
 
+
+
+
 @pytest.mark.django_db
 def test_edit_topography(client, two_topos, django_user_model):
 
@@ -245,6 +248,39 @@ def test_delete_topography(client, two_topos, django_user_model):
     assert not Topography.objects.filter(pk=topo_id).exists()
 
 @pytest.mark.django_db
+def test_create_surface(client, django_user_model):
+
+    description = "My description. hasdhahdlahdla"
+    name = "Surface 1 kjfhakfhökadsökdf"
+
+    username = 'testuser'
+    password = 'abcd$1234'
+
+    user = django_user_model.objects.create_user(username=username, password=password)
+
+    assert client.login(username=username, password=password)
+
+    assert 0 == Surface.objects.count()
+
+    #
+    # Create first surface
+    #
+    response = client.post(reverse('manager:surface-create'),
+                           data={
+                            'name': name,
+                            'user': user.id,
+                            'description': description,
+                           }, follow=True)
+
+    assert ('context' not in response) or ('form' not in response.context), "Still on form: {}".format(response.context['form'].errors)
+
+    assert response.status_code == 200
+
+    assert description.encode() in response.content
+    assert name.encode() in response.content
+
+
+@pytest.mark.django_db
 def test_edit_surface(client, django_user_model):
 
     surface_id = 1
@@ -259,11 +295,13 @@ def test_edit_surface(client, django_user_model):
     surface.save()
 
     new_name = "This is a better surface name"
+    new_description = "This is new description"
 
     response = client.post(reverse('manager:surface-update', kwargs=dict(pk=surface_id)),
                            data={
                             'name': new_name,
                             'user': user.id,
+                            'description': new_description,
                            })
 
     assert ('context' not in response) or ('form' not in response.context), "Still on form: {}".format(response.context['form'].errors)
@@ -274,6 +312,7 @@ def test_edit_surface(client, django_user_model):
     surface = Surface.objects.get(pk=surface_id)
 
     assert new_name == surface.name
+    assert new_description == surface.description
 
 @pytest.mark.django_db
 def test_delete_surface(client, django_user_model):
