@@ -40,3 +40,7 @@
     opacity: 0;
   }
 }
+
+footer.sticky-footer {
+  background-color: white;
+}
