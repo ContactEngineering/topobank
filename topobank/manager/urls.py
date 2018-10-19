@@ -1,5 +1,6 @@
 from django.conf.urls import url
 from django.contrib.auth.decorators import login_required
+from django.views.generic import TemplateView
 
 from . import views
 
@@ -20,16 +21,16 @@ urlpatterns = [
         view=login_required(views.TopographyDeleteView.as_view()),
         name='topography-delete'
     ),
-    url( # TODO needed?
-        regex=r'topography/(?P<pk>\d+)/toggle-select/$',
-        view=login_required(views.toggle_topography_selection),
-        name='topography-toggle-select'
-    ),
-    url( # TODO needed?
-        regex=r'topography/(?P<pk>\d+)/is-selected/$',
-        view=login_required(views.is_topography_selected),
-        name='topography-is-selected'
-    ),
+    # url( # TODO needed?
+    #     regex=r'topography/(?P<pk>\d+)/toggle-select/$',
+    #     view=login_required(views.toggle_topography_selection),
+    #     name='topography-toggle-select'
+    # ),
+    # url( # TODO needed?
+    #     regex=r'topography/(?P<pk>\d+)/is-selected/$',
+    #     view=login_required(views.is_topography_selected),
+    #     name='topography-is-selected'
+    # ),
     # url( # TODO needed?
     #     regex=r'topography/$',
     #     view=login_required(views.SelectedTopographyView.as_view()),
@@ -46,11 +47,16 @@ urlpatterns = [
         view=login_required(views.SurfaceDetailView.as_view()),
         name='surface-detail'
     ),
-    #url(
-    #    regex=r'surface/(?P<pk>\d+)/delete/$',
-    #    view=login_required(views.SurfaceDeleteView.as_view()),
-    #    name='surface-detail'
-    #),
+    url(
+        regex=r'surface/(?P<pk>\d+)/update/$',
+        view=login_required(views.SurfaceUpdateView.as_view()),
+        name='surface-update'
+    ),
+    url(
+       regex=r'surface/(?P<pk>\d+)/delete/$',
+       view=login_required(views.SurfaceDeleteView.as_view()),
+       name='surface-delete'
+    ),
     url(
         regex=r'surface/new/$',
         view=login_required(views.SurfaceCreateView.as_view()),
@@ -60,5 +66,10 @@ urlpatterns = [
         regex=r'surface/$',
         view=login_required(views.SurfaceListView.as_view()),
         name='surface-list'
+    ),
+    url(
+        regex=r'access-denied/$',
+        view=TemplateView.as_view(template_name="manager/access_denied.html"),
+        name='access-denied'
     ),
 ]

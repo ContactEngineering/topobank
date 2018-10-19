@@ -5,20 +5,9 @@ from django.shortcuts import reverse
 from pathlib import Path
 import datetime
 
+# from topobank.manager.tests.utils import export_reponse_as_html
+from ..tests.utils import two_topos
 from ..models import Topography, Surface
-from .utils import two_topos
-
-def export_reponse_as_html(response, fname='/tmp/response.html'):
-    """
-    Helper function which can be used for debugging.
-
-    :param response: HTTPResponse
-    :param fname: name of HTML output file
-    """
-    f = open(fname, mode='w')
-
-    f.write(response.content.decode('utf-8').replace('\\n','\n'))
-    f.close()
 
 #
 # Different formats are handled by PyCo
@@ -61,6 +50,11 @@ def test_upload_topography(client, django_user_model):
                                }, follow=True)
 
     assert response.status_code == 200
+
+    #
+    # check contents of second page
+    #
+
     # now we should be on the page with second step
     assert b"Step 2 of 3" in response.content, "Errors:"+str(response.context['form'].errors)
 
@@ -68,6 +62,8 @@ def test_upload_topography(client, django_user_model):
 
     assert b'<option value="0">ZSensor</option>' in response.content
     assert b'<option value="1">Height</option>' in response.content
+
+    assert response.context['form'].initial['name'] == 'example3.di'
 
     #
     # Send data for second page
@@ -110,7 +106,7 @@ def test_upload_topography(client, django_user_model):
 
     assert response.status_code == 200
     # assert reverse('manager:topography-detail', kwargs=dict(pk=1)) == response.url
-    export_reponse_as_html(response)
+    # export_reponse_as_html(response)
     assert b'Details for Topography' in response.content
 
     surface = Surface.objects.get(name='surface1')
@@ -161,6 +157,9 @@ def test_topography_list(client, two_topos, django_user_model):
 
 # TODO add test with predefined height conversion
 # TODO add test with predefined physical size
+
+
+
 
 
 @pytest.mark.django_db
@@ -248,3 +247,99 @@ def test_delete_topography(client, two_topos, django_user_model):
     # topography topo_id is no more in database
     assert not Topography.objects.filter(pk=topo_id).exists()
 
+@pytest.mark.django_db
+def test_create_surface(client, django_user_model):
+
+    description = "My description. hasdhahdlahdla"
+    name = "Surface 1 kjfhakfhökadsökdf"
+
+    username = 'testuser'
+    password = 'abcd$1234'
+
+    user = django_user_model.objects.create_user(username=username, password=password)
+
+    assert client.login(username=username, password=password)
+
+    assert 0 == Surface.objects.count()
+
+    #
+    # Create first surface
+    #
+    response = client.post(reverse('manager:surface-create'),
+                           data={
+                            'name': name,
+                            'user': user.id,
+                            'description': description,
+                           }, follow=True)
+
+    assert ('context' not in response) or ('form' not in response.context), "Still on form: {}".format(response.context['form'].errors)
+
+    assert response.status_code == 200
+
+    assert description.encode() in response.content
+    assert name.encode() in response.content
+
+
+@pytest.mark.django_db
+def test_edit_surface(client, django_user_model):
+
+    surface_id = 1
+    username = 'testuser'
+    password = 'abcd$1234'
+
+    user = django_user_model.objects.create_user(username=username, password=password)
+
+    assert client.login(username=username, password=password)
+
+    surface = Surface.objects.create(id=surface_id, name="Surface 1", user=user)
+    surface.save()
+
+    new_name = "This is a better surface name"
+    new_description = "This is new description"
+
+    response = client.post(reverse('manager:surface-update', kwargs=dict(pk=surface_id)),
+                           data={
+                            'name': new_name,
+                            'user': user.id,
+                            'description': new_description,
+                           })
+
+    assert ('context' not in response) or ('form' not in response.context), "Still on form: {}".format(response.context['form'].errors)
+
+    assert response.status_code == 302
+    assert reverse('manager:surface-detail', kwargs=dict(pk=surface_id)) == response.url
+
+    surface = Surface.objects.get(pk=surface_id)
+
+    assert new_name == surface.name
+    assert new_description == surface.description
+
+@pytest.mark.django_db
+def test_delete_surface(client, django_user_model):
+
+    surface_id = 1
+    username = 'testuser'
+    password = 'abcd$1234'
+
+    user = django_user_model.objects.create_user(username=username, password=password)
+
+    assert client.login(username=username, password=password)
+
+    surface = Surface.objects.create(id=surface_id, name="Surface 1", user=user)
+    surface.save()
+
+    assert Surface.objects.all().count() == 1
+
+    response = client.get(reverse('manager:surface-delete', kwargs=dict(pk=surface_id)))
+
+    # user should be asked if he/she is sure
+    assert b'Are you sure' in response.content
+
+    response = client.post(reverse('manager:surface-delete', kwargs=dict(pk=surface_id)))
+
+    assert ('context' not in response) or ('form' not in response.context), "Still on form: {}".format(response.context['form'].errors)
+
+    assert response.status_code == 302
+    assert reverse('manager:surface-list') == response.url
+
+    assert Surface.objects.all().count() == 0

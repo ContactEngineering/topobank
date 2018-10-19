@@ -4,25 +4,59 @@ from django.urls import reverse, reverse_lazy
 from django.core.files.storage import FileSystemStorage, DefaultStorage
 from django.conf import settings
 from formtools.wizard.views import SessionWizardView
-from django.views.decorators.csrf import csrf_exempt
+
 from django.http import JsonResponse, HttpResponseForbidden
 from django.views.generic.edit import FormMixin, ProcessFormView
+from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib import messages
 
 import os.path
+import logging
 
-from rest_framework.decorators import api_view
-from rest_framework.views import Response
+#from rest_framework.decorators import api_view
+#from rest_framework.views import Response
 
 from .models import Topography, Surface
 from .forms import TopographyForm, SurfaceForm, TopographySelectForm
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyUnitsForm
-from .utils import TopographyFile, optimal_unit, selected_topographies
+from .utils import TopographyFile, optimal_unit, selected_topographies, selection_from_session, selection_for_select_all
+
+_log = logging.getLogger(__name__)
+
+class SurfaceAccessMixin(UserPassesTestMixin):
+
+    login_url = reverse_lazy("manager:access-denied")
+    redirect_field_name = None
+
+    def test_func(self):
+        if 'pk' not in self.kwargs:
+            return True
+
+        surface = Surface.objects.get(pk=self.kwargs['pk'])
+        return surface.user == self.request.user
+
+class TopographyAccessMixin(UserPassesTestMixin):
+
+    login_url = reverse_lazy("manager:access-denied")
+    redirect_field_name = None
+
+    def test_func(self):
+        if 'pk' not in self.kwargs:
+            return True
+
+        topo = Topography.objects.get(pk=self.kwargs['pk'])
+        return topo.surface.user == self.request.user
+
 
 class TopographyCreateWizard(SessionWizardView):
     form_list = [TopographyFileUploadForm, TopographyMetaDataForm, TopographyUnitsForm]
     template_name = 'manager/topography_wizard.html'
     file_storage = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT,'topographies/wizard'))
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.POST.get('cancel'):
+            return redirect(reverse('manager:surface-list'))
+        return super().dispatch(request, *args, **kwargs)
 
     def get_form_initial(self, step):
 
@@ -37,7 +71,8 @@ class TopographyCreateWizard(SessionWizardView):
             step0_data = self.get_cleaned_data_for_step('0')
 
             datafile = step0_data['datafile']
-            initial['datafile'] = datafile.file.name
+            initial['datafile'] = datafile.file.name # the file name in the upload directory
+            initial['name'] = os.path.basename(datafile.name) # the original file name
 
         if step == '2':
             # provide datafile attribute from previous step
@@ -47,13 +82,9 @@ class TopographyCreateWizard(SessionWizardView):
             name = step1_data['name']
             measurement_date = step1_data['measurement_date']
 
-            # TODO shorten!
-
             initial['data_source'] = data_source
             initial['name'] = name
             initial['measurement_date'] = measurement_date
-
-
 
             initial_unit, conversion_factor = optimal_unit(
                 session['initial_size'],
@@ -166,15 +197,9 @@ class TopographyCreateView(CreateView):
     def get_success_url(self):
         return reverse('manager:topography-detail', kwargs=dict(pk=self.object.pk))
 
-class TopographyUpdateView(UpdateView):
+class TopographyUpdateView(TopographyAccessMixin, UpdateView):
     model = Topography
     form_class = TopographyForm
-
-    def get_initial(self, *args, **kwargs):
-        initial = super(TopographyUpdateView, self).get_initial()
-        initial = initial.copy()
-        initial['user'] = self.request.user # TODO reuse code
-        return initial
 
     def get_success_url(self):
         return reverse('manager:topography-detail', kwargs=dict(pk=self.object.pk))
@@ -188,11 +213,11 @@ class TopographyListView(ListView):
         topos = Topography.objects.filter(surface__user=self.request.user)
         return topos
 
-class TopographyDetailView(DetailView):
+class TopographyDetailView(TopographyAccessMixin, DetailView):
     model = Topography
     context_object_name = 'topography'
 
-class TopographyDeleteView(DeleteView):
+class TopographyDeleteView(TopographyAccessMixin, DeleteView):
     model = Topography
     context_object_name = 'topography'
     success_url = reverse_lazy('manager:surface-list')
@@ -229,15 +254,14 @@ class SurfaceListView(FormMixin, ListView):
         surfaces = Surface.objects.filter(user=self.request.user)
         return surfaces
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['selected_topographies'] = selected_topographies(self.request)
-
-        return context
-
     def get_initial(self):
         # make sure the form is already filled with earlier selection
-        return dict(topographies=selected_topographies(self.request))
+        return dict(selection=selection_from_session(self.request.session))
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
 
     def post(self, request, *args, **kwargs): # TODO is this really needed?
         if not request.user.is_authenticated:
@@ -253,13 +277,14 @@ class SurfaceListView(FormMixin, ListView):
         # when pressing "select all" button, select all topographies
         # of current user
         if 'select-all' in self.request.POST:
-            topographies = Topography.objects.filter(surface__user=self.request.user)
+            selection = selection_for_select_all(self.request.user)
         else:
             # take selection from form
-            topographies = form.cleaned_data.get('topographies', [])
+            selection = form.cleaned_data.get('selection', [])
 
-        # save selection from form in session as list of integers
-        self.request.session['selected_topographies'] = list(t.id for t in topographies)
+        _log.info('Form valid, selection: %s', selection)
+
+        self.request.session['selection'] = tuple(selection)
         messages.info(self.request, "Topography selection saved.")
 
         # when pressing the analyze button, trigger analysis for
@@ -273,13 +298,12 @@ class SurfaceListView(FormMixin, ListView):
 
             auto_analysis_funcs = AnalysisFunction.objects.filter(automatic=True)
 
+            topographies = selected_topographies(self.request)
             for topo in topographies:
                 for af in auto_analysis_funcs:
                     submit_analysis(af, topo)
 
-            messages.info(self.request, "Submitted analyses for all topographies.")
-
-
+            messages.info(self.request, "Submitted analyses for {} topographies.".format(len(topographies)))
 
         return super().form_valid(form)
 
@@ -297,29 +321,44 @@ class SurfaceCreateView(CreateView):
     def get_success_url(self):
         return reverse('manager:surface-detail', kwargs=dict(pk=self.object.pk))
 
-class SurfaceDetailView(DetailView):
+class SurfaceDetailView(SurfaceAccessMixin, DetailView):
     model = Surface
     context_object_name = 'surface'
 
-    #def get_context_data(self, **kwargs):
-    #    context = super(SurfaceDetailView, self).get_context_data(**kwargs)
-    #   context['topographies'] = Topography.objects.filter(surface=self.object)
+class SurfaceUpdateView(SurfaceAccessMixin, UpdateView):
+    model = Surface
+    form_class = SurfaceForm
 
-def toggle_topography_selection(request, pk):
-    selected_topos = request.session.get('selected_topographies', [])
-    if pk in selected_topos:
-        selected_topos.remove(pk)
-        is_selected = False
-    else:
-        selected_topos.append(pk)
-        is_selected = True
-    request.session['selected_topographies'] = selected_topos
-    return JsonResponse(dict(is_selected=is_selected))
+    def get_initial(self, *args, **kwargs):
+        initial = super().get_initial(*args, **kwargs)
+        initial = initial.copy()
+        initial['user'] = self.request.user
+        return initial
 
-def is_topography_selected(request, pk):
-    selected_topos = request.session.get('selected_topographies', [])
-    is_selected = pk in selected_topos
-    return JsonResponse(is_selected)
+    def get_success_url(self):
+        return reverse('manager:surface-detail', kwargs=dict(pk=self.object.pk))
+
+class SurfaceDeleteView(SurfaceAccessMixin, DeleteView):
+    model = Surface
+    context_object_name = 'surface'
+    success_url = reverse_lazy('manager:surface-list')
+
+
+# def toggle_topography_selection(request, pk):
+#     selected_topos = request.session.get('selected_topographies', [])
+#     if pk in selected_topos:
+#         selected_topos.remove(pk)
+#         is_selected = False
+#     else:
+#         selected_topos.append(pk)
+#         is_selected = True
+#     request.session['selected_topographies'] = selected_topos
+#     return JsonResponse(dict(is_selected=is_selected))
+#
+# def is_topography_selected(request, pk):
+#     selected_topos = request.session.get('selected_topographies', [])
+#     is_selected = pk in selected_topos
+#     return JsonResponse(is_selected)
 
 
 
