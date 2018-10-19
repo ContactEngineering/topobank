@@ -26,6 +26,45 @@ def wait_for_page_load(browser, timeout=10):
         expected_conditions.staleness_of(old_page)
     )
 
+def login_user(webdriver, username, password):
+
+    user_dropwdown = webdriver.find_element_by_id('userDropdown')
+    user_dropwdown.click()
+
+    link = webdriver.find_element_by_partial_link_text("Sign In")
+    with wait_for_page_load(webdriver):
+        link.click()
+
+    username_input = webdriver.find_element_by_id('id_login')
+    username_input.send_keys(username)
+
+    username_input = webdriver.find_element_by_id('id_password')
+    username_input.send_keys(password)
+
+    btn = webdriver.find_element_by_xpath("//button[contains(text(),'Sign In')]")
+    with wait_for_page_load(webdriver):
+        btn.click()
+
+
+def logout_user(webdriver):
+    user_dropwdown = webdriver.find_element_by_id('userDropdown')
+    user_dropwdown.click()
+
+    webdriver.find_element_by_partial_link_text("Sign Out")  # only available when signed in
+
+    first_logout_link_xpath = "//a[@data-target='#logoutModal']"
+    wait = WebDriverWait(webdriver, 10)
+    logout_button = wait.until(expected_conditions.element_to_be_clickable((By.XPATH, first_logout_link_xpath)))
+    logout_button.click()
+
+    footer_link_xpath = "//div[@class='modal-footer']/a"
+
+    wait = WebDriverWait(webdriver, 10)
+    logout_button = wait.until(expected_conditions.element_to_be_clickable((By.XPATH, footer_link_xpath)))
+
+    with wait_for_page_load(webdriver):
+        logout_button.click()
+
 
 @pytest.fixture(scope='function')
 def no_surfaces_testuser_signed_in(live_server, webdriver, django_user_model):
@@ -82,23 +121,7 @@ def no_surfaces_testuser_signed_in(live_server, webdriver, django_user_model):
     #
     # Teardown code
     #
-    user_dropwdown = webdriver.find_element_by_id('userDropdown')
-    user_dropwdown.click()
-
-    link = webdriver.find_element_by_partial_link_text("Sign Out")  # only available when signed in
-
-    first_logout_link_xpath = "//a[@data-target='#logoutModal']"
-    wait = WebDriverWait(webdriver, 10)
-    logout_button = wait.until(expected_conditions.element_to_be_clickable((By.XPATH, first_logout_link_xpath)))
-    logout_button.click()
-
-    footer_link_xpath = "//div[@class='modal-footer']/a"
-
-    wait = WebDriverWait(webdriver, 10)
-    logout_button = wait.until(expected_conditions.element_to_be_clickable((By.XPATH, footer_link_xpath)))
-
-    with wait_for_page_load(webdriver):
-        logout_button.click()
+    logout_user(webdriver)
 
     #
     # Sign Out is no longer there, but Sign In

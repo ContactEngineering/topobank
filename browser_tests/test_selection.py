@@ -3,7 +3,10 @@ Browser test for selection of topographies and functions.
 """
 
 import pytest
+import os, os.path
+
 from topobank.analysis.models import AnalysisFunction
+from browser_tests.conftest import wait_for_page_load, logout_user, login_user
 
 @pytest.mark.django_db
 def test_selection_synchronize(surface_1_with_topographies_testuser_logged_in, webdriver):
@@ -63,9 +66,130 @@ def test_selection_synchronize(surface_1_with_topographies_testuser_logged_in, w
     assert selection_choices[0].text[1:] == "Surface 1"  # first character is some cross symbol, therefore [1:]
 
 
+@pytest.mark.django_db
+def test_selection_only_own_surfaces_and_topos(live_server, django_user_model,
+                                               webdriver):
 
+    webdriver.get(live_server.url + '/')
+    for i in [1,2]:
+        #
+        # Create a another verified test user
+        #
+        username = "user{}".format(i)
+        password = "passwd{}".format(i)
+        email = username + "@example.org"
+        user = django_user_model.objects.create_user(username=username, password=password)
 
+        from allauth.account.models import EmailAddress
+        EmailAddress.objects.create(user=user, verified=True, email=email)
 
+        #
+        # Login
+        #
+        login_user(webdriver, username, password)
+
+        #
+        # Create a surface and a topography for this user
+        #
+        link = webdriver.find_element_by_link_text("Surfaces")
+        link.click()
+
+        link = webdriver.find_element_by_link_text("Add Surface")
+        link.click()
+
+        input = webdriver.find_element_by_id("id_name")
+        surface_name = "Surface 1 of {}".format(username)
+        input.send_keys(surface_name)
+
+        link = webdriver.find_element_by_id("submit-id-save")
+        with wait_for_page_load(webdriver):
+            link.click()
+
+        datafile_paths_prefix = 'topobank/manager/fixtures/'
+        datafile_paths_prefix = os.path.join(os.getcwd(), datafile_paths_prefix)
+
+        data_paths = [os.path.join(datafile_paths_prefix, fn)
+                      for fn in ['example3.di', 'example4.txt']]
+
+        for dp in data_paths:
+
+            link = webdriver.find_element_by_link_text("Surfaces")
+            link.click()
+
+            link = webdriver.find_element_by_link_text("Add Topography")
+            link.click()
+
+            input = webdriver.find_element_by_id("id_0-datafile")
+            input.send_keys(dp)
+
+            # go to step 2
+            link = webdriver.find_element_by_id("submit-id-save")
+            link.click()
+
+            input = webdriver.find_element_by_id('id_1-name')
+            input.send_keys(" of "+username)
+
+            input = webdriver.find_element_by_id('id_1-measurement_date')
+            input.send_keys("2018-02-01")
+
+            # go to step 3
+            link = webdriver.find_element_by_id("submit-id-save")
+            link.click()
+
+            # finally save
+            link = webdriver.find_element_by_id("submit-id-save")
+            link.click()
+
+            # topography is saved
+
+        #
+        # Logout
+        #
+        if i == 1:
+            logout_user(webdriver)
+        # keep second user logged in
+
+    #
+    # Create an analysis function for selection
+    #
+    func = AnalysisFunction.objects.create(pyfunc="height_distribution", automatic=False, name="Height Distribution")
+    func.save()
+
+    #
+    # Goto to surface selection, see if only own stuff
+    #
+    link = webdriver.find_element_by_link_text('Surfaces')
+    link.click()
+
+    search_field = webdriver.find_element_by_class_name("select2-search__field")
+    search_field.click() # activate results
+
+    search_options = webdriver.find_elements_by_class_name("select2-results__option")
+
+    search_options_texts = [ so.text for so in search_options ]
+
+    assert sorted(search_options_texts) == [
+        'Surface 1 of user2', 'example3.di of user2', 'example4.txt of user2',
+    ]
+
+    #
+    # Goto to analysis selection, see if only own stuff
+    #
+    link = webdriver.find_element_by_link_text('Analyses')
+    link.click()
+
+    search_field = webdriver.find_elements_by_class_name("select2-search__field")[0]
+    search_field.click() # activate results
+
+    search_options = webdriver.find_elements_by_class_name("select2-results__option")
+
+    search_options_texts = [ so.text for so in search_options ]
+
+    assert sorted(search_options_texts) == [
+        'Surface 1 of user2', 'example3.di of user2', 'example4.txt of user2',
+    ]
+
+    logout_user(webdriver)
 
 
 
