@@ -44,38 +44,40 @@
       {% ifchanged analysis.function.id %}
         {% if not forloop.first %}
               ]'></div>
+            <div class="topobank-scatter-plot-control"></div>
             </div>
           </div>
         </div>
         {% endif %}
         <div class="col-xl-6 mb-4">
           <div class="card">
-          <div class="card-header">
-            {{ analysis.function.name }}
-            <div class="btn-group btn-group-sm pull-right dropdown">
-              <button type="button" class="btn btn-default" data-toggle="dropdown"
-                      aria-haspopup="true" aria-expanded="false">
-                <i class="fa fa-chevron-down"></i>
-              </button>
-              <div class="dropdown-menu dropdown-menu-right">
-                <a class="dropdown-item topobank-change-unit" href="#">Display in units of nm</a>
-                <a class="dropdown-item topobank-change-unit" href="#">Display in units of µm</a>
-                <a class="dropdown-item topobank-change-unit" href="#">Display in units of mm</a>
-                <div class="dropdown-divider"></div>
-                <a class="dropdown-item" href="#">Download as SVG</a>
-                <a class="dropdown-item" href="#">Download data</a>
+            <div class="card-header">
+              {{ analysis.function.name }}
+              <div class="btn-group btn-group-sm pull-right dropdown">
+                <button type="button" class="btn btn-default" data-toggle="dropdown"
+                        aria-haspopup="true" aria-expanded="false">
+                  <i class="fa fa-chevron-down"></i>
+                </button>
+                <div class="dropdown-menu dropdown-menu-right">
+                  <a class="dropdown-item topobank-change-unit" href="#">Display in units of nm</a>
+                  <a class="dropdown-item topobank-change-unit" href="#">Display in units of µm</a>
+                  <a class="dropdown-item topobank-change-unit" href="#">Display in units of mm</a>
+                  <div class="dropdown-divider"></div>
+                  <a class="dropdown-item" href="#">Download as SVG</a>
+                  <a class="dropdown-item" href="#">Download data</a>
+                </div>
               </div>
             </div>
-          </div>
-          <div class="card-body">
-            <div class="spinner"></div>
+            <div class="card-body">
+              <div class="spinner"></div>
               <div class="topobank-scatter-plot topobank-plot-resize"
                    data-src='["{% url 'analysis:retrieve' analysis.id %}"
       {% else %}
-                             ,"{% url 'analysis:retrieve' analysis.id %}"
+                            ,"{% url 'analysis:retrieve' analysis.id %}"
       {% endifchanged %}
       {% if forloop.last %}
               ]'></div>
+              <div class="topobank-scatter-plot-control"></div>
             </div>
           </div>
         </div>

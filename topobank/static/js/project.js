@@ -111,18 +111,19 @@ function unicode_unit(unit, exponent) {
  * Arguments
  * ---------
  * element: DOM element to render to
- * data: Array of dictinaries containing 'name' and 'data' entries
+ * data: Array of dictionaries containing 'name' and 'data' entries
  * unit: Unit to use for displaying the data
  */
-function render_plot(element, data, unit) {
+var plot_id = 0;
+function render_plot(plot_element, control_element, data, unit) {
     /* Static dictionaries. */
-    var color_abbreviations = {
+    const color_abbreviations = {
         'k': 'black',
         'r': 'red',
         'g': 'green',
         'b': 'blue'
     };
-    var symbol_abbreviations = {
+    const symbol_abbreviations = {
         'o': Plottable.SymbolFactories.circle(),
         '+': Plottable.SymbolFactories.cross(),
         'd': Plottable.SymbolFactories.diamond(),
@@ -131,8 +132,11 @@ function render_plot(element, data, unit) {
         'y': Plottable.SymbolFactories.wye(),
     };
 
+    /* Generate unique id */
+    plot_id++;
+
     /* Check if chart already exists. */
-    chart = $(element).data('chart');
+    chart = $(plot_element).data('chart');
     if (chart) chart.destroy();
 
     /* Scales. */
@@ -275,44 +279,28 @@ function render_plot(element, data, unit) {
     y_axis = new Plottable.Axes.Numeric(y_scale, "left")
         .formatter(Plottable.Formatters.exponential());
 
+    /*
     var legend = new Plottable.Components.Legend(color_scale)
         .symbol(function (datum) {
             s = symbols[datum];
             return s ? s : Plottable.SymbolFactories.circle();
         });
+    */
 
-    new Plottable.Interactions.Click()
-        .onClick(function (point) {
-            var datum = legend.entitiesAt(point)[0].datum;
-            for (var plot of plots[datum]) {
-                if (plot) {
-                    var sel = plot.selections();
-                    if (sel.attr("visibility") == "hidden") {
-                        sel.attr("visibility", "visible");
-                    }
-                    else {
-                        sel.attr("visibility", "hidden");
-                    }
-                }
-            }
-            legend.symbolOpacity(function (datum) {
-                for (var plot of plots[datum]) {
-                    if (plot) {
-                        if (plot.selections().attr("visibility") == "hidden") {
-                            return .3;
-                        }
-                        else {
-                            return 1;
-                        }
-                    }
-                }
-            });
-        })
-        .attachTo(legend);
+    data.forEach((d, i) => {
+        toggle_name = 'plot' + plot_id.toString() + 'topography' + i.toString();
+        control_element.append(
+            '<div class="form-check checkbox-slider--default">\n' +
+            '  <label class="form-check-label" for="' + toggle_name + '">\n' +
+            '    <input class="form-check-input" type="checkbox" value="" id="' + toggle_name + '">\n' +
+            '    <span>' + d.name + '</span>\n' +
+            '  </label>\n' +
+            '</div>');
+    });
 
     var plot_group = new Plottable.Components.Group([].concat(...Object.values(plots)).filter(x => x));
     var chart = new Plottable.Components.Table([
-        [null, null, legend],
+        //[null, null, legend],
         [y_axis_label, y_axis, plot_group],
         [null, null, x_axis, null],
         [null, null, x_axis_label, null]
@@ -321,12 +309,12 @@ function render_plot(element, data, unit) {
     var panZoom = new Plottable.Interactions.PanZoom(x_scale, y_scale)
         .attachTo(chart);
 
-    chart.renderTo(element);
-    $(element).width('100%');
-    $(element).height('400px');
+    chart.renderTo(plot_element);
+    $(plot_element).width('100%');
+    $(plot_element).height('400px');
     chart.redraw();
 
-    $(element).data('chart', chart);
+    $(plot_element).data('chart', chart);
 
     //panZoom.setMinMaxDomainValuesTo(x_scale);
     //panZoom.setMinMaxDomainValuesTo(y_scale);
@@ -336,14 +324,14 @@ function render_plot(element, data, unit) {
 /*
  * Updated scatter plot for a certain task. Continually poll task results if data not yet available.
  */
-function plot(element, unit) {
+function plot(plot_element, unit) {
     /* Show spinner. */
-    $('.spinner', $(element).parent()).show();
+    $('.spinner', $(plot_element).parent()).show();
 
     /* Enumerate all data request URLs into a single array. */
-    var requests = $(element).data('src').map(url => $.get(url));
+    var requests = $(plot_element).data('src').map(url => $.get(url));
 
-    done_func = function (element, ...data_array) {
+    done_func = function (plot_element, ...data_array) {
         /* Loop over all data dictionaries and see if calculations have finished or failed. */
         for (var data of data_array) {
             /* Each data entry contains the JSON dictionary plus textStatus and jqHDR entries. */
@@ -352,32 +340,32 @@ function plot(element, unit) {
             /* Check if task is PEnding or has STarted. */
             if (data.task_state == 'pe' || data.task_state == 'st') {
                 setTimeout(function () {
-                    plot(element, unit);
+                    plot(plot_element, unit);
                 }, 1000);
                 return;
             }
             else {
                 if ('error' in data.result) {
-                    $(element).html('Server reported error: ' + data.result.error);
+                    $(plot_element).html('Server reported error: ' + data.result.error);
                     return;
                 }
             }
         }
 
         /* Render plot. */
-        render_plot(element,
+        render_plot(plot_element, $('.topobank-scatter-plot-control', $(plot_element).parent()),
                     data_array.map(data => ({'name': data[0].topography_name, 'data': data[0].result})),
                     unit);
-        $('.spinner', $(element).parent()).hide();
+        $('.spinner', $(plot_element).parent()).hide();
     };
 
     /* AJAX requests to all URLs in parallel. */
     $.when(...requests)
         .done(requests.length == 1 ?
-                x => done_func(element, [x]) : function (...data_array) { done_func(element, ...data_array) })
+                x => done_func(plot_element, [x]) : function (...data_array) { done_func(plot_element, ...data_array) })
         .fail(function () {
-            $(element).html('Failed obtaining resources from server.');
-            $('.spinner', $(element).parent()).hide();
+            $(plot_element).html('Failed obtaining resources from server.');
+            $('.spinner', $(plot_element).parent()).hide();
         });
 }
 
