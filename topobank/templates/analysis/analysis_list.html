@@ -77,7 +77,28 @@
       {% endifchanged %}
       {% if forloop.last %}
               ]'></div>
+            </div>
+            <div class="card-footer">
               <div class="topobank-scatter-plot-control"></div>
+              <div class="class="pull-right">
+                <small>
+                  State: {{ analysis.get_task_state_display }}
+                  {% if analysis.get_args_display %}
+                    | args: {{ analysis.get_args_display }}
+                  {% endif %}
+                  {% if analysis.get_kwargs_display %}
+                    | kwargs: {{ analysis.get_kwargs_display }}
+                  {% endif %}
+                  <p></p>
+                  {% if analysis.start_time %}
+                    Started: {{ analysis.start_time|date:"Y-m-d H:i:s" }}
+                    {% if analysis.end_time %}
+                      | Ended: {{ analysis.end_time|date:"Y-m-d H:i:s" }}
+                      | Duration: {{ analysis.duration }}
+                    {% endif %}
+                  {% endif %}
+                </small>
+              </div>
             </div>
           </div>
         </div>

@@ -353,7 +353,7 @@ function plot(plot_element, unit) {
         }
 
         /* Render plot. */
-        render_plot(plot_element, $('.topobank-scatter-plot-control', $(plot_element).parent()),
+        render_plot(plot_element, $('.topobank-scatter-plot-control', $(plot_element).parent().parent()),
                     data_array.map(data => ({'name': data[0].topography_name, 'data': data[0].result})),
                     unit);
         $('.spinner', $(plot_element).parent()).hide();
