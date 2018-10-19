@@ -27,11 +27,11 @@ class AnalysisListView(FormMixin, ListView):
                     function__in=functions) \
             .filter(topography=OuterRef('topography'), function=OuterRef('function'),\
                     args=OuterRef('args'), kwargs=OuterRef('kwargs'))\
-            .order_by('-start_time')
 
         # Use this subquery for finding only latest analyses for each (topography, function, args, kwargs) group
         analyses = Analysis.objects\
-            .filter(pk=Subquery(sq_analyses.values('pk')[:1]))
+            .filter(pk=Subquery(sq_analyses.values('pk')[:1]))\
+            .order_by('function')
 
         # thanks to minkwe for the contribution at https://gist.github.com/ryanpitts/1304725
 
