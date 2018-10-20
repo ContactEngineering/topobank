@@ -142,27 +142,18 @@ function render_plot(plot_element, control_element, data, unit) {
     /* Scales. */
     var x_scale, y_scale, x_axis, y_axis, x_axis_label, y_axis_label, color_scale;
 
-    /* Individual plots and symbols beloging to those. */
-    var plots = {}, symbols = {};
-
-    var names = [];
-    for (const d of data) {
-        for (const item of d.data.series) {
-            if (d.data.series.length > 1) {
-                names.push(d.name + ': ' + item.name);
-            }
-            else {
-                names.push(d.name);
-            }
-        }
-    }
+    /* All plots. */
+    var all_plots = [];
 
     /* Automatic color selection. */
     color_scale = new Plottable.Scales.Color();
-    color_scale.domain(names);
+    color_scale.domain(data.map(d => d.name));
 
     /* Loop over all plot descriptor dictionaries passed here. */
-    for (const d of data) {
+    data.forEach((d, i) => {
+        /* Unique identifier for this data source. */
+        var source_uid = 'plot' + plot_id.toString() + 'topography' + i.toString();
+
         /* Figure out units. */
         xunit = split_unit(d.data.xunit);
         yunit = split_unit(d.data.yunit);
@@ -218,6 +209,7 @@ function render_plot(plot_element, control_element, data, unit) {
                 .angle(-90);
         }
 
+        var plots = [];
         for (const item of d.data.series) {
             var legend_str = d.name;
             if (d.data.series.length > 1)  legend_str += ': ' + item.name;
@@ -251,27 +243,48 @@ function render_plot(plot_element, control_element, data, unit) {
 
             if (line && item.y.length > 20) symbol = undefined;
 
-            var plot_with_lines, plot_with_symbols;
             if (line) {
-                plot_with_lines = new Plottable.Plots.Line()
+                plots.push(new Plottable.Plots.Line()
                     .deferredRendering(true)
                     .addDataset(dataset)
                     .x((d) => d.x, x_scale)
                     .y((d) => d.y, y_scale)
-                    .attr('stroke', legend_str, color_scale);
+                    .attr('stroke', d.name, color_scale));
             }
             if (symbol) {
-                plot_with_symbols = new Plottable.Plots.Scatter()
+                plots.push(new Plottable.Plots.Scatter()
                     .deferredRendering(true)
                     .addDataset(dataset)
                     .x((d) => d.x, x_scale)
                     .y((d) => d.y, y_scale)
                     .symbol(() => symbol)
-                    .attr('stroke', 'black').attr('fill', legend_str, color_scale);
+                    .attr('stroke', 'black').attr('fill', d.name, color_scale));
             }
-            plots[legend_str] = [plot_with_lines, plot_with_symbols];
         }
-    }
+
+        /* GUI elements (checkboxes) controlling visibility. */
+        control_element.append(
+            '<div class="form-check checkbox-slider--default">\n' +
+            '  <label class="form-check-label" for="' + source_uid + '">\n' +
+            '    <input name="' + source_uid +'" class="form-check-input" type="checkbox" value="" id="' + source_uid + '" checked>\n' +
+            '    <span>' + d.name + '</span>\n' +
+            '  </label>\n' +
+            '</div>');
+
+        /* Change visbility of corresponding plots if checkbox is clicked. */
+        $('#' + source_uid).change(function() {
+            var visibility = "hidden";
+            if (this.checked) {
+                visibility = "visible";
+            }
+            for (var plot of plots) {
+                var sel = plot.selections();
+                sel.attr("visibility", visibility);
+            }
+        });
+
+        all_plots.push(plots);
+    });
 
     /* Create axes. */
     x_axis = new Plottable.Axes.Numeric(x_scale, "bottom")
@@ -279,26 +292,7 @@ function render_plot(plot_element, control_element, data, unit) {
     y_axis = new Plottable.Axes.Numeric(y_scale, "left")
         .formatter(Plottable.Formatters.exponential());
 
-    /*
-    var legend = new Plottable.Components.Legend(color_scale)
-        .symbol(function (datum) {
-            s = symbols[datum];
-            return s ? s : Plottable.SymbolFactories.circle();
-        });
-    */
-
-    data.forEach((d, i) => {
-        toggle_name = 'plot' + plot_id.toString() + 'topography' + i.toString();
-        control_element.append(
-            '<div class="form-check checkbox-slider--default">\n' +
-            '  <label class="form-check-label" for="' + toggle_name + '">\n' +
-            '    <input class="form-check-input" type="checkbox" value="" id="' + toggle_name + '">\n' +
-            '    <span>' + d.name + '</span>\n' +
-            '  </label>\n' +
-            '</div>');
-    });
-
-    var plot_group = new Plottable.Components.Group([].concat(...Object.values(plots)).filter(x => x));
+    var plot_group = new Plottable.Components.Group([].concat(...Object.values(all_plots)).filter(x => x));
     var chart = new Plottable.Components.Table([
         //[null, null, legend],
         [y_axis_label, y_axis, plot_group],
