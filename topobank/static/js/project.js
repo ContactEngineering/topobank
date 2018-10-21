@@ -147,7 +147,7 @@ function render_plot(plot_element, control_element, data, unit) {
 
     /* Automatic color selection. */
     color_scale = new Plottable.Scales.Color();
-    color_scale.domain(data.map(d => d.name));
+    color_scale.domain(data.map((d, i) => 'plot' + plot_id.toString() + 'topography' + i.toString()));
 
     /* Loop over all plot descriptor dictionaries passed here. */
     data.forEach((d, i) => {
@@ -249,7 +249,7 @@ function render_plot(plot_element, control_element, data, unit) {
                     .addDataset(dataset)
                     .x((d) => d.x, x_scale)
                     .y((d) => d.y, y_scale)
-                    .attr('stroke', d.name, color_scale));
+                    .attr('stroke', source_uid, color_scale));
             }
             if (symbol) {
                 plots.push(new Plottable.Plots.Scatter()
@@ -258,7 +258,7 @@ function render_plot(plot_element, control_element, data, unit) {
                     .x((d) => d.x, x_scale)
                     .y((d) => d.y, y_scale)
                     .symbol(() => symbol)
-                    .attr('stroke', 'black').attr('fill', d.name, color_scale));
+                    .attr('stroke', 'black').attr('fill', source_uid, color_scale));
             }
         }
 
@@ -266,8 +266,8 @@ function render_plot(plot_element, control_element, data, unit) {
         control_element.append(
             '<div class="form-check checkbox-slider--default">\n' +
             '  <label class="form-check-label" for="' + source_uid + '">\n' +
-            '    <input name="' + source_uid +'" class="form-check-input" type="checkbox" value="" id="' + source_uid + '" checked>\n' +
-            '    <span>' + d.name + '</span>\n' +
+            '    <input name="' + source_uid +'" class="form-check-input checkbox-color" type="checkbox" value="" id="' + source_uid + '" checked>\n' +
+            '    <span style="color:' + color_scale.scale(source_uid) + '"></span>' + d.name + '\n' +
             '  </label>\n' +
             '</div>');
 
