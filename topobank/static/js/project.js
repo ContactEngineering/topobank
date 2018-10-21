@@ -115,7 +115,7 @@ function unicode_unit(unit, exponent) {
  * unit: Unit to use for displaying the data
  */
 var plot_id = 0;
-function render_plot(plot_element, control_element, data, unit) {
+function render_plot(plot_element, topography_control_element, series_control_element, data, unit) {
     /* Static dictionaries. */
     const color_abbreviations = {
         'k': 'black',
@@ -149,10 +149,13 @@ function render_plot(plot_element, control_element, data, unit) {
     color_scale = new Plottable.Scales.Color();
     color_scale.domain(data.map((d, i) => 'plot' + plot_id.toString() + 'topography' + i.toString()));
 
+    /* Dictionary containing plots for a certain data series. */
+    var series = {};
+
     /* Loop over all plot descriptor dictionaries passed here. */
     data.forEach((d, i) => {
         /* Unique identifier for this data source. */
-        var source_uid = 'plot' + plot_id.toString() + 'topography' + i.toString();
+        var topograpgy_uid = 'plot' + plot_id.toString() + 'topography' + i.toString();
 
         /* Figure out units. */
         xunit = split_unit(d.data.xunit);
@@ -175,32 +178,27 @@ function render_plot(plot_element, control_element, data, unit) {
             scale_factor_y = scale_factor ** yunit.exponent;
         }
 
-        /* Create (linear, log) scales. */
-        if (!x_scale) {
+        /* Create (linear, log) scales for first plot descriptor. */
+        if (i == 0) {
             if (d.data.xscale == 'log') {
                 x_scale = new Plottable.Scales.Log();
             }
             else {
                 x_scale = new Plottable.Scales.Linear();
             }
-        }
-        if (!y_scale) {
             if (d.data.yscale == 'log') {
                 y_scale = new Plottable.Scales.Log();
             }
             else {
                 y_scale = new Plottable.Scales.Linear();
             }
-        }
 
-        if (!x_axis_label) {
             xlabel = d.data.xlabel;
             if (xunit.unit) xlabel += ' (' + unicode_unit(unit, xunit.exponent) + ')';
 
             x_axis_label = new Plottable.Components.Label(xlabel)
                 .yAlignment("center");
-        }
-        if (!y_axis_label) {
+
             ylabel = d.data.ylabel;
             if (yunit.unit) ylabel += ' (' + unicode_unit(unit, yunit.exponent) + ')';
 
@@ -210,7 +208,13 @@ function render_plot(plot_element, control_element, data, unit) {
         }
 
         var plots = [];
-        for (const item of d.data.series) {
+        d.data.series.forEach((item, j) => {
+            var series_uid = 'plot' + plot_id.toString() + 'series' + j.toString();
+
+            if (i == 0) {
+                series[series_uid] = [];
+            }
+
             var legend_str = d.name;
             if (d.data.series.length > 1)  legend_str += ': ' + item.name;
 
@@ -244,35 +248,62 @@ function render_plot(plot_element, control_element, data, unit) {
             if (line && item.y.length > 20) symbol = undefined;
 
             if (line) {
-                plots.push(new Plottable.Plots.Line()
+                var plot = new Plottable.Plots.Line()
                     .deferredRendering(true)
                     .addDataset(dataset)
                     .x((d) => d.x, x_scale)
                     .y((d) => d.y, y_scale)
-                    .attr('stroke', source_uid, color_scale));
+                    .attr('stroke', topograpgy_uid, color_scale);
+                plots.push(plot);
+                series[series_uid].push(plot);
             }
             if (symbol) {
-                plots.push(new Plottable.Plots.Scatter()
+                var plot = new Plottable.Plots.Scatter()
                     .deferredRendering(true)
                     .addDataset(dataset)
                     .x((d) => d.x, x_scale)
                     .y((d) => d.y, y_scale)
                     .symbol(() => symbol)
-                    .attr('stroke', 'black').attr('fill', source_uid, color_scale));
+                    .attr('stroke', 'black').attr('fill', topograpgy_uid, color_scale);
+                plots.push(plot);
+                series[series_uid].push(plot);
             }
-        }
 
-        /* GUI elements (checkboxes) controlling visibility. */
-        control_element.append(
-            '<div class="form-check checkbox-slider--default">\n' +
-            '  <label class="form-check-label" for="' + source_uid + '">\n' +
-            '    <input name="' + source_uid +'" class="form-check-input checkbox-color" type="checkbox" value="" id="' + source_uid + '" checked>\n' +
-            '    <span style="color:' + color_scale.scale(source_uid) + '"></span>' + d.name + '\n' +
+            /* GUI elements (checkboxes) controlling visibility of data series. */
+            if (i == data.length-1) {
+                series_control_element.append(
+                    '<div class="form-check checkbox-slider--default">\n' +
+                    '  <label class="form-check-label" for="' + series_uid + '">\n' +
+                    '    <input name="' + series_uid +'" class="form-check-input checkbox-color-design" type="checkbox" value="" id="' + series_uid + '" checked>\n' +
+                    '    <span></span>' + item.name + '\n' +
+                    '  </label>\n' +
+                    '</div>');
+
+                /* Change visbility of corresponding plots if checkbox is clicked. */
+                $('#' + series_uid).change(function () {
+                    var visibility = "hidden";
+                    if (this.checked) {
+                        visibility = "visible";
+                    }
+                    for (var plot of series[series_uid]) {
+                        var sel = plot.selections();
+                        sel.attr("visibility", visibility);
+                    }
+                });
+            }
+        });
+
+        /* GUI elements (checkboxes) controlling visibility of topographies. */
+        topography_control_element.append(
+            '<div class="form-check checkbox-slider--c">\n' +
+            '  <label class="form-check-label" for="' + topograpgy_uid + '">\n' +
+            '    <input name="' + topograpgy_uid +'" class="form-check-input checkbox-color" type="checkbox" value="" id="' + topograpgy_uid + '" checked>\n' +
+            '    <span style="color:' + color_scale.scale(topograpgy_uid) + '"></span>' + d.name + '\n' +
             '  </label>\n' +
             '</div>');
 
         /* Change visbility of corresponding plots if checkbox is clicked. */
-        $('#' + source_uid).change(function() {
+        $('#' + topograpgy_uid).change(function() {
             var visibility = "hidden";
             if (this.checked) {
                 visibility = "visible";
@@ -347,7 +378,9 @@ function plot(plot_element, unit) {
         }
 
         /* Render plot. */
-        render_plot(plot_element, $('.topobank-scatter-plot-control', $(plot_element).parent().parent()),
+        render_plot(plot_element,
+                    $('.topobank-scatter-plot-topography-control', $(plot_element).parent().parent()),
+                    $('.topobank-scatter-plot-series-control', $(plot_element).parent().parent()),
                     data_array.map(data => ({'name': data[0].topography_name, 'data': data[0].result})),
                     unit);
         $('.spinner', $(plot_element).parent()).hide();

@@ -47,4 +47,14 @@ footer.sticky-footer {
 
 input.checkbox-color:checked+span:after {
   background: currentColor;
+  border: currentColor;
+}
+
+input.checkbox-color:checked+span:before {
+  background: currentColor;
+  border: currentColor;
+}
+
+input.checkbox-color-design:checked+span:after {
+  background: black;
 }
