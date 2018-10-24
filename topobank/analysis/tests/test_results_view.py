@@ -39,7 +39,7 @@ def test_selection_from_instances(mocker):
 
 
 @pytest.mark.django_db
-def test_analysis_times(client, two_topos):
+def test_analysis_times(client, two_topos): # TODO use mocks here if possible
 
     username = 'testuser'
     password = 'abcd$1234'
@@ -73,7 +73,7 @@ def test_analysis_times(client, two_topos):
     assert b"1:01:01" in response.content # duration
 
 @pytest.mark.django_db
-def test_show_only_last_analysis(client, two_topos):
+def test_show_only_last_analysis(client, two_topos):# TODO use mocks here if possible
 
     username = 'testuser'
     password = 'abcd$1234'
@@ -155,7 +155,7 @@ def test_show_only_last_analysis(client, two_topos):
     assert b"2018-01-03 12:00:00" not in response.content
 
 @pytest.mark.django_db
-def test_show_analysis_with_different_arguments(client, two_topos):
+def test_show_analyses_with_different_arguments(client, two_topos):
 
     username = 'testuser'
     password = 'abcd$1234'
@@ -163,7 +163,6 @@ def test_show_analysis_with_different_arguments(client, two_topos):
     assert client.login(username=username, password=password)
 
     topo1 = Topography.objects.first()
-    topo2 = Topography.objects.last()
     af = AnalysisFunction.objects.first()
 
     #
@@ -228,5 +227,65 @@ def test_show_analysis_with_different_arguments(client, two_topos):
     assert str(dict(bins=10)) in unescaped
     assert str(dict(bins=20)) in unescaped
 
+@pytest.mark.django_db
+def test_show_multiple_analyses_for_two_functions(client, two_topos):
 
+    username = 'testuser'
+    password = 'abcd$1234'
+
+    assert client.login(username=username, password=password)
+
+    topo1 = Topography.objects.first()
+    topo2 = Topography.objects.last()
+    af1 = AnalysisFunction.objects.first()
+    af2 = AnalysisFunction.objects.last()
+
+    assert topo1 != topo2
+    assert af1 != af2
+
+    #
+    # Create analyses for two functions and two different topographies
+    #
+    counter = 0
+    for af in [af1, af2]:
+        for topo in [topo1, topo2]:
+            counter += 1
+            analysis = Analysis.objects.create(
+                topography=topo,
+                function=af,
+                task_state=Analysis.SUCCESS,
+                args=pickle.dumps(()),
+                kwargs=pickle.dumps({'bins':10}),
+                start_time=datetime.datetime(2018, 1, 1, counter),
+                end_time=datetime.datetime(2018, 1, 1, counter+1),
+            )
+            analysis.save()
+
+    #
+    # Check response when selecting only first function, both analyses should be shown
+    #
+    response = client.post(reverse("analysis:list"),
+                           data={
+                               'selection': selection_from_instances([topo1, topo2]),
+                               'functions': [af1.id],
+                           }, follow=True)
+
+    assert response.status_code == 200
+
+    assert b"Example 3 - ZSensor" in response.content
+    assert b"Example 4 - Default" in response.content
+
+    #
+    # Check response when selecting only both functions, both analyses should be shown
+    #
+    response = client.post(reverse("analysis:list"),
+                           data={
+                               'selection': selection_from_instances([topo1, topo2]),
+                               'functions': [af1.id, af2.id],
+                           }, follow=True)
+
+    assert response.status_code == 200
+
+    assert b"Example 3 - ZSensor" in response.content
+    assert b"Example 4 - Default" in response.content
 

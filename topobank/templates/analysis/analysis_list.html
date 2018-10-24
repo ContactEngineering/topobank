@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load fontawesome %}
 {% load crispy_forms_tags %}
+{% load analysis_tags %}
 
 {% block content-title %}
   Analysis Results
@@ -12,6 +13,7 @@
 
 {% block content %}
 
+  <!-- Filter for topographies and analysis functions -->
   <div class="row">
     <div class="col-xl-12 mb-4">
       <div class="card">
@@ -25,139 +27,107 @@
     </div>
   </div>
 
-  <!--
+  <!-- Show one card for each analysis function -->
   <div class="row">
-  <form>
-    <div class="form-control">
-      <label for="selectTopographies">Filter topographies</label>
-      <input type="email" class="form-control" id="exampleInputEmail1" aria-describedby="emailHelp" placeholder="Enter email">
-      <small id="selectTopographiesHelp" class="form-text text-muted">
-        Choose one or multiple topographies. You can search interactively by name.
-      </small>
-    </div>
-    <button type="submit" class="btn btn-primary">Update</button>
-  </form>
-  </div>-->
-
-  <div class="row">
-    {% for analysis in analyses %}
-      {% ifchanged analysis.function.id %}
-        {% if not forloop.first %}
-              ]'></div>
+    {% regroup analyses by function as function_list %}
+    {% for function, analyses_for_function in function_list %}
+      <div class="col-xl-6 mb-4">
+        <div class="card">
+          <div class="card-header">
+            {{ function.name }}
+            <div class="btn-group btn-group-sm pull-right dropdown">
+              <button type="button" class="btn btn-default" data-toggle="dropdown"
+                      aria-haspopup="true" aria-expanded="false">
+                <i class="fa fa-chevron-down"></i>
+              </button>
+              <div class="dropdown-menu dropdown-menu-right">
+                <a class="dropdown-item topobank-change-unit" href="#">Display in units of nm</a>
+                <a class="dropdown-item topobank-change-unit" href="#">Display in units of µm</a>
+                <a class="dropdown-item topobank-change-unit" href="#">Display in units of mm</a>
+                <div class="dropdown-divider"></div>
+                <a class="dropdown-item" href="#">Download as SVG</a>
+                <a class="dropdown-item" href="#">Download data</a>
+                <div class="dropdown-divider"></div>
+                <a class="dropdown-item" href="#" data-toggle="modal"
+                   data-target="#statusesModal-{{ forloop.counter }}">View analysis statuses</a>
+              </div>
             </div>
-            <div class="card-footer">
-              <div class="row">
-                <div class="col-6">
-                  <b>Source topography</b>
-                  <div class="topobank-scatter-plot-topography-control"></div>
-                </div>
-                <div class="col-6">
-                  <b>Data series</b>
-                  <div class="topobank-scatter-plot-series-control"></div>
-                </div>
+          </div>
+          <div class="card-body">
+            <div class="spinner"></div>
+            <div class="topobank-scatter-plot topobank-plot-resize"
+                 data-src={{ analyses_for_function | analyses_results_urls_list_str }}>
+            </div>
+          </div>
+          <div class="card-footer">
+            <div class="row">
+              <div class="col-6">
+                <b>Source topography</b>
+                <div class="topobank-scatter-plot-topography-control"></div>
+              </div>
+              <div class="col-6">
+                <b>Data series</b>
+                <div class="topobank-scatter-plot-series-control"></div>
               </div>
             </div>
           </div>
         </div>
-        {% endif %}
-        <div class="col-xl-6 mb-4">
-          <div class="card">
-            <div class="card-header">
-              {{ analysis.function.name }}
-              <div class="btn-group btn-group-sm pull-right dropdown">
-                <button type="button" class="btn btn-default" data-toggle="dropdown"
-                        aria-haspopup="true" aria-expanded="false">
-                  <i class="fa fa-chevron-down"></i>
+
+        <!-- Analyses Statuses Modal -->
+        <div class="modal fade" id="statusesModal-{{ forloop.counter }}" tabindex="-1" role="dialog"
+             aria-labelledby="statusesModalLabel"
+             aria-hidden="true">
+          <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title" id="statusesModalLabel">Analyses Statuses</h5>
+                <button class="close" type="button" data-dismiss="modal" aria-label="Close">
+                  <span aria-hidden="true">×</span>
                 </button>
-                <div class="dropdown-menu dropdown-menu-right">
-                  <a class="dropdown-item topobank-change-unit" href="#">Display in units of nm</a>
-                  <a class="dropdown-item topobank-change-unit" href="#">Display in units of µm</a>
-                  <a class="dropdown-item topobank-change-unit" href="#">Display in units of mm</a>
-                  <div class="dropdown-divider"></div>
-                  <a class="dropdown-item" href="#">Download as SVG</a>
-                  <a class="dropdown-item" href="#">Download data</a>
-                  <div class="dropdown-divider"></div>
-                  <a class="dropdown-item" href="#" data-toggle="modal" data-target="#statusesModal">View analysis statuses</a>
-                </div>
               </div>
-            </div>
-            <div class="card-body">
-              <div class="spinner"></div>
-              <div class="topobank-scatter-plot topobank-plot-resize"
-                   data-src='["{% url 'analysis:retrieve' analysis.id %}"
-      {% else %}
-                            ,"{% url 'analysis:retrieve' analysis.id %}"
-      {% endifchanged %}
-      {% if forloop.last %}
-              ]'></div>
-            </div>
-            <div class="card-footer">
-              <div class="row">
-                <div class="col-6">
-                  <b>Source topography</b>
-                  <div class="topobank-scatter-plot-topography-control"></div>
-                </div>
-                <div class="col-6">
-                  <b>Data series</b>
-                  <div class="topobank-scatter-plot-series-control"></div>
-                </div>
+              <div class="modal-body">
+                <table class="table table-hover">
+                  <thead>
+                  <tr>
+                    <th scope="col">Topography</th>
+                    <th scope="col">Function</th>
+                    <th scope="col">Positional Args</th>
+                    <th scope="col">Keyword Args</th>
+                    <th scope="col">Task State</th>
+                    <th scope="col">Start Time</th>
+                    <th scope="col">Duration</th>
+                  </tr>
+                  </thead>
+                  <tbody>
+                  {% for analysis in analyses_for_function %}
+                    <tr>
+                      <td>
+                        <a
+                          href="{% url 'manager:topography-detail' analysis.topography_id %}">{{ analysis.topography.name }}</a>
+                      </td>
+                      <td>{{ analysis.function.name }}</td>
+                      <td>{{ analysis.get_args_display }}</td>
+                      <td>{{ analysis.get_kwargs_display }}</td>
+                      <td>{{ analysis.get_task_state_display }}</td>
+                      <td>{{ analysis.start_time|date:"Y-m-d H:i:s" }}</td>
+                      <td>{{ analysis.duration }}</td>
+                    </tr>
+                  {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+              <div class="modal-footer">
+                <button class="btn btn-secondary" type="button" data-dismiss="modal">Close</button>
               </div>
             </div>
           </div>
         </div>
-      {% endif %}
-    {% endfor %}
-  </div>
 
-  <!-- Analyses Statuses Modal-->
-  <div class="modal fade" id="statusesModal" tabindex="-1" role="dialog" aria-labelledby="statusesModalLabel"
-       aria-hidden="true">
-    <div class="modal-dialog modal-lg" role="document">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="statusesModalLabel">Analyses Statuses</h5>
-          <button class="close" type="button" data-dismiss="modal" aria-label="Close">
-            <span aria-hidden="true">×</span>
-          </button>
-        </div>
-        <div class="modal-body">
-          <table class="table table-hover">
-
-            <thead>
-            <tr>
-              <th scope="col">Topography</th>
-              <th scope="col">Function</th>
-              <th scope="col">Positional Args</th>
-              <th scope="col">Keyword Args</th>
-              <th scope="col">Task State</th>
-              <th scope="col">Start Time</th>
-              <th scope="col">Duration</th>
-            </tr>
-            </thead>
-            <tbody>
-            {% for analysis in analyses %}
-              <tr>
-                <td>
-                  <a href="{% url 'manager:topography-detail' analysis.topography_id %}">{{ analysis.topography.name }}</a>
-                </td>
-                <td>{{ analysis.function.name }}</td>
-                <td>{{ analysis.get_args_display }}</td>
-                <td>{{ analysis.get_kwargs_display }}</td>
-                <td>{{ analysis.get_task_state_display }}</td>
-                <td>{{ analysis.start_time|date:"Y-m-d H:i:s" }}</td>
-                <td>{{ analysis.duration }}</td>
-              </tr>
-            {% endfor %}
-
-            </tbody>
-          </table>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-secondary" type="button" data-dismiss="modal">Close</button>
-        </div>
       </div>
-    </div>
+    {% endfor %}
+
   </div>
+
 
 {% endblock content %}
 
