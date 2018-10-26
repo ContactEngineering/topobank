@@ -139,6 +139,10 @@ function render_plot(plot_element, topography_control_element, series_control_el
     chart = $(plot_element).data('chart');
     if (chart) chart.destroy();
 
+    /* Remove all control elements. */
+    $(topography_control_element).empty();
+    $(series_control_element).empty();
+
     /* Scales. */
     var x_scale, y_scale, x_axis, y_axis, x_axis_label, y_axis_label, color_scale;
 
@@ -423,7 +427,7 @@ $(document).ready(function ($) {
     $('.topobank-change-unit').on('click', function (e) {
         /* Extract unit string from dropdown text. */
         t = $(this).html()
-        unit = t.slice(t.length - 2, t.length);
+        unit = t.slice(t.length - 2, t.length).replace(/\s/g, '');
 
         /* Trigger refresh of plot. */
         plot($('.topobank-scatter-plot', $(this).closest('.card')), unit);
