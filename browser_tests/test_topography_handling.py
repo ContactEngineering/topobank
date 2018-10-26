@@ -3,7 +3,7 @@ import pytest
 import os, os.path
 from django.urls import reverse
 from selenium.common.exceptions import NoSuchElementException
-
+from browser_tests.conftest import wait_for_page_load
 
 @pytest.mark.django_db
 def test_deleting_topography(one_empty_surface_testuser_signed_in, webdriver):
@@ -34,11 +34,13 @@ def test_deleting_topography(one_empty_surface_testuser_signed_in, webdriver):
 
     # go to step 3
     link = webdriver.find_element_by_id("submit-id-save")
-    link.click()
+    with wait_for_page_load(webdriver):
+        link.click()
 
     # finally save
     link = webdriver.find_element_by_id("submit-id-save")
-    link.click()
+    with wait_for_page_load(webdriver):
+        link.click()
 
     #
     # Now open topography
@@ -56,7 +58,8 @@ def test_deleting_topography(one_empty_surface_testuser_signed_in, webdriver):
     table_row.click()
 
     link = webdriver.find_element_by_link_text("Delete")
-    link.click()
+    with wait_for_page_load(webdriver):
+        link.click()
 
     #
     # Topography should not be shown any more

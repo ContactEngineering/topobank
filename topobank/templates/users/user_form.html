@@ -3,6 +3,12 @@
 
 {% block title %}{{ user.username }}{% endblock %}
 
+{% block breadcrumbs %}
+  <li class="breadcrumb-item">User Profile</li>
+  <li class="breadcrumb-item active" aria-current="page">Edit</li>
+{% endblock breadcrumbs %}
+
+
 {% block content %}
   <h1>{{ user.username }}</h1>
   <form class="form-horizontal" method="post" action="{% url 'users:update' %}">

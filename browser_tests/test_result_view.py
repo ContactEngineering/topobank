@@ -4,6 +4,8 @@ import pytest
 from topobank.analysis.models import AnalysisFunction, Analysis
 from topobank.manager.models import Surface
 
+from browser_tests.conftest import wait_for_page_load
+
 @pytest.mark.django_db
 def test_grouping_by_function(surface_1_with_topographies_testuser_logged_in, webdriver):
 
@@ -59,7 +61,8 @@ def test_grouping_by_function(surface_1_with_topographies_testuser_logged_in, we
     # Select both analyses functions and the surface
     #
     link = webdriver.find_element_by_link_text("Analyses")
-    link.click()
+    with wait_for_page_load(webdriver):
+        link.click()
 
     topo_search_field = webdriver.find_elements_by_class_name("select2-search__field")[0]
     topo_search_field.send_keys("Surface 1\n")

@@ -220,8 +220,10 @@ class TopographySelectForm(forms.Form):
     selection = TypedMultipleChoiceField(
         required=False,
         widget=Select2MultipleWidget,
-        label="Selected Topographies or Surfaces",
-        help_text="Select one or multiple topographies or surfaces. Search by name.")
+        label="Items chosen for selection",
+        help_text="""Select one or multiple topographies or surfaces. Search by name.
+        A surface represents all its topographies.
+        """)
 
     helper = FormHelper()
     helper.form_method = 'POST'
@@ -232,6 +234,11 @@ class TopographySelectForm(forms.Form):
         FormActions(
             Submit('save', 'Save selection', css_class='btn-primary'),
             Submit('select-all', 'Select all', css_class='btn-primary'),
-            Submit('analyze', 'Trigger analysis for selection', css_class='btn-primary'),
+            Submit('analyze', 'Save selection & trigger analysis', css_class='btn-primary'),
+            HTML("""
+                <a href="{% url 'manager:surface-create' %}" class="btn btn-primary">
+                    <i class="fa fa-plus-square-o"></i> Add Surface
+                </a>
+            """)
         ),
     )

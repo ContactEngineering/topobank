@@ -40,24 +40,43 @@
 
     <nav class="navbar navbar-expand navbar-light bg-light static-top">
 
-      <a class="navbar-brand mr-1" href="{% url 'home' %}"><i class="fa fa-fw fa-database"></i>TopoBank</a>
+
 
       <!-- Navbar -->
 
-      <ul class="navbar-nav mr-auto ml-auto">
+      {# Show user where we are #}
 
-        <li class="nav-item">
-          <a class="nav-link" href="{% url 'manager:surface-list' %}">
-            <i class="fa fa-fw fa-edit"></i>
-            <span>Surfaces</span>
+      <ol class="navbar-nav">
+        <li class="breadcrumb-item">
+          <a class="" href="{% url 'home' %}">
+            <i class="fa fa-fw fa-database"></i>TopoBank
           </a>
         </li>
-        <li class="nav-item">
-          <a class="nav-link" href="{% url 'analysis:list' %}">
-            <i class="fa fa-fw fa-area-chart"></i>
-            <span>Analyses</span>
-          </a>
-        </li>
+        {% block breadcrumbs %}
+        {% endblock breadcrumbs %}
+      </ol>
+
+      <ul class="navbar-nav ml-auto">
+
+        {% url 'manager:surface-list' as surfaces_url %}
+        {% url 'analysis:list' as analyses_url %}
+
+        {% if surfaces_url not in request.path %}
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'manager:surface-list' %}">
+              <i class="fa fa-fw fa-edit"></i>
+              <span>Surfaces</span>
+            </a>
+          </li>
+        {% endif %}
+        {% if analyses_url not in request.path %}
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'analysis:list' %}">
+              <i class="fa fa-fw fa-area-chart"></i>
+              <span>Analyses</span>
+            </a>
+          </li>
+        {% endif %}
       </ul>
 
       <ul class="navbar-nav">
@@ -183,6 +202,8 @@
 
         <div class="container-fluid">
 
+
+
           {# Places Messages #}
           {% if messages %}
             {% for message in messages %}
@@ -190,14 +211,13 @@
             {% endfor %}
           {% endif %}
 
-          {# Show user where we are #}
-          <!-- TODO add Breadcrumbs?! -->
-
+          <!--
           <div class="row">
             <div class="col-xl-12">
               <h1 class="page-header">{% block content-title %}{% endblock content-title %}</h1>
             </div>
           </div>
+          -->
 
           {# Insert actual content, see other templates #}
           {% block content %}

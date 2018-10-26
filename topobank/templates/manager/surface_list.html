@@ -17,6 +17,12 @@
   </div>
 {% endblock content-title %}
 
+{% block breadcrumbs %}
+  <li class="breadcrumb-item active" aria-current="page">
+    Surfaces
+  </li>
+{% endblock breadcrumbs %}
+
 {% block content %}
 
 <div class="card ">
@@ -24,7 +30,7 @@
   <div>
     <div class="card">
       <div class="card-header">
-        Select topographies
+        Select topographies to show or analyze
       </div>
       <div class="card-body">
         {% crispy form form.helper %}

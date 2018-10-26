@@ -1,8 +1,11 @@
 {% extends "base.html" %}
 {% load static i18n %}
+
+{% block breadcrumbs %}
+  <li class="breadcrumb-item active" aria-current="page">Home</li>
+{% endblock breadcrumbs %}
+
 {% block content %}
-
-
     <div class="jumbotron">
       <div class="container">
         <h1 class="display-3">Welcome to <b>TopoBank</b>!</h1>

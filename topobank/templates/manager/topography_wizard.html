@@ -3,6 +3,16 @@
 {% load fontawesome %}
 {% load crispy_forms_tags %}
 
+{% block breadcrumbs %}
+  <li class="breadcrumb-item">
+    <a href="{% url 'manager:surface-list' %}">Surfaces</a>
+  </li>
+  <li class="breadcrumb-item">
+    <a href="{% url 'manager:surface-detail' surface.id %}">{{ surface.name }}</a>
+  </li>
+  <li class="breadcrumb-item active" aria-current="page">New Topography</li>
+{% endblock breadcrumbs %}
+
 {% block content %}
 
 <div class="card">
@@ -11,6 +21,7 @@
         {% fontawesome_icon 'edit' %}
         Edit topography <b>{{ topography.id }}</b>
       {% else %}
+        {% fontawesome_icon 'plus-square-o' %}
         Create new topography for surface <i>{{ surface.name }}</i>
       {% endif %}
       <div class="pull-right">

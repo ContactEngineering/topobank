@@ -5,6 +5,15 @@
 {% block content-title %}Details for Surface <i>{{ surface.name }}</i>
 {% endblock content-title %}
 
+{% block breadcrumbs %}
+  <li class="breadcrumb-item">
+    <a href="{% url 'manager:surface-list' %}">Surfaces</a>
+  </li>
+  <li class="breadcrumb-item active" aria-current="page">
+    {{ surface.name }}
+  </li>
+{% endblock breadcrumbs %}
+
 {% block content %}
 <div class="card text-center container-fluid">
   <div class="card-header">

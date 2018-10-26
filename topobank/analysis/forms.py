@@ -16,10 +16,11 @@ class TopographyFunctionSelectForm(forms.Form):
         self.fields['selection'].choices = lambda: selection_choices(user)
 
     selection = TypedMultipleChoiceField( # TODO remove dupliate code, compare with manager.forms
-        required=False,
         widget=Select2MultipleWidget,
-        label="Selected Topographies or Surfaces",
-        help_text="Select one or multiple topographies or surfaces. Search by name.")
+        label="Chosen Topographies",
+        help_text="""Select one or multiple topographies or surfaces. Search by name.
+                  A surface represents all its topographies.
+                  """)
 
     functions = ModelMultipleChoiceField(queryset=AnalysisFunction.objects.all(),
                                          widget=Select2MultipleWidget,
