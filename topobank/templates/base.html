@@ -58,10 +58,7 @@
 
       <ul class="navbar-nav ml-auto">
 
-        {% url 'manager:surface-list' as surfaces_url %}
-        {% url 'analysis:list' as analyses_url %}
-
-        {% if surfaces_url not in request.path %}
+        {% if request.resolver_match.app_name != 'manager' %}
           <li class="nav-item">
             <a class="nav-link" href="{% url 'manager:surface-list' %}">
               <i class="fa fa-fw fa-edit"></i>
@@ -69,7 +66,7 @@
             </a>
           </li>
         {% endif %}
-        {% if analyses_url not in request.path %}
+        {% if request.resolver_match.app_name != 'analysis' %}
           <li class="nav-item">
             <a class="nav-link" href="{% url 'analysis:list' %}">
               <i class="fa fa-fw fa-area-chart"></i>
