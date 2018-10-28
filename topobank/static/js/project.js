@@ -139,6 +139,10 @@ function render_plot(plot_element, topography_control_element, series_control_el
     chart = $(plot_element).data('chart');
     if (chart) chart.destroy();
 
+    /* Remove all control elements. */
+    $(topography_control_element).empty();
+    $(series_control_element).empty();
+
     /* Scales. */
     var x_scale, y_scale, x_axis, y_axis, x_axis_label, y_axis_label, color_scale;
 
@@ -254,6 +258,7 @@ function render_plot(plot_element, topography_control_element, series_control_el
                     .x((d) => d.x, x_scale)
                     .y((d) => d.y, y_scale)
                     .attr('stroke', topograpgy_uid, color_scale);
+                plot.visibility_counter = 0;
                 plots.push(plot);
                 series[series_uid].push(plot);
             }
@@ -265,6 +270,7 @@ function render_plot(plot_element, topography_control_element, series_control_el
                     .y((d) => d.y, y_scale)
                     .symbol(() => symbol)
                     .attr('stroke', 'black').attr('fill', topograpgy_uid, color_scale);
+                plot.visibility_counter = 0;
                 plots.push(plot);
                 series[series_uid].push(plot);
             }
@@ -281,13 +287,14 @@ function render_plot(plot_element, topography_control_element, series_control_el
 
                 /* Change visbility of corresponding plots if checkbox is clicked. */
                 $('#' + series_uid).change(function () {
-                    var visibility = "hidden";
+                    var visibility = -1;
                     if (this.checked) {
-                        visibility = "visible";
+                        visibility = 1;
                     }
                     for (var plot of series[series_uid]) {
+                        plot.visibility_counter += visibility;
                         var sel = plot.selections();
-                        sel.attr("visibility", visibility);
+                        sel.attr("visibility", plot.visibility_counter >= 0 ? "visible" : "hidden");
                     }
                 });
             }
@@ -304,13 +311,14 @@ function render_plot(plot_element, topography_control_element, series_control_el
 
         /* Change visbility of corresponding plots if checkbox is clicked. */
         $('#' + topograpgy_uid).change(function() {
-            var visibility = "hidden";
+            var visibility = -1;
             if (this.checked) {
-                visibility = "visible";
+                visibility = 1;
             }
             for (var plot of plots) {
+                plot.visibility_counter += visibility;
                 var sel = plot.selections();
-                sel.attr("visibility", visibility);
+                sel.attr("visibility", plot.visibility_counter >= 0 ? "visible" : "hidden");
             }
         });
 
@@ -423,7 +431,7 @@ $(document).ready(function ($) {
     $('.topobank-change-unit').on('click', function (e) {
         /* Extract unit string from dropdown text. */
         t = $(this).html()
-        unit = t.slice(t.length - 2, t.length);
+        unit = t.slice(t.length - 2, t.length).replace(/\s/g, '');
 
         /* Trigger refresh of plot. */
         plot($('.topobank-scatter-plot', $(this).closest('.card')), unit);
