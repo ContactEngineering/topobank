@@ -258,6 +258,7 @@ function render_plot(plot_element, topography_control_element, series_control_el
                     .x((d) => d.x, x_scale)
                     .y((d) => d.y, y_scale)
                     .attr('stroke', topograpgy_uid, color_scale);
+                plot.visibility_counter = 0;
                 plots.push(plot);
                 series[series_uid].push(plot);
             }
@@ -269,6 +270,7 @@ function render_plot(plot_element, topography_control_element, series_control_el
                     .y((d) => d.y, y_scale)
                     .symbol(() => symbol)
                     .attr('stroke', 'black').attr('fill', topograpgy_uid, color_scale);
+                plot.visibility_counter = 0;
                 plots.push(plot);
                 series[series_uid].push(plot);
             }
@@ -285,13 +287,14 @@ function render_plot(plot_element, topography_control_element, series_control_el
 
                 /* Change visbility of corresponding plots if checkbox is clicked. */
                 $('#' + series_uid).change(function () {
-                    var visibility = "hidden";
+                    var visibility = -1;
                     if (this.checked) {
-                        visibility = "visible";
+                        visibility = 1;
                     }
                     for (var plot of series[series_uid]) {
+                        plot.visibility_counter += visibility;
                         var sel = plot.selections();
-                        sel.attr("visibility", visibility);
+                        sel.attr("visibility", plot.visibility_counter >= 0 ? "visible" : "hidden");
                     }
                 });
             }
@@ -308,13 +311,14 @@ function render_plot(plot_element, topography_control_element, series_control_el
 
         /* Change visbility of corresponding plots if checkbox is clicked. */
         $('#' + topograpgy_uid).change(function() {
-            var visibility = "hidden";
+            var visibility = -1;
             if (this.checked) {
-                visibility = "visible";
+                visibility = 1;
             }
             for (var plot of plots) {
+                plot.visibility_counter += visibility;
                 var sel = plot.selections();
-                sel.attr("visibility", visibility);
+                sel.attr("visibility", plot.visibility_counter >= 0 ? "visible" : "hidden");
             }
         });
 
