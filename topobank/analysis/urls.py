@@ -15,5 +15,14 @@ urlpatterns = [
         view=login_required(views.AnalysisDetailView.as_view()),
         name='retrieve'
     ),
-
+    url(
+        regex=r'(?P<ids>[\d,]+)/download/txt$',
+        view=login_required(views.download_analysis_to_txt),
+        name='download-txt'
+    ),
+    url(
+        regex=r'(?P<ids>[\d,]+)/download/xlsx$',
+        view=login_required(views.download_analysis_to_xlsx),
+        name='download-xlsx'
+    ),
 ]
