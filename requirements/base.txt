@@ -51,3 +51,6 @@ django-select2==6.3.1
 
 # pandas
 pandas==0.23.4
+
+# openpyxl
+openpyxl==2.5.9
