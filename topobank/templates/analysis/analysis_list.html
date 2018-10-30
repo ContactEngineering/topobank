@@ -48,12 +48,17 @@
                 <a class="dropdown-item topobank-change-unit" href="#">Display in units of nm</a>
                 <a class="dropdown-item topobank-change-unit" href="#">Display in units of µm</a>
                 <a class="dropdown-item topobank-change-unit" href="#">Display in units of mm</a>
+                <a class="dropdown-item topobank-change-unit" href="#">Display in units of m</a>
                 <div class="dropdown-divider"></div>
+                <a class="dropdown-item" href="{% url 'analysis:download-txt' analyses_for_function|analyses_results_ids_list_str %}">Download as TXT</a>
+                <a class="dropdown-item" href="{% url 'analysis:download-xlsx' analyses_for_function|analyses_results_ids_list_str %}">Download as XLSX</a>
+                <div class="dropdown-divider"></div>
+                <a class="dropdown-item" href="#">Download as PNG</a>
+                <a class="dropdown-item" href="#">Download as PDF</a>
                 <a class="dropdown-item" href="#">Download as SVG</a>
-                <a class="dropdown-item" href="#">Download data</a>
                 <div class="dropdown-divider"></div>
                 <a class="dropdown-item" href="#" data-toggle="modal"
-                   data-target="#statusesModal-{{ forloop.counter }}">View analysis statuses</a>
+                   data-target="#statusesModal-{{ forloop.counter }}">Tasks</a>
               </div>
             </div>
           </div>
@@ -84,7 +89,7 @@
           <div class="modal-dialog modal-lg" role="document">
             <div class="modal-content">
               <div class="modal-header">
-                <h5 class="modal-title" id="statusesModalLabel">Analyses Statuses</h5>
+                <h5 class="modal-title" id="statusesModalLabel">Tasks</h5>
                 <button class="close" type="button" data-dismiss="modal" aria-label="Close">
                   <span aria-hidden="true">×</span>
                 </button>
