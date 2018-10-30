@@ -48,3 +48,6 @@ django-formtools==2.1
 
 # multiple select widget
 django-select2==6.3.1
+
+# pandas
+pandas==0.23.4
