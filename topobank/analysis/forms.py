@@ -1,7 +1,7 @@
 from django.forms import ModelMultipleChoiceField, forms, TypedMultipleChoiceField
 from django_select2.forms import Select2MultipleWidget
 from crispy_forms.helper import FormHelper
-from crispy_forms.layout import Submit, Layout, Field, HTML, Div, Hidden, Fieldset
+from crispy_forms.layout import Submit, Layout, Field, HTML, Div, Hidden, Fieldset, Row, Column
 from crispy_forms.bootstrap import (TabHolder, Tab, FormActions, InlineRadios)
 
 from ..manager.utils import selection_choices
@@ -31,11 +31,13 @@ class TopographyFunctionSelectForm(forms.Form):
     helper.form_method = 'POST'
 
     helper.layout = Layout(
-        Field('selection'),
-        Field('functions'),
-        FormActions(
-            Submit('save', 'Save selection and update results', css_class='btn-primary'),
-        ),
+        Div(
+            Field('selection', css_class='col-5'),
+            Field('functions', css_class='col-5'),
+            FormActions(
+                Submit('save', 'Save selection and update results', css_class='btn btn-primary'),
+            ),
+        )
     )
 
 

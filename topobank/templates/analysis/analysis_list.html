@@ -15,23 +15,20 @@
   <li class="breadcrumb-item active" aria-current="page">Analyses</li>
 {% endblock breadcrumbs %}
 
-{% block content %}
-
+{% block searchbox %}
   <!-- Filter for topographies and analysis functions -->
-  <div class="row">
-    <div class="col-xl-12 mb-4">
-      <div class="card">
-        <div class="card-header">
-          Filter results by topographies and analysis functions
-        </div>
-        <div class="card-body">
-          {% crispy form form.helper %}
-        </div>
-      </div>
+  <div class="bg-light border-top border-bottom">
+    <div class="container-fluid">
+      {% crispy form form.helper %}
     </div>
   </div>
+{% endblock searchbox %}
 
-  <!-- Show one card for each analysis function -->
+{% block content %}
+
+  <!--
+    Show one card for each analysis function
+  -->
   <div class="row">
     {% regroup analyses by function as function_list %}
     {% for function, analyses_for_function in function_list %}
