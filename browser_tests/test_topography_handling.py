@@ -26,9 +26,6 @@ def test_deleting_topography(one_empty_surface_testuser_signed_in, webdriver):
     link = webdriver.find_element_by_id("submit-id-save")
     link.click()
 
-    input = webdriver.find_element_by_id('id_1-name')
-    input.send_keys("Test Topography")
-
     input = webdriver.find_element_by_id('id_1-measurement_date')
     input.send_keys("2018-02-01") # should not be validated on cancel
 
