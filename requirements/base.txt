@@ -30,10 +30,7 @@ celery==4.2
 #
 # Contact Mechanics
 #
-# Currently it is not possible to install pyco via pip
-#git+ssh://git@github.com/pastewka/PyCo.git@0.17.0#egg=PyCo
-#git+https://github.com/pastewka/PyCo.git
-#pyco==0.17.0
+git+ssh://git@github.com/pastewka/PyCo.git@0.18.0#egg=PyCo
 
 # image manipulation like thumbnails etc.
 django-imagekit==4.0.2
