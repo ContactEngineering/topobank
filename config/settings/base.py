@@ -262,3 +262,14 @@ ACCOUNT_LOGOUT_ON_GET = True # True: disable intermediate page
 
 # Your stuff...
 # ------------------------------------------------------------------------------
+
+#
+# Local references for "select2"
+#
+# An alternative is maybe "django-bower" which could be used
+# to resolve all external javascript dependencies and install them
+# locally in a defined way
+SELECT2_JS = '/static/vendor/select2/js/select2.js'
+SELECT2_CSS = '/static/vendor/select2/css/select2.css'
+SELECT2_I18N_PATH = '/static/vendor/select2/js/i18n'
+# The default for all these are pointers to Cloudflare CDN
