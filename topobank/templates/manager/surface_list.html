@@ -23,22 +23,16 @@
   </li>
 {% endblock breadcrumbs %}
 
-{% block content %}
-
-  <div class="row">
-    <div class="col-xl-12 mb-4">
-      <div class="card">
-        <div class="card-header">
-          Select topographies to show or analyze
-        </div>
-        <div class="card-body">
-          {% crispy form form.helper %}
-        </div>
-      </div>
+{% block searchbox %}
+  <!-- Filter for topographies  -->
+  <div class="bg-light border-top border-bottom">
+    <div class="container-fluid">
+      {% crispy form form.helper %}
     </div>
   </div>
+{% endblock searchbox %}
 
-
+{% block content %}
 
   <div class="row">
     {% for surface in surfaces %}
