@@ -56,8 +56,9 @@
         {% endblock breadcrumbs %}
       </ol>
 
-      <ul class="navbar-nav ml-auto">
 
+      <ul class="navbar-nav ml-auto">
+      {% if request.user.is_authenticated %}
         {% if request.resolver_match.app_name != 'manager' %}
           <li class="nav-item">
             <a class="nav-link" href="{% url 'manager:surface-list' %}">
@@ -168,6 +169,7 @@
             </a>
           </div>
         </li>
+        {% endif %}
         <li class="nav-item dropdown no-arrow">
           <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-toggle="dropdown"
              aria-haspopup="true" aria-expanded="false">
