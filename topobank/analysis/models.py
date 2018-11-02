@@ -24,7 +24,6 @@ class Analysis(models.Model):
     topography = models.ForeignKey(Topography,
                                    on_delete=models.CASCADE)
 
-    args = models.BinaryField() # for pickle TODO rename to "other_args", since topography is first arg?
     kwargs = models.BinaryField() # for pickle
 
     task_id = models.CharField(max_length=155, unique=True, null=True)
@@ -50,9 +49,6 @@ class Analysis(models.Model):
             return None
 
         return self.end_time-self.start_time
-
-    def get_args_display(self):
-        return str(pickle.loads(self.args))
 
     def get_kwargs_display(self):
         return str(pickle.loads(self.kwargs))
