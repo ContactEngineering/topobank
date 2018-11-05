@@ -203,22 +203,12 @@
 
         <div class="container-fluid">
 
-
-
           {# Places Messages #}
           {% if messages %}
             {% for message in messages %}
               <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">{{ message }}</div>
             {% endfor %}
           {% endif %}
-
-          <!--
-          <div class="row">
-            <div class="col-xl-12">
-              <h1 class="page-header">{% block content-title %}{% endblock content-title %}</h1>
-            </div>
-          </div>
-          -->
 
           {# Insert actual content, see other templates #}
           {% block content %}
@@ -286,11 +276,6 @@
 
     <!-- Unit conversion --->
     <script src="{% static 'vendor/convert-units/convert-units.js' %}"></script>
-
-    <!-- Page level plugin JavaScript-->
-    <!-- <script src="../vendor/chart.js/Chart.min.js"></script> -->
-    <!-- <script src="../vendor/datatables/jquery.dataTables.js"></script> -->
-    <!-- <script src="../vendor/datatables/dataTables.bootstrap4.js"></script> -->
 
     <!-- D3 and Plottable -->
     <script src="https://d3js.org/d3.v5.min.js"></script>
