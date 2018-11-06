@@ -33,7 +33,8 @@ def test_selection_synchronize(surface_1_with_topographies_testuser_logged_in, w
     # Goto analyses page, check whether selection is only one topography
     #
     link = webdriver.find_element_by_link_text('Analyses')
-    link.click()
+    with wait_for_page_load(webdriver):
+        link.click()
 
     selection_choices = webdriver.find_elements_by_class_name("select2-selection__choice")
 
@@ -79,7 +80,7 @@ def test_selection_only_own_surfaces_and_topos(live_server, django_user_model,
         email = "user{}".format(i) + "@example.org"
         username = email
 
-        user = django_user_model.objects.create_user(username=username, password=password)
+        user = django_user_model.objects.create_user(username=username, password=password, name="Test User")
 
         from allauth.account.models import EmailAddress
         EmailAddress.objects.create(user=user, verified=True, email=email)
@@ -99,7 +100,7 @@ def test_selection_only_own_surfaces_and_topos(live_server, django_user_model,
         link.click()
 
         input = webdriver.find_element_by_id("id_name")
-        surface_name = "Surface 1 of {}".format(username)
+        surface_name = "Surface 1 of {}".format(user.name)
         input.send_keys(surface_name)
 
         link = webdriver.find_element_by_id("submit-id-save")
@@ -113,9 +114,6 @@ def test_selection_only_own_surfaces_and_topos(live_server, django_user_model,
                       for fn in ['example3.di', 'example4.txt']]
 
         for dp in data_paths:
-
-            link = webdriver.find_element_by_link_text("Surfaces")
-            link.click()
 
             link = webdriver.find_element_by_link_text("Add Topography")
             link.click()
@@ -143,6 +141,11 @@ def test_selection_only_own_surfaces_and_topos(live_server, django_user_model,
 
             # topography is saved
 
+            # switch to surface view in order to be able to add another topography
+            link = webdriver.find_element_by_link_text("Surface 1")
+            link.click()
+
+
         #
         # Logout
         #
@@ -160,7 +163,8 @@ def test_selection_only_own_surfaces_and_topos(live_server, django_user_model,
     # Goto to surface selection, see if only own stuff
     #
     link = webdriver.find_element_by_link_text('Surfaces')
-    link.click()
+    with wait_for_page_load(webdriver):
+        link.click()
 
     search_field = webdriver.find_element_by_class_name("select2-search__field")
     search_field.click() # activate results
@@ -196,7 +200,8 @@ def test_selection_only_own_surfaces_and_topos(live_server, django_user_model,
 def test_show_empty_surface_when_explicitly_selected(one_empty_surface_testuser_signed_in, webdriver):
 
     link = webdriver.find_element_by_link_text("Surfaces")
-    link.click()
+    with wait_for_page_load(webdriver):
+        link.click()
 
     # Enter Surface name and press select
     topo_search_field = webdriver.find_elements_by_class_name("select2-search__field")[0]

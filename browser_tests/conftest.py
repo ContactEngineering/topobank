@@ -14,7 +14,7 @@ def webdriver():
     # driver = Firefox(
     #     executable_path='/home/michael/usr/bin/geckodriver',
     #     firefox_binary='/usr/bin/firefox'
-    # )
+    # ) # firefox does not work currently
     driver = Chrome()
     yield driver
     driver.quit()
@@ -68,7 +68,7 @@ def logout_user(webdriver):
 
 
 @pytest.fixture(scope='function')
-def no_surfaces_testuser_signed_in(live_server, webdriver, django_user_model):
+def no_surfaces_testuser_signed_in(live_server, webdriver, django_user_model, settings):
     """Initialize a test with a "testuser" and no surfaces + login
 
     :param live_server:
@@ -76,64 +76,75 @@ def no_surfaces_testuser_signed_in(live_server, webdriver, django_user_model):
     :return:
     """
     #
-    # Create a verified test user
+    # Switch media to a dedicated directory
     #
-    password = "bar"
-    email = "user1@example.org"
-    username = email
+    import tempfile
+    with tempfile.TemporaryDirectory(prefix='pytest-django-media-') as tmpdirname:
+        settings.MEDIA_ROOT = tmpdirname
 
-    user = django_user_model.objects.create_user(username=username, password=password)
+        #
+        # Create a verified test user
+        #
+        password = "bar"
+        email = "user1@example.org"
+        username = email
 
-    from allauth.account.models import EmailAddress
-    EmailAddress.objects.create(user=user, verified=True, email=email)
+        user = django_user_model.objects.create_user(username=username, password=password, name="Test User")
+
+        from allauth.account.models import EmailAddress
+        EmailAddress.objects.create(user=user, verified=True, email=email)
+
+        #
+        # Login this user
+        #
+        webdriver.get(live_server.url + '/')
+
+        user_dropwdown = webdriver.find_element_by_id('userDropdown')
+        user_dropwdown.click()
+
+        link = webdriver.find_element_by_partial_link_text("Sign In")
+        with wait_for_page_load(webdriver):
+            link.click()
+
+        username_input = webdriver.find_element_by_id('id_login')
+        username_input.send_keys(username)
+
+        username_input = webdriver.find_element_by_id('id_password')
+        username_input.send_keys(password)
+
+        btn = webdriver.find_element_by_xpath("//button[contains(text(),'Sign In')]")
+        with wait_for_page_load(webdriver):
+            btn.click()
+
+        #
+        # Sign In is no longer there, but Sign Out
+        #
+        with pytest.raises(NoSuchElementException):
+            webdriver.find_element_by_partial_link_text("Sign In")
+
+        #
+        # here the test takes place in the test function which uses this fixture
+        #
+        yield
+
+        #
+        # Teardown code
+        #
+        logout_user(webdriver)
+
+        #
+        # Sign Out is no longer there, but Sign In
+        #
+        user_dropwdown = webdriver.find_element_by_id('userDropdown')
+        user_dropwdown.click()
+
+        with pytest.raises(NoSuchElementException):
+            webdriver.find_element_by_partial_link_text("Sign Out")
+
 
     #
-    # Login this user
+    # temporary media directory is deleted again
     #
-    webdriver.get(live_server.url + '/')
-
-    user_dropwdown = webdriver.find_element_by_id('userDropdown')
-    user_dropwdown.click()
-
-    link = webdriver.find_element_by_partial_link_text("Sign In")
-    with wait_for_page_load(webdriver):
-        link.click()
-
-    username_input = webdriver.find_element_by_id('id_login')
-    username_input.send_keys(username)
-
-    username_input = webdriver.find_element_by_id('id_password')
-    username_input.send_keys(password)
-
-    btn = webdriver.find_element_by_xpath("//button[contains(text(),'Sign In')]")
-    with wait_for_page_load(webdriver):
-        btn.click()
-
-    #
-    # Sign In is no longer there, but Sign Out
-    #
-    with pytest.raises(NoSuchElementException):
-        webdriver.find_element_by_partial_link_text("Sign In")
-
-    #
-    # here the test takes place in the test function which uses this fixture
-    #
-    yield
-
-    #
-    # Teardown code
-    #
-    logout_user(webdriver)
-
-    #
-    # Sign Out is no longer there, but Sign In
-    #
-    user_dropwdown = webdriver.find_element_by_id('userDropdown')
-    user_dropwdown.click()
-
-    with pytest.raises(NoSuchElementException):
-        webdriver.find_element_by_partial_link_text("Sign Out")
-
 
 @pytest.fixture(scope="function")
 def one_empty_surface_testuser_signed_in(no_surfaces_testuser_signed_in, webdriver):
@@ -167,7 +178,8 @@ def surface_1_with_topographies_testuser_logged_in(one_empty_surface_testuser_si
     # Select surface 1 in order to be able to add a topography
     #
     link = webdriver.find_element_by_link_text("Surfaces")
-    link.click()
+    with wait_for_page_load(webdriver):
+        link.click()
     search_field = webdriver.find_element_by_class_name("select2-search__field")
     search_field.send_keys("Surface 1\n")
     btn = webdriver.find_element_by_id("submit-id-save")
@@ -194,11 +206,20 @@ def surface_1_with_topographies_testuser_logged_in(one_empty_surface_testuser_si
 
         # finally save
         link = webdriver.find_element_by_id("submit-id-save")
-        link.click()
+        with wait_for_page_load(webdriver):
+            link.click() # let's wait here, because some data file must be uploaded
 
         # switch to surface view in order to be able to add another topography
         link = webdriver.find_element_by_link_text("Surface 1")
+        with wait_for_page_load(webdriver):
+            link.click()
+
+    # remove selection again
+    link = webdriver.find_element_by_link_text("Surfaces")
+    with wait_for_page_load(webdriver):
         link.click()
+    clear_selection_link = webdriver.find_element_by_class_name("select2-selection__clear")
+    clear_selection_link.click()
 
     # goto start page
     link = webdriver.find_element_by_link_text("TopoBank")
