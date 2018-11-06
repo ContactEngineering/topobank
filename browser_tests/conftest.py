@@ -4,6 +4,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.by import By
+from django.conf import settings
 
 from contextlib import contextmanager
 import os, os.path
@@ -77,9 +78,10 @@ def no_surfaces_testuser_signed_in(live_server, webdriver, django_user_model):
     #
     # Create a verified test user
     #
-    username = "user1"
     password = "bar"
-    email = username + "@example.org"
+    email = "user1@example.org"
+    username = email
+
     user = django_user_model.objects.create_user(username=username, password=password)
 
     from allauth.account.models import EmailAddress
@@ -148,23 +150,32 @@ def one_empty_surface_testuser_signed_in(no_surfaces_testuser_signed_in, webdriv
     link = webdriver.find_element_by_id("submit-id-save")
     link.click()
 
+    # goto start page
+    link = webdriver.find_element_by_link_text("TopoBank")
+    link.click()
+
 @pytest.fixture(scope="function")
 def surface_1_with_topographies_testuser_logged_in(one_empty_surface_testuser_signed_in, webdriver):
 
     datafile_paths_prefix = 'topobank/manager/fixtures/'
-    datafile_paths_prefix = os.path.join(os.getcwd(), datafile_paths_prefix)
+    datafile_paths_prefix = os.path.join(str(settings.ROOT_DIR), datafile_paths_prefix)
 
     data_paths = [ os.path.join(datafile_paths_prefix, fn)
                    for fn in ['example3.di', 'example4.txt']]
 
+    #
+    # Select surface 1 in order to be able to add a topography
+    #
+    link = webdriver.find_element_by_link_text("Surfaces")
+    link.click()
+    search_field = webdriver.find_element_by_class_name("select2-search__field")
+    search_field.send_keys("Surface 1\n")
+    btn = webdriver.find_element_by_id("submit-id-save")
+    btn.click()
 
     for dp in data_paths:
 
-        link = webdriver.find_element_by_link_text("Surfaces")
-        link.click()
-
         link = webdriver.find_element_by_link_text("Add Topography")
-
         link.click()
 
         input = webdriver.find_element_by_id("id_0-datafile")
@@ -184,3 +195,11 @@ def surface_1_with_topographies_testuser_logged_in(one_empty_surface_testuser_si
         # finally save
         link = webdriver.find_element_by_id("submit-id-save")
         link.click()
+
+        # switch to surface view in order to be able to add another topography
+        link = webdriver.find_element_by_link_text("Surface 1")
+        link.click()
+
+    # goto start page
+    link = webdriver.find_element_by_link_text("TopoBank")
+    link.click()
