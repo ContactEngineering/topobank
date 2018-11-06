@@ -166,8 +166,7 @@ class TopographyCreateWizard(SessionWizardView):
         # move file in file system (wizard files will be deleted)
         from .models import user_directory_path
         old_path = d['datafile']
-        new_path = os.path.join(settings.MEDIA_ROOT, 'topographies',
-                                'user_{}'.format(self.request.user.pk),
+        new_path = os.path.join(self.request.user.get_media_path(),
                                 os.path.basename(d['datafile']))
         os.rename(old_path, new_path)
 
