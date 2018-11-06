@@ -1898,6 +1898,10 @@ function exponential(maxNumberOfDecimalPlaces) {
             var e = Math.floor(Math.log(sign * d) / Math.log(10));
             var m = sign * d / Math.pow(10, e);
             var m_rounded = Math.round(m * multiplier) / multiplier;
+            if (m_rounded == 10) {
+                m_rounded = 1;
+                e++;
+            }
             if (e == 0) {
                 return String(sign * m_rounded); // do not attach ×10⁰ == 1
             }
@@ -34889,11 +34893,39 @@ var Log = /** @class */ (function (_super) {
     /**
      * @constructor
      */
-    function Log(base) {
+    function Log(base, minimumNumberOfTicks) {
         if (base === void 0) { base = 10; }
+        if (minimumNumberOfTicks === void 0) { minimumNumberOfTicks = 4; }
         var _this = _super.call(this) || this;
+        _this._logTickGenerator = function (scale) {
+            var domain = _this._getDomain();
+            var min = domain[0];
+            var max = domain[1];
+            var j = Math.ceil(Math.log(max) / Math.log(_this._base));
+            var i = Math.floor(Math.log(min) / Math.log(_this._base));
+            var ticks = [];
+            if (i < j) {
+                for (; i < j; ++i) {
+                    ticks.push(Math.pow(_this._base, i));
+                }
+            }
+            else {
+                for (; i > j; --i) {
+                    ticks.push(Math.pow(_this._base, i));
+                }
+            }
+            if (ticks.length < _this._minimumNumberOfTicks) {
+                return _this._d3Scale.ticks(_this._minimumNumberOfTicks);
+            }
+            else {
+                return ticks;
+            }
+        };
+        _this._base = base;
+        _this._minimumNumberOfTicks = minimumNumberOfTicks;
         _this._d3Scale = d3.scaleLog().base(base);
         _this._setDomain(_this._defaultExtent());
+        _this.tickGenerator(_this._logTickGenerator);
         return _this;
     }
     Log.prototype._defaultExtent = function () {
