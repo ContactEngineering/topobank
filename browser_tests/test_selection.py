@@ -8,7 +8,7 @@ import os, os.path
 from topobank.analysis.models import AnalysisFunction
 from browser_tests.conftest import wait_for_page_load, logout_user, login_user
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=False)
 def test_selection_synchronize(surface_1_with_topographies_testuser_logged_in, webdriver):
 
     #
@@ -66,7 +66,7 @@ def test_selection_synchronize(surface_1_with_topographies_testuser_logged_in, w
     assert selection_choices[0].text[1:] == "Surface 1"  # first character is some cross symbol, therefore [1:]
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=False)
 def test_selection_only_own_surfaces_and_topos(live_server, django_user_model,
                                                webdriver):
 
@@ -75,9 +75,10 @@ def test_selection_only_own_surfaces_and_topos(live_server, django_user_model,
         #
         # Create a another verified test user
         #
-        username = "user{}".format(i)
         password = "passwd{}".format(i)
-        email = username + "@example.org"
+        email = "user{}".format(i) + "@example.org"
+        username = email
+
         user = django_user_model.objects.create_user(username=username, password=password)
 
         from allauth.account.models import EmailAddress
@@ -190,6 +191,29 @@ def test_selection_only_own_surfaces_and_topos(live_server, django_user_model,
     ]
 
     logout_user(webdriver)
+
+@pytest.mark.django_db(transaction=False)
+def test_show_empty_surface_when_explicitly_selected(one_empty_surface_testuser_signed_in, webdriver):
+
+    link = webdriver.find_element_by_link_text("Surfaces")
+    link.click()
+
+    # Enter Surface name and press select
+    topo_search_field = webdriver.find_elements_by_class_name("select2-search__field")[0]
+    topo_search_field.send_keys("Surface 1\n")
+
+    btn = webdriver.find_element_by_id("submit-id-save")
+    btn.click()
+
+    #
+    # Now "Add Topography" button should be shown
+    #
+    webdriver.find_element_by_link_text("Add Topography")
+
+
+
+
+
 
 
 
