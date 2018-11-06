@@ -175,7 +175,7 @@
              aria-haspopup="true" aria-expanded="false">
             <i class="fa fa-user-circle fa-fw"></i>
             {% if request.user.is_authenticated %}
-              {{ request.user.username }}
+              {{ request.user.name }}
             {% endif %}
           </a>
           <div class="dropdown-menu dropdown-menu-right user-dropdown" aria-labelledby="userDropdown">
