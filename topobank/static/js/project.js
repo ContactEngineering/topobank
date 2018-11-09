@@ -133,9 +133,9 @@ function render_plot(plot_element, topography_control_element, series_control_el
     };
     const dash_abbreviations = {
         '-': 'none',
-        '--': '8 8',
-        '-.': '16 8 4 8',
-        '..': '4 4',
+        '--': '16 16',
+        '-.': '8 8',
+        '..': '2 2',
     };
 
     /* Generate unique id */
@@ -256,7 +256,6 @@ function render_plot(plot_element, topography_control_element, series_control_el
             symbol = Object.values(symbol_abbreviations)[j % Object.values(symbol_abbreviations).length];
             dasharray = Object.values(dash_abbreviations)[j % Object.values(dash_abbreviations).length];
 
-
             if (line && item.y.length > 20) symbol = undefined;
 
             if (line) {
@@ -289,7 +288,7 @@ function render_plot(plot_element, topography_control_element, series_control_el
                     '<div class="form-check checkbox-slider--default">\n' +
                     '  <label class="form-check-label" for="' + series_uid + '">\n' +
                     '    <input name="' + series_uid +'" class="form-check-input checkbox-color-design" type="checkbox" value="" id="' + series_uid + '" checked>\n' +
-                    '    <span></span>' + item.name + '\n' +
+                    '    <span></span><svg height="4px" width="80px"><line x1="0" y1="0" x2="64" y2="0" style="stroke:black;stroke-width:4px;stroke-dasharray:' + dasharray + '" /></svg>' + item.name + '\n' +
                     '  </label>\n' +
                     '</div>');
 
