@@ -50,12 +50,8 @@
                 <a class="dropdown-item" href="{% url 'analysis:download-txt' analyses_for_function|analyses_results_ids_list_str %}">Download as TXT</a>
                 <a class="dropdown-item" href="{% url 'analysis:download-xlsx' analyses_for_function|analyses_results_ids_list_str %}">Download as XLSX</a>
                 <div class="dropdown-divider"></div>
-                <a class="dropdown-item" href="#">Download as PNG</a>
-                <a class="dropdown-item" href="#">Download as PDF</a>
-                <a class="dropdown-item" href="#">Download as SVG</a>
-                <div class="dropdown-divider"></div>
                 <a class="dropdown-item" href="#" data-toggle="modal"
-                   data-target="#statusesModal-{{ forloop.counter }}">Tasks</a>
+                   data-target="#statusesModal-{{ forloop.counter }}">Task information</a>
               </div>
             </div>
           </div>
