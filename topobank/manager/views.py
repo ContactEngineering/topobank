@@ -10,6 +10,8 @@ from django.views.generic.edit import FormMixin, ProcessFormView
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib import messages
 
+import numpy as np
+import json
 import os.path
 import logging
 
@@ -19,7 +21,8 @@ import logging
 from .models import Topography, Surface
 from .forms import TopographyForm, SurfaceForm, TopographySelectForm
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyUnitsForm
-from .utils import TopographyFile, optimal_unit, selected_topographies, selection_from_session, selection_for_select_all
+from .utils import TopographyFile, optimal_unit, UNIT_TO_METERS, \
+    selected_topographies, selection_from_session, selection_for_select_all
 
 _log = logging.getLogger(__name__)
 
@@ -323,6 +326,41 @@ class SurfaceCreateView(CreateView):
 class SurfaceDetailView(SurfaceAccessMixin, DetailView):
     model = Surface
     context_object_name = 'surface'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        bandwidths_data = []
+
+        for topo in self.object.topography_set.all():
+
+            pyco_topo = topo.topography()
+
+            unit = pyco_topo.unit
+            if unit is None:
+                _log.warning("No unit given for topography {}. Cannot display bandwidth.".format(topo.name))
+                continue
+            elif not unit in UNIT_TO_METERS:
+                _log.warning("Unknown unit {} given for topography {}. Cannot display bandwidth.".format(
+                    unit, topo.name))
+                continue
+
+            meter_factor = UNIT_TO_METERS[unit]
+
+            lower_bound_meters = np.mean(pyco_topo.pixel_size)*meter_factor
+            upper_bound_meters = np.mean(pyco_topo.size)*meter_factor
+
+            bandwidths_data.append(
+                {
+                    'lower_bound' : lower_bound_meters,
+                    'upper_bound': upper_bound_meters,
+                    'name': topo.name,
+                    'link': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk))
+                }
+            )
+
+        context['bandwidths_data'] = json.dumps(bandwidths_data)
+        return context
 
 class SurfaceUpdateView(SurfaceAccessMixin, UpdateView):
     model = Surface

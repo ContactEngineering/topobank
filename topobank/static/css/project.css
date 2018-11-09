@@ -58,3 +58,12 @@ input.checkbox-color:checked+span:before {
 input.checkbox-color-design:checked+span:after {
   background: black;
 }
+
+#bandwidths {
+  height: 400px;
+  text-align: left;
+}
+
+#bandwidths text {
+  font-size: large;
+}
