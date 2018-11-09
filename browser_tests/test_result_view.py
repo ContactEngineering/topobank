@@ -9,7 +9,6 @@ from browser_tests.conftest import wait_for_page_load
 @pytest.mark.django_db
 def test_grouping_by_function(surface_1_with_topographies_testuser_logged_in, webdriver):
 
-
     #
     # Create two analysis functions for selection
     #
@@ -28,7 +27,7 @@ def test_grouping_by_function(surface_1_with_topographies_testuser_logged_in, we
     for func in funcs:
         for topo in topos:
             a  = Analysis.objects.create(function=func, topography=topo,
-                                         args=pickle.dumps(()), kwargs=pickle.dumps({}))
+                                         kwargs=pickle.dumps({}))
             a.task_state = Analysis.SUCCESS
             xx = list(range(10)) # just to fake some values
             yy = list(range(20))
@@ -79,13 +78,12 @@ def test_grouping_by_function(surface_1_with_topographies_testuser_logged_in, we
     #
     cards = webdriver.find_elements_by_class_name("card")
 
-    # first card is the select dialog
-    assert len(cards) == 3
+    assert len(cards) == 2
 
     # we assume that the functions are also ordered by name
     expected_names = [ 'Height Distribution', 'Slope Distribution']
 
-    for k, card in enumerate(cards[1:]): # iterate over other two
+    for k, card in enumerate(cards): # iterate over other two
 
         # check function name of card
         header = card.find_element_by_class_name("card-header")

@@ -9,18 +9,25 @@ from browser_tests.conftest import wait_for_page_load
 def test_deleting_topography(one_empty_surface_testuser_signed_in, webdriver):
 
     link = webdriver.find_element_by_link_text("Surfaces")
-    link.click()
+    with wait_for_page_load(webdriver):
+        link.click()
 
     datafile_path = 'topobank/manager/fixtures/example3.di'  # choose an existing data file which should work
     datafile_path = os.path.join(os.getcwd(), datafile_path)
 
-    link = webdriver.find_element_by_link_text("Add Topography")
+    #
+    # Select surface 1 in order to be able to add a topography
+    #
+    search_field = webdriver.find_element_by_class_name("select2-search__field")
+    search_field.send_keys("Surface 1\n")
+    btn = webdriver.find_element_by_id("submit-id-save")
+    btn.click()
 
+    link = webdriver.find_element_by_partial_link_text("Add Topography")
     link.click()
 
     input = webdriver.find_element_by_id("id_0-datafile")
     input.send_keys(datafile_path)
-
 
     # go to step 2
     link = webdriver.find_element_by_id("submit-id-save")
@@ -43,10 +50,13 @@ def test_deleting_topography(one_empty_surface_testuser_signed_in, webdriver):
     # Now open topography
     #
     link = webdriver.find_element_by_link_text("Surfaces")
-    link.click()
+    with wait_for_page_load(webdriver):
+        link.click()
 
-    link = webdriver.find_element_by_link_text("Surface 1")
-    link.click()
+    search_field = webdriver.find_element_by_class_name("select2-search__field")
+    search_field.send_keys("Surface 1\n")
+    btn = webdriver.find_element_by_id("submit-id-save")
+    btn.click()
 
     #
     # Press delete
@@ -73,7 +83,8 @@ def test_deleting_topography(one_empty_surface_testuser_signed_in, webdriver):
 def test_cancel_while_creating_topography(one_empty_surface_testuser_signed_in, webdriver):
 
     link = webdriver.find_element_by_link_text("Surfaces")
-    link.click()
+    with wait_for_page_load(webdriver):
+        link.click()
 
     datafile_path = 'topobank/manager/fixtures/example3.di'  # choose an existing data file which should work
     datafile_path = os.path.join(os.getcwd(), datafile_path)
@@ -82,6 +93,12 @@ def test_cancel_while_creating_topography(one_empty_surface_testuser_signed_in, 
     #
     # First cancel from step 1
     #
+    # Enter Surface name and press select
+    topo_search_field = webdriver.find_elements_by_class_name("select2-search__field")[0]
+    topo_search_field.send_keys("Surface 1\n")
+
+    btn = webdriver.find_element_by_id("submit-id-save")
+    btn.click()
 
     link = webdriver.find_element_by_link_text("Add Topography")
     link.click()

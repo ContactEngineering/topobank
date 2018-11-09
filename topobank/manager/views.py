@@ -163,11 +163,10 @@ class TopographyCreateWizard(SessionWizardView):
         # collect all data from forms
         d = dict((k, v) for form in form_list for k, v in form.cleaned_data.items())
 
-        # move file in file system (wizard files will be deleted
+        # move file in file system (wizard files will be deleted)
         from .models import user_directory_path
         old_path = d['datafile']
-        new_path = os.path.join(settings.MEDIA_ROOT, 'topographies',
-                                'user_{}'.format(self.request.user.pk),
+        new_path = os.path.join(self.request.user.get_media_path(),
                                 os.path.basename(d['datafile']))
         os.rename(old_path, new_path)
 

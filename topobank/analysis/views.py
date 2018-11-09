@@ -34,10 +34,10 @@ class AnalysisListView(FormMixin, ListView):
                     topography__in=topographies,
                     function__in=functions) \
             .filter(topography=OuterRef('topography'), function=OuterRef('function'),\
-                    args=OuterRef('args'), kwargs=OuterRef('kwargs')) \
+                    kwargs=OuterRef('kwargs')) \
             .order_by('-start_time')
 
-        # Use this subquery for finding only latest analyses for each (topography, function, args, kwargs) group
+        # Use this subquery for finding only latest analyses for each (topography, function, kwargs) group
         analyses = Analysis.objects\
             .filter(pk=Subquery(sq_analyses.values('pk')[:1]))\
             .order_by('function')
@@ -116,8 +116,7 @@ def download_analysis_to_txt(request, ids):
 
         f.write('# Topography: {}\n'.format(a.topography.name) +
                 '# {}\n'.format('='*(len('Topography: ')+len(str(a.topography.name)))) +
-                '# Positional arguments of analysis function: {}\n'.format(a.get_args_display()) +
-                '# Keyword arguments of analysis function: {}\n'.format(a.get_kwargs_display()) +
+                '# Further arguments of analysis function: {}\n'.format(a.get_kwargs_display()) +
                 '# Start time of analysis task: {}\n'.format(a.start_time) +
                 '# End time of analysis task: {}\n'.format(a.end_time) +
                 '# Duration of analysis task: {}\n'.format(a.duration()) +
@@ -159,10 +158,10 @@ def download_analysis_to_xlsx(request, ids):
             properties += ['Function', 'TopoBank version', 'PyCo version']
             values += [str(a.function), 'N/A', PyCo.__version__]
 
-        properties += ['Topography', 'Positional arguments of analysis function',
-                       'Keyword arguments of analysis function', 'Start time of analysis task',
+        properties += ['Topography',
+                       'Further arguments of analysis function', 'Start time of analysis task',
                        'End time of analysis task', 'Duration of analysis task']
-        values += [str(a.topography.name), a.get_args_display(), a.get_kwargs_display(), str(a.start_time),
+        values += [str(a.topography.name), a.get_kwargs_display(), str(a.start_time),
                    str(a.end_time), str(a.duration())]
 
         result = pickle.loads(a.result)

@@ -25,11 +25,6 @@ def mock_topos(mocker):
     mocker.patch('topobank.manager.models.Topography', autospec=True)
     mocker.patch('topobank.manager.models.Surface', autospec=True)
 
-    # There should be 2 surfaces:
-    #
-    # Surface 1 with topographies 1,3
-    # Surface 2 with topographies 2,4,5
-
 @pytest.fixture
 def testuser(django_user_model):
     username = 'testuser'

@@ -13,6 +13,8 @@ pytest==3.3.2 # fixed because of incompatibility of pytest-sugar with pytest 3.4
 pytest-sugar==0.9.0
 
 # additional for browser test
-selenium==3.8
-pytest-selenium==1.11.2
+#selenium==3.8
+#pytest-selenium==1.11.2
+selenium==3.14.0
+pytest-selenium==1.14.0
 
