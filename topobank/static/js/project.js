@@ -131,6 +131,12 @@ function render_plot(plot_element, topography_control_element, series_control_el
         '^': Plottable.SymbolFactories.triangle(),
         'y': Plottable.SymbolFactories.wye(),
     };
+    const dash_abbreviations = {
+        '-': 'none',
+        '--': '8 8',
+        '-.': '16 8 4 8',
+        '..': '4 4',
+    };
 
     /* Generate unique id */
     plot_id++;
@@ -159,7 +165,7 @@ function render_plot(plot_element, topography_control_element, series_control_el
     /* Loop over all plot descriptor dictionaries passed here. */
     data.forEach((d, i) => {
         /* Unique identifier for this data source. */
-        var topograpgy_uid = 'plot' + plot_id.toString() + 'topography' + i.toString();
+        var topography_uid = 'plot' + plot_id.toString() + 'topography' + i.toString();
 
         /* Figure out units. */
         xunit = split_unit(d.data.xunit);
@@ -247,7 +253,9 @@ function render_plot(plot_element, topography_control_element, series_control_el
                 }
             }
 
-            symbol = Object.values(symbol_abbreviations)[Object.values(plots).length % Object.values(symbol_abbreviations).length];
+            symbol = Object.values(symbol_abbreviations)[j % Object.values(symbol_abbreviations).length];
+            dasharray = Object.values(dash_abbreviations)[j % Object.values(dash_abbreviations).length];
+
 
             if (line && item.y.length > 20) symbol = undefined;
 
@@ -257,7 +265,7 @@ function render_plot(plot_element, topography_control_element, series_control_el
                     .addDataset(dataset)
                     .x((d) => d.x, x_scale)
                     .y((d) => d.y, y_scale)
-                    .attr('stroke', topograpgy_uid, color_scale);
+                    .attr('stroke', topography_uid, color_scale).attr('stroke-dasharray', dasharray);
                 plot.visibility_counter = 0;
                 plots.push(plot);
                 series[series_uid].push(plot);
@@ -269,7 +277,7 @@ function render_plot(plot_element, topography_control_element, series_control_el
                     .x((d) => d.x, x_scale)
                     .y((d) => d.y, y_scale)
                     .symbol(() => symbol)
-                    .attr('stroke', 'black').attr('fill', topograpgy_uid, color_scale);
+                    .attr('stroke', 'black').attr('fill', topography_uid, color_scale);
                 plot.visibility_counter = 0;
                 plots.push(plot);
                 series[series_uid].push(plot);
@@ -303,14 +311,14 @@ function render_plot(plot_element, topography_control_element, series_control_el
         /* GUI elements (checkboxes) controlling visibility of topographies. */
         topography_control_element.append(
             '<div class="form-check checkbox-slider--c">\n' +
-            '  <label class="form-check-label" for="' + topograpgy_uid + '">\n' +
-            '    <input name="' + topograpgy_uid +'" class="form-check-input checkbox-color" type="checkbox" value="" id="' + topograpgy_uid + '" checked>\n' +
-            '    <span style="color:' + color_scale.scale(topograpgy_uid) + '"></span>' + d.name + '\n' +
+            '  <label class="form-check-label" for="' + topography_uid + '">\n' +
+            '    <input name="' + topography_uid +'" class="form-check-input checkbox-color" type="checkbox" value="" id="' + topography_uid + '" checked>\n' +
+            '    <span style="color:' + color_scale.scale(topography_uid) + '"></span>' + d.name + '\n' +
             '  </label>\n' +
             '</div>');
 
         /* Change visbility of corresponding plots if checkbox is clicked. */
-        $('#' + topograpgy_uid).change(function() {
+        $('#' + topography_uid).change(function() {
             var visibility = -1;
             if (this.checked) {
                 visibility = 1;
