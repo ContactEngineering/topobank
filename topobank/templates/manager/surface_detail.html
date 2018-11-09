@@ -56,20 +56,22 @@
 
     <div class="tab-content">
       <div class="tab-pane fade show active" id="topographies" role="tabpanel" aria-labelledby="topographies-tab">
-
-          <div class="card">
-          <!-- Show chart with surface summary -->
-
-            <div class="card-header">
-              <div class="card-text">
-                Bandwidths of all topographies for this surface. Click on a bar for topography details.
+          <div class="row">
+            <div class="col-12">
+              <div class="card">
+              <!-- Show chart with surface summary -->
+                <div class="card-header">
+                  <div class="card-text">
+                    Bandwidths of all topographies for this surface. Click on a bar for topography details.
+                  </div>
+                </div>
+                <div class="card-body">
+                  <div id="bandwidths" class="surface-summary-plot">
+                  </div>
+                </div>
               </div>
             </div>
-
-            <div id="bandwidths" class="card-img-bottom">
-            </div>
           </div>
-
       </div>
 
       <div class="tab-pane fade" id="properties" role="tabpanel" aria-labelledby="properties-tab">
@@ -121,77 +123,7 @@
     //
     // Create surface summary plot
     //
-    var data = {{ bandwidths_data|safe }};
-
-    // var colorScale = new Plottable.Scales.Color();
-    var activeBarColor = "#007bff";
-    var inactiveBarColor = "#7c7c7d";
-
-    var xScale = new Plottable.Scales.Log();
-    var xAxisFormatter = new Plottable.Formatters.siSuffix(2)
-    var xAxis = new Plottable.Axes.Numeric(xScale, "bottom").formatter(xAxisFormatter);
-    var xAxisLabel = new Plottable.Components.AxisLabel("Bandwidth [m]");
-
-    var yScale = new Plottable.Scales.Category();
-
-    //
-    // Create rectangles
-    //
-    var plot = new Plottable.Plots.Rectangle()
-      .x(function (d) {
-        return d.lower_bound;
-      }, xScale)
-      .x2(function (d) {
-        return d.upper_bound;
-      })
-      .y(function (d) {
-        return d.name;
-      }, yScale)
-      .label(function (d) {
-        return d.name;
-      })
-      .labelsEnabled(true)
-      .attr("fill", inactiveBarColor)
-      .addDataset(new Plottable.Dataset(data));
-
-    //
-    // Click on bar should redirect to topography detail
-    //
-    var click_interaction = new Plottable.Interactions.Click();
-    click_interaction.onClick(function (point) {
-      // follow the link which was set in the data of the element
-      var selection = plot.entitiesAt(point)[0].selection;
-      window.location = selection.data()[0].link;
-    });
-    click_interaction.attachTo(plot);
-
-    //
-    // Adjust color of bar when moving over
-    //
-    var move_interaction = new Plottable.Interactions.Pointer();
-    move_interaction.onPointerMove(function(p) {
-      plot.entities().forEach(function(entity) {
-        entity.selection.attr("fill", inactiveBarColor);
-      });
-      var entity = plot.entitiesAt(p)[0];
-      entity.selection.attr("fill", activeBarColor);
-    });
-    move_interaction.attachTo(plot);
-
-    //
-    // Arrange components and render
-    //
-    var chart = new Plottable.Components.Table([
-      [plot],
-      [xAxis],
-      [xAxisLabel]
-    ]);
-
-    chart.renderTo("#bandwidths");
-
-    window.addEventListener("resize", function () {
-      chart.redraw();
-    });
+    surface_summary_plot($("div#bandwidths"), {{ bandwidths_data|safe }});
 
   })
   </script>

@@ -59,11 +59,11 @@ input.checkbox-color-design:checked+span:after {
   background: black;
 }
 
-#bandwidths {
+.surface-summary-plot {
   height: 400px;
-  text-align: left;
+  text-align: left; /** this is only needed in surface detail, don't know why */
 }
 
-#bandwidths text {
+.surface-summary-plot .light-label text.text-line {
   font-size: large;
 }

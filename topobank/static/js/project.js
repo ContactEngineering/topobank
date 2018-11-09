@@ -404,6 +404,94 @@ function plot(plot_element, unit) {
         });
 }
 
+/**
+ * Create a plottable plot with surface summary
+ *
+ * @param {String} DOM id of <div> element in which the plot is inserted
+ * @param {Object} list with bandwidth data for topographies
+ *
+ * Each element needs the keys
+ *
+ * upper_bound: number in meters
+ * lower_bound: number in meters
+ * name: topography name
+ * link: link which should be followed, when clicked
+ */
+function surface_summary_plot(element, bandwidths_data) {
+
+    // var colorScale = new Plottable.Scales.Color();
+    var activeBarColor = "#007bff";
+    var inactiveBarColor = "#7c7c7d";
+
+    var xScale = new Plottable.Scales.Log();
+    var xAxisFormatter = new Plottable.Formatters.siSuffix(2)
+    var xAxis = new Plottable.Axes.Numeric(xScale, "bottom").formatter(xAxisFormatter);
+    var xAxisLabel = new Plottable.Components.AxisLabel("Bandwidth [m]");
+
+    var yScale = new Plottable.Scales.Category();
+
+    //
+    // Create rectangles
+    //
+    var plot = new Plottable.Plots.Rectangle()
+      .x(function (d) {
+        return d.lower_bound;
+      }, xScale)
+      .x2(function (d) {
+        return d.upper_bound;
+      })
+      .y(function (d) {
+        return d.name;
+      }, yScale)
+      .label(function (d) {
+        return d.name;
+      })
+      .labelsEnabled(true)
+      .attr("fill", inactiveBarColor)
+      .addDataset(new Plottable.Dataset(bandwidths_data));
+
+    //
+    // Click on bar should redirect to topography detail
+    //
+    var click_interaction = new Plottable.Interactions.Click();
+    click_interaction.onClick(function (point) {
+      // follow the link which was set in the data of the element
+      var selection = plot.entitiesAt(point)[0].selection;
+      window.location = selection.data()[0].link;
+    });
+    click_interaction.attachTo(plot);
+
+    //
+    // Adjust color of bar when moving over
+    //
+    var move_interaction = new Plottable.Interactions.Pointer();
+    move_interaction.onPointerMove(function(p) {
+      plot.entities().forEach(function(entity) {
+        entity.selection.attr("fill", inactiveBarColor);
+      });
+      var entity = plot.entitiesAt(p)[0];
+      entity.selection.attr("fill", activeBarColor);
+    });
+    move_interaction.attachTo(plot);
+
+    //
+    // Arrange components and render
+    //
+    var chart = new Plottable.Components.Table([
+      [plot],
+      [xAxis],
+      [xAxisLabel]
+    ]);
+
+    chart.renderTo(element);
+
+    window.addEventListener("resize", function () {
+      chart.redraw();
+    });
+
+}
+
+
 
 /*
  * Setup document handlers.

@@ -37,6 +37,8 @@
   <div class="row">
     {% for surface in surfaces %}
       {% selected_topographies request surface as selected_topographies_for_this_surface %}
+      {% bandwidths_data_json_for_selected_topographies request surface as bandwidths_data_json_for_this_surface %}
+
       {% is_surface_explicitly_selected request surface as this_surface_explicitly_selected %}
       {% if this_surface_explicitly_selected or selected_topographies_for_this_surface.exists %}
         <div class="col-xl-6 mb-4">
@@ -52,22 +54,8 @@
             </div>
 
             <div class="card-body">
-              <div class="table-responsive">
-                <table class="table table-hover">
-                  <tbody>
-                  {% for topo in selected_topographies_for_this_surface %}
-                    {% with topo.surface_thumbnail as thumbnail %}
-                      <tr class="clickable-table-row"
-                          data-href="{% url 'manager:topography-detail' topo.id %}">
-                        <td><img src="{{ thumbnail.url }}" alt="Placeholder for topography thumbnail"
-                                 width="{{ thumbnail.width }}"
-                                 height="{{ thumbnail.height }}"></td>
-                        <td>{{ topo.name }}</td>
-                      </tr>
-                    {% endwith %}
-                  {% endfor %}
-                  </tbody>
-                </table>
+              <div id="bandwidths-{{ forloop.counter }}" class="surface-summary-plot"
+                   data-bandwidths='{{ bandwidths_data_json_for_this_surface|safe }}'>
               </div>
             </div>
 
@@ -87,4 +75,16 @@
 
 {% block javascript %}
   {{ form.media.js }}
+
+  <script>
+    $(document).ready(function() {
+      $(".surface-summary-plot").each(function (index, elem) {
+        var bandwidths_data = JSON.parse(elem.getAttribute("data-bandwidths"));
+        // new browsers support elem.dataset('bandwidths')
+
+        surface_summary_plot(elem, $(elem).data('bandwidths'));
+      })
+    })
+
+  </script>
 {% endblock javascript %}
