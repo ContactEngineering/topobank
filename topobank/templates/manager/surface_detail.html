@@ -20,13 +20,8 @@
 
     <h2>
       <div class="pull-left">
-      {%  with surface.thumbnail as thumbnail %}
-      <img src="{{ thumbnail.url }}" alt="Thumbnail of surface image"
-          width="{{ thumbnail.width }}"
-          height="{{ thumbnail.height }}">
-      {% endwith %}
+        <h1>{{ surface.name }}</h1>
       </div>
-      <b>{{ surface.name }}</b>
       <div class="pull-right">
         <a href="{% url 'manager:surface-delete' surface.id %}" class="btn btn-danger">
             {% fontawesome_icon 'trash' %} Delete
