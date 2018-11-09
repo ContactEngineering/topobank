@@ -70,7 +70,7 @@ def optimal_unit(length, unit='m'): # TODO write unit tests
         return unit, 1
 
     # Convert length to meters
-    length = np.mean(length)*unit_fac
+    length = np.mean(length)*unit_fac # TODO why mean here? Test missing.
 
     # Length is meters now
     new_unit = 'm'
