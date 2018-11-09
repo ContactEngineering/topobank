@@ -36,8 +36,9 @@
 
   <div class="row">
     {% for surface in surfaces %}
-      {% selected_topographies request surface as selected_topographies_for_surface %}
-      {% if selected_topographies_for_surface.exists %}
+      {% selected_topographies request surface as selected_topographies_for_this_surface %}
+      {% is_surface_explicitly_selected request surface as this_surface_explicitly_selected %}
+      {% if this_surface_explicitly_selected or selected_topographies_for_this_surface.exists %}
         <div class="col-xl-6 mb-4">
           <div class="card">
             <div class="card-header">
@@ -54,7 +55,7 @@
               <div class="table-responsive">
                 <table class="table table-hover">
                   <tbody>
-                  {% for topo in selected_topographies_for_surface %}
+                  {% for topo in selected_topographies_for_this_surface %}
                     {% with topo.surface_thumbnail as thumbnail %}
                       <tr class="clickable-table-row"
                           data-href="{% url 'manager:topography-detail' topo.id %}">
@@ -71,7 +72,7 @@
             </div>
 
             <div class="card-footer">
-              <small>selected {{ selected_topographies_for_surface|length }} out of {{ surface.num_topographies }}
+              <small>selected {{ selected_topographies_for_this_surface|length }} out of {{ surface.num_topographies }}
                 topographies
               </small>
             </div>

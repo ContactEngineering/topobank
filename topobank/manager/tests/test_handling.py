@@ -107,7 +107,6 @@ def test_upload_topography(client, django_user_model):
     assert response.status_code == 200
     # assert reverse('manager:topography-detail', kwargs=dict(pk=1)) == response.url
     # export_reponse_as_html(response)
-    assert b'Details for Topography' in response.content
 
     surface = Surface.objects.get(name='surface1')
     topos = surface.topography_set.all()
