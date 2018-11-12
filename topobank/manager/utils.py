@@ -191,7 +191,7 @@ def selected_topographies(request, surface=None):
 def bandwidths_data(topographies):
     """Return bandwidths data as needed in surface summary plots.
 
-    :param topographies: queryset of Topography
+    :param topographies: iterable with manager.models.Topography instances
     :return: list of dicts with bandwidths data
 
     Each list element is a dict with keys
