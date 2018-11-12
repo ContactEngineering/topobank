@@ -94,32 +94,11 @@
 
 {% block javascript %}
   <script>
-  $('#select_all').change(function() {
-      var checkboxes = $('.cb-topography');
-      checkboxes.prop('checked', $(this).is(':checked'));
-  });
-
-
-  $('.cb-topography').change( function(e) {
-      console.log(this);
-      $.ajax($(this).attr("data-href"));
-    }
-  );
-
-  // do not propagate click when selecting checkbox, so no details are shown
-  $('.cb-topography').click( function(e) {
-    e.stopPropagation();
-  })
-
   $().ready(function(){
-    $('.cb-topography').prop('checked', $.ajax($(this).attr("is-selected-url"))['is_selected']);
-    console.log("initial selection ready");
-
     //
     // Create surface summary plot
     //
     surface_summary_plot($("div#bandwidths"), {{ bandwidths_data|safe }});
-
   })
   </script>
 
