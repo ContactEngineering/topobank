@@ -210,7 +210,6 @@ def test_edit_topography(client, two_topos, django_user_model):
     # should also appear in the list of topographies
     #
     response = client.get(reverse('manager:surface-detail', kwargs=dict(pk=topo_id)))
-    assert bytes(new_description, 'utf-8') in response.content
     assert bytes(new_name, 'utf-8') in response.content
 
 
