@@ -58,3 +58,12 @@ input.checkbox-color:checked+span:before {
 input.checkbox-color-design:checked+span:after {
   background: black;
 }
+
+.surface-summary-plot {
+  height: 400px;
+  text-align: left; /** this is only needed in surface detail, don't know why */
+}
+
+.surface-summary-plot .light-label text.text-line {
+  font-size: large;
+}

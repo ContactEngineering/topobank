@@ -119,13 +119,6 @@ def test_upload_topography(client, django_user_model):
     assert t.description == description
     assert "example3" in t.datafile.name
 
-    #
-    # should also appear in the list of topographies for the surface
-    #
-    response = client.get(reverse('manager:surface-detail', kwargs=dict(pk=surface.id)))
-    assert bytes(description, 'utf-8') in response.content
-
-
 @pytest.mark.django_db
 def test_topography_list(client, two_topos, django_user_model):
 
@@ -217,7 +210,6 @@ def test_edit_topography(client, two_topos, django_user_model):
     # should also appear in the list of topographies
     #
     response = client.get(reverse('manager:surface-detail', kwargs=dict(pk=topo_id)))
-    assert bytes(new_description, 'utf-8') in response.content
     assert bytes(new_name, 'utf-8') in response.content
 
 

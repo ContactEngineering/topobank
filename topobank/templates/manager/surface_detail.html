@@ -20,13 +20,8 @@
 
     <h2>
       <div class="pull-left">
-      {%  with surface.thumbnail as thumbnail %}
-      <img src="{{ thumbnail.url }}" alt="Thumbnail of surface image"
-          width="{{ thumbnail.width }}"
-          height="{{ thumbnail.height }}">
-      {% endwith %}
+        <h1>{{ surface.name }}</h1>
       </div>
-      <b>{{ surface.name }}</b>
       <div class="pull-right">
         <a href="{% url 'manager:surface-delete' surface.id %}" class="btn btn-danger">
             {% fontawesome_icon 'trash' %} Delete
@@ -49,90 +44,32 @@
       </li>
 
       <li class="nav-item">
-        <a class="nav-link" data-toggle="tab" href="#meta" role="tab">Properties</a>
+        <a class="nav-link" data-toggle="tab" href="#properties" role="tab">Properties</a>
       </li>
     </ul>
 
 
     <div class="tab-content">
       <div class="tab-pane fade show active" id="topographies" role="tabpanel" aria-labelledby="topographies-tab">
-
-        <!--
-        <div class="card-deck">
-        {% for topo in surface.topography_set.all %}
-
-            <div class="card mb-3">
-              <div class="card-header">
-                {{ topo.name }}
-                <div class="pull-right">
-                  <a href="{% url 'manager:topography-detail' topo.id %}" class="btn btn-primary">
-                  Show Details
-                  </a>
+          <div class="row">
+            <div class="col-12">
+              <div class="card">
+              <!-- Show chart with surface summary -->
+                <div class="card-header">
+                  <div class="card-text">
+                    Bandwidths of all topographies for this surface. Click on a bar for topography details.
+                  </div>
+                </div>
+                <div class="card-body">
+                  <div id="bandwidths" class="surface-summary-plot">
+                  </div>
                 </div>
               </div>
-              <div class="card-body">
-
-                 <img src="{{ topo.surface_thumbnail.url }}" alt="Thumbnail of topography
-                       width="{{ topo.surface_thumbnail.width }}"
-                       height="{{ topo.surface_thumbnail.height }}">
-                {{ topo.description }}
-                {{ topo.measurement_date }}
-              </div>
             </div>
-
-        {% endfor %}
-        </div>
-        -->
-
-        <div class="table-responsive">
-          <form>
-          {%  csrf_token %}
-          <table class="table table-hover">
-
-            <thead>
-            <tr>
-              <th scope="col">Thumbnail</th>
-              <th scope="col">Name</th>
-              <th scope="col">Measurement Date</th>
-              <th scope="col">Description</th>
-              <!-- TODO remove if no checkboxes are needed here
-              <th scope="col">
-                  <div class="checkbox-inline">
-                    <label><input id="select_all" type="checkbox" value=""></label>
-                  </div>
-              </th>
-              -->
-            </tr>
-            </thead>
-            <tbody>
-            {% for topo in surface.topography_set.all %}
-              <tr class="clickable-table-row" data-href="{% url 'manager:topography-detail' topo.id %}">
-
-                <td><img src="{{ topo.surface_thumbnail.url }}" alt="Thumbnail of surface image"
-                         width="{{ topo.surface_thumbnail.width }}"
-                         height="{{ topo.surface_thumbnail.height }}"></td>
-                <th scope="row">{{ topo.name }}</th>
-                <td>{{ topo.measurement_date }}</td>
-                <td>{{ topo.description }}</td>
-                <!-- TODO remove if no checkboxes are needed here
-                <td>
-                  <div class="checkbox-inline">
-                    <label><input class="cb-topography" id="toggle-select-topo-{{ topo.id }}" type="checkbox"
-                                  is-selected-url="{ url 'manager:topography-is-selected' topo.id }"
-                                  data-href="{ url 'manager:topography-toggle-select' topo.id }"></label>
-                  </div>
-                </td>
-                -->
-              </tr>
-            {% endfor %}
-
-            </tbody>
-          </table>
-          </form>
-        </div>
+          </div>
       </div>
 
-      <div class="tab-pane fade" id="meta" role="tabpanel" aria-labelledby="meta-tab">
+      <div class="tab-pane fade" id="properties" role="tabpanel" aria-labelledby="properties-tab">
         <table class="table table-responsive text-left">
           <tbody>
             <tr>
@@ -157,28 +94,14 @@
 
 {% block javascript %}
   <script>
-  $('#select_all').change(function() {
-      var checkboxes = $('.cb-topography');
-      checkboxes.prop('checked', $(this).is(':checked'));
-  });
-
-
-  $('.cb-topography').change( function(e) {
-      console.log(this);
-      $.ajax($(this).attr("data-href"));
-    }
-  );
-
-  // do not propagate click when selecting checkbox, so no details are shown
-  $('.cb-topography').click( function(e) {
-    e.stopPropagation();
-  })
-
   $().ready(function(){
-    $('.cb-topography').prop('checked', $.ajax($(this).attr("is-selected-url"))['is_selected']);
-    console.log("initial selection ready");
+    //
+    // Create surface summary plot
+    //
+    surface_summary_plot($("div#bandwidths"), {{ bandwidths_data|safe }});
   })
   </script>
+
 {% endblock javascript %}
 
 

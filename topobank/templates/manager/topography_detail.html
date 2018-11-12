@@ -23,12 +23,8 @@
 
     <h2>
       <div class="pull-left">
-      <img src="{{ topography.surface_thumbnail.url }}" alt="Thumbnail of surface image"
-          width="{{ topography.surface_thumbnail.width }}"
-          height="{{ topography.surface_thumbnail.height }}">
+        <h1>{{ topography.name }}</h1>
       </div>
-      <b>{{ topography.name }}</b>
-
       <div class="pull-right">
         <a href="{% url 'manager:topography-delete' topography.id %}" class="btn btn-danger">
             {% fontawesome_icon 'trash' %} Delete

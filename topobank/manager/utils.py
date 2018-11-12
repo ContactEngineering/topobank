@@ -1,10 +1,11 @@
-
-import numpy as np
+from django.shortcuts import reverse
 
 from PyCo.Topography import FromFile
 from PyCo.Topography.TopographyDescription import ScaledTopography, DetrendedTopography
 
+import numpy as np
 import logging
+
 
 _log = logging.getLogger(__name__)
 
@@ -70,7 +71,7 @@ def optimal_unit(length, unit='m'): # TODO write unit tests
         return unit, 1
 
     # Convert length to meters
-    length = np.mean(length)*unit_fac
+    length = np.mean(length)*unit_fac # TODO why mean here? Test missing.
 
     # Length is meters now
     new_unit = 'm'
@@ -187,5 +188,47 @@ def selected_topographies(request, surface=None):
     """
     return selection_to_topographies(selection_from_session(request.session), request.user, surface=surface)
 
+def bandwidths_data(topographies):
+    """Return bandwidths data as needed in surface summary plots.
 
+    :param topographies: iterable with manager.models.Topography instances
+    :return: list of dicts with bandwidths data
+
+    Each list element is a dict with keys
+
+    'upper_bound': upper bound in meters
+    'lower_bound': lower bound in meters
+    'name': name of topography
+    'link': link to topography details
+    """
+    bandwidths_data = []
+
+    for topo in topographies:
+
+        pyco_topo = topo.topography()
+
+        unit = pyco_topo.unit
+        if unit is None:
+            _log.warning("No unit given for topography {}. Cannot display bandwidth.".format(topo.name))
+            continue
+        elif not unit in UNIT_TO_METERS:
+            _log.warning("Unknown unit {} given for topography {}. Cannot display bandwidth.".format(
+                unit, topo.name))
+            continue
+
+        meter_factor = UNIT_TO_METERS[unit]
+
+        lower_bound_meters = np.mean(pyco_topo.pixel_size) * meter_factor
+        upper_bound_meters = np.mean(pyco_topo.size) * meter_factor
+
+        bandwidths_data.append(
+            {
+                'lower_bound': lower_bound_meters,
+                'upper_bound': upper_bound_meters,
+                'name': topo.name,
+                'link': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk))
+            }
+        )
+
+    return bandwidths_data
 

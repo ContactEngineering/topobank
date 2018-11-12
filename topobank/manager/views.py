@@ -1,25 +1,25 @@
 from django.shortcuts import render, redirect
 from django.views.generic import DetailView, ListView, UpdateView, CreateView, DeleteView
 from django.urls import reverse, reverse_lazy
-from django.core.files.storage import FileSystemStorage, DefaultStorage
+from django.core.files.storage import FileSystemStorage
 from django.conf import settings
 from formtools.wizard.views import SessionWizardView
 
-from django.http import JsonResponse, HttpResponseForbidden
-from django.views.generic.edit import FormMixin, ProcessFormView
+from django.http import HttpResponseForbidden
+from django.views.generic.edit import FormMixin
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib import messages
 
+import json
 import os.path
 import logging
-
-#from rest_framework.decorators import api_view
-#from rest_framework.views import Response
 
 from .models import Topography, Surface
 from .forms import TopographyForm, SurfaceForm, TopographySelectForm
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyUnitsForm
-from .utils import TopographyFile, optimal_unit, selected_topographies, selection_from_session, selection_for_select_all
+from .utils import TopographyFile, optimal_unit, \
+    selected_topographies, selection_from_session, selection_for_select_all, \
+    bandwidths_data
 
 _log = logging.getLogger(__name__)
 
@@ -202,7 +202,6 @@ class TopographyUpdateView(TopographyAccessMixin, UpdateView):
 
     def get_success_url(self):
         return reverse('manager:topography-detail', kwargs=dict(pk=self.object.pk))
-        # TODO check if it is the correct user or add user later (do not send in form)
 
 class TopographyListView(ListView):
     model = Topography
@@ -324,6 +323,12 @@ class SurfaceDetailView(SurfaceAccessMixin, DetailView):
     model = Surface
     context_object_name = 'surface'
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        bw_data = bandwidths_data(self.object.topography_set.all())
+        context['bandwidths_data'] = json.dumps(bw_data)
+        return context
+
 class SurfaceUpdateView(SurfaceAccessMixin, UpdateView):
     model = Surface
     form_class = SurfaceForm
@@ -341,23 +346,6 @@ class SurfaceDeleteView(SurfaceAccessMixin, DeleteView):
     model = Surface
     context_object_name = 'surface'
     success_url = reverse_lazy('manager:surface-list')
-
-
-# def toggle_topography_selection(request, pk):
-#     selected_topos = request.session.get('selected_topographies', [])
-#     if pk in selected_topos:
-#         selected_topos.remove(pk)
-#         is_selected = False
-#     else:
-#         selected_topos.append(pk)
-#         is_selected = True
-#     request.session['selected_topographies'] = selected_topos
-#     return JsonResponse(dict(is_selected=is_selected))
-#
-# def is_topography_selected(request, pk):
-#     selected_topos = request.session.get('selected_topographies', [])
-#     is_selected = pk in selected_topos
-#     return JsonResponse(is_selected)
 
 
 
