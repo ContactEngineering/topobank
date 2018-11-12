@@ -13,11 +13,6 @@ def test_bandwiths_data(mocker):
         size: float
         unit: str
 
-    @dataclass  # new feature in Python 3.7
-    class TopoStub:
-        name: str
-        pk: int
-
     topography_method_mock = mocker.patch('topobank.manager.models.Topography.topography')
     topography_method_mock.side_effect = [
         PyCoTopoStub(pixel_size=5., size=100., unit='µm'),
