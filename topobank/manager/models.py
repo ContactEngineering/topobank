@@ -80,6 +80,9 @@ class Topography(models.Model):
 
     verbose_name_plural = 'topographies'
 
+    resolution_x = models.IntegerField()
+    resolution_y = models.IntegerField()
+
     def __str__(self):
         return "Topography '{0}' from {1}".format(\
             self.name, self.measurement_date)

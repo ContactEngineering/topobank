@@ -66,7 +66,7 @@ class TopographyCreateWizard(SessionWizardView):
 
         initial = {'surface': Surface.objects.get(id=surface_id)}
 
-        if step in ['1','2']:
+        if step in ['1', '2']:
             # provide datafile attribute from first step
             step0_data = self.get_cleaned_data_for_step('0')
 
@@ -103,6 +103,7 @@ class TopographyCreateWizard(SessionWizardView):
 
             initial['detrend_mode'] = session['detrend_mode']
 
+
         return self.initial_dict.get(step, initial)
 
     def get_form_kwargs(self, step=None):
@@ -137,6 +138,7 @@ class TopographyCreateWizard(SessionWizardView):
             session['initial_size_unit'] = topo.unit
             session['initial_height_scale'] = topo.parent_topography.coeff
             session['detrend_mode'] = topo.detrend_mode
+            session['size_x'], session['size_y'] = topo.resolution
 
         return kwargs
 
@@ -171,6 +173,9 @@ class TopographyCreateWizard(SessionWizardView):
         os.rename(old_path, new_path)
 
         d['datafile'] = new_path
+
+        d['resolution_x'] = self.request.session['size_x']
+        d['resolution_y'] = self.request.session['size_y']
 
         # create topography in database
         instance = Topography(**d)
@@ -346,6 +351,3 @@ class SurfaceDeleteView(SurfaceAccessMixin, DeleteView):
     model = Surface
     context_object_name = 'surface'
     success_url = reverse_lazy('manager:surface-list')
-
-
-
