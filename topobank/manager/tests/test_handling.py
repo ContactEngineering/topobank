@@ -140,14 +140,13 @@ def test_topography_list(client, two_topos, django_user_model):
 
     content = str(response.content)
     for t in topos:
-        # currently 'listed' means: description in list, name in list
-        assert t.description in content
+        # currently 'listed' means: name in list
         assert t.name in content
 
-        # click on a row should lead to details, so URL must be included
+        # click on a bar should lead to details, so URL must be included
         assert reverse('manager:topography-detail', kwargs=dict(pk=t.pk)) in content
 
-        # TODO real test for click should be done with selenium
+        # TODO tests missing for bar length and position (selenium??)
 
 # TODO add test with predefined height conversion
 # TODO add test with predefined physical size
@@ -213,6 +212,36 @@ def test_edit_topography(client, two_topos, django_user_model):
     #
     response = client.get(reverse('manager:surface-detail', kwargs=dict(pk=topo_id)))
     assert bytes(new_name, 'utf-8') in response.content
+
+@pytest.mark.django_db
+def test_topography_detail(client, two_topos, django_user_model):
+
+    username = 'testuser'
+    password = 'abcd$1234'
+
+    topo_id = 2
+
+    django_user_model.objects.get(username=username)
+
+    assert client.login(username=username, password=password)
+
+
+    response = client.get(reverse('manager:topography-detail', kwargs=dict(pk=topo_id)))
+    assert response.status_code == 200
+
+    # resolution should be written somewhere
+    assert b"305 x 75" in response.content
+
+    # .. as well as Detrending mode
+    assert b"Remove tilt" in response.content
+
+    # .. description
+    assert b"description2" in response.content
+
+    # .. physical size
+    assert "112 µm x 27 µm" in response.content.decode('utf-8')
+
+
 
 
 @pytest.mark.django_db

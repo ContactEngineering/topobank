@@ -60,14 +60,14 @@
 -   model: manager.topography
     pk: 1
     fields: {surface: 1, name: Example 3 - ZSensor, datafile: /home/michael/prj/imtek/topobank/topobank/media/topographies/user_1/example3_K7Ijorz.di,
-        data_source: 0, measurement_date: 2018-01-01, description: '', size_x: 9,
+        data_source: 0, measurement_date: 2018-01-01, description: 'description1', size_x: 9,
         size_y: 9, size_unit: "\xB5m", height_scale: 0.29638271279074097, height_unit: nm,
         detrend_mode: height, image: topographies/not_available.png,
         resolution_x: 256, resolution_y: 256}
 -   model: manager.topography
     pk: 2
     fields: {surface: 1, name: Example 4 - Default, datafile: /home/michael/prj/imtek/topobank/topobank/media/topographies/user_1/example4_DiVRsr9.txt,
-        data_source: 0, measurement_date: 2018-01-02, description: '', size_x: 112,
+        data_source: 0, measurement_date: 2018-01-02, description: 'description2', size_x: 112,
         size_y: 27, size_unit: "\xB5m", height_scale: 2.91818e-08, height_unit: m,
         detrend_mode: height, image: topographies/not_available.png,
         resolution_x: 305, resolution_y: 75}
