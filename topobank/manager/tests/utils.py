@@ -17,18 +17,22 @@ def two_topos(django_db_setup, django_db_blocker):
     #
     # Copy uploaded files at the correct places
     #
-    # or use sth. like https://github.com/duncaningram/django-fixture-media
+    # This is hack, maybe better to use sth like
+    # https://github.com/duncaningram/django-fixture-media
     #
-    from_path = os.path.join(str(settings.ROOT_DIR),
-                             'topobank/manager/fixtures/example4.txt')
+    from_to = [ ('topobank/manager/fixtures/example4.txt',
+                 ['topographies/user_1/example4.txt',
+                  'topographies/user_1/example4_DiVRsr9.txt']),
+                ('topobank/manager/fixtures/example3.di',
+                 ['topographies/user_1/example3_K7Ijorz.di'])
+    ]
 
-    to_paths = ['topographies/user_1/example4.txt',
-                'topographies/user_1/example4_VBYUbBc.txt',]
-
-    for to_path in to_paths:
-        to_path = os.path.join(settings.MEDIA_ROOT, to_path)
-        _log.info("Copying fixture file '{}' -> '{}'..".format(from_path, to_path))
-        copyfile(from_path, to_path)
+    for from_path, to_paths in from_to:
+        from_path = os.path.join(str(settings.ROOT_DIR), from_path)
+        for to_path in to_paths:
+            to_path = os.path.join(settings.MEDIA_ROOT, to_path)
+            _log.info("Copying fixture file '{}' -> '{}'..".format(from_path, to_path))
+            copyfile(from_path, to_path)
 
     #
     # Load database from YAML file
