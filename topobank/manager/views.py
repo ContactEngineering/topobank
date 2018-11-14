@@ -181,6 +181,12 @@ class TopographyCreateWizard(SessionWizardView):
         instance = Topography(**d)
         instance.save()
 
+        # put image creation tasks in queue
+        instance.submit_images_creation()  # TODO create notification
+
+        # put automated analysis in queue
+        instance.submit_automated_analyses() # TODO create notification
+
         return redirect(reverse('manager:topography-detail', kwargs=dict(pk=instance.pk)))
 
 class TopographyCreateView(CreateView):
@@ -206,6 +212,7 @@ class TopographyUpdateView(TopographyAccessMixin, UpdateView):
     form_class = TopographyForm
 
     def get_success_url(self):
+        self.object.submit_automated_analyses()
         return reverse('manager:topography-detail', kwargs=dict(pk=self.object.pk))
 
 class TopographyListView(ListView):
@@ -224,6 +231,9 @@ class TopographyDeleteView(TopographyAccessMixin, DeleteView):
     model = Topography
     context_object_name = 'topography'
     success_url = reverse_lazy('manager:surface-list')
+
+    def get_success_url(self):
+        return reverse('manager:surface-detail', kwargs=dict(pk=self.object.surface.pk))
 
 class SelectedTopographyView(FormMixin, ListView):
     model = Topography

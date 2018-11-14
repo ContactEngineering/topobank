@@ -62,13 +62,13 @@
     fields: {surface: 1, name: Example 3 - ZSensor, datafile: /home/michael/prj/imtek/topobank/topobank/media/topographies/user_1/example3_K7Ijorz.di,
         data_source: 0, measurement_date: 2018-01-01, description: '', size_x: 9,
         size_y: 9, size_unit: "\xB5m", height_scale: 0.29638271279074097, height_unit: nm,
-        detrend_mode: height, surface_image: topographies/not_available.png}
+        detrend_mode: height, image: topographies/not_available.png}
 -   model: manager.topography
     pk: 2
     fields: {surface: 1, name: Example 4 - Default, datafile: /home/michael/prj/imtek/topobank/topobank/media/topographies/user_1/example4_DiVRsr9.txt,
         data_source: 0, measurement_date: 2018-01-02, description: '', size_x: 112,
         size_y: 27, size_unit: "\xB5m", height_scale: 2.91818e-08, height_unit: m,
-        detrend_mode: height, surface_image: topographies/not_available.png}
+        detrend_mode: height, image: topographies/not_available.png}
 -   model: analysis.analysisfunction
     pk: 1
     fields: {name: Height Distribution, pyfunc: height_distribution, automatic: true}
