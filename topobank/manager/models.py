@@ -2,6 +2,7 @@ from django.db import models, transaction
 from imagekit.models import ImageSpecField
 from imagekit.processors import ResizeToFill
 
+
 from .utils import TopographyFile, selected_topographies
 from topobank.users.models import User
 
@@ -83,14 +84,12 @@ class Topography(models.Model):
                                format='JPEG',
                                options={'quality': 60})
     dzi_file = models.FileField(null=True) # NULL means: not yet calculated
+    resolution_x = models.IntegerField()
+    resolution_y = models.IntegerField()
 
     #
     # Methods
     #
-
-    resolution_x = models.IntegerField()
-    resolution_y = models.IntegerField()
-
     def __str__(self):
         return "Topography '{0}' from {1}".format(\
             self.name, self.measurement_date)
@@ -127,5 +126,6 @@ class Topography(models.Model):
                 submit_analysis(af, instance)
 
         transaction.on_commit(lambda: submit_all(self))
+
 
 
