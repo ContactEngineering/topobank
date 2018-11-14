@@ -1,11 +1,6 @@
 from django.db import models, transaction
-from django.db.models.signals import pre_save, post_save
-from django.dispatch import receiver
 from imagekit.models import ImageSpecField
 from imagekit.processors import ResizeToFill
-
-import matplotlib.pyplot as plt
-import io
 
 from .utils import TopographyFile, selected_topographies
 from topobank.users.models import User
@@ -54,8 +49,12 @@ class Topography(models.Model):
         ('curvature', 'Remove curvature'),
     ]
 
-    surface = models.ForeignKey('Surface', on_delete=models.CASCADE)
+    verbose_name_plural = 'topographies'
 
+    #
+    # Description fields
+    #
+    surface = models.ForeignKey('Surface', on_delete=models.CASCADE)
     name = models.CharField(max_length=80)
 
     datafile = models.FileField(upload_to=user_directory_path) # currently upload_to not used in forms
@@ -63,6 +62,9 @@ class Topography(models.Model):
     measurement_date = models.DateField()
     description = models.TextField(blank=True)
 
+    #
+    # Fields with physical meta data
+    #
     size_x = models.IntegerField()
     size_y = models.IntegerField()
     size_unit = models.TextField(choices=LENGTH_UNIT_CHOICES) # TODO allow null?
@@ -72,37 +74,23 @@ class Topography(models.Model):
 
     detrend_mode = models.TextField(choices=DETREND_MODE_CHOICES, default='center')
 
-    surface_image = models.ImageField(default='topographies/not_available.png')
-    surface_thumbnail = ImageSpecField(source='surface_image',
-                                       processors=[ResizeToFill(100,100)],
-                                       format='JPEG',
-                                       options={'quality': 60})
+    #
+    # Fields for image creation
+    #
+    image = models.ImageField(default='topographies/not_available.png') # TODO rename, no longer surface here!
+    thumbnail = ImageSpecField(source='image',
+                               processors=[ResizeToFill(100,100)],
+                               format='JPEG',
+                               options={'quality': 60})
+    dzi_file = models.FileField(null=True) # NULL means: not yet calculated
 
-    verbose_name_plural = 'topographies'
+    #
+    # Methods
+    #
 
     def __str__(self):
         return "Topography '{0}' from {1}".format(\
             self.name, self.measurement_date)
-
-    def update_surface_image(self):
-        """Create image for surface for web interface.
-
-        :return: None
-        """
-        topo = self.topography()
-
-        arr = topo.array()
-
-        fig = plt.figure()
-        ax = fig.add_subplot(1,1,1)
-        ax.pcolormesh(arr)
-
-        # save figure in a memory buffer and use this as source for image field
-        buffer = io.BytesIO()
-        fig.savefig(buffer, format='png')
-        self.surface_image.save('images/surface-{}.png'.format(self.pk), buffer, save=False)
-        # save=False in order to avoid recursion
-        # TODO later also create image in a task
 
     def topography(self):
         """Return PyCo Topography instance"""
@@ -119,29 +107,22 @@ class Topography(models.Model):
 
         return topo
 
+    def submit_images_creation(self):
+        from .utils import create_topography_images
+        transaction.on_commit(lambda: create_topography_images(self.id))
 
+    def submit_automated_analyses(self):
+        """Submit all automatic analysis for this Topography.
+        """
+        from topobank.taskapp.tasks import submit_analysis
+        from topobank.analysis.models import AnalysisFunction
 
-@receiver(pre_save, sender=Topography)
-def update_surface_image(sender, instance, **kwargs):
-    # TODO also calculate the image in a task
-    instance.update_surface_image()
+        auto_analysis_funcs = AnalysisFunction.objects.filter(automatic=True)
 
-@receiver(post_save, sender=Topography)
-def compute_surface_properties(sender, instance, **kwargs):
-    #
-    # Submit here all functions which should be called by default
-    # on new topographies
-    #
-    # These imports are done here in order to avoid import conflicts
-    from topobank.taskapp.tasks import submit_analysis
-    from topobank.analysis.models import AnalysisFunction
+        def submit_all(instance=self):
+            for af in auto_analysis_funcs:
+                submit_analysis(af, instance)
 
-    auto_analysis_funcs = AnalysisFunction.objects.filter(automatic=True)
-
-    def submit_all(instance=instance):
-        for af in auto_analysis_funcs:
-            submit_analysis(af, instance)
-
-    transaction.on_commit(lambda: submit_all(instance))
+        transaction.on_commit(lambda: submit_all(self))
 
 

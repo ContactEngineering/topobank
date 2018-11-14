@@ -1,5 +1,5 @@
-
 {% extends 'base.html' %}
+{% load static i18n %}
 {% load fontawesome %}
 
 {% block content-title %}Details for Topography <i>{{ topography.name }}</i>
@@ -48,12 +48,9 @@
 
     </ul>
 
-
     <div class="tab-content">
       <div class="tab-pane fade show active" id="image" role="tabpanel" aria-labelledby="image-tab">
-        <img src="{{ topography.surface_image.url }}"
-             width="{{ topography.surface_image.width }}"
-             height="{{ topography.surface_image.height }}">
+        <div id="zoomable-topography-image"></div>
       </div>
 
       <div class="tab-pane fade" id="meta" role="tabpanel" aria-labelledby="meta-tab">
@@ -103,4 +100,25 @@
 
 {% endblock content %}
 
+{% block javascript %}
+<script src="{% static 'vendor/openseadragon-bin-2.4.0/openseadragon.min.js' %}"></script>
+<script type="text/javascript">
+  {% if topography.dzi_file %}
+  $(document).ready(function() {
+    var viewer = OpenSeadragon({
+      id: "zoomable-topography-image",
+      prefixUrl: "{% static 'vendor/openseadragon-bin-2.4.0/images/' %}",
+      tileSources: "{{ topography.dzi_file.url }}"
+    });
+
+    // We need to set the height of the div in order that sth is shown (at least Firefox)
+    var canvas = $(".openseadragon-canvas > canvas:nth-child(1)");
+    var div_height = canvas.width() / {{ topography.size_x }} * {{ topography.size_y }} * 0.6;
+    $('#zoomable-topography-image').height(div_height);
+  });
+  {% else %}
+    $('#zoomable-topography-image').text("Zoomable image not yet available.")
+  {% endif %}
+</script>
+{% endblock %}
 

@@ -38,7 +38,8 @@ django-imagekit==4.0.2
 # TODO maybe there is another thunbnail library which is better suited
 
 # plotting
-bokeh==0.13.0
+# bokeh==0.13.0
+matplotlib==2.2.3
 
 # form wizard for defining a topography in several steps
 django-formtools==2.1
@@ -51,3 +52,7 @@ pandas==0.23.4
 
 # openpyxl
 openpyxl==2.5.9
+
+# script to create DeepZoom Images
+-e git://github.com/muranamihdk/deepzoom3.git#egg=deepzoom3
+# TODO this creates a src directory when installing, alternative: just add one foreign source file (MIT) to project
