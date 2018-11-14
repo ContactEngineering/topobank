@@ -118,6 +118,8 @@ def test_upload_topography(client, django_user_model):
     assert t.measurement_date == datetime.date(2018,6,21)
     assert t.description == description
     assert "example3" in t.datafile.name
+    assert 256 == t.resolution_x
+    assert 256 == t.resolution_y
 
 @pytest.mark.django_db
 def test_topography_list(client, two_topos, django_user_model):
@@ -216,12 +218,13 @@ def test_edit_topography(client, two_topos, django_user_model):
 @pytest.mark.django_db
 def test_delete_topography(client, two_topos, django_user_model):
 
-    # topography 1 is still in database
-    assert Topography.objects.filter(pk=1).exists()
-
     username = 'testuser'
     password = 'abcd$1234'
     topo_id = 1
+
+    # topography 1 is still in database
+    topo = Topography.objects.get(pk=topo_id)
+    surface = topo.surface
 
     assert client.login(username=username, password=password)
 
@@ -233,7 +236,7 @@ def test_delete_topography(client, two_topos, django_user_model):
     response = client.post(reverse('manager:topography-delete', kwargs=dict(pk=topo_id)))
 
     # user should be redirected to surface details
-    assert reverse('manager:surface-list') == response.url
+    assert reverse('manager:surface-detail', kwargs=dict(pk=surface.id)) == response.url
 
     # topography topo_id is no more in database
     assert not Topography.objects.filter(pk=topo_id).exists()
@@ -334,3 +337,4 @@ def test_delete_surface(client, django_user_model):
     assert reverse('manager:surface-list') == response.url
 
     assert Surface.objects.all().count() == 0
+
