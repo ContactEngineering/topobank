@@ -280,7 +280,7 @@ def create_topography_images(self, topography_id):
     img_path = pathlib.Path(topography.surface.user.get_media_path()) / 'images' / f'topography-{topography.pk}.jpeg'
 
     _log.info(f"Saving topography image as '{img_path}'...")
-    topography.surface_image.save(img_path, buffer, save=True)
+    topography.image.save(img_path, buffer, save=True)
 
     #
     # create the dzi images for zooming + XML file with extension .dzi
