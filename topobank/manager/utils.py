@@ -260,22 +260,38 @@ def create_topography_images(self, topography_id):
     pyco_topo = topography.topography()
 
     arr = pyco_topo.array()
+    topo_shape = arr.shape
+    topo_size = pyco_topo.size
 
     #
     # Prepare figure
     #
-    DPI = 30 # TODO check value
-    topo_size = pyco_topo.size
-    figsize = (topo_size[0]/DPI, topo_size[1]/DPI)
-    fig = plt.figure(figsize=figsize)
-    ax = fig.add_subplot(1, 1, 1)
-    ax.pcolormesh(arr)
+    DPI = 90 # similar to typical screen resolution
+    figsize = (topo_shape[0]*1.1/DPI, topo_shape[1]/DPI)
+    fig, ax  = plt.subplots(figsize=figsize)
+
+    X = np.linspace(0, topo_size[0], topo_shape[0])
+    Y = np.linspace(0, topo_size[1], topo_shape[1])
+
+    cmap = plt.get_cmap("RdBu")
+    plot_values = arr.transpose()
+
+    cbar_unit, cbar_scale = optimal_unit(plot_values.max(), topography.height_unit)
+
+    axes_unit = f" [{topography.size_unit}]"
+    ax.set(xlabel='x'+axes_unit, ylabel='y'+axes_unit,
+           aspect="equal")
+    im = ax.pcolormesh(X, Y, plot_values * cbar_scale, cmap=cmap)
+
+    cbar = plt.colorbar(im, ax=ax)
+    cbar.set_label(f"height [{cbar_unit}]")
+    fig.suptitle(f"Image of topography '{topography.name}'")
 
     #
     # save figure in a memory buffer and use this as source for image field
     #
     buffer = io.BytesIO()
-    fig.savefig(buffer, format='jpeg')
+    fig.savefig(buffer, format='jpeg', dpi=DPI)
 
     img_path = pathlib.Path(topography.surface.user.get_media_path()) / 'images' / f'topography-{topography.pk}.jpeg'
 
