@@ -267,8 +267,13 @@ def create_topography_images(self, topography_id):
     # Prepare figure
     #
     DPI = 90 # similar to typical screen resolution
-    figsize = (topo_shape[0]*1.1/DPI, topo_shape[1]/DPI)
-    fig, ax  = plt.subplots(figsize=figsize)
+
+    WIDTH_PX = 1280 # width in pixels
+    HEIGHT_PX = WIDTH_PX/topo_size[0]*topo_size[1]
+
+    figsize = (WIDTH_PX/DPI, HEIGHT_PX/DPI)
+    fig, ax  = plt.subplots(figsize=figsize, constrained_layout=True)
+    # fig, ax  = plt.subplots(constrained_layout=True)
 
     X = np.linspace(0, topo_size[0], topo_shape[0])
     Y = np.linspace(0, topo_size[1], topo_shape[1])
@@ -286,6 +291,7 @@ def create_topography_images(self, topography_id):
     cbar = plt.colorbar(im, ax=ax)
     cbar.set_label(f"height [{cbar_unit}]")
     fig.suptitle(f"Image of topography '{topography.name}'")
+
 
     #
     # save figure in a memory buffer and use this as source for image field
