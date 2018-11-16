@@ -73,6 +73,7 @@ def test_prevent_topography_access_by_other_user(client, django_user_model, mock
             topography = Topography.objects.create(name="topo", surface=surface, measurement_date='2018-01-01',
                                                    data_source=0,
                                                    size_x=1, size_y=1,
+                                                   resolution_x=1, resolution_y=1,
                                                    datafile=str(input_file_path))
     topography_id = topography.id
 
