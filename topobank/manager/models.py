@@ -111,7 +111,7 @@ class Topography(models.Model):
 
     def submit_images_creation(self):
         from .utils import create_topography_images
-        transaction.on_commit(lambda: create_topography_images(self.id))
+        transaction.on_commit(lambda: create_topography_images.delay(self.id))
 
     def submit_automated_analyses(self):
         """Submit all automatic analysis for this Topography.
