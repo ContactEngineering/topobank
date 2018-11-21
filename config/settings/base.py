@@ -73,6 +73,7 @@ THIRD_PARTY_APPS = [
     'fontawesome',
     'imagekit',
     'formtools',
+    'bokeh',
 ]
 LOCAL_APPS = [
     'topobank.users.apps.UsersAppConfig',

@@ -1,4 +1,4 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import redirect
 from django.views.generic import DetailView, ListView, UpdateView, CreateView, DeleteView
 from django.urls import reverse, reverse_lazy
 from django.core.files.storage import FileSystemStorage
@@ -9,6 +9,12 @@ from django.http import HttpResponseForbidden
 from django.views.generic.edit import FormMixin
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib import messages
+
+from bokeh.plotting import figure
+from bokeh.resources import CDN
+from bokeh.embed import components
+from bokeh.models import Range1d, LinearColorMapper, ColorBar
+import numpy as np
 
 import json
 import os.path
@@ -227,6 +233,53 @@ class TopographyListView(ListView):
 class TopographyDetailView(TopographyAccessMixin, DetailView):
     model = Topography
     context_object_name = 'topography'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+
+        topo = self.object
+        pyco_topo = topo.topography()
+        arr = pyco_topo.array()
+        topo_shape = arr.shape
+        topo_size = pyco_topo.size
+        X = np.linspace(0, topo_size[0], topo_shape[0])
+        Y = np.linspace(0, topo_size[1], topo_shape[1])
+
+        x_range = Range1d(0, topo_size[0], bounds=(0, topo_size[0]))
+        y_range = Range1d(0, topo_size[1], bounds=(0, topo_size[1]))
+
+
+        color_mapper = LinearColorMapper(palette="Viridis256", low=arr.min(), high=arr.max())
+
+        TOOLTIPS = [
+            ("x", "$x "+topo.size_unit),
+            ("y", "$y "+topo.size_unit),
+            ("height", "@image "+topo.height_unit),
+        ]
+
+        plot = figure(x_range=x_range,
+                      y_range=y_range,
+                      x_axis_label=f'x [{topo.size_unit}]',
+                      y_axis_label=f'x [{topo.size_unit}]',
+                      toolbar_location="above",
+                      tooltips=TOOLTIPS)
+
+        plot.image([arr], X, Y, topo_size[0], topo_size[1], color_mapper=color_mapper)
+        plot.toolbar.logo = None
+
+        colorbar = ColorBar(color_mapper=color_mapper,
+                            label_standoff=12, location=(0,0))
+        colorbar.title = f"height [{topo.height_unit}]"
+        colorbar.width = 40
+
+        plot.add_layout(colorbar, 'right')
+
+        script, div = components(plot, CDN)
+        context['image_plot_script'] = script
+        context['image_plot_div'] = div
+
+        return context
 
 class TopographyDeleteView(TopographyAccessMixin, DeleteView):
     model = Topography

@@ -38,8 +38,9 @@ django-imagekit==4.0.2
 # TODO maybe there is another thunbnail library which is better suited
 
 # plotting
-# bokeh==0.13.0
+bokeh==1.0.1
 matplotlib==2.2.3
+# TODO Check if matplotlib is still needed
 
 # form wizard for defining a topography in several steps
 django-formtools==2.1
