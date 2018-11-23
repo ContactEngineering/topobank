@@ -101,7 +101,7 @@ class Topography(models.Model):
         topo = topofile.topography(int(self.data_source))
         # TODO int() is a fix for SQLite which cannot return real int?? remove for PG
 
-        topo.unit = self.size_unit
+        topo.unit = self.size_unit # TODO what about height unit
         topo.parent_topography.coeff = self.height_scale
         topo.size = self.size_x, self.size_y
 
