@@ -53,6 +53,10 @@ class Analysis(models.Model):
     def get_kwargs_display(self):
         return str(pickle.loads(self.kwargs))
 
+    @property
+    def result_obj(self):
+        return pickle.loads(self.result) if self.result else None
+
 class AnalysisFunction(models.Model):
     name = models.CharField(max_length=80, help_text="A human-readable name.", unique=True)
     pyfunc = models.CharField(max_length=256,

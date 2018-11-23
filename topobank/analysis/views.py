@@ -10,11 +10,14 @@ from django.contrib import messages
 from django.db.models import OuterRef, Subquery
 from rest_framework.generics import RetrieveAPIView
 
+from bokeh.embed import components
+from bokeh.resources import CDN # needed?
+
 from ..manager.utils import selected_topographies, selection_from_session
 from .models import Analysis, AnalysisFunction
 from .serializers import AnalysisSerializer, PickledResult
-
 from .forms import TopographyFunctionSelectForm
+from .plotting import make_result_model
 
 import numpy as np
 import pandas as pd
@@ -89,8 +92,27 @@ class AnalysisListView(FormMixin, ListView):
         functions = AnalysisFunction.objects.filter(id__in=function_ids)
         return functions
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
 
-class AnalysisDetailView(RetrieveAPIView):
+        plots = []
+        for function in self._selected_functions(self.request):
+
+            analyses_for_function = Analysis.objects.filter(
+                                        function=function,
+                                        topography__in=selected_topographies(self.request))
+
+            model = make_result_model(analyses_for_function)
+            script, div = components(model, CDN)
+
+            plots.append(dict(function=function,
+                              script=script,
+                              div=div))
+
+        context['plots'] = plots
+        return context
+
+class AnalysisRetrieveView(RetrieveAPIView):
     queryset = Analysis.objects.all()
     serializer_class = AnalysisSerializer
 

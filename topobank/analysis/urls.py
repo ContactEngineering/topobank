@@ -12,7 +12,7 @@ urlpatterns = [
     ),
     url(
         regex=r'(?P<pk>\d+)/retrieve/$',
-        view=login_required(views.AnalysisDetailView.as_view()),
+        view=login_required(views.AnalysisRetrieveView.as_view()),
         name='retrieve'
     ),
     url(

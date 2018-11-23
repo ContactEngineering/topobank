@@ -281,3 +281,16 @@ SELECT2_JS = '/static/vendor/select2/js/select2.js'
 SELECT2_CSS = '/static/vendor/select2/css/select2.css'
 SELECT2_I18N_PATH = '/static/vendor/select2/js/i18n'
 # The default for all these are pointers to Cloudflare CDN
+
+#
+# Define permissions when using the rest framework
+#
+# TODO Make sure that no one can retrieve data from other users, e.g. in view
+# This may help: https://www.django-rest-framework.org/api-guide/permissions/
+# This seems to fit well: https://www.django-rest-framework.org/tutorial/4-authentication-and-permissions/
+#
+REST_FRAMEWORK = {
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    )
+}
