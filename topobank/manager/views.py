@@ -260,10 +260,13 @@ class TopographyDetailView(TopographyAccessMixin, DetailView):
 
         plot = figure(x_range=x_range,
                       y_range=y_range,
-                      x_axis_label=f'x [{topo.size_unit}]',
-                      y_axis_label=f'x [{topo.size_unit}]',
+                      x_axis_label=f'x ({topo.size_unit})',
+                      y_axis_label=f'y ({topo.size_unit})',
                       toolbar_location="above",
                       tooltips=TOOLTIPS)
+
+        plot.xaxis.axis_label_text_font_style = "normal"
+        plot.yaxis.axis_label_text_font_style = "normal"
 
         plot.image([arr], X, Y, topo_size[0], topo_size[1], color_mapper=color_mapper)
         plot.toolbar.logo = None
@@ -275,7 +278,7 @@ class TopographyDetailView(TopographyAccessMixin, DetailView):
 
         plot.add_layout(colorbar, 'right')
 
-        script, div = components(plot, CDN)
+        script, div = components(plot, CDN) # TODO is CDN argument correct? Needed?
         context['image_plot_script'] = script
         context['image_plot_div'] = div
 
