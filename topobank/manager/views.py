@@ -53,7 +53,13 @@ class TopographyAccessMixin(UserPassesTestMixin):
         topo = Topography.objects.get(pk=self.kwargs['pk'])
         return topo.surface.user == self.request.user
 
-
+#
+# Using a wizard because we need intermediate calculations
+#
+# An alternative would be to use AJAX calls as described here (under "GET"):
+#
+#  https://sixfeetup.com/blog/making-your-django-templates-ajax-y
+#
 class TopographyCreateWizard(SessionWizardView):
     form_list = [TopographyFileUploadForm, TopographyMetaDataForm, TopographyUnitsForm]
     template_name = 'manager/topography_wizard.html'
