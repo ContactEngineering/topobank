@@ -50,6 +50,10 @@ def function_result_card(request):
         # thanks to minkwe for the contribution at https://gist.github.com/ryanpitts/1304725
         # maybe be better solved with PostGreSQL and Window functions
 
+
+        #
+        # Determine status code of request - do we need to trigger request again?
+        #
         analyses_ready = analyses_avail.filter(task_state__in=['su', 'fa'])
         analyses_unready = analyses_avail.filter(~Q(id__in=analyses_ready))
 
@@ -60,6 +64,14 @@ def function_result_card(request):
             status = 202  # signal to caller: please request again
         else:
             status = 200  # request is as complete as possible
+
+        #
+        # collect lists of successful analyses and analyses with failures
+        #
+        # Only the successful ones should show up in the plot
+        # the ones with failure should be shown elsewhere
+        analyses_success = analyses_ready.filter(task_state='su')
+        analyses_failure = analyses_ready.filter(task_state='fa')
 
         #
         # collect list of topographies for which no analyses exist
@@ -73,13 +85,14 @@ def function_result_card(request):
         context = dict(
             idx = card_idx,
             title = function.name,
-            analyses_available = analyses_avail,
-            analyses_ready = analyses_ready,
-            analyses_unready=analyses_unready,
-            topographies_missing=topographies_missing
+            analyses_available = analyses_avail, # all Analysis objects related to this card
+            analyses_success = analyses_success, # ..the ones which were successful and can be displayed
+            analyses_failure = analyses_failure,   # ..the ones which have failures and can't be displayed
+            analyses_unready = analyses_unready,   # ..the ones which are still running
+            topographies_missing = topographies_missing  # topographies for which there is no Analyis object yet
         )
 
-        context.update(function_card_context(analyses_ready))
+        context.update(function_card_context(analyses_success))
 
         return render(request, template_name="analysis/function_result_card.html", context=context, status=status)
     else:

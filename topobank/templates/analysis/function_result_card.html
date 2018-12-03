@@ -1,5 +1,6 @@
-{# Needs some keys in context. See AJAX view "FunctionResultCardView" #}
+{# Needs some keys in context. See AJAX view "function_result_card" #}
 {% load analysis_tags %}
+{% load fontawesome %}
 
 <div class="card">
     <div class="card-header">
@@ -17,11 +18,11 @@
           <a class="dropdown-item topobank-change-unit" href="#">Display in units of m</a>
           <div class="dropdown-divider"></div>
           -->
-          {% if analyses_ready %}
-          <a class="dropdown-item" href="{% url 'analysis:download-txt' analyses_ready|analyses_results_ids_list_str %}">Download as TXT</a>
-          <a class="dropdown-item" href="{% url 'analysis:download-xlsx' analyses_ready|analyses_results_ids_list_str %}">Download as XLSX</a>
-          {% endif %}
+          {% if analyses_success %}
+          <a class="dropdown-item" href="{% url 'analysis:download-txt' analyses_success|analyses_results_ids_list_str %}">Download as TXT</a>
+          <a class="dropdown-item" href="{% url 'analysis:download-xlsx' analyses_success|analyses_results_ids_list_str %}">Download as XLSX</a>
           <div class="dropdown-divider"></div>
+          {% endif %}
           <a class="dropdown-item" href="#" data-toggle="modal"
              data-target="#statusesModal-{{ idx }}">Task information</a>
         </div>
@@ -39,10 +40,22 @@
           <a class="nav-link" data-toggle="tab" href="#values-{{ idx }}">Special values</a>
         </li>
         {% endif %}
+        {% if analyses_failure %}
+        <li class="nav-item" style="list-style-type: none;">
+          <a class="nav-link" data-toggle="tab" href="#failures-{{ idx }}">Failures</a>
+        </li>
+        {% endif %}
       </ul>
 
       <div class="tab-content">
         <div class="tab-pane fade show active" id="plot-{{ idx }}" role="tabpanel" aria-labelledby="card-tab"}>
+          {% for af in analyses_failure %}
+            <div class="alert alert-warning">
+              {% fontawesome_icon 'exclamation-circle' %}
+              Analysis for topography <em>{{ au.topography.name }}</em> failed.
+              See tab "Failures" for details.
+            </div>
+          {% endfor %}
           {% for au in analyses_unready %}
             <div class="alert alert-info">
               <div class="spinner"></div>
@@ -55,7 +68,7 @@
               {# TODO Provide link to trigger analysis #}
             </div>
           {% endfor %}
-          {% if analyses_ready %}
+          {% if analyses_success %}
            {# Show all analyses for which we have results #}
            {{ plot_div | safe }}
           {% endif %}
@@ -80,6 +93,18 @@
             {% endfor %}
             </tbody>
           </table>
+        </div>
+        {% endif %}
+        {% if analyses_failure %}
+        <div class="tab-pane fade" id="failures-{{ idx }}" role="tabpanel" aria-labelledby="failures-tab">
+          {% for af in analyses_failure %}
+            <div class="alert alert-warning">
+              <p>Analysis failed for topography
+                 <a href="{% url 'manager:topography-detail' af.topography.id %}">{{ af.topography.name }}</a>.
+                Traceback:</p>
+              <pre>{{ af.result_obj.error }}</pre>
+            </div>
+          {% endfor %}
         </div>
         {% endif %}
       </div>
@@ -142,7 +167,7 @@
   </div>
 </div>
 
-{% if analyses_ready %}
+{% if analyses_success %}
   {# Insert the script code needed for the plot #}
   {{ plot_script | safe }}
 {% endif %}
