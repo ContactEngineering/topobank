@@ -7,7 +7,7 @@ app_name = "analysis"
 urlpatterns = [
     url(
         regex=r'list/$',
-        view=login_required(views.AnalysisListView.as_view()),
+        view=login_required(views.AnalysesView.as_view()),
         name='list'
     ),
     url(
@@ -25,4 +25,15 @@ urlpatterns = [
         view=login_required(views.download_analysis_to_xlsx),
         name='download-xlsx'
     ),
+    url(
+        regex=r'card/$',
+        view=login_required(views.function_result_card),
+        name='card'
+    ),
+    # url(
+    #     # regex=r'function/(?P<function_id>\d+)/topographies/(?P<topography_ids>[\d,]+)$',
+    #     regex=r'card/$',
+    #     view=login_required(views.FunctionResultCardView.as_view()),
+    #     name='card'
+    # ),
 ]

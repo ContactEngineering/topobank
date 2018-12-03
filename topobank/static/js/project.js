@@ -20,7 +20,6 @@ Issues with the above approach:
 */
 $('.form-group').removeClass('row');
 
-
 /* Split a unit string into the base unit and an exponent. E.g.
  *   µm³ => µm, 3
  */
@@ -498,7 +497,59 @@ function surface_summary_plot(element, bandwidths_data) {
 
 }
 
+function verifyPrecision(precision) {
+    if (precision < 0 || precision > 20) {
+        throw new RangeError("Formatter precision must be between 0 and 20");
+    }
+    if (precision !== Math.floor(precision)) {
+        throw new RangeError("Formatter precision must be an integer");
+    }
+}
+/**
+ * Creates a formatter that formats numbers to show no more than
+ * [maxNumberOfDecimalPlaces] decimal places in exponential notation.
+ * Exponentials will be displayed human readably, i.e. 1.3×10³.
+ *
+ * @param {number} [d] The number to be formatted
+ * @param {number} [maxNumberOfDecimalPlaces] The number of decimal places to show (default 3).
+ *
+ * @returns {Formatter} A formatter for general values.
+ */
+function format_exponential(d, maxNumberOfDecimalPlaces) {
+        if (maxNumberOfDecimalPlaces === void 0) { maxNumberOfDecimalPlaces = 3; }
 
+        if (d == 0 || d === undefined || isNaN(d) || Math.abs(d) == Infinity) {
+            return String(d);
+        }
+        else if (typeof d === "number") {
+            var multiplier = Math.pow(10, maxNumberOfDecimalPlaces);
+            var sign = d < 0 ? -1 : 1;
+            var e = Math.floor(Math.log(sign * d) / Math.log(10));
+            var m = sign * d / Math.pow(10, e);
+            var m_rounded = Math.round(m * multiplier) / multiplier;
+            if (m_rounded == 10) {
+                m_rounded = 1;
+                e++;
+            }
+            if (e == 0) {
+                return String(sign * m_rounded); // do not attach ×10⁰ == 1
+            }
+            else if (m_rounded == 1) {
+                if (sign > 0) {
+                    return "10" + unicode_superscript(String(e));
+                }
+                else {
+                    return "-10" + unicode_superscript(String(e));
+                }
+            }
+            else {
+                return String(sign * m_rounded) + "×10" + unicode_superscript(String(e));
+            }
+        }
+        else {
+            return String(d);
+        }
+}
 
 /*
  * Setup document handlers.

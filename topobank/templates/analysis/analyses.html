@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+{% load fontawesome %}
+{% load crispy_forms_tags %}
+{% load analysis_tags %}
+
+{% block content-title %}
+  Analysis Results
+{% endblock content-title %}
+
+{% block extra_css %}
+<link href="https://cdn.pydata.org/bokeh/release/bokeh-1.0.1.min.css"
+      rel="stylesheet" type="text/css">
+<link href="https://cdn.pydata.org/bokeh/release/bokeh-widgets-1.0.1.min.css"
+      rel="stylesheet" type="text/css">
+<link href="https://cdn.pydata.org/bokeh/release/bokeh-tables-1.0.1.min.css"
+      rel="stylesheet" type="text/css">
+{{ form.media.css }}
+{% endblock extra_css %}
+
+{% block breadcrumbs %}
+  <li class="breadcrumb-item active" aria-current="page">Analyses</li>
+{% endblock breadcrumbs %}
+
+{% block searchbox %}
+  <!-- Filter for topographies and analysis functions -->
+  <div class="bg-light border-top border-bottom">
+    <div class="container-fluid">
+      {% crispy form form.helper %}
+      {# TODO for some reason here also JS code for select2 is inserted too early, this causes warnings #}
+    </div>
+  </div>
+{% endblock searchbox %}
+
+{% block content %}
+
+  <!--
+  Show one card for each analysis function
+
+  Will be replaced by AJAX call.
+  -->
+  <div class="row">
+    {% for card in cards %}
+      <div class="col-xl-6 mb-4">
+        <div id="card-{{ forloop.counter }}">
+          <div class="card">
+            <div class="card-header">
+              <h4>{{ card.function.name }}</h4>
+            </div>
+            <div class="card-body">
+              <p>Please wait..</p>
+              <div class="spinner"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+
+{% endblock content %}
+
+{% block javascript %}
+  <!-- ----------- for bokeh plot ----- -->
+  <script src="https://cdn.pydata.org/bokeh/release/bokeh-1.0.1.min.js"></script>
+  <script src="https://cdn.pydata.org/bokeh/release/bokeh-widgets-1.0.1.min.js"></script>
+  <script src="https://cdn.pydata.org/bokeh/release/bokeh-tables-1.0.1.min.js"></script>{#  TODO not needed so far #}
+
+  <!-- Trigger fetching analysis results -->
+  <script>
+
+    function submit_card_ajax(card_idx, function_id, topography_ids) {
+
+      var card_element_id = "#card-"+card_idx;
+
+      $.ajax({
+        type: "GET",
+        url: "{% url 'analysis:card' %}",
+        timeout: 0,
+        data: {
+           card_idx: card_idx,
+           function_id: function_id,
+           topography_ids: topography_ids
+           // csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value
+           // without this token we can't do a POST for security reasons
+           // Does {{ csrf_token }} work instead?
+        },
+        success : function(data, textStatus, xhr) {
+          $(card_element_id).html(data); // insert resulting HTML code
+          if (xhr.status==202) {
+            // Data is not ready, retrigger AJAX call
+            console.log("Analyses for card "+card_idx+" not ready. Retrying..");
+            setTimeout(function () {
+              submit_card_ajax(card_idx, function_id, topography_ids);
+            }, 1000); // TODO limit number of retries?
+          }
+        },
+        error: function(xhr, textStatus, errorThrown) {
+            $(card_element_id).html("Please report this error: <pre>"+errorThrown+xhr.status+xhr.responseText+"</pre>");
+            $(card_element_id).addClass("alert alert-danger");
+        }
+      });
+    }
+
+    // for each card submit ajax call to insert result card
+    {% for card in cards %}
+      $(document).ready(function () {
+        submit_card_ajax({{ forloop.counter }}, {{ card.function.id }}, {{ card.topography_ids_json|safe }});
+      });
+    {% endfor %}
+  </script>
+
+  <!-- for crispy form -->
+  {{ form.media.js }}
+{% endblock javascript %}

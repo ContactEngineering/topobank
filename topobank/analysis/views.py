@@ -1,61 +1,99 @@
 import io
 import pickle
-from zipfile import ZipFile, ZIP_DEFLATED
+import json
+import numpy as np
+import pandas as pd
 
-from django.http import HttpResponse, HttpResponseForbidden
-from django.views.generic import DetailView, ListView
-from django.views.generic.edit import FormMixin
+from django.http import HttpResponse, HttpResponseForbidden, Http404
+from django.views.generic.edit import FormView
 from django.urls import reverse_lazy
 from django.contrib import messages
 from django.db.models import OuterRef, Subquery
+from django.shortcuts import render
+from django.db.models import Q
 from rest_framework.generics import RetrieveAPIView
 
-from bokeh.embed import components
-from bokeh.resources import CDN # needed?
-
+from ..manager.models import Topography
 from ..manager.utils import selected_topographies, selection_from_session
 from .models import Analysis, AnalysisFunction
-from .serializers import AnalysisSerializer, PickledResult
+from .serializers import AnalysisSerializer
 from .forms import TopographyFunctionSelectForm
-from .plotting import make_result_model
+from .cards import function_card_context
 
-import numpy as np
-import pandas as pd
 import PyCo
 
-class AnalysisListView(FormMixin, ListView):
-    model = Analysis
-    context_object_name = 'analyses'
-    form_class = TopographyFunctionSelectForm
-    success_url = reverse_lazy('analysis:list')
+def function_result_card(request):
 
-    def get_queryset(self):
-        topographies = selected_topographies(self.request)
-        functions = AnalysisListView._selected_functions(self.request)
+    if request.is_ajax():
+
+        request_method = request.GET
+        try:
+            function_id = int(request_method.get('function_id'))
+            card_idx = int(request_method.get('card_idx'))
+            topography_ids = [ int(tid) for tid in request_method.getlist('topography_ids[]')]
+        except (KeyError, ValueError):
+            return HttpResponse("Error in GET arguments")
+
         sq_analyses = Analysis.objects \
-            .filter(topography__surface__user=self.request.user,
-                    topography__in=topographies,
-                    function__in=functions) \
-            .filter(topography=OuterRef('topography'), function=OuterRef('function'),\
+            .filter(topography__surface__user=request.user,
+                    topography_id__in=topography_ids,
+                    function_id=function_id) \
+            .filter(topography=OuterRef('topography'), function=OuterRef('function'),
                     kwargs=OuterRef('kwargs')) \
             .order_by('-start_time')
 
-        # Use this subquery for finding only latest analyses for each (topography, function, kwargs) group
-        analyses = Analysis.objects\
-            .filter(pk=Subquery(sq_analyses.values('pk')[:1]))\
-            .order_by('function')
+        # Use this subquery for finding only latest analyses for each (topography, kwargs) group
+        analyses_avail = Analysis.objects \
+            .filter(pk=Subquery(sq_analyses.values('pk')[:1])) \
+            .order_by('topography__name')
 
         # thanks to minkwe for the contribution at https://gist.github.com/ryanpitts/1304725
+        # maybe be better solved with PostGreSQL and Window functions
+
+        analyses_ready = analyses_avail.filter(task_state__in=['su', 'fa'])
+        analyses_unready = analyses_avail.filter(~Q(id__in=analyses_ready))
+
+        num_analyses_avail = analyses_avail.count()
+        num_analyses_ready = analyses_ready.count()
+
+        if (num_analyses_avail > 0) and (num_analyses_ready < num_analyses_avail):
+            status = 202  # signal to caller: please request again
+        else:
+            status = 200  # request is as complete as possible
 
         #
-        # maybe be better solved with PostGreSQL and Window functions
+        # collect list of topographies for which no analyses exist
         #
-        return analyses
+        topographies_available_ids = [ a.topography.id for a in analyses_avail ]
+        topographies_missing = [ Topography.objects.get(id=tid) for tid in topography_ids
+                                 if tid not in topographies_available_ids ]
+
+        function = AnalysisFunction.objects.get(id=function_id)
+
+        context = dict(
+            idx = card_idx,
+            title = function.name,
+            analyses_available = analyses_avail,
+            analyses_ready = analyses_ready,
+            analyses_unready=analyses_unready,
+            topographies_missing=topographies_missing
+        )
+
+        context.update(function_card_context(analyses_ready))
+
+        return render(request, template_name="analysis/function_result_card.html", context=context, status=status)
+    else:
+        return Http404
+
+class AnalysesView(FormView):
+    form_class = TopographyFunctionSelectForm
+    success_url = reverse_lazy('analysis:list')
+    template_name = "analysis/analyses.html"
 
     def get_initial(self):
         return dict(
             selection=selection_from_session(self.request.session),
-            functions=AnalysisListView._selected_functions(self.request),
+            functions=AnalysesView._selected_functions(self.request),
         )
 
     def get_form_kwargs(self):
@@ -95,24 +133,20 @@ class AnalysisListView(FormMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        plots = []
+        cards = []
+
         for function in self._selected_functions(self.request):
 
-            analyses_for_function = Analysis.objects.filter(
-                                        function=function,
-                                        topography__in=selected_topographies(self.request))
+            topographies = selected_topographies(self.request)
 
-            model = make_result_model(analyses_for_function)
-            script, div = components(model, CDN)
+            cards.append(dict(template="analysis/function_result_card.html",
+                              function=function,
+                              topography_ids_json=json.dumps([ t.id for t in topographies])))
 
-            plots.append(dict(function=function,
-                              script=script,
-                              div=div))
-
-        context['plots'] = plots
+        context['cards'] = cards
         return context
 
-class AnalysisRetrieveView(RetrieveAPIView):
+class AnalysisRetrieveView(RetrieveAPIView): #TODO needed?
     queryset = Analysis.objects.all()
     serializer_class = AnalysisSerializer
 
