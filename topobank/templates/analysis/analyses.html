@@ -95,7 +95,7 @@
           }
         },
         error: function(xhr, textStatus, errorThrown) {
-            $(card_element_id).html("Please report this error: <pre>"+errorThrown+xhr.status+xhr.responseText+"</pre>");
+            $(card_element_id).html("Please report this error: "+errorThrown+xhr.status+xhr.responseText);
             $(card_element_id).addClass("alert alert-danger");
         }
       });
