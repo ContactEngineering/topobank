@@ -60,8 +60,8 @@ def function_card_context(analyses):
     # Create the plot figure
     #
     plot = figure(title=title,
-                  # plot_width=700,
-                  sizing_mode='stretch_both', # TODO how does automatic resizing work?
+                  plot_height=300,
+                  sizing_mode='scale_width',
                   x_range=x_range,
                   y_range=y_range,
                   x_axis_label=f'x ({xunit})',
@@ -221,7 +221,7 @@ def function_card_context(analyses):
     #
     # Convert plot and widgets to HTML, add meta data for template
     #
-    script, div = components(column(plot, widgets))
+    script, div = components(column(plot, widgets, sizing_mode='scale_width'))
 
     context = dict(plot_script=script,
                    plot_div=div,
