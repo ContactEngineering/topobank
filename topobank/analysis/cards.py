@@ -20,7 +20,7 @@ def function_card_context(analyses):
     """Context for card template for analysis results.
 
     :param card_idx: integer number identifying the card on a page
-    :param analyses: iterable of Analysis instances, tasks must be ready
+    :param analyses: iterable of Analysis instances, tasks must be ready + successful
     :return: context
     TODO explain context
     """
@@ -132,6 +132,7 @@ def function_card_context(analyses):
 
     # plot.legend.click_policy = "hide"
     plot.legend.visible = False
+    plot.toolbar.logo = None
     plot.xaxis.axis_label_text_font_style = "normal"
     plot.yaxis.axis_label_text_font_style = "normal"
     plot.xaxis.major_label_text_font_size = "12pt"
