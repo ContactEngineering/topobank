@@ -6,15 +6,13 @@ from bokeh.models import ColumnDataSource, CustomJS, AjaxDataSource
 from bokeh.models.widgets import CheckboxButtonGroup, CheckboxGroup, Panel, Tabs, TableColumn, DataTable, Button
 from bokeh.models.widgets.markups import Paragraph, Div
 from bokeh.models.formatters import FuncTickFormatter
+from bokeh.models.ranges import DataRange1d
 from bokeh.plotting import figure
 from bokeh.palettes import Category10
 from bokeh.embed import components
 import itertools
 import json
 from collections import OrderedDict
-from celery.states import READY_STATES
-from ..manager.utils import optimal_unit
-import time
 
 def function_card_context(analyses):
     """Context for card template for analysis results.
@@ -44,7 +42,11 @@ def function_card_context(analyses):
     xunit = first_analysis_result['xunit']
     yunit = first_analysis_result['yunit']
 
-    # TODO: set xrange, yrange, bounds for zooming
+    #
+    # set xrange, yrange -> automatic bounds for zooming
+    #
+    x_range = DataRange1d(bounds='auto')  # if min+max not given, calculate from data of render
+    y_range = DataRange1d(bounds='auto')
 
     def get_axis_type(key):
         return first_analysis_result.get(key) or "linear"
@@ -52,6 +54,8 @@ def function_card_context(analyses):
     plot = figure(title=title,
                   # plot_width=700,
                   sizing_mode='stretch_both', # TODO how does automatic resizing work?
+                  x_range=x_range,
+                  y_range=y_range,
                   x_axis_label=f'x ({xunit})',
                   y_axis_label=f'y ({yunit})',
                   x_axis_type=get_axis_type('xscale'),
@@ -76,20 +80,19 @@ def function_card_context(analyses):
         topography_name = analysis.topography.name
 
         #
-        # find out colors
+        # find out colors for topographies
         #
         if analysis.topography not in topography_colors:
             topography_colors[analysis.topography] = next(color_cycle)
             topography_names.append(analysis.topography.name)
 
         if analysis.task_state == analysis.FAILURE:
-            # TODO handle failure
-            continue
+            continue # should not happen if only called with successful analyses
         elif analysis.task_state == analysis.SUCCESS:
             series = analysis.result_obj['series']
         else:
             # not ready yet
-            continue # TODO add/leave spinner
+            continue # should not happen if only called with successful analyses
 
         for s in series:
             # TODO use AjaxDataSource for retrieving the results??
@@ -97,7 +100,7 @@ def function_card_context(analyses):
 
             series_name = s['name']
             #
-            # find out dashes
+            # find out dashes for data series
             #
             if series_name not in series_dashes:
                 series_dashes[series_name] = next(dash_cycle)
@@ -126,13 +129,17 @@ def function_card_context(analyses):
             js_code += f"{glyph_id}.visible = series_btn_group.active.includes({series_idx}) "\
                        +f"&& topography_btn_group.active.includes({topography_idx});"
 
+        #
+        # Collect special values to be shown in the result card
+        #
         if 'scalars' in analysis.result_obj:
             for k,v in analysis.result_obj['scalars'].items():
                 special_values.append((analysis.topography, k, v, analysis.topography.height_unit))
 
-    # plot.legend.click_policy = "hide"
-    plot.legend.visible = False
+    # plot.legend.click_policy = "hide" # can be used to disable lines by clicking on legend
+    plot.legend.visible = False # we have extra widgets to disable lines
     plot.toolbar.logo = None
+    plot.toolbar.active_inspect = None
     plot.xaxis.axis_label_text_font_style = "normal"
     plot.yaxis.axis_label_text_font_style = "normal"
     plot.xaxis.major_label_text_font_size = "12pt"
@@ -141,6 +148,8 @@ def function_card_context(analyses):
     # see js function "format_exponential()" in project.js file
     plot.xaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
     plot.yaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
+
+
 
     topo_names = list(t.name for t in topography_colors.keys())
 
