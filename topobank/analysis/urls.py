@@ -11,11 +11,6 @@ urlpatterns = [
         name='list'
     ),
     url(
-        regex=r'(?P<pk>\d+)/retrieve/$',
-        view=login_required(views.AnalysisRetrieveView.as_view()),
-        name='retrieve'
-    ),
-    url(
         regex=r'(?P<ids>[\d,]+)/download/txt$',
         view=login_required(views.download_analysis_to_txt),
         name='download-txt'
@@ -30,10 +25,4 @@ urlpatterns = [
         view=login_required(views.function_result_card),
         name='card'
     ),
-    # url(
-    #     # regex=r'function/(?P<function_id>\d+)/topographies/(?P<topography_ids>[\d,]+)$',
-    #     regex=r'card/$',
-    #     view=login_required(views.FunctionResultCardView.as_view()),
-    #     name='card'
-    # ),
 ]
