@@ -13,6 +13,10 @@ from bokeh.embed import components
 import itertools
 import json
 from collections import OrderedDict
+from pint import UnitRegistry, UndefinedUnitError
+
+import logging
+_log = logging.getLogger(__name__)
 
 def function_card_context(analyses):
     """Context for card template for analysis results.
@@ -38,9 +42,10 @@ def function_card_context(analyses):
     first_analysis_result = analyses[0].result_obj
     title = first_analysis_result['name']
 
-    # TODO find out common units, convert data
     xunit = first_analysis_result['xunit']
     yunit = first_analysis_result['yunit']
+
+    ureg = UnitRegistry() # for unit conversion for each analysis individually, see below
 
     #
     # set xrange, yrange -> automatic bounds for zooming
@@ -51,6 +56,9 @@ def function_card_context(analyses):
     def get_axis_type(key):
         return first_analysis_result.get(key) or "linear"
 
+    #
+    # Create the plot figure
+    #
     plot = figure(title=title,
                   # plot_width=700,
                   sizing_mode='stretch_both', # TODO how does automatic resizing work?
@@ -62,6 +70,9 @@ def function_card_context(analyses):
                   y_axis_type=get_axis_type('yscale'),
                   tools="crosshair,pan,reset,save,wheel_zoom,box_zoom")
 
+    #
+    # Prepare helpers for dashes and colors
+    #
     color_cycle = itertools.cycle(Category10[10])
     dash_cycle = itertools.cycle(['solid', 'dashed', 'dotted', 'dotdash', 'dashdot'])
 
@@ -70,6 +81,9 @@ def function_card_context(analyses):
     topography_colors = OrderedDict() # key: Topography instance
     topography_names = []
 
+    #
+    # Traverse analyses and plot lines
+    #
     js_code = ""
     js_args = {}
 
@@ -94,9 +108,24 @@ def function_card_context(analyses):
             # not ready yet
             continue # should not happen if only called with successful analyses
 
+        #
+        # find out scale for data
+        #
+        analysis_result = analysis.result_obj
+
+        try:
+            analysis_xscale = ureg.convert(1, xunit, analysis_result['xunit'])
+            analysis_yscale = ureg.convert(1, yunit, analysis_result['yunit'])
+        except UndefinedUnitError as exc:
+            _log.error("Cannot convert units when displaying results for analysis with id %s. Cause: %s",
+                       analysis.id, str(exc))
+            continue
+            # TODO How to handle such an error here?
+
         for s in series:
-            # TODO use AjaxDataSource for retrieving the results??
-            source = ColumnDataSource(data=dict(x=s['x'], y=s['y']))
+            # One could use AjaxDataSource for retrieving the results, but useful if we are already in AJAX call?
+            source = ColumnDataSource(data=dict(x=analysis_xscale*s['x'],
+                                                y=analysis_yscale*s['y']))
 
             series_name = s['name']
             #
@@ -136,6 +165,10 @@ def function_card_context(analyses):
             for k,v in analysis.result_obj['scalars'].items():
                 special_values.append((analysis.topography, k, v, analysis.topography.height_unit))
 
+    #
+    # Final configuration of the plot
+    #
+
     # plot.legend.click_policy = "hide" # can be used to disable lines by clicking on legend
     plot.legend.visible = False # we have extra widgets to disable lines
     plot.toolbar.logo = None
@@ -150,7 +183,9 @@ def function_card_context(analyses):
     plot.yaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
 
 
-
+    #
+    # Adding widgets for switching lines on/off
+    #
     topo_names = list(t.name for t in topography_colors.keys())
 
     series_button_group = CheckboxGroup(
@@ -183,6 +218,9 @@ def function_card_context(analyses):
     series_button_group.js_on_click(toggle_lines_callback)
     topography_button_group.js_on_click(toggle_lines_callback)
 
+    #
+    # Convert plot and widgets to HTML, add meta data for template
+    #
     script, div = components(column(plot, widgets))
 
     context = dict(plot_script=script,
