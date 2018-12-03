@@ -279,7 +279,7 @@ class TopographyDetailView(TopographyAccessMixin, DetailView):
 
         colorbar = ColorBar(color_mapper=color_mapper,
                             label_standoff=12, location=(0,0))
-        colorbar.title = f"height [{topo.height_unit}]"
+        colorbar.title = f"height ({topo.height_unit})"
         colorbar.width = 40
 
         plot.add_layout(colorbar, 'right')
