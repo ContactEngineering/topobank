@@ -78,12 +78,11 @@ class Topography(models.Model):
     #
     # Fields for image creation
     #
-    image = models.ImageField(default='topographies/not_available.png') # TODO rename, no longer surface here!
+    image = models.ImageField(default='topographies/not_available.png') # TODO Check if needed
     thumbnail = ImageSpecField(source='image',
                                processors=[ResizeToFill(100,100)],
                                format='JPEG',
-                               options={'quality': 60})
-    dzi_file = models.FileField(null=True) # NULL means: not yet calculated
+                               options={'quality': 60}) # TODO Check if needed
     resolution_x = models.IntegerField()
     resolution_y = models.IntegerField()
 
@@ -109,7 +108,7 @@ class Topography(models.Model):
 
         return topo
 
-    def submit_images_creation(self):
+    def submit_images_creation(self): # TODO remove if not needed for thumbnails
         from .utils import create_topography_images
         transaction.on_commit(lambda: create_topography_images.delay(self.id))
 

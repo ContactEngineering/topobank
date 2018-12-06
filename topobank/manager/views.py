@@ -11,9 +11,8 @@ from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib import messages
 
 from bokeh.plotting import figure
-from bokeh.resources import CDN
 from bokeh.embed import components
-from bokeh.models import Range1d, LinearColorMapper, ColorBar
+from bokeh.models import DataRange1d, Range1d, LinearColorMapper, ColorBar, Row
 import numpy as np
 
 import json
@@ -194,7 +193,7 @@ class TopographyCreateWizard(SessionWizardView):
         instance.save()
 
         # put image creation tasks in queue
-        instance.submit_images_creation()  # TODO create notification
+        # instance.submit_images_creation()
 
         # put automated analysis in queue
         instance.submit_automated_analyses() # TODO create notification
@@ -247,14 +246,23 @@ class TopographyDetailView(TopographyAccessMixin, DetailView):
         topo = self.object
         pyco_topo = topo.topography()
         arr = pyco_topo.array()
-        topo_shape = arr.shape
+        # topo_shape = arr.shape
         topo_size = pyco_topo.size
-        X = np.linspace(0, topo_size[0], topo_shape[0])
-        Y = np.linspace(0, topo_size[1], topo_shape[1])
+        #X = np.linspace(0, topo_size[0], topo_shape[0])
+        #Y = np.linspace(0, topo_size[1], topo_shape[1])
 
-        x_range = Range1d(0, topo_size[0], bounds=(0, topo_size[0]))
-        y_range = Range1d(0, topo_size[1], bounds=(0, topo_size[1]))
-
+        #x_range = DataRange1d(start=0, end=topo_size[0], bounds=(0,topo_size[0]))
+        #y_range = DataRange1d(start=0, end=topo_size[1], bounds=(0,topo_size[1]))
+        x_range = DataRange1d(start=0, end=topo_size[0], bounds='auto')
+        y_range = DataRange1d(start=0, end=topo_size[1], bounds='auto')
+        #x_padding = topo_size[0] / 10
+        #y_padding = topo_size[1] / 10
+        #x_range = Range1d(start=-x_padding, end=topo_size[0]+x_padding, bounds='auto')
+        #y_range = Range1d(start=-y_padding, end=topo_size[1]+y_padding, bounds='auto')
+        #x_range = DataRange1d(start=0, end=topo_size[0])
+        #y_range = DataRange1d(start=0, end=topo_size[1])
+        #x_range = DataRange1d(bounds=(0,topo_size[0]))
+        #y_range = DataRange1d(bounds=(0,topo_size[1]))
 
         color_mapper = LinearColorMapper(palette="Viridis256", low=arr.min(), high=arr.max())
 
@@ -264,27 +272,45 @@ class TopographyDetailView(TopographyAccessMixin, DetailView):
             ("height", "@image "+topo.height_unit),
         ]
 
+        colorbar_width = 40
+
+        aspect_ratio = topo_size[0]/topo_size[1]
+        plot_height = 800
+        plot_width = int(plot_height*aspect_ratio)
+        #plot_width = 1200
+        #plot_height = int(plot_width/aspect_ratio)
+
+        # from bokeh.models.tools import BoxZoomTool, WheelZoomTool, ZoomInTool, ZoomOutTool, PanTool
         plot = figure(x_range=x_range,
                       y_range=y_range,
+                      plot_height=plot_height,
+                      plot_width=plot_width,
+                      # sizing_mode='scale_both',
+                      # match_aspect=True,
                       x_axis_label=f'x ({topo.size_unit})',
                       y_axis_label=f'y ({topo.size_unit})',
                       toolbar_location="above",
+                      # tools=[PanTool(),BoxZoomTool(match_aspect=True), "save", "reset"],
                       tooltips=TOOLTIPS)
 
         plot.xaxis.axis_label_text_font_style = "normal"
         plot.yaxis.axis_label_text_font_style = "normal"
 
-        plot.image([arr], X, Y, topo_size[0], topo_size[1], color_mapper=color_mapper)
+        plot.image([arr], x=0, y=0, dw=topo_size[0], dh=topo_size[1], color_mapper=color_mapper)
+        #plot.rect(x=[0,topo_size[0],topo_size[0],0, topo_size[0]/2],
+        #          y=[0,0,topo_size[1],topo_size[1], topo_size[1]/2],
+        #          width=50, height=50, color='red')
+
         plot.toolbar.logo = None
 
         colorbar = ColorBar(color_mapper=color_mapper,
-                            label_standoff=12, location=(0,0))
+                            label_standoff=12, location=(0,0),
+                            width=colorbar_width)
         colorbar.title = f"height ({topo.height_unit})"
-        colorbar.width = 40
 
         plot.add_layout(colorbar, 'right')
 
-        script, div = components(plot, CDN) # TODO is CDN argument correct? Needed?
+        script, div = components(plot)
         context['image_plot_script'] = script
         context['image_plot_div'] = div
 
