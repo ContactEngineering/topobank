@@ -6,7 +6,7 @@ import os
 import pathlib
 
 from PyCo.Topography import FromFile
-from PyCo.Topography.TopographyDescription import ScaledTopography, DetrendedTopography
+from PyCo.Topography.TopographyPipeline import ScaledTopography, DetrendedTopography
 from deepzoom import ImageCreator
 
 from topobank.taskapp.celery import app
@@ -28,33 +28,33 @@ class TopographyFile:
     def __init__(self, fname):
 
         self._fmt = FromFile.detect_format(fname)
-        raw_surfaces = FromFile.read(fname, self._fmt)
+        raw_topographies = FromFile.read(fname, self._fmt)
         # we are relying here on a fixed order everytime the same file is read
 
         #
-        # read() may return only one surface if there is only one
+        # read() may return only one topography if there is only one
         #
-        if not isinstance(raw_surfaces, list):
-            raw_surfaces = [raw_surfaces]
+        if not isinstance(raw_topographies, list):
+            raw_topographies = [raw_topographies]
 
-        surfaces = [] # filtered surfaces
-        # ignore all surfaces which have other units than lenghts
+        topographies = [] # filtered topographies
+        # ignore all topographies which have other units than lenghts
         # code taken from PyCo-web
-        for surface in raw_surfaces:
-            if type(surface.unit) is not tuple:
+        for topography in raw_topographies:
+            if type(topography.unit) is not tuple:
                 # If this is not a tuple, that x-, y- and z-units are all
                 # lengths. Discard all other channels.
-                if not isinstance(surface, ScaledTopography):
-                    surface = ScaledTopography(surface, 1.0)
-                surfaces += [DetrendedTopography(surface, detrend_mode='height')]
-        self._surfaces = surfaces
+                if not isinstance(topography, ScaledTopography):
+                    topography = ScaledTopography(topography, 1.0)
+                topographies += [DetrendedTopography(topography, detrend_mode='height')]
+        self._topographies = topographies
 
 
     @property
     def data_sources(self):
-        """Return list of data source strings from surface infos."""
-        return [ s.info['data_source'] if 'data_source' in s.info else DEFAULT_DATASOURCE_NAME
-                 for s in self._surfaces ]
+        """Return list of data source strings from topography infos."""
+        return [s.info['data_source'] if 'data_source' in s.info else DEFAULT_DATASOURCE_NAME
+                for s in self._topographies]
 
     def topography(self, data_source):
         """Get ScaledTopography instance based on data_source.
@@ -63,7 +63,7 @@ class TopographyFile:
         :return: PyCo.Surface.SurfaceDescription.ScaledSurface
         """
 
-        return self._surfaces[data_source] # TODO adjust to new PyCo naming
+        return self._topographies[data_source]
 
 
 def optimal_unit(length, unit='m'): # TODO write unit tests

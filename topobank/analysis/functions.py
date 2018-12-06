@@ -8,9 +8,9 @@ import numpy as np
 
 from PyCo.Topography import rms_height
 from PyCo.Topography.common import _get_size, compute_derivative
-from PyCo.Topography.PowerSpectrum import power_spectrum_1D, power_spectrum_2D
-from PyCo.Topography.Autocorrelation import autocorrelation_1D, autocorrelation_2D
-from PyCo.Topography.VariableBandwidth import checkerboard_tilt_correction
+from PyCo.Topography.Uniform.PowerSpectrum import power_spectrum_1D, power_spectrum_2D
+from PyCo.Topography.Uniform.Autocorrelation import autocorrelation_1D, autocorrelation_2D
+from PyCo.Topography.Uniform.VariableBandwidth import checkerboard_tilt_correction
 
 # TODO: _unicode_map and super and subscript functions should be moved to some support module.
 
