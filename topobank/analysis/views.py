@@ -19,6 +19,7 @@ from .models import Analysis, AnalysisFunction
 from .serializers import AnalysisSerializer
 from .forms import TopographyFunctionSelectForm
 from .cards import function_card_context
+from .utils import get_latest_analyses
 
 import PyCo
 
@@ -34,22 +35,7 @@ def function_result_card(request):
         except (KeyError, ValueError):
             return HttpResponse("Error in GET arguments")
 
-        sq_analyses = Analysis.objects \
-            .filter(topography__surface__user=request.user,
-                    topography_id__in=topography_ids,
-                    function_id=function_id) \
-            .filter(topography=OuterRef('topography'), function=OuterRef('function'),
-                    kwargs=OuterRef('kwargs')) \
-            .order_by('-start_time')
-
-        # Use this subquery for finding only latest analyses for each (topography, kwargs) group
-        analyses_avail = Analysis.objects \
-            .filter(pk=Subquery(sq_analyses.values('pk')[:1])) \
-            .order_by('topography__name')
-
-        # thanks to minkwe for the contribution at https://gist.github.com/ryanpitts/1304725
-        # maybe be better solved with PostGreSQL and Window functions
-
+        analyses_avail = get_latest_analyses(request.user, function_id, topography_ids)
 
         #
         # Determine status code of request - do we need to trigger request again?

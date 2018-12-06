@@ -11,7 +11,7 @@ from django.urls import reverse
 from ..models import Analysis, AnalysisFunction
 from topobank.manager.tests.utils import two_topos
 from topobank.manager.models import Topography, Surface
-# from topobank.manager.tests.utils import export_reponse_as_html
+from topobank.manager.tests.utils import export_reponse_as_html
 
 def selection_from_instances(instances):
     """A little helper for constructing a selection."""
@@ -39,7 +39,10 @@ def test_selection_from_instances(mocker):
 
 
 @pytest.mark.django_db
-def test_analysis_times(client, two_topos): # TODO use mocks here if possible
+def test_analysis_times(client, two_topos, mocker):
+
+    card_context_mock = mocker.patch('topobank.analysis.cards.function_card_context')
+    card_context_mock.return_value = {}
 
     username = 'testuser'
     password = 'abcd$1234'
@@ -59,20 +62,29 @@ def test_analysis_times(client, two_topos): # TODO use mocks here if possible
     )
     analysis.save()
 
-    response = client.post(reverse("analysis:list"),
+    response = client.get(reverse("analysis:card"),
                            data={
-                               'selection': selection_from_instances([topo]),
-                               'functions': [af.id],
-                           }, follow=True)
+                               'topography_ids[]': [topo.id],
+                               'function_id': af.id,
+                               'card_idx': 1
+                           },
+                           HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+                           follow=True)
 
     assert response.status_code == 200
+
+    export_reponse_as_html(response, fname='/tmp/response-analysis-times.html')
 
     assert b"2018-01-01 12:00:00" in response.content # start
     # assert b"2018-01-01 13:01:01" in response.content # end, lef out for now
     assert b"1:01:01" in response.content # duration
 
 @pytest.mark.django_db
-def test_show_only_last_analysis(client, two_topos):# TODO use mocks here if possible
+def test_show_only_last_analysis(client, two_topos, mocker):
+    # TODO use mocks for topographies if possible
+
+    card_context_mock = mocker.patch('topobank.analysis.cards.function_card_context')
+    card_context_mock.return_value = {}
 
     username = 'testuser'
     password = 'abcd$1234'
@@ -135,13 +147,18 @@ def test_show_only_last_analysis(client, two_topos):# TODO use mocks here if pos
     # Check response, for both topographies only the
     # latest results should be shown
     #
-    response = client.post(reverse("analysis:list"),
+    response = client.get(reverse("analysis:card"),
                            data={
-                               'selection': selection_from_instances([topo1, topo2]),
-                               'functions': [af.id],
-                           }, follow=True)
+                               'topography_ids[]': [topo1.id, topo2.id],
+                               'function_id': af.id,
+                               'card_idx': 1
+                           },
+                          HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+                          follow=True)
 
     assert response.status_code == 200
+
+    export_reponse_as_html(response)
 
     assert b"2018-01-02 12:00:00" in response.content
     assert b"2018-01-04 12:00:00" in response.content
@@ -150,7 +167,11 @@ def test_show_only_last_analysis(client, two_topos):# TODO use mocks here if pos
     assert b"2018-01-03 12:00:00" not in response.content
 
 @pytest.mark.django_db
-def test_show_analyses_with_different_arguments(client, two_topos):
+def test_show_analyses_with_different_arguments(client, two_topos, mocker):
+    # TODO use mocks for topographies if possible
+
+    card_context_mock = mocker.patch('topobank.analysis.cards.function_card_context')
+    card_context_mock.return_value = {}
 
     username = 'testuser'
     password = 'abcd$1234'
@@ -198,11 +219,14 @@ def test_show_analyses_with_different_arguments(client, two_topos):
     #
     # Check response, all three analyses should be shown
     #
-    response = client.post(reverse("analysis:list"),
+    response = client.get(reverse("analysis:card"),
                            data={
-                               'selection': selection_from_instances([topo1, ]),
-                               'functions': [af.id],
-                           }, follow=True)
+                               'topography_ids[]': [topo1.id],
+                               'function_id': af.id,
+                               'card_idx': 1,
+                           },
+                           HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+                           follow=True)
 
     assert response.status_code == 200
 
