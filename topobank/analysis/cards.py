@@ -56,6 +56,9 @@ def function_card_context(analyses):
     def get_axis_type(key):
         return first_analysis_result.get(key) or "linear"
 
+    x_axis_label = first_analysis_result['xlabel'] + f' ({xunit})'
+    y_axis_label = first_analysis_result['ylabel'] + f' ({yunit})'
+
     #
     # Create the plot figure
     #
@@ -64,8 +67,8 @@ def function_card_context(analyses):
                   sizing_mode='scale_width',
                   x_range=x_range,
                   y_range=y_range,
-                  x_axis_label=f'x ({xunit})',
-                  y_axis_label=f'y ({yunit})',
+                  x_axis_label=x_axis_label,
+                  y_axis_label=y_axis_label,
                   x_axis_type=get_axis_type('xscale'),
                   y_axis_type=get_axis_type('yscale'),
                   tools="crosshair,pan,reset,save,wheel_zoom,box_zoom")
