@@ -199,6 +199,7 @@ def download_analysis_to_xlsx(request, ids):
 
     # TODO: We need a mechanism for embedding references to papers into output.
     # FIXME: TopoBank needs version information
+    # TODO: Probably this function leaves out data if the sheet names are not unique (built from topography+series name)
 
     # Pack analysis results into a single text file.
     f = io.BytesIO()

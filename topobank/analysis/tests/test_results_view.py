@@ -305,20 +305,12 @@ def test_show_multiple_analyses_for_two_functions(client, two_topos):
     assert b"Example 3 - ZSensor" in response.content
     assert b"Example 4 - Default" in response.content
 
-
-
-@pytest.mark.django_db
-def test_analyis_download_as_txt(client, two_topos):
-
-    username = 'testuser'
-    password = 'abcd$1234'
-
-    assert client.login(username=username, password=password)
-
+@pytest.fixture
+def ids_downloadable_analyses():
     #
     # create two analyses with resuls
     #
-    topo = Topography.objects.get(id=1)
+    topos = [Topography.objects.get(id=1), Topography.objects.get(id=2)]
     function = AnalysisFunction.objects.create(name="Test Function", pyfunc='dummy', automatic=False)
 
     v = np.arange(5)
@@ -337,23 +329,32 @@ def test_analyis_download_as_txt(client, two_topos):
             yunit='m',
             series=[
                 dict(name='First Series',
-                     x=v+k,
-                     y=2*v+k,
+                     x=v + k,
+                     y=2 * v + k,
                      ),
                 dict(name='Second Series',
-                     x=v+1+k,
-                     y=3*(v+1)+k,
+                     x=v + 1 + k,
+                     y=3 * (v + 1) + k,
                      )
             ])
 
-        analysis = Analysis.objects.create(topography=topo,
+        analysis = Analysis.objects.create(topography=topos[k],
                                            function=function,
                                            result=pickle.dumps(result),
                                            kwargs=pickle.dumps({}))
         ids.append(analysis.id)
 
+    return ids
 
-    ids_str = ",".join(str(i) for i in ids)
+@pytest.mark.django_db
+def test_analyis_download_as_txt(client, two_topos, ids_downloadable_analyses):
+
+    username = 'testuser'
+    password = 'abcd$1234'
+
+    assert client.login(username=username, password=password)
+
+    ids_str = ",".join(str(i) for i in ids_downloadable_analyses)
     download_url = reverse('analysis:download-txt', kwargs=dict(ids=ids_str))
 
     response = client.get(download_url)
@@ -398,13 +399,69 @@ def test_analyis_download_as_txt(client, two_topos):
         (6, 16),
     ])
 
+@pytest.mark.django_db
+def test_analyis_download_as_xlsx(client, two_topos, ids_downloadable_analyses):
 
+    username = 'testuser'
+    password = 'abcd$1234'
 
+    assert client.login(username=username, password=password)
 
+    ids_str = ",".join(str(i) for i in ids_downloadable_analyses)
+    download_url = reverse('analysis:download-xlsx', kwargs=dict(ids=ids_str))
 
+    response = client.get(download_url)
 
+    import tempfile, openpyxl
 
+    tmp = tempfile.NamedTemporaryFile(suffix='.xlsx') # will be deleted automatically
+    tmp.write(response.content)
+    tmp.seek(0)
 
+    xlsx = openpyxl.load_workbook(tmp.name)
 
+    assert len(xlsx.worksheets) == 2*2 + 1 # TODO this would currently fail if the topographies had the same name
 
+    ws = xlsx.get_sheet_by_name("Example 3 - ZSensor - First Series")
 
+    assert list(ws.values) == [
+        (None, 'time (s)', 'distance (m)'),
+        (0, 0, 0),
+        (1, 1, 2),
+        (2, 2, 4),
+        (3, 3, 6),
+        (4, 4, 8),
+    ]
+
+    ws = xlsx.get_sheet_by_name("Example 3 - ZSensor - Second Series")
+
+    assert list(ws.values) == [
+        (None, 'time (s)', 'distance (m)'),
+        (0, 1, 3),
+        (1, 2, 6),
+        (2, 3, 9),
+        (3, 4, 12),
+        (4, 5, 15),
+    ]
+
+    ws = xlsx.get_sheet_by_name("Example 4 - Default - First Series")
+
+    assert list(ws.values) == [
+        (None, 'time (s)', 'distance (m)'),
+        (0, 1, 1),
+        (1, 2, 3),
+        (2, 3, 5),
+        (3, 4, 7),
+        (4, 5, 9),
+    ]
+
+    ws = xlsx.get_sheet_by_name("Example 4 - Default - Second Series")
+
+    assert list(ws.values) == [
+        (None, 'time (s)', 'distance (m)'),
+        (0, 2, 4),
+        (1, 3, 7),
+        (2, 4, 10),
+        (3, 5, 13),
+        (4, 6, 16),
+    ]
