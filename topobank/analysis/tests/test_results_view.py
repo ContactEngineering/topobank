@@ -5,6 +5,7 @@ Test for results view.
 import pytest
 import datetime
 import pickle
+import numpy as np
 
 from django.urls import reverse
 
@@ -303,4 +304,107 @@ def test_show_multiple_analyses_for_two_functions(client, two_topos):
 
     assert b"Example 3 - ZSensor" in response.content
     assert b"Example 4 - Default" in response.content
+
+
+
+@pytest.mark.django_db
+def test_analyis_download_as_txt(client, two_topos):
+
+    username = 'testuser'
+    password = 'abcd$1234'
+
+    assert client.login(username=username, password=password)
+
+    #
+    # create two analyses with resuls
+    #
+    topo = Topography.objects.get(id=1)
+    function = AnalysisFunction.objects.create(name="Test Function", pyfunc='dummy', automatic=False)
+
+    v = np.arange(5)
+    ids = []
+
+    for k in range(2):
+        result = dict(
+            name=f'Test Results {k}',
+            scalars=dict(
+                nice_value=13,
+                bad_value=-99,
+            ),
+            xlabel='time',
+            ylabel='distance',
+            xunit='s',
+            yunit='m',
+            series=[
+                dict(name='First Series',
+                     x=v+k,
+                     y=2*v+k,
+                     ),
+                dict(name='Second Series',
+                     x=v+1+k,
+                     y=3*(v+1)+k,
+                     )
+            ])
+
+        analysis = Analysis.objects.create(topography=topo,
+                                           function=function,
+                                           result=pickle.dumps(result),
+                                           kwargs=pickle.dumps({}))
+        ids.append(analysis.id)
+
+
+    ids_str = ",".join(str(i) for i in ids)
+    download_url = reverse('analysis:download-txt', kwargs=dict(ids=ids_str))
+
+    response = client.get(download_url)
+
+
+    from io import StringIO
+
+    txt = response.content.decode()
+
+    assert "Test Function" in txt # function name should be in there
+
+    # remove comments and empty lines
+    filtered_lines = []
+    for line in txt.splitlines():
+        line = line.strip()
+        if not line.startswith('#') and len(line)>0:
+            filtered_lines.append(line)
+    filtered_txt = "\n".join(filtered_lines)
+
+    arr = np.loadtxt(StringIO(filtered_txt))
+
+    assert arr == pytest.approx([
+        (0, 0),
+        (1, 2),
+        (2, 4),
+        (3, 6),
+        (4, 8),
+        (1, 3),
+        (2, 6),
+        (3, 9),
+        (4, 12),
+        (5, 15),
+        (1, 1),
+        (2, 3),
+        (3, 5),
+        (4, 7),
+        (5, 9),
+        (2, 4),
+        (3, 7),
+        (4, 10),
+        (5, 13),
+        (6, 16),
+    ])
+
+
+
+
+
+
+
+
+
+
 
