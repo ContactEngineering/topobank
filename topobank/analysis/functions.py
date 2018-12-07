@@ -198,10 +198,10 @@ def height_distribution(topography, bins=None, wfac=5):
 
     return dict(
         name='Height distribution',
-        scalars=dict(
-            mean_height=mean_height, # topography.unit
-            rms_height=rms_height, # topography.unit
-        ),
+        scalars={
+            'Mean Height': mean_height, # topography.unit
+            'RMD Height': rms_height, # topography.unit
+        },
         xlabel='Height',
         ylabel='Probability',
         xunit=topography.unit,
@@ -241,10 +241,10 @@ def slope_distribution(topography, bins=None, wfac=5):
 
     return dict(
         name='Slope distribution',
-        scalars=dict(
-            mean_slope=mean_slope,
-            rms_slope=rms_slope,
-        ),
+        scalars={
+            'Mean Slope': mean_slope,
+            'RMS Slope': rms_slope,
+        },
         xlabel='Slope',
         ylabel='Probability',
         xunit=1,
@@ -284,10 +284,10 @@ def curvature_distribution(topography, bins=None, wfac=5):
 
     return dict(
         name='Curvature distribution',
-        scalars=dict(
-            mean_curvature=mean_curv,
-            rms_curvature=rms_curv,
-        ),
+        scalars={
+            'Mean Curvature': mean_curv,
+            'RMS Curvature': rms_curv,
+        },
         xlabel='Curvature',
         ylabel='Probability',
         xunit='{}⁻¹'.format(topography.unit),
