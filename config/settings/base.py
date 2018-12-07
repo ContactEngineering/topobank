@@ -290,8 +290,11 @@ SELECT2_I18N_PATH = '/static/vendor/select2/js/i18n'
 # This may help: https://www.django-rest-framework.org/api-guide/permissions/
 # This seems to fit well: https://www.django-rest-framework.org/tutorial/4-authentication-and-permissions/
 #
+# TODO is the rest framework still needed?
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     )
 }
+
+TOPOBANK_VERSION='0.1'

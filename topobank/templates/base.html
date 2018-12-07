@@ -300,9 +300,9 @@
                     <td>{{ v.module }}</td>
                     <td>{{ v.version }}</td>
                     <td>
-                      {% if v.changelog_link %}
-                        <a href="{{ v.changelog_link }}">Changelog</a>
-                      {% endif %}
+                      {% for name,href in v.links.items %}
+                        <a href="{{ href }}">{{ name }}</a>
+                      {% endfor %}
                     </td>
                   </tr>
                 {% endfor %}
