@@ -1,9 +1,7 @@
 
 from allauth.account.signals import user_signed_up
 from django.dispatch import receiver
-from django.contrib.staticfiles.templatetags.staticfiles import static
 from django.contrib.staticfiles.storage import staticfiles_storage
-from django.db import models
 from django.core.files import File
 
 import os.path
