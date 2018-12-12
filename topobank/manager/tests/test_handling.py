@@ -4,6 +4,7 @@ from django.shortcuts import reverse
 
 from pathlib import Path
 import datetime
+import os.path
 
 # from topobank.manager.tests.utils import export_reponse_as_html
 from ..tests.utils import two_topos
@@ -255,6 +256,8 @@ def test_delete_topography(client, two_topos, django_user_model):
     topo = Topography.objects.get(pk=topo_id)
     surface = topo.surface
 
+    topo_datafile_path = topo.datafile.path
+
     assert client.login(username=username, password=password)
 
     response = client.get(reverse('manager:topography-delete', kwargs=dict(pk=topo_id)))
@@ -269,6 +272,45 @@ def test_delete_topography(client, two_topos, django_user_model):
 
     # topography topo_id is no more in database
     assert not Topography.objects.filter(pk=topo_id).exists()
+
+    # topography file should also be deleted
+    assert not os.path.exists(topo_datafile_path)
+
+@pytest.mark.skip("Cannot be implemented up to now, because don't know how to reuse datafile")
+@pytest.mark.django_db
+def test_delete_topography_with_its_datafile_used_by_others(client, two_topos, django_user_model):
+
+    username = 'testuser'
+    password = 'abcd$1234'
+    topo_id = 1
+
+    # topography 1 is still in database
+    topo = Topography.objects.get(pk=topo_id)
+    surface = topo.surface
+
+    topo_datafile_path = topo.datafile.path
+
+    # make topography 2 use the same datafile
+    topo2 = Topography.objects.get(pk=2)
+    topo2.datafile.path = topo_datafile_path # This does not work
+
+    assert client.login(username=username, password=password)
+
+    response = client.get(reverse('manager:topography-delete', kwargs=dict(pk=topo_id)))
+
+    # user should be asked if he/she is sure
+    assert b'Are you sure' in response.content
+
+    response = client.post(reverse('manager:topography-delete', kwargs=dict(pk=topo_id)))
+
+    # user should be redirected to surface details
+    assert reverse('manager:surface-detail', kwargs=dict(pk=surface.id)) == response.url
+
+    # topography topo_id is no more in database
+    assert not Topography.objects.filter(pk=topo_id).exists()
+
+    # topography file should **not** have been deleted, because still used by topo2
+    assert os.path.exists(topo_datafile_path)
 
 @pytest.mark.django_db
 def test_create_surface(client, django_user_model):
