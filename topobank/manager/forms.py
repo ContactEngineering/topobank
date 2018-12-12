@@ -7,7 +7,8 @@ from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Submit, Layout, Field, HTML, Div, Fieldset
 from crispy_forms.bootstrap import FormActions
 
-from topobank.manager.utils import selection_choices
+from topobank.manager.utils import selection_choices, \
+    TopographyFile, TopographyFileReadingException, TopographyFileFormatException
 from .models import Topography, Surface
 
 _log = logging.getLogger('manager')
@@ -41,6 +42,25 @@ class TopographyFileUploadForm(forms.ModelForm):
             # """),
         ),
     )
+
+    def clean_datafile(self):
+        # try to load topography file, show up error if this doesn't work
+        try:
+            datafile = self.cleaned_data['datafile'].open(mode='rb')
+            TopographyFile(datafile)
+            datafile.seek(0) # rewind
+            # TopographyFile(self.cleaned_data['datafile'].open())
+        except TopographyFileReadingException as exc:
+            msg = f"Cannot interpret file contents, detected format: {exc.detected_format}. "+\
+                  "Please try another file or contact us."
+            raise forms.ValidationError(msg, code='invalid_topography_file')
+        except TopographyFileFormatException as exc:
+            msg = f"Cannot interpret file contents, unknown file format. " + \
+                  "Please try another file or contact us."
+            raise forms.ValidationError(msg, code='invalid_topography_file')
+
+        return self.cleaned_data['datafile']
+
 
 class TopographyMetaDataForm(forms.ModelForm):
 

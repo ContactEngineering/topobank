@@ -1,7 +1,9 @@
 from django.shortcuts import redirect
 from django.views.generic import DetailView, ListView, UpdateView, CreateView, DeleteView
 from django.urls import reverse, reverse_lazy
-from django.core.files.storage import FileSystemStorage
+from django.core.files.storage import FileSystemStorage # TODO use default_storage instead?
+from django.core.files.storage import default_storage
+from django.core.files import File
 from django.conf import settings
 from formtools.wizard.views import SessionWizardView
 
@@ -167,24 +169,28 @@ class TopographyCreateWizard(SessionWizardView):
         return context
 
     def done(self, form_list, **kwargs):
-        """Finally use form data when finished the wizard
+        """Finally use the form data when after finishing the wizard.
 
-        :param form_list:
+        :param form_list: list of forms
         :param kwargs:
-        :return:
+        :return: HTTPResponse
         """
+        #
         # collect all data from forms
+        #
         d = dict((k, v) for form in form_list for k, v in form.cleaned_data.items())
 
-        # move file in file system (wizard files will be deleted)
-        from .models import user_directory_path
-        old_path = d['datafile']
+        #
+        # move file to the permanent file system (wizard files will be deleted)
+        #
         new_path = os.path.join(self.request.user.get_media_path(),
                                 os.path.basename(d['datafile']))
-        os.rename(old_path, new_path)
+        with open(d['datafile'], mode='rb') as datafile:
+            d['datafile'] = default_storage.save(new_path, File(datafile))
 
-        d['datafile'] = new_path
-
+        #
+        # Set resolution
+        #
         d['resolution_x'] = self.request.session['size_x']
         d['resolution_y'] = self.request.session['size_y']
 
@@ -200,7 +206,7 @@ class TopographyCreateWizard(SessionWizardView):
 
         return redirect(reverse('manager:topography-detail', kwargs=dict(pk=instance.pk)))
 
-class TopographyCreateView(CreateView):
+class TopographyCreateView(CreateView):# TODO check if still needed
     model = Topography
     form_class = TopographyForm
 

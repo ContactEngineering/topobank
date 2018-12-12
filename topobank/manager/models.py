@@ -95,7 +95,7 @@ class Topography(models.Model):
 
     def topography(self):
         """Return PyCo Topography instance"""
-        topofile = TopographyFile(self.datafile.path)  # TODO use datafile.open here
+        topofile = TopographyFile(self.datafile.path) # assuming the datafile is stored on disk
 
         topo = topofile.topography(int(self.data_source))
         # TODO int() is a fix for SQLite which cannot return real int?? remove for PG

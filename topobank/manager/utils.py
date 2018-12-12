@@ -20,14 +20,58 @@ UNIT_TO_METERS = {'A': 1e-10, 'nm': 1e-9, 'µm': 1e-6, 'mm': 1e-3, 'm': 1.0,
 
 SELECTION_SESSION_VARNAME = 'selection'
 
+class TopographyFileException(Exception):
+    pass
+
+class TopographyFileFormatException(TopographyFileException):
+    pass
+
+class TopographyFileReadingException(TopographyFileException):
+
+    def __init__(self, fname, detected_format, message):
+        self._fname = fname
+        self._detected_format = detected_format
+        self._message = message
+
+    def __str__(self):
+        return "Error loading file '{}' (assuming format '{}'): {}".format(
+            self._fname, self._detected_format, self._message
+        )
+
+    @property
+    def detected_format(self):
+        return self._detected_format
+
+
 class TopographyFile:
     """Provide a simple generic interface to topography files independent of format."""
 
     def __init__(self, fname):
+        """
+        :param fname: filename of topography file
+        :raises: TopographyFileReadingException
+        """
+        try:
+            self._fmt = FromFile.detect_format(fname)
+        except Exception as exc:
+            raise TopographyFileFormatException("Cannot detect file format. Details: "+str(exc)) from exc
 
-        self._fmt = FromFile.detect_format(fname)
-        raw_topographies = FromFile.read(fname, self._fmt)
-        # we are relying here on a fixed order everytime the same file is read
+        if hasattr(fname, 'seek'):
+            fname.seek(0)
+            # PyCo's read probably accidently closes text files when given a file object
+            # Here is a workaround which generates an InMemoryBuffer
+            # which can be closed instead
+            # TODO remove if no longer needed
+            tmp = io.BytesIO(fname.read())
+            fname.seek(0)
+            fname = tmp # we don't need the old reference any more
+
+        try:
+            raw_topographies = FromFile.read(fname, format=self._fmt)
+            # we are relying here on a fixed order of data sources
+            # every time the same file is read (TODO: is that ensured in PyCo?)
+        except Exception as exc:
+            raise TopographyFileReadingException(fname, self._fmt, str(exc)) from exc
 
         #
         # read() may return only one topography if there is only one
@@ -42,9 +86,13 @@ class TopographyFile:
             if type(topography.unit) is not tuple:
                 # If this is not a tuple, that x-, y- and z-units are all
                 # lengths. Discard all other channels.
-                if not isinstance(topography, ScaledTopography):
-                    topography = ScaledTopography(topography, 1.0)
-                topographies += [DetrendedTopography(topography, detrend_mode='height')]
+
+                try:
+                    if not isinstance(topography, ScaledTopography):
+                        topography = ScaledTopography(topography, 1.0)
+                    topographies += [DetrendedTopography(topography, detrend_mode='height')]
+                except Exception as exc:
+                    raise TopographyFileReadingException(fname, self._fmt, str(exc)) from exc
         self._topographies = topographies
 
 
@@ -58,7 +106,7 @@ class TopographyFile:
         """Get ScaledTopography instance based on data_source.
 
         :param data_source: integer
-        :return: PyCo.Surface.SurfaceDescription.ScaledSurface
+        :return: DetrendedTopography
         """
 
         return self._topographies[data_source]

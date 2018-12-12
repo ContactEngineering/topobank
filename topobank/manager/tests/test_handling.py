@@ -12,12 +12,13 @@ from ..models import Topography, Surface
 
 #
 # Different formats are handled by PyCo
-# and should be tested there
+# and should be tested there in general, but
+# we add some tests for formats which had problems because
+# of the topobank code
 #
 @pytest.mark.django_db
-def test_upload_topography(client, django_user_model):
+def test_upload_topography_di(client, django_user_model):
 
-    # input_file_path = Path('../../../PyCo-web/PyCo_app/data/gain_control_uncd_dlc_4.004')
     input_file_path = Path('topobank/manager/fixtures/example3.di') # TODO use standardized way to find files
     description = "test description"
 
@@ -122,6 +123,156 @@ def test_upload_topography(client, django_user_model):
     assert 256 == t.resolution_x
     assert 256 == t.resolution_y
 
+@pytest.mark.parametrize(("input_filename", "exp_resolution"),
+                         [("topobank/manager/fixtures/10x10.txt", 10)])
+# Add this for a larger file: ("topobank/manager/fixtures/500x500_random.txt", 500)]) # takes quire long
+@pytest.mark.django_db
+def test_upload_topography_txt(client, django_user_model, input_filename, exp_resolution):
+
+    input_file_path = Path(input_filename)
+    expected_toponame = input_file_path.name
+
+    description = "test description"
+
+    username = 'testuser'
+    password = 'abcd$1234'
+
+    user = django_user_model.objects.create_user(username=username, password=password)
+
+    assert client.login(username=username, password=password)
+
+    # first create a surface
+    response = client.post(reverse('manager:surface-create'),
+                               data={
+                                'name': 'surface1',
+                                'user': user.id,
+                               }, follow=True)
+    assert response.status_code == 200
+
+    surface = Surface.objects.get(name='surface1')
+
+    #
+    # open first step of wizard: file upload
+    #
+    with input_file_path.open(mode='rb') as fp:
+
+        response = client.post(reverse('manager:topography-create',
+                                       kwargs=dict(surface_id=surface.id)),
+                               data={
+                                'topography_create_wizard-current_step': '0',
+                                '0-datafile': fp,
+                               }, follow=True)
+
+    assert response.status_code == 200
+
+    #
+    # check contents of second page
+    #
+
+    # now we should be on the page with second step
+    assert b"Step 2 of 3" in response.content, "Errors:"+str(response.context['form'].errors)
+
+    # we should have two datasources as options, "ZSensor" and "Height"
+
+    assert b'<option value="0">Default</option>' in response.content
+
+    assert response.context['form'].initial['name'] == expected_toponame
+
+    #
+    # Send data for second page
+    #
+    response = client.post(reverse('manager:topography-create',
+                                   kwargs=dict(surface_id=surface.id)),
+                           data={
+                            'topography_create_wizard-current_step': '1',
+                            '1-name': 'topo1',
+                            '1-measurement_date': '2018-06-21',
+                            '1-datafile': str(input_file_path),
+                            '1-data_source': 0,
+                            '1-description': description,
+                            '1-surface': surface.id,
+                           })
+
+    assert response.status_code == 200
+    assert b"Step 3 of 3" in response.content, "Errors:" + str(response.context['form'].errors)
+
+    #
+    # Send data for third page
+    #
+    # TODO Do we have to really repeat all fields here?
+    response = client.post(reverse('manager:topography-create',
+                                   kwargs=dict(surface_id=surface.id)),
+                           data={
+                               'topography_create_wizard-current_step': '2',
+                               '2-name': 'topo1',
+                               '2-measurement_date': '2018-06-21',
+                               '2-data_source': 0,
+                               '2-description': description,
+                               '2-size_x': '1',
+                               '2-size_y': '1',
+                               '2-size_unit': 'nm',
+                               '2-height_scale': 1,
+                               '2-height_unit': 'nm',
+                               '2-detrend_mode': 'height',
+                               '2-surface': surface.id,
+                           }, follow=True)
+
+    assert response.status_code == 200
+
+    surface = Surface.objects.get(name='surface1')
+    topos = surface.topography_set.all()
+
+    assert len(topos) == 1
+
+    t = topos[0]
+
+    assert t.measurement_date == datetime.date(2018,6,21)
+    assert t.description == description
+    assert input_file_path.stem in t.datafile.name
+    assert exp_resolution == t.resolution_x
+    assert exp_resolution == t.resolution_y
+
+
+@pytest.mark.django_db
+def test_trying_upload_of_invalid_topography_file(client, django_user_model):
+
+    # input_file_path = Path('../../../PyCo-web/PyCo_app/data/gain_control_uncd_dlc_4.004')
+    input_file_path = Path('topobank/manager/fixtures/two_topographies.yaml')
+    description = "invalid file"
+
+    username = 'testuser'
+    password = 'abcd$1234'
+
+    user = django_user_model.objects.create_user(username=username, password=password)
+
+    assert client.login(username=username, password=password)
+
+    # first create a surface
+    response = client.post(reverse('manager:surface-create'),
+                               data={
+                                'name': 'surface1',
+                                'user': user.id,
+                               }, follow=True)
+    assert response.status_code == 200
+
+    surface = Surface.objects.get(name='surface1')
+
+    #
+    # open first step of wizard: file upload
+    #
+    with open(str(input_file_path), mode='rb') as fp:
+
+        response = client.post(reverse('manager:topography-create',
+                                       kwargs=dict(surface_id=surface.id)),
+                               data={
+                                'topography_create_wizard-current_step': '0',
+                                '0-datafile': fp,
+                               })
+    assert response.status_code == 200
+
+    form = response.context['form']
+    assert 'Cannot interpret file contents' in form.errors['datafile'][0]
+
 @pytest.mark.django_db
 def test_topography_list(client, two_topos, django_user_model):
 
@@ -151,9 +302,6 @@ def test_topography_list(client, two_topos, django_user_model):
 
 # TODO add test with predefined height conversion
 # TODO add test with predefined physical size
-
-
-
 
 
 @pytest.mark.django_db
@@ -408,4 +556,6 @@ def test_delete_surface(client, django_user_model):
     assert reverse('manager:surface-list') == response.url
 
     assert Surface.objects.all().count() == 0
+
+
 

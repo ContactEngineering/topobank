@@ -7,7 +7,8 @@ import pytest
 from pathlib import Path
 
 from ..tests.utils import two_topos
-from ..utils import TopographyFile, DEFAULT_DATASOURCE_NAME, \
+from ..utils import TopographyFile, TopographyFileReadingException,\
+    DEFAULT_DATASOURCE_NAME, \
     selection_to_topographies, selection_for_select_all, selection_choices
 
 
@@ -60,4 +61,29 @@ def test_selection_choices(two_topos, testuser):
     assert [('surface-1', 'surface1'),
             ('topography-1', 'Example 3 - ZSensor'),
             ('topography-2', 'Example 4 - Default')] == selection
+
+def test_topographyfile_loading_invalid_file():
+
+    input_file_path = Path('topobank/manager/fixtures/two_topographies.yaml')
+
+    with pytest.raises(TopographyFileReadingException):
+        TopographyFile(input_file_path)
+
+def test_topographyfile_txt_open_with_fname():
+    input_file_path = Path('topobank/manager/fixtures/10x10.txt')
+    tf = TopographyFile(input_file_path)
+    pyco_topo = tf.topography(0)
+    assert pyco_topo.resolution == (10,10)
+
+def test_topographyfile_txt_open_with_fobj():
+    input_file_path = Path('topobank/manager/fixtures/10x10.txt')
+
+    input_file = open(input_file_path, 'rb')
+
+    tf = TopographyFile(input_file)
+    pyco_topo = tf.topography(0)
+    assert pyco_topo.resolution == (10,10)
+
+
+
 
