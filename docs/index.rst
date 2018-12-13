@@ -12,9 +12,11 @@ Contents:
    :maxdepth: 2
 
    install
+   config
    deploy
    docker_ec2
-   tests
+
+.. TODO add how to start tests
 
 
 

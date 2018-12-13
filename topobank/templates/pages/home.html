@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load static i18n %}
+{% load socialaccount %}
 
 {% block breadcrumbs %}
   <li class="breadcrumb-item active" aria-current="page">Home</li>
@@ -39,16 +40,17 @@
           <p><a class="btn btn-secondary" href="{% url 'analysis:list' %}" role="button">Show analyses &raquo;</a></p>
         </div>
         {% else %}
-        <div class="col-md-6">
-          <h2>No account yet?</h2>
-          <p>You can sign up using your e-mail address.
-            You'll get a mail with a link for confirmation.</p>
-          <a id="sign-up-link" class="btn btn-secondary" href="{% url 'account_signup' %}">{% trans "Sign Up" %}</a>
-        </div>
-        <div class="col-md-6">
-          <h2>You already have an account.</h2>
-          <p>Please sign in with your e-mail address and password.</p>
-          <p><a id="log-in-link" class="btn btn-secondary" href="{% url 'account_login' %}">{% trans "Sign In" %}</a></p>
+        <div class="col-md-12">
+          <h2>Login via ORCID.</h2>
+          <p>
+            Please allow the ORCID site to authenticate yourself to TopoBank.
+            If you don't have an ORCID account yet, you will be able to register.
+          </p>
+          <p>
+            <a id="orcid-log-in-link" class="btn btn-secondary" href="{% provider_login_url 'orcid' method="oauth2" %}">
+              Sign in using your ORCID account
+            </a>
+          </p>
         </div>
         {% endif %}
       </div>

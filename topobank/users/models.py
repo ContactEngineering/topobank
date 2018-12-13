@@ -2,7 +2,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from django.conf import settings
 
@@ -33,5 +33,14 @@ def ensure_media_dir_exists(sender, instance, **kwargs):
             os.makedirs(instance.get_media_path())
         except FileExistsError:
             pass
+
+#
+# ensure the full name field is set
+#
+@receiver(pre_save, sender=User)
+def ensure_name_field_set(sender, instance, **kwargs):
+    if instance.name is None:
+        instance.name = f"{instance.first_name} {instance.last_name}"
+
 
 

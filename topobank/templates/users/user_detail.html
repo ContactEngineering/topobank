@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
+{% load account %}
 
 {% block title %}User: {{ object.username }}{% endblock %}
 
@@ -13,10 +14,17 @@
   <div class="row">
     <div class="col-sm-12">
 
-      <h2>{{ object.username }}</h2>
-      {% if object.name %}
-        <p>{{ object.name }}</p>
-      {% endif %}
+      <h1>{% user_display object %}</h1>
+
+      <p>
+        <div itemscope itemtype="https://schema.org/Person">
+          <a itemprop="sameAs" content="https://orcid.org/0000-0002-7111-8570"
+             href="https://orcid.org/0000-0002-7111-8570"
+             target="orcid.widget" rel="noopener noreferrer" style="vertical-align:top;">
+            <img src="https://orcid.org/sites/default/files/images/orcid_16x16.png" style="width:1em;margin-right:.5em;" alt="ORCID iD icon">orcid.org/0000-0002-7111-8570
+          </a>
+        </div>
+      </p>
     </div>
   </div>
 

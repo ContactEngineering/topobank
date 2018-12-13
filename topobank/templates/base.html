@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 {% load static i18n %}
 {% load fontawesome %}
+{% load socialaccount %}
 
 <html lang="en">
 
@@ -191,10 +192,8 @@
             <div class="dropdown-divider"></div>
             <a class="dropdown-item" href="#" data-toggle="modal" data-target="#logoutModal">
               <i class="fa fa-sign-out-alt fa-fw"></i>Sign Out</a>
-
             {% else %}
-            <a id="sign-up-link" class="dropdown-item" href="{% url 'account_signup' %}">{% trans "Sign Up" %}</a>
-            <a id="log-in-link" class="dropdown-item" href="{% url 'account_login' %}">{% trans "Sign In" %}</a>
+            <a id="orcid-log-in-link" class="dropdown-item" href="{% provider_login_url 'orcid' method="oauth2" %}">Sign in via ORCID</a>
             {% endif %}
           </div>
         </li>
