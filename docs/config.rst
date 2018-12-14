@@ -28,6 +28,20 @@ As redirect URL take
 
 You need the generated client ID and client secret for the next step.
 
+Redirect URL pointing to localhost
+----------------------------------
+
+The redirect URL configured at orcid.org must exactly match the redirect URL, which is
+transferred from the TopoBank application during the login process.
+This means, if you use
+
+ http://localhost:8000
+
+i.e. `localhost` instead of `127.0.0.1`, you'll need also a redirect url with `localhost` which is
+
+ http://localhost:8000/accounts/orcid/login/callback
+
+
 Adding ORCID provider with access information
 ---------------------------------------------
 
@@ -49,6 +63,7 @@ Enter the URL
 (if in development) and login with your credentials.
 
 TODO provide a commandline line tool in order to add ORCID credentials.
+
 
 
 
