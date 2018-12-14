@@ -17,9 +17,15 @@ def create_example_surface(sender, **kwargs):
     example_info_fn = staticfiles_storage.path('data/example_surface.yaml')
     example_info = yaml.load(open(example_info_fn))
 
+    #
+    # Create surface
+    #
     surface = Surface.objects.create(user=user, name=example_info['name'],
                                      description=example_info['description'])
 
+    #
+    # Create topographies and trigger analyses
+    #
     for topo_info in example_info['topographies']:
 
         topo_kwargs = topo_info.copy()
@@ -33,6 +39,9 @@ def create_example_surface(sender, **kwargs):
         topo.datafile.save(os.path.basename(abs_fn), File(file))
 
         topo.save()
+
+        topo.submit_automated_analyses()
+
 
 
 
