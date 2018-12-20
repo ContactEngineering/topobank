@@ -9,6 +9,7 @@ from PyCo.Topography.TopographyPipeline import ScaledTopography, DetrendedTopogr
 
 from topobank.taskapp.celery import app
 
+import os.path
 import numpy as np
 import logging
 
@@ -42,6 +43,10 @@ class TopographyFileReadingException(TopographyFileException):
     def detected_format(self):
         return self._detected_format
 
+    @property
+    def message(self):
+        return self._message
+
 
 class TopographyFile:
     """Provide a simple generic interface to topography files independent of format."""
@@ -58,13 +63,6 @@ class TopographyFile:
 
         if hasattr(fname, 'seek'):
             fname.seek(0)
-            # PyCo's read probably accidently closes text files when given a file object
-            # Here is a workaround which generates an InMemoryBuffer
-            # which can be closed instead
-            # TODO remove if no longer needed
-            tmp = io.BytesIO(fname.read())
-            fname.seek(0)
-            fname = tmp # we don't need the old reference any more
 
         try:
             raw_topographies = FromFile.read(fname, format=self._fmt)

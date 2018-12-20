@@ -124,7 +124,9 @@ def test_upload_topography_di(client, django_user_model):
     assert 256 == t.resolution_y
 
 @pytest.mark.parametrize(("input_filename", "exp_resolution"),
-                         [("topobank/manager/fixtures/10x10.txt", 10)])
+                         [("topobank/manager/fixtures/10x10.txt", 10),
+                          ("topobank/manager/fixtures/line_scan_1.asc", None),
+                          ("topobank/manager/fixtures/line_scan_1_minimal_spaces.asc", None)])
 # Add this for a larger file: ("topobank/manager/fixtures/500x500_random.txt", 500)]) # takes quire long
 @pytest.mark.django_db
 def test_upload_topography_txt(client, django_user_model, input_filename, exp_resolution):
@@ -271,7 +273,7 @@ def test_trying_upload_of_invalid_topography_file(client, django_user_model):
     assert response.status_code == 200
 
     form = response.context['form']
-    assert 'Cannot interpret file contents' in form.errors['datafile'][0]
+    assert 'Error while reading file contents' in form.errors['datafile'][0]
 
 @pytest.mark.django_db
 def test_topography_list(client, two_topos, django_user_model):

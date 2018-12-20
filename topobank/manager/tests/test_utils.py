@@ -5,6 +5,7 @@ and other things in topobank.manager.utils
 
 import pytest
 from pathlib import Path
+import io
 
 from ..tests.utils import two_topos
 from ..utils import TopographyFile, TopographyFileReadingException,\
@@ -75,7 +76,16 @@ def test_topographyfile_txt_open_with_fname():
     pyco_topo = tf.topography(0)
     assert pyco_topo.resolution == (10,10)
 
-def test_topographyfile_txt_open_with_fobj():
+def test_topographyfile_txt_open_with_text_fobj():
+    input_file_path = Path('topobank/manager/fixtures/10x10.txt')
+
+    input_file = open(input_file_path, 'r') # fails with mode 'rb'
+
+    tf = TopographyFile(input_file)
+    pyco_topo = tf.topography(0)
+    assert pyco_topo.resolution == (10,10)
+
+def test_topographyfile_txt_open_with_text_fobj():
     input_file_path = Path('topobank/manager/fixtures/10x10.txt')
 
     input_file = open(input_file_path, 'rb')
@@ -85,5 +95,24 @@ def test_topographyfile_txt_open_with_fobj():
     assert pyco_topo.resolution == (10,10)
 
 
+def test_topographyfile_txt_open_with_bytesio():
+    input_file_path = Path('topobank/manager/fixtures/10x10.txt')
 
+    input_file = open(input_file_path, 'rb')
 
+    input_data = input_file.read()
+
+    tf = TopographyFile(io.BytesIO(input_data))
+    pyco_topo = tf.topography(0)
+    assert pyco_topo.resolution == (10,10)
+
+def test_topographyfile_txt_open_with_stringio():
+    input_file_path = Path('topobank/manager/fixtures/10x10.txt')
+
+    input_file = open(input_file_path, 'r')
+
+    input_data = input_file.read()
+
+    tf = TopographyFile(io.StringIO(input_data))
+    pyco_topo = tf.topography(0)
+    assert pyco_topo.resolution == (10,10)

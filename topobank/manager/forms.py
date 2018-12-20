@@ -1,6 +1,7 @@
 from django.forms import forms, TypedMultipleChoiceField
 from django import forms
 from django_select2.forms import Select2MultipleWidget
+from django.contrib import messages
 import logging
 
 from crispy_forms.helper import FormHelper
@@ -45,18 +46,19 @@ class TopographyFileUploadForm(forms.ModelForm):
 
     def clean_datafile(self):
         # try to load topography file, show up error if this doesn't work
+        datafile = self.cleaned_data['datafile']
         try:
-            datafile = self.cleaned_data['datafile'].open(mode='rb')
-            TopographyFile(datafile)
-            datafile.seek(0) # rewind
-            # TopographyFile(self.cleaned_data['datafile'].open())
+            TopographyFile(datafile.file) # TODO can be avoid to load the file more than once and still have a check?
+            #messages.add_message()
         except TopographyFileReadingException as exc:
-            msg = f"Cannot interpret file contents, detected format: {exc.detected_format}. "+\
-                  "Please try another file or contact us."
+            msg = f"Error while reading file contents of file '{datafile.name}', detected format: {exc.detected_format}. "
+            if exc.message:
+                msg += f"Reason: {exc.message} "
+            msg += " Please try another file or contact us."
             raise forms.ValidationError(msg, code='invalid_topography_file')
         except TopographyFileFormatException as exc:
-            msg = f"Cannot interpret file contents, unknown file format. " + \
-                  "Please try another file or contact us."
+            msg = f"Cannot determine file format of file '{datafile.name}'. "
+            msg += "Please try another file or contact us."
             raise forms.ValidationError(msg, code='invalid_topography_file')
 
         return self.cleaned_data['datafile']
