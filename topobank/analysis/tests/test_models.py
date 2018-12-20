@@ -44,6 +44,7 @@ def test_autoload_analysis_functions():
         dict(pyfunc='curvature_distribution', automatic=True, name='Curvature Distribution'),
         dict(pyfunc='power_spectrum', automatic=True, name='Power Spectrum'),
         dict(pyfunc='autocorrelation', automatic=True, name='Autocorrelation'),
+        dict(pyfunc='variable_bandwidth', automatic=True, name='Variable Bandwidth'),
     ], key=itemgetter('name'))
 
     assert len(expected_funcs) == len(funcs)

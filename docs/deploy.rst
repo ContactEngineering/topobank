@@ -208,7 +208,15 @@ needed packages on dev: docker, virtualbox
 docker-machine create --driver virtualbox default
 
 
+Register analysis functions
+---------------------------
 
+When deploying or during development, if you change the definition
+of analysis functions (via decorator in `functions.py`), register
+the current set of analysis functions in the database.
+
+.. code:: bash
+    python manage.py register_analysis_functions
 
 
 

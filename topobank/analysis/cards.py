@@ -10,6 +10,7 @@ from bokeh.models.ranges import DataRange1d
 from bokeh.plotting import figure
 from bokeh.palettes import Category10
 from bokeh.embed import components
+import numpy as np
 import itertools
 import json
 from collections import OrderedDict
@@ -127,8 +128,10 @@ def function_card_context(analyses):
 
         for s in series:
             # One could use AjaxDataSource for retrieving the results, but useful if we are already in AJAX call?
-            source = ColumnDataSource(data=dict(x=analysis_xscale*s['x'],
-                                                y=analysis_yscale*s['y']))
+            xarr = np.array(s['x'])
+            yarr = np.array(s['y'])
+            source = ColumnDataSource(data=dict(x=analysis_xscale*xarr,
+                                                y=analysis_yscale*yarr))
 
             series_name = s['name']
             #

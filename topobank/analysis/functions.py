@@ -7,7 +7,6 @@ The first argument is always a PyCo Topography!
 import numpy as np
 
 from PyCo.Topography import rms_height
-from PyCo.Topography.common import _get_size, compute_derivative
 from PyCo.Topography.Uniform.PowerSpectrum import power_spectrum_1D, power_spectrum_2D
 from PyCo.Topography.Uniform.Autocorrelation import autocorrelation_1D, autocorrelation_2D
 from PyCo.Topography.Uniform.VariableBandwidth import checkerboard_tilt_correction
@@ -225,7 +224,7 @@ def slope_distribution(topography, bins=None, wfac=5):
     if bins is None:
         bins = int(np.sqrt(np.prod(topography.shape)) + 1.0)
 
-    slope_x, slope_y = compute_derivative(topography)
+    slope_x, slope_y = topography.derivative(n=1)
     slope = np.sqrt(2) * np.append(np.ma.compressed(slope_x),
                                    np.ma.compressed(slope_y))
 
@@ -268,7 +267,7 @@ def curvature_distribution(topography, bins=None, wfac=5):
     if bins is None:
         bins = int(np.sqrt(np.prod(topography.shape)) + 1.0)
 
-    curv_x, curv_y = compute_derivative(topography, n=2)
+    curv_x, curv_y = topography.derivative(n=2)
     curv = curv_x[:, 1:-1] + curv_y[1:-1, :]
 
     mean_curv = np.mean(curv)
@@ -405,9 +404,9 @@ def autocorrelation(topography):
         ]
     )
 
-
+@analysis_function(automatic=True)
 def variable_bandwidth(topography):
-    size = _get_size(topography)
+    size = topography.size
     scale_factor = 1
     no_exception = True
     bandwidths = []
