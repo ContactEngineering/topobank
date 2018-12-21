@@ -4,6 +4,7 @@ from django.urls import reverse, reverse_lazy
 from django.core.files.storage import FileSystemStorage # TODO use default_storage instead?
 from django.core.files.storage import default_storage
 from django.core.files import File
+from django.core.exceptions import PermissionDenied
 from django.conf import settings
 from formtools.wizard.views import SessionWizardView
 
@@ -73,57 +74,104 @@ class TopographyCreateWizard(SessionWizardView):
 
     def get_form_initial(self, step):
 
-        session = self.request.session
+        initial = {}
 
-        surface_id = int(self.kwargs['surface_id'])
+        if step == '0':
+            #
+            # Pass surface in order to have it later in done() method
+            #
+            # make sure that the surface exists and belongs to the current user
+            try:
+                surface = Surface.objects.get(id=int(self.kwargs['surface_id']))
+            except Surface.DoesNotExist:
+                raise PermissionDenied()
+            if surface.user != self.request.user:
+                raise PermissionDenied()
 
-        initial = {'surface': Surface.objects.get(id=surface_id)}
+            initial['surface'] = surface
 
         if step in ['1', '2']:
             # provide datafile attribute from first step
             step0_data = self.get_cleaned_data_for_step('0')
-
             datafile = step0_data['datafile']
-            initial['datafile'] = datafile.file.name # the file name in the upload directory
+
+        if step == '1':
             initial['name'] = os.path.basename(datafile.name) # the original file name
 
         if step == '2':
-            # provide datafile attribute from previous step
+
             step1_data = self.get_cleaned_data_for_step('1')
 
-            data_source = step1_data['data_source']
-            name = step1_data['name']
-            measurement_date = step1_data['measurement_date']
+            topofile = TopographyFile(datafile.open(mode='rb'))
 
-            initial['data_source'] = data_source
-            initial['name'] = name
-            initial['measurement_date'] = measurement_date
+            topo = topofile.topography(int(step1_data['data_source']))
 
-            initial_unit, conversion_factor = optimal_unit(
-                session['initial_size'],
-                session['initial_size_unit'])
+            size_unit = topo.unit
 
-            initial_size_x, initial_size_y = session['initial_size']
-            initial_size_x *= conversion_factor
-            initial_size_y *= conversion_factor
+            #
+            # Set initial size and size unit
+            #
+            if topo.size is None:
+                initial['size_x'] = None
+                initial['size_y'] = None
+            else:
+                has_2_dim = topo.dim == 2
 
-            initial['size_x'] = int(initial_size_x)
-            initial['size_y'] = int(initial_size_y)
-            initial['size_unit'] = initial_unit
+                if has_2_dim:
+                    initial_size_x, initial_size_y = topo.size
+                else:
+                    initial_size_x = topo.size
+                    initial_size_y = None
 
-            initial['height_scale'] = session['initial_height_scale']
-            initial['height_unit'] = session['initial_size_unit'] # TODO choose directly from surface?
+                if size_unit is not None:
+                    #
+                    # Try to optimize size unit
+                    #
+                    size_unit, conversion_factor = optimal_unit(topo.size, size_unit)
 
-            initial['detrend_mode'] = session['detrend_mode']
+                    initial_size_x *= conversion_factor # TODO Is it correct to do this if there is "int()" afterwards?
+                    if has_2_dim:
+                        initial_size_y *= conversion_factor
+
+                    #
+                    # We need integer values for the database
+                    #
+                    initial_size_x = int(initial_size_x)
+                    if has_2_dim:
+                        initial_size_y = int(initial_size_y)
+
+                initial['size_x'] = initial_size_x
+                initial['size_y'] = initial_size_y
 
 
-        return self.initial_dict.get(step, initial)
+            initial['size_unit'] = size_unit
+
+            #
+            # Set initial height and height unit
+            #
+            initial['height_scale'] = topo.parent_topography.coeff
+            initial['height_unit'] = size_unit  # TODO choose directly from surface?
+
+            #
+            # Set initial detrend mode
+            #
+            initial['detrend_mode'] = topo.detrend_mode
+
+            #
+            # Set resolution (only for having the data later)
+            #
+            if has_2_dim:
+                initial['resolution_x'], initial['resolution_y'] = topo.resolution
+            else:
+                initial['resolution_x'], initial['resolution_y'] = None, None
+
+        return initial
 
     def get_form_kwargs(self, step=None):
 
         kwargs = super(TopographyCreateWizard, self).get_form_kwargs(step)
 
-        if step in ['1', '2']:
+        if step == '1':
             step0_data = self.get_cleaned_data_for_step('0')
 
             datafile_fname = step0_data['datafile'].file.name
@@ -133,25 +181,8 @@ class TopographyCreateWizard(SessionWizardView):
             #
             topofile = TopographyFile(datafile_fname)
 
-        if step == '1':
             kwargs['data_source_choices'] = [(k, ds) for k, ds in
                                              enumerate(topofile.data_sources)]
-
-        elif step == '2':
-            step1_data = self.get_cleaned_data_for_step('1')
-
-            topo = topofile.topography(int(step1_data['data_source']))
-
-            session = self.request.session
-
-            if topo.size is None:
-                session['initial_size'] = topo.shape
-            else:
-                session['initial_size'] = topo.size
-            session['initial_size_unit'] = topo.unit
-            session['initial_height_scale'] = topo.parent_topography.coeff
-            session['detrend_mode'] = topo.detrend_mode
-            session['size_x'], session['size_y'] = topo.resolution
 
         return kwargs
 
@@ -179,20 +210,22 @@ class TopographyCreateWizard(SessionWizardView):
         # collect all data from forms
         #
         d = dict((k, v) for form in form_list for k, v in form.cleaned_data.items())
+        # TODO maybe use self.get_all_cleaned_data()
+
+        #
+        # Check whether given surface is from this user
+        #
+        surface = d['surface']
+        if surface.user != self.request.user:
+            raise PermissionDenied()
 
         #
         # move file to the permanent file system (wizard files will be deleted)
         #
         new_path = os.path.join(self.request.user.get_media_path(),
-                                os.path.basename(d['datafile']))
-        with open(d['datafile'], mode='rb') as datafile:
+                                os.path.basename(d['datafile'].name))
+        with d['datafile'].open(mode='rb') as datafile:
             d['datafile'] = default_storage.save(new_path, File(datafile))
-
-        #
-        # Set resolution
-        #
-        d['resolution_x'] = self.request.session['size_x']
-        d['resolution_y'] = self.request.session['size_y']
 
         # create topography in database
         instance = Topography(**d)

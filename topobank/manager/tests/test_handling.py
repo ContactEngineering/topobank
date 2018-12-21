@@ -49,6 +49,7 @@ def test_upload_topography_di(client, django_user_model):
                                data={
                                 'topography_create_wizard-current_step': '0',
                                 '0-datafile': fp,
+                                '0-surface': surface.id,
                                }, follow=True)
 
     assert response.status_code == 200
@@ -76,10 +77,8 @@ def test_upload_topography_di(client, django_user_model):
                             'topography_create_wizard-current_step': '1',
                             '1-name': 'topo1',
                             '1-measurement_date': '2018-06-21',
-                            '1-datafile': str(input_file_path),
                             '1-data_source': 0,
                             '1-description': description,
-                            '1-surface': surface.id,
                            })
 
     assert response.status_code == 200
@@ -88,27 +87,25 @@ def test_upload_topography_di(client, django_user_model):
     #
     # Send data for third page
     #
-    # TODO Do we have to really repeat all fields here?
     response = client.post(reverse('manager:topography-create',
                                    kwargs=dict(surface_id=surface.id)),
                            data={
                                'topography_create_wizard-current_step': '2',
-                               '2-name': 'topo1',
-                               '2-measurement_date': '2018-06-21',
-                               '2-data_source': 0,
-                               '2-description': description,
                                '2-size_x': '9000',
                                '2-size_y': '9000',
                                '2-size_unit': 'nm',
                                '2-height_scale': 0.3,
                                '2-height_unit': 'nm',
                                '2-detrend_mode': 'height',
-                               '2-surface': surface.id,
+                               '2-resolution_x': 256,
+                               '2-resolution_y': 256,
                            }, follow=True)
 
     assert response.status_code == 200
     # assert reverse('manager:topography-detail', kwargs=dict(pk=1)) == response.url
     # export_reponse_as_html(response)
+
+    assert 'form' not in response.context, "Errors:" + str(response.context['form'].errors)
 
     surface = Surface.objects.get(name='surface1')
     topos = surface.topography_set.all()
@@ -163,6 +160,7 @@ def test_upload_topography_txt(client, django_user_model, input_filename, exp_re
                                data={
                                 'topography_create_wizard-current_step': '0',
                                 '0-datafile': fp,
+                                '0-surface': surface.id,
                                }, follow=True)
 
     assert response.status_code == 200
@@ -189,10 +187,8 @@ def test_upload_topography_txt(client, django_user_model, input_filename, exp_re
                             'topography_create_wizard-current_step': '1',
                             '1-name': 'topo1',
                             '1-measurement_date': '2018-06-21',
-                            '1-datafile': str(input_file_path),
                             '1-data_source': 0,
                             '1-description': description,
-                            '1-surface': surface.id,
                            })
 
     assert response.status_code == 200
@@ -201,25 +197,24 @@ def test_upload_topography_txt(client, django_user_model, input_filename, exp_re
     #
     # Send data for third page
     #
-    # TODO Do we have to really repeat all fields here?
     response = client.post(reverse('manager:topography-create',
                                    kwargs=dict(surface_id=surface.id)),
                            data={
                                'topography_create_wizard-current_step': '2',
-                               '2-name': 'topo1',
-                               '2-measurement_date': '2018-06-21',
-                               '2-data_source': 0,
-                               '2-description': description,
                                '2-size_x': '1',
                                '2-size_y': '1',
                                '2-size_unit': 'nm',
                                '2-height_scale': 1,
                                '2-height_unit': 'nm',
                                '2-detrend_mode': 'height',
-                               '2-surface': surface.id,
+                               '2-resolution_x': exp_resolution,
+                               '2-resolution_y': exp_resolution,
                            }, follow=True)
 
     assert response.status_code == 200
+
+    # there is no form, if there is a form, it probably shows an error
+    assert 'form' not in response.context, "Errors:" + str(response.context['form'].errors)
 
     surface = Surface.objects.get(name='surface1')
     topos = surface.topography_set.all()

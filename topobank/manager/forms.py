@@ -1,7 +1,6 @@
 from django.forms import forms, TypedMultipleChoiceField
 from django import forms
 from django_select2.forms import Select2MultipleWidget
-from django.contrib import messages
 import logging
 
 from crispy_forms.helper import FormHelper
@@ -22,7 +21,7 @@ class TopographyFileUploadForm(forms.ModelForm):
 
     class Meta:
         model = Topography
-        fields = ('datafile',)
+        fields = ('datafile', 'surface')
 
     helper = FormHelper()
     helper.form_method = 'POST'
@@ -34,13 +33,11 @@ class TopographyFileUploadForm(forms.ModelForm):
     helper.layout = Layout(
         Div(
             Field('datafile'),
+            Field('surface', type='hidden') # in order to have data later in wizard's done() method
         ),
         FormActions(
             Submit('save', 'Next'),
             Submit('cancel', 'Cancel', formnovalidate="formnovalidate"),
-            # HTML("""
-            #     <a href="{% url 'manager:surface-list' %}"><button class="btn btn-default" id="cancel-btn">Cancel</button></a>
-            # """),
         ),
     )
 
@@ -48,8 +45,7 @@ class TopographyFileUploadForm(forms.ModelForm):
         # try to load topography file, show up error if this doesn't work
         datafile = self.cleaned_data['datafile']
         try:
-            TopographyFile(datafile.file) # TODO can be avoid to load the file more than once and still have a check?
-            #messages.add_message()
+            tf = TopographyFile(datafile.file) # TODO can be avoid to load the file more than once and still have a check?
         except TopographyFileReadingException as exc:
             msg = f"Error while reading file contents of file '{datafile.name}', detected format: {exc.detected_format}. "
             if exc.message:
@@ -61,6 +57,13 @@ class TopographyFileUploadForm(forms.ModelForm):
             msg += "Please try another file or contact us."
             raise forms.ValidationError(msg, code='invalid_topography_file')
 
+        if len(tf.data_sources) == 0:
+            raise forms.ValidationError("No topographies found in file.", code='empty_topography_file')
+
+        first_topo = tf.topography(0)
+        if first_topo.dim > 2:
+            raise forms.ValidationError("Number of surface map dimensions > 2.", code='invalid_topography')
+
         return self.cleaned_data['datafile']
 
 
@@ -68,9 +71,7 @@ class TopographyMetaDataForm(forms.ModelForm):
 
     class Meta:
         model = Topography
-        fields = ('name', 'description', 'measurement_date',
-                  'data_source', 'datafile', 'surface',
-                  )
+        fields = ('name', 'description', 'measurement_date', 'data_source')
 
     def __init__(self, *args, **kwargs):
         data_source_choices = kwargs.pop('data_source_choices')
@@ -89,19 +90,12 @@ class TopographyMetaDataForm(forms.ModelForm):
 
     helper.layout = Layout(
         Div(
-            Field('surface', type="hidden"),
-            Field('datafile', type="hidden"),
             Field('data_source'),
             Field('name'),
             Field('measurement_date'),
             Field('description'),
         ),
         FormActions(
-            #HTML("""
-            #    {% if wizard.steps.prev %}
-            #        <button name="wizard_goto_step" class="btn btn-default" type="submit" value="{{ wizard.steps.prev }}">Previous</button>
-            #    {% endif %}
-            #    """), # Add this if user should be able to go back - but currently form is also validated before
             Submit('save', 'Next'),
             Submit('cancel', 'Cancel', formnovalidate="formnovalidate"),
         ),
@@ -114,40 +108,24 @@ class TopographyUnitsForm(forms.ModelForm):
 
     class Meta:
         model = Topography
-        fields = ( 'datafile', 'surface',
-                   'name', 'description', 'measurement_date',
-                   'data_source',
-                   'size_x', 'size_y', 'size_unit',
-                   'height_scale', 'height_unit', 'detrend_mode')
-
-
+        fields = ( 'size_x', 'size_y', 'size_unit',
+                   'height_scale', 'height_unit', 'detrend_mode',
+                   'resolution_x', 'resolution_y')
 
     helper = FormHelper()
     helper.form_method = 'POST'
     helper.form_show_errors = False  # crispy forms has nicer template code for errors
     helper.form_tag = False
 
-    name = forms.CharField()
-    measurement_date = forms.DateField(input_formats=['%Y-%m-%d', '%d.%m.%Y'])
-    description = forms.Textarea()
-
     helper.layout = Layout(
         Div(
-            Field('surface', type="hidden"),
-            Field('datafile', type="hidden"),
-            Field('measurement_date', type="hidden"),
-            Field('data_source', type="hidden"),
-            Field('name', type="hidden"),
             Fieldset('Physical Size', 'size_x', 'size_y', 'size_unit'),
             Fieldset('Height Conversion', 'height_scale', 'height_unit'),
             Field('detrend_mode'),
+            Field('resolution_x', type="hidden"), # only in order to have the data in wizard's .done() method
+            Field('resolution_y', type="hidden"), # only in order to have the data in wizard's .done() method
         ),
         FormActions(
-            #HTML("""
-            #    {% if wizard.steps.prev %}
-            #        <button name="wizard_goto_step" class="btn btn-default" type="submit" value="{{ wizard.steps.prev }}">Previous</button>
-            #    {% endif %}
-            #    """), # Add this if user should be able to go back - but currently form is also validated before
             Submit('save', 'Save new topography'),
             Submit('cancel', 'Cancel', formnovalidate="formnovalidate"),
         ),
