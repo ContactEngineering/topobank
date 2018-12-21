@@ -207,8 +207,8 @@ def test_upload_topography_txt(client, django_user_model, input_filename, exp_re
                                '2-height_scale': 1,
                                '2-height_unit': 'nm',
                                '2-detrend_mode': 'height',
-                               '2-resolution_x': exp_resolution,
-                               '2-resolution_y': exp_resolution,
+                               '2-resolution_x': exp_resolution or '', # TODO or leave out if not needed? blank=True?
+                               '2-resolution_y': exp_resolution or '',
                            }, follow=True)
 
     assert response.status_code == 200

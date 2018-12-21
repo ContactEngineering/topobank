@@ -67,7 +67,7 @@ class Topography(models.Model):
     # Fields with physical meta data
     #
     size_x = models.IntegerField()
-    size_y = models.IntegerField()
+    size_y = models.IntegerField(null=True) # null for line scans
     size_unit = models.TextField(choices=LENGTH_UNIT_CHOICES) # TODO allow null?
 
     height_scale = models.FloatField(default=1)
@@ -83,8 +83,8 @@ class Topography(models.Model):
                                processors=[ResizeToFill(100,100)],
                                format='JPEG',
                                options={'quality': 60}) # TODO Check if needed
-    resolution_x = models.IntegerField()
-    resolution_y = models.IntegerField()
+    resolution_x = models.IntegerField(null=True) # null for line scans
+    resolution_y = models.IntegerField(null=True) # null for line scans
 
     #
     # Methods
