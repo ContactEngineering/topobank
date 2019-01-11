@@ -1,4 +1,5 @@
 from django.shortcuts import reverse
+from django.core.cache import cache # default cache
 from matplotlib import pyplot as plt
 import io
 import pathlib
@@ -47,6 +48,18 @@ class TopographyFileReadingException(TopographyFileException):
     def message(self):
         return self._message
 
+def get_topography_file(datafile_fname): # TODO check, maybe also use user to make unique
+    """Create topography file instance or get it from cache.
+
+    :param datafile_fname: local filename
+    :return: TopographyFile instance
+    """
+    cache_key = datafile_fname
+    topofile = cache.get(cache_key)
+    if topofile is None:
+        topofile = TopographyFile(datafile_fname)
+        cache.set(cache_key, topofile)
+    return topofile
 
 class TopographyFile:
     """Provide a simple generic interface to topography files independent of format."""
@@ -81,7 +94,7 @@ class TopographyFile:
         # ignore all topographies which have other units than lenghts
         # code taken from PyCo-web
         for topography in raw_topographies:
-            if type(topography.unit) is not tuple:
+            if type(topography.unit) is not tuple:# TODO what if it is a tuple?
                 # If this is not a tuple, that x-, y- and z-units are all
                 # lengths. Discard all other channels.
 

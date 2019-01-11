@@ -1,11 +1,12 @@
 from django.forms import forms, TypedMultipleChoiceField
 from django import forms
 from django_select2.forms import Select2MultipleWidget
-import logging
 
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Submit, Layout, Field, HTML, Div, Fieldset
 from crispy_forms.bootstrap import FormActions
+
+import logging
 
 from topobank.manager.utils import selection_choices, \
     TopographyFile, TopographyFileReadingException, TopographyFileFormatException
@@ -104,44 +105,106 @@ class TopographyMetaDataForm(forms.ModelForm):
     def clean(self):
         return self.cleaned_data
 
+
 class TopographyUnitsForm(forms.ModelForm):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        helper = FormHelper()
+        helper.form_method = 'POST'
+        helper.form_show_errors = False  # crispy forms has nicer template code for errors
+        helper.form_tag = False
+
+        self.helper = helper
+
+        if self.initial['size_available_in_file']:
+            self.size_info_html = HTML("<p>Size was given in data file.</p>")
+            self.size_field_kwargs = dict(readonly=True)  # will add "readonly" attribute to input field
+        else:
+            self.size_info_html = HTML("<p>Size is not available from data file.</p>")
+            self.size_field_kwargs = {}
+
+        self.size_unit_field_kwargs = dict(readonly=True) if self.initial['size_unit_available_in_file'] else {}
+        self.height_scale_field_kwargs = dict(readonly=True) if self.initial['height_scale_available_in_file'] else {}
+
+
+class Topography1DUnitsForm(TopographyUnitsForm):
 
     class Meta:
         model = Topography
-        fields = ( 'size_x', 'size_y', 'size_unit',
+        fields = ('size_available_in_file',
+                  'size_unit_available_in_file',
+                  'height_scale_available_in_file',
+                  'size_x', 'size_unit',
+                  'height_scale', 'height_unit', 'detrend_mode')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.helper.layout = Layout(
+            Div(
+                Fieldset('Physical Size',
+                         Field('size_available_in_file', type="hidden"),
+                         self.size_info_html,
+                         Field('size_x', **self.size_field_kwargs),
+                         Field('size_unit', **self.size_unit_field_kwargs)),
+                Fieldset('Height Conversion',
+                         Field('height_scale', **self.height_scale_field_kwargs),
+                         Field('height_unit', **self.size_unit_field_kwargs)),
+                Field('detrend_mode'),
+            ),
+            FormActions(
+                Submit('save', 'Save new topography'),
+                Submit('cancel', 'Cancel', formnovalidate="formnovalidate"),
+            ),
+        )
+
+class Topography2DUnitsForm(TopographyUnitsForm):
+
+    class Meta:
+        model = Topography
+        fields = ( 'size_available_in_file',
+                   'size_unit_available_in_file',
+                   'height_scale_available_in_file',
+                   'size_x', 'size_y', 'size_unit',
                    'height_scale', 'height_unit', 'detrend_mode',
                    'resolution_x', 'resolution_y')
 
-    helper = FormHelper()
-    helper.form_method = 'POST'
-    helper.form_show_errors = False  # crispy forms has nicer template code for errors
-    helper.form_tag = False
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
-    helper.layout = Layout(
-        Div(
-            Fieldset('Physical Size', 'size_x', 'size_y', 'size_unit'),
-            Fieldset('Height Conversion', 'height_scale', 'height_unit'),
-            Field('detrend_mode'),
-            Field('resolution_x', type="hidden"), # only in order to have the data in wizard's .done() method
-            Field('resolution_y', type="hidden"), # only in order to have the data in wizard's .done() method
-        ),
-        FormActions(
-            Submit('save', 'Save new topography'),
-            Submit('cancel', 'Cancel', formnovalidate="formnovalidate"),
-        ),
-    )
+        self.helper.layout = Layout(
 
-    def clean(self):
-        return self.cleaned_data
+            Div(
+                Fieldset('Physical Size',
+                         self.size_info_html,
+                         Field('size_x', **self.size_field_kwargs),
+                         Field('size_y', **self.size_field_kwargs),
+                         Field('size_unit', **self.size_unit_field_kwargs)),
+                Fieldset('Height Conversion',
+                         Field('height_scale', **self.height_scale_field_kwargs),
+                         Field('height_unit', **self.size_unit_field_kwargs)),
+                Field('detrend_mode'),
+                Field('resolution_x', type="hidden"), # only in order to have the data in wizard's .done() method
+                Field('resolution_y', type="hidden"), # only in order to have the data in wizard's .done() method
+            ),
+            FormActions(
+                Submit('save', 'Save new topography'),
+                Submit('cancel', 'Cancel', formnovalidate="formnovalidate"),
+            ),
+        )
 
-
-class TopographyForm(forms.ModelForm):
-    """Form for creating or updating topographies-
+class TopographyForm(TopographyUnitsForm):
+    """Form for updating topographies.
     """
 
     class Meta:
         model = Topography
-        fields = ('name', 'description', 'measurement_date',
+        fields = ('size_available_in_file',
+                  'size_unit_available_in_file',
+                  'height_scale_available_in_file',
+                  'name', 'description', 'measurement_date',
                   'datafile', 'data_source',
                   'size_x', 'size_y', 'size_unit',
                   'height_scale', 'height_unit', 'detrend_mode',
@@ -153,34 +216,36 @@ class TopographyForm(forms.ModelForm):
         for fn in ['surface', 'data_source']:
             self.fields[fn].label = False
 
+        self.helper.form_tag = True
 
-    helper = FormHelper()
-    helper.form_method = 'POST'
-    helper.form_show_errors = False  # crispy forms has nicer template code for errors
-
-    datafile = forms.FileInput()
-    measurement_date = forms.DateField(input_formats=['%Y-%m-%d', '%d.%m.%Y'])
-    description = forms.Textarea()
-
-    helper.layout = Layout(
-        Div(
-            #Field('datafile', readonly=True, hidden=True),
-            Field('surface', readonly=True, hidden=True),
-            Field('data_source', readonly=True, hidden=True),
-            Field('name'),
-            Field('measurement_date'),
-            Field('description'),
-            Fieldset('Physical Size', 'size_x', 'size_y', 'size_unit'),
-            Fieldset('Height Conversion', 'height_scale', 'height_unit'),
-            Field('detrend_mode'),
-        ),
-        FormActions(
-                Submit('save', 'Save'),
-                HTML("""
-                    <a href="{% url 'manager:topography-detail' object.id %}" class="btn btn-default" id="cancel-btn">Cancel</a>
-                """),# TODO check back point
+        self.helper.layout = Layout(
+            Div(
+                Field('surface', readonly=True, hidden=True),
+                Field('data_source', readonly=True, hidden=True),
+                Field('name'),
+                Field('measurement_date'),
+                Field('description'),
+                Fieldset('Physical Size',
+                         self.size_info_html,
+                         Field('size_x', **self.size_field_kwargs),
+                         Field('size_y', **self.size_field_kwargs),
+                         Field('size_unit', **self.size_unit_field_kwargs)),
+                Fieldset('Height Conversion',
+                         Field('height_scale', **self.height_scale_field_kwargs),
+                         Field('height_unit', **self.size_unit_field_kwargs)),
+                Field('detrend_mode'),
             ),
-    )
+            FormActions(
+                    Submit('save', 'Save'),
+                    HTML("""
+                        <a href="{% url 'manager:topography-detail' object.id %}" class="btn btn-default" id="cancel-btn">Cancel</a>
+                    """),# TODO check back point
+                ),
+        )
+
+        datafile = forms.FileInput()
+        measurement_date = forms.DateField(input_formats=['%Y-%m-%d', '%d.%m.%Y'])
+        description = forms.Textarea()
 
 class SurfaceForm(forms.ModelForm):
     """Form for creating or updating surfaces.

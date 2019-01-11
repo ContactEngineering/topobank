@@ -66,10 +66,14 @@ class Topography(models.Model):
     #
     # Fields with physical meta data
     #
+    size_available_in_file = models.BooleanField(default=False)
     size_x = models.IntegerField()
     size_y = models.IntegerField(null=True) # null for line scans
+
+    size_unit_available_in_file = models.BooleanField(default=False) # also applies to height_unit
     size_unit = models.TextField(choices=LENGTH_UNIT_CHOICES) # TODO allow null?
 
+    height_scale_available_in_file = models.BooleanField(default=False)
     height_scale = models.FloatField(default=1)
     height_unit = models.TextField(choices=LENGTH_UNIT_CHOICES) # TODO remove
 
@@ -102,8 +106,12 @@ class Topography(models.Model):
 
         topo.unit = self.size_unit # TODO what about height unit
         topo.parent_topography.coeff = self.height_scale
+
         # if topo.size is None: # TODO only set size when not defined yet, see GH 97 for details
-        topo.size = self.size_x, self.size_y
+        if self.size_y is None:
+            topo.size = self.size_x
+        else:
+            topo.size = self.size_x, self.size_y
 
         topo.detrend_mode = self.detrend_mode
 

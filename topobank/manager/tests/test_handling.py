@@ -120,13 +120,14 @@ def test_upload_topography_di(client, django_user_model):
     assert 256 == t.resolution_x
     assert 256 == t.resolution_y
 
-@pytest.mark.parametrize(("input_filename", "exp_resolution"),
-                         [("topobank/manager/fixtures/10x10.txt", 10),
-                          ("topobank/manager/fixtures/line_scan_1.asc", None),
-                          ("topobank/manager/fixtures/line_scan_1_minimal_spaces.asc", None)])
+@pytest.mark.parametrize(("input_filename", "exp_resolution_x", "exp_resolution_y"),
+                         [("topobank/manager/fixtures/10x10.txt", 10, 10),
+                          ("topobank/manager/fixtures/line_scan_1.asc", 11, None),
+                          ("topobank/manager/fixtures/line_scan_1_minimal_spaces.asc", 11, None)])
 # Add this for a larger file: ("topobank/manager/fixtures/500x500_random.txt", 500)]) # takes quire long
 @pytest.mark.django_db
-def test_upload_topography_txt(client, django_user_model, input_filename, exp_resolution):
+def test_upload_topography_txt(client, django_user_model, input_filename,
+                               exp_resolution_x, exp_resolution_y):
 
     input_file_path = Path(input_filename)
     expected_toponame = input_file_path.name
@@ -202,13 +203,13 @@ def test_upload_topography_txt(client, django_user_model, input_filename, exp_re
                            data={
                                'topography_create_wizard-current_step': '2',
                                '2-size_x': '1',
-                               '2-size_y': '1',
+                               '2-size_y': '' if exp_resolution_y is None else '1', # No y size for line scans
                                '2-size_unit': 'nm',
                                '2-height_scale': 1,
                                '2-height_unit': 'nm',
                                '2-detrend_mode': 'height',
-                               '2-resolution_x': exp_resolution or '', # TODO or leave out if not needed? blank=True?
-                               '2-resolution_y': exp_resolution or '',
+                               '2-resolution_x': exp_resolution_x,
+                               '2-resolution_y': exp_resolution_y or '', # empty string if NULL expected
                            }, follow=True)
 
     assert response.status_code == 200
@@ -226,8 +227,8 @@ def test_upload_topography_txt(client, django_user_model, input_filename, exp_re
     assert t.measurement_date == datetime.date(2018,6,21)
     assert t.description == description
     assert input_file_path.stem in t.datafile.name
-    assert exp_resolution == t.resolution_x
-    assert exp_resolution == t.resolution_y
+    assert exp_resolution_x == t.resolution_x
+    assert exp_resolution_y == t.resolution_y
 
 
 @pytest.mark.django_db

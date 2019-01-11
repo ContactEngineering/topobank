@@ -24,8 +24,8 @@ import logging
 
 from .models import Topography, Surface
 from .forms import TopographyForm, SurfaceForm, TopographySelectForm
-from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyUnitsForm
-from .utils import TopographyFile, optimal_unit, \
+from .forms import TopographyFileUploadForm, TopographyMetaDataForm, Topography1DUnitsForm, Topography2DUnitsForm
+from .utils import get_topography_file, optimal_unit, \
     selected_topographies, selection_from_session, selection_for_select_all, \
     bandwidths_data
 
@@ -58,12 +58,19 @@ class TopographyAccessMixin(UserPassesTestMixin):
 #
 # Using a wizard because we need intermediate calculations
 #
-# An alternative would be to use AJAX calls as described here (under "GET"):
+# There are 4 forms, used in 3 steps (0,1, then 2 or 3):
+#
+# 0: loading of the topography file
+# 1: choosing the data source, add measurement date and a description
+# 2: adding physical size and units (if 2D and only for data which is not available in the file)
+# 3: adding physical size and units (if 1D and only for data is not available in the file)
+#
+# Maybe an alternative would be to use AJAX calls as described here (under "GET"):
 #
 #  https://sixfeetup.com/blog/making-your-django-templates-ajax-y
 #
 class TopographyCreateWizard(SessionWizardView):
-    form_list = [TopographyFileUploadForm, TopographyMetaDataForm, TopographyUnitsForm]
+    form_list = [TopographyFileUploadForm, TopographyMetaDataForm, Topography2DUnitsForm, Topography1DUnitsForm]
     template_name = 'manager/topography_wizard.html'
     file_storage = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT,'topographies/wizard'))
 
@@ -98,15 +105,17 @@ class TopographyCreateWizard(SessionWizardView):
         if step == '1':
             initial['name'] = os.path.basename(datafile.name) # the original file name
 
-        if step == '2':
+        if step in ['2','3']:
 
             step1_data = self.get_cleaned_data_for_step('1')
 
-            topofile = TopographyFile(datafile.open(mode='rb'))
+            topofile = get_topography_file(datafile.file.name)
 
             topo = topofile.topography(int(step1_data['data_source']))
 
             size_unit = topo.unit
+
+
 
             #
             # Set initial size and size unit
@@ -115,13 +124,16 @@ class TopographyCreateWizard(SessionWizardView):
                 initial['size_x'] = None
                 initial['size_y'] = None
             else:
+                #
+                # a size was given in the file
+                #
                 has_2_dim = topo.dim == 2
 
                 if has_2_dim:
                     initial_size_x, initial_size_y = topo.size
                 else:
                     initial_size_x = topo.size
-                    initial_size_y = None
+                    initial_size_y = None # needed for database field
 
                 if size_unit is not None:
                     #
@@ -143,14 +155,17 @@ class TopographyCreateWizard(SessionWizardView):
                 initial['size_x'] = initial_size_x
                 initial['size_y'] = initial_size_y
 
-
+            initial['size_available_in_file'] = topo.size is not None
             initial['size_unit'] = size_unit
+            initial['size_unit_available_in_file'] = size_unit is not None
 
             #
             # Set initial height and height unit
             #
             initial['height_scale'] = topo.parent_topography.coeff
-            initial['height_unit'] = size_unit  # TODO choose directly from surface?
+            initial['height_unit'] = size_unit  # TODO choose directly from read topography?
+            initial['height_scale_available_in_file'] = initial['height_scale'] is not None
+
 
             #
             # Set initial detrend mode
@@ -160,12 +175,16 @@ class TopographyCreateWizard(SessionWizardView):
             #
             # Set resolution (only for having the data later)
             #
-            if has_2_dim:
+            if hasattr(topo, 'resolution'): # TODO can 1D regular topographies also have a resolution?
                 initial['resolution_x'], initial['resolution_y'] = topo.resolution
             else:
                 initial['resolution_x'], initial['resolution_y'] = None, None
 
         return initial
+
+    @staticmethod
+    def get_topofile_cache_key(datafile_fname):
+        return f"topofile_{datafile_fname}"  # filename is unique inside wizard's directory -> cache key unique
 
     def get_form_kwargs(self, step=None):
 
@@ -176,11 +195,11 @@ class TopographyCreateWizard(SessionWizardView):
 
             datafile_fname = step0_data['datafile'].file.name
 
-            #
-            # Set good default based on file contents
-            #
-            topofile = TopographyFile(datafile_fname)
+            topofile = get_topography_file(datafile_fname)
 
+            #
+            # Set data source choices based on file contents
+            #
             kwargs['data_source_choices'] = [(k, ds) for k, ds in
                                              enumerate(topofile.data_sources)]
 
@@ -213,6 +232,11 @@ class TopographyCreateWizard(SessionWizardView):
         # TODO maybe use self.get_all_cleaned_data()
 
         #
+        # collect additional data
+        #
+        # TODO Check if we'd better get resolution here
+
+        #
         # Check whether given surface is from this user
         #
         surface = d['surface']
@@ -227,7 +251,13 @@ class TopographyCreateWizard(SessionWizardView):
         with d['datafile'].open(mode='rb') as datafile:
             d['datafile'] = default_storage.save(new_path, File(datafile))
 
+        #
+        # TODO remove topography file object from cache
+        #
+
+        #
         # create topography in database
+        #
         instance = Topography(**d)
         instance.save()
 

@@ -3,6 +3,20 @@ from django.contrib.auth.decorators import login_required
 from django.views.generic import TemplateView
 
 from . import views
+from .utils import get_topography_file
+
+def creating_2D_topography(wizard):
+
+    return True
+    step0_data = wizard.get_cleaned_data_for_step('0')
+    datafile = step0_data['datafile']
+    step1_data = wizard.get_cleaned_data_for_step('1')
+
+    topofile = get_topography_file(datafile.file.name)
+
+    topo = topofile.topography(int(step1_data['data_source']))
+
+    return topo.dim == 2
 
 app_name = "manager"
 urlpatterns = [
@@ -24,7 +38,12 @@ urlpatterns = [
     url(
         regex=r'surface/(?P<surface_id>\d+)/new-topography/$',
         # view=login_required(views.TopographyCreateView.as_view()),
-        view=login_required(views.TopographyCreateWizard.as_view()),
+        view=login_required(views.TopographyCreateWizard.as_view(
+            condition_dict={
+                '2': creating_2D_topography,
+                '3': lambda w: not creating_2D_topography(w),
+            }
+        )),
         name='topography-create'
     ),
     url(
