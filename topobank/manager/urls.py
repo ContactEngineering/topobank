@@ -7,13 +7,17 @@ from .utils import get_topography_file
 
 def creating_2D_topography(wizard):
 
-    return True
     step0_data = wizard.get_cleaned_data_for_step('0')
+    if step0_data is None:
+        return False
+
     datafile = step0_data['datafile']
     step1_data = wizard.get_cleaned_data_for_step('1')
 
-    topofile = get_topography_file(datafile.file.name)
+    if step1_data is None:
+        return False
 
+    topofile = get_topography_file(datafile.file.name)
     topo = topofile.topography(int(step1_data['data_source']))
 
     return topo.dim == 2

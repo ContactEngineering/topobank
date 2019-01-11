@@ -97,7 +97,7 @@ class TopographyCreateWizard(SessionWizardView):
 
             initial['surface'] = surface
 
-        if step in ['1', '2']:
+        if step in ['1', '2', '3']:
             # provide datafile attribute from first step
             step0_data = self.get_cleaned_data_for_step('0')
             datafile = step0_data['datafile']
@@ -114,8 +114,6 @@ class TopographyCreateWizard(SessionWizardView):
             topo = topofile.topography(int(step1_data['data_source']))
 
             size_unit = topo.unit
-
-
 
             #
             # Set initial size and size unit
@@ -308,46 +306,61 @@ class TopographyDetailView(TopographyAccessMixin, DetailView):
     model = Topography
     context_object_name = 'topography'
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
+    def get_1D_plot(self, pyco_topo, topo):
+        """Calculate 1D line plot of topography (line scan).
+
+        :param pyco_topo: PyCo Topography instance
+        :param topo: TopoBank Topography instance
+        :return: bokeh plot
+        """
 
 
-        topo = self.object
-        pyco_topo = topo.topography()
+        TOOLTIPS = [
+            ("x", "$x " + topo.size_unit),
+            ("height", "$y " + topo.height_unit),
+        ]
+
+        plot = figure(x_axis_label=f'x ({topo.size_unit})',
+                      y_axis_label=f'height ({topo.height_unit})',
+                      toolbar_location="above",
+                      tooltips=TOOLTIPS)
+
+        x, y = pyco_topo.points()
+        plot.circle(x,y)
+
+        plot.xaxis.axis_label_text_font_style = "normal"
+        plot.yaxis.axis_label_text_font_style = "normal"
+
+        plot.toolbar.logo = None
+
+        return plot
+
+    def get_2D_plot(self, pyco_topo, topo):
+        """Calculate 2D image plot of topography.
+
+        :param pyco_topo: PyCo Topography instance
+        :param topo: TopoBank Topography instance
+        :return: bokeh plot
+        """
         arr = pyco_topo.array()
-        # topo_shape = arr.shape
-        topo_size = pyco_topo.size
-        #X = np.linspace(0, topo_size[0], topo_shape[0])
-        #Y = np.linspace(0, topo_size[1], topo_shape[1])
 
-        #x_range = DataRange1d(start=0, end=topo_size[0], bounds=(0,topo_size[0]))
-        #y_range = DataRange1d(start=0, end=topo_size[1], bounds=(0,topo_size[1]))
+        topo_size = pyco_topo.size
         x_range = DataRange1d(start=0, end=topo_size[0], bounds='auto')
         y_range = DataRange1d(start=0, end=topo_size[1], bounds='auto')
-        #x_padding = topo_size[0] / 10
-        #y_padding = topo_size[1] / 10
-        #x_range = Range1d(start=-x_padding, end=topo_size[0]+x_padding, bounds='auto')
-        #y_range = Range1d(start=-y_padding, end=topo_size[1]+y_padding, bounds='auto')
-        #x_range = DataRange1d(start=0, end=topo_size[0])
-        #y_range = DataRange1d(start=0, end=topo_size[1])
-        #x_range = DataRange1d(bounds=(0,topo_size[0]))
-        #y_range = DataRange1d(bounds=(0,topo_size[1]))
 
         color_mapper = LinearColorMapper(palette="Viridis256", low=arr.min(), high=arr.max())
 
         TOOLTIPS = [
-            ("x", "$x "+topo.size_unit),
-            ("y", "$y "+topo.size_unit),
-            ("height", "@image "+topo.height_unit),
+            ("x", "$x " + topo.size_unit),
+            ("y", "$y " + topo.size_unit),
+            ("height", "@image " + topo.height_unit),
         ]
 
         colorbar_width = 40
 
-        aspect_ratio = topo_size[0]/topo_size[1]
+        aspect_ratio = topo_size[0] / topo_size[1]
         plot_height = 800
-        plot_width = int(plot_height*aspect_ratio)
-        #plot_width = 1200
-        #plot_height = int(plot_width/aspect_ratio)
+        plot_width = int(plot_height * aspect_ratio)
 
         # from bokeh.models.tools import BoxZoomTool, WheelZoomTool, ZoomInTool, ZoomOutTool, PanTool
         plot = figure(x_range=x_range,
@@ -366,18 +379,30 @@ class TopographyDetailView(TopographyAccessMixin, DetailView):
         plot.yaxis.axis_label_text_font_style = "normal"
 
         plot.image([arr], x=0, y=0, dw=topo_size[0], dh=topo_size[1], color_mapper=color_mapper)
-        #plot.rect(x=[0,topo_size[0],topo_size[0],0, topo_size[0]/2],
-        #          y=[0,0,topo_size[1],topo_size[1], topo_size[1]/2],
-        #          width=50, height=50, color='red')
 
         plot.toolbar.logo = None
 
         colorbar = ColorBar(color_mapper=color_mapper,
-                            label_standoff=12, location=(0,0),
+                            label_standoff=12, location=(0, 0),
                             width=colorbar_width)
         colorbar.title = f"height ({topo.height_unit})"
 
         plot.add_layout(colorbar, 'right')
+
+        return plot
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        topo = self.object
+        pyco_topo = topo.topography()
+
+        if pyco_topo.dim == 1:
+            plot = self.get_1D_plot(pyco_topo, topo)
+        elif pyco_topo.dim == 2:
+            plot = self.get_2D_plot(pyco_topo, topo)
+        else:
+            raise Exception(f"Don't know how to display topographies with {pyco_topo.dim} dimensions.")
 
         script, div = components(plot)
         context['image_plot_script'] = script
