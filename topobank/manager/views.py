@@ -320,12 +320,18 @@ class TopographyDetailView(TopographyAccessMixin, DetailView):
             ("height", "$y " + topo.height_unit),
         ]
 
-        plot = figure(x_axis_label=f'x ({topo.size_unit})',
+        x, y = pyco_topo.points()
+
+        x_range = DataRange1d(bounds='auto')
+        y_range = DataRange1d(bounds='auto')
+
+        plot = figure(x_range=x_range, y_range=y_range,
+                      x_axis_label=f'x ({topo.size_unit})',
                       y_axis_label=f'height ({topo.height_unit})',
                       toolbar_location="above",
                       tooltips=TOOLTIPS)
 
-        x, y = pyco_topo.points()
+
         plot.circle(x,y)
 
         plot.xaxis.axis_label_text_font_style = "normal"
