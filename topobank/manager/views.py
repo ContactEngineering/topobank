@@ -173,11 +173,10 @@ class TopographyCreateWizard(SessionWizardView):
             #
             # Set resolution (only for having the data later)
             #
-            if hasattr(topo, 'resolution'):
+            if topo.dim == 2:
                 initial['resolution_x'], initial['resolution_y'] = topo.resolution
             else:
-                # 1 D topography in PyCo has no "resolution" attribute
-                initial['resolution_x'], initial['resolution_y'] = len(topo.points()[0]), None
+                initial['resolution_x'], = topo.resolution
 
         return initial
 
