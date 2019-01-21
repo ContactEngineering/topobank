@@ -113,10 +113,11 @@ class Topography(models.Model):
         # 2. there is a problem in PyCo, that internal size may have an inconsistent format
         #    see GH 55 in PyCo
         # See also GH 97 in TopoBank
+        # TODO check whether this woraround is still needed
 
         if not self.size_available_in_file:
             if self.size_y is None:
-                topo.size = self.size_x
+                topo.size = self.size_x, # size is now always a tuple
             else:
                 topo.size = self.size_x, self.size_y
 
