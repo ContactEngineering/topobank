@@ -4,15 +4,16 @@ from django.views.generic import TemplateView
 
 from . import views
 from .utils import get_topography_file
+from . import forms
 
 def creating_2D_topography(wizard):
 
-    step0_data = wizard.get_cleaned_data_for_step('0')
+    step0_data = wizard.get_cleaned_data_for_step('upload')
     if step0_data is None:
         return False
 
     datafile = step0_data['datafile']
-    step1_data = wizard.get_cleaned_data_for_step('1')
+    step1_data = wizard.get_cleaned_data_for_step('metadata')
 
     if step1_data is None:
         return False
@@ -21,6 +22,13 @@ def creating_2D_topography(wizard):
     topo = topofile.topography(int(step1_data['data_source']))
 
     return topo.dim == 2
+
+WIZARD_FORMS = [
+    ('upload', forms.TopographyFileUploadForm),
+    ('metadata', forms.TopographyMetaDataForm),
+    ('units1D', forms.Topography1DUnitsForm),
+    ('units2D', forms.Topography2DUnitsForm),
+]
 
 app_name = "manager"
 urlpatterns = [
@@ -43,9 +51,10 @@ urlpatterns = [
         regex=r'surface/(?P<surface_id>\d+)/new-topography/$',
         # view=login_required(views.TopographyCreateView.as_view()),
         view=login_required(views.TopographyCreateWizard.as_view(
+            WIZARD_FORMS,
             condition_dict={
-                '2': creating_2D_topography,
-                '3': lambda w: not creating_2D_topography(w),
+                'units2D': creating_2D_topography,
+                'units1D': lambda w: not creating_2D_topography(w),
             }
         )),
         name='topography-create'

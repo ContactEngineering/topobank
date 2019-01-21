@@ -83,7 +83,7 @@ class TopographyCreateWizard(SessionWizardView):
 
         initial = {}
 
-        if step == '0':
+        if step == 'upload':
             #
             # Pass surface in order to have it later in done() method
             #
@@ -97,17 +97,17 @@ class TopographyCreateWizard(SessionWizardView):
 
             initial['surface'] = surface
 
-        if step in ['1', '2', '3']:
+        if step in ['metadata', 'units2D', 'units1D']:
             # provide datafile attribute from first step
-            step0_data = self.get_cleaned_data_for_step('0')
+            step0_data = self.get_cleaned_data_for_step('upload')
             datafile = step0_data['datafile']
 
-        if step == '1':
+        if step == 'metadata':
             initial['name'] = os.path.basename(datafile.name) # the original file name
 
-        if step in ['2','3']:
+        if step in ['units2D','units1D']:
 
-            step1_data = self.get_cleaned_data_for_step('1')
+            step1_data = self.get_cleaned_data_for_step('metadata')
 
             topofile = get_topography_file(datafile.file.name)
 
@@ -161,7 +161,7 @@ class TopographyCreateWizard(SessionWizardView):
             # Set initial height and height unit
             #
             initial['height_scale'] = topo.parent_topography.coeff
-            initial['height_unit'] = size_unit  # TODO choose directly from read topography?
+            initial['height_unit'] = size_unit
             initial['height_scale_available_in_file'] = initial['height_scale'] is not None
 
 
@@ -173,10 +173,11 @@ class TopographyCreateWizard(SessionWizardView):
             #
             # Set resolution (only for having the data later)
             #
-            if hasattr(topo, 'resolution'): # TODO can 1D regular topographies also have a resolution?
+            if hasattr(topo, 'resolution'):
                 initial['resolution_x'], initial['resolution_y'] = topo.resolution
             else:
-                initial['resolution_x'], initial['resolution_y'] = None, None
+                # 1 D topography in PyCo has no "resolution" attribute
+                initial['resolution_x'], initial['resolution_y'] = len(topo.points()[0]), None
 
         return initial
 
@@ -188,8 +189,8 @@ class TopographyCreateWizard(SessionWizardView):
 
         kwargs = super(TopographyCreateWizard, self).get_form_kwargs(step)
 
-        if step == '1':
-            step0_data = self.get_cleaned_data_for_step('0')
+        if step == 'metadata':
+            step0_data = self.get_cleaned_data_for_step('upload')
 
             datafile_fname = step0_data['datafile'].file.name
 
@@ -288,6 +289,11 @@ class TopographyCreateView(CreateView):# TODO check if still needed
 class TopographyUpdateView(TopographyAccessMixin, UpdateView):
     model = Topography
     form_class = TopographyForm
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['has_size_y'] = self.object.size_y is not None
+        return kwargs
 
     def get_success_url(self):
         self.object.submit_images_creation() # TODO this is only needed if image would change

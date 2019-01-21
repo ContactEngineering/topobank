@@ -92,7 +92,8 @@
             </tr>
             <tr>
               <th scope="row">Physical Size</th>
-              <td>{{ topography.size_x }} {{ topography.size_unit }} x {{ topography.size_y }} {{ topography.size_unit }}
+              <td>
+              {{ topography.size_x }} {{ topography.size_unit }}{% if topography.size_y %} x {{ topography.size_y }} {{ topography.size_unit }} {% endif %}
               </td>
             </tr>
             <tr>
@@ -105,7 +106,9 @@
             </tr>
             <tr>
               <th scope="row">Resolution</th>
-              <td>{{ topography.resolution_x }} x {{ topography.resolution_y }}</td>
+              <td>
+                {{ topography.resolution_x }}{% if topography.resolution_y %} x {{ topography.resolution_y }} {% endif %}
+              </td>
             </tr>
           </tbody>
         </table>

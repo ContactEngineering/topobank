@@ -6,7 +6,7 @@ from pathlib import Path
 import datetime
 import os.path
 
-# from topobank.manager.tests.utils import export_reponse_as_html
+from topobank.manager.tests.utils import export_reponse_as_html
 from ..tests.utils import two_topos
 from ..models import Topography, Surface
 
@@ -47,9 +47,9 @@ def test_upload_topography_di(client, django_user_model):
         response = client.post(reverse('manager:topography-create',
                                        kwargs=dict(surface_id=surface.id)),
                                data={
-                                'topography_create_wizard-current_step': '0',
-                                '0-datafile': fp,
-                                '0-surface': surface.id,
+                                'topography_create_wizard-current_step': 'upload',
+                                'upload-datafile': fp,
+                                'upload-surface': surface.id,
                                }, follow=True)
 
     assert response.status_code == 200
@@ -74,11 +74,11 @@ def test_upload_topography_di(client, django_user_model):
     response = client.post(reverse('manager:topography-create',
                                    kwargs=dict(surface_id=surface.id)),
                            data={
-                            'topography_create_wizard-current_step': '1',
-                            '1-name': 'topo1',
-                            '1-measurement_date': '2018-06-21',
-                            '1-data_source': 0,
-                            '1-description': description,
+                            'topography_create_wizard-current_step': 'metadata',
+                            'metadata-name': 'topo1',
+                            'metadata-measurement_date': '2018-06-21',
+                            'metadata-data_source': 0,
+                            'metadata-description': description,
                            })
 
     assert response.status_code == 200
@@ -90,15 +90,15 @@ def test_upload_topography_di(client, django_user_model):
     response = client.post(reverse('manager:topography-create',
                                    kwargs=dict(surface_id=surface.id)),
                            data={
-                               'topography_create_wizard-current_step': '2',
-                               '2-size_x': '9000',
-                               '2-size_y': '9000',
-                               '2-size_unit': 'nm',
-                               '2-height_scale': 0.3,
-                               '2-height_unit': 'nm',
-                               '2-detrend_mode': 'height',
-                               '2-resolution_x': 256,
-                               '2-resolution_y': 256,
+                               'topography_create_wizard-current_step': 'units2D',
+                               'units2D-size_x': '9000',
+                               'units2D-size_y': '9000',
+                               'units2D-size_unit': 'nm',
+                               'units2D-height_scale': 0.3,
+                               'units2D-height_unit': 'nm',
+                               'units2D-detrend_mode': 'height',
+                               'units2D-resolution_x': 256,
+                               'units2D-resolution_y': 256,
                            }, follow=True)
 
     assert response.status_code == 200
@@ -159,9 +159,9 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
         response = client.post(reverse('manager:topography-create',
                                        kwargs=dict(surface_id=surface.id)),
                                data={
-                                'topography_create_wizard-current_step': '0',
-                                '0-datafile': fp,
-                                '0-surface': surface.id,
+                                'topography_create_wizard-current_step': 'upload',
+                                'upload-datafile': fp,
+                                'upload-surface': surface.id,
                                }, follow=True)
 
     assert response.status_code == 200
@@ -185,11 +185,11 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
     response = client.post(reverse('manager:topography-create',
                                    kwargs=dict(surface_id=surface.id)),
                            data={
-                            'topography_create_wizard-current_step': '1',
-                            '1-name': 'topo1',
-                            '1-measurement_date': '2018-06-21',
-                            '1-data_source': 0,
-                            '1-description': description,
+                            'topography_create_wizard-current_step': 'metadata',
+                            'metadata-name': 'topo1',
+                            'metadata-measurement_date': '2018-06-21',
+                            'metadata-data_source': 0,
+                            'metadata-description': description,
                            })
 
     assert response.status_code == 200
@@ -198,19 +198,32 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
     #
     # Send data for third page
     #
-    response = client.post(reverse('manager:topography-create',
-                                   kwargs=dict(surface_id=surface.id)),
-                           data={
-                               'topography_create_wizard-current_step': '2',
-                               '2-size_x': '1',
-                               '2-size_y': '' if exp_resolution_y is None else '1', # No y size for line scans
-                               '2-size_unit': 'nm',
-                               '2-height_scale': 1,
-                               '2-height_unit': 'nm',
-                               '2-detrend_mode': 'height',
-                               '2-resolution_x': exp_resolution_x,
-                               '2-resolution_y': exp_resolution_y or '', # empty string if NULL expected
-                           }, follow=True)
+    if exp_resolution_y is None:
+        response = client.post(reverse('manager:topography-create',
+                                       kwargs=dict(surface_id=surface.id)),
+                               data={
+                                   'topography_create_wizard-current_step': "units1D",
+                                   'units1D-size_x': '1',
+                                   'units1D-size_unit': 'nm',
+                                   'units1D-height_scale': 1,
+                                   'units1D-height_unit': 'nm',
+                                   'units1D-detrend_mode': 'height',
+                                   'units1D-resolution_x': exp_resolution_x,
+                               }, follow=True)
+    else:
+        response = client.post(reverse('manager:topography-create',
+                                       kwargs=dict(surface_id=surface.id)),
+                               data={
+                                   'topography_create_wizard-current_step': "units2D",
+                                   'units2D-size_x': '1',
+                                   'units2D-size_y': '1',
+                                   'units2D-size_unit': 'nm',
+                                   'units2D-height_scale': 1,
+                                   'units2D-height_unit': 'nm',
+                                   'units2D-detrend_mode': 'height',
+                                   'units2D-resolution_x': exp_resolution_x,
+                                   'units2D-resolution_y': exp_resolution_y,
+                               }, follow=True)
 
     assert response.status_code == 200
 
@@ -263,8 +276,8 @@ def test_trying_upload_of_invalid_topography_file(client, django_user_model):
         response = client.post(reverse('manager:topography-create',
                                        kwargs=dict(surface_id=surface.id)),
                                data={
-                                'topography_create_wizard-current_step': '0',
-                                '0-datafile': fp,
+                                'topography_create_wizard-current_step': 'upload',
+                                'upload-datafile': fp,
                                })
     assert response.status_code == 200
 
@@ -375,6 +388,8 @@ def test_topography_detail(client, two_topos, django_user_model):
 
     response = client.get(reverse('manager:topography-detail', kwargs=dict(pk=topo_id)))
     assert response.status_code == 200
+
+    export_reponse_as_html(response)
 
     # resolution should be written somewhere
     assert b"305 x 75" in response.content

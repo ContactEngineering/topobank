@@ -107,11 +107,18 @@ class Topography(models.Model):
         topo.unit = self.size_unit # TODO what about height unit
         topo.parent_topography.coeff = self.height_scale
 
-        # if topo.size is None: # TODO only set size when not defined yet, see GH 97 for details
-        if self.size_y is None:
-            topo.size = self.size_x
-        else:
-            topo.size = self.size_x, self.size_y
+        # set size only if size was not given in datafile,
+        # because
+        # 1. not needed
+        # 2. there is a problem in PyCo, that internal size may have an inconsistent format
+        #    see GH 55 in PyCo
+        # See also GH 97 in TopoBank
+
+        if not self.size_available_in_file:
+            if self.size_y is None:
+                topo.size = self.size_x
+            else:
+                topo.size = self.size_x, self.size_y
 
         topo.detrend_mode = self.detrend_mode
 

@@ -282,8 +282,13 @@ def bandwidths_data(topographies):
 
         meter_factor = UNIT_TO_METERS[unit]
 
-        lower_bound_meters = np.mean(pyco_topo.pixel_size) * meter_factor
-        upper_bound_meters = np.mean(pyco_topo.size) * meter_factor
+        lower_bound, upper_bound = pyco_topo.bandwidth()
+        # Workaround for https://github.com/pastewka/PyCo/issues/55
+        if isinstance(upper_bound, tuple):
+            upper_bound = upper_bound[0]
+
+        lower_bound_meters = lower_bound * meter_factor
+        upper_bound_meters = upper_bound * meter_factor
 
         bandwidths_data.append(
             {

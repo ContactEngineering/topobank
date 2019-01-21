@@ -137,7 +137,8 @@ class Topography1DUnitsForm(TopographyUnitsForm):
                   'size_unit_available_in_file',
                   'height_scale_available_in_file',
                   'size_x', 'size_unit',
-                  'height_scale', 'height_unit', 'detrend_mode')
+                  'height_scale', 'height_unit', 'detrend_mode',
+                  'resolution_x') # resolution_y, size_y is saved as NULL
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -153,6 +154,7 @@ class Topography1DUnitsForm(TopographyUnitsForm):
                          Field('height_scale', **self.height_scale_field_kwargs),
                          Field('height_unit', **self.size_unit_field_kwargs)),
                 Field('detrend_mode'),
+                Field('resolution_x', type="hidden"),  # only in order to have the data in wizard's .done() method
             ),
             FormActions(
                 Submit('save', 'Save new topography'),
@@ -206,17 +208,28 @@ class TopographyForm(TopographyUnitsForm):
                   'height_scale_available_in_file',
                   'name', 'description', 'measurement_date',
                   'datafile', 'data_source',
-                  'size_x', 'size_y', 'size_unit',
+                  'size_x', 'size_unit',
                   'height_scale', 'height_unit', 'detrend_mode',
                   'surface')
 
     def __init__(self, *args, **kwargs):
+        has_size_y = kwargs.pop('has_size_y')
         super().__init__(*args, **kwargs)
+
+        if has_size_y:
+            self.fields['size_y'] = forms.IntegerField()
 
         for fn in ['surface', 'data_source']:
             self.fields[fn].label = False
 
         self.helper.form_tag = True
+
+        size_fieldset_args = ['Physical Size',
+                               self.size_info_html,
+                               Field('size_x', **self.size_field_kwargs)]
+        if has_size_y:
+            size_fieldset_args.append(Field('size_y', **self.size_field_kwargs))
+        size_fieldset_args.append(Field('size_unit', **self.size_unit_field_kwargs))
 
         self.helper.layout = Layout(
             Div(
@@ -225,11 +238,7 @@ class TopographyForm(TopographyUnitsForm):
                 Field('name'),
                 Field('measurement_date'),
                 Field('description'),
-                Fieldset('Physical Size',
-                         self.size_info_html,
-                         Field('size_x', **self.size_field_kwargs),
-                         Field('size_y', **self.size_field_kwargs),
-                         Field('size_unit', **self.size_unit_field_kwargs)),
+                Fieldset(*size_fieldset_args),
                 Fieldset('Height Conversion',
                          Field('height_scale', **self.height_scale_field_kwargs),
                          Field('height_unit', **self.size_unit_field_kwargs)),
