@@ -186,7 +186,7 @@ def height_distribution(topography, bins=None, wfac=5):
     profile = topography.array()
 
     mean_height = np.mean(profile)
-    rms_height = topography.rms_height()
+    rms_height = topography.rms_height(kind='Sq' if topography.dim == 2 else 'Rq')
 
     hist, bin_edges = np.histogram(np.ma.compressed(profile), bins=bins, density=True)
 
@@ -199,7 +199,7 @@ def height_distribution(topography, bins=None, wfac=5):
         name='Height distribution',
         scalars={
             'Mean Height': mean_height, # topography.unit
-            'RMD Height': rms_height, # topography.unit
+            'RMS Height': rms_height, # topography.unit
         },
         xlabel='Height',
         ylabel='Probability',
