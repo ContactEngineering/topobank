@@ -224,9 +224,14 @@ def slope_distribution(topography, bins=None, wfac=5):
     if bins is None:
         bins = int(np.sqrt(np.prod(topography.shape)) + 1.0)
 
-    slope_x, slope_y = topography.derivative(n=1)
-    slope = np.sqrt(2) * np.append(np.ma.compressed(slope_x),
-                                   np.ma.compressed(slope_y))
+    if topography.dim == 2:
+        slope_x, slope_y = topography.derivative(n=1)
+        slope = np.sqrt(2) * np.append(np.ma.compressed(slope_x),
+                                       np.ma.compressed(slope_y))
+    elif topography.dim == 1:
+        slope = topography.derivative(n=1)
+    else:
+        raise ValueError("This analysis function can only handle 1D or 2D topographies.")
 
     mean_slope = np.mean(slope)
     rms_slope = topography.rms_slope()
@@ -246,8 +251,8 @@ def slope_distribution(topography, bins=None, wfac=5):
         },
         xlabel='Slope',
         ylabel='Probability',
-        xunit=1,
-        yunit=1,
+        xunit='1',
+        yunit='1',
         series=[
             dict(name='Slope distribution',
                  x=(bin_edges[:-1] + bin_edges[1:]) / 2,
