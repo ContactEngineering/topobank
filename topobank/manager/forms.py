@@ -12,7 +12,7 @@ from topobank.manager.utils import selection_choices, \
     TopographyFile, TopographyFileReadingException, TopographyFileFormatException
 from .models import Topography, Surface
 
-_log = logging.getLogger('manager')
+_log = logging.getLogger(__name__)
 
 ################################################################
 # Topography Forms
@@ -51,7 +51,9 @@ class TopographyFileUploadForm(forms.ModelForm):
             msg = f"Error while reading file contents of file '{datafile.name}', detected format: {exc.detected_format}. "
             if exc.message:
                 msg += f"Reason: {exc.message} "
+
             msg += " Please try another file or contact us."
+            _log.info(msg+" Exception: "+str(exc))
             raise forms.ValidationError(msg, code='invalid_topography_file')
         except TopographyFileFormatException as exc:
             msg = f"Cannot determine file format of file '{datafile.name}'. "
