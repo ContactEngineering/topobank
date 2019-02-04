@@ -266,7 +266,6 @@ def slope_distribution(topography, bins=None, wfac=5):
     return dict(
         name='Slope distribution',
         scalars={
-            'Mean Slope': mean_slope,
             'RMS Slope': rms_slope,
         },
         xlabel='Slope',

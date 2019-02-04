@@ -98,8 +98,6 @@ def test_slope_distribution_simple_2D_topography():
 
     assert result['name'] == 'Slope distribution'
 
-    # TODO Check these values, are they correct?
-    assert pytest.approx(result['scalars']['Mean Slope']) == -4.*math.sqrt(2)*45/85
     assert pytest.approx(result['scalars']['RMS Slope']) == 4.
 
     assert result['xlabel'] == 'Slope'
