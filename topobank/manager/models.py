@@ -66,14 +66,14 @@ class Topography(models.Model):
     #
     # Fields with physical meta data
     #
-    size_available_in_file = models.BooleanField(default=False)
+    size_editable = models.BooleanField(default=False)
     size_x = models.IntegerField()
     size_y = models.IntegerField(null=True) # null for line scans
 
-    size_unit_available_in_file = models.BooleanField(default=False) # also applies to height_unit
+    size_unit_editable = models.BooleanField(default=False) # also applies to height_unit
     size_unit = models.TextField(choices=LENGTH_UNIT_CHOICES) # TODO allow null?
 
-    height_scale_available_in_file = models.BooleanField(default=False)
+    height_scale_editable = models.BooleanField(default=False)
     height_scale = models.FloatField(default=1)
     height_unit = models.TextField(choices=LENGTH_UNIT_CHOICES) # TODO remove
 
@@ -98,30 +98,36 @@ class Topography(models.Model):
             self.name, self.measurement_date)
 
     def topography(self):
-        """Return PyCo Topography instance"""
+        """Return a PyCo Topography/Line Scan instance.
+
+        This instance is guaranteed to
+
+        - have an info dict with 'unit' key: .info['unit']
+        - have a size: .size
+        - scaled and detrended with the saved parameters
+
+        """
         topofile = TopographyFile(self.datafile.path) # assuming the datafile is stored on disk
 
         topo = topofile.topography(int(self.data_source))
         # TODO int() is a fix for SQLite which cannot return real int?? remove for PG
 
-        topo.unit = self.size_unit # TODO what about height unit
-        topo.parent_topography.coeff = self.height_scale
+        #
+        # Now prepare topography using the parameters from database
+        #
 
-        # set size only if size was not given in datafile,
-        # because
-        # 1. not needed
-        # 2. there is a problem in PyCo, that internal size may have an inconsistent format
-        #    see GH 55 in PyCo
-        # See also GH 97 in TopoBank
-        # TODO check whether this woraround is still needed
+        # set size if physical size was not given in datafile
+        # (see also  TopographyCreateWizard.get_form_initial)
 
-        if not self.size_available_in_file:
+        if self.size_editable:
             if self.size_y is None:
                 topo.size = self.size_x, # size is now always a tuple
             else:
                 topo.size = self.size_x, self.size_y
 
-        topo.detrend_mode = self.detrend_mode
+        topo = topo.scale(self.height_scale).detrend(detrend_mode=self.detrend_mode)
+
+        topo.info['unit'] = self.size_unit  # TODO what about height unit
 
         return topo
 

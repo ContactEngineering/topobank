@@ -13,12 +13,12 @@ def two_topos_mock(mocker):
     @dataclass  # new feature in Python 3.7
     class PyCoTopoStub:
         bandwidth: tuple
-        unit: str
+        info: dict
 
     topography_method_mock = mocker.patch('topobank.manager.models.Topography.topography')
     topography_method_mock.side_effect = [
-        PyCoTopoStub(bandwidth=lambda: (5, 100), unit='µm'),
-        PyCoTopoStub(bandwidth=lambda: (6, 600), unit='nm'),
+        PyCoTopoStub(bandwidth=lambda: (5, 100), info=dict(unit='µm')),
+        PyCoTopoStub(bandwidth=lambda: (6, 600), info=dict(unit='nm')),
     ]
     mocker.patch('topobank.manager.models.Topography', autospec=True)
 

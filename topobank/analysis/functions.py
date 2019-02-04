@@ -6,10 +6,12 @@ The first argument is always a PyCo Topography!
 
 import numpy as np
 
-from PyCo.Topography import rms_height
-from PyCo.Topography.Uniform.PowerSpectrum import power_spectrum_1D, power_spectrum_2D
+from PyCo.Topography import Topography
+
 from PyCo.Topography.Uniform.Autocorrelation import autocorrelation_1D, autocorrelation_2D
 from PyCo.Topography.Uniform.VariableBandwidth import checkerboard_tilt_correction
+from PyCo.Topography.Uniform.ScalarParameters import rms_height as rms_height_uniform
+
 
 # TODO: _unicode_map and super and subscript functions should be moved to some support module.
 
@@ -178,12 +180,24 @@ def float_to_unicode(f, digits=3):
     else:
         return ('{{:.{}g}}×10{{}}'.format(digits)).format(m, unicode_superscript(str(e3)))
 
+def _reasonable_bins_argument(topography):
+    """Returns a reasonable 'bins' argument for np.histogram for given topography's heights.
+
+    :param topography: Line scan or topography from PyCo
+    :return: argument for 'bins' argument of np.histogram
+    """
+    if topography.is_uniform:
+        return int(np.sqrt(np.prod(topography.resolution)) + 1.0)
+    else:
+        return int(np.sqrt(np.prod(len(topography.positions()))) + 1.0) # TODO discuss whether auto or this
+        # return 'auto'
+
 @analysis_function(automatic=True)
 def height_distribution(topography, bins=None, wfac=5):
     if bins is None:
-        bins = int(np.sqrt(np.prod(topography.shape)) + 1.0)
+        bins = _reasonable_bins_argument(topography)
 
-    profile = topography.array()
+    profile = topography.heights()
 
     mean_height = np.mean(profile)
     rms_height = topography.rms_height(kind='Sq' if topography.dim == 2 else 'Rq')
@@ -195,6 +209,11 @@ def height_distribution(topography, bins=None, wfac=5):
     x_gauss = np.linspace(minval, maxval, 1001)
     y_gauss = np.exp(-(x_gauss - mean_height) ** 2 / (2 * rms_height ** 2)) / (np.sqrt(2 * np.pi) * rms_height)
 
+    try:
+        unit = topography.info['unit']
+    except:
+        unit = None
+
     return dict(
         name='Height distribution',
         scalars={
@@ -203,8 +222,8 @@ def height_distribution(topography, bins=None, wfac=5):
         },
         xlabel='Height',
         ylabel='Probability',
-        xunit=topography.unit,
-        yunit='{}⁻¹'.format(topography.unit),
+        xunit='' if unit is None else unit,
+        yunit='' if unit is None else '{}⁻¹'.format(unit),
         series=[
             dict(name='Height distribution',
                  x=(bin_edges[:-1] + bin_edges[1:]) / 2,
@@ -221,8 +240,9 @@ def height_distribution(topography, bins=None, wfac=5):
 
 @analysis_function(automatic=True)
 def slope_distribution(topography, bins=None, wfac=5):
+
     if bins is None:
-        bins = int(np.sqrt(np.prod(topography.shape)) + 1.0)
+        bins = _reasonable_bins_argument(topography)
 
     if topography.dim == 2:
         slope_x, slope_y = topography.derivative(n=1)
@@ -270,7 +290,7 @@ def slope_distribution(topography, bins=None, wfac=5):
 @analysis_function(automatic=True)
 def curvature_distribution(topography, bins=None, wfac=5):
     if bins is None:
-        bins = int(np.sqrt(np.prod(topography.shape)) + 1.0)
+        bins = _reasonable_bins_argument(topography)
 
     curv_x, curv_y = topography.derivative(n=2)
     curv = curv_x[:, 1:-1] + curv_y[1:-1, :]
@@ -286,6 +306,8 @@ def curvature_distribution(topography, bins=None, wfac=5):
     x_gauss = np.linspace(minval, maxval, 1001)
     y_gauss = np.exp(-(x_gauss - mean_curv) ** 2 / (2 * rms_curv ** 2)) / (np.sqrt(2 * np.pi) * rms_curv)
 
+    unit = topography.info['unit']
+
     return dict(
         name='Curvature distribution',
         scalars={
@@ -294,8 +316,8 @@ def curvature_distribution(topography, bins=None, wfac=5):
         },
         xlabel='Curvature',
         ylabel='Probability',
-        xunit='{}⁻¹'.format(topography.unit),
-        yunit=topography.unit,
+        xunit='{}⁻¹'.format(unit),
+        yunit=unit,
         series=[
             dict(name='Curvature distribution',
                  x=(bin_edges[:-1] + bin_edges[1:]) / 2,
@@ -315,54 +337,71 @@ def power_spectrum(topography, window='hann'):
     if window == 'None':
         window = None
 
-    q_1D, C_1D = power_spectrum_1D(topography, window=window)
-    sx, sy = topography.size
-    q_1D_T, C_1D_T = power_spectrum_1D(topography.array().T,
-                                       size=(sy, sx),
-                                       window=window)
-    q_2D, C_2D = power_spectrum_2D(topography, window=window,
-                                   nbins=len(q_1D) - 1)
-
+    q_1D, C_1D = topography.power_spectrum_1D(window=window)
     # Remove NaNs and Infs
     q_1D = q_1D[np.isfinite(C_1D)]
     C_1D = C_1D[np.isfinite(C_1D)]
-    q_1D_T = q_1D_T[np.isfinite(C_1D_T)]
-    C_1D_T = C_1D_T[np.isfinite(C_1D_T)]
-    q_2D = q_2D[np.isfinite(C_2D)]
-    C_2D = C_2D[np.isfinite(C_2D)]
 
-    return dict(
+    unit = topography.info['unit']
+
+    result = dict(
         name='Power-spectral density (PSD)',
         xlabel='Wavevector',
         ylabel='PSD',
-        xunit='{}⁻¹'.format(topography.unit),
-        yunit='{}³'.format(topography.unit),
+        xunit='{}⁻¹'.format(unit),
+        yunit='{}³'.format(unit),
         xscale='log',
         yscale='log',
         series=[
-            dict(name='q/π × 2D PSD',
-                 x=q_2D[1:],
-                 y=q_2D[1:] * C_2D[1:] / np.pi,
-                 style='o-',
-                 ),
             dict(name='1D PSD along x',
                  x=q_1D[1:],
                  y=C_1D[1:],
                  style='+-',
                  ),
+        ]
+
+    )
+
+    if topography.dim == 2:
+        #
+        # Add two more series with power spectra
+        #
+        sx, sy = topography.size
+        transposed_topography = Topography(topography.heights().T, (sy, sx))
+        q_1D_T, C_1D_T = transposed_topography.power_spectrum_1D(window=window)
+        q_2D, C_2D = topography.power_spectrum_2D(window=window,
+                                                  nbins=len(q_1D) - 1)
+        # Remove NaNs and Infs
+        q_1D_T = q_1D_T[np.isfinite(C_1D_T)]
+        C_1D_T = C_1D_T[np.isfinite(C_1D_T)]
+        q_2D = q_2D[np.isfinite(C_2D)]
+        C_2D = C_2D[np.isfinite(C_2D)]
+
+        result['series'] = [
+            dict(name='q/π × 2D PSD',
+                 x=q_2D[1:],
+                 y=q_2D[1:] * C_2D[1:] / np.pi,
+                 style='o-',
+                 ),
+            result['series'][0],
             dict(name='1D PSD along y',
                  x=q_1D_T[1:],
                  y=C_1D_T[1:],
                  style='y-',
                  )
         ]
-    )
+
+    return result
 
 @analysis_function(automatic=True)
 def autocorrelation(topography):
+
+    if not topography.is_uniform:
+        raise NotImplementedError("Autocorrelation hasn't been implemented for non-uniform topographies yet.")
+
     r, A = autocorrelation_1D(topography)
     sx, sy = topography.size
-    r_T, A_T = autocorrelation_1D(topography.array().T, size=(sy, sx))
+    r_T, A_T = autocorrelation_1D(topography.heights().T, size=(sy, sx))
     r_2D, A_2D = autocorrelation_2D(topography)
 
     # Truncate ACF at half the system size
@@ -382,12 +421,14 @@ def autocorrelation(topography):
     r_2D = r_2D[np.isfinite(A_2D)]
     A_2D = A_2D[np.isfinite(A_2D)]
 
+    unit = topography.info['unit']
+
     return dict(
         name='Height-difference autocorrelation function (ACF)',
         xlabel='Distance',
         ylabel='ACF',
-        xunit=topography.unit,
-        yunit='{}²'.format(topography.unit),
+        xunit=unit,
+        yunit='{}²'.format(unit),
         xscale='log',
         yscale='log',
         series=[
@@ -411,6 +452,10 @@ def autocorrelation(topography):
 
 @analysis_function(automatic=True)
 def variable_bandwidth(topography):
+
+    if not topography.is_uniform:
+        raise NotImplementedError("Variable bandwidth hasn't been implemented for non-uniform topographies yet.")
+
     size = topography.size
     scale_factor = 1
     no_exception = True
@@ -421,18 +466,20 @@ def variable_bandwidth(topography):
         try:
             s = checkerboard_tilt_correction(topography, sd=(scale_factor, )*topography.dim)
             bandwidths += [np.mean(size)/scale_factor]
-            rms_heights += [rms_height(s)]
+            rms_heights += [rms_height_uniform(s, kind='Sq' if s.dim == 2 else 'Rq')]
             no_exception = True
         except np.linalg.LinAlgError:
             pass
         scale_factor *= 2
 
+    unit = topography.info['unit']
+
     return dict(
         name='Variable-bandwidth analysis',
         xlabel='Bandwidth',
         ylabel='RMS Height',
-        xunit=topography.unit,
-        yunit=topography.unit,
+        xunit=unit,
+        yunit=unit,
         xscale='log',
         yscale='log',
         series=[

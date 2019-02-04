@@ -112,63 +112,76 @@ class TopographyCreateWizard(SessionWizardView):
             topofile = get_topography_file(datafile.file.name)
 
             topo = topofile.topography(int(step1_data['data_source']))
+            # topography as it is in file
 
-            size_unit = topo.unit
+            size_unit = topo.info['unit']
 
             #
             # Set initial size and size unit
             #
-            if topo.size is None:
-                initial['size_x'] = None
-                initial['size_y'] = None
+
+            has_2_dim = topo.dim == 2
+
+            if has_2_dim:
+                initial_size_x, initial_size_y = topo.size
             else:
-                #
-                # a size was given in the file
-                #
-                has_2_dim = topo.dim == 2
+                initial_size_x, = topo.size # size is always a tuple
+                initial_size_y = None # needed for database field
 
+            if size_unit is not None:
+                #
+                # Try to optimize size unit
+                #
+                size_unit, conversion_factor = optimal_unit(topo.size, size_unit)
+
+                initial_size_x *= conversion_factor # TODO Is it correct to do this if there is "int()" afterwards?
                 if has_2_dim:
-                    initial_size_x, initial_size_y = topo.size
-                else:
-                    initial_size_x = topo.size
-                    initial_size_y = None # needed for database field
+                    initial_size_y *= conversion_factor
 
-                if size_unit is not None:
-                    #
-                    # Try to optimize size unit
-                    #
-                    size_unit, conversion_factor = optimal_unit(topo.size, size_unit)
+                #
+                # We need integer values for the database
+                #
+                initial_size_x = int(initial_size_x)
+                if has_2_dim:
+                    initial_size_y = int(initial_size_y)
 
-                    initial_size_x *= conversion_factor # TODO Is it correct to do this if there is "int()" afterwards?
-                    if has_2_dim:
-                        initial_size_y *= conversion_factor
+            initial['size_x'] = initial_size_x
+            initial['size_y'] = initial_size_y
 
-                    #
-                    # We need integer values for the database
-                    #
-                    initial_size_x = int(initial_size_x)
-                    if has_2_dim:
-                        initial_size_y = int(initial_size_y)
+            # Check whether the user should be able to change the size
+            # see also #39
+            #
+            # Allowed if the topography/line scan object returned by read allows it
+            # (i.e. there is a setter for the size)
+            try:
+                topo.size = topo.size # there are hopefully no side-effects
+                size_setter_avail = True
+            except AttributeError:
+                size_setter_avail = False
 
-                initial['size_x'] = initial_size_x
-                initial['size_y'] = initial_size_y
+            initial['size_editable'] = size_setter_avail
 
-            initial['size_available_in_file'] = topo.size is not None
             initial['size_unit'] = size_unit
-            initial['size_unit_available_in_file'] = size_unit is not None
+            initial['size_unit_editable'] = size_unit is None
 
             #
             # Set initial height and height unit
             #
-            initial['height_scale'] = topo.parent_topography.coeff
+            try:
+                initial['height_scale'] = topo.coeff
+                initial['height_scale_editable'] = False
+            except AttributeError:
+                initial['height_scale'] = 1
+                initial['height_scale_editable'] = True # this factor can be changed by user because not given in file
+
             initial['height_unit'] = size_unit
-            initial['height_scale_available_in_file'] = initial['height_scale'] is not None
-
-
             #
             # Set initial detrend mode
             #
-            initial['detrend_mode'] = topo.detrend_mode
+            try:
+                initial['detrend_mode'] = topo.detrend_mode
+            except AttributeError:
+                initial['detrend_mode'] = 'center'
 
             #
             # Set resolution (only for having the data later)
@@ -176,7 +189,7 @@ class TopographyCreateWizard(SessionWizardView):
             if topo.dim == 2:
                 initial['resolution_x'], initial['resolution_y'] = topo.resolution
             else:
-                initial['resolution_x'], = topo.resolution
+                initial['resolution_x'] = len(topo.positions()) # TODO Check: also okay for uniform line scans?
 
         return initial
 
@@ -325,7 +338,7 @@ class TopographyDetailView(TopographyAccessMixin, DetailView):
             ("height", "$y " + topo.height_unit),
         ]
 
-        x, y = pyco_topo.points()
+        x, y = pyco_topo.positions_and_heights()
 
         x_range = DataRange1d(bounds='auto')
         y_range = DataRange1d(bounds='auto')
@@ -353,13 +366,13 @@ class TopographyDetailView(TopographyAccessMixin, DetailView):
         :param topo: TopoBank Topography instance
         :return: bokeh plot
         """
-        arr = pyco_topo.array()
+        heights = pyco_topo.heights()
 
         topo_size = pyco_topo.size
         x_range = DataRange1d(start=0, end=topo_size[0], bounds='auto')
         y_range = DataRange1d(start=0, end=topo_size[1], bounds='auto')
 
-        color_mapper = LinearColorMapper(palette="Viridis256", low=arr.min(), high=arr.max())
+        color_mapper = LinearColorMapper(palette="Viridis256", low=heights.min(), high=heights.max())
 
         TOOLTIPS = [
             ("x", "$x " + topo.size_unit),
@@ -389,7 +402,7 @@ class TopographyDetailView(TopographyAccessMixin, DetailView):
         plot.xaxis.axis_label_text_font_style = "normal"
         plot.yaxis.axis_label_text_font_style = "normal"
 
-        plot.image([arr], x=0, y=0, dw=topo_size[0], dh=topo_size[1], color_mapper=color_mapper)
+        plot.image([heights], x=0, y=0, dw=topo_size[0], dh=topo_size[1], color_mapper=color_mapper)
 
         plot.toolbar.logo = None
 

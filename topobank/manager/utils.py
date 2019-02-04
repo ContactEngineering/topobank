@@ -94,14 +94,17 @@ class TopographyFile:
         # ignore all topographies which have other units than lenghts
         # code taken from PyCo-web
         for topography in raw_topographies:
-            if type(topography.unit) is not tuple:# TODO what if it is a tuple?
-                # If this is not a tuple, that x-, y- and z-units are all
-                # lengths. Discard all other channels.
+            #
+            # ignore all data sources which have tuples as unit
+            #
+            try:
+                unit = topography.info['unit']
+            except KeyError:
+                unit = None
 
+            if not isinstance(unit, tuple):
                 try:
-                    if not isinstance(topography, ScaledTopography):
-                        topography = ScaledTopography(topography, 1.0)
-                    topographies += [DetrendedTopography(topography, detrend_mode='height')]
+                    topographies.append(topography) # scale + detrend is done later, see Topography.topography()
                 except Exception as exc:
                     raise TopographyFileReadingException(fname, self._fmt, str(exc)) from exc
         self._topographies = topographies
@@ -114,10 +117,12 @@ class TopographyFile:
                 for s in self._topographies]
 
     def topography(self, data_source):
-        """Get ScaledTopography instance based on data_source.
+        """Get topography/line scan instance from data_source.
+
+        The result is the unmodified topography as returned from PyCo's read function.
 
         :param data_source: integer
-        :return: DetrendedTopography
+        :return: TODO specify data type
         """
 
         return self._topographies[data_source]
@@ -271,7 +276,7 @@ def bandwidths_data(topographies):
 
         pyco_topo = topo.topography()
 
-        unit = pyco_topo.unit
+        unit = pyco_topo.info['unit']
         if unit is None:
             _log.warning("No unit given for topography {}. Cannot display bandwidth.".format(topo.name))
             continue
