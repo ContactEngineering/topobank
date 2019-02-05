@@ -85,8 +85,10 @@ function surface_summary_plot(element, bandwidths_data) {
       plot.entities().forEach(function(entity) {
         entity.selection.attr("fill", inactiveBarColor);
       });
-      var entity = plot.entitiesAt(p)[0];
-      entity.selection.attr("fill", activeBarColor);
+      var entities = plot.entitiesAt(p);
+      if (entities.length > 0) {
+          entities[0].selection.attr("fill", activeBarColor);
+      }
     });
     move_interaction.attachTo(plot);
 
