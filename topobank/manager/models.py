@@ -125,9 +125,10 @@ class Topography(models.Model):
             else:
                 topo.size = self.size_x, self.size_y
 
-        topo = topo.scale(self.height_scale).detrend(detrend_mode=self.detrend_mode)
+        topo = topo.scale(self.height_scale).detrend(detrend_mode=self.detrend_mode,
+                                                     info=dict(unit=self.size_unit))
 
-        topo.info['unit'] = self.size_unit  # TODO what about height unit
+        # TODO what about height unit, maybe set this also as info item?
 
         return topo
 
