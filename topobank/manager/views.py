@@ -138,13 +138,6 @@ class TopographyCreateWizard(SessionWizardView):
                 if has_2_dim:
                     initial_size_y *= conversion_factor
 
-                #
-                # We need integer values for the database
-                #
-                initial_size_x = int(initial_size_x)
-                if has_2_dim:
-                    initial_size_y = int(initial_size_y)
-
             initial['size_x'] = initial_size_x
             initial['size_y'] = initial_size_y
 

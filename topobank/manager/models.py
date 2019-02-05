@@ -67,8 +67,8 @@ class Topography(models.Model):
     # Fields with physical meta data
     #
     size_editable = models.BooleanField(default=False)
-    size_x = models.IntegerField()
-    size_y = models.IntegerField(null=True) # null for line scans
+    size_x = models.FloatField()
+    size_y = models.FloatField(null=True) # null for line scans
 
     size_unit_editable = models.BooleanField(default=False) # also applies to height_unit
     size_unit = models.TextField(choices=LENGTH_UNIT_CHOICES) # TODO allow null?

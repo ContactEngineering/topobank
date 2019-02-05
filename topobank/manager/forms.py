@@ -252,7 +252,7 @@ class TopographyForm(TopographyUnitsForm):
         super().__init__(*args, **kwargs)
 
         if has_size_y:
-            self.fields['size_y'] = forms.IntegerField()
+            self.fields['size_y'] = forms.FloatField()
 
         for fn in ['surface', 'data_source']:
             self.fields[fn].label = False
