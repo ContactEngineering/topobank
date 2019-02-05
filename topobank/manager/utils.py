@@ -278,10 +278,10 @@ def bandwidths_data(topographies):
 
         unit = pyco_topo.info['unit']
         if unit is None:
-            _log.warning("No unit given for topography {}. Cannot display bandwidth.".format(topo.name))
+            _log.warning("No unit given for topography {}. Cannot calculate bandwidth.".format(topo.name))
             continue
         elif not unit in UNIT_TO_METERS:
-            _log.warning("Unknown unit {} given for topography {}. Cannot display bandwidth.".format(
+            _log.warning("Unknown unit {} given for topography {}. Cannot calculate bandwidth.".format(
                 unit, topo.name))
             continue
 

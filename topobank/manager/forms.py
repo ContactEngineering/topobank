@@ -129,7 +129,7 @@ class TopographyUnitsForm(forms.ModelForm):
 
         if self.initial['size_unit_editable']:
             self.size_unit_info_html = HTML(
-                "<p>Please check unit information and change it, if needed.</p>")
+                "<p>Please select the correct unit for the size and height values.</p>")
             self.size_unit_field_kwargs = dict()
         else:
             self.size_unit_info_html = HTML(
@@ -140,7 +140,7 @@ class TopographyUnitsForm(forms.ModelForm):
 
         if self.initial['height_scale_editable']:
             self.height_scale_info_html = HTML(
-                "<p>Please check this height scale factor and change it, if needed.</p>")
+                "<p>Please enter the correct height scale factor.</p>")
             self.height_scale_field_kwargs = {}
         else:
             self.height_scale_info_html = HTML(
