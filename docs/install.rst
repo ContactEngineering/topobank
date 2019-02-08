@@ -87,3 +87,19 @@ On command line, in the correct environment, call
 
 All available analysis functions will be added to the database if
 not already happend. Currently errors during the database operations are not catched.
+
+Creating a superuser
+--------------------
+
+Is this needed?
+
+In order to activate the ORCID authentication we need to have a super user who enters ...
+
+
+Create ORCID configuration directly in database
+-----------------------------------------------
+
+ INSERT INTO socialaccount_socialapp (provider,name,client_id,key,secret)
+        VALUES ('orcid', 'ORCID', '<insert client id here>', '','<insert password here>')
+
+

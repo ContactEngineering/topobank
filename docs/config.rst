@@ -65,6 +65,9 @@ Enter the URL
 TODO provide a commandline line tool in order to add ORCID credentials.
 
 
-
+Provider: orcid.org
+Name: ORCID
+Client ID: ..
+Secret: ..
 
 
