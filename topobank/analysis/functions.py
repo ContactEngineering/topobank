@@ -238,53 +238,115 @@ def height_distribution(topography, bins=None, wfac=5):
         ]
     )
 
+def _moments_histogram_gaussian(arr, bins, wfac, quantity, label, gaussian=True):
+    """Return moments, histogram and gaussian for an array.
+
+    :param arr: array
+    :param bins: bins argument for np.histogram
+    :param wfac: numeric width factor
+    :param quantity: str, what kind of quantity this is (e.g. 'slope)
+    :param label: str, how these results should be extra labeled (e.g. 'x direction)
+    :param gaussian: bool, if True, add gaussian
+    :return: scalars, series
+
+    The result can be used to extend the result dict of the analysis functions, e.g.
+
+    result['scalars'].update(scalars)
+    result['series'].extend(series)
+    """
+
+    arr = arr.flatten()
+
+    mean = arr.mean()
+    rms = np.sqrt((arr**2).mean())
+    hist, bin_edges = np.histogram(arr, bins=bins, density=True)
+
+    scalars = {
+        f"Mean {quantity.capitalize()} ({label})": mean,
+        f"RMS {quantity.capitalize()} ({label})": rms,
+    }
+
+    series = [
+        dict(name=f'{quantity.capitalize()} distribution ({label})',
+             x=(bin_edges[:-1] + bin_edges[1:]) / 2,
+             y=hist)]
+
+    if gaussian:
+        minval = mean - wfac * rms
+        maxval = mean + wfac * rms
+        x_gauss = np.linspace(minval, maxval, 1001)
+        y_gauss = np.exp(-(x_gauss - mean) ** 2 / (2 * rms ** 2)) / (np.sqrt(2 * np.pi) * rms)
+
+        series.append(
+            dict(name=f'RMS {quantity} ({label})',
+             x=x_gauss,
+             y=y_gauss)
+        )
+
+    return scalars, series
+
+
 @analysis_function(automatic=True)
 def slope_distribution(topography, bins=None, wfac=5):
 
     if bins is None:
         bins = _reasonable_bins_argument(topography)
 
-    if topography.dim == 2:
-        slope_x, slope_y = topography.derivative(n=1)
-        slope = np.sqrt(2) * np.append(np.ma.compressed(slope_x),
-                                       np.ma.compressed(slope_y))
-    elif topography.dim == 1:
-        slope = topography.derivative(n=1)
-    else:
-        raise ValueError("This analysis function can only handle 1D or 2D topographies.")
-
-    mean_slope = np.mean(slope)
-    rms_slope = topography.rms_slope()
-
-    hist, bin_edges = np.histogram(slope, bins=bins, density=True)
-
-    minval = mean_slope - wfac * rms_slope
-    maxval = mean_slope + wfac * rms_slope
-    x_gauss = np.linspace(minval, maxval, 1001)
-    y_gauss = np.exp(-(x_gauss - mean_slope) ** 2 / (2 * rms_slope ** 2)) / (np.sqrt(2 * np.pi) * rms_slope)
-
-    return dict(
+    result = dict(
         name='Slope distribution',
-        scalars={
-            'RMS Slope': rms_slope,
-        },
         xlabel='Slope',
         ylabel='Probability',
         xunit='1',
         yunit='1',
-        series=[
-            dict(name='Slope distribution',
-                 x=(bin_edges[:-1] + bin_edges[1:]) / 2,
-                 y=hist,
-                 style='k-',
-                 ),
-            dict(name='RMS slope',
-                 x=x_gauss,
-                 y=y_gauss,
-                 style='r-',
-                 )
-        ]
+        scalars={},
+        series=[]
     )
+    # .. will be completed below..
+
+    if topography.dim == 2:
+        dh_dx, dh_dy = topography.derivative(n=1)
+        # dh_dx, dh_dy = np.gradient(topography.heights(), *tuple(topography.pixel_size))
+        # not okay for Lars, see GH 83 of PyCo:  https://github.com/pastewka/PyCo/issues/83
+
+        #
+        # Results for x direction
+        #
+        scalars_slope_x, series_slope_x = _moments_histogram_gaussian(dh_dx, bins=bins, wfac=wfac,
+                                                                      quantity="slope", label='x direction')
+        result['scalars'].update(scalars_slope_x)
+        result['series'].extend(series_slope_x)
+
+        #
+        # Results for x direction
+        #
+        scalars_slope_y, series_slope_y = _moments_histogram_gaussian(dh_dy, bins=bins, wfac=wfac,
+                                                                      quantity="slope", label='y direction')
+        result['scalars'].update(scalars_slope_y)
+        result['series'].extend(series_slope_y)
+
+        #
+        # Results for absolute gradient
+        #
+        # TODO how to calculate absolute gradient?
+        #
+        # absolute_gradients = np.sqrt(dh_dx**2+dh_dy**2)
+        # scalars_grad, series_grad = _moments_histogram_gaussian(absolute_gradients, bins=bins, wfac=wfac,
+        #                                                         quantity="slope", label='absolute gradient',
+        #                                                         gaussian=False)
+        # result['scalars'].update(scalars_grad)
+        # result['series'].extend(series_grad)
+
+
+    elif topography.dim == 1:
+        dh_dx = topography.derivative(n=1)
+        scalars_slope_x, series_slope_x = _moments_histogram_gaussian(dh_dx, bins=bins, wfac=wfac,
+                                                                      quantity="slope", label='x direction')
+        result['scalars'].update(scalars_slope_x)
+        result['series'].extend(series_slope_x)
+    else:
+        raise ValueError("This analysis function can only handle 1D or 2D topographies.")
+
+    return result
 
 @analysis_function(automatic=True)
 def curvature_distribution(topography, bins=None, wfac=5):
