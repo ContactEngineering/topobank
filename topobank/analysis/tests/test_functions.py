@@ -59,6 +59,7 @@ def test_slope_distribution_simple_line_scan():
 
     assert result['name'] == 'Slope distribution'
     assert result['scalars'] == {
+            'Mean Slope (x direction)': -2.,  # absolut value of slope
             'RMS Slope (x direction)': 2., # absolut value of slope
     }
 
