@@ -401,7 +401,7 @@ def test_topography_detail(client, two_topos, django_user_model):
     assert b"description2" in response.content
 
     # .. physical size
-    assert "112 µm x 27 µm" in response.content.decode('utf-8')
+    assert "112.0 µm x 27.0 µm" in response.content.decode('utf-8')
 
 
 
