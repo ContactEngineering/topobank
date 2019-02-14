@@ -465,7 +465,7 @@ def autocorrelation(topography):
 
     r, A = autocorrelation_1D(topography)
     sx, sy = topography.size
-    r_T, A_T = autocorrelation_1D(topography.heights().T, size=(sy, sx))
+    r_T, A_T = autocorrelation_1D(topography.heights().T)
     r_2D, A_2D = autocorrelation_2D(topography)
 
     # Truncate ACF at half the system size

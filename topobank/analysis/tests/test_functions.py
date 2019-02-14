@@ -4,7 +4,9 @@ import pytest
 
 from PyCo.Topography import Topography, NonuniformLineScan
 
-from topobank.analysis.functions import height_distribution, slope_distribution, curvature_distribution
+from topobank.analysis.functions import (
+    height_distribution, slope_distribution, curvature_distribution,
+    autocorrelation)
 
 ###############################################################################
 # Tests for line scans
@@ -170,3 +172,22 @@ def test_slope_distribution_simple_2D_topography():
 
     # TODO not testing gauss values yet since number of points is unknown
     # proposal: use a well tested function instead of own formula
+
+def test_autocorrelation_simple_2D_topography():
+    y = np.arange(10).reshape((1, -1))
+    x = np.arange(5).reshape((-1, 1))
+
+    arr = -2 * y + 0 * x  # only slope in y direction
+
+    t = Topography(arr, (10, 5)).detrend('center')
+
+    # resulting heights follow this function: h(x,y)=-4y+9
+
+    result = autocorrelation(t)
+
+    assert sorted(result.keys()) == sorted(['name', 'xlabel', 'ylabel', 'xscale', 'yscale', 'xunit', 'yunit', 'series'])
+
+    assert result['name'] == 'Height-difference autocorrelation function (ACF)'
+
+    # TODO Check other values, too
+
