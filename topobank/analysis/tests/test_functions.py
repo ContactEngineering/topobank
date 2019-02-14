@@ -2,8 +2,7 @@ import numpy as np
 import math
 import pytest
 
-from PyCo.Topography import Topography, UniformLineScan, NonuniformLineScan
-from PyCo.Topography.TopographyPipeline import DetrendedTopography, ScaledTopography
+from PyCo.Topography import Topography, NonuniformLineScan
 
 from topobank.analysis.functions import height_distribution, slope_distribution, curvature_distribution
 
