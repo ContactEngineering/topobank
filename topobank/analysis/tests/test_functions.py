@@ -5,7 +5,7 @@ import pytest
 from PyCo.Topography import Topography, UniformLineScan, NonuniformLineScan
 from PyCo.Topography.TopographyPipeline import DetrendedTopography, ScaledTopography
 
-from topobank.analysis.functions import height_distribution, slope_distribution
+from topobank.analysis.functions import height_distribution, slope_distribution, curvature_distribution
 
 ###############################################################################
 # Tests for line scans
@@ -71,10 +71,49 @@ def test_slope_distribution_simple_line_scan():
     assert len(result['series']) == 2
 
     exp_bins = np.array([-2.33333333333, -2, -1.66666666666]) # for slopes
-    exp_slope_dist_values = [0, 3, 0]
+    exp_slope_dist_values = [0, 3, 0] # integral with dx=1/3 results to 1
     series0 = result['series'][0]
     np.testing.assert_almost_equal(series0['x'], exp_bins)
     np.testing.assert_almost_equal(series0['y'], exp_slope_dist_values)
+
+    # not testing gauss values yet since number of points is unknown
+    # proposal: use a well tested function instead of own formula
+
+def test_curvature_distribution_simple_line_scan():
+
+    unit = 'nm'
+    x = np.arange(10)
+    y = -2*x**2 # constant curvature
+
+    t = NonuniformLineScan(x, y, info=dict(unit=unit)).detrend(detrend_mode='center')
+
+    bins = np.array((-4.75,-4.25,-3.75,-3.25)) # special for this test in order to know results
+    result = curvature_distribution(t, bins=bins)
+
+    assert sorted(result.keys()) == sorted(['name', 'scalars', 'xlabel', 'ylabel', 'xunit', 'yunit', 'series'])
+
+    assert result['name'] == 'Curvature distribution'
+
+    assert pytest.approx(result['scalars']['Mean Curvature']) == -4
+    assert pytest.approx(result['scalars']['RMS Curvature']) == 4
+
+    assert result['xlabel'] == 'Curvature'
+    assert result['ylabel'] == 'Probability'
+    assert result['xunit'] == '{}⁻¹'.format(unit)
+    assert result['yunit'] == unit
+
+    assert len(result['series']) == 2
+
+    exp_bins = (bins[1:]+bins[:-1])/2
+    exp_curv_dist_values = [0, 2, 0]
+
+    # integral over dx= should be 1
+    assert np.trapz(exp_curv_dist_values, exp_bins) == pytest.approx(1)
+
+
+    series0 = result['series'][0]
+    np.testing.assert_almost_equal(series0['x'], exp_bins)
+    np.testing.assert_almost_equal(series0['y'], exp_curv_dist_values)
 
     # not testing gauss values yet since number of points is unknown
     # proposal: use a well tested function instead of own formula
