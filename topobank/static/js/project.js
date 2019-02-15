@@ -42,7 +42,7 @@ function surface_summary_plot(element, bandwidths_data) {
     var xScale = new Plottable.Scales.Log();
     var xAxisFormatter = new Plottable.Formatters.siSuffix(2)
     var xAxis = new Plottable.Axes.Numeric(xScale, "bottom").formatter(xAxisFormatter);
-    var xAxisLabel = new Plottable.Components.AxisLabel("Bandwidth [m]");
+    var xAxisLabel = new Plottable.Components.Label("Bandwidth [m]");
 
     var yScale = new Plottable.Scales.Category();
 
