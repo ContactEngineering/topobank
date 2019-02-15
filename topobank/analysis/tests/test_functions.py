@@ -178,8 +178,9 @@ def test_autocorrelation_simple_2D_topography():
     x = np.arange(5).reshape((-1, 1))
 
     arr = -2 * y + 0 * x  # only slope in y direction
+    info = dict(unit='nm')
 
-    t = Topography(arr, (10, 5)).detrend('center')
+    t = Topography(arr, (10, 5), info=info).detrend('center')
 
     # resulting heights follow this function: h(x,y)=-4y+9
 

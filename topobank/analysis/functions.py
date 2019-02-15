@@ -463,9 +463,14 @@ def autocorrelation(topography):
     if not topography.is_uniform:
         raise NotImplementedError("Autocorrelation hasn't been implemented for non-uniform topographies yet.")
 
+    if topography.dim == 1:
+        raise NotImplementedError("Autocorrelation hasn't been implemented for uniform line scans yet.")
+
     r, A = autocorrelation_1D(topography)
     sx, sy = topography.size
-    r_T, A_T = autocorrelation_1D(topography.heights().T)
+
+    transposed_topography = Topography(topography.heights().T, size=(sy,sx), periodic=topography.is_periodic)
+    r_T, A_T = autocorrelation_1D(transposed_topography)
     r_2D, A_2D = autocorrelation_2D(topography)
 
     # Truncate ACF at half the system size
