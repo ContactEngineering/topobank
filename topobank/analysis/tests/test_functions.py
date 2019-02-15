@@ -6,7 +6,7 @@ from PyCo.Topography import Topography, NonuniformLineScan
 
 from topobank.analysis.functions import (
     height_distribution, slope_distribution, curvature_distribution,
-    autocorrelation)
+    autocorrelation, variable_bandwidth)
 
 ###############################################################################
 # Tests for line scans
@@ -189,5 +189,22 @@ def test_autocorrelation_simple_2D_topography():
 
     assert result['name'] == 'Height-difference autocorrelation function (ACF)'
 
-    # TODO Check other values, too
+    # TODO Check result values for autocorrelation
 
+def test_variable_bandwidth_simple_2D_topography():
+    y = np.arange(10).reshape((1, -1))
+    x = np.arange(5).reshape((-1, 1))
+
+    arr = -2 * y + 0 * x  # only slope in y direction
+
+    info = dict(unit='nm')
+    t = Topography(arr, (10, 5), info=info).detrend('center')
+
+    # resulting heights follow this function: h(x,y)=-4y+9
+
+    result = variable_bandwidth(t)
+
+    assert sorted(result.keys()) == sorted(['name', 'xlabel', 'ylabel', 'xscale', 'yscale', 'xunit', 'yunit', 'series'])
+
+    assert result['name'] == 'Variable-bandwidth analysis'
+    # TODO Check result values for bandwidht

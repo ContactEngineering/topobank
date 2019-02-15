@@ -520,6 +520,12 @@ def variable_bandwidth(topography):
     if not topography.is_uniform:
         raise NotImplementedError("Variable bandwidth hasn't been implemented for non-uniform topographies yet.")
 
+    if topography.dim == 1:
+        raise NotImplementedError("Variable bandwidth hasn't been implemented for uniform line scans yet.")
+
+    #
+    # Implementation for uniform 2D topographies
+    #
     size = topography.size
     scale_factor = 1
     no_exception = True
@@ -528,9 +534,10 @@ def variable_bandwidth(topography):
     while no_exception and scale_factor < 128:
         no_exception = False
         try:
-            s = checkerboard_tilt_correction(topography, sd=(scale_factor, )*topography.dim)
+            s = checkerboard_tilt_correction(topography, sd=(scale_factor, )*topography.dim) # returns an array
             bandwidths += [np.mean(size)/scale_factor]
-            rms_heights += [rms_height_uniform(s, kind='Sq' if s.dim == 2 else 'Rq')]
+            tmp_topography = Topography(s, topography.size, periodic=topography.is_periodic, info=topography.info)
+            rms_heights += [rms_height_uniform(tmp_topography, kind='Sq' if len(s.shape) == 2 else 'Rq')]
             no_exception = True
         except np.linalg.LinAlgError:
             pass
