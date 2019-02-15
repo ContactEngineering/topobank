@@ -30,7 +30,7 @@ celery==4.2
 #
 # Contact Mechanics
 #
-git+ssh://git@github.com/pastewka/PyCo.git@0.18.0#egg=PyCo
+git+ssh://git@github.com/pastewka/PyCo.git@0.30.0#egg=PyCo
 
 # image manipulation like thumbnails etc.
 django-imagekit==4.0.2
