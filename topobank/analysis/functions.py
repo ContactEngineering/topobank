@@ -8,10 +8,14 @@ import numpy as np
 
 from PyCo.Topography import Topography
 
-from PyCo.Topography.Uniform.Autocorrelation import autocorrelation_1D, autocorrelation_2D
+from PyCo.Topography.Uniform.Autocorrelation import \
+    autocorrelation_1D as autocorrelation_1D_uniform, \
+    autocorrelation_2D as autocorrelation_2D_uniform
 from PyCo.Topography.Uniform.VariableBandwidth import checkerboard_tilt_correction
-from PyCo.Topography.Uniform.ScalarParameters import rms_height as rms_height_uniform
 
+# TODO remove the following lines if this is fixed: https://github.com/pastewka/PyCo/issues/95
+Topography.register_function('autocorrelation_1D', autocorrelation_1D_uniform)
+Topography.register_function('autocorrelation_2D', autocorrelation_2D_uniform)
 
 # TODO: _unicode_map and super and subscript functions should be moved to some support module.
 
@@ -466,12 +470,12 @@ def autocorrelation(topography):
     if topography.dim == 1:
         raise NotImplementedError("Autocorrelation hasn't been implemented for uniform line scans yet.")
 
-    r, A = autocorrelation_1D(topography)
+    r, A = topography.autocorrelation_1D()
     sx, sy = topography.size
 
     transposed_topography = Topography(topography.heights().T, size=(sy,sx), periodic=topography.is_periodic)
-    r_T, A_T = autocorrelation_1D(transposed_topography)
-    r_2D, A_2D = autocorrelation_2D(topography)
+    r_T, A_T = transposed_topography.autocorrelation_1D()
+    r_2D, A_2D = topography.autocorrelation_2D()
 
     # Truncate ACF at half the system size
     s = min(sx, sy) / 2
@@ -542,7 +546,7 @@ def variable_bandwidth(topography):
             s = checkerboard_tilt_correction(topography, sd=(scale_factor, )*topography.dim) # returns an array
             bandwidths += [np.mean(size)/scale_factor]
             tmp_topography = Topography(s, topography.size, periodic=topography.is_periodic, info=topography.info)
-            rms_heights += [rms_height_uniform(tmp_topography, kind='Sq' if len(s.shape) == 2 else 'Rq')]
+            rms_heights += [tmp_topography.rms_height(kind='Sq' if len(s.shape) == 2 else 'Rq')]
             no_exception = True
         except np.linalg.LinAlgError:
             pass
