@@ -195,19 +195,6 @@ Got there and pull the current source code:
    cd ~/topobank
 
 
-
-
-Docker notes
-------------
-
-Some side notes for running docker:
-
-needed packages on dev: docker, virtualbox
-
-
-docker-machine create --driver virtualbox default
-
-
 Register analysis functions
 ---------------------------
 
@@ -217,6 +204,15 @@ the current set of analysis functions in the database.
 
 .. code:: bash
     python manage.py register_analysis_functions
+
+
+Docker Notes
+------------
+
+Install on host system
+
+ apt-get install docker-compose
+
 
 
 
