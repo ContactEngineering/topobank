@@ -1,0 +1,9 @@
+- model: "socialaccount.socialapp"
+  pk: 1
+  fields:
+     provider: orcid
+     name: ORCID
+     client_id: ${ORCID_CLIENT_ID}
+     secret: ${ORCID_SECRET}
+     key: ""
+     sites: [1]

@@ -2,7 +2,6 @@ import io
 import pickle
 import json
 import numpy as np
-import pandas as pd
 
 from django.http import HttpResponse, HttpResponseForbidden, Http404
 from django.views.generic.edit import FormView
@@ -200,6 +199,8 @@ def download_analysis_to_xlsx(request, ids):
     # TODO: We need a mechanism for embedding references to papers into output.
     # FIXME: TopoBank needs version information
     # TODO: Probably this function leaves out data if the sheet names are not unique (built from topography+series name)
+    # TODO: pandas is a requirement that takes quite long when building docker images, do we really need it here?
+    import pandas as pd
 
     # Pack analysis results into a single text file.
     f = io.BytesIO()

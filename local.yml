@@ -1,0 +1,79 @@
+version: '3'
+
+volumes:
+  local_postgres_data: {}
+  local_postgres_data_backups: {}
+
+services:
+  django: &django
+    build:
+      context: .
+      dockerfile: ./compose/local/django/Dockerfile
+    image: topobank_local_django
+    depends_on:
+      - postgres
+      - mailhog
+    volumes:
+      - .:/app
+    env_file:
+      - ./.envs/.local/.django
+      - ./.envs/.local/.postgres
+    ports:
+      - "8000:8000"
+    command: /start
+
+  postgres:
+    build:
+      context: .
+      dockerfile: ./compose/production/postgres/Dockerfile
+    image: topobank_production_postgres
+    volumes:
+      - local_postgres_data:/var/lib/postgresql/data
+      - local_postgres_data_backups:/backups
+    env_file:
+      - ./.envs/.local/.postgres
+
+  mailhog:
+    image: mailhog/mailhog:v1.0.0
+    ports:
+      - "8025:8025"
+
+  #redis:
+  #  image: redis:3.2
+
+  memcached:
+    image: memcached:1.5-alpine
+
+  rabbitmq:
+    image: rabbitmq:3.7-alpine
+
+  celeryworker:
+    <<: *django
+    image: topobank_local_celeryworker
+    depends_on:
+      - postgres
+      - rabbitmq
+      - memcached
+      - mailhog
+    ports: [] # overwrites ports from django entry
+    command: /start-celeryworker
+
+  #celerybeat:
+  #  <<: *django
+  #  image: topobank_local_celerybeat
+  #  depends_on:
+  #    - postgres
+  #    - rabbitmq
+  #    - memcached
+  #    - mailhog
+  #  ports: [] # overwrites ports from django entry
+  #  command: /start-celerybeat
+  # TODO celerybeat has a problem with the scheduler file: beat raised exception <class 'EOFError'>: EOFError('Ran out of input')
+  #      not solved yet
+
+  flower:
+    <<: *django
+    image: topobank_local_flower
+    ports:
+      - "5555:5555"
+    command: /start-flower

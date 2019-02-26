@@ -1,0 +1,7 @@
+# PostgreSQL
+# ------------------------------------------------------------------------------
+POSTGRES_HOST=postgres
+POSTGRES_PORT=5432
+POSTGRES_DB=topobank
+POSTGRES_USER=slRdXZlmjIhWPsDQANxPjzburFZZLjNL
+POSTGRES_PASSWORD=VifWE8Wvu8bBvQePfFmcakh5QSOmVI2XD5AMfmru3ac4Jbo6Nb7lY22w3rL78QPG

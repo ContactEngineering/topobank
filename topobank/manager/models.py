@@ -132,9 +132,9 @@ class Topography(models.Model):
 
         return topo
 
-    def submit_images_creation(self): # TODO remove if not needed for thumbnails
-        from .utils import create_topography_images
-        transaction.on_commit(lambda: create_topography_images.delay(self.id))
+    # def submit_images_creation(self): # TODO remove if not needed for thumbnails
+    #     from .utils import create_topography_images
+    #     transaction.on_commit(lambda: create_topography_images.delay(self.id))
 
     def submit_automated_analyses(self):
         """Submit all automatic analysis for this Topography.

@@ -301,7 +301,7 @@ class TopographyUpdateView(TopographyAccessMixin, UpdateView):
         return kwargs
 
     def get_success_url(self):
-        self.object.submit_images_creation() # TODO this is only needed if image would change
+        #self.object.submit_images_creation() # TODO this is only needed if image would change
         self.object.submit_automated_analyses()
         return reverse('manager:topography-detail', kwargs=dict(pk=self.object.pk))
 
