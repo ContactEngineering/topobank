@@ -3,7 +3,5 @@
 set -o errexit
 set -o nounset
 
-# TODO wrong permissions if executed as user "django"?
 rm -f './celerybeat.pid'
-rm -f '/app/celerybeat-schedule' # otherwise I get error "Ran out of input"
 celery -A topobank.taskapp beat -l INFO --workdir /app

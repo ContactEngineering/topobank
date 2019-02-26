@@ -4,22 +4,9 @@ USE_DOCKER=yes
 DJANGO_SETTINGS_MODULE=config.settings.local
 # settings seem to be local implicitly, but let's be explicit here
 
-# Redis
-# ------------------------------------------------------------------------------
-# REDIS_URL=redis://redis:6379/0
-
-# RabbitMQ
-# ------------------------------------------------------------------------------
-#RABBITMQ_USER=guest
-#RABBITMQ_PASSWORD=guest
-#RABBITMQ_VHOST=myvhost
-# user "guest" with password "guest" for vhost "/" is automatically created
-
-
 # Celery
 # ------------------------------------------------------------------------------
 CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
-# CELERY_BROKER_URL=amqp://
 # without quotes!
 CELERY_RESULT_BACKEND=cache+memcached://memcached:11211/
 

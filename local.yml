@@ -38,9 +38,6 @@ services:
     ports:
       - "8025:8025"
 
-  #redis:
-  #  image: redis:3.2
-
   memcached:
     image: memcached:1.5-alpine
 
@@ -58,18 +55,16 @@ services:
     ports: [] # overwrites ports from django entry
     command: /start-celeryworker
 
-  #celerybeat:
-  #  <<: *django
-  #  image: topobank_local_celerybeat
-  #  depends_on:
-  #    - postgres
-  #    - rabbitmq
-  #    - memcached
-  #    - mailhog
-  #  ports: [] # overwrites ports from django entry
-  #  command: /start-celerybeat
-  # TODO celerybeat has a problem with the scheduler file: beat raised exception <class 'EOFError'>: EOFError('Ran out of input')
-  #      not solved yet
+  celerybeat:
+    <<: *django
+    image: topobank_local_celerybeat
+    depends_on:
+      - postgres
+      - rabbitmq
+      - memcached
+      - mailhog
+    ports: [] # overwrites ports from django entry
+    command: /start-celerybeat
 
   flower:
     <<: *django
