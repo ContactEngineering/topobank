@@ -4,6 +4,24 @@ set -o errexit
 set -o pipefail
 set -o nounset
 
+#
+# TODO The migration should not be run automatically in production
+#
+# See commands here:
+#   https://cookiecutter-django.readthedocs.io/en/latest/deployment-with-docker.html#building-running-production-stack
+#
+#python manage.py migrate
+#python manage.py register_analysis_functions
+
+envsubst < orcid.yaml.template > orcid.yaml
+#python manage.py loaddata -v 2 orcid.yaml
 
 python /app/manage.py collectstatic --noinput
-/usr/local/bin/gunicorn config.wsgi --bind 0.0.0.0:5000 --chdir=/app
+
+# This location for gunicorn is used with miniconda as image
+GUNICORN=/opt/conda/bin/gunicorn
+
+# This location would be used with python3.7-alpine as base image
+# GUNICORN=/usr/local/bin/gunicorn
+
+${GUNICORN} config.wsgi --bind 0.0.0.0:5000 --chdir=/app

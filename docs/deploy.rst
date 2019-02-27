@@ -150,7 +150,7 @@ your :bash:`~/.ssh/config` file like
 
     Host topobank-prod
     HostName <server>
-    User <your-user>
+    User topobank
 
 Then you can connect via
 
@@ -179,20 +179,19 @@ Now it should be possible to push the code:
 
    git push topobank-prod master
 
-On the production machine, as :code:`topobank`, make sure, that
-you have a working directory for *TopoBank*:
+(choose whatever branch or code you want to use on the VM)
+
+Login onto the production machine, as user :code:`topobank`:
 
 .. code:: bash
 
-   mkdir ~/topobank
-
-Go there and make sure, to set
-
-Got there and pull the current source code:
+   ssh topobank@topobank-prod
 
 .. code:: bash
 
-   cd ~/topobank
+   git clone -b 19_dockerize file:///home/topobank/git/topobank.git/
+
+
 
 
 Register analysis functions
@@ -206,14 +205,11 @@ the current set of analysis functions in the database.
     python manage.py register_analysis_functions
 
 
-Docker Notes
-------------
+Creating Wheel for PyCo
+-----------------------
 
-Install on host system
-
- apt-get install docker-compose
-
-
+As long as PyCo is not installable via pip without github account,
+we create a wheel package and put it into the Docker container.
 
 
 

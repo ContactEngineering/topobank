@@ -28,10 +28,11 @@ django-fontawesome==1.0
 # django-celery-results==1.0.1
 django-kombu>=0.9.4
 celery>=4.2
+# pylibmc is also used for memcached in production
 pylibmc>=1.6.0
 # librabbitmq>=2.0
 # problems while compiling librabbitmq
-
+celery-flower>=1.0.1
 
 #
 # Contact Mechanics
