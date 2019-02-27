@@ -122,16 +122,22 @@ EMAIL_SUBJECT_PREFIX = env('DJANGO_EMAIL_SUBJECT_PREFIX', default='[TopoBank]')
 # Django Admin URL regex.
 ADMIN_URL = env('DJANGO_ADMIN_URL')
 
-# Anymail (Mailgun)
+# TODO The following settings are likely to be replaced by a simple STMP configuration
+#      (if the RZ provides us an account)
+# Anymail (Mailgun, PostMark and others)
 # ------------------------------------------------------------------------------
 # https://anymail.readthedocs.io/en/stable/installation/#installing-anymail
 INSTALLED_APPS += ['anymail']  # noqa F405
-EMAIL_BACKEND = 'anymail.backends.mailgun.EmailBackend'
-# https://anymail.readthedocs.io/en/stable/installation/#anymail-settings-reference
+EMAIL_BACKEND = 'anymail.backends.postmark.EmailBackend'
 ANYMAIL = {
-    'MAILGUN_API_KEY': env('MAILGUN_API_KEY'),
-    'MAILGUN_SENDER_DOMAIN': env('MAILGUN_DOMAIN')
+    "POSTMARK_SERVER_TOKEN": env('POSTMARK_SERVER_TOKEN')
 }
+#EMAIL_BACKEND = 'anymail.backends.mailgun.EmailBackend'
+# https://anymail.readthedocs.io/en/stable/installation/#anymail-settings-reference
+#ANYMAIL = {
+#    'MAILGUN_API_KEY': env('MAILGUN_API_KEY'),
+#    'MAILGUN_SENDER_DOMAIN': env('MAILGUN_DOMAIN')
+#}
 
 # Gunicorn
 # ------------------------------------------------------------------------------
@@ -189,11 +195,6 @@ LOGGING = {
             'propagate': True
         },
         'topobank': {
-            'level': 'DEBUG',
-            'handlers': ['console'],
-            'propagate': True
-        },
-        'allauth': {
             'level': 'DEBUG',
             'handlers': ['console'],
             'propagate': True
