@@ -43,9 +43,8 @@ services:
     env_file:
       - ./.envs/.production/.caddy
     ports:
-      - "0.0.0.0:2015:2015"
-      #- "0.0.0.0:80:80"
-      #- "0.0.0.0:443:443"
+      - "0.0.0.0:80:80"
+      - "0.0.0.0:443:443"
 
   memcached:
     image: memcached:1.5-alpine
