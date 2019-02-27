@@ -13,7 +13,7 @@ set -o nounset
 #python manage.py migrate
 #python manage.py register_analysis_functions
 
-envsubst < orcid.yaml.template > orcid.yaml
+#envsubst < orcid.yaml.template > orcid.yaml
 #python manage.py loaddata -v 2 orcid.yaml
 
 python /app/manage.py collectstatic --noinput

@@ -78,6 +78,8 @@ RUN chmod +x /start-flower
 # Prepare application code
 #
 COPY . /app
+# TODO is the following needed?
+RUN mkdir -p /app/media/topographies
 RUN chown -R django /app
 # is the following needed?
 # RUN chmod -R u+w /app
