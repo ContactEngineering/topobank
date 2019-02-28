@@ -276,8 +276,8 @@ CELERYD_TASK_SOFT_TIME_LIMIT = 60
 ACCOUNT_ALLOW_REGISTRATION = env.bool('DJANGO_ACCOUNT_ALLOW_REGISTRATION', True)
 
 # https://django-allauth.readthedocs.io/en/latest/advanced.html?highlight=name#custom-user-models
-ACCOUNT_EMAIL_REQUIRED = True
-ACCOUNT_AUTHENTICATION_METHOD = 'email'
+ACCOUNT_EMAIL_REQUIRED = False
+ACCOUNT_AUTHENTICATION_METHOD = 'username'
 ACCOUNT_USERNAME_REQUIRED = False
 # we keep the username field for now, because it is used in the "users" app
 # ACCOUNT_USER_MODEL_USERNAME_FIELD = None
@@ -285,7 +285,8 @@ ACCOUNT_USERNAME_REQUIRED = False
 ACCOUNT_FORMS = { 'signup': 'topobank.users.forms.SignupFormWithName' }
 
 # https://django-allauth.readthedocs.io/en/latest/configuration.html
-ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
+# ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
+ACCOUNT_EMAIL_VERIFICATION = 'none'
 # https://django-allauth.readthedocs.io/en/latest/configuration.html
 ACCOUNT_ADAPTER = 'topobank.users.adapters.AccountAdapter'
 # https://django-allauth.readthedocs.io/en/latest/configuration.html
@@ -334,5 +335,5 @@ SOCIALACCOUNT_PROVIDERS = {
         # 'MEMBER_API': False,  # for the member API
     }
 }
-SOCIALACCOUNT_QUERY_EMAIL=True
+SOCIALACCOUNT_QUERY_EMAIL=True # e-mail should be aquired from social account provider
 ACCOUNT_USER_DISPLAY=lambda user: user.name
