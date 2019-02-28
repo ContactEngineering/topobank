@@ -4,6 +4,8 @@ volumes:
   production_postgres_data: {}
   production_postgres_data_backups: {}
   production_caddy: {}
+  production_media: {}
+  # The media is used to save the topography files, will probably be replaced later by S3
 
 services:
   django: &django
@@ -15,6 +17,8 @@ services:
       - postgres
       - rabbitmq
       - memcached
+    volumes:
+      - production_media:/app/media
     env_file:
       - ./.envs/.production/.django
       - ./.envs/.production/.postgres
