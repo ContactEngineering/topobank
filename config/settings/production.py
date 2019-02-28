@@ -130,6 +130,7 @@ EMAIL_PORT = env("DJANGO_EMAIL_PORT")
 EMAIL_USER = env("DJANGO_EMAIL_USER")
 EMAIL_PASSWORD = env("DJANGO_EMAIL_PASSWORD")
 EMAIL_USE_SSL = env("DJANGO_EMAIL_USE_SSL")
+EMAIL_USE_TLS = env("DJANGO_EMAIL_USE_TLS")
 
 # TODO The following settings are likely to be replaced by a simple STMP configuration
 #      (if the RZ provides us an account)
