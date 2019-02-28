@@ -124,12 +124,11 @@ EMAIL_SUBJECT_PREFIX = env('DJANGO_EMAIL_SUBJECT_PREFIX', default='[TopoBank]')
 # Django Admin URL regex.
 ADMIN_URL = env('DJANGO_ADMIN_URL')
 
-
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = env("DJANGO_EMAIL_HOST")
-EMAIL_USER = env("DJANGO_EMAIL_USER")
-EMAIL_PASSWORD = env("DJANGO_EMAIL_PASSWORD")
-EMAIL_USE_SSL = True
+#EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+#EMAIL_HOST = env("DJANGO_EMAIL_HOST")
+#EMAIL_USER = env("DJANGO_EMAIL_USER")
+#EMAIL_PASSWORD = env("DJANGO_EMAIL_PASSWORD")
+#EMAIL_USE_SSL = True
 
 # TODO The following settings are likely to be replaced by a simple STMP configuration
 #      (if the RZ provides us an account)
