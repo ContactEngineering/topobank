@@ -125,12 +125,14 @@ EMAIL_SUBJECT_PREFIX = env('DJANGO_EMAIL_SUBJECT_PREFIX', default='[TopoBank]')
 ADMIN_URL = env('DJANGO_ADMIN_URL')
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = env("DJANGO_EMAIL_HOST")
-EMAIL_PORT = env("DJANGO_EMAIL_PORT")
-EMAIL_USER = env("DJANGO_EMAIL_USER")
+EMAIL_HOST = env.str("DJANGO_EMAIL_HOST")
+EMAIL_PORT = env.int("DJANGO_EMAIL_PORT")
+EMAIL_USER = env.str("DJANGO_EMAIL_USER")
 EMAIL_PASSWORD = env("DJANGO_EMAIL_PASSWORD")
-EMAIL_USE_SSL = env("DJANGO_EMAIL_USE_SSL")
-EMAIL_USE_TLS = env("DJANGO_EMAIL_USE_TLS")
+EMAIL_USE_SSL = env.bool("DJANGO_EMAIL_USE_SSL")
+EMAIL_USE_TLS = env.bool("DJANGO_EMAIL_USE_TLS")
+# TODO probably better use  env.email_url() instead, see
+#      https://github.com/joke2k/django-environ#email-settings
 
 # TODO The following settings are likely to be replaced by a simple STMP configuration
 #      (if the RZ provides us an account)
