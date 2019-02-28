@@ -124,16 +124,23 @@ EMAIL_SUBJECT_PREFIX = env('DJANGO_EMAIL_SUBJECT_PREFIX', default='[TopoBank]')
 # Django Admin URL regex.
 ADMIN_URL = env('DJANGO_ADMIN_URL')
 
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = env("DJANGO_EMAIL_HOST")
+EMAIL_USER = env("DJANGO_EMAIL_USER")
+EMAIL_PASSWORD = env("DJANGO_EMAIL_PASSWORD")
+EMAIL_USE_SSL = True
+
 # TODO The following settings are likely to be replaced by a simple STMP configuration
 #      (if the RZ provides us an account)
 # Anymail (Mailgun, PostMark and others)
 # ------------------------------------------------------------------------------
 # https://anymail.readthedocs.io/en/stable/installation/#installing-anymail
-INSTALLED_APPS += ['anymail']  # noqa F405
-EMAIL_BACKEND = 'anymail.backends.postmark.EmailBackend' # TODO there is also an entry in base.py, also use here?
-ANYMAIL = {
-    "POSTMARK_SERVER_TOKEN": env('POSTMARK_SERVER_TOKEN')
-}
+#INSTALLED_APPS += ['anymail']  # noqa F405
+#EMAIL_BACKEND = 'anymail.backends.postmark.EmailBackend' # TODO there is also an entry in base.py, also use here?
+#ANYMAIL = {
+#    "POSTMARK_SERVER_TOKEN": env('POSTMARK_SERVER_TOKEN')
+#}
 #EMAIL_BACKEND = 'anymail.backends.mailgun.EmailBackend'
 # https://anymail.readthedocs.io/en/stable/installation/#anymail-settings-reference
 #ANYMAIL = {
