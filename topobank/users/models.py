@@ -39,7 +39,7 @@ def ensure_media_dir_exists(sender, instance, **kwargs):
 #
 @receiver(pre_save, sender=User)
 def ensure_name_field_set(sender, instance, **kwargs):
-    if instance.name is None:
+    if not instance.name:
         instance.name = f"{instance.first_name} {instance.last_name}"
 
 
