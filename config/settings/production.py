@@ -130,7 +130,7 @@ ADMIN_URL = env('DJANGO_ADMIN_URL')
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 
 EMAIL_CONFIG = env.email_url(
-    'EMAIL_URL', default='smtp://user@:password@localhost:25')
+    'DJANGO_EMAIL_URL', default='smtp://user@:password@localhost:25')
 # For SMTP+SSL use: smtp+ssl://
 
 
