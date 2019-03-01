@@ -21,12 +21,29 @@ for the following purposes:
 See `here <https://support.orcid.org/hc/en-us/articles/360006897174>`_ for more information
 how to do it.
 
-As redirect URL take
+As redirect URL add all of these
 
 - for development: http://127.0.0.1:8000/accounts/orcid/login/callback
-- for production: **to be defined**
+- for development: http://localhost:8000/accounts/orcid/login/callback
+- for production: https://topobank.contact.engineering/accounts/orcid/login/callback
 
 You need the generated client ID and client secret for the next step.
+
+Configure TopoBank with Client ID and Secrect Key
+-------------------------------------------------
+
+If you use Docker, edit the config files
+
+   .envs/.local/.django
+   .envs/.production/.django
+
+and set the correct values in the variables
+
+   ORCID_CLIENT_ID
+   ORCID_SECRET
+
+
+
 
 Redirect URL pointing to localhost
 ----------------------------------
