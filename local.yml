@@ -32,6 +32,8 @@ services:
       - local_postgres_data_backups:/backups
     env_file:
       - ./.envs/.local/.postgres
+    ports:
+      - "5433:5432"
 
   mailhog:
     image: mailhog/mailhog:v1.0.0
