@@ -52,6 +52,8 @@ services:
 
   memcached:
     image: memcached:1.5-alpine
+    volumes:
+      - production_media:/app/media
 
   rabbitmq:
     image: rabbitmq:3.7-alpine
