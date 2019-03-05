@@ -25,9 +25,9 @@ RUN apt-get update \
 # Installation of PyCo + dependencies
 #
 # Copy PyCo source code into container, uncompress
-COPY PyCo-0.30.0.tar.gz .
-RUN tar xfvz PyCo-0.30.0.tar.gz
-WORKDIR PyCo-0.30.0
+COPY PyCo-0.31.0.tar.gz .
+RUN tar xfvz PyCo-0.31.0.tar.gz
+WORKDIR PyCo-0.31.0
 
 # install additional PyCo dependencies
 RUN pip install wheel
