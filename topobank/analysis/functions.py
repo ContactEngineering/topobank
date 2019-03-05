@@ -8,15 +8,6 @@ import numpy as np
 
 from PyCo.Topography import Topography
 
-from PyCo.Topography.Uniform.Autocorrelation import \
-    autocorrelation_1D as autocorrelation_1D_uniform, \
-    autocorrelation_2D as autocorrelation_2D_uniform
-from PyCo.Topography.Uniform.VariableBandwidth import checkerboard_tilt_correction
-
-# TODO remove the following lines if this is fixed: https://github.com/pastewka/PyCo/issues/95
-Topography.register_function('autocorrelation_1D', autocorrelation_1D_uniform)
-Topography.register_function('autocorrelation_2D', autocorrelation_2D_uniform)
-
 # TODO: _unicode_map and super and subscript functions should be moved to some support module.
 
 _unicode_map = {
@@ -529,28 +520,7 @@ def variable_bandwidth(topography):
     if not topography.is_uniform:
         raise NotImplementedError("Variable bandwidth hasn't been implemented for non-uniform topographies yet.")
 
-    if topography.dim == 1:
-        raise NotImplementedError("Variable bandwidth hasn't been implemented for uniform line scans yet.")
-
-    #
-    # Implementation for uniform 2D topographies
-    #
-    size = topography.size
-    scale_factor = 1
-    no_exception = True
-    bandwidths = []
-    rms_heights = []
-    while no_exception and scale_factor < 128:
-        no_exception = False
-        try:
-            s = checkerboard_tilt_correction(topography, sd=(scale_factor, )*topography.dim) # returns an array
-            bandwidths += [np.mean(size)/scale_factor]
-            tmp_topography = Topography(s, topography.size, periodic=topography.is_periodic, info=topography.info)
-            rms_heights += [tmp_topography.rms_height(kind='Sq' if len(s.shape) == 2 else 'Rq')]
-            no_exception = True
-        except np.linalg.LinAlgError:
-            pass
-        scale_factor *= 2
+    magnifications, bandwidths, rms_heights = topography.variable_bandwidth()
 
     unit = topography.info['unit']
 
