@@ -231,13 +231,14 @@ with a PyCo checkout and execute:
     git archive --format=tar --prefix=PyCo-0.30.0/ v0.31.0  | gzip > PyCo-0.30.0.tar.gz
 
 Don't forget the '/' at the end of the prefix!
+THIS DOES NOT WORK LIKE THIS, PROBLEMS WITH VERSION..
 
 Copy the tarball to the directory where you want to build the containers, here
 on the virtual machine:
 
 .. code:: bash
 
-    scp PyCo-0.30.0.tar.gz topobank-vm:topobank/
+    scp PyCo-0.31.0.tar.gz topobank-vm:topobank/
 
 
 Configure services
@@ -414,12 +415,6 @@ the current set of analysis functions in the database.
 .. code:: bash
     python manage.py register_analysis_functions
 
-
-Creating Wheel for PyCo
------------------------
-
-As long as PyCo is not installable via pip without github account,
-we create a wheel package and put it into the Docker container.
 
 
 
