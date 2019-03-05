@@ -321,18 +321,13 @@ def test_edit_topography(client, two_topos, django_user_model):
     new_name = "This is a better name"
     new_measurement_date = "2018-07-01"
     new_description = "New results available"
-    #input_file_path = Topography.objects.get(pk=1).datafile.name
 
     username = 'testuser'
     password = 'abcd$1234'
 
     topo_id = 1
 
-    user = django_user_model.objects.get(username=username)
-
     assert client.login(username=username, password=password)
-
-    #with open(str(input_file_path)) as fp:
 
     response = client.post(reverse('manager:topography-update', kwargs=dict(pk=topo_id)),
                            data={
@@ -349,13 +344,9 @@ def test_edit_topography(client, two_topos, django_user_model):
                             'detrend_mode': 'height',
                            })
 
-
-    # assert 'form' not in response.context, "Still on form: {}".format(response.context['form'].errors)
-
     assert response.status_code == 302
+    # we should have been redirected to topography details
     assert reverse('manager:topography-detail', kwargs=dict(pk=topo_id)) == response.url
-
-    # export_reponse_as_html(response) # TODO remove, only for debugging
 
     topos = Topography.objects.filter(surface__user__username=username).order_by('pk')
 
@@ -370,7 +361,7 @@ def test_edit_topography(client, two_topos, django_user_model):
     #
     # should also appear in the list of topographies
     #
-    response = client.get(reverse('manager:surface-detail', kwargs=dict(pk=topo_id)))
+    response = client.get(reverse('manager:surface-detail', kwargs=dict(pk=t.surface.id)))
     assert bytes(new_name, 'utf-8') in response.content
 
 @pytest.mark.django_db
@@ -402,9 +393,6 @@ def test_topography_detail(client, two_topos, django_user_model):
 
     # .. physical size
     assert "112.0 µm x 27.0 µm" in response.content.decode('utf-8')
-
-
-
 
 @pytest.mark.django_db
 def test_delete_topography(client, two_topos, django_user_model):
