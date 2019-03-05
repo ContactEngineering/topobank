@@ -45,7 +45,9 @@ celery-flower>=1.0.1
 scipy
 # requirements/PyCo-0.30.0-cp37-cp37m-linux_x86_64.whl
 # requirements/PyCo-0.30.0-py3.7-linux-x86_64.egg
-PyCo==0.30.0
+
+PyCo==0.30.0HEAD.-.v0.31.0
+#PyCo==0.30.0+43.gb0b9ea6
 
 # image manipulation like thumbnails etc.
 django-imagekit==4.0.2

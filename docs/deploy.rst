@@ -222,9 +222,22 @@ we install the binaries as suggested on the home page:
 Copy current PyCo source code to VM
 -----------------------------------
 
+If available, use tarball from the release in GitHub.
+If not, create your own tarball by entering a working directory
+with a PyCo checkout and execute:
+
 .. code:: bash
 
-   scp PyCo-0.30.0.tar.gz topobank-vm:topobank/
+    git archive --format=tar --prefix=PyCo-0.30.0/ v0.31.0  | gzip > PyCo-0.30.0.tar.gz
+
+Don't forget the '/' at the end of the prefix!
+
+Copy the tarball to the directory where you want to build the containers, here
+on the virtual machine:
+
+.. code:: bash
+
+    scp PyCo-0.30.0.tar.gz topobank-vm:topobank/
 
 
 Configure services

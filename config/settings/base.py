@@ -237,9 +237,12 @@ if USE_TZ:
     # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-timezone
     CELERY_TIMEZONE = TIME_ZONE
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-broker_url
-CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='django://')
+CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='amqp://')
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-result_backend
-CELERY_RESULT_BACKEND = env('CELERY_RESULT_BACKEND', default='rpc://') # CELERY_BROKER_URL
+CELERY_RESULT_BACKEND = env('CELERY_RESULT_BACKEND', default='cache+memcached://127.0.0.1:11211/') # CELERY_BROKER_URL
+# we don't use rpc:// as default here, because Python 3.7 is not officially supported by celery 4.2
+# and there is a problem with Python 3.7's keyword 'async' which is used in the celery code
+
 CELERY_RESULT_PERSISTENT = True
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-accept_content
 CELERY_ACCEPT_CONTENT = ['json']
