@@ -1,6 +1,0 @@
-
-sudo rabbitmqctl add_user roettger secert7$
-sudo rabbitmqctl add_vhost topobank
-sudo rabbitmqctl set_permissions -p topobank roettger ".*" ".*" ".*"
-
-In production choose another user name, e.g. "django" or topobank

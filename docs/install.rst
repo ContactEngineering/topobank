@@ -1,3 +1,7 @@
+
+.. role:: bash(code)
+   :language: bash
+
 Installation on development machine
 ===================================
 
@@ -8,15 +12,18 @@ This is where you write how to get a new laptop to run this project.
 Database User
 -------------
 
-sudo bash
+Create database user:
 
-su postgres
+.. code:: bash
 
-createuser topobank
+    sudo bash
+    su postgres
+    createuser topobank
 
-ALTER USER topobank CREATEDB;
+Alternatively, open a psql console and enter::
 
-ALTER USER topobank PASSWORD 'topobank';
+    ALTER USER topobank CREATEDB;
+    ALTER USER topobank PASSWORD 'topobank';
 
 
 German description of initialzation of a development machine (to be translated + tested)
@@ -32,6 +39,8 @@ Wenn Du Zeit hast, kannst Du vielleicht kannst Du mal probieren, ob Du den Code 
 
 Die virtuelle Umgebung und den Code bekommst Du z.B. so
 
+.. code:: bash
+
     $ git clone -b develop git@github.com:pastewka/TopoBank.git topobank
     $ cd topobank
     $ python3 -m venv venv
@@ -39,21 +48,29 @@ Die virtuelle Umgebung und den Code bekommst Du z.B. so
 
 Dann Abhängigkeiten installieren:
 
+.. code:: bash
+
     $ pip install -r requirements/local.txt
-     $ pip install matplotlib          # fehlt noch in requirements
+    $ pip install matplotlib          # fehlt noch in requirements
 
 (Bei mir unter Ubuntu war hier noch "sudo apt-get install python3-tk" nötig)
 
 PyCo installieren in virtual environment, z.B.
+
+.. code:: bash
 
      # cd ../PyCo; pip install -r requirements.txt; pip install .
      # ... oder wo auch immer Pyco bei Dir ist
 
 Datenbank (momentan noch SQLite) initialisieren mit
 
+.. code:: bash
+
      $ python manage.py migrate
 
 Starten der Anwendung mit
+
+.. code:: bash
 
     $ python manage.py runserver
 
@@ -75,6 +92,8 @@ registrieren ("Sign Up") und einloggen ("Sign In") können. Der Login-Vorgang ka
 
 Bevor Du unter "My Topographies" -> "New" eine Topographie anlegst, bitte noch händisch das Unterverzeichnis "user_1" unter "media/topographies" anlegen, das habe ich im Code vergessen:
 
+.. code:: bash
+
     $ mkdir topobank/media/topographies/user_1
 
 Hier werden die Dateien vom User mit der ID 1 abgelegt.
@@ -84,6 +103,8 @@ Register existing analysis functions to the database
 ----------------------------------------------------
 
 On command line, in the correct environment, call
+
+.. code:: bash
 
     $ python manage.py register_analysis_functions
 
@@ -101,7 +122,26 @@ In order to activate the ORCID authentication we need to have a super user who e
 Create ORCID configuration directly in database
 -----------------------------------------------
 
- INSERT INTO socialaccount_socialapp (provider,name,client_id,key,secret)
-        VALUES ('orcid', 'ORCID', '<insert client id here>', '','<insert password here>')
+::
+
+     INSERT INTO socialaccount_socialapp (provider,name,client_id,key,secret)
+            VALUES ('orcid', 'ORCID', '<insert client id here>', '','<insert password here>')
+
+Setup of RabbitMQ on local machine
+----------------------------------
+
+If you don't use docker-compose to start all services, you may want to install "rabbitmq" on
+your local computer. Here an example for Ubuntu:
+
+.. code:: bash
+
+    sudo rabbitmqctl add_user roettger secert7$
+    sudo rabbitmqctl add_vhost topobank
+    sudo rabbitmqctl set_permissions -p topobank roettger ".*" ".*" ".*"
+
+In production choose another user name, e.g. "django" or topobank
+
+.. todo:: Probably running in a docker container is much easier, to be tested.
+
 
 
