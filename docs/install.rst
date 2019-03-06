@@ -1,5 +1,7 @@
-Install
-=========
+Installation on development machine
+===================================
+
+.. todo:: So far this section only contains some notes and is far from complete.
 
 This is where you write how to get a new laptop to run this project.
 

@@ -11,13 +11,17 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
-   install
-   config
    deploy
-   docker_ec2
+   install-docker
+   orcid
+   pycharm/configuration
+   storage-backend
+   install
 
-.. TODO add how to start tests
+.. docker_ec2
 
+.. todo:: add how to start tests
+.. todo:: bring everything in correct order
 
 
 Indices and tables

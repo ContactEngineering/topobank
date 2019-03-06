@@ -27,29 +27,14 @@ Ensure you have sudo permissions.
 
 .. code:: bash
 
-    sudo apt-get install python3.7 git
+    sudo apt-get install git
 
-Make sure you DON'T have the follwing installed, since they come as containers:
+Make sure you DON'T have the follwing installed, since they run as docker-compose services in containers:
 
 - webserver (like nginx, apache)
 - postgresql
 
-
-Alternative to python3.7 system package
----------------------------------------
-
-Download latest miniconda and create a python 3.7 environment from there.
-Should also work on systems which do not have a python3.7 interpreter.
-
-.. code:: bash
-
-    wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
-    bash Miniconda3-latest-Linux-x86_64.sh
-    conda create -n topobank python=3.7
-    conda activate topobank
-
-All further commands and actions on this machine which are done in
-a virtual environment have to be done in the conda environment instead.
+Installation of docker will be done later manually.
 
 Generate user
 -------------
@@ -129,6 +114,8 @@ You can e.g. copy&paste the entry from file :code:`~/.ssh/authorized_keys` from 
 you are using in order to connect to the production machine to the equivalent file of the user
 :code:`topobank`. As user :code:`topobank` do
 
+.. code::bash
+
    cd
    mkdir .ssh
    chmod 700 .ssh
@@ -137,9 +124,11 @@ you are using in order to connect to the production machine to the equivalent fi
 
 Afterwards it should be possbile to connect without password via
 
+.. code:: bash
+
    ssh topobank@<server>
 
-For :code:`<server>` use the name of the server.
+For :code:`<server>` use the name of the server, e.g. `topobank.vm.uni-freiburg.de`.
 
 
 Push current version of the source code
@@ -189,25 +178,60 @@ Login onto the production machine, as user :code:`topobank`:
 
    ssh topobank@topobank-prod
 
+Clone the repository and create a working directory which will be used in order to create Docker containers later:
+
+.. code:: bash
+
+   git clone -b master file:///home/topobank/git/topobank.git/
+
+Currently during testing I'm using the branch `19_dockerize`, so I'm doing
+
 .. code:: bash
 
    git clone -b 19_dockerize file:///home/topobank/git/topobank.git/
 
+instead.
+
 Install Docker
 --------------
 
-See docker-installation.rst.
-
-Make sure to use "topobank" instead of "${USER}" during the step
+See :ref:`docker-install-ubuntu`. Make sure to use "topobank" instead of "${USER}" during the step
 
 .. code:: bash
 
   sudo usermod -aG docker ${USER}
 
+Current version used:
+
+.. code:: bash
+
+    $ docker version
+    Client:
+     Version:           18.09.3
+     API version:       1.39
+     Go version:        go1.10.8
+     Git commit:        774a1f4
+     Built:             Thu Feb 28 06:53:11 2019
+     OS/Arch:           linux/amd64
+     Experimental:      false
+
+    Server: Docker Engine - Community
+     Engine:
+      Version:          18.09.3
+      API version:      1.39 (minimum version 1.12)
+      Go version:       go1.10.8
+      Git commit:       774a1f4
+      Built:            Thu Feb 28 05:59:55 2019
+      OS/Arch:          linux/amd64
+      Experimental:     false
+
+
 Install "docker-compose"
 ------------------------
 
 On a development machine, you could install docker-compose via pip.
+Maybe this also works in production, but used now another way:
+
 Alternatively and here on production, in order not to need another python environment,
 we install the binaries as suggested on the home page:
 
@@ -218,20 +242,17 @@ we install the binaries as suggested on the home page:
    curl -L "https://github.com/docker/compose/releases/download/1.23.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
    chmod +x /usr/local/bin/docker-compose
 
+Current version used:
+
+.. code:: bash
+
+    $ docker-compose --version
+    docker-compose version 1.23.2, build 1110ad01
 
 Copy current PyCo source code to VM
 -----------------------------------
 
 If available, use tarball from the release in GitHub.
-If not, create your own tarball by entering a working directory
-with a PyCo checkout and execute:
-
-.. code:: bash
-
-    git archive --format=tar --prefix=PyCo-0.30.0/ v0.31.0  | gzip > PyCo-0.30.0.tar.gz
-
-Don't forget the '/' at the end of the prefix!
-THIS DOES NOT WORK LIKE THIS, PROBLEMS WITH VERSION..
 
 Copy the tarball to the directory where you want to build the containers, here
 on the virtual machine:
@@ -240,22 +261,43 @@ on the virtual machine:
 
     scp PyCo-0.31.0.tar.gz topobank-vm:topobank/
 
+The tarball will be automatically extracted and used through a Dockerfile.
 
-Configure services
-------------------
+If a don't have a tarball, create your own tarball by entering a working directory
+with a PyCo checkout and execute:
+
+.. code:: bash
+
+    git archive --format=tar --prefix=PyCo-0.30.0/ v0.31.0  | gzip > PyCo-0.30.0.tar.gz
+
+Don't forget the '/' at the end of the prefix!
+
+.. todo:: THIS DOES NOT WORK LIKE THIS YET, problems if the version does not match the branch version.
+
+Change working directory
+------------------------
+
+All further actions will take place in a subdirectory.
 
 .. code:: bash
 
    cd topobank
 
-There are several environment files which are used to configure the services.
+Configure services
+------------------
+
+There are several environment files which are used to configure the services. They are all placed
+under `.envs`:
+
+- `.envs/.local`: configuration files for development
+- `.envs/.production`: configuration files for production
 
 After configuring the values it is advised to backup the files through a secure channel
 in order to be able to rebuild everything from scratch using backups of the database.
 Do not check in the files currently used in production into the repository, because e.g. Django's secrect key
 could be used to hack the site.
 
-There is a command
+.. todo:: Add information where to place this information.
 
 .envs/.production/.caddy
 ........................
@@ -268,10 +310,12 @@ Configures the web server `caddy`. Example:
     # ------------------------------------------------------------------------------
     DOMAIN_NAME=contact.engineering
 
+Caddy is used because it allows for having an SSL-secured site very easily.
+
 .envs/.production./django
 .........................
 
-Configures Python part: Django, Celery
+Configures Python part: Django and Celery. You can use this as template:
 
 .. code::
 
@@ -290,12 +334,9 @@ Configures Python part: Django, Celery
 
     # Email
     # ------------------------------------------------------------------------------
-    #MAILGUN_API_KEY=
-    #DJANGO_SERVER_EMAIL=
-    #MAILGUN_DOMAIN=
-    # Here we will have an SMTP account from RZ and no longer use postmark/anymail
-    POSTMARK_SERVER_TOKEN=<postmark token taken from your postmark account>
-    DJANGO_DEFAULT_FROM_EMAIL=<a valid e-mail address to sent from, e.g. roettger@tf.uni-freiburg.de, depends on postmark>
+    # a valid mail address to send from
+    DJANGO_DEFAULT_FROM_EMAIL=topobank@imtek.uni-freiburg.de
+    DJANGO_EMAIL_URL=smtp+ssl://topobank@imtek.uni-freiburg.de:<REPLACE WITH PASSWORD>@mail.uni-freiburg.de:465
 
     # django-allauth
     # ------------------------------------------------------------------------------
@@ -320,11 +361,9 @@ Configures Python part: Django, Celery
     ORCID_CLIENT_ID=<from your ORCID configuration>
     ORCID_SECRET=<from your ORCID configuration>
 
-Replace all "<...>" values with long random strings. For the Django secret and the passwords
-you can also use punctuation.
+Replace all "<...>" values with long random strings or known passwords, as described.
+For the Django secret and the passwords you can also use punctuation.
 
-Mailgun: Could be used to sent mails, register at https://www.mailgun.com/
-Postmark: https://account.postmarkapp.com/sign_up
 
 .envs/.production/.postgres
 ...........................
@@ -343,13 +382,130 @@ Configures the PostGreSQL database:
 
 These settings are recognized by the "postgres" service and then used to automatically create a user+database.
 
-Build images for all services
------------------------------
+.. _first-run:
+
+Further preparation of first run
+--------------------------------
+
+Make sure, ORCID allows topobank to use it for authentication, see:
+
+Update database schema:
+
+.. code:: bash
+
+    docker-compose -f production.yml run --rm django python manage.py migrate
+
+Create entries in database for all analysis functions defined in the code:
+
+.. code:: bash
+
+    docker-compose -f production.yml run --rm django python manage.py register_analysis_functions
+
+Create YAML file with database entry for the social account provider "ORCID".
+Then import the data and create the database entry. This is needed to enable the ORCID authentication.
+During the creation of `orcid.yaml` the access key and secret needed for ORCID are inserted
+from environment variables:
+
+.. code:: bash
+
+    docker-compose -f production.yml run --rm django envsubst < orcid.yaml.template > orcid.yaml
+    docker-compose -f production.yml run --rm django python manage.py loaddata orcid.yaml
+
+
+
+Get to know docker-compose
+--------------------------
+
+This is your interface to interact with all running containers.
+Have a look at the possible commands:
 
 .. code:: bash
 
    cd topobank
+   docker-compose -f production.yml -h
+
+In the following sections, we list here some important commands.
+You have to be in the subdirectory where the docker-compose file (here `production.yaml`) is.
+
+Build images for all services
+.............................
+
+.. code:: bash
+
    docker-compose -f production.yml build
+
+Creating containers for all services and start
+..............................................
+
+.. code:: bash
+
+   docker-compose -f production.yml up -d
+
+The switch `-d` detaches the containers from the terminal, so you can safely log out.
+
+.. DANGER::
+
+    Be careful with the `down` command!! It will remove the containers and all data!!
+
+Viewing logs
+............
+
+.. code:: bash
+
+   docker-compose -f production.yml logs
+
+See help with `-h` in order to see more options, e.g. filter for messages of one service.
+Example: See only messages of "django" service:
+
+.. code:: bash
+
+   docker-compose -f production.yml logs django
+
+Seeing running processes
+........................
+
+See if all services are up and running, their container names, the port redirections:
+
+.. code:: bash
+
+   docker-compose -f production.yml ps
+
+See all processes, ordered by container:
+
+.. code:: bash
+
+   docker-compose -f production.yml top
+
+Start and stop containers
+.........................
+
+Do this on all containers:
+
+.. code:: bash
+
+   docker-compose -f production.yml start
+   docker-compose -f production.yml stop
+   docker-compose -f production.yml restart
+
+Or on individual services:
+
+.. code:: bash
+
+   docker-compose -f production.yml start django
+   docker-compose -f production.yml stop django
+   docker-compose -f production.yml restart django
+
+Other
+.....
+
+Interesting, but not tested is probably the scaling of containers, e.g. the celery workers:
+
+.. code:: bash
+
+   docker-compose -f production.yml scale celeryworker=4
+
+
+
 
 
 Test sending mails
@@ -357,17 +513,32 @@ Test sending mails
 
 With a running django container do:
 
-$ docker-compose -f production.yml run --rm django python manage.py shell
->>> from django.core.mail import send_mail
->>> send_mail('test','','topobank@contact.engineering',['roettger@tf.uni-freiburg.de'])
+.. code::bash
+
+    $ docker-compose -f production.yml run --rm django python manage.py shell
+    >>> from django.core.mail import send_mail
+    >>> send_mail('test subject','test body','topobank@imtek.uni-freiburg.de',['roettger@tf.uni-freiburg.de'])
 
 Use your own mail address here!
 
 Or instead in one command:
 
-$ docker-compose -f production.yml run --rm django python manage.py shell -c "from django.core.mail import send_mail;send_mail('test','','topobank@contact.engineering',['roettm@exlex.org'])"
+.. code:: bash
+
+    $ docker-compose -f production.yml run --rm django python manage.py shell -c "from django.core.mail import send_mail;send_mail('test','','topobank@imtek.uni-freiburg.de',['roettger@tf.uni-freiburg.de'])"
+
+.. todo:: currently this results in "[Errno 99] Cannot assign requested address"
 
 
+Configuring backup
+------------------
+
+.. todo:: document how to do backup and restore
+
+Updating the application
+------------------------
+
+.. todo:: document how to do an update if the code changes such that database is kept
 
 Known problems
 --------------
@@ -382,7 +553,6 @@ Example:
    FATAL:  password authentication failed for user "dsdjfjer84jf894jd9f"
    DETAIL:  Role "dsdjfjer84jf894jd9f" does not exist.
 
-
 Probably the image has already a user created. If there is no valuable data yet, delete the image and build again.
 
 .. code:: bash
@@ -391,36 +561,6 @@ Probably the image has already a user created. If there is no valuable data yet,
   docker system prune
   docker volume rm $(docker volume ls -qf dangling=true)
   docker-compose -f production.yml build
-
-
-Further preparation of first run
---------------------------------
-
-.. code:: bash
-
-    docker-compose -f production.yml run --rm django python manage.py migrate
-    docker-compose -f production.yml run --rm django python manage.py register_analysis_functions
-    docker-compose -f production.yml run --rm django envsubst < orcid.yaml.template > orcid.yaml
-    docker-compose -f production.yml run --rm django python manage.py loaddata orcid.yaml
-
-TODO Check if these commands are here at the right place.
-
-Register analysis functions
----------------------------
-
-When deploying or during development, if you change the definition
-of analysis functions (via decorator in `functions.py`), register
-the current set of analysis functions in the database.
-
-.. code:: bash
-    python manage.py register_analysis_functions
-
-
-
-
-
-
-
 
 
 
