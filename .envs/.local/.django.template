@@ -1,3 +1,7 @@
+#
+# COPY THIS FILE TO .envs/.local/.django AND REPLACE MISSING INFORMATION BELOW!
+#
+
 # General
 # ------------------------------------------------------------------------------
 USE_DOCKER=yes
@@ -9,6 +13,7 @@ DJANGO_SETTINGS_MODULE=config.settings.local
 CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
 # without quotes!
 CELERY_RESULT_BACKEND=cache+memcached://memcached:11211/
+# Note: RabbitMQ and Memcached are running in separate containers having host names 'rabbitmq' and 'memcached'
 
 # Flower
 CELERY_FLOWER_USER=xAXMqXVfQBcbOFQyhhRpzwRCIeFswANE
@@ -16,5 +21,5 @@ CELERY_FLOWER_PASSWORD=EI7zTd27VUZ2NdqGs5iQxINipsphB6SxUOwxWQXpcJ2OuoeE1JxxTs2bf
 
 # ORCID authentication
 # ------------------------------------------------------------------------------
-ORCID_CLIENT_ID=APP-9EKINAO9SM1Y0LR7
-ORCID_SECRET=a8678ea7-eda3-4862-926d-83190be08cfa
+ORCID_CLIENT_ID=<replace with your client ID from ORCID>
+ORCID_SECRET=<replace with your secret from ORCID>

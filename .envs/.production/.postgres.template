@@ -1,0 +1,11 @@
+#
+# COPY THIS FILE TO .envs/.production/.postgres AND REPLACE MISSING INFORMATION BELOW!
+#
+
+# PostgreSQL
+# ------------------------------------------------------------------------------
+POSTGRES_HOST=postgres
+POSTGRES_PORT=5432
+POSTGRES_DB=topobank
+POSTGRES_USER=<a long random string suitable for user names>
+POSTGRES_PASSWORD=<a very long random string>

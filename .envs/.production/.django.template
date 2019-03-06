@@ -1,0 +1,46 @@
+#
+# COPY THIS FILE TO .envs/.production/.django AND REPLACE MISSING INFORMATION BELOW!
+#
+
+# General
+# ------------------------------------------------------------------------------
+# DJANGO_READ_DOT_ENV_FILE=True
+DJANGO_SETTINGS_MODULE=config.settings.production
+DJANGO_SECRET_KEY=<replace with your own secret key, a very long random string>
+DJANGO_ADMIN_URL=<replace with a long random url>
+DJANGO_ALLOWED_HOSTS=topobank.contact.engineering
+
+# Security
+# ------------------------------------------------------------------------------
+# TIP: better off using DNS, however, redirect is OK too
+DJANGO_SECURE_SSL_REDIRECT=False
+
+# Email
+# ------------------------------------------------------------------------------
+# a valid mail address to send from
+DJANGO_DEFAULT_FROM_EMAIL=topobank@imtek.uni-freiburg.de
+DJANGO_EMAIL_URL=smtp+ssl://topobank@imtek.uni-freiburg.de:<REPLACE WITH PASSWORD>@mail.uni-freiburg.de:465
+
+# django-allauth
+# ------------------------------------------------------------------------------
+DJANGO_ACCOUNT_ALLOW_REGISTRATION=False
+
+# Gunicorn
+# ------------------------------------------------------------------------------
+WEB_CONCURRENCY=4
+# This is the numer of workers, see also: https://gunicorn-docs.readthedocs.io/en/latest/settings.html
+
+# Celery
+# ------------------------------------------------------------------------------
+CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+# without quotes!
+CELERY_RESULT_BACKEND=cache+memcached://memcached:11211/
+
+# Flower
+CELERY_FLOWER_USER=<a long random string>
+CELERY_FLOWER_PASSWORD=<a very long random string>
+
+# ORCID authentication
+# ------------------------------------------------------------------------------
+ORCID_CLIENT_ID=<replace with your client ID from ORCID>
+ORCID_SECRET=<replace with your secret from ORCID>
