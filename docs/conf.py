@@ -40,7 +40,7 @@ master_doc = "index"
 
 # General information about the project.
 project = "TopoBank"
-copyright = """2018, Michael Röttger"""
+copyright = """2019, Simulation Group, IMTEK, University of Freiburg"""
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
