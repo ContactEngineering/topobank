@@ -3,9 +3,6 @@ python-slugify==1.2.5  # https://github.com/un33k/python-slugify
 Pillow==5.1.0  # https://github.com/python-pillow/Pillow
 argon2-cffi==18.1.0  # https://github.com/hynek/argon2_cffi
 whitenoise==3.3.1  # https://github.com/evansd/whitenoise
-redis>=2.10.5  # https://github.com/antirez/redis
-## TODO really need redis here?
-# celery==3.1.26.post2  # pyup: <4.0  # https://github.com/celery/celery
 
 # Django
 # ------------------------------------------------------------------------------
@@ -14,8 +11,6 @@ django-environ==0.4.4  # https://github.com/joke2k/django-environ
 django-model-utils==3.1.2  # https://github.com/jazzband/django-model-utils
 django-allauth==0.36.0  # https://github.com/pennersr/django-allauth
 django-crispy-forms==1.7.2  # https://github.com/django-crispy-forms/django-crispy-forms
-django-redis==4.9.0  # https://github.com/niwinz/django-redis
-## TODO really need redis here?
 
 # Django REST Framework
 djangorestframework==3.8.2  # https://github.com/encode/django-rest-framework
@@ -27,12 +22,15 @@ django-fontawesome==1.0
 # Celery
 # django-celery-results==1.0.1
 django-kombu>=0.9.4
-celery>=4.2
+celery>=4.2,<5.0
 # pylibmc is also used for memcached in production
 pylibmc>=1.6.0
 # librabbitmq>=2.0
 # problems while compiling librabbitmq
 celery-flower>=1.0.1
+# The follwing is needed, otherwise Tornado 6.0 breaks celery
+# See https://github.com/mher/flower/issues/878
+tornado>=4.2.0,<6.0.0
 
 #
 # Contact Mechanics
@@ -43,10 +41,7 @@ celery-flower>=1.0.1
 #-e git+http://git@github.com/pastewka/PyCo.git@0.30.0#egg=PyCo
 #git+http://git@github.com/scipy/scipy/releases/download/v1.2.1/scipy-1.2.1-cp37-cp37m-manylinux1_x86_64.whl
 scipy
-# requirements/PyCo-0.30.0-cp37-cp37m-linux_x86_64.whl
-# requirements/PyCo-0.30.0-py3.7-linux-x86_64.egg
 PyCo==0.31.0
-
 
 # image manipulation like thumbnails etc.
 django-imagekit==4.0.2
