@@ -7,6 +7,48 @@ This is where you describe how the project is deployed in production.
    :language: bash
 
 
+Connection to virtual machine and checking fingerprints
+-------------------------------------------------------
+
+Connect to virtual machine by using SSH. I suggest to use an entry like
+::
+
+    Host topobank-prod
+    HostName topobank.vm.uni.freiburg.de
+    User <your user name>
+
+in your SSH config (Linux: `~/.ssh/config`).
+During first connect you will be asked whether the host fingerprint is ok.
+In order to check this, you need the correct fingerprints of the machine.
+
+The fingerprints can be found out by anyone who can already login savely by using
+
+.. code:: bash
+
+    for i in /etc/ssh/ssh*.pub; do ssh-keygen -l -f $i; done
+
+or in MD5 format:
+
+.. code:: bash
+
+    for i in /etc/ssh/ssh*.pub; do ssh-keygen -E md5 -l -f $i; done
+
+Currently the output for host `topobank.vm.uni-freiburg.de` is::
+
+    $ for i in /etc/ssh/ssh*.pub; do ssh-keygen -l -f $i; done
+    1024 SHA256:yRL1VvLBpwxz8wLxkXxigjiA2ni4lCwSTpE+4omyydg root@topobank (DSA)
+    256 SHA256:a4pMoQ1LaZ9QCrbINIFAvDI41MDcj4If9V5e0UNLKsA root@topobank (ECDSA)
+    256 SHA256:qb2MXg/qU3vGmk/X5NP/TgnNuj89qkWN5QpQFEuHC0s root@topobank (ED25519)
+    2048 SHA256:ADHy+xaUcJeWcQsxoYSh7St8qh90eF2tgq+PSI0s3zo root@topobank (RSA)
+
+    $ for i in /etc/ssh/ssh*.pub; do ssh-keygen -E md5 -l -f $i; done
+    1024 MD5:41:1c:15:7a:fa:9b:f4:ce:e1:b8:ac:17:6f:cc:5d:8e root@topobank (DSA)
+    256 MD5:d4:fb:8e:df:3b:66:3a:ba:b1:c9:98:b6:50:16:f1:e9 root@topobank (ECDSA)
+    256 MD5:83:59:09:9b:e8:ee:94:5d:31:1d:e3:c6:50:24:f3:28 root@topobank (ED25519)
+    2048 MD5:d9:8b:fb:69:dc:1b:04:e6:8a:77:d6:7f:32:35:c2:bf root@topobank (RSA)
+
+If the fingerprints are okay, you can be sure to connect to the machine without someone in between.
+
 Operating System
 ----------------
 
@@ -299,8 +341,8 @@ could be used to hack the site.
 
 .. todo:: Add information where to place this information.
 
-.envs/.production/.caddy
-........................
+Config file `.envs/.production/.caddy`
+......................................
 
 Configures the web server `caddy`. Example:
 
@@ -312,8 +354,8 @@ Configures the web server `caddy`. Example:
 
 Caddy is used because it allows for having an SSL-secured site very easily.
 
-.envs/.production./django
-.........................
+Config file `.envs/.production./django`
+.......................................
 
 Configures Python part: Django and Celery. You can use this as template:
 
@@ -365,8 +407,8 @@ Replace all "<...>" values with long random strings or known passwords, as descr
 For the Django secret and the passwords you can also use punctuation.
 
 
-.envs/.production/.postgres
-...........................
+Config file `.envs/.production/.postgres`
+.........................................
 
 Configures the PostGreSQL database:
 
