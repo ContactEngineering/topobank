@@ -1,5 +1,11 @@
 Storage Backend
----------------
+===============
+
+.. todo:: So far the storage backend are files. Planned to changed to S3.
+
+
+Testing the S3 backend with minio
+---------------------------------
 
 Using Minio client in Docker image to test connection.
 
