@@ -525,9 +525,6 @@ def autocorrelation(topography):
 @analysis_function(automatic=True)
 def variable_bandwidth(topography):
 
-    if not topography.is_uniform:
-        raise NotImplementedError("Variable bandwidth hasn't been implemented for non-uniform topographies yet.")
-
     magnifications, bandwidths, rms_heights = topography.variable_bandwidth()
 
     unit = topography.info['unit']
@@ -548,4 +545,3 @@ def variable_bandwidth(topography):
                  ),
         ]
     )
-
