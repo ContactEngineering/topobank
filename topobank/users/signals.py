@@ -31,6 +31,9 @@ def create_example_surface(sender, **kwargs):
         topo_kwargs = topo_info.copy()
         del topo_kwargs['static_filename']
 
+        # TODO this is a workaround for GH 132 - maybe we don't need to make sizes fixed?
+        topo_kwargs['size_editable'] = True
+
         topo = Topography(surface=surface, **topo_kwargs)
 
         abs_fn = staticfiles_storage.path(topo_info['static_filename'])

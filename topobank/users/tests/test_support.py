@@ -19,9 +19,9 @@ def test_initial_surface(live_server, client, django_user_model):
     topobank.analysis.functions.register_all()
 
     #
-    # signup for an account
+    # signup for an account, this triggers signal to create example surface
     #
-    email = "newuser@example.org"
+    email = "testuser@example.org"
     password = "test$1234"
     name = 'New User'
 
@@ -39,7 +39,8 @@ def test_initial_surface(live_server, client, django_user_model):
 
     user = django_user_model.objects.get(email=email)
 
-    assert client.login(username=email, password=password)
+    # user is already authenticated
+    assert user.is_authenticated
 
     #
     # After login, there should be an example surface now with three topographies
@@ -53,6 +54,14 @@ def test_initial_surface(live_server, client, django_user_model):
     assert sorted([ t.name for t in topos]) == [ "50000x50000_random.txt",
                                                  "5000x5000_random.txt",
                                                  "500x500_random.txt" ]
+
+    #
+    # All these topographies should have the same size as in the database
+    #
+    for topo in topos:
+        assert topo.size_x == topo.size_y # so far all examples are like this, want to ensure here that size_y is set
+        pyco_topo = topo.topography()
+        assert pyco_topo.size == (topo.size_x, topo.size_y)
 
     #
     # For all these topographies, all analyses for all automated analysis functions
