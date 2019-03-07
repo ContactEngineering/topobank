@@ -418,7 +418,6 @@ def power_spectrum(topography, window='hann'):
                  style='+-',
                  ),
         ]
-
     )
 
     if topography.dim == 2:
