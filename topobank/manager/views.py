@@ -162,11 +162,12 @@ class TopographyCreateWizard(SessionWizardView):
             #
             try:
                 initial['height_scale'] = topo.coeff
-                initial['height_scale_editable'] = False
+                # initial['height_scale_editable'] = False
             except AttributeError:
                 initial['height_scale'] = 1
-                initial['height_scale_editable'] = True # this factor can be changed by user because not given in file
+                # initial['height_scale_editable'] = True # this factor can be changed by user because not given in file
 
+            initial['height_scale_editable'] = True  # because of GH 131 we decided to always allow editing
             initial['height_unit'] = size_unit
             #
             # Set initial detrend mode
