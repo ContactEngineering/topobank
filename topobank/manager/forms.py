@@ -14,6 +14,9 @@ from .models import Topography, Surface
 
 _log = logging.getLogger(__name__)
 
+MEASUREMENT_DATE_INPUT_FORMATS = ['%Y-%m-%d', '%d.%m.%Y']
+MEASUREMENT_DATE_HELP_TEXT = 'Valid formats: "YYYY-mm-dd" or "dd.mm.YYYY"'
+
 ################################################################
 # Topography Forms
 ################################################################
@@ -88,7 +91,8 @@ class TopographyMetaDataForm(forms.ModelForm):
     helper.form_tag = False
 
     name = forms.CharField()
-    measurement_date = forms.DateField(input_formats=['%Y-%m-%d', '%d.%m.%Y'])
+    measurement_date = forms.DateField(input_formats=MEASUREMENT_DATE_INPUT_FORMATS,
+                                       help_text=MEASUREMENT_DATE_HELP_TEXT)
     description = forms.Textarea()
 
     helper.layout = Layout(
@@ -291,9 +295,12 @@ class TopographyForm(TopographyUnitsForm):
                 ),
         )
 
-        datafile = forms.FileInput()
-        measurement_date = forms.DateField(input_formats=['%Y-%m-%d', '%d.%m.%Y'])
-        description = forms.Textarea()
+        # self.fields['measurement_date'].help_text = 'Valid formats: "YYYY-mm-dd" or "dd.mm.YYYY"'
+
+    datafile = forms.FileInput()
+    measurement_date = forms.DateField(input_formats=MEASUREMENT_DATE_INPUT_FORMATS,
+                                       help_text=MEASUREMENT_DATE_HELP_TEXT)
+    description = forms.Textarea()
 
 class SurfaceForm(forms.ModelForm):
     """Form for creating or updating surfaces.
