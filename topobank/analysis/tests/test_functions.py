@@ -209,3 +209,35 @@ def test_variable_bandwidth_simple_2D_topography():
 
     assert result['name'] == 'Variable-bandwidth analysis'
     # TODO Check result values for bandwidht
+
+def test_autocorrelation_simple_nonuniform_topography():
+
+    x = np.arange(5)
+    h = 2*x
+
+    info = dict(unit='nm')
+
+    t = NonuniformLineScan(x, h, info=info).detrend('center')
+
+    result = autocorrelation(t)
+
+    assert sorted(result.keys()) == sorted(['name', 'xlabel', 'ylabel', 'xscale', 'yscale', 'xunit', 'yunit', 'series'])
+
+    assert result['name'] == 'Height-difference autocorrelation function (ACF)'
+
+    # TODO Check result values for autocorrelation
+
+def test_variable_bandwidth_simple_nonuniform_linescan():
+
+    x = np.arange(5)
+    h = 2 * x
+    info = dict(unit='nm')
+
+    t = NonuniformLineScan(x, h, info=info).detrend('center')
+
+    result = variable_bandwidth(t)
+
+    assert sorted(result.keys()) == sorted(['name', 'xlabel', 'ylabel', 'xscale', 'yscale', 'xunit', 'yunit', 'series'])
+
+    assert result['name'] == 'Variable-bandwidth analysis'
+    # TODO Check result values for bandwidht
