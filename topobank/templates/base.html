@@ -78,6 +78,7 @@
           </a>
           <div class="dropdown-menu dropdown-menu-right help-dropdown" aria-labelledby="helpDropdown">
             <a class="dropdown-item" href="#" data-toggle="modal" data-target="#versionModal">Version Information</a>
+            <a class="dropdown-item" href="#" data-toggle="modal" data-target="#contactModal">Contact</a>
           </div>
         </li>
 
@@ -219,6 +220,36 @@
         </div>
       </div>
     </div>
+
+    <!-- Contact Modal-->
+    <div class="modal fade" id="contactModal" tabindex="-1" role="dialog" aria-labelledby="contactModalLabel"
+         aria-hidden="true">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="contactModalLabel">Contact</h5>
+            <button class="close" type="button" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">×</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <p>Is TopoBank helpful for your research?</p>
+            <p>We would like to hear from you. Please contact us, if you have any comments, suggestions, or bug reports!</p>
+            <p>
+              <ul>
+               <li>Drop us an <a href="mailto:topobank@imtek.uni-freiburg.de">email</a> or</li>
+               <li>open an <a href="https://github.com/pastewka/TopoBank/issues">issue on GitHub</a>.</li>
+              </ul>
+            </p>
+            <p>Thank you! The TopoBank development team.</p>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-primary" type="button" data-dismiss="modal">Ok</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
 
     <!-- Bootstrap core JavaScript-->
     <script src="{% static 'vendor/jquery/jquery-3.3.1.min.js' %}"></script>
