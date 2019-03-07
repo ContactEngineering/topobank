@@ -455,9 +455,6 @@ def power_spectrum(topography, window='hann'):
 @analysis_function(automatic=True)
 def autocorrelation(topography):
 
-    if topography.is_uniform and topography.dim == 1:
-        raise NotImplementedError("Autocorrelation hasn't been implemented for uniform line scans yet.")
-
     if topography.dim == 2:
         sx, sy = topography.size
         transposed_topography = Topography(topography.heights().T, size=(sy,sx), periodic=topography.is_periodic)
