@@ -329,6 +329,28 @@ def test_edit_topography(client, two_topos, django_user_model):
 
     assert client.login(username=username, password=password)
 
+    #
+    # First get the form and look whether all the expected data is in there
+    #
+    response = client.get(reverse('manager:topography-update', kwargs=dict(pk=topo_id)))
+    assert response.status_code == 200
+
+    assert 'form' in response.context
+
+    form = response.context['form']
+    initial = form.initial
+
+    assert initial['name'] == 'Example 3 - ZSensor'
+    assert initial['measurement_date'] == datetime.date(2018,1,1)
+    assert initial['description'] == 'description1'
+    assert initial['size_x'] == 9
+    assert initial['size_y'] == 9
+    assert pytest.approx(initial['height_scale']) == 0.29638271279074097
+    assert initial['detrend_mode'] == 'height'
+
+    #
+    # Then send a post with updated data
+    #
     response = client.post(reverse('manager:topography-update', kwargs=dict(pk=topo_id)),
                            data={
                             'surface': 1,
@@ -356,7 +378,10 @@ def test_edit_topography(client, two_topos, django_user_model):
 
     assert t.measurement_date == datetime.date(2018, 7, 1)
     assert t.description == new_description
+    assert t.name == new_name
     assert "example3" in t.datafile.name
+    assert pytest.approx(t.size_x) == 500
+    assert pytest.approx(t.size_y) == 1000
 
     #
     # should also appear in the list of topographies
