@@ -6,7 +6,7 @@ import os.path
 import logging
 
 from topobank.users.models import User
-from topobank.manager.models import Topography
+# from topobank.manager.models import Topography
 
 _log = logging.getLogger(__name__)
 
@@ -39,6 +39,40 @@ def two_topos(django_db_setup, django_db_blocker):
     #
     with django_db_blocker.unblock():
         call_command('loaddata', 'two_topographies.yaml')
+
+        # Fix the passwords of fixtures
+        for user in User.objects.all():
+            user.set_password(user.password)
+            user.save()
+
+        # like this we can have clear-text passwords in test fixtures
+
+@pytest.fixture
+def one_line_scan(django_db_setup, django_db_blocker):
+
+    #
+    # Copy uploaded files at the correct places
+    #
+    # This is hack, maybe better to use sth like
+    # https://github.com/duncaningram/django-fixture-media
+    #
+    from_to = [ ('topobank/manager/fixtures/line_scan_1.asc',
+                 ['topographies/user_1/line_scan_1.asc',
+                  'topographies/user_1/line_scan_1_DiVRsr9.asc'])
+    ]
+
+    for from_path, to_paths in from_to:
+        from_path = os.path.join(str(settings.ROOT_DIR), from_path)
+        for to_path in to_paths:
+            to_path = os.path.join(settings.MEDIA_ROOT, to_path)
+            _log.info("Copying fixture file '{}' -> '{}'..".format(from_path, to_path))
+            copyfile(from_path, to_path)
+
+    #
+    # Load database from YAML file
+    #
+    with django_db_blocker.unblock():
+        call_command('loaddata', 'one_line_scan.yaml')
 
         # Fix the passwords of fixtures
         for user in User.objects.all():

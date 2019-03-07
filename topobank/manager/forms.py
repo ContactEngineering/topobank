@@ -200,9 +200,9 @@ class Topography2DUnitsForm(TopographyUnitsForm):
         fields = ('size_editable',
                   'size_unit_editable',
                   'height_scale_editable',
-                   'size_x', 'size_y', 'size_unit',
-                   'height_scale', 'height_unit', 'detrend_mode',
-                   'resolution_x', 'resolution_y')
+                  'size_x', 'size_y', 'size_unit',
+                  'height_scale', 'height_unit', 'detrend_mode',
+                  'resolution_x', 'resolution_y')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -243,16 +243,13 @@ class TopographyForm(TopographyUnitsForm):
                   'height_scale_editable',
                   'name', 'description', 'measurement_date',
                   'datafile', 'data_source',
-                  'size_x', 'size_unit',
+                  'size_x', 'size_y', 'size_unit',
                   'height_scale', 'height_unit', 'detrend_mode',
                   'surface')
 
     def __init__(self, *args, **kwargs):
         has_size_y = kwargs.pop('has_size_y')
         super().__init__(*args, **kwargs)
-
-        if has_size_y:
-            self.fields['size_y'] = forms.FloatField()
 
         for fn in ['surface', 'data_source']:
             self.fields[fn].label = False

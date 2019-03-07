@@ -7,7 +7,7 @@ import datetime
 import os.path
 
 from topobank.manager.tests.utils import export_reponse_as_html
-from ..tests.utils import two_topos
+from ..tests.utils import two_topos, one_line_scan
 from ..models import Topography, Surface
 
 #
@@ -388,6 +388,81 @@ def test_edit_topography(client, two_topos, django_user_model):
     #
     response = client.get(reverse('manager:surface-detail', kwargs=dict(pk=t.surface.id)))
     assert bytes(new_name, 'utf-8') in response.content
+
+
+@pytest.mark.django_db
+def test_edit_line_scan(client, one_line_scan, django_user_model):
+
+    new_name = "This is a better name"
+    new_measurement_date = "2018-07-01"
+    new_description = "New results available"
+
+    username = 'testuser'
+    password = 'abcd$1234'
+
+    topo_id = 1
+
+    assert client.login(username=username, password=password)
+
+    #
+    # First get the form and look whether all the expected data is in there
+    #
+    response = client.get(reverse('manager:topography-update', kwargs=dict(pk=topo_id)))
+    assert response.status_code == 200
+
+    assert 'form' in response.context
+
+    form = response.context['form']
+    initial = form.initial
+
+    assert initial['name'] == 'Simple Line Scan'
+    assert initial['measurement_date'] == datetime.date(2018,1,1)
+    assert initial['description'] == 'description1'
+    assert initial['size_x'] == 9
+    assert pytest.approx(initial['height_scale']) == 1.
+    assert initial['detrend_mode'] == 'height'
+
+    #
+    # Then send a post with updated data
+    #
+    response = client.post(reverse('manager:topography-update', kwargs=dict(pk=topo_id)),
+                           data={
+                            'surface': 1,
+                            'data_source': 0,
+                            'name': new_name,
+                            'measurement_date': new_measurement_date,
+                            'description': new_description,
+                            'size_x': 500,
+                            'size_unit': 'nm',
+                            'height_scale': 0.1,
+                            'height_unit': 'nm',
+                            'detrend_mode': 'height',
+                           })
+
+    assert 'form' not in response.context, "Errors in form: {}".format(response.context['form'].errors)
+    assert response.status_code == 302
+    # we should have been redirected to topography details
+    assert reverse('manager:topography-detail', kwargs=dict(pk=topo_id)) == response.url
+
+    topos = Topography.objects.filter(surface__user__username=username).order_by('pk')
+
+    assert len(topos) == 1
+
+    t = topos[0]
+
+    assert t.measurement_date == datetime.date(2018, 7, 1)
+    assert t.description == new_description
+    assert t.name == new_name
+    assert "line_scan_1" in t.datafile.name
+    assert pytest.approx(t.size_x) == 500
+    assert t.size_y is None
+
+    #
+    # should also appear in the list of topographies
+    #
+    response = client.get(reverse('manager:surface-detail', kwargs=dict(pk=t.surface.id)))
+    assert bytes(new_name, 'utf-8') in response.content
+
 
 @pytest.mark.django_db
 def test_topography_detail(client, two_topos, django_user_model):
