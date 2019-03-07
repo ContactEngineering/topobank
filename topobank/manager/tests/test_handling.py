@@ -439,7 +439,7 @@ def test_edit_line_scan(client, one_line_scan, django_user_model):
                             'detrend_mode': 'height',
                            })
 
-    assert 'form' not in response.context, "Errors in form: {}".format(response.context['form'].errors)
+    assert response.context is None, "Errors in form: {}".format(response.context['form'].errors)
     assert response.status_code == 302
     # we should have been redirected to topography details
     assert reverse('manager:topography-detail', kwargs=dict(pk=topo_id)) == response.url

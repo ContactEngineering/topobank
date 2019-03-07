@@ -261,6 +261,9 @@ class TopographyForm(TopographyUnitsForm):
                                Field('size_x', **self.size_field_kwargs)]
         if has_size_y:
             size_fieldset_args.append(Field('size_y', **self.size_field_kwargs))
+        else:
+            del self.fields['size_y']
+
         size_fieldset_args.append(self.size_unit_info_html)
         size_fieldset_args.append(Field('size_unit', **self.size_unit_field_kwargs))
 
