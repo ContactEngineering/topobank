@@ -57,12 +57,14 @@ def test_initial_surface(live_server, client, django_user_model):
 
     #
     # All these topographies should have the same size as in the database
+    # and the height scale should be editable
     #
     for topo in topos:
         assert topo.size_x == topo.size_y # so far all examples are like this, want to ensure here that size_y is set
         pyco_topo = topo.topography()
         assert pyco_topo.size == (topo.size_x, topo.size_y)
 
+        assert topo.height_scale_editable
     #
     # For all these topographies, all analyses for all automated analysis functions
     # should have been triggered

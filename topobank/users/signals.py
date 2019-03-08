@@ -34,6 +34,9 @@ def create_example_surface(sender, **kwargs):
         # TODO this is a workaround for GH 132 - maybe we don't need to make sizes fixed?
         topo_kwargs['size_editable'] = True
 
+        # TODO Workaround, maybe we don't need height scale restriction
+        topo_kwargs['height_scale_editable'] = True
+
         topo = Topography(surface=surface, **topo_kwargs)
 
         abs_fn = staticfiles_storage.path(topo_info['static_filename'])
