@@ -9,7 +9,7 @@ description: |
 
     A very large synthetic self-affine surface of 50000x50000 pixels has been digitally 'measured'
     in blocks of 500x500 pixels with a variety of scan sizes ranging from the full surface with
-    100 μm width to 10 μm to 1 μm, with pixel sils zes scaling accordingly.
+    100 μm width to 10 μm to 1 μm, with pixel sizes scaling accordingly.
 
 topographies:
   -
