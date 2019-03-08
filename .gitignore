@@ -338,3 +338,9 @@ MailHog
 topobank/media/
 topobank.db
 .pytest_cache/
+
+# The following files contain password and should be generated manally from .template files
+.envs/.production/.django
+.envs/.production/.postgres
+orcid.yaml
+
