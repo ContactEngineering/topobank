@@ -2,7 +2,7 @@
 
 ## TopoBank
 
-TopoBank are database and data processing services (in the following referred to as Services) operated by the Simulation Group at the University of Freiburg (in the following referred to as the "Simulation Group") and made available free of charge to the scientific community. By using the Services, you agree to be bound by these Terms & Conditions. If you are using the Services on behalf of an organization, you are agreeing to these Terms & Conditions for that organization and promising that you have the authority to bind that organization to these Terms & Conditions. In that case, “you” and “your” will refer to that organization.
+TopoBank are database and data processing services (in the following referred to as the "Services") operated by the Simulation Group at the University of Freiburg (in the following referred to as the "Simulation Group") and made available free of charge to the scientific community. By using the Services, you agree to be bound by these Terms & Conditions. If you are using the Services on behalf of an organization, you are agreeing to these Terms & Conditions for that organization and promising that you have the authority to bind that organization to these Terms & Conditions. In that case, “you” and “your” will refer to that organization.
 
 ## Our Services are provided “AS-IS”
 
@@ -13,7 +13,7 @@ While the service is provided "AS-IS" without guarantee of fitness for a particu
 * https://github.com/IMTEK-Simulation/TopoBank
 * https://github.com/IMTEK-Simulation/PyCo
 
-## Limitation of Liability
+## Limitation of liability
 
 The Simulation Group accepts no responsibility or liability whatsoever with regard to the information on this site. This disclaimer is not intended to limit the liability of the Simulation Group in contravention of any requirements laid down in applicable national law nor to exclude its liability for matters which may not be excluded under that law.
 
@@ -21,13 +21,13 @@ The Simulation Group accepts no responsibility or liability whatsoever with rega
 
 By using our Services, you may provide us with information and files (your data). You retain full ownership to your data. We don’t claim any ownership to it. These Terms & Conditions do not grant us any rights to your data or intellectual property except for the limited rights that are needed to run the Services, as explained below.
 
-By using our Services, you give us permission to host your data and process it as necessary for the operation of our service and to extract statistical information on the data hosted by our service. Results of this processing includes features visible to you, for example, previews of topography maps or analysis results, but it also contains features not visible to you such as statistical classification of the data uploaded to our site. It also includes design choices we make to technically administer our Services, for example, how we redundantly backup data to keep it safe. This permission also extends to our affiliates and trusted third parties we work with to provide the Services. To be clear, no matter how the Services change, we won’t share your content with others for any purpose unless you direct us to.
+By using our Services, you give us permission to host your data and process it as necessary for the operation of our Services and to extract anonymous statistical information on the data hosted by our Services. Results of this processing includes features visible to you, for example, previews of topography maps or analysis results, but it also contains features not visible to you such as statistical classification of the data uploaded to our site. It also includes design choices we make to technically administer our Services, for example, how we redundantly backup data to keep it safe. This permission also extends to our affiliates and trusted third parties we work with to provide the Services. To be clear, no matter how the Services change, we won’t share your content with others for any purpose unless you direct us to but we may share derived anonymous statistical data (such as the total number of datasets hosted by us).
 
 The Services provide features that allow you to share your data with others or to make it public under a license of your choice. We will not have any responsibility arising from the sharing of your data.
 
-In order to ensure scientific accountability, all data uploaded to our service will be permanently linked to your ORCID (https://orcid.org), a unique personal identifier that is designed to identify you as a researcher. Obtaining an ORCID is a necessary prerequisite for using our Services.
+In order to ensure scientific accountability, all data uploaded to our Services will be permanently linked to your ORCID (https://orcid.org), a unique personal identifier that is designed to identify you as a researcher. Obtaining an ORCID is a necessary prerequisite for using our Services. Any data that you share with others or that you make public will be linked to your ORCID and can hence be traced back to you.
 
-When logging into our site we ask you to authenticate our Services with ORCID. We will request and store the following information from ORCID: Your full name and your e-mail address. By using our Services, you give permission to use your email address to contact you about important changes to our Services (such as changes to these Terms & Conditions)  or to inform about incidents. 
+When logging into our site we ask you to authenticate our Services with ORCID. We will request and store the following information from ORCID: Your full name and your e-mail address. By using our Services, you give permission to use your email address to contact you about important changes to our Services (such as changes to these Terms & Conditions)  or to inform about incidents.
 
 ## Change to these Terms & Conditions
 
