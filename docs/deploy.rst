@@ -582,6 +582,40 @@ Updating the application
 
 .. todo:: document how to do an update if the code changes such that database is kept
 
+
+Login to the VM as user topobank and change to the working directory:
+
+.. code:: bash
+
+    cd ~/topobank
+
+Stop the application:
+
+.. code:: bash
+
+    docker-compose -f production.yml stop
+
+Be sure that the new code is available on the remote repository. Fetch the changes
+and apply them to the working directory.
+
+.. code:: bash
+
+    git pull
+
+Rebuild the containers:
+
+.. code:: bash
+
+    docker-compose -f production.yml build
+
+If this was successful, start the new containers in the background:
+
+.. code:: bash
+
+    docker-compose -f production.yml up -d
+
+Test whether the new application works.
+
 Known problems
 --------------
 
