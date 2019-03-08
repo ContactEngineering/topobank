@@ -32,3 +32,14 @@ When logging into our site we ask you to authenticate our Services with ORCID. W
 ## Change to these Terms & Conditions
 
 We may revise these Terms & Conditions from time to time and the most current version will always be posted on our website. If a revision, in our sole discretion, is material we will notify you (for example via email to the email address associated with your ORCID). By continuing to access or use the Services after revisions become effective, you agree to be bound by the revised Terms & Conditions. If you do not agree to the new Terms & Conditions, please stop using the Services.
+
+### Contact information
+
+The Simulation Group is represented by:
+
+Prof. Lars Pastewka   
+Department of Microsystems Engineering (IMTEK)  
+University of Freiburg  
+Georges-Köhler-Alle 103
+79110 Freiburg  
+Germany
