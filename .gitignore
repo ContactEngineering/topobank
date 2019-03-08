@@ -345,3 +345,5 @@ topobank.db
 .envs/.production/.postgres
 orcid.yaml
 
+# This is the source code for PyCo which we need to build docker containers
+PyCo-0*.tar.gz
