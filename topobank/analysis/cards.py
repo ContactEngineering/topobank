@@ -20,6 +20,7 @@ import logging
 _log = logging.getLogger(__name__)
 
 SMALLEST_ABSOLUT_NUMBER_IN_LOGPLOTS = 1e-18
+MAX_NUM_POINTS_FOR_SYMBOLS = 50
 
 def function_card_context(analyses):
     """Context for card template for analysis results.
@@ -81,11 +82,17 @@ def function_card_context(analyses):
     #
     color_cycle = itertools.cycle(Category10[10])
     dash_cycle = itertools.cycle(['solid', 'dashed', 'dotted', 'dotdash', 'dashdot'])
+    #symbol_cycle = itertools.cycle(['circle', 'triangle', 'diamond', 'square', 'asterisk'])
+    # TODO remove code for toggling symbols if not needed
 
-    series_dashes = OrderedDict() # key: series name
-    series_names = []
     topography_colors = OrderedDict() # key: Topography instance
     topography_names = []
+
+    series_dashes = OrderedDict()  # key: series name
+    series_names = []
+
+    # Also give each series a symbol (only used for small number of points)
+    #series_symbols = OrderedDict()  # key: series name
 
     #
     # Traverse analyses and plot lines
@@ -149,16 +156,31 @@ def function_card_context(analyses):
             #
             if series_name not in series_dashes:
                 series_dashes[series_name] = next(dash_cycle)
+                #series_symbols[series_name] = next(symbol_cycle)
                 series_names.append(series_name)
+
 
             #
             # Actually plot the line
             #
+            show_symbols = np.count_nonzero(~mask) <= MAX_NUM_POINTS_FOR_SYMBOLS
+
             legend_entry = topography_name+": "+series_name
 
-            glyph = plot.line('x', 'y', source=source, legend=legend_entry,
-                              line_color=topography_colors[analysis.topography],
-                              line_dash=series_dashes[series_name])
+            curr_color = topography_colors[analysis.topography]
+            curr_dash = series_dashes[series_name]
+            #curr_symbol = series_symbols[series_name]
+
+            line_glyph = plot.line('x', 'y', source=source, legend=legend_entry,
+                                      line_color=curr_color,
+                                      line_dash=curr_dash)
+            if show_symbols:
+                symbol_glyph = plot.scatter('x', 'y', source=source, legend=legend_entry,
+                                      marker='circle',
+                                      line_color=curr_color,
+                                      line_dash=curr_dash,
+                                      fill_color=curr_color)
+
 
             #
             # Prepare JS code to toggle visibility
@@ -167,12 +189,21 @@ def function_card_context(analyses):
             topography_idx = topography_names.index(topography_name)
 
             # prepare unique id for this line
-            glyph_id = f"glyph_{topography_idx}_{series_idx}"
-            js_args[glyph_id]= glyph # mapping from Python to JS
+            glyph_id = f"glyph_{topography_idx}_{series_idx}_line"
+            js_args[glyph_id]= line_glyph # mapping from Python to JS
 
             # only indices of visible glyphs appear in "active" lists of both button groups
             js_code += f"{glyph_id}.visible = series_btn_group.active.includes({series_idx}) "\
                        +f"&& topography_btn_group.active.includes({topography_idx});"
+
+            if show_symbols:
+                # prepare unique id for this symbols
+                glyph_id = f"glyph_{topography_idx}_{series_idx}_symbol"
+                js_args[glyph_id] = symbol_glyph  # mapping from Python to JS
+
+                # only indices of visible glyphs appear in "active" lists of both button groups
+                js_code += f"{glyph_id}.visible = series_btn_group.active.includes({series_idx}) " \
+                           + f"&& topography_btn_group.active.includes({topography_idx});"
 
         #
         # Collect special values to be shown in the result card
