@@ -1,5 +1,7 @@
 from test_plus.test import TestCase
+import pytest
 
+from .factories import UserFactory
 
 class TestUser(TestCase):
 
@@ -14,3 +16,11 @@ class TestUser(TestCase):
 
     def test_get_absolute_url(self):
         self.assertEqual(self.user.get_absolute_url(), "/users/testuser/")
+
+@pytest.mark.django_db
+def test_orcid_info():
+
+    user = UserFactory()
+
+    assert user.orcid_id == '0000-0000-0000-0000'
+    assert user.orcid_uri() == 'https://orcid.org/0000-0000-0000-0000'

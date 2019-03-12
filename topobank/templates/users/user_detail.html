@@ -17,11 +17,12 @@
       <h1>{% user_display object %}</h1>
 
       <p>
+        {# The following code is ORCID's recommendation + replacement of the current users data #}
         <div itemscope itemtype="https://schema.org/Person">
-          <a itemprop="sameAs" content="https://orcid.org/0000-0002-7111-8570"
-             href="https://orcid.org/0000-0002-7111-8570"
+          <a itemprop="sameAs" content="{{ object.orcid_uri }}"
+             href="{{ object.orcid_uri }}"
              target="orcid.widget" rel="noopener noreferrer" style="vertical-align:top;">
-            <img src="https://orcid.org/sites/default/files/images/orcid_16x16.png" style="width:1em;margin-right:.5em;" alt="ORCID iD icon">orcid.org/0000-0002-7111-8570
+            <img src="https://orcid.org/sites/default/files/images/orcid_16x16.png" style="width:1em;margin-right:.5em;" alt="ORCID iD icon">orcid.org/{{ object.orcid_id }}
           </a>
         </div>
       </p>
