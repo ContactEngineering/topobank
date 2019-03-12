@@ -19,6 +19,8 @@ from pint import UnitRegistry, UndefinedUnitError
 import logging
 _log = logging.getLogger(__name__)
 
+SMALLEST_ABSOLUT_NUMBER_IN_LOGPLOTS = 1e-18
+
 def function_card_context(analyses):
     """Context for card template for analysis results.
 
@@ -130,8 +132,16 @@ def function_card_context(analyses):
             # One could use AjaxDataSource for retrieving the results, but useful if we are already in AJAX call?
             xarr = np.array(s['x'])
             yarr = np.array(s['y'])
-            source = ColumnDataSource(data=dict(x=analysis_xscale*xarr,
-                                                y=analysis_yscale*yarr))
+
+            # if logplot, filter all zero values
+            mask = np.zeros(xarr.shape, dtype=bool)
+            if get_axis_type('xscale') == 'log':
+                mask |= np.isclose(xarr, 0, atol=SMALLEST_ABSOLUT_NUMBER_IN_LOGPLOTS)
+            if get_axis_type('yscale') == 'log':
+                mask |= np.isclose(yarr, 0, atol=SMALLEST_ABSOLUT_NUMBER_IN_LOGPLOTS)
+
+            source = ColumnDataSource(data=dict(x=analysis_xscale*xarr[~mask],
+                                                y=analysis_yscale*yarr[~mask]))
 
             series_name = s['name']
             #
