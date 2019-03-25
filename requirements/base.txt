@@ -75,3 +75,6 @@ pint==0.8.1
 # install from own optional_terms branch
 git+http://git@github.com/mcrot/django-termsandconditions.git@optional_terms
 # TODO fork this into account of IMTEK/Simulation organisation
+
+# markdown conversion for terms & conditions
+markdown2>=2.3.7,<3.0
