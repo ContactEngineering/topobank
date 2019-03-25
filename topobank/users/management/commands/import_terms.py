@@ -1,5 +1,7 @@
 from django.core.management.base import BaseCommand
 from django.utils import timezone
+from django.utils.html import escape
+
 import datetime
 import argparse
 import decimal
@@ -71,10 +73,7 @@ class Command(BaseCommand):
         # Read terms and convert to markdown
         #
         terms_file = options['terms_file']
-
         terms_markdown = terms_file.read()
-        terms_html = markdown2.markdown(terms_markdown)
-
 
         #
         # Handle optional arguments
@@ -82,7 +81,14 @@ class Command(BaseCommand):
         if options['name']:
             name = options['name'].strip()
         else:
-            name = terms_markdown.splitlines()[0].replace('#', ' ').strip()
+            terms_markdown_lines = terms_markdown.splitlines()
+            name = terms_markdown_lines[0].replace('#', ' ').strip()
+            terms_markdown = "\n".join(terms_markdown_lines[1:]) # remove first line, will be inserted by terms pkg
+            self.stdout.write(self.style.NOTICE("Using first line of terms as name."))
+
+        name = escape(name) # e.g. convert & to &amp;
+
+        terms_html = markdown2.markdown(terms_markdown)
 
         now = timezone.now()
 
