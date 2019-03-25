@@ -26,8 +26,8 @@ Alternatively, open a psql console and enter::
     ALTER USER topobank PASSWORD 'topobank';
 
 
-German description of initialzation of a development machine (to be translated + tested)
-----------------------------------------------------------------------------------------
+German description of initialization of a development machine (to be translated + tested)
+-----------------------------------------------------------------------------------------
 
 Im "develop"-Branch des "Topobank"-Projekts
 
