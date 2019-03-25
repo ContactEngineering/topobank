@@ -1,4 +1,5 @@
 from django.core.management.base import BaseCommand
+import sys
 
 from topobank.users.models import User
 from topobank.manager.models import Surface, Topography
@@ -12,7 +13,12 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
 
-        user = User.objects.get(username=options['username'])
+        try:
+            user = User.objects.get(username=options['username'])
+        except User.DoesNotExist:
+            self.stdout.write(self.style.ERROR(
+                "User '{}' does not exist.".format(options['username'])))
+            sys.exit(1)
 
         surfaces = Surface.objects.filter(user=user)
         topographies = Topography.objects.filter(surface__in=surfaces)
