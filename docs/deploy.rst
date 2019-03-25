@@ -616,6 +616,33 @@ If this was successful, start the new containers in the background:
 
 Test whether the new application works.
 
+Look into the database
+----------------------
+
+You can indirectly connect from outside to the PostGreSQL database, e.g.
+by using a tool "PGAdmin". Therefore you an use an SSH tunnel and connect to
+the docker container which runs the PostGreSQL database.
+
+First be sure to know the IP address of the docker container running the PostGreSQL database.
+Log in to the VM once and execute
+
+.. code:: bash
+
+    docker inspect -f "{{ .NetworkSettings.Networks.topobank_default.IPAddress }}" topobank_postgres_1
+
+Then take a note of the IP. Use this IP in an SSH tunnel, e.g.:
+
+.. code:: bash
+
+    ssh -L 5434:172.19.0.3:5432 topobank-vm
+
+Then on your laptop, use PGAdmin and open a connection to `localhost:5434`.
+Use the already open terminal to access the file `.envs/.production/.postgres` in order
+to copy & paste the username and password (two long random strings) to PGAdmin.
+Afterwards you should be able to open the connection.
+
+.. todo:: There is another way by exposing the postgresql port to the host, but only localhost. Then the IP is not needed.
+
 Known problems
 --------------
 
@@ -637,6 +664,8 @@ Probably the image has already a user created. If there is no valuable data yet,
   docker system prune
   docker volume rm $(docker volume ls -qf dangling=true)
   docker-compose -f production.yml build
+
+
 
 
 
