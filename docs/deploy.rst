@@ -458,7 +458,7 @@ Then import terms and conditions:
 .. code:: bash
 
     docker-compose -f production.yml run --rm django python manage.py import_terms site-terms 1.0 topobank/static/other/TermsConditions.md
-    docker-compose -f production.yml run --rm django python manage.py import_terms optional-terms 1.0 topobank/static/other/TermsConditionsSupplement.md
+    docker-compose -f production.yml run --rm django python manage.py import_terms --optional optional-terms 1.0 topobank/static/other/TermsConditionsSupplement.md
 
 After these conditions are installed, they are active (default activation time is installation time) and
 the user is asked when signing in. At least the non-optional terms and conditions (with slug "site-terms")
