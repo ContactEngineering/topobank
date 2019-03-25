@@ -344,6 +344,6 @@ SOCIALACCOUNT_QUERY_EMAIL = True # e-mail should be aquired from social account 
 ACCOUNT_USER_DISPLAY = lambda user: user.name
 
 #
-# Settings for handling terms 6 conditions
+# Settings for handling terms and conditions
 #
 TERMS_EXCLUDE_URL_LIST = { '/logout/' }
