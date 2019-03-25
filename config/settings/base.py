@@ -75,6 +75,7 @@ THIRD_PARTY_APPS = [
     'imagekit',
     'formtools',
     'bokeh',
+    'termsandconditions'
 ]
 LOCAL_APPS = [
     'topobank.users.apps.UsersAppConfig',

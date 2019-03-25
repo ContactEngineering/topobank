@@ -69,3 +69,9 @@ openpyxl==2.5.9
 
 # Unit conversion
 pint==0.8.1
+
+# terms and conditions
+# django-termsandconditions>=1.2.13<2.0
+# install from own optional_terms branch
+git+http://git@github.com/mcrot/django-termsandconditions.git@optional_terms
+# TODO fork this into account of IMTEK/Simulation organisation

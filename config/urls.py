@@ -36,7 +36,11 @@ urlpatterns = [
         include("topobank.analysis.urls", namespace="analysis"),
     ),
 
+    # For interactive select boxes
     url(r'^select2/', include('django_select2.urls')),
+
+    # For asking for terms and conditions
+    url(r'^terms/', include('termsandconditions.urls')),
 
 ] + static(
     settings.MEDIA_URL, document_root=settings.MEDIA_ROOT

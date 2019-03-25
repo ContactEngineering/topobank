@@ -2,6 +2,7 @@
 {% load static i18n %}
 {% load fontawesome %}
 {% load socialaccount %}
+{% load terms_tags %}
 
 <html lang="en">
 
@@ -127,6 +128,9 @@
         </div>
         <!-- /#container-fluid -->
       </div>
+
+      {% show_terms_if_not_agreed %}
+
       <!-- /#content-wrapper -->
       <footer class="sticky-footer">
         <div class="container my-auto">
@@ -286,6 +290,7 @@
     <script src="{% static 'js/project.js' %}"></script>
 
     {% block javascript %}{% endblock javascript %}
+
 </body>
 
 </html>
