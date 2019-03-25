@@ -10,8 +10,8 @@ We can’t promise that all parts of the Services will be free from errors and b
 
 While the service is provided "AS-IS" without guarantee of fitness for a particular purpose, we practice fullest transparency as to the operation of the Services. As such, the underlying software framework is made available for inspection to interested third-parties under the MIT license. If errors are brought to our attention, we will try to correct them. The respective code bases can be found at:
 
-* https://github.com/IMTEK-Simulation/TopoBank
-* https://github.com/IMTEK-Simulation/PyCo
+* [https://github.com/IMTEK-Simulation/TopoBank](https://github.com/IMTEK-Simulation/TopoBank)
+* [https://github.com/IMTEK-Simulation/PyCo](https://github.com/IMTEK-Simulation/PyCo)
 
 ## Limitation of liability
 
