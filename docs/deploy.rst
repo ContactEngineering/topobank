@@ -453,7 +453,17 @@ from environment variables:
     docker-compose -f production.yml run --rm django envsubst < orcid.yaml.template > orcid.yaml
     docker-compose -f production.yml run --rm django python manage.py loaddata orcid.yaml
 
+Then import terms and conditions:
 
+.. code:: bash
+
+    docker-compose -f production.yml run --rm django python manage.py import_terms site-terms 1.0 topobank/static/other/TermsConditions.md
+    docker-compose -f production.yml run --rm django python manage.py import_terms optional-terms 1.0 topobank/static/other/TermsConditionsSupplement.md
+
+After these conditions are installed, they are active (default activation time is installation time) and
+the user is asked when signing in. At least the non-optional terms and conditions (with slug "site-terms")
+must be accepted in order to use the application.
+The optional terms can also be accepted later, e.g. bei choosing "Terms & Conditions" from the help menu.
 
 Get to know docker-compose
 --------------------------
