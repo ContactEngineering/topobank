@@ -7,19 +7,14 @@ ENV PYTHONUNBUFFERED 1
 #
 # System dependencies for Python + Django
 #
-# TODO maybe in one command?
 RUN apt-get update \
-  && apt-get install --yes libfftw3-3 libfftw3-dev gcc g++ gettext
+  && apt-get install --yes libfftw3-3 libfftw3-dev gcc g++ gettext \
+  # Pillow requirements
+  && apt-get install --yes libjpeg-dev zlib1g-dev libfreetype6-dev \
+     liblcms2-dev libtiff-dev tk-dev tcl-dev librabbitmq-dev
 
 # clean up image
 #RUN apt-get -qy autoremove
-
-#
-# Create target directory
-#
-#ARG topobankdir=/app
-#RUN mkdir -p ${topobankdir}
-#WORKDIR ${topobankdir}
 
 #
 # Installation of PyCo + dependencies
@@ -36,19 +31,12 @@ RUN pip install -r requirements.txt
 # install PyCo itself in venv
 RUN pip install .
 
-
 #
 # Install requirements for TopoBank
 #
-# TODO move to top
-# Pillow requirements
-RUN apt-get install --yes libjpeg-dev zlib1g-dev libfreetype6-dev liblcms2-dev libtiff-dev tk-dev tcl-dev librabbitmq-dev
-
 COPY ./requirements /requirements
 WORKDIR /
 RUN pip install -r /requirements/local.txt
-RUN pip install celery-flower
-# TODO add celery flower to app requirements
 RUN pip install -r /requirements/test.txt
 # TODO remove test settings as they are always useful for local?
 
@@ -78,7 +66,7 @@ RUN addgroup django \
 # or using --system? Problems with permissions?
 # celeryworker should not run as root, refuses to work
 #
-# TODO use --disabled-login ??
+# TODO check, can we use --disabled-login ??
 
 #
 # Prepare application code
@@ -87,12 +75,6 @@ COPY . /app
 RUN chown -R django /app
 # is the following needed?
 RUN chmod -R u+w /app
-
-#
-# Prepare some system settings
-#
-# RUN sysctl vm.overcommit_memory=1
-# TODO needed for redis to suppress warning, but in which package?
 
 #
 # Finalize..
