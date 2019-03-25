@@ -79,6 +79,8 @@
           </a>
           <div class="dropdown-menu dropdown-menu-right help-dropdown" aria-labelledby="helpDropdown">
             <a class="dropdown-item" href="#" data-toggle="modal" data-target="#versionModal">Version Information</a>
+            <a class="dropdown-item" href="{% url 'terms' %}">Terms &amp; Conditions</a>
+            <div class="dropdown-divider"></div>
             <a class="dropdown-item" href="#" data-toggle="modal" data-target="#contactModal">Contact</a>
           </div>
         </li>
@@ -129,7 +131,7 @@
         <!-- /#container-fluid -->
       </div>
 
-      {% show_terms_if_not_agreed %}
+
 
       <!-- /#content-wrapper -->
       <footer class="sticky-footer">
@@ -263,6 +265,32 @@
         </div>
       </div>
     </div>
+
+    <!-- Terms and Conditions Modal -->
+    <div class="modal fade" id="termsModal" tabindex="-1" role="dialog" aria-labelledby="termsModalLabel"
+         aria-hidden="true">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="termsModalLabel">Terms &amp; Conditions</h5>
+            <button class="close" type="button" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">×</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <p>You've agreed to these terms and conditions</p>
+
+
+
+            <p>You've not yet agreed to these optional terms and conditions</p>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-primary" type="button" data-dismiss="modal">Ok</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
 
 
     <!-- Bootstrap core JavaScript-->

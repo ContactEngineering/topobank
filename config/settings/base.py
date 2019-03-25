@@ -75,7 +75,7 @@ THIRD_PARTY_APPS = [
     'imagekit',
     'formtools',
     'bokeh',
-    'termsandconditions'
+    'termsandconditions',
 ]
 LOCAL_APPS = [
     'topobank.users.apps.UsersAppConfig',
@@ -145,6 +145,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'termsandconditions.middleware.TermsAndConditionsRedirectMiddleware',
 ]
 
 # STATIC
@@ -339,5 +340,10 @@ SOCIALACCOUNT_PROVIDERS = {
         # 'MEMBER_API': False,  # for the member API
     }
 }
-SOCIALACCOUNT_QUERY_EMAIL=True # e-mail should be aquired from social account provider
-ACCOUNT_USER_DISPLAY=lambda user: user.name
+SOCIALACCOUNT_QUERY_EMAIL = True # e-mail should be aquired from social account provider
+ACCOUNT_USER_DISPLAY = lambda user: user.name
+
+#
+# Settings for handling terms 6 conditions
+#
+TERMS_EXCLUDE_URL_LIST = { '/logout/' }
