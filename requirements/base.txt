@@ -27,7 +27,7 @@ celery>=4.2,<5.0
 pylibmc>=1.6.0
 # librabbitmq>=2.0
 # problems while compiling librabbitmq
-celery-flower>=1.0.1
+celery-flower>=1.0.1<2
 # The follwing is needed, otherwise Tornado 6.0 breaks celery
 # See https://github.com/mher/flower/issues/878
 tornado>=4.2.0,<6.0.0
