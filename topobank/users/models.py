@@ -57,6 +57,11 @@ class User(AbstractUser):
         """
         return self._orcid_info()['uri']
 
+    class Meta:
+        permissions = (
+            ("can_skip_terms", "Can skip all checkings for terms and conditions."),
+        )
+
 
 #
 # ensure that after user creation, a media diretory exists

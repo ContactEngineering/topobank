@@ -346,4 +346,5 @@ ACCOUNT_USER_DISPLAY = lambda user: user.name
 #
 # Settings for handling terms and conditions
 #
-TERMS_EXCLUDE_URL_LIST = { '/logout/' }
+# TERMS_EXCLUDE_URL_LIST = { '/logout/' }
+TERMS_EXCLUDE_USERS_WITH_PERM = 'users.can_skip_terms'
