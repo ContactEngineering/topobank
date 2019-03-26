@@ -1,26 +1,21 @@
-from test_plus.test import TestCase
 import pytest
 
-from .factories import UserFactory
+from .factories import UserFactory, OrcidSocialAccountFactory
 
-class TestUser(TestCase):
+@pytest.mark.django_db
+def test_absolute_url():
+    user = UserFactory(username="testuser")
+    assert user.get_absolute_url() == "/users/testuser/"
 
-    def setUp(self):
-        self.user = self.make_user()
-
-    def test__str__(self):
-        self.assertEqual(
-            self.user.__str__(),
-            "testuser",  # This is the default username for self.make_user()
-        )
-
-    def test_get_absolute_url(self):
-        self.assertEqual(self.user.get_absolute_url(), "/users/testuser/")
+@pytest.mark.django_db
+def test__str__():
+    user = UserFactory(username="testuser")
+    assert str(user) == "testuser"
 
 @pytest.mark.django_db
 def test_orcid_info():
-
+    OrcidSocialAccountFactory.reset_sequence(13)
+    user_id = "0013-0013-0013-0013"
     user = UserFactory()
-
-    assert user.orcid_id == '0000-0000-0000-0000'
-    assert user.orcid_uri() == 'https://orcid.org/0000-0000-0000-0000'
+    assert user.orcid_id == user_id
+    assert user.orcid_uri() == 'https://orcid.org/'+user_id

@@ -98,10 +98,10 @@ def test_prevent_topography_access_by_other_user(client, django_user_model, mock
     # Each time, this should redirect to an access denied page
     #
     response = client.get(reverse('manager:topography-detail', kwargs=dict(pk=topography_id)))
-    assert response.url == reverse('manager:access-denied')
+    assert response.status_code == 403
 
     response = client.get(reverse('manager:topography-update', kwargs=dict(pk=topography_id)))
-    assert response.url == reverse('manager:access-denied')
+    assert response.status_code == 403
 
     response = client.get(reverse('manager:topography-delete', kwargs=dict(pk=topography_id)))
-    assert response.url == reverse('manager:access-denied')
+    assert response.status_code == 403

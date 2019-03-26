@@ -6,7 +6,6 @@ import os.path
 import logging
 
 from topobank.users.models import User
-# from topobank.manager.models import Topography
 
 _log = logging.getLogger(__name__)
 
@@ -47,8 +46,49 @@ def two_topos(django_db_setup, django_db_blocker):
 
         # like this we can have clear-text passwords in test fixtures
 
+import datetime
+import factory
+from ..models import Topography, Surface
+from topobank.users.tests.factories import UserFactory
+
+class SurfaceFactory(factory.django.DjangoModelFactory):
+
+    class Meta:
+        model = Surface
+
+    name = factory.Sequence(lambda n: "surface-{}".format(n))
+    user = factory.SubFactory(UserFactory)
+
+class TopographyFactory(factory.django.DjangoModelFactory):
+
+    class Meta:
+        model = Topography
+
+    surface = factory.SubFactory(SurfaceFactory)
+    name = factory.Sequence(lambda n: "topography-{}".format(n))
+    data_source = 0
+    measurement_date = factory.Sequence(lambda n: datetime.date(2019,1,1)+datetime.timedelta(days=n))
+
 @pytest.fixture
-def one_line_scan(django_db_setup, django_db_blocker):
+def one_line_scan(django_db_setup):
+
+    user = UserFactory(username='testuser', password='abcd$1234')
+    surface = Surface(name="Line Scans", user=user)
+    surface.save()
+
+    datafile = factory.django.FileField(from_path="topobank/manager/fixtures/line_scan_1.asc")
+
+    TopographyFactory(surface=surface,
+                      name='Simple Line Scan',
+                      measurement_date=datetime.date(2018,1,1),
+                      description="description1",
+                      size_x=9,
+                      detrend_mode='height',
+                      datafile=datafile)
+
+
+@pytest.fixture
+def one_line_scan_OLD(django_db_setup, django_db_blocker):
 
     #
     # Copy uploaded files at the correct places
