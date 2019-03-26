@@ -32,8 +32,6 @@ from .utils import get_topography_file, optimal_unit, \
 _log = logging.getLogger(__name__)
 
 class SurfaceAccessMixin(UserPassesTestMixin):
-
-    login_url = reverse_lazy("manager:access-denied")
     redirect_field_name = None
 
     def test_func(self):
@@ -44,8 +42,6 @@ class SurfaceAccessMixin(UserPassesTestMixin):
         return surface.user == self.request.user
 
 class TopographyAccessMixin(UserPassesTestMixin):
-
-    login_url = reverse_lazy("manager:access-denied")
     redirect_field_name = None
 
     def test_func(self):

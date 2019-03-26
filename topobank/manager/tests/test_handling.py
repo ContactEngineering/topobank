@@ -9,6 +9,7 @@ import os.path
 from topobank.manager.tests.utils import export_reponse_as_html
 from ..tests.utils import two_topos, one_line_scan
 from ..models import Topography, Surface
+from topobank.utils import assert_in_content, assert_redirects, assert_no_form_errors
 
 #
 # Different formats are handled by PyCo
@@ -297,9 +298,10 @@ def test_topography_list(client, two_topos, django_user_model):
     #
     # all topographies for 'testuser' and surface1 should be listed
     #
-    topos = Topography.objects.filter(surface__user__username=username)
+    surface = Surface.objects.get(name="Surface 1", user__username=username)
+    topos = Topography.objects.filter(surface=surface)
 
-    response = client.get(reverse('manager:surface-detail', kwargs=dict(pk=1)))
+    response = client.get(reverse('manager:surface-detail', kwargs=dict(pk=surface.id)))
 
     content = str(response.content)
     for t in topos:
@@ -314,9 +316,17 @@ def test_topography_list(client, two_topos, django_user_model):
 # TODO add test with predefined height conversion
 # TODO add test with predefined physical size
 
+@pytest.fixture
+def topo_example3():
+    return Topography.objects.get(name='Example 3 - ZSensor')
+
+@pytest.fixture
+def topo_example4():
+    return Topography.objects.get(name='Example 4 - Default')
+
 
 @pytest.mark.django_db
-def test_edit_topography(client, two_topos, django_user_model):
+def test_edit_topography(client, two_topos, django_user_model, topo_example3):
 
     new_name = "This is a better name"
     new_measurement_date = "2018-07-01"
@@ -325,14 +335,12 @@ def test_edit_topography(client, two_topos, django_user_model):
     username = 'testuser'
     password = 'abcd$1234'
 
-    topo_id = 1
-
     assert client.login(username=username, password=password)
 
     #
     # First get the form and look whether all the expected data is in there
     #
-    response = client.get(reverse('manager:topography-update', kwargs=dict(pk=topo_id)))
+    response = client.get(reverse('manager:topography-update', kwargs=dict(pk=topo_example3.id)))
     assert response.status_code == 200
 
     assert 'form' in response.context
@@ -340,20 +348,20 @@ def test_edit_topography(client, two_topos, django_user_model):
     form = response.context['form']
     initial = form.initial
 
-    assert initial['name'] == 'Example 3 - ZSensor'
+    assert initial['name'] == topo_example3.name
     assert initial['measurement_date'] == datetime.date(2018,1,1)
     assert initial['description'] == 'description1'
-    assert initial['size_x'] == 9
-    assert initial['size_y'] == 9
+    assert initial['size_x'] == pytest.approx(10)
+    assert initial['size_y'] == pytest.approx(10)
     assert pytest.approx(initial['height_scale']) == 0.29638271279074097
     assert initial['detrend_mode'] == 'height'
 
     #
     # Then send a post with updated data
     #
-    response = client.post(reverse('manager:topography-update', kwargs=dict(pk=topo_id)),
+    response = client.post(reverse('manager:topography-update', kwargs=dict(pk=topo_example3.id)),
                            data={
-                            'surface': 1,
+                            'surface': topo_example3.surface.id,
                             'data_source': 0,
                             'name': new_name,
                             'measurement_date': new_measurement_date,
@@ -364,13 +372,14 @@ def test_edit_topography(client, two_topos, django_user_model):
                             'height_scale': 0.1,
                             'height_unit': 'nm',
                             'detrend_mode': 'height',
-                           })
+                           }, follow=True)
 
-    assert response.status_code == 302
+    assert_no_form_errors(response)
+
     # we should have been redirected to topography details
-    assert reverse('manager:topography-detail', kwargs=dict(pk=topo_id)) == response.url
+    assert_redirects(response, reverse('manager:topography-detail', kwargs=dict(pk=topo_example3.id)))
 
-    topos = Topography.objects.filter(surface__user__username=username).order_by('pk')
+    topos = Topography.objects.filter(surface=topo_example3.surface).order_by('pk')
 
     assert len(topos) == 2
 
@@ -465,12 +474,12 @@ def test_edit_line_scan(client, one_line_scan, django_user_model):
 
 
 @pytest.mark.django_db
-def test_topography_detail(client, two_topos, django_user_model):
+def test_topography_detail(client, two_topos, django_user_model, topo_example4):
 
     username = 'testuser'
     password = 'abcd$1234'
 
-    topo_id = 2
+    topo_id = topo_example4.id
 
     django_user_model.objects.get(username=username)
 
@@ -480,47 +489,44 @@ def test_topography_detail(client, two_topos, django_user_model):
     response = client.get(reverse('manager:topography-detail', kwargs=dict(pk=topo_id)))
     assert response.status_code == 200
 
-    export_reponse_as_html(response)
-
     # resolution should be written somewhere
-    assert b"305 x 75" in response.content
+    assert_in_content(response, "305 x 75")
 
     # .. as well as Detrending mode
-    assert b"Remove tilt" in response.content
+    assert_in_content(response, "Remove tilt")
 
     # .. description
-    assert b"description2" in response.content
+    assert_in_content(response, "description2")
 
     # .. physical size
-    assert "112.0 µm x 27.0 µm" in response.content.decode('utf-8')
+    assert_in_content(response, "112.80791 µm x 27.73965 µm")
 
 @pytest.mark.django_db
-def test_delete_topography(client, two_topos, django_user_model):
+def test_delete_topography(client, two_topos, django_user_model, topo_example3):
 
     username = 'testuser'
     password = 'abcd$1234'
-    topo_id = 1
 
     # topography 1 is still in database
-    topo = Topography.objects.get(pk=topo_id)
+    topo = topo_example3
     surface = topo.surface
 
     topo_datafile_path = topo.datafile.path
 
     assert client.login(username=username, password=password)
 
-    response = client.get(reverse('manager:topography-delete', kwargs=dict(pk=topo_id)))
+    response = client.get(reverse('manager:topography-delete', kwargs=dict(pk=topo.id)))
 
     # user should be asked if he/she is sure
     assert b'Are you sure' in response.content
 
-    response = client.post(reverse('manager:topography-delete', kwargs=dict(pk=topo_id)))
+    response = client.post(reverse('manager:topography-delete', kwargs=dict(pk=topo.id)))
 
     # user should be redirected to surface details
     assert reverse('manager:surface-detail', kwargs=dict(pk=surface.id)) == response.url
 
     # topography topo_id is no more in database
-    assert not Topography.objects.filter(pk=topo_id).exists()
+    assert not Topography.objects.filter(pk=topo.id).exists()
 
     # topography file should also be deleted
     assert not os.path.exists(topo_datafile_path)

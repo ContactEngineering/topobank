@@ -70,7 +70,7 @@ def test_initial_surface(live_server, client, django_user_model):
     # should have been triggered
     #
     for af in AnalysisFunction.objects.filter(automatic=True):
-        analyses = Analysis.objects.filter(topography__surface_id__in=[t.id for t in topos], function=af)
+        analyses = Analysis.objects.filter(topography__surface_id=surface.id, function=af)
         assert analyses.count() == len(topos)
 
 

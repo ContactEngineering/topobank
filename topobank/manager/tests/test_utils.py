@@ -11,7 +11,7 @@ from ..tests.utils import two_topos
 from ..utils import TopographyFile, TopographyFileReadingException,\
     DEFAULT_DATASOURCE_NAME, \
     selection_to_topographies, selection_for_select_all, selection_choices
-
+from ..models import Surface
 
 def test_data_sources_txt():
 
@@ -55,13 +55,21 @@ def test_selection_to_topographies_with_given_surface(testuser, mock_topos):
 
 def test_select_all(two_topos, testuser):
     selection = selection_for_select_all(testuser)
-    assert ['surface-1'] == selection
+    surfaces = Surface.objects.filter(name__in=["Surface 1", "Example Surface"]).order_by('id')
+    assert [ f"surface-{s.id}" for s in surfaces] == sorted(selection)
 
 def test_selection_choices(two_topos, testuser):
     selection = selection_choices(testuser)
-    assert [('surface-1', 'surface1'),
-            ('topography-1', 'Example 3 - ZSensor'),
-            ('topography-2', 'Example 4 - Default')] == selection
+
+    selection_labels = sorted([ x[1] for x in selection ])
+
+    assert ['50000x50000_random.txt',
+            '5000x5000_random.txt',
+            '500x500_random.txt',
+            'Example 3 - ZSensor',
+            'Example 4 - Default',
+            'Example Surface',
+            'Surface 1'] == selection_labels
 
 def test_topographyfile_loading_invalid_file():
 
