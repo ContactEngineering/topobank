@@ -143,5 +143,83 @@ In production choose another user name, e.g. "django" or topobank
 
 .. todo:: Probably running in a docker container is much easier, to be tested.
 
+Preparing fixtures with test databases
+--------------------------------------
+
+Loading of test fixture is still possible
+.........................................
+
+If you still can load the current test fixtures, create a new temporary database
+by using the environment variable `DATABASE_URL`, e.g.
+
+.. code:: bash
+
+    DATABASE_URL=sqlite:///topobank.sqlite3 USE_DOCKER=no python manage.py migrate --run-syncdb
+
+Then load the fixture by
+
+.. code:: bash
+
+    DATABASE_URL=sqlite:///topobank.sqlite3 USE_DOCKER=no python manage.py loaddata <fixture file>
+
+and start the server:
+
+.. code:: bash
+
+    DATABASE_URL=sqlite:///topobank.sqlite3 USE_DOCKER=no python manage.py runserver
+
+Alternatively you can use the `testserver` command (not tested yet):
+
+.. code:: bash
+
+    DATABASE_URL=sqlite:///topobank.sqlite3 USE_DOCKER=no python manage.py testserver <fixture file>
+
+Then prepare your new fixtures and save them using the `dumpdata`.
+
+You cannot load test fixture file any more
+..........................................
 
 
+Inspect the YAML file which you want to replace. Take a look at users username+password,
+which topographies and surfaces are needed.
+
+Create a local database
+
+.. code:: bash
+
+    DATABASE_URL=sqlite:///topobank.sqlite3 USE_DOCKER=no python manage.py migrate --run-syncdb
+
+
+and start the server:
+
+.. code:: bash
+
+    DATABASE_URL=sqlite:///topobank.sqlite3 USE_DOCKER=no python manage.py runserver
+
+Use the URL `localhost:8000/accounts/signup` in order to create the test user.
+Use the application then to create all surfaces and topographies, possibly with the same
+properties as in the YAML fixture file you want to replace.
+
+Afterwards export the database using the `dumpdata` command and replace the YAMl file.
+
+Example:
+
+.. code:: bash
+
+    DATABASE_URL=sqlite:///topobank.sqlite3 USE_DOCKER=no python manage.py dumpdata -o topobank/manager/fixtures/two_topographies.yaml --indent 2 -e socialaccount -e auth
+
+The exclusion of socialaccount is important, otherwise your secret key for the ORCID API may get into the YAML file!
+Whether you exclude the analysis app depends on your tests.
+
+However, your tests should work using this new dump. If not,
+fix your test database or your test or the YAML file accordingly.
+If there are too many users e.g. you can manually delete users from the YAML file.
+
+Please also double check the following before replacing the dump:
+
+- do not include absolute paths from your machine in the yaml file,
+  the paths should be relative
+
+If you can an error message like "django.db.utils.OperationalError: no such table: main.users_user__old"
+during loading this dump when running the tests, you may have a Django version 2.0.x with this bug:
+https://code.djangoproject.com/ticket/29182
