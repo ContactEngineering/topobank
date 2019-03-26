@@ -4,9 +4,10 @@ import sys
 from topobank.users.models import User
 from topobank.manager.models import Surface, Topography
 from topobank.analysis.models import Analysis
+from termsandconditions.models import UserTermsAndConditions
 
 class Command(BaseCommand):
-    help = "Deletes a user and all associated data (topographies, files). Handle with care."
+    help = "Deletes a user and all associated data (surfaces, topographies, files, terms). Handle with care."
 
     def add_arguments(self, parser):
         parser.add_argument('username', type=str)
@@ -23,10 +24,12 @@ class Command(BaseCommand):
         surfaces = Surface.objects.filter(user=user)
         topographies = Topography.objects.filter(surface__in=surfaces)
         analyses = Analysis.objects.filter(topography__in=topographies)
+        userterms = UserTermsAndConditions.objects.filter(user=user)
 
         analyses.delete()
         topographies.delete()
         surfaces.delete()
+        userterms.delete()
         user.delete()
 
         self.stdout.write(self.style.SUCCESS(
