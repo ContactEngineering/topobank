@@ -2,21 +2,22 @@
 Tests related to user support.
 """
 from django.urls import reverse
+from django.core.management import call_command
 import pytest
 
 from topobank.manager.models import Surface
 from topobank.analysis.models import AnalysisFunction, Analysis
-import topobank.analysis.functions
 
 @pytest.mark.db_django
 def test_initial_surface(live_server, client, django_user_model):
 
     import topobank.users.signals # in order to have signals activated
 
-    #
     # Make sure, we have automated analysis functions
-    #
-    topobank.analysis.functions.register_all()
+    call_command('register_analysis_functions')
+
+    # we read from static files, they should be up-to-date
+    call_command('collectstatic', '--noinput')
 
     #
     # signup for an account, this triggers signal to create example surface

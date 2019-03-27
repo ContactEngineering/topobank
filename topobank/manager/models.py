@@ -70,12 +70,11 @@ class Topography(models.Model):
     size_x = models.FloatField()
     size_y = models.FloatField(null=True) # null for line scans
 
-    size_unit_editable = models.BooleanField(default=False) # also applies to height_unit
-    size_unit = models.TextField(choices=LENGTH_UNIT_CHOICES) # TODO allow null?
+    unit_editable = models.BooleanField(default=False)
+    unit = models.TextField(choices=LENGTH_UNIT_CHOICES)
 
     height_scale_editable = models.BooleanField(default=False)
     height_scale = models.FloatField(default=1)
-    height_unit = models.TextField(choices=LENGTH_UNIT_CHOICES) # TODO remove
 
     detrend_mode = models.TextField(choices=DETREND_MODE_CHOICES, default='center')
 
@@ -126,9 +125,7 @@ class Topography(models.Model):
                 topo.size = self.size_x, self.size_y
 
         topo = topo.scale(self.height_scale).detrend(detrend_mode=self.detrend_mode,
-                                                     info=dict(unit=self.size_unit))
-
-        # TODO what about height unit, maybe set this also as info item?
+                                                     info=dict(unit=self.unit))
 
         return topo
 

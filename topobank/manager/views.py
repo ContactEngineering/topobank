@@ -110,10 +110,10 @@ class TopographyCreateWizard(SessionWizardView):
             topo = topofile.topography(int(step1_data['data_source']))
             # topography as it is in file
 
-            size_unit = topo.info['unit']
+            unit = topo.info['unit']
 
             #
-            # Set initial size and size unit
+            # Set initial size and unit
             #
 
             has_2_dim = topo.dim == 2
@@ -124,11 +124,11 @@ class TopographyCreateWizard(SessionWizardView):
                 initial_size_x, = topo.size # size is always a tuple
                 initial_size_y = None # needed for database field
 
-            if size_unit is not None:
+            if unit is not None:
                 #
-                # Try to optimize size unit
+                # Try to optimize unit
                 #
-                size_unit, conversion_factor = optimal_unit(topo.size, size_unit)
+                unit, conversion_factor = optimal_unit(topo.size, unit)
 
                 initial_size_x *= conversion_factor # TODO Is it correct to do this if there is "int()" afterwards?
                 if has_2_dim:
@@ -150,8 +150,8 @@ class TopographyCreateWizard(SessionWizardView):
 
             initial['size_editable'] = size_setter_avail
 
-            initial['size_unit'] = size_unit
-            initial['size_unit_editable'] = size_unit is None
+            initial['unit'] = unit
+            initial['unit_editable'] = unit is None
 
             #
             # Set initial height and height unit
@@ -164,7 +164,7 @@ class TopographyCreateWizard(SessionWizardView):
                 # initial['height_scale_editable'] = True # this factor can be changed by user because not given in file
 
             initial['height_scale_editable'] = True  # because of GH 131 we decided to always allow editing
-            initial['height_unit'] = size_unit
+
             #
             # Set initial detrend mode
             #
@@ -324,8 +324,8 @@ class TopographyDetailView(TopographyAccessMixin, DetailView):
 
 
         TOOLTIPS = [
-            ("x", "$x " + topo.size_unit),
-            ("height", "$y " + topo.height_unit),
+            ("x", "$x " + topo.unit),
+            ("height", "$y " + topo.unit),
         ]
 
         x, y = pyco_topo.positions_and_heights()
@@ -334,8 +334,8 @@ class TopographyDetailView(TopographyAccessMixin, DetailView):
         y_range = DataRange1d(bounds='auto')
 
         plot = figure(x_range=x_range, y_range=y_range,
-                      x_axis_label=f'x ({topo.size_unit})',
-                      y_axis_label=f'height ({topo.height_unit})',
+                      x_axis_label=f'x ({topo.unit})',
+                      y_axis_label=f'height ({topo.unit})',
                       toolbar_location="above",
                       tooltips=TOOLTIPS)
 
@@ -359,21 +359,23 @@ class TopographyDetailView(TopographyAccessMixin, DetailView):
         heights = pyco_topo.heights()
 
         topo_size = pyco_topo.size
-        x_range = DataRange1d(start=0, end=topo_size[0], bounds='auto')
-        y_range = DataRange1d(start=0, end=topo_size[1], bounds='auto')
+        #x_range = DataRange1d(start=0, end=topo_size[0], bounds='auto')
+        #y_range = DataRange1d(start=0, end=topo_size[1], bounds='auto')
+        x_range = DataRange1d(start=0, end=topo_size[0], bounds='auto', range_padding=5)
+        y_range = DataRange1d(start=0, end=topo_size[1], bounds='auto', range_padding=5)
 
         color_mapper = LinearColorMapper(palette="Viridis256", low=heights.min(), high=heights.max())
 
         TOOLTIPS = [
-            ("x", "$x " + topo.size_unit),
-            ("y", "$y " + topo.size_unit),
-            ("height", "@image " + topo.height_unit),
+            ("x", "$x " + topo.unit),
+            ("y", "$y " + topo.unit),
+            ("height", "@image " + topo.unit),
         ]
 
         colorbar_width = 40
 
         aspect_ratio = topo_size[0] / topo_size[1]
-        plot_height = 800
+        plot_height = 500
         plot_width = int(plot_height * aspect_ratio)
 
         # from bokeh.models.tools import BoxZoomTool, WheelZoomTool, ZoomInTool, ZoomOutTool, PanTool
@@ -382,9 +384,9 @@ class TopographyDetailView(TopographyAccessMixin, DetailView):
                       plot_height=plot_height,
                       plot_width=plot_width,
                       # sizing_mode='scale_both',
-                      # match_aspect=True,
-                      x_axis_label=f'x ({topo.size_unit})',
-                      y_axis_label=f'y ({topo.size_unit})',
+                      match_aspect=True,
+                      x_axis_label=f'x ({topo.unit})',
+                      y_axis_label=f'y ({topo.unit})',
                       toolbar_location="above",
                       # tools=[PanTool(),BoxZoomTool(match_aspect=True), "save", "reset"],
                       tooltips=TOOLTIPS)
@@ -396,14 +398,20 @@ class TopographyDetailView(TopographyAccessMixin, DetailView):
 
         plot.toolbar.logo = None
 
+        colorbar_plot = figure(plot_height = plot_height, plot_width = colorbar_width+70,
+                               x_axis_location = None, y_axis_location = None, title = None,
+                               tools = '', toolbar_location = None)
+
         colorbar = ColorBar(color_mapper=color_mapper,
                             label_standoff=12, location=(0, 0),
                             width=colorbar_width)
-        colorbar.title = f"height ({topo.height_unit})"
+        colorbar.title = f"height ({topo.unit})"
 
-        plot.add_layout(colorbar, 'right')
+        colorbar_plot.add_layout(colorbar,'left')
 
-        return plot
+        #plot.add_layout(colorbar, 'right')
+
+        return Row(plot, colorbar_plot)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

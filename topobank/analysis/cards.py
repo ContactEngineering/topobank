@@ -210,7 +210,7 @@ def function_card_context(analyses):
         #
         if 'scalars' in analysis.result_obj:
             for k,v in analysis.result_obj['scalars'].items():
-                special_values.append((analysis.topography, k, v, analysis.topography.height_unit))
+                special_values.append((analysis.topography, k, v, analysis.topography.unit))
 
     #
     # Final configuration of the plot

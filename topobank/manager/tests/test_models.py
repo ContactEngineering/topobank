@@ -6,10 +6,7 @@ from .utils import two_topos
 @pytest.mark.django_db
 def test_topography_name(two_topos):
     topos = Topography.objects.all().order_by('name')
-    assert [ t.name for t in topos ] == ['50000x50000_random.txt',
-                                         '5000x5000_random.txt',
-                                         '500x500_random.txt',
-                                         'Example 3 - ZSensor',
+    assert [ t.name for t in topos ] == ['Example 3 - ZSensor',
                                          'Example 4 - Default']
 
 @pytest.mark.django_db
