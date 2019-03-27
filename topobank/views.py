@@ -9,12 +9,19 @@ class TermsView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data()
-        context['agreed_terms'] = TermsAndConditions.objects.filter(
-                userterms__date_accepted__isnull=False,
-                userterms__user=self.request.user).order_by('optional')
 
         active_terms = TermsAndConditions.get_active_terms_list()
 
-        context['not_agreed_terms'] = active_terms.filter(Q(userterms=None) | Q(userterms__date_accepted__isnull=True))\
-                                        .order_by('optional')
+        if self.request.user.is_authenticated:
+            context['agreed_terms'] = TermsAndConditions.objects.filter(
+                    userterms__date_accepted__isnull=False,
+                    userterms__user=self.request.user).order_by('optional')
+
+            context['not_agreed_terms'] = active_terms.filter(
+                Q(userterms=None) | \
+                (Q(userterms__date_accepted__isnull=True) & Q(userterms__user=self.request.user)))\
+                .order_by('optional')
+        else:
+            context['active_terms'] = active_terms.order_by('optional')
+
         return context
