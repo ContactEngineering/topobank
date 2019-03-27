@@ -58,9 +58,10 @@
       </div>
      {% endfor %}
 
+    <p>If you want to use this site, <a href="{% provider_login_url 'orcid' method="oauth2" %}">sign in via ORCID</a>.
+    Afterwards you have the possibility to review and accept terms and conditions.</p>
+
   {% endif %}
 
-  <p>If you want to use this site, <a href="{% provider_login_url 'orcid' method="oauth2" %}">sign in via ORCID</a>.
-  Afterwards you have the possibility to review and accept terms and conditions.</p>
 
 {% endblock %}
