@@ -245,9 +245,7 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
 @pytest.mark.django_db
 def test_trying_upload_of_invalid_topography_file(client, django_user_model):
 
-    # input_file_path = Path('../../../PyCo-web/PyCo_app/data/gain_control_uncd_dlc_4.004')
-    input_file_path = Path('topobank/manager/fixtures/two_topographies.yaml')
-    description = "invalid file"
+    input_file_path = Path('topobank/manager/views.py')
 
     username = 'testuser'
     password = 'abcd$1234'

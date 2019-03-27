@@ -71,7 +71,7 @@ def test_selection_choices(two_topos, testuser):
 
 def test_topographyfile_loading_invalid_file():
 
-    input_file_path = Path('topobank/manager/fixtures/two_topographies.yaml')
+    input_file_path = Path('topobank/manager/views.py')
 
     with pytest.raises(TopographyFileReadingException):
         TopographyFile(input_file_path)

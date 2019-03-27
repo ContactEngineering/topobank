@@ -79,44 +79,6 @@ def two_topos():
                       resolution_y=75)
 
 
-# TODO think about replacing this fixture with factory boy, probably much simpler?!
-@pytest.fixture
-def two_topos_OLD(django_db_setup, django_db_blocker):
-
-    #
-    # Copy uploaded files at the correct places
-    #
-    # This is hack, maybe better to use sth like
-    # https://github.com/duncaningram/django-fixture-media
-    #
-    from_to = [ ('topobank/manager/fixtures/example4.txt',
-                 ['topographies/user_1/example4.txt',
-                  'topographies/user_1/example4_DiVRsr9.txt']),
-                ('topobank/manager/fixtures/example3.di',
-                 ['topographies/user_1/example3_K7Ijorz.di'])
-    ]
-
-    for from_path, to_paths in from_to:
-        from_path = os.path.join(str(settings.ROOT_DIR), from_path)
-        for to_path in to_paths:
-            to_path = os.path.join(settings.MEDIA_ROOT, to_path)
-            _log.info("Copying fixture file '{}' -> '{}'..".format(from_path, to_path))
-            copyfile(from_path, to_path)
-
-    #
-    # Load database from YAML file
-    #
-    with django_db_blocker.unblock():
-        call_command('loaddata', 'two_topographies.yaml')
-
-        # Fix the passwords of fixtures
-        for user in User.objects.all():
-            user.set_password(user.password)
-            user.save()
-
-        # like this we can have clear-text passwords in test fixtures
-
-
 @pytest.fixture
 def one_line_scan():
 
