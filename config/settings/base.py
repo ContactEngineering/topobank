@@ -145,6 +145,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # Enable the following if you want to check T&C by middleware
     'termsandconditions.middleware.TermsAndConditionsRedirectMiddleware',
 ]
 
@@ -346,5 +347,6 @@ ACCOUNT_USER_DISPLAY = lambda user: user.name
 #
 # Settings for handling terms and conditions
 #
-# TERMS_EXCLUDE_URL_LIST = { '/logout/' }
+TERMS_EXCLUDE_URL_LIST = { '/accounts/logout/' }
+# TERMS_EXCLUDE_URL_PREFIX_LIST = {'/users/'}
 TERMS_EXCLUDE_USERS_WITH_PERM = 'users.can_skip_terms'
