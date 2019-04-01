@@ -63,18 +63,6 @@ class User(AbstractUser):
             ("can_skip_terms", "Can skip all checkings for terms and conditions."),
         )
 
-
-#
-# ensure that after user creation, a media directory exists
-#
-@receiver(post_save, sender=User)
-def ensure_media_dir_exists(sender, instance, **kwargs):
-    if kwargs['created']:
-        try:
-            os.makedirs(instance.get_media_path()) # TODO is this applicable for S3 backend
-        except FileExistsError:
-            pass
-
 #
 # ensure the full name field is set
 #
