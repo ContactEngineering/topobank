@@ -75,3 +75,11 @@ Alternative: Install FUSE lib, so you can see the bucket in your file manager, e
 
 See: https://cloud.netapp.com/blog/amazon-s3-as-a-file-system
 Still have problems using this option..
+
+So this
+
+.. code:: bash
+
+    s3fs -f  -o dbglevel=info -o url=https://s3gw1.vm.privat:8082/ -o bucket=topobank-assets-roettger -o use_path_request_style -o no_check_certificate -o curldbg ~/mnt/topobank-s3/
+
+was not successful so far, because the host name does not match the certificate.
