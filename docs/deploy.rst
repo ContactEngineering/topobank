@@ -420,6 +420,8 @@ Configures Python part: Django and Celery. You can use this as template:
 Replace all "<...>" values with long random strings or known passwords, as described.
 For the Django secret and the passwords you can also use punctuation.
 
+If `USE_S3_STORAGE` is `no`, a local directory will be used for file storage.
+
 
 Config file `.envs/.production/.postgres`
 .........................................
