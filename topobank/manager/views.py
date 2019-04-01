@@ -245,7 +245,7 @@ class TopographyCreateWizard(SessionWizardView):
             raise PermissionDenied()
 
         #
-        # move file to the permanent file system (wizard files will be deleted)
+        # move file to the permanent storage (wizard's files will be deleted)
         #
         new_path = os.path.join(self.request.user.get_media_path(),
                                 os.path.basename(d['datafile'].name))

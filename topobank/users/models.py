@@ -27,7 +27,8 @@ class User(AbstractUser):
         return reverse("users:detail", kwargs={"username": self.username})
 
     def get_media_path(self):
-        return os.path.join(settings.MEDIA_ROOT, 'topographies', 'user_{}'.format(self.id))
+        """Return relative path of directory for files of this user."""
+        return os.path.join('topographies', 'user_{}'.format(self.id))
 
     def _orcid_info(self):
         social_account = SocialAccount.objects.get(user_id=self.id)
@@ -64,13 +65,13 @@ class User(AbstractUser):
 
 
 #
-# ensure that after user creation, a media diretory exists
+# ensure that after user creation, a media directory exists
 #
 @receiver(post_save, sender=User)
 def ensure_media_dir_exists(sender, instance, **kwargs):
     if kwargs['created']:
         try:
-            os.makedirs(instance.get_media_path())
+            os.makedirs(instance.get_media_path()) # TODO is this applicable for S3 backend
         except FileExistsError:
             pass
 

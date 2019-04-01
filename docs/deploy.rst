@@ -403,6 +403,20 @@ Configures Python part: Django and Celery. You can use this as template:
     ORCID_CLIENT_ID=<from your ORCID configuration>
     ORCID_SECRET=<from your ORCID configuration>
 
+    # Storage settings
+    # ------------------------------------------------------------------------------
+    USE_S3_STORAGE=yes
+
+    AWS_ACCESS_KEY_ID=<insert your access key id>
+    AWS_SECRET_ACCESS_KEY=<insert your secret acccess key>
+
+    # the bucket will be created if not available, you can use different buckets for development and production:
+    AWS_STORAGE_BUCKET_NAME=topobank-assets-production
+    # replace with your endpoint url, you can use localhost:8082 if you want to use an SSH tunnel to your endpoint:
+    AWS_S3_ENDPOINT_URL=<insert your endpoint url>
+    AWS_S3_USE_SSL=True # this is default
+    AWS_S3_VERIFY=False  # currently the certificate is not valid
+
 Replace all "<...>" values with long random strings or known passwords, as described.
 For the Django secret and the passwords you can also use punctuation.
 

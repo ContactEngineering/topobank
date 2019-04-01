@@ -3,7 +3,7 @@ from imagekit.models import ImageSpecField
 from imagekit.processors import ResizeToFill
 
 
-from .utils import TopographyFile, selected_topographies
+from .utils import TopographyFile, selected_topographies, TopographyFileException
 from topobank.users.models import User
 
 def user_directory_path(instance, filename):
@@ -106,7 +106,23 @@ class Topography(models.Model):
         - scaled and detrended with the saved parameters
 
         """
-        topofile = TopographyFile(self.datafile.path) # assuming the datafile is stored on disk
+        try:
+            file = self.datafile.file
+        except Exception as exc:
+            msg = "Problems while instatiating file '{}' from storage '{}'.".format(
+                self.datafile.name, self.datafile.storage)
+            msg += " Further info: {}".format(exc)
+            raise TopographyFileException(msg) from exc
+
+        if not hasattr(file, 'mode'):
+            # WORKAROUND in order to make PyCo's "detect_format" (Version 0.31)
+            # work with S3 backend. The S3 backend file has no attribute "mode"
+            # and so "detect_format" does not work, because this attribute
+            # is used to find out whether the stream is binary or not.
+            # TODO Is this workaround still needed with the new reader infrastructure in PyCo
+            file.mode = 'rb'
+
+        topofile = TopographyFile(file)
 
         topo = topofile.topography(int(self.data_source))
         # TODO int() is a fix for SQLite which cannot return real int?? remove for PG

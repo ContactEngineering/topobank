@@ -40,7 +40,7 @@ def create_example_surface(sender, **kwargs):
         topo = Topography(surface=surface, **topo_kwargs)
 
         abs_fn = staticfiles_storage.path(topo_info['static_filename'])
-        file = open(abs_fn)
+        file = open(abs_fn, 'rb') # we need binary mode for boto3 (S3 library)
 
         topo.datafile.save(os.path.basename(abs_fn), File(file))
 
