@@ -99,10 +99,8 @@ class TopographyFile:
                 unit = None
 
             if not isinstance(unit, tuple):
-                try:
-                    topographies.append(topography) # scale + detrend is done later, see Topography.topography()
-                except Exception as exc:
-                    raise TopographyFileReadingException(fname, self._fmt, str(exc)) from exc
+                topographies.append(topography) # scale + detrend is done later, see Topography.topography()
+
         self._topographies = topographies
 
 
