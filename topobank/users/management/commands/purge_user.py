@@ -1,4 +1,5 @@
 from django.core.management.base import BaseCommand
+from django.core.files.storage import default_storage
 import sys
 
 from topobank.users.models import User
@@ -30,6 +31,8 @@ class Command(BaseCommand):
         topographies.delete()
         surfaces.delete()
         userterms.delete()
+        default_storage.delete(user.get_media_path())
+
         user.delete()
 
         self.stdout.write(self.style.SUCCESS(
