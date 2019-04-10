@@ -351,6 +351,7 @@ ACCOUNT_USER_DISPLAY = lambda user: user.name
 TERMS_EXCLUDE_URL_LIST = { '/accounts/logout/' }
 # TERMS_EXCLUDE_URL_PREFIX_LIST = {'/users/'}
 TERMS_EXCLUDE_USERS_WITH_PERM = 'users.can_skip_terms'
+TERMS_STORE_IP_ADDRESS=False
 
 #
 # Storage Settings
@@ -361,7 +362,7 @@ if USE_S3_STORAGE:
     # Enable this storage for the S3 backend
     DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
     # DEFAULT_FILE_STORAGE = 'topobank.manager.storage_backends.MediaStorage'
-    AWS_LOCATION='media'
+    AWS_LOCATION = env.str('AWS_MEDIA_PREFIX', default='media')
 
     AWS_ACCESS_KEY_ID = env.str('AWS_ACCESS_KEY_ID')
     AWS_SECRET_ACCESS_KEY = env.str('AWS_SECRET_ACCESS_KEY')
@@ -374,3 +375,5 @@ if USE_S3_STORAGE:
     AWS_S3_USE_SSL = env.bool('AWS_S3_USE_SSL', default=True)
     AWS_S3_VERIFY = env.bool('AWS_S3_VERIFY', default=True)
     AWS_DEFAULT_ACL = None
+    # Append extra characters if new files have the same name
+    AWS_S3_FILE_OVERWRITE = False

@@ -14,7 +14,7 @@ RUN apt-get update \
      liblcms2-dev libtiff-dev tk-dev tcl-dev librabbitmq-dev
 
 # clean up image
-#RUN apt-get -qy autoremove
+RUN apt-get -qy autoremove
 
 #
 # Installation of PyCo + dependencies
@@ -22,13 +22,11 @@ RUN apt-get update \
 # Copy PyCo source code into container, uncompress
 COPY PyCo-0.31.0.tar.gz .
 RUN tar xfvz PyCo-0.31.0.tar.gz
-WORKDIR PyCo-0.31.0
 
-# install additional PyCo dependencies
+# install PyCo
+WORKDIR PyCo-0.31.0
 RUN pip install wheel
 RUN pip install -r requirements.txt
-
-# install PyCo itself in venv
 RUN pip install .
 
 #
@@ -38,7 +36,7 @@ COPY ./requirements /requirements
 WORKDIR /
 RUN pip install -r /requirements/local.txt
 RUN pip install -r /requirements/test.txt
-# TODO remove test settings as they are always useful for local?
+# TODO remove test requirements as they are always useful for local?
 
 # Here the entrypoint from production settings is taken!
 COPY ./compose/production/django/entrypoint /entrypoint

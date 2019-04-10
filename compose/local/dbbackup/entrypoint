@@ -1,0 +1,24 @@
+#!/bin/bash
+
+set -o errexit
+set -o pipefail
+set -o nounset
+
+export DATABASE_USER="${POSTGRES_USER}"
+export DATABASE_PASSWORD="${POSTGRES_PASSWORD}"
+export DATABASE_NAME="${POSTGRES_DB}"
+export DATABASE_HOST="${POSTGRES_HOST}"
+export DATABASE_PORT="${POSTGRES_PORT}"
+
+export S3_ENDPOINT="${AWS_S3_ENDPOINT_URL}"
+export S3_BUCKET="${AWS_STORAGE_BUCKET_NAME}"
+
+export MAX_BACKUPS=10
+export S3_REGION="eu-central-1"
+export S3_PREFIX="backup/"
+export S3_FORCE_PATH_STYLE=1
+
+export SCHEDULE=${DBBACKUP_SCHEDULE}
+
+echo "Starting backup schedule ${SCHEDULE}.."
+exec /bin/go-s3-backup backup postgres s3

@@ -223,3 +223,28 @@ Please also double check the following before replacing the dump:
 If you can an error message like "django.db.utils.OperationalError: no such table: main.users_user__old"
 during loading this dump when running the tests, you may have a Django version 2.0.x with this bug:
 https://code.djangoproject.com/ticket/29182
+
+Starting Topobank in Docker
+---------------------------
+
+There is a Docker compose configuration to start the whole stack in development.
+It is a testbed for the production, which is composed using "production.yml".
+
+.. code:: bash
+
+   $ docker-compose -f local.yaml build
+   $ docker-compose -f local.yaml up
+
+The following services are started:
+
+- postgres database
+- celery workers
+- celery flower for monitoring the queues
+- celery beat for scheduled celery jobs
+- automatic database backup to S3
+- rabbitmq message broker
+- memcached for caching intermediate results
+- minio: S3 server for media files and backup, see port 9000 in browser
+- mailhog: local mail server+client with web interface on port 8025
+
+See local.yml for details and which ports are available to the host.

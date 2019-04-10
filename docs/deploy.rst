@@ -601,7 +601,81 @@ Or instead in one command:
 Configuring backup
 ------------------
 
-.. todo:: document how to do backup and restore
+We want to backup the Django database in order to be able to restore
+it in case of failures. In order to do so we regularly create dumps of the database
+and push them to the same S3 bucket as the media files (with another prefix).
+
+
+For creating the database dumps, we use the built-in functionality of `cookiecutter-django`, as
+you can read here:
+
+  https://cookiecutter-django.readthedocs.io/en/latest/docker-postgres-backups.html
+
+In short: Backups can be manually triggered by
+.. code:: bash
+
+    $ docker-compose -f production.yml exec postgres backup
+
+This will create a dump file in the volume `production_postgres_data_backups` on the host,
+so they are persistent if you recreate the Docker containers.
+With this command you can list the backups in the volume:
+.. code:: bash
+
+    docker-compose -f production.yml exec postgres backups
+
+Note the trailing "s" in "backups".
+
+If you have a backup file name, e.g. `backup_2018_03_13T09_05_07.sql.gz`, you can restore the
+database with (PLEASE STOP APPLICATION FIRST - "stop", not "down"):
+
+.. code:: bash
+
+    $ docker-compose -f local.yml exec postgres restore backup_2018_03_13T09_05_07.sql.gz
+
+We don't want to rely on the virtual machine only. In order to save the dump on another system,
+we dump the files into the S3 bucket used for the topography files.
+
+The topography files, or all media files in general, are saved in a bucket with the prefix `media/`.
+The backups should be saved with the prefix `backups/`.
+Here we use a command line tool for copying the dumpy into the bucket: `s3mcd`.
+
+Install the tool on Ubuntu by
+
+.. code:: bash
+
+   $ sudo apt-get install s3cmd
+
+Create a config file `~/.s3cfg` on the host in the home directory of the `topobank` user:
+
+.. code::
+
+    access_key=<your access key>
+    secret_key=<your secret key>
+    host_base=<your S3 host>:<your port>
+    host_bucket=<your S3 host>:<your port>/%(bucket)
+
+Change these values appropriately. See the man page of `s3cmd`for more options (under OPTIONS).
+
+
+
+
+This code can be used to find out the physical directory of the host volume with the backups
+
+.. code:: bash
+
+    docker volume inspect topobank_production_postgres_data_backups -f '{{ .Mountpoint  }}'
+
+Versuche mit
+
+ docker run --rm --network="host" --env-file env.txt codestation/postgres-s3-backup backup postgres s3
+
+Versuche mit: https://github.com/chrisbrownie/docker-s3-cron-backup
+und externem env file
+
+
+
+
+
 
 Updating the application
 ------------------------
