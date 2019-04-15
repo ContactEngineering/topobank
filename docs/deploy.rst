@@ -476,6 +476,8 @@ Then import terms and conditions:
     docker-compose -f production.yml run --rm django python manage.py import_terms site-terms 1.0 topobank/static/other/TermsConditions.md
     docker-compose -f production.yml run --rm django python manage.py import_terms --optional optional-terms 1.0 topobank/static/other/TermsConditionsSupplement.md
 
+Import the second one only if you want to ask for optional terms and conditions.
+
 After these conditions are installed, they are active (default activation time is installation time) and
 the user is asked when signing in. At least the non-optional terms and conditions (with slug "site-terms")
 must be accepted in order to use the application.
@@ -694,10 +696,7 @@ Create a config file `~/.s3cfg` on the host in the home directory of the `topoba
     host_base=<your S3 host>:<your port>
     host_bucket=<your S3 host>:<your port>/%(bucket)
 
-Change these values appropriately. See the man page of `s3cmd`for more options (under OPTIONS).
-
-
-
+Change these values appropriately. See the man page of `s3cmd` for more options (under OPTIONS).
 
 This code can be used to find out the physical directory of the host volume with the backups
 
@@ -748,13 +747,22 @@ Rebuild the containers:
 
     docker-compose -f production.yml build
 
-If this was successful, start the new containers in the background:
+If this was successful, aks yourself these questions:
+
+- Is a change in config files neccessary, e.g. below `.envs/production`?
+  Are there any new settings?
+- Is a migration of the database needed? If yes, do
+  `docker-compose -f production.yml run --rm django python manage.py migrate`
+  See here for reference: https://cookiecutter-django.readthedocs.io/en/latest/deployment-with-docker.html?highlight=migrate
+
+If this is okay, start the new containers in the background:
 
 .. code:: bash
 
     docker-compose -f production.yml up -d
 
-Test whether the new application works.
+Test whether the new application works. See also above link if you want to scale the application,
+e.g. having more processes handling the web requests or celery workers.
 
 Look into the database
 ----------------------
