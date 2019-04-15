@@ -606,6 +606,46 @@ it in case of failures. In order to do so we regularly create dumps of the datab
 and push them to the same S3 bucket as the media files (with another prefix).
 
 
+Automated backups using a predefined service
+--------------------------------------------
+
+In the docker compose files there is a predefined service named "dbbackup". This service is based on a
+docker image named "codestation/postgres-s3-backup", which stores postgres dumps to an S3 backend
+using a scheduler.
+
+The docker-compose configuration for local development also starts a local "minio" S3 service
+to store the media files and stores the dumps. It is used automatically.
+
+The docker-compose configuration for production also uses the configured S3 connection, but there
+is no local minio service installed.
+
+The backup is always saved with a prefix "backup", so your dump files e.g. look like this:
+
+.. code::
+
+    backup/postgres-backup-20190410213318.sql
+    backup/postgres-backup-20190410213319.sql
+    [...]
+
+The numbers in the file name is the timestamp of the backup.
+
+As additional settings for the backup, you define the schedule in the config file `.envs/.local/.django`
+or `.envs/.production/.django` e.g.:
+
+.. code::
+
+   DBBACKUP_SCHEDULE=@daily
+
+for daily backups. Also crontab-like entries are allowed. For more information about how to define the schedule,
+see  https://godoc.org/github.com/robfig/cron.
+
+Then, after starting the containers, the backup is done automatically.
+
+Alternative backup strategy (more manual work)
+..............................................
+
+(INCOMPLETE)
+
 For creating the database dumps, we use the built-in functionality of `cookiecutter-django`, as
 you can read here:
 
