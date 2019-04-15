@@ -35,6 +35,18 @@ services:
     env_file:
       - ./.envs/.production/.postgres
 
+  dbbackup:
+    build:
+      context: .
+      dockerfile: ./compose/production/dbbackup/Dockerfile
+    image: topobank_production_dbbackup
+    depends_on:
+      - postgres
+    env_file:
+      - ./.envs/.production/.django
+      - ./.envs/.production/.postgres
+    entrypoint: /entrypoint
+
   caddy:
     build:
       context: .
