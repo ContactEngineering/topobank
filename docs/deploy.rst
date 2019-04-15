@@ -525,11 +525,13 @@ Viewing logs
    docker-compose -f production.yml logs
 
 See help with `-h` in order to see more options, e.g. filter for messages of one service.
-Example: See only messages of "django" service:
+Use `-f` in order to follow logs.
+
+Example: See only messages of "django" service and follow them:
 
 .. code:: bash
 
-   docker-compose -f production.yml logs django
+   docker-compose -f production.yml logs -f django
 
 Seeing running processes
 ........................
