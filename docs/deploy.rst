@@ -797,6 +797,19 @@ Afterwards you should be able to open the connection.
 
 .. todo:: There is another way by exposing the postgresql port to the host, but only localhost. Then the IP is not needed.
 
+Purge a user and all his data
+-----------------------------
+
+Use with care!!
+In order to delete the user with username `michael` (check this in database)
+and to delete all his surfaces+topographies, use:
+
+.. code:: bash
+
+   docker-compose -f production.yml run --rm django python manage.py purge_user michael
+
+So far, there is no extra question, so this immediately done.
+
 Known problems
 --------------
 
