@@ -645,12 +645,75 @@ see  https://godoc.org/github.com/robfig/cron.
 
 Then, after starting the containers, the backup is done automatically.
 
+Restoring database from a backup
+--------------------------------
+
+The generell idea is
+
+- stop the application
+- copy a dump file from the S3 bucket to a local directory
+- drop the current database
+- use posgresql commands to restore the database from the dump
+
+This process is partly automated. Two ways to accomplish this are discussed.
+
+Using built-in dbbackup container to restore
+............................................
+
+This is the container which is also used to create the backups periodically.
+First stop the application:
+
+.. code:: bash
+
+    docker-compose -f production.yml stop
+
+Start only the postgresql part:
+
+.. code:: bash
+
+    docker-compose -f local.yml up postgres dbbackup
+
+Open another terminal.
+
+Restore the database by dropping the old database and importing the latest dump from S3:
+
+.. code:: bash
+
+    docker-compose -f local.yml run --rm -e RESTORE_DATABASE=1 dbbackup
+
+Setting the variable `RESTORE_DATABASE=1` restores the database immediately instead of starting the scheduler
+again. See `compose/production/dbbackup/entrypoint` for details.
+
+Then stop the two services in the first terminal. Afterwards restart all the stack:
+
+.. code:: bash
+
+    docker-compose -f production.yml up -d
+
+The application should work with the restored database.
+Be aware that there could be inconsistencies:
+
+- there could be topography entries in the database which point to a topography file
+  which does not exist (could lead to an error in the application)
+- there could be topography files left on the S3 storage for which no topography exists any more
+
+Using built-in restore command from django-cookiecutter
+.......................................................
+
+NOT TESTED. Another idea is to manually copy backup one file to
+the volume `production_postgres_data_backups` and to use the restore
+command as described on
+
+ https://cookiecutter-django.readthedocs.io/en/latest/docker-postgres-backups.html
+
+Not sure yet whether the dump format is correct.
+
 Alternative backup strategy (more manual work)
 ..............................................
 
 (INCOMPLETE)
 
-For creating the database dumps, we use the built-in functionality of `cookiecutter-django`, as
+For creating the database dumps, we could alternatively use the built-in functionality of `cookiecutter-django`, as
 you can read here:
 
   https://cookiecutter-django.readthedocs.io/en/latest/docker-postgres-backups.html
@@ -680,7 +743,7 @@ We don't want to rely on the virtual machine only. In order to save the dump on 
 we dump the files into the S3 bucket used for the topography files.
 
 The topography files, or all media files in general, are saved in a bucket with the prefix `media/`.
-The backups should be saved with the prefix `backups/`.
+The backups should be saved with the prefix `backup/`.
 Here we use a command line tool for copying the dumpy into the bucket: `s3mcd`.
 
 Install the tool on Ubuntu by
@@ -706,12 +769,22 @@ This code can be used to find out the physical directory of the host volume with
 
     docker volume inspect topobank_production_postgres_data_backups -f '{{ .Mountpoint  }}'
 
-Versuche mit
+You could use this in order to manually create a cron job which periodically
+syncs the contents of the volume `production_postgres_data_backups` to S3.
+When using cron for this, also make sure to delete dumps which are too old, but always keep
+a maximum number of dumps.
 
- docker run --rm --network="host" --env-file env.txt codestation/postgres-s3-backup backup postgres s3
+In case of restore, you could first just use the locally available dumps as described on
 
-Versuche mit: https://github.com/chrisbrownie/docker-s3-cron-backup
-und externem env file
+    https://cookiecutter-django.readthedocs.io/en/latest/docker-postgres-backups.html
+
+If you need the dumps from S3, e.g. the dumps are locally lost, you could use `s3cmd` to sync
+the other way round.
+
+More ideas:
+
+- https://github.com/chrisbrownie/docker-s3-cron-backup
+
 
 
 
