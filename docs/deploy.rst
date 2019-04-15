@@ -752,7 +752,11 @@ If this was successful, aks yourself these questions:
 - Is a change in config files neccessary, e.g. below `.envs/production`?
   Are there any new settings?
 - Is a migration of the database needed? If yes, do
-  `docker-compose -f production.yml run --rm django python manage.py migrate`
+
+  .. code:: bash
+
+     docker-compose -f production.yml run --rm django python manage.py migrate
+
   See here for reference: https://cookiecutter-django.readthedocs.io/en/latest/deployment-with-docker.html?highlight=migrate
 
 If this is okay, start the new containers in the background:
