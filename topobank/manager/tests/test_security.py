@@ -64,9 +64,6 @@ def test_prevent_topography_access_by_other_user(client, django_user_model, mock
     #
     user1 = django_user_model.objects.create_user(username=username1, password=password1)
 
-    # accept terms and conditions TODO use factory boy here
-
-
     surface = Surface.objects.create(id=surface_id, name="Surface 1", user=user1)
     assert surface.id == surface_id
     surface.save()

@@ -285,7 +285,7 @@ class TopographyForm(TopographyUnitsForm):
                     Submit('save', 'Save'),
                     HTML("""
                         <a href="{% url 'manager:topography-detail' object.id %}" class="btn btn-default" id="cancel-btn">Cancel</a>
-                    """),# TODO check back point
+                    """),# TODO check back reference for cancel, always okay like this?
                 ),
         )
 
@@ -318,7 +318,7 @@ class SurfaceForm(forms.ModelForm):
                 Submit('save', 'Save'),
                 HTML("""
                     <a href="{% url 'manager:surface-list' %}" class="btn btn-default" id="cancel-btn">Cancel</a>
-                """),# TODO check back point for cancel
+                """),# TODO check back reference for cancel
             ),
     )
 

@@ -252,7 +252,7 @@ CELERY_ACCEPT_CONTENT = ['json']
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-task_serializer
 CELERY_TASK_SERIALIZER = 'json'
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-result_serializer
-CELERY_RESULT_SERIALIZER = 'json' # TODO pickle because of arrays?
+CELERY_RESULT_SERIALIZER = 'json'
 # TODO: set to whatever value is adequate in your circumstances
 CELERYD_TASK_TIME_LIMIT = 5 * 60
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#task-soft-time-limit
@@ -270,7 +270,7 @@ CELERYD_TASK_SOFT_TIME_LIMIT = 60
 #    CELERY_RESULT_BACKEND = CELERY_BROKER_URL
 
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-accept_content
-#CELERY_ACCEPT_CONTENT = ['json', 'pickle'] # TODO remove JSON?
+#CELERY_ACCEPT_CONTENT = ['json', 'pickle']
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-task_serializer
 #CELERY_TASK_SERIALIZER = 'pickle'
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-result_serializer
@@ -316,11 +316,10 @@ SELECT2_I18N_PATH = '/static/vendor/select2/js/i18n'
 #
 # Define permissions when using the rest framework
 #
-# TODO Make sure that no one can retrieve data from other users, e.g. in view
+# Make sure that no one can retrieve data from other users, e.g. in view. See GH 168.
 # This may help: https://www.django-rest-framework.org/api-guide/permissions/
 # This seems to fit well: https://www.django-rest-framework.org/tutorial/4-authentication-and-permissions/
 #
-# TODO is the rest framework still needed?
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',

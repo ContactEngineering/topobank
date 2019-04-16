@@ -5,11 +5,10 @@ set -o pipefail
 set -o nounset
 
 #
-# TODO The migration should not be run automatically in production
-#
 # See commands here:
 #   https://cookiecutter-django.readthedocs.io/en/latest/deployment-with-docker.html#building-running-production-stack
 #
+# The migration should not be run automatically in production
 #python manage.py migrate
 #python manage.py register_analysis_functions
 

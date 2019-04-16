@@ -308,9 +308,6 @@ def test_topography_list(client, two_topos, django_user_model):
 
         # TODO tests missing for bar length and position (selenium??)
 
-# TODO add test with predefined height conversion
-# TODO add test with predefined physical size
-
 @pytest.fixture
 def topo_example3():
     return Topography.objects.get(name='Example 3 - ZSensor')
