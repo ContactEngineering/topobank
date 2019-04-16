@@ -1,7 +1,4 @@
 from django.db import models, transaction
-from imagekit.models import ImageSpecField
-from imagekit.processors import ResizeToFill
-
 
 from .utils import TopographyFile, selected_topographies, TopographyFileException
 from topobank.users.models import User
@@ -78,14 +75,6 @@ class Topography(models.Model):
 
     detrend_mode = models.TextField(choices=DETREND_MODE_CHOICES, default='center')
 
-    #
-    # Fields for image creation
-    #
-    image = models.ImageField(default='topographies/not_available.png') # TODO Check if needed
-    thumbnail = ImageSpecField(source='image',
-                               processors=[ResizeToFill(100,100)],
-                               format='JPEG',
-                               options={'quality': 60}) # TODO Check if needed
     resolution_x = models.IntegerField(null=True) # null for line scans
     resolution_y = models.IntegerField(null=True) # null for line scans
 
@@ -144,10 +133,6 @@ class Topography(models.Model):
                                                      info=dict(unit=self.unit))
 
         return topo
-
-    # def submit_images_creation(self): # TODO remove if not needed for thumbnails
-    #     from .utils import create_topography_images
-    #     transaction.on_commit(lambda: create_topography_images.delay(self.id))
 
     def submit_automated_analyses(self):
         """Submit all automatic analysis for this Topography.

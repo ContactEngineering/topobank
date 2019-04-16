@@ -72,7 +72,6 @@ THIRD_PARTY_APPS = [
     'allauth.socialaccount.providers.orcid',
     'rest_framework',
     'fontawesome',
-    'imagekit',
     'formtools',
     'bokeh',
     'termsandconditions',

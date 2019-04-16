@@ -49,11 +49,6 @@ tornado>=4.2.0,<6.0.0
 scipy
 PyCo==0.31.0
 
-# image manipulation like thumbnails etc.
-django-imagekit==4.0.2
-# TODO check whether really needed, if we create plots with bokeh
-# TODO maybe there is another thumbnail library which is better suited
-
 # plotting
 bokeh==1.1.0
 # link to CSS+JS in HTML files must must this version!

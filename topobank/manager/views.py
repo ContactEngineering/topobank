@@ -262,9 +262,6 @@ class TopographyCreateWizard(SessionWizardView):
         instance = Topography(**d)
         instance.save()
 
-        # put image creation tasks in queue
-        # instance.submit_images_creation()
-
         # put automated analysis in queue
         instance.submit_automated_analyses() # TODO create notification
 
@@ -298,7 +295,6 @@ class TopographyUpdateView(TopographyAccessMixin, UpdateView):
         return kwargs
 
     def get_success_url(self):
-        #self.object.submit_images_creation() # TODO this is only needed if image would change
         self.object.submit_automated_analyses()
         return reverse('manager:topography-detail', kwargs=dict(pk=self.object.pk))
 
