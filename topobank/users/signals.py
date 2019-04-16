@@ -15,7 +15,7 @@ def create_example_surface(sender, **kwargs):
     user = kwargs['user']
 
     example_info_fn = staticfiles_storage.path('data/example_surface.yaml')
-    example_info = yaml.load(open(example_info_fn))
+    example_info = yaml.safe_load(open(example_info_fn))
 
     #
     # Create surface
