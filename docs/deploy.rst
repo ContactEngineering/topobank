@@ -69,7 +69,7 @@ Ensure you have sudo permissions.
 
 .. code:: bash
 
-    sudo apt-get install git
+    sudo apt-get install git supervisor
 
 Make sure you DON'T have the follwing installed, since they run as docker-compose services in containers:
 
@@ -417,6 +417,21 @@ Configures Python part: Django and Celery. You can use this as template:
     AWS_S3_USE_SSL=True # this is default
     AWS_S3_VERIFY=False  # currently the certificate is not valid
 
+    # Backup Settings
+    # ------------------------------------------------------------------------------
+    #
+    # Periodically database dumps will be written to the defined S3 bucket
+    # with prefix "backup".
+    #
+    # For more information about the used docker image: https://hub.docker.com/r/codestation/go-s3-backup/
+    #
+    # set 6 (!) cron job-like fields: secs minutes hours day_of_month month day_of_week
+    # or predefined schedules
+    # or "none" for single backup once
+    # for more information see: https://godoc.org/github.com/robfig/cron
+    DBBACKUP_SCHEDULE=@daily
+
+
 Replace all "<...>" values with long random strings or known passwords, as described.
 For the Django secret and the passwords you can also use punctuation.
 
@@ -483,11 +498,60 @@ the user is asked when signing in. At least the non-optional terms and condition
 must be accepted in order to use the application.
 The optional terms can also be accepted later, e.g. bei choosing "Terms & Conditions" from the help menu.
 
+.. _automated-restart:
+
+Configuration of automated restart
+----------------------------------
+
+Follow the instructions here:
+
+  https://cookiecutter-django.readthedocs.io/en/latest/deployment-with-docker.html?highlight=restart#example-supervisor
+
+That is, as root copy this contents to `vim /etc/supervisor/conf.d/topobank.conf`:
+
+.. code::
+
+    [program:topobank]
+    user=topobank
+    command=docker-compose -f production.yml up
+    directory=/home/topobank/topobank
+    redirect_stderr=true
+    autostart=true
+    autorestart=true
+    priority=10
+
+
+(including `user` option!)
+
+Make sure, topobank completely stopped.
+
+Reread the supervisor configuration and start:
+
+.. code:: bash
+
+    supervisorctl reread
+    supervisorctl start topobank
+
+Status check:
+
+.. code:: bash
+
+    supervisorctl status
+
+Check logs as user `topobank` in directory `/home/topobank/topobank`:
+
+.. code:: bash
+
+    docker-compose -f production.yml logs -f
+
+
+
+
 Get to know docker-compose
 --------------------------
 
 This is your interface to interact with all running containers.
-Have a look at the possible commands:
+Login as user :code:`topobank` and have a look at the possible commands:
 
 .. code:: bash
 
@@ -513,9 +577,12 @@ Creating containers for all services and start
 
 The switch `-d` detaches the containers from the terminal, so you can safely log out.
 
+A similar command (without `-d`) is called on start of the host, if `supervisor` has been configured
+as described here: :ref:`automated-restart`.
+
 .. DANGER::
 
-    Be careful with the `down` command!! It will remove the containers and all data!!
+    Be careful with the :code:`down` command!! It will remove the containers and all data!!
 
 Viewing logs
 ............
