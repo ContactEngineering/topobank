@@ -52,19 +52,12 @@ PyCo==0.31.0
 # plotting
 bokeh==1.1.0
 # link to CSS+JS in HTML files must must this version!
-#matplotlib==2.2.3
-# TODO Check if matplotlib is still needed
 
 # form wizard for defining a topography in several steps
 django-formtools==2.1
 
 # multiple select widget
 django-select2==6.3.1
-
-# pandas
-# pandas==0.23.4
-# TODO pandas is currently needed for data export, but we disable it here to get docker done
-# https://files.pythonhosted.org/packages/c0/f7/7fd96f43d84a22d068fc999f2ae27f677be4c9501441f5b7870b75842fa4/pandas-0.24.1-cp37-cp37m-manylinux1_x86_64.whl
 
 # openpyxl
 openpyxl==2.5.9
@@ -76,7 +69,7 @@ pint==0.8.1
 # django-termsandconditions>=1.2.13<2.0
 # install from own optional_terms branch
 git+http://git@github.com/mcrot/django-termsandconditions.git@optional_terms
-# TODO fork this into account of IMTEK/Simulation organisation
+# TODO fork this into account of IMTEK/Simulation organisation if still needed (maybe we don't need optional terms)
 
 # markdown conversion for terms & conditions
 markdown2>=2.3.7,<3.0
