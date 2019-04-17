@@ -861,20 +861,31 @@ More ideas:
 Updating the application
 ------------------------
 
-.. todo:: document how to do an update if the code changes such that database is kept
-
-
 Login to the VM as user topobank and change to the working directory:
 
 .. code:: bash
 
     cd ~/topobank
 
-Stop the application:
+Stop the application
+....................
+
+If you are using `supervisor`, login as a user which has sudo rights and call
+
+.. code:: bash
+
+   sudo supervisorctl stop topobank
+
+If you don't use `supervisor`, just call
 
 .. code:: bash
 
     docker-compose -f production.yml stop
+
+(this won't help when started via supervisor, because topobank is immediately restarted again).
+
+Update the code
+...............
 
 Be sure that the new code is available on the remote repository. Fetch the changes
 and apply them to the working directory.
@@ -883,13 +894,24 @@ and apply them to the working directory.
 
     git pull
 
-Rebuild the containers:
+Rebuild the containers
+......................
 
 .. code:: bash
 
     docker-compose -f production.yml build
 
-If this was successful, aks yourself these questions:
+The database should be kept, because it is saved on a Docker "volume" on the host.
+You can see the volumes using
+
+.. code:: bash
+
+    docker volume ls
+
+Update configuration/database
+.............................
+
+If building the containers was successful, aks yourself these questions:
 
 - Is a change in config files neccessary, e.g. below `.envs/production`?
   Are there any new settings?
@@ -900,8 +922,20 @@ If this was successful, aks yourself these questions:
      docker-compose -f production.yml run --rm django python manage.py migrate
 
   See here for reference: https://cookiecutter-django.readthedocs.io/en/latest/deployment-with-docker.html?highlight=migrate
+- Is there any need to change sth. in the S3 storage?
 
-If this is okay, start the new containers in the background:
+Restart application
+...................
+
+If everything is okay, start the new containers in the background.
+
+If you are using supervisor, change again to the terminal with sudo rights and call
+
+.. code:: bash
+
+    sudo supervisorctl start topobank
+
+Without supervisor, call:
 
 .. code:: bash
 
@@ -940,7 +974,7 @@ Afterwards you should be able to open the connection.
 Purge a user and all his data
 -----------------------------
 
-Use with care!!
+If needed, you can delete a user and all his/her data. This can be useful e.g. in development. Use with care!!
 In order to delete the user with username `michael` (check this in database)
 and to delete all his surfaces+topographies, use:
 
@@ -948,10 +982,12 @@ and to delete all his surfaces+topographies, use:
 
    docker-compose -f production.yml run --rm django python manage.py purge_user michael
 
-So far, there is no extra question, so this immediately done.
+So far, there is no extra question, so this immediately done!
 
 Known problems
 --------------
+
+Here are some known problems and how to handle them.
 
 PostGreSQL user does not exist
 ..............................
