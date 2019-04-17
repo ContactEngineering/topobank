@@ -2,11 +2,15 @@
 
 ## 0.1
 
+- login via ORCID
 - creation of surfaces with metadata
 - uploading topography measurements for a surface together with metadata
-- zoom into topographyy surfaces or line scan plots
+- example surface with test data for new users
+- zoom into topography surfaces or line scan plots
 - automated analyses for topographies and line scans: 
   height/slope/curvature distribution, power spectrum, autocorrelation
 - compare analysis results by stitching plots
-- example surface with test data for new users
+- download of analysis results as png, xlsx, or text file
+- ask user for terms and conditions, also optional terms are possible
+- storage of topography files on S3 backend
 
