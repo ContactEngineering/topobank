@@ -10,6 +10,7 @@ from django.contrib import messages
 from django.db.models import OuterRef, Subquery
 from django.shortcuts import render
 from django.db.models import Q
+from django.conf import settings
 from rest_framework.generics import RetrieveAPIView
 
 from ..manager.models import Topography
@@ -154,7 +155,6 @@ def download_analysis_to_txt(request, ids):
 
     # TODO: It would probably be useful to use the (some?) template engine for this.
     # TODO: We need a mechanism for embedding references to papers into output.
-    # FIXME: TopoBank needs version information
 
     # Pack analysis results into a single text file.
     f = io.StringIO()
@@ -163,7 +163,7 @@ def download_analysis_to_txt(request, ids):
         if i == 0:
             f.write('# {}\n'.format(a.function) +
                     '# {}\n'.format('='*len(str(a.function))) +
-                    '# TopoBank version: N/A\n' +
+                    '# TopoBank version: {}\n'.format(settings.TOPOBANK_VERSION) +
                     '# PyCo version: {}\n'.format(PyCo.__version__) +
                     '# IF YOU USE THIS DATA IN A PUBLICATION, PLEASE CITE XXX.\n' +
                     '\n')
@@ -197,7 +197,6 @@ def download_analysis_to_xlsx(request, ids):
     ids = [int(i) for i in ids.split(',')]
 
     # TODO: We need a mechanism for embedding references to papers into output.
-    # FIXME: TopoBank needs version information
     # TODO: Probably this function leaves out data if the sheet names are not unique (built from topography+series name)
     # TODO: pandas is a requirement that takes quite long when building docker images, do we really need it here?
     import pandas as pd
@@ -213,7 +212,7 @@ def download_analysis_to_xlsx(request, ids):
         a = Analysis.objects.get(pk=id)
         if i == 0:
             properties += ['Function', 'TopoBank version', 'PyCo version']
-            values += [str(a.function), 'N/A', PyCo.__version__]
+            values += [str(a.function), settings.TOPOBANK_VERSION, PyCo.__version__]
 
         properties += ['Topography',
                        'Further arguments of analysis function', 'Start time of analysis task',
