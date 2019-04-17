@@ -69,7 +69,7 @@ Ensure you have sudo permissions.
 
 .. code:: bash
 
-    sudo apt-get install git
+    sudo apt-get install git supervisor
 
 Make sure you DON'T have the follwing installed, since they run as docker-compose services in containers:
 
@@ -403,8 +403,39 @@ Configures Python part: Django and Celery. You can use this as template:
     ORCID_CLIENT_ID=<from your ORCID configuration>
     ORCID_SECRET=<from your ORCID configuration>
 
+    # Storage settings
+    # ------------------------------------------------------------------------------
+    USE_S3_STORAGE=yes
+
+    AWS_ACCESS_KEY_ID=<insert your access key id>
+    AWS_SECRET_ACCESS_KEY=<insert your secret acccess key>
+
+    # the bucket will be created if not available, you can use different buckets for development and production:
+    AWS_STORAGE_BUCKET_NAME=topobank-assets-production
+    # replace with your endpoint url, you can use localhost:8082 if you want to use an SSH tunnel to your endpoint:
+    AWS_S3_ENDPOINT_URL=<insert your endpoint url>
+    AWS_S3_USE_SSL=True # this is default
+    AWS_S3_VERIFY=False  # currently the certificate is not valid
+
+    # Backup Settings
+    # ------------------------------------------------------------------------------
+    #
+    # Periodically database dumps will be written to the defined S3 bucket
+    # with prefix "backup".
+    #
+    # For more information about the used docker image: https://hub.docker.com/r/codestation/go-s3-backup/
+    #
+    # set 6 (!) cron job-like fields: secs minutes hours day_of_month month day_of_week
+    # or predefined schedules
+    # or "none" for single backup once
+    # for more information see: https://godoc.org/github.com/robfig/cron
+    DBBACKUP_SCHEDULE=@daily
+
+
 Replace all "<...>" values with long random strings or known passwords, as described.
 For the Django secret and the passwords you can also use punctuation.
+
+If `USE_S3_STORAGE` is `no`, a local directory will be used for file storage.
 
 
 Config file `.envs/.production/.postgres`
@@ -453,13 +484,134 @@ from environment variables:
     docker-compose -f production.yml run --rm django envsubst < orcid.yaml.template > orcid.yaml
     docker-compose -f production.yml run --rm django python manage.py loaddata orcid.yaml
 
+Then import terms and conditions:
+
+.. code:: bash
+
+    docker-compose -f production.yml run --rm django python manage.py import_terms site-terms 1.0 topobank/static/other/TermsConditions.md
+    docker-compose -f production.yml run --rm django python manage.py import_terms --optional optional-terms 1.0 topobank/static/other/TermsConditionsSupplement.md
+
+Import the second one only if you want to ask for optional terms and conditions.
+
+After these conditions are installed, they are active (default activation time is installation time) and
+the user is asked when signing in. At least the non-optional terms and conditions (with slug "site-terms")
+must be accepted in order to use the application.
+The optional terms can also be accepted later, e.g. bei choosing "Terms & Conditions" from the help menu.
+
+.. _automated-restart:
+
+Configuration of automated restart
+----------------------------------
+
+First, once make sure, the supervisor service uses the user "topobank"
+for the socket. Then the user "topobank" can start and stop the application
+without sudo. Therefore add the line
+
+.. code::
+
+    chown=topobank
+
+to the section :code:`[unix_http_server]` of the file :code:`/etc/supervisor/supervisord.conf`.
+Afterwards the file may look like this::
+
+    ; supervisor config file
+
+    [unix_http_server]
+    file=/var/run/supervisor.sock   ; (the path to the socket file)
+    chmod=0700                       ; sockef file mode (default 0700)
+    chown=topobank
+
+    [supervisord]
+    logfile=/var/log/supervisor/supervisord.log ; (main log file;default $CWD/supervisord.log)
+    pidfile=/var/run/supervisord.pid ; (supervisord pidfile;default supervisord.pid)
+    childlogdir=/var/log/supervisor            ; ('AUTO' child log dir, default $TEMP)
+
+    ; the below section must remain in the config file for RPC
+    ; (supervisorctl/web interface) to work, additional interfaces may be
+    ; added by defining them in separate rpcinterface: sections
+    [rpcinterface:supervisor]
+    supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface
+
+    [supervisorctl]
+    serverurl=unix:///var/run/supervisor.sock ; use a unix:// URL  for a unix socket
+
+    ; The [include] section can just contain the "files" setting.  This
+    ; setting can list multiple files (separated by whitespace or
+    ; newlines).  It can also contain wildcards.  The filenames are
+    ; interpreted as relative to this file.  Included files *cannot*
+    ; include files themselves.
+
+    [include]
+    files = /etc/supervisor/conf.d/*.conf
+
+
+Then add a configuration for the topobank program.
+Follow the instructions here:
+
+  https://cookiecutter-django.readthedocs.io/en/latest/deployment-with-docker.html?highlight=restart#example-supervisor
+
+That is, as root copy this contents to `vim /etc/supervisor/conf.d/topobank.conf`:
+
+.. code::
+
+    [program:topobank]
+    user=topobank
+    command=docker-compose -f production.yml up
+    directory=/home/topobank/topobank
+    redirect_stderr=true
+    autostart=true
+    autorestart=true
+    priority=10
+
+
+(including `user` option!)
+
+Make sure, topobank completely stopped.
+
+Reread the supervisor configuration and start:
+
+.. code:: bash
+
+    supervisorctl reread
+    supervisorctl start topobank
+
+Status check:
+
+.. code:: bash
+
+    supervisorctl status
+
+Make sure you are user "topobank" in the directory `/home/topobank/topobank`.
+All docker containers should be running:
+
+.. code:: bash
+
+    topobank@topobank:~/topobank$ docker-compose -f production.yml ps
+             Name                        Command               State                         Ports
+    ---------------------------------------------------------------------------------------------------------------------
+    topobank_caddy_1          /bin/parent caddy --conf / ...   Up      2015/tcp, 0.0.0.0:443->443/tcp, 0.0.0.0:80->80/tcp
+    topobank_celerybeat_1     /entrypoint /start-celerybeat    Up
+    topobank_celeryworker_1   /entrypoint /start-celeryw ...   Up
+    topobank_dbbackup_1       /entrypoint                      Up
+    topobank_django_1         /entrypoint /start               Up
+    topobank_flower_1         /entrypoint /start-flower        Up      0.0.0.0:5555->5555/tcp
+    topobank_memcached_1      docker-entrypoint.sh memcached   Up      11211/tcp
+    topobank_postgres_1       docker-entrypoint.sh postgres    Up      5432/tcp
+    topobank_rabbitmq_1       docker-entrypoint.sh rabbi ...   Up      25672/tcp, 4369/tcp, 5671/tcp, 5672/tcp
+
+
+Logging output can be seen with this command:
+
+.. code:: bash
+
+    docker-compose -f production.yml logs -f
 
 
 Get to know docker-compose
 --------------------------
 
 This is your interface to interact with all running containers.
-Have a look at the possible commands:
+Login as user :code:`topobank` and have a look at the possible commands:
 
 .. code:: bash
 
@@ -485,9 +637,12 @@ Creating containers for all services and start
 
 The switch `-d` detaches the containers from the terminal, so you can safely log out.
 
+A similar command (without `-d`) is called on start of the host, if `supervisor` has been configured
+as described here: :ref:`automated-restart`.
+
 .. DANGER::
 
-    Be careful with the `down` command!! It will remove the containers and all data!!
+    Be careful with the :code:`down` command!! It will remove the containers and all data!!
 
 Viewing logs
 ............
@@ -497,11 +652,13 @@ Viewing logs
    docker-compose -f production.yml logs
 
 See help with `-h` in order to see more options, e.g. filter for messages of one service.
-Example: See only messages of "django" service:
+Use `-f` in order to follow logs.
+
+Example: See only messages of "django" service and follow them:
 
 .. code:: bash
 
-   docker-compose -f production.yml logs django
+   docker-compose -f production.yml logs -f django
 
 Seeing running processes
 ........................
@@ -575,15 +732,322 @@ Or instead in one command:
 Configuring backup
 ------------------
 
-.. todo:: document how to do backup and restore
+We want to backup the Django database in order to be able to restore
+it in case of failures. In order to do so we regularly create dumps of the database
+and push them to the same S3 bucket as the media files (with another prefix).
+
+
+Automated backups using a predefined service
+--------------------------------------------
+
+In the docker compose files there is a predefined service named "dbbackup". This service is based on a
+docker image named "codestation/postgres-s3-backup", which stores postgres dumps to an S3 backend
+using a scheduler.
+
+The docker-compose configuration for local development also starts a local "minio" S3 service
+to store the media files and stores the dumps. It is used automatically.
+
+The docker-compose configuration for production also uses the configured S3 connection, but there
+is no local minio service installed.
+
+The backup is always saved with a prefix "backup", so your dump files e.g. look like this:
+
+.. code::
+
+    backup/postgres-backup-20190410213318.sql
+    backup/postgres-backup-20190410213319.sql
+    [...]
+
+The numbers in the file name is the timestamp of the backup.
+
+As additional settings for the backup, you define the schedule in the config file `.envs/.local/.django`
+or `.envs/.production/.django` e.g.:
+
+.. code::
+
+   DBBACKUP_SCHEDULE=@daily
+
+for daily backups. Also crontab-like entries are allowed. For more information about how to define the schedule,
+see  https://godoc.org/github.com/robfig/cron.
+
+Then, after starting the containers, the backup is done automatically.
+
+Restoring database from a backup
+--------------------------------
+
+The generell idea is
+
+- stop the application
+- copy a dump file from the S3 bucket to a local directory
+- drop the current database
+- use posgresql commands to restore the database from the dump
+
+This process is partly automated. Two ways to accomplish this are discussed.
+
+Using built-in dbbackup container to restore
+............................................
+
+This is the container which is also used to create the backups periodically.
+First stop the application:
+
+.. code:: bash
+
+    docker-compose -f production.yml stop
+
+Start only the postgresql part:
+
+.. code:: bash
+
+    docker-compose -f local.yml up postgres dbbackup
+
+Open another terminal.
+
+Restore the database by dropping the old database and importing the latest dump from S3:
+
+.. code:: bash
+
+    docker-compose -f local.yml run --rm -e RESTORE_DATABASE=1 dbbackup
+
+Setting the variable `RESTORE_DATABASE=1` restores the database immediately instead of starting the scheduler
+again. See `compose/production/dbbackup/entrypoint` for details.
+
+Then stop the two services in the first terminal. Afterwards restart all the stack:
+
+.. code:: bash
+
+    docker-compose -f production.yml up -d
+
+The application should work with the restored database.
+Be aware that there could be inconsistencies:
+
+- there could be topography entries in the database which point to a topography file
+  which does not exist (could lead to an error in the application)
+- there could be topography files left on the S3 storage for which no topography exists any more
+
+Using built-in restore command from django-cookiecutter
+.......................................................
+
+NOT TESTED. Another idea is to manually copy backup one file to
+the volume `production_postgres_data_backups` and to use the restore
+command as described on
+
+ https://cookiecutter-django.readthedocs.io/en/latest/docker-postgres-backups.html
+
+Not sure yet whether the dump format is correct.
+
+Alternative backup strategy (more manual work)
+..............................................
+
+(INCOMPLETE)
+
+For creating the database dumps, we could alternatively use the built-in functionality of `cookiecutter-django`, as
+you can read here:
+
+  https://cookiecutter-django.readthedocs.io/en/latest/docker-postgres-backups.html
+
+In short: Backups can be manually triggered by
+.. code:: bash
+
+    $ docker-compose -f production.yml exec postgres backup
+
+This will create a dump file in the volume `production_postgres_data_backups` on the host,
+so they are persistent if you recreate the Docker containers.
+With this command you can list the backups in the volume:
+.. code:: bash
+
+    docker-compose -f production.yml exec postgres backups
+
+Note the trailing "s" in "backups".
+
+If you have a backup file name, e.g. `backup_2018_03_13T09_05_07.sql.gz`, you can restore the
+database with (PLEASE STOP APPLICATION FIRST - "stop", not "down"):
+
+.. code:: bash
+
+    $ docker-compose -f local.yml exec postgres restore backup_2018_03_13T09_05_07.sql.gz
+
+We don't want to rely on the virtual machine only. In order to save the dump on another system,
+we dump the files into the S3 bucket used for the topography files.
+
+The topography files, or all media files in general, are saved in a bucket with the prefix `media/`.
+The backups should be saved with the prefix `backup/`.
+Here we use a command line tool for copying the dumpy into the bucket: `s3mcd`.
+
+Install the tool on Ubuntu by
+
+.. code:: bash
+
+   $ sudo apt-get install s3cmd
+
+Create a config file `~/.s3cfg` on the host in the home directory of the `topobank` user:
+
+.. code::
+
+    access_key=<your access key>
+    secret_key=<your secret key>
+    host_base=<your S3 host>:<your port>
+    host_bucket=<your S3 host>:<your port>/%(bucket)
+
+Change these values appropriately. See the man page of `s3cmd` for more options (under OPTIONS).
+
+This code can be used to find out the physical directory of the host volume with the backups
+
+.. code:: bash
+
+    docker volume inspect topobank_production_postgres_data_backups -f '{{ .Mountpoint  }}'
+
+You could use this in order to manually create a cron job which periodically
+syncs the contents of the volume `production_postgres_data_backups` to S3.
+When using cron for this, also make sure to delete dumps which are too old, but always keep
+a maximum number of dumps.
+
+In case of restore, you could first just use the locally available dumps as described on
+
+    https://cookiecutter-django.readthedocs.io/en/latest/docker-postgres-backups.html
+
+If you need the dumps from S3, e.g. the dumps are locally lost, you could use `s3cmd` to sync
+the other way round.
+
+More ideas:
+
+- https://github.com/chrisbrownie/docker-s3-cron-backup
+
+
+
+
+
+
 
 Updating the application
 ------------------------
 
-.. todo:: document how to do an update if the code changes such that database is kept
+Login to the VM as user topobank and change to the working directory:
+
+.. code:: bash
+
+    cd ~/topobank
+
+Stop the application
+....................
+
+If you are using `supervisor`, do
+
+.. code:: bash
+
+   supervisorctl stop topobank
+
+If you don't use `supervisor`, just call
+
+.. code:: bash
+
+    docker-compose -f production.yml stop
+
+(this won't help when started via supervisor, because topobank is immediately restarted again).
+
+Update the code
+...............
+
+Be sure that the new code is available on the remote repository. Fetch the changes
+and apply them to the working directory.
+
+.. code:: bash
+
+    git pull
+
+Rebuild the containers
+......................
+
+.. code:: bash
+
+    docker-compose -f production.yml build
+
+The database should be kept, because it is saved on a Docker "volume" on the host.
+You can see the volumes using
+
+.. code:: bash
+
+    docker volume ls
+
+Update configuration/database
+.............................
+
+If building the containers was successful, aks yourself these questions:
+
+- Is a change in config files neccessary, e.g. below `.envs/production`?
+  Are there any new settings?
+- Is a migration of the database needed? If yes, do
+
+  .. code:: bash
+
+     docker-compose -f production.yml run --rm django python manage.py migrate
+
+  See here for reference: https://cookiecutter-django.readthedocs.io/en/latest/deployment-with-docker.html?highlight=migrate
+- Is there any need to change sth. in the S3 storage?
+
+Restart application
+...................
+
+If everything is okay, start the new containers in the background.
+
+If you are using supervisor, do
+
+.. code:: bash
+
+    supervisorctl start topobank
+
+Without supervisor, call:
+
+.. code:: bash
+
+    docker-compose -f production.yml up -d
+
+Test whether the new application works. See also above link if you want to scale the application,
+e.g. having more processes handling the web requests or celery workers.
+
+Look into the database
+----------------------
+
+You can indirectly connect from outside to the PostGreSQL database, e.g.
+by using a tool "PGAdmin". Therefore you an use an SSH tunnel and connect to
+the docker container which runs the PostGreSQL database.
+
+First be sure to know the IP address of the docker container running the PostGreSQL database.
+Log in to the VM once and execute
+
+.. code:: bash
+
+    docker inspect -f "{{ .NetworkSettings.Networks.topobank_default.IPAddress }}" topobank_postgres_1
+
+Then take a note of the IP. Use this IP in an SSH tunnel, e.g.:
+
+.. code:: bash
+
+    ssh -L 5434:172.19.0.3:5432 topobank-vm
+
+Then on your laptop, use PGAdmin and open a connection to `localhost:5434`.
+Use the already open terminal to access the file `.envs/.production/.postgres` in order
+to copy & paste the username and password (two long random strings) to PGAdmin.
+Afterwards you should be able to open the connection.
+
+.. todo:: There is another way by exposing the postgresql port to the host, but only localhost. Then the IP is not needed.
+
+Purge a user and all his data
+-----------------------------
+
+If needed, you can delete a user and all his/her data. This can be useful e.g. in development. Use with care!!
+In order to delete the user with username `michael` (check this in database)
+and to delete all his surfaces+topographies, use:
+
+.. code:: bash
+
+   docker-compose -f production.yml run --rm django python manage.py purge_user michael
+
+So far, there is no extra question, so this immediately done!
 
 Known problems
 --------------
+
+Here are some known problems and how to handle them.
 
 PostGreSQL user does not exist
 ..............................
@@ -603,6 +1067,8 @@ Probably the image has already a user created. If there is no valuable data yet,
   docker system prune
   docker volume rm $(docker volume ls -qf dangling=true)
   docker-compose -f production.yml build
+
+
 
 
 

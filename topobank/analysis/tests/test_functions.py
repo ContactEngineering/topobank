@@ -6,7 +6,7 @@ from PyCo.Topography import Topography, NonuniformLineScan
 
 from topobank.analysis.functions import (
     height_distribution, slope_distribution, curvature_distribution,
-    autocorrelation, variable_bandwidth)
+    power_spectrum, autocorrelation, variable_bandwidth)
 
 ###############################################################################
 # Tests for line scans
@@ -119,9 +119,114 @@ def test_curvature_distribution_simple_line_scan():
     # not testing gauss values yet since number of points is unknown
     # proposal: use a well tested function instead of own formula
 
+def test_power_spectrum_simple_nonuniform_linescan():
+
+    unit = 'nm'
+    x = np.arange(10)
+    y = -2*x**2 # constant curvature
+
+    t = NonuniformLineScan(x, y, info=dict(unit=unit)).detrend(detrend_mode='center')
+
+    result = power_spectrum(t)
+
+    assert sorted(result.keys()) == sorted(['name', 'xlabel', 'ylabel', 'xunit', 'yunit', 'xscale', 'yscale', 'series'])
+
+    assert result['name'] == 'Power-spectral density (PSD)'
+
+    assert result['xlabel'] == 'Wavevector'
+    assert result['ylabel'] == 'PSD'
+    assert result['xunit'] == '{}⁻¹'.format(unit)
+    assert result['yunit'] == '{}³'.format(unit)
+
+    assert len(result['series']) == 1
+
+    s0, = result['series']
+
+    assert s0['name'] == '1D PSD along x'
+
+    # TODO Also check values here as integration test?
+
+def test_autocorrelation_simple_nonuniform_topography():
+
+    x = np.arange(5)
+    h = 2*x
+
+    info = dict(unit='nm')
+
+    t = NonuniformLineScan(x, h, info=info).detrend('center')
+
+    result = autocorrelation(t)
+
+    assert sorted(result.keys()) == sorted(['name', 'xlabel', 'ylabel', 'xscale', 'yscale', 'xunit', 'yunit', 'series'])
+
+    assert result['name'] == 'Height-difference autocorrelation function (ACF)'
+
+    # TODO Check result values for autocorrelation
+
+def test_variable_bandwidth_simple_nonuniform_linescan():
+
+    x = np.arange(5)
+    h = 2 * x
+    info = dict(unit='nm')
+
+    t = NonuniformLineScan(x, h, info=info).detrend('center')
+
+    result = variable_bandwidth(t)
+
+    assert sorted(result.keys()) == sorted(['name', 'xlabel', 'ylabel', 'xscale', 'yscale', 'xunit', 'yunit', 'series'])
+
+    assert result['name'] == 'Variable-bandwidth analysis'
+    # TODO Check result values for bandwidht
+
+
 ###############################################################################
 # Tests for 2D topographies
 ###############################################################################
+
+def test_height_distribution_simple_2D_topography():
+
+    unit = 'nm'
+    info = dict(unit=unit)
+
+    y = np.arange(10).reshape((1, -1))
+    x = np.arange(5).reshape((-1, 1))
+
+    arr = -2*y+0*x # only slope in y direction
+
+    t = Topography(arr, (10,5), info=info).detrend('center')
+
+    # resulting heights follow this function: h(x,y)=-4y+9
+
+    # bins = [-10., -8., -6., -4., -2.,  0.,  2.,  4.,  6.,  8., 10.]
+
+    result = height_distribution(t, bins=10)
+
+    assert sorted(result.keys()) == sorted(['name', 'scalars', 'xlabel', 'ylabel', 'xunit', 'yunit', 'series'])
+
+    assert result['name'] == 'Height distribution'
+
+    assert pytest.approx(result['scalars']['Mean Height']) == 0.
+    assert pytest.approx(result['scalars']['RMS Height']) == np.sqrt(33)
+
+    assert result['xlabel'] == 'Height'
+    assert result['ylabel'] == 'Probability'
+    assert result['xunit'] == unit
+    assert result['yunit'] == '{}⁻¹'.format(unit)
+
+    assert len(result['series']) == 2
+
+    exp_bins = np.array([-8.1, -6.3, -4.5, -2.7, -0.9,  0.9,  2.7,  4.5,  6.3,  8.1]) # for heights
+    exp_height_dist_values = np.ones((10,))*1/(10*1.8) # each interval has width of 1.8, 10 intervals
+    series0 = result['series'][0]
+
+    assert series0['name'] == 'Height distribution'
+
+    np.testing.assert_almost_equal(series0['x'], exp_bins)
+    np.testing.assert_almost_equal(series0['y'], exp_height_dist_values)
+
+    # TODO not testing gauss values yet since number of points is unknown
+    # proposal: use a well tested function instead of own formula
+
 
 def test_slope_distribution_simple_2D_topography():
 
@@ -173,6 +278,83 @@ def test_slope_distribution_simple_2D_topography():
     # TODO not testing gauss values yet since number of points is unknown
     # proposal: use a well tested function instead of own formula
 
+def test_curvature_distribution_simple_2D_topography():
+
+    unit = 'nm'
+    info = dict(unit=unit)
+
+    y = np.arange(10).reshape((1, -1))
+    x = np.arange(5).reshape((-1, 1))
+
+    arr = -2*y+0*x # only slope in y direction
+
+    t = Topography(arr, (10,5), info=info).detrend('center')
+
+    # resulting heights follow this function: h(x,y)=-4y+9
+
+    result = curvature_distribution(t, bins=3)
+
+    assert sorted(result.keys()) == sorted(['name', 'scalars', 'xlabel', 'ylabel', 'xunit', 'yunit', 'series'])
+
+    assert result['name'] == 'Curvature distribution'
+
+    assert pytest.approx(result['scalars']['Mean Curvature']) == 0.
+    assert pytest.approx(result['scalars']['RMS Curvature']) == 0.
+
+    assert result['xlabel'] == 'Curvature'
+    assert result['ylabel'] == 'Probability'
+    assert result['xunit'] == '{}⁻¹'.format(unit)
+    assert result['yunit'] == unit
+
+    assert len(result['series']) == 2
+
+    s0, s1 = result['series']
+
+    exp_bins = np.array([-1./3, 0, 1./3]) # for curvatures
+    exp_curvature_dist_values = [0, 3, 0]
+
+    assert s0['name'] == 'Curvature distribution'
+
+    np.testing.assert_almost_equal(s0['x'], exp_bins)
+    np.testing.assert_almost_equal(s0['y'], exp_curvature_dist_values)
+
+    assert s1['name'] == 'RMS curvature'
+    # Not testing gaussian here
+
+def test_power_spectrum_simple_2D_topography():
+
+    unit = 'nm'
+    info = dict(unit=unit)
+
+    y = np.arange(10).reshape((1, -1))
+    x = np.arange(5).reshape((-1, 1))
+
+    arr = -2 * y + 0 * x  # only slope in y direction
+    t = Topography(arr, (10, 5), info=info).detrend('center')
+
+    # resulting heights follow this function: h(x,y)=-4y+9
+
+    result = power_spectrum(t)
+
+    assert sorted(result.keys()) == sorted(['name', 'xlabel', 'ylabel', 'xunit', 'yunit', 'xscale', 'yscale', 'series'])
+
+    assert result['name'] == 'Power-spectral density (PSD)'
+
+    assert result['xlabel'] == 'Wavevector'
+    assert result['ylabel'] == 'PSD'
+    assert result['xunit'] == '{}⁻¹'.format(unit)
+    assert result['yunit'] == '{}³'.format(unit)
+
+    assert len(result['series']) == 3
+
+    s0, s1, s2 = result['series']
+
+    assert s0['name'] == 'q/π × 2D PSD'
+    assert s1['name'] == '1D PSD along x'
+    assert s2['name'] == '1D PSD along y'
+
+    # TODO Also check values here as integration test?
+
 def test_autocorrelation_simple_2D_topography():
     y = np.arange(10).reshape((1, -1))
     x = np.arange(5).reshape((-1, 1))
@@ -209,3 +391,4 @@ def test_variable_bandwidth_simple_2D_topography():
 
     assert result['name'] == 'Variable-bandwidth analysis'
     # TODO Check result values for bandwidht
+

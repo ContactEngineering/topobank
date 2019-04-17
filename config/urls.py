@@ -6,6 +6,8 @@ from django.contrib import admin
 from django.views.generic import TemplateView
 from django.views import defaults as default_views
 
+from topobank.views import TermsView
+
 urlpatterns = [
     path("", TemplateView.as_view(template_name="pages/home.html"), name="home"),
     path(
@@ -17,6 +19,11 @@ urlpatterns = [
         "about/",
         TemplateView.as_view(template_name="pages/about.html"),
         name="about",
+    ),
+    path(
+        "termsandconditions/",
+        TermsView.as_view(),
+        name="terms",
     ),
     # Django Admin, use {% url 'admin:index' %}
     path(settings.ADMIN_URL, admin.site.urls),
@@ -36,7 +43,11 @@ urlpatterns = [
         include("topobank.analysis.urls", namespace="analysis"),
     ),
 
+    # For interactive select boxes
     url(r'^select2/', include('django_select2.urls')),
+
+    # For asking for terms and conditions
+    url(r'^terms/', include('termsandconditions.urls')),
 
 ] + static(
     settings.MEDIA_URL, document_root=settings.MEDIA_ROOT

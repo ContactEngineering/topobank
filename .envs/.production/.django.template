@@ -44,3 +44,32 @@ CELERY_FLOWER_PASSWORD=<a very long random string>
 # ------------------------------------------------------------------------------
 ORCID_CLIENT_ID=<replace with your client ID from ORCID>
 ORCID_SECRET=<replace with your secret from ORCID>
+
+# Storage settings
+# ------------------------------------------------------------------------------
+USE_S3_STORAGE=yes
+
+AWS_ACCESS_KEY_ID=<insert your access key id>
+AWS_SECRET_ACCESS_KEY=<insert your secret acccess key>
+
+# the bucket will be created if not available, you can use different buckets for development and production:
+AWS_STORAGE_BUCKET_NAME=topobank-production
+# replace with your endpoint url, you can use http://localhost:8082/ if you want to use an SSH tunnel to your endpoint:
+AWS_S3_ENDPOINT_URL=<insert your endpoint url>
+AWS_S3_USE_SSL=True # this is default
+AWS_S3_VERIFY=False  # currently the certificate is not valid
+
+# Backup Settings
+# ------------------------------------------------------------------------------
+#
+# Periodically database dumps will be written to the defined S3 bucket
+# with prefix "backup".
+#
+# For more information about the used docker image: https://hub.docker.com/r/codestation/go-s3-backup/
+#
+# set 6 (!) cron job-like fields: secs minutes hours day_of_month month day_of_week
+# or predefined schedules
+# or "none" for single backup once
+# for more information see: https://godoc.org/github.com/robfig/cron
+DBBACKUP_SCHEDULE=@daily
+#DBBACKUP_SCHEDULE=none

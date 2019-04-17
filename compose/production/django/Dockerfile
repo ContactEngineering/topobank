@@ -85,12 +85,6 @@ RUN chown -R django /app
 # RUN chmod -R u+w /app
 
 #
-# Prepare some system settings
-#
-# RUN sysctl vm.overcommit_memory=1
-# TODO needed for redis to suppress warning, but in which package?
-
-#
 # Finalize..
 #
 WORKDIR /app

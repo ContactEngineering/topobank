@@ -91,7 +91,6 @@ def perform_analysis(self, analysis_id):
         analysis.task_state = Analysis.SUCCESS
     except Exception as exc:
         analysis.task_state = Analysis.FAILURE
-        # TODO add logging
         result = dict(error=traceback.format_exc())
 
     #

@@ -19,13 +19,13 @@
 
 {% block extra_css %}
 <link
-    href="https://cdn.pydata.org/bokeh/release/bokeh-1.0.1.min.css"
+    href="https://cdn.pydata.org/bokeh/release/bokeh-1.1.0.min.css"
     rel="stylesheet" type="text/css">
 <link
-    href="https://cdn.pydata.org/bokeh/release/bokeh-widgets-1.0.1.min.css"
+    href="https://cdn.pydata.org/bokeh/release/bokeh-widgets-1.1.0.min.css"
     rel="stylesheet" type="text/css">
 <link
-    href="https://cdn.pydata.org/bokeh/release/bokeh-tables-1.0.1.min.css"
+    href="https://cdn.pydata.org/bokeh/release/bokeh-tables-1.1.0.min.css"
     rel="stylesheet" type="text/css">
 {% endblock extra_css %}
 
@@ -93,12 +93,12 @@
             <tr>
               <th scope="row">Physical Size</th>
               <td>
-              {{ topography.size_x }} {{ topography.size_unit }}{% if topography.size_y %} x {{ topography.size_y }} {{ topography.size_unit }} {% endif %}
+              {{ topography.size_x }} {{ topography.unit }}{% if topography.size_y %} x {{ topography.size_y }} {{ topography.unit }} {% endif %}
               </td>
             </tr>
             <tr>
               <th scope="row">Height Conversion Factor</th>
-              <td>{{ topography.height_scale }} {{ topography.height_unit }}</td>
+              <td>{{ topography.height_scale }} {{ topography.unit }}</td>
             </tr>
             <tr>
               <th scope="row">Detrending Mode</th>
@@ -113,9 +113,7 @@
           </tbody>
         </table>
       </div>
-
     </div>
-
   </div>
 </div>
 
@@ -124,9 +122,9 @@
 {% block javascript %}
 
 <!-- ----------- for bokeh plot ----- -->
-<script src="https://cdn.pydata.org/bokeh/release/bokeh-1.0.1.min.js"></script>
-<script src="https://cdn.pydata.org/bokeh/release/bokeh-widgets-1.0.1.min.js"></script>
-<script src="https://cdn.pydata.org/bokeh/release/bokeh-tables-1.0.1.min.js"></script>{#  TODO not needed so far #}
+<script src="https://cdn.pydata.org/bokeh/release/bokeh-1.1.0.min.js"></script>
+<script src="https://cdn.pydata.org/bokeh/release/bokeh-widgets-1.1.0.min.js"></script>
+<script src="https://cdn.pydata.org/bokeh/release/bokeh-tables-1.1.0.min.js"></script>
 
 {{ image_plot_script | safe }}
 

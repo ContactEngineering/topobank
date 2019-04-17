@@ -7,8 +7,9 @@ import datetime
 import os.path
 
 from topobank.manager.tests.utils import export_reponse_as_html
-from ..tests.utils import two_topos
+from ..tests.utils import two_topos, one_line_scan
 from ..models import Topography, Surface
+from topobank.utils import assert_in_content, assert_redirects, assert_no_form_errors
 
 #
 # Different formats are handled by PyCo
@@ -93,9 +94,8 @@ def test_upload_topography_di(client, django_user_model):
                                'topography_create_wizard-current_step': 'units2D',
                                'units2D-size_x': '9000',
                                'units2D-size_y': '9000',
-                               'units2D-size_unit': 'nm',
+                               'units2D-unit': 'nm',
                                'units2D-height_scale': 0.3,
-                               'units2D-height_unit': 'nm',
                                'units2D-detrend_mode': 'height',
                                'units2D-resolution_x': 256,
                                'units2D-resolution_y': 256,
@@ -204,9 +204,8 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
                                data={
                                    'topography_create_wizard-current_step': "units1D",
                                    'units1D-size_x': '1',
-                                   'units1D-size_unit': 'nm',
+                                   'units1D-unit': 'nm',
                                    'units1D-height_scale': 1,
-                                   'units1D-height_unit': 'nm',
                                    'units1D-detrend_mode': 'height',
                                    'units1D-resolution_x': exp_resolution_x,
                                }, follow=True)
@@ -217,9 +216,8 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
                                    'topography_create_wizard-current_step': "units2D",
                                    'units2D-size_x': '1',
                                    'units2D-size_y': '1',
-                                   'units2D-size_unit': 'nm',
+                                   'units2D-unit': 'nm',
                                    'units2D-height_scale': 1,
-                                   'units2D-height_unit': 'nm',
                                    'units2D-detrend_mode': 'height',
                                    'units2D-resolution_x': exp_resolution_x,
                                    'units2D-resolution_y': exp_resolution_y,
@@ -247,9 +245,7 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
 @pytest.mark.django_db
 def test_trying_upload_of_invalid_topography_file(client, django_user_model):
 
-    # input_file_path = Path('../../../PyCo-web/PyCo_app/data/gain_control_uncd_dlc_4.004')
-    input_file_path = Path('topobank/manager/fixtures/two_topographies.yaml')
-    description = "invalid file"
+    input_file_path = Path('topobank/manager/views.py')
 
     username = 'testuser'
     password = 'abcd$1234'
@@ -297,9 +293,10 @@ def test_topography_list(client, two_topos, django_user_model):
     #
     # all topographies for 'testuser' and surface1 should be listed
     #
-    topos = Topography.objects.filter(surface__user__username=username)
+    surface = Surface.objects.get(name="Surface 1", user__username=username)
+    topos = Topography.objects.filter(surface=surface)
 
-    response = client.get(reverse('manager:surface-detail', kwargs=dict(pk=1)))
+    response = client.get(reverse('manager:surface-detail', kwargs=dict(pk=surface.id)))
 
     content = str(response.content)
     for t in topos:
@@ -311,12 +308,90 @@ def test_topography_list(client, two_topos, django_user_model):
 
         # TODO tests missing for bar length and position (selenium??)
 
-# TODO add test with predefined height conversion
-# TODO add test with predefined physical size
+@pytest.fixture
+def topo_example3():
+    return Topography.objects.get(name='Example 3 - ZSensor')
+
+@pytest.fixture
+def topo_example4():
+    return Topography.objects.get(name='Example 4 - Default')
 
 
 @pytest.mark.django_db
-def test_edit_topography(client, two_topos, django_user_model):
+def test_edit_topography(client, two_topos, django_user_model, topo_example3):
+
+    new_name = "This is a better name"
+    new_measurement_date = "2018-07-01"
+    new_description = "New results available"
+
+    username = 'testuser'
+    password = 'abcd$1234'
+
+    assert client.login(username=username, password=password)
+
+    #
+    # First get the form and look whether all the expected data is in there
+    #
+    response = client.get(reverse('manager:topography-update', kwargs=dict(pk=topo_example3.id)))
+    assert response.status_code == 200
+
+    assert 'form' in response.context
+
+    form = response.context['form']
+    initial = form.initial
+
+    assert initial['name'] == topo_example3.name
+    assert initial['measurement_date'] == datetime.date(2018,1,1)
+    assert initial['description'] == 'description1'
+    assert initial['size_x'] == pytest.approx(10)
+    assert initial['size_y'] == pytest.approx(10)
+    assert pytest.approx(initial['height_scale']) == 0.29638271279074097
+    assert initial['detrend_mode'] == 'height'
+
+    #
+    # Then send a post with updated data
+    #
+    response = client.post(reverse('manager:topography-update', kwargs=dict(pk=topo_example3.id)),
+                           data={
+                            'surface': topo_example3.surface.id,
+                            'data_source': 0,
+                            'name': new_name,
+                            'measurement_date': new_measurement_date,
+                            'description': new_description,
+                            'size_x': 500,
+                            'size_y': 1000,
+                            'unit': 'nm',
+                            'height_scale': 0.1,
+                            'detrend_mode': 'height',
+                           }, follow=True)
+
+    assert_no_form_errors(response)
+
+    # we should have been redirected to topography details
+    assert_redirects(response, reverse('manager:topography-detail', kwargs=dict(pk=topo_example3.id)))
+
+    topos = Topography.objects.filter(surface=topo_example3.surface).order_by('pk')
+
+    assert len(topos) == 2
+
+    t = topos[0]
+
+    assert t.measurement_date == datetime.date(2018, 7, 1)
+    assert t.description == new_description
+    assert t.name == new_name
+    assert "example3" in t.datafile.name
+    assert pytest.approx(t.size_x) == 500
+    assert pytest.approx(t.size_y) == 1000
+
+    #
+    # should also appear in the list of topographies
+    #
+    response = client.get(reverse('manager:surface-detail', kwargs=dict(pk=t.surface.id)))
+    assert bytes(new_name, 'utf-8') in response.content
+
+
+@pytest.mark.django_db
+def test_edit_line_scan(client, one_line_scan, django_user_model):
 
     new_name = "This is a better name"
     new_measurement_date = "2018-07-01"
@@ -329,6 +404,27 @@ def test_edit_topography(client, two_topos, django_user_model):
 
     assert client.login(username=username, password=password)
 
+    #
+    # First get the form and look whether all the expected data is in there
+    #
+    response = client.get(reverse('manager:topography-update', kwargs=dict(pk=topo_id)))
+    assert response.status_code == 200
+
+    assert 'form' in response.context
+
+    form = response.context['form']
+    initial = form.initial
+
+    assert initial['name'] == 'Simple Line Scan'
+    assert initial['measurement_date'] == datetime.date(2018,1,1)
+    assert initial['description'] == 'description1'
+    assert initial['size_x'] == 9
+    assert pytest.approx(initial['height_scale']) == 1.
+    assert initial['detrend_mode'] == 'height'
+
+    #
+    # Then send a post with updated data
+    #
     response = client.post(reverse('manager:topography-update', kwargs=dict(pk=topo_id)),
                            data={
                             'surface': 1,
@@ -337,26 +433,28 @@ def test_edit_topography(client, two_topos, django_user_model):
                             'measurement_date': new_measurement_date,
                             'description': new_description,
                             'size_x': 500,
-                            'size_y': 1000,
-                            'size_unit': 'nm',
+                            'unit': 'nm',
                             'height_scale': 0.1,
-                            'height_unit': 'nm',
                             'detrend_mode': 'height',
                            })
 
+    assert response.context is None, "Errors in form: {}".format(response.context['form'].errors)
     assert response.status_code == 302
     # we should have been redirected to topography details
     assert reverse('manager:topography-detail', kwargs=dict(pk=topo_id)) == response.url
 
     topos = Topography.objects.filter(surface__user__username=username).order_by('pk')
 
-    assert len(topos) == 2
+    assert len(topos) == 1
 
     t = topos[0]
 
     assert t.measurement_date == datetime.date(2018, 7, 1)
     assert t.description == new_description
-    assert "example3" in t.datafile.name
+    assert t.name == new_name
+    assert "line_scan_1" in t.datafile.name
+    assert pytest.approx(t.size_x) == 500
+    assert t.size_y is None
 
     #
     # should also appear in the list of topographies
@@ -364,13 +462,14 @@ def test_edit_topography(client, two_topos, django_user_model):
     response = client.get(reverse('manager:surface-detail', kwargs=dict(pk=t.surface.id)))
     assert bytes(new_name, 'utf-8') in response.content
 
+
 @pytest.mark.django_db
-def test_topography_detail(client, two_topos, django_user_model):
+def test_topography_detail(client, two_topos, django_user_model, topo_example4):
 
     username = 'testuser'
     password = 'abcd$1234'
 
-    topo_id = 2
+    topo_id = topo_example4.id
 
     django_user_model.objects.get(username=username)
 
@@ -380,47 +479,44 @@ def test_topography_detail(client, two_topos, django_user_model):
     response = client.get(reverse('manager:topography-detail', kwargs=dict(pk=topo_id)))
     assert response.status_code == 200
 
-    export_reponse_as_html(response)
-
     # resolution should be written somewhere
-    assert b"305 x 75" in response.content
+    assert_in_content(response, "305 x 75")
 
     # .. as well as Detrending mode
-    assert b"Remove tilt" in response.content
+    assert_in_content(response, "Remove tilt")
 
     # .. description
-    assert b"description2" in response.content
+    assert_in_content(response, "description2")
 
     # .. physical size
-    assert "112.0 µm x 27.0 µm" in response.content.decode('utf-8')
+    assert_in_content(response, "112.80791 µm x 27.73965 µm")
 
 @pytest.mark.django_db
-def test_delete_topography(client, two_topos, django_user_model):
+def test_delete_topography(client, two_topos, django_user_model, topo_example3):
 
     username = 'testuser'
     password = 'abcd$1234'
-    topo_id = 1
 
     # topography 1 is still in database
-    topo = Topography.objects.get(pk=topo_id)
+    topo = topo_example3
     surface = topo.surface
 
     topo_datafile_path = topo.datafile.path
 
     assert client.login(username=username, password=password)
 
-    response = client.get(reverse('manager:topography-delete', kwargs=dict(pk=topo_id)))
+    response = client.get(reverse('manager:topography-delete', kwargs=dict(pk=topo.id)))
 
     # user should be asked if he/she is sure
     assert b'Are you sure' in response.content
 
-    response = client.post(reverse('manager:topography-delete', kwargs=dict(pk=topo_id)))
+    response = client.post(reverse('manager:topography-delete', kwargs=dict(pk=topo.id)))
 
     # user should be redirected to surface details
     assert reverse('manager:surface-detail', kwargs=dict(pk=surface.id)) == response.url
 
     # topography topo_id is no more in database
-    assert not Topography.objects.filter(pk=topo_id).exists()
+    assert not Topography.objects.filter(pk=topo.id).exists()
 
     # topography file should also be deleted
     assert not os.path.exists(topo_datafile_path)

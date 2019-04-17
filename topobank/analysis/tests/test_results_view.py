@@ -310,7 +310,7 @@ def ids_downloadable_analyses():
     #
     # create two analyses with resuls
     #
-    topos = [Topography.objects.get(id=1), Topography.objects.get(id=2)]
+    topos = [Topography.objects.get(name="Example 3 - ZSensor"), Topography.objects.get(name="Example 4 - Default")]
     function = AnalysisFunction.objects.create(name="Test Function", pyfunc='dummy', automatic=False)
 
     v = np.arange(5)

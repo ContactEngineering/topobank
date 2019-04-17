@@ -72,9 +72,10 @@ THIRD_PARTY_APPS = [
     'allauth.socialaccount.providers.orcid',
     'rest_framework',
     'fontawesome',
-    'imagekit',
     'formtools',
     'bokeh',
+    'termsandconditions',
+    'storages',
 ]
 LOCAL_APPS = [
     'topobank.users.apps.UsersAppConfig',
@@ -144,6 +145,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # Enable the following if you want to check T&C by middleware
+    'termsandconditions.middleware.TermsAndConditionsRedirectMiddleware',
 ]
 
 # STATIC
@@ -249,7 +252,7 @@ CELERY_ACCEPT_CONTENT = ['json']
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-task_serializer
 CELERY_TASK_SERIALIZER = 'json'
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-result_serializer
-CELERY_RESULT_SERIALIZER = 'json' # TODO pickle because of arrays?
+CELERY_RESULT_SERIALIZER = 'json'
 # TODO: set to whatever value is adequate in your circumstances
 CELERYD_TASK_TIME_LIMIT = 5 * 60
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#task-soft-time-limit
@@ -267,7 +270,7 @@ CELERYD_TASK_SOFT_TIME_LIMIT = 60
 #    CELERY_RESULT_BACKEND = CELERY_BROKER_URL
 
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-accept_content
-#CELERY_ACCEPT_CONTENT = ['json', 'pickle'] # TODO remove JSON?
+#CELERY_ACCEPT_CONTENT = ['json', 'pickle']
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-task_serializer
 #CELERY_TASK_SERIALIZER = 'pickle'
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-result_serializer
@@ -313,11 +316,10 @@ SELECT2_I18N_PATH = '/static/vendor/select2/js/i18n'
 #
 # Define permissions when using the rest framework
 #
-# TODO Make sure that no one can retrieve data from other users, e.g. in view
+# Make sure that no one can retrieve data from other users, e.g. in view. See GH 168.
 # This may help: https://www.django-rest-framework.org/api-guide/permissions/
 # This seems to fit well: https://www.django-rest-framework.org/tutorial/4-authentication-and-permissions/
 #
-# TODO is the rest framework still needed?
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
@@ -338,5 +340,38 @@ SOCIALACCOUNT_PROVIDERS = {
         # 'MEMBER_API': False,  # for the member API
     }
 }
-SOCIALACCOUNT_QUERY_EMAIL=True # e-mail should be aquired from social account provider
-ACCOUNT_USER_DISPLAY=lambda user: user.name
+SOCIALACCOUNT_QUERY_EMAIL = True # e-mail should be aquired from social account provider
+ACCOUNT_USER_DISPLAY = lambda user: user.name
+
+#
+# Settings for handling terms and conditions
+#
+TERMS_EXCLUDE_URL_LIST = { '/accounts/logout/' }
+# TERMS_EXCLUDE_URL_PREFIX_LIST = {'/users/'}
+TERMS_EXCLUDE_USERS_WITH_PERM = 'users.can_skip_terms'
+TERMS_STORE_IP_ADDRESS=False
+
+#
+# Storage Settings
+#
+USE_S3_STORAGE = env.bool('USE_S3_STORAGE', default=False)
+
+if USE_S3_STORAGE:
+    # Enable this storage for the S3 backend
+    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+    # DEFAULT_FILE_STORAGE = 'topobank.manager.storage_backends.MediaStorage'
+    AWS_LOCATION = env.str('AWS_MEDIA_PREFIX', default='media')
+
+    AWS_ACCESS_KEY_ID = env.str('AWS_ACCESS_KEY_ID')
+    AWS_SECRET_ACCESS_KEY = env.str('AWS_SECRET_ACCESS_KEY')
+
+    AWS_STORAGE_BUCKET_NAME = env.str('AWS_STORAGE_BUCKET_NAME', default='topobank-assets')
+
+    AWS_AUTO_CREATE_BUCKET = True
+
+    AWS_S3_ENDPOINT_URL = env.str('AWS_S3_ENDPOINT_URL', default='https://localhost:8082/')
+    AWS_S3_USE_SSL = env.bool('AWS_S3_USE_SSL', default=True)
+    AWS_S3_VERIFY = env.bool('AWS_S3_VERIFY', default=True)
+    AWS_DEFAULT_ACL = None
+    # Append extra characters if new files have the same name
+    AWS_S3_FILE_OVERWRITE = False

@@ -1,9 +1,6 @@
 from django.db import models, transaction
-from imagekit.models import ImageSpecField
-from imagekit.processors import ResizeToFill
 
-
-from .utils import TopographyFile, selected_topographies
+from .utils import TopographyFile, selected_topographies, TopographyFileException
 from topobank.users.models import User
 
 def user_directory_path(instance, filename):
@@ -70,23 +67,14 @@ class Topography(models.Model):
     size_x = models.FloatField()
     size_y = models.FloatField(null=True) # null for line scans
 
-    size_unit_editable = models.BooleanField(default=False) # also applies to height_unit
-    size_unit = models.TextField(choices=LENGTH_UNIT_CHOICES) # TODO allow null?
+    unit_editable = models.BooleanField(default=False)
+    unit = models.TextField(choices=LENGTH_UNIT_CHOICES)
 
     height_scale_editable = models.BooleanField(default=False)
     height_scale = models.FloatField(default=1)
-    height_unit = models.TextField(choices=LENGTH_UNIT_CHOICES) # TODO remove
 
     detrend_mode = models.TextField(choices=DETREND_MODE_CHOICES, default='center')
 
-    #
-    # Fields for image creation
-    #
-    image = models.ImageField(default='topographies/not_available.png') # TODO Check if needed
-    thumbnail = ImageSpecField(source='image',
-                               processors=[ResizeToFill(100,100)],
-                               format='JPEG',
-                               options={'quality': 60}) # TODO Check if needed
     resolution_x = models.IntegerField(null=True) # null for line scans
     resolution_y = models.IntegerField(null=True) # null for line scans
 
@@ -107,7 +95,23 @@ class Topography(models.Model):
         - scaled and detrended with the saved parameters
 
         """
-        topofile = TopographyFile(self.datafile.path) # assuming the datafile is stored on disk
+        try:
+            file = self.datafile.file
+        except Exception as exc:
+            msg = "Problems while instatiating file '{}' from storage '{}'.".format(
+                self.datafile.name, self.datafile.storage)
+            msg += " Further info: {}".format(exc)
+            raise TopographyFileException(msg) from exc
+
+        if not hasattr(file, 'mode'):
+            # WORKAROUND in order to make PyCo's "detect_format" (Version 0.31)
+            # work with S3 backend. The S3 backend file has no attribute "mode"
+            # and so "detect_format" does not work, because this attribute
+            # is used to find out whether the stream is binary or not.
+            # TODO Is this workaround still needed with the new reader infrastructure in PyCo
+            file.mode = 'rb'
+
+        topofile = TopographyFile(file)
 
         topo = topofile.topography(int(self.data_source))
         # TODO int() is a fix for SQLite which cannot return real int?? remove for PG
@@ -126,15 +130,9 @@ class Topography(models.Model):
                 topo.size = self.size_x, self.size_y
 
         topo = topo.scale(self.height_scale).detrend(detrend_mode=self.detrend_mode,
-                                                     info=dict(unit=self.size_unit))
-
-        # TODO what about height unit, maybe set this also as info item?
+                                                     info=dict(unit=self.unit))
 
         return topo
-
-    # def submit_images_creation(self): # TODO remove if not needed for thumbnails
-    #     from .utils import create_topography_images
-    #     transaction.on_commit(lambda: create_topography_images.delay(self.id))
 
     def submit_automated_analyses(self):
         """Submit all automatic analysis for this Topography.

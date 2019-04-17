@@ -2,9 +2,10 @@ from pathlib import Path
 
 import pytest
 from django.urls import reverse
-from django.core.exceptions import PermissionDenied
+from django.contrib.auth.models import Permission
 
 from ..models import Surface, Topography
+from topobank.utils import assert_in_content, assert_redirects
 
 @pytest.mark.django_db
 def test_prevent_surface_access_by_other_user(client, django_user_model):
@@ -27,8 +28,13 @@ def test_prevent_surface_access_by_other_user(client, django_user_model):
     #
     # Login as user 2
     #
-    django_user_model.objects.create_user(username=username2, password=password2)
+    user2 = django_user_model.objects.create_user(username=username2, password=password2)
     assert client.login(username=username2, password=password2)
+
+    # give both user permissions to skip all terms, we want to test independently from this
+    skip_perm = Permission.objects.get(codename='can_skip_terms')
+    user1.user_permissions.add(skip_perm)
+    user2.user_permissions.add(skip_perm)
 
     #
     # As user 2, try to access surface from user 1 with various views
@@ -36,13 +42,13 @@ def test_prevent_surface_access_by_other_user(client, django_user_model):
     # Each time, this should redirect to an access denied page
     #
     response = client.get(reverse('manager:surface-detail', kwargs=dict(pk=surface_id)))
-    assert response.url == reverse('manager:access-denied')
+    assert response.status_code == 403
 
     response = client.get(reverse('manager:surface-update', kwargs=dict(pk=surface_id)))
-    assert response.url == reverse('manager:access-denied')
+    assert response.status_code == 403
 
     response = client.get(reverse('manager:surface-delete', kwargs=dict(pk=surface_id)))
-    assert response.url == reverse('manager:access-denied')
+    assert response.status_code == 403
 
 @pytest.mark.django_db
 def test_prevent_topography_access_by_other_user(client, django_user_model, mocker):
@@ -89,10 +95,10 @@ def test_prevent_topography_access_by_other_user(client, django_user_model, mock
     # Each time, this should redirect to an access denied page
     #
     response = client.get(reverse('manager:topography-detail', kwargs=dict(pk=topography_id)))
-    assert response.url == reverse('manager:access-denied')
+    assert response.status_code == 403
 
     response = client.get(reverse('manager:topography-update', kwargs=dict(pk=topography_id)))
-    assert response.url == reverse('manager:access-denied')
+    assert response.status_code == 403
 
     response = client.get(reverse('manager:topography-delete', kwargs=dict(pk=topography_id)))
-    assert response.url == reverse('manager:access-denied')
+    assert response.status_code == 403

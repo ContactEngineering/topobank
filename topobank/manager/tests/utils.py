@@ -4,48 +4,97 @@ from django.conf import settings
 from shutil import copyfile
 import os.path
 import logging
+import datetime
+import factory
 
+from ..models import Topography, Surface
+from topobank.users.tests.factories import UserFactory
 from topobank.users.models import User
-from topobank.manager.models import Topography
+from topobank.analysis.functions import register_all
 
 _log = logging.getLogger(__name__)
 
+#
+# Define factories for creating test objects
+#
+class SurfaceFactory(factory.django.DjangoModelFactory):
+
+    class Meta:
+        model = Surface
+
+    name = factory.Sequence(lambda n: "surface-{}".format(n))
+    user = factory.SubFactory(UserFactory)
+
+class TopographyFactory(factory.django.DjangoModelFactory):
+
+    class Meta:
+        model = Topography
+
+    surface = factory.SubFactory(SurfaceFactory)
+    name = factory.Sequence(lambda n: "topography-{}".format(n))
+    data_source = 0
+    measurement_date = factory.Sequence(lambda n: datetime.date(2019,1,1)+datetime.timedelta(days=n))
+
+#
+# Define fixtures
+#
+@pytest.fixture
+def two_topos():
+
+    #with django_db_blocker.unblock():
+    call_command('register_analysis_functions')
+
+    user = UserFactory(username='testuser', password='abcd$1234')
+    surface = SurfaceFactory(name="Surface 1", user=user)
+
+    datafile1 = factory.django.FileField(from_path="topobank/manager/fixtures/example3.di")
+    datafile2 = factory.django.FileField(from_path="topobank/manager/fixtures/example4.txt")
+
+    TopographyFactory(surface=surface,
+                      name='Example 3 - ZSensor',
+                      data_source=0,
+                      measurement_date=datetime.date(2018, 1, 1),
+                      description="description1",
+                      size_x=10.0,
+                      size_y=10.0,
+                      unit='µm',
+                      detrend_mode='height',
+                      height_scale=0.296382712790741,
+                      datafile=datafile1,
+                      resolution_x=256,
+                      resolution_y=256)
+
+    TopographyFactory(surface=surface,
+                      name='Example 4 - Default',
+                      data_source=0,
+                      measurement_date=datetime.date(2018, 1, 2),
+                      description="description2",
+                      size_x=112.80791,
+                      size_y=27.73965,
+                      unit='µm',
+                      detrend_mode='height',
+                      height_scale=2.91818e-08,
+                      datafile=datafile2,
+                      resolution_x=305,
+                      resolution_y=75)
+
 
 @pytest.fixture
-def two_topos(django_db_setup, django_db_blocker):
+def one_line_scan():
 
-    #
-    # Copy uploaded files at the correct places
-    #
-    # This is hack, maybe better to use sth like
-    # https://github.com/duncaningram/django-fixture-media
-    #
-    from_to = [ ('topobank/manager/fixtures/example4.txt',
-                 ['topographies/user_1/example4.txt',
-                  'topographies/user_1/example4_DiVRsr9.txt']),
-                ('topobank/manager/fixtures/example3.di',
-                 ['topographies/user_1/example3_K7Ijorz.di'])
-    ]
+    user = UserFactory(username='testuser', password='abcd$1234')
+    surface = Surface(name="Line Scans", user=user)
+    surface.save()
 
-    for from_path, to_paths in from_to:
-        from_path = os.path.join(str(settings.ROOT_DIR), from_path)
-        for to_path in to_paths:
-            to_path = os.path.join(settings.MEDIA_ROOT, to_path)
-            _log.info("Copying fixture file '{}' -> '{}'..".format(from_path, to_path))
-            copyfile(from_path, to_path)
+    datafile = factory.django.FileField(from_path="topobank/manager/fixtures/line_scan_1.asc")
 
-    #
-    # Load database from YAML file
-    #
-    with django_db_blocker.unblock():
-        call_command('loaddata', 'two_topographies.yaml')
-
-        # Fix the passwords of fixtures
-        for user in User.objects.all():
-            user.set_password(user.password)
-            user.save()
-
-        # like this we can have clear-text passwords in test fixtures
+    TopographyFactory(surface=surface,
+                      name='Simple Line Scan',
+                      measurement_date=datetime.date(2018,1,1),
+                      description="description1",
+                      size_x=9,
+                      detrend_mode='height',
+                      datafile=datafile)
 
 
 def export_reponse_as_html(response, fname='/tmp/response.html'):

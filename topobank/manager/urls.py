@@ -86,7 +86,7 @@ urlpatterns = [
     ),
     url(
         regex=r'access-denied/$',
-        view=TemplateView.as_view(template_name="manager/access_denied.html"),
+        view=TemplateView.as_view(template_name="403.html"),
         name='access-denied'
     ),
 ]

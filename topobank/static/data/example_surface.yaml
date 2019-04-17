@@ -19,11 +19,10 @@ topographies:
     measurement_date: '2017-01-27'
     size_x: 1
     size_y: 1
-    size_unit: 'µm'
+    unit: 'µm'
     resolution_x: 500
     resolution_y: 500
     height_scale: 1
-    height_unit: 'µm'
     description: 'Scan size 1µm'
 
   -
@@ -33,11 +32,10 @@ topographies:
     measurement_date: '2017-01-27'
     size_x: 10
     size_y: 10
-    size_unit: 'µm'
+    unit: 'µm'
     resolution_x: 500
     resolution_y: 500
     height_scale: 1
-    height_unit: 'µm'
     description: 'Scan size 10µm'
 
   -
@@ -47,11 +45,10 @@ topographies:
     measurement_date: '2017-01-27'
     size_x: 100
     size_y: 100
-    size_unit: 'µm'
+    unit: 'µm'
     resolution_x: 500
     resolution_y: 500
     height_scale: 1
-    height_unit: 'µm'
     description: 'Scan size 100µm (full surface)'
 
 

@@ -418,7 +418,6 @@ def power_spectrum(topography, window='hann'):
                  style='+-',
                  ),
         ]
-
     )
 
     if topography.dim == 2:
@@ -455,37 +454,61 @@ def power_spectrum(topography, window='hann'):
 @analysis_function(automatic=True)
 def autocorrelation(topography):
 
-    if not topography.is_uniform:
-        raise NotImplementedError("Autocorrelation hasn't been implemented for non-uniform topographies yet.")
+    if topography.dim == 2:
+        sx, sy = topography.size
+        transposed_topography = Topography(topography.heights().T, size=(sy,sx), periodic=topography.is_periodic)
+        r_T, A_T = transposed_topography.autocorrelation_1D()
+        r_2D, A_2D = topography.autocorrelation_2D()
 
-    if topography.dim == 1:
-        raise NotImplementedError("Autocorrelation hasn't been implemented for uniform line scans yet.")
+        # Truncate ACF at half the system size
+        s = min(sx, sy) / 2
+    else:
+        s, = topography.size
 
     r, A = topography.autocorrelation_1D()
-    sx, sy = topography.size
-
-    transposed_topography = Topography(topography.heights().T, size=(sy,sx), periodic=topography.is_periodic)
-    r_T, A_T = transposed_topography.autocorrelation_1D()
-    r_2D, A_2D = topography.autocorrelation_2D()
-
-    # Truncate ACF at half the system size
-    s = min(sx, sy) / 2
     A = A[r < s]
     r = r[r < s]
-    A_T = A_T[r_T < s]
-    r_T = r_T[r_T < s]
-    A_2D = A_2D[r_2D < s]
-    r_2D = r_2D[r_2D < s]
-
     # Remove NaNs and Infs
     r = r[np.isfinite(A)]
     A = A[np.isfinite(A)]
-    r_T = r_T[np.isfinite(A_T)]
-    A_T = A_T[np.isfinite(A_T)]
-    r_2D = r_2D[np.isfinite(A_2D)]
-    A_2D = A_2D[np.isfinite(A_2D)]
+
+    if topography.dim == 2:
+        A_T = A_T[r_T < s]
+        r_T = r_T[r_T < s]
+        A_2D = A_2D[r_2D < s]
+        r_2D = r_2D[r_2D < s]
+
+        # Remove NaNs and Infs
+        r_T = r_T[np.isfinite(A_T)]
+        A_T = A_T[np.isfinite(A_T)]
+        r_2D = r_2D[np.isfinite(A_2D)]
+        A_2D = A_2D[np.isfinite(A_2D)]
 
     unit = topography.info['unit']
+
+    #
+    # Build series
+    #
+    series = [dict(name='Along x',
+                 x=r,
+                 y=A,
+                 style='+-',
+                )]
+
+    if topography.dim == 2:
+        series=[
+            dict(name='Radial average',
+                 x=r_2D,
+                 y=A_2D,
+                 style='o-',
+                 ),
+            series[0],
+            dict(name='Along y',
+                 x=r_T,
+                 y=A_T,
+                 style='y-',
+                 )
+        ]
 
     return dict(
         name='Height-difference autocorrelation function (ACF)',
@@ -495,30 +518,11 @@ def autocorrelation(topography):
         yunit='{}²'.format(unit),
         xscale='log',
         yscale='log',
-        series=[
-            dict(name='Radial average',
-                 x=r_2D,
-                 y=A_2D,
-                 style='o-',
-                 ),
-            dict(name='Along x',
-                 x=r,
-                 y=A,
-                 style='+-',
-                 ),
-            dict(name='Along y',
-                 x=r_T,
-                 y=A_T,
-                 style='y-',
-                 )
-        ]
-    )
+        series=series)
+
 
 @analysis_function(automatic=True)
 def variable_bandwidth(topography):
-
-    if not topography.is_uniform:
-        raise NotImplementedError("Variable bandwidth hasn't been implemented for non-uniform topographies yet.")
 
     magnifications, bandwidths, rms_heights = topography.variable_bandwidth()
 
@@ -540,4 +544,3 @@ def variable_bandwidth(topography):
                  ),
         ]
     )
-

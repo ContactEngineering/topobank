@@ -99,10 +99,8 @@ class TopographyFile:
                 unit = None
 
             if not isinstance(unit, tuple):
-                try:
-                    topographies.append(topography) # scale + detrend is done later, see Topography.topography()
-                except Exception as exc:
-                    raise TopographyFileReadingException(fname, self._fmt, str(exc)) from exc
+                topographies.append(topography) # scale + detrend is done later, see Topography.topography()
+
         self._topographies = topographies
 
 
@@ -301,69 +299,3 @@ def bandwidths_data(topographies):
         )
 
     return bandwidths_data
-
-# @app.task(bind=True, ignore_result=True)
-# def create_topography_images(self, topography_id): # TODO remove if not needed for thumbnails
-#     """Create image for surface for web interface.
-#
-#     :param topography_id: id of Topography instance
-#     :return: None
-#
-#     The topography instance will be changed.
-#     """
-#
-#     from topobank.manager.models import Topography
-#
-#     #
-#     # Get data needed for the image
-#     #
-#     _log.info("topography_id: %d", topography_id)
-#     topography = Topography.objects.get(id=topography_id)
-#     _log.info("Topography: %s", topography)
-#     pyco_topo = topography.topography()
-#
-#     arr = pyco_topo.array()
-#     topo_shape = arr.shape
-#     topo_size = pyco_topo.size
-#
-#     #
-#     # Prepare figure
-#     #
-#     DPI = 90 # similar to typical screen resolution
-#
-#     WIDTH_PX = 1280 # width in pixels
-#     HEIGHT_PX = WIDTH_PX/topo_size[0]*topo_size[1]
-#
-#     figsize = (WIDTH_PX/DPI, HEIGHT_PX/DPI)
-#     fig, ax  = plt.subplots(figsize=figsize, constrained_layout=True)
-#     # fig, ax  = plt.subplots(constrained_layout=True)
-#
-#     X = np.linspace(0, topo_size[0], topo_shape[0])
-#     Y = np.linspace(0, topo_size[1], topo_shape[1])
-#
-#     cmap = plt.get_cmap("RdBu")
-#     plot_values = arr.transpose()
-#
-#     cbar_unit, cbar_scale = optimal_unit(plot_values.max(), topography.height_unit)
-#
-#     axes_unit = f" [{topography.size_unit}]"
-#     ax.set(xlabel='x'+axes_unit, ylabel='y'+axes_unit,
-#            aspect="equal")
-#     im = ax.pcolormesh(X, Y, plot_values * cbar_scale, cmap=cmap)
-#
-#     cbar = plt.colorbar(im, ax=ax)
-#     cbar.set_label(f"height [{cbar_unit}]")
-#     fig.suptitle(f"Image of topography '{topography.name}'")
-#
-#
-#     #
-#     # save figure in a memory buffer and use this as source for image field
-#     #
-#     buffer = io.BytesIO()
-#     fig.savefig(buffer, format='jpeg', dpi=DPI)
-#
-#     img_path = pathlib.Path(topography.surface.user.get_media_path()) / 'images' / f'topography-{topography.pk}.jpeg'
-#
-#     _log.info(f"Saving topography image as '{img_path}'...")
-#     topography.image.save(img_path, buffer, save=True)
-#

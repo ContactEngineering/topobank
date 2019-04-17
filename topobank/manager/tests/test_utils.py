@@ -11,7 +11,7 @@ from ..tests.utils import two_topos
 from ..utils import TopographyFile, TopographyFileReadingException,\
     DEFAULT_DATASOURCE_NAME, \
     selection_to_topographies, selection_for_select_all, selection_choices
-
+from ..models import Surface
 
 def test_data_sources_txt():
 
@@ -53,19 +53,25 @@ def test_selection_to_topographies_with_given_surface(testuser, mock_topos):
 
     Topography.objects.filter.assert_called_with(surface__user=testuser, id__in=[1,2], surface=surface)
 
+@pytest.mark.django_db
 def test_select_all(two_topos, testuser):
     selection = selection_for_select_all(testuser)
-    assert ['surface-1'] == selection
+    surfaces = Surface.objects.filter(name__in=["Surface 1"]).order_by('id')
+    assert [ f"surface-{s.id}" for s in surfaces] == sorted(selection)
 
+@pytest.mark.django_db
 def test_selection_choices(two_topos, testuser):
     selection = selection_choices(testuser)
-    assert [('surface-1', 'surface1'),
-            ('topography-1', 'Example 3 - ZSensor'),
-            ('topography-2', 'Example 4 - Default')] == selection
+
+    selection_labels = sorted([ x[1] for x in selection ])
+
+    assert ['Example 3 - ZSensor',
+            'Example 4 - Default',
+            'Surface 1'] == selection_labels
 
 def test_topographyfile_loading_invalid_file():
 
-    input_file_path = Path('topobank/manager/fixtures/two_topographies.yaml')
+    input_file_path = Path('topobank/manager/views.py')
 
     with pytest.raises(TopographyFileReadingException):
         TopographyFile(input_file_path)
