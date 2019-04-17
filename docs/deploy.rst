@@ -503,6 +503,49 @@ The optional terms can also be accepted later, e.g. bei choosing "Terms & Condit
 Configuration of automated restart
 ----------------------------------
 
+First, once make sure, the supervisor service uses the user "topobank"
+for the socket. Then the user "topobank" can start and stop the application
+without sudo. Therefore add the line
+
+.. code::
+
+    chown=topobank
+
+to the section :code:`[unix_http_server]` of the file :code:`/etc/supervisor/supervisord.conf`.
+Afterwards the file may look like this::
+
+    ; supervisor config file
+
+    [unix_http_server]
+    file=/var/run/supervisor.sock   ; (the path to the socket file)
+    chmod=0700                       ; sockef file mode (default 0700)
+    chown=topobank
+
+    [supervisord]
+    logfile=/var/log/supervisor/supervisord.log ; (main log file;default $CWD/supervisord.log)
+    pidfile=/var/run/supervisord.pid ; (supervisord pidfile;default supervisord.pid)
+    childlogdir=/var/log/supervisor            ; ('AUTO' child log dir, default $TEMP)
+
+    ; the below section must remain in the config file for RPC
+    ; (supervisorctl/web interface) to work, additional interfaces may be
+    ; added by defining them in separate rpcinterface: sections
+    [rpcinterface:supervisor]
+    supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface
+
+    [supervisorctl]
+    serverurl=unix:///var/run/supervisor.sock ; use a unix:// URL  for a unix socket
+
+    ; The [include] section can just contain the "files" setting.  This
+    ; setting can list multiple files (separated by whitespace or
+    ; newlines).  It can also contain wildcards.  The filenames are
+    ; interpreted as relative to this file.  Included files *cannot*
+    ; include files themselves.
+
+    [include]
+    files = /etc/supervisor/conf.d/*.conf
+
+
+Then add a configuration for the topobank program.
 Follow the instructions here:
 
   https://cookiecutter-django.readthedocs.io/en/latest/deployment-with-docker.html?highlight=restart#example-supervisor
@@ -538,13 +581,30 @@ Status check:
 
     supervisorctl status
 
-Check logs as user `topobank` in directory `/home/topobank/topobank`:
+Make sure you are user "topobank" in the directory `/home/topobank/topobank`.
+All docker containers should be running:
+
+.. code:: bash
+
+    topobank@topobank:~/topobank$ docker-compose -f production.yml ps
+             Name                        Command               State                         Ports
+    ---------------------------------------------------------------------------------------------------------------------
+    topobank_caddy_1          /bin/parent caddy --conf / ...   Up      2015/tcp, 0.0.0.0:443->443/tcp, 0.0.0.0:80->80/tcp
+    topobank_celerybeat_1     /entrypoint /start-celerybeat    Up
+    topobank_celeryworker_1   /entrypoint /start-celeryw ...   Up
+    topobank_dbbackup_1       /entrypoint                      Up
+    topobank_django_1         /entrypoint /start               Up
+    topobank_flower_1         /entrypoint /start-flower        Up      0.0.0.0:5555->5555/tcp
+    topobank_memcached_1      docker-entrypoint.sh memcached   Up      11211/tcp
+    topobank_postgres_1       docker-entrypoint.sh postgres    Up      5432/tcp
+    topobank_rabbitmq_1       docker-entrypoint.sh rabbi ...   Up      25672/tcp, 4369/tcp, 5671/tcp, 5672/tcp
+
+
+Logging output can be seen with this command:
 
 .. code:: bash
 
     docker-compose -f production.yml logs -f
-
-
 
 
 Get to know docker-compose
@@ -870,11 +930,11 @@ Login to the VM as user topobank and change to the working directory:
 Stop the application
 ....................
 
-If you are using `supervisor`, login as a user which has sudo rights and call
+If you are using `supervisor`, do
 
 .. code:: bash
 
-   sudo supervisorctl stop topobank
+   supervisorctl stop topobank
 
 If you don't use `supervisor`, just call
 
@@ -929,11 +989,11 @@ Restart application
 
 If everything is okay, start the new containers in the background.
 
-If you are using supervisor, change again to the terminal with sudo rights and call
+If you are using supervisor, do
 
 .. code:: bash
 
-    sudo supervisorctl start topobank
+    supervisorctl start topobank
 
 Without supervisor, call:
 
