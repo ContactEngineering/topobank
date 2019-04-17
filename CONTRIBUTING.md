@@ -11,7 +11,7 @@ Development branches
 New features should be developed always in its own branch. When creating your own branch,
 please suffix that branch by the year of creation on a description of what is contains.
 For example, if you are working on an implementation for line scans and you started that
-work in 2018, the branch could be called "18_line_scans".
+work in 2019, the branch could be called "19_line_scans".
 
 Commits
 -------
