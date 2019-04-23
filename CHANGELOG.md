@@ -1,5 +1,11 @@
 # Changelog for *TopoBank*
 
+## 0.2
+
+- show units to users even if they cannot be changed (#149)
+- other bug fixes: #98
+
+
 ## 0.1
 
 - login via ORCID

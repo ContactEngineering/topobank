@@ -37,6 +37,9 @@ class TopographyFactory(factory.django.DjangoModelFactory):
     measurement_date = factory.Sequence(lambda n: datetime.date(2019,1,1)+datetime.timedelta(days=n))
     size_x = 512
     size_y = None # set this if you need a 2D topography
+    size_editable = True
+    unit_editable = True
+    height_scale_editable = True
 
 #
 # Define fixtures

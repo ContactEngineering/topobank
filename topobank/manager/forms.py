@@ -113,6 +113,10 @@ class TopographyMetaDataForm(forms.ModelForm):
 
 
 class TopographyUnitsForm(forms.ModelForm):
+    """
+    This is a base class used to avoid code duplication.
+    The form is not directly used.
+    """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -124,32 +128,29 @@ class TopographyUnitsForm(forms.ModelForm):
 
         self.helper = helper
 
+        def info_html(text):
+            return HTML("<p><em>"+text+"</em></p>")
+
         if self.initial['size_editable']:
-            self.size_info_html = HTML("<p>Please check this physical size and change it, if needed.</p>")
-            self.size_field_kwargs = {}
+            self.size_info_html = info_html("Please check this physical size and change it, if needed")
+
         else:
-            self.size_info_html = HTML("<p>Physical size was given in data file and is fixed.</p>")
-            self.size_field_kwargs = dict(readonly=True)  # will add "readonly" attribute to input field
+            self.size_info_html = info_html("Physical size was given in data file and is fixed.")
+            self.fields['size_x'].disabled = True
 
         if self.initial['unit_editable']:
-            self.unit_info_html = HTML(
-                "<p>Please select the correct unit for the size and height values.</p>")
-            self.unit_field_kwargs = dict()
+            self.unit_info_html = info_html("Please select the correct unit for the size and height values.")
         else:
-            self.unit_info_html = HTML(
-                "<p>The unit of the physical size and height scale was given in the data file " + \
-                "and is fixed.</p>")
-            self.unit_field_kwargs = dict(type="hidden")
-            # "readonly" attribute does not work for dropdowns here
+            self.unit_info_html = info_html("The unit of the physical size and height scale was given in the " +\
+                                            "data file and is fixed.")
+            self.fields['unit'].disabled = True
 
         if self.initial['height_scale_editable']:
-            self.height_scale_info_html = HTML(
-                "<p>Please enter the correct height scale factor.</p>")
-            self.height_scale_field_kwargs = {}
+            self.height_scale_info_html = info_html("Please enter the correct height scale factor.")
+
         else:
-            self.height_scale_info_html = HTML(
-                "<p>The height scale factor was given in the data file and is fixed.</p>")
-            self.height_scale_field_kwargs = dict(readonly=True)
+            self.height_scale_info_html = info_html("The height scale factor was given in the data file and is fixed.")
+            self.fields['height_scale'].disabled = True
 
         # we want the "_editable" fields to be saved also with their current values, so we
         # prepare hidden fields for them
@@ -180,6 +181,9 @@ class TopographyUnitsForm(forms.ModelForm):
         return self._clean_size_element('x')
 
 class Topography1DUnitsForm(TopographyUnitsForm):
+    """
+    This form is used when asking for size+units while creating a new 1D topography (line scan).
+    """
 
     class Meta:
         model = Topography
@@ -198,12 +202,12 @@ class Topography1DUnitsForm(TopographyUnitsForm):
                 Fieldset('Physical Size',
                          Field('size_editable', type="hidden"),
                          self.size_info_html,
-                         Field('size_x', **self.size_field_kwargs),
+                         Field('size_x'),
                          self.unit_info_html,
-                         Field('unit', **self.unit_field_kwargs)),
+                         Field('unit')),
                 Fieldset('Height Conversion',
                          self.height_scale_info_html,
-                         Field('height_scale', **self.height_scale_field_kwargs)),
+                         Field('height_scale')),
                 Field('detrend_mode'),
                 Field('resolution_x', type="hidden"),  # only in order to have the data in wizard's .done() method
                 *self.editable_fields,
@@ -215,6 +219,9 @@ class Topography1DUnitsForm(TopographyUnitsForm):
         )
 
 class Topography2DUnitsForm(TopographyUnitsForm):
+    """
+    This form is used when asking for size+units while creating a new 2D topography.
+    """
 
     class Meta:
         model = Topography
@@ -228,18 +235,21 @@ class Topography2DUnitsForm(TopographyUnitsForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        if not self.initial['size_editable']:
+            self.fields['size_y'].disabled = True
+
         self.helper.layout = Layout(
 
             Div(
                 Fieldset('Physical Size',
                          self.size_info_html,
-                         Field('size_x', **self.size_field_kwargs),
-                         Field('size_y', **self.size_field_kwargs),
+                         Field('size_x'),
+                         Field('size_y'),
                          self.unit_info_html,
-                         Field('unit', **self.unit_field_kwargs)),
+                         Field('unit')),
                 Fieldset('Height Conversion',
                          self.height_scale_info_html,
-                         Field('height_scale', **self.height_scale_field_kwargs)),
+                         Field('height_scale')),
                 Field('detrend_mode'),
                 Field('resolution_x', type="hidden"), # only in order to have the data in wizard's .done() method
                 Field('resolution_y', type="hidden"), # only in order to have the data in wizard's .done() method
@@ -256,7 +266,8 @@ class Topography2DUnitsForm(TopographyUnitsForm):
 
 
 class TopographyForm(TopographyUnitsForm):
-    """Form for updating topographies.
+    """
+    This form is used for editing 1D and 2D topographies.
     """
 
     class Meta:
@@ -281,14 +292,16 @@ class TopographyForm(TopographyUnitsForm):
 
         size_fieldset_args = ['Physical Size',
                                self.size_info_html,
-                               Field('size_x', **self.size_field_kwargs)]
+                               Field('size_x')]
         if has_size_y:
-            size_fieldset_args.append(Field('size_y', **self.size_field_kwargs))
+            size_fieldset_args.append(Field('size_y'))
+            if not self.initial['size_editable']:
+                self.fields['size_y'].disabled = True
         else:
             del self.fields['size_y']
 
         size_fieldset_args.append(self.unit_info_html)
-        size_fieldset_args.append(Field('unit', **self.unit_field_kwargs))
+        size_fieldset_args.append(Field('unit'))
 
         self.helper.layout = Layout(
             Div(
@@ -300,7 +313,7 @@ class TopographyForm(TopographyUnitsForm):
                 Fieldset(*size_fieldset_args),
                 Fieldset('Height Conversion',
                          self.height_scale_info_html,
-                         Field('height_scale', **self.height_scale_field_kwargs)),
+                         Field('height_scale')),
                 Field('detrend_mode'),
                 *self.editable_fields,
             ),
