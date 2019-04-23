@@ -340,16 +340,19 @@ class SurfaceForm(forms.ModelForm):
 
     class Meta:
         model = Surface
-        fields = ('name', 'description', 'user')
+        fields = ('name', 'description', 'category', 'user')
 
     helper = FormHelper()
     helper.form_method = 'POST'
     helper.form_show_errors = False  # crispy forms has nicer template code for errors
 
+    category = forms.ChoiceField(widget=forms.RadioSelect, choices=Surface.CATEGORY_CHOICES)
+
     helper.layout = Layout(
         Div(
             Field('name'),
             Field('description'),
+            Field('category'),
             Field('user', type="hidden"),
         ),
         FormActions(

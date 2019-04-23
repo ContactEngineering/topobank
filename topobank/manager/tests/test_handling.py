@@ -27,6 +27,7 @@ def test_upload_topography_di(client, django_user_model):
 
     input_file_path = Path('topobank/manager/fixtures/example3.di') # TODO use standardized way to find files
     description = "test description"
+    category = 'exp'
 
     username = 'testuser'
     password = 'abcd$1234'
@@ -40,7 +41,11 @@ def test_upload_topography_di(client, django_user_model):
                                data={
                                 'name': 'surface1',
                                 'user': user.id,
+                                'category': category,
                                }, follow=True)
+
+    assert_no_form_errors(response)
+
     assert response.status_code == 200
 
     surface = Surface.objects.get(name='surface1')
@@ -151,7 +156,10 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
                                data={
                                 'name': 'surface1',
                                 'user': user.id,
+                                'category': 'sim'
                                }, follow=True)
+
+    assert_no_form_errors(response)
     assert response.status_code == 200
 
     surface = Surface.objects.get(name='surface1')
@@ -264,6 +272,7 @@ def test_trying_upload_of_invalid_topography_file(client, django_user_model):
                                data={
                                 'name': 'surface1',
                                 'user': user.id,
+                                'category': 'dum',
                                }, follow=True)
     assert response.status_code == 200
 
@@ -609,6 +618,7 @@ def test_create_surface(client, django_user_model):
 
     description = "My description. hasdhahdlahdla"
     name = "Surface 1 kjfhakfhökadsökdf"
+    category = "exp"
 
     username = 'testuser'
     password = 'abcd$1234'
@@ -627,6 +637,7 @@ def test_create_surface(client, django_user_model):
                             'name': name,
                             'user': user.id,
                             'description': description,
+                            'category': category,
                            }, follow=True)
 
     assert ('context' not in response) or ('form' not in response.context), "Still on form: {}".format(response.context['form'].errors)
@@ -635,6 +646,7 @@ def test_create_surface(client, django_user_model):
 
     assert description.encode() in response.content
     assert name.encode() in response.content
+    assert b"Experimental data" in response.content
 
 @pytest.mark.django_db
 def test_edit_surface(client, django_user_model):
@@ -642,22 +654,25 @@ def test_edit_surface(client, django_user_model):
     surface_id = 1
     username = 'testuser'
     password = 'abcd$1234'
+    category = 'sim'
 
     user = django_user_model.objects.create_user(username=username, password=password)
 
     assert client.login(username=username, password=password)
 
-    surface = Surface.objects.create(id=surface_id, name="Surface 1", user=user)
+    surface = Surface.objects.create(id=surface_id, name="Surface 1", user=user, category=category)
     surface.save()
 
     new_name = "This is a better surface name"
     new_description = "This is new description"
+    new_category = 'dum'
 
     response = client.post(reverse('manager:surface-update', kwargs=dict(pk=surface_id)),
                            data={
                             'name': new_name,
                             'user': user.id,
                             'description': new_description,
+                            'category': new_category
                            })
 
     assert ('context' not in response) or ('form' not in response.context), "Still on form: {}".format(response.context['form'].errors)
@@ -669,6 +684,7 @@ def test_edit_surface(client, django_user_model):
 
     assert new_name == surface.name
     assert new_description == surface.description
+    assert new_category == surface.category
 
 @pytest.mark.django_db
 def test_delete_surface(client, django_user_model):
