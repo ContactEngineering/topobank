@@ -7,9 +7,14 @@ import datetime
 import os.path
 
 from topobank.manager.tests.utils import export_reponse_as_html
-from ..tests.utils import two_topos, one_line_scan
+from ..tests.utils import two_topos, one_line_scan, SurfaceFactory, TopographyFactory
 from ..models import Topography, Surface
 from topobank.utils import assert_in_content, assert_redirects, assert_no_form_errors
+
+
+#######################################################################
+# Topographies
+#######################################################################
 
 #
 # Different formats are handled by PyCo
@@ -421,6 +426,7 @@ def test_edit_line_scan(client, one_line_scan, django_user_model):
     assert initial['size_x'] == 9
     assert pytest.approx(initial['height_scale']) == 1.
     assert initial['detrend_mode'] == 'height'
+    assert 'size_y' not in form.fields # should have been removed by __init__
 
     #
     # Then send a post with updated data
@@ -557,6 +563,47 @@ def test_delete_topography_with_its_datafile_used_by_others(client, two_topos, d
     # topography file should **not** have been deleted, because still used by topo2
     assert os.path.exists(topo_datafile_path)
 
+def test_only_positive_size_values_on_edit(client, django_user_model):
+
+    #
+    # prepare database
+    #
+    username = 'testuser'
+    password = 'abcd$1234'
+
+    user = django_user_model.objects.create_user(username=username, password=password)
+
+    surface = SurfaceFactory(user=user)
+    topography = TopographyFactory(surface=surface, size_y=1024) # pass size_y in order to have a map
+
+    assert client.login(username=username, password=password)
+
+    #
+    # Then send a post with negative size values
+    #
+    response = client.post(reverse('manager:topography-update', kwargs=dict(pk=topography.pk)),
+                           data={
+                               'surface': surface.pk,
+                               'data_source': topography.data_source,
+                               'name': topography.name,
+                               'measurement_date': topography.measurement_date,
+                               'description': topography.description,
+                               'size_x': -500.0, # negative, should be > 0
+                               'size_y': 0,  # zero, should be > 0
+                               'unit': 'nm',
+                               'height_scale': 0.1,
+                               'detrend_mode': 'height',
+                           })
+
+    assert 'form' in response.context
+    assert "Size x must be greater than zero" in response.context['form'].errors['size_x'][0]
+    assert "Size y must be greater than zero" in response.context['form'].errors['size_y'][0]
+
+
+#######################################################################
+# Surfaces
+#######################################################################
+
 @pytest.mark.django_db
 def test_create_surface(client, django_user_model):
 
@@ -588,7 +635,6 @@ def test_create_surface(client, django_user_model):
 
     assert description.encode() in response.content
     assert name.encode() in response.content
-
 
 @pytest.mark.django_db
 def test_edit_surface(client, django_user_model):

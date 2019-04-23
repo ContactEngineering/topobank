@@ -159,6 +159,25 @@ class TopographyUnitsForm(forms.ModelForm):
             Field('height_scale_editable', type='hidden'),
         ]
 
+    def _clean_size_element(self, dim_name):
+        """Checks whether given value is larger than zero.
+
+        :param dim_name: "x" or "y"
+        :return: cleaned size element value
+        """
+
+        size_elem_name = 'size_' + dim_name
+
+        size_elem = self.cleaned_data[size_elem_name]
+
+        if size_elem <= 0:
+            msg = "Size {} must be greater than zero.".format(dim_name)
+            raise forms.ValidationError(msg, code='size_element_zero_or_negative')
+
+        return size_elem
+
+    def clean_size_x(self):
+        return self._clean_size_element('x')
 
 class Topography1DUnitsForm(TopographyUnitsForm):
 
@@ -232,6 +251,10 @@ class Topography2DUnitsForm(TopographyUnitsForm):
             ),
         )
 
+    def clean_size_y(self):
+        return self._clean_size_element('y')
+
+
 class TopographyForm(TopographyUnitsForm):
     """Form for updating topographies.
     """
@@ -289,12 +312,14 @@ class TopographyForm(TopographyUnitsForm):
                 ),
         )
 
-        # self.fields['measurement_date'].help_text = 'Valid formats: "YYYY-mm-dd" or "dd.mm.YYYY"'
-
     datafile = forms.FileInput()
     measurement_date = forms.DateField(input_formats=MEASUREMENT_DATE_INPUT_FORMATS,
                                        help_text=MEASUREMENT_DATE_HELP_TEXT)
     description = forms.Textarea()
+
+    def clean_size_y(self):
+        return self._clean_size_element('y')
+
 
 class SurfaceForm(forms.ModelForm):
     """Form for creating or updating surfaces.
