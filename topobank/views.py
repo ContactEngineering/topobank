@@ -1,7 +1,29 @@
 from django.views.generic import TemplateView
 from django.db.models import Q
 
-from termsandconditions.models import UserTermsAndConditions, TermsAndConditions
+from termsandconditions.models import TermsAndConditions
+from topobank.users.models import User
+from topobank.manager.models import Surface, Topography
+
+class HomeView(TemplateView):
+
+    template_name = 'pages/home.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data()
+
+        if self.request.user.is_authenticated:
+            user = self.request.user
+            surfaces = Surface.objects.filter(user=user)
+            topographies_count = Topography.objects.filter(surface__in=surfaces).count()
+            context['num_surfaces'] = surfaces.count()
+            context['num_topographies'] = topographies_count
+        else:
+            context['num_users'] = User.objects.filter(is_active=True).count()
+            context['num_surfaces'] = Surface.objects.filter().count()
+            context['num_topographies'] = Topography.objects.filter().count()
+
+        return context
 
 class TermsView(TemplateView):
 
@@ -25,3 +47,4 @@ class TermsView(TemplateView):
             context['active_terms'] = active_terms.order_by('optional')
 
         return context
+

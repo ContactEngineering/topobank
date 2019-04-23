@@ -67,3 +67,7 @@ input.checkbox-color-design:checked+span:after {
 .surface-summary-plot .light-label text.text-line {
   font-size: large;
 }
+
+.welcome-page-statistics {
+  font-size: xx-large;
+}
