@@ -3,6 +3,7 @@
 ## 0.2
 
 - show units to users even if they cannot be changed (#149)
+- in surface summary, sort bandwidth bars by lower bound (#85)
 - other bug fixes: #98
 
 
