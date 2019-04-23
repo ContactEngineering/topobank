@@ -298,14 +298,6 @@ class TopographyUpdateView(TopographyAccessMixin, UpdateView):
         self.object.submit_automated_analyses()
         return reverse('manager:topography-detail', kwargs=dict(pk=self.object.pk))
 
-class TopographyListView(ListView):
-    model = Topography
-    context_object_name = 'topographies'
-
-    def get_queryset(self):
-        topos = Topography.objects.filter(surface__user=self.request.user)
-        return topos
-
 class TopographyDetailView(TopographyAccessMixin, DetailView):
     model = Topography
     context_object_name = 'topography'

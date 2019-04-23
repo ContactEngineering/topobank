@@ -16,14 +16,6 @@ class Surface(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     description = models.TextField(blank=True)
 
-    def thumbnail(self):
-        # TODO probably thumbnail of surface should show a plot with summary, but not a random topography!
-
-        if self.topography_set.count() > 0:
-            return self.topography_set.first().surface_thumbnail
-        else:
-            return None
-
     def num_topographies(self):
         return self.topography_set.count()
 
