@@ -4,10 +4,10 @@
 
 - added category to surfaces (experimental/simulated/dummy data, #145)
 - show units to users even if they cannot be changed (#149)
+- added widgets for picking measurement dates (#141)
 - in surface summary, sort bandwidth bars by lower bound (#85)
 - added statistics on welcome page (#148)
 - other bug fixes: #98
-
 
 ## 0.1
 
