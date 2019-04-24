@@ -1,10 +1,21 @@
-from django.db.models.signals import pre_delete
+from django.db.models.signals import pre_delete, post_save
 from django.dispatch import receiver
+from guardian.shortcuts import assign_perm
+
 import logging
 
-from .models import Topography
+from .models import Topography, Surface
 
 _log = logging.getLogger(__name__)
+
+@receiver(post_save, sender=Surface)
+def grant_permissions_to_owner(sender, instance, **kwargs):
+    #
+    # Grant all permissions for this surface to its owner
+    #
+    for perm in ['view_surface', 'change_surface', 'delete_surface']:
+        assign_perm(perm, instance.user, instance)
+
 
 @receiver(pre_delete, sender=Topography)
 def remove_files(sender, instance, **kwargs):

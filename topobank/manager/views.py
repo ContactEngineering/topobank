@@ -13,6 +13,9 @@ from django.views.generic.edit import FormMixin
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib import messages
 
+from guardian.decorators import permission_required_or_403
+from django.utils.decorators import method_decorator
+
 from bokeh.plotting import figure
 from bokeh.embed import components
 from bokeh.models import DataRange1d, Range1d, LinearColorMapper, ColorBar, Row
@@ -31,17 +34,60 @@ from .utils import get_topography_file, optimal_unit, \
 
 _log = logging.getLogger(__name__)
 
-class SurfaceAccessMixin(UserPassesTestMixin):
+
+surface_read_permission_required = method_decorator(
+    permission_required_or_403('manager.view_surface', ('manager.Surface', 'pk', 'pk'))
+)
+
+surface_update_permission_required = method_decorator(
+    permission_required_or_403('manager.change_surface', ('manager.Surface', 'pk', 'pk'))
+)
+
+
+# def _make_surface_access_mixin_class(permissions):
+#     """Create a mixin class for given permission strings
+#
+#     :param permissions: list of permission strings
+#     """
+#
+#     class SurfacePermissionAccessMixin(UserPassesTestMixin):
+#         redirect_field_name = None
+#
+#         def test_func(self):
+#             if 'pk' in self.kwargs:
+#                 surface_pk = self.kwargs['pk']
+#             elif 'surface_id' in self.kwargs:
+#                 surface_pk = self.kwargs['surface_id']
+#             else:
+#                 # no specific surface meant here
+#                 return True
+#
+#             surface = Surface.objects.get(pk=surface_pk)
+#
+#             ok = True
+#             for perm in permissions:
+#                 ok &= self.request.user.has_perm(perm, surface)
+#             return ok
+#
+# SurfaceReadAccessMixin = _make_surface_access_mixin_class('view_surface')
+# SurfaceUpdateAccessMixin = _make_surface_access_mixin_class('change_surface')
+
+class SurfaceReadAccessMixin(UserPassesTestMixin):
     redirect_field_name = None
 
     def test_func(self):
-        if 'pk' not in self.kwargs:
+        if 'pk' in self.kwargs:
+            surface_pk = self.kwargs['pk']
+        elif 'surface_id' in self.kwargs:
+            surface_pk = self.kwargs['surface_id']
+        else:
+            # no specific surface meant here
             return True
 
-        surface = Surface.objects.get(pk=self.kwargs['pk'])
-        return surface.user == self.request.user
+        surface = Surface.objects.get(pk=surface_pk)
+        return self.request.user.has_perm('view_surface', surface)
 
-class TopographyAccessMixin(UserPassesTestMixin):
+class TopographyReadAccessMixin(UserPassesTestMixin):
     redirect_field_name = None
 
     def test_func(self):
@@ -49,7 +95,7 @@ class TopographyAccessMixin(UserPassesTestMixin):
             return True
 
         topo = Topography.objects.get(pk=self.kwargs['pk'])
-        return topo.surface.user == self.request.user
+        return self.request.user.has_perm('view_surface', topo.surface)
 
 #
 # Using a wizard because we need intermediate calculations
@@ -211,7 +257,7 @@ class TopographyCreateWizard(SessionWizardView):
         # get instance from database
         if not self.instance_dict:
             if 'pk' in self.kwargs:
-                return Topography.objects.get(pk=self.kwargs['pk'])
+                return Topography.objects.get(pk=self.kwargs['pk']) # TODO this code is maybe wrong, needed?
         return None
 
     def get_context_data(self, form, **kwargs):
@@ -267,25 +313,7 @@ class TopographyCreateWizard(SessionWizardView):
 
         return redirect(reverse('manager:topography-detail', kwargs=dict(pk=instance.pk)))
 
-class TopographyCreateView(CreateView):# TODO check if still needed
-    model = Topography
-    form_class = TopographyForm
-
-    def get_initial(self, *args, **kwargs):
-        initial = super(TopographyCreateView, self).get_initial()
-        initial = initial.copy()
-        initial['user'] = self.request.user
-        return initial
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['surface'] = Surface.objects.get(id=kwargs['surface_id'])
-        return context
-
-    def get_success_url(self):
-        return reverse('manager:topography-detail', kwargs=dict(pk=self.object.pk))
-
-class TopographyUpdateView(TopographyAccessMixin, UpdateView):
+class TopographyUpdateView(TopographyReadAccessMixin, UpdateView):
     model = Topography
     form_class = TopographyForm
 
@@ -298,7 +326,7 @@ class TopographyUpdateView(TopographyAccessMixin, UpdateView):
         self.object.submit_automated_analyses()
         return reverse('manager:topography-detail', kwargs=dict(pk=self.object.pk))
 
-class TopographyDetailView(TopographyAccessMixin, DetailView):
+class TopographyDetailView(TopographyReadAccessMixin, DetailView):
     model = Topography
     context_object_name = 'topography'
 
@@ -420,7 +448,7 @@ class TopographyDetailView(TopographyAccessMixin, DetailView):
 
         return context
 
-class TopographyDeleteView(TopographyAccessMixin, DeleteView):
+class TopographyDeleteView(TopographyReadAccessMixin, DeleteView):
     model = Topography
     context_object_name = 'topography'
     success_url = reverse_lazy('manager:surface-list')
@@ -457,7 +485,7 @@ class SurfaceListView(FormMixin, ListView):
     success_url = reverse_lazy('manager:surface-list') # stay on same view
 
     def get_queryset(self):
-        surfaces = Surface.objects.filter(user=self.request.user)
+        surfaces = Surface.objects.filter(user=self.request.user) # TODO filter by read permissions
         return surfaces
 
     def get_initial(self):
@@ -527,9 +555,13 @@ class SurfaceCreateView(CreateView):
     def get_success_url(self):
         return reverse('manager:surface-detail', kwargs=dict(pk=self.object.pk))
 
-class SurfaceDetailView(SurfaceAccessMixin, DetailView):
+class SurfaceDetailView(SurfaceReadAccessMixin, DetailView):
     model = Surface
     context_object_name = 'surface'
+
+    @surface_read_permission_required
+    def dispatch(self, request, *args, **kwargs):
+        return super().dispatch(request, *args, *kwargs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -537,9 +569,13 @@ class SurfaceDetailView(SurfaceAccessMixin, DetailView):
         context['bandwidths_data'] = json.dumps(bw_data)
         return context
 
-class SurfaceUpdateView(SurfaceAccessMixin, UpdateView):
+class SurfaceUpdateView(UpdateView):
     model = Surface
     form_class = SurfaceForm
+
+    @surface_update_permission_required
+    def dispatch(self, request, *args, **kwargs):
+        return super().dispatch(request, *args, *kwargs)
 
     def get_initial(self, *args, **kwargs):
         initial = super().get_initial(*args, **kwargs)
@@ -550,7 +586,7 @@ class SurfaceUpdateView(SurfaceAccessMixin, UpdateView):
     def get_success_url(self):
         return reverse('manager:surface-detail', kwargs=dict(pk=self.object.pk))
 
-class SurfaceDeleteView(SurfaceAccessMixin, DeleteView):
+class SurfaceDeleteView(SurfaceReadAccessMixin, DeleteView):
     model = Surface
     context_object_name = 'surface'
     success_url = reverse_lazy('manager:surface-list')

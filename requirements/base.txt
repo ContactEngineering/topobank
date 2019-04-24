@@ -25,6 +25,10 @@ django-fontawesome==1.0
 boto3>=1.9<2.0
 django-storages>=1.7.1<2.0
 
+# Permissions on object level
+django-guardian>=1.5.0<1.6.0
+
+
 # Celery
 # django-celery-results==1.0.1
 django-kombu>=0.9.4

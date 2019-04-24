@@ -77,6 +77,7 @@ THIRD_PARTY_APPS = [
     'bokeh',
     'termsandconditions',
     'storages',
+    'guardian',
     'bootstrap_datepicker_plus', # for datepicker, see https://github.com/monim67/django-bootstrap-datepicker-plus
 ]
 LOCAL_APPS = [
@@ -101,6 +102,7 @@ MIGRATION_MODULES = {
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
     'allauth.account.auth_backends.AuthenticationBackend',
+    'guardian.backends.ObjectPermissionBackend',
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#auth-user-model
 AUTH_USER_MODEL = 'users.User'
@@ -377,3 +379,8 @@ if USE_S3_STORAGE:
     AWS_DEFAULT_ACL = None
     # Append extra characters if new files have the same name
     AWS_S3_FILE_OVERWRITE = False
+
+#
+# Settings for django-guardian
+#
+GUARDIAN_MONKEY_PATCH = False

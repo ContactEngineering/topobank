@@ -6,6 +6,7 @@ from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from django.conf import settings
 from allauth.socialaccount.models import SocialAccount
+from guardian.mixins import GuardianUserMixin
 
 import os
 
@@ -14,7 +15,7 @@ import os
 class ORCIDInfoMissingException(Exception):
     pass
 
-class User(AbstractUser):
+class User(GuardianUserMixin, AbstractUser):
 
     # First Name and Last Name do not cover name patterns
     # around the globe.

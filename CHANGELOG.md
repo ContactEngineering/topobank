@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 0.3.0
+
+- 
+
 ## 0.2.0
 
 - added category to surfaces (experimental/simulated/dummy data, #145)
