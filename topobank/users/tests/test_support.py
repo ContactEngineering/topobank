@@ -48,6 +48,8 @@ def test_initial_surface(live_server, client, django_user_model):
     #
     surface = Surface.objects.get(user=user, name="Example Surface")
 
+    assert surface.category == 'sim'
+
     topos = surface.topography_set.all()
 
     assert len(topos) == 3
