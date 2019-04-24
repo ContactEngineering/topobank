@@ -6,6 +6,8 @@ from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Submit, Layout, Field, HTML, Div, Fieldset
 from crispy_forms.bootstrap import FormActions
 
+from bootstrap_datepicker_plus import DatePickerInput
+
 import logging
 
 from topobank.manager.utils import selection_choices, \
@@ -14,8 +16,8 @@ from .models import Topography, Surface
 
 _log = logging.getLogger(__name__)
 
-MEASUREMENT_DATE_INPUT_FORMATS = ['%Y-%m-%d', '%d.%m.%Y']
-MEASUREMENT_DATE_HELP_TEXT = 'Valid formats: "YYYY-mm-dd" or "dd.mm.YYYY"'
+MEASUREMENT_DATE_INPUT_FORMAT = '%Y-%m-%d'
+MEASUREMENT_DATE_HELP_TEXT = 'Valid format: "YYYY-mm-dd"'
 
 ################################################################
 # Topography Forms
@@ -91,7 +93,7 @@ class TopographyMetaDataForm(forms.ModelForm):
     helper.form_tag = False
 
     name = forms.CharField()
-    measurement_date = forms.DateField(input_formats=MEASUREMENT_DATE_INPUT_FORMATS,
+    measurement_date = forms.DateField(widget=DatePickerInput(format=MEASUREMENT_DATE_INPUT_FORMAT),
                                        help_text=MEASUREMENT_DATE_HELP_TEXT)
     description = forms.Textarea()
 
@@ -326,7 +328,7 @@ class TopographyForm(TopographyUnitsForm):
         )
 
     datafile = forms.FileInput()
-    measurement_date = forms.DateField(input_formats=MEASUREMENT_DATE_INPUT_FORMATS,
+    measurement_date = forms.DateField(widget=DatePickerInput(format=MEASUREMENT_DATE_INPUT_FORMAT),
                                        help_text=MEASUREMENT_DATE_HELP_TEXT)
     description = forms.Textarea()
 

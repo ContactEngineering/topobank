@@ -76,6 +76,7 @@ THIRD_PARTY_APPS = [
     'bokeh',
     'termsandconditions',
     'storages',
+    'bootstrap_datepicker_plus', # for datepicker, see https://github.com/monim67/django-bootstrap-datepicker-plus
 ]
 LOCAL_APPS = [
     'topobank.users.apps.UsersAppConfig',
