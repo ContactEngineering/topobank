@@ -3,11 +3,11 @@ from django.core.cache import cache # default cache
 
 from PyCo.Topography import FromFile
 
-
 from topobank.taskapp.celery import app
 
 import os.path
 import numpy as np
+from operator import itemgetter
 import logging
 
 _log = logging.getLogger(__name__)
@@ -263,6 +263,8 @@ def bandwidths_data(topographies):
     'lower_bound': lower bound in meters
     'name': name of topography
     'link': link to topography details
+
+    The list is sorted by the lower bound with larger lower bound first.
     """
     bandwidths_data = []
 
@@ -297,5 +299,8 @@ def bandwidths_data(topographies):
                 'link': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk))
             }
         )
+
+    # Finally sort by lower bound
+    bandwidths_data.sort(key=itemgetter('lower_bound'), reverse=True)
 
     return bandwidths_data

@@ -34,10 +34,10 @@
 
 <body id="page-top">
 
+    <!-- jquery must be loaded early, e.g. because of datepicker -->
+    <script src="{% static 'vendor/jquery/jquery-3.3.1.min.js' %}"></script>
 
     <nav class="navbar navbar-expand navbar-light bg-light static-top">
-
-
 
       <!-- Navbar -->
 
@@ -268,11 +268,8 @@
       </div>
     </div>
 
-    <!-- Bootstrap core JavaScript-->
-    <script src="{% static 'vendor/jquery/jquery-3.3.1.min.js' %}"></script>
+    <!-- Core JavaScript packages -->
     <script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
-
-    <!-- Core plugin JavaScript-->
     <script src="{% static 'vendor/jquery-easing/jquery.easing.1.3.js' %}"></script>
 
     <!-- Unit conversion --->

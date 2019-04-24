@@ -6,15 +6,15 @@ from django.contrib import admin
 from django.views.generic import TemplateView
 from django.views import defaults as default_views
 
-from topobank.views import TermsView
+from topobank.views import TermsView, HomeView
 
 urlpatterns = [
-    path("", TemplateView.as_view(template_name="pages/home.html"), name="home"),
-    path(
-        "dashboard/",
-        TemplateView.as_view(template_name="pages/dashboard.html"),
-        name="dashboard",
-    ),
+    path("", HomeView.as_view(), name="home"),
+    #path(
+    #    "dashboard/",
+    #    TemplateView.as_view(template_name="pages/dashboard.html"),
+    #    name="dashboard",
+    #),
     path(
         "about/",
         TemplateView.as_view(template_name="pages/about.html"),

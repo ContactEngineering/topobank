@@ -15,13 +15,19 @@
 {% endblock breadcrumbs %}
 
 {% block content %}
-<div class="card text-center container-fluid">
+<div class="card text-center">
   <div class="card-header">
 
     <h2>
       <div class="pull-left">
-        <h1>{{ surface.name }}</h1>
+        <span class="surface-name-headline">
+          {{ surface.name }}
+        </span>
+        <span class="badge badge-info surface-category-headline">
+          {{ surface.get_category_display|default_if_none:"category not defined yet" }}
+        </span>
       </div>
+
       <div class="pull-right">
         <a href="{% url 'manager:surface-delete' surface.id %}" class="btn btn-danger">
             {% fontawesome_icon 'trash' %} Delete
@@ -79,14 +85,13 @@
               <td>Description</td><td>{{ surface.description }}</td>
             </tr>
             <tr>
-              <td><b>to be defined</b></td><td><b>to be defined</b></td>
+              <td>Category</td><td>{{ surface.get_category_display }}</td>
             </tr>
           </tbody>
         </table>
       </div>
 
     </div>
-
   </div>
 </div>
 

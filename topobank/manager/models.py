@@ -12,17 +12,16 @@ class Surface(models.Model):
 
     There can be many topographies (measurements) for one surface.
     """
+    CATEGORY_CHOICES = [
+        ('exp', 'Experimental data'),
+        ('sim', 'Simulated data'),
+        ('dum', 'Dummy data')
+    ]
+
     name = models.CharField(max_length=80)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     description = models.TextField(blank=True)
-
-    def thumbnail(self):
-        # TODO probably thumbnail of surface should show a plot with summary, but not a random topography!
-
-        if self.topography_set.count() > 0:
-            return self.topography_set.first().surface_thumbnail
-        else:
-            return None
+    category = models.TextField(choices=CATEGORY_CHOICES, null=True, blank=False)
 
     def num_topographies(self):
         return self.topography_set.count()

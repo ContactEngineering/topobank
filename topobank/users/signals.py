@@ -21,7 +21,8 @@ def create_example_surface(sender, **kwargs):
     # Create surface
     #
     surface = Surface.objects.create(user=user, name=example_info['name'],
-                                     description=example_info['description'])
+                                     description=example_info['description'],
+                                     category=example_info['category'])
 
     #
     # Create topographies and trigger analyses

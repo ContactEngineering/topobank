@@ -10,9 +10,60 @@
     <div class="jumbotron">
       <div class="container">
         <h1 class="display-3">Welcome to <b>TopoBank</b>!</h1>
-        <p>This is an application for organizing surfaces and related topography measurements. You can perform
+        <p class="lead">This is an application for organizing surfaces and related topography measurements. You can perform
         various analyses and compare the results.</p>
         {#  <p><a class="btn btn-primary btn-lg" href="#" role="button">Learn more &raquo;</a></p> #}
+        <div class="row">
+
+          <div class="col-xl-4 col-sm-6 mb-4">
+            <div class="card text-white bg-primary o-hidden h-100">
+              <div class="card-body">
+                <div class="card-body-icon">
+                  <i class="fa fa-fw fa-user"></i>
+                </div>
+                <div class="mr-2">
+                {% if request.user.is_authenticated %}
+                  Your last login was on
+                  <div class="welcome-page-statistics">{{ request.user.last_login|date }}</div>
+                  You joined on {{ request.user.date_joined|date }}
+                {% else %}
+                  <div class="welcome-page-statistics">{{ num_users }}</div> registered users
+                {% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-xl-4 col-sm-6 mb-4">
+            <div class="card text-white bg-danger o-hidden h-100">
+              <div class="card-body">
+                <div class="card-body-icon">
+                  <i class="fa fa-fw fa-diamond"></i>
+                </div>
+                <div class="mr-2">
+                {% if request.user.is_authenticated %} You have {% endif %}
+                  <div class="welcome-page-statistics">{{ num_surfaces }}</div> surfaces in database
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-xl-4 col-sm-6 mb-4">
+            <div class="card text-white bg-warning o-hidden h-100">
+              <div class="card-body">
+                <div class="card-body-icon">
+                  <i class="fa fa-fw fa-edit"></i>
+                </div>
+                <div class="mr-2">
+                  {% if request.user.is_authenticated %} You have {% endif %}
+                  <div class="welcome-page-statistics">{{ num_topographies }}</div> individual topographies
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+        <!-- /.row -->
       </div>
     </div>
 

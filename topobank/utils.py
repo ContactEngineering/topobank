@@ -36,6 +36,7 @@ def assert_in_content(response, x):
         f"See file://{DEFAULT_DEBUG_HTML_FILENAME} in order to view the output."
 
 def assert_no_form_errors(response):
+    """Asserts that there is no more form, and if there is, show errors in form"""
     assert 'form' not in response.context, "Form is still in context, with errors: {}".format(
         response.context['form'].errors)
 

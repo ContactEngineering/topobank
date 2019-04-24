@@ -109,6 +109,10 @@ This can be done automatically through environment variables by using the tool `
 
    envsubst < orcid.yaml.template > orcid.yaml
 
+Then this entry must be imported into the database::
+
+   python manage.py loaddata orcid.yaml
+   
 See the section :ref:`first-run` how to do this in a docker container.
 
 
