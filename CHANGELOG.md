@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-## 0.2
+## 0.2.0
 
 - added category to surfaces (experimental/simulated/dummy data, #145)
 - show units to users even if they cannot be changed (#149)

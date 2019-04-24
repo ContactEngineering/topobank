@@ -3,6 +3,7 @@ Base settings to build other settings files upon.
 """
 
 import environ
+import topobank
 
 ROOT_DIR = environ.Path(__file__) - 3  # (topobank/config/settings/base.py - 3 = topobank/)
 APPS_DIR = ROOT_DIR.path('topobank')
@@ -328,7 +329,7 @@ REST_FRAMEWORK = {
 }
 
 # Version number used in the GUI
-TOPOBANK_VERSION='0.1'
+TOPOBANK_VERSION=topobank.__version__
 
 #
 # Settings for authentication with ORCID
