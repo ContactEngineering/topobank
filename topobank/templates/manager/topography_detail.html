@@ -30,12 +30,12 @@
 {% endblock extra_css %}
 
 {% block content %}
-<div class="card text-center container-fluid">
+<div class="card text-center">
   <div class="card-header">
 
     <h2>
       <div class="pull-left">
-        <h1>{{ topography.name }}</h1>
+        {{ topography.name }}
       </div>
       <div class="pull-right">
         <a href="{% url 'manager:topography-delete' topography.id %}" class="btn btn-danger">
