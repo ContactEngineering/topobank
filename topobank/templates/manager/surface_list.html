@@ -44,8 +44,14 @@
         <div class="col-xl-6 mb-4">
           <div class="card">
             <div class="card-header">
-              <a href="{% url 'manager:surface-detail' surface.id %}"><b>{{ surface.name }}</b></a>
-
+              <div class="pull-left">
+                <span class="surface-name-headline">
+                  <a href="{% url 'manager:surface-detail' surface.id %}">{{ surface.name }}</a>
+                </span>
+                <span class="badge badge-info badge-pill surface-category-headline">
+                  {{ surface.get_category_display|default_if_none:"category not defined yet" }}
+                </span>
+              </div>
               <div class="pull-right">
                 <a href="{% url 'manager:topography-create' surface.id %}" class="btn btn-primary">
                   {% fontawesome_icon 'plus-square-o' %} Add Topography

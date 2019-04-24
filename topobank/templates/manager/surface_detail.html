@@ -15,21 +15,19 @@
 {% endblock breadcrumbs %}
 
 {% block content %}
-<div class="card text-center container-fluid">
+<div class="card text-center">
   <div class="card-header">
 
     <h2>
       <div class="pull-left">
-        <h1>{{ surface.name }}</h1>
+        <span class="surface-name-headline">
+          {{ surface.name }}
+        </span>
+        <span class="badge badge-info surface-category-headline">
+          {{ surface.get_category_display|default_if_none:"category not defined yet" }}
+        </span>
       </div>
-      <div class="pull-left surface-category-headline">
-        {% if surface.category %}
-          {{ surface.get_category_display }}
-        {% else %}
-          Category not set yet.
-          <a href="{% url 'manager:surface-update' surface.id %}">Add category..</a>
-        {% endif %}
-      </div>
+
       <div class="pull-right">
         <a href="{% url 'manager:surface-delete' surface.id %}" class="btn btn-danger">
             {% fontawesome_icon 'trash' %} Delete
@@ -94,7 +92,6 @@
       </div>
 
     </div>
-
   </div>
 </div>
 

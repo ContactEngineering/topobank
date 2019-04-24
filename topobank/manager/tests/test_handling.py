@@ -716,5 +716,33 @@ def test_delete_surface(client, django_user_model):
 
     assert Surface.objects.all().count() == 0
 
+def test_list_surfaces(client, django_user_model):
+
+    #
+    # Create database objects
+    #
+    username = 'testuser'
+    password = 'abcd$1234'
+
+    user = django_user_model.objects.create_user(username=username, password=password)
+
+    s1 = SurfaceFactory(name="Surface 1", user=user, category='exp')
+    s2 = SurfaceFactory(name="Surface 2", user=user, category='dum')
+
+    t1 = TopographyFactory(name="Topo 1", surface=s1)
+
+    assert client.login(username=username, password=password)
+
+    # select all surfaces
+    response = client.post(reverse('manager:surface-list'), {'select-all': True}, follow=True)
+
+    assert_in_content(response, 'Surface 1')
+    assert_in_content(response, 'Experimental data')
+    assert_in_content(response, 'Topo 1')
+
+    assert_in_content(response, 'Surface 2')
+    assert_in_content(response, 'Dummy data')
+
+
 
 

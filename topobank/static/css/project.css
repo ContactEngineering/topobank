@@ -71,3 +71,12 @@ input.checkbox-color-design:checked+span:after {
 .welcome-page-statistics {
   font-size: xx-large;
 }
+
+.surface-category-headline {
+  font-size: small;
+}
+
+.surface-name-headline {
+  font-weight: bold;
+  font-size: larger;
+}
