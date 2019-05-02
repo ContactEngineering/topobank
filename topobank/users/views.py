@@ -12,10 +12,11 @@ class UserDetailView(LoginRequiredMixin, DetailView):
     slug_field = "username"
     slug_url_kwarg = "username"
 
-    def dispatch(self, request, *args, **kwargs):
-        if kwargs['username'] != request.user.username:
-            raise PermissionDenied
-        return super().dispatch(request, *args, **kwargs)
+    # TODO Only allow access there is a share for user or from user
+    #def dispatch(self, request, *args, **kwargs):
+    #    if kwargs['username'] != request.user.username:
+    #        raise PermissionDenied
+    #    return super().dispatch(request, *args, **kwargs)
 
 
 class UserRedirectView(LoginRequiredMixin, RedirectView):
@@ -23,7 +24,6 @@ class UserRedirectView(LoginRequiredMixin, RedirectView):
 
     def get_redirect_url(self):
         return reverse("users:detail", kwargs={"username": self.request.user.username})
-
 
 class UserUpdateView(LoginRequiredMixin, UpdateView):
 
@@ -40,7 +40,6 @@ class UserUpdateView(LoginRequiredMixin, UpdateView):
     def get_object(self):
         # Only get the User record for the user making the request
         return User.objects.get(username=self.request.user.username)
-
 
 class UserListView(LoginRequiredMixin, ListView):
     model = User

@@ -51,6 +51,7 @@
                 <span class="badge badge-info badge-pill surface-category-headline">
                   {{ surface.get_category_display|default_if_none:"category not defined yet" }}
                 </span>
+                {% render_shared_by_badge request surface %}
               </div>
               <div class="pull-right">
                 <a href="{% url 'manager:topography-create' surface.id %}" class="btn btn-primary">

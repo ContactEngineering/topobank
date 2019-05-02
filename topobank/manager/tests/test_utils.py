@@ -38,9 +38,9 @@ def test_selection_to_topographies(testuser, mock_topos):
     from topobank.manager.models import Topography
 
     selection = ('topography-1', 'topography-2', 'surface-1')
-    selection_to_topographies(selection, testuser)
+    selection_to_topographies(selection)
 
-    Topography.objects.filter.assert_called_with(surface__user=testuser, id__in=[1,2])
+    Topography.objects.filter.assert_called_with(id__in=[1,2])
 
 def test_selection_to_topographies_with_given_surface(testuser, mock_topos):
 
@@ -49,9 +49,9 @@ def test_selection_to_topographies_with_given_surface(testuser, mock_topos):
     surface = Surface(name='surface1')
 
     selection = ('topography-1', 'topography-2', 'surface-1')
-    selection_to_topographies(selection, testuser, surface=surface)
+    selection_to_topographies(selection, surface=surface)
 
-    Topography.objects.filter.assert_called_with(surface__user=testuser, id__in=[1,2], surface=surface)
+    Topography.objects.filter.assert_called_with(id__in=[1,2], surface=surface)
 
 @pytest.mark.django_db
 def test_select_all(two_topos, testuser):
@@ -61,13 +61,19 @@ def test_select_all(two_topos, testuser):
 
 @pytest.mark.django_db
 def test_selection_choices(two_topos, testuser):
-    selection = selection_choices(testuser)
+    choices = selection_choices(testuser)
 
-    selection_labels = sorted([ x[1] for x in selection ])
+    # we expect only one group in choices (1 surface)
+    assert len(choices) == 1
+    assert choices[0][0] == 'Surface 1 - created by you'
 
-    assert ['Example 3 - ZSensor',
-            'Example 4 - Default',
-            'Surface 1'] == selection_labels
+    # within this group, there should be three choice labels,
+    # first one this the full surface
+    choice_labels = [ x[1] for x in choices[0][1] ]
+
+    assert [ 'Surface 1',
+             'Example 3 - ZSensor',
+             'Example 4 - Default'  ]  == choice_labels
 
 def test_topographyfile_loading_invalid_file():
 

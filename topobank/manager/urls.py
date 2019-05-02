@@ -74,6 +74,11 @@ urlpatterns = [
        name='surface-delete'
     ),
     url(
+       regex=r'surface/(?P<pk>\d+)/share/$',
+       view=login_required(views.SurfaceShareView.as_view()),
+       name='surface-share'
+    ),
+    url(
         regex=r'surface/new/$',
         view=login_required(views.SurfaceCreateView.as_view()),
         name='surface-create'

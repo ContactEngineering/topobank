@@ -9,8 +9,9 @@ def test_absolute_url():
 
 @pytest.mark.django_db
 def test__str__():
-    user = UserFactory(username="testuser")
-    assert str(user) == "testuser"
+    OrcidSocialAccountFactory.reset_sequence(13)
+    user = UserFactory(username="testuser", name="Test User")
+    assert str(user) == "Test User (0013-0013-0013-0013)"
 
 @pytest.mark.django_db
 def test_orcid_info():

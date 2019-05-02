@@ -76,6 +76,10 @@ input.checkbox-color-design:checked+span:after {
   font-size: small;
 }
 
+.shared-by-badge {
+  font-size: small;
+}
+
 .surface-name-headline {
   font-weight: bold;
   font-size: larger;

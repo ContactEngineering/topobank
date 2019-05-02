@@ -1,6 +1,8 @@
 
 {% extends 'base.html' %}
 {% load fontawesome %}
+{% load surface_tags %}
+{% load guardian_tags %}
 
 {% block content-title %}Details for Surface <i>{{ surface.name }}</i>
 {% endblock content-title %}
@@ -15,6 +17,9 @@
 {% endblock breadcrumbs %}
 
 {% block content %}
+
+{% get_obj_perms request.user for surface as "surface_perms" %}
+
 <div class="card text-center">
   <div class="card-header">
 
@@ -26,19 +31,32 @@
         <span class="badge badge-info surface-category-headline">
           {{ surface.get_category_display|default_if_none:"category not defined yet" }}
         </span>
+       {% render_shared_by_badge request surface %}
       </div>
 
       <div class="pull-right">
-        <a href="{% url 'manager:surface-delete' surface.id %}" class="btn btn-danger">
-            {% fontawesome_icon 'trash' %} Delete
-        </a>
+        {% if "delete_surface" in surface_perms %}
+          <a href="{% url 'manager:surface-delete' surface.id %}" class="btn btn-danger">
+              {% fontawesome_icon 'trash' %} Delete
+          </a>
+        {% endif %}
         <span></span>
-        <a href="{% url 'manager:surface-update' surface.id %}" class="btn btn-default">
-            {% fontawesome_icon 'edit' %} Edit
-        </a>
-        <a href="{% url 'manager:topography-create' surface.id %}" class="btn btn-primary">
-          {% fontawesome_icon 'plus-square-o' %} Add Topography
-        </a>
+        {% if "change_surface" in surface_perms %}
+          <a href="{% url 'manager:surface-update' surface.id %}" class="btn btn-default">
+              {% fontawesome_icon 'edit' %} Edit
+          </a>
+        {% endif %}
+        <span></span>
+        {% if "share_surface" in surface_perms %}
+          <a href="{% url 'manager:surface-share' surface.id %}" class="btn btn-success">
+              {% fontawesome_icon 'share-alt' %} Share
+          </a>
+        {% endif %}
+        {% if "change_surface" in surface_perms %}
+          <a href="{% url 'manager:topography-create' surface.id %}" class="btn btn-primary">
+            {% fontawesome_icon 'plus-square-o' %} Add Topography
+          </a>
+      {% endif %}
       </div>
      </h2>
   </div>
@@ -48,9 +66,11 @@
       <li class="nav-item">
         <a class="nav-link active" data-toggle="tab" href="#topographies" role="tab">Topographies</a>
       </li>
-
       <li class="nav-item">
         <a class="nav-link" data-toggle="tab" href="#properties" role="tab">Properties</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" data-toggle="tab" href="#permissions" role="tab">Permissions</a>
       </li>
     </ul>
 
@@ -89,6 +109,39 @@
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <div class="tab-pane fade" id="permissions" role="tabpanel" aria-labelledby="permissions-tab">
+        <div class="card w-25">
+          <div class="card-header">
+            Users having permissions regarding this surface
+          </div>
+          <div class="card-body">
+            <table class="table table-responsive text-left">
+              <thead>
+              {% for th in permission_table.head %}
+                <th>{{ th }}</th>
+              {% endfor %}
+              </thead>
+              <tbody>
+              {% for row in permission_table.body %}
+                <tr>
+                  {% for cell_content, cell_title in row %}
+                    <td>
+                      {% if forloop.first %}
+                        <span>{% fontawesome_icon 'user' %}</span>
+                        {{ cell_content }}
+                      {% else %}
+                        {% render_boolean cell_content cell_title %}
+                      {% endif %}
+                    </td>
+                  {% endfor %}
+                </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
     </div>

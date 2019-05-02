@@ -11,8 +11,7 @@ from guardian.mixins import GuardianUserMixin
 import os
 
 
-
-class ORCIDInfoMissingException(Exception):
+class ORCIDException(Exception):
     pass
 
 class User(GuardianUserMixin, AbstractUser):
@@ -22,7 +21,12 @@ class User(GuardianUserMixin, AbstractUser):
     name = models.CharField(_("Name of User"), max_length=255)
 
     def __str__(self):
-        return self.username
+        try:
+            orcid_id = self.orcid_id
+        except ORCIDException:
+            orcid_id = None
+
+        return "{} ({})".format(self.name, orcid_id if orcid_id else "no ORCID ID")
 
     def get_absolute_url(self):
         return reverse("users:detail", kwargs={"username": self.username})
@@ -31,13 +35,16 @@ class User(GuardianUserMixin, AbstractUser):
         """Return relative path of directory for files of this user."""
         return os.path.join('topographies', 'user_{}'.format(self.id))
 
-    def _orcid_info(self):
-        social_account = SocialAccount.objects.get(user_id=self.id)
+    def _orcid_info(self): # TODO use local cache
+        try:
+            social_account = SocialAccount.objects.get(user_id=self.id)
+        except SocialAccount.DoesNotExist as exc:
+            raise ORCIDException("No ORCID account existing for this user.") from exc
 
         try:
             orcid_info = social_account.extra_data['orcid-identifier']
         except Exception as exc:
-            raise ORCIDInfoMissingException("Cannot retrieve ORCID info from local database.") from exc
+            raise ORCIDException("Cannot retrieve ORCID info from local database.") from exc
 
         return orcid_info
 
@@ -50,14 +57,16 @@ class User(GuardianUserMixin, AbstractUser):
         """
         return self._orcid_info()['path']
 
-    # defined as method, not property because we maybe later return other URI when a keyword is given
+    # defined as method and not as property, because we maybe later return other URI when a keyword is given
     def orcid_uri(self):
-        """Return uri to ORCID account.
+        """Return uri to ORCID account or None if not available.
 
-        :return: str
-        :raises: ORCIDInfoMissingException
+        :return: str or None
         """
-        return self._orcid_info()['uri']
+        try:
+            return self._orcid_info()['uri']
+        except:
+            return None
 
     class Meta:
         permissions = (

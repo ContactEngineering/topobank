@@ -21,7 +21,12 @@ class Surface(models.Model):
     name = models.CharField(max_length=80)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     description = models.TextField(blank=True)
-    category = models.TextField(choices=CATEGORY_CHOICES, null=True, blank=False)
+    category = models.TextField(choices=CATEGORY_CHOICES, null=True, blank=False) #  TODO change in character field
+
+    class Meta:
+        permissions = (
+            ('share_surface', 'Can share surface'),
+        )
 
     def num_topographies(self):
         return self.topography_set.count()

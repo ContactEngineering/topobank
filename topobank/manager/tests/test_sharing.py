@@ -1,8 +1,10 @@
 import pytest
 from django.shortcuts import reverse
 from .utils import SurfaceFactory
+from topobank.utils import assert_in_content
 
-def test_grant_read_access(client, django_user_model):
+
+def test_individual_read_access_permissions(client, django_user_model):
 
     #
     # create database objects
@@ -60,3 +62,29 @@ def test_grant_read_access(client, django_user_model):
     assert response.status_code == 403  # forbidden
 
     client.logout()
+
+def test_list_surface_permissions(client, django_user_model):
+
+    #
+    # create database objects
+    #
+    username = 'testuser'
+    password = 'secret'
+
+    user = django_user_model.objects.create_user(username=username, password=password)
+
+    surface = SurfaceFactory(user=user)
+
+    surface_detail_url = reverse('manager:surface-detail', kwargs=dict(pk=surface.pk))
+    #
+    # now user 1 has access to surface detail page
+    #
+    assert client.login(username=username, password=password)
+    response = client.get(surface_detail_url)
+
+    assert_in_content(response, "Permissions")
+    assert_in_content(response, "You have the permission to share this surface")
+    assert_in_content(response, "You have the permission to delete this surface")
+    assert_in_content(response, "You have the permission to change this surface")
+    assert_in_content(response, "You have the permission to view this surface")
+

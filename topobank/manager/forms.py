@@ -1,5 +1,5 @@
 from django.forms import forms, TypedMultipleChoiceField
-from django import forms
+from django import forms # TODO one form input is ineffective
 from django_select2.forms import Select2MultipleWidget
 
 from crispy_forms.helper import FormHelper
@@ -13,6 +13,8 @@ import logging
 from topobank.manager.utils import selection_choices, \
     TopographyFile, TopographyFileReadingException, TopographyFileFormatException
 from .models import Topography, Surface
+
+from topobank.users.models import User
 
 _log = logging.getLogger(__name__)
 
@@ -365,6 +367,42 @@ class SurfaceForm(forms.ModelForm):
             ),
     )
 
+class SurfaceShareForm(forms.Form):
+    """Form for sharing surfaces.
+    """
+
+    def __init__(self, *args, **kwargs):
+        # user = kwargs.pop('user')
+        super().__init__(*args, **kwargs)
+
+        # TODO Solve this with AJAX, we don't want to load all users because of privacy
+        self.fields['users'].choices = lambda: [ ("user-{}".format(u.id), u.name)
+                                                 for u in User.objects.all()]
+
+    users = TypedMultipleChoiceField(
+        required=True,
+        widget=Select2MultipleWidget,
+        label="Users to share with",
+        help_text="""Select one or multiple users you want to give access to this surface.
+          """)
+
+    allow_change = forms.BooleanField(widget=forms.CheckboxInput, required=False)
+
+    helper = FormHelper()
+    helper.form_method = 'POST'
+
+    helper.layout = Layout(
+        Div(
+            Field('users', css_class='col-7'),
+            Field('allow_change'),
+            FormActions(
+                Submit('save', 'Share this surface', css_class='btn-primary'),
+                HTML("""
+                <a href="{% url 'manager:surface-detail' surface.pk %}" class="btn btn-default" id="cancel-btn">Cancel</a>
+                """),
+            )
+        )
+    )
 
 class TopographySelectForm(forms.Form):
 

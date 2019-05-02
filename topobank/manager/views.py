@@ -1,5 +1,5 @@
 from django.shortcuts import redirect
-from django.views.generic import DetailView, ListView, UpdateView, CreateView, DeleteView
+from django.views.generic import DetailView, ListView, UpdateView, CreateView, DeleteView, FormView
 from django.urls import reverse, reverse_lazy
 from django.core.files.storage import FileSystemStorage # TODO use default_storage instead?
 from django.core.files.storage import default_storage
@@ -14,6 +14,7 @@ from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib import messages
 
 from guardian.decorators import permission_required_or_403
+from guardian.shortcuts import assign_perm, get_users_with_perms
 from django.utils.decorators import method_decorator
 
 from bokeh.plotting import figure
@@ -26,76 +27,65 @@ import os.path
 import logging
 
 from .models import Topography, Surface
-from .forms import TopographyForm, SurfaceForm, TopographySelectForm
+from .forms import TopographyForm, SurfaceForm, TopographySelectForm, SurfaceShareForm
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, Topography1DUnitsForm, Topography2DUnitsForm
 from .utils import get_topography_file, optimal_unit, \
     selected_topographies, selection_from_session, selection_for_select_all, \
-    bandwidths_data
+    bandwidths_data, surfaces_for_user
+from topobank.users.models import User
 
 _log = logging.getLogger(__name__)
 
 
-surface_read_permission_required = method_decorator(
+surface_view_permission_required = method_decorator(
     permission_required_or_403('manager.view_surface', ('manager.Surface', 'pk', 'pk'))
+    # translates to:
+    #
+    # In order to access, a specific permission is required. This permission
+    # is 'view_surface' for a specific surface. Which surface? This is calculated
+    # from view argument 'pk' (the last element in tuple), which is used to get a
+    # 'manager.Surface' instance (first element in tuple) with field 'pk' with same value as
+    # last element in tuple (the view argument 'pk').
+    #
+    # Or in pseudocode:
+    #
+    #  s = Surface.objects.get(pk=view.kwargs['pk'])
+    #  assert request.user.has_perm('view_surface', s)
 )
 
 surface_update_permission_required = method_decorator(
     permission_required_or_403('manager.change_surface', ('manager.Surface', 'pk', 'pk'))
 )
 
+surface_delete_permission_required = method_decorator(
+    permission_required_or_403('manager.delete_surface', ('manager.Surface', 'pk', 'pk'))
+)
 
-# def _make_surface_access_mixin_class(permissions):
-#     """Create a mixin class for given permission strings
-#
-#     :param permissions: list of permission strings
-#     """
-#
-#     class SurfacePermissionAccessMixin(UserPassesTestMixin):
-#         redirect_field_name = None
-#
-#         def test_func(self):
-#             if 'pk' in self.kwargs:
-#                 surface_pk = self.kwargs['pk']
-#             elif 'surface_id' in self.kwargs:
-#                 surface_pk = self.kwargs['surface_id']
-#             else:
-#                 # no specific surface meant here
-#                 return True
-#
-#             surface = Surface.objects.get(pk=surface_pk)
-#
-#             ok = True
-#             for perm in permissions:
-#                 ok &= self.request.user.has_perm(perm, surface)
-#             return ok
-#
-# SurfaceReadAccessMixin = _make_surface_access_mixin_class('view_surface')
-# SurfaceUpdateAccessMixin = _make_surface_access_mixin_class('change_surface')
+surface_share_permission_required = method_decorator(
+    permission_required_or_403('manager.share_surface', ('manager.Surface', 'pk', 'pk'))
+)
 
-class SurfaceReadAccessMixin(UserPassesTestMixin):
+
+class TopographyPermissionMixin(UserPassesTestMixin):
     redirect_field_name = None
 
-    def test_func(self):
-        if 'pk' in self.kwargs:
-            surface_pk = self.kwargs['pk']
-        elif 'surface_id' in self.kwargs:
-            surface_pk = self.kwargs['surface_id']
-        else:
-            # no specific surface meant here
-            return True
-
-        surface = Surface.objects.get(pk=surface_pk)
-        return self.request.user.has_perm('view_surface', surface)
-
-class TopographyReadAccessMixin(UserPassesTestMixin):
-    redirect_field_name = None
-
-    def test_func(self):
+    def has_surface_permissions(self, perms):
         if 'pk' not in self.kwargs:
             return True
 
         topo = Topography.objects.get(pk=self.kwargs['pk'])
-        return self.request.user.has_perm('view_surface', topo.surface)
+        return all(self.request.user.has_perm(perm, topo.surface) for perm in perms)
+
+    def test_func(self):
+        return NotImplementedError()
+
+class TopographyViewPermissionMixin(TopographyPermissionMixin):
+    def test_func(self):
+        return self.has_surface_permissions(['view_surface'])
+
+class TopographyUpdatePermissionMixin(TopographyPermissionMixin):
+    def test_func(self):
+        return self.has_surface_permissions(['view_surface', 'change_surface'])
 
 #
 # Using a wizard because we need intermediate calculations
@@ -313,7 +303,7 @@ class TopographyCreateWizard(SessionWizardView):
 
         return redirect(reverse('manager:topography-detail', kwargs=dict(pk=instance.pk)))
 
-class TopographyUpdateView(TopographyReadAccessMixin, UpdateView):
+class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
     model = Topography
     form_class = TopographyForm
 
@@ -326,7 +316,7 @@ class TopographyUpdateView(TopographyReadAccessMixin, UpdateView):
         self.object.submit_automated_analyses()
         return reverse('manager:topography-detail', kwargs=dict(pk=self.object.pk))
 
-class TopographyDetailView(TopographyReadAccessMixin, DetailView):
+class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
     model = Topography
     context_object_name = 'topography'
 
@@ -337,7 +327,6 @@ class TopographyDetailView(TopographyReadAccessMixin, DetailView):
         :param topo: TopoBank Topography instance
         :return: bokeh plot
         """
-
 
         TOOLTIPS = [
             ("x", "$x " + topo.unit),
@@ -448,7 +437,7 @@ class TopographyDetailView(TopographyReadAccessMixin, DetailView):
 
         return context
 
-class TopographyDeleteView(TopographyReadAccessMixin, DeleteView):
+class TopographyDeleteView(TopographyUpdatePermissionMixin, DeleteView):
     model = Topography
     context_object_name = 'topography'
     success_url = reverse_lazy('manager:surface-list')
@@ -477,7 +466,6 @@ class SelectedTopographyView(FormMixin, ListView):
 
         return topographies
 
-
 class SurfaceListView(FormMixin, ListView):
     model = Surface
     context_object_name = 'surfaces'
@@ -485,7 +473,7 @@ class SurfaceListView(FormMixin, ListView):
     success_url = reverse_lazy('manager:surface-list') # stay on same view
 
     def get_queryset(self):
-        surfaces = Surface.objects.filter(user=self.request.user) # TODO filter by read permissions
+        surfaces = surfaces_for_user(self.request.user) # returns surfaces the user has acccess to
         return surfaces
 
     def get_initial(self):
@@ -497,7 +485,7 @@ class SurfaceListView(FormMixin, ListView):
         kwargs['user'] = self.request.user
         return kwargs
 
-    def post(self, request, *args, **kwargs): # TODO is this really needed?
+    def post(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
             return HttpResponseForbidden()
         form = self.get_form()
@@ -541,7 +529,6 @@ class SurfaceListView(FormMixin, ListView):
 
         return super().form_valid(form)
 
-
 class SurfaceCreateView(CreateView):
     model = Surface
     form_class = SurfaceForm
@@ -555,18 +542,74 @@ class SurfaceCreateView(CreateView):
     def get_success_url(self):
         return reverse('manager:surface-detail', kwargs=dict(pk=self.object.pk))
 
-class SurfaceDetailView(SurfaceReadAccessMixin, DetailView):
+class SurfaceDetailView(DetailView):
     model = Surface
     context_object_name = 'surface'
 
-    @surface_read_permission_required
+    @surface_view_permission_required
     def dispatch(self, request, *args, **kwargs):
         return super().dispatch(request, *args, *kwargs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+
+        #
+        # bandwidth data
+        #
         bw_data = bandwidths_data(self.object.topography_set.all())
         context['bandwidths_data'] = json.dumps(bw_data)
+
+        #
+        # permission data
+        #
+        ACTIONS = ['view', 'change', 'delete', 'share'] # defines the order of permissions in table
+
+        # surface_perms = get_users_with_perms(self.object, attach_perms=True, only_with_perms_in=potential_perms)
+        surface_perms = get_users_with_perms(self.object, attach_perms=True)
+        # is now a dict of the form
+        #  <User: joe>: ['view_surface'], <User: dan>: ['view_surface', 'change_surface']}
+        surface_users = sorted(surface_perms.keys(), key=lambda u: u.name if u else '')
+
+        # convert to list of boolean based on list ACTIONS
+        #
+        # Each table element here is a 2-tuple: (cell content, cell title)
+        #
+        # The cell content is inserted into the cell.
+        # The cell title is shown in a tooltip and can be used in tests.
+        #
+        surface_perms_table = []
+        for user in surface_users:
+
+            is_request_user = user==self.request.user
+
+            if is_request_user:
+                user_display_name = "You"
+                auxilliary = "have"
+            else:
+                user_display_name = user.name
+                auxilliary = "has"
+
+            # the current user is represented as None, can be displayed in a special way in template ("You")
+            row = [(user_display_name, user.name)] # TODO maybe show ORCID ID here
+            for a in ACTIONS:
+
+                perm = a + '_surface'
+                has_perm = perm in surface_perms[user]
+
+                cell_title = "{} {}".format(user_display_name, auxilliary)
+                if not has_perm:
+                    cell_title += "n't"
+                cell_title += " the permission to {} this surface".format(a)
+
+                row.append((has_perm, cell_title))
+
+            surface_perms_table.append(row)
+
+        context['permission_table'] = {
+            'head': ['']+ACTIONS,
+            'body': surface_perms_table
+        }
+
         return context
 
 class SurfaceUpdateView(UpdateView):
@@ -577,16 +620,51 @@ class SurfaceUpdateView(UpdateView):
     def dispatch(self, request, *args, **kwargs):
         return super().dispatch(request, *args, *kwargs)
 
-    def get_initial(self, *args, **kwargs):
-        initial = super().get_initial(*args, **kwargs)
-        initial = initial.copy()
-        initial['user'] = self.request.user
-        return initial
+    def get_success_url(self):
+        return reverse('manager:surface-detail', kwargs=dict(pk=self.object.pk))
+
+class SurfaceDeleteView(DeleteView):
+    model = Surface
+    context_object_name = 'surface'
+    success_url = reverse_lazy('manager:surface-list')
+
+    @surface_delete_permission_required
+    def dispatch(self, request, *args, **kwargs):
+        return super().dispatch(request, *args, *kwargs)
+
+class SurfaceShareView(FormMixin, DetailView):
+    model = Surface
+    context_object_name = 'surface'
+    template_name = "manager/surface_share.html"
+    form_class = SurfaceShareForm
+
+    @surface_share_permission_required
+    def dispatch(self, request, *args, **kwargs):
+        return super().dispatch(request, *args, *kwargs)
 
     def get_success_url(self):
         return reverse('manager:surface-detail', kwargs=dict(pk=self.object.pk))
 
-class SurfaceDeleteView(SurfaceReadAccessMixin, DeleteView):
-    model = Surface
-    context_object_name = 'surface'
-    success_url = reverse_lazy('manager:surface-list')
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        form = self.get_form()
+        if form.is_valid():
+            return self.form_valid(form)
+        else:
+            return self.form_invalid(form)
+
+    def form_valid(self, form):
+
+        if 'save' in self.request.POST:
+            user_pk_strs = form.cleaned_data.get('users', [])
+            allow_change = form.cleaned_data.get('allow_change', False)
+            for ustr in user_pk_strs:
+                user_pk = int(ustr.split('-')[1])
+                user = User.objects.get(pk=user_pk)
+                _log.info("Sharing surface {} with user {} (allow change? {}).".format(
+                    self.object.pk, user.username, allow_change))
+                assign_perm('view_surface', user, self.object)
+                if allow_change:
+                    assign_perm('change_surface', user, self.object)
+
+        return super().form_valid(form)
