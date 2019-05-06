@@ -1,7 +1,9 @@
 from django.db import models, transaction
+from guardian.shortcuts import assign_perm, remove_perm
 
 from .utils import TopographyFile, selected_topographies, TopographyFileException
 from topobank.users.models import User
+
 
 def user_directory_path(instance, filename):
     # file will be uploaded to MEDIA_ROOT/user_<id>/<filename>
@@ -30,6 +32,42 @@ class Surface(models.Model):
 
     def num_topographies(self):
         return self.topography_set.count()
+
+    def is_shared(self, with_user, allow_change=False):
+        """Returns True, if this surface is shared with a given user.
+
+        Always returns True if user is the creator.
+
+        :param with_user: User to test
+        :param allow_change: If True, only return True if surface can be changed by given user
+        :return: True or False
+        """
+        result = with_user.has_perm('view_surface', self)
+        if result and allow_change:
+            result = with_user.has_perm('change_surface', self)
+        return result
+
+
+    def share(self, with_user, allow_change=False):
+        """Share this surface with a given user.
+
+        :param with_user: user to share with
+        :param allow_change: if True, also allow changing the surface
+        """
+        assign_perm('view_surface', with_user, self)
+        if allow_change:
+            assign_perm('change_surface', with_user, self)
+
+    def unshare(self, with_user):
+        """Remove share on this surface for given user.
+
+        If the user has no permissions, nothing happens.
+
+        :param with_user: User to remove share from
+        """
+        for perm in ['view_surface', 'change_surface']:
+            if with_user.has_perm(perm, self):
+                remove_perm(perm, with_user, self)
 
 class Topography(models.Model):
     """Topography Measurement of a Surface.

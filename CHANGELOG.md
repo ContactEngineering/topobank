@@ -2,7 +2,10 @@
 
 ## 0.3.0
 
-- 
+- surfaces can be shared for viewing and optionally also for changing
+- user can view each others profiles if they collaborate, i.e. share something
+- shares for a surface are listed in an extra tab
+- PLANNED: all shares between users are listed in their profiles
 
 ## 0.2.0
 

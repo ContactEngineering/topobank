@@ -4,7 +4,7 @@ from django.views.generic import DetailView, ListView, RedirectView, UpdateView
 from django.core.exceptions import PermissionDenied
 
 from .models import User
-
+from .utils import are_collaborating
 
 class UserDetailView(LoginRequiredMixin, DetailView):
     model = User
@@ -12,12 +12,12 @@ class UserDetailView(LoginRequiredMixin, DetailView):
     slug_field = "username"
     slug_url_kwarg = "username"
 
-    # TODO Only allow access there is a share for user or from user
-    #def dispatch(self, request, *args, **kwargs):
-    #    if kwargs['username'] != request.user.username:
-    #        raise PermissionDenied
-    #    return super().dispatch(request, *args, **kwargs)
+    def dispatch(self, request, *args, **kwargs):
+        user_to_view = User.objects.get(username=kwargs['username'])
 
+        if not are_collaborating(user_to_view, request.user):
+            raise PermissionDenied
+        return super().dispatch(request, *args, **kwargs)
 
 class UserRedirectView(LoginRequiredMixin, RedirectView):
     permanent = False

@@ -1,6 +1,7 @@
 import pytest
 
 from .factories import UserFactory, OrcidSocialAccountFactory
+from topobank.manager.tests.utils import SurfaceFactory
 
 @pytest.mark.django_db
 def test_absolute_url():
@@ -20,3 +21,18 @@ def test_orcid_info():
     user = UserFactory()
     assert user.orcid_id == user_id
     assert user.orcid_uri() == 'https://orcid.org/'+user_id
+
+@pytest.mark.django_db
+def test_is_sharing_with():
+
+    user1 = UserFactory()
+    user2 = UserFactory()
+
+    assert not user1.is_sharing_with(user2)
+
+    surface = SurfaceFactory(user=user1)
+    surface.share(user2)
+
+    assert user1.is_sharing_with(user2)
+
+

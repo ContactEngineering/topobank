@@ -7,9 +7,9 @@ from django.dispatch import receiver
 from django.conf import settings
 from allauth.socialaccount.models import SocialAccount
 from guardian.mixins import GuardianUserMixin
+from guardian.shortcuts import get_objects_for_user
 
 import os
-
 
 class ORCIDException(Exception):
     pass
@@ -68,10 +68,22 @@ class User(GuardianUserMixin, AbstractUser):
         except:
             return None
 
+    def is_sharing_with(self, user):
+        """Returns True if this user is sharing sth. with given user."""
+        from topobank.manager.models import Surface
+
+        objs = get_objects_for_user(user, 'view_surface', klass=Surface)
+        for o in objs:
+            if o.user == self: # this surface is shared by this user
+                return True
+        return False # nothing shared
+
     class Meta:
         permissions = (
             ("can_skip_terms", "Can skip all checkings for terms and conditions."),
         )
+
+
 
 #
 # ensure the full name field is set
