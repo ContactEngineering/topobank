@@ -93,4 +93,9 @@ urlpatterns = [
         view=TemplateView.as_view(template_name="403.html"),
         name='access-denied'
     ),
+    url(
+        regex=r'sharing/$',
+        view=login_required(views.sharing_info),
+        name='sharing-info'
+    ),
 ]

@@ -70,12 +70,19 @@
               <span>Analyses</span>
             </a>
           </li>
+          <li class="nav-item">
+            <a class="nav-link"
+               href="{% url 'manager:sharing-info' %}">
+              <i class="fa fa-fw fa-share-alt"></i>
+              <span>Sharing</span>
+            </a>
+          </li>
         {% endif %} {# if user is authenticated #}
 
         <li class="nav-item dropdown no-arrow">
           <a class="nav-link dropdown-toggle" href="#" id="helpDropdown" role="button" data-toggle="dropdown"
              aria-haspopup="true" aria-expanded="false">
-            <i class="fa fa-question-circle fa-fw"></i>
+            <i class="fa fa-info-circle fa-fw"></i>
           </a>
           <div class="dropdown-menu dropdown-menu-right help-dropdown" aria-labelledby="helpDropdown">
             <a class="dropdown-item" href="#" data-toggle="modal" data-target="#versionModal">Version Information</a>
@@ -99,7 +106,7 @@
             <!-- a class="dropdown-item" href="#"><i class="fa fa-cog fa-fw"></i> Settings<a> -->
             <div class="dropdown-divider"></div>
             <a class="dropdown-item" href="#" data-toggle="modal" data-target="#logoutModal">
-              <i class="fa fa-sign-out-alt fa-fw"></i>Sign Out</a>
+              <i class="fa fa-sign-out fa-fw"></i>Sign Out</a>
             {% else %}
             <a id="orcid-log-in-link" class="dropdown-item" href="{% provider_login_url 'orcid' method="oauth2" %}">Sign in via ORCID</a>
             {% endif %}

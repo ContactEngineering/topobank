@@ -112,7 +112,7 @@
       </div>
 
       <div class="tab-pane fade" id="permissions" role="tabpanel" aria-labelledby="permissions-tab">
-        <div class="card w-25">
+        <div class="card w-50">
           <div class="card-header">
             Users having permissions regarding this surface
           </div>
@@ -129,8 +129,10 @@
                   {% for cell_content, cell_title in row %}
                     <td>
                       {% if forloop.first %}
-                        <span>{% fontawesome_icon 'user' %}</span>
-                        {{ cell_content }}
+                        <span title="Click to view profile">{% fontawesome_icon 'user' %}
+                        <a href="{{ cell_title }}">{{ cell_content }}</a>
+                        {# a bit of a hack: cell_title is used to pass a link here #}
+                        </span>
                       {% else %}
                         {% render_boolean cell_content cell_title %}
                       {% endif %}
@@ -140,6 +142,10 @@
               {% endfor %}
               </tbody>
             </table>
+          </div>
+          <div class="card-footer">
+            Click <a href="{% url 'manager:sharing-info' %}">here</a> for information which surfaces are
+            shared with you or by you.
           </div>
         </div>
       </div>

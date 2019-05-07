@@ -1,5 +1,5 @@
-from django.shortcuts import redirect
-from django.views.generic import DetailView, ListView, UpdateView, CreateView, DeleteView, FormView
+from django.shortcuts import redirect, render
+from django.views.generic import DetailView, ListView, UpdateView, CreateView, DeleteView, View
 from django.urls import reverse, reverse_lazy
 from django.core.files.storage import FileSystemStorage # TODO use default_storage instead?
 from django.core.files.storage import default_storage
@@ -14,8 +14,11 @@ from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib import messages
 
 from guardian.decorators import permission_required_or_403
-from guardian.shortcuts import assign_perm, get_users_with_perms
+from guardian.shortcuts import assign_perm, get_users_with_perms, get_objects_for_user
 from django.utils.decorators import method_decorator
+
+import django_tables2 as tables
+from django_tables2 import RequestConfig
 
 from bokeh.plotting import figure
 from bokeh.embed import components
@@ -590,7 +593,7 @@ class SurfaceDetailView(DetailView):
                 auxilliary = "has"
 
             # the current user is represented as None, can be displayed in a special way in template ("You")
-            row = [(user_display_name, user.name)] # TODO maybe show ORCID ID here
+            row = [(user_display_name, user.get_absolute_url())] # cell title is used for passing a link here
             for a in ACTIONS:
 
                 perm = a + '_surface'
@@ -668,3 +671,113 @@ class SurfaceShareView(FormMixin, DetailView):
                     assign_perm('change_surface', user, self.object)
 
         return super().form_valid(form)
+
+
+class SharingInfoTable(tables.Table):
+    surface = tables.Column(linkify=True)
+    num_topographies = tables.Column(verbose_name='# Topographies')
+    created_by = tables.Column(linkify=True)
+    shared_with = tables.Column(linkify=True)
+    allow_change = tables.BooleanColumn()
+    selected = tables.CheckBoxColumn(attrs={
+        'th__input': {'class': 'select-all-checkbox'},
+        'td__input': {'class': 'select-checkbox'},
+    })
+
+    def __init__(self, *args, **kwargs):
+        self._request = kwargs['request']
+        super().__init__(*args, **kwargs)
+
+    def render_surface(self, value):
+        return value.name
+
+    def render_created_by(self, value):
+        return self._render_user(value)
+
+    def render_shared_with(self, value):
+        return self._render_user(value)
+
+    def _render_user(self, user):
+        if self._request.user == user:
+            return "You"
+        return user.name
+
+    class Meta:
+        orderable = False # ordering does not work with custom columns
+
+def sharing_info(request):
+
+    #
+    # Handle POST request if any
+    #
+    if (request.method == "POST") and ('selected' in request.POST):
+        # only do sth if there is a selection
+
+        unshare = 'unshare' in request.POST
+        allow_change = 'allow_change' in request.POST
+
+        for s in request.POST.getlist('selected'):
+            # decode selection string
+            surface_id, share_with_user_id = s.split(',')
+            surface_id = int(surface_id)
+            share_with_user_id = int(share_with_user_id)
+
+            surface = Surface.objects.get(id=surface_id)
+            share_with = User.objects.get(id=share_with_user_id)
+
+            if request.user not in [share_with, surface.user]:
+                # we don't allow to change shares if the request user is not involved
+                continue
+
+            if unshare:
+                surface.unshare(share_with)
+            elif allow_change and (request.user == surface.user): # only allow change for surface creator
+                surface.share(share_with, allow_change=True)
+
+    #
+    # Collect information to display
+    #
+    surfaces = get_objects_for_user(request.user, 'view_surface', klass=Surface)
+
+    tmp = []
+    for s in surfaces:
+        surface_perms = get_users_with_perms(s, attach_perms=True)
+        # is now a dict of the form
+        #  <User: joe>: ['view_surface'], <User: dan>: ['view_surface', 'change_surface']}
+        surface_users = sorted(surface_perms.keys(), key=lambda u: u.name if u else '')
+        for u in surface_users:
+            # Leave out these shares:
+            #
+            # - share of a user with himself (trivial)
+            # - shares where the request user is not involved
+            #
+            if (u != s.user) and ((u == request.user) or (s.user == request.user)):
+                allow_change = ('change_surface' in surface_perms[u])
+                tmp.append((s, u, allow_change))
+
+    #
+    # Create table cells
+    #
+    data = [
+        {
+            'surface': surface,
+            'num_topographies': surface.num_topographies,
+            'created_by': surface.user,
+            'shared_with': shared_with,
+            'allow_change': allow_change,
+            'selected': "{},{}".format(surface.id, shared_with.id),
+        } for surface, shared_with, allow_change in tmp
+    ]
+
+    #
+    # Build table and render result
+    #
+    sharing_info_table = SharingInfoTable(data=data,
+                                          empty_text="No surfaces shared by or with you.",
+                                          request=request)
+    RequestConfig(request).configure(sharing_info_table)
+
+    return render(request,
+                  template_name='manager/sharing_info.html',
+                  context={'sharing_info_table': sharing_info_table})
+

@@ -153,3 +153,36 @@ def test_appearance_buttons_based_on_permissions(client):
     assert_in_content(response, topo_update_url)
     assert_in_content(response, topo_delete_url)
 
+@pytest.mark.django_db
+def test_sharing_info(client):
+    password = "secret"
+
+    user1 = UserFactory(password=password)
+    user2 = UserFactory(password=password)
+    user3 = UserFactory(password=password)
+
+    surface1 = SurfaceFactory(user=user1)
+    surface2 = SurfaceFactory(user=user2)
+
+    surface1.share(user2, allow_change=False)
+    surface1.share(user3, allow_change=True)
+
+    surface2.share(user1)
+
+    #
+    # Test for user 1
+    #
+    client.login(username=user1.name, password=password)
+
+    response = client.get(reverse('manager:sharing-info'))
+
+    # test table contents?!
+
+    assert_in_content(response, 'You shared the following surfaces')
+    assert_in_content(response, '{} with {}'.format(reverse('manager:surface-detail', kwargs=dict(pk=surface1.pk)),
+                                                    reverse('manager:user-detail', kwargs=dict(pk=user2.username))))
+
+    assert False, "Test incomplete"
+
+
+

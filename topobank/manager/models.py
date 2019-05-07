@@ -1,4 +1,5 @@
 from django.db import models, transaction
+from django.shortcuts import reverse
 from guardian.shortcuts import assign_perm, remove_perm
 
 from .utils import TopographyFile, selected_topographies, TopographyFileException
@@ -26,9 +27,16 @@ class Surface(models.Model):
     category = models.TextField(choices=CATEGORY_CHOICES, null=True, blank=False) #  TODO change in character field
 
     class Meta:
+        ordering = ['name']
         permissions = (
             ('share_surface', 'Can share surface'),
         )
+
+    def __str__(self):
+        return self.name
+
+    def get_absolute_url(self):
+        return reverse('manager:surface-detail', kwargs=dict(pk=self.pk))
 
     def num_topographies(self):
         return self.topography_set.count()

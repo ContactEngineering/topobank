@@ -63,7 +63,6 @@ DJANGO_APPS = [
     'django.contrib.staticfiles',
     # 'django.contrib.humanize', # Handy template tags
     'django.contrib.admin',
-    'django_select2',
 ]
 THIRD_PARTY_APPS = [
     'crispy_forms',
@@ -79,6 +78,8 @@ THIRD_PARTY_APPS = [
     'storages',
     'guardian',
     'bootstrap_datepicker_plus', # for datepicker, see https://github.com/monim67/django-bootstrap-datepicker-plus
+    'django_select2',
+    'django_tables2',
 ]
 LOCAL_APPS = [
     'topobank.users.apps.UsersAppConfig',
@@ -384,3 +385,8 @@ if USE_S3_STORAGE:
 # Settings for django-guardian
 #
 GUARDIAN_MONKEY_PATCH = False
+
+#
+# Settings for django-tables2
+#
+DJANGO_TABLES2_TEMPLATE = 'django_tables2/bootstrap4.html'
