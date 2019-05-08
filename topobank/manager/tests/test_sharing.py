@@ -65,6 +65,7 @@ def test_individual_read_access_permissions(client, django_user_model):
 
     client.logout()
 
+
 def test_list_surface_permissions(client, django_user_model):
 
     #
@@ -77,7 +78,10 @@ def test_list_surface_permissions(client, django_user_model):
 
     surface = SurfaceFactory(user=user)
 
+
+
     surface_detail_url = reverse('manager:surface-detail', kwargs=dict(pk=surface.pk))
+
     #
     # now user 1 has access to surface detail page
     #
@@ -89,6 +93,8 @@ def test_list_surface_permissions(client, django_user_model):
     assert_in_content(response, "You have the permission to delete this surface")
     assert_in_content(response, "You have the permission to change this surface")
     assert_in_content(response, "You have the permission to view this surface")
+
+
 
 @pytest.mark.django_db
 def test_appearance_buttons_based_on_permissions(client):
@@ -178,7 +184,7 @@ def _parse_html_table(table):
     return data
 
 @pytest.mark.django_db
-def test_sharing_info(client):
+def test_sharing_info_table(client):
     password = "secret"
 
     user1 = UserFactory(password=password)
@@ -273,6 +279,88 @@ def test_sharing_info(client):
     assert data == [
         ['Surface', '# Topographies', 'Created by', 'Shared with', 'Allow change', ''],
         [surface1.name, '1', user1.name, 'You', TRUE_CHAR, ''],
+    ]
+
+    client.logout()
+
+    #
+    # Now first user removes share for user 3
+    #
+    assert client.login(username=user1.username, password=password)
+
+    response = client.post(reverse('manager:sharing-info'),
+                           {
+                               'selected': '{},{}'.format(surface1.id, user3.id),
+                               'unshare': 'unshare'
+                           })
+
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.content)
+
+    table = soup.find("table")
+
+    data = _parse_html_table(table)
+
+    import pprint
+    pprint.pprint(data)
+
+    assert data == [
+        ['Surface', '# Topographies', 'Created by', 'Shared with', 'Allow change', ''],
+        [surface1.name, '1', 'You', user2.name, FALSE_CHAR, ''],
+        [surface2.name, '0', user2.name, 'You', FALSE_CHAR, ''],
+    ]
+
+    #
+    # Next user 1 allows changing surface 1 for user 2
+    #
+    response = client.post(reverse('manager:sharing-info'),
+                           {
+                               'selected': '{},{}'.format(surface1.id, user2.id),
+                               'allow_change': 'allow_change'
+                           })
+
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.content)
+
+    table = soup.find("table")
+
+    data = _parse_html_table(table)
+
+    import pprint
+    pprint.pprint(data)
+
+    assert data == [
+        ['Surface', '# Topographies', 'Created by', 'Shared with', 'Allow change', ''],
+        [surface1.name, '1', 'You', user2.name, TRUE_CHAR, ''],
+        [surface2.name, '0', user2.name, 'You', FALSE_CHAR, ''],
+    ]
+
+    client.logout()
+
+    #
+    # This is also visible for user2
+    #
+    assert client.login(username=user2.username, password=password)
+
+    response = client.get(reverse('manager:sharing-info'))
+
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.content)
+
+    table = soup.find("table")
+
+    data = _parse_html_table(table)
+
+    import pprint
+    pprint.pprint(data)
+
+    assert data == [
+        ['Surface', '# Topographies', 'Created by', 'Shared with', 'Allow change', ''],
+        [surface1.name, '1', user1.name, 'You', TRUE_CHAR, ''],
+        [surface2.name, '0', 'You', user1.name, FALSE_CHAR, ''],
     ]
 
     client.logout()
