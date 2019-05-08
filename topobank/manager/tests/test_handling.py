@@ -6,8 +6,7 @@ from pathlib import Path
 import datetime
 import os.path
 
-from topobank.manager.tests.utils import export_reponse_as_html
-from ..tests.utils import two_topos, one_line_scan, SurfaceFactory, TopographyFactory
+from ..tests.utils import two_topos, one_line_scan, SurfaceFactory, TopographyFactory, UserFactory
 from ..models import Topography, Surface
 from topobank.utils import assert_in_content, assert_redirects, assert_no_form_errors
 
@@ -254,6 +253,60 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
     assert exp_resolution_x == t.resolution_x
     assert exp_resolution_y == t.resolution_y
 
+@pytest.mark.django_db
+def test_upload_topography_and_name_like_an_exisiting_for_same_surface(client):
+
+    input_file_path = Path("topobank/manager/fixtures/10x10.txt")
+
+    password = 'abcd$1234'
+
+    user = UserFactory(password=password)
+
+    surface = SurfaceFactory(user=user)
+    topo1 = TopographyFactory(surface=surface, name="TOPO")
+
+    assert client.login(username=user.username, password=password)
+
+    # Try to create topography with same name again
+    #
+    # open first step of wizard: file upload
+    #
+    with input_file_path.open(mode='rb') as fp:
+
+        response = client.post(reverse('manager:topography-create',
+                                       kwargs=dict(surface_id=surface.id)),
+                               data={
+                                'topography_create_wizard-current_step': 'upload',
+                                'upload-datafile': fp,
+                                'upload-surface': surface.id,
+                               }, follow=True)
+
+    assert response.status_code == 200
+
+    #
+    # check contents of second page
+    #
+
+    # now we should be on the page with second step
+    assert b"Step 2 of 3" in response.content, "Errors:"+str(response.context['form'].errors)
+
+    #
+    # Send data for second page, with same name as exisiting topography
+    #
+    response = client.post(reverse('manager:topography-create',
+                                   kwargs=dict(surface_id=surface.id)),
+                           data={
+                            'topography_create_wizard-current_step': 'metadata',
+                            'metadata-name': 'TOPO', # <----- already exisiting for this surface
+                            'metadata-measurement_date': '2018-06-21',
+                            'metadata-data_source': 0,
+                            'metadata-description': "bla",
+                           })
+
+    assert response.status_code == 200
+
+    form = response.context['form']
+    assert "A topography with same name 'TOPO' already exists for same surface" in form.errors['name'][0]
 
 @pytest.mark.django_db
 def test_trying_upload_of_invalid_topography_file(client, django_user_model):

@@ -118,9 +118,10 @@ class TopographyCreateWizard(SessionWizardView):
 
         initial = {}
 
-        if step == 'upload':
+        if step in ['upload']:
             #
-            # Pass surface in order to have it later in done() method
+            # Pass surface in order to
+            # - have it later in done() method (for upload)
             #
             # make sure that the surface exists and belongs to the current user
             try:
@@ -242,6 +243,11 @@ class TopographyCreateWizard(SessionWizardView):
             #
             kwargs['data_source_choices'] = [(k, ds) for k, ds in
                                              enumerate(topofile.data_sources)]
+
+            #
+            # Set surface in order to check for suplicate topography names
+            #
+            kwargs['surface'] = step0_data['surface']
 
         return kwargs
 

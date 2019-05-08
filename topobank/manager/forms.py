@@ -85,6 +85,7 @@ class TopographyMetaDataForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         data_source_choices = kwargs.pop('data_source_choices')
+        self._surface = kwargs.pop('surface')
         super(TopographyMetaDataForm, self).__init__(*args, **kwargs)
         self.fields['data_source'] = forms.ChoiceField(choices=data_source_choices)
 
@@ -112,8 +113,15 @@ class TopographyMetaDataForm(forms.ModelForm):
         ),
     )
 
-    def clean(self):
-        return self.cleaned_data
+
+    def clean_name(self):
+        name = self.cleaned_data['name']
+
+        if Topography.objects.filter(name=name, surface=self._surface).exists():
+            msg = f"A topography with same name '{name}' already exists for same surface"
+            raise forms.ValidationError(msg, code='duplicate_topography_name_for_same_surface')
+
+        return name
 
 
 class TopographyUnitsForm(forms.ModelForm):

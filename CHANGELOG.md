@@ -7,6 +7,7 @@
 - shares for a surface are listed in an extra tab
 - all related shares between users are listed in a "Sharing" page accesible from top menu bar
 - exisiting shares can be deleted or extended in order to allow changing a surface
+- prevent duplicate topography names for same surface (fixes #91)
 
 ## 0.2.0
 

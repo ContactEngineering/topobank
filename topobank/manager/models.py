@@ -82,6 +82,10 @@ class Topography(models.Model):
     """Topography Measurement of a Surface.
     """
 
+    # TODO After upgrade to Django 2.2, use contraints: https://docs.djangoproject.com/en/2.2/ref/models/constraints/
+    class Meta:
+        unique_together = (('surface', 'name'),)
+
     LENGTH_UNIT_CHOICES = [
         # (None, '(unknown)') # TODO should this be allowed?
         ('km', 'kilometers'),

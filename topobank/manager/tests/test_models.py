@@ -1,7 +1,10 @@
 import pytest
 
+from django.db.utils import IntegrityError
+from django.db import transaction
+
 from ..models import Topography, Surface
-from .utils import two_topos, SurfaceFactory, UserFactory
+from .utils import two_topos, SurfaceFactory, UserFactory, TopographyFactory
 
 @pytest.mark.django_db
 def test_topography_name(two_topos):
@@ -15,6 +18,22 @@ def test_topography_str(two_topos):
     topos = Topography.objects.filter(surface=surface).order_by('name')
     assert [ str(t) for t in topos ] == ["Topography 'Example 3 - ZSensor' from 2018-01-01",
                                          "Topography 'Example 4 - Default' from 2018-01-02"]
+
+@pytest.mark.django_db
+def test_unique_topography_name_in_same_surface():
+
+    user = UserFactory()
+    surface1 = SurfaceFactory(user=user)
+
+    TopographyFactory(surface=surface1, name='TOPO')
+
+    with transaction.atomic(): # otherwise we can't proceed in this test
+        with pytest.raises(IntegrityError):
+            TopographyFactory(surface=surface1, name='TOPO')
+
+    # no problem with another surface
+    surface2 = SurfaceFactory(user=user)
+    TopographyFactory(surface=surface2, name='TOPO')
 
 @pytest.mark.django_db
 def test_surface_description(django_user_model):
