@@ -1,5 +1,7 @@
 import pytest
 from django.shortcuts import reverse
+from bs4 import BeautifulSoup
+
 from .utils import SurfaceFactory, TopographyFactory, UserFactory
 from topobank.utils import assert_in_content, assert_not_in_content
 
@@ -153,6 +155,28 @@ def test_appearance_buttons_based_on_permissions(client):
     assert_in_content(response, topo_update_url)
     assert_in_content(response, topo_delete_url)
 
+def _parse_html_table(table):
+    """Return list of lists with cell texts.
+
+    :param table: beautifulsoup tag with table element
+    """
+    rows = table.findAll("tr")
+
+    data = []
+    for row in rows:
+
+        tds = row.findAll("td")
+        ths = row.findAll("th")
+
+        if len(ths) > 0:
+            tmp = [th.text.strip() for th in ths]
+        else:
+            tmp = [td.text.strip() for td in tds]
+
+        data.append(tmp)
+
+    return data
+
 @pytest.mark.django_db
 def test_sharing_info(client):
     password = "secret"
@@ -169,20 +193,86 @@ def test_sharing_info(client):
 
     surface2.share(user1)
 
+    TopographyFactory(surface=surface1) # one topography for surface 1
+
+    FALSE_CHAR = '✘'
+    TRUE_CHAR = '✔'
+
     #
     # Test for user 1
     #
-    client.login(username=user1.name, password=password)
+    assert client.login(username=user1.username, password=password)
 
     response = client.get(reverse('manager:sharing-info'))
 
-    # test table contents?!
+    assert response.status_code == 200
 
-    assert_in_content(response, 'You shared the following surfaces')
-    assert_in_content(response, '{} with {}'.format(reverse('manager:surface-detail', kwargs=dict(pk=surface1.pk)),
-                                                    reverse('manager:user-detail', kwargs=dict(pk=user2.username))))
+    soup = BeautifulSoup(response.content)
 
-    assert False, "Test incomplete"
+    table = soup.find("table")
+
+    data = _parse_html_table(table)
+
+    import pprint
+    pprint.pprint(data)
+
+    assert data == [
+        ['Surface', '# Topographies', 'Created by', 'Shared with', 'Allow change', ''],
+        [surface1.name, '1', 'You', user2.name, FALSE_CHAR, ''],
+        [surface1.name, '1', 'You', user3.name, TRUE_CHAR, ''],
+        [surface2.name, '0', user2.name, 'You', FALSE_CHAR, ''],
+    ]
+
+    client.logout()
 
 
+    #
+    # Test for user 2
+    #
+    assert client.login(username=user2.username, password=password)
 
+    response = client.get(reverse('manager:sharing-info'))
+
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.content)
+
+    table = soup.find("table")
+
+    data = _parse_html_table(table)
+
+    import pprint
+    pprint.pprint(data)
+
+    assert data == [
+        ['Surface', '# Topographies', 'Created by', 'Shared with', 'Allow change', ''],
+        [surface1.name, '1', user1.name, 'You', FALSE_CHAR, ''],
+        [surface2.name, '0', 'You', user1.name, FALSE_CHAR, ''],
+    ]
+
+    client.logout()
+
+    #
+    # Test for user 3
+    #
+    assert client.login(username=user3.username, password=password)
+
+    response = client.get(reverse('manager:sharing-info'))
+
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.content)
+
+    table = soup.find("table")
+
+    data = _parse_html_table(table)
+
+    import pprint
+    pprint.pprint(data)
+
+    assert data == [
+        ['Surface', '# Topographies', 'Created by', 'Shared with', 'Allow change', ''],
+        [surface1.name, '1', user1.name, 'You', TRUE_CHAR, ''],
+    ]
+
+    client.logout()
