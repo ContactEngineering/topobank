@@ -1051,6 +1051,29 @@ and to delete all his surfaces+topographies, use:
 
 So far, there is no extra question, so this immediately done!
 
+Assign permissions to an existing user
+--------------------------------------
+
+If you need for any reason to assign permissions for existing surfaces,
+you can open a Django shell with
+
+.. code:: bash
+
+   docker-compose -f production.yml run --rm django python manage.py shell
+
+and enter the following code:
+
+.. code:: python
+
+   from topobank.manager.models import Surface
+   from guardian.shortcuts import assign_perm
+
+   for surface in Surface.objects.all():
+      for perm in ['view_surface', 'change_surface', 'delete_surface', 'share_surface']:
+          assign_perm(perm, surface.user, surface)
+
+
+
 Known problems
 --------------
 
