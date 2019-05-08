@@ -65,35 +65,49 @@ def test_individual_read_access_permissions(client, django_user_model):
 
     client.logout()
 
-
-def test_list_surface_permissions(client, django_user_model):
+@pytest.mark.django_db
+def test_list_surface_permissions(client):
 
     #
     # create database objects
     #
-    username = 'testuser'
     password = 'secret'
 
-    user = django_user_model.objects.create_user(username=username, password=password)
+    user1 = UserFactory(password=password)
+    user2 = UserFactory(name="Bob Marley")
+    user3 = UserFactory(name="Alice Cooper")
 
-    surface = SurfaceFactory(user=user)
-
-
+    surface = SurfaceFactory(user=user1)
+    surface.share(user2)
+    surface.share(user3, allow_change=True)
 
     surface_detail_url = reverse('manager:surface-detail', kwargs=dict(pk=surface.pk))
 
     #
     # now user 1 has access to surface detail page
     #
-    assert client.login(username=username, password=password)
+    assert client.login(username=user1.username, password=password)
     response = client.get(surface_detail_url)
 
     assert_in_content(response, "Permissions")
+
+    # related to user 1
     assert_in_content(response, "You have the permission to share this surface")
     assert_in_content(response, "You have the permission to delete this surface")
     assert_in_content(response, "You have the permission to change this surface")
     assert_in_content(response, "You have the permission to view this surface")
 
+    # related to user 2
+    assert_in_content(response, "Bob Marley hasn&#39;t the permission to share this surface")
+    assert_in_content(response, "Bob Marley hasn&#39;t the permission to delete this surface")
+    assert_in_content(response, "Bob Marley hasn&#39;t the permission to change this surface")
+    assert_in_content(response, "Bob Marley has the permission to view this surface")
+
+    # related to user 3
+    assert_in_content(response, "Alice Cooper hasn&#39;t the permission to share this surface")
+    assert_in_content(response, "Alice Cooper hasn&#39;t the permission to delete this surface")
+    assert_in_content(response, "Alice Cooper has the permission to change this surface")
+    assert_in_content(response, "Alice Cooper has the permission to view this surface")
 
 
 @pytest.mark.django_db
@@ -182,6 +196,17 @@ def _parse_html_table(table):
         data.append(tmp)
 
     return data
+
+@pytest.mark.django_db
+def test_link_for_sharing_info(client):
+    password = "secret"
+    user = UserFactory(password=password)
+    assert client.login(username=user.username, password=password)
+
+    response = client.get(reverse('home'))
+
+    assert response.status_code == 200
+    assert_in_content(response, reverse('manager:sharing-info'))
 
 @pytest.mark.django_db
 def test_sharing_info_table(client):
