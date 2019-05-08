@@ -392,9 +392,12 @@ class SurfaceShareForm(forms.Form):
         widget=Select2MultipleWidget,
         label="Users to share with",
         help_text="""Select one or multiple users you want to give access to this surface.
+          Start typing a name in order to find a user. Only registered users can be found.  
           """)
 
-    allow_change = forms.BooleanField(widget=forms.CheckboxInput, required=False)
+    allow_change = forms.BooleanField(widget=forms.CheckboxInput, required=False,
+                                      help_text="""If selected, users will be able to edit meta data
+                                      and to add/change/remove individual topographies.""")
 
     helper = FormHelper()
     helper.form_method = 'POST'

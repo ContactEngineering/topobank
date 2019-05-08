@@ -65,7 +65,7 @@ pandas>=0.23.4<0.24
 django-formtools==2.1
 
 # multiple select widget
-django-select2==6.3.1
+django-select2>=7.0.3,<8.0
 
 # openpyxl
 openpyxl==2.5.9
