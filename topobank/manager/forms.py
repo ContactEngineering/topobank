@@ -1,6 +1,6 @@
-from django.forms import forms, TypedMultipleChoiceField
+from django.forms import forms, TypedMultipleChoiceField, ModelMultipleChoiceField
 from django import forms
-from django_select2.forms import Select2MultipleWidget
+from django_select2.forms import Select2MultipleWidget, ModelSelect2MultipleWidget
 
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Submit, Layout, Field, HTML, Div, Fieldset
@@ -13,6 +13,8 @@ import logging
 from topobank.manager.utils import selection_choices, \
     TopographyFile, TopographyFileReadingException, TopographyFileFormatException
 from .models import Topography, Surface
+
+from topobank.users.models import User
 
 _log = logging.getLogger(__name__)
 
@@ -83,6 +85,7 @@ class TopographyMetaDataForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         data_source_choices = kwargs.pop('data_source_choices')
+        self._surface = kwargs.pop('surface')
         super(TopographyMetaDataForm, self).__init__(*args, **kwargs)
         self.fields['data_source'] = forms.ChoiceField(choices=data_source_choices)
 
@@ -110,8 +113,15 @@ class TopographyMetaDataForm(forms.ModelForm):
         ),
     )
 
-    def clean(self):
-        return self.cleaned_data
+
+    def clean_name(self):
+        name = self.cleaned_data['name']
+
+        if Topography.objects.filter(name=name, surface=self._surface).exists():
+            msg = f"A topography with same name '{name}' already exists for same surface"
+            raise forms.ValidationError(msg, code='duplicate_topography_name_for_same_surface')
+
+        return name
 
 
 class TopographyUnitsForm(forms.ModelForm):
@@ -365,6 +375,55 @@ class SurfaceForm(forms.ModelForm):
             ),
     )
 
+class MultipleUserSelectWidget(ModelSelect2MultipleWidget):
+    model = User
+    search_fields = ['name']
+    max_results = 10
+
+    def filter_queryset(self, request, term, queryset=None, **dependent_fields):
+        #
+        # Exclude anonymous user and requesting user
+        #
+        return queryset.filter(name__contains=term)\
+            .exclude(username='AnonymousUser')\
+            .exclude(id=request.user.id)\
+            .order_by('name')
+
+class SurfaceShareForm(forms.Form):
+    """Form for sharing surfaces.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    users = ModelMultipleChoiceField(
+        required=True,
+        queryset=User.objects,
+        widget=MultipleUserSelectWidget,
+        label="Users to share with",
+        help_text="""Select one or multiple users you want to give access to this surface.
+          Start typing a name in order to find a user. Only registered users can be found.  
+          """)
+
+    allow_change = forms.BooleanField(widget=forms.CheckboxInput, required=False,
+                                      help_text="""If selected, users will be able to edit meta data
+                                      and to add/change/remove individual topographies.""")
+
+    helper = FormHelper()
+    helper.form_method = 'POST'
+
+    helper.layout = Layout(
+        Div(
+            Field('users', css_class='col-7'),
+            Field('allow_change'),
+            FormActions(
+                Submit('save', 'Share this surface', css_class='btn-primary'),
+                HTML("""
+                <a href="{% url 'manager:surface-detail' surface.pk %}" class="btn btn-default" id="cancel-btn">Cancel</a>
+                """),
+            )
+        )
+    )
 
 class TopographySelectForm(forms.Form):
 

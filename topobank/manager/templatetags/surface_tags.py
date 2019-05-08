@@ -17,3 +17,24 @@ def is_surface_explicitly_selected(request, surface):
 @register.simple_tag
 def bandwidths_data_json_for_selected_topographies(request, surface):
     return json.dumps(bandwidths_data(st(request, surface=surface)))
+
+@register.inclusion_tag('manager/yesno.html')
+def render_boolean(value, title, show_false=False):
+    """Returns a HMTL snippet which can be inserted as True/False symbol.
+    """
+    return {
+        'boolean_value' : value,
+        'title': title,
+        'show_false': show_false
+    }
+
+@register.inclusion_tag('manager/shared_by_badge.html')
+def render_shared_by_badge(request, surface):
+    """Returns a HMTL snippet with a badge about who shared a given surface.
+    """
+    return {
+        'surface': surface,
+        'is_creator': request.user==surface.user
+    }
+
+

@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% load fontawesome %}
+{% load render_table from django_tables2 %}
+
+{% block content %}
+  <div class="card">
+    <div class="card-header">
+
+      <h2>
+        <div class="pull-left">
+          {% fontawesome_icon 'share-alt' %}
+          Sharing
+        </div>
+      </h2>
+    </div>
+    <div class="card-body">
+      <form method="post">
+        {% csrf_token %}
+        {% render_table sharing_info_table %}
+        <div class="pull-right">
+          <button class="btn btn-danger" type="submit" name="unshare">Remove selected shares</button>
+          <button class="btn btn-default" type="submit" name="allow_change">Allow change for selected shares</button>
+          <button class="btn btn-primary" onclick="location.reload(true)" formmethod="get">Reload</button>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock content %}
+
+{% block javascript %}
+  <script>
+    $('.select-all-checkbox').click( function() {
+      $('.select-checkbox').click();
+    })
+  </script>
+{% endblock javascript %}
+

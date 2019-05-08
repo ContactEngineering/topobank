@@ -1,5 +1,6 @@
 from django.shortcuts import reverse
 from django.core.cache import cache # default cache
+from guardian.shortcuts import get_objects_for_user
 
 from PyCo.Topography import FromFile
 
@@ -13,7 +14,7 @@ import logging
 _log = logging.getLogger(__name__)
 
 DEFAULT_DATASOURCE_NAME = 'Default'
-UNIT_TO_METERS = {'A': 1e-10, 'nm': 1e-9, 'µm': 1e-6, 'mm': 1e-3, 'm': 1.0,
+UNIT_TO_METERS = {'Å': 1e-10, 'nm': 1e-9, 'µm': 1e-6, 'mm': 1e-3, 'm': 1.0,
                   'unknown': 1.0}
 
 SELECTION_SESSION_VARNAME = 'selection'
@@ -155,37 +156,41 @@ def mangle_unit(unit): # TODO needed?
         return 'μm'
     return unit
 
-# def selected_topographies(request, surface=None):
-#     """Returns selected topographies as saved in session.
-#
-#     If surface is given, return only topographies for this
-#     Surface model object
-#     """
-#     from .models import Topography
-#     topography_ids = request.session.get('selected_topographies', [])
-#
-#     filter_args = dict(surface__user=request.user, id__in=topography_ids)
-#     if surface is not None:
-#         filter_args['surface']=surface
-#     topographies = Topography.objects.filter(**filter_args)
-#
-#     return topographies
+def surfaces_for_user(user, perms=['view_surface']):
+    """Return a queryset of all surfaces, the user has *all* given permissions.
+
+    :param user: user for which we want to know the surfaces
+    :param perms: list of permission codenames, default is ['view_surface']
+    :return: queryset of surfaces
+    """
+    from topobank.manager.models import Surface
+    return get_objects_for_user(user, perms, klass=Surface, accept_global_perms=False)
 
 
 def selection_choices(user):
-    """Compile all choices for selection topographies and surfaces.
+    """Compile all choices for selection topographies and surfaces for given user.
 
     :param user: Django user
     :return: list of choices which are 2-tuples, see documentation
     """
-    from topobank.manager.models import Surface
-
-    surfaces = Surface.objects.filter(user=user)
+    surfaces = surfaces_for_user(user)
 
     choices = []
-    for s in surfaces:
-        choices.append(('surface-{}'.format(s.id), s.name))
-        choices.extend([('topography-{}'.format(t.id), t.name) for t in s.topography_set.all().order_by('id')])
+    for surf in surfaces:
+
+        surf_user = surf.user
+        group_label = "{}".format(surf.name)
+
+        if surf_user == user:
+            group_label += " - created by you"
+        else:
+            group_label += " - shared by {}".format(str(surf_user))
+
+        surface_choices = [('surface-{}'.format(surf.id), surf.name)]
+        surface_choices.extend([('topography-{}'.format(t.id), t.name)
+                        for t in surf.topography_set.all().order_by('id')])
+
+        choices.append((group_label, surface_choices)) # create subgroup
 
     return choices
 
@@ -206,17 +211,16 @@ def selection_for_select_all(user):
     :param user: Django user
     :return:
     """
-    from .models import Surface
-    return ['surface-{}'.format(s.id)
-            for s in Surface.objects.filter(user=user)]
+    return ['surface-{}'.format(s.id) for s in surfaces_for_user(user)]
 
-def selection_to_topographies(selection, user, surface=None):  # TODO rename to "selected_topographies"
-    """Returns selected topographies from current user as saved in session.
+def selection_to_topographies(selection, surface=None):  # TODO rename to "selected_topographies"
+    """Returns queryset of selected topographies as saved in session.
 
     If surface is given, return only topographies for this
     Surface model object.
 
-    TODO make more efficicient if only topographies for a single surface needed
+    :param selection: selection list as saved in session
+    :param surface: optionally a surface to filter topographies in selection
     """
     from .models import Topography
 
@@ -235,10 +239,10 @@ def selection_to_topographies(selection, user, surface=None):  # TODO rename to 
 
     topography_ids = list(topography_ids)
 
-    # filter for user and optionally also for a single surface
-    filter_args = dict(surface__user=user, id__in=topography_ids)
+    # filter for these topography ids and optionally also for surface if given one
+    filter_args = dict(id__in=topography_ids)
     if surface is not None:
-        filter_args['surface'] = surface # todo needed?
+        filter_args['surface'] = surface
     topographies = Topography.objects.filter(**filter_args)
 
     return topographies
@@ -249,7 +253,13 @@ def selected_topographies(request, surface=None):
     :request: HTTP request
     :surface: if given, return only topographies of this Surface instance
     """
-    return selection_to_topographies(selection_from_session(request.session), request.user, surface=surface)
+    topographies = selection_to_topographies(selection_from_session(request.session), surface=surface)
+
+    # make sure that only topographies with read permission can be effectively selected
+    topographies = [t for t in topographies
+                    if request.user.has_perm('view_surface', t.surface)]
+
+    return topographies
 
 def bandwidths_data(topographies):
     """Return bandwidths data as needed in surface summary plots.

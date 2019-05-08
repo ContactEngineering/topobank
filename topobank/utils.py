@@ -35,6 +35,23 @@ def assert_in_content(response, x):
     assert in_content, f"Cannot find '{representation}' in this content:\n{response.content}.\n\n"+\
         f"See file://{DEFAULT_DEBUG_HTML_FILENAME} in order to view the output."
 
+def assert_not_in_content(response, x):
+    """Check whether x is NOT in the content of given response"""
+
+    if isinstance(x, datetime.date):
+        representation = formats.date_format(x)
+    else:
+        representation = str(x)
+
+    in_content = bytes(representation, encoding='utf-8') in response.content
+
+    if in_content:
+        export_reponse_as_html(response) # for debugging
+
+    assert not in_content, f"Unexpectedly, there is '{representation}' in this content:\n{response.content}.\n\n"+\
+        f"See file://{DEFAULT_DEBUG_HTML_FILENAME} in order to view the output."
+
+
 def assert_no_form_errors(response):
     """Asserts that there is no more form, and if there is, show errors in form"""
     assert 'form' not in response.context, "Form is still in context, with errors: {}".format(

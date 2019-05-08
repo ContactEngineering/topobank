@@ -1,6 +1,8 @@
 from django.views.generic import TemplateView
 from django.db.models import Q
 
+from guardian.compat import get_user_model as guardian_user_model
+
 from termsandconditions.models import TermsAndConditions
 from topobank.users.models import User
 from topobank.manager.models import Surface, Topography
@@ -19,7 +21,8 @@ class HomeView(TemplateView):
             context['num_surfaces'] = surfaces.count()
             context['num_topographies'] = topographies_count
         else:
-            context['num_users'] = User.objects.filter(is_active=True).count()
+            anon = guardian_user_model().get_anonymous()
+            context['num_users'] = User.objects.filter(Q(is_active=True) & ~Q(pk=anon.pk)).count()
             context['num_surfaces'] = Surface.objects.filter().count()
             context['num_topographies'] = Topography.objects.filter().count()
 

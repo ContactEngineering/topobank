@@ -49,7 +49,6 @@ urlpatterns = [
     ),
     url(
         regex=r'surface/(?P<surface_id>\d+)/new-topography/$',
-        # view=login_required(views.TopographyCreateView.as_view()),
         view=login_required(views.TopographyCreateWizard.as_view(
             WIZARD_FORMS,
             condition_dict={
@@ -75,6 +74,11 @@ urlpatterns = [
        name='surface-delete'
     ),
     url(
+       regex=r'surface/(?P<pk>\d+)/share/$',
+       view=login_required(views.SurfaceShareView.as_view()),
+       name='surface-share'
+    ),
+    url(
         regex=r'surface/new/$',
         view=login_required(views.SurfaceCreateView.as_view()),
         name='surface-create'
@@ -88,5 +92,10 @@ urlpatterns = [
         regex=r'access-denied/$',
         view=TemplateView.as_view(template_name="403.html"),
         name='access-denied'
+    ),
+    url(
+        regex=r'sharing/$',
+        view=login_required(views.sharing_info),
+        name='sharing-info'
     ),
 ]

@@ -6,22 +6,27 @@ from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from django.conf import settings
 from allauth.socialaccount.models import SocialAccount
+from guardian.mixins import GuardianUserMixin
+from guardian.shortcuts import get_objects_for_user
 
 import os
 
-
-
-class ORCIDInfoMissingException(Exception):
+class ORCIDException(Exception):
     pass
 
-class User(AbstractUser):
+class User(GuardianUserMixin, AbstractUser):
 
     # First Name and Last Name do not cover name patterns
     # around the globe.
     name = models.CharField(_("Name of User"), max_length=255)
 
     def __str__(self):
-        return self.username
+        try:
+            orcid_id = self.orcid_id
+        except ORCIDException:
+            orcid_id = None
+
+        return "{} ({})".format(self.name, orcid_id if orcid_id else "no ORCID ID")
 
     def get_absolute_url(self):
         return reverse("users:detail", kwargs={"username": self.username})
@@ -30,13 +35,16 @@ class User(AbstractUser):
         """Return relative path of directory for files of this user."""
         return os.path.join('topographies', 'user_{}'.format(self.id))
 
-    def _orcid_info(self):
-        social_account = SocialAccount.objects.get(user_id=self.id)
+    def _orcid_info(self): # TODO use local cache
+        try:
+            social_account = SocialAccount.objects.get(user_id=self.id)
+        except SocialAccount.DoesNotExist as exc:
+            raise ORCIDException("No ORCID account existing for this user.") from exc
 
         try:
             orcid_info = social_account.extra_data['orcid-identifier']
         except Exception as exc:
-            raise ORCIDInfoMissingException("Cannot retrieve ORCID info from local database.") from exc
+            raise ORCIDException("Cannot retrieve ORCID info from local database.") from exc
 
         return orcid_info
 
@@ -49,19 +57,33 @@ class User(AbstractUser):
         """
         return self._orcid_info()['path']
 
-    # defined as method, not property because we maybe later return other URI when a keyword is given
+    # defined as method and not as property, because we maybe later return other URI when a keyword is given
     def orcid_uri(self):
-        """Return uri to ORCID account.
+        """Return uri to ORCID account or None if not available.
 
-        :return: str
-        :raises: ORCIDInfoMissingException
+        :return: str or None
         """
-        return self._orcid_info()['uri']
+        try:
+            return self._orcid_info()['uri']
+        except:
+            return None
+
+    def is_sharing_with(self, user):
+        """Returns True if this user is sharing sth. with given user."""
+        from topobank.manager.models import Surface
+
+        objs = get_objects_for_user(user, 'view_surface', klass=Surface)
+        for o in objs:
+            if o.user == self: # this surface is shared by this user
+                return True
+        return False # nothing shared
 
     class Meta:
         permissions = (
             ("can_skip_terms", "Can skip all checkings for terms and conditions."),
         )
+
+
 
 #
 # ensure the full name field is set

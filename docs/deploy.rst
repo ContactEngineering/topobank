@@ -954,6 +954,14 @@ and apply them to the working directory.
 
     git pull
 
+Refine configuration
+....................
+
+Is a change in config files neccessary, e.g. below `.envs/production`?
+Are there any new settings?
+
+Adjust the configuration before rebuilding the containers.
+
 Rebuild the containers
 ......................
 
@@ -973,8 +981,6 @@ Update configuration/database
 
 If building the containers was successful, aks yourself these questions:
 
-- Is a change in config files neccessary, e.g. below `.envs/production`?
-  Are there any new settings?
 - Is a migration of the database needed? If yes, do
 
   .. code:: bash
@@ -982,6 +988,7 @@ If building the containers was successful, aks yourself these questions:
      docker-compose -f production.yml run --rm django python manage.py migrate
 
   See here for reference: https://cookiecutter-django.readthedocs.io/en/latest/deployment-with-docker.html?highlight=migrate
+
 - Is there any need to change sth. in the S3 storage?
 
 Restart application

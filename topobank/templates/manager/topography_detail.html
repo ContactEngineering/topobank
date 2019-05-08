@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load static i18n %}
 {% load fontawesome %}
+{% load guardian_tags %}
 
 {% block content-title %}Details for Topography <i>{{ topography.name }}</i>
 {% endblock content-title %}
@@ -30,6 +31,8 @@
 {% endblock extra_css %}
 
 {% block content %}
+
+{% get_obj_perms request.user for topography.surface as "surface_perms" %}
 <div class="card text-center">
   <div class="card-header">
 
@@ -38,13 +41,15 @@
         {{ topography.name }}
       </div>
       <div class="pull-right">
-        <a href="{% url 'manager:topography-delete' topography.id %}" class="btn btn-danger">
-            {% fontawesome_icon 'trash' %} Delete
-        </a>
-        <span></span>
-        <a href="{% url 'manager:topography-update' topography.id %}" class="btn btn-default">
-            {% fontawesome_icon 'edit' %} Edit
-        </a>
+        {% if "change_surface" in surface_perms %}
+          <a href="{% url 'manager:topography-delete' topography.id %}" class="btn btn-danger">
+              {% fontawesome_icon 'trash' %} Delete
+          </a>
+          <span></span>
+          <a href="{% url 'manager:topography-update' topography.id %}" class="btn btn-default">
+              {% fontawesome_icon 'edit' %} Edit
+          </a>
+        {% endif %}
       </div>
      </h2>
   </div>

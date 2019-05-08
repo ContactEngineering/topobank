@@ -1,5 +1,5 @@
-from django.shortcuts import redirect
-from django.views.generic import DetailView, ListView, UpdateView, CreateView, DeleteView
+from django.shortcuts import redirect, render
+from django.views.generic import DetailView, ListView, UpdateView, CreateView, DeleteView, View
 from django.urls import reverse, reverse_lazy
 from django.core.files.storage import FileSystemStorage # TODO use default_storage instead?
 from django.core.files.storage import default_storage
@@ -13,6 +13,13 @@ from django.views.generic.edit import FormMixin
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib import messages
 
+from guardian.decorators import permission_required_or_403
+from guardian.shortcuts import assign_perm, get_users_with_perms, get_objects_for_user
+from django.utils.decorators import method_decorator
+
+import django_tables2 as tables
+from django_tables2 import RequestConfig
+
 from bokeh.plotting import figure
 from bokeh.embed import components
 from bokeh.models import DataRange1d, Range1d, LinearColorMapper, ColorBar, Row
@@ -23,33 +30,65 @@ import os.path
 import logging
 
 from .models import Topography, Surface
-from .forms import TopographyForm, SurfaceForm, TopographySelectForm
+from .forms import TopographyForm, SurfaceForm, TopographySelectForm, SurfaceShareForm
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, Topography1DUnitsForm, Topography2DUnitsForm
 from .utils import get_topography_file, optimal_unit, \
     selected_topographies, selection_from_session, selection_for_select_all, \
-    bandwidths_data
+    bandwidths_data, surfaces_for_user
+from topobank.users.models import User
 
 _log = logging.getLogger(__name__)
 
-class SurfaceAccessMixin(UserPassesTestMixin):
+
+surface_view_permission_required = method_decorator(
+    permission_required_or_403('manager.view_surface', ('manager.Surface', 'pk', 'pk'))
+    # translates to:
+    #
+    # In order to access, a specific permission is required. This permission
+    # is 'view_surface' for a specific surface. Which surface? This is calculated
+    # from view argument 'pk' (the last element in tuple), which is used to get a
+    # 'manager.Surface' instance (first element in tuple) with field 'pk' with same value as
+    # last element in tuple (the view argument 'pk').
+    #
+    # Or in pseudocode:
+    #
+    #  s = Surface.objects.get(pk=view.kwargs['pk'])
+    #  assert request.user.has_perm('view_surface', s)
+)
+
+surface_update_permission_required = method_decorator(
+    permission_required_or_403('manager.change_surface', ('manager.Surface', 'pk', 'pk'))
+)
+
+surface_delete_permission_required = method_decorator(
+    permission_required_or_403('manager.delete_surface', ('manager.Surface', 'pk', 'pk'))
+)
+
+surface_share_permission_required = method_decorator(
+    permission_required_or_403('manager.share_surface', ('manager.Surface', 'pk', 'pk'))
+)
+
+
+class TopographyPermissionMixin(UserPassesTestMixin):
     redirect_field_name = None
 
-    def test_func(self):
-        if 'pk' not in self.kwargs:
-            return True
-
-        surface = Surface.objects.get(pk=self.kwargs['pk'])
-        return surface.user == self.request.user
-
-class TopographyAccessMixin(UserPassesTestMixin):
-    redirect_field_name = None
-
-    def test_func(self):
+    def has_surface_permissions(self, perms):
         if 'pk' not in self.kwargs:
             return True
 
         topo = Topography.objects.get(pk=self.kwargs['pk'])
-        return topo.surface.user == self.request.user
+        return all(self.request.user.has_perm(perm, topo.surface) for perm in perms)
+
+    def test_func(self):
+        return NotImplementedError()
+
+class TopographyViewPermissionMixin(TopographyPermissionMixin):
+    def test_func(self):
+        return self.has_surface_permissions(['view_surface'])
+
+class TopographyUpdatePermissionMixin(TopographyPermissionMixin):
+    def test_func(self):
+        return self.has_surface_permissions(['view_surface', 'change_surface'])
 
 #
 # Using a wizard because we need intermediate calculations
@@ -79,9 +118,10 @@ class TopographyCreateWizard(SessionWizardView):
 
         initial = {}
 
-        if step == 'upload':
+        if step in ['upload']:
             #
-            # Pass surface in order to have it later in done() method
+            # Pass surface in order to
+            # - have it later in done() method (for upload)
             #
             # make sure that the surface exists and belongs to the current user
             try:
@@ -204,6 +244,11 @@ class TopographyCreateWizard(SessionWizardView):
             kwargs['data_source_choices'] = [(k, ds) for k, ds in
                                              enumerate(topofile.data_sources)]
 
+            #
+            # Set surface in order to check for suplicate topography names
+            #
+            kwargs['surface'] = step0_data['surface']
+
         return kwargs
 
     def get_form_instance(self, step):
@@ -211,7 +256,7 @@ class TopographyCreateWizard(SessionWizardView):
         # get instance from database
         if not self.instance_dict:
             if 'pk' in self.kwargs:
-                return Topography.objects.get(pk=self.kwargs['pk'])
+                return Topography.objects.get(pk=self.kwargs['pk']) # TODO this code is maybe wrong, needed?
         return None
 
     def get_context_data(self, form, **kwargs):
@@ -267,25 +312,7 @@ class TopographyCreateWizard(SessionWizardView):
 
         return redirect(reverse('manager:topography-detail', kwargs=dict(pk=instance.pk)))
 
-class TopographyCreateView(CreateView):# TODO check if still needed
-    model = Topography
-    form_class = TopographyForm
-
-    def get_initial(self, *args, **kwargs):
-        initial = super(TopographyCreateView, self).get_initial()
-        initial = initial.copy()
-        initial['user'] = self.request.user
-        return initial
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['surface'] = Surface.objects.get(id=kwargs['surface_id'])
-        return context
-
-    def get_success_url(self):
-        return reverse('manager:topography-detail', kwargs=dict(pk=self.object.pk))
-
-class TopographyUpdateView(TopographyAccessMixin, UpdateView):
+class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
     model = Topography
     form_class = TopographyForm
 
@@ -298,7 +325,7 @@ class TopographyUpdateView(TopographyAccessMixin, UpdateView):
         self.object.submit_automated_analyses()
         return reverse('manager:topography-detail', kwargs=dict(pk=self.object.pk))
 
-class TopographyDetailView(TopographyAccessMixin, DetailView):
+class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
     model = Topography
     context_object_name = 'topography'
 
@@ -309,7 +336,6 @@ class TopographyDetailView(TopographyAccessMixin, DetailView):
         :param topo: TopoBank Topography instance
         :return: bokeh plot
         """
-
 
         TOOLTIPS = [
             ("x", "$x " + topo.unit),
@@ -420,7 +446,7 @@ class TopographyDetailView(TopographyAccessMixin, DetailView):
 
         return context
 
-class TopographyDeleteView(TopographyAccessMixin, DeleteView):
+class TopographyDeleteView(TopographyUpdatePermissionMixin, DeleteView):
     model = Topography
     context_object_name = 'topography'
     success_url = reverse_lazy('manager:surface-list')
@@ -449,7 +475,6 @@ class SelectedTopographyView(FormMixin, ListView):
 
         return topographies
 
-
 class SurfaceListView(FormMixin, ListView):
     model = Surface
     context_object_name = 'surfaces'
@@ -457,7 +482,7 @@ class SurfaceListView(FormMixin, ListView):
     success_url = reverse_lazy('manager:surface-list') # stay on same view
 
     def get_queryset(self):
-        surfaces = Surface.objects.filter(user=self.request.user)
+        surfaces = surfaces_for_user(self.request.user) # returns surfaces the user has acccess to
         return surfaces
 
     def get_initial(self):
@@ -469,7 +494,7 @@ class SurfaceListView(FormMixin, ListView):
         kwargs['user'] = self.request.user
         return kwargs
 
-    def post(self, request, *args, **kwargs): # TODO is this really needed?
+    def post(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
             return HttpResponseForbidden()
         form = self.get_form()
@@ -513,7 +538,6 @@ class SurfaceListView(FormMixin, ListView):
 
         return super().form_valid(form)
 
-
 class SurfaceCreateView(CreateView):
     model = Surface
     form_class = SurfaceForm
@@ -527,30 +551,237 @@ class SurfaceCreateView(CreateView):
     def get_success_url(self):
         return reverse('manager:surface-detail', kwargs=dict(pk=self.object.pk))
 
-class SurfaceDetailView(SurfaceAccessMixin, DetailView):
+class SurfaceDetailView(DetailView):
     model = Surface
     context_object_name = 'surface'
 
+    @surface_view_permission_required
+    def dispatch(self, request, *args, **kwargs):
+        return super().dispatch(request, *args, *kwargs)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+
+        #
+        # bandwidth data
+        #
         bw_data = bandwidths_data(self.object.topography_set.all())
         context['bandwidths_data'] = json.dumps(bw_data)
+
+        #
+        # permission data
+        #
+        ACTIONS = ['view', 'change', 'delete', 'share'] # defines the order of permissions in table
+
+        # surface_perms = get_users_with_perms(self.object, attach_perms=True, only_with_perms_in=potential_perms)
+        surface_perms = get_users_with_perms(self.object, attach_perms=True)
+        # is now a dict of the form
+        #  <User: joe>: ['view_surface'], <User: dan>: ['view_surface', 'change_surface']}
+        surface_users = sorted(surface_perms.keys(), key=lambda u: u.name if u else '')
+
+        # convert to list of boolean based on list ACTIONS
+        #
+        # Each table element here is a 2-tuple: (cell content, cell title)
+        #
+        # The cell content is inserted into the cell.
+        # The cell title is shown in a tooltip and can be used in tests.
+        #
+        surface_perms_table = []
+        for user in surface_users:
+
+            is_request_user = user==self.request.user
+
+            if is_request_user:
+                user_display_name = "You"
+                auxilliary = "have"
+            else:
+                user_display_name = user.name
+                auxilliary = "has"
+
+            # the current user is represented as None, can be displayed in a special way in template ("You")
+            row = [(user_display_name, user.get_absolute_url())] # cell title is used for passing a link here
+            for a in ACTIONS:
+
+                perm = a + '_surface'
+                has_perm = perm in surface_perms[user]
+
+                cell_title = "{} {}".format(user_display_name, auxilliary)
+                if not has_perm:
+                    cell_title += "n't"
+                cell_title += " the permission to {} this surface".format(a)
+
+                row.append((has_perm, cell_title))
+
+            surface_perms_table.append(row)
+
+        context['permission_table'] = {
+            'head': ['']+ACTIONS,
+            'body': surface_perms_table
+        }
+
         return context
 
-class SurfaceUpdateView(SurfaceAccessMixin, UpdateView):
+class SurfaceUpdateView(UpdateView):
     model = Surface
     form_class = SurfaceForm
 
-    def get_initial(self, *args, **kwargs):
-        initial = super().get_initial(*args, **kwargs)
-        initial = initial.copy()
-        initial['user'] = self.request.user
-        return initial
+    @surface_update_permission_required
+    def dispatch(self, request, *args, **kwargs):
+        return super().dispatch(request, *args, *kwargs)
 
     def get_success_url(self):
         return reverse('manager:surface-detail', kwargs=dict(pk=self.object.pk))
 
-class SurfaceDeleteView(SurfaceAccessMixin, DeleteView):
+class SurfaceDeleteView(DeleteView):
     model = Surface
     context_object_name = 'surface'
     success_url = reverse_lazy('manager:surface-list')
+
+    @surface_delete_permission_required
+    def dispatch(self, request, *args, **kwargs):
+        return super().dispatch(request, *args, *kwargs)
+
+class SurfaceShareView(FormMixin, DetailView):
+    model = Surface
+    context_object_name = 'surface'
+    template_name = "manager/surface_share.html"
+    form_class = SurfaceShareForm
+
+    @surface_share_permission_required
+    def dispatch(self, request, *args, **kwargs):
+        return super().dispatch(request, *args, *kwargs)
+
+    def get_success_url(self):
+        return reverse('manager:surface-detail', kwargs=dict(pk=self.object.pk))
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        form = self.get_form()
+        if form.is_valid():
+            return self.form_valid(form)
+        else:
+            return self.form_invalid(form)
+
+    def form_valid(self, form):
+
+        if 'save' in self.request.POST:
+            users = form.cleaned_data.get('users', [])
+            allow_change = form.cleaned_data.get('allow_change', False)
+            for user in users:
+                _log.info("Sharing surface {} with user {} (allow change? {}).".format(
+                    self.object.pk, user.username, allow_change))
+                assign_perm('view_surface', user, self.object)
+                if allow_change:
+                    assign_perm('change_surface', user, self.object)
+
+        return super().form_valid(form)
+
+
+class SharingInfoTable(tables.Table):
+    surface = tables.Column(linkify=True)
+    num_topographies = tables.Column(verbose_name='# Topographies')
+    created_by = tables.Column(linkify=True)
+    shared_with = tables.Column(linkify=True)
+    allow_change = tables.BooleanColumn()
+    selected = tables.CheckBoxColumn(attrs={
+        'th__input': {'class': 'select-all-checkbox'},
+        'td__input': {'class': 'select-checkbox'},
+    })
+
+    def __init__(self, *args, **kwargs):
+        self._request = kwargs['request']
+        super().__init__(*args, **kwargs)
+
+    def render_surface(self, value):
+        return value.name
+
+    def render_created_by(self, value):
+        return self._render_user(value)
+
+    def render_shared_with(self, value):
+        return self._render_user(value)
+
+    def _render_user(self, user):
+        if self._request.user == user:
+            return "You"
+        return user.name
+
+    class Meta:
+        orderable = False # ordering does not work with custom columns
+
+def sharing_info(request):
+
+    #
+    # Handle POST request if any
+    #
+    if (request.method == "POST") and ('selected' in request.POST):
+        # only do sth if there is a selection
+
+        unshare = 'unshare' in request.POST
+        allow_change = 'allow_change' in request.POST
+
+        for s in request.POST.getlist('selected'):
+            # decode selection string
+            surface_id, share_with_user_id = s.split(',')
+            surface_id = int(surface_id)
+            share_with_user_id = int(share_with_user_id)
+
+            surface = Surface.objects.get(id=surface_id)
+            share_with = User.objects.get(id=share_with_user_id)
+
+            if request.user not in [share_with, surface.user]:
+                # we don't allow to change shares if the request user is not involved
+                continue
+
+            if unshare:
+                surface.unshare(share_with)
+            elif allow_change and (request.user == surface.user): # only allow change for surface creator
+                surface.share(share_with, allow_change=True)
+
+    #
+    # Collect information to display
+    #
+    surfaces = get_objects_for_user(request.user, 'view_surface', klass=Surface)
+
+    tmp = []
+    for s in surfaces:
+        surface_perms = get_users_with_perms(s, attach_perms=True)
+        # is now a dict of the form
+        #  <User: joe>: ['view_surface'], <User: dan>: ['view_surface', 'change_surface']}
+        surface_users = sorted(surface_perms.keys(), key=lambda u: u.name if u else '')
+        for u in surface_users:
+            # Leave out these shares:
+            #
+            # - share of a user with himself (trivial)
+            # - shares where the request user is not involved
+            #
+            if (u != s.user) and ((u == request.user) or (s.user == request.user)):
+                allow_change = ('change_surface' in surface_perms[u])
+                tmp.append((s, u, allow_change))
+
+    #
+    # Create table cells
+    #
+    data = [
+        {
+            'surface': surface,
+            'num_topographies': surface.num_topographies,
+            'created_by': surface.user,
+            'shared_with': shared_with,
+            'allow_change': allow_change,
+            'selected': "{},{}".format(surface.id, shared_with.id),
+        } for surface, shared_with, allow_change in tmp
+    ]
+
+    #
+    # Build table and render result
+    #
+    sharing_info_table = SharingInfoTable(data=data,
+                                          empty_text="No surfaces shared by or with you.",
+                                          request=request)
+    RequestConfig(request).configure(sharing_info_table)
+
+    return render(request,
+                  template_name='manager/sharing_info.html',
+                  context={'sharing_info_table': sharing_info_table})
+
