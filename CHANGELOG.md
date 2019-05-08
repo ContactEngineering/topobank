@@ -8,6 +8,7 @@
 - all related shares between users are listed in a "Sharing" page accesible from top menu bar
 - exisiting shares can be deleted or extended in order to allow changing a surface
 - prevent duplicate topography names for same surface (fixes #91)
+- topographies with angstrom units can now be display in summary plot (fixes #161)
 
 ## 0.2.0
 
