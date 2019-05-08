@@ -77,6 +77,7 @@ class Surface(models.Model):
             if with_user.has_perm(perm, self):
                 remove_perm(perm, with_user, self)
 
+
 class Topography(models.Model):
     """Topography Measurement of a Surface.
     """
