@@ -665,11 +665,9 @@ class SurfaceShareView(FormMixin, DetailView):
     def form_valid(self, form):
 
         if 'save' in self.request.POST:
-            user_pk_strs = form.cleaned_data.get('users', [])
+            users = form.cleaned_data.get('users', [])
             allow_change = form.cleaned_data.get('allow_change', False)
-            for ustr in user_pk_strs:
-                user_pk = int(ustr.split('-')[1])
-                user = User.objects.get(pk=user_pk)
+            for user in users:
                 _log.info("Sharing surface {} with user {} (allow change? {}).".format(
                     self.object.pk, user.username, allow_change))
                 assign_perm('view_surface', user, self.object)

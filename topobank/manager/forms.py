@@ -1,6 +1,6 @@
-from django.forms import forms, TypedMultipleChoiceField
-from django import forms # TODO one form input is ineffective
-from django_select2.forms import Select2MultipleWidget
+from django.forms import forms, TypedMultipleChoiceField, ModelMultipleChoiceField
+from django import forms
+from django_select2.forms import Select2MultipleWidget, ModelSelect2MultipleWidget
 
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Submit, Layout, Field, HTML, Div, Fieldset
@@ -375,21 +375,31 @@ class SurfaceForm(forms.ModelForm):
             ),
     )
 
+class MultipleUserSelectWidget(ModelSelect2MultipleWidget):
+    model = User
+    search_fields = ['name']
+    max_results = 10
+
+    def filter_queryset(self, request, term, queryset=None, **dependent_fields):
+        #
+        # Exclude anonymous user and requesting user
+        #
+        return queryset.filter(name__contains=term)\
+            .exclude(username='AnonymousUser')\
+            .exclude(id=request.user.id)\
+            .order_by('name')
+
 class SurfaceShareForm(forms.Form):
     """Form for sharing surfaces.
     """
 
     def __init__(self, *args, **kwargs):
-        # user = kwargs.pop('user')
         super().__init__(*args, **kwargs)
 
-        # TODO Solve this with AJAX, we don't want to load all users because of privacy
-        self.fields['users'].choices = lambda: [ ("user-{}".format(u.id), u.name)
-                                                 for u in User.objects.all()]
-
-    users = TypedMultipleChoiceField(
+    users = ModelMultipleChoiceField(
         required=True,
-        widget=Select2MultipleWidget,
+        queryset=User.objects,
+        widget=MultipleUserSelectWidget,
         label="Users to share with",
         help_text="""Select one or multiple users you want to give access to this surface.
           Start typing a name in order to find a user. Only registered users can be found.  
