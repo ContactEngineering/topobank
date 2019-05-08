@@ -3,9 +3,10 @@
 ## 0.3.0
 
 - surfaces can be shared for viewing and optionally also for changing
-- user can view each others profiles if they collaborate, i.e. share something
+- user can view/select each others profiles if they collaborate, i.e. share something
 - shares for a surface are listed in an extra tab
-- PLANNED: all shares between users are listed in their profiles
+- all related shares between users are listed in a "Sharing" page accesible from top menu bar
+- exisiting shares can be deleted or extended in order to allow changing a surface
 
 ## 0.2.0
 
