@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from ..models import Topography
 from ..utils import bandwidths_data
 
+from .utils import TopographyFactory
 
 @pytest.fixture
 def two_topos_mock(mocker):
@@ -51,3 +52,10 @@ def test_bandwiths_data(two_topos_mock):
         for field in ['name', 'link']:
             assert exp_bd[i][field] == bd[i][field]
 
+@pytest.mark.django_db
+def test_bandwidth_with_angstrom():
+
+    topo = TopographyFactory(unit='Å')
+    bd = bandwidths_data([topo])
+
+    assert len(bd) == 1
