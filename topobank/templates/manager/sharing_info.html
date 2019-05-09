@@ -2,6 +2,12 @@
 {% load fontawesome %}
 {% load render_table from django_tables2 %}
 
+{% block breadcrumbs %}
+   <li class="breadcrumb-item active" aria-current="page">
+    Sharing
+  </li>
+{% endblock breadcrumbs %}
+
 {% block content %}
   <div class="card">
     <div class="card-header">
