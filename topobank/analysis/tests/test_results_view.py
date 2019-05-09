@@ -10,9 +10,12 @@ import numpy as np
 from django.urls import reverse
 
 from ..models import Analysis, AnalysisFunction
-from topobank.manager.tests.utils import two_topos
+from topobank.manager.tests.utils import two_topos # needed for fixture, see arguments below
 from topobank.manager.models import Topography, Surface
-from topobank.manager.tests.utils import export_reponse_as_html
+from topobank.manager.tests.utils import export_reponse_as_html, \
+    SurfaceFactory, UserFactory, TopographyFactory
+from .utils import AnalysisFactory, AnalysisFunctionFactory
+from topobank.utils import assert_in_content
 
 def selection_from_instances(instances):
     """A little helper for constructing a selection."""
@@ -465,3 +468,71 @@ def test_analyis_download_as_xlsx(client, two_topos, ids_downloadable_analyses):
         (3, 5, 13),
         (4, 6, 16),
     ]
+
+
+@pytest.mark.django_db
+def test_view_shared_analysis_results(client, mocker):
+
+    card_context_mock = mocker.patch('topobank.analysis.cards.function_card_context')
+    card_context_mock.return_value = {}
+
+    password = 'abcd$1234'
+
+    #
+    # create database objects
+    #
+    user1 = UserFactory(password=password)
+    user2 = UserFactory(password=password)
+
+    surface1 = SurfaceFactory(user=user1)
+    surface2 = SurfaceFactory(user=user2)
+
+    # user2 shares surfaces, so user 1 should see surface1+surface2
+    surface2.share(user1)
+
+    # create topographies + functions + analyses
+    func1 = AnalysisFunctionFactory()
+    func2 = AnalysisFunctionFactory()
+
+    # Two topographies for surface1
+    topo1a = TopographyFactory(surface=surface1, name='topo1a')
+    topo1b = TopographyFactory(surface=surface1, name='topo1b')
+
+    # One topography for surface2
+    topo2a = TopographyFactory(surface=surface2, name='topo2a')
+
+    # analyses, differentiate by start time
+    analysis1a_1 = AnalysisFactory(topography=topo1a, function=func1,
+                                   start_time=datetime.datetime(2019, 1, 1, 12))
+    analysis1b_1 = AnalysisFactory(topography=topo1b, function=func1,
+                                   start_time=datetime.datetime(2019, 1, 1, 13))
+    analysis2a_1 = AnalysisFactory(topography=topo2a, function=func1,
+                                   start_time=datetime.datetime(2019, 1, 1, 14))
+
+    analysis1a_2 = AnalysisFactory(topography=topo1a, function=func2,
+                                   start_time=datetime.datetime(2019, 1, 1, 15))
+    analysis1b_2 = AnalysisFactory(topography=topo1b, function=func2,
+                                   start_time=datetime.datetime(2019, 1, 1, 16))
+    analysis2a_2 = AnalysisFactory(topography=topo2a, function=func2,
+                                   start_time=datetime.datetime(2019, 1, 1, 17))
+
+    #
+    # Now we change to the analyses view and look what we get
+    #
+    assert client.login(username=user1.username, password=password)
+
+    response = client.get(reverse("analysis:card"),
+                           data={
+                               'topography_ids[]': [topo1a.id, topo1b.id, topo2a.id],
+                               'function_id': func1.id,
+                               'card_idx': 1
+                           },
+                          HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+                          follow=True)
+
+    assert response.status_code == 200
+
+    # We should see start times of all three topographies
+    assert_in_content(response, '2019-01-01 12:00:00')  # topo1a
+    assert_in_content(response, '2019-01-01 13:00:00')  # topo1b
+    assert_in_content(response, '2019-01-01 14:00:00')  # topo2a
