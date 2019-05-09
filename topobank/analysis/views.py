@@ -13,7 +13,9 @@ from django.db.models import Q
 from django.conf import settings
 from rest_framework.generics import RetrieveAPIView
 
-from ..manager.models import Topography
+from guardian.shortcuts import get_objects_for_user
+
+from ..manager.models import Topography, Surface
 from ..manager.utils import selected_topographies, selection_from_session
 from .models import Analysis, AnalysisFunction
 from .serializers import AnalysisSerializer
@@ -35,7 +37,13 @@ def function_result_card(request):
         except (KeyError, ValueError):
             return HttpResponse("Error in GET arguments")
 
-        analyses_avail = get_latest_analyses(request.user, function_id, topography_ids)
+        analyses_avail = get_latest_analyses(function_id, topography_ids)
+
+        #
+        # Filter for analyses where the user has read permission for the related surface
+        #
+        readable_surfaces = get_objects_for_user(request.user, ['view_surface'], klass=Surface)
+        analyses_avail = analyses_avail.filter(topography__surface__in=readable_surfaces)
 
         #
         # Determine status code of request - do we need to trigger request again?

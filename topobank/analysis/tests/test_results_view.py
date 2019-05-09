@@ -15,7 +15,7 @@ from topobank.manager.models import Topography, Surface
 from topobank.manager.tests.utils import export_reponse_as_html, \
     SurfaceFactory, UserFactory, TopographyFactory
 from .utils import AnalysisFactory, AnalysisFunctionFactory
-from topobank.utils import assert_in_content
+from topobank.utils import assert_in_content, assert_not_in_content
 
 def selection_from_instances(instances):
     """A little helper for constructing a selection."""
@@ -492,7 +492,7 @@ def test_view_shared_analysis_results(client, mocker):
 
     # create topographies + functions + analyses
     func1 = AnalysisFunctionFactory()
-    func2 = AnalysisFunctionFactory()
+    #func2 = AnalysisFunctionFactory()
 
     # Two topographies for surface1
     topo1a = TopographyFactory(surface=surface1, name='topo1a')
@@ -509,15 +509,15 @@ def test_view_shared_analysis_results(client, mocker):
     analysis2a_1 = AnalysisFactory(topography=topo2a, function=func1,
                                    start_time=datetime.datetime(2019, 1, 1, 14))
 
-    analysis1a_2 = AnalysisFactory(topography=topo1a, function=func2,
-                                   start_time=datetime.datetime(2019, 1, 1, 15))
-    analysis1b_2 = AnalysisFactory(topography=topo1b, function=func2,
-                                   start_time=datetime.datetime(2019, 1, 1, 16))
-    analysis2a_2 = AnalysisFactory(topography=topo2a, function=func2,
-                                   start_time=datetime.datetime(2019, 1, 1, 17))
+    # analysis1a_2 = AnalysisFactory(topography=topo1a, function=func2,
+    #                                start_time=datetime.datetime(2019, 1, 1, 15))
+    # analysis1b_2 = AnalysisFactory(topography=topo1b, function=func2,
+    #                                start_time=datetime.datetime(2019, 1, 1, 16))
+    # analysis2a_2 = AnalysisFactory(topography=topo2a, function=func2,
+    #                                start_time=datetime.datetime(2019, 1, 1, 17))
 
     #
-    # Now we change to the analyses view and look what we get
+    # Now we change to the analysis card view and look what we get
     #
     assert client.login(username=user1.username, password=password)
 
@@ -536,3 +536,27 @@ def test_view_shared_analysis_results(client, mocker):
     assert_in_content(response, '2019-01-01 12:00:00')  # topo1a
     assert_in_content(response, '2019-01-01 13:00:00')  # topo1b
     assert_in_content(response, '2019-01-01 14:00:00')  # topo2a
+
+    client.logout()
+
+    #
+    # user 2 cannot access results from topo1, it is not shared
+    #
+    assert client.login(username=user2.username, password=password)
+
+    response = client.get(reverse("analysis:card"),
+                          data={
+                              'topography_ids[]': [topo1a.id, topo1b.id, topo2a.id],
+                              'function_id': func1.id,
+                              'card_idx': 1
+                          },
+                          HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+                          follow=True)
+
+    assert response.status_code == 200
+
+    assert_not_in_content(response, '2019-01-01 12:00:00')  # topo1a
+    assert_not_in_content(response, '2019-01-01 13:00:00')  # topo1b
+    assert_in_content(response, '2019-01-01 14:00:00')  # topo2a
+
+    client.logout()

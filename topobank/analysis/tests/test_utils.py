@@ -15,8 +15,6 @@ def test_latest_analyses(two_topos, django_user_model):
     topo2 = Topography.objects.get(name="Example 4 - Default")
     af = AnalysisFunction.objects.first()
 
-    user = topo1.surface.user
-
     # delete all prior analyses for these two topographies in order to have a clean state
     Analysis.objects.filter(topography__in=[topo1,topo2]).delete()
 
@@ -79,7 +77,7 @@ def test_latest_analyses(two_topos, django_user_model):
     )
     analysis.save()
 
-    analyses = get_latest_analyses(user, af.id, [topo1.id, topo2.id])
+    analyses = get_latest_analyses(af.id, [topo1.id, topo2.id])
 
     assert len(analyses) == 2 # one analysis per function and topography
 
