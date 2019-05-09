@@ -381,6 +381,13 @@ class MultipleUserSelectWidget(ModelSelect2MultipleWidget):
     max_results = 10
 
     def filter_queryset(self, request, term, queryset=None, **dependent_fields):
+
+        #
+        # Type at least a number of letters before first results are shown
+        #
+        if len(term)<SurfaceShareForm.SHARING_MIN_LETTERS_FOR_USER_DISPLAY:
+            return queryset.none()
+
         #
         # Exclude anonymous user and requesting user
         #
@@ -393,6 +400,9 @@ class SurfaceShareForm(forms.Form):
     """Form for sharing surfaces.
     """
 
+    # minimum number of letters to type until a user name is displayed
+    SHARING_MIN_LETTERS_FOR_USER_DISPLAY = 3
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -401,9 +411,9 @@ class SurfaceShareForm(forms.Form):
         queryset=User.objects,
         widget=MultipleUserSelectWidget,
         label="Users to share with",
-        help_text="""Select one or multiple users you want to give access to this surface.
-          Start typing a name in order to find a user. Only registered users can be found.  
-          """)
+        help_text="""<b>Type at least {} characters to start a search.</b>
+          Select one or multiple users you want to give access to this surface.  
+          """.format(SHARING_MIN_LETTERS_FOR_USER_DISPLAY))
 
     allow_change = forms.BooleanField(widget=forms.CheckboxInput, required=False,
                                       help_text="""If selected, users will be able to edit meta data
