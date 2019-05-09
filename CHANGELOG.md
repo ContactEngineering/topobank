@@ -1,5 +1,10 @@
 # Changelog for *TopoBank*
 
+## 0.3.1
+
+- fixes bug that analyses results were not shown for shared surfaces (#186)
+- in order to find user names you have to type at least 3 characters (#184)
+
 ## 0.3.0
 
 - surfaces can be shared for viewing and optionally also for changing
