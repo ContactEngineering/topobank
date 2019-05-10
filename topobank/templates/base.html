@@ -47,13 +47,12 @@
       <ol class="navbar-nav">
         <li class="breadcrumb-item">
           <a class="" href="{% url 'home' %}">
-            <i class="fa fa-fw fa-database"></i>TopoBank
+            <i class="fa fa-fw fa-database"></i>
           </a>
         </li>
         {% block breadcrumbs %}
         {% endblock breadcrumbs %}
       </ol>
-
 
       <ul class="navbar-nav ml-auto">
         {% if request.user.is_authenticated %}
