@@ -8,7 +8,7 @@
   </li>
   {% if object %}
     <li class="breadcrumb-item">
-      <a href="{% url 'manager:surface-detail' surface.id %}">{{ surface.name }}</a>
+      <a href="{% url 'manager:surface-detail' surface.id %}">{{ surface.name|truncatechars:50 }}</a>
     </li>
     <li class="breadcrumb-item active" aria-current="page">Edit</li>
   {% else %}

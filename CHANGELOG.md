@@ -5,6 +5,8 @@
 - fixes bug that analyses results were not shown for shared surfaces (#186)
 - in order to find user names you have to type at least 3 characters (#184)
 - fixes highlighting and breadcrumb for "Sharing" page in navigation bar (#187)
+- improves display of help texts in topography forms (#180)
+- added truncation for too long breadcrumb items in navigation bar (#134)
 
 ## 0.3.0
 

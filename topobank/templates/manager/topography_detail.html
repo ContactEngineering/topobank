@@ -11,10 +11,11 @@
     <a href="{% url 'manager:surface-list' %}">Surfaces</a>
   </li>
   <li class="breadcrumb-item">
-    <a href="{% url 'manager:surface-detail' topography.surface.id %}">{{ topography.surface.name }}</a>
+    <a href="{% url 'manager:surface-detail' topography.surface.id %}">
+      {{ topography.surface.name|truncatechars:20 }}</a>
   </li>
   <li class="breadcrumb-item active" aria-current="page">
-    Topography <em>{{ topography.name }}</em>
+    <em>{{ topography.name|truncatechars:30 }}</em>
   </li>
 {% endblock breadcrumbs %}
 
