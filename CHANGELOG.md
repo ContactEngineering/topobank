@@ -4,6 +4,7 @@
 
 - fixes bug that analyses results were not shown for shared surfaces (#186)
 - in order to find user names you have to type at least 3 characters (#184)
+- fixes highlighting and breadcrumb for "Sharing" page in navigation bar (#187)
 
 ## 0.3.0
 
