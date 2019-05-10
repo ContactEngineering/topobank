@@ -140,6 +140,9 @@ class Topography(models.Model):
         return "Topography '{0}' from {1}".format(\
             self.name, self.measurement_date)
 
+    def get_absolute_url(self):
+        return reverse('manager:topography-detail', kwargs=dict(pk=self.pk))
+
     def topography(self):
         """Return a PyCo Topography/Line Scan instance.
 
