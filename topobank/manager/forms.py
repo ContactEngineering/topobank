@@ -140,29 +140,39 @@ class TopographyUnitsForm(forms.ModelForm):
 
         self.helper = helper
 
-        def info_html(text):
-            return HTML("<p><em>"+text+"</em></p>")
+        #
+        # Setting defaults for help texts
+        #
+        help_texts = {
+            'size_x': "Please check physical size in x direction and change it, if needed.",
+            'size_y': "Please check physical size in y direction and change it, if needed.",
+            'unit': "Please select the correct unit for the size and height values.",
+            'height_scale': "Please enter the correct height scale factor such that heights match the given unit.",
+            'detrend_mode': "The detrending is applied on topography data after reading from data file."
+        }
 
-        if self.initial['size_editable']:
-            self.size_info_html = info_html("Please check this physical size and change it, if needed")
-
-        else:
-            self.size_info_html = info_html("Physical size was given in data file and is fixed.")
+        #
+        # Setting the help texts for this form
+        #
+        if not self.initial['size_editable']:
+            help_texts['size_x'] = "Physical size in x direction was given in data file and is fixed."
+            help_texts['size_y'] = "Physical size in y direction was given in data file and is fixed."
             self.fields['size_x'].disabled = True
+            if "size_y" in self.fields:
+                self.fields['size_y'].disabled = True
 
-        if self.initial['unit_editable']:
-            self.unit_info_html = info_html("Please select the correct unit for the size and height values.")
-        else:
-            self.unit_info_html = info_html("The unit of the physical size and height scale was given in the " +\
-                                            "data file and is fixed.")
+        if not self.initial['unit_editable']:
+            help_texts['unit'] = "The unit of the physical size and height scale was given in the " +\
+                                 "data file and is fixed."
             self.fields['unit'].disabled = True
 
-        if self.initial['height_scale_editable']:
-            self.height_scale_info_html = info_html("Please enter the correct height scale factor.")
-
-        else:
-            self.height_scale_info_html = info_html("The height scale factor was given in the data file and is fixed.")
+        if not self.initial['height_scale_editable']:
+            help_texts['height_scale'] = "The height scale factor was given in the data file and is fixed."
             self.fields['height_scale'].disabled = True
+
+        for fn in help_texts:
+            if fn in self.fields:
+                self.fields[fn].help_text = help_texts[fn]
 
         # we want the "_editable" fields to be saved also with their current values, so we
         # prepare hidden fields for them
@@ -213,12 +223,9 @@ class Topography1DUnitsForm(TopographyUnitsForm):
             Div(
                 Fieldset('Physical Size',
                          Field('size_editable', type="hidden"),
-                         self.size_info_html,
                          Field('size_x'),
-                         self.unit_info_html,
                          Field('unit')),
                 Fieldset('Height Conversion',
-                         self.height_scale_info_html,
                          Field('height_scale')),
                 Field('detrend_mode'),
                 Field('resolution_x', type="hidden"),  # only in order to have the data in wizard's .done() method
@@ -247,20 +254,14 @@ class Topography2DUnitsForm(TopographyUnitsForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        if not self.initial['size_editable']:
-            self.fields['size_y'].disabled = True
-
         self.helper.layout = Layout(
 
             Div(
                 Fieldset('Physical Size',
-                         self.size_info_html,
                          Field('size_x'),
                          Field('size_y'),
-                         self.unit_info_html,
                          Field('unit')),
                 Fieldset('Height Conversion',
-                         self.height_scale_info_html,
                          Field('height_scale')),
                 Field('detrend_mode'),
                 Field('resolution_x', type="hidden"), # only in order to have the data in wizard's .done() method
@@ -303,7 +304,6 @@ class TopographyForm(TopographyUnitsForm):
         self.helper.form_tag = True
 
         size_fieldset_args = ['Physical Size',
-                               self.size_info_html,
                                Field('size_x')]
         if has_size_y:
             size_fieldset_args.append(Field('size_y'))
@@ -312,7 +312,6 @@ class TopographyForm(TopographyUnitsForm):
         else:
             del self.fields['size_y']
 
-        size_fieldset_args.append(self.unit_info_html)
         size_fieldset_args.append(Field('unit'))
 
         self.helper.layout = Layout(
@@ -324,7 +323,6 @@ class TopographyForm(TopographyUnitsForm):
                 Field('description'),
                 Fieldset(*size_fieldset_args),
                 Fieldset('Height Conversion',
-                         self.height_scale_info_html,
                          Field('height_scale')),
                 Field('detrend_mode'),
                 *self.editable_fields,
@@ -381,6 +379,13 @@ class MultipleUserSelectWidget(ModelSelect2MultipleWidget):
     max_results = 10
 
     def filter_queryset(self, request, term, queryset=None, **dependent_fields):
+
+        #
+        # Type at least a number of letters before first results are shown
+        #
+        if len(term)<SurfaceShareForm.SHARING_MIN_LETTERS_FOR_USER_DISPLAY:
+            return queryset.none()
+
         #
         # Exclude anonymous user and requesting user
         #
@@ -393,6 +398,9 @@ class SurfaceShareForm(forms.Form):
     """Form for sharing surfaces.
     """
 
+    # minimum number of letters to type until a user name is displayed
+    SHARING_MIN_LETTERS_FOR_USER_DISPLAY = 3
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -401,9 +409,9 @@ class SurfaceShareForm(forms.Form):
         queryset=User.objects,
         widget=MultipleUserSelectWidget,
         label="Users to share with",
-        help_text="""Select one or multiple users you want to give access to this surface.
-          Start typing a name in order to find a user. Only registered users can be found.  
-          """)
+        help_text="""<b>Type at least {} characters to start a search.</b>
+          Select one or multiple users you want to give access to this surface.  
+          """.format(SHARING_MIN_LETTERS_FOR_USER_DISPLAY))
 
     allow_change = forms.BooleanField(widget=forms.CheckboxInput, required=False,
                                       help_text="""If selected, users will be able to edit meta data

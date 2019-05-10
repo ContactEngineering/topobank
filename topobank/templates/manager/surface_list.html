@@ -40,7 +40,7 @@
       {% bandwidths_data_json_for_selected_topographies request surface as bandwidths_data_json_for_this_surface %}
 
       {% is_surface_explicitly_selected request surface as this_surface_explicitly_selected %}
-      {% if this_surface_explicitly_selected or selected_topographies_for_this_surface.exists %}
+      {% if this_surface_explicitly_selected or selected_topographies_for_this_surface %}
         <div class="col-xl-6 mb-4">
           <div class="card">
             <div class="card-header">

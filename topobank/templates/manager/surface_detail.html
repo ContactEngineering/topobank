@@ -12,7 +12,7 @@
     <a href="{% url 'manager:surface-list' %}">Surfaces</a>
   </li>
   <li class="breadcrumb-item active" aria-current="page">
-    {{ surface.name }}
+    {{ surface.name|truncatechars:50 }}
   </li>
 {% endblock breadcrumbs %}
 

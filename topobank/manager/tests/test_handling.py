@@ -8,7 +8,9 @@ import os.path
 
 from ..tests.utils import two_topos, one_line_scan, SurfaceFactory, TopographyFactory, UserFactory
 from ..models import Topography, Surface
-from topobank.utils import assert_in_content, assert_redirects, assert_no_form_errors
+
+from topobank.utils import assert_in_content, assert_not_in_content,\
+    assert_redirects, assert_no_form_errors
 
 
 #######################################################################
@@ -769,7 +771,7 @@ def test_delete_surface(client, django_user_model):
 
     assert Surface.objects.all().count() == 0
 
-def test_list_surfaces(client, django_user_model):
+def test_list_surfaces(client, django_user_model, mocker):
 
     #
     # Create database objects
@@ -782,19 +784,67 @@ def test_list_surfaces(client, django_user_model):
     s1 = SurfaceFactory(name="Surface 1", user=user, category='exp')
     s2 = SurfaceFactory(name="Surface 2", user=user, category='dum')
 
-    t1 = TopographyFactory(name="Topo 1", surface=s1)
+    t1a = TopographyFactory(name="Topo 1a", surface=s1, unit='m')
+    t1b = TopographyFactory(name="Topo 1b", surface=s1, unit='m')
+    t2a = TopographyFactory(name="Topo 2a", surface=s2, unit='m')
+    t2b = TopographyFactory(name="Topo 2b", surface=s2, unit='m')
+    # setting "unit" is important here in order to have bandwidth data in responses!!
 
     assert client.login(username=username, password=password)
 
-    # select all surfaces
+    #
+    # first: select all surfaces
+    #
     response = client.post(reverse('manager:surface-list'), {'select-all': True}, follow=True)
+    assert response.status_code == 200
 
-    assert_in_content(response, 'Surface 1')
-    assert_in_content(response, 'Experimental data')
-    assert_in_content(response, 'Topo 1')
+    # Surface 1
+    assert_in_content(response, s1.get_absolute_url())
+    assert_in_content(response, t1a.get_absolute_url())
+    assert_in_content(response, t1b.get_absolute_url())
 
-    assert_in_content(response, 'Surface 2')
-    assert_in_content(response, 'Dummy data')
+    # Surface 2
+    assert_in_content(response, s2.get_absolute_url())
+    assert_in_content(response, t2a.get_absolute_url())
+    assert_in_content(response, t2b.get_absolute_url())
+
+    #
+    # select only one surface, surface 1
+    #
+
+    response = client.post(reverse('manager:surface-list'),
+                           {'selection': ['surface-{}'.format(s1.id)]},
+                           follow=True)
+
+    # Surface 1
+    assert_in_content(response, s1.get_absolute_url())
+    assert_in_content(response, t1a.get_absolute_url())
+    assert_in_content(response, t1b.get_absolute_url())
+
+    # Surface 2 -> NOT INCLUDED
+    assert_not_in_content(response, s2.get_absolute_url())
+    assert_not_in_content(response, t2a.get_absolute_url())
+    assert_not_in_content(response, t2b.get_absolute_url())
+
+    #
+    # select only two topographies from different surfaces, t1b + t2
+    #
+    response = client.post(reverse('manager:surface-list'),
+                           { 'selection': ['topography-{}'.format(t.id) for t in [t1b, t2a] ]},
+                           follow=True)
+
+    # Surface 1 -> INCLUDED, but not t1a
+    assert_in_content(response, s1.get_absolute_url())
+    assert_not_in_content(response, t1a.get_absolute_url())
+    assert_in_content(response, t1b.get_absolute_url())
+
+    # Surface 2 -> INCLUDED, but not t2b
+    assert_in_content(response, s2.get_absolute_url())
+    assert_in_content(response, t2a.get_absolute_url())
+    assert_not_in_content(response, t2b.get_absolute_url())
+
+
+
 
 
 

@@ -3,6 +3,7 @@
 {% load fontawesome %}
 {% load socialaccount %}
 {% load terms_tags %}
+{% load navbar_tags %}
 
 <html lang="en">
 
@@ -46,32 +47,31 @@
       <ol class="navbar-nav">
         <li class="breadcrumb-item">
           <a class="" href="{% url 'home' %}">
-            <i class="fa fa-fw fa-database"></i>TopoBank
+            <i class="fa fa-fw fa-database"></i>
           </a>
         </li>
         {% block breadcrumbs %}
         {% endblock breadcrumbs %}
       </ol>
 
-
       <ul class="navbar-nav ml-auto">
         {% if request.user.is_authenticated %}
           <li class="nav-item">
-              <a class="nav-link {% if request.resolver_match.app_name == 'manager' %}active{% endif %}"
+              <a class="nav-link {% navbar_active request.path 'Surfaces' %}"
                  href="{% url 'manager:surface-list' %}">
-                <i class="fa fa-fw fa-edit"></i>
+                <i class="fa fa-fw fa-diamond"></i>
                 <span>Surfaces</span>
               </a>
           </li>
           <li class="nav-item">
-            <a class="nav-link {% if request.resolver_match.app_name == 'analysis' %}active{% endif %}"
+            <a class="nav-link {% navbar_active request.path 'Analyses' %}"
                href="{% url 'analysis:list' %}">
               <i class="fa fa-fw fa-area-chart"></i>
               <span>Analyses</span>
             </a>
           </li>
           <li class="nav-item">
-            <a class="nav-link"
+            <a class="nav-link {% navbar_active request.path 'Sharing' %}"
                href="{% url 'manager:sharing-info' %}">
               <i class="fa fa-fw fa-share-alt"></i>
               <span>Sharing</span>
