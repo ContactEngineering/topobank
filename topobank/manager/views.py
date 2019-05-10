@@ -482,7 +482,7 @@ class SurfaceListView(FormMixin, ListView):
     success_url = reverse_lazy('manager:surface-list') # stay on same view
 
     def get_queryset(self):
-        surfaces = surfaces_for_user(self.request.user) # returns surfaces the user has acccess to
+        surfaces = surfaces_for_user(self.request.user) # returns surfaces the user has access to
         return surfaces
 
     def get_initial(self):

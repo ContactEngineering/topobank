@@ -213,7 +213,7 @@ def selection_for_select_all(user):
     """
     return ['surface-{}'.format(s.id) for s in surfaces_for_user(user)]
 
-def selection_to_topographies(selection, surface=None):  # TODO rename to "selected_topographies"
+def selection_to_topographies(selection, surface=None):
     """Returns queryset of selected topographies as saved in session.
 
     If surface is given, return only topographies for this
@@ -253,7 +253,8 @@ def selected_topographies(request, surface=None):
     :request: HTTP request
     :surface: if given, return only topographies of this Surface instance
     """
-    topographies = selection_to_topographies(selection_from_session(request.session), surface=surface)
+    selection = selection_from_session(request.session)
+    topographies = selection_to_topographies(selection, surface=surface)
 
     # make sure that only topographies with read permission can be effectively selected
     topographies = [t for t in topographies

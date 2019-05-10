@@ -786,7 +786,8 @@ def test_list_surfaces(client, django_user_model, mocker):
 
     t1a = TopographyFactory(name="Topo 1a", surface=s1, unit='m')
     t1b = TopographyFactory(name="Topo 1b", surface=s1, unit='m')
-    t2 = TopographyFactory(name="Topo 2", surface=s2, unit='m')
+    t2a = TopographyFactory(name="Topo 2a", surface=s2, unit='m')
+    t2b = TopographyFactory(name="Topo 2b", surface=s2, unit='m')
     # setting "unit" is important here in order to have bandwidth data in responses!!
 
     assert client.login(username=username, password=password)
@@ -804,7 +805,8 @@ def test_list_surfaces(client, django_user_model, mocker):
 
     # Surface 2
     assert_in_content(response, s2.get_absolute_url())
-    assert_in_content(response, t2.get_absolute_url())
+    assert_in_content(response, t2a.get_absolute_url())
+    assert_in_content(response, t2b.get_absolute_url())
 
     #
     # select only one surface, surface 1
@@ -821,23 +823,25 @@ def test_list_surfaces(client, django_user_model, mocker):
 
     # Surface 2 -> NOT INCLUDED
     assert_not_in_content(response, s2.get_absolute_url())
-    assert_not_in_content(response, t2.get_absolute_url())
+    assert_not_in_content(response, t2a.get_absolute_url())
+    assert_not_in_content(response, t2b.get_absolute_url())
 
     #
     # select only two topographies from different surfaces, t1b + t2
     #
-    client.session['selection'] = ['topography-{}'.format(t.id) for t in [t1b, t2] ]
-    client.session.save()
-    response = client.post(reverse('manager:surface-list'), follow=True)
+    response = client.post(reverse('manager:surface-list'),
+                           { 'selection': ['topography-{}'.format(t.id) for t in [t1b, t2a] ]},
+                           follow=True)
 
-    # Surface 1 INCLUDED, but not t1a
+    # Surface 1 -> INCLUDED, but not t1a
     assert_in_content(response, s1.get_absolute_url())
     assert_not_in_content(response, t1a.get_absolute_url())
     assert_in_content(response, t1b.get_absolute_url())
 
-    # Surface 2 -> INCLUDED
+    # Surface 2 -> INCLUDED, but not t2b
     assert_in_content(response, s2.get_absolute_url())
-    assert_not_in_content(response, t2.get_absolute_url())
+    assert_in_content(response, t2a.get_absolute_url())
+    assert_not_in_content(response, t2b.get_absolute_url())
 
 
 
