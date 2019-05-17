@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% load static i18n %}
 {% load socialaccount %}
+{% load welcome_page_tags %}
 
 {% block breadcrumbs %}
   <li class="breadcrumb-item active" aria-current="page">Home</li>
@@ -14,54 +15,70 @@
         various analyses and compare the results.</p>
         {#  <p><a class="btn btn-primary btn-lg" href="#" role="button">Learn more &raquo;</a></p> #}
         <div class="row">
-
-          <div class="col-xl-4 col-sm-6 mb-4">
-            <div class="card text-white bg-primary o-hidden h-100">
-              <div class="card-body">
-                <div class="card-body-icon">
-                  <i class="fa fa-fw fa-user"></i>
-                </div>
-                <div class="mr-2">
-                {% if request.user.is_authenticated %}
-                  Your last login was on
-                  <div class="welcome-page-statistics">{{ request.user.last_login|date }}</div>
-                  You joined on {{ request.user.date_joined|date }}
-                {% else %}
-                  <div class="welcome-page-statistics">{{ num_users }}</div> registered users
-                {% endif %}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="col-xl-4 col-sm-6 mb-4">
-            <div class="card text-white bg-danger o-hidden h-100">
-              <div class="card-body">
-                <div class="card-body-icon">
-                  <i class="fa fa-fw fa-diamond"></i>
-                </div>
-                <div class="mr-2">
-                {% if request.user.is_authenticated %} You have {% endif %}
-                  <div class="welcome-page-statistics">{{ num_surfaces }}</div> surfaces in database
+          {% with request.user.is_authenticated as is_authenticated %}
+            <div class="{% column_div_class is_authenticated %}">
+              <div class="card text-white bg-primary o-hidden h-100">
+                <div class="card-body">
+                  <div class="card-body-icon">
+                    <i class="fa fa-fw fa-user"></i>
+                  </div>
+                  <div class="mr-2">
+                  {% if is_authenticated %}
+                    Your last login was on
+                    <div class="welcome-page-statistics">{{ request.user.last_login|date }}</div>
+                    You joined on {{ request.user.date_joined|date }}
+                  {% else %}
+                    <div class="welcome-page-statistics">{{ num_users }}</div> registered users
+                  {% endif %}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <div class="col-xl-4 col-sm-6 mb-4">
-            <div class="card text-white bg-warning o-hidden h-100">
-              <div class="card-body">
-                <div class="card-body-icon">
-                  <i class="fa fa-fw fa-edit"></i>
-                </div>
-                <div class="mr-2">
-                  {% if request.user.is_authenticated %} You have {% endif %}
-                  <div class="welcome-page-statistics">{{ num_topographies }}</div> individual topographies
+            <div class="{% column_div_class is_authenticated %}">
+              <div class="card text-white bg-danger o-hidden h-100">
+                <div class="card-body">
+                  <div class="card-body-icon">
+                    <i class="fa fa-fw fa-diamond"></i>
+                  </div>
+                  <div class="mr-2">
+                  {% if is_authenticated %} You have {% endif %}
+                    <div class="welcome-page-statistics">{{ num_surfaces }}</div> surfaces in database
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
+            <div class="{% column_div_class is_authenticated %}">
+              <div class="card text-white bg-warning o-hidden h-100">
+                <div class="card-body">
+                  <div class="card-body-icon">
+                    <i class="fa fa-fw fa-edit"></i>
+                  </div>
+                  <div class="mr-2">
+                    {% if is_authenticated %} You have {% endif %}
+                    <div class="welcome-page-statistics">{{ num_topographies }}</div> individual topographies
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {% if is_authenticated %}
+            <div class="{% column_div_class is_authenticated %}">
+              <div class="card text-white bg-success o-hidden h-100">
+                <div class="card-body">
+                  <div class="card-body-icon">
+                    <i class="fa fa-fw fa-share-alt"></i>
+                  </div>
+                  <div class="mr-2">
+                    Other users shared
+                    <div class="welcome-page-statistics">{{ num_shared_surfaces }}</div> surfaces with you
+                  </div>
+                </div>
+              </div>
+            </div>
+            {% endif %}
+          {% endwith %}
         </div>
         <!-- /.row -->
       </div>
@@ -72,23 +89,28 @@
       <!-- Example row of columns -->
       <div class="row">
         {% if request.user.is_authenticated %}
-        <div class="col-md-4">
+        <div class="col-md-3">
           <h2>Surfaces</h2>
           <p>A <em>Surface</em> represents a physical surface together with some metadata. Each surface
           can be measured several times. These measurements are the <em>topographies</em>.</p>
           <p><a class="btn btn-secondary" href="{% url 'manager:surface-create' %}" role="button">Create a surface &raquo;</a></p>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
           <h2>Topographies</h2>
           <p>For each surface you can upload one or more topographies, specify meta data for them
             or run pre-defined analyses on them.</p>
           <p><a class="btn btn-secondary" href="{% url 'manager:surface-list' %}" role="button">Select topographies &raquo;</a></p>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
           <h2>Analyses</h2>
           <p>All analyses are stored, can be retriggered or compared.
           Pre-defined analyis functions available.</p>
           <p><a class="btn btn-secondary" href="{% url 'analysis:list' %}" role="button">Show analyses &raquo;</a></p>
+        </div>
+         <div class="col-md-3">
+          <h2>Sharing</h2>
+          <p>Share your surfaces with others for collaboration. Decide whether they can modify them or not.</p>
+        <p><a class="btn btn-secondary" href="{% url 'manager:sharing-info' %}" role="button">Show sharing info &raquo;</a></p>
         </div>
         {% else %}
         <div class="col-md-12">

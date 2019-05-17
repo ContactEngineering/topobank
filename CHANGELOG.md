@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 0.4.0
+
+- added statistics about shared surfaces (#196)
+
 ## 0.3.1
 
 - fixes bug that analyses results were not shown for shared surfaces (#186)
