@@ -92,7 +92,7 @@ def function_result_card(request):
     else:
         return Http404
 
-class AnalysesView(FormView):
+class AnalysesListView(FormView):
     form_class = TopographyFunctionSelectForm
     success_url = reverse_lazy('analysis:list')
     template_name = "analysis/analyses.html"
@@ -100,7 +100,7 @@ class AnalysesView(FormView):
     def get_initial(self):
         return dict(
             selection=selection_from_session(self.request.session),
-            functions=AnalysesView._selected_functions(self.request),
+            functions=AnalysesListView._selected_functions(self.request),
         )
 
     def get_form_kwargs(self):

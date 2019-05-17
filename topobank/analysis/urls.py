@@ -7,7 +7,7 @@ app_name = "analysis"
 urlpatterns = [
     url(
         regex=r'list/$',
-        view=login_required(views.AnalysesView.as_view()),
+        view=login_required(views.AnalysesListView.as_view()),
         name='list'
     ),
     url(
