@@ -43,20 +43,14 @@
 
       {% is_surface_explicitly_selected request surface as this_surface_explicitly_selected %}
       {% if this_surface_explicitly_selected or selected_topographies_for_this_surface %}
-        <div class="col-xl-6 mb-4">
+        <div class="col-xl-4 mb-4">
           <div class="card">
             <div class="card-header">
               <div class="pull-left">
                 <div>
-                <span class="surface-name-headline">
-                  {{ surface.name }}
-                </span>
-                </div>
-                <div>
-                <span class="badge badge-info badge-pill surface-category-headline">
-                  {{ surface.get_category_display|default_if_none:"category not defined yet" }}
-                </span>
-                  {% render_shared_by_badge request surface %}
+                  <span class="surface-name-headline">
+                    {{ surface.name }}
+                  </span>
                 </div>
               </div>
               <div class="pull-right">
@@ -101,9 +95,17 @@
             </div>
 
             <div class="card-footer">
-              <small>selected {{ selected_topographies_for_this_surface|length }} out of {{ surface.num_topographies }}
-                topographies
-              </small>
+              <div class="pull-left">
+                <small>selected {{ selected_topographies_for_this_surface|length }} out of {{ surface.num_topographies }}
+                  topographies
+                </small>
+              </div>
+              <div class="pull-right">
+                <span class="badge badge-info badge-pill surface-category-headline">
+                      {{ surface.get_category_display|default_if_none:"category not defined yet" }}
+                    </span>
+                    {% render_shared_by_badge request surface %}
+              </div>
             </div>
           </div>
         </div>
