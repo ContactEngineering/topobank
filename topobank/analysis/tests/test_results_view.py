@@ -45,8 +45,8 @@ def test_selection_from_instances(mocker):
 @pytest.mark.django_db
 def test_analysis_times(client, two_topos, mocker):
 
-    card_context_mock = mocker.patch('topobank.analysis.cards.function_card_context')
-    card_context_mock.return_value = {}
+    card_context_mock = mocker.patch('topobank.analysis.views.FunctionCardView.get_context_data')
+    card_context_mock.return_value = {} # we bypass all the plotting code
 
     username = 'testuser'
     password = 'abcd$1234'
@@ -70,14 +70,14 @@ def test_analysis_times(client, two_topos, mocker):
                            data={
                                'topography_ids[]': [topo.id],
                                'function_id': af.id,
-                               'card_idx': 1
+                               'card_id': "card-1",
                            },
                            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
                            follow=True)
 
     assert response.status_code == 200
 
-    export_reponse_as_html(response, fname='/tmp/response-analysis-times.html')
+    # export_reponse_as_html(response, fname='/tmp/response-analysis-times.html')
 
     assert b"2018-01-01 12:00:00" in response.content # start
     # assert b"2018-01-01 13:01:01" in response.content # end, lef out for now
@@ -87,8 +87,8 @@ def test_analysis_times(client, two_topos, mocker):
 def test_show_only_last_analysis(client, two_topos, mocker):
     # TODO use mocks for topographies if possible
 
-    card_context_mock = mocker.patch('topobank.analysis.cards.function_card_context')
-    card_context_mock.return_value = {}
+    #card_context_mock = mocker.patch('topobank.analysis.cards.function_card_context')
+    #card_context_mock.return_value = {}
 
     username = 'testuser'
     password = 'abcd$1234'
@@ -174,8 +174,8 @@ def test_show_only_last_analysis(client, two_topos, mocker):
 def test_show_analyses_with_different_arguments(client, two_topos, mocker):
     # TODO use mocks for topographies if possible
 
-    card_context_mock = mocker.patch('topobank.analysis.cards.function_card_context')
-    card_context_mock.return_value = {}
+    #card_context_mock = mocker.patch('topobank.analysis.cards.function_card_context')
+    #card_context_mock.return_value = {}
 
     username = 'testuser'
     password = 'abcd$1234'
@@ -227,7 +227,7 @@ def test_show_analyses_with_different_arguments(client, two_topos, mocker):
                            data={
                                'topography_ids[]': [topo1.id],
                                'function_id': af.id,
-                               'card_idx': 1,
+                               'card_id': "card-1",
                            },
                            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
                            follow=True)
@@ -471,10 +471,7 @@ def test_analyis_download_as_xlsx(client, two_topos, ids_downloadable_analyses):
 
 
 @pytest.mark.django_db
-def test_view_shared_analysis_results(client, mocker):
-
-    card_context_mock = mocker.patch('topobank.analysis.cards.function_card_context')
-    card_context_mock.return_value = {}
+def test_view_shared_analysis_results(client):
 
     password = 'abcd$1234'
 

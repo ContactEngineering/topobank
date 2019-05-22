@@ -188,6 +188,48 @@ function format_exponential(d, maxNumberOfDecimalPlaces) {
         }
 }
 
+/**
+ * Submit an ajax call for updating an card in the analysis view.
+ *
+ * @param card_url {String} URL to call in order to get card content as HTTP response
+ * @param card_element_id {String} CSS id of the div element containing the card
+ * @param function_id {Number} Integer number of the analysis function which should be displayed
+ * @param topography_ids {Object} list of integer numbers with ids of topographies which should be displayed
+ */
+function submit_analyses_card_ajax(card_url, card_element_id, function_id, topography_ids) {
+
+      var jquery_card_selector = "#"+card_element_id;
+
+      $.ajax({
+        type: "GET",
+        url: card_url,
+        timeout: 0,
+        data: {
+           card_id: card_element_id,
+           function_id: function_id,
+           topography_ids: topography_ids
+        },
+        success : function(data, textStatus, xhr) {
+          // console.log("Received response for card '"+card_element_id+"'. Status: "+xhr.status+" "+jquery_card_selector)
+          $(jquery_card_selector).html(data); // insert resulting HTML code
+          if (xhr.status==202) {
+            // Data is not ready, retrigger AJAX call
+            console.log("Analyses for card with element id '"+card_element_id+"' not ready. Retrying..");
+            setTimeout(function () {
+              submit_card_ajax(card_element_id, function_id, topography_ids);
+            }, 1000); // TODO limit number of retries?
+          }
+        },
+        error: function(xhr, textStatus, errorThrown) {
+          // console.log("Error receiving response for card '"+card_element_id+"'. Status: "+xhr.status
+          //            +" Response: "+xhr.responseText)
+          $(jquery_card_selector).html("Please report this error: "+errorThrown+xhr.status+xhr.responseText);
+          $(jquery_card_selector).addClass("alert alert-danger");
+        }
+      });
+}
+
+
 /*
  * Setup document handlers.
  */

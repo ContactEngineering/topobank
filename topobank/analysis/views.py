@@ -2,41 +2,89 @@ import io
 import pickle
 import json
 import numpy as np
+import itertools
+from collections import OrderedDict
 
 from django.http import HttpResponse, HttpResponseForbidden, Http404
-from django.views.generic.edit import FormView
+from django.views.generic import DetailView, FormView, TemplateView
 from django.urls import reverse_lazy
 from django.contrib import messages
-from django.db.models import OuterRef, Subquery
 from django.shortcuts import render
 from django.db.models import Q
 from django.conf import settings
 from rest_framework.generics import RetrieveAPIView
 
+from bokeh.layouts import row, column, widgetbox
+from bokeh.models import ColumnDataSource, CustomJS
+from bokeh.palettes import Category10
+from bokeh.models.formatters import FuncTickFormatter
+from bokeh.models.ranges import DataRange1d
+from bokeh.plotting import figure
+from bokeh.embed import components
+from bokeh.models.widgets import CheckboxGroup
+from bokeh.models.widgets.markups import Paragraph
+
+from pint import UnitRegistry, UndefinedUnitError
+
 from guardian.shortcuts import get_objects_for_user
+
+import PyCo
 
 from ..manager.models import Topography, Surface
 from ..manager.utils import selected_topographies, selection_from_session
 from .models import Analysis, AnalysisFunction
 from .serializers import AnalysisSerializer
 from .forms import TopographyFunctionSelectForm
-from .cards import function_card_context
 from .utils import get_latest_analyses
 
-import PyCo
+import logging
+_log = logging.getLogger(__name__)
 
-def function_result_card(request):
+SMALLEST_ABSOLUT_NUMBER_IN_LOGPLOTS = 1e-18
+MAX_NUM_POINTS_FOR_SYMBOLS = 50
 
-    if request.is_ajax():
+class AnalysesCardView(TemplateView):
+    """
+
+    Must be used in an AJAX call.
+    """
+    template_name = "analysis/simple_result_card.html"
+
+    def get_context_data(self, **kwargs):
+        """
+
+        Gets function ids and topography ids from GET parameters.
+
+
+        :return: dict to be used in analysis card templates' context
+
+        The returned dict has the following keys:
+
+          card_id: A CSS id referencing the card which is to be delivered
+          analysis_available: queryset of all analyses which are relevant for this view
+          analyses_success: queryset of successfully finished analyses (result is useable, can be displayed)
+          analyses_failure: queryset of analyses finished with failures (result has traceback, can't be displayed)
+          analyses_unready: queryset of analyses which are still running
+          topographies_missing: list of topographies for which there is no Analysis object yet
+        """
+        context = super().get_context_data(**kwargs)
+
+        request = self.request
+
+        if not request.is_ajax():
+            return Http404
 
         request_method = request.GET
         try:
             function_id = int(request_method.get('function_id'))
-            card_idx = int(request_method.get('card_idx'))
-            topography_ids = [ int(tid) for tid in request_method.getlist('topography_ids[]')]
+            card_id = request_method.get('card_id')
+            topography_ids = [int(tid) for tid in request_method.getlist('topography_ids[]')]
         except (KeyError, ValueError):
             return HttpResponse("Error in GET arguments")
 
+        #
+        # Get all relevant analysis objects for this function and topography ids
+        #
         analyses_avail = get_latest_analyses(function_id, topography_ids)
 
         #
@@ -51,14 +99,6 @@ def function_result_card(request):
         analyses_ready = analyses_avail.filter(task_state__in=['su', 'fa'])
         analyses_unready = analyses_avail.filter(~Q(id__in=analyses_ready))
 
-        num_analyses_avail = analyses_avail.count()
-        num_analyses_ready = analyses_ready.count()
-
-        if (num_analyses_avail > 0) and (num_analyses_ready < num_analyses_avail):
-            status = 202  # signal to caller: please request again
-        else:
-            status = 200  # request is as complete as possible
-
         #
         # collect lists of successful analyses and analyses with failures
         #
@@ -70,27 +110,326 @@ def function_result_card(request):
         #
         # collect list of topographies for which no analyses exist
         #
-        topographies_available_ids = [ a.topography.id for a in analyses_avail ]
-        topographies_missing = [ Topography.objects.get(id=tid) for tid in topography_ids
-                                 if tid not in topographies_available_ids ]
+        topographies_available_ids = [a.topography.id for a in analyses_avail]
+        topographies_missing = [Topography.objects.get(id=tid) for tid in topography_ids
+                                if tid not in topographies_available_ids]
 
         function = AnalysisFunction.objects.get(id=function_id)
 
-        context = dict(
-            idx = card_idx,
-            title = function.name,
-            analyses_available = analyses_avail, # all Analysis objects related to this card
-            analyses_success = analyses_success, # ..the ones which were successful and can be displayed
-            analyses_failure = analyses_failure,   # ..the ones which have failures and can't be displayed
-            analyses_unready = analyses_unready,   # ..the ones which are still running
-            topographies_missing = topographies_missing  # topographies for which there is no Analyis object yet
-        )
+        context.update(dict(
+            card_id=card_id,
+            title=function.name,
+            function=function,
+            analyses_available=analyses_avail,  # all Analysis objects related to this card
+            analyses_success=analyses_success,  # ..the ones which were successful and can be displayed
+            analyses_failure=analyses_failure,  # ..the ones which have failures and can't be displayed
+            analyses_unready=analyses_unready,  # ..the ones which are still running
+            topographies_missing=topographies_missing  # topographies for which there is no Analysis object yet
+        ))
 
-        context.update(function_card_context(analyses_success))
+        return context
 
-        return render(request, template_name="analysis/function_result_card.html", context=context, status=status)
-    else:
-        return Http404
+    def get(self, request, *args, **kwargs):
+        """
+        Returns status code
+
+        - 200 if all analysis are finished (success or failure).
+        - 202 if there are still analyses which not have been finished,
+          this can be used to request the card again later
+
+        :param request:
+        :param args:
+        :param kwargs:
+        :return:
+        """
+        response = super().get(request, *args, **kwargs)
+
+        #
+        # Set status code depending on whether all analyses are finished
+        #
+        context = response.context_data
+        num_analyses_avail = context['analyses_available'].count()
+        num_analyses_ready = context['analyses_success'].count() + context['analyses_failure'].count()
+
+        if (num_analyses_avail > 0) and (num_analyses_ready < num_analyses_avail):
+            response.status_code = 202  # signal to caller: please request again
+        else:
+            response.status_code = 200  # request is as complete as possible
+
+        return response
+
+class FunctionCardView(AnalysesCardView):
+
+    template_name = "analysis/function_result_card.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        analyses_success = context['analyses_success']
+
+        if len(analyses_success) == 0:
+            return dict(plot_script="",
+                        plot_div="No analysis available",
+                        special_values=[],
+                        topography_colors=json.dumps(list()),
+                        series_dashes=json.dumps(list()))
+
+            #
+            # Prepare plot, controls, and table with special values..
+            #
+
+        first_analysis_result = analyses_success[0].result_obj
+        title = first_analysis_result['name']
+
+        xunit = first_analysis_result['xunit']
+        yunit = first_analysis_result['yunit']
+
+        ureg = UnitRegistry()  # for unit conversion for each analysis individually, see below
+
+        #
+        # set xrange, yrange -> automatic bounds for zooming
+        #
+        x_range = DataRange1d(bounds='auto')  # if min+max not given, calculate from data of render
+        y_range = DataRange1d(bounds='auto')
+
+        def get_axis_type(key):
+            return first_analysis_result.get(key) or "linear"
+
+        x_axis_label = first_analysis_result['xlabel'] + f' ({xunit})'
+        y_axis_label = first_analysis_result['ylabel'] + f' ({yunit})'
+
+        #
+        # Create the plot figure
+        #
+        plot = figure(title=title,
+                      plot_height=300,
+                      sizing_mode='scale_width',
+                      x_range=x_range,
+                      y_range=y_range,
+                      x_axis_label=x_axis_label,
+                      y_axis_label=y_axis_label,
+                      x_axis_type=get_axis_type('xscale'),
+                      y_axis_type=get_axis_type('yscale'),
+                      tools="crosshair,pan,reset,save,wheel_zoom,box_zoom")
+
+        #
+        # Prepare helpers for dashes and colors
+        #
+        color_cycle = itertools.cycle(Category10[10])
+        dash_cycle = itertools.cycle(['solid', 'dashed', 'dotted', 'dotdash', 'dashdot'])
+        # symbol_cycle = itertools.cycle(['circle', 'triangle', 'diamond', 'square', 'asterisk'])
+        # TODO remove code for toggling symbols if not needed
+
+        topography_colors = OrderedDict()  # key: Topography instance
+        topography_names = []
+
+        series_dashes = OrderedDict()  # key: series name
+        series_names = []
+
+        # Also give each series a symbol (only used for small number of points)
+        # series_symbols = OrderedDict()  # key: series name
+
+        #
+        # Traverse analyses and plot lines
+        #
+        js_code = ""
+        js_args = {}
+
+        special_values = []  # elements: (topography, quantity name, value, unit string)
+
+        for analysis in analyses_success:
+
+            topography_name = analysis.topography.name
+
+            #
+            # find out colors for topographies
+            #
+            if analysis.topography not in topography_colors:
+                topography_colors[analysis.topography] = next(color_cycle)
+                topography_names.append(analysis.topography.name)
+
+            if analysis.task_state == analysis.FAILURE:
+                continue  # should not happen if only called with successful analyses
+            elif analysis.task_state == analysis.SUCCESS:
+                series = analysis.result_obj['series']
+            else:
+                # not ready yet
+                continue  # should not happen if only called with successful analyses
+
+            #
+            # find out scale for data
+            #
+            analysis_result = analysis.result_obj
+
+            try:
+                analysis_xscale = ureg.convert(1, xunit, analysis_result['xunit'])
+                analysis_yscale = ureg.convert(1, yunit, analysis_result['yunit'])
+            except UndefinedUnitError as exc:
+                _log.error("Cannot convert units when displaying results for analysis with id %s. Cause: %s",
+                           analysis.id, str(exc))
+                continue
+                # TODO How to handle such an error here? Notification? Message in analysis box?
+
+            for s in series:
+                # One could use AjaxDataSource for retrieving the results, but useful if we are already in AJAX call?
+                xarr = np.array(s['x'])
+                yarr = np.array(s['y'])
+
+                # if logplot, filter all zero values
+                mask = np.zeros(xarr.shape, dtype=bool)
+                if get_axis_type('xscale') == 'log':
+                    mask |= np.isclose(xarr, 0, atol=SMALLEST_ABSOLUT_NUMBER_IN_LOGPLOTS)
+                if get_axis_type('yscale') == 'log':
+                    mask |= np.isclose(yarr, 0, atol=SMALLEST_ABSOLUT_NUMBER_IN_LOGPLOTS)
+
+                source = ColumnDataSource(data=dict(x=analysis_xscale * xarr[~mask],
+                                                    y=analysis_yscale * yarr[~mask]))
+
+                series_name = s['name']
+                #
+                # find out dashes for data series
+                #
+                if series_name not in series_dashes:
+                    series_dashes[series_name] = next(dash_cycle)
+                    # series_symbols[series_name] = next(symbol_cycle)
+                    series_names.append(series_name)
+
+                #
+                # Actually plot the line
+                #
+                show_symbols = np.count_nonzero(~mask) <= MAX_NUM_POINTS_FOR_SYMBOLS
+
+                legend_entry = topography_name + ": " + series_name
+
+                curr_color = topography_colors[analysis.topography]
+                curr_dash = series_dashes[series_name]
+                # curr_symbol = series_symbols[series_name]
+
+                line_glyph = plot.line('x', 'y', source=source, legend=legend_entry,
+                                       line_color=curr_color,
+                                       line_dash=curr_dash)
+                if show_symbols:
+                    symbol_glyph = plot.scatter('x', 'y', source=source, legend=legend_entry,
+                                                marker='circle',
+                                                line_color=curr_color,
+                                                line_dash=curr_dash,
+                                                fill_color=curr_color)
+
+                #
+                # Prepare JS code to toggle visibility
+                #
+                series_idx = series_names.index(series_name)
+                topography_idx = topography_names.index(topography_name)
+
+                # prepare unique id for this line
+                glyph_id = f"glyph_{topography_idx}_{series_idx}_line"
+                js_args[glyph_id] = line_glyph  # mapping from Python to JS
+
+                # only indices of visible glyphs appear in "active" lists of both button groups
+                js_code += f"{glyph_id}.visible = series_btn_group.active.includes({series_idx}) " \
+                           + f"&& topography_btn_group.active.includes({topography_idx});"
+
+                if show_symbols:
+                    # prepare unique id for this symbols
+                    glyph_id = f"glyph_{topography_idx}_{series_idx}_symbol"
+                    js_args[glyph_id] = symbol_glyph  # mapping from Python to JS
+
+                    # only indices of visible glyphs appear in "active" lists of both button groups
+                    js_code += f"{glyph_id}.visible = series_btn_group.active.includes({series_idx}) " \
+                               + f"&& topography_btn_group.active.includes({topography_idx});"
+
+            #
+            # Collect special values to be shown in the result card
+            #
+            if 'scalars' in analysis.result_obj:
+                for k, v in analysis.result_obj['scalars'].items():
+                    special_values.append((analysis.topography, k, v, analysis.topography.unit))
+
+        #
+        # Final configuration of the plot
+        #
+
+        # plot.legend.click_policy = "hide" # can be used to disable lines by clicking on legend
+        plot.legend.visible = False  # we have extra widgets to disable lines
+        plot.toolbar.logo = None
+        plot.toolbar.active_inspect = None
+        plot.xaxis.axis_label_text_font_style = "normal"
+        plot.yaxis.axis_label_text_font_style = "normal"
+        plot.xaxis.major_label_text_font_size = "12pt"
+        plot.yaxis.major_label_text_font_size = "12pt"
+
+        # see js function "format_exponential()" in project.js file
+        plot.xaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
+        plot.yaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
+
+        #
+        # Adding widgets for switching lines on/off
+        #
+        topo_names = list(t.name for t in topography_colors.keys())
+
+        series_button_group = CheckboxGroup(
+            labels=series_names,
+            css_classes=["topobank-series-checkbox"],
+            active=list(range(len(series_names))))  # all active
+
+        topography_button_group = CheckboxGroup(
+            labels=topo_names,
+            css_classes=["topobank-topography-checkbox"],
+            active=list(range(len(topo_names))))  # all active
+
+        # extend mapping of Python to JS objects
+        js_args['series_btn_group'] = series_button_group
+        js_args['topography_btn_group'] = topography_button_group
+
+        # add code for setting styles of widgetbox elements
+        # js_code += """
+        # style_checkbox_labels({});
+        # """.format(card_idx)
+
+        toggle_lines_callback = CustomJS(args=js_args, code=js_code)
+
+        #
+        # TODO Idea: Generate DIVs with Markup of colors and dashes and align with Buttons/Checkboxes
+        #
+        widgets = row(widgetbox(Paragraph(text="Topographies"), topography_button_group),
+                      widgetbox(Paragraph(text="Data Series"), series_button_group))
+
+        series_button_group.js_on_click(toggle_lines_callback)
+        topography_button_group.js_on_click(toggle_lines_callback)
+
+        #
+        # Convert plot and widgets to HTML, add meta data for template
+        #
+        script, div = components(column(plot, widgets, sizing_mode='scale_width'))
+
+        context.update(dict(
+            plot_script=script,
+            plot_div=div,
+            special_values=special_values,
+            topography_colors=json.dumps(list(topography_colors.values())),
+            series_dashes=json.dumps(list(series_dashes.values()))))
+
+        return context
+
+class AnalysisFunctionDetailView(DetailView):
+
+    model = AnalysisFunction
+    template_name = "analysis/function_result_detail.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        function = self.object
+
+        topographies = selected_topographies(self.request)
+
+        card = dict(template="analysis/function_result_card.html",
+                    function=function,
+                    topography_ids_json=json.dumps([ t.id for t in topographies]))
+
+        context['card'] = card
+        return context
+
 
 class AnalysesListView(FormView):
     form_class = TopographyFunctionSelectForm

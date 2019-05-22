@@ -67,46 +67,16 @@
 
   <!-- Trigger fetching analysis results -->
   <script>
-
-    function submit_card_ajax(card_idx, function_id, topography_ids) {
-
-      var card_element_id = "#card-"+card_idx;
-
-      $.ajax({
-        type: "GET",
-        url: "{% url 'analysis:card' %}",
-        timeout: 0,
-        data: {
-           card_idx: card_idx,
-           function_id: function_id,
-           topography_ids: topography_ids
-           // csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value
-           // without this token we can't do a POST for security reasons
-           // Does {{ csrf_token }} work instead?
-        },
-        success : function(data, textStatus, xhr) {
-          $(card_element_id).html(data); // insert resulting HTML code
-          if (xhr.status==202) {
-            // Data is not ready, retrigger AJAX call
-            console.log("Analyses for card "+card_idx+" not ready. Retrying..");
-            setTimeout(function () {
-              submit_card_ajax(card_idx, function_id, topography_ids);
-            }, 1000); // TODO limit number of retries?
-          }
-        },
-        error: function(xhr, textStatus, errorThrown) {
-            $(card_element_id).html("Please report this error: "+errorThrown+xhr.status+xhr.responseText);
-            $(card_element_id).addClass("alert alert-danger");
-        }
-      });
-    }
-
     // for each card submit ajax call to insert result card
-    {% for card in cards %}
+
+
       $(document).ready(function () {
-        submit_card_ajax({{ forloop.counter }}, {{ card.function.id }}, {{ card.topography_ids_json|safe }});
+        {% url 'analysis:card' as card_url %}
+        {% for card in cards %}
+        submit_analyses_card_ajax("{{ card_url }}", "card-{{ forloop.counter }}", {{ card.function.id }}, {{ card.topography_ids_json|safe }});
+        {% endfor %}
       });
-    {% endfor %}
+
   </script>
 
   <!-- for crispy form -->

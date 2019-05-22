@@ -21,8 +21,13 @@ urlpatterns = [
         name='download-xlsx'
     ),
     url(
+        regex=r'function/(?P<pk>[\d,]+)/$',
+        view=login_required(views.AnalysisFunctionDetailView.as_view()),
+        name='function-detail'
+    ),
+    url(
         regex=r'card/$',
-        view=login_required(views.function_result_card),
+        view=login_required(views.AnalysesCardView.as_view()),
         name='card'
     ),
 ]

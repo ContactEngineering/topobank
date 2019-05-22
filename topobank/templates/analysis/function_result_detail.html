@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% load fontawesome %}
+{% load crispy_forms_tags %}
+{% load analysis_tags %}
+
+{% block content-title %}
+  Analysis Results
+{% endblock content-title %}
+
+{% block extra_css %}
+<link href="https://cdn.pydata.org/bokeh/release/bokeh-1.1.0.min.css"
+      rel="stylesheet" type="text/css">
+<link href="https://cdn.pydata.org/bokeh/release/bokeh-widgets-1.1.0.min.css"
+      rel="stylesheet" type="text/css">
+<link href="https://cdn.pydata.org/bokeh/release/bokeh-tables-1.1.0.min.css"
+      rel="stylesheet" type="text/css">
+{{ form.media.css }}
+{% endblock extra_css %}
+
+{% block breadcrumbs %}
+  <li class="breadcrumb-item">
+    <a href="{% url 'analysis:list' %}">Analyses</a>
+  </li>
+  <li class="breadcrumb-item active" aria-current="page">
+    {{ card.function.name|truncatechars:50 }}
+  </li>
+{% endblock breadcrumbs %}
+
+{% block content %}
+
+  <!--
+  Show card. Will be replaced by AJAX call.
+  -->
+  <div id="card">
+    <div class="card">
+      <div class="card-header">
+        <h4>{{ card.function.name }}</h4>
+      </div>
+      <div class="card-body">
+        <p>Please wait..</p>
+        <div class="spinner"></div>
+      </div>
+    </div>
+  </div>
+{% endblock content %}
+
+{% block javascript %}
+  <!-- ----------- for bokeh plot ----- -->
+  <script src="https://cdn.pydata.org/bokeh/release/bokeh-1.1.0.min.js"></script>
+  <script src="https://cdn.pydata.org/bokeh/release/bokeh-widgets-1.1.0.min.js"></script>
+  <script src="https://cdn.pydata.org/bokeh/release/bokeh-tables-1.1.0.min.js"></script>
+
+  <!-- Trigger fetching analysis results -->
+  <script>
+    // for the card submit ajax call to insert result card
+    $(document).ready(function () {
+      submit_analyses_card_ajax("{% url 'analysis:card' %}", "card", {{ card.function.id }}, {{ card.topography_ids_json|safe }});
+    });
+
+  </script>
+
+{% endblock javascript %}
