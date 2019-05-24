@@ -546,3 +546,124 @@ def variable_bandwidth(topography):
                  ),
         ]
     )
+
+
+def _next_contact_step(system, topography, history=None, pentol=None, maxiter=None):
+    """
+    Run a full contact calculation. Try to guess displacement such that areas
+    are equally spaced on a log scale.
+
+    Parameters
+    ----------
+    system : PyCo.System.SystemBase object
+        The contact mechanical system.
+    topography : PyCo.Topography.Topography object
+        The rigid rough surface.
+    history : tuple
+        History returned by past calls to next_step
+
+    Returns
+    -------
+    displacements : numpy.ndarray
+        Current surface displacement field.
+    forces : numpy.ndarray
+        Current surface pressure field.
+    displacement : float
+        Current displacement of the rigid surface
+    load : float
+        Current load.
+    area : float
+        Current fractional contact area.
+    history : tuple
+        History of contact calculations.
+    """
+
+    # Get the profile as a numpy array
+    profile = topography.heights()
+
+    # Find max, min and mean heights
+    top = np.max(profile)
+    middle = np.mean(profile)
+    bot = np.min(profile)
+
+    if history is None:
+        step = 0
+    else:
+        disp, gap, load, area, converged = history
+        step = len(disp)
+
+    if step == 0:
+        disp = []
+        gap = []
+        load = []
+        area = []
+        converged = np.array([], dtype=bool)
+
+        disp0 = -middle
+    elif step == 1:
+        disp0 = -top + 0.01 * (top - middle)
+    else:
+        ref_area = np.log10(np.array(area + 1 / np.prod(topography.resolution)))
+        darea = np.append(ref_area[1:] - ref_area[:-1], -ref_area[-1])
+        i = np.argmax(darea)
+        if i == step - 1:
+            disp0 = bot + 2 * (disp[-1] - bot)
+        else:
+            disp0 = (disp[i] + disp[i + 1]) / 2
+
+    opt = system.minimize_proxy(offset=disp0, pentol=pentol, maxiter=maxiter)
+    f = opt.jac
+    u = opt.x[:f.shape[0], :f.shape[1]]
+    disp = np.append(disp, [disp0])
+    gap = np.append(gap, [np.mean(u) - middle - disp0])
+    current_load = f.sum() / np.prod(topography.size)
+    load = np.append(load, [current_load])
+    current_area = (f > 0).sum() / np.prod(topography.shape)
+    area = np.append(area, [current_area])
+    converged = np.append(converged, np.array([opt.success], dtype=bool))
+
+    # Sort by area
+    disp, gap, load, area, converged = np.transpose(sorted(zip(disp, gap, load, area, converged), key=lambda x: x[3]))
+    converged = np.array(converged, dtype=bool)
+
+    return u, f, disp0, current_load, current_area, (disp, gap, load, area, converged)
+
+
+@analysis_function(automatic=True)
+def contact_mechanics(topography, substrate_str='periodic', hardness=None, maxiter=100):
+    from PyCo.ContactMechanics import HardWall
+    from PyCo.SolidMechanics import (PeriodicFFTElasticHalfSpace,
+                                     FreeFFTElasticHalfSpace)
+    from PyCo.System import make_system
+
+    if hardness is not None and hardness > 0:
+        topography = PlasticTopography(topography, hardness)
+    half_space_factory = dict(periodic=PeriodicFFTElasticHalfSpace,
+                              nonperiodic=FreeFFTElasticHalfSpace)
+
+    # Compose a PyCo system consisting of the topography, a half-space and and interaction law
+    substrate = half_space_factory[substrate_str](topography.resolution, 1.0, topography.size)
+    interaction = HardWall()
+    system = make_system(substrate, interaction, topography)
+
+    # Heuristics for the possible tolerance on penetration.
+    # This is necessary because numbers can vary greatly
+    # depending on the system of units.
+    pentol = topography.rms_height() / (10 * np.mean(topography.resolution))
+
+    load = []
+    area = []
+    history = None
+    for i in range(10):
+        u, f, disp0, current_load, current_area = _next_contact_step(system, topography, history=history,
+                                                                     pentol=pentol, maxiter=maxiter)
+        load += [current_load]
+        area += [current_area]
+
+    return dict(
+        name='Contact mechanics',
+        xlabel='Normalized contact pressure $p/E^*$',
+        ylabel='Fractional contact area $A/A_0$',
+        xscale='log',
+        yscale='log'
+    )
