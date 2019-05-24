@@ -3,6 +3,8 @@
 ## 0.4.0
 
 - added statistics about shared surfaces (#196)
+- improved layout of surface search results and surface detail view,
+  added detail view for analyses with similar layout (#197)
 
 ## 0.3.1
 
