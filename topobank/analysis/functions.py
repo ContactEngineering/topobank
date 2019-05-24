@@ -110,27 +110,36 @@ def register_all():
                                                   automatic=rf['automatic'])
     return len(_analysis_funcs)
 
-def analysis_function(name=None, automatic=False):
+def analysis_function(card_view_flavor="simple", name=None, automatic=False):
     """Decorator for marking a function as analysis function for a topography.
 
+    :param card_view_flavor: defines how results for this function are displayed, see views.CARD_VIEW_FLAVORS
     :param name: human-readable name, default is to create this from function name
     :param automatic: choose True, if you want to calculate this for every new topography
+
+    See views.py for possible view classes. The should be descendants of the class
+    "SimpleCardView".
     """
     def register_decorator(func):
         """
         :param func: function to be registered, first arg must be a Topography
         :return: decorated function
         """
+
+        func.card_view_flavor = card_view_flavor # will be used when choosing the right view on request
+
         if name is None:
             name_ = func.__name__.replace('_', ' ').title()
         else:
             name_ = name
 
+        # the following data is used in "register_all" to create database objects for the function
         _analysis_funcs.append(dict(
             name = name_,
             pyfunc = func.__name__,
             automatic = automatic
         ))
+
         return func
     return register_decorator
 
@@ -187,7 +196,11 @@ def _reasonable_bins_argument(topography):
         return int(np.sqrt(np.prod(len(topography.positions()))) + 1.0) # TODO discuss whether auto or this
         # return 'auto'
 
-@analysis_function(automatic=True)
+def test_function(topography):
+    return { 'name': 'Test result for test function called for topography {}.'.format(topography)}
+test_function.card_view_flavor = 'simple'
+
+@analysis_function(card_view_flavor='plot', automatic=True)
 def height_distribution(topography, bins=None, wfac=5):
     if bins is None:
         bins = _reasonable_bins_argument(topography)
@@ -281,7 +294,7 @@ def _moments_histogram_gaussian(arr, bins, wfac, quantity, label, gaussian=True)
     return scalars, series
 
 
-@analysis_function(automatic=True)
+@analysis_function(card_view_flavor='plot', automatic=True)
 def slope_distribution(topography, bins=None, wfac=5):
 
     if bins is None:
@@ -343,7 +356,7 @@ def slope_distribution(topography, bins=None, wfac=5):
 
     return result
 
-@analysis_function(automatic=True)
+@analysis_function(card_view_flavor='plot', automatic=True)
 def curvature_distribution(topography, bins=None, wfac=5):
     if bins is None:
         bins = _reasonable_bins_argument(topography)
@@ -391,7 +404,7 @@ def curvature_distribution(topography, bins=None, wfac=5):
         ]
     )
 
-@analysis_function(automatic=True)
+@analysis_function(card_view_flavor='plot', automatic=True)
 def power_spectrum(topography, window='hann'):
     if window == 'None':
         window = None
@@ -451,7 +464,7 @@ def power_spectrum(topography, window='hann'):
 
     return result
 
-@analysis_function(automatic=True)
+@analysis_function(card_view_flavor='plot', automatic=True)
 def autocorrelation(topography):
 
     if topography.dim == 2:
@@ -521,7 +534,7 @@ def autocorrelation(topography):
         series=series)
 
 
-@analysis_function(automatic=True)
+@analysis_function(card_view_flavor='plot', automatic=True)
 def variable_bandwidth(topography):
 
     magnifications, bandwidths, rms_heights = topography.variable_bandwidth()

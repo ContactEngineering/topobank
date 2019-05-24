@@ -3,6 +3,7 @@
 {% load fontawesome %}
 {% load crispy_forms_tags %}
 {% load surface_tags %}
+{% load guardian_tags %}
 
 {% block extra_css %}
   {{ form.media.css }}
@@ -38,25 +39,52 @@
     {% for surface in surfaces %}
       {% selected_topographies request surface as selected_topographies_for_this_surface %}
       {% bandwidths_data_json_for_selected_topographies request surface as bandwidths_data_json_for_this_surface %}
+      {% get_obj_perms request.user for surface as "surface_perms" %}
 
       {% is_surface_explicitly_selected request surface as this_surface_explicitly_selected %}
       {% if this_surface_explicitly_selected or selected_topographies_for_this_surface %}
-        <div class="col-xl-6 mb-4">
+        <div class="col-xl-4 mb-4">
           <div class="card">
             <div class="card-header">
               <div class="pull-left">
-                <span class="surface-name-headline">
-                  <a href="{% url 'manager:surface-detail' surface.id %}">{{ surface.name }}</a>
-                </span>
-                <span class="badge badge-info badge-pill surface-category-headline">
-                  {{ surface.get_category_display|default_if_none:"category not defined yet" }}
-                </span>
-                {% render_shared_by_badge request surface %}
+                <div>
+                  <span class="surface-name-headline align-baseline">
+                    {{ surface.name }}
+                  </span>
+                </div>
               </div>
               <div class="pull-right">
-                <a href="{% url 'manager:topography-create' surface.id %}" class="btn btn-primary">
-                  {% fontawesome_icon 'plus-square-o' %} Add Topography
+                <a href="{% url 'manager:surface-detail' surface.id %}" class="btn btn-default">
+                  {% fontawesome_icon 'folder-open-o' %} Open
                 </a>
+                <div class="btn-group pull-right dropdown">
+                  <button type="button" class="btn btn-default" data-toggle="dropdown"
+                          aria-haspopup="true" aria-expanded="false">
+                    <i class="fa fa-chevron-down"></i>
+                  </button>
+                  <div class="dropdown-menu dropdown-menu-right">
+                    {% if "change_surface" in surface_perms %}
+                      <a href="{% url 'manager:surface-update' surface.id %}" class="dropdown-item">
+                        {% fontawesome_icon 'edit' %} Edit
+                      </a>
+                      <a href="{% url 'manager:topography-create' surface.id %}" class="dropdown-item">
+                        {% fontawesome_icon 'plus-square' %} Add Topography
+                      </a>
+                    {% endif %}
+                    {% if "share_surface" in surface_perms %}
+                      <a href="{% url 'manager:surface-share' surface.id %}" class="dropdown-item">
+                        {% fontawesome_icon 'share-alt' %} Share
+                      </a>
+                    {% endif %}
+                    {% if "delete_surface" in surface_perms %}
+                      <div class="dropdown-divider"></div>
+                      <a href="{% url 'manager:surface-delete' surface.id %}" class="dropdown-item">
+                        {% fontawesome_icon 'trash' %} Delete
+                      </a>
+                    {% endif %}
+
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -67,9 +95,17 @@
             </div>
 
             <div class="card-footer">
-              <small>selected {{ selected_topographies_for_this_surface|length }} out of {{ surface.num_topographies }}
-                topographies
-              </small>
+              <div class="pull-left">
+                <small>selected {{ selected_topographies_for_this_surface|length }} out of {{ surface.num_topographies }}
+                  topographies
+                </small>
+              </div>
+              <div class="pull-right">
+                <span class="badge badge-info badge-pill surface-category-headline">
+                      {{ surface.get_category_display|default_if_none:"category not defined yet" }}
+                    </span>
+                    {% render_shared_by_badge request surface %}
+              </div>
             </div>
           </div>
         </div>
