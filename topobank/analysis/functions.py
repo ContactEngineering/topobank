@@ -236,12 +236,10 @@ def height_distribution(topography, bins=None, wfac=5):
             dict(name='Height distribution',
                  x=(bin_edges[:-1] + bin_edges[1:]) / 2,
                  y=hist,
-                 style='k-',
                  ),
             dict(name='RMS height',
                  x=x_gauss,
                  y=y_gauss,
-                 style='r-',
                  )
         ]
     )
@@ -394,12 +392,10 @@ def curvature_distribution(topography, bins=None, wfac=5):
             dict(name='Curvature distribution',
                  x=(bin_edges[:-1] + bin_edges[1:]) / 2,
                  y=hist,
-                 style='k-',
                  ),
             dict(name='RMS curvature',
                  x=x_gauss,
                  y=y_gauss,
-                 style='r-',
                  )
         ]
     )
@@ -428,7 +424,6 @@ def power_spectrum(topography, window='hann'):
             dict(name='1D PSD along x',
                  x=q_1D[1:],
                  y=C_1D[1:],
-                 style='+-',
                  ),
         ]
     )
@@ -452,13 +447,11 @@ def power_spectrum(topography, window='hann'):
             dict(name='q/π × 2D PSD',
                  x=q_2D[1:],
                  y=q_2D[1:] * C_2D[1:] / np.pi,
-                 style='o-',
                  ),
             result['series'][0],
             dict(name='1D PSD along y',
                  x=q_1D_T[1:],
                  y=C_1D_T[1:],
-                 style='y-',
                  )
         ]
 
@@ -505,7 +498,6 @@ def autocorrelation(topography):
     series = [dict(name='Along x',
                  x=r,
                  y=A,
-                 style='+-',
                 )]
 
     if topography.dim == 2:
@@ -513,13 +505,11 @@ def autocorrelation(topography):
             dict(name='Radial average',
                  x=r_2D,
                  y=A_2D,
-                 style='o-',
                  ),
             series[0],
             dict(name='Along y',
                  x=r_T,
                  y=A_T,
-                 style='y-',
                  )
         ]
 
@@ -553,7 +543,6 @@ def variable_bandwidth(topography):
             dict(name='Variable-bandwidth analysis',
                  x=bandwidths,
                  y=rms_heights,
-                 style='o-',
                  ),
         ]
     )
