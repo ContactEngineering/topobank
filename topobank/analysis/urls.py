@@ -27,7 +27,7 @@ urlpatterns = [
     ),
     url(
         regex=r'card/$',
-        view=login_required(views.AnalysesCardView.as_view()),
+        view=login_required(views.switch_card_view),
         name='card'
     ),
 ]

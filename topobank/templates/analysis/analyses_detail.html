@@ -54,7 +54,7 @@
   <script>
     // for the card submit ajax call to insert result card
     $(document).ready(function () {
-      submit_analyses_card_ajax("{% url 'analysis:card' %}", "card", {{ card.function.id }}, {{ card.topography_ids_json|safe }});
+      submit_analyses_card_ajax("{% url 'analysis:card' %}", "card", "detail", {{ card.function.id }}, {{ card.topography_ids_json|safe }});
     });
 
   </script>

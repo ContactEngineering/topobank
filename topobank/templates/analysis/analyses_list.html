@@ -73,7 +73,7 @@
       $(document).ready(function () {
         {% url 'analysis:card' as card_url %}
         {% for card in cards %}
-        submit_analyses_card_ajax("{{ card_url }}", "card-{{ forloop.counter }}", {{ card.function.id }}, {{ card.topography_ids_json|safe }});
+        submit_analyses_card_ajax("{{ card_url }}", "card-{{ forloop.counter }}", "list", {{ card.function.id }}, {{ card.topography_ids_json|safe }});
         {% endfor %}
       });
 

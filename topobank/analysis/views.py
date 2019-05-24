@@ -9,7 +9,6 @@ from django.http import HttpResponse, HttpResponseForbidden, Http404
 from django.views.generic import DetailView, FormView, TemplateView
 from django.urls import reverse_lazy
 from django.contrib import messages
-from django.shortcuts import render
 from django.db.models import Q
 from django.conf import settings
 from rest_framework.generics import RetrieveAPIView
@@ -43,12 +42,70 @@ _log = logging.getLogger(__name__)
 SMALLEST_ABSOLUT_NUMBER_IN_LOGPLOTS = 1e-18
 MAX_NUM_POINTS_FOR_SYMBOLS = 50
 
-class AnalysesCardView(TemplateView):
+CARD_VIEW_FLAVORS = ['simple', 'plot']
+
+def card_view_class(card_view_flavor):
+    if card_view_flavor not in CARD_VIEW_FLAVORS:
+        raise ValueError("Unknown card view flavor '{}'. Known values are: {}".format(card_view_flavor,
+                                                                                       CARD_VIEW_FLAVORS))
+
+    class_name = card_view_flavor.capitalize() + "CardView"
+    return globals()[class_name]
+
+def switch_card_view(request):
+    """Selects appropriate card view upon request.
+
+    Within the request, there is hint to which function
+    the request is related to. Depending on the function,
+    another view should be used.
+
+    This view here creates than a new view and let
+    it return the response instead.
+
+    The request must have a "function_id" in its
+    GET parameters.
+
+    :param request:
+    :return: HTTPResponse
     """
+    if not request.is_ajax():
+        return Http404
+
+    try:
+        function_id = int(request.GET.get('function_id'))
+    except (KeyError, ValueError, TypeError):
+        return HttpResponse("Error in GET arguments")
+
+    function = AnalysisFunction.objects.get(id=function_id)
+
+    view_class = card_view_class(function.card_view_flavor)
+
+    return view_class.as_view()(request)
+
+class SimpleCardView(TemplateView):
+    """Very basic display of results. Base class for more complex views.
 
     Must be used in an AJAX call.
     """
-    template_name = "analysis/simple_result_card.html"
+
+    def get_template_names(self):
+        """Return list of possible templates.
+
+        Uses request parameter 'template_flavor'.
+        """
+        try:
+            template_flavor = self.request.GET.get('template_flavor')
+        except (KeyError, ValueError):
+            raise ValueError("Cannot read 'template_flavor' from GET arguments.")
+
+        if template_flavor is None:
+            raise ValueError("Missing 'template_flavor' in GET arguments.")
+
+        template_name_prefix = self.__class__.__name__.replace('View', '').replace('Card', '_card').lower()
+
+        template_name = f"analysis/{template_name_prefix}_{template_flavor}.html"
+
+        return [template_name]
 
     def get_context_data(self, **kwargs):
         """
@@ -70,10 +127,6 @@ class AnalysesCardView(TemplateView):
         context = super().get_context_data(**kwargs)
 
         request = self.request
-
-        if not request.is_ajax():
-            return Http404
-
         request_method = request.GET
         try:
             function_id = int(request_method.get('function_id'))
@@ -158,9 +211,7 @@ class AnalysesCardView(TemplateView):
 
         return response
 
-class FunctionCardView(AnalysesCardView):
-
-    template_name = "analysis/function_result_card.html"
+class PlotCardView(SimpleCardView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -168,15 +219,14 @@ class FunctionCardView(AnalysesCardView):
         analyses_success = context['analyses_success']
 
         if len(analyses_success) == 0:
-            return dict(plot_script="",
-                        plot_div="No analysis available",
-                        special_values=[],
-                        topography_colors=json.dumps(list()),
-                        series_dashes=json.dumps(list()))
-
             #
             # Prepare plot, controls, and table with special values..
             #
+            return dict(plot_script="",
+                        plot_div="No successfully finished analyses available",
+                        special_values=[],
+                        topography_colors=json.dumps(list()),
+                        series_dashes=json.dumps(list()))
 
         first_analysis_result = analyses_success[0].result_obj
         title = first_analysis_result['name']
@@ -414,7 +464,7 @@ class FunctionCardView(AnalysesCardView):
 class AnalysisFunctionDetailView(DetailView):
 
     model = AnalysisFunction
-    template_name = "analysis/function_result_detail.html"
+    template_name = "analysis/analyses_detail.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -423,8 +473,7 @@ class AnalysisFunctionDetailView(DetailView):
 
         topographies = selected_topographies(self.request)
 
-        card = dict(template="analysis/function_result_card.html",
-                    function=function,
+        card = dict(function=function,
                     topography_ids_json=json.dumps([ t.id for t in topographies]))
 
         context['card'] = card
@@ -434,7 +483,7 @@ class AnalysisFunctionDetailView(DetailView):
 class AnalysesListView(FormView):
     form_class = TopographyFunctionSelectForm
     success_url = reverse_lazy('analysis:list')
-    template_name = "analysis/analyses.html"
+    template_name = "analysis/analyses_list.html"
 
     def get_initial(self):
         return dict(
@@ -485,8 +534,7 @@ class AnalysesListView(FormView):
 
             topographies = selected_topographies(self.request)
 
-            cards.append(dict(template="analysis/function_result_card.html",
-                              function=function,
+            cards.append(dict(function=function,
                               topography_ids_json=json.dumps([ t.id for t in topographies])))
 
         context['cards'] = cards
