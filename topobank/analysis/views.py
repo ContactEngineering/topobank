@@ -233,8 +233,8 @@ class PlotCardView(SimpleCardView):
         first_analysis_result = analyses_success[0].result_obj
         title = first_analysis_result['name']
 
-        xunit = first_analysis_result['xunit']
-        yunit = first_analysis_result['yunit']
+        xunit = first_analysis_result['xunit'] if 'xunit' in first_analysis_result else None
+        yunit = first_analysis_result['yunit'] if 'yunit' in first_analysis_result else None
 
         ureg = UnitRegistry()  # for unit conversion for each analysis individually, see below
 
@@ -247,8 +247,12 @@ class PlotCardView(SimpleCardView):
         def get_axis_type(key):
             return first_analysis_result.get(key) or "linear"
 
-        x_axis_label = first_analysis_result['xlabel'] + f' ({xunit})'
-        y_axis_label = first_analysis_result['ylabel'] + f' ({yunit})'
+        x_axis_label = first_analysis_result['xlabel']
+        if xunit is not None:
+            x_axis_label += f' ({xunit})'
+        y_axis_label = first_analysis_result['ylabel']
+        if yunit is not None:
+            y_axis_label += f' ({yunit})'
 
         #
         # Create the plot figure
@@ -313,14 +317,26 @@ class PlotCardView(SimpleCardView):
             #
             analysis_result = analysis.result_obj
 
-            try:
-                analysis_xscale = ureg.convert(1, xunit, analysis_result['xunit'])
-                analysis_yscale = ureg.convert(1, yunit, analysis_result['yunit'])
-            except UndefinedUnitError as exc:
-                _log.error("Cannot convert units when displaying results for analysis with id %s. Cause: %s",
-                           analysis.id, str(exc))
-                continue
-                # TODO How to handle such an error here? Notification? Message in analysis box?
+            if xunit is None:
+                analysis_xscale = 1
+            else:
+                try:
+                    analysis_xscale = ureg.convert(1, xunit, analysis_result['xunit'])
+                except UndefinedUnitError as exc:
+                    _log.error("Cannot convert units when displaying results for analysis with id %s. Cause: %s",
+                               analysis.id, str(exc))
+                    continue
+                    # TODO How to handle such an error here? Notification? Message in analysis box?
+            if yunit is None:
+                analysis_yscale = 1
+            else:
+                try:
+                    analysis_yscale = ureg.convert(1, yunit, analysis_result['yunit'])
+                except UndefinedUnitError as exc:
+                    _log.error("Cannot convert units when displaying results for analysis with id %s. Cause: %s",
+                               analysis.id, str(exc))
+                    continue
+                    # TODO How to handle such an error here? Notification? Message in analysis box?
 
             for s in series:
                 # One could use AjaxDataSource for retrieving the results, but useful if we are already in AJAX call?
@@ -574,7 +590,9 @@ def download_analysis_to_txt(request, ids):
                 '\n')
 
         result = pickle.loads(a.result)
-        header = 'Columns: {} ({}), {} ({})'.format(result['xlabel'], result['xunit'], result['ylabel'], result['yunit'])
+        xunit_str = '' if result['xunit'] is None else ' ({})'.format(result['xunit'])
+        yunit_str = '' if result['yunit'] is None else ' ({})'.format(result['yunit'])
+        header = 'Columns: {}{}, {}{}'.format(result['xlabel'], xunit_str, result['ylabel'], yunit_str)
 
         for series in result['series']:
             np.savetxt(f, np.transpose([series['x'], series['y']]),

@@ -618,7 +618,7 @@ def _next_contact_step(system, topography, history=None, pentol=None, maxiter=No
     gap = np.append(gap, [np.mean(u) - middle - disp0])
     current_load = f.sum() / np.prod(topography.size)
     load = np.append(load, [current_load])
-    current_area = (f > 0).sum() / np.prod(topography.shape)
+    current_area = (f > 0).sum() / np.prod(topography.resolution)
     area = np.append(area, [current_area])
     converged = np.append(converged, np.array([opt.success], dtype=bool))
 
@@ -629,8 +629,8 @@ def _next_contact_step(system, topography, history=None, pentol=None, maxiter=No
     return u, f, disp0, current_load, current_area, (disp, gap, load, area, converged)
 
 
-@analysis_function(automatic=True)
-def contact_mechanics(topography, substrate_str='periodic', hardness=None, maxiter=100):
+@analysis_function(card_view_flavor='plot', automatic=True)
+def contact_mechanics(topography, substrate_str='periodic', hardness=None, nsteps=10, maxiter=100):
     from PyCo.ContactMechanics import HardWall
     from PyCo.SolidMechanics import (PeriodicFFTElasticHalfSpace,
                                      FreeFFTElasticHalfSpace)
@@ -654,16 +654,26 @@ def contact_mechanics(topography, substrate_str='periodic', hardness=None, maxit
     load = []
     area = []
     history = None
-    for i in range(10):
-        u, f, disp0, current_load, current_area = _next_contact_step(system, topography, history=history,
-                                                                     pentol=pentol, maxiter=maxiter)
+    for i in range(nsteps):
+        u, f, disp0, current_load, current_area, history = _next_contact_step(system, topography, history=history,
+                                                                              pentol=pentol, maxiter=maxiter)
         load += [current_load]
         area += [current_area]
 
+    load = np.array(load)
+    area = np.array(area)
+    sort_order = np.argsort(load)
+
     return dict(
         name='Contact mechanics',
-        xlabel='Normalized contact pressure $p/E^*$',
-        ylabel='Fractional contact area $A/A_0$',
+        xlabel='Normalized contact pressure',
+        ylabel='Fractional contact area',
         xscale='log',
-        yscale='log'
+        yscale='log',
+        series=[
+            dict(name='Contact mechanics',
+                 x=np.array(load[sort_order]),
+                 y=np.array(area[sort_order]),
+                 ),
+        ]
     )
