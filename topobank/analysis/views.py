@@ -222,11 +222,13 @@ class PlotCardView(SimpleCardView):
             #
             # Prepare plot, controls, and table with special values..
             #
-            return dict(plot_script="",
-                        plot_div="No successfully finished analyses available",
-                        special_values=[],
-                        topography_colors=json.dumps(list()),
-                        series_dashes=json.dumps(list()))
+            context.update(
+                dict(plot_script="",
+                     plot_div="No successfully finished analyses available",
+                     special_values=[],
+                     topography_colors=json.dumps(list()),
+                     series_dashes=json.dumps(list())))
+            return context
 
         first_analysis_result = analyses_success[0].result_obj
         title = first_analysis_result['name']
