@@ -651,14 +651,12 @@ def contact_mechanics(topography, substrate_str='periodic', hardness=None, nstep
     # depending on the system of units.
     pentol = topography.rms_height() / (10 * np.mean(topography.resolution))
 
-    load = []
-    area = []
     history = None
     for i in range(nsteps):
         u, f, disp0, current_load, current_area, history = _next_contact_step(system, topography, history=history,
                                                                               pentol=pentol, maxiter=maxiter)
-        load += [current_load]
-        area += [current_area]
+
+    disp, gap, load, area, converged = history
 
     load = np.array(load)
     area = np.array(area)
@@ -671,7 +669,7 @@ def contact_mechanics(topography, substrate_str='periodic', hardness=None, nstep
         xscale='log',
         yscale='log',
         series=[
-            dict(name='Contact mechanics',
+            dict(name='Contact area',
                  x=np.array(load[sort_order]),
                  y=np.array(area[sort_order]),
                  ),
