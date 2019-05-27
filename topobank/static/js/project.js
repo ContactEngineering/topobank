@@ -218,7 +218,7 @@ function submit_analyses_card_ajax(card_url, card_element_id, template_flavor, f
             // Data is not ready, retrigger AJAX call
             console.log("Analyses for card with element id '"+card_element_id+"' not ready. Retrying..");
             setTimeout(function () {
-              submit_card_ajax(card_url, card_element_id, template_flavor, function_id, topography_ids);
+              submit_analyses_card_ajax(card_url, card_element_id, template_flavor, function_id, topography_ids);
             }, 1000); // TODO limit number of retries?
           }
         },
