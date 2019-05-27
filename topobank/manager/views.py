@@ -128,7 +128,7 @@ class TopographyCreateWizard(SessionWizardView):
                 surface = Surface.objects.get(id=int(self.kwargs['surface_id']))
             except Surface.DoesNotExist:
                 raise PermissionDenied()
-            if surface.user != self.request.user:
+            if not self.request.user.has_perm('change_surface', surface):
                 raise PermissionDenied()
 
             initial['surface'] = surface
@@ -283,10 +283,10 @@ class TopographyCreateWizard(SessionWizardView):
         # TODO Check if we'd better get resolution here
 
         #
-        # Check whether given surface is from this user
+        # Check whether given surface can be altered by this user
         #
         surface = d['surface']
-        if surface.user != self.request.user:
+        if not self.request.user.has_perm('change_surface', surface):
             raise PermissionDenied()
 
         #
@@ -465,7 +465,7 @@ class SelectedTopographyView(FormMixin, ListView):
         topography_ids = self.request.GET.get('topographies',[])
 
         filter_kwargs = dict(
-            surface__user=user
+            surface__creator=user
         )
 
         if len(topography_ids) > 0:
@@ -545,7 +545,7 @@ class SurfaceCreateView(CreateView):
     def get_initial(self, *args, **kwargs):
         initial = super(SurfaceCreateView, self).get_initial()
         initial = initial.copy()
-        initial['user'] = self.request.user
+        initial['creator'] = self.request.user
         return initial
 
     def get_success_url(self):
@@ -729,13 +729,13 @@ def sharing_info(request):
             surface = Surface.objects.get(id=surface_id)
             share_with = User.objects.get(id=share_with_user_id)
 
-            if request.user not in [share_with, surface.user]:
+            if request.user not in [share_with, surface.creator]:
                 # we don't allow to change shares if the request user is not involved
                 continue
 
             if unshare:
                 surface.unshare(share_with)
-            elif allow_change and (request.user == surface.user): # only allow change for surface creator
+            elif allow_change and (request.user == surface.creator): # only allow change for surface creator
                 surface.share(share_with, allow_change=True)
 
     #
@@ -752,10 +752,10 @@ def sharing_info(request):
         for u in surface_users:
             # Leave out these shares:
             #
-            # - share of a user with himself (trivial)
+            # - share of a user with himself as creator (trivial)
             # - shares where the request user is not involved
             #
-            if (u != s.user) and ((u == request.user) or (s.user == request.user)):
+            if (u != s.creator) and ((u == request.user) or (s.creator == request.user)):
                 allow_change = ('change_surface' in surface_perms[u])
                 tmp.append((s, u, allow_change))
 
@@ -766,7 +766,7 @@ def sharing_info(request):
         {
             'surface': surface,
             'num_topographies': surface.num_topographies,
-            'created_by': surface.user,
+            'created_by': surface.creator,
             'shared_with': shared_with,
             'allow_change': allow_change,
             'selected': "{},{}".format(surface.id, shared_with.id),

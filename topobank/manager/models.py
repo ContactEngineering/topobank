@@ -8,7 +8,7 @@ from topobank.users.models import User
 
 def user_directory_path(instance, filename):
     # file will be uploaded to MEDIA_ROOT/user_<id>/<filename>
-    return 'topographies/user_{0}/{1}'.format(instance.surface.user.id, filename)
+    return 'topographies/user_{0}/{1}'.format(instance.surface.creator.id, filename)
 
 class Surface(models.Model):
     """Physical Surface.
@@ -22,7 +22,7 @@ class Surface(models.Model):
     ]
 
     name = models.CharField(max_length=80)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    creator = models.ForeignKey(User, on_delete=models.CASCADE)
     description = models.TextField(blank=True)
     category = models.TextField(choices=CATEGORY_CHOICES, null=True, blank=False) #  TODO change in character field
 

@@ -507,8 +507,8 @@ def test_view_shared_analysis_results(client):
     user1 = UserFactory(password=password)
     user2 = UserFactory(password=password)
 
-    surface1 = SurfaceFactory(user=user1)
-    surface2 = SurfaceFactory(user=user2)
+    surface1 = SurfaceFactory(creator=user1)
+    surface2 = SurfaceFactory(creator=user2)
 
     # user2 shares surfaces, so user 1 should see surface1+surface2
     surface2.share(user1)

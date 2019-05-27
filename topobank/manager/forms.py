@@ -350,7 +350,7 @@ class SurfaceForm(forms.ModelForm):
 
     class Meta:
         model = Surface
-        fields = ('name', 'description', 'category', 'user')
+        fields = ('name', 'description', 'category', 'creator')
 
     helper = FormHelper()
     helper.form_method = 'POST'
@@ -363,7 +363,7 @@ class SurfaceForm(forms.ModelForm):
             Field('name'),
             Field('description'),
             Field('category'),
-            Field('user', type="hidden"),
+            Field('creator', type="hidden"),
         ),
         FormActions(
                 Submit('save', 'Save'),

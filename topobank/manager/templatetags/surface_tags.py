@@ -34,7 +34,7 @@ def render_shared_by_badge(request, surface):
     """
     return {
         'surface': surface,
-        'is_creator': request.user==surface.user
+        'is_creator': request.user == surface.creator
     }
 
 

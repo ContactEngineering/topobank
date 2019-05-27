@@ -1,4 +1,6 @@
 import pytest
+from pathlib import Path
+import datetime
 from django.shortcuts import reverse
 from bs4 import BeautifulSoup
 
@@ -18,7 +20,7 @@ def test_individual_read_access_permissions(client, django_user_model):
     user_1 = django_user_model.objects.create_user(username=username_1, password=password)
     user_2 = django_user_model.objects.create_user(username=username_2, password=password)
 
-    surface = SurfaceFactory(user=user_1)
+    surface = SurfaceFactory(creator=user_1)
 
     surface_detail_url = reverse('manager:surface-detail', kwargs=dict(pk=surface.pk))
     surface_update_url = reverse('manager:surface-update', kwargs=dict(pk=surface.pk))
@@ -77,7 +79,7 @@ def test_list_surface_permissions(client):
     user2 = UserFactory(name="Bob Marley")
     user3 = UserFactory(name="Alice Cooper")
 
-    surface = SurfaceFactory(user=user1)
+    surface = SurfaceFactory(creator=user1)
     surface.share(user2)
     surface.share(user3, allow_change=True)
 
@@ -118,7 +120,7 @@ def test_appearance_buttons_based_on_permissions(client):
     user1 = UserFactory(password=password)
     user2 = UserFactory(password=password)
 
-    surface = SurfaceFactory(user=user1)
+    surface = SurfaceFactory(creator=user1)
     surface_detail_url = reverse('manager:surface-detail', kwargs=dict(pk=surface.pk))
     surface_share_url = reverse('manager:surface-share', kwargs=dict(pk=surface.pk))
     surface_update_url = reverse('manager:surface-update', kwargs=dict(pk=surface.pk))
@@ -216,8 +218,8 @@ def test_sharing_info_table(client):
     user2 = UserFactory(password=password)
     user3 = UserFactory(password=password)
 
-    surface1 = SurfaceFactory(user=user1)
-    surface2 = SurfaceFactory(user=user2)
+    surface1 = SurfaceFactory(creator=user1)
+    surface2 = SurfaceFactory(creator=user2)
 
     surface1.share(user2, allow_change=False)
     surface1.share(user3, allow_change=True)
@@ -389,3 +391,115 @@ def test_sharing_info_table(client):
     ]
 
     client.logout()
+
+@pytest.mark.django_db
+def test_upload_topography_for_shared_surface(client):
+
+    input_file_path = Path('topobank/manager/fixtures/example3.di') # TODO use standardized way to find files
+    description = "test description"
+
+    password = 'abcd$1234'
+
+    user1 = UserFactory(password=password)
+    user2 = UserFactory(password=password)
+
+    surface = SurfaceFactory(creator=user1)
+    surface.share(user2) # first without allowing change
+
+
+    assert client.login(username=user2.username, password=password)
+
+    #
+    # open first step of wizard: file upload
+    #
+    with open(str(input_file_path), mode='rb') as fp:
+
+        response = client.post(reverse('manager:topography-create',
+                                       kwargs=dict(surface_id=surface.id)),
+                               data={
+                                'topography_create_wizard-current_step': 'upload',
+                                'upload-datafile': fp,
+                                'upload-surface': surface.id,
+                               }, follow=True)
+
+    assert response.status_code == 403 # user2 is not allowed to change
+
+    #
+    # Now allow to change and get response again
+    #
+    surface.share(user2, allow_change=True)
+
+    with open(str(input_file_path), mode='rb') as fp:
+        response = client.post(reverse('manager:topography-create',
+                                       kwargs=dict(surface_id=surface.id)),
+                               data={
+                                   'topography_create_wizard-current_step': 'upload',
+                                   'upload-datafile': fp,
+                                   'upload-surface': surface.id,
+                               }, follow=True)
+
+    assert response.status_code == 200
+
+    #
+    # check contents of second page
+    #
+
+    # now we should be on the page with second step
+    assert b"Step 2 of 3" in response.content, "Errors:"+str(response.context['form'].errors)
+
+    # we should have two datasources as options, "ZSensor" and "Height"
+
+    assert b'<option value="0">ZSensor</option>' in response.content
+    assert b'<option value="1">Height</option>' in response.content
+
+    assert response.context['form'].initial['name'] == 'example3.di'
+
+    #
+    # Send data for second page
+    #
+    response = client.post(reverse('manager:topography-create',
+                                   kwargs=dict(surface_id=surface.id)),
+                           data={
+                            'topography_create_wizard-current_step': 'metadata',
+                            'metadata-name': 'topo1',
+                            'metadata-measurement_date': '2018-06-21',
+                            'metadata-data_source': 0,
+                            'metadata-description': description,
+                           })
+
+    assert response.status_code == 200
+    assert b"Step 3 of 3" in response.content, "Errors:" + str(response.context['form'].errors)
+
+    #
+    # Send data for third page
+    #
+    response = client.post(reverse('manager:topography-create',
+                                   kwargs=dict(surface_id=surface.id)),
+                           data={
+                               'topography_create_wizard-current_step': 'units2D',
+                               'units2D-size_x': '9000',
+                               'units2D-size_y': '9000',
+                               'units2D-unit': 'nm',
+                               'units2D-height_scale': 0.3,
+                               'units2D-detrend_mode': 'height',
+                               'units2D-resolution_x': 256,
+                               'units2D-resolution_y': 256,
+                           }, follow=True)
+
+    assert response.status_code == 200
+    # assert reverse('manager:topography-detail', kwargs=dict(pk=1)) == response.url
+    # export_reponse_as_html(response)
+
+    assert 'form' not in response.context, "Errors:" + str(response.context['form'].errors)
+
+    topos = surface.topography_set.all()
+
+    assert len(topos) == 1
+
+    t = topos[0]
+
+    assert t.measurement_date == datetime.date(2018,6,21)
+    assert t.description == description
+    assert "example3" in t.datafile.name
+    assert 256 == t.resolution_x
+    assert 256 == t.resolution_y

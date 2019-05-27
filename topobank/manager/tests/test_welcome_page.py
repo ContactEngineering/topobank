@@ -15,8 +15,8 @@ def test_welcome_page_statistics(client, django_user_model):
     user_1 = django_user_model.objects.create_user(username='user1', password=password)
     user_2 = django_user_model.objects.create_user(username='user2', password=password)
 
-    surface_1 = SurfaceFactory(user=user_1)
-    surface_2 = SurfaceFactory(user=user_1)
+    surface_1 = SurfaceFactory(creator=user_1)
+    surface_2 = SurfaceFactory(creator=user_1)
     topography_1 = TopographyFactory(surface=surface_1)
 
     surface_2.share(user_2)

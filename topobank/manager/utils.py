@@ -178,13 +178,13 @@ def selection_choices(user):
     choices = []
     for surf in surfaces:
 
-        surf_user = surf.user
+        surf_creator = surf.creator
         group_label = "{}".format(surf.name)
 
-        if surf_user == user:
+        if surf_creator == user:
             group_label += " - created by you"
         else:
-            group_label += " - shared by {}".format(str(surf_user))
+            group_label += " - shared by {}".format(str(surf_creator))
 
         surface_choices = [('surface-{}'.format(surf.id), surf.name)]
         surface_choices.extend([('topography-{}'.format(t.id), t.name)
