@@ -1,4 +1,4 @@
-from django.db.models.signals import pre_delete, post_save
+from django.db.models.signals import pre_delete, post_save, pre_save
 from django.dispatch import receiver
 from guardian.shortcuts import assign_perm
 
@@ -34,4 +34,10 @@ def remove_files(sender, instance, **kwargs):
         instance.datafile.delete()
     except Exception as exc:
         _log.warning("Cannot delete data file '%s', reason: %s", instance.datafile.name, str(exc))
+
+@receiver(pre_save, sender=Topography)
+def set_creator_if_needed(sender, instance, **kwargs):
+    if instance.creator is None:
+        instance.creator = instance.surface.creator
+
 

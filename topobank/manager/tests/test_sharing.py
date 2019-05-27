@@ -504,3 +504,21 @@ def test_upload_topography_for_shared_surface(client):
     assert 256 == t.resolution_x
     assert 256 == t.resolution_y
     assert t.creator == user2
+
+    #
+    # Test little badge which shows who uploaded data
+    #
+    response = client.get(reverse('manager:topography-detail', kwargs=dict(pk=t.pk)))
+    assert response.status_code == 200
+
+    assert_in_content(response, 'uploaded by you')
+
+    client.logout()
+    assert client.login(username=user1.username, password=password)
+    response = client.get(reverse('manager:topography-detail', kwargs=dict(pk=t.pk)))
+    assert response.status_code == 200
+
+    assert_in_content(response, 'uploaded by {}'.format(user2.name))
+    client.logout()
+
+

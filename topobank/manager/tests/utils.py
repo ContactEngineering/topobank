@@ -31,6 +31,7 @@ class TopographyFactory(factory.django.DjangoModelFactory):
         model = Topography
 
     surface = factory.SubFactory(SurfaceFactory)
+    # creator is set automatically to surface's creator if not set, see signals
     name = factory.Sequence(lambda n: "topography-{}".format(n))
     datafile = factory.django.FileField(from_path=str(settings.ROOT_DIR.path("topobank/manager/fixtures/10x10.txt")))
     data_source = 0
@@ -57,6 +58,7 @@ def two_topos():
     datafile2 = factory.django.FileField(from_path="topobank/manager/fixtures/example4.txt")
 
     TopographyFactory(surface=surface,
+                      creator=user,
                       name='Example 3 - ZSensor',
                       data_source=0,
                       measurement_date=datetime.date(2018, 1, 1),
@@ -71,6 +73,7 @@ def two_topos():
                       resolution_y=256)
 
     TopographyFactory(surface=surface,
+                      creator=user,
                       name='Example 4 - Default',
                       data_source=0,
                       measurement_date=datetime.date(2018, 1, 2),

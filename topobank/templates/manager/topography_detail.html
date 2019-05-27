@@ -2,6 +2,7 @@
 {% load static i18n %}
 {% load fontawesome %}
 {% load guardian_tags %}
+{% load surface_tags %}
 
 {% block content-title %}Details for Topography <i>{{ topography.name }}</i>
 {% endblock content-title %}
@@ -122,7 +123,7 @@
           <div class="row p-3">
 
             <div class="col">
-
+              {% render_uploaded_by_badge request topography %}
             </div>
           </div>
           <div class="row p-3">

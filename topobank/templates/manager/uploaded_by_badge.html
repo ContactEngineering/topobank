@@ -1,0 +1,8 @@
+{% load user_tags %}
+<span title="Click for user profile">
+  <a href="{% url 'users:detail' topography.creator.username %}">
+    <span class="badge badge-success shared-by-badge">
+      uploaded by {% if is_creator %}you{% else %}{{ topography.creator.name }}{% endif %}
+    </span>
+  </a>
+</span>

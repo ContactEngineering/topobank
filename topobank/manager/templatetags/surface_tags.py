@@ -37,4 +37,12 @@ def render_shared_by_badge(request, surface):
         'is_creator': request.user == surface.creator
     }
 
+@register.inclusion_tag('manager/uploaded_by_badge.html')
+def render_uploaded_by_badge(request, topography):
+    """Returns a HMTL snippet with a badge about who uploaded a given topography.
+    """
+    return {
+        'topography': topography,
+        'is_creator': request.user == topography.creator
+    }
 
