@@ -1,11 +1,13 @@
 from django.shortcuts import redirect, render
-from django.views.generic import DetailView, ListView, UpdateView, CreateView, DeleteView, View
+from django.views.generic import DetailView, ListView, UpdateView, CreateView, DeleteView, TemplateView
 from django.urls import reverse, reverse_lazy
 from django.core.files.storage import FileSystemStorage # TODO use default_storage instead?
 from django.core.files.storage import default_storage
 from django.core.files import File
 from django.core.exceptions import PermissionDenied
 from django.conf import settings
+from django.http import HttpResponse
+
 from formtools.wizard.views import SessionWizardView
 
 from django.http import HttpResponseForbidden
@@ -23,7 +25,6 @@ from django_tables2 import RequestConfig
 from bokeh.plotting import figure
 from bokeh.embed import components
 from bokeh.models import DataRange1d, Range1d, LinearColorMapper, ColorBar, Row
-import numpy as np
 
 import json
 import os.path
@@ -542,6 +543,37 @@ class SurfaceListView(FormMixin, ListView):
             messages.info(self.request, "Submitted analyses for {} topographies.".format(len(topographies)))
 
         return super().form_valid(form)
+
+class SurfaceCardView(TemplateView):
+    template_name = 'manager/surface_card.html'
+
+    def get_context_data(self, **kwargs):
+        """
+        Gets "surface_id" from GET parameters.
+
+        :return: dict to be used in surface card template context
+
+        The returned dict has the following keys:
+
+          surface: Surface
+        """
+        context = super().get_context_data(**kwargs)
+
+        request = self.request
+        request_method = request.GET
+        try:
+            surface_id = int(request_method.get('surface_id'))
+        except (KeyError, ValueError):
+            return HttpResponse("Error in GET arguments")
+
+        surface = Surface.objects.get(id=surface_id)
+
+        if not self.request.user.has_perm('view_surface', surface):
+            raise PermissionDenied
+
+        context['surface'] = surface
+        return context
+
 
 class SurfaceCreateView(CreateView):
     model = Surface

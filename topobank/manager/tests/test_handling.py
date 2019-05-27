@@ -772,7 +772,7 @@ def test_delete_surface(client, django_user_model):
 
     assert Surface.objects.all().count() == 0
 
-def test_list_surfaces(client, django_user_model, mocker):
+def test_surface_cards(client, django_user_model):
 
     #
     # Create database objects
@@ -800,11 +800,13 @@ def test_list_surfaces(client, django_user_model, mocker):
     assert response.status_code == 200
 
     # Surface 1
+    response = client.get(reverse('manager:surface-card'), {'surface_id': s1.id })
     assert_in_content(response, s1.get_absolute_url())
     assert_in_content(response, t1a.get_absolute_url())
     assert_in_content(response, t1b.get_absolute_url())
 
     # Surface 2
+    response = client.get(reverse('manager:surface-card'), {'surface_id': s2.id})
     assert_in_content(response, s2.get_absolute_url())
     assert_in_content(response, t2a.get_absolute_url())
     assert_in_content(response, t2b.get_absolute_url())
@@ -818,11 +820,13 @@ def test_list_surfaces(client, django_user_model, mocker):
                            follow=True)
 
     # Surface 1
+    response = client.get(reverse('manager:surface-card'), {'surface_id': s1.id})
     assert_in_content(response, s1.get_absolute_url())
     assert_in_content(response, t1a.get_absolute_url())
     assert_in_content(response, t1b.get_absolute_url())
 
     # Surface 2 -> NOT INCLUDED
+    response = client.get(reverse('manager:surface-card'), {'surface_id': s2.id})
     assert_not_in_content(response, s2.get_absolute_url())
     assert_not_in_content(response, t2a.get_absolute_url())
     assert_not_in_content(response, t2b.get_absolute_url())
@@ -835,11 +839,13 @@ def test_list_surfaces(client, django_user_model, mocker):
                            follow=True)
 
     # Surface 1 -> INCLUDED, but not t1a
+    response = client.get(reverse('manager:surface-card'), {'surface_id': s1.id})
     assert_in_content(response, s1.get_absolute_url())
     assert_not_in_content(response, t1a.get_absolute_url())
     assert_in_content(response, t1b.get_absolute_url())
 
     # Surface 2 -> INCLUDED, but not t2b
+    response = client.get(reverse('manager:surface-card'), {'surface_id': s2.id})
     assert_in_content(response, s2.get_absolute_url())
     assert_in_content(response, t2a.get_absolute_url())
     assert_not_in_content(response, t2b.get_absolute_url())

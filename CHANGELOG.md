@@ -2,6 +2,7 @@
 
 ## 0.4.0
 
+- more responsive surface list through AJAX calls (#203)
 - added statistics about shared surfaces (#196)
 - improved layout of surface search results and surface detail view,
   added detail view for analyses with similar layout (#197,#204)

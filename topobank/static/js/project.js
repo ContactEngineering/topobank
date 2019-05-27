@@ -212,7 +212,7 @@ function submit_analyses_card_ajax(card_url, card_element_id, template_flavor, f
            topography_ids: topography_ids
         },
         success : function(data, textStatus, xhr) {
-          // console.log("Received response for card '"+card_element_id+"'. Status: "+xhr.status+" "+jquery_card_selector)
+          // console.log("Received response for card '"+card_element_id+"'. Status: "+xhr.status)
           $(jquery_card_selector).html(data); // insert resulting HTML code
           if (xhr.status==202) {
             // Data is not ready, retrigger AJAX call
@@ -230,6 +230,45 @@ function submit_analyses_card_ajax(card_url, card_element_id, template_flavor, f
         }
       });
 }
+
+/**
+ * Submit an ajax call for updating an card in the surfaces view.
+ *
+ * @param card_url {String} URL to call in order to get card content as HTTP response
+ * @param surface_id {Number} Id of the surface being displayed
+ */
+function submit_surface_card_ajax(card_url, surface_id) {
+
+      var jquery_card_selector = "#card-"+surface_id;
+
+      // console.log("Submitting AJAX call for surface card "+jquery_card_selector+"..");
+
+      $.ajax({
+        type: "GET",
+        url: card_url,
+        timeout: 0,
+        data: {
+           surface_id: surface_id,
+        },
+        success : function(data, textStatus, xhr) {
+            // console.log("Received response for card '" + jquery_card_selector + "'. Status: " + xhr.status);
+            $(jquery_card_selector).html(data); // insert resulting HTML code
+            if (xhr.status == 202) {
+                // Data is not ready, retrigger AJAX call
+                setTimeout(function () {
+                    submit_surface_card_ajax(card_url, surface_id);
+                }, 1000);
+            }
+        },
+        error: function(xhr, textStatus, errorThrown) {
+          // console.log("Error receiving response for card '"+card_element_id+"'. Status: "+xhr.status
+          //            +" Response: "+xhr.responseText)
+          $(jquery_card_selector).html("Please report this error: "+errorThrown+xhr.status+xhr.responseText);
+          $(jquery_card_selector).addClass("alert alert-danger");
+        }
+      });
+}
+
 
 
 /*
