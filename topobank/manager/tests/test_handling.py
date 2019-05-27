@@ -130,6 +130,7 @@ def test_upload_topography_di(client, django_user_model):
     assert "example3" in t.datafile.name
     assert 256 == t.resolution_x
     assert 256 == t.resolution_y
+    assert t.creator == user
 
 @pytest.mark.parametrize(("input_filename", "exp_resolution_x", "exp_resolution_y"),
                          [("topobank/manager/fixtures/10x10.txt", 10, 10),

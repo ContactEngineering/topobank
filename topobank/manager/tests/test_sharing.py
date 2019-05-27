@@ -503,3 +503,4 @@ def test_upload_topography_for_shared_surface(client):
     assert "example3" in t.datafile.name
     assert 256 == t.resolution_x
     assert 256 == t.resolution_y
+    assert t.creator == user2

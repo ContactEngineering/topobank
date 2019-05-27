@@ -302,6 +302,11 @@ class TopographyCreateWizard(SessionWizardView):
         #
 
         #
+        # Set the topography's creator to the current user uploading the file
+        #
+        d['creator'] = self.request.user
+
+        #
         # create topography in database
         #
         instance = Topography(**d)

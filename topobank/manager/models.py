@@ -105,15 +105,19 @@ class Topography(models.Model):
     verbose_name_plural = 'topographies'
 
     #
-    # Description fields
+    # Descriptive fields
     #
     surface = models.ForeignKey('Surface', on_delete=models.CASCADE)
     name = models.CharField(max_length=80)
-
-    datafile = models.FileField(max_length=250, upload_to=user_directory_path) # currently upload_to not used in forms
-    data_source = models.IntegerField()
+    creator = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
     measurement_date = models.DateField()
     description = models.TextField(blank=True)
+
+    #
+    # Fields related to raw data
+    #
+    datafile = models.FileField(max_length=250, upload_to=user_directory_path)  # currently upload_to not used in forms
+    data_source = models.IntegerField()
 
     #
     # Fields with physical meta data
