@@ -4,21 +4,19 @@
 coverage==4.4.2
 flake8==3.5.0 # pyup: != 2.6.0
 django-test-plus==1.0.20
-factory-boy==2.9.2
+factory-boy>=2.10<3.0
 django-coverage-plugin==1.5.0
 
 # pytest
-pytest-django==3.1.2
-pytest==3.3.2 # fixed because of incompatibility of pytest-sugar with pytest 3.4.0
-pytest-sugar==0.9.0
+pytest-django>=3.4.8<4.0
+pytest>=3.6<4.0
+pytest-sugar>=0.9.0<1.0
+pytest-mock==1.10.1
 
 # additional for browser test
-#selenium==3.8
-#pytest-selenium==1.11.2
-selenium==3.14.0
-pytest-selenium==1.14.0
-
-pytest-mock==1.10.1
+pytest-splinter>=2.0<3.0
+selenium>=3.14.0
+pytest-selenium>=1.16.0<2.0
 
 # for parsing html
 beautifulsoup4>=4.7.1,<5
