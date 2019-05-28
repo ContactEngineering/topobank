@@ -84,6 +84,11 @@ urlpatterns = [
         name='surface-create'
     ),
     url(
+        regex=r'card/$',
+        view=login_required(views.SurfaceCardView.as_view()),
+        name='surface-card'
+    ),
+    url(
         regex=r'surface/$',
         view=login_required(views.SurfaceListView.as_view()),
         name='surface-list'

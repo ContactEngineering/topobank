@@ -41,7 +41,7 @@ def test_upload_topography_di(client, django_user_model):
     response = client.post(reverse('manager:surface-create'),
                                data={
                                 'name': 'surface1',
-                                'user': user.id,
+                                'creator': user.id,
                                 'category': category,
                                }, follow=True)
 
@@ -130,6 +130,7 @@ def test_upload_topography_di(client, django_user_model):
     assert "example3" in t.datafile.name
     assert 256 == t.resolution_x
     assert 256 == t.resolution_y
+    assert t.creator == user
 
 @pytest.mark.parametrize(("input_filename", "exp_resolution_x", "exp_resolution_y"),
                          [("topobank/manager/fixtures/10x10.txt", 10, 10),
@@ -156,7 +157,7 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
     response = client.post(reverse('manager:surface-create'),
                                data={
                                 'name': 'surface1',
-                                'user': user.id,
+                                'creator': user.id,
                                 'category': 'sim'
                                }, follow=True)
 
@@ -264,7 +265,7 @@ def test_upload_topography_and_name_like_an_exisiting_for_same_surface(client):
 
     user = UserFactory(password=password)
 
-    surface = SurfaceFactory(user=user)
+    surface = SurfaceFactory(creator=user)
     topo1 = TopographyFactory(surface=surface, name="TOPO")
 
     assert client.login(username=user.username, password=password)
@@ -326,7 +327,7 @@ def test_trying_upload_of_invalid_topography_file(client, django_user_model):
     response = client.post(reverse('manager:surface-create'),
                                data={
                                 'name': 'surface1',
-                                'user': user.id,
+                                'creator': user.id,
                                 'category': 'dum',
                                }, follow=True)
     assert response.status_code == 200
@@ -362,7 +363,7 @@ def test_topography_list(client, two_topos, django_user_model):
     #
     # all topographies for 'testuser' and surface1 should be listed
     #
-    surface = Surface.objects.get(name="Surface 1", user__username=username)
+    surface = Surface.objects.get(name="Surface 1", creator__username=username)
     topos = Topography.objects.filter(surface=surface)
 
     response = client.get(reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)))
@@ -513,7 +514,7 @@ def test_edit_line_scan(client, one_line_scan, django_user_model):
     # we should have been redirected to topography details
     assert reverse('manager:topography-detail', kwargs=dict(pk=topo_id)) == response.url
 
-    topos = Topography.objects.filter(surface__user__username=username).order_by('pk')
+    topos = Topography.objects.filter(surface__creator__username=username).order_by('pk')
 
     assert len(topos) == 1
 
@@ -637,7 +638,7 @@ def test_only_positive_size_values_on_edit(client, django_user_model):
 
     user = django_user_model.objects.create_user(username=username, password=password)
 
-    surface = SurfaceFactory(user=user)
+    surface = SurfaceFactory(creator=user)
     topography = TopographyFactory(surface=surface, size_y=1024) # pass size_y in order to have a map
 
     assert client.login(username=username, password=password)
@@ -690,7 +691,7 @@ def test_create_surface(client, django_user_model):
     response = client.post(reverse('manager:surface-create'),
                            data={
                             'name': name,
-                            'user': user.id,
+                            'creator': user.id,
                             'description': description,
                             'category': category,
                            }, follow=True)
@@ -715,7 +716,7 @@ def test_edit_surface(client, django_user_model):
 
     assert client.login(username=username, password=password)
 
-    surface = Surface.objects.create(id=surface_id, name="Surface 1", user=user, category=category)
+    surface = Surface.objects.create(id=surface_id, name="Surface 1", creator=user, category=category)
     surface.save()
 
     new_name = "This is a better surface name"
@@ -725,7 +726,7 @@ def test_edit_surface(client, django_user_model):
     response = client.post(reverse('manager:surface-update', kwargs=dict(pk=surface_id)),
                            data={
                             'name': new_name,
-                            'user': user.id,
+                            'creator': user.id,
                             'description': new_description,
                             'category': new_category
                            })
@@ -752,7 +753,7 @@ def test_delete_surface(client, django_user_model):
 
     assert client.login(username=username, password=password)
 
-    surface = Surface.objects.create(id=surface_id, name="Surface 1", user=user)
+    surface = Surface.objects.create(id=surface_id, name="Surface 1", creator=user)
     surface.save()
 
     assert Surface.objects.all().count() == 1
@@ -771,7 +772,7 @@ def test_delete_surface(client, django_user_model):
 
     assert Surface.objects.all().count() == 0
 
-def test_list_surfaces(client, django_user_model, mocker):
+def test_surface_cards(client, django_user_model):
 
     #
     # Create database objects
@@ -781,8 +782,8 @@ def test_list_surfaces(client, django_user_model, mocker):
 
     user = django_user_model.objects.create_user(username=username, password=password)
 
-    s1 = SurfaceFactory(name="Surface 1", user=user, category='exp')
-    s2 = SurfaceFactory(name="Surface 2", user=user, category='dum')
+    s1 = SurfaceFactory(name="Surface 1", creator=user, category='exp')
+    s2 = SurfaceFactory(name="Surface 2", creator=user, category='dum')
 
     t1a = TopographyFactory(name="Topo 1a", surface=s1, unit='m')
     t1b = TopographyFactory(name="Topo 1b", surface=s1, unit='m')
@@ -799,11 +800,13 @@ def test_list_surfaces(client, django_user_model, mocker):
     assert response.status_code == 200
 
     # Surface 1
+    response = client.get(reverse('manager:surface-card'), {'surface_id': s1.id })
     assert_in_content(response, s1.get_absolute_url())
     assert_in_content(response, t1a.get_absolute_url())
     assert_in_content(response, t1b.get_absolute_url())
 
     # Surface 2
+    response = client.get(reverse('manager:surface-card'), {'surface_id': s2.id})
     assert_in_content(response, s2.get_absolute_url())
     assert_in_content(response, t2a.get_absolute_url())
     assert_in_content(response, t2b.get_absolute_url())
@@ -817,11 +820,13 @@ def test_list_surfaces(client, django_user_model, mocker):
                            follow=True)
 
     # Surface 1
+    response = client.get(reverse('manager:surface-card'), {'surface_id': s1.id})
     assert_in_content(response, s1.get_absolute_url())
     assert_in_content(response, t1a.get_absolute_url())
     assert_in_content(response, t1b.get_absolute_url())
 
     # Surface 2 -> NOT INCLUDED
+    response = client.get(reverse('manager:surface-card'), {'surface_id': s2.id})
     assert_not_in_content(response, s2.get_absolute_url())
     assert_not_in_content(response, t2a.get_absolute_url())
     assert_not_in_content(response, t2b.get_absolute_url())
@@ -834,11 +839,13 @@ def test_list_surfaces(client, django_user_model, mocker):
                            follow=True)
 
     # Surface 1 -> INCLUDED, but not t1a
+    response = client.get(reverse('manager:surface-card'), {'surface_id': s1.id})
     assert_in_content(response, s1.get_absolute_url())
     assert_not_in_content(response, t1a.get_absolute_url())
     assert_in_content(response, t1b.get_absolute_url())
 
     # Surface 2 -> INCLUDED, but not t2b
+    response = client.get(reverse('manager:surface-card'), {'surface_id': s2.id})
     assert_in_content(response, s2.get_absolute_url())
     assert_in_content(response, t2a.get_absolute_url())
     assert_not_in_content(response, t2b.get_absolute_url())

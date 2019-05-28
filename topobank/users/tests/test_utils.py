@@ -15,7 +15,7 @@ def test_collaborators(django_user_model):
     assert are_collaborating(user2, user2)
 
     # create surface and share
-    surface1 = SurfaceFactory(user=user1)
+    surface1 = SurfaceFactory(creator=user1)
     surface1.share(user2)
 
     assert surface1.is_shared(user2)
@@ -25,7 +25,7 @@ def test_collaborators(django_user_model):
     assert are_collaborating(user1, user2)
 
     # share the other way round
-    surface2 = SurfaceFactory(user=user2)
+    surface2 = SurfaceFactory(creator=user2)
     surface2.share(user2)
 
     # still collaborating

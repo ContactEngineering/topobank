@@ -2,6 +2,7 @@
 {% load static i18n %}
 {% load fontawesome %}
 {% load guardian_tags %}
+{% load surface_tags %}
 
 {% block content-title %}Details for Topography <i>{{ topography.name }}</i>
 {% endblock content-title %}
@@ -33,95 +34,134 @@
 
 {% block content %}
 
-{% get_obj_perms request.user for topography.surface as "surface_perms" %}
-<div class="card text-center">
-  <div class="card-header">
+ {% get_obj_perms request.user for topography.surface as "surface_perms" %}
 
-    <h2>
+  <div class="card">
+
+    <div class="card-header">
+
       <div class="pull-left">
-        {{ topography.name }}
-      </div>
-      <div class="pull-right">
-        {% if "change_surface" in surface_perms %}
-          <a href="{% url 'manager:topography-delete' topography.id %}" class="btn btn-danger">
-              {% fontawesome_icon 'trash' %} Delete
-          </a>
-          <span></span>
-          <a href="{% url 'manager:topography-update' topography.id %}" class="btn btn-default">
-              {% fontawesome_icon 'edit' %} Edit
-          </a>
-        {% endif %}
-      </div>
-     </h2>
-  </div>
-  <div class="card-body">
+        <h2>{{ topography.name }}</h2>
 
-    <ul class="nav nav-tabs">
-      <li class="nav-item">
-        <a class="nav-link active" data-toggle="tab" href="#plot" role="tab">Topography</a>
-      </li>
-
-      <li class="nav-item">
-        <a class="nav-link" data-toggle="tab" href="#meta" role="tab">Properties</a>
-      </li>
-
-    </ul>
-
-    <div class="tab-content">
-
-      <div class="tab-pane fade active show" id="plot" role="tabpanel" aria-labelledby="plot-tab">
-        {{ image_plot_div|safe }}
       </div>
 
-      <div class="tab-pane fade" id="meta" role="tabpanel" aria-labelledby="meta-tab">
-        <table class="table table-responsive text-left">
-          <tbody>
-            <tr>
-              <th scope="row">Surface</th>
-              <td><a href="{% url 'manager:surface-detail' topography.surface.id %}">{{ topography.surface.name }}</a></td>
-            </tr>
-            <tr>
-              <th scope="row">Measurement Date</th>
-              <td>{{ topography.measurement_date }}</td>
-            </tr>
-            <tr>
-              <th scope="row">Name of Data File</th>
-              <td>{{ topography.datafile.name }}</td>
-            </tr>
-            <tr>
-              <th scope="row">Data Source</th>
-              <td>{{ topography.data_source }}</td>
-            </tr>
-            <tr>
-              <th scope="row">Description</th>
-              <td>{{ topography.description }}</td>
-            </tr>
-            <tr>
-              <th scope="row">Physical Size</th>
-              <td>
-              {{ topography.size_x }} {{ topography.unit }}{% if topography.size_y %} x {{ topography.size_y }} {{ topography.unit }} {% endif %}
-              </td>
-            </tr>
-            <tr>
-              <th scope="row">Height Conversion Factor</th>
-              <td>{{ topography.height_scale }} {{ topography.unit }}</td>
-            </tr>
-            <tr>
-              <th scope="row">Detrending Mode</th>
-              <td>{{ topography.get_detrend_mode_display }}</td>
-            </tr>
-            <tr>
-              <th scope="row">Number of data points</th>
-              <td>
-                {{ topography.resolution_x }}{% if topography.resolution_y %} x {{ topography.resolution_y }} {% endif %}
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <ul class="nav nav-pills card-header-pills pull-right">
+        <li class="nav-item">
+          <a class="nav-link active" data-toggle="pill" href="#plot" role="tab">Plot</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" data-toggle="pill" href="#properties" role="tab">Properties</a>
+        </li>
+      </ul>
+    </div>
+
+    <div class="card-body">
+
+      <div class="row">
+
+        <div class="col-9">
+          <div class="tab-content">
+            <div class="tab-pane fade active show" id="plot" role="tabpanel" aria-labelledby="plot-tab">
+              {{ image_plot_div|safe }}
+            </div>
+
+            <div class="tab-pane fade" id="properties" role="tabpanel" aria-labelledby="properties-tab">
+              <table class="table table-responsive text-left">
+                <tbody>
+                <tr>
+                  <th scope="row">Surface</th>
+                  <td><a
+                    href="{% url 'manager:surface-detail' topography.surface.id %}">{{ topography.surface.name }}</a>
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">Measurement Date</th>
+                  <td>{{ topography.measurement_date }}</td>
+                </tr>
+                <tr>
+                  <th scope="row">Name of Data File</th>
+                  <td>{{ topography.datafile.name }}</td>
+                </tr>
+                <tr>
+                  <th scope="row">Data Source</th>
+                  <td>{{ topography.data_source }}</td>
+                </tr>
+                <tr>
+                  <th scope="row">Description</th>
+                  <td>{{ topography.description }}</td>
+                </tr>
+                <tr>
+                  <th scope="row">Physical Size</th>
+                  <td>
+                    {{ topography.size_x }} {{ topography.unit }}{% if topography.size_y %} x {{ topography.size_y }} {{ topography.unit }} {% endif %}
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">Height Conversion Factor</th>
+                  <td>{{ topography.height_scale }} {{ topography.unit }}</td>
+                </tr>
+                <tr>
+                  <th scope="row">Detrending Mode</th>
+                  <td>{{ topography.get_detrend_mode_display }}</td>
+                </tr>
+                <tr>
+                  <th scope="row">Number of data points</th>
+                  <td>
+                    {{ topography.resolution_x }}{% if topography.resolution_y %} x {{ topography.resolution_y }} {% endif %}
+                  </td>
+                </tr>
+                </tbody>
+              </table>
+            </div>
+
+          </div>
+
+        </div>
+
+        <div class="col-3">
+
+          <div class="row p-3">
+
+            <div class="col">
+              {% render_uploaded_by_badge request topography %}
+            </div>
+          </div>
+          <div class="row p-3">
+            <div class="col">
+              {% if "change_surface" in surface_perms %}
+                <a href="{% url 'manager:topography-update' topography.id %}"
+                   class="btn btn-default btn-block btn-lg">
+                  {% fontawesome_icon 'edit' %} Edit
+                </a>
+
+                <a href="{% url 'manager:topography-delete' topography.id %}"
+                   class="btn btn-outline-danger btn-block btn-lg">
+                  {% fontawesome_icon 'trash' %} Delete
+                </a>
+              {% endif %}
+            </div>
+          </div>
+          <div class="row p-3">
+            <div class="col">
+                <a href="{% url 'manager:surface-detail' topography.surface.id %}"
+                   class="btn btn-default btn-block btn-lg">
+                  {% fontawesome_icon 'diamond' %} Back to surface details
+                </a>
+
+                <a href="{% url 'manager:surface-list' %}"
+                   class="btn btn-default btn-block btn-lg">
+                  {% fontawesome_icon 'list' %} Back to search results
+                </a>
+            </div>
+          </div>
+        </div>
+
       </div>
+
+
     </div>
   </div>
-</div>
+
 
 {% endblock content %}
 

@@ -3,7 +3,7 @@ from django import forms
 from django_select2.forms import Select2MultipleWidget, ModelSelect2MultipleWidget
 
 from crispy_forms.helper import FormHelper
-from crispy_forms.layout import Submit, Layout, Field, HTML, Div, Fieldset
+from crispy_forms.layout import Submit, Layout, Field, HTML, Div, Fieldset, Button
 from crispy_forms.bootstrap import FormActions
 
 from bootstrap_datepicker_plus import DatePickerInput
@@ -331,7 +331,7 @@ class TopographyForm(TopographyUnitsForm):
                     Submit('save', 'Save'),
                     HTML("""
                         <a href="{% url 'manager:topography-detail' object.id %}" class="btn btn-default" id="cancel-btn">Cancel</a>
-                    """),# TODO check back reference for cancel, always okay like this?
+                    """),# for topographies it's okay to always return to topography detail view
                 ),
         )
 
@@ -350,7 +350,7 @@ class SurfaceForm(forms.ModelForm):
 
     class Meta:
         model = Surface
-        fields = ('name', 'description', 'category', 'user')
+        fields = ('name', 'description', 'category', 'creator')
 
     helper = FormHelper()
     helper.form_method = 'POST'
@@ -363,13 +363,13 @@ class SurfaceForm(forms.ModelForm):
             Field('name'),
             Field('description'),
             Field('category'),
-            Field('user', type="hidden"),
+            Field('creator', type="hidden"),
         ),
         FormActions(
                 Submit('save', 'Save'),
                 HTML("""
-                    <a href="{% url 'manager:surface-list' %}" class="btn btn-default" id="cancel-btn">Cancel</a>
-                """),# TODO check back reference for cancel
+                    <a class="btn btn-default" id="cancel-btn" onclick="history.back(-1)">Cancel</a>
+                """),
             ),
     )
 

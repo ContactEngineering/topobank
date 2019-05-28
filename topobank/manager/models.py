@@ -8,7 +8,7 @@ from topobank.users.models import User
 
 def user_directory_path(instance, filename):
     # file will be uploaded to MEDIA_ROOT/user_<id>/<filename>
-    return 'topographies/user_{0}/{1}'.format(instance.surface.user.id, filename)
+    return 'topographies/user_{0}/{1}'.format(instance.surface.creator.id, filename)
 
 class Surface(models.Model):
     """Physical Surface.
@@ -22,7 +22,7 @@ class Surface(models.Model):
     ]
 
     name = models.CharField(max_length=80)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    creator = models.ForeignKey(User, on_delete=models.CASCADE)
     description = models.TextField(blank=True)
     category = models.TextField(choices=CATEGORY_CHOICES, null=True, blank=False) #  TODO change in character field
 
@@ -105,15 +105,19 @@ class Topography(models.Model):
     verbose_name_plural = 'topographies'
 
     #
-    # Description fields
+    # Descriptive fields
     #
     surface = models.ForeignKey('Surface', on_delete=models.CASCADE)
     name = models.CharField(max_length=80)
-
-    datafile = models.FileField(max_length=250, upload_to=user_directory_path) # currently upload_to not used in forms
-    data_source = models.IntegerField()
+    creator = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
     measurement_date = models.DateField()
     description = models.TextField(blank=True)
+
+    #
+    # Fields related to raw data
+    #
+    datafile = models.FileField(max_length=250, upload_to=user_directory_path)  # currently upload_to not used in forms
+    data_source = models.IntegerField()
 
     #
     # Fields with physical meta data
