@@ -33,7 +33,7 @@ import logging
 from .models import Topography, Surface
 from .forms import TopographyForm, SurfaceForm, TopographySelectForm, SurfaceShareForm
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, Topography1DUnitsForm, Topography2DUnitsForm
-from .utils import get_topography_file, optimal_unit, \
+from .utils import optimal_unit, get_topography_file,\
     selected_topographies, selection_from_session, selection_for_select_all, \
     bandwidths_data, surfaces_for_user
 from topobank.users.models import User
@@ -146,7 +146,7 @@ class TopographyCreateWizard(SessionWizardView):
 
             step1_data = self.get_cleaned_data_for_step('metadata')
 
-            topofile = get_topography_file(datafile.file.name)
+            topofile = get_topography_file(datafile)
 
             topo = topofile.topography(int(step1_data['data_source']))
             # topography as it is in file
@@ -224,20 +224,14 @@ class TopographyCreateWizard(SessionWizardView):
 
         return initial
 
-    @staticmethod
-    def get_topofile_cache_key(datafile_fname):
-        return f"topofile_{datafile_fname}"  # filename is unique inside wizard's directory -> cache key unique
-
     def get_form_kwargs(self, step=None):
 
-        kwargs = super(TopographyCreateWizard, self).get_form_kwargs(step)
+        kwargs = super().get_form_kwargs(step)
 
         if step == 'metadata':
             step0_data = self.get_cleaned_data_for_step('upload')
 
-            datafile_fname = step0_data['datafile'].file.name
-
-            topofile = get_topography_file(datafile_fname)
+            topofile = get_topography_file(step0_data['datafile'])
 
             #
             # Set data source choices based on file contents

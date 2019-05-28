@@ -11,7 +11,7 @@ from bootstrap_datepicker_plus import DatePickerInput
 import logging
 
 from topobank.manager.utils import selection_choices, \
-    TopographyFile, TopographyFileReadingException, TopographyFileFormatException
+    TopographyFileReadingException, TopographyFileFormatException, get_topography_file
 from .models import Topography, Surface
 
 from topobank.users.models import User
@@ -53,7 +53,7 @@ class TopographyFileUploadForm(forms.ModelForm):
         # try to load topography file, show up error if this doesn't work
         datafile = self.cleaned_data['datafile']
         try:
-            tf = TopographyFile(datafile.file) # TODO can be avoid to load the file more than once and still have a check?
+            tf = get_topography_file(datafile)
         except TopographyFileReadingException as exc:
             msg = f"Error while reading file contents of file '{datafile.name}', detected format: {exc.detected_format}. "
             if exc.message:
