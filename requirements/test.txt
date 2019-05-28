@@ -15,6 +15,7 @@ pytest-mock==1.10.1
 
 # additional for browser test
 pytest-splinter>=2.0<3.0
+splinter[django]>=0.10.0<0.11
 selenium>=3.14.0
 pytest-selenium>=1.16.0<2.0
 
