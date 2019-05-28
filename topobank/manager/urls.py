@@ -18,7 +18,7 @@ def creating_2D_topography(wizard):
     if step1_data is None:
         return False
 
-    topofile = get_topography_file(datafile.file.name)
+    topofile = get_topography_file(datafile)
     topo = topofile.topography(int(step1_data['data_source']))
 
     return topo.dim == 2
@@ -82,6 +82,11 @@ urlpatterns = [
         regex=r'surface/new/$',
         view=login_required(views.SurfaceCreateView.as_view()),
         name='surface-create'
+    ),
+    url(
+        regex=r'card/$',
+        view=login_required(views.SurfaceCardView.as_view()),
+        name='surface-card'
     ),
     url(
         regex=r'surface/$',

@@ -80,6 +80,7 @@ THIRD_PARTY_APPS = [
     'bootstrap_datepicker_plus', # for datepicker, see https://github.com/monim67/django-bootstrap-datepicker-plus
     'django_select2',
     'django_tables2',
+    'progressbarupload',
 ]
 LOCAL_APPS = [
     'topobank.users.apps.UsersAppConfig',
@@ -390,3 +391,15 @@ GUARDIAN_MONKEY_PATCH = False
 # Settings for django-tables2
 #
 DJANGO_TABLES2_TEMPLATE = 'django_tables2/bootstrap4.html'
+
+#
+# Setting for progress bar during upload
+#
+# see https://github.com/ouhouhsami/django-progressbarupload
+#
+FILE_UPLOAD_HANDLERS = (
+    "progressbarupload.uploadhandler.ProgressBarUploadHandler",
+    "django.core.files.uploadhandler.MemoryFileUploadHandler",
+    "django.core.files.uploadhandler.TemporaryFileUploadHandler",
+)
+PROGRESSBARUPLOAD_INCLUDE_JQUERY = False

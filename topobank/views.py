@@ -1,7 +1,8 @@
 from django.views.generic import TemplateView
-from django.db.models import Q
+from django.db.models import Q, F
 
 from guardian.compat import get_user_model as guardian_user_model
+from guardian.shortcuts import get_objects_for_user, get_perms_for_model
 
 from termsandconditions.models import TermsAndConditions
 from topobank.users.models import User
@@ -16,10 +17,13 @@ class HomeView(TemplateView):
 
         if self.request.user.is_authenticated:
             user = self.request.user
-            surfaces = Surface.objects.filter(user=user)
+            surfaces = Surface.objects.filter(creator=user)
             topographies_count = Topography.objects.filter(surface__in=surfaces).count()
             context['num_surfaces'] = surfaces.count()
             context['num_topographies'] = topographies_count
+            # count surfaces you can view, but you are not creator
+            context['num_shared_surfaces'] = get_objects_for_user(user, 'view_surface', klass=Surface)\
+                                                .filter(~Q(creator=user)).count()
         else:
             anon = guardian_user_model().get_anonymous()
             context['num_users'] = User.objects.filter(Q(is_active=True) & ~Q(pk=anon.pk)).count()

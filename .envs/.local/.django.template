@@ -28,13 +28,13 @@ ORCID_SECRET=<replace with your secret from ORCID>
 # ------------------------------------------------------------------------------
 USE_S3_STORAGE=yes
 
-AWS_ACCESS_KEY_ID=<insert your access key id>
-AWS_SECRET_ACCESS_KEY=<insert your secret acccess key>
+AWS_ACCESS_KEY_ID=admin
+AWS_SECRET_ACCESS_KEY=secret12
 
 # the bucket will be created if not available, you can use different buckets for each developer:
-AWS_STORAGE_BUCKET_NAME=topobank-dev-<yourshortname>
+AWS_STORAGE_BUCKET_NAME=topobank-dev
 # replace with your endpoint url, you can use http://localhost:8082/ if you want to use an SSH tunnel to your endpoint:
-AWS_S3_ENDPOINT_URL=<insert your endpoint url>
+AWS_S3_ENDPOINT_URL=http://minio:9000
 AWS_S3_USE_SSL=True # this is default
 AWS_S3_VERIFY=False  # currently the certificate is not valid
 #AWS_MEDIA_PREFIX=media/

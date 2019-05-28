@@ -46,7 +46,7 @@ def test_initial_surface(live_server, client, django_user_model):
     #
     # After login, there should be an example surface now with three topographies
     #
-    surface = Surface.objects.get(user=user, name="Example Surface")
+    surface = Surface.objects.get(creator=user, name="Example Surface")
 
     assert surface.category == 'sim'
 

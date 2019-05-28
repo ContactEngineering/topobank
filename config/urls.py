@@ -49,6 +49,9 @@ urlpatterns = [
     # For asking for terms and conditions
     url(r'^terms/', include('termsandconditions.urls')),
 
+    # progress bar during file upload
+    url(r'^progressbarupload/', include('progressbarupload.urls')),
+
 ] + static(
     settings.MEDIA_URL, document_root=settings.MEDIA_ROOT
 )

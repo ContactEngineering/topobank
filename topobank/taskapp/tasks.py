@@ -8,16 +8,7 @@ from django.utils import timezone
 from .celery import app
 from topobank.analysis.models import Analysis
 from topobank.manager.models import Topography
-import topobank.analysis.functions # so functions can be found by eval
 from django.db import transaction
-
-def _analysis_pyfunc_by_name(pyfunc_str):
-    """Return python function from analysis.functions given its name.
-
-    :param pyfunc_str: e.g. 'height_distribution'
-    :return: the callable function
-    """
-    return eval('topobank.analysis.functions.'+pyfunc_str)
 
 def submit_analysis(analysis_func, topography, *other_args, **kwargs):
     """Create an analysis entry and submit a task to the task queue.
@@ -28,7 +19,7 @@ def submit_analysis(analysis_func, topography, *other_args, **kwargs):
     :param kwargs: keyword arguments for analysis func
     """
 
-    pyfunc = _analysis_pyfunc_by_name(analysis_func.pyfunc)
+    pyfunc = analysis_func.python_function
 
     sig = inspect.signature(pyfunc)
 
@@ -85,9 +76,8 @@ def perform_analysis(self, analysis_id):
     #
     try:
         kwargs = pickle.loads(analysis.kwargs)
-        compute_func = _analysis_pyfunc_by_name(analysis.function.pyfunc)
         topography = Topography.objects.get(id=analysis.topography_id).topography()
-        result = compute_func(topography, **kwargs)
+        result = analysis.function.eval(topography, **kwargs)
         analysis.task_state = Analysis.SUCCESS
     except Exception as exc:
         analysis.task_state = Analysis.FAILURE

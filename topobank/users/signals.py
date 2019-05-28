@@ -20,7 +20,7 @@ def create_example_surface(sender, **kwargs):
     #
     # Create surface
     #
-    surface = Surface.objects.create(user=user, name=example_info['name'],
+    surface = Surface.objects.create(creator=user, name=example_info['name'],
                                      description=example_info['description'],
                                      category=example_info['category'])
 

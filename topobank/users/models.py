@@ -74,7 +74,7 @@ class User(GuardianUserMixin, AbstractUser):
 
         objs = get_objects_for_user(user, 'view_surface', klass=Surface)
         for o in objs:
-            if o.user == self: # this surface is shared by this user
+            if o.creator == self: # this surface is shared by this user
                 return True
         return False # nothing shared
 

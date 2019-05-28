@@ -1,11 +1,13 @@
 from django.shortcuts import redirect, render
-from django.views.generic import DetailView, ListView, UpdateView, CreateView, DeleteView, View
+from django.views.generic import DetailView, ListView, UpdateView, CreateView, DeleteView, TemplateView
 from django.urls import reverse, reverse_lazy
 from django.core.files.storage import FileSystemStorage # TODO use default_storage instead?
 from django.core.files.storage import default_storage
 from django.core.files import File
 from django.core.exceptions import PermissionDenied
 from django.conf import settings
+from django.http import HttpResponse
+
 from formtools.wizard.views import SessionWizardView
 
 from django.http import HttpResponseForbidden
@@ -23,7 +25,6 @@ from django_tables2 import RequestConfig
 from bokeh.plotting import figure
 from bokeh.embed import components
 from bokeh.models import DataRange1d, Range1d, LinearColorMapper, ColorBar, Row
-import numpy as np
 
 import json
 import os.path
@@ -32,7 +33,7 @@ import logging
 from .models import Topography, Surface
 from .forms import TopographyForm, SurfaceForm, TopographySelectForm, SurfaceShareForm
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, Topography1DUnitsForm, Topography2DUnitsForm
-from .utils import get_topography_file, optimal_unit, \
+from .utils import optimal_unit, get_topography_file,\
     selected_topographies, selection_from_session, selection_for_select_all, \
     bandwidths_data, surfaces_for_user
 from topobank.users.models import User
@@ -128,7 +129,7 @@ class TopographyCreateWizard(SessionWizardView):
                 surface = Surface.objects.get(id=int(self.kwargs['surface_id']))
             except Surface.DoesNotExist:
                 raise PermissionDenied()
-            if surface.user != self.request.user:
+            if not self.request.user.has_perm('change_surface', surface):
                 raise PermissionDenied()
 
             initial['surface'] = surface
@@ -145,7 +146,7 @@ class TopographyCreateWizard(SessionWizardView):
 
             step1_data = self.get_cleaned_data_for_step('metadata')
 
-            topofile = get_topography_file(datafile.file.name)
+            topofile = get_topography_file(datafile)
 
             topo = topofile.topography(int(step1_data['data_source']))
             # topography as it is in file
@@ -223,20 +224,14 @@ class TopographyCreateWizard(SessionWizardView):
 
         return initial
 
-    @staticmethod
-    def get_topofile_cache_key(datafile_fname):
-        return f"topofile_{datafile_fname}"  # filename is unique inside wizard's directory -> cache key unique
-
     def get_form_kwargs(self, step=None):
 
-        kwargs = super(TopographyCreateWizard, self).get_form_kwargs(step)
+        kwargs = super().get_form_kwargs(step)
 
         if step == 'metadata':
             step0_data = self.get_cleaned_data_for_step('upload')
 
-            datafile_fname = step0_data['datafile'].file.name
-
-            topofile = get_topography_file(datafile_fname)
+            topofile = get_topography_file(step0_data['datafile'])
 
             #
             # Set data source choices based on file contents
@@ -283,10 +278,10 @@ class TopographyCreateWizard(SessionWizardView):
         # TODO Check if we'd better get resolution here
 
         #
-        # Check whether given surface is from this user
+        # Check whether given surface can be altered by this user
         #
         surface = d['surface']
-        if surface.user != self.request.user:
+        if not self.request.user.has_perm('change_surface', surface):
             raise PermissionDenied()
 
         #
@@ -300,6 +295,11 @@ class TopographyCreateWizard(SessionWizardView):
         #
         # TODO remove topography file object from cache
         #
+
+        #
+        # Set the topography's creator to the current user uploading the file
+        #
+        d['creator'] = self.request.user
 
         #
         # create topography in database
@@ -465,7 +465,7 @@ class SelectedTopographyView(FormMixin, ListView):
         topography_ids = self.request.GET.get('topographies',[])
 
         filter_kwargs = dict(
-            surface__user=user
+            surface__creator=user
         )
 
         if len(topography_ids) > 0:
@@ -482,8 +482,13 @@ class SurfaceListView(FormMixin, ListView):
     success_url = reverse_lazy('manager:surface-list') # stay on same view
 
     def get_queryset(self):
-        surfaces = surfaces_for_user(self.request.user) # returns surfaces the user has access to
-        return surfaces
+        # surfaces = surfaces_for_user(self.request.user) # returns surfaces the user has access to
+        #
+        # filter out surfaces, for which no topography was selected
+        #
+        topographies = selected_topographies(self.request)
+        surface_ids = set(t.surface.id for t in topographies)
+        return Surface.objects.filter(id__in=surface_ids)
 
     def get_initial(self):
         # make sure the form is already filled with earlier selection
@@ -538,6 +543,37 @@ class SurfaceListView(FormMixin, ListView):
 
         return super().form_valid(form)
 
+class SurfaceCardView(TemplateView):
+    template_name = 'manager/surface_card.html'
+
+    def get_context_data(self, **kwargs):
+        """
+        Gets "surface_id" from GET parameters.
+
+        :return: dict to be used in surface card template context
+
+        The returned dict has the following keys:
+
+          surface: Surface
+        """
+        context = super().get_context_data(**kwargs)
+
+        request = self.request
+        request_method = request.GET
+        try:
+            surface_id = int(request_method.get('surface_id'))
+        except (KeyError, ValueError):
+            return HttpResponse("Error in GET arguments")
+
+        surface = Surface.objects.get(id=surface_id)
+
+        if not self.request.user.has_perm('view_surface', surface):
+            raise PermissionDenied
+
+        context['surface'] = surface
+        return context
+
+
 class SurfaceCreateView(CreateView):
     model = Surface
     form_class = SurfaceForm
@@ -545,7 +581,7 @@ class SurfaceCreateView(CreateView):
     def get_initial(self, *args, **kwargs):
         initial = super(SurfaceCreateView, self).get_initial()
         initial = initial.copy()
-        initial['user'] = self.request.user
+        initial['creator'] = self.request.user
         return initial
 
     def get_success_url(self):
@@ -729,13 +765,13 @@ def sharing_info(request):
             surface = Surface.objects.get(id=surface_id)
             share_with = User.objects.get(id=share_with_user_id)
 
-            if request.user not in [share_with, surface.user]:
+            if request.user not in [share_with, surface.creator]:
                 # we don't allow to change shares if the request user is not involved
                 continue
 
             if unshare:
                 surface.unshare(share_with)
-            elif allow_change and (request.user == surface.user): # only allow change for surface creator
+            elif allow_change and (request.user == surface.creator): # only allow change for surface creator
                 surface.share(share_with, allow_change=True)
 
     #
@@ -752,10 +788,10 @@ def sharing_info(request):
         for u in surface_users:
             # Leave out these shares:
             #
-            # - share of a user with himself (trivial)
+            # - share of a user with himself as creator (trivial)
             # - shares where the request user is not involved
             #
-            if (u != s.user) and ((u == request.user) or (s.user == request.user)):
+            if (u != s.creator) and ((u == request.user) or (s.creator == request.user)):
                 allow_change = ('change_surface' in surface_perms[u])
                 tmp.append((s, u, allow_change))
 
@@ -766,7 +802,7 @@ def sharing_info(request):
         {
             'surface': surface,
             'num_topographies': surface.num_topographies,
-            'created_by': surface.user,
+            'created_by': surface.creator,
             'shared_with': shared_with,
             'allow_change': allow_change,
             'selected': "{},{}".format(surface.id, shared_with.id),

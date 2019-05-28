@@ -118,13 +118,3 @@ def test_topographyfile_txt_open_with_bytesio():
     pyco_topo = tf.topography(0)
     assert pyco_topo.resolution == (10,10)
 
-def test_topographyfile_txt_open_with_stringio():
-    input_file_path = Path('topobank/manager/fixtures/10x10.txt')
-
-    input_file = open(input_file_path, 'r')
-
-    input_data = input_file.read()
-
-    tf = TopographyFile(io.StringIO(input_data))
-    pyco_topo = tf.topography(0)
-    assert pyco_topo.resolution == (10,10)

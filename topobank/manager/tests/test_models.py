@@ -23,7 +23,7 @@ def test_topography_str(two_topos):
 def test_unique_topography_name_in_same_surface():
 
     user = UserFactory()
-    surface1 = SurfaceFactory(user=user)
+    surface1 = SurfaceFactory(creator=user)
 
     TopographyFactory(surface=surface1, name='TOPO')
 
@@ -32,7 +32,7 @@ def test_unique_topography_name_in_same_surface():
             TopographyFactory(surface=surface1, name='TOPO')
 
     # no problem with another surface
-    surface2 = SurfaceFactory(user=user)
+    surface2 = SurfaceFactory(creator=user)
     TopographyFactory(surface=surface2, name='TOPO')
 
 @pytest.mark.django_db
@@ -43,7 +43,7 @@ def test_surface_description(django_user_model):
 
     user = django_user_model.objects.create_user(username=username, password=password)
 
-    surface = Surface.objects.create(name='Surface 1', user=user)
+    surface = Surface.objects.create(name='Surface 1', creator=user)
 
     assert ""==surface.description
 
@@ -62,7 +62,7 @@ def test_surface_share_and_unshare():
     user1 = UserFactory(password=password)
     user2 = UserFactory(password=password)
 
-    surface = SurfaceFactory(user=user1)
+    surface = SurfaceFactory(creator=user1)
 
     #
     # no permissions at beginning
@@ -106,7 +106,7 @@ def test_other_methods_about_sharing():
     user2 = UserFactory()
 
     # create surface, at first user 2 has no access
-    surface = SurfaceFactory(user=user1)
+    surface = SurfaceFactory(creator=user1)
     assert not surface.is_shared(user2)
     assert not surface.is_shared(user2, allow_change=True)
 

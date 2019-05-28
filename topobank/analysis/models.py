@@ -2,6 +2,7 @@ from django.db import models
 import pickle
 
 from topobank.manager.models import Topography
+import topobank.analysis.functions as functions_module
 
 class Analysis(models.Model):
 
@@ -60,7 +61,7 @@ class Analysis(models.Model):
 class AnalysisFunction(models.Model):
     name = models.CharField(max_length=80, help_text="A human-readable name.", unique=True)
     pyfunc = models.CharField(max_length=256,
-                              help_text="Name of Python function in topobank.analysis.functions")
+                              help_text="Name of Python function in {}".format(functions_module.__name__))
     # this reference to python function may change in future
     automatic  = models.BooleanField(default=False,
                                      help_text="If set, this analysis is automatically triggered for new topographies.")
@@ -68,3 +69,15 @@ class AnalysisFunction(models.Model):
     def __str__(self):
         return self.name
 
+    @property
+    def python_function(self):
+        return getattr(functions_module, self.pyfunc)
+
+    def eval(self, *args, **kwargs):
+        """Call appropriate python function.
+        """
+        return self.python_function(*args, **kwargs)
+
+    @property
+    def card_view_flavor(self):
+        return self.python_function.card_view_flavor

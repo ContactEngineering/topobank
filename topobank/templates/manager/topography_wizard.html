@@ -2,6 +2,7 @@
 {% load i18n %}
 {% load fontawesome %}
 {% load crispy_forms_tags %}
+{% load progress_bar %}
 
 {% block breadcrumbs %}
   <li class="breadcrumb-item">
@@ -50,9 +51,15 @@
           {% endif %}
 
           {% crispy wizard.form wizard.form.helper %}
-
+          {% if wizard.steps.step1 == 1 %}
+            {% progress_bar %}
+          {% endif %}
       </form>
 
   </div>
 </div>
 {% endblock content %}
+
+{% block javascript %}
+  {% progress_bar_media %}
+{% endblock %}

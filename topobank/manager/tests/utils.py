@@ -23,7 +23,7 @@ class SurfaceFactory(factory.django.DjangoModelFactory):
         model = Surface
 
     name = factory.Sequence(lambda n: "surface-{}".format(n))
-    user = factory.SubFactory(UserFactory)
+    creator = factory.SubFactory(UserFactory)
 
 class TopographyFactory(factory.django.DjangoModelFactory):
 
@@ -31,6 +31,7 @@ class TopographyFactory(factory.django.DjangoModelFactory):
         model = Topography
 
     surface = factory.SubFactory(SurfaceFactory)
+    # creator is set automatically to surface's creator if not set, see signals
     name = factory.Sequence(lambda n: "topography-{}".format(n))
     datafile = factory.django.FileField(from_path=str(settings.ROOT_DIR.path("topobank/manager/fixtures/10x10.txt")))
     data_source = 0
@@ -51,12 +52,13 @@ def two_topos():
     call_command('register_analysis_functions')
 
     user = UserFactory(username='testuser', password='abcd$1234')
-    surface = SurfaceFactory(name="Surface 1", user=user)
+    surface = SurfaceFactory(name="Surface 1", creator=user)
 
     datafile1 = factory.django.FileField(from_path="topobank/manager/fixtures/example3.di")
     datafile2 = factory.django.FileField(from_path="topobank/manager/fixtures/example4.txt")
 
     TopographyFactory(surface=surface,
+                      creator=user,
                       name='Example 3 - ZSensor',
                       data_source=0,
                       measurement_date=datetime.date(2018, 1, 1),
@@ -71,6 +73,7 @@ def two_topos():
                       resolution_y=256)
 
     TopographyFactory(surface=surface,
+                      creator=user,
                       name='Example 4 - Default',
                       data_source=0,
                       measurement_date=datetime.date(2018, 1, 2),
@@ -89,7 +92,7 @@ def two_topos():
 def one_line_scan():
 
     user = UserFactory(username='testuser', password='abcd$1234')
-    surface = Surface(name="Line Scans", user=user)
+    surface = Surface(name="Line Scans", creator=user)
     surface.save()
 
     datafile = factory.django.FileField(from_path="topobank/manager/fixtures/line_scan_1.asc")

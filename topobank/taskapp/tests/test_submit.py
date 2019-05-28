@@ -9,14 +9,11 @@ from topobank.analysis.models import AnalysisFunction
 @pytest.mark.django_db
 def test_submit(mocker):
 
-    # we fake a function in the functions modul which would be built
-    # by the eval function
-    eval_mock = mocker.patch('builtins.eval')
-    eval_mock.return_value = lambda topography, a, b, bins=15, window='hann': None
 
-    mocker.patch('topobank.analysis.models.AnalysisFunction', autospect=True)
+    m = mocker.patch('topobank.analysis.models.AnalysisFunction.python_function', new_callable=mocker.PropertyMock)
+    m.return_value = lambda topography, a, b, bins=15, window='hann': None
 
-    af = AnalysisFunction(name='somefunc')
+    af = AnalysisFunction(name='somefunc', pyfunc='height_distribution')
 
     mocker.patch('topobank.analysis.models.Analysis.objects.create')
 
