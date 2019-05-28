@@ -482,8 +482,13 @@ class SurfaceListView(FormMixin, ListView):
     success_url = reverse_lazy('manager:surface-list') # stay on same view
 
     def get_queryset(self):
-        surfaces = surfaces_for_user(self.request.user) # returns surfaces the user has access to
-        return surfaces
+        # surfaces = surfaces_for_user(self.request.user) # returns surfaces the user has access to
+        #
+        # filter out surfaces, for which no topography was selected
+        #
+        topographies = selected_topographies(self.request)
+        surface_ids = set(t.surface.id for t in topographies)
+        return Surface.objects.filter(id__in=surface_ids)
 
     def get_initial(self):
         # make sure the form is already filled with earlier selection
