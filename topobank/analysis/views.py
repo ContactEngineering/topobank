@@ -5,7 +5,7 @@ import numpy as np
 import itertools
 from collections import OrderedDict
 
-from django.http import HttpResponse, HttpResponseForbidden, Http404
+from django.http import HttpResponse, HttpResponseForbidden, Http404, JsonResponse
 from django.views.generic import DetailView, FormView, TemplateView
 from django.urls import reverse_lazy
 from django.contrib import messages
@@ -36,6 +36,7 @@ from .models import Analysis, AnalysisFunction
 from .serializers import AnalysisSerializer
 from .forms import TopographyFunctionSelectForm
 from .utils import get_latest_analyses
+from topobank.taskapp.tasks import submit_analysis
 
 import logging
 _log = logging.getLogger(__name__)
@@ -137,6 +138,7 @@ class SimpleCardView(TemplateView):
           analyses_failure: queryset of analyses finished with failures (result has traceback, can't be displayed)
           analyses_unready: queryset of analyses which are still running
           topographies_missing: list of topographies for which there is no Analysis object yet
+          topography_ids_requested_json: json representation of list with all requested topography ids
         """
         context = super().get_context_data(**kwargs)
 
@@ -191,7 +193,8 @@ class SimpleCardView(TemplateView):
             analyses_success=analyses_success,  # ..the ones which were successful and can be displayed
             analyses_failure=analyses_failure,  # ..the ones which have failures and can't be displayed
             analyses_unready=analyses_unready,  # ..the ones which are still running
-            topographies_missing=topographies_missing  # topographies for which there is no Analysis object yet
+            topographies_missing=topographies_missing , # topographies for which there is no Analysis object yet
+            topography_ids_requested_json=json.dumps(topography_ids), # can be used to retrigger analyses
         ))
 
         return context
@@ -480,6 +483,37 @@ class PlotCardView(SimpleCardView):
 class PowerSpectrumCardView(PlotCardView):
     pass
 
+
+def submit_analyses_view(request):
+    """Submits analyses.
+    :param request:
+    :return: HTTPResponse
+    """
+    if not request.is_ajax():
+        return Http404
+
+    request_method = request.POST # TODO POST because this view changes sth.
+
+    # args_dict = request_method
+    try:
+        function_id = int(request_method.get('function_id'))
+        topography_ids = [int(tid) for tid in request_method.getlist('topography_ids[]')]
+        function_kwargs_json = request_method.get('function_kwargs_json')
+        # function_window = request_method.get('function_kwargs[window]')
+    except (KeyError, ValueError, TypeError):
+        return JsonResponse({'error': 'error in request data'}, status=400)
+
+    #
+    # Interpret given arguments
+    #
+    function = AnalysisFunction.objects.get(id=function_id)
+    topographies = Topography.objects.filter(id__in=topography_ids)
+    function_kwargs = json.loads(function_kwargs_json)
+
+    for topo in topographies:
+        submit_analysis(function, topo, **function_kwargs)
+
+    return JsonResponse({}, status=200) # what to return here? 200 means: successfully triggered calculations
 
 class AnalysisFunctionDetailView(DetailView):
 

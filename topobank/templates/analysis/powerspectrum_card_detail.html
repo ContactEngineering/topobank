@@ -1,3 +1,69 @@
 {# Needs some keys in context. See AJAX view "PowerSpectrumCardView" #}
 {% extends 'analysis/plot_card_detail.html' %}
 {% load fontawesome %}
+
+{% block card_extra_widgets %}
+  <form>
+  <div class="row p-3">
+    <div class="col">
+
+      <div class="input-group">
+        <div class="input-group-prepend">
+          <input type="checkbox" aria-label="If checked, use a tip radius">
+        </div>
+        <div class="input-group-prepend">
+          <span class="input-group-text" id="inputGroup-sizing-default">Tip Radius</span>
+        </div>
+        <input id='tip-radius-input' type="number" min="0" class="form-control" aria-label="Text input with segmented dropdown button">
+      </div>
+    </div>
+  </div>
+  <div class="row p-3">
+    <div class="col">
+      <button type="submit" id="recalculate" class="btn btn-primary btn-block btn-lg">Recalculate</button>
+    </div>
+  </div>
+  </form>
+
+{% endblock card_extra_widgets %}
+
+{% block card_javascript %}
+
+{{ block.super }}
+
+  <script>
+    $("#recalculate").click( function() {
+
+       var tip_radius = parseInt($('#tip-radius-input').val());
+       console.log("Tip radius: "+tip_radius)
+
+       $.ajax({
+        type: "POST", // TODO replace with POST
+        url: "{% url 'analysis:card-submit' %}",
+        timeout: 0,
+        data: {
+          function_id: {{ function.id }},
+          topography_ids: {{ topography_ids_requested_json|safe }},
+          function_kwargs_json: JSON.stringify({ 'window': 'hann', 'tip_radius': tip_radius}),
+          csrfmiddlewaretoken: "{{csrf_token}}"
+        },
+        success : function(data, textStatus, xhr) {
+          if (xhr.status==200) {
+            console.log("Triggering reload of card");
+            submit_analyses_card_ajax("{% url 'analysis:card' %}", "card", "detail", {{ function.id }},
+                                       {{ topography_ids_requested_json|safe }});
+          } else {
+            console.log("Submitting analyses failed");
+          }
+        },
+        error: function(xhr, textStatus, errorThrown) {
+          console.log("AJAX error: "+errorThrown+xhr.status+xhr.responseText);
+          var div = $('#plot'); // show the error in a prominent way
+          $(div).html("Please report this error: "+errorThrown+xhr.status+xhr.responseText);
+          $(div).addClass("alert alert-danger");
+        }
+      });
+    });
+  </script>
+
+{% endblock %}

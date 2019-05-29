@@ -401,7 +401,7 @@ def curvature_distribution(topography, bins=None, wfac=5):
     )
 
 @analysis_function(card_view_flavor='power spectrum', automatic=True)
-def power_spectrum(topography, window='hann'):
+def power_spectrum(topography, window='hann', tip_radius=None):
     if window == 'None':
         window = None
 
@@ -420,6 +420,9 @@ def power_spectrum(topography, window='hann'):
         yunit='{}³'.format(unit),
         xscale='log',
         yscale='log',
+        scalars={
+            'Tip radius': tip_radius,
+        },
         series=[
             dict(name='1D PSD along x',
                  x=q_1D[1:],
