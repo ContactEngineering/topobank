@@ -20,7 +20,8 @@
     {% endif %}
     {% if analyses_failure %}
     <li class="nav-item" style="list-style-type: none;">
-      <a class="nav-link" data-toggle="tab" href="#failures">Failures</a>
+      {# Use href with card_id because the included HTML uses this too #}
+      <a class="nav-link" data-toggle="tab" href="#failures-{{ card_id }}">Failures</a>
     </li>
     {% endif %}
   </ul>
@@ -35,25 +36,7 @@
       <div class="tab-content">
 
         <div class="tab-pane fade show active" id="plot" role="tabpanel" aria-labelledby="card-tab">
-          {% for af in analyses_failure %}
-            <div class="alert alert-warning">
-              {% fontawesome_icon 'exclamation-circle' %}
-              Analysis for topography <em>{{ af.topography.name }}</em> failed.
-              Press "Failures" for details.
-            </div>
-          {% endfor %}
-          {% for au in analyses_unready %}
-            <div class="alert alert-info">
-              <div class="spinner"></div>
-              Analysis for topography <em>{{ au.topography.name }}</em> not avaliable yet. Please wait..
-            </div>
-          {% endfor %}
-          {% for mt in topographies_missing %}
-            <div class="alert alert-warning">
-              Analysis for topography <em>{{ mt.name }}</em> not triggered yet. Please trigger if needed.
-              {# TODO Provide link to trigger analysis #}
-            </div>
-          {% endfor %}
+          {% include 'analysis/analyses_alerts.html' %}
           {% if analyses_success %}
             {# Show all analyses for which we have results #}
             {{ plot_div | safe }}
@@ -81,18 +64,7 @@
             </table>
           </div>
         {% endif %}
-        {% if analyses_failure %}
-          <div class="tab-pane fade" id="failures" role="tabpanel" aria-labelledby="failures-tab">
-            {% for af in analyses_failure %}
-              <div class="alert alert-warning">
-                <p>Analysis failed for topography
-                  <a href="{% url 'manager:topography-detail' af.topography.id %}">{{ af.topography.name }}</a>.
-                  Traceback:</p>
-                <pre>{{ af.result_obj.error }}</pre>
-              </div>
-            {% endfor %}
-          </div>
-        {% endif %}
+        {% include 'analysis/analyses_failure_tab_pane.html' %}
       </div>
     </div>
 
