@@ -1,214 +1,160 @@
 {# Needs some keys in context. See AJAX view "PlotCardView" #}
+{% extends 'analysis/simple_card_detail.html' %}
 {% load analysis_tags %}
 {% load fontawesome %}
 
- <div class="card">
+{% block card_header %}
+  <div class="pull-left">
+    <h2>{{ title }}</h2>
+  </div>
+  <ul class="nav nav-pills card-header-pills pull-right">
+    {% if special_values or analyses_failure %}{#  we only need the plot pill if there is anything else #}
+    <li class="nav-item">
+      <a class="nav-link active" data-toggle="pill" href="#plot" role="tab">Plot</a>
+    </li>
+    {% endif %}
+    {% if special_values %}
+    <li class="nav-item" style="list-style-type: none;">
+      <a class="nav-link" data-toggle="tab" href="#values">Special values</a>
+    </li>
+    {% endif %}
+    {% if analyses_failure %}
+    <li class="nav-item" style="list-style-type: none;">
+      <a class="nav-link" data-toggle="tab" href="#failures">Failures</a>
+    </li>
+    {% endif %}
+  </ul>
+{% endblock card_header %}
 
-    <div class="card-header">
 
-      <div class="pull-left">
-        <h2>{{ title }}</h2>
-      </div>
-      <ul class="nav nav-pills card-header-pills pull-right">
-        {% if special_values or analyses_failure %}{#  we only need the plot pill if there is anything else #}
-        <li class="nav-item">
-          <a class="nav-link active" data-toggle="pill" href="#plot" role="tab">Plot</a>
-        </li>
-        {% endif %}
+{% block card_body %}
+
+  <div class="row">
+
+    <div class="col-9">
+      <div class="tab-content">
+
+        <div class="tab-pane fade show active" id="plot" role="tabpanel" aria-labelledby="card-tab">
+          {% for af in analyses_failure %}
+            <div class="alert alert-warning">
+              {% fontawesome_icon 'exclamation-circle' %}
+              Analysis for topography <em>{{ af.topography.name }}</em> failed.
+              Press "Failures" for details.
+            </div>
+          {% endfor %}
+          {% for au in analyses_unready %}
+            <div class="alert alert-info">
+              <div class="spinner"></div>
+              Analysis for topography <em>{{ au.topography.name }}</em> not avaliable yet. Please wait..
+            </div>
+          {% endfor %}
+          {% for mt in topographies_missing %}
+            <div class="alert alert-warning">
+              Analysis for topography <em>{{ mt.name }}</em> not triggered yet. Please trigger if needed.
+              {# TODO Provide link to trigger analysis #}
+            </div>
+          {% endfor %}
+          {% if analyses_success %}
+            {# Show all analyses for which we have results #}
+            {{ plot_div | safe }}
+          {% endif %}
+        </div>
         {% if special_values %}
-        <li class="nav-item" style="list-style-type: none;">
-          <a class="nav-link" data-toggle="tab" href="#values">Special values</a>
-        </li>
+          <div class="tab-pane fade" id="values" role="tabpanel" aria-labelledby="values-tab">
+            <table class="table table-striped table-bordered">
+              <thead>
+              <tr>
+                <th>Topography</th>
+                <th>Quantity</th>
+                <th>Value</th>
+              </tr>
+              </thead>
+              <tbody>
+              {% for topography, quantity, value, unit in special_values %}
+                <tr>
+                  <td>{{ topography.name }}</td>
+                  <td>{{ quantity }}</td>
+                  <td>{{ value }} {{ unit }}</td>
+                </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
         {% endif %}
         {% if analyses_failure %}
-        <li class="nav-item" style="list-style-type: none;">
-          <a class="nav-link" data-toggle="tab" href="#failures">Failures</a>
-        </li>
-        {% endif %}
-      </ul>
-
-    </div>
-
-    <div class="card-body">
-
-      <div class="row">
-
-        <div class="col-9">
-          <div class="tab-content">
-
-            <div class="tab-pane fade show active" id="plot" role="tabpanel" aria-labelledby="card-tab">
-              {% for af in analyses_failure %}
-                <div class="alert alert-warning">
-                  {% fontawesome_icon 'exclamation-circle' %}
-                  Analysis for topography <em>{{ af.topography.name }}</em> failed.
-                  Press "Failures" for details.
-                </div>
-              {% endfor %}
-              {% for au in analyses_unready %}
-                <div class="alert alert-info">
-                  <div class="spinner"></div>
-                  Analysis for topography <em>{{ au.topography.name }}</em> not avaliable yet. Please wait..
-                </div>
-              {% endfor %}
-              {% for mt in topographies_missing %}
-                <div class="alert alert-warning">
-                  Analysis for topography <em>{{ mt.name }}</em> not triggered yet. Please trigger if needed.
-                  {# TODO Provide link to trigger analysis #}
-                </div>
-              {% endfor %}
-              {% if analyses_success %}
-                {# Show all analyses for which we have results #}
-                {{ plot_div | safe }}
-              {% endif %}
-            </div>
-            {% if special_values %}
-              <div class="tab-pane fade" id="values" role="tabpanel" aria-labelledby="values-tab">
-                <table class="table table-striped table-bordered">
-                  <thead>
-                  <tr>
-                    <th>Topography</th>
-                    <th>Quantity</th>
-                    <th>Value</th>
-                  </tr>
-                  </thead>
-                  <tbody>
-                  {% for topography, quantity, value, unit in special_values %}
-                    <tr>
-                      <td>{{ topography.name }}</td>
-                      <td>{{ quantity }}</td>
-                      <td>{{ value }} {{ unit }}</td>
-                    </tr>
-                  {% endfor %}
-                  </tbody>
-                </table>
+          <div class="tab-pane fade" id="failures" role="tabpanel" aria-labelledby="failures-tab">
+            {% for af in analyses_failure %}
+              <div class="alert alert-warning">
+                <p>Analysis failed for topography
+                  <a href="{% url 'manager:topography-detail' af.topography.id %}">{{ af.topography.name }}</a>.
+                  Traceback:</p>
+                <pre>{{ af.result_obj.error }}</pre>
               </div>
-            {% endif %}
-            {% if analyses_failure %}
-              <div class="tab-pane fade" id="failures" role="tabpanel" aria-labelledby="failures-tab">
-                {% for af in analyses_failure %}
-                  <div class="alert alert-warning">
-                    <p>Analysis failed for topography
-                      <a href="{% url 'manager:topography-detail' af.topography.id %}">{{ af.topography.name }}</a>.
-                      Traceback:</p>
-                    <pre>{{ af.result_obj.error }}</pre>
-                  </div>
-                {% endfor %}
-              </div>
-            {% endif %}
-          </div>
-        </div>
-
-        <div class="col-3">
-
-          <div class="row p-3">
-            <div class="col">
-            </div>
-          </div>
-          <div class="row p-3">
-            <div class="col">
-              <!-- button area -->
-              {% if analyses_available %}
-                {% if analyses_success %}
-                  <a class="btn btn-default btn-block btn-lg"
-                     href="{% url 'analysis:download-txt' analyses_success|analyses_results_ids_list_str %}">
-                    {% fontawesome_icon 'download' %} Download as TXT</a>
-                  <a class="btn btn-default btn-block btn-lg"
-                     href="{% url 'analysis:download-xlsx' analyses_success|analyses_results_ids_list_str %}">
-                    {% fontawesome_icon 'download' %} Download as XLSX</a>
-                {% endif %}
-                <a class="btn btn-default btn-block btn-lg" href="#" data-toggle="modal"
-                   data-target="#statusesModal">{% fontawesome_icon 'tasks' %} Task information</a>
-              {% endif %}
-            </div>
-          </div>
-          <div class="row p-3">
-            <div class="col">
-                <a href="{% url 'analysis:list' %}"
-                   class="btn btn-default btn-block btn-lg">
-                  {% fontawesome_icon 'list' %} Back to search results
-                </a>
-            </div>
-          </div>
-        </div>
-
-      </div>
-    </div>
-  </div>
-
-<div class="modal fade" id="statusesModal" tabindex="-1" role="dialog"
-     aria-labelledby="statusesModalLabel"
-     aria-hidden="true">
-  <div class="modal-dialog modal-lg" role="document">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="statusesModalLabel">Tasks</h5>
-        <button class="close" type="button" data-dismiss="modal" aria-label="Close">
-          <span aria-hidden="true">×</span>
-        </button>
-      </div>
-      <div class="modal-body">
-        {% if analyses_available %}
-        <small>
-          <table class="table table-hover">
-            <thead>
-            <tr>
-              <th scope="col">Function</th>
-              <th scope="col">Topography</th>
-              <th scope="col">Further Args</th>
-              <th scope="col">Task State</th>
-              <th scope="col">Start Time</th>
-              <th scope="col">Duration</th>
-            </tr>
-            </thead>
-            <tbody>
-            {% for analysis in analyses_available %}
-              <tr>
-                <td>{{ analysis.function.name }}</td>
-                <td>
-                  <a
-                    href="{% url 'manager:topography-detail' analysis.topography_id %}">{{ analysis.topography.name }}</a>
-                </td>
-                <td>{{ analysis.get_kwargs_display }}</td>
-                <td>{{ analysis.get_task_state_display }}</td>
-                <td>{{ analysis.start_time|date:"Y-m-d H:i:s" }}</td>
-                <td>{{ analysis.duration|default_if_none:"" }}</td>
-              </tr>
             {% endfor %}
-            </tbody>
-
-          </table>
-        </small>
-        {% else %}
-          <div class="alert alert-info">
-          No analysis triggered for this function and these topographies.
           </div>
         {% endif %}
       </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" type="button" data-dismiss="modal">Close</button>
+    </div>
+
+    <div class="col-3">
+
+      <div class="row p-3">
+        <div class="col">
+        </div>
+      </div>
+      <div class="row p-3">
+        <div class="col">
+          <!-- button area -->
+          {% if analyses_available %}
+            {% if analyses_success %}
+              <a class="btn btn-default btn-block btn-lg"
+                 href="{% url 'analysis:download-txt' analyses_success|analyses_results_ids_list_str %}">
+                {% fontawesome_icon 'download' %} Download as TXT</a>
+              <a class="btn btn-default btn-block btn-lg"
+                 href="{% url 'analysis:download-xlsx' analyses_success|analyses_results_ids_list_str %}">
+                {% fontawesome_icon 'download' %} Download as XLSX</a>
+            {% endif %}
+            <a class="btn btn-default btn-block btn-lg" href="#" data-toggle="modal"
+               data-target="#statusesModal-{{ card_id }}">{% fontawesome_icon 'tasks' %} Task information</a>
+          {% endif %}
+        </div>
+      </div>
+      <div class="row p-3">
+        <div class="col">
+            <a href="{% url 'analysis:list' %}"
+               class="btn btn-default btn-block btn-lg">
+              {% fontawesome_icon 'list' %} Back to search results
+            </a>
+        </div>
       </div>
     </div>
+
   </div>
-</div>
+{% endblock card_body %}
 
-{% if analyses_success %}
-  {# Insert the script code needed for the plot #}
-  {{ plot_script | safe }}
-{% endif %}
+{% block card_javascript %}
 
-{# Additonal code for initialization #}
-<script>
+  {% if analyses_success %}
+    {# Insert the script code needed for the plot #}
+    {{ plot_script | safe }}
+  {% endif %}
 
-  // Apply given colors to labels
-  function style_checkbox_labels(card_idx) {
-    var topography_colors = {{ topography_colors|safe }};
-    var card_selector='#card-'+card_idx;
-    var topography_checkbox_labels = $(card_selector+" .topobank-topography-checkbox label");
-    // console.log(card_idx, card_selector,topography_checkbox_labels);
-    topography_checkbox_labels.each(function (idx) {
-         // console.log("CSS "+idx);
-         $(this).css('background-color', topography_colors[idx]);
-    });
-  }
-  // $('.bk-widget-box:first label').each(function(idx){$(this).css('background-color', topography_colors[idx]);})
-</script>
+  {# Additonal code for initialization #}
+  <script>
+
+  /** THIS CODE MAYBE USEFUL WHEN ADDING STYLING IN BOKEH CODE, SEE VIEW
+    // Apply given colors to labels
+    function style_checkbox_labels(card_idx) {
+      var topography_colors = {{ topography_colors|safe }};
+      var card_selector='#card-'+card_idx;
+      var topography_checkbox_labels = $(card_selector+" .topobank-topography-checkbox label");
+      // console.log(card_idx, card_selector,topography_checkbox_labels);
+      topography_checkbox_labels.each(function (idx) {
+           // console.log("CSS "+idx);
+           $(this).css('background-color', topography_colors[idx]);
+      });
+    }
+   */
+    // $('.bk-widget-box:first label').each(function(idx){$(this).css('background-color', topography_colors[idx]);})
+  </script>
+{% endblock card_javascript %}

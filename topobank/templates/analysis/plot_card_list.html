@@ -14,20 +14,13 @@
           <i class="fa fa-chevron-down"></i>
         </button>
         <div class="dropdown-menu dropdown-menu-right">
-          <!-- TODO enable unit change
-          <a class="dropdown-item topobank-change-unit" href="#">Display in units of nm</a>
-          <a class="dropdown-item topobank-change-unit" href="#">Display in units of µm</a>
-          <a class="dropdown-item topobank-change-unit" href="#">Display in units of mm</a>
-          <a class="dropdown-item topobank-change-unit" href="#">Display in units of m</a>
-          <div class="dropdown-divider"></div>
-          -->
           {% if analyses_success %}
           <a class="dropdown-item" href="{% url 'analysis:download-txt' analyses_success|analyses_results_ids_list_str %}">Download as TXT</a>
           <a class="dropdown-item" href="{% url 'analysis:download-xlsx' analyses_success|analyses_results_ids_list_str %}">Download as XLSX</a>
           <div class="dropdown-divider"></div>
           {% endif %}
           <a class="dropdown-item" href="#" data-toggle="modal"
-             data-target="#statusesModal-{{ idx }}">Task information</a>
+             data-target="#statusesModal-{{ card_id }}">Task information</a>
         </div>
       </div>
       {% endif %}
@@ -37,130 +30,30 @@
       <ul class="nav nav-tabs">
         {% if analyses_failure %}
         <li class="nav-item" style="list-style-type: none;">
-          <a class="nav-link active" data-toggle="tab" href="#plot-{{ idx }}">Plot</a>
+          <a class="nav-link active" data-toggle="tab" href="#plot-{{ card_id }}">Plot</a>
         </li>
         <li class="nav-item" style="list-style-type: none;">
-          <a class="nav-link" data-toggle="tab" href="#failures-{{ idx }}">Failures</a>
+          <a class="nav-link" data-toggle="tab" href="#failures-{{ card_id }}">Failures</a>
         </li>
         {% endif %}
       </ul>
 
       <div class="tab-content">
-        <div class="tab-pane fade show active" id="plot-{{ idx }}" role="tabpanel" aria-labelledby="card-tab">
-          {% for af in analyses_failure %}
-            <div class="alert alert-warning">
-              {% fontawesome_icon 'exclamation-circle' %}
-              Analysis for topography <em>{{ af.topography.name }}</em> failed.
-              See tab "Failures" for details.
-            </div>
-          {% endfor %}
-          {% for au in analyses_unready %}
-            <div class="alert alert-info">
-              <div class="spinner"></div>
-              Analysis for topography <em>{{ au.topography.name }}</em> not avaliable yet. Please wait..
-            </div>
-          {% endfor %}
-          {% for mt in topographies_missing %}
-            <div class="alert alert-warning">
-              Analysis for topography <em>{{ mt.name }}</em> not triggered yet. Please trigger if needed.
-              {# TODO Provide link to trigger analysis #}
-            </div>
-          {% endfor %}
+        <div class="tab-pane fade show active" id="plot-{{ card_id }}" role="tabpanel" aria-labelledby="card-tab">
+          {% include 'analysis/analyses_alerts.html' %}
           {% if analyses_success %}
            {# Show all analyses for which we have results #}
            {{ plot_div | safe }}
           {% endif %}
         </div>
-        {% if analyses_failure %}
-        <div class="tab-pane fade" id="failures-{{ idx }}" role="tabpanel" aria-labelledby="failures-tab">
-          {% for af in analyses_failure %}
-            <div class="alert alert-warning">
-              <p>Analysis failed for topography
-                 <a href="{% url 'manager:topography-detail' af.topography.id %}">{{ af.topography.name }}</a>.
-                Traceback:</p>
-              <pre>{{ af.result_obj.error }}</pre>
-            </div>
-          {% endfor %}
-        </div>
-        {% endif %}
+        {% include 'analysis/analyses_failure_tab_pane.html' %}
       </div>
     </div>
 </div>
 
-<div class="modal fade" id="statusesModal-{{ idx }}" tabindex="-1" role="dialog"
-     aria-labelledby="statusesModalLabel"
-     aria-hidden="true">
-  <div class="modal-dialog modal-lg" role="document">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="statusesModalLabel">Tasks</h5>
-        <button class="close" type="button" data-dismiss="modal" aria-label="Close">
-          <span aria-hidden="true">×</span>
-        </button>
-      </div>
-      <div class="modal-body">
-        {% if analyses_available %}
-        <small>
-          <table class="table table-hover">
-            <thead>
-            <tr>
-              <th scope="col">Function</th>
-              <th scope="col">Topography</th>
-              <th scope="col">Further Args</th>
-              <th scope="col">Task State</th>
-              <th scope="col">Start Time</th>
-              <th scope="col">Duration</th>
-            </tr>
-            </thead>
-            <tbody>
-            {% for analysis in analyses_available %}
-              <tr>
-                <td>{{ analysis.function.name }}</td>
-                <td>
-                  <a
-                    href="{% url 'manager:topography-detail' analysis.topography_id %}">{{ analysis.topography.name }}</a>
-                </td>
-                <td>{{ analysis.get_kwargs_display }}</td>
-                <td>{{ analysis.get_task_state_display }}</td>
-                <td>{{ analysis.start_time|date:"Y-m-d H:i:s" }}</td>
-                <td>{{ analysis.duration|default_if_none:"" }}</td>
-              </tr>
-            {% endfor %}
-            </tbody>
-
-          </table>
-        </small>
-        {% else %}
-          <div class="alert alert-info">
-          No analysis triggered for this function and these topographies.
-          </div>
-        {% endif %}
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" type="button" data-dismiss="modal">Close</button>
-      </div>
-    </div>
-  </div>
-</div>
+{% include 'analysis/task_info_modal.html' %}
 
 {% if analyses_success %}
   {# Insert the script code needed for the plot #}
   {{ plot_script | safe }}
 {% endif %}
-
-{# Additonal code for initialization #}
-<script>
-
-  // Apply given colors to labels
-  function style_checkbox_labels(card_idx) {
-    var topography_colors = {{ topography_colors|safe }};
-    var card_selector='#card-'+card_idx;
-    var topography_checkbox_labels = $(card_selector+" .topobank-topography-checkbox label");
-    // console.log(card_idx, card_selector,topography_checkbox_labels);
-    topography_checkbox_labels.each(function (idx) {
-         // console.log("CSS "+idx);
-         $(this).css('background-color', topography_colors[idx]);
-    });
-  }
-  // $('.bk-widget-box:first label').each(function(idx){$(this).css('background-color', topography_colors[idx]);})
-</script>
