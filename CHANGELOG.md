@@ -2,6 +2,7 @@
 
 ## 0.5.0
 
+- fixes wrong task information for cards in analyses view (#209)
 
 ## 0.4.0
 
