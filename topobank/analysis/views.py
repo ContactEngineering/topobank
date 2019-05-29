@@ -11,6 +11,7 @@ from django.urls import reverse_lazy
 from django.contrib import messages
 from django.db.models import Q
 from django.conf import settings
+from django import template
 from rest_framework.generics import RetrieveAPIView
 
 from bokeh.layouts import row, column, widgetbox
@@ -42,14 +43,14 @@ _log = logging.getLogger(__name__)
 SMALLEST_ABSOLUT_NUMBER_IN_LOGPLOTS = 1e-18
 MAX_NUM_POINTS_FOR_SYMBOLS = 50
 
-CARD_VIEW_FLAVORS = ['simple', 'plot']
+CARD_VIEW_FLAVORS = ['simple', 'plot', 'power spectrum']
 
 def card_view_class(card_view_flavor):
     if card_view_flavor not in CARD_VIEW_FLAVORS:
         raise ValueError("Unknown card view flavor '{}'. Known values are: {}".format(card_view_flavor,
                                                                                        CARD_VIEW_FLAVORS))
 
-    class_name = card_view_flavor.capitalize() + "CardView"
+    class_name = card_view_flavor.title().replace(' ','') + "CardView"
     return globals()[class_name]
 
 def switch_card_view(request):
@@ -88,6 +89,11 @@ class SimpleCardView(TemplateView):
     Must be used in an AJAX call.
     """
 
+    @staticmethod
+    def _template_name(class_name, template_flavor):
+        template_name_prefix = class_name.replace('View', '').replace('Card', '_card').lower()
+        return f"analysis/{template_name_prefix}_{template_flavor}.html"
+
     def get_template_names(self):
         """Return list of possible templates.
 
@@ -101,9 +107,17 @@ class SimpleCardView(TemplateView):
         if template_flavor is None:
             raise ValueError("Missing 'template_flavor' in GET arguments.")
 
-        template_name_prefix = self.__class__.__name__.replace('View', '').replace('Card', '_card').lower()
+        template_name = self._template_name(self.__class__.__name__, template_flavor)
 
-        template_name = f"analysis/{template_name_prefix}_{template_flavor}.html"
+        #
+        # If template does not exist, return template from parent class
+        #
+        # MAYBE later: go down the hierachy and take first template found
+        try:
+            template.loader.get_template(template_name)
+        except template.TemplateDoesNotExist:
+            base_class = self.__class__.__bases__[0]
+            template_name = self._template_name(base_class.__name__, template_flavor)
 
         return [template_name]
 
@@ -462,6 +476,10 @@ class PlotCardView(SimpleCardView):
             series_dashes=json.dumps(list(series_dashes.values()))))
 
         return context
+
+class PowerSpectrumCardView(PlotCardView):
+    pass
+
 
 class AnalysisFunctionDetailView(DetailView):
 
