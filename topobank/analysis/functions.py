@@ -420,9 +420,6 @@ def power_spectrum(topography, window='hann', tip_radius=None):
         yunit='{}³'.format(unit),
         xscale='log',
         yscale='log',
-        scalars={
-            'Tip radius': tip_radius,
-        },
         series=[
             dict(name='1D PSD along x',
                  x=q_1D[1:],
