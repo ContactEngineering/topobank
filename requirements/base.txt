@@ -38,8 +38,8 @@ django-guardian>=1.5.0<1.6.0
 
 # Celery
 # django-celery-results==1.0.1
-django-kombu>=0.9.4
-celery>=4.2,<5.0
+django-kombu>=0.9.4 # is this still needed? See https://pypi.org/project/django-kombu/
+celery>=4.3,<5.0
 # pylibmc is also used for memcached in production
 pylibmc>=1.6.0
 # librabbitmq>=2.0
@@ -47,7 +47,7 @@ pylibmc>=1.6.0
 celery-flower>=1.0.1<2
 # The follwing is needed, otherwise Tornado 6.0 breaks celery
 # See https://github.com/mher/flower/issues/878
-tornado>=4.2.0,<6.0.0
+tornado>=4.2.0,<6.0.0 # maybe possible to upgrade this now, TODO CHECK
 
 #
 # Contact Mechanics
