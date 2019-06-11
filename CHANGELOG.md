@@ -4,6 +4,7 @@
 
 - fixes wrong task information for cards in analyses view (#209)
 - empty surfaces can now be selected and edited (#214)
+- fixes for image plots of topographies (#76, #213)
 - version upgrades: celery, bokeh, caddy, gunicorn
 
 ## 0.4.0
