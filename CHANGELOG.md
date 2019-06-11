@@ -3,6 +3,7 @@
 ## 0.5.0
 
 - fixes wrong task information for cards in analyses view (#209)
+- empty surfaces can now be selected and edited (#214)
 - version upgrades: celery, bokeh, caddy, gunicorn
 
 ## 0.4.0
