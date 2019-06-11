@@ -24,7 +24,7 @@ from django_tables2 import RequestConfig
 
 from bokeh.plotting import figure
 from bokeh.embed import components
-from bokeh.models import DataRange1d, Range1d, LinearColorMapper, ColorBar, Row
+from bokeh.models import DataRange1d, LinearColorMapper, ColorBar
 
 import json
 import os.path
@@ -386,18 +386,22 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
             ("height", "@image " + topo.unit),
         ]
 
-        colorbar_width = 40
+        colorbar_width = 50
 
         aspect_ratio = topo_size[0] / topo_size[1]
-        plot_height = 500
-        plot_width = int(plot_height * aspect_ratio)
+        frame_height = 500
+        frame_width = int(frame_height * aspect_ratio)
 
-        # from bokeh.models.tools import BoxZoomTool, WheelZoomTool, ZoomInTool, ZoomOutTool, PanTool
+        if frame_width > 1200: # rule of thumb, scale down if too wide
+            frame_width = 1200
+            frame_height = int(frame_width/aspect_ratio)
+
         plot = figure(x_range=x_range,
                       y_range=y_range,
-                      plot_height=plot_height,
-                      plot_width=plot_width,
+                      frame_width=frame_width,
+                      frame_height=frame_height,
                       # sizing_mode='scale_both',
+                      #aspect_ratio=aspect_ratio,
                       match_aspect=True,
                       x_axis_label=f'x ({topo.unit})',
                       y_axis_label=f'y ({topo.unit})',
@@ -412,20 +416,15 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
 
         plot.toolbar.logo = None
 
-        colorbar_plot = figure(plot_height = plot_height, plot_width = colorbar_width+70,
-                               x_axis_location = None, y_axis_location = None, title = None,
-                               tools = '', toolbar_location = None)
-
         colorbar = ColorBar(color_mapper=color_mapper,
-                            label_standoff=12, location=(0, 0),
-                            width=colorbar_width)
-        colorbar.title = f"height ({topo.unit})"
+                            label_standoff=12,
+                            location=(0, 0),
+                            width=colorbar_width,
+                            title=f"height ({topo.unit})")
 
-        colorbar_plot.add_layout(colorbar,'left')
+        plot.add_layout(colorbar, 'right')
 
-        #plot.add_layout(colorbar, 'right')
-
-        return Row(plot, colorbar_plot)
+        return plot
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
