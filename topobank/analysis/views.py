@@ -31,7 +31,7 @@ from guardian.shortcuts import get_objects_for_user
 import PyCo
 
 from ..manager.models import Topography, Surface
-from ..manager.utils import selected_topographies, selection_from_session
+from ..manager.utils import selected_instances, selection_from_session
 from .models import Analysis, AnalysisFunction
 from .serializers import AnalysisSerializer
 from .forms import TopographyFunctionSelectForm
@@ -525,7 +525,7 @@ class AnalysisFunctionDetailView(DetailView):
 
         function = self.object
 
-        topographies = selected_topographies(self.request)
+        topographies, surfaces = selected_instances(self.request)
 
         card = dict(function=function,
                     topography_ids_json=json.dumps([ t.id for t in topographies]))
@@ -586,7 +586,7 @@ class AnalysesListView(FormView):
 
         for function in self._selected_functions(self.request):
 
-            topographies = selected_topographies(self.request)
+            topographies, *rest = selected_instances(self.request)
 
             cards.append(dict(function=function,
                               topography_ids_json=json.dumps([ t.id for t in topographies])))

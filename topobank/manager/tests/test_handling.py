@@ -8,9 +8,47 @@ import os.path
 
 from ..tests.utils import two_topos, one_line_scan, SurfaceFactory, TopographyFactory, UserFactory
 from ..models import Topography, Surface
+from ..utils import selected_instances
 
 from topobank.utils import assert_in_content, assert_not_in_content,\
     assert_redirects, assert_no_form_errors
+
+
+#######################################################################
+# Selections
+#######################################################################
+
+@pytest.mark.django_db
+def test_empty_surface_selection(client, django_user_model):
+
+    username = 'testuser'
+    password = 'abcd$1234'
+    #
+    # database objects
+    #
+    user = django_user_model.objects.create_user(username=username, password=password)
+    surface = SurfaceFactory(creator=user)
+    assert surface.topography_set.count() == 0
+
+    #
+    #
+    #
+    assert client.login(username=username, password=password)
+
+    response = client.post(reverse('manager:surface-list'),
+                { 'selection': ['surface-{}'.format(surface.id) ]},
+                follow=True)
+
+    # now the context should contain the empty surface
+    assert surface in response.context['surfaces']
+
+    # we cannot test the card here, because it is inserted by javascript
+    #response = client.get(reverse('manager:surface-list'))
+    #assert_in_content(response, "Open")
+    #assert_in_content(response, "Add Topography")
+
+
+
 
 
 #######################################################################
@@ -703,6 +741,8 @@ def test_create_surface(client, django_user_model):
     assert description.encode() in response.content
     assert name.encode() in response.content
     assert b"Experimental data" in response.content
+
+    assert 1 == Surface.objects.count()
 
 @pytest.mark.django_db
 def test_edit_surface(client, django_user_model):

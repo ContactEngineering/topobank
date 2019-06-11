@@ -230,18 +230,27 @@ def selection_for_select_all(user):
     """
     return ['surface-{}'.format(s.id) for s in surfaces_for_user(user)]
 
-def selection_to_topographies(selection, surface=None):
-    """Returns queryset of selected topographies as saved in session.
+def selection_to_instances(selection, surface=None):
+    """Returns a dict with querysets of selected topographies and surfaces as saved in session.
 
     If surface is given, return only topographies for this
     Surface model object.
 
     :param selection: selection list as saved in session
     :param surface: optionally a surface to filter topographies in selection
+    :return: tuple (topographies, surfaces)
+
+    The tuple has two elements:
+
+     'topographies': all topographies in the selection (if 'surface' is given, filtered by this surface)
+     'surfaces': all surfaces explicitly found in the selection (not only because its topography was selected)
+
+    Also surfaces without topographies are returned in 'surfaces' if selected.
     """
-    from .models import Topography
+    from .models import Topography, Surface
 
     topography_ids = set()
+    surface_ids = set()
 
     for type_id in selection:
         type, id = type_id.split('-')
@@ -249,6 +258,7 @@ def selection_to_topographies(selection, surface=None):
         if type == 'topography':
             topography_ids.add(id)
         elif type == 'surface':
+            surface_ids.add(id)
             if (surface is not None) and (surface.id != id):
                 continue # skip this surface, it is not relevant
 
@@ -262,22 +272,34 @@ def selection_to_topographies(selection, surface=None):
         filter_args['surface'] = surface
     topographies = Topography.objects.filter(**filter_args)
 
-    return topographies
+    surfaces = Surface.objects.filter(id__in=surface_ids)
 
-def selected_topographies(request, surface=None):
-    """Return list of topography instances which are currently selected.
+    return (topographies, surfaces)
+
+def selected_instances(request, surface=None):
+    """Return a dict with topography and surface instances which are currently selected.
 
     :request: HTTP request
     :surface: if given, return only topographies of this Surface instance
+    :return: tuple (topographies, surfaces)
+
+    The tuple has two elements:
+
+     'topographies': all topographies in the selection (if 'surface' is given, filtered by this surface)
+     'surfaces': all surfaces explicitly found in the selection (not only because its topography was selected)
+
+    Also surfaces without topographies are returned in 'surfaces' if selected.
     """
     selection = selection_from_session(request.session)
-    topographies = selection_to_topographies(selection, surface=surface)
+    topographies, surfaces = selection_to_instances(selection, surface=surface)
 
     # make sure that only topographies with read permission can be effectively selected
     topographies = [t for t in topographies
                     if request.user.has_perm('view_surface', t.surface)]
+    surfaces = [s for s in surfaces
+                if request.user.has_perm('view_surface', s)]
 
-    return topographies
+    return topographies, surfaces
 
 def bandwidths_data(topographies):
     """Return bandwidths data as needed in surface summary plots.

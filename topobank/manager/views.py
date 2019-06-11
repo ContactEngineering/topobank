@@ -34,7 +34,7 @@ from .models import Topography, Surface
 from .forms import TopographyForm, SurfaceForm, TopographySelectForm, SurfaceShareForm
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, Topography1DUnitsForm, Topography2DUnitsForm
 from .utils import optimal_unit, get_topography_file,\
-    selected_topographies, selection_from_session, selection_for_select_all, \
+    selected_instances, selection_from_session, selection_for_select_all, \
     bandwidths_data, surfaces_for_user
 from topobank.users.models import User
 
@@ -482,12 +482,13 @@ class SurfaceListView(FormMixin, ListView):
     success_url = reverse_lazy('manager:surface-list') # stay on same view
 
     def get_queryset(self):
-        # surfaces = surfaces_for_user(self.request.user) # returns surfaces the user has access to
         #
-        # filter out surfaces, for which no topography was selected
+        # Filter out non-empty surfaces, for which no topography was selected.
+        # Non-empty because we need to show empty surfaces in order to interact with them.
         #
-        topographies = selected_topographies(self.request)
+        topographies, surfaces = selected_instances(self.request)
         surface_ids = set(t.surface.id for t in topographies)
+        surface_ids.update(s.id for s in surfaces)
         return Surface.objects.filter(id__in=surface_ids)
 
     def get_initial(self):
@@ -534,7 +535,7 @@ class SurfaceListView(FormMixin, ListView):
 
             auto_analysis_funcs = AnalysisFunction.objects.filter(automatic=True)
 
-            topographies = selected_topographies(self.request)
+            topographies, surfaces = selected_instances(self.request)
             for topo in topographies:
                 for af in auto_analysis_funcs:
                     submit_analysis(af, topo)
