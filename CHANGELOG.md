@@ -1,10 +1,12 @@
 # Changelog for *TopoBank*
 
-## 0.5.0
+## 0.4.1
 
+- allow case-insensitive search for user names (#192)
 - fixes wrong task information for cards in analyses view (#209)
 - empty surfaces can now be selected and edited (#214)
 - fixes for image plots of topographies (#76, #213)
+- workaround for crash when uploading large file (#212)
 - version upgrades: celery, bokeh, caddy, gunicorn
 
 ## 0.4.0
