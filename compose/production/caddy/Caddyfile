@@ -8,6 +8,7 @@ topobank.{$DOMAIN_NAME} {
         header_upstream X-Real-IP {remote}
         header_upstream X-Forwarded-Proto {scheme}
         except /media
+        timeout 300s
     }
     log stdout
     errors stdout
