@@ -1,0 +1,20 @@
+{% load fontawesome %}
+{% for af in analyses_failure %}
+<div class="alert alert-warning">
+    {% fontawesome_icon 'exclamation-circle' %}
+    Analysis for topography <em>{{ au.topography.name }}</em> failed.
+    See tab "Failures" for details.
+  </div>
+{% endfor %}
+{% for au in analyses_unready %}
+  <div class="alert alert-info">
+    <div class="spinner"></div>
+    Analysis for topography <em>{{ au.topography.name }}</em> not avaliable yet. Please wait..
+  </div>
+{% endfor %}
+{% for mt in topographies_missing %}
+  <div class="alert alert-warning">
+    Analysis for topography <em>{{ mt.name }}</em> not triggered yet. Please trigger if needed.
+    {# TODO Provide link to trigger analysis #}
+  </div>
+{% endfor %}

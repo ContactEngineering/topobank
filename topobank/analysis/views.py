@@ -5,12 +5,13 @@ import numpy as np
 import itertools
 from collections import OrderedDict
 
-from django.http import HttpResponse, HttpResponseForbidden, Http404
+from django.http import HttpResponse, HttpResponseForbidden, Http404, JsonResponse
 from django.views.generic import DetailView, FormView, TemplateView
 from django.urls import reverse_lazy
 from django.contrib import messages
 from django.db.models import Q
 from django.conf import settings
+from django import template
 from rest_framework.generics import RetrieveAPIView
 
 from bokeh.layouts import row, column, widgetbox
@@ -30,11 +31,12 @@ from guardian.shortcuts import get_objects_for_user
 import PyCo
 
 from ..manager.models import Topography, Surface
-from ..manager.utils import selected_topographies, selection_from_session
+from ..manager.utils import selected_instances, selection_from_session
 from .models import Analysis, AnalysisFunction
 from .serializers import AnalysisSerializer
 from .forms import TopographyFunctionSelectForm
 from .utils import get_latest_analyses
+from topobank.taskapp.tasks import submit_analysis
 
 import logging
 _log = logging.getLogger(__name__)
@@ -42,14 +44,14 @@ _log = logging.getLogger(__name__)
 SMALLEST_ABSOLUT_NUMBER_IN_LOGPLOTS = 1e-18
 MAX_NUM_POINTS_FOR_SYMBOLS = 50
 
-CARD_VIEW_FLAVORS = ['simple', 'plot']
+CARD_VIEW_FLAVORS = ['simple', 'plot', 'power spectrum']
 
 def card_view_class(card_view_flavor):
     if card_view_flavor not in CARD_VIEW_FLAVORS:
         raise ValueError("Unknown card view flavor '{}'. Known values are: {}".format(card_view_flavor,
                                                                                        CARD_VIEW_FLAVORS))
 
-    class_name = card_view_flavor.capitalize() + "CardView"
+    class_name = card_view_flavor.title().replace(' ','') + "CardView"
     return globals()[class_name]
 
 def switch_card_view(request):
@@ -88,6 +90,11 @@ class SimpleCardView(TemplateView):
     Must be used in an AJAX call.
     """
 
+    @staticmethod
+    def _template_name(class_name, template_flavor):
+        template_name_prefix = class_name.replace('View', '').replace('Card', '_card').lower()
+        return f"analysis/{template_name_prefix}_{template_flavor}.html"
+
     def get_template_names(self):
         """Return list of possible templates.
 
@@ -101,9 +108,17 @@ class SimpleCardView(TemplateView):
         if template_flavor is None:
             raise ValueError("Missing 'template_flavor' in GET arguments.")
 
-        template_name_prefix = self.__class__.__name__.replace('View', '').replace('Card', '_card').lower()
+        template_name = self._template_name(self.__class__.__name__, template_flavor)
 
-        template_name = f"analysis/{template_name_prefix}_{template_flavor}.html"
+        #
+        # If template does not exist, return template from parent class
+        #
+        # MAYBE later: go down the hierachy and take first template found
+        try:
+            template.loader.get_template(template_name)
+        except template.TemplateDoesNotExist:
+            base_class = self.__class__.__bases__[0]
+            template_name = self._template_name(base_class.__name__, template_flavor)
 
         return [template_name]
 
@@ -123,6 +138,7 @@ class SimpleCardView(TemplateView):
           analyses_failure: queryset of analyses finished with failures (result has traceback, can't be displayed)
           analyses_unready: queryset of analyses which are still running
           topographies_missing: list of topographies for which there is no Analysis object yet
+          topography_ids_requested_json: json representation of list with all requested topography ids
         """
         context = super().get_context_data(**kwargs)
 
@@ -177,7 +193,8 @@ class SimpleCardView(TemplateView):
             analyses_success=analyses_success,  # ..the ones which were successful and can be displayed
             analyses_failure=analyses_failure,  # ..the ones which have failures and can't be displayed
             analyses_unready=analyses_unready,  # ..the ones which are still running
-            topographies_missing=topographies_missing  # topographies for which there is no Analysis object yet
+            topographies_missing=topographies_missing , # topographies for which there is no Analysis object yet
+            topography_ids_requested_json=json.dumps(topography_ids), # can be used to retrigger analyses
         ))
 
         return context
@@ -463,6 +480,41 @@ class PlotCardView(SimpleCardView):
 
         return context
 
+class PowerSpectrumCardView(PlotCardView):
+    pass
+
+
+def submit_analyses_view(request):
+    """Submits analyses.
+    :param request:
+    :return: HTTPResponse
+    """
+    if not request.is_ajax():
+        return Http404
+
+    request_method = request.POST # TODO POST because this view changes sth.
+
+    # args_dict = request_method
+    try:
+        function_id = int(request_method.get('function_id'))
+        topography_ids = [int(tid) for tid in request_method.getlist('topography_ids[]')]
+        function_kwargs_json = request_method.get('function_kwargs_json')
+        # function_window = request_method.get('function_kwargs[window]')
+    except (KeyError, ValueError, TypeError):
+        return JsonResponse({'error': 'error in request data'}, status=400)
+
+    #
+    # Interpret given arguments
+    #
+    function = AnalysisFunction.objects.get(id=function_id)
+    topographies = Topography.objects.filter(id__in=topography_ids)
+    function_kwargs = json.loads(function_kwargs_json)
+
+    for topo in topographies:
+        submit_analysis(function, topo, **function_kwargs)
+
+    return JsonResponse({}, status=200) # what to return here? 200 means: successfully triggered calculations
+
 class AnalysisFunctionDetailView(DetailView):
 
     model = AnalysisFunction
@@ -473,7 +525,7 @@ class AnalysisFunctionDetailView(DetailView):
 
         function = self.object
 
-        topographies = selected_topographies(self.request)
+        topographies, surfaces = selected_instances(self.request)
 
         card = dict(function=function,
                     topography_ids_json=json.dumps([ t.id for t in topographies]))
@@ -534,7 +586,7 @@ class AnalysesListView(FormView):
 
         for function in self._selected_functions(self.request):
 
-            topographies = selected_topographies(self.request)
+            topographies, *rest = selected_instances(self.request)
 
             cards.append(dict(function=function,
                               topography_ids_json=json.dumps([ t.id for t in topographies])))

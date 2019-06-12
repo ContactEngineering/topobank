@@ -23,4 +23,4 @@ GUNICORN=/opt/conda/bin/gunicorn
 # This location would be used with python3.7-alpine as base image
 # GUNICORN=/usr/local/bin/gunicorn
 
-${GUNICORN} config.wsgi --bind 0.0.0.0:5000 --chdir=/app
+${GUNICORN} config.wsgi --bind 0.0.0.0:5000 --chdir=/app --worker-class eventlet --timeout 300

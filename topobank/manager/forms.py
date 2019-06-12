@@ -389,7 +389,7 @@ class MultipleUserSelectWidget(ModelSelect2MultipleWidget):
         #
         # Exclude anonymous user and requesting user
         #
-        return queryset.filter(name__contains=term)\
+        return queryset.filter(name__icontains=term)\
             .exclude(username='AnonymousUser')\
             .exclude(id=request.user.id)\
             .order_by('name')

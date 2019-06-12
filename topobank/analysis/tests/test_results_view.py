@@ -405,7 +405,7 @@ def test_analyis_download_as_txt(client, two_topos, ids_downloadable_analyses):
 
     arr = np.loadtxt(StringIO(filtered_txt))
 
-    assert arr == pytest.approx([
+    expected_arr = np.array([
         (0, 0),
         (1, 2),
         (2, 4),
@@ -427,6 +427,8 @@ def test_analyis_download_as_txt(client, two_topos, ids_downloadable_analyses):
         (5, 13),
         (6, 16),
     ])
+
+    assert arr == pytest.approx(expected_arr)
 
 @pytest.mark.django_db
 def test_analyis_download_as_xlsx(client, two_topos, ids_downloadable_analyses):

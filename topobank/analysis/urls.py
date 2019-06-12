@@ -26,6 +26,11 @@ urlpatterns = [
         name='function-detail'
     ),
     url(
+        regex=r'card/submit$',
+        view=login_required(views.submit_analyses_view),
+        name='card-submit'
+    ),
+    url(
         regex=r'card/$',
         view=login_required(views.switch_card_view),
         name='card'
