@@ -5,6 +5,8 @@ The first argument is always a PyCo Topography!
 """
 
 import numpy as np
+from inspect import signature
+from celery_progress.backend import ConsoleProgressRecorder
 
 from PyCo.Topography import Topography
 
@@ -126,8 +128,6 @@ def analysis_function(card_view_flavor="simple", name=None, automatic=False):
         :return: decorated function
         """
 
-        func.card_view_flavor = card_view_flavor # will be used when choosing the right view on request
-
         if name is None:
             name_ = func.__name__.replace('_', ' ').title()
         else:
@@ -139,6 +139,19 @@ def analysis_function(card_view_flavor="simple", name=None, automatic=False):
             pyfunc = func.__name__,
             automatic = automatic
         ))
+
+        # TODO: Can a default argument be automated without writing it?
+        # Add progress_recorder argument with default value, if not defined:
+        # sig = signature(func)
+        #if 'progress_recorder' not in sig.parameters:
+        #    func = lambda *args, **kw: func(*args, progress_recorder=ConsoleProgressRecorder(), **kw)
+        #    # the console progress recorder will work in tests and when calling the function
+        #    # outside of an celery context
+        #    #
+        #    # When used in a celery context, this argument will be overwritten with
+        #    # another recorder updated by a celery task
+
+        func.card_view_flavor = card_view_flavor  # will be used when choosing the right view on request
 
         return func
     return register_decorator
@@ -200,8 +213,17 @@ def test_function(topography):
     return { 'name': 'Test result for test function called for topography {}.'.format(topography)}
 test_function.card_view_flavor = 'simple'
 
+@analysis_function(card_view_flavor='simple', automatic=True)
+def long_running_task(topography, progress_recorder=None):
+    import time
+    n = 10
+    for i in range(n):
+        time.sleep(1)
+        progress_recorder.set_progress(i+1, n)
+    return dict(message="done")
+
 @analysis_function(card_view_flavor='plot', automatic=True)
-def height_distribution(topography, bins=None, wfac=5):
+def height_distribution(topography, bins=None, wfac=5, progress_recorder=None):
     if bins is None:
         bins = _reasonable_bins_argument(topography)
 
@@ -293,7 +315,7 @@ def _moments_histogram_gaussian(arr, bins, wfac, quantity, label, gaussian=True)
 
 
 @analysis_function(card_view_flavor='plot', automatic=True)
-def slope_distribution(topography, bins=None, wfac=5):
+def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None):
 
     if bins is None:
         bins = _reasonable_bins_argument(topography)
@@ -355,7 +377,7 @@ def slope_distribution(topography, bins=None, wfac=5):
     return result
 
 @analysis_function(card_view_flavor='plot', automatic=True)
-def curvature_distribution(topography, bins=None, wfac=5):
+def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None):
     if bins is None:
         bins = _reasonable_bins_argument(topography)
 
@@ -401,7 +423,7 @@ def curvature_distribution(topography, bins=None, wfac=5):
     )
 
 @analysis_function(card_view_flavor='plot', automatic=True)
-def power_spectrum(topography, window='hann', tip_radius=None):
+def power_spectrum(topography, window='hann', tip_radius=None, progress_recorder=None):
     if window == 'None':
         window = None
 
@@ -458,7 +480,7 @@ def power_spectrum(topography, window='hann', tip_radius=None):
     return result
 
 @analysis_function(card_view_flavor='plot', automatic=True)
-def autocorrelation(topography):
+def autocorrelation(topography, progress_recorder=None):
 
     if topography.dim == 2:
         sx, sy = topography.size
@@ -525,7 +547,7 @@ def autocorrelation(topography):
 
 
 @analysis_function(card_view_flavor='plot', automatic=True)
-def variable_bandwidth(topography):
+def variable_bandwidth(topography, progress_recorder=None):
 
     magnifications, bandwidths, rms_heights = topography.variable_bandwidth()
 

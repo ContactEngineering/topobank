@@ -49,6 +49,9 @@ celery-flower>=1.0.1<2
 # See https://github.com/mher/flower/issues/878
 tornado>=4.2.0,<6.0.0 # maybe possible to upgrade this now, TODO CHECK
 
+# progress bars for celery tasks, served by Django
+celery-progress>=0.0.3,<0.1
+
 #
 # Contact Mechanics
 #
