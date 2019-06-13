@@ -1,5 +1,10 @@
 # Changelog for *TopoBank*
 
+
+## 0.4.2
+
+- added missing template fragment which caused crashes in analyses view (#216)
+
 ## 0.4.1
 
 - allow case-insensitive search for user names (#192)
