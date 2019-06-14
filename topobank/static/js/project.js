@@ -196,8 +196,9 @@ function format_exponential(d, maxNumberOfDecimalPlaces) {
  * @param template_flavor {String} defines which template should be finally used (e.g. 'list', 'detail')
  * @param function_id {Number} Integer number of the analysis function which should be displayed
  * @param topography_ids {Object} list of integer numbers with ids of topographies which should be displayed
+ * @param first_call {Boolean} true if this is the first call in a chain of ajax calls
  */
-function submit_analyses_card_ajax(card_url, card_element_id, template_flavor, function_id, topography_ids) {
+function submit_analyses_card_ajax(card_url, card_element_id, template_flavor, function_id, topography_ids, first_call) {
 
       var jquery_card_selector = "#"+card_element_id;
 
@@ -213,13 +214,17 @@ function submit_analyses_card_ajax(card_url, card_element_id, template_flavor, f
         },
         success : function(data, textStatus, xhr) {
           // console.log("Received response for card '"+card_element_id+"'. Status: "+xhr.status)
-          $(jquery_card_selector).html(data); // insert resulting HTML code
+          if (first_call) {
+            $(jquery_card_selector).html(data); // insert resulting HTML code
+          }
           if (xhr.status==202) {
             // Data is not ready, retrigger AJAX call
             console.log("Analyses for card with element id '"+card_element_id+"' not ready. Retrying..");
             setTimeout(function () {
-              submit_analyses_card_ajax(card_url, card_element_id, template_flavor, function_id, topography_ids);
+              submit_analyses_card_ajax(card_url, card_element_id, template_flavor, function_id, topography_ids, false);
             }, 1000); // TODO limit number of retries?
+          } else {
+            $(jquery_card_selector).html(data); // insert resulting HTML code
           }
         },
         error: function(xhr, textStatus, errorThrown) {

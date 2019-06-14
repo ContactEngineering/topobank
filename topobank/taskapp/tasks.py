@@ -59,10 +59,7 @@ class AnalysisProgressRecorder(ProgressRecorder):
         self._extra_steps = extra_steps
 
     def _super_set_progress(self, current, total):
-        if self.task == perform_analysis: # just in case this is not called with a real task
-            print('processed {} items of {}'.format(current, total))
-        else:
-            super().set_progress(current, total + self._extra_steps)
+        super().set_progress(current, total + self._extra_steps)
         #try:
         #    super().set_progress(current, total + self._extra_steps)
         #except Exception:
@@ -73,7 +70,7 @@ class AnalysisProgressRecorder(ProgressRecorder):
         return self._super_set_progress(current, total)
 
     def set_progress_to_complete(self):
-        return self._super_set_progress(1,1)
+        return self._super_set_progress(1+self._extra_steps,1) # for having 100 %
 
 @app.task(bind=True, ignore_result=True)
 def perform_analysis(self, analysis_id):
@@ -116,7 +113,8 @@ def perform_analysis(self, analysis_id):
     try:
         kwargs = pickle.loads(analysis.kwargs)
         topography = Topography.objects.get(id=analysis.topography_id).topography()
-        result = analysis.function.eval(progress_recorder, topography, **kwargs)
+        kwargs['progress_recorder'] = progress_recorder
+        result = analysis.function.eval(topography, **kwargs)
         analysis.task_state = Analysis.SUCCESS
     except Exception as exc:
         analysis.task_state = Analysis.FAILURE
@@ -129,5 +127,6 @@ def perform_analysis(self, analysis_id):
     analysis.end_time = timezone.now() # with timezone
     analysis.save()
 
-    progress_recorder.set_progress_to_complete()
+    if 'error' not in result:
+        progress_recorder.set_progress_to_complete()
 

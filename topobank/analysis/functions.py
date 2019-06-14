@@ -215,12 +215,15 @@ test_function.card_view_flavor = 'simple'
 
 @analysis_function(card_view_flavor='simple', automatic=True)
 def long_running_task(topography, progress_recorder=None):
-    import time
-    n = 10
+    import time, random
+    n = 20 + random.randint(1,10)
+    F = 60
     for i in range(n):
         time.sleep(1)
+        if random.randint(1, F) == 1:
+            raise ValueError("This error is intended and happens with probability 1/{}.".format(F))
         progress_recorder.set_progress(i+1, n)
-    return dict(message="done")
+    return dict(message="done", size=topography.size, n=n)
 
 @analysis_function(card_view_flavor='plot', automatic=True)
 def height_distribution(topography, bins=None, wfac=5, progress_recorder=None):

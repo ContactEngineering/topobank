@@ -25,17 +25,17 @@
       {% block card_body %}
       <ul class="nav nav-tabs">
         <li class="nav-item" style="list-style-type: none;">
-          <a class="nav-link active" data-toggle="tab" href="#raw-{{ card_id }}">Raw Results</a>
+          <a class="nav-link active" data-toggle="tab" href="#raw-tab-{{ card_id }}">Raw Results</a>
         </li>
         {% if analyses_failure %}
         <li class="nav-item" style="list-style-type: none;">
-          <a class="nav-link" data-toggle="tab" href="#failures-{{ card_id }}">Failures</a>
+          <a class="nav-link" data-toggle="tab" href="#failures-tab-{{ card_id }}">Failures</a>
         </li>
         {% endif %}
       </ul>
 
       <div class="tab-content">
-        <div class="tab-pane fade show active" id="plot-{{ card_id }}" role="tabpanel" aria-labelledby="card-tab">
+        <div class="tab-pane fade show active" id="raw-tab-{{ card_id }}" role="tabpanel" aria-labelledby="card-tab">
           {% include 'analysis/analyses_alerts.html' %}
           {% if analyses_success %}
            {# Show all analyses for which we have results #}
@@ -59,7 +59,9 @@
       </div>
       {% endblock card_body %}
     </div>
-    {% block card_javascript %}{% endblock card_javascript %}
+    {% block card_javascript %}
+
+    {% endblock card_javascript %}
 </div>
 
 {% include 'analysis/task_info_modal.html' %}

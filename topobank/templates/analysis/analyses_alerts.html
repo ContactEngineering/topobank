@@ -7,10 +7,32 @@
   </div>
 {% endfor %}
 {% for au in analyses_unready %}
+  <!--
   <div class="alert alert-info">
     <div class="spinner"></div>
     Analysis for topography <em>{{ au.topography.name }}</em> not avaliable yet. Please wait..
   </div>
+  -->
+  <div class='progress-wrapper'>
+    <div id='progress-bar-{{ au.task_id }}' class='progress-bar' style="background-color: #68a9ef; width: 0%;">&nbsp;</div>
+  </div>
+  <div id="progress-bar-message-{{ au.task_id }}">Waiting for progress to start...</div>
+  <script>
+    var progressUrl = "{% url 'celery_progress:task_status' au.task_id %}";
+    $(function () { // Problem: this is started several times, because card is replaced
+      var options = {
+        'pollInterval': 1000,
+        'progressBarId': 'progress-bar-{{ au.task_id }}',
+        'progressBarMessageId': 'progress-bar-message-{{ au.task_id }}',
+        'onProgress': function(progressBarElement, progressBarMessageElement, progress) {
+          progressBarElement.style.backgroundColor = '#68a9ef';
+          progressBarElement.style.width = progress.percent + "%";
+          progressBarMessageElement.innerHTML = Math.ceil(progress.percent).toString() + ' %';
+        }
+      };
+      CeleryProgressBar.initProgressBar(progressUrl, options);
+    });
+  </script>
 {% endfor %}
 {% for mt in topographies_missing %}
   <div class="alert alert-warning">

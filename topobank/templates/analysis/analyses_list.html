@@ -2,6 +2,7 @@
 {% load fontawesome %}
 {% load crispy_forms_tags %}
 {% load analysis_tags %}
+{% load static %}
 
 {% block content-title %}
   Analysis Results
@@ -65,17 +66,18 @@
   <script src="https://cdn.pydata.org/bokeh/release/bokeh-widgets-1.2.0.min.js"></script>
   <script src="https://cdn.pydata.org/bokeh/release/bokeh-tables-1.2.0.min.js"></script>
 
+  <!-- for task progress bar -->
+  <script src="{% static 'celery_progress/celery_progress.js' %}"></script>
+
   <!-- Trigger fetching analysis results -->
   <script>
     // for each card submit ajax call to insert result card
-
-
-      $(document).ready(function () {
-        {% url 'analysis:card' as card_url %}
-        {% for card in cards %}
-        submit_analyses_card_ajax("{{ card_url }}", "card-{{ forloop.counter }}", "list", {{ card.function.id }}, {{ card.topography_ids_json|safe }});
-        {% endfor %}
-      });
+    $(document).ready(function () {
+      {% url 'analysis:card' as card_url %}
+      {% for card in cards %}
+        submit_analyses_card_ajax("{{ card_url }}", "card-{{ forloop.counter }}", "list", {{ card.function.id }}, {{ card.topography_ids_json|safe }}, true);
+      {% endfor %}
+    });
 
   </script>
 
