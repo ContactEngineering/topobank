@@ -1,5 +1,8 @@
 # Changelog for *TopoBank*
 
+## 0.5.0
+
+- added progress bars for analysis tasks (#202)
 
 ## 0.4.2
 
