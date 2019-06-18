@@ -5,6 +5,8 @@ The first argument is always a PyCo Topography!
 """
 
 import numpy as np
+from inspect import signature
+from celery_progress.backend import ConsoleProgressRecorder
 
 from PyCo.Topography import Topography
 
@@ -110,27 +112,47 @@ def register_all():
                                                   automatic=rf['automatic'])
     return len(_analysis_funcs)
 
-def analysis_function(name=None, automatic=False):
+def analysis_function(card_view_flavor="simple", name=None, automatic=False):
     """Decorator for marking a function as analysis function for a topography.
 
+    :param card_view_flavor: defines how results for this function are displayed, see views.CARD_VIEW_FLAVORS
     :param name: human-readable name, default is to create this from function name
     :param automatic: choose True, if you want to calculate this for every new topography
+
+    See views.py for possible view classes. The should be descendants of the class
+    "SimpleCardView".
     """
     def register_decorator(func):
         """
         :param func: function to be registered, first arg must be a Topography
         :return: decorated function
         """
+
         if name is None:
             name_ = func.__name__.replace('_', ' ').title()
         else:
             name_ = name
 
+        # the following data is used in "register_all" to create database objects for the function
         _analysis_funcs.append(dict(
             name = name_,
             pyfunc = func.__name__,
             automatic = automatic
         ))
+
+        # TODO: Can a default argument be automated without writing it?
+        # Add progress_recorder argument with default value, if not defined:
+        # sig = signature(func)
+        #if 'progress_recorder' not in sig.parameters:
+        #    func = lambda *args, **kw: func(*args, progress_recorder=ConsoleProgressRecorder(), **kw)
+        #    # the console progress recorder will work in tests and when calling the function
+        #    # outside of an celery context
+        #    #
+        #    # When used in a celery context, this argument will be overwritten with
+        #    # another recorder updated by a celery task
+
+        func.card_view_flavor = card_view_flavor  # will be used when choosing the right view on request
+
         return func
     return register_decorator
 
@@ -187,8 +209,27 @@ def _reasonable_bins_argument(topography):
         return int(np.sqrt(np.prod(len(topography.positions()))) + 1.0) # TODO discuss whether auto or this
         # return 'auto'
 
-@analysis_function(automatic=True)
-def height_distribution(topography, bins=None, wfac=5):
+def test_function(topography):
+    return { 'name': 'Test result for test function called for topography {}.'.format(topography)}
+test_function.card_view_flavor = 'simple'
+
+#
+# Use this during development if you need a long running task with failures
+#
+# @analysis_function(card_view_flavor='simple', automatic=True)
+# def long_running_task(topography, progress_recorder=None):
+#     import time, random
+#     n = 10 + random.randint(1,10)
+#     F = 30
+#     for i in range(n):
+#         time.sleep(0.5)
+#         if random.randint(1, F) == 1:
+#             raise ValueError("This error is intended and happens with probability 1/{}.".format(F))
+#         progress_recorder.set_progress(i+1, n)
+#     return dict(message="done", size=topography.size, n=n)
+
+@analysis_function(card_view_flavor='plot', automatic=True)
+def height_distribution(topography, bins=None, wfac=5, progress_recorder=None):
     if bins is None:
         bins = _reasonable_bins_argument(topography)
 
@@ -279,8 +320,8 @@ def _moments_histogram_gaussian(arr, bins, wfac, quantity, label, gaussian=True)
     return scalars, series
 
 
-@analysis_function(automatic=True)
-def slope_distribution(topography, bins=None, wfac=5):
+@analysis_function(card_view_flavor='plot', automatic=True)
+def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None):
 
     if bins is None:
         bins = _reasonable_bins_argument(topography)
@@ -341,8 +382,8 @@ def slope_distribution(topography, bins=None, wfac=5):
 
     return result
 
-@analysis_function(automatic=True)
-def curvature_distribution(topography, bins=None, wfac=5):
+@analysis_function(card_view_flavor='plot', automatic=True)
+def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None):
     if bins is None:
         bins = _reasonable_bins_argument(topography)
 
@@ -387,8 +428,8 @@ def curvature_distribution(topography, bins=None, wfac=5):
         ]
     )
 
-@analysis_function(automatic=True)
-def power_spectrum(topography, window='hann'):
+@analysis_function(card_view_flavor='plot', automatic=True)
+def power_spectrum(topography, window='hann', tip_radius=None, progress_recorder=None):
     if window == 'None':
         window = None
 
@@ -444,8 +485,8 @@ def power_spectrum(topography, window='hann'):
 
     return result
 
-@analysis_function(automatic=True)
-def autocorrelation(topography):
+@analysis_function(card_view_flavor='plot', automatic=True)
+def autocorrelation(topography, progress_recorder=None):
 
     if topography.dim == 2:
         sx, sy = topography.size
@@ -511,8 +552,8 @@ def autocorrelation(topography):
         series=series)
 
 
-@analysis_function(automatic=True)
-def variable_bandwidth(topography):
+@analysis_function(card_view_flavor='plot', automatic=True)
+def variable_bandwidth(topography, progress_recorder=None):
 
     magnifications, bandwidths, rms_heights = topography.variable_bandwidth()
 

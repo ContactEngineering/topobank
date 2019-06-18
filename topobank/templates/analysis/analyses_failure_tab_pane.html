@@ -1,0 +1,12 @@
+{% if analyses_failure %}
+  <div class="tab-pane fade" id="failures-tab-{{ card_id }}" role="tabpanel" aria-labelledby="failures-tab">
+    {% for af in analyses_failure %}
+      <div class="alert alert-warning">
+        <p>Analysis failed for topography
+           <a href="{% url 'manager:topography-detail' af.topography.id %}">{{ af.topography.name }}</a>.
+          Traceback:</p>
+        <pre>{{ af.result_obj.error }}</pre>
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}

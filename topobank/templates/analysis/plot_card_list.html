@@ -1,0 +1,64 @@
+{# Needs some keys in context. See AJAX view "PlotCardView" #}
+{% load analysis_tags %}
+{% load fontawesome %}
+
+<div class="card">
+    <div class="card-header">
+      {% if analyses_available %}
+      <div class="btn-group btn-group-sm pull-right dropdown">
+        <a href="{% url 'analysis:function-detail' function.pk %}" class="btn btn-default pull-right open-btn">
+                  {% fontawesome_icon 'folder-open-o' %} Open
+        </a>
+        <button type="button" class="btn btn-default" data-toggle="dropdown"
+                aria-haspopup="true" aria-expanded="false">
+          <i class="fa fa-chevron-down"></i>
+        </button>
+        <div class="dropdown-menu dropdown-menu-right">
+          {% if analyses_success %}
+          <a class="dropdown-item" href="{% url 'analysis:download-txt' analyses_success|analyses_results_ids_list_str %}">Download as TXT</a>
+          <a class="dropdown-item" href="{% url 'analysis:download-xlsx' analyses_success|analyses_results_ids_list_str %}">Download as XLSX</a>
+          {% endif %}
+          {% if not analyses_unready %}
+            <div class="dropdown-divider"></div>
+            <a class="dropdown-item" href="#" data-toggle="modal"
+               data-target="#statusesModal-{{ card_id }}">Task information</a>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+      <h4>{{ title }}</h4>
+    </div>
+    <div class="card-body">
+      <ul class="nav nav-tabs">
+        {% if analyses_failure %}
+        <li class="nav-item" style="list-style-type: none;">
+          <a class="nav-link active" data-toggle="tab" href="#plot-tab-{{ card_id }}">Plot</a>
+        </li>
+        <li class="nav-item" style="list-style-type: none;">
+          <a class="nav-link" data-toggle="tab" href="#failures-tab-{{ card_id }}">Failures</a>
+        </li>
+        {% endif %}
+      </ul>
+
+      <div class="tab-content">
+        <div class="tab-pane fade show active" id="plot-{{ card_id }}" role="tabpanel" aria-labelledby="card-tab">
+          {% include 'analysis/analyses_alerts.html' %}
+          {% if not analyses_unready and analyses_success %}
+           {# Show all analyses for which we have results #}
+           {{ plot_div | safe }}
+          {% endif %}
+        </div>
+        {% include 'analysis/analyses_failure_tab_pane.html' %}
+      </div>
+    </div>
+</div>
+
+{% include 'analysis/task_info_modal.html' %}
+
+
+{% block card_javascript %}
+  {% if analyses_success %}
+    {# Insert the script code needed for the plot #}
+    {{ plot_script | safe }}
+  {% endif %}
+{% endblock card_javascript %}

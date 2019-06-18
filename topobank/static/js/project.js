@@ -188,6 +188,138 @@ function format_exponential(d, maxNumberOfDecimalPlaces) {
         }
 }
 
+/**
+ * Submit an ajax call for updating an card in the analysis view.
+ *
+ * @param card_url {String} URL to call in order to get card content as HTTP response
+ * @param card_element_id {String} CSS id of the div element containing the card
+ * @param template_flavor {String} defines which template should be finally used (e.g. 'list', 'detail')
+ * @param function_id {Number} Integer number of the analysis function which should be displayed
+ * @param topography_ids {Object} list of integer numbers with ids of topographies which should be displayed
+ * @param first_call {Boolean} true if this is the first call in a chain of ajax calls
+ */
+function submit_analyses_card_ajax(card_url, card_element_id, template_flavor, function_id, topography_ids, first_call) {
+
+      var jquery_card_selector = "#"+card_element_id;
+
+      $.ajax({
+        type: "GET",
+        url: card_url,
+        timeout: 0,
+        data: {
+           card_id: card_element_id,
+           template_flavor: template_flavor,
+           function_id: function_id,
+           topography_ids: topography_ids
+        },
+        success : function(data, textStatus, xhr) {
+
+          if (first_call || (xhr.status==200) ) {
+            $(jquery_card_selector).html(data); // insert resulting HTML code
+            // We want to only insert cards on first and last call and
+            // only once if there is only one call.
+          }
+          if (xhr.status==202) {
+            // Not all analyses are ready, retrigger AJAX call
+            console.log("Analyses for card with element id '"+card_element_id+"' not ready. Retrying..");
+            setTimeout(function () {
+              submit_analyses_card_ajax(card_url, card_element_id, template_flavor, function_id, topography_ids, false);
+            }, 1000); // TODO limit number of retries?
+          }
+        },
+        error: function(xhr, textStatus, errorThrown) {
+          // console.log("Error receiving response for card '"+card_element_id+"'. Status: "+xhr.status
+          //            +" Response: "+xhr.responseText)
+          if (errorThrown != "abort") {
+              $(jquery_card_selector).html("Please report this error: " + errorThrown + " " + xhr.status + " " + xhr.responseText);
+              $(jquery_card_selector).addClass("alert alert-danger");
+          }
+        }
+      });
+}
+
+/**
+ * Submit an ajax call for updating an card in the surfaces view.
+ *
+ * @param card_url {String} URL to call in order to get card content as HTTP response
+ * @param surface_id {Number} Id of the surface being displayed
+ */
+function submit_surface_card_ajax(card_url, surface_id) {
+
+      var jquery_card_selector = "#card-"+surface_id;
+
+      // console.log("Submitting AJAX call for surface card "+jquery_card_selector+"..");
+
+      $.ajax({
+        type: "GET",
+        url: card_url,
+        timeout: 0,
+        data: {
+           surface_id: surface_id,
+        },
+        success : function(data, textStatus, xhr) {
+            // console.log("Received response for card '" + jquery_card_selector + "'. Status: " + xhr.status);
+            $(jquery_card_selector).html(data); // insert resulting HTML code
+            if (xhr.status == 202) {
+                // Data is not ready, retrigger AJAX call
+                setTimeout(function () {
+                    submit_surface_card_ajax(card_url, surface_id);
+                }, 1000);
+            }
+        },
+        error: function(xhr, textStatus, errorThrown) {
+          // console.log("Error receiving response for card '"+card_element_id+"'. Status: "+xhr.status
+          //            +" Response: "+xhr.responseText)
+          if (errorThrown != "abort") {
+              $(jquery_card_selector).html("Please report this error: " + errorThrown + " " + xhr.status + " " +xhr.responseText);
+              $(jquery_card_selector).addClass("alert alert-danger");
+          }
+        }
+      });
+}
+
+/*
+ * Install a handler which aborts all running AJAX calls when leaving the page
+ */
+function install_handler_for_aborting_all_ajax_calls_on_page_leave() {
+
+    // taken from https://stackoverflow.com/a/10701856/10608001, thanks grr, kzfabi on Stackoverflow!
+
+    // Automatically cancel unfinished ajax requests
+    // when the user navigates elsewhere.
+    (function($) {
+      var xhrPool = [];
+      $(document).ajaxSend(function(e, jqXHR, options){
+        xhrPool.push(jqXHR);
+        // console.log("Added AJAX to pool. Now "+xhrPool.length+" AJAX calls in pool.");
+      });
+      $(document).ajaxComplete(function(e, jqXHR, options) {
+        xhrPool = $.grep(xhrPool, function(x){return x!=jqXHR});
+        // console.log("Removed AJAX from pool. Now "+xhrPool.length+" AJAX calls in pool.");
+      });
+      var abort_all_ajax_calls = function() {
+        // console.log("Aborting all "+xhrPool.length+" AJAX calls..");
+        $.each(xhrPool, function(idx, jqXHR) {
+          jqXHR.abort();
+        });
+      };
+
+      var oldbeforeunload = window.onbeforeunload;
+      window.onbeforeunload = function() {
+        var r = oldbeforeunload ? oldbeforeunload() : undefined;
+        if (r == undefined) {
+          // only cancel requests if there is no prompt to stay on the page
+          // if there is a prompt, it will likely give the requests enough time to finish
+          abort_all_ajax_calls();
+        }
+        return r;
+      }
+    })(jQuery);
+
+}
+
+
+
 /*
  * Setup document handlers.
  */

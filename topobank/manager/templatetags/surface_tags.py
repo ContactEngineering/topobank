@@ -1,13 +1,13 @@
 from django import template
 import json
 
-from ..utils import selected_topographies as st, selection_from_session, bandwidths_data
+from ..utils import selected_instances, selection_from_session, bandwidths_data
 
 register = template.Library()
 
 @register.simple_tag
 def selected_topographies(request, surface):
-    return st(request, surface=surface)
+    return selected_instances(request, surface=surface)[0]
 
 @register.simple_tag
 def is_surface_explicitly_selected(request, surface):
@@ -16,7 +16,8 @@ def is_surface_explicitly_selected(request, surface):
 
 @register.simple_tag
 def bandwidths_data_json_for_selected_topographies(request, surface):
-    return json.dumps(bandwidths_data(st(request, surface=surface)))
+    topographies, *rest = selected_instances(request, surface=surface)
+    return json.dumps(bandwidths_data(topographies))
 
 @register.inclusion_tag('manager/yesno.html')
 def render_boolean(value, title, show_false=False):
@@ -34,7 +35,15 @@ def render_shared_by_badge(request, surface):
     """
     return {
         'surface': surface,
-        'is_creator': request.user==surface.user
+        'is_creator': request.user == surface.creator
     }
 
+@register.inclusion_tag('manager/uploaded_by_badge.html')
+def render_uploaded_by_badge(request, topography):
+    """Returns a HMTL snippet with a badge about who uploaded a given topography.
+    """
+    return {
+        'topography': topography,
+        'is_creator': request.user == topography.creator
+    }
 

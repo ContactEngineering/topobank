@@ -3,6 +3,7 @@
 {% load fontawesome %}
 {% load crispy_forms_tags %}
 {% load surface_tags %}
+{% load guardian_tags %}
 
 {% block extra_css %}
   {{ form.media.css }}
@@ -34,49 +35,28 @@
 
 {% block content %}
 
+   <!--
+  Show one card for each surface
+
+  Will be replaced by AJAX call.
+  -->
   <div class="row">
     {% for surface in surfaces %}
-      {% selected_topographies request surface as selected_topographies_for_this_surface %}
-      {% bandwidths_data_json_for_selected_topographies request surface as bandwidths_data_json_for_this_surface %}
-
-      {% is_surface_explicitly_selected request surface as this_surface_explicitly_selected %}
-      {% if this_surface_explicitly_selected or selected_topographies_for_this_surface %}
-        <div class="col-xl-6 mb-4">
+      <div class="col-xl-4 mb-4">
+        <div id="card-{{ surface.id }}">
           <div class="card">
             <div class="card-header">
-              <div class="pull-left">
-                <span class="surface-name-headline">
-                  <a href="{% url 'manager:surface-detail' surface.id %}">{{ surface.name }}</a>
-                </span>
-                <span class="badge badge-info badge-pill surface-category-headline">
-                  {{ surface.get_category_display|default_if_none:"category not defined yet" }}
-                </span>
-                {% render_shared_by_badge request surface %}
-              </div>
-              <div class="pull-right">
-                <a href="{% url 'manager:topography-create' surface.id %}" class="btn btn-primary">
-                  {% fontawesome_icon 'plus-square-o' %} Add Topography
-                </a>
-              </div>
+              <h4>{{ card.surface.name }}</h4>
             </div>
-
             <div class="card-body">
-              <div id="bandwidths-{{ forloop.counter }}" class="surface-summary-plot"
-                   data-bandwidths='{{ bandwidths_data_json_for_this_surface|safe }}'>
-              </div>
-            </div>
-
-            <div class="card-footer">
-              <small>selected {{ selected_topographies_for_this_surface|length }} out of {{ surface.num_topographies }}
-                topographies
-              </small>
+              <p>Please wait..</p>
+              <div class="spinner"></div>
             </div>
           </div>
         </div>
-      {% endif %}
+      </div>
     {% endfor %}
   </div>
-
 
 {% endblock content %}
 
@@ -84,14 +64,15 @@
   {{ form.media.js }}
 
   <script>
-    $(document).ready(function() {
-      $(".surface-summary-plot").each(function (index, elem) {
-        var bandwidths_data = JSON.parse(elem.getAttribute("data-bandwidths"));
-        // new browsers support elem.dataset('bandwidths')
+    // for each surface submit ajax call to insert a bootstrap card
+    $(document).ready(function () {
+      {% url 'manager:surface-card' as card_url %}
+      {% for surface in surfaces %}
+        submit_surface_card_ajax("{{ card_url }}", {{ surface.id }});
+      {% endfor %}
+    });
 
-        surface_summary_plot(elem, $(elem).data('bandwidths'));
-      })
-    })
-
+    // we don't want error messages if the page is left before everything is loaded
+    install_handler_for_aborting_all_ajax_calls_on_page_leave();
   </script>
 {% endblock javascript %}

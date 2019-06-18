@@ -20,6 +20,12 @@ coreapi==2.3.3  # https://github.com/core-api/python-client
 # Icons
 django-fontawesome==1.0
 
+# progressbar for upload
+# django-progressbarupload>=0.1.7<0.2
+git+http://github.com/IMTEK-Simulation/django-progressbarupload.git
+# we use a forked version, because so far there is no published release
+# which works with Django 2.1 but the HEAD version does
+
 #
 # Storage
 #
@@ -32,8 +38,8 @@ django-guardian>=1.5.0<1.6.0
 
 # Celery
 # django-celery-results==1.0.1
-django-kombu>=0.9.4
-celery>=4.2,<5.0
+django-kombu>=0.9.4 # is this still needed? See https://pypi.org/project/django-kombu/
+celery>=4.3,<5.0
 # pylibmc is also used for memcached in production
 pylibmc>=1.6.0
 # librabbitmq>=2.0
@@ -41,7 +47,10 @@ pylibmc>=1.6.0
 celery-flower>=1.0.1<2
 # The follwing is needed, otherwise Tornado 6.0 breaks celery
 # See https://github.com/mher/flower/issues/878
-tornado>=4.2.0,<6.0.0
+tornado>=4.2.0,<6.0.0 # maybe possible to upgrade this now, TODO CHECK
+
+# progress bars for celery tasks, served by Django
+celery-progress>=0.0.4,<0.1
 
 #
 # Contact Mechanics
@@ -55,7 +64,7 @@ scipy
 PyCo==0.31.1
 
 # plotting
-bokeh==1.1.0
+bokeh==1.2.0
 # link to CSS+JS in HTML files must must this version!
 
 # pandas is currently needed for downloading xlsx files from analyses

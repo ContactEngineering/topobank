@@ -11,18 +11,16 @@ from topobank.manager.tests.utils import two_topos
 @pytest.mark.django_db
 def test_perform_analysis(mocker, two_topos, settings):
 
-    # we fake a function in the functions modul which would be built
-    # by the eval function
-    eval_mock = mocker.patch('builtins.eval')
-
-    def my_func(topography, a, b, bins=15, window='hann'):
+    def my_func(topography, a, b, bins=15, window='hann', progress_recorder=None):
         return {
             'topotype': type(topography),
             'x': (a+b)*bins,
             's': window
         }
 
-    eval_mock.return_value = my_func
+    m = mocker.patch('topobank.analysis.models.AnalysisFunction.python_function', new_callable=mocker.PropertyMock)
+    m.return_value = my_func
+
 
     af = AnalysisFunction.objects.first() # doesn't matter
     topo = Topography.objects.first() # doesn't matter

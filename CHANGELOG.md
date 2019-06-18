@@ -1,8 +1,32 @@
 # Changelog for *TopoBank*
 
+## 0.5.0
+
+- added progress bars for analysis tasks (#202)
+
+## 0.4.2
+
+- added missing template fragment which caused crashes in analyses view (#216)
+
+## 0.4.1
+
+- allow case-insensitive search for user names (#192)
+- fixes wrong task information for cards in analyses view (#209)
+- empty surfaces can now be selected and edited (#214)
+- fixes for image plots of topographies (#76, #213)
+- workaround for crash when uploading large file (#212)
+- version upgrades: celery, bokeh, caddy, gunicorn
+
 ## 0.4.0
 
+- more responsive surface list through AJAX calls (#203)
+- added progress bar when uploading a topography file (#127)
 - added statistics about shared surfaces (#196)
+- improved layout of surface search results and surface detail view,
+  added detail view for analyses with similar layout (#197,#204)
+- added bookmarking the user who uploaded a topography (#181)
+- fixed bug, that users couldn't upload topographies for shared surfaces (#205)
+- fixed target for cancel button when editing surface details (#198)
 
 ## 0.3.1
 

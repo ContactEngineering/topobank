@@ -29,3 +29,4 @@ def get_latest_analyses(function_id, topography_ids):
     # maybe be better solved with PostGreSQL and Window functions
 
     return analyses
+

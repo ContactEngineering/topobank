@@ -43,10 +43,7 @@ def test_selection_from_instances(mocker):
 
 
 @pytest.mark.django_db
-def test_analysis_times(client, two_topos, mocker):
-
-    card_context_mock = mocker.patch('topobank.analysis.cards.function_card_context')
-    card_context_mock.return_value = {}
+def test_analysis_times(client, two_topos):
 
     username = 'testuser'
     password = 'abcd$1234'
@@ -56,6 +53,14 @@ def test_analysis_times(client, two_topos, mocker):
     topo = Topography.objects.first()
     af = AnalysisFunction.objects.first()
 
+    pickled_result = pickle.dumps({'name': 'test function',
+                                   'xlabel': 'x',
+                                   'ylabel': 'y',
+                                   'xunit': '1',
+                                   'yunit': '1',
+                                   'series': [],
+                                   })
+
     analysis = Analysis.objects.create(
         topography=topo,
         function=af,
@@ -63,6 +68,7 @@ def test_analysis_times(client, two_topos, mocker):
         kwargs=pickle.dumps({}),
         start_time=datetime.datetime(2018, 1, 1, 12),
         end_time=datetime.datetime(2018, 1, 1, 13, 1, 1), # duration: 1 hour, 1 minute, 1 sec
+        result=pickled_result,
     )
     analysis.save()
 
@@ -70,25 +76,23 @@ def test_analysis_times(client, two_topos, mocker):
                            data={
                                'topography_ids[]': [topo.id],
                                'function_id': af.id,
-                               'card_idx': 1
+                               'card_id': "card-1",
+                               'template_flavor': 'list',
                            },
                            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
                            follow=True)
 
     assert response.status_code == 200
 
-    export_reponse_as_html(response, fname='/tmp/response-analysis-times.html')
+    # export_reponse_as_html(response, fname='/tmp/response-analysis-times.html')
 
     assert b"2018-01-01 12:00:00" in response.content # start
     # assert b"2018-01-01 13:01:01" in response.content # end, lef out for now
     assert b"1:01:01" in response.content # duration
 
 @pytest.mark.django_db
-def test_show_only_last_analysis(client, two_topos, mocker):
+def test_show_only_last_analysis(client, two_topos):
     # TODO use mocks for topographies if possible
-
-    card_context_mock = mocker.patch('topobank.analysis.cards.function_card_context')
-    card_context_mock.return_value = {}
 
     username = 'testuser'
     password = 'abcd$1234'
@@ -98,6 +102,14 @@ def test_show_only_last_analysis(client, two_topos, mocker):
     topo1 = Topography.objects.first()
     topo2 = Topography.objects.last()
     af = AnalysisFunction.objects.first()
+
+    pickled_result = pickle.dumps({'name': 'test function',
+                                   'xlabel': 'x',
+                                   'ylabel': 'y',
+                                   'xunit': '1',
+                                   'yunit': '1',
+                                   'series': [],
+                                   })
 
     #
     # Topography 1
@@ -109,6 +121,7 @@ def test_show_only_last_analysis(client, two_topos, mocker):
         kwargs=pickle.dumps({}),
         start_time=datetime.datetime(2018, 1, 1, 12),
         end_time=datetime.datetime(2018, 1, 1, 13, 1, 1),
+        result=pickled_result,
     )
     analysis.save()
 
@@ -120,6 +133,7 @@ def test_show_only_last_analysis(client, two_topos, mocker):
         kwargs=pickle.dumps({}),
         start_time=datetime.datetime(2018, 1, 2, 12),
         end_time=datetime.datetime(2018, 1, 2, 13, 1, 1),
+        result=pickled_result,
     )
     analysis.save()
 
@@ -133,6 +147,7 @@ def test_show_only_last_analysis(client, two_topos, mocker):
         kwargs=pickle.dumps({}),
         start_time=datetime.datetime(2018, 1, 3, 12),
         end_time=datetime.datetime(2018, 1, 3, 13, 1, 1),
+        result=pickled_result,
     )
     analysis.save()
 
@@ -144,6 +159,7 @@ def test_show_only_last_analysis(client, two_topos, mocker):
         kwargs=pickle.dumps({}),
         start_time=datetime.datetime(2018, 1, 4, 12),
         end_time=datetime.datetime(2018, 1, 4, 13, 1, 1),
+        result=pickled_result,
     )
     analysis.save()
 
@@ -155,14 +171,15 @@ def test_show_only_last_analysis(client, two_topos, mocker):
                            data={
                                'topography_ids[]': [topo1.id, topo2.id],
                                'function_id': af.id,
-                               'card_idx': 1
+                               'card_idx': 1,
+                               'template_flavor': 'list'
                            },
                           HTTP_X_REQUESTED_WITH='XMLHttpRequest',
                           follow=True)
 
     assert response.status_code == 200
 
-    export_reponse_as_html(response)
+    # export_reponse_as_html(response)
 
     assert b"2018-01-02 12:00:00" in response.content
     assert b"2018-01-04 12:00:00" in response.content
@@ -171,11 +188,8 @@ def test_show_only_last_analysis(client, two_topos, mocker):
     assert b"2018-01-03 12:00:00" not in response.content
 
 @pytest.mark.django_db
-def test_show_analyses_with_different_arguments(client, two_topos, mocker):
-    # TODO use mocks for topographies if possible
-
-    card_context_mock = mocker.patch('topobank.analysis.cards.function_card_context')
-    card_context_mock.return_value = {}
+def test_show_analyses_with_different_arguments(client, two_topos):
+    # TODO use mocks for topographies if possible or factories
 
     username = 'testuser'
     password = 'abcd$1234'
@@ -184,6 +198,14 @@ def test_show_analyses_with_different_arguments(client, two_topos, mocker):
 
     topo1 = Topography.objects.first()
     af = AnalysisFunction.objects.first()
+
+    pickled_result = pickle.dumps({'name': 'test function',
+                                   'xlabel': 'x',
+                                   'ylabel': 'y',
+                                   'xunit': '1',
+                                   'yunit': '1',
+                                   'series': [],
+                                   })
 
     #
     # Create analyses for same function and topography but with different arguments
@@ -195,6 +217,7 @@ def test_show_analyses_with_different_arguments(client, two_topos, mocker):
         kwargs=pickle.dumps({'bins':10}),
         start_time=datetime.datetime(2018, 1, 1, 12),
         end_time=datetime.datetime(2018, 1, 1, 13, 1, 1),
+        result=pickled_result,
     )
     analysis.save()
 
@@ -206,6 +229,7 @@ def test_show_analyses_with_different_arguments(client, two_topos, mocker):
         kwargs=pickle.dumps({'bins':20}),
         start_time=datetime.datetime(2018, 1, 2, 12),
         end_time=datetime.datetime(2018, 1, 2, 13, 1, 1),
+        result=pickled_result,
     )
     analysis.save()
 
@@ -217,6 +241,7 @@ def test_show_analyses_with_different_arguments(client, two_topos, mocker):
         kwargs=pickle.dumps({'bins': 30}),
         start_time=datetime.datetime(2018, 1, 3, 12),
         end_time=datetime.datetime(2018, 1, 3, 13, 1, 1),
+        result=pickled_result,
     )
     analysis.save()
 
@@ -227,7 +252,8 @@ def test_show_analyses_with_different_arguments(client, two_topos, mocker):
                            data={
                                'topography_ids[]': [topo1.id],
                                'function_id': af.id,
-                               'card_idx': 1,
+                               'card_id': "card-1",
+                               'template_flavor': 'list'
                            },
                            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
                            follow=True)
@@ -379,7 +405,7 @@ def test_analyis_download_as_txt(client, two_topos, ids_downloadable_analyses):
 
     arr = np.loadtxt(StringIO(filtered_txt))
 
-    assert arr == pytest.approx([
+    expected_arr = np.array([
         (0, 0),
         (1, 2),
         (2, 4),
@@ -401,6 +427,8 @@ def test_analyis_download_as_txt(client, two_topos, ids_downloadable_analyses):
         (5, 13),
         (6, 16),
     ])
+
+    assert arr == pytest.approx(expected_arr)
 
 @pytest.mark.django_db
 def test_analyis_download_as_xlsx(client, two_topos, ids_downloadable_analyses):
@@ -471,10 +499,7 @@ def test_analyis_download_as_xlsx(client, two_topos, ids_downloadable_analyses):
 
 
 @pytest.mark.django_db
-def test_view_shared_analysis_results(client, mocker):
-
-    card_context_mock = mocker.patch('topobank.analysis.cards.function_card_context')
-    card_context_mock.return_value = {}
+def test_view_shared_analysis_results(client):
 
     password = 'abcd$1234'
 
@@ -484,8 +509,8 @@ def test_view_shared_analysis_results(client, mocker):
     user1 = UserFactory(password=password)
     user2 = UserFactory(password=password)
 
-    surface1 = SurfaceFactory(user=user1)
-    surface2 = SurfaceFactory(user=user2)
+    surface1 = SurfaceFactory(creator=user1)
+    surface2 = SurfaceFactory(creator=user2)
 
     # user2 shares surfaces, so user 1 should see surface1+surface2
     surface2.share(user1)
@@ -522,11 +547,12 @@ def test_view_shared_analysis_results(client, mocker):
     assert client.login(username=user1.username, password=password)
 
     response = client.get(reverse("analysis:card"),
-                           data={
-                               'topography_ids[]': [topo1a.id, topo1b.id, topo2a.id],
-                               'function_id': func1.id,
-                               'card_idx': 1
-                           },
+                          data={
+                              'topography_ids[]': [topo1a.id, topo1b.id, topo2a.id],
+                              'function_id': func1.id,
+                              'card_idx': 1,
+                              'template_flavor': 'list'
+                          },
                           HTTP_X_REQUESTED_WITH='XMLHttpRequest',
                           follow=True)
 
@@ -548,7 +574,8 @@ def test_view_shared_analysis_results(client, mocker):
                           data={
                               'topography_ids[]': [topo1a.id, topo1b.id, topo2a.id],
                               'function_id': func1.id,
-                              'card_idx': 1
+                              'card_idx': 1,
+                              'template_flavor': 'list'
                           },
                           HTTP_X_REQUESTED_WITH='XMLHttpRequest',
                           follow=True)

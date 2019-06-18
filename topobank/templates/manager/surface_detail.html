@@ -1,4 +1,3 @@
-
 {% extends 'base.html' %}
 {% load fontawesome %}
 {% load surface_tags %}
@@ -18,152 +17,158 @@
 
 {% block content %}
 
-{% get_obj_perms request.user for surface as "surface_perms" %}
+  {% get_obj_perms request.user for surface as "surface_perms" %}
 
-<div class="card text-center">
-  <div class="card-header">
+  <div class="card">
 
-    <h2>
+    <div class="card-header">
+
       <div class="pull-left">
-        <span class="surface-name-headline">
-          {{ surface.name }}
-        </span>
-        <span class="badge badge-info surface-category-headline">
-          {{ surface.get_category_display|default_if_none:"category not defined yet" }}
-        </span>
-       {% render_shared_by_badge request surface %}
+        <h2>{{ surface.name }}</h2>
+
       </div>
 
-      <div class="pull-right">
-        {% if "delete_surface" in surface_perms %}
-          <a href="{% url 'manager:surface-delete' surface.id %}" class="btn btn-danger">
-              {% fontawesome_icon 'trash' %} Delete
-          </a>
-        {% endif %}
-        <span></span>
-        {% if "change_surface" in surface_perms %}
-          <a href="{% url 'manager:surface-update' surface.id %}" class="btn btn-default">
-              {% fontawesome_icon 'edit' %} Edit
-          </a>
-        {% endif %}
-        <span></span>
-        {% if "share_surface" in surface_perms %}
-          <a href="{% url 'manager:surface-share' surface.id %}" class="btn btn-success">
-              {% fontawesome_icon 'share-alt' %} Share
-          </a>
-        {% endif %}
-        {% if "change_surface" in surface_perms %}
-          <a href="{% url 'manager:topography-create' surface.id %}" class="btn btn-primary">
-            {% fontawesome_icon 'plus-square-o' %} Add Topography
-          </a>
-      {% endif %}
-      </div>
-     </h2>
-  </div>
-  <div class="card-body">
+      <ul class="nav nav-pills card-header-pills pull-right">
+        <li class="nav-item">
+          <a class="nav-link active" data-toggle="pill" href="#topographies" role="tab">Topographies</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" data-toggle="pill" href="#description" role="tab">Description</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" data-toggle="pill" href="#permissions" role="tab">Permissions</a>
+        </li>
+      </ul>
+    </div>
 
-    <ul class="nav nav-tabs">
-      <li class="nav-item">
-        <a class="nav-link active" data-toggle="tab" href="#topographies" role="tab">Topographies</a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link" data-toggle="tab" href="#properties" role="tab">Properties</a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link" data-toggle="tab" href="#permissions" role="tab">Permissions</a>
-      </li>
-    </ul>
+    <div class="card-body">
 
+      <div class="row">
 
-    <div class="tab-content">
-      <div class="tab-pane fade show active" id="topographies" role="tabpanel" aria-labelledby="topographies-tab">
-          <div class="row">
-            <div class="col-12">
-              <div class="card">
-              <!-- Show chart with surface summary -->
-                <div class="card-header">
-                  <div class="card-text">
-                    Bandwidths of all topographies for this surface. Click on a bar for topography details.
-                  </div>
-                </div>
-                <div class="card-body">
-                  <div id="bandwidths" class="surface-summary-plot">
-                  </div>
-                </div>
+        <div class="col-9">
+          <div class="tab-content">
+
+            <div class="tab-pane fade show active" id="topographies">
+              <div id="bandwidths" class="surface-summary-plot">
               </div>
+              <caption>Click on a bar in order to open the topography.</caption>
             </div>
-          </div>
-      </div>
 
-      <div class="tab-pane fade" id="properties" role="tabpanel" aria-labelledby="properties-tab">
-        <table class="table table-responsive text-left">
-          <tbody>
-            <tr>
-              <td>Name</td><td>{{ surface.name }}</td>
-            </tr>
-            <tr>
-              <td>Description</td><td>{{ surface.description }}</td>
-            </tr>
-            <tr>
-              <td>Category</td><td>{{ surface.get_category_display }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+            <div class="tab-pane fade" id="description">
+              {{ surface.description }}
+            </div>
 
-      <div class="tab-pane fade" id="permissions" role="tabpanel" aria-labelledby="permissions-tab">
-        <div class="card w-50">
-          <div class="card-header">
-            Users having permissions regarding this surface
-          </div>
-          <div class="card-body">
-            <table class="table table-responsive text-left">
-              <thead>
-              {% for th in permission_table.head %}
-                <th>{{ th }}</th>
-              {% endfor %}
-              </thead>
-              <tbody>
-              {% for row in permission_table.body %}
-                <tr>
-                  {% for cell_content, cell_title in row %}
-                    <td>
-                      {% if forloop.first %}
-                        <span title="Click to view profile">{% fontawesome_icon 'user' %}
+            <div class="tab-pane fade" id="permissions">
+
+              <table class="table table-responsive">
+                <caption>Users having permissions regarding this surface.
+                  Click <a href="{% url 'manager:sharing-info' %}">here</a> for information which surfaces are
+                  shared with you or by you.
+                </caption>
+                <thead>
+                {% for th in permission_table.head %}
+                  <th>{{ th }}</th>
+                {% endfor %}
+                </thead>
+                <tbody>
+                {% for row in permission_table.body %}
+                  <tr>
+                    {% for cell_content, cell_title in row %}
+                      <td>
+                        {% if forloop.first %}
+                          <span title="Click to view profile">{% fontawesome_icon 'user' %}
                         <a href="{{ cell_title }}">{{ cell_content }}</a>
                         {# a bit of a hack: cell_title is used to pass a link here #}
                         </span>
-                      {% else %}
-                        {% render_boolean cell_content cell_title %}
-                      {% endif %}
-                    </td>
-                  {% endfor %}
-                </tr>
-              {% endfor %}
-              </tbody>
-            </table>
+                        {% else %}
+                          {% render_boolean cell_content cell_title %}
+                        {% endif %}
+                      </td>
+                    {% endfor %}
+                  </tr>
+                {% endfor %}
+                </tbody>
+              </table>
+
+            </div>
+
           </div>
-          <div class="card-footer">
-            Click <a href="{% url 'manager:sharing-info' %}">here</a> for information which surfaces are
-            shared with you or by you.
+
+        </div>
+
+        <div class="col-3">
+
+          <div class="row p-3">
+
+            <div class="col">
+
+              <div class="card-text">
+                  <span class="badge badge-info surface-category-headline">
+                  {{ surface.get_category_display|default_if_none:"category not defined yet" }}
+                  </span>
+                {% render_shared_by_badge request surface %}
+              </div>
+
+            </div>
+          </div>
+          <div class="row p-3">
+            <div class="col">
+
+              {% if "change_surface" in surface_perms %}
+                <a href="{% url 'manager:surface-update' surface.id %}" class="btn btn-default btn-block btn-lg">
+                  {% fontawesome_icon 'edit' %} Edit meta data
+                </a>
+              {% endif %}
+
+              {% if "change_surface" in surface_perms %}
+                <a href="{% url 'manager:topography-create' surface.id %}" class="btn btn-default btn-block btn-lg">
+                  {% fontawesome_icon 'plus-square-o' %} Add Topography
+                </a>
+              {% endif %}
+
+
+              {% if "share_surface" in surface_perms %}
+                <a href="{% url 'manager:surface-share' surface.id %}" class="btn btn-default btn-block btn-lg">
+                  {% fontawesome_icon 'share-alt' %} Share
+                </a>
+              {% endif %}
+
+              {% if "delete_surface" in surface_perms %}
+                <a href="{% url 'manager:surface-delete' surface.id %}"
+                   class="btn btn-outline-danger btn-block btn-lg">
+                  {% fontawesome_icon 'trash' %} Delete
+                </a>
+              {% endif %}
+            </div>
+          </div>
+          <div class="row p-3">
+            <div class="col">
+                <a href="{% url 'manager:surface-list' %}"
+                   class="btn btn-default btn-block btn-lg">
+                  {% fontawesome_icon 'list' %} Back to search results
+                </a>
+            </div>
           </div>
         </div>
+
       </div>
+
 
     </div>
   </div>
-</div>
+
+
 
 {% endblock content %}
 
 {% block javascript %}
   <script>
-  $().ready(function(){
-    //
-    // Create surface summary plot
-    //
-    surface_summary_plot($("div#bandwidths"), {{ bandwidths_data|safe }});
-  })
+    $().ready(function () {
+      //
+      // Create surface summary plot
+      //
+      surface_summary_plot($("div#bandwidths"), {{ bandwidths_data|safe }});
+    })
   </script>
 
 {% endblock javascript %}

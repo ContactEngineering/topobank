@@ -30,7 +30,7 @@ def test_is_sharing_with():
 
     assert not user1.is_sharing_with(user2)
 
-    surface = SurfaceFactory(user=user1)
+    surface = SurfaceFactory(creator=user1)
     surface.share(user2)
 
     assert user1.is_sharing_with(user2)

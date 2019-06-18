@@ -1,6 +1,6 @@
 from django.shortcuts import reverse
-from django.core.cache import cache # default cache
 from guardian.shortcuts import get_objects_for_user
+from django.core.cache import cache # default cache
 
 from PyCo.Topography import FromFile
 
@@ -45,27 +45,44 @@ class TopographyFileReadingException(TopographyFileException):
     def message(self):
         return self._message
 
-def get_topography_file(datafile_fname): # TODO check, maybe also use user to make unique
-    """Create topography file instance or get it from cache.
+def get_topography_file(filefield):
+    """Returns TopographyFile object from cache if possible.
 
-    :param datafile_fname: local filename
+    If not in cache, the TopographyFile object is created
+    and save to cache.
+
+    :param filefield: models.FileField instance
     :return: TopographyFile instance
     """
-    cache_key = datafile_fname
+    if hasattr(filefield, 'storage'):
+        middle = 'storage'
+    else:
+        middle = "temporary"
+    cache_key = "topofile:{}:{}".format(middle,filefield.name)
     topofile = cache.get(cache_key)
     if topofile is None:
-        topofile = TopographyFile(datafile_fname)
+        topofile = TopographyFile(filefield.open(mode='rb'))
         cache.set(cache_key, topofile)
     return topofile
+
 
 class TopographyFile:
     """Provide a simple generic interface to topography files independent of format."""
 
     def __init__(self, fname):
         """
-        :param fname: filename of topography file
+        :param fname: filename of topography file or open file
         :raises: TopographyFileReadingException
         """
+
+        if hasattr(fname, 'seek') and not hasattr(fname, 'mode'):
+            # WORKAROUND in order to make PyCo's "detect_format" (Version 0.31)
+            # work with S3 backend. The S3 backend file has no attribute "mode"
+            # and so "detect_format" does not work, because this attribute
+            # is used to find out whether the stream is binary or not.
+            # TODO Is this workaround still needed with the new reader infrastructure in PyCo?
+            fname.mode = 'rb'
+
         try:
             self._fmt = FromFile.detect_format(fname)
         except Exception as exc:
@@ -178,13 +195,13 @@ def selection_choices(user):
     choices = []
     for surf in surfaces:
 
-        surf_user = surf.user
+        surf_creator = surf.creator
         group_label = "{}".format(surf.name)
 
-        if surf_user == user:
+        if surf_creator == user:
             group_label += " - created by you"
         else:
-            group_label += " - shared by {}".format(str(surf_user))
+            group_label += " - shared by {}".format(str(surf_creator))
 
         surface_choices = [('surface-{}'.format(surf.id), surf.name)]
         surface_choices.extend([('topography-{}'.format(t.id), t.name)
@@ -213,18 +230,27 @@ def selection_for_select_all(user):
     """
     return ['surface-{}'.format(s.id) for s in surfaces_for_user(user)]
 
-def selection_to_topographies(selection, surface=None):
-    """Returns queryset of selected topographies as saved in session.
+def selection_to_instances(selection, surface=None):
+    """Returns a dict with querysets of selected topographies and surfaces as saved in session.
 
     If surface is given, return only topographies for this
     Surface model object.
 
     :param selection: selection list as saved in session
     :param surface: optionally a surface to filter topographies in selection
+    :return: tuple (topographies, surfaces)
+
+    The tuple has two elements:
+
+     'topographies': all topographies in the selection (if 'surface' is given, filtered by this surface)
+     'surfaces': all surfaces explicitly found in the selection (not only because its topography was selected)
+
+    Also surfaces without topographies are returned in 'surfaces' if selected.
     """
-    from .models import Topography
+    from .models import Topography, Surface
 
     topography_ids = set()
+    surface_ids = set()
 
     for type_id in selection:
         type, id = type_id.split('-')
@@ -232,6 +258,7 @@ def selection_to_topographies(selection, surface=None):
         if type == 'topography':
             topography_ids.add(id)
         elif type == 'surface':
+            surface_ids.add(id)
             if (surface is not None) and (surface.id != id):
                 continue # skip this surface, it is not relevant
 
@@ -245,22 +272,34 @@ def selection_to_topographies(selection, surface=None):
         filter_args['surface'] = surface
     topographies = Topography.objects.filter(**filter_args)
 
-    return topographies
+    surfaces = Surface.objects.filter(id__in=surface_ids)
 
-def selected_topographies(request, surface=None):
-    """Return list of topography instances which are currently selected.
+    return (topographies, surfaces)
+
+def selected_instances(request, surface=None):
+    """Return a dict with topography and surface instances which are currently selected.
 
     :request: HTTP request
     :surface: if given, return only topographies of this Surface instance
+    :return: tuple (topographies, surfaces)
+
+    The tuple has two elements:
+
+     'topographies': all topographies in the selection (if 'surface' is given, filtered by this surface)
+     'surfaces': all surfaces explicitly found in the selection (not only because its topography was selected)
+
+    Also surfaces without topographies are returned in 'surfaces' if selected.
     """
     selection = selection_from_session(request.session)
-    topographies = selection_to_topographies(selection, surface=surface)
+    topographies, surfaces = selection_to_instances(selection, surface=surface)
 
     # make sure that only topographies with read permission can be effectively selected
     topographies = [t for t in topographies
                     if request.user.has_perm('view_surface', t.surface)]
+    surfaces = [s for s in surfaces
+                if request.user.has_perm('view_surface', s)]
 
-    return topographies
+    return topographies, surfaces
 
 def bandwidths_data(topographies):
     """Return bandwidths data as needed in surface summary plots.
