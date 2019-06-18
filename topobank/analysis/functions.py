@@ -213,17 +213,20 @@ def test_function(topography):
     return { 'name': 'Test result for test function called for topography {}.'.format(topography)}
 test_function.card_view_flavor = 'simple'
 
-@analysis_function(card_view_flavor='simple', automatic=True)
-def long_running_task(topography, progress_recorder=None):
-    import time, random
-    n = 20 + random.randint(1,10)
-    F = 60
-    for i in range(n):
-        time.sleep(1)
-        if random.randint(1, F) == 1:
-            raise ValueError("This error is intended and happens with probability 1/{}.".format(F))
-        progress_recorder.set_progress(i+1, n)
-    return dict(message="done", size=topography.size, n=n)
+#
+# Use this during development if you need a long running task with failures
+#
+# @analysis_function(card_view_flavor='simple', automatic=True)
+# def long_running_task(topography, progress_recorder=None):
+#     import time, random
+#     n = 10 + random.randint(1,10)
+#     F = 30
+#     for i in range(n):
+#         time.sleep(0.5)
+#         if random.randint(1, F) == 1:
+#             raise ValueError("This error is intended and happens with probability 1/{}.".format(F))
+#         progress_recorder.set_progress(i+1, n)
+#     return dict(message="done", size=topography.size, n=n)
 
 @analysis_function(card_view_flavor='plot', automatic=True)
 def height_distribution(topography, bins=None, wfac=5, progress_recorder=None):
