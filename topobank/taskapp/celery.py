@@ -24,20 +24,5 @@ class CeleryAppConfig(AppConfig):
         installed_apps = [app_config.name for app_config in apps.get_app_configs()]
         app.autodiscover_tasks(lambda: installed_apps, force=True)
 
-@app.task(bind=True)
-def debug_task(self):
-    print(f'Request: {self.request!r}')  # pragma: no cover
-
-@app.task
-def add(x,y):
-    import time
-    time.sleep(20)
-    return x+y
-
-@app.task
-def array_task():
-    import numpy as np
-    return np.ones((100,100))
-
 
 
