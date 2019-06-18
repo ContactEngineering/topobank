@@ -1,39 +1,77 @@
 {% load fontawesome %}
-{% for af in analyses_failure %}
-<div class="alert alert-warning">
-    {% fontawesome_icon 'exclamation-circle' %}
-    Analysis for topography <em>{{ au.topography.name }}</em> failed.
-    See tab "Failures" for details.
-  </div>
+
+
+{% if analyses_unready %}
+  {# If there are still unfinished analyses, show progress bars for all analyses involved in this card  #}
+
+    <table class="table table-condensed">
+      <thead>
+        <tr>
+          <th>Topography</th>
+          <th>Progress</th>
+          <th>Message</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for av in analyses_available %}
+
+          <tr>
+            <td>{{ av.topography.name }}</td>
+            <td>
+              <div class='progress-wrapper'>
+                <div id='progress-bar-{{ av.id }}' class='progress-bar' style="background-color: #68a9ef; width: 0%;">&nbsp;</div>
+              </div>
+            </td>
+            <td>
+              <div id="progress-bar-message-{{ av.id }}"><div class="spinner"></div>{{ av.get_task_state_display }}</div>
+            </td>
+          </tr>
+          {% if av.task_id %}
+          <script>
+            $(function () {
+              var progressUrl = "{% url 'celery_progress:task_status' av.task_id %}";
+              var options = {
+                'pollInterval': 500,
+                'progressBarId': 'progress-bar-{{ av.id }}',
+                'progressBarMessageId': 'progress-bar-message-{{ av.id }}',
+                'onProgress': function(progressBarElement, progressBarMessageElement, progress) {
+                  progressBarElement.style.backgroundColor = '#68a9ef';
+                  progressBarElement.style.width = progress.percent + "%";
+                  progressBarMessageElement.innerHTML = Math.ceil(progress.percent).toString() + ' %';
+                  // console.log("progress:", progressBarElement, progress);
+                },
+                'onError': function(progressBarElement, progressBarMessageElement) {
+                  progressBarElement.style.backgroundColor = '#dc4f63';
+                  progressBarMessageElement.innerHTML = "Failure";
+                  // console.log("error:", progressBarElement)
+                },
+                'onSuccess': function(progressBarElement, progressBarMessageElement) {
+                  progressBarElement.style.backgroundColor = '#76ce60'; // TODO choose better colors or use a class
+                  progressBarMessageElement.innerHTML = "Complete";
+                  // console.log("success:", progressBarElement)
+                }
+              };
+
+              CeleryProgressBar.initProgressBar(progressUrl, options);
+              // console.log("Progress bar for URL '"+progressUrl+"' initialized.");
+            });
+          </script>
+          {% endif %}
+
+        {% endfor %}
+      </tbody>
+    </table>
+{% else %}
+    {# Show info bars for analyses which failed #}
+    {% for af in analyses_failure %}
+    <div class="alert alert-warning">
+      {% fontawesome_icon 'exclamation-circle' %}
+      Analysis for topography <em>{{ au.topography.name }}</em> failed.
+      See tab "Failures" for details.
+    </div>
 {% endfor %}
-{% for au in analyses_unready %}
-  <!--
-  <div class="alert alert-info">
-    <div class="spinner"></div>
-    Analysis for topography <em>{{ au.topography.name }}</em> not avaliable yet. Please wait..
-  </div>
-  -->
-  <div class='progress-wrapper'>
-    <div id='progress-bar-{{ au.task_id }}' class='progress-bar' style="background-color: #68a9ef; width: 0%;">&nbsp;</div>
-  </div>
-  <div id="progress-bar-message-{{ au.task_id }}">Waiting for progress to start...</div>
-  <script>
-    var progressUrl = "{% url 'celery_progress:task_status' au.task_id %}";
-    $(function () { // Problem: this is started several times, because card is replaced
-      var options = {
-        'pollInterval': 1000,
-        'progressBarId': 'progress-bar-{{ au.task_id }}',
-        'progressBarMessageId': 'progress-bar-message-{{ au.task_id }}',
-        'onProgress': function(progressBarElement, progressBarMessageElement, progress) {
-          progressBarElement.style.backgroundColor = '#68a9ef';
-          progressBarElement.style.width = progress.percent + "%";
-          progressBarMessageElement.innerHTML = Math.ceil(progress.percent).toString() + ' %';
-        }
-      };
-      CeleryProgressBar.initProgressBar(progressUrl, options);
-    });
-  </script>
-{% endfor %}
+
+{% endif %}
 {% for mt in topographies_missing %}
   <div class="alert alert-warning">
     Analysis for topography <em>{{ mt.name }}</em> not triggered yet. Please trigger if needed.

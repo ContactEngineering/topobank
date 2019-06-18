@@ -4,7 +4,7 @@ import inspect
 
 from django.utils import timezone
 
-from celery_progress.backend import ProgressRecorder, ConsoleProgressRecorder
+from celery_progress.backend import ProgressRecorder
 
 from .celery import app
 from topobank.analysis.models import Analysis
@@ -51,28 +51,7 @@ def submit_analysis(analysis_func, topography, *other_args, **kwargs):
     #
     transaction.on_commit(lambda : perform_analysis.delay(analysis.id))
 
-class AnalysisProgressRecorder(ProgressRecorder):
-    """Progress recorder taking into account io operations before and after calculation."""
-
-    def __init__(self, task, extra_steps):
-        super().__init__(task)
-        self._extra_steps = extra_steps
-
-    def _super_set_progress(self, current, total):
-        super().set_progress(current, total + self._extra_steps)
-        #try:
-        #    super().set_progress(current, total + self._extra_steps)
-        #except Exception:
-        #    # as expected, this fails if not a real task is given
-        #    pass
-
-    def set_progress(self, current, total):
-        return self._super_set_progress(current, total)
-
-    def set_progress_to_complete(self):
-        return self._super_set_progress(1+self._extra_steps,1) # for having 100 %
-
-@app.task(bind=True, ignore_result=True)
+@app.task(bind=True)
 def perform_analysis(self, analysis_id):
     """Perform an analysis which is already present in the database.
 
@@ -88,15 +67,7 @@ def perform_analysis(self, analysis_id):
     - task_state
 
     """
-
-    progress_recorder = AnalysisProgressRecorder(self, 3)
-
-    # we add 3 extra steps when creating the progress recorder:
-    # - saving new "started" state of analysis object
-    # - loading the topography
-    # - saving analysis results
-    #
-    # This means, the function cannot fill the progress bar alone.
+    progress_recorder = ProgressRecorder(self)
 
     #
     # update entry in Analysis table
@@ -107,6 +78,12 @@ def perform_analysis(self, analysis_id):
     analysis.start_time = timezone.now() # with timezone
     analysis.save()
 
+    def save_result(result, task_state):
+        analysis.task_state = task_state
+        analysis.result = pickle.dumps(result)  # can also be an exception in case of errors!
+        analysis.end_time = timezone.now()  # with timezone
+        analysis.save()
+
     #
     # actually perform analysis
     #
@@ -115,18 +92,11 @@ def perform_analysis(self, analysis_id):
         topography = Topography.objects.get(id=analysis.topography_id).topography()
         kwargs['progress_recorder'] = progress_recorder
         result = analysis.function.eval(topography, **kwargs)
-        analysis.task_state = Analysis.SUCCESS
+        save_result(result, Analysis.SUCCESS)
     except Exception as exc:
-        analysis.task_state = Analysis.FAILURE
-        result = dict(error=traceback.format_exc())
+        save_result(dict(error=traceback.format_exc()), Analysis.FAILURE)
+        # we want a real exception here so flower can show the task as failure
+        raise
 
-    #
-    # update entry with result
-    #
-    analysis.result = pickle.dumps(result) # can also be an exception in case of errors!
-    analysis.end_time = timezone.now() # with timezone
-    analysis.save()
 
-    if 'error' not in result:
-        progress_recorder.set_progress_to_complete()
 

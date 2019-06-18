@@ -213,18 +213,18 @@ function submit_analyses_card_ajax(card_url, card_element_id, template_flavor, f
            topography_ids: topography_ids
         },
         success : function(data, textStatus, xhr) {
-          // console.log("Received response for card '"+card_element_id+"'. Status: "+xhr.status)
-          if (first_call) {
+
+          if (first_call || (xhr.status==200) ) {
             $(jquery_card_selector).html(data); // insert resulting HTML code
+            // We want to only insert cards on first and last call and
+            // only once if there is only one call.
           }
           if (xhr.status==202) {
-            // Data is not ready, retrigger AJAX call
+            // Not all analyses are ready, retrigger AJAX call
             console.log("Analyses for card with element id '"+card_element_id+"' not ready. Retrying..");
             setTimeout(function () {
               submit_analyses_card_ajax(card_url, card_element_id, template_flavor, function_id, topography_ids, false);
             }, 1000); // TODO limit number of retries?
-          } else {
-            $(jquery_card_selector).html(data); // insert resulting HTML code
           }
         },
         error: function(xhr, textStatus, errorThrown) {
