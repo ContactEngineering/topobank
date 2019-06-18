@@ -61,5 +61,7 @@
 {% endblock content %}
 
 {% block javascript %}
-  {% progress_bar_media %}
+  {% if wizard.steps.step1 == 1 %}
+    {% progress_bar_media %}
+  {% endif %}
 {% endblock %}
