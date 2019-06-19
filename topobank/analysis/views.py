@@ -23,6 +23,7 @@ from bokeh.plotting import figure
 from bokeh.embed import components
 from bokeh.models.widgets import CheckboxGroup
 from bokeh.models.widgets.markups import Paragraph
+from bokeh.models import Legend
 
 from pint import UnitRegistry, UndefinedUnitError
 
@@ -44,7 +45,7 @@ _log = logging.getLogger(__name__)
 SMALLEST_ABSOLUT_NUMBER_IN_LOGPLOTS = 1e-18
 MAX_NUM_POINTS_FOR_SYMBOLS = 50
 
-CARD_VIEW_FLAVORS = ['simple', 'plot', 'power spectrum']
+CARD_VIEW_FLAVORS = ['simple', 'plot', 'power spectrum', 'contact mechanics']
 
 def card_view_class(card_view_flavor):
     if card_view_flavor not in CARD_VIEW_FLAVORS:
@@ -498,6 +499,193 @@ class PlotCardView(SimpleCardView):
 
 class PowerSpectrumCardView(PlotCardView):
     pass
+
+class ContactMechanicsCardView(SimpleCardView):
+
+    def _geometry_figure(self):
+        pass
+
+    def _distribution_figure(self):
+        pass
+
+    def _displacement_figure(self):
+        pass
+
+    def _contact_area_figure(self, analyses):
+        """Plot 'Contact area versus Load'
+
+        :param analyses: sequence of successful analyses
+        :return:
+        """
+        title = "Contact Area versus Load"
+
+        #
+        # set xrange, yrange -> automatic bounds for zooming
+        #
+        x_range = DataRange1d(bounds='auto')  # if min+max not given, calculate from data of render
+        y_range = DataRange1d(bounds='auto')
+
+        x_axis_label = 'Fractional contact area A/A0'
+        y_axis_label = 'Normalized pressure p/E*' # TODO improve layout if possible
+
+        #
+        # Create the plot figure
+        #
+        plot = figure(title=title,
+                      plot_height=300,
+                      sizing_mode='scale_width',
+                      x_range=x_range,
+                      y_range=y_range,
+                      x_axis_label=x_axis_label,
+                      y_axis_label=y_axis_label,
+                      x_axis_type='log',
+                      y_axis_type='log',
+                      tools="crosshair,pan,reset,save,wheel_zoom,box_zoom")
+
+        color_cycle = itertools.cycle(Category10[10])
+
+        topography_colors = OrderedDict()  # key: Topography instance
+        topography_names = []
+
+        legend_items = []
+
+        #
+        # Traverse analyses and plot points
+        #
+        js_code = ""
+        js_args = {}
+
+        special_values = []  # elements: (topography, quantity name, value, unit string)
+
+        for analysis in analyses:
+
+            topography_name = analysis.topography.name
+
+            #
+            # find out colors for topographies
+            #
+            if analysis.topography not in topography_colors:
+                topography_colors[analysis.topography] = next(color_cycle)
+                topography_names.append(analysis.topography.name)
+
+
+            if analysis.task_state != analysis.SUCCESS:
+                continue  # should not happen if only called with successful analyses
+
+            analysis_result = analysis.result_obj
+
+            first_series = analysis_result['series'][0]
+
+            # TODO change result format and save several points for different loads
+            # scalars = analysis_result['scalars']
+
+            source = ColumnDataSource(data=dict(x=first_series['x'],
+                                                y=first_series['y']))
+
+            legend_entry = topography_name
+
+            curr_color = topography_colors[analysis.topography]
+
+            symbol_glyph = plot.scatter('x', 'y', source=source,
+                                        marker='circle', fill_color=curr_color) # TODO radius?
+
+            legend_items.append((topography_name, [symbol_glyph]))
+
+            #
+            # Prepare JS code to toggle visibility
+            #
+            topography_idx = topography_names.index(topography_name)
+
+            # prepare unique id for this scatter points
+
+            glyph_id = f"glyph_{topography_idx}"
+            js_args[glyph_id] = symbol_glyph  # mapping from Python to JS
+
+            # only indices of visible glyphs appear in "active" lists of both button groups
+            js_code += f"{glyph_id}.visible = topography_btn_group.active.includes({topography_idx});"
+
+        #
+        # Final configuration of the plot
+        #
+        plot.toolbar.logo = None
+        plot.toolbar.active_inspect = None
+        plot.xaxis.axis_label_text_font_style = "normal"
+        plot.yaxis.axis_label_text_font_style = "normal"
+        plot.xaxis.major_label_text_font_size = "12pt"
+        plot.yaxis.major_label_text_font_size = "12pt"
+
+        # see js function "format_exponential()" in project.js file
+        plot.xaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
+        plot.yaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
+
+
+        #
+        # Legend
+        #
+        #plot.legend.click_policy = "hide" # can be used to disable lines by clicking on legend
+        #plot.legend.visible = True  # we have extra widgets to disable lines
+        #plot.legend.location = (0,-30)
+        legend = Legend(items=legend_items)
+        legend.click_policy = 'hide'
+
+        plot.add_layout(legend, "below")
+
+        if False:
+            #
+            # Adding widgets for switching lines on/off
+            #
+            topo_names = list(t.name for t in topography_colors.keys())
+
+
+            topography_button_group = CheckboxGroup(
+                labels=topo_names,
+                css_classes=["topobank-topography-checkbox"],
+                active=list(range(len(topo_names))))  # all active
+
+            # extend mapping of Python to JS objects
+            js_args['topography_btn_group'] = topography_button_group
+
+            # add code for setting styles of widgetbox elements
+            # js_code += """
+            # style_checkbox_labels({});
+            # """.format(card_idx)
+
+            toggle_lines_callback = CustomJS(args=js_args, code=js_code)
+
+            widgets = row(widgetbox(Paragraph(text="Topographies"), topography_button_group))
+
+            topography_button_group.js_on_click(toggle_lines_callback)
+
+        #
+        # Convert plot and widgets to HTML, add meta data for template
+        #
+        script, div = components(column(plot, sizing_mode='scale_width'))
+
+        partial_context = dict(
+            contact_area_plot_script=script,
+            contact_area_plot_div=div)
+
+        return partial_context
+
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        analyses_success = context['analyses_success']
+
+        if len(analyses_success) == 0:
+            #
+            # Prepare plot, controls, and table with special values..
+            #
+            context.update(
+                dict(plot_script="",
+                     plot_div="No successfully finished analyses available",
+                     special_values=[]))
+            return context
+
+        context.update(self._contact_area_figure(analyses_success))
+
+        return context
 
 
 def submit_analyses_view(request):

@@ -666,21 +666,18 @@ def _next_contact_step(system, history=None, pentol=None, maxiter=None):
 
     return displacement_xy, gap_xy, pressure_xy, disp0, current_load, current_area, (disp, gap, load, area, converged)
 
-@analysis_function(card_view_flavor='simple', automatic=True)
-def contact_mechanics(topography, progress_recorder=None):
+@analysis_function(card_view_flavor='contact mechanics', automatic=True)
+def contact_mechanics(topography, substrate_str="periodic", hardness=0, nsteps=10, progress_recorder=None):
 
-    unit = topography.info['unit']
+    # unit = topography.info['unit']
 
     #
     # Some constants
     #
-    nsteps = 20
-    hardness = 0
-    substrate_str = "periodic"
     maxiter = 100
     min_pentol = 1e-12  # lower bound for the penetration tolerance
 
-    if hardness > 0:
+    if (hardness is not None) and (hardness > 0):
         topography = PlasticTopography(topography, hardness)
 
     half_space_factory = dict(periodic=PeriodicFFTElasticHalfSpace,
