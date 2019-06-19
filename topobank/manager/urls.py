@@ -18,7 +18,7 @@ def creating_2D_topography(wizard):
     if step1_data is None:
         return False
 
-    topofile = get_topography_file(datafile.file.name)
+    topofile = get_topography_file(datafile)
     topo = topofile.topography(int(step1_data['data_source']))
 
     return topo.dim == 2

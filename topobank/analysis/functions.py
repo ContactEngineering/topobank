@@ -8,6 +8,11 @@ import numpy as np
 
 from PyCo.Topography import Topography
 
+from PyCo.SolidMechanics import PeriodicFFTElasticHalfSpace, FreeFFTElasticHalfSpace
+from PyCo.ContactMechanics import HardWall
+from PyCo.System.Factory import make_system
+from PyCo.Topography import PlasticTopography
+
 # TODO: _unicode_map and super and subscript functions should be moved to some support module.
 
 _unicode_map = {
@@ -126,8 +131,6 @@ def analysis_function(card_view_flavor="simple", name=None, automatic=False):
         :return: decorated function
         """
 
-        func.card_view_flavor = card_view_flavor # will be used when choosing the right view on request
-
         if name is None:
             name_ = func.__name__.replace('_', ' ').title()
         else:
@@ -139,6 +142,19 @@ def analysis_function(card_view_flavor="simple", name=None, automatic=False):
             pyfunc = func.__name__,
             automatic = automatic
         ))
+
+        # TODO: Can a default argument be automated without writing it?
+        # Add progress_recorder argument with default value, if not defined:
+        # sig = signature(func)
+        #if 'progress_recorder' not in sig.parameters:
+        #    func = lambda *args, **kw: func(*args, progress_recorder=ConsoleProgressRecorder(), **kw)
+        #    # the console progress recorder will work in tests and when calling the function
+        #    # outside of an celery context
+        #    #
+        #    # When used in a celery context, this argument will be overwritten with
+        #    # another recorder updated by a celery task
+
+        func.card_view_flavor = card_view_flavor  # will be used when choosing the right view on request
 
         return func
     return register_decorator
@@ -200,8 +216,23 @@ def test_function(topography):
     return { 'name': 'Test result for test function called for topography {}.'.format(topography)}
 test_function.card_view_flavor = 'simple'
 
+#
+# Use this during development if you need a long running task with failures
+#
+# @analysis_function(card_view_flavor='simple', automatic=True)
+# def long_running_task(topography, progress_recorder=None):
+#     import time, random
+#     n = 10 + random.randint(1,10)
+#     F = 30
+#     for i in range(n):
+#         time.sleep(0.5)
+#         if random.randint(1, F) == 1:
+#             raise ValueError("This error is intended and happens with probability 1/{}.".format(F))
+#         progress_recorder.set_progress(i+1, n)
+#     return dict(message="done", size=topography.size, n=n)
+
 @analysis_function(card_view_flavor='plot', automatic=True)
-def height_distribution(topography, bins=None, wfac=5):
+def height_distribution(topography, bins=None, wfac=5, progress_recorder=None):
     if bins is None:
         bins = _reasonable_bins_argument(topography)
 
@@ -293,7 +324,7 @@ def _moments_histogram_gaussian(arr, bins, wfac, quantity, label, gaussian=True)
 
 
 @analysis_function(card_view_flavor='plot', automatic=True)
-def slope_distribution(topography, bins=None, wfac=5):
+def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None):
 
     if bins is None:
         bins = _reasonable_bins_argument(topography)
@@ -355,7 +386,7 @@ def slope_distribution(topography, bins=None, wfac=5):
     return result
 
 @analysis_function(card_view_flavor='plot', automatic=True)
-def curvature_distribution(topography, bins=None, wfac=5):
+def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None):
     if bins is None:
         bins = _reasonable_bins_argument(topography)
 
@@ -401,7 +432,7 @@ def curvature_distribution(topography, bins=None, wfac=5):
     )
 
 @analysis_function(card_view_flavor='plot', automatic=True)
-def power_spectrum(topography, window='hann'):
+def power_spectrum(topography, window='hann', tip_radius=None, progress_recorder=None):
     if window == 'None':
         window = None
 
@@ -458,7 +489,7 @@ def power_spectrum(topography, window='hann'):
     return result
 
 @analysis_function(card_view_flavor='plot', automatic=True)
-def autocorrelation(topography):
+def autocorrelation(topography, progress_recorder=None):
 
     if topography.dim == 2:
         sx, sy = topography.size
@@ -525,7 +556,7 @@ def autocorrelation(topography):
 
 
 @analysis_function(card_view_flavor='plot', automatic=True)
-def variable_bandwidth(topography):
+def variable_bandwidth(topography, progress_recorder=None):
 
     magnifications, bandwidths, rms_heights = topography.variable_bandwidth()
 
@@ -547,102 +578,37 @@ def variable_bandwidth(topography):
         ]
     )
 
+from PyCo.ContactMechanics import HardWall
+#from PyCo.SolidMechanics import (PeriodicFFTElasticHalfSpace,
+#                                 FreeFFTElasticHalfSpace)
+#from PyCo.Surface import PlasticSurface
+# from PyCo.Systems import
 
-def _next_contact_step(system, topography, history=None, pentol=None, maxiter=None):
-    """
-    Run a full contact calculation. Try to guess displacement such that areas
-    are equally spaced on a log scale.
+@analysis_function(card_view_flavor='simple', automatic=True)
+def contact_mechanics(topography, progress_recorder=None):
 
-    Parameters
-    ----------
-    system : PyCo.System.SystemBase object
-        The contact mechanical system.
-    topography : PyCo.Topography.Topography object
-        The rigid rough surface.
-    history : tuple
-        History returned by past calls to next_step
+    unit = topography.info['unit']
 
-    Returns
-    -------
-    displacements : numpy.ndarray
-        Current surface displacement field.
-    forces : numpy.ndarray
-        Current surface pressure field.
-    displacement : float
-        Current displacement of the rigid surface
-    load : float
-        Current load.
-    area : float
-        Current fractional contact area.
-    history : tuple
-        History of contact calculations.
-    """
+    #
+    # Some constants
+    #
+    hardness = 0
+    substrate_str = "periodic"
+    maxiter = 100
+    offset = None
+    external_force = None
+    pressure_tol = 0  # tolerance for deciding whether point is in contact
+    gap_tol = 0  # tolerance for deciding whether point is in contact
+    min_pentol = 1e-12  # lower bound for the penetration tolerance
 
-    # Get the profile as a numpy array
-    profile = topography.heights()
-
-    # Find max, min and mean heights
-    top = np.max(profile)
-    middle = np.mean(profile)
-    bot = np.min(profile)
-
-    if history is None:
-        step = 0
-    else:
-        disp, gap, load, area, converged = history
-        step = len(disp)
-
-    if step == 0:
-        disp = []
-        gap = []
-        load = []
-        area = []
-        converged = np.array([], dtype=bool)
-
-        disp0 = -middle
-    elif step == 1:
-        disp0 = -top + 0.01 * (top - middle)
-    else:
-        ref_area = np.log10(np.array(area + 1 / np.prod(topography.resolution)))
-        darea = np.append(ref_area[1:] - ref_area[:-1], -ref_area[-1])
-        i = np.argmax(darea)
-        if i == step - 1:
-            disp0 = bot + 2 * (disp[-1] - bot)
-        else:
-            disp0 = (disp[i] + disp[i + 1]) / 2
-
-    opt = system.minimize_proxy(offset=disp0, pentol=pentol, maxiter=maxiter)
-    f = opt.jac
-    u = opt.x[:f.shape[0], :f.shape[1]]
-    disp = np.append(disp, [disp0])
-    gap = np.append(gap, [np.mean(u) - middle - disp0])
-    current_load = f.sum() / np.prod(topography.size)
-    load = np.append(load, [current_load])
-    current_area = (f > 0).sum() / np.prod(topography.resolution)
-    area = np.append(area, [current_area])
-    converged = np.append(converged, np.array([opt.success], dtype=bool))
-
-    # Sort by area
-    disp, gap, load, area, converged = np.transpose(sorted(zip(disp, gap, load, area, converged), key=lambda x: x[3]))
-    converged = np.array(converged, dtype=bool)
-
-    return u, f, disp0, current_load, current_area, (disp, gap, load, area, converged)
-
-
-@analysis_function(card_view_flavor='plot', automatic=True)
-def contact_mechanics(topography, substrate_str='periodic', hardness=None, nsteps=10, maxiter=100):
-    from PyCo.ContactMechanics import HardWall
-    from PyCo.SolidMechanics import (PeriodicFFTElasticHalfSpace,
-                                     FreeFFTElasticHalfSpace)
-    from PyCo.System import make_system
-
-    if hardness is not None and hardness > 0:
+    if hardness > 0:
         topography = PlasticTopography(topography, hardness)
+
     half_space_factory = dict(periodic=PeriodicFFTElasticHalfSpace,
                               nonperiodic=FreeFFTElasticHalfSpace)
 
-    # Compose a PyCo system consisting of the topography, a half-space and and interaction law
     substrate = half_space_factory[substrate_str](topography.resolution, 1.0, topography.size)
+
     interaction = HardWall()
     system = make_system(substrate, interaction, topography)
 
@@ -650,28 +616,54 @@ def contact_mechanics(topography, substrate_str='periodic', hardness=None, nstep
     # This is necessary because numbers can vary greatly
     # depending on the system of units.
     pentol = topography.rms_height() / (10 * np.mean(topography.resolution))
+    pentol = max(pentol, min_pentol)
 
-    history = None
-    for i in range(nsteps):
-        u, f, disp0, current_load, current_area, history = _next_contact_step(system, topography, history=history,
-                                                                              pentol=pentol, maxiter=maxiter)
+    opt = system.minimize_proxy(
+        offset=offset,
+        external_force=external_force,
+        pentol=pentol,
+        maxiter=maxiter,
+        kind='ref',  # Use Python reference implementation to avoid problems
+        # with non-contiguous memory and masked arrays.
+        callback=None  # because of PyCo issue 152 I cannot use the callback
+    )
 
-    disp, gap, load, area, converged = history
+    # _log.info('Calculation converged! Rendering figures now...')
 
-    load = np.array(load)
-    area = np.array(area)
-    sort_order = np.argsort(load)
+    area_per_pt = substrate.area_per_pt
+
+    # unit = mangle_unit(t.unit)
+    pressure_xy = opt.jac / area_per_pt
+    nx, ny = topography.resolution
+    opt.x = opt.x[:nx, :ny]
+    gap_xy = opt.x - topography.heights() - opt.offset
+    gap_xy[gap_xy < 0.0] = 0.0
+
+    gap = np.mean(gap_xy)
+    load = opt.jac.sum()  # units of force
+    area = (opt.jac > pressure_tol * area_per_pt).sum() * area_per_pt  # area
+
+
+    # load_history
+    # disp_history
+    # gap_history?
 
     return dict(
-        name='Contact mechanics',
-        xlabel='Normalized contact pressure',
-        ylabel='Fractional contact area',
-        xscale='log',
-        yscale='log',
-        series=[
-            dict(name='Contact area',
-                 x=np.array(load[sort_order]),
-                 y=np.array(area[sort_order]),
-                 ),
-        ]
+        name='Contact mechanics analysis',
+        scalars = {
+            'gap': gap,
+            'load': load,
+            'area': area,
+            'pressure_tolerance': pressure_tol,
+            'gap_tolerance': gap_tol,
+            'min_penetration_tolerance': min_pentol,
+        },
+        maps = {
+            'pressure_xy': pressure_xy,
+            'gap_xy': gap_xy,
+        }
     )
+
+    # TODO save data in S3 files and reference them
+    #
+

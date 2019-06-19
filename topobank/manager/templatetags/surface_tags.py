@@ -1,13 +1,13 @@
 from django import template
 import json
 
-from ..utils import selected_topographies as st, selection_from_session, bandwidths_data
+from ..utils import selected_instances, selection_from_session, bandwidths_data
 
 register = template.Library()
 
 @register.simple_tag
 def selected_topographies(request, surface):
-    return st(request, surface=surface)
+    return selected_instances(request, surface=surface)[0]
 
 @register.simple_tag
 def is_surface_explicitly_selected(request, surface):
@@ -16,7 +16,8 @@ def is_surface_explicitly_selected(request, surface):
 
 @register.simple_tag
 def bandwidths_data_json_for_selected_topographies(request, surface):
-    return json.dumps(bandwidths_data(st(request, surface=surface)))
+    topographies, *rest = selected_instances(request, surface=surface)
+    return json.dumps(bandwidths_data(topographies))
 
 @register.inclusion_tag('manager/yesno.html')
 def render_boolean(value, title, show_false=False):

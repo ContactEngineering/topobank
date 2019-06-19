@@ -24,7 +24,7 @@ from django_tables2 import RequestConfig
 
 from bokeh.plotting import figure
 from bokeh.embed import components
-from bokeh.models import DataRange1d, Range1d, LinearColorMapper, ColorBar, Row
+from bokeh.models import DataRange1d, LinearColorMapper, ColorBar
 
 import json
 import os.path
@@ -33,8 +33,8 @@ import logging
 from .models import Topography, Surface
 from .forms import TopographyForm, SurfaceForm, TopographySelectForm, SurfaceShareForm
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, Topography1DUnitsForm, Topography2DUnitsForm
-from .utils import get_topography_file, optimal_unit, \
-    selected_topographies, selection_from_session, selection_for_select_all, \
+from .utils import optimal_unit, get_topography_file,\
+    selected_instances, selection_from_session, selection_for_select_all, \
     bandwidths_data, surfaces_for_user
 from topobank.users.models import User
 
@@ -146,7 +146,7 @@ class TopographyCreateWizard(SessionWizardView):
 
             step1_data = self.get_cleaned_data_for_step('metadata')
 
-            topofile = get_topography_file(datafile.file.name)
+            topofile = get_topography_file(datafile)
 
             topo = topofile.topography(int(step1_data['data_source']))
             # topography as it is in file
@@ -224,20 +224,14 @@ class TopographyCreateWizard(SessionWizardView):
 
         return initial
 
-    @staticmethod
-    def get_topofile_cache_key(datafile_fname):
-        return f"topofile_{datafile_fname}"  # filename is unique inside wizard's directory -> cache key unique
-
     def get_form_kwargs(self, step=None):
 
-        kwargs = super(TopographyCreateWizard, self).get_form_kwargs(step)
+        kwargs = super().get_form_kwargs(step)
 
         if step == 'metadata':
             step0_data = self.get_cleaned_data_for_step('upload')
 
-            datafile_fname = step0_data['datafile'].file.name
-
-            topofile = get_topography_file(datafile_fname)
+            topofile = get_topography_file(step0_data['datafile'])
 
             #
             # Set data source choices based on file contents
@@ -392,18 +386,22 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
             ("height", "@image " + topo.unit),
         ]
 
-        colorbar_width = 40
+        colorbar_width = 50
 
         aspect_ratio = topo_size[0] / topo_size[1]
-        plot_height = 500
-        plot_width = int(plot_height * aspect_ratio)
+        frame_height = 500
+        frame_width = int(frame_height * aspect_ratio)
 
-        # from bokeh.models.tools import BoxZoomTool, WheelZoomTool, ZoomInTool, ZoomOutTool, PanTool
+        if frame_width > 1200: # rule of thumb, scale down if too wide
+            frame_width = 1200
+            frame_height = int(frame_width/aspect_ratio)
+
         plot = figure(x_range=x_range,
                       y_range=y_range,
-                      plot_height=plot_height,
-                      plot_width=plot_width,
+                      frame_width=frame_width,
+                      frame_height=frame_height,
                       # sizing_mode='scale_both',
+                      #aspect_ratio=aspect_ratio,
                       match_aspect=True,
                       x_axis_label=f'x ({topo.unit})',
                       y_axis_label=f'y ({topo.unit})',
@@ -418,20 +416,15 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
 
         plot.toolbar.logo = None
 
-        colorbar_plot = figure(plot_height = plot_height, plot_width = colorbar_width+70,
-                               x_axis_location = None, y_axis_location = None, title = None,
-                               tools = '', toolbar_location = None)
-
         colorbar = ColorBar(color_mapper=color_mapper,
-                            label_standoff=12, location=(0, 0),
-                            width=colorbar_width)
-        colorbar.title = f"height ({topo.unit})"
+                            label_standoff=12,
+                            location=(0, 0),
+                            width=colorbar_width,
+                            title=f"height ({topo.unit})")
 
-        colorbar_plot.add_layout(colorbar,'left')
+        plot.add_layout(colorbar, 'right')
 
-        #plot.add_layout(colorbar, 'right')
-
-        return Row(plot, colorbar_plot)
+        return plot
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -488,8 +481,14 @@ class SurfaceListView(FormMixin, ListView):
     success_url = reverse_lazy('manager:surface-list') # stay on same view
 
     def get_queryset(self):
-        surfaces = surfaces_for_user(self.request.user) # returns surfaces the user has access to
-        return surfaces
+        #
+        # Filter out non-empty surfaces, for which no topography was selected.
+        # Non-empty because we need to show empty surfaces in order to interact with them.
+        #
+        topographies, surfaces = selected_instances(self.request)
+        surface_ids = set(t.surface.id for t in topographies)
+        surface_ids.update(s.id for s in surfaces)
+        return Surface.objects.filter(id__in=surface_ids)
 
     def get_initial(self):
         # make sure the form is already filled with earlier selection
@@ -522,7 +521,6 @@ class SurfaceListView(FormMixin, ListView):
         _log.info('Form valid, selection: %s', selection)
 
         self.request.session['selection'] = tuple(selection)
-        messages.info(self.request, "Topography selection saved.")
 
         # when pressing the analyze button, trigger analysis for
         # all selected topographies
@@ -535,7 +533,7 @@ class SurfaceListView(FormMixin, ListView):
 
             auto_analysis_funcs = AnalysisFunction.objects.filter(automatic=True)
 
-            topographies = selected_topographies(self.request)
+            topographies, surfaces = selected_instances(self.request)
             for topo in topographies:
                 for af in auto_analysis_funcs:
                     submit_analysis(af, topo)

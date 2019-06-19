@@ -108,7 +108,7 @@
             <a class="dropdown-item" href="#" data-toggle="modal" data-target="#logoutModal">
               <i class="fa fa-sign-out fa-fw"></i>Sign Out</a>
             {% else %}
-            <a id="orcid-log-in-link" class="dropdown-item" href="{% provider_login_url 'orcid' method="oauth2" %}">Sign in via ORCID</a>
+            <a class="dropdown-item" href="{% provider_login_url 'orcid' method="oauth2" %}">Sign in via ORCID</a>
             {% endif %}
           </div>
         </li>

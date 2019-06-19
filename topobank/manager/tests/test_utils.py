@@ -10,7 +10,7 @@ import io
 from ..tests.utils import two_topos
 from ..utils import TopographyFile, TopographyFileReadingException,\
     DEFAULT_DATASOURCE_NAME, \
-    selection_to_topographies, selection_for_select_all, selection_choices
+    selection_to_instances, selection_for_select_all, selection_choices
 from ..models import Surface
 
 def test_data_sources_txt():
@@ -33,23 +33,24 @@ def testuser(django_user_model):
     user, created = django_user_model.objects.get_or_create(username=username)
     return user
 
-def test_selection_to_topographies(testuser, mock_topos):
+def test_selection_to_instances(testuser, mock_topos):
 
-    from topobank.manager.models import Topography
+    from topobank.manager.models import Topography, Surface
 
-    selection = ('topography-1', 'topography-2', 'surface-1')
-    selection_to_topographies(selection)
+    selection = ('topography-1', 'topography-2', 'surface-1', 'surface-3')
+    selection_to_instances(selection)
 
     Topography.objects.filter.assert_called_with(id__in=[1,2])
+    Surface.objects.filter.assert_called_with(id__in={1, 3}) # set instead of list
 
-def test_selection_to_topographies_with_given_surface(testuser, mock_topos):
+def test_selection_to_instances_with_given_surface(testuser, mock_topos):
 
     from topobank.manager.models import Topography, Surface
 
     surface = Surface(name='surface1')
 
     selection = ('topography-1', 'topography-2', 'surface-1')
-    selection_to_topographies(selection, surface=surface)
+    selection_to_instances(selection, surface=surface)
 
     Topography.objects.filter.assert_called_with(id__in=[1,2], surface=surface)
 
@@ -118,13 +119,3 @@ def test_topographyfile_txt_open_with_bytesio():
     pyco_topo = tf.topography(0)
     assert pyco_topo.resolution == (10,10)
 
-def test_topographyfile_txt_open_with_stringio():
-    input_file_path = Path('topobank/manager/fixtures/10x10.txt')
-
-    input_file = open(input_file_path, 'r')
-
-    input_data = input_file.read()
-
-    tf = TopographyFile(io.StringIO(input_data))
-    pyco_topo = tf.topography(0)
-    assert pyco_topo.resolution == (10,10)

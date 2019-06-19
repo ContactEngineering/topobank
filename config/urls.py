@@ -49,6 +49,12 @@ urlpatterns = [
     # For asking for terms and conditions
     url(r'^terms/', include('termsandconditions.urls')),
 
+    # progress bar during file upload
+    url(r'^progressbarupload/', include('progressbarupload.urls')),
+
+    # progress bar for celery tasks
+    url(r'^celery-progress/', include('celery_progress.urls')),
+
 ] + static(
     settings.MEDIA_URL, document_root=settings.MEDIA_ROOT
 )

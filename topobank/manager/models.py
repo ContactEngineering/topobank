@@ -1,10 +1,11 @@
 from django.db import models, transaction
 from django.shortcuts import reverse
+
 from guardian.shortcuts import assign_perm, remove_perm
 
-from .utils import TopographyFile, selected_topographies, TopographyFileException
 from topobank.users.models import User
 
+from .utils import get_topography_file
 
 def user_directory_path(instance, filename):
     # file will be uploaded to MEDIA_ROOT/user_<id>/<filename>
@@ -157,26 +158,8 @@ class Topography(models.Model):
         - scaled and detrended with the saved parameters
 
         """
-        try:
-            file = self.datafile.file
-        except Exception as exc:
-            msg = "Problems while instatiating file '{}' from storage '{}'.".format(
-                self.datafile.name, self.datafile.storage)
-            msg += " Further info: {}".format(exc)
-            raise TopographyFileException(msg) from exc
-
-        if not hasattr(file, 'mode'):
-            # WORKAROUND in order to make PyCo's "detect_format" (Version 0.31)
-            # work with S3 backend. The S3 backend file has no attribute "mode"
-            # and so "detect_format" does not work, because this attribute
-            # is used to find out whether the stream is binary or not.
-            # TODO Is this workaround still needed with the new reader infrastructure in PyCo
-            file.mode = 'rb'
-
-        topofile = TopographyFile(file)
-
+        topofile = get_topography_file(self.datafile)
         topo = topofile.topography(int(self.data_source))
-        # TODO int() is a fix for SQLite which cannot return real int?? remove for PG
 
         #
         # Now prepare topography using the parameters from database
@@ -184,7 +167,6 @@ class Topography(models.Model):
 
         # set size if physical size was not given in datafile
         # (see also  TopographyCreateWizard.get_form_initial)
-
         if self.size_editable:
             if self.size_y is None:
                 topo.size = self.size_x, # size is now always a tuple

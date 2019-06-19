@@ -1,9 +1,10 @@
 import pickle
 import traceback
-import datetime
 import inspect
 
 from django.utils import timezone
+
+from celery_progress.backend import ProgressRecorder
 
 from .celery import app
 from topobank.analysis.models import Analysis
@@ -28,9 +29,13 @@ def submit_analysis(analysis_func, topography, *other_args, **kwargs):
 
     pyfunc_kwargs = dict(bound_sig.arguments)
 
-    # topography will always be first positional argument
+    # topography will always be second positional argument
     # and has an extra column, do not safe reference
     del pyfunc_kwargs['topography']
+
+    # progress recorder should also not be saved, will always be first argument:
+    if 'progress_recorder' in pyfunc_kwargs:
+        del pyfunc_kwargs['progress_recorder']
 
     #
     # create entry in Analysis table
@@ -46,7 +51,7 @@ def submit_analysis(analysis_func, topography, *other_args, **kwargs):
     #
     transaction.on_commit(lambda : perform_analysis.delay(analysis.id))
 
-@app.task(bind=True, ignore_result=True)
+@app.task(bind=True)
 def perform_analysis(self, analysis_id):
     """Perform an analysis which is already present in the database.
 
@@ -62,6 +67,8 @@ def perform_analysis(self, analysis_id):
     - task_state
 
     """
+    progress_recorder = ProgressRecorder(self)
+
     #
     # update entry in Analysis table
     #
@@ -71,21 +78,25 @@ def perform_analysis(self, analysis_id):
     analysis.start_time = timezone.now() # with timezone
     analysis.save()
 
+    def save_result(result, task_state):
+        analysis.task_state = task_state
+        analysis.result = pickle.dumps(result)  # can also be an exception in case of errors!
+        analysis.end_time = timezone.now()  # with timezone
+        analysis.save()
+
     #
     # actually perform analysis
     #
     try:
         kwargs = pickle.loads(analysis.kwargs)
         topography = Topography.objects.get(id=analysis.topography_id).topography()
+        kwargs['progress_recorder'] = progress_recorder
         result = analysis.function.eval(topography, **kwargs)
-        analysis.task_state = Analysis.SUCCESS
+        save_result(result, Analysis.SUCCESS)
     except Exception as exc:
-        analysis.task_state = Analysis.FAILURE
-        result = dict(error=traceback.format_exc())
+        save_result(dict(error=traceback.format_exc()), Analysis.FAILURE)
+        # we want a real exception here so flower can show the task as failure
+        raise
 
-    #
-    # update entry with result
-    #
-    analysis.result = pickle.dumps(result) # can also be an exception in case of errors!
-    analysis.end_time = timezone.now() # with timezone
-    analysis.save()
+
+
