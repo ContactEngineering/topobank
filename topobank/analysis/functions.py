@@ -5,10 +5,13 @@ The first argument is always a PyCo Topography!
 """
 
 import numpy as np
-from inspect import signature
-from celery_progress.backend import ConsoleProgressRecorder
 
 from PyCo.Topography import Topography
+
+from PyCo.SolidMechanics import PeriodicFFTElasticHalfSpace, FreeFFTElasticHalfSpace
+from PyCo.ContactMechanics import HardWall
+from PyCo.System.Factory import make_system
+from PyCo.Topography import PlasticTopography
 
 # TODO: _unicode_map and super and subscript functions should be moved to some support module.
 
@@ -574,3 +577,93 @@ def variable_bandwidth(topography, progress_recorder=None):
                  ),
         ]
     )
+
+from PyCo.ContactMechanics import HardWall
+#from PyCo.SolidMechanics import (PeriodicFFTElasticHalfSpace,
+#                                 FreeFFTElasticHalfSpace)
+#from PyCo.Surface import PlasticSurface
+# from PyCo.Systems import
+
+@analysis_function(card_view_flavor='simple', automatic=True)
+def contact_mechanics(topography, progress_recorder=None):
+
+    unit = topography.info['unit']
+
+    #
+    # Some constants
+    #
+    hardness = 0
+    substrate_str = "periodic"
+    maxiter = 100
+    offset = None
+    external_force = None
+    pressure_tol = 0  # tolerance for deciding whether point is in contact
+    gap_tol = 0  # tolerance for deciding whether point is in contact
+    min_pentol = 1e-12  # lower bound for the penetration tolerance
+
+    if hardness > 0:
+        topography = PlasticTopography(topography, hardness)
+
+    half_space_factory = dict(periodic=PeriodicFFTElasticHalfSpace,
+                              nonperiodic=FreeFFTElasticHalfSpace)
+
+    substrate = half_space_factory[substrate_str](topography.resolution, 1.0, topography.size)
+
+    interaction = HardWall()
+    system = make_system(substrate, interaction, topography)
+
+    # Heuristics for the possible tolerance on penetration.
+    # This is necessary because numbers can vary greatly
+    # depending on the system of units.
+    pentol = topography.rms_height() / (10 * np.mean(topography.resolution))
+    pentol = max(pentol, min_pentol)
+
+    opt = system.minimize_proxy(
+        offset=offset,
+        external_force=external_force,
+        pentol=pentol,
+        maxiter=maxiter,
+        kind='ref',  # Use Python reference implementation to avoid problems
+        # with non-contiguous memory and masked arrays.
+        callback=None  # because of PyCo issue 152 I cannot use the callback
+    )
+
+    # _log.info('Calculation converged! Rendering figures now...')
+
+    area_per_pt = substrate.area_per_pt
+
+    # unit = mangle_unit(t.unit)
+    pressure_xy = opt.jac / area_per_pt
+    nx, ny = topography.resolution
+    opt.x = opt.x[:nx, :ny]
+    gap_xy = opt.x - topography.heights() - opt.offset
+    gap_xy[gap_xy < 0.0] = 0.0
+
+    gap = np.mean(gap_xy)
+    load = opt.jac.sum()  # units of force
+    area = (opt.jac > pressure_tol * area_per_pt).sum() * area_per_pt  # area
+
+
+    # load_history
+    # disp_history
+    # gap_history?
+
+    return dict(
+        name='Contact mechanics analysis',
+        scalars = {
+            'gap': gap,
+            'load': load,
+            'area': area,
+            'pressure_tolerance': pressure_tol,
+            'gap_tolerance': gap_tol,
+            'min_penetration_tolerance': min_pentol,
+        },
+        maps = {
+            'pressure_xy': pressure_xy,
+            'gap_xy': gap_xy,
+        }
+    )
+
+    # TODO save data in S3 files and reference them
+    #
+
