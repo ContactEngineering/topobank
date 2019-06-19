@@ -578,11 +578,93 @@ def variable_bandwidth(topography, progress_recorder=None):
         ]
     )
 
-from PyCo.ContactMechanics import HardWall
-#from PyCo.SolidMechanics import (PeriodicFFTElasticHalfSpace,
-#                                 FreeFFTElasticHalfSpace)
-#from PyCo.Surface import PlasticSurface
-# from PyCo.Systems import
+def _next_contact_step(system, history=None, pentol=None, maxiter=None):
+    """
+    Run a full contact calculation. Try to guess displacement such that areas
+    are equally spaced on a log scale.
+
+    Parameters
+    ----------
+    system : PyCo.System.SystemBase object
+        The contact mechanical system.
+    history : tuple
+        History returned by past calls to next_step
+
+    Returns
+    -------
+    displacements : numpy.ndarray
+        Current surface displacement field.
+    forces : numpy.ndarray
+        Current surface pressure field.
+    displacement : float
+        Current displacement of the rigid surface
+    load : float
+        Current load.
+    area : float
+        Current fractional contact area.
+    history : tuple
+        History of contact calculations.
+    """
+
+    topography = system.surface
+    substrate = system.substrate
+
+    # Get the profile as a numpy array
+    profile = topography.heights()
+
+    # Find max, min and mean heights
+    top = np.max(profile)
+    middle = np.mean(profile)
+    bot = np.min(profile)
+
+    if history is None:
+        step = 0
+    else:
+        disp, gap, load, area, converged = history
+        step = len(disp)
+
+    if step == 0:
+        disp = []
+        gap = []
+        load = []
+        area = []
+        converged = np.array([], dtype=bool)
+
+        disp0 = -middle
+    elif step == 1:
+        disp0 = -top + 0.01 * (top - middle)
+    else:
+        ref_area = np.log10(np.array(area + 1 / np.prod(topography.resolution)))
+        darea = np.append(ref_area[1:] - ref_area[:-1], -ref_area[-1])
+        i = np.argmax(darea)
+        if i == step - 1:
+            disp0 = bot + 2 * (disp[-1] - bot)
+        else:
+            disp0 = (disp[i] + disp[i + 1]) / 2
+
+    # TODO: This is a mess. We should give variables more explicit names. Also double check that this works for both
+    # periodic and non-periodic calculations.
+    opt = system.minimize_proxy(offset=disp0, pentol=pentol, maxiter=maxiter)
+    force_xy = opt.jac
+    displacement_xy = opt.x[:force_xy.shape[0], :force_xy.shape[1]]
+    disp = np.append(disp, [disp0])
+    gap = np.append(gap, [np.mean(displacement_xy) - middle - disp0])
+    current_load = force_xy.sum() / np.prod(topography.size)
+    load = np.append(load, [current_load])
+    current_area = (force_xy > 0).sum() / np.prod(topography.resolution)
+    area = np.append(area, [current_area])
+    converged = np.append(converged, np.array([opt.success], dtype=bool))
+
+    # Sort by area
+    disp, gap, load, area, converged = np.transpose(sorted(zip(disp, gap, load, area, converged), key=lambda x: x[3]))
+    converged = np.array(converged, dtype=bool)
+
+    area_per_pt = substrate.area_per_pt
+    pressure_xy = force_xy / area_per_pt
+    gap_xy = displacement_xy - topography.heights() - opt.offset
+    gap_xy[gap_xy < 0.0] = 0.0
+
+    return displacement_xy, gap_xy, pressure_xy, disp0, current_load, current_area, (disp, gap, load, area, converged)
 
 @analysis_function(card_view_flavor='simple', automatic=True)
 def contact_mechanics(topography, progress_recorder=None):
@@ -592,13 +674,10 @@ def contact_mechanics(topography, progress_recorder=None):
     #
     # Some constants
     #
+    nsteps = 20
     hardness = 0
     substrate_str = "periodic"
     maxiter = 100
-    offset = None
-    external_force = None
-    pressure_tol = 0  # tolerance for deciding whether point is in contact
-    gap_tol = 0  # tolerance for deciding whether point is in contact
     min_pentol = 1e-12  # lower bound for the penetration tolerance
 
     if hardness > 0:
@@ -618,50 +697,32 @@ def contact_mechanics(topography, progress_recorder=None):
     pentol = topography.rms_height() / (10 * np.mean(topography.resolution))
     pentol = max(pentol, min_pentol)
 
-    opt = system.minimize_proxy(
-        offset=offset,
-        external_force=external_force,
-        pentol=pentol,
-        maxiter=maxiter,
-        kind='ref',  # Use Python reference implementation to avoid problems
-        # with non-contiguous memory and masked arrays.
-        callback=None  # because of PyCo issue 152 I cannot use the callback
-    )
+    history = None
+    for i in range(nsteps):
+        displacement_xy, gap_xy, pressure_xy, disp0, current_load, current_area, history = \
+            _next_contact_step(system, history=history, pentol=pentol, maxiter=maxiter)
+        # Presently, displacement_xy, gap_xy and pressure_xy are not used. They should be stored to S3 and then
+        # retrieved for visualization.
+        progress_recorder.set_progress(i + 1, nsteps)
 
-    # _log.info('Calculation converged! Rendering figures now...')
+    disp, gap, load, area, converged = history
 
-    area_per_pt = substrate.area_per_pt
-
-    # unit = mangle_unit(t.unit)
-    pressure_xy = opt.jac / area_per_pt
-    nx, ny = topography.resolution
-    opt.x = opt.x[:nx, :ny]
-    gap_xy = opt.x - topography.heights() - opt.offset
-    gap_xy[gap_xy < 0.0] = 0.0
-
-    gap = np.mean(gap_xy)
-    load = opt.jac.sum()  # units of force
-    area = (opt.jac > pressure_tol * area_per_pt).sum() * area_per_pt  # area
-
-
-    # load_history
-    # disp_history
-    # gap_history?
+    load = np.array(load)
+    area = np.array(area)
+    sort_order = np.argsort(load)
 
     return dict(
-        name='Contact mechanics analysis',
-        scalars = {
-            'gap': gap,
-            'load': load,
-            'area': area,
-            'pressure_tolerance': pressure_tol,
-            'gap_tolerance': gap_tol,
-            'min_penetration_tolerance': min_pentol,
-        },
-        maps = {
-            'pressure_xy': pressure_xy,
-            'gap_xy': gap_xy,
-        }
+        name='Contact mechanics',
+        xlabel='Normalized contact pressure',
+        ylabel='Fractional contact area',
+        xscale='log',
+        yscale='log',
+        series=[
+            dict(name='Contact area',
+                 x=np.array(load[sort_order]),
+                 y=np.array(area[sort_order]),
+                 ),
+        ]
     )
 
     # TODO save data in S3 files and reference them
