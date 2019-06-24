@@ -69,9 +69,18 @@
       Analysis for topography <em>{{ au.topography.name }}</em> failed.
       See tab "Failures" for details.
     </div>
-{% endfor %}
-
+    {% endfor %}
 {% endif %}
+
+{% if not unique_kwargs %}
+  <div class="alert alert-warning">
+      {% fontawesome_icon 'exclamation-circle' %}
+      Arguments for this analyis differ among topographies.
+      See <a href="#" data-toggle="modal" data-target="#statusesModal-{{ card_id }}">task information</a> for details.
+      You may trigger a recalculation with common arguments.
+  </div>
+{% endif %}
+
 {% for mt in topographies_missing %}
   <div class="alert alert-warning">
     Analysis for topography <em>{{ mt.name }}</em> not triggered yet. Please trigger if needed.

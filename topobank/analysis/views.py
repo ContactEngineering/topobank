@@ -134,6 +134,9 @@ class SimpleCardView(TemplateView):
         The returned dict has the following keys:
 
           card_id: A CSS id referencing the card which is to be delivered
+          title: card title
+          function: AnalysisFunction instance
+          unique_kwargs: dict with common kwargs for all analyses, None if not unique
           analysis_available: queryset of all analyses which are relevant for this view
           analyses_success: queryset of successfully finished analyses (result is useable, can be displayed)
           analyses_failure: queryset of analyses finished with failures (result has traceback, can't be displayed)
@@ -184,12 +187,25 @@ class SimpleCardView(TemplateView):
         topographies_missing = [Topography.objects.get(id=tid) for tid in topography_ids
                                 if tid not in topographies_available_ids]
 
+        #
+        # collect all keyword arguments and check whether they are equal
+        #
+        unique_kwargs = None # means: there are differences
+        for av in analyses_avail:
+            kwargs = pickle.loads(av.kwargs)
+            if unique_kwargs is None:
+                unique_kwargs = kwargs
+            elif kwargs != unique_kwargs:
+                unique_kwargs = None
+                break
+
         function = AnalysisFunction.objects.get(id=function_id)
 
         context.update(dict(
             card_id=card_id,
             title=function.name,
             function=function,
+            unique_kwargs=unique_kwargs,
             analyses_available=analyses_avail,  # all Analysis objects related to this card
             analyses_success=analyses_success,  # ..the ones which were successful and can be displayed
             analyses_failure=analyses_failure,  # ..the ones which have failures and can't be displayed
@@ -582,8 +598,6 @@ class ContactMechanicsCardView(SimpleCardView):
             source = ColumnDataSource(data=dict(x=first_series['x'],
                                                 y=first_series['y']))
 
-            legend_entry = topography_name
-
             curr_color = topography_colors[analysis.topography]
 
             symbol_glyph = plot.scatter('x', 'y', source=source,
@@ -618,43 +632,13 @@ class ContactMechanicsCardView(SimpleCardView):
         plot.xaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
         plot.yaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
 
-
         #
         # Legend
         #
-        #plot.legend.click_policy = "hide" # can be used to disable lines by clicking on legend
-        #plot.legend.visible = True  # we have extra widgets to disable lines
-        #plot.legend.location = (0,-30)
         legend = Legend(items=legend_items)
         legend.click_policy = 'hide'
 
         plot.add_layout(legend, "below")
-
-        if False:
-            #
-            # Adding widgets for switching lines on/off
-            #
-            topo_names = list(t.name for t in topography_colors.keys())
-
-
-            topography_button_group = CheckboxGroup(
-                labels=topo_names,
-                css_classes=["topobank-topography-checkbox"],
-                active=list(range(len(topo_names))))  # all active
-
-            # extend mapping of Python to JS objects
-            js_args['topography_btn_group'] = topography_button_group
-
-            # add code for setting styles of widgetbox elements
-            # js_code += """
-            # style_checkbox_labels({});
-            # """.format(card_idx)
-
-            toggle_lines_callback = CustomJS(args=js_args, code=js_code)
-
-            widgets = row(widgetbox(Paragraph(text="Topographies"), topography_button_group))
-
-            topography_button_group.js_on_click(toggle_lines_callback)
 
         #
         # Convert plot and widgets to HTML, add meta data for template
@@ -678,12 +662,18 @@ class ContactMechanicsCardView(SimpleCardView):
             # Prepare plot, controls, and table with special values..
             #
             context.update(
-                dict(plot_script="",
-                     plot_div="No successfully finished analyses available",
-                     special_values=[]))
-            return context
+                dict(contact_area_plot_script="",
+                     contact_area_plot_div="No successfully finished analyses available"))
+        else:
+            context.update(self._contact_area_figure(analyses_success))
 
-        context.update(self._contact_area_figure(analyses_success))
+        unique_kwargs = context['unique_kwargs']
+        if unique_kwargs:
+            initial_calc_kwargs = unique_kwargs
+        else:
+            initial_calc_kwargs = dict()
+
+        context['initial_calc_kwargs'] = initial_calc_kwargs
 
         return context
 
@@ -703,7 +693,6 @@ def submit_analyses_view(request):
         function_id = int(request_method.get('function_id'))
         topography_ids = [int(tid) for tid in request_method.getlist('topography_ids[]')]
         function_kwargs_json = request_method.get('function_kwargs_json')
-        # function_window = request_method.get('function_kwargs[window]')
     except (KeyError, ValueError, TypeError):
         return JsonResponse({'error': 'error in request data'}, status=400)
 
@@ -714,8 +703,7 @@ def submit_analyses_view(request):
     topographies = Topography.objects.filter(id__in=topography_ids)
     function_kwargs = json.loads(function_kwargs_json)
 
-    for topo in topographies:
-        submit_analysis(function, topo, **function_kwargs)
+    submitted_analyses = [ submit_analysis(function, topo, **function_kwargs) for topo in topographies ]
 
     return JsonResponse({}, status=200) # what to return here? 200 means: successfully triggered calculations
 
