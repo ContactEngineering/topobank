@@ -1,7 +1,7 @@
 from django.shortcuts import redirect, render
 from django.views.generic import DetailView, ListView, UpdateView, CreateView, DeleteView, TemplateView
 from django.urls import reverse, reverse_lazy
-from django.core.files.storage import FileSystemStorage # TODO use default_storage instead?
+from django.core.files.storage import FileSystemStorage
 from django.core.files.storage import default_storage
 from django.core.files import File
 from django.core.exceptions import PermissionDenied
@@ -171,7 +171,7 @@ class TopographyCreateWizard(SessionWizardView):
                 #
                 unit, conversion_factor = optimal_unit(topo.size, unit)
 
-                initial_size_x *= conversion_factor # TODO Is it correct to do this if there is "int()" afterwards?
+                initial_size_x *= conversion_factor  # TODO Is it correct to do this if there is "int()" afterwards?
                 if has_2_dim:
                     initial_size_y *= conversion_factor
 
@@ -220,7 +220,7 @@ class TopographyCreateWizard(SessionWizardView):
             if topo.dim == 2:
                 initial['resolution_x'], initial['resolution_y'] = topo.resolution
             else:
-                initial['resolution_x'] = len(topo.positions()) # TODO Check: also okay for uniform line scans?
+                initial['resolution_x'] = len(topo.positions())  # TODO Check: also okay for uniform line scans?
 
         return initial
 
@@ -270,12 +270,6 @@ class TopographyCreateWizard(SessionWizardView):
         # collect all data from forms
         #
         d = dict((k, v) for form in form_list for k, v in form.cleaned_data.items())
-        # TODO maybe use self.get_all_cleaned_data()
-
-        #
-        # collect additional data
-        #
-        # TODO Check if we'd better get resolution here
 
         #
         # Check whether given surface can be altered by this user
@@ -293,10 +287,6 @@ class TopographyCreateWizard(SessionWizardView):
             d['datafile'] = default_storage.save(new_path, File(datafile))
 
         #
-        # TODO remove topography file object from cache
-        #
-
-        #
         # Set the topography's creator to the current user uploading the file
         #
         d['creator'] = self.request.user
@@ -308,7 +298,7 @@ class TopographyCreateWizard(SessionWizardView):
         instance.save()
 
         # put automated analysis in queue
-        instance.submit_automated_analyses() # TODO create notification
+        instance.submit_automated_analyses()
 
         return redirect(reverse('manager:topography-detail', kwargs=dict(pk=instance.pk)))
 
