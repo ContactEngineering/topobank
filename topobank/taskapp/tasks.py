@@ -22,6 +22,9 @@ def submit_analysis(analysis_func, topography, *other_args, **kwargs):
     :param kwargs: keyword arguments for analysis func
     """
 
+    #
+    # Build function signature with current arguments
+    #
     pyfunc = analysis_func.python_function
 
     sig = inspect.signature(pyfunc)
@@ -49,9 +52,19 @@ def submit_analysis(analysis_func, topography, *other_args, **kwargs):
         kwargs=pickle.dumps(pyfunc_kwargs))
 
     #
+    # delete all completed old analyses for same function and topography
+    #
+    Analysis.objects.filter(
+        ~Q(id=analysis.id)
+        & Q(topography=topography)
+        & Q(function=analysis_func)
+        & Q(task_state__in=[Analysis.FAILURE, Analysis.SUCCESS])).delete()
+
+    #
     # Send task to the queue
     #
     transaction.on_commit(lambda : perform_analysis.delay(analysis.id))
+
 
 @app.task(bind=True)
 def perform_analysis(self, analysis_id):
@@ -86,13 +99,6 @@ def perform_analysis(self, analysis_id):
         analysis.result = pickle.dumps(result)  # can also be an exception in case of errors!
         analysis.end_time = timezone.now()  # with timezone
         analysis.save()
-
-    #
-    # delete all completed old analyses for same function and topography
-    #
-    old_analyses_expr = ~Q(id=analysis_id) & Q(topography=analysis.topography) & Q(function=analysis.function) \
-                        & Q(task_state__in=[Analysis.FAILURE, Analysis.SUCCESS])
-    Analysis.objects.filter(old_analyses_expr).delete()
 
     #
     # actually perform analysis
