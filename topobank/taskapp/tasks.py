@@ -3,13 +3,15 @@ import traceback
 import inspect
 
 from django.utils import timezone
+from django.db import transaction
+from django.db.models import Q
 
 from celery_progress.backend import ProgressRecorder
 
 from .celery import app
 from topobank.analysis.models import Analysis
 from topobank.manager.models import Topography
-from django.db import transaction
+
 
 def submit_analysis(analysis_func, topography, *other_args, **kwargs):
     """Create an analysis entry and submit a task to the task queue.
@@ -67,6 +69,7 @@ def perform_analysis(self, analysis_id):
     - task_state
 
     """
+
     progress_recorder = ProgressRecorder(self)
 
     #
@@ -83,6 +86,13 @@ def perform_analysis(self, analysis_id):
         analysis.result = pickle.dumps(result)  # can also be an exception in case of errors!
         analysis.end_time = timezone.now()  # with timezone
         analysis.save()
+
+    #
+    # delete all completed old analyses for same function and topography
+    #
+    old_analyses_expr = ~Q(id=analysis_id) & Q(topography=analysis.topography) & Q(function=analysis.function) \
+                        & Q(task_state__in=[Analysis.FAILURE, Analysis.SUCCESS])
+    Analysis.objects.filter(old_analyses_expr).delete()
 
     #
     # actually perform analysis
