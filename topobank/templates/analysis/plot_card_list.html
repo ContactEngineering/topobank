@@ -41,7 +41,7 @@
       </ul>
 
       <div class="tab-content">
-        <div class="tab-pane fade show active" id="plot-{{ card_id }}" role="tabpanel" aria-labelledby="card-tab">
+        <div class="tab-pane fade show active" id="plot-tab-{{ card_id }}" role="tabpanel" aria-labelledby="card-tab">
           {% include 'analysis/analyses_alerts.html' %}
           {% if not analyses_unready and analyses_success %}
            {# Show all analyses for which we have results #}
