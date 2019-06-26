@@ -32,7 +32,7 @@
 
   <div class="row">
 
-    <div class="col-9">
+    <div class="col-6">
       <div class="tab-content">
 
         <div class="tab-pane fade show active" id="plot" role="tabpanel" aria-labelledby="card-tab">
@@ -68,14 +68,10 @@
       </div>
     </div>
 
-    <div class="col-3">
+    <div class="col-6">
 
-      <div class="row p-3">
-        <div class="col">
-        </div>
-      </div>
-      <div class="row p-3">
-        <div class="col">
+      <div class="row">
+        <div class="col p-4">
           <!-- button area -->
           {% if analyses_available %}
             <!--
@@ -95,7 +91,7 @@
           {% endif %}
         </div>
       </div>
-      <div class="row p-3">
+      <div class="row p-4">
         <div class="col">
             <a href="{% url 'analysis:list' %}"
                class="btn btn-default btn-block btn-lg">
@@ -105,48 +101,77 @@
       </div>
       {% if not analyses_unready %}
       <form>
-        <div class="row p-3">
-          <div class="col">
+        <div class="form-group row">
 
-            <div class="input-group">
-              <label for="substrate-select" class="col-sm-6 col-form-label">
-                Type:
-              </label>
-              <select class="custom-select col-sm-6" id="substrate-select">
+
+            {# Substrate selection #}
+
+            <div class="input-group col-auto">
+              <div class="input-group-prepend">
+                <div class="input-group-text">
+                Type
+                </div>
+
+              </div>
+              <select class="custom-select" id="substrate-select">
                 <option value="periodic" selected>Periodic (repeating array of the topography)</option>
                 <option value="nonperiodic">Free boundaries (flat punch with topography)</option>
               </select>
+              <div class="input-group-append">
+              <div class="input-group-text">
+                  <i class="fa fa-info-circle" data-toggle="popover"
+                     tabindex="0" data-trigger="focus" role="button"
+                     title="Type of calculation"
+                     data-content="This option determines how the elastic interactions are calculated.
+                                   This affects edge effects that may show up in the results at large contact area.
+                                   Calculations can assume that the surface repeats periodically or that it is pushing down on a nonperiodic,
+                                   infinitely expanded half-space. The latter option corresponds to mapping the surface topography on a flat punch."></i>
+                </div>
+              </div>
             </div>
-            <div class="input-group">
-              <!-- div class="input-group-prepend">
-                <input type="checkbox" aria-label="hardness">
-              </div -->
-              <!-- div class="input-group-prepend">
-                <span class="input-group-text" id="inputGroup-sizing-default">Hardness</span>
-              </div -->
-              <label for="hardness-input" class="col-sm-6 col-form-label">
-                Hardness:
-              </label>
-              <input id='hardness-input' type="number" min="0" class="col-sm-6 col-form-control"
-                     value="{{ initial_calc_kwargs.hardness }}"
-                     aria-label="">
+
+            {# Hardness input #}
+            <div class="input-group col-auto">
+
+              <div class="input-group-prepend">
+                <div class="input-group-text">
+                  Hardness
+                </div>
+                <div class="input-group-text">
+                  <input id="hardness-checkbox" type="checkbox" aria-label="enable-hardness">
+                </div>
+              </div>
+              <input id="hardness-input" type="number" min="0" step="0.1" class="form-control"
+                     disabled="true" {# will be clicked automatically if hardness was given in arguments, see below #}
+                     value="{{ initial_calc_kwargs.hardness }}">
+              <div class="input-group-append ">
+                <div class="input-group-text">
+                  E<sup>*</sup>
+                </div>
+                <div class="input-group-text">
+                  <i class="fa fa-info-circle" data-toggle="popover"
+                       tabindex="0" data-trigger="focus" role="button"
+                       title="Hardness"
+                       data-content="Setting a hardness enables plastic calculations. Local pressure cannot exceed hardness value."></i>
+                </div>
+              </div>
+              <!--
+                   -->
             </div>
-            <div class="input-group">
-              <!-- div class="input-group-prepend">
-                <span class="input-group-text" id="inputGroup-sizing-default">Number of steps</span>
-              </div -->
-              <label for="nsteps-input" class="col-sm-6 col-form-label">
-                Number of steps:
-              </label>
-              <input id='nsteps-input' type="number" min="0" max="50" class="col-sm-6 col-form-control"
-                     value="{{ initial_calc_kwargs.nsteps }}"
-                     aria-label="">
+            <div class="input-group col-auto">
+              <div class="input-group-prepend">
+                <div class="input-group-text">
+                  Number of steps
+                </div>
+              </div>
+              <input id='nsteps-input' type="number" min="0" max="50" step="1" class="form-control"
+                     value="{{ initial_calc_kwargs.nsteps }}">
             </div>
-          </div>
+
         </div>
         <div class="row p-3">
           <div class="col">
-            <button type="submit" id="recalculate" class="btn btn-primary btn-block btn-lg">Recalculate</button>
+            <button type="button" id="recalculate" class="btn btn-primary btn-block btn-lg">Recalculate</button>
           </div>
         </div>
       </form>
@@ -174,46 +199,80 @@
     console.log("Debug: "+msg);
   }
 
-  $("#recalculate").click( function() {
 
-       var substrate_str = $('#substrate-select').val();
-       var hardness = parseInt($('#hardness-input').val());
-       var nsteps = parseInt($('#nsteps-input').val());
-       // debug_msg("Clicked button. substrate: "+substrate_str+"hardness: "+hardness+" nsteps: "+nsteps);
 
-       $.ajax({
-        type: "POST",
-        url: "{% url 'analysis:card-submit' %}",
-        timeout: 0,
-        data: {
-          function_id: {{ function.id }},
-          topography_ids: {{ topography_ids_requested_json|safe }},
-          function_kwargs_json: JSON.stringify({ 'substrate_str': substrate_str, 'hardness': hardness, 'nsteps': nsteps}),
-          csrfmiddlewaretoken: "{{csrf_token}}"
-        },
-        success : function(data, textStatus, xhr) {
-          debug_msg("Job submission successful. Status: "+xhr.status+" textStatus: "+textStatus);
-          if (xhr.status==200) {
-            console.log("Triggering reload of card");
-            submit_analyses_card_ajax("{% url 'analysis:card' %}", "card", "detail", {{ function.id }},
-                                      {{ topography_ids_requested_json|safe }});
-            debug_msg("Triggered card reload. Status: "+xhr.status+" textStatus: "+textStatus);
-          } else {
-            console.log("Submitting analyses failed");
+  // enable all popovers in the document
+  $(document).ready(function() {
+    $('[data-toggle="popover"]').popover();
+
+    // set value for substrate based on initial value
+    $("#substrate-select").val("{{ initial_calc_kwargs.substrate_str }}");
+
+
+    var hardness_checkbox = $("#hardness-checkbox");
+
+    hardness_checkbox.click( function () {
+      var hardness_input = $("#hardness-input");
+      if (hardness_checkbox.prop("checked")) {
+        hardness_input.prop("disabled", false);
+      } else {
+        hardness_input.prop("disabled", true);
+      }
+    });
+
+    // check checkbox or not, depending on whether there is an initial value for hardness or not
+    {% if initial_calc_kwargs.hardness %}
+      hardness_checkbox.click()
+    {% endif %}
+
+
+    $("#recalculate").click( function() {
+
+         var substrate_str = $('#substrate-select').val();
+         var hardness = null;
+         var nsteps = parseInt($('#nsteps-input').val());
+
+         if ($('#hardness-checkbox').prop("checked") == true) {
+           hardness = parseFloat($('#hardness-input').val());
+         };
+
+         // debug_msg("Clicked button. substrate: "+substrate_str+" hardness: "+hardness+" nsteps: "+nsteps);
+
+         $.ajax({
+          type: "POST",
+          url: "{% url 'analysis:card-submit' %}",
+          timeout: 0,
+          data: {
+            function_id: {{ function.id }},
+            topography_ids: {{ topography_ids_requested_json|safe }},
+            function_kwargs_json: JSON.stringify({ 'substrate_str': substrate_str, 'hardness': hardness, 'nsteps': nsteps}),
+            csrfmiddlewaretoken: "{{csrf_token}}"
+          },
+          success : function(data, textStatus, xhr) {
+            // debug_msg("Job submission successful. Status: "+xhr.status+" textStatus: "+textStatus);
+            if (xhr.status==200) {
+              console.log("Triggering reload of card");
+              submit_analyses_card_ajax("{% url 'analysis:card' %}", "card", "detail", {{ function.id }},{{ topography_ids_requested_json|safe }}, true);
+              // debug_msg("Triggered card reload. Status: "+xhr.status+" textStatus: "+textStatus);
+            } else {
+              console.log("Submitting analyses failed");
+              var div = $('#plot'); // show the error in a prominent way
+              $(div).html("Triggering calculation failed, status: "+xhr.status+" response:"+xhr.responseText);
+              $(div).addClass("alert alert-danger");
+            }
+          },
+          error: function(xhr, textStatus, errorThrown) {
+            console.log("AJAX error when submitting jobs: errorThrown: "+errorThrown+" status: " +xhr.status+" responseText: "+xhr.responseText);
             var div = $('#plot'); // show the error in a prominent way
-            $(div).html("Triggering calculation failed, status: "+xhr.status+" response:"+xhr.responseText);
+            $(div).html("Please report this error: "+errorThrown+xhr.status+xhr.responseText);
             $(div).addClass("alert alert-danger");
           }
-        },
-        error: function(xhr, textStatus, errorThrown) {
-          console.log("AJAX error when submitting jobs: errorThrown: "+errorThrown+" status: " +xhr.status+" responseText: "+xhr.responseText);
-          var div = $('#plot'); // show the error in a prominent way
-          $(div).html("Please report this error: "+errorThrown+xhr.status+xhr.responseText);
-          $(div).addClass("alert alert-danger");
-        }
-      });
+        });
 
-    });
+     });
+
+
+  });
 
   </script>
 {% endblock card_javascript %}
