@@ -671,7 +671,9 @@ class ContactMechanicsCardView(SimpleCardView):
         if unique_kwargs:
             initial_calc_kwargs = unique_kwargs
         else:
-            initial_calc_kwargs = dict()
+            initial_calc_kwargs = dict(substrate_str='periodic',
+                                       hardness=None,
+                                       nsteps=10)
 
         context['initial_calc_kwargs'] = initial_calc_kwargs
 

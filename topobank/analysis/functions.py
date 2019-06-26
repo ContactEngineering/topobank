@@ -667,7 +667,7 @@ def _next_contact_step(system, history=None, pentol=None, maxiter=None):
     return displacement_xy, gap_xy, pressure_xy, disp0, current_load, current_area, (disp, gap, load, area, converged)
 
 @analysis_function(card_view_flavor='contact mechanics', automatic=True)
-def contact_mechanics(topography, substrate_str="periodic", hardness=0, nsteps=10, progress_recorder=None):
+def contact_mechanics(topography, substrate_str="periodic", hardness=None, nsteps=10, progress_recorder=None):
 
     # unit = topography.info['unit']
 
