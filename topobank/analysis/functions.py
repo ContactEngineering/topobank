@@ -706,20 +706,28 @@ def contact_mechanics(topography, substrate_str="periodic", hardness=None, nstep
 
     load = np.array(load)
     area = np.array(area)
+    disp = np.array(disp)
     sort_order = np.argsort(load)
 
     return dict(
         name='Contact mechanics',
-        xlabel='Normalized contact pressure',
-        ylabel='Fractional contact area',
-        xscale='log',
-        yscale='log',
-        series=[
-            dict(name='Contact area',
-                 x=np.array(load[sort_order]),
-                 y=np.array(area[sort_order]),
-                 ),
-        ]
+        load=load[sort_order],
+        area=area[sort_order],
+        disp=disp[sort_order],
+        #xlabel='Normalized contact pressure',
+        #ylabel='Fractional contact area',
+        #xscale='log',
+        #yscale='log',
+        # series=[
+        #     dict(name='Contact area',
+        #          x=np.array(load[sort_order]),
+        #          y=np.array(area[sort_order]),
+        #          ),
+        #     dict(name='Load',
+        #          x=np.array(disp[sort_order]),
+        #          y=np.array(load[sort_order]),                 
+        #          ),
+        # ]
     )
 
     # TODO save data in S3 files and reference them

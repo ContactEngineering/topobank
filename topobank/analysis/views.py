@@ -527,22 +527,27 @@ class ContactMechanicsCardView(SimpleCardView):
     def _displacement_figure(self):
         pass
 
-    def _contact_area_figure(self, analyses):
-        """Plot 'Contact area versus Load'
+    def _overview_figure(self, title, x_axis_label, y_axis_label, x_axis_type, y_axis_type, series):
+        """Plot series
 
-        :param analyses: sequence of successful analyses
-        :return:
+        :param title: string with title of plot
+        :param series: list of dicts
+        :return: 2-tuple (plot_div, plot_script)
+
+        The element of the list 'series' must be dicts with
+
+          label: label name
+          x: array of x coordinates
+          y: array of y coordinates
+
         """
-        title = "Contact Area versus Load"
+
 
         #
         # set xrange, yrange -> automatic bounds for zooming
         #
         x_range = DataRange1d(bounds='auto')  # if min+max not given, calculate from data of render
         y_range = DataRange1d(bounds='auto')
-
-        x_axis_label = 'Fractional contact area A/A0'
-        y_axis_label = 'Normalized pressure p/E*' # TODO improve layout if possible
 
         #
         # Create the plot figure
@@ -554,69 +559,43 @@ class ContactMechanicsCardView(SimpleCardView):
                       y_range=y_range,
                       x_axis_label=x_axis_label,
                       y_axis_label=y_axis_label,
-                      x_axis_type='log',
-                      y_axis_type='log',
+                      x_axis_type=x_axis_type,
+                      y_axis_type=y_axis_type,
                       tools="crosshair,pan,reset,save,wheel_zoom,box_zoom")
 
         color_cycle = itertools.cycle(Category10[10])
-
-        topography_colors = OrderedDict()  # key: Topography instance
-        topography_names = []
 
         legend_items = []
 
         #
         # Traverse analyses and plot points
         #
-        js_code = ""
-        js_args = {}
-
-        special_values = []  # elements: (topography, quantity name, value, unit string)
-
-        for analysis in analyses:
-
-            topography_name = analysis.topography.name
-
-            #
-            # find out colors for topographies
-            #
-            if analysis.topography not in topography_colors:
-                topography_colors[analysis.topography] = next(color_cycle)
-                topography_names.append(analysis.topography.name)
+        # js_code = ""
+        # js_args = {}
 
 
-            if analysis.task_state != analysis.SUCCESS:
-                continue  # should not happen if only called with successful analyses
+        for s in series:
 
-            analysis_result = analysis.result_obj
-
-            first_series = analysis_result['series'][0]
-
-            # TODO change result format and save several points for different loads
-            # scalars = analysis_result['scalars']
-
-            source = ColumnDataSource(data=dict(x=first_series['x'],
-                                                y=first_series['y']))
-
-            curr_color = topography_colors[analysis.topography]
+            source = ColumnDataSource(data=dict(x=s['x'], y=s['y']))
 
             symbol_glyph = plot.scatter('x', 'y', source=source,
-                                        marker='circle', fill_color=curr_color, size=10)
+                                        marker='circle', fill_color=next(color_cycle),
+                                        size=10)
 
-            legend_items.append((topography_name, [symbol_glyph]))
+            legend_items.append((s['label'], [symbol_glyph]))
 
             #
             # Prepare JS code to toggle visibility
             #
-            topography_idx = topography_names.index(topography_name)
+            #topography_idx = topography_names.index(topography_name)
 
             # prepare unique id for this scatter points
 
-            glyph_id = f"glyph_{topography_idx}"
-            js_args[glyph_id] = symbol_glyph  # mapping from Python to JS
+            #glyph_id = f"glyph_{topography_idx}"
+            #js_args[glyph_id] = symbol_glyph  # mapping from Python to JS
 
             # only indices of visible glyphs appear in "active" lists of both button groups
-            js_code += f"{glyph_id}.visible = topography_btn_group.active.includes({topography_idx});"
+            #js_code += f"{glyph_id}.visible = topography_btn_group.active.includes({topography_idx});"
 
         #
         # Final configuration of the plot
@@ -629,8 +608,11 @@ class ContactMechanicsCardView(SimpleCardView):
         plot.yaxis.major_label_text_font_size = "12pt"
 
         # see js function "format_exponential()" in project.js file
-        plot.xaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
-        plot.yaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
+        if x_axis_type == 'log':
+            plot.xaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
+
+        if y_axis_type == 'log':
+            plot.yaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
 
         #
         # Legend
@@ -641,16 +623,65 @@ class ContactMechanicsCardView(SimpleCardView):
         plot.add_layout(legend, "below")
 
         #
-        # Convert plot and widgets to HTML, add meta data for template
+        # Convert plot and widgets to HTML+Javascript
         #
         script, div = components(column(plot, sizing_mode='scale_width'))
 
-        partial_context = dict(
-            contact_area_plot_script=script,
-            contact_area_plot_div=div)
+        return script, div
 
-        return partial_context
+    def _contact_area_figure_context(self, analyses):
+        """Plot 'Contact area versus Load'
 
+        :param analyses: sequence of successful analyses
+        :return: partial context, add to context in order to use
+        """
+
+        series = []
+        for analysis in analyses:
+
+            analysis_result = analysis.result_obj
+
+            series.append(dict(label=analysis.topography.name,
+                               x=analysis_result['load'],
+                               y=analysis_result['area']))
+
+        script, div = self._overview_figure(title="Contact area versus load",
+                                            x_axis_label='Normalized pressure p/E*',
+                                            y_axis_label='Fractional contact area A/A0',
+                                            x_axis_type='log',
+                                            y_axis_type = 'log',
+                                            series=series,
+        )
+
+        return dict(contact_area_plot_script=script,
+                    contact_area_plot_div=div)
+
+    def _load_figure_context(self, analyses):
+        """Plot 'Load versus displacement'
+
+        :param analyses: sequence of successful analyses
+        :return: partial context, add to context in order to use
+        """
+
+        series = []
+        for analysis in analyses:
+
+            analysis_result = analysis.result_obj
+
+            series.append(dict(label=analysis.topography.name,
+                               x=analysis_result['disp'],
+                               y=analysis_result['load']))
+
+        script, div = self._overview_figure(title="Load versus displacement",
+                                            x_axis_label='Normalized mean gap u/h_rms', # TODO improve layout
+                                            y_axis_label='Normalized pressure p/E*',
+                                            x_axis_type='linear',
+                                            y_axis_type='log',
+                                            series=series,
+        )
+
+        return dict(load_plot_script=script,
+                    load_plot_div=div)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -663,14 +694,19 @@ class ContactMechanicsCardView(SimpleCardView):
             #
             context.update(
                 dict(contact_area_plot_script="",
-                     contact_area_plot_div="No successfully finished analyses available"))
+                     contact_area_plot_div="No successfully finished analyses available",
+                     load_plot_script="",
+                     load_plot_div="No successfully finished analyses available")
+            )
         else:
-            context.update(self._contact_area_figure(analyses_success))
+            context.update(self._contact_area_figure_context(analyses_success))
+            context.update(self._load_figure_context(analyses_success))
 
         unique_kwargs = context['unique_kwargs']
         if unique_kwargs:
             initial_calc_kwargs = unique_kwargs
         else:
+            # default initial arguments for form if we don't have unique common arguments
             initial_calc_kwargs = dict(substrate_str='periodic',
                                        hardness=None,
                                        nsteps=10)
