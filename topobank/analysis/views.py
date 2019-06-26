@@ -601,7 +601,7 @@ class ContactMechanicsCardView(SimpleCardView):
             curr_color = topography_colors[analysis.topography]
 
             symbol_glyph = plot.scatter('x', 'y', source=source,
-                                        marker='circle', fill_color=curr_color) # TODO radius?
+                                        marker='circle', fill_color=curr_color, size=10)
 
             legend_items.append((topography_name, [symbol_glyph]))
 
