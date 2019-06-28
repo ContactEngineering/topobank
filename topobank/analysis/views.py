@@ -15,7 +15,7 @@ from django import template
 from rest_framework.generics import RetrieveAPIView
 
 from bokeh.layouts import row, column, widgetbox
-from bokeh.models import ColumnDataSource, CustomJS
+from bokeh.models import ColumnDataSource, CustomJS, TapTool, Circle
 from bokeh.palettes import Category10
 from bokeh.models.formatters import FuncTickFormatter
 from bokeh.models.ranges import DataRange1d
@@ -24,6 +24,7 @@ from bokeh.embed import components
 from bokeh.models.widgets import CheckboxGroup
 from bokeh.models.widgets.markups import Paragraph
 from bokeh.models import Legend
+from bokeh import events
 
 from pint import UnitRegistry, UndefinedUnitError
 
@@ -550,10 +551,19 @@ class ContactMechanicsCardView(SimpleCardView):
         y_range = DataRange1d(bounds='auto')
 
         #
+        # Handler for clicking on a point
+        #
+        callback = CustomJS(code="selection_handler(cb_obj, cb_data);")
+        # callback = CustomJS(code="console.log('you tapped a circle! '+cb_obj); console.dir(cb_obj);")
+        tap = TapTool(behavior='select', callback=callback)
+
+        tools = ["pan", "reset", "save", "wheel_zoom", "box_zoom", tap]
+
+        #
         # Create the plot figure
         #
         plot = figure(title=title,
-                      plot_height=300,
+                      plot_height=400,
                       sizing_mode='scale_width',
                       x_range=x_range,
                       y_range=y_range,
@@ -561,41 +571,56 @@ class ContactMechanicsCardView(SimpleCardView):
                       y_axis_label=y_axis_label,
                       x_axis_type=x_axis_type,
                       y_axis_type=y_axis_type,
-                      tools="crosshair,pan,reset,save,wheel_zoom,box_zoom")
+                      tools=tools)
 
         color_cycle = itertools.cycle(Category10[10])
 
         legend_items = []
 
-        #
-        # Traverse analyses and plot points
-        #
-        # js_code = ""
-        # js_args = {}
+        # taptool = plot.select_one(TapTool)
 
 
+
+        #
+        # Plot given data
+        #
         for s in series:
 
-            source = ColumnDataSource(data=dict(x=s['x'], y=s['y']))
+            source = ColumnDataSource(data=dict(x=s['x'], y=s['y']), name=s['label'])
 
-            symbol_glyph = plot.scatter('x', 'y', source=source,
-                                        marker='circle', fill_color=next(color_cycle),
-                                        size=10)
+            curr_color = next(color_cycle)
 
-            legend_items.append((s['label'], [symbol_glyph]))
+            renderer = plot.circle('x', 'y', source=source,
+                                    fill_color=curr_color,
+                                    line_color=None,
+                                    size=12,
+                                    selection_line_color='red',
+                                    nonselection_fill_alpha=1)
+
+            legend_items.append((s['label'], [renderer]))
+
+            # renderer.data_source.js_on_change('selected', callback)
+
+            # renderer.js_on_event(events.Tap, callback)
+
+            # source.selected.js_on_change('indices', callback)
+
+            # tap.renderers.append(renderer)
+            #taptool.callback = CustomJS(args=dict(source=source), code="""
+            #    var inds = source.indices;
+            #    var data = source.data;
+            #    console.log("Indices: "+inds+" Data: "+data);
+            #""")
 
             #
-            # Prepare JS code to toggle visibility
+            # Define how selected and unselected circles should look like
             #
-            #topography_idx = topography_names.index(topography_name)
+            selected_circle = Circle(fill_color=curr_color, line_color="red", line_width=3)
+            nonselected_circle = Circle(fill_color=curr_color, line_color=None)
 
-            # prepare unique id for this scatter points
+            renderer.selection_glyph = selected_circle
+            renderer.nonselection_glyph = nonselected_circle
 
-            #glyph_id = f"glyph_{topography_idx}"
-            #js_args[glyph_id] = symbol_glyph  # mapping from Python to JS
-
-            # only indices of visible glyphs appear in "active" lists of both button groups
-            #js_code += f"{glyph_id}.visible = topography_btn_group.active.includes({topography_idx});"
 
         #
         # Final configuration of the plot

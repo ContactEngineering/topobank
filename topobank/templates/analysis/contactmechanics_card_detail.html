@@ -242,8 +242,6 @@
           </div>
     </div>
 
-
-
   </div>
 {% endblock card_body %}
 
@@ -261,6 +259,30 @@
   function debug_msg(msg) {
     alert("Debug: "+msg);
     console.log("Debug: "+msg);
+  }
+
+
+  function selection_handler(obj, data) {
+    var selected = data.source.selected;
+    console.log("Selected data: "+selected.indices);
+
+    var index = selected.indices[0];
+
+    // setting indices selects points
+    console.log("Object:"); console.dir(obj);
+    console.log("Data:"); console.dir(data);
+
+    var name = data.source.name; // name of renderer = topography name
+
+    // search all renderers with this name
+    // select same points on all scatter plots for this topography
+    for (document_id in Bokeh.index) {
+      source = Bokeh.index[document_id].model.select_one(name);
+      console.log("Document ID"+document_id+": Setting same indices "+selected.indices+" for source "+source);
+      console.dir(source);
+      source.selected.indices = [index]; // select only one! Otherwise old selection will persist
+    }
+
   }
 
 
@@ -334,6 +356,8 @@
         });
 
      });
+
+
 
 
   });
