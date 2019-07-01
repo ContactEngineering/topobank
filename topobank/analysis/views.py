@@ -21,7 +21,7 @@ from bokeh.models.formatters import FuncTickFormatter
 from bokeh.models.ranges import DataRange1d
 from bokeh.plotting import figure
 from bokeh.embed import components
-from bokeh.models.widgets import CheckboxGroup
+from bokeh.models.widgets import CheckboxGroup, Tabs, Panel
 from bokeh.models.widgets.markups import Paragraph
 from bokeh.models import Legend
 from bokeh import events
@@ -528,185 +528,13 @@ class ContactMechanicsCardView(SimpleCardView):
     def _displacement_figure(self):
         pass
 
-    def _overview_figure(self, title, x_axis_label, y_axis_label, x_axis_type, y_axis_type, series):
-        """Plot series
-
-        :param title: string with title of plot
-        :param series: list of dicts
-        :return: 2-tuple (plot_div, plot_script)
-
-        The element of the list 'series' must be dicts with
-
-          label: label name
-          x: array of x coordinates
-          y: array of y coordinates
-
-        """
-
-
-        #
-        # set xrange, yrange -> automatic bounds for zooming
-        #
-        x_range = DataRange1d(bounds='auto')  # if min+max not given, calculate from data of render
-        y_range = DataRange1d(bounds='auto')
-
-        #
-        # Handler for clicking on a point
-        #
-        callback = CustomJS(code="selection_handler(cb_obj, cb_data);")
-        # callback = CustomJS(code="console.log('you tapped a circle! '+cb_obj); console.dir(cb_obj);")
-        tap = TapTool(behavior='select', callback=callback)
-
-        tools = ["pan", "reset", "save", "wheel_zoom", "box_zoom", tap]
-
-        #
-        # Create the plot figure
-        #
-        plot = figure(title=title,
-                      plot_height=400,
-                      sizing_mode='scale_width',
-                      x_range=x_range,
-                      y_range=y_range,
-                      x_axis_label=x_axis_label,
-                      y_axis_label=y_axis_label,
-                      x_axis_type=x_axis_type,
-                      y_axis_type=y_axis_type,
-                      tools=tools)
-
-        color_cycle = itertools.cycle(Category10[10])
-
-        legend_items = []
-
-        # taptool = plot.select_one(TapTool)
-
-
-
-        #
-        # Plot given data
-        #
-        for s in series:
-
-            source = ColumnDataSource(data=dict(x=s['x'], y=s['y']), name=s['label'])
-
-            curr_color = next(color_cycle)
-
-            renderer = plot.circle('x', 'y', source=source,
-                                    fill_color=curr_color,
-                                    line_color=None,
-                                    size=12,
-                                    selection_line_color='red',
-                                    nonselection_fill_alpha=1)
-
-            legend_items.append((s['label'], [renderer]))
-
-            # renderer.data_source.js_on_change('selected', callback)
-
-            # renderer.js_on_event(events.Tap, callback)
-
-            # source.selected.js_on_change('indices', callback)
-
-            # tap.renderers.append(renderer)
-            #taptool.callback = CustomJS(args=dict(source=source), code="""
-            #    var inds = source.indices;
-            #    var data = source.data;
-            #    console.log("Indices: "+inds+" Data: "+data);
-            #""")
-
-            #
-            # Define how selected and unselected circles should look like
-            #
-            selected_circle = Circle(fill_color=curr_color, line_color="red", line_width=3)
-            nonselected_circle = Circle(fill_color=curr_color, line_color=None)
-
-            renderer.selection_glyph = selected_circle
-            renderer.nonselection_glyph = nonselected_circle
-
-
-        #
-        # Final configuration of the plot
-        #
+    def _configure_plot(self, plot):
         plot.toolbar.logo = None
         plot.toolbar.active_inspect = None
         plot.xaxis.axis_label_text_font_style = "normal"
         plot.yaxis.axis_label_text_font_style = "normal"
         plot.xaxis.major_label_text_font_size = "12pt"
         plot.yaxis.major_label_text_font_size = "12pt"
-
-        # see js function "format_exponential()" in project.js file
-        if x_axis_type == 'log':
-            plot.xaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
-
-        if y_axis_type == 'log':
-            plot.yaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
-
-        #
-        # Legend
-        #
-        legend = Legend(items=legend_items)
-        legend.click_policy = 'hide'
-
-        plot.add_layout(legend, "below")
-
-        #
-        # Convert plot and widgets to HTML+Javascript
-        #
-        script, div = components(column(plot, sizing_mode='scale_width'))
-
-        return script, div
-
-    def _contact_area_figure_context(self, analyses):
-        """Plot 'Contact area versus Load'
-
-        :param analyses: sequence of successful analyses
-        :return: partial context, add to context in order to use
-        """
-
-        series = []
-        for analysis in analyses:
-
-            analysis_result = analysis.result_obj
-
-            series.append(dict(label=analysis.topography.name,
-                               x=analysis_result['load'],
-                               y=analysis_result['area']))
-
-        script, div = self._overview_figure(title="Contact area versus load",
-                                            x_axis_label='Normalized pressure p/E*',
-                                            y_axis_label='Fractional contact area A/A0',
-                                            x_axis_type='log',
-                                            y_axis_type = 'log',
-                                            series=series,
-        )
-
-        return dict(contact_area_plot_script=script,
-                    contact_area_plot_div=div)
-
-    def _load_figure_context(self, analyses):
-        """Plot 'Load versus displacement'
-
-        :param analyses: sequence of successful analyses
-        :return: partial context, add to context in order to use
-        """
-
-        series = []
-        for analysis in analyses:
-
-            analysis_result = analysis.result_obj
-
-            series.append(dict(label=analysis.topography.name,
-                               x=analysis_result['disp'],
-                               y=analysis_result['load']))
-
-        script, div = self._overview_figure(title="Load versus displacement",
-                                            x_axis_label='Normalized mean gap u/h_rms', # TODO improve layout
-                                            y_axis_label='Normalized pressure p/E*',
-                                            x_axis_type='linear',
-                                            y_axis_type='log',
-                                            series=series,
-        )
-
-        return dict(load_plot_script=script,
-                    load_plot_div=div)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -718,14 +546,112 @@ class ContactMechanicsCardView(SimpleCardView):
             # Prepare plot, controls, and table with special values..
             #
             context.update(
-                dict(contact_area_plot_script="",
-                     contact_area_plot_div="No successfully finished analyses available",
-                     load_plot_script="",
-                     load_plot_div="No successfully finished analyses available")
+                dict(plot_script="",
+                     plot_div="No successfully finished analyses available")
             )
         else:
-            context.update(self._contact_area_figure_context(analyses_success))
-            context.update(self._load_figure_context(analyses_success))
+
+            #
+            # Generate two plots in two tabs based on same data sources
+            #
+            sources = []
+            for analysis in analyses_success:
+                analysis_result = analysis.result_obj
+
+                data = dict(
+                    load=analysis_result['load'],
+                    area=analysis_result['area'],
+                    disp=analysis_result['disp'])
+
+                source = ColumnDataSource(data, name=analysis.topography.name)
+
+                sources.append(source)
+
+            load_axis_label = "Normalized pressure p/E*"
+            area_axis_label = "Fractional contact area A/A0"
+            disp_axis_label = "Normalized mean gap u/h_rms"
+
+            color_cycle = itertools.cycle(Category10[10])
+
+            callback = CustomJS(args=dict(sources=sources), code="selection_handler(cb_obj, cb_data, sources);")
+
+            tap = TapTool(behavior='select', callback=callback)
+
+            tools = ["pan", "reset", "save", "wheel_zoom", "box_zoom", tap]
+
+            contact_area_plot = figure(title=None,
+                      plot_height=400,
+                      sizing_mode='scale_width',
+                      x_axis_label=load_axis_label,
+                      y_axis_label=area_axis_label,
+                      x_axis_type="log",
+                      y_axis_type="log", tools=tools)
+
+            contact_area_plot.xaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
+            contact_area_plot.yaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
+
+            load_plot = figure(title=None,
+                               plot_height=400,
+                               sizing_mode='scale_width',
+                               x_axis_label=disp_axis_label,
+                               y_axis_label=load_axis_label,
+                               x_axis_type="linear",
+                               y_axis_type="log",tools=tools)
+
+            load_plot.yaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
+
+            contact_area_legend_items = []
+            load_legend_items = []
+
+            for source in sources:
+                curr_color = next(color_cycle)
+                r1 = contact_area_plot.circle('load', 'area',
+                                                source=source,
+                                                fill_color=curr_color,
+                                                line_color=None,
+                                                size=12)
+                r2 = load_plot.circle('disp', 'load',
+                                      source=source,
+                                      fill_color=curr_color,
+                                      line_color=None,
+                                      size=12)
+
+                contact_area_legend_items.append((source.name, [r1]))
+                load_legend_items.append((source.name, [r2]))
+
+                selected_circle = Circle(fill_color=curr_color, line_color="red", line_width=3)
+                nonselected_circle = Circle(fill_color=curr_color, line_color=None)
+
+                for renderer in [r1,r2]:
+                    renderer.selection_glyph = selected_circle
+                    renderer.nonselection_glyph = nonselected_circle
+
+            self._configure_plot(contact_area_plot)
+            self._configure_plot(load_plot)
+
+            #
+            # Legend
+            #
+            contact_area_legend = Legend(items=contact_area_legend_items)
+            contact_area_legend.click_policy = 'hide'
+            load_legend = Legend(items=load_legend_items)
+            load_legend.click_policy = 'hide'
+
+            contact_area_plot.add_layout(contact_area_legend, "below")
+            load_plot.add_layout(load_legend, "below")
+
+            #
+            # Layout plot
+            #
+            contact_area_tab = Panel(child=contact_area_plot, title="Contact area versus load")
+            load_tab = Panel(child=load_plot, title="Load versus displacement")
+
+            tabs = Tabs(tabs=[contact_area_tab, load_tab])
+            col = column(tabs, sizing_mode='scale_width')
+
+            plot_script, plot_div = components(col)
+
+            context.update(plot_script=plot_script, plot_div=plot_div)
 
         unique_kwargs = context['unique_kwargs']
         if unique_kwargs:
