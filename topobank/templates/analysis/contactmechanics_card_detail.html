@@ -21,64 +21,10 @@
 
       {% if not analyses_unready %}
       <div class="container">
-        <ul class="nav nav-tabs">
-
-              <li class="nav-item">
-                <a class="nav-link active" data-toggle="tab" href="#contact_area_vs_load" role="tab">Contact area versus
-                  load</a>
-              </li>
-              <li class="nav-item">
-                <a class="nav-link" data-toggle="tab" href="#load_vs_displacement" role="tab">Load versus
-                  Displacement</a>
-              </li>
-
-
-            {% if analyses_failure %}
-              <li class="nav-item" style="list-style-type: none;">
-                {# Use href with card_id because the included HTML uses this too #}
-                <a class="nav-link" data-toggle="tab" href="#failures-tab-{{ card_id }}" role="tab">Failures</a>
-              </li>
-            {% endif %}
-          </ul>
-
-        <div class="tab-content">
-
-          <div class="tab-pane fade show active" id="contact_area_vs_load" role="tabpanel">
             {% if not analyses_unready and analyses_success %}
               {# Show all analyses for which we have results #}
-              {{ contact_area_plot_div | safe }}
+              {{ plot_div | safe }}
             {% endif %}
-          </div>
-          <div class="tab-pane fade" id="load_vs_displacement" role="tabpanel">
-            {% if not analyses_unready and analyses_success %}
-              {# Show all analyses for which we have results #}
-              {{ load_plot_div | safe }}
-            {% endif %}
-          </div>
-          {% if special_values %}
-            <div class="tab-pane fade" id="values" role="tabpanel" aria-labelledby="values-tab">
-              <table class="table table-striped table-bordered">
-                <thead>
-                <tr>
-                  <th>Topography</th>
-                  <th>Quantity</th>
-                  <th>Value</th>
-                </tr>
-                </thead>
-                <tbody>
-                {% for topography, quantity, value, unit in special_values %}
-                  <tr>
-                    <td>{{ topography.name }}</td>
-                    <td>{{ quantity }}</td>
-                    <td>{{ value }} {{ unit }}</td>
-                  </tr>
-                {% endfor %}
-                </tbody>
-              </table>
-            </div>
-          {% endif %}
-          {% include 'analysis/analyses_failure_tab_pane.html' %}
-        </div>
       </div>
       {% endif %}
 
@@ -109,6 +55,12 @@
                 </div>
 
             </li>
+            {% endif %}
+            {% if analyses_failure %}
+              <li class="nav-item" style="list-style-type: none;">
+                {# Use href with card_id because the included HTML uses this too #}
+                <a class="nav-link" data-toggle="tab" href="#failures-tab-{{ card_id }}" role="tab">Failures</a>
+              </li>
             {% endif %}
           </ul>
 
@@ -238,6 +190,7 @@
             <div class="tab-pane container fade" id="gap-distribution-tab">...</div>
             <div class="tab-pane container fade" id="cluster-size-distribution-tab">...</div>
             {% endif %}
+            {% include 'analysis/analyses_failure_tab_pane.html' %}
 
           </div>
     </div>
@@ -249,8 +202,8 @@
 
   {% if not analyses_unready and analyses_success %}
     {# Insert the script code needed for the plot #}
-    {{ contact_area_plot_script | safe }}
-    {{ load_plot_script | safe }}
+    {{ plot_script | safe }}
+{#    {{ load_plot_script | safe }}#}
   {% endif %}
 
   {# Additonal code for initialization #}
@@ -262,26 +215,44 @@
   }
 
 
-  function selection_handler(obj, data) {
+  function selection_handler(obj, data, sources) {
     var selected = data.source.selected;
-    console.log("Selected data: "+selected.indices);
-
     var index = selected.indices[0];
+    var name = data.source.name; // name of source = topography name
 
+    console.log("Selected index: "+index+" in source: "+name);
+
+    // console.log("Sources: "+sources);
     // setting indices selects points
-    console.log("Object:"); console.dir(obj);
-    console.log("Data:"); console.dir(data);
+    // console.log("Object:"); console.dir(obj);
+    // console.log("Data:"); console.dir(data);
 
-    var name = data.source.name; // name of renderer = topography name
 
-    // search all renderers with this name
-    // select same points on all scatter plots for this topography
-    for (document_id in Bokeh.index) {
-      source = Bokeh.index[document_id].model.select_one(name);
-      console.log("Document ID"+document_id+": Setting same indices "+selected.indices+" for source "+source);
-      console.dir(source);
-      source.selected.indices = [index]; // select only one! Otherwise old selection will persist
+    /**
+     * Make sure only the selection for one topography is active
+     * and deselect all others
+     */
+    for (i=0; i<sources.length; i++) {
+      var selection = []; // default: unselect all points
+      var s = sources[i];
+
+      if (s == data.source) {
+        // console.log("Skipping source "+s+" ...");
+        continue; // we do not modify the source for the clicked point, should be okay as bokeh does it
+      }
+
+      if (name == s.name) {
+        selection = [index]; // if name of source is same as clicked point, select point equivalent point there
+      }
+
+      // console.log("Selection for source "+s+": "+selection);
+      sources[i].selected.indices = selection;
+
     }
+
+    /**
+     * Trigger loading of extra data
+     */
 
   }
 
@@ -356,9 +327,6 @@
         });
 
      });
-
-
-
 
   });
 
