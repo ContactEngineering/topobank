@@ -703,7 +703,7 @@ def contact_mechanics(topography, substrate_str="periodic", hardness=None, nstep
     pentol = topography.rms_height() / (10 * np.mean(topography.resolution))
     pentol = max(pentol, min_pentol)
 
-    data_paths = [] # TODO collect in _next_contact_step?
+    data_paths = [] # collect in _next_contact_step?
 
     history = None
     for i in range(nsteps):
@@ -744,10 +744,10 @@ def contact_mechanics(topography, substrate_str="periodic", hardness=None, nstep
 
     return dict(
         name='Contact mechanics',
-        load=load[sort_order], # TODO use plural
-        area=area[sort_order],
-        disp=disp[sort_order],
-        data_path=data_paths[sort_order],
+        loads=load[sort_order],
+        areas=area[sort_order],
+        disps=disp[sort_order],
+        data_paths=data_paths[sort_order],
         #xlabel='Normalized contact pressure',
         #ylabel='Fractional contact area',
         #xscale='log',

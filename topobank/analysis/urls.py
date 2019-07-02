@@ -31,6 +31,11 @@ urlpatterns = [
         name='card-submit'
     ),
     url(
+        regex=r'card/contact-mechanics-data$',
+        view=login_required(views.contact_mechanics_data),
+        name='contact-mechanics-data'
+    ),
+    url(
         regex=r'card/$',
         view=login_required(views.switch_card_view),
         name='card'
