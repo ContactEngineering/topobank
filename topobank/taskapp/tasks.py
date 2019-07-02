@@ -38,9 +38,13 @@ def submit_analysis(analysis_func, topography, *other_args, **kwargs):
     # and has an extra column, do not safe reference
     del pyfunc_kwargs['topography']
 
-    # progress recorder should also not be saved, will always be first argument:
+    # progress recorder should also not be saved:
     if 'progress_recorder' in pyfunc_kwargs:
         del pyfunc_kwargs['progress_recorder']
+        
+    # same for prefix of data path
+    if 'data_path_prefix' in pyfunc_kwargs:
+        del pyfunc_kwargs['data_path_prefix']
 
     #
     # create entry in Analysis table
@@ -59,6 +63,20 @@ def submit_analysis(analysis_func, topography, *other_args, **kwargs):
         & Q(topography=topography)
         & Q(function=analysis_func)
         & Q(task_state__in=[Analysis.FAILURE, Analysis.SUCCESS])).delete()
+
+    #
+    # TODO delete all started old analyses, where the task does not exist any more
+    #
+    #maybe_aborted_analyses = Analysis.objects.filter(
+    #    ~Q(id=analysis.id)
+    #    & Q(topography=topography)
+    #    & Q(function=analysis_func)
+    #    & Q(task_state__in=[Analysis.STARTED]))
+    # How to find out if task is still running?
+    #
+    #for a in maybe_aborted_analyses:
+    #    result = app.AsyncResult(a.task_id)
+
 
     #
     # Send task to the queue
@@ -107,6 +125,7 @@ def perform_analysis(self, analysis_id):
         kwargs = pickle.loads(analysis.kwargs)
         topography = Topography.objects.get(id=analysis.topography_id).topography()
         kwargs['progress_recorder'] = progress_recorder
+        kwargs['data_path_prefix'] = "analyses/{}/".format(analysis_id)
         result = analysis.function.eval(topography, **kwargs)
         save_result(result, Analysis.SUCCESS)
     except Exception as exc:
