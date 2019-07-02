@@ -13,6 +13,7 @@ from django.db.models import Q
 from django.conf import settings
 from django import template
 from rest_framework.generics import RetrieveAPIView
+from django.core.files.storage import default_storage
 
 from bokeh.layouts import row, column, widgetbox
 from bokeh.models import ColumnDataSource, CustomJS, TapTool, Circle
@@ -20,11 +21,12 @@ from bokeh.palettes import Category10
 from bokeh.models.formatters import FuncTickFormatter
 from bokeh.models.ranges import DataRange1d
 from bokeh.plotting import figure
-from bokeh.embed import components
+from bokeh.embed import components, json_item
 from bokeh.models.widgets import CheckboxGroup, Tabs, Panel
 from bokeh.models.widgets.markups import Paragraph
-from bokeh.models import Legend
-from bokeh import events
+from bokeh.models import Legend, LinearColorMapper, ColorBar, CategoricalColorMapper
+
+import xarray as xr
 
 from pint import UnitRegistry, UndefinedUnitError
 
@@ -519,14 +521,7 @@ class PowerSpectrumCardView(PlotCardView):
 
 class ContactMechanicsCardView(SimpleCardView):
 
-    def _geometry_figure(self):
-        pass
 
-    def _distribution_figure(self):
-        pass
-
-    def _displacement_figure(self):
-        pass
 
     def _configure_plot(self, plot):
         plot.toolbar.logo = None
@@ -555,17 +550,22 @@ class ContactMechanicsCardView(SimpleCardView):
             # Generate two plots in two tabs based on same data sources
             #
             sources = []
+            labels = []
             for analysis in analyses_success:
                 analysis_result = analysis.result_obj
 
                 data = dict(
-                    load=analysis_result['load'],
-                    area=analysis_result['area'],
-                    disp=analysis_result['disp'])
+                    load=analysis_result['loads'],
+                    area=analysis_result['areas'],
+                    disp=analysis_result['disps'],
+                    data_path=analysis_result['data_paths'])
 
-                source = ColumnDataSource(data, name=analysis.topography.name)
+                # the name of the data source is used in javascript in
+                # order to find out the analysis id
+                source = ColumnDataSource(data, name="analysis-{}".format(analysis.id))
 
                 sources.append(source)
+                labels.append(analysis.topography.name)
 
             load_axis_label = "Normalized pressure p/E*"
             area_axis_label = "Fractional contact area A/A0"
@@ -603,7 +603,7 @@ class ContactMechanicsCardView(SimpleCardView):
             contact_area_legend_items = []
             load_legend_items = []
 
-            for source in sources:
+            for source, label in zip(sources, labels):
                 curr_color = next(color_cycle)
                 r1 = contact_area_plot.circle('load', 'area',
                                                 source=source,
@@ -616,10 +616,10 @@ class ContactMechanicsCardView(SimpleCardView):
                                       line_color=None,
                                       size=12)
 
-                contact_area_legend_items.append((source.name, [r1]))
-                load_legend_items.append((source.name, [r2]))
+                contact_area_legend_items.append((label, [r1]))
+                load_legend_items.append((label, [r2]))
 
-                selected_circle = Circle(fill_color=curr_color, line_color="red", line_width=3)
+                selected_circle = Circle(fill_color=curr_color, line_color="black", line_width=4)
                 nonselected_circle = Circle(fill_color=curr_color, line_color=None)
 
                 for renderer in [r1,r2]:
@@ -667,7 +667,7 @@ class ContactMechanicsCardView(SimpleCardView):
         return context
 
 
-def submit_analyses_view(request):
+def submit_analyses_view(request): # TODO use REST framework?
     """Submits analyses.
     :param request:
     :return: HTTPResponse
@@ -675,7 +675,7 @@ def submit_analyses_view(request):
     if not request.is_ajax():
         return Http404
 
-    request_method = request.POST # TODO POST because this view changes sth.
+    request_method = request.POST
 
     # args_dict = request_method
     try:
@@ -692,9 +692,142 @@ def submit_analyses_view(request):
     topographies = Topography.objects.filter(id__in=topography_ids)
     function_kwargs = json.loads(function_kwargs_json)
 
-    submitted_analyses = [ submit_analysis(function, topo, **function_kwargs) for topo in topographies ]
+    allowed = True
+    for topo in topographies:
+        allowed &= request.user.has_perm('view_surface', topo.surface) # TODO discuss who is allowed to trigger calculations
+        if not allowed:
+            break
 
-    return JsonResponse({}, status=200) # what to return here? 200 means: successfully triggered calculations
+    if allowed:
+        for topo in topographies:
+            submit_analysis(function, topo, **function_kwargs)
+        status = 200
+    else:
+        status = 403
+
+    return JsonResponse({}, status=status)
+
+
+def _contact_mechanics_geometry_figure(dataarray, frame_width, frame_height, title=None, value_unit=None):
+
+    p = figure(title=title,
+               frame_width=frame_width,
+               frame_height=frame_height,
+               sizing_mode='scale_width',
+               x_axis_label="x",
+               y_axis_label="y",
+               match_aspect=True)
+
+    vals = dataarray.values
+
+    boolean_values = vals.dtype == np.bool
+
+    if boolean_values:
+        color_mapper = LinearColorMapper(palette=["black", "white"], low=0, high=1)
+    else:
+        min_val = vals.min()
+        max_val = vals.max()
+
+        color_mapper = LinearColorMapper(palette='Viridis256', low=min_val, high=max_val)  # TODO make palette configurable
+
+    p.image([vals], x=0, y=0, dw=10, dh=10, color_mapper=color_mapper) # TODO choose coords from dataarray
+
+    if not boolean_values:
+        colorbar = ColorBar(color_mapper=color_mapper,
+                            # label_standoff=12,
+                            location=(0,0),
+                            title=value_unit)
+
+        p.add_layout(colorbar, "right")
+
+    return p
+
+
+def _contact_mechanics_distribution_figure():
+    pass
+
+def _contact_mechanics_displacement_figure():
+    pass
+
+
+def contact_mechanics_data(request): # TODO use REST framework?
+    """Loads extra data for an analysis card
+
+    :param request:
+    :return:
+    """
+    if not request.is_ajax():
+        return Http404
+
+    request_method = request.POST
+
+    try:
+        analysis_id = int(request_method.get('analysis_id'))
+        index = int(request_method.get('index'))
+    except (KeyError, ValueError, TypeError):
+        return JsonResponse({'error': 'error in request data'}, status=400)
+
+    #
+    # Interpret given arguments
+    #
+    analysis = Analysis.objects.get(id=analysis_id)
+
+    unit = analysis.topography.unit
+
+    if request.user.has_perm('view_surface', analysis.topography.surface):
+
+        pressure_tol = 0 # tolerance for deciding whether point is in contact
+        gap_tol = 0 # tolerance for deciding whether point is in contact
+        # min_pentol = 1e-12 # lower bound for the penetration tolerance
+
+
+        #
+        # Here we assume a special format for the analysis results
+        #
+        data_path = analysis.result_obj['data_paths'][index]
+
+        data = default_storage.open(data_path)
+        ds = xr.load_dataset(data.open(mode='rb'))
+
+        pressure = ds['pressure']
+        displacement = ds['displacement']
+        gap = ds['gap']
+
+        # gap, displacement
+
+        topo = analysis.topography
+        aspect_ratio = topo.size_x / topo.size_y
+        frame_height = 400
+        frame_width = int(frame_height * aspect_ratio)
+
+
+        if frame_width > 400: # rule of thumb, scale down if too wide
+            frame_width = 400
+            frame_height = int(frame_width/aspect_ratio)
+
+        common_kwargs = dict(frame_width=frame_width, frame_height=frame_height)
+
+        plots = {
+            'contact-geometry': _contact_mechanics_geometry_figure(
+                        pressure > pressure_tol, title="Contact geometry", **common_kwargs),
+            'contact-pressure': _contact_mechanics_geometry_figure(
+                        pressure, title=r'Contact pressure p(E*)', **common_kwargs),
+            'displacement': _contact_mechanics_geometry_figure(
+                displacement, title=r'Displacement', value_unit=unit, **common_kwargs),
+            'gap': _contact_mechanics_geometry_figure(
+                gap, title=r'Gap', value_unit=unit, **common_kwargs),
+        }
+
+        plots_json = { pn: json.dumps(json_item(plots[pn])) for pn in plots }
+
+        return JsonResponse(plots_json, status=200)
+    else:
+        return JsonResponse({}, status=403)
+
+
+
+
+
 
 class AnalysisFunctionDetailView(DetailView):
 

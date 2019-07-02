@@ -35,23 +35,23 @@
     <div class="col-sm-6">
 
           {# Tab navigation on right side #}
-          <ul class="nav nav-tabs">
+          <ul class="nav nav-tabs" role="tablist">
             <li class="nav-item">
               <a class="nav-link active" data-toggle="tab" href="#tools-tab">Tools</a>
             </li>
             {% if not analyses_unready %}
             <li class="nav-item dropdown">
                 <a class="nav-link dropdown-toggle" data-toggle="dropdown" href="#">
-                  Choose result display for selected point
+                  Details
                 </a>
                 <div class="dropdown-menu">
                   <a class="dropdown-item" data-toggle="tab" href="#contact-geometry-tab">Contact geometry</a>
-                  <a class="dropdown-item" data-toggle="tab" href="#">Contact pressure</a>
-                  <a class="dropdown-item" data-toggle="tab" href="#">Pressure distribution</a>
-                  <a class="dropdown-item" data-toggle="tab" href="#">Displacement</a>
-                  <a class="dropdown-item" data-toggle="tab" href="#">Gap</a>
-                  <a class="dropdown-item" data-toggle="tab" href="#">Gap distribution</a>
-                  <a class="dropdown-item" data-toggle="tab" href="#">Cluster size distribution</a>
+                  <a class="dropdown-item" data-toggle="tab" href="#contact-pressure-tab">Contact pressure</a>
+                  <a class="dropdown-item" data-toggle="tab" href="#pressure-distribution-tab">Pressure distribution</a>
+                  <a class="dropdown-item" data-toggle="tab" href="#displacement-tab">Displacement</a>
+                  <a class="dropdown-item" data-toggle="tab" href="#gap-tab">Gap</a>
+                  <a class="dropdown-item" data-toggle="tab" href="#gap-distribution-tab">Gap distribution</a>
+                  <a class="dropdown-item" data-toggle="tab" href="#cluster-size-distribution-tab">Cluster size distribution</a>
                 </div>
 
             </li>
@@ -182,13 +182,27 @@
 
             {% if not analyses_unready %}
             <div class="tab-pane container fade" id="contact-geometry-tab">
-              <h4>Contact area</h4>
+              <div id="contact-geometry" class="alert alert-info">For contact geometry, select a point in the graphs on the left!</div>
             </div>
-            <div class="tab-pane container fade" id="contact-pressure-tab">...</div>
-            <div class="tab-pane container fade" id="pressure-distribution-tab">...</div>
-            <div class="tab-pane container fade" id="gap-tab">...</div>
-            <div class="tab-pane container fade" id="gap-distribution-tab">...</div>
-            <div class="tab-pane container fade" id="cluster-size-distribution-tab">...</div>
+            <div class="tab-pane container fade" id="contact-pressure-tab">
+              <div id="contact-pressure" class="alert alert-info">For contact pressure, select a point in the graphs on the left!</div>
+            </div>
+
+            <div class="tab-pane container fade" id="pressure-distribution-tab">
+              <div id="pressure-distribution" class="alert alert-info">For pressure distribution, select a point in the graphs on the left!</div>
+            </div>
+            <div class="tab-pane container fade" id="displacement-tab">
+              <div id="displacement" class="alert alert-info">For displacement, select a point in the graphs on the left!</div>
+            </div>
+            <div class="tab-pane container fade" id="gap-tab">
+              <div id="gap" class="alert alert-info">For gap, select a point in the graphs on the left!</div>
+            </div>
+            <div class="tab-pane container fade" id="gap-distribution-tab">
+              <div id="gap-distribution" class="alert alert-info">For gap distribution, select a point in the graphs on the left!</div>
+            </div>
+            <div class="tab-pane container fade" id="cluster-size-distribution-tab">
+              <div id="cluster-size-distribution" class="alert alert-info">For cluser size distribution, select a point in the graphs on the left!</div>
+            </div>
             {% endif %}
             {% include 'analysis/analyses_failure_tab_pane.html' %}
 
@@ -214,13 +228,20 @@
     console.log("Debug: "+msg);
   }
 
+  function activate_tab(tab){
+    $('.nav-tabs a[href="#' + tab + '"]').tab('show');
+  };
 
   function selection_handler(obj, data, sources) {
     var selected = data.source.selected;
     var index = selected.indices[0];
     var name = data.source.name; // name of source = topography name
 
-    console.log("Selected index: "+index+" in source: "+name);
+    var analysis_id = name.split('-')[1];
+
+    console.log("Selected index: "+index+" in source: "+name+" -> analysis_id: "+analysis_id);
+
+
 
     // console.log("Sources: "+sources);
     // setting indices selects points
@@ -251,8 +272,52 @@
     }
 
     /**
-     * Trigger loading of extra data
+     * Trigger loading of extra data by using analysis id and index of point
      */
+
+    var tab_names = ['contact-geometry', 'contact-pressure', 'displacement', 'gap'];
+
+    tab_names.forEach(function(tn){
+      // $('#'+tn).addClass('spinner');
+    });
+
+    // activate_tab('contact-geometry-tab'); // TODO only do this if tools is activated
+
+    $.ajax({
+          type: "POST",
+          url: "{% url 'analysis:contact-mechanics-data' %}",
+          timeout: 0,
+          data: {
+            analysis_id: analysis_id,
+            index: index,
+            csrfmiddlewaretoken: "{{csrf_token}}"
+          },
+          success : function(data, textStatus, xhr) {
+            // debug_msg("Job submission successful. Status: "+xhr.status+" textStatus: "+textStatus+" data: "+data.data_path);
+
+            tab_names.forEach(function(tn){
+              var div = $('#'+tn);
+              div.removeClass('spinner alert alert-info');
+              div.html(""); // Delete all old contents
+
+              var plot = JSON.parse(data[tn]);
+              Bokeh.embed.embed_item(plot, tn); // in Python code, the correct tab names must be used
+            });
+
+          },
+          error: function(xhr, textStatus, errorThrown) {
+            console.log("AJAX error when submitting jobs: errorThrown: "+errorThrown+" status: " +xhr.status+" responseText: "+xhr.responseText);
+
+            // show the error in a prominent way
+            tab_names.forEach(function(tn) {
+              var div = $('#' + tn);
+              div.removeClass('spinner alert alert-info');
+              div.html("Please report this error: " + errorThrown + xhr.status + xhr.responseText);
+              div.addClass("alert alert-danger");
+            });
+          }
+        });
+
 
   }
 
