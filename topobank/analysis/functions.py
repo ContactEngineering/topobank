@@ -5,6 +5,12 @@ The first argument is always a PyCo Topography!
 """
 
 import numpy as np
+import tempfile
+
+# These imports are needed for storage
+from django.core.files.storage import default_storage
+from django.core.files import File
+import xarray as xr
 
 from PyCo.Topography import Topography
 
@@ -12,6 +18,7 @@ from PyCo.SolidMechanics import PeriodicFFTElasticHalfSpace, FreeFFTElasticHalfS
 from PyCo.ContactMechanics import HardWall
 from PyCo.System.Factory import make_system
 from PyCo.Topography import PlasticTopography
+
 
 # TODO: _unicode_map and super and subscript functions should be moved to some support module.
 
@@ -232,7 +239,7 @@ test_function.card_view_flavor = 'simple'
 #     return dict(message="done", size=topography.size, n=n)
 
 @analysis_function(card_view_flavor='plot', automatic=True)
-def height_distribution(topography, bins=None, wfac=5, progress_recorder=None):
+def height_distribution(topography, bins=None, wfac=5, progress_recorder=None, data_path_prefix=None):
     if bins is None:
         bins = _reasonable_bins_argument(topography)
 
@@ -324,7 +331,7 @@ def _moments_histogram_gaussian(arr, bins, wfac, quantity, label, gaussian=True)
 
 
 @analysis_function(card_view_flavor='plot', automatic=True)
-def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None):
+def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, data_path_prefix=None):
 
     if bins is None:
         bins = _reasonable_bins_argument(topography)
@@ -386,7 +393,7 @@ def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None):
     return result
 
 @analysis_function(card_view_flavor='plot', automatic=True)
-def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None):
+def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None, data_path_prefix=None):
     if bins is None:
         bins = _reasonable_bins_argument(topography)
 
@@ -432,7 +439,7 @@ def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None
     )
 
 @analysis_function(card_view_flavor='plot', automatic=True)
-def power_spectrum(topography, window='hann', tip_radius=None, progress_recorder=None):
+def power_spectrum(topography, window='hann', tip_radius=None, progress_recorder=None, data_path_prefix=None):
     if window == 'None':
         window = None
 
@@ -489,7 +496,7 @@ def power_spectrum(topography, window='hann', tip_radius=None, progress_recorder
     return result
 
 @analysis_function(card_view_flavor='plot', automatic=True)
-def autocorrelation(topography, progress_recorder=None):
+def autocorrelation(topography, progress_recorder=None, data_path_prefix=None):
 
     if topography.dim == 2:
         sx, sy = topography.size
@@ -556,7 +563,7 @@ def autocorrelation(topography, progress_recorder=None):
 
 
 @analysis_function(card_view_flavor='plot', automatic=True)
-def variable_bandwidth(topography, progress_recorder=None):
+def variable_bandwidth(topography, progress_recorder=None, data_path_prefix=None):
 
     magnifications, bandwidths, rms_heights = topography.variable_bandwidth()
 
@@ -667,7 +674,9 @@ def _next_contact_step(system, history=None, pentol=None, maxiter=None):
     return displacement_xy, gap_xy, pressure_xy, disp0, current_load, current_area, (disp, gap, load, area, converged)
 
 @analysis_function(card_view_flavor='contact mechanics', automatic=True)
-def contact_mechanics(topography, substrate_str="periodic", hardness=None, nsteps=10, progress_recorder=None):
+def contact_mechanics(topography, substrate_str="periodic", hardness=None, nsteps=10,
+                      progress_recorder=None, data_path_prefix=None):
+
 
     # unit = topography.info['unit']
 
@@ -694,12 +703,35 @@ def contact_mechanics(topography, substrate_str="periodic", hardness=None, nstep
     pentol = topography.rms_height() / (10 * np.mean(topography.resolution))
     pentol = max(pentol, min_pentol)
 
+    data_paths = [] # TODO collect in _next_contact_step?
+
     history = None
     for i in range(nsteps):
         displacement_xy, gap_xy, pressure_xy, disp0, current_load, current_area, history = \
             _next_contact_step(system, history=history, pentol=pentol, maxiter=maxiter)
         # Presently, displacement_xy, gap_xy and pressure_xy are not used. They should be stored to S3 and then
         # retrieved for visualization.
+        
+        #
+        # Save pressure_xy to storage
+        #
+        pressure_xy = xr.DataArray(pressure_xy, dims=('x', 'y')) # TODO define coordinates
+        gap_xy = xr.DataArray(gap_xy, dims=('x', 'y'))
+        displacement_xy = xr.DataArray(displacement_xy, dims=('x', 'y'))
+
+        dataset = xr.Dataset({'pressure': pressure_xy,
+                              'gap': gap_xy,
+                              'displacement': displacement_xy}) # one dataset per analysis step: smallest unit to retrieve
+
+        with tempfile.NamedTemporaryFile(prefix='analysis-') as tmpfile:
+
+            dataset.to_netcdf(tmpfile.name)
+            
+            storage_path = data_path_prefix+"result-step-{}.nc".format(i)
+            tmpfile.seek(0)
+            storage_path = default_storage.save(storage_path, File(tmpfile))
+            data_paths.append(storage_path)
+
         progress_recorder.set_progress(i + 1, nsteps)
 
     disp, gap, load, area, converged = history
@@ -707,13 +739,15 @@ def contact_mechanics(topography, substrate_str="periodic", hardness=None, nstep
     load = np.array(load)
     area = np.array(area)
     disp = np.array(disp)
+    data_paths = np.array(data_paths, dtype='str')
     sort_order = np.argsort(load)
 
     return dict(
         name='Contact mechanics',
-        load=load[sort_order],
+        load=load[sort_order], # TODO use plural
         area=area[sort_order],
         disp=disp[sort_order],
+        data_path=data_paths[sort_order],
         #xlabel='Normalized contact pressure',
         #ylabel='Fractional contact area',
         #xscale='log',
