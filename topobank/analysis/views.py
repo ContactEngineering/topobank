@@ -709,7 +709,18 @@ def submit_analyses_view(request): # TODO use REST framework?
     return JsonResponse({}, status=status)
 
 
-def _contact_mechanics_geometry_figure(dataarray, frame_width, frame_height, topo_unit, topo_size, title=None, value_unit=None):
+def _contact_mechanics_geometry_figure(values, frame_width, frame_height, topo_unit, topo_size, title=None, value_unit=None):
+    """
+
+    :param values: 2D numpy array
+    :param frame_width:
+    :param frame_height:
+    :param topo_unit:
+    :param topo_size:
+    :param title:
+    :param value_unit:
+    :return:
+    """
 
     x_range = DataRange1d(start=0, end=topo_size[0], bounds='auto', range_padding=5)
     y_range = DataRange1d(start=0, end=topo_size[1], bounds='auto', range_padding=5)
@@ -725,19 +736,17 @@ def _contact_mechanics_geometry_figure(dataarray, frame_width, frame_height, top
                match_aspect=True,
                toolbar_location="above")
 
-    vals = dataarray.values
-
-    boolean_values = vals.dtype == np.bool
+    boolean_values = values.dtype == np.bool
 
     if boolean_values:
         color_mapper = LinearColorMapper(palette=["black", "white"], low=0, high=1)
     else:
-        min_val = vals.min()
-        max_val = vals.max()
+        min_val = values.min()
+        max_val = values.max()
 
         color_mapper = LinearColorMapper(palette='Viridis256', low=min_val, high=max_val)
 
-    p.image([vals], x=0, y=0, dw=topo_size[0], dh=topo_size[1], color_mapper=color_mapper)
+    p.image([values], x=0, y=0, dw=topo_size[0], dh=topo_size[1], color_mapper=color_mapper)
 
     if not boolean_values:
         colorbar = ColorBar(color_mapper=color_mapper,
@@ -752,8 +761,24 @@ def _contact_mechanics_geometry_figure(dataarray, frame_width, frame_height, top
     return p
 
 
-def _contact_mechanics_distribution_figure():
-    pass
+def _contact_mechanics_distribution_figure(values, x_axis_label, y_axis_label, frame_width, frame_height, title=None):
+
+    hist, edges = np.histogram(values, density=True, bins=50)
+
+    p = figure(title=title,
+               frame_width=frame_width,
+               frame_height=frame_height,
+               sizing_mode='scale_width',
+               x_axis_label=x_axis_label,
+               y_axis_label=y_axis_label,
+               toolbar_location="above")
+
+    p.quad(top=hist, bottom=0, left=edges[:-1], right=edges[1:],
+           fill_color="navy", line_color="white", alpha=0.5)
+
+    _configure_plot(p)
+
+    return p
 
 def _contact_mechanics_displacement_figure():
     pass
@@ -798,9 +823,9 @@ def contact_mechanics_data(request): # TODO use REST framework?
         data = default_storage.open(data_path)
         ds = xr.load_dataset(data.open(mode='rb'))
 
-        pressure = ds['pressure']
-        displacement = ds['displacement']
-        gap = ds['gap']
+        pressure = ds['pressure'].values
+        displacement = ds['displacement'].values
+        gap = ds['gap'].values
 
         # gap, displacement
 
@@ -814,19 +839,51 @@ def contact_mechanics_data(request): # TODO use REST framework?
             frame_height = int(frame_width/aspect_ratio)
 
         common_kwargs = dict(frame_width=frame_width,
-                             frame_height=frame_height,
-                             topo_unit=topo.unit,
-                             topo_size=(topo.size_x, topo.size_y))
+                             frame_height=frame_height)
+
+        geometry_figure_common_args = common_kwargs.copy()
+        geometry_figure_common_args.update(topo_unit=topo.unit, topo_size=(topo.size_x, topo.size_y))
 
         plots = {
+            #
+            #  Geometry figures
+            #
             'contact-geometry': _contact_mechanics_geometry_figure(
-                        pressure > pressure_tol, title="Contact geometry", **common_kwargs),
+                        pressure > pressure_tol,
+                        title="Contact geometry",
+                        **geometry_figure_common_args),
             'contact-pressure': _contact_mechanics_geometry_figure(
-                        pressure, title=r'Contact pressure p(E*)', value_unit="unit?", **common_kwargs),
+                        pressure,
+                        title=r'Contact pressure p(E*)', value_unit="unit?",
+                        **geometry_figure_common_args),
             'displacement': _contact_mechanics_geometry_figure(
-                displacement, title=r'Displacement', value_unit=unit, **common_kwargs),
+                        displacement,
+                        title=r'Displacement', value_unit=unit,
+                        **geometry_figure_common_args),
             'gap': _contact_mechanics_geometry_figure(
-                gap, title=r'Gap', value_unit=unit, **common_kwargs),
+                        gap, title=r'Gap', value_unit=unit,
+                        **geometry_figure_common_args),
+            #
+            # Distribution figures
+            #
+            'pressure-distribution': _contact_mechanics_distribution_figure(
+                        pressure[pressure > pressure_tol],
+                        title="Pressure distribution",
+                        x_axis_label="Pressure p (E*)",
+                        y_axis_label="Probability P(p) (1/E*)", 
+                        **common_kwargs),
+            'gap-distribution': _contact_mechanics_distribution_figure(
+                gap[gap > gap_tol],
+                title="Gap distribution",
+                x_axis_label="Gap g ()".format(topo.unit),
+                y_axis_label="Probability P(g) (1/{})".format(topo.unit),
+                **common_kwargs),
+            'cluster-size-distribution': _contact_mechanics_distribution_figure(
+                analysis.result_obj['areas'], # TODO check data
+                title="Cluster size distribution",
+                x_axis_label="Cluster area $A$({}$^{{2}}$)".format(topo.unit),
+                y_axis_label="Probability P(A)",
+                **common_kwargs),
         }
 
         plots_json = { pn: json.dumps(json_item(plots[pn])) for pn in plots }
