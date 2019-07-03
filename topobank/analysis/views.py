@@ -523,14 +523,6 @@ class ContactMechanicsCardView(SimpleCardView):
 
 
 
-    def _configure_plot(self, plot):
-        plot.toolbar.logo = None
-        plot.toolbar.active_inspect = None
-        plot.xaxis.axis_label_text_font_style = "normal"
-        plot.yaxis.axis_label_text_font_style = "normal"
-        plot.xaxis.major_label_text_font_size = "12pt"
-        plot.yaxis.major_label_text_font_size = "12pt"
-
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
@@ -626,8 +618,8 @@ class ContactMechanicsCardView(SimpleCardView):
                     renderer.selection_glyph = selected_circle
                     renderer.nonselection_glyph = nonselected_circle
 
-            self._configure_plot(contact_area_plot)
-            self._configure_plot(load_plot)
+            _configure_plot(contact_area_plot)
+            _configure_plot(load_plot)
 
             #
             # Legend
@@ -665,6 +657,15 @@ class ContactMechanicsCardView(SimpleCardView):
         context['initial_calc_kwargs'] = initial_calc_kwargs
 
         return context
+
+
+def _configure_plot(plot):
+    plot.toolbar.logo = None
+    plot.toolbar.active_inspect = None
+    plot.xaxis.axis_label_text_font_style = "normal"
+    plot.yaxis.axis_label_text_font_style = "normal"
+    plot.xaxis.major_label_text_font_size = "12pt"
+    plot.yaxis.major_label_text_font_size = "12pt"
 
 
 def submit_analyses_view(request): # TODO use REST framework?
@@ -708,15 +709,21 @@ def submit_analyses_view(request): # TODO use REST framework?
     return JsonResponse({}, status=status)
 
 
-def _contact_mechanics_geometry_figure(dataarray, frame_width, frame_height, title=None, value_unit=None):
+def _contact_mechanics_geometry_figure(dataarray, frame_width, frame_height, topo_unit, topo_size, title=None, value_unit=None):
+
+    x_range = DataRange1d(start=0, end=topo_size[0], bounds='auto', range_padding=5)
+    y_range = DataRange1d(start=0, end=topo_size[1], bounds='auto', range_padding=5)
 
     p = figure(title=title,
+               x_range=x_range,
+               y_range=y_range,
                frame_width=frame_width,
                frame_height=frame_height,
                sizing_mode='scale_width',
-               x_axis_label="x",
-               y_axis_label="y",
-               match_aspect=True)
+               x_axis_label="Position x ({})".format(topo_unit),
+               y_axis_label="Position y ({})".format(topo_unit),
+               match_aspect=True,
+               toolbar_location="above")
 
     vals = dataarray.values
 
@@ -728,17 +735,19 @@ def _contact_mechanics_geometry_figure(dataarray, frame_width, frame_height, tit
         min_val = vals.min()
         max_val = vals.max()
 
-        color_mapper = LinearColorMapper(palette='Viridis256', low=min_val, high=max_val)  # TODO make palette configurable
+        color_mapper = LinearColorMapper(palette='Viridis256', low=min_val, high=max_val)
 
-    p.image([vals], x=0, y=0, dw=10, dh=10, color_mapper=color_mapper) # TODO choose coords from dataarray
+    p.image([vals], x=0, y=0, dw=topo_size[0], dh=topo_size[1], color_mapper=color_mapper)
 
     if not boolean_values:
         colorbar = ColorBar(color_mapper=color_mapper,
-                            # label_standoff=12,
+                            label_standoff=12,
                             location=(0,0),
                             title=value_unit)
 
         p.add_layout(colorbar, "right")
+
+    _configure_plot(p)
 
     return p
 
@@ -800,18 +809,20 @@ def contact_mechanics_data(request): # TODO use REST framework?
         frame_height = 400
         frame_width = int(frame_height * aspect_ratio)
 
-
         if frame_width > 400: # rule of thumb, scale down if too wide
             frame_width = 400
             frame_height = int(frame_width/aspect_ratio)
 
-        common_kwargs = dict(frame_width=frame_width, frame_height=frame_height)
+        common_kwargs = dict(frame_width=frame_width,
+                             frame_height=frame_height,
+                             topo_unit=topo.unit,
+                             topo_size=(topo.size_x, topo.size_y))
 
         plots = {
             'contact-geometry': _contact_mechanics_geometry_figure(
                         pressure > pressure_tol, title="Contact geometry", **common_kwargs),
             'contact-pressure': _contact_mechanics_geometry_figure(
-                        pressure, title=r'Contact pressure p(E*)', **common_kwargs),
+                        pressure, title=r'Contact pressure p(E*)', value_unit="unit?", **common_kwargs),
             'displacement': _contact_mechanics_geometry_figure(
                 displacement, title=r'Displacement', value_unit=unit, **common_kwargs),
             'gap': _contact_mechanics_geometry_figure(

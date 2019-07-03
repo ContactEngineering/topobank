@@ -239,7 +239,7 @@ test_function.card_view_flavor = 'simple'
 #     return dict(message="done", size=topography.size, n=n)
 
 @analysis_function(card_view_flavor='plot', automatic=True)
-def height_distribution(topography, bins=None, wfac=5, progress_recorder=None, data_path_prefix=None):
+def height_distribution(topography, bins=None, wfac=5, progress_recorder=None, storage_prefix=None):
     if bins is None:
         bins = _reasonable_bins_argument(topography)
 
@@ -331,7 +331,7 @@ def _moments_histogram_gaussian(arr, bins, wfac, quantity, label, gaussian=True)
 
 
 @analysis_function(card_view_flavor='plot', automatic=True)
-def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, data_path_prefix=None):
+def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, storage_prefix=None):
 
     if bins is None:
         bins = _reasonable_bins_argument(topography)
@@ -393,7 +393,7 @@ def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, da
     return result
 
 @analysis_function(card_view_flavor='plot', automatic=True)
-def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None, data_path_prefix=None):
+def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None, storage_prefix=None):
     if bins is None:
         bins = _reasonable_bins_argument(topography)
 
@@ -439,7 +439,7 @@ def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None
     )
 
 @analysis_function(card_view_flavor='plot', automatic=True)
-def power_spectrum(topography, window='hann', tip_radius=None, progress_recorder=None, data_path_prefix=None):
+def power_spectrum(topography, window='hann', tip_radius=None, progress_recorder=None, storage_prefix=None):
     if window == 'None':
         window = None
 
@@ -496,7 +496,7 @@ def power_spectrum(topography, window='hann', tip_radius=None, progress_recorder
     return result
 
 @analysis_function(card_view_flavor='plot', automatic=True)
-def autocorrelation(topography, progress_recorder=None, data_path_prefix=None):
+def autocorrelation(topography, progress_recorder=None, storage_prefix=None):
 
     if topography.dim == 2:
         sx, sy = topography.size
@@ -563,7 +563,7 @@ def autocorrelation(topography, progress_recorder=None, data_path_prefix=None):
 
 
 @analysis_function(card_view_flavor='plot', automatic=True)
-def variable_bandwidth(topography, progress_recorder=None, data_path_prefix=None):
+def variable_bandwidth(topography, progress_recorder=None, storage_prefix=None):
 
     magnifications, bandwidths, rms_heights = topography.variable_bandwidth()
 
@@ -663,7 +663,7 @@ def _next_contact_step(system, history=None, pentol=None, maxiter=None):
     converged = np.append(converged, np.array([opt.success], dtype=bool))
 
     # Sort by area
-    disp, gap, load, area, converged = np.transpose(sorted(zip(disp, gap, load, area, converged), key=lambda x: x[3]))
+    #disp, gap, load, area, converged = np.transpose(sorted(zip(disp, gap, load, area, converged), key=lambda x: x[3]))
     converged = np.array(converged, dtype=bool)
 
     area_per_pt = substrate.area_per_pt
@@ -675,10 +675,7 @@ def _next_contact_step(system, history=None, pentol=None, maxiter=None):
 
 @analysis_function(card_view_flavor='contact mechanics', automatic=True)
 def contact_mechanics(topography, substrate_str="periodic", hardness=None, nsteps=10,
-                      progress_recorder=None, data_path_prefix=None):
-
-
-    # unit = topography.info['unit']
+                      progress_recorder=None, storage_prefix=None):
 
     #
     # Some constants
@@ -709,13 +706,10 @@ def contact_mechanics(topography, substrate_str="periodic", hardness=None, nstep
     for i in range(nsteps):
         displacement_xy, gap_xy, pressure_xy, disp0, current_load, current_area, history = \
             _next_contact_step(system, history=history, pentol=pentol, maxiter=maxiter)
-        # Presently, displacement_xy, gap_xy and pressure_xy are not used. They should be stored to S3 and then
-        # retrieved for visualization.
-        
         #
-        # Save pressure_xy to storage
+        # Save displacement_xy, gap_xy and pressure_xy to storage, will be retrieved later for visualization
         #
-        pressure_xy = xr.DataArray(pressure_xy, dims=('x', 'y')) # TODO define coordinates
+        pressure_xy = xr.DataArray(pressure_xy, dims=('x', 'y')) # maybe define coordinates
         gap_xy = xr.DataArray(gap_xy, dims=('x', 'y'))
         displacement_xy = xr.DataArray(displacement_xy, dims=('x', 'y'))
 
@@ -726,8 +720,8 @@ def contact_mechanics(topography, substrate_str="periodic", hardness=None, nstep
         with tempfile.NamedTemporaryFile(prefix='analysis-') as tmpfile:
 
             dataset.to_netcdf(tmpfile.name)
-            
-            storage_path = data_path_prefix+"result-step-{}.nc".format(i)
+
+            storage_path = storage_prefix+"result-step-{}.nc".format(i)
             tmpfile.seek(0)
             storage_path = default_storage.save(storage_path, File(tmpfile))
             data_paths.append(storage_path)
@@ -739,6 +733,9 @@ def contact_mechanics(topography, substrate_str="periodic", hardness=None, nstep
     load = np.array(load)
     area = np.array(area)
     disp = np.array(disp)
+    gap = np.array(gap)
+    converged = np.array(converged)
+
     data_paths = np.array(data_paths, dtype='str')
     sort_order = np.argsort(load)
 
@@ -747,23 +744,8 @@ def contact_mechanics(topography, substrate_str="periodic", hardness=None, nstep
         loads=load[sort_order],
         areas=area[sort_order],
         disps=disp[sort_order],
+        gaps=gap[sort_order],
+        converged=converged[sort_order],
         data_paths=data_paths[sort_order],
-        #xlabel='Normalized contact pressure',
-        #ylabel='Fractional contact area',
-        #xscale='log',
-        #yscale='log',
-        # series=[
-        #     dict(name='Contact area',
-        #          x=np.array(load[sort_order]),
-        #          y=np.array(area[sort_order]),
-        #          ),
-        #     dict(name='Load',
-        #          x=np.array(disp[sort_order]),
-        #          y=np.array(load[sort_order]),                 
-        #          ),
-        # ]
     )
-
-    # TODO save data in S3 files and reference them
-    #
 
