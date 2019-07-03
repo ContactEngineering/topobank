@@ -662,14 +662,13 @@ def _next_contact_step(system, history=None, pentol=None, maxiter=None):
     area = np.append(area, [current_area])
     converged = np.append(converged, np.array([opt.success], dtype=bool))
 
-    # Sort by area
-    #disp, gap, load, area, converged = np.transpose(sorted(zip(disp, gap, load, area, converged), key=lambda x: x[3]))
-    converged = np.array(converged, dtype=bool)
-
     area_per_pt = substrate.area_per_pt
     pressure_xy = force_xy / area_per_pt
     gap_xy = displacement_xy - topography.heights() - opt.offset
     gap_xy[gap_xy < 0.0] = 0.0
+
+
+
 
     return displacement_xy, gap_xy, pressure_xy, disp0, current_load, current_area, (disp, gap, load, area, converged)
 
