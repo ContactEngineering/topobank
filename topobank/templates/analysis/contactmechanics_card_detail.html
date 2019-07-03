@@ -232,6 +232,11 @@
     $('.nav-tabs a[href="#' + tab + '"]').tab('show');
   };
 
+  function is_tab_activated(tab){
+    return $('.nav-tabs a[href="#' + tab + '"]').hasClass("active");
+  };
+
+
   function selection_handler(obj, data, sources) {
     var selected = data.source.selected;
     var index = selected.indices[0];
@@ -278,10 +283,14 @@
     var tab_names = ['contact-geometry', 'contact-pressure', 'displacement', 'gap'];
 
     tab_names.forEach(function(tn){
-      // $('#'+tn).addClass('spinner');
+      var div = $('#'+tn);
+      div.html(""); // Delete all old contents
+      div.addClass('spinner');
     });
 
-    // activate_tab('contact-geometry-tab'); // TODO only do this if tools is activated
+    if (is_tab_activated('tools-tab')) {
+      activate_tab('contact-geometry-tab');
+    }
 
     $.ajax({
           type: "POST",

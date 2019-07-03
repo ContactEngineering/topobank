@@ -125,7 +125,7 @@ def perform_analysis(self, analysis_id):
         kwargs = pickle.loads(analysis.kwargs)
         topography = Topography.objects.get(id=analysis.topography_id).topography()
         kwargs['progress_recorder'] = progress_recorder
-        kwargs['data_path_prefix'] = "analyses/{}/".format(analysis_id)
+        kwargs['storage_prefix'] = analysis.storage_prefix
         result = analysis.function.eval(topography, **kwargs)
         save_result(result, Analysis.SUCCESS)
     except Exception as exc:
