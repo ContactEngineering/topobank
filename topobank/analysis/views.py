@@ -8,12 +8,12 @@ from collections import OrderedDict
 from django.http import HttpResponse, HttpResponseForbidden, Http404, JsonResponse
 from django.views.generic import DetailView, FormView, TemplateView
 from django.urls import reverse_lazy
-from django.contrib import messages
 from django.db.models import Q
 from django.conf import settings
 from django import template
 from rest_framework.generics import RetrieveAPIView
 from django.core.files.storage import default_storage
+from django.core.cache import cache # default cache
 
 from bokeh.layouts import row, column, widgetbox
 from bokeh.models import ColumnDataSource, CustomJS, TapTool, Circle
@@ -813,99 +813,108 @@ def contact_mechanics_data(request):
     if request.user.has_perm('view_surface', analysis.topography.surface):
 
         #
-        # TODO try to get results from cache
+        # Try to get results from cache
         #
+        cache_key = "contact-mechanics-plots-json-analysis-{}".format(analysis.id)
+        plots_json = cache.get(cache_key)
+        if plots_json is None:
 
-
-        pressure_tol = 0 # tolerance for deciding whether point is in contact
-        gap_tol = 0 # tolerance for deciding whether point is in contact
-        # min_pentol = 1e-12 # lower bound for the penetration tolerance
-
-
-        #
-        # Here we assume a special format for the analysis results
-        #
-        data_path = analysis.result_obj['data_paths'][index]
-
-        data = default_storage.open(data_path)
-        ds = xr.load_dataset(data.open(mode='rb'))
-
-        pressure = ds['pressure'].values
-        displacement = ds['displacement'].values
-        gap = ds['gap'].values
-
-        # gap, displacement
-
-        #
-        # calculate contact areas
-        #
-        contact = pressure > pressure_tol
-        patch_ids = assign_patch_numbers(contact)[1]
-        contact_areas = patch_areas(patch_ids) * analysis.result_obj['area_per_pt']
-
-
-        #
-        # Common figure parameters
-        #
-
-        topo = analysis.topography
-        aspect_ratio = topo.size_x / topo.size_y
-        frame_height = 350
-        frame_width = int(frame_height * aspect_ratio)
-
-        if frame_width > 500: # rule of thumb, scale down if too wide
-            frame_width = 500
-            frame_height = int(frame_width/aspect_ratio)
-
-        common_kwargs = dict(frame_width=frame_width,
-                             frame_height=frame_height)
-
-        geometry_figure_common_args = common_kwargs.copy()
-        geometry_figure_common_args.update(topo_unit=topo.unit, topo_size=(topo.size_x, topo.size_y))
-
-        plots = {
             #
-            #  Geometry figures
+            # generate plots and save in cache
             #
-            'contact-geometry': _contact_mechanics_geometry_figure(
-                        pressure > pressure_tol,
-                        title="Contact geometry",
-                        **geometry_figure_common_args),
-            'contact-pressure': _contact_mechanics_geometry_figure(
-                        pressure,
-                        title=r'Contact pressure p(E*)', value_unit="unit?",
-                        **geometry_figure_common_args),
-            'displacement': _contact_mechanics_geometry_figure(
-                        displacement,
-                        title=r'Displacement', value_unit=unit,
-                        **geometry_figure_common_args),
-            'gap': _contact_mechanics_geometry_figure(
-                        gap, title=r'Gap', value_unit=unit,
-                        **geometry_figure_common_args),
-            #
-            # Distribution figures
-            #
-            'pressure-distribution': _contact_mechanics_distribution_figure(
-                        pressure[pressure > pressure_tol],
-                        title="Pressure distribution",
-                        x_axis_label="Pressure p (E*)",
-                        y_axis_label="Probability P(p) (1/E*)",
-                        **common_kwargs),
-            'gap-distribution': _contact_mechanics_distribution_figure(
-                gap[gap > gap_tol],
-                title="Gap distribution",
-                x_axis_label="Gap g ({})".format(topo.unit),
-                y_axis_label="Probability P(g) (1/{})".format(topo.unit),
-                **common_kwargs),
-            'cluster-size-distribution': _contact_mechanics_distribution_figure(
-                contact_areas, # TODO check data
-                title="Cluster size distribution",
-                x_axis_label="Cluster area A({}²)".format(topo.unit),
-                y_axis_label="Probability P(A)",
-                **common_kwargs),
-        }
 
-        plots_json = { pn: json.dumps(json_item(plots[pn])) for pn in plots }
+            pressure_tol = 0 # tolerance for deciding whether point is in contact
+            gap_tol = 0 # tolerance for deciding whether point is in contact
+            # min_pentol = 1e-12 # lower bound for the penetration tolerance
+
+
+            #
+            # Here we assume a special format for the analysis results
+            #
+            data_path = analysis.result_obj['data_paths'][index]
+
+            data = default_storage.open(data_path)
+            ds = xr.load_dataset(data.open(mode='rb'))
+
+            pressure = ds['pressure'].values
+            displacement = ds['displacement'].values
+            gap = ds['gap'].values
+
+            # gap, displacement
+
+            #
+            # calculate contact areas
+            #
+            contact = pressure > pressure_tol
+            patch_ids = assign_patch_numbers(contact)[1]
+            contact_areas = patch_areas(patch_ids) * analysis.result_obj['area_per_pt']
+
+
+            #
+            # Common figure parameters
+            #
+
+            topo = analysis.topography
+            aspect_ratio = topo.size_x / topo.size_y
+            frame_height = 350
+            frame_width = int(frame_height * aspect_ratio)
+
+            if frame_width > 500: # rule of thumb, scale down if too wide
+                frame_width = 500
+                frame_height = int(frame_width/aspect_ratio)
+
+            common_kwargs = dict(frame_width=frame_width,
+                                 frame_height=frame_height)
+
+            geometry_figure_common_args = common_kwargs.copy()
+            geometry_figure_common_args.update(topo_unit=topo.unit, topo_size=(topo.size_x, topo.size_y))
+
+            plots = {
+                #
+                #  Geometry figures
+                #
+                'contact-geometry': _contact_mechanics_geometry_figure(
+                            pressure > pressure_tol,
+                            title="Contact geometry",
+                            **geometry_figure_common_args),
+                'contact-pressure': _contact_mechanics_geometry_figure(
+                            pressure,
+                            title=r'Contact pressure p(E*)', value_unit="unit?",
+                            **geometry_figure_common_args),
+                'displacement': _contact_mechanics_geometry_figure(
+                            displacement,
+                            title=r'Displacement', value_unit=unit,
+                            **geometry_figure_common_args),
+                'gap': _contact_mechanics_geometry_figure(
+                            gap, title=r'Gap', value_unit=unit,
+                            **geometry_figure_common_args),
+                #
+                # Distribution figures
+                #
+                'pressure-distribution': _contact_mechanics_distribution_figure(
+                            pressure[pressure > pressure_tol],
+                            title="Pressure distribution",
+                            x_axis_label="Pressure p (E*)",
+                            y_axis_label="Probability P(p) (1/E*)",
+                            **common_kwargs),
+                'gap-distribution': _contact_mechanics_distribution_figure(
+                    gap[gap > gap_tol],
+                    title="Gap distribution",
+                    x_axis_label="Gap g ({})".format(topo.unit),
+                    y_axis_label="Probability P(g) (1/{})".format(topo.unit),
+                    **common_kwargs),
+                'cluster-size-distribution': _contact_mechanics_distribution_figure(
+                    contact_areas, # TODO check data
+                    title="Cluster size distribution",
+                    x_axis_label="Cluster area A({}²)".format(topo.unit),
+                    y_axis_label="Probability P(A)",
+                    **common_kwargs),
+            }
+
+            plots_json = { pn: json.dumps(json_item(plots[pn])) for pn in plots }
+            cache.set(cache_key, plots_json)
+        else:
+            _log.debug("Using plots from cache.")
 
         return JsonResponse(plots_json, status=200)
     else:
