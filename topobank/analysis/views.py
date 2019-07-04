@@ -551,7 +551,10 @@ class ContactMechanicsCardView(SimpleCardView):
                     load=analysis_result['loads'],
                     area=analysis_result['areas'],
                     disp=analysis_result['disps'],
+                    fill_alpha=[1 if c else 0.3 for c in analysis_result['converged']],
                     data_path=analysis_result['data_paths'])
+                # here, for not convergent points we plot a circle with an x
+
 
                 # the name of the data source is used in javascript in
                 # order to find out the analysis id
@@ -599,12 +602,14 @@ class ContactMechanicsCardView(SimpleCardView):
             for source, label in zip(sources, labels):
                 curr_color = next(color_cycle)
                 r1 = contact_area_plot.circle('load', 'area',
-                                                source=source,
-                                                fill_color=curr_color,
-                                                line_color=None,
-                                                size=12)
+                                               source=source,
+                                               fill_alpha='fill_alpha', # to indicate if converged or not
+                                               fill_color=curr_color,
+                                               line_color=None,
+                                               size=12)
                 r2 = load_plot.circle('disp', 'load',
                                       source=source,
+                                      fill_alpha='fill_alpha',  # to indicate if converged or not
                                       fill_color=curr_color,
                                       line_color=None,
                                       size=12)
@@ -612,8 +617,10 @@ class ContactMechanicsCardView(SimpleCardView):
                 contact_area_legend_items.append((label, [r1]))
                 load_legend_items.append((label, [r2]))
 
-                selected_circle = Circle(fill_color=curr_color, line_color="black", line_width=4)
-                nonselected_circle = Circle(fill_color=curr_color, line_color=None)
+                selected_circle = Circle(fill_alpha='fill_alpha', fill_color=curr_color,
+                                         line_color="black", line_width=4)
+                nonselected_circle = Circle(fill_alpha='fill_alpha', fill_color=curr_color,
+                                            line_color=None)
 
                 for renderer in [r1,r2]:
                     renderer.selection_glyph = selected_circle
