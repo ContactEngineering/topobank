@@ -33,6 +33,7 @@ from pint import UnitRegistry, UndefinedUnitError
 from guardian.shortcuts import get_objects_for_user
 
 import PyCo
+from PyCo.Tools.ContactAreaAnalysis import patch_areas, assign_patch_numbers
 
 from ..manager.models import Topography, Surface
 from ..manager.utils import selected_instances, selection_from_session
@@ -730,7 +731,6 @@ def _contact_mechanics_geometry_figure(values, frame_width, frame_height, topo_u
                y_range=y_range,
                frame_width=frame_width,
                frame_height=frame_height,
-               sizing_mode='scale_width',
                x_axis_label="Position x ({})".format(topo_unit),
                y_axis_label="Position y ({})".format(topo_unit),
                match_aspect=True,
@@ -773,8 +773,10 @@ def _contact_mechanics_distribution_figure(values, x_axis_label, y_axis_label, f
                y_axis_label=y_axis_label,
                toolbar_location="above")
 
-    p.quad(top=hist, bottom=0, left=edges[:-1], right=edges[1:],
-           fill_color="navy", line_color="white", alpha=0.5)
+    # TODO quad or step?
+    #p.quad(top=hist, bottom=0, left=edges[:-1], right=edges[1:],
+    #       fill_color="navy", line_color="white", alpha=0.5)
+    p.step(edges[:-1], hist, mode="before", line_width=2)
 
     _configure_plot(p)
 
@@ -784,7 +786,7 @@ def _contact_mechanics_displacement_figure():
     pass
 
 
-def contact_mechanics_data(request): # TODO use REST framework?
+def contact_mechanics_data(request):
     """Loads extra data for an analysis card
 
     :param request:
@@ -810,6 +812,11 @@ def contact_mechanics_data(request): # TODO use REST framework?
 
     if request.user.has_perm('view_surface', analysis.topography.surface):
 
+        #
+        # TODO try to get results from cache
+        #
+
+
         pressure_tol = 0 # tolerance for deciding whether point is in contact
         gap_tol = 0 # tolerance for deciding whether point is in contact
         # min_pentol = 1e-12 # lower bound for the penetration tolerance
@@ -829,13 +836,25 @@ def contact_mechanics_data(request): # TODO use REST framework?
 
         # gap, displacement
 
+        #
+        # calculate contact areas
+        #
+        contact = pressure > pressure_tol
+        patch_ids = assign_patch_numbers(contact)[1]
+        contact_areas = patch_areas(patch_ids) * analysis.result_obj['area_per_pt']
+
+
+        #
+        # Common figure parameters
+        #
+
         topo = analysis.topography
         aspect_ratio = topo.size_x / topo.size_y
-        frame_height = 400
+        frame_height = 350
         frame_width = int(frame_height * aspect_ratio)
 
-        if frame_width > 400: # rule of thumb, scale down if too wide
-            frame_width = 400
+        if frame_width > 500: # rule of thumb, scale down if too wide
+            frame_width = 500
             frame_height = int(frame_width/aspect_ratio)
 
         common_kwargs = dict(frame_width=frame_width,
@@ -870,18 +889,18 @@ def contact_mechanics_data(request): # TODO use REST framework?
                         pressure[pressure > pressure_tol],
                         title="Pressure distribution",
                         x_axis_label="Pressure p (E*)",
-                        y_axis_label="Probability P(p) (1/E*)", 
+                        y_axis_label="Probability P(p) (1/E*)",
                         **common_kwargs),
             'gap-distribution': _contact_mechanics_distribution_figure(
                 gap[gap > gap_tol],
                 title="Gap distribution",
-                x_axis_label="Gap g ()".format(topo.unit),
+                x_axis_label="Gap g ({})".format(topo.unit),
                 y_axis_label="Probability P(g) (1/{})".format(topo.unit),
                 **common_kwargs),
             'cluster-size-distribution': _contact_mechanics_distribution_figure(
-                analysis.result_obj['areas'], # TODO check data
+                contact_areas, # TODO check data
                 title="Cluster size distribution",
-                x_axis_label="Cluster area $A$({}$^{{2}}$)".format(topo.unit),
+                x_axis_label="Cluster area A({}²)".format(topo.unit),
                 y_axis_label="Probability P(A)",
                 **common_kwargs),
         }
