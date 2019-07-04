@@ -15,8 +15,6 @@ def remove_storage_files(sender, instance, **kwargs):
 
     prefix = instance.storage_prefix
 
-    print(prefix, __name__)
-
     try:
         old_dirs, old_files = default_storage.listdir(prefix)
         for fn in old_files:
