@@ -2,7 +2,9 @@
 
 ## 0.5.0
 
+- added contact mechanics analysis and visualization (#84)
 - added progress bars for analysis tasks (#202)
+- old analyses will be deleted (#221)
 
 ## 0.4.2
 
