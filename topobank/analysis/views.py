@@ -815,7 +815,7 @@ def contact_mechanics_data(request):
         #
         # Try to get results from cache
         #
-        cache_key = "contact-mechanics-plots-json-analysis-{}".format(analysis.id)
+        cache_key = "contact-mechanics-plots-json-analysis-{}-index-{}".format(analysis.id, index)
         plots_json = cache.get(cache_key)
         if plots_json is None:
 
