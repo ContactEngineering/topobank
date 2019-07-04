@@ -13,7 +13,7 @@ from termsandconditions.models import UserTermsAndConditions
 _log = logging.getLogger(__name__)
 
 class Command(BaseCommand):
-    help = "Deletes a user and all associated data (surfaces, topographies, files, terms, shares). Handle with care."
+    help = "Deletes a user and all associated data (surfaces, topographies, analyses, files, terms, shares). Handle with care."
 
     def add_arguments(self, parser):
         parser.add_argument('username', type=str)
