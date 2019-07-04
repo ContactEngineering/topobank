@@ -47,7 +47,7 @@
           {% include 'analysis/analyses_alerts.html' %}
           {% if not analyses_unready and analyses_success %}
            {# Show all analyses for which we have results #}
-           {{ contact_area_plot_div | safe }}
+           {{ plot_div | safe }}
           {% endif %}
         </div>
         {% include 'analysis/analyses_failure_tab_pane.html' %}
@@ -61,6 +61,6 @@
 {% block card_javascript %}
   {% if analyses_success %}
     {# Insert the script code needed for the plot #}
-    {{ contact_area_plot_script | safe }}
+    {{ plot_script | safe }}
   {% endif %}
 {% endblock card_javascript %}
