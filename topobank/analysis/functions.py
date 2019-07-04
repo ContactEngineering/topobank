@@ -715,10 +715,12 @@ def contact_mechanics(topography, substrate_str="periodic", hardness=None, nstep
         dataset = xr.Dataset({'pressure': pressure_xy,
                               'gap': gap_xy,
                               'displacement': displacement_xy}) # one dataset per analysis step: smallest unit to retrieve
+        dataset.attrs['load'] = current_load
+        dataset.attrs['area'] = current_area
 
         with tempfile.NamedTemporaryFile(prefix='analysis-') as tmpfile:
 
-            dataset.to_netcdf(tmpfile.name)
+            dataset.to_netcdf(tmpfile.name, format='NETCDF3_CLASSIC')
 
             storage_path = storage_prefix+"result-step-{}.nc".format(i)
             tmpfile.seek(0)
@@ -740,6 +742,9 @@ def contact_mechanics(topography, substrate_str="periodic", hardness=None, nstep
 
     return dict(
         name='Contact mechanics',
+        area_per_pt=substrate.area_per_pt,
+        maxiter=maxiter,
+        min_pentol=min_pentol,
         loads=load[sort_order],
         areas=area[sort_order],
         disps=disp[sort_order],
