@@ -84,3 +84,7 @@ input.checkbox-color-design:checked+span:after {
   font-weight: bold;
   font-size: larger;
 }
+
+.search-result-card:hover {
+  border-width: 4px;
+}
