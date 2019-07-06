@@ -641,13 +641,16 @@ def _next_contact_step(system, history=None, pentol=None, maxiter=None):
     elif step == 1:
         disp0 = -top + 0.01 * (top - middle)
     else:
-        ref_area = np.log10(np.array(area + 1 / np.prod(topography.resolution)))
+        # Sort by area
+        sorted_disp, sorted_area = np.transpose(sorted(zip(disp, area), key=lambda x:x[1]))
+
+        ref_area = np.log10(np.array(sorted_area + 1 / np.prod(topography.resolution)))
         darea = np.append(ref_area[1:] - ref_area[:-1], -ref_area[-1])
         i = np.argmax(darea)
         if i == step - 1:
-            disp0 = bot + 2 * (disp[-1] - bot)
+            disp0 = bot + 2 * (sorted_disp[-1] - bot)
         else:
-            disp0 = (disp[i] + disp[i + 1]) / 2
+            disp0 = (sorted_disp[i] + sorted_disp[i + 1]) / 2
 
     # TODO: This is a mess. We should give variables more explicit names. Also double check that this works for both
     # periodic and non-periodic calculations.
@@ -666,9 +669,6 @@ def _next_contact_step(system, history=None, pentol=None, maxiter=None):
     pressure_xy = force_xy / area_per_pt
     gap_xy = displacement_xy - topography.heights() - opt.offset
     gap_xy[gap_xy < 0.0] = 0.0
-
-
-
 
     return displacement_xy, gap_xy, pressure_xy, disp0, current_load, current_area, (disp, gap, load, area, converged)
 
