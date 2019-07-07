@@ -20,11 +20,11 @@ RUN apt-get -qy autoremove
 # Installation of PyCo + dependencies
 #
 # Copy PyCo source code into container, uncompress
-COPY PyCo-0.31.1.tar.gz .
-RUN tar xfvz PyCo-0.31.1.tar.gz
+COPY PyCo-0.31.3.tar.gz .
+RUN tar xfvz PyCo-0.31.3.tar.gz
 
 # install PyCo
-WORKDIR PyCo-0.31.1
+WORKDIR PyCo-0.31.3
 RUN pip install wheel
 RUN pip install -r requirements.txt
 RUN pip install .
