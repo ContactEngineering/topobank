@@ -641,7 +641,7 @@ def _next_contact_step(system, history=None, pentol=None, maxiter=None):
     elif step == 1:
         mean_displacement = -top + 0.01 * (top - middle)
     else:
-        # Sort by area
+        # Intermediate sort by area
         sorted_disp, sorted_area = np.transpose(sorted(zip(mean_displacements, total_contact_areas), key=lambda x:x[1]))
 
         ref_area = np.log10(np.array(sorted_area + 1 / np.prod(topography.resolution)))
