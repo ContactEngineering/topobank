@@ -617,52 +617,50 @@ def _next_contact_step(system, history=None, pentol=None, maxiter=None):
     substrate = system.substrate
 
     # Get the profile as a numpy array
-    profile = topography.heights()
+    heights = topography.heights()
 
     # Find max, min and mean heights
-    top = np.max(profile)
-    middle = np.mean(profile)
-    bot = np.min(profile)
+    top = np.max(heights)
+    middle = np.mean(heights)
+    bot = np.min(heights)
 
     if history is None:
         step = 0
     else:
-        disp, gap, load, area, converged = history
-        step = len(disp)
+        mean_displacements, mean_gaps, mean_pressures, total_contact_areas, converged = history
+        step = len(mean_displacements)
 
     if step == 0:
-        disp = []
-        gap = []
-        load = []
-        area = []
+        mean_displacements = []
+        mean_gaps = []
+        mean_pressures = []
+        total_contact_areas = []
         converged = np.array([], dtype=bool)
 
-        disp0 = -middle
+        mean_displacement = -middle
     elif step == 1:
-        disp0 = -top + 0.01 * (top - middle)
+        mean_displacement = -top + 0.01 * (top - middle)
     else:
         # Sort by area
-        sorted_disp, sorted_area = np.transpose(sorted(zip(disp, area), key=lambda x:x[1]))
+        sorted_disp, sorted_area = np.transpose(sorted(zip(mean_displacements, total_contact_areas), key=lambda x:x[1]))
 
         ref_area = np.log10(np.array(sorted_area + 1 / np.prod(topography.resolution)))
         darea = np.append(ref_area[1:] - ref_area[:-1], -ref_area[-1])
         i = np.argmax(darea)
         if i == step - 1:
-            disp0 = bot + 2 * (sorted_disp[-1] - bot)
+            mean_displacement = bot + 2 * (sorted_disp[-1] - bot)
         else:
-            disp0 = (sorted_disp[i] + sorted_disp[i + 1]) / 2
+            mean_displacement = (sorted_disp[i] + sorted_disp[i + 1]) / 2
 
-    # TODO: This is a mess. We should give variables more explicit names. Also double check that this works for both
-    # periodic and non-periodic calculations.
-    opt = system.minimize_proxy(offset=disp0, pentol=pentol, maxiter=maxiter)
+    opt = system.minimize_proxy(offset=mean_displacement, pentol=pentol, maxiter=maxiter)
     force_xy = opt.jac
     displacement_xy = opt.x[:force_xy.shape[0], :force_xy.shape[1]]
-    disp = np.append(disp, [disp0])
-    gap = np.append(gap, [np.mean(displacement_xy) - middle - disp0])
-    current_load = force_xy.sum() / np.prod(topography.size)
-    load = np.append(load, [current_load])
-    current_area = (force_xy > 0).sum() / np.prod(topography.resolution)
-    area = np.append(area, [current_area])
+    mean_displacements = np.append(mean_displacements, [mean_displacement])
+    mean_gaps = np.append(mean_gaps, [np.mean(displacement_xy) - middle - mean_displacement])
+    mean_load = force_xy.sum() / np.prod(topography.size)
+    mean_pressures = np.append(mean_pressures, [mean_load])
+    total_contact_area = (force_xy > 0).sum() / np.prod(topography.resolution)
+    total_contact_areas = np.append(total_contact_areas, [total_contact_area])
     converged = np.append(converged, np.array([opt.success], dtype=bool))
 
     area_per_pt = substrate.area_per_pt
@@ -670,7 +668,8 @@ def _next_contact_step(system, history=None, pentol=None, maxiter=None):
     gap_xy = displacement_xy - topography.heights() - opt.offset
     gap_xy[gap_xy < 0.0] = 0.0
 
-    return displacement_xy, gap_xy, pressure_xy, disp0, current_load, current_area, (disp, gap, load, area, converged)
+    return displacement_xy, gap_xy, pressure_xy, mean_displacement, mean_load, total_contact_area, \
+           (mean_displacements, mean_gaps, mean_pressures, total_contact_areas, converged)
 
 @analysis_function(card_view_flavor='contact mechanics', automatic=True)
 def contact_mechanics(topography, substrate_str="periodic", hardness=None, nsteps=10,
@@ -703,7 +702,7 @@ def contact_mechanics(topography, substrate_str="periodic", hardness=None, nstep
 
     history = None
     for i in range(nsteps):
-        displacement_xy, gap_xy, pressure_xy, disp0, current_load, current_area, history = \
+        displacement_xy, gap_xy, pressure_xy, mean_displacement, mean_pressure, total_contact_area, history = \
             _next_contact_step(system, history=history, pentol=pentol, maxiter=maxiter)
         #
         # Save displacement_xy, gap_xy and pressure_xy to storage, will be retrieved later for visualization
@@ -715,8 +714,8 @@ def contact_mechanics(topography, substrate_str="periodic", hardness=None, nstep
         dataset = xr.Dataset({'pressure': pressure_xy,
                               'gap': gap_xy,
                               'displacement': displacement_xy}) # one dataset per analysis step: smallest unit to retrieve
-        dataset.attrs['load'] = current_load
-        dataset.attrs['area'] = current_area
+        dataset.attrs['load'] = mean_pressure
+        dataset.attrs['area'] = total_contact_area
 
         with tempfile.NamedTemporaryFile(prefix='analysis-') as tmpfile:
 
@@ -729,26 +728,26 @@ def contact_mechanics(topography, substrate_str="periodic", hardness=None, nstep
 
         progress_recorder.set_progress(i + 1, nsteps)
 
-    disp, gap, load, area, converged = history
+    mean_displacement, mean_gap, mean_pressure, total_contact_area, converged = history
 
-    load = np.array(load)
-    area = np.array(area)
-    disp = np.array(disp)
-    gap = np.array(gap)
+    mean_pressure = np.array(mean_pressure)
+    total_contact_area = np.array(total_contact_area)
+    mean_displacement = np.array(mean_displacement)
+    mean_gap = np.array(mean_gap)
     converged = np.array(converged)
 
     data_paths = np.array(data_paths, dtype='str')
-    sort_order = np.argsort(load)
+    sort_order = np.argsort(mean_pressure)
 
     return dict(
         name='Contact mechanics',
         area_per_pt=substrate.area_per_pt,
         maxiter=maxiter,
         min_pentol=min_pentol,
-        loads=load[sort_order],
-        areas=area[sort_order],
-        disps=disp[sort_order],
-        gaps=gap[sort_order],
+        loads=mean_pressure[sort_order],
+        areas=total_contact_area[sort_order],
+        disps=mean_displacement[sort_order],
+        gaps=mean_gap[sort_order],
         converged=converged[sort_order],
         data_paths=data_paths[sort_order],
     )
