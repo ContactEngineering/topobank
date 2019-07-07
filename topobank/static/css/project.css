@@ -86,5 +86,5 @@ input.checkbox-color-design:checked+span:after {
 }
 
 .search-result-card:hover {
-  border-width: 4px;
+  box-shadow: 2px 2px 2px lightgrey;
 }
