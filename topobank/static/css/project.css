@@ -88,3 +88,7 @@ input.checkbox-color-design:checked+span:after {
 .search-result-card:hover {
   box-shadow: 2px 2px 2px lightgrey;
 }
+
+.btn:active {
+  box-shadow: 2px 2px 2px lightgrey inset;
+}
