@@ -724,6 +724,9 @@ def contact_mechanics(topography, substrate_str="periodic", hardness=None, nstep
                               'displacement': displacement_xy}) # one dataset per analysis step: smallest unit to retrieve
         dataset.attrs['load'] = mean_pressure
         dataset.attrs['area'] = total_contact_area
+        dataset.attrs['type'] = substrate_str
+        if hardness:
+            dataset.attrs['hardness'] = hardness # TODO how to save hardness=None? Not possible in netCDF
 
         with tempfile.NamedTemporaryFile(prefix='analysis-') as tmpfile:
 
