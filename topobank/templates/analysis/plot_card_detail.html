@@ -15,13 +15,13 @@
     {% endif %}
     {% if special_values %}
     <li class="nav-item" style="list-style-type: none;">
-      <a class="nav-link" data-toggle="tab" href="#values">Special values</a>
+      <a class="nav-link" data-toggle="pill" href="#values">Special values</a>
     </li>
     {% endif %}
     {% if analyses_failure %}
     <li class="nav-item" style="list-style-type: none;">
       {# Use href with card_id because the included HTML uses this too #}
-      <a class="nav-link" data-toggle="tab" href="#failures-tab-{{ card_id }}">Failures</a>
+      <a class="nav-link" data-toggle="pill" href="#failures-pill-{{ card_id }}">Failures</a>
     </li>
     {% endif %}
   </ul>

@@ -227,7 +227,7 @@ test_function.card_view_flavor = 'simple'
 # Use this during development if you need a long running task with failures
 #
 # @analysis_function(card_view_flavor='simple', automatic=True)
-# def long_running_task(topography, progress_recorder=None):
+# def long_running_task(topography, progress_recorder=None, storage_prefix=None):
 #     import time, random
 #     n = 10 + random.randint(1,10)
 #     F = 30
@@ -240,6 +240,9 @@ test_function.card_view_flavor = 'simple'
 
 @analysis_function(card_view_flavor='plot', automatic=True)
 def height_distribution(topography, bins=None, wfac=5, progress_recorder=None, storage_prefix=None):
+
+    raise Exception("Test")
+
     if bins is None:
         bins = _reasonable_bins_argument(topography)
 
