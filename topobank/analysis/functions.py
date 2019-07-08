@@ -241,8 +241,6 @@ test_function.card_view_flavor = 'simple'
 @analysis_function(card_view_flavor='plot', automatic=True)
 def height_distribution(topography, bins=None, wfac=5, progress_recorder=None, storage_prefix=None):
 
-    raise Exception("Test")
-
     if bins is None:
         bins = _reasonable_bins_argument(topography)
 
