@@ -1223,60 +1223,63 @@ def download_contact_mechanics_analyses_as_zip(request, analyses):
     #
     # Add a Readme file
     #
-    zf.writestr("Readme.txt", \
+    zf.writestr("README.md", \
     """    
-    Contents
-    --------
+Contents of this ZIP archive
+============================
+This archive contains data from contact mechanics calculation.
+
+Each directory corresponds to one topography and is named after the topography.
+Inside you find classical NetCDF files, one for each calculation step.
+Each file corresponds to one external pressure. Inside you'll find the variables
     
-    This archive contains data from contact mechanics calculation.
-    
-    Each directory corresponds to one topography and is named after the topography.
-    Inside you find classical NetCDF files, one for each calculation step.
-    So each file corresponds to one load. Inside you'll find the variables
-    
-      contact_points: boolean array, true if in contact for that point
-      pressure 
-      gap
-      displacement
+* `contact_points`: boolean array, true if point is in contact
+* `pressure`: floating-point array containing local pressure (in units of `E*)
+* `gap`: floating-point array containing the local gap
+* `displacement`: floating-point array containing
       
-    as well as the attributes 
+as well as the attributes 
     
-     load: mean pressure
-     area: total contact area
+* `load`: mean pressure
+* `area`: total contact area
     
-    In order to read the data, you can use a netCDF library.
-    Here are some examples:
-    
-    Using data in Python
-    -------------------- 
-    
-    Given the package "netcdf4" is installed:
-    
-      import netcdf4
-      ds = netcdf4.Dataset("result-step-0.nc")
-      print(ds)
-      pressure = ds['pressure'][:]
-      mean_pressure = ds.load
+In order to read the data, you can use a netCDF library.
+Here are some examples:
+
+Accessing the NetCDF files
+==========================
+
+### Python
+
+Given the package [`netcdf4-python`](http://netcdf4-python.googlecode.com/) is installed:
+
+```
+import netCDF4
+ds = netCDF4.Dataset("result-step-0.nc")
+print(ds)
+pressure = ds['pressure'][:]
+mean_pressure = ds.load
+```
       
-    Another convenient package you can use is "xarray".
+Another convenient package you can use is [`xarray`](xarray.pydata.org/).
     
-    Using data in Matlab
-    --------------------
+### Matlab
+
+In order to read the pressure map in Matlab, use
     
-    In order to read the pressure map here, use
+```
+ncid = netcdf.open("result-step-0.nc",'NC_NOWRITE');
+varid = netcdf.inqVarID(ncid,"pressure");
+pressure = netcdf.getVar(ncid,varid);
+```
+
+Have look in the official Matlab documentation for more information.
     
-      ncid = netcdf.open("result-step-0.nc",'NC_NOWRITE');
-      varid = netcdf.inqVarID(ncid,"pressure");
-      pressure = netcdf.getVar(ncid,varid);
-      
-    Have look in the official Matlab documentation for more information.
+Version information
+===================
     
-    Version information
-    -------------------
-    
-    PyCo:     {}
-    TopoBank: {}
-    
+PyCo:     {}  
+TopoBank: {}
     """.format(PyCo.__version__, settings.TOPOBANK_VERSION))
 
     zf.close()
