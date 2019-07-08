@@ -668,7 +668,10 @@ def _next_contact_step(system, history=None, pentol=None, maxiter=None):
     gap_xy = displacement_xy - topography.heights() - opt.offset
     gap_xy[gap_xy < 0.0] = 0.0
 
-    return displacement_xy, gap_xy, pressure_xy, mean_displacement, mean_load, total_contact_area, \
+    contacting_points_xy = force_xy > 0
+
+    return displacement_xy, gap_xy, pressure_xy, contacting_points_xy, \
+           mean_displacement, mean_load, total_contact_area, \
            (mean_displacements, mean_gaps, mean_pressures, total_contact_areas, converged)
 
 @analysis_function(card_view_flavor='contact mechanics', automatic=True)
@@ -702,16 +705,20 @@ def contact_mechanics(topography, substrate_str="periodic", hardness=None, nstep
 
     history = None
     for i in range(nsteps):
-        displacement_xy, gap_xy, pressure_xy, mean_displacement, mean_pressure, total_contact_area, history = \
+        displacement_xy, gap_xy, pressure_xy, contacting_points_xy, \
+            mean_displacement, mean_pressure, total_contact_area, history = \
             _next_contact_step(system, history=history, pentol=pentol, maxiter=maxiter)
         #
-        # Save displacement_xy, gap_xy and pressure_xy to storage, will be retrieved later for visualization
+        # Save displacement_xy, gap_xy, pressure_xy and contacting_points_xy
+        # to storage, will be retrieved later for visualization
         #
         pressure_xy = xr.DataArray(pressure_xy, dims=('x', 'y')) # maybe define coordinates
         gap_xy = xr.DataArray(gap_xy, dims=('x', 'y'))
         displacement_xy = xr.DataArray(displacement_xy, dims=('x', 'y'))
+        contacting_points_xy = xr.DataArray(contacting_points_xy, dims=('x', 'y'))
 
         dataset = xr.Dataset({'pressure': pressure_xy,
+                              'contacting_points': contacting_points_xy,
                               'gap': gap_xy,
                               'displacement': displacement_xy}) # one dataset per analysis step: smallest unit to retrieve
         dataset.attrs['load'] = mean_pressure
