@@ -551,6 +551,7 @@ class ContactMechanicsCardView(SimpleCardView):
                     load=analysis_result['loads'],
                     area=analysis_result['areas'],
                     disp=analysis_result['disps'],
+                    gap=analysis_result['gaps'],
                     fill_alpha=[1 if c else 0.3 for c in analysis_result['converged']],
                     data_path=analysis_result['data_paths'])
                 # here, for not convergent points we plot a circle with an x
@@ -607,7 +608,7 @@ class ContactMechanicsCardView(SimpleCardView):
                                                fill_color=curr_color,
                                                line_color=None,
                                                size=12)
-                r2 = load_plot.circle('disp', 'load',
+                r2 = load_plot.circle('gap', 'load',
                                       source=source,
                                       fill_alpha='fill_alpha',  # to indicate if converged or not
                                       fill_color=curr_color,
@@ -738,6 +739,7 @@ def _contact_mechanics_geometry_figure(values, frame_width, frame_height, topo_u
                y_range=y_range,
                frame_width=frame_width,
                frame_height=frame_height,
+               sizing_mode="scale_both",
                x_axis_label="Position x ({})".format(topo_unit),
                y_axis_label="Position y ({})".format(topo_unit),
                match_aspect=True,
@@ -844,6 +846,7 @@ def contact_mechanics_data(request):
             ds = xr.load_dataset(data.open(mode='rb'))
 
             pressure = ds['pressure'].values
+            contacting_points = ds['contacting_points'].values
             displacement = ds['displacement'].values
             gap = ds['gap'].values
 
@@ -852,8 +855,8 @@ def contact_mechanics_data(request):
             #
             # calculate contact areas
             #
-            contact = pressure > pressure_tol
-            patch_ids = assign_patch_numbers(contact)[1]
+
+            patch_ids = assign_patch_numbers(contacting_points)[1]
             contact_areas = patch_areas(patch_ids) * analysis.result_obj['area_per_pt']
 
 
@@ -881,7 +884,7 @@ def contact_mechanics_data(request):
                 #  Geometry figures
                 #
                 'contact-geometry': _contact_mechanics_geometry_figure(
-                            pressure > pressure_tol,
+                            contacting_points,
                             title="Contact geometry",
                             **geometry_figure_common_args),
                 'contact-pressure': _contact_mechanics_geometry_figure(
@@ -899,7 +902,7 @@ def contact_mechanics_data(request):
                 # Distribution figures
                 #
                 'pressure-distribution': _contact_mechanics_distribution_figure(
-                            pressure[pressure > pressure_tol],
+                            pressure[contacting_points],
                             title="Pressure distribution",
                             x_axis_label="Pressure p (E*)",
                             y_axis_label="Probability P(p) (1/E*)",
