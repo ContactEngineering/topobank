@@ -42,9 +42,9 @@ def submit_analysis(analysis_func, topography, *other_args, **kwargs):
     if 'progress_recorder' in pyfunc_kwargs:
         del pyfunc_kwargs['progress_recorder']
         
-    # same for prefix of data path
-    if 'data_path_prefix' in pyfunc_kwargs:
-        del pyfunc_kwargs['data_path_prefix']
+    # same for storage prefix
+    if 'storage_prefix' in pyfunc_kwargs:
+        del pyfunc_kwargs['storage_prefix']
 
     #
     # create entry in Analysis table
