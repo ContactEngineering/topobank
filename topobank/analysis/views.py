@@ -4,8 +4,11 @@ import json
 import numpy as np
 import itertools
 from collections import OrderedDict
+from io import BytesIO
+import zipfile
+import os.path
 
-from django.http import HttpResponse, HttpResponseForbidden, Http404, JsonResponse
+from django.http import HttpResponse, HttpResponseForbidden, Http404, JsonResponse, HttpResponseBadRequest
 from django.views.generic import DetailView, FormView, TemplateView
 from django.urls import reverse_lazy
 from django.db.models import Q
@@ -1023,38 +1026,96 @@ class AnalysesListView(FormView):
         context['cards'] = cards
         return context
 
+#######################################################################
+# Download views
+#######################################################################
+
+
+def download_analyses(request, ids, card_view_flavor, file_format):
+    """Returns a file comprised from analyses results.
+
+    :param request:
+    :param ids: comma separated string with analyses ids
+    :param card_view_flavor: card view flavor, see CARD_VIEW_FLAVORS
+    :param file_format: requested file format
+    :return:
+    """
+
+    #
+    # Check permissions and collect analyses
+    #
+    user = request.user
+    if not user.is_authenticated:
+        return HttpResponseForbidden()
+
+    analyses_ids = [int(i) for i in ids.split(',')]  # TODO check whether user has permissions to download this data
+
+    analyses= []
+
+    for aid in analyses_ids:
+        analysis = Analysis.objects.get(id=aid)
+
+        #
+        # Check whether user has view permission for requested analysis
+        #
+        if not user.has_perm("view_surface", analysis.topography.surface):
+            return HttpResponseForbidden()
+
+        analyses.append(analysis)
+
+    #
+    # Check flavor and format argument
+    #
+    card_view_flavor = card_view_flavor.replace('_', ' ') # may be given with underscore in URL
+    if not card_view_flavor in CARD_VIEW_FLAVORS:
+        return HttpResponseBadRequest("Unknown card view flavor '{}'.".format(card_view_flavor))
+
+    download_response_functions = {
+        ('plot', 'xlsx'): download_plot_analyses_to_xlsx,
+        ('plot', 'txt') : download_plot_analyses_to_txt,
+        ('contact mechanics', 'zip'): download_contact_mechanics_analyses_as_zip,
+    }
+
+    #
+    # Dispatch
+    #
+    key = (card_view_flavor, file_format)
+    if key not in download_response_functions:
+        return HttpResponseBadRequest("Cannot provide a download for card view flavor {} in file format ".format(card_view_flavor))
+
+    return download_response_functions[key](request, analyses)
+
+
 class AnalysisRetrieveView(RetrieveAPIView): #TODO needed?
     queryset = Analysis.objects.all()
     serializer_class = AnalysisSerializer
 
 
-def download_analysis_to_txt(request, ids):
-    ids = [int(i) for i in ids.split(',')]
+def download_plot_analyses_to_txt(request, analyses):
 
     # TODO: It would probably be useful to use the (some?) template engine for this.
     # TODO: We need a mechanism for embedding references to papers into output.
 
     # Pack analysis results into a single text file.
     f = io.StringIO()
-    for i, id in enumerate(ids):
-        a = Analysis.objects.get(pk=id)
+    for i, analysis in enumerate(analyses):
         if i == 0:
-            f.write('# {}\n'.format(a.function) +
-                    '# {}\n'.format('='*len(str(a.function))) +
+            f.write('# {}\n'.format(analysis.function) +
+                    '# {}\n'.format('='*len(str(analysis.function))) +
                     '# TopoBank version: {}\n'.format(settings.TOPOBANK_VERSION) +
                     '# PyCo version: {}\n'.format(PyCo.__version__) +
                     '# IF YOU USE THIS DATA IN A PUBLICATION, PLEASE CITE XXX.\n' +
                     '\n')
 
-        f.write('# Topography: {}\n'.format(a.topography.name) +
-                '# {}\n'.format('='*(len('Topography: ')+len(str(a.topography.name)))) +
-                '# Further arguments of analysis function: {}\n'.format(a.get_kwargs_display()) +
-                '# Start time of analysis task: {}\n'.format(a.start_time) +
-                '# End time of analysis task: {}\n'.format(a.end_time) +
-                '# Duration of analysis task: {}\n'.format(a.duration()) +
+        f.write('# Topography: {}\n'.format(analysis.topography.name) +
+                '# {}\n'.format('='*(len('Topography: ')+len(str(analysis.topography.name)))) +
+                '# Further arguments of analysis function: {}\n'.format(analysis.get_kwargs_display()) +
+                '# Start time of analysis task: {}\n'.format(analysis.start_time) +
+                '# End time of analysis task: {}\n'.format(analysis.end_time) +
+                '# Duration of analysis task: {}\n'.format(analysis.duration()) +
                 '\n')
 
-        result = pickle.loads(a.result)
+        result = pickle.loads(analysis.result)
         xunit_str = '' if result['xunit'] is None else ' ({})'.format(result['xunit'])
         yunit_str = '' if result['yunit'] is None else ' ({})'.format(result['yunit'])
         header = 'Columns: {}{}, {}{}'.format(result['xlabel'], xunit_str, result['ylabel'], yunit_str)
@@ -1066,15 +1127,14 @@ def download_analysis_to_txt(request, ids):
 
     # Prepare response object.
     response = HttpResponse(f.getvalue(), content_type='application/text')
-    response['Content-Disposition'] = 'attachment; filename="{}"'.format('{}.txt'.format(a.function.pyfunc))
+    response['Content-Disposition'] = 'attachment; filename="{}"'.format('{}.txt'.format(analysis.function.pyfunc))
 
     # Close file and return response.
     f.close()
     return response
 
 
-def download_analysis_to_xlsx(request, ids):
-    ids = [int(i) for i in ids.split(',')]
+def download_plot_analyses_to_xlsx(request, analyses):
 
     # TODO: We need a mechanism for embedding references to papers into output.
     # TODO: Probably this function leaves out data if the sheet names are not unique (built from topography+series name)
@@ -1088,33 +1148,77 @@ def download_analysis_to_xlsx(request, ids):
     # Global properties and values.
     properties = []
     values = []
-    for i, id in enumerate(ids):
-        a = Analysis.objects.get(pk=id)
+    for i, analysis in enumerate(analyses):
+
         if i == 0:
             properties += ['Function', 'TopoBank version', 'PyCo version']
-            values += [str(a.function), settings.TOPOBANK_VERSION, PyCo.__version__]
+            values += [str(analysis.function), settings.TOPOBANK_VERSION, PyCo.__version__]
 
         properties += ['Topography',
                        'Further arguments of analysis function', 'Start time of analysis task',
                        'End time of analysis task', 'Duration of analysis task']
-        values += [str(a.topography.name), a.get_kwargs_display(), str(a.start_time),
-                   str(a.end_time), str(a.duration())]
+        values += [str(analysis.topography.name), analysis.get_kwargs_display(), str(analysis.start_time),
+                   str(analysis.end_time), str(analysis.duration())]
 
-        result = pickle.loads(a.result)
+        result = pickle.loads(analysis.result)
         column1 = '{} ({})'.format(result['xlabel'], result['xunit'])
         column2 = '{} ({})'.format(result['ylabel'], result['yunit'])
 
         for series in result['series']:
             df = pd.DataFrame({column1: series['x'], column2: series['y']})
-            df.to_excel(excel, sheet_name='{} - {}'.format(a.topography.name, series['name'].replace('/', ' div ')))
+            df.to_excel(excel, sheet_name='{} - {}'.format(analysis.topography.name, series['name'].replace('/', ' div ')))
     df = pd.DataFrame({'Property': properties, 'Value': values})
     df.to_excel(excel, sheet_name='INFORMATION', index=False)
     excel.close()
 
     # Prepare response object.
     response = HttpResponse(f.getvalue(), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    response['Content-Disposition'] = 'attachment; filename="{}"'.format('{}.xlsx'.format(a.function.pyfunc))
+    response['Content-Disposition'] = 'attachment; filename="{}"'.format('{}.xlsx'.format(analysis.function.pyfunc))
 
     # Close file and return response.
     f.close()
     return response
+
+def download_contact_mechanics_analyses_as_zip(request, analyses):
+    """Provides a ZIP file with contact mechanics data.
+
+    :param request: HTTPRequest
+    :param analyses: sequence of Analysis instances
+    :return: HTTP Response with file download
+    """
+
+    bytes = BytesIO()
+
+    zf = zipfile.ZipFile(bytes, mode='w')
+
+    zip_dirs = set()
+
+    for analysis in analyses:
+
+        zip_dir = analysis.topography.name
+        if zip_dir in zip_dirs:
+            # make directory unique
+            zip_dir += "-{}".format(analysis.topography.id)
+        zip_dirs.add(zip_dir)
+
+        prefix = analysis.storage_prefix
+
+        directories, filenames = default_storage.listdir(prefix)
+
+        for fn in filenames:
+
+            input_file = default_storage.open(prefix+fn)
+
+            zf.writestr(os.path.join(zip_dir, fn), input_file.read())
+
+    zf.close()
+
+    # Prepare response object.
+    response = HttpResponse(bytes.getvalue(),
+                            content_type='application/x-zip-compressed')
+    response['Content-Disposition'] = 'attachment; filename="{}"'.format('contact_mechanics.zip')
+
+    return response
+
+
+

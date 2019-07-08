@@ -84,8 +84,19 @@
                 </div>
               </div>
 
-              {# BUTTON "BACK TO SEARCH RESULTS" #}
+              {% if not analyses_unready %}
+              {# BUTTON "DOWNLOAD" #}
+              <div class="row p-3">
+                <div class="col-6">
+                  <a id="download" class="btn btn-default btn-block btn-lg"
+                  href="{% url 'analysis:download' analyses_success|analyses_results_ids_list_str 'contact mechanics' 'zip' %}">
+                    {% fontawesome_icon 'download' %} Download
+                  </a>
+                </div>
+              </div>
+              {% endif %}
 
+              {# BUTTON "BACK TO SEARCH RESULTS" #}
               <div class="row p-3">
                 <div class="col-6">
 
@@ -98,7 +109,7 @@
 
               {# ELEMENTS FOR TRIGGERING A CALCULATION #}
               {% if not analyses_unready %}
-              <div class="row p-3">
+              <div class="row p-1">
                 <div class="col-6">
 
                   <form>
@@ -175,9 +186,11 @@
                 </div>
               </div>
 
-              <div class="row p-3">
+              <div class="row p-1">
                 <div class="col-6">
-                  <a id="recalculate" class="btn btn-primary btn-block btn-lg">Recalculate</a>
+                  <a id="recalculate" class="btn btn-primary btn-block btn-lg">
+                    {% fontawesome_icon 'repeat' %} Recalculate
+                  </a>
                 </div>
               </div>
 
