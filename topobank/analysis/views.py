@@ -1240,8 +1240,8 @@ Each file corresponds to one external pressure. Inside you'll find the variables
       
 as well as the attributes 
     
-* `load`: mean pressure
-* `area`: total contact area
+* `mean_pressure`: mean pressure
+* `total_contact_area`: total contact area
     
 In order to read the data, you can use a netCDF library.
 Here are some examples:
