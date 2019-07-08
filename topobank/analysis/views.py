@@ -770,7 +770,11 @@ def _contact_mechanics_geometry_figure(values, frame_width, frame_height, topo_u
     return p
 
 
-def _contact_mechanics_distribution_figure(values, x_axis_label, y_axis_label, frame_width, frame_height, title=None):
+def _contact_mechanics_distribution_figure(values, x_axis_label, y_axis_label,
+                                           frame_width, frame_height,
+                                           x_axis_type='auto',
+                                           y_axis_type='auto',
+                                           title=None):
 
     hist, edges = np.histogram(values, density=True, bins=50)
 
@@ -780,11 +784,15 @@ def _contact_mechanics_distribution_figure(values, x_axis_label, y_axis_label, f
                sizing_mode='scale_width',
                x_axis_label=x_axis_label,
                y_axis_label=y_axis_label,
+               x_axis_type=x_axis_type,
+               y_axis_type=y_axis_type,
                toolbar_location="above")
 
-    # TODO quad or step?
-    #p.quad(top=hist, bottom=0, left=edges[:-1], right=edges[1:],
-    #       fill_color="navy", line_color="white", alpha=0.5)
+    if x_axis_type == "log":
+        p.xaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
+    if y_axis_type == "log":
+        p.yaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
+
     p.step(edges[:-1], hist, mode="before", line_width=2)
 
     _configure_plot(p)
@@ -918,6 +926,8 @@ def contact_mechanics_data(request):
                     title="Cluster size distribution",
                     x_axis_label="Cluster area A({}²)".format(topo.unit),
                     y_axis_label="Probability P(A)",
+                    x_axis_type="log",
+                    y_axis_type="log",
                     **common_kwargs),
             }
 
