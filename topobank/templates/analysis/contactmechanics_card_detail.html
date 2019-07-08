@@ -8,6 +8,42 @@
     <h2>{{ title }}</h2>
   </div>
 
+  {# Tab navigation on right side #}
+  <ul class="nav nav-pills card-header-pills pull-right" role="tablist">
+    <li class="nav-item">
+      <a class="nav-link active" data-toggle="pill" href="#tools-pill">Tools</a>
+    </li>
+    {% if not analyses_unready %}
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" data-toggle="dropdown" href="#">
+          Details
+        </a>
+        <div class="dropdown-menu">
+          <a class="dropdown-item" data-toggle="pill" href="#contact-geometry-pill">Contact geometry</a>
+          <a class="dropdown-item" data-toggle="pill" href="#contact-pressure-pill">Contact pressure</a>
+          <a class="dropdown-item" data-toggle="pill" href="#pressure-distribution-pill">Pressure distribution</a>
+          <a class="dropdown-item" data-toggle="pill" href="#displacement-pill">Displacement</a>
+          <a class="dropdown-item" data-toggle="pill" href="#gap-pill">Gap</a>
+          <a class="dropdown-item" data-toggle="pill" href="#gap-distribution-pill">Gap distribution</a>
+          <a class="dropdown-item" data-toggle="pill" href="#cluster-size-distribution-pill">Cluster size
+            distribution</a>
+        </div>
+
+      </li>
+    {% endif %}
+    {% if analyses_failure %}
+      <li class="nav-item" style="list-style-type: none;">
+        {# Use href with card_id because the included HTML uses this too #}
+        <a class="nav-link" data-toggle="pill" href="#failures-pill-{{ card_id }}" role="tab">Failures</a>
+      </li>
+    {% endif %}
+    {% if not analyses_unready %}
+      <li class="nav-item">
+        <a class="nav-link" data-toggle="pill" href="#notes-pill">Notes</a>
+      </li>
+    {% endif %}
+  </ul>
+
 {% endblock card_header %}
 
 
@@ -33,42 +69,6 @@
 
     {# Right side #}
     <div class="col-sm-6">
-
-          {# Tab navigation on right side #}
-          <ul class="nav nav-pills" role="tablist">
-            <li class="nav-item">
-              <a class="nav-link active" data-toggle="pill" href="#tools-pill">Tools</a>
-            </li>
-            {% if not analyses_unready %}
-            <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle" data-toggle="dropdown" href="#">
-                  Details
-                </a>
-                <div class="dropdown-menu">
-                  <a class="dropdown-item" data-toggle="pill" href="#contact-geometry-pill">Contact geometry</a>
-                  <a class="dropdown-item" data-toggle="pill" href="#contact-pressure-pill">Contact pressure</a>
-                  <a class="dropdown-item" data-toggle="pill" href="#pressure-distribution-pill">Pressure distribution</a>
-                  <a class="dropdown-item" data-toggle="pill" href="#displacement-pill">Displacement</a>
-                  <a class="dropdown-item" data-toggle="pill" href="#gap-pill">Gap</a>
-                  <a class="dropdown-item" data-toggle="pill" href="#gap-distribution-pill">Gap distribution</a>
-                  <a class="dropdown-item" data-toggle="pill" href="#cluster-size-distribution-pill">Cluster size distribution</a>
-                </div>
-
-            </li>
-            {% endif %}
-            {% if analyses_failure %}
-              <li class="nav-item" style="list-style-type: none;">
-                {# Use href with card_id because the included HTML uses this too #}
-                <a class="nav-link" data-toggle="pill" href="#failures-pill-{{ card_id }}" role="tab">Failures</a>
-              </li>
-            {% endif %}
-            {% if not analyses_unready %}
-            <li class="nav-item">
-              <a class="nav-link" data-toggle="pill" href="#notes-pill">Notes</a>
-            </li>
-            {% endif %}
-          </ul>
-
           {# Tab contents on right side #}
 
           <div class="tab-content">
