@@ -35,9 +35,9 @@
     <div class="col-sm-6">
 
           {# Tab navigation on right side #}
-          <ul class="nav nav-tabs" role="tablist">
+          <ul class="nav nav-pills" role="tablist">
             <li class="nav-item">
-              <a class="nav-link active" data-toggle="tab" href="#tools-tab">Tools</a>
+              <a class="nav-link active" data-toggle="pill" href="#tools-pill">Tools</a>
             </li>
             {% if not analyses_unready %}
             <li class="nav-item dropdown">
@@ -45,13 +45,13 @@
                   Details
                 </a>
                 <div class="dropdown-menu">
-                  <a class="dropdown-item" data-toggle="tab" href="#contact-geometry-tab">Contact geometry</a>
-                  <a class="dropdown-item" data-toggle="tab" href="#contact-pressure-tab">Contact pressure</a>
-                  <a class="dropdown-item" data-toggle="tab" href="#pressure-distribution-tab">Pressure distribution</a>
-                  <a class="dropdown-item" data-toggle="tab" href="#displacement-tab">Displacement</a>
-                  <a class="dropdown-item" data-toggle="tab" href="#gap-tab">Gap</a>
-                  <a class="dropdown-item" data-toggle="tab" href="#gap-distribution-tab">Gap distribution</a>
-                  <a class="dropdown-item" data-toggle="tab" href="#cluster-size-distribution-tab">Cluster size distribution</a>
+                  <a class="dropdown-item" data-toggle="pill" href="#contact-geometry-pill">Contact geometry</a>
+                  <a class="dropdown-item" data-toggle="pill" href="#contact-pressure-pill">Contact pressure</a>
+                  <a class="dropdown-item" data-toggle="pill" href="#pressure-distribution-pill">Pressure distribution</a>
+                  <a class="dropdown-item" data-toggle="pill" href="#displacement-pill">Displacement</a>
+                  <a class="dropdown-item" data-toggle="pill" href="#gap-pill">Gap</a>
+                  <a class="dropdown-item" data-toggle="pill" href="#gap-distribution-pill">Gap distribution</a>
+                  <a class="dropdown-item" data-toggle="pill" href="#cluster-size-distribution-pill">Cluster size distribution</a>
                 </div>
 
             </li>
@@ -59,12 +59,12 @@
             {% if analyses_failure %}
               <li class="nav-item" style="list-style-type: none;">
                 {# Use href with card_id because the included HTML uses this too #}
-                <a class="nav-link" data-toggle="tab" href="#failures-tab-{{ card_id }}" role="tab">Failures</a>
+                <a class="nav-link" data-toggle="pill" href="#failures-pill-{{ card_id }}" role="tab">Failures</a>
               </li>
             {% endif %}
             {% if not analyses_unready %}
             <li class="nav-item">
-              <a class="nav-link" data-toggle="tab" href="#notes-tab">Notes</a>
+              <a class="nav-link" data-toggle="pill" href="#notes-pill">Notes</a>
             </li>
             {% endif %}
           </ul>
@@ -72,7 +72,7 @@
           {# Tab contents on right side #}
 
           <div class="tab-content">
-            <div class="tab-pane container active" id="tools-tab">
+            <div class="tab-pane container active" id="tools-pill">
 
               {# BUTTON "TASK INFORMATION" #}
               <div class="row p-3">
@@ -84,8 +84,19 @@
                 </div>
               </div>
 
-              {# BUTTON "BACK TO SEARCH RESULTS" #}
+              {% if not analyses_unready and analyses_success %}
+              {# BUTTON "DOWNLOAD" #}
+              <div class="row p-3">
+                <div class="col-6">
+                  <a id="download" class="btn btn-default btn-block btn-lg"
+                  href="{% url 'analysis:download' analyses_success|analyses_results_ids_list_str 'contact mechanics' 'zip' %}">
+                    {% fontawesome_icon 'download' %} Download
+                  </a>
+                </div>
+              </div>
+              {% endif %}
 
+              {# BUTTON "BACK TO SEARCH RESULTS" #}
               <div class="row p-3">
                 <div class="col-6">
 
@@ -98,7 +109,7 @@
 
               {# ELEMENTS FOR TRIGGERING A CALCULATION #}
               {% if not analyses_unready %}
-              <div class="row p-3">
+              <div class="row p-1">
                 <div class="col-6">
 
                   <form>
@@ -175,9 +186,11 @@
                 </div>
               </div>
 
-              <div class="row p-3">
+              <div class="row p-1">
                 <div class="col-6">
-                  <a id="recalculate" class="btn btn-primary btn-block btn-lg">Recalculate</a>
+                  <a id="recalculate" class="btn btn-primary btn-block btn-lg">
+                    {% fontawesome_icon 'repeat' %} Recalculate
+                  </a>
                 </div>
               </div>
 
@@ -186,28 +199,28 @@
             </div>
 
             {% if not analyses_unready %}
-            <div class="tab-pane fade" id="contact-geometry-tab">
+            <div class="tab-pane fade" id="contact-geometry-pill">
               <div id="contact-geometry" class="alert alert-info">For contact geometry, select a point in the graphs on the left!</div>
             </div>
-            <div class="tab-pane fade" id="contact-pressure-tab">
+            <div class="tab-pane fade" id="contact-pressure-pill">
               <div id="contact-pressure" class="alert alert-info">For contact pressure, select a point in the graphs on the left!</div>
             </div>
-            <div class="tab-pane fade" id="pressure-distribution-tab">
+            <div class="tab-pane fade" id="pressure-distribution-pill">
               <div id="pressure-distribution" class="alert alert-info">For pressure distribution, select a point in the graphs on the left!</div>
             </div>
-            <div class="tab-pane fade" id="displacement-tab">
+            <div class="tab-pane fade" id="displacement-pill">
               <div id="displacement" class="alert alert-info">For displacement, select a point in the graphs on the left!</div>
             </div>
-            <div class="tab-pane fade" id="gap-tab">
+            <div class="tab-pane fade" id="gap-pill">
               <div id="gap" class="alert alert-info">For gap, select a point in the graphs on the left!</div>
             </div>
-            <div class="tab-pane fade" id="gap-distribution-tab">
+            <div class="tab-pane fade" id="gap-distribution-pill">
               <div id="gap-distribution" class="alert alert-info">For gap distribution, select a point in the graphs on the left!</div>
             </div>
-            <div class="tab-pane fade" id="cluster-size-distribution-tab">
+            <div class="tab-pane fade" id="cluster-size-distribution-pill">
               <div id="cluster-size-distribution" class="alert alert-info">For cluser size distribution, select a point in the graphs on the left!</div>
             </div>
-            <div class="tab-pane fade" id="notes-tab">
+            <div class="tab-pane fade" id="notes-pill">
               <div class="alert alert-info">
                 Translucent data points did not converge within iteration limit and may carry large errors.
                 <i>A</i> is the true contact area and <i>A0</i> the apparent contact area,
@@ -239,12 +252,12 @@
     console.log("Debug: "+msg);
   }
 
-  function activate_tab(tab){
-    $('.nav-tabs a[href="#' + tab + '"]').tab('show');
+  function activate_pill(pill){
+    $('.nav-pills a[href="#' + pill + '"]').tab('show');
   };
 
-  function is_tab_activated(tab){
-    return $('.nav-tabs a[href="#' + tab + '"]').hasClass("active");
+  function is_pill_activated(pill){
+    return $('.nav-pills a[href="#' + pill + '"]').hasClass("active");
   };
 
 
@@ -300,8 +313,8 @@
       div.addClass('spinner');
     });
 
-    if (is_tab_activated('tools-tab')) {
-      activate_tab('contact-geometry-tab');
+    if (is_pill_activated('tools-pill')) {
+      activate_pill('contact-geometry-pill');
     }
 
     $.ajax({

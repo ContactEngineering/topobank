@@ -227,7 +227,7 @@ test_function.card_view_flavor = 'simple'
 # Use this during development if you need a long running task with failures
 #
 # @analysis_function(card_view_flavor='simple', automatic=True)
-# def long_running_task(topography, progress_recorder=None):
+# def long_running_task(topography, progress_recorder=None, storage_prefix=None):
 #     import time, random
 #     n = 10 + random.randint(1,10)
 #     F = 30
@@ -240,6 +240,7 @@ test_function.card_view_flavor = 'simple'
 
 @analysis_function(card_view_flavor='plot', automatic=True)
 def height_distribution(topography, bins=None, wfac=5, progress_recorder=None, storage_prefix=None):
+
     if bins is None:
         bins = _reasonable_bins_argument(topography)
 
@@ -668,7 +669,10 @@ def _next_contact_step(system, history=None, pentol=None, maxiter=None):
     gap_xy = displacement_xy - topography.heights() - opt.offset
     gap_xy[gap_xy < 0.0] = 0.0
 
-    return displacement_xy, gap_xy, pressure_xy, mean_displacement, mean_load, total_contact_area, \
+    contacting_points_xy = force_xy > 0
+
+    return displacement_xy, gap_xy, pressure_xy, contacting_points_xy, \
+           mean_displacement, mean_load, total_contact_area, \
            (mean_displacements, mean_gaps, mean_pressures, total_contact_areas, converged)
 
 @analysis_function(card_view_flavor='contact mechanics', automatic=True)
@@ -702,20 +706,27 @@ def contact_mechanics(topography, substrate_str="periodic", hardness=None, nstep
 
     history = None
     for i in range(nsteps):
-        displacement_xy, gap_xy, pressure_xy, mean_displacement, mean_pressure, total_contact_area, history = \
+        displacement_xy, gap_xy, pressure_xy, contacting_points_xy, \
+            mean_displacement, mean_pressure, total_contact_area, history = \
             _next_contact_step(system, history=history, pentol=pentol, maxiter=maxiter)
         #
-        # Save displacement_xy, gap_xy and pressure_xy to storage, will be retrieved later for visualization
+        # Save displacement_xy, gap_xy, pressure_xy and contacting_points_xy
+        # to storage, will be retrieved later for visualization
         #
         pressure_xy = xr.DataArray(pressure_xy, dims=('x', 'y')) # maybe define coordinates
         gap_xy = xr.DataArray(gap_xy, dims=('x', 'y'))
         displacement_xy = xr.DataArray(displacement_xy, dims=('x', 'y'))
+        contacting_points_xy = xr.DataArray(contacting_points_xy, dims=('x', 'y'))
 
         dataset = xr.Dataset({'pressure': pressure_xy,
+                              'contacting_points': contacting_points_xy,
                               'gap': gap_xy,
                               'displacement': displacement_xy}) # one dataset per analysis step: smallest unit to retrieve
         dataset.attrs['load'] = mean_pressure
         dataset.attrs['area'] = total_contact_area
+        dataset.attrs['type'] = substrate_str
+        if hardness:
+            dataset.attrs['hardness'] = hardness # TODO how to save hardness=None? Not possible in netCDF
 
         with tempfile.NamedTemporaryFile(prefix='analysis-') as tmpfile:
 
