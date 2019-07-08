@@ -730,7 +730,7 @@ def contact_mechanics(topography, substrate_str="periodic", hardness=None, nstep
 
         with tempfile.NamedTemporaryFile(prefix='analysis-') as tmpfile:
 
-            dataset.to_netcdf(tmpfile.name, format='NETCDF3_CLASSIC')
+            dataset.to_netcdf(tmpfile.name, format='NETCDF3_64BIT_DATA')
 
             storage_path = storage_prefix+"result-step-{}.nc".format(i)
             tmpfile.seek(0)
