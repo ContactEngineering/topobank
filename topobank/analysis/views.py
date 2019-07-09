@@ -551,10 +551,10 @@ class ContactMechanicsCardView(SimpleCardView):
                 analysis_result = analysis.result_obj
 
                 data = dict(
-                    load=analysis_result['loads'],
-                    area=analysis_result['areas'],
-                    disp=analysis_result['disps'],
-                    gap=analysis_result['gaps'],
+                    mean_pressure=analysis_result['mean_pressures'],
+                    total_contact_area=analysis_result['total_contact_areas'],
+                    mean_displacement=analysis_result['mean_displacements'],
+                    mean_gap=analysis_result['mean_gaps'],
                     fill_alpha=[1 if c else 0.3 for c in analysis_result['converged']],
                     data_path=analysis_result['data_paths'])
                 # here, for not convergent points we plot a circle with an x
@@ -605,13 +605,13 @@ class ContactMechanicsCardView(SimpleCardView):
 
             for source, label in zip(sources, labels):
                 curr_color = next(color_cycle)
-                r1 = contact_area_plot.circle('load', 'area',
+                r1 = contact_area_plot.circle('mean_pressure', 'total_contact_area',
                                                source=source,
                                                fill_alpha='fill_alpha', # to indicate if converged or not
                                                fill_color=curr_color,
                                                line_color=None,
                                                size=12)
-                r2 = load_plot.circle('gap', 'load',
+                r2 = load_plot.circle('mean_gap', 'mean_pressure',
                                       source=source,
                                       fill_alpha='fill_alpha',  # to indicate if converged or not
                                       fill_color=curr_color,

@@ -699,7 +699,8 @@ def contact_mechanics(topography, substrate_str="periodic", hardness=None, nstep
     # Heuristics for the possible tolerance on penetration.
     # This is necessary because numbers can vary greatly
     # depending on the system of units.
-    pentol = topography.rms_height() / (10 * np.mean(topography.resolution))
+    rms_height = topography.rms_height()
+    pentol = rms_height / (10 * np.mean(topography.resolution))
     pentol = max(pentol, min_pentol)
 
     data_paths = [] # collect in _next_contact_step?
@@ -755,10 +756,10 @@ def contact_mechanics(topography, substrate_str="periodic", hardness=None, nstep
         area_per_pt=substrate.area_per_pt,
         maxiter=maxiter,
         min_pentol=min_pentol,
-        loads=mean_pressure[sort_order],
-        areas=total_contact_area[sort_order],
-        disps=mean_displacement[sort_order],
-        gaps=mean_gap[sort_order],
+        mean_pressures=mean_pressure[sort_order],
+        total_contact_areas=total_contact_area[sort_order],
+        mean_displacements=mean_displacement[sort_order]/rms_height,
+        mean_gaps=mean_gap[sort_order]/rms_height,
         converged=converged[sort_order],
         data_paths=data_paths[sort_order],
     )
