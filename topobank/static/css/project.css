@@ -90,5 +90,5 @@ input.checkbox-color-design:checked+span:after {
 }
 
 .btn:active {
-  box-shadow: 2px 2px 2px lightgrey inset;
+  box-shadow: 2px 2px 2px black inset;
 }
