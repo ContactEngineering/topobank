@@ -362,7 +362,7 @@ class PlotCardView(SimpleCardView):
                 analysis_xscale = 1
             else:
                 try:
-                    analysis_xscale = ureg.convert(1, xunit, analysis_result['xunit'])
+                    analysis_xscale = ureg.convert(1, analysis_result['xunit'], xunit)
                 except UndefinedUnitError as exc:
                     _log.error("Cannot convert units when displaying results for analysis with id %s. Cause: %s",
                                analysis.id, str(exc))
@@ -372,7 +372,7 @@ class PlotCardView(SimpleCardView):
                 analysis_yscale = 1
             else:
                 try:
-                    analysis_yscale = ureg.convert(1, yunit, analysis_result['yunit'])
+                    analysis_yscale = ureg.convert(1, analysis_result['yunit'], yunit)
                 except UndefinedUnitError as exc:
                     _log.error("Cannot convert units when displaying results for analysis with id %s. Cause: %s",
                                analysis.id, str(exc))
