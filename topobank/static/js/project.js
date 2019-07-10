@@ -78,21 +78,6 @@ function surface_summary_plot(element, bandwidths_data) {
     click_interaction.attachTo(plot);
 
     //
-    // Adjust color of bar when moving over
-    //
-    var move_interaction = new Plottable.Interactions.Pointer();
-    move_interaction.onPointerMove(function(p) {
-      plot.entities().forEach(function(entity) {
-        entity.selection.attr("fill", inactiveBarColor);
-      });
-      var entities = plot.entitiesAt(p);
-      if (entities.length > 0) {
-          entities[0].selection.attr("fill", activeBarColor);
-      }
-    });
-    move_interaction.attachTo(plot);
-
-    //
     // Arrange components and render
     //
     var chart = new Plottable.Components.Table([
@@ -102,6 +87,45 @@ function surface_summary_plot(element, bandwidths_data) {
     ]);
 
     chart.renderTo(element);
+
+    // Initializing tooltip anchor
+    var tooltipAnchorSelection = plot.foreground().append("rect").attr("opacity", 0);
+
+    var tooltipAnchor = $(tooltipAnchorSelection.node());
+    tooltipAnchor.tooltip({
+        animation: false,
+        container: "body",
+        placement: "auto",
+        title: "text",
+        trigger: "manual"
+    });
+
+    //
+    // Adjust color of bar and show tooltip when moving over
+    //
+    var move_interaction = new Plottable.Interactions.Pointer();
+    move_interaction.onPointerMove(function(p) {
+      plot.entities().forEach(function(entity) {
+        entity.selection.attr("fill", inactiveBarColor);
+      });
+      var entities = plot.entitiesAt(p);
+      if (entities.length > 0) {
+          entities[0].selection.attr("fill", activeBarColor);
+          tooltipAnchor.attr({
+              "x": entities[0].bounds.x,
+              "y": entities[0].bounds.y,
+              "width": entities[0].bounds.width,
+              "height": entities[0].bounds.height,
+              "data-original-title": entities[0].datum.name
+          });
+          tooltipAnchor.position({of: entities[0]});
+          tooltipAnchor.tooltip("show");
+      }
+    });
+    move_interaction.onPointerExit(function() {
+      tooltipAnchor.tooltip("hide");
+    });
+    move_interaction.attachTo(plot);
 
     window.addEventListener("resize", function () {
       chart.redraw();
