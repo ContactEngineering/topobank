@@ -433,6 +433,15 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
         else:
             raise Exception(f"Don't know how to display topographies with {pyco_topo.dim} dimensions.")
 
+        try:
+            context['topography_next'] = topo.get_next_by_measurement_date(surface=topo.surface).id
+        except Topography.DoesNotExist:
+            context['topography_next'] = topo.id
+        try:
+            context['topography_prev'] = topo.get_previous_by_measurement_date(surface=topo.surface).id
+        except Topography.DoesNotExist:
+            context['topography_prev'] = topo.id
+
         script, div = components(plot)
         context['image_plot_script'] = script
         context['image_plot_div'] = div
