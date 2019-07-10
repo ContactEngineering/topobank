@@ -79,6 +79,11 @@ urlpatterns = [
        name='surface-share'
     ),
     url(
+        regex=r'surface/(?P<surface_id>\d+)/download/$',
+        view=login_required(views.download_surface),
+        name='surface-download'
+    ),
+    url(
         regex=r'surface/new/$',
         view=login_required(views.SurfaceCreateView.as_view()),
         name='surface-create'

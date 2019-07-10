@@ -1,3 +1,6 @@
+import zipfile
+from io import BytesIO
+
 from django.shortcuts import redirect, render
 from django.views.generic import DetailView, ListView, UpdateView, CreateView, DeleteView, TemplateView
 from django.urls import reverse, reverse_lazy
@@ -810,3 +813,48 @@ def sharing_info(request):
                   template_name='manager/sharing_info.html',
                   context={'sharing_info_table': sharing_info_table})
 
+def download_surface(request, surface_id):
+    """Returns a file comprised from topographies contained in a surface.
+
+    :param request:
+    :param surface_id: surface id
+    :param file_format: requested file format
+    :return:
+    """
+
+    #
+    # Check permissions and collect analyses
+    #
+    user = request.user
+    if not user.is_authenticated:
+        return HttpResponseForbidden()
+
+    #surface = Surface.objects.get(id=id)
+    topographies = Topography.objects.get(surface=surface_id)
+
+    bytes = BytesIO()
+    zf = zipfile.ZipFile(bytes, mode='w')
+
+    #
+    # Add a Readme file
+    #
+    zf.writestr("README.md", \
+"""    
+Contents of this ZIP archive
+============================
+This archive contains a surface: A collection of individual topography measurements.
+
+Version information
+===================
+
+TopoBank: {}
+""".format(settings.TOPOBANK_VERSION))
+
+    zf.close()
+
+    # Prepare response object.
+    response = HttpResponse(bytes.getvalue(),
+                            content_type='application/x-zip-compressed')
+    response['Content-Disposition'] = 'attachment; filename="{}"'.format('surface.zip')
+
+    return response
