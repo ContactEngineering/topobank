@@ -1,5 +1,6 @@
+import yaml
 import zipfile
-from io import BytesIO
+from io import BytesIO, StringIO
 
 from django.shortcuts import redirect, render
 from django.views.generic import DetailView, ListView, UpdateView, CreateView, DeleteView, TemplateView
@@ -830,15 +831,22 @@ def download_surface(request, surface_id):
         return HttpResponseForbidden()
 
     #surface = Surface.objects.get(id=id)
-    topographies = Topography.objects.get(surface=surface_id)
+    topographies = Topography.objects.filter(surface=surface_id)
 
     bytes = BytesIO()
-    zf = zipfile.ZipFile(bytes, mode='w')
+    with zipfile.ZipFile(bytes, mode='w') as zf:
+        for topography in topographies:
+            zf.writestr(topography.name, topography.datafile.read())
 
-    #
-    # Add a Readme file
-    #
-    zf.writestr("README.md", \
+        #
+        # Add metadata file
+        #
+        zf.writestr("meta.yml", yaml.dump([topography.to_dict() for topography in topographies]))
+
+        #
+        # Add a Readme file
+        #
+        zf.writestr("README.md", \
 """    
 Contents of this ZIP archive
 ============================
@@ -849,8 +857,6 @@ Version information
 
 TopoBank: {}
 """.format(settings.TOPOBANK_VERSION))
-
-    zf.close()
 
     # Prepare response object.
     response = HttpResponse(bytes.getvalue(),
