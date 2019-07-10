@@ -110,11 +110,6 @@ class TopographyCreateWizard(SessionWizardView):
     template_name = 'manager/topography_wizard.html'
     file_storage = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT,'topographies/wizard'))
 
-    def dispatch(self, request, *args, **kwargs):
-        if request.POST.get('cancel'):
-            return redirect(reverse('manager:surface-list'))
-        return super().dispatch(request, *args, **kwargs)
-
     def get_form_initial(self, step):
 
         initial = {}
@@ -257,6 +252,15 @@ class TopographyCreateWizard(SessionWizardView):
     def get_context_data(self, form, **kwargs):
         context = super().get_context_data(form, **kwargs)
         context['surface'] = Surface.objects.get(id=int(self.kwargs['surface_id']))
+
+        redirect_in_get = self.request.GET.get("redirect")
+        redirect_in_post = self.request.POST.get("redirect")
+
+        if redirect_in_get:
+            context.update({'cancel_action': redirect_in_get})
+        elif redirect_in_post:
+            context.update({'cancel_action': redirect_in_post})
+
         return context
 
     def done(self, form_list, **kwargs):
@@ -551,6 +555,7 @@ class SurfaceCardView(TemplateView):
         request_method = request.GET
         try:
             surface_id = int(request_method.get('surface_id'))
+            parent_path = request_method.get('parent_path')
         except (KeyError, ValueError):
             return HttpResponse("Error in GET arguments")
 
@@ -560,6 +565,7 @@ class SurfaceCardView(TemplateView):
             raise PermissionDenied
 
         context['surface'] = surface
+        context['parent_path'] = parent_path
         return context
 
 

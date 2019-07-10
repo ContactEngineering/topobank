@@ -243,8 +243,9 @@ function submit_analyses_card_ajax(card_url, card_element_id, template_flavor, f
  *
  * @param card_url {String} URL to call in order to get card content as HTTP response
  * @param surface_id {Number} Id of the surface being displayed
+ * @param parent_path {String} URL which can be used to provide a target on pressing cancel button
  */
-function submit_surface_card_ajax(card_url, surface_id) {
+function submit_surface_card_ajax(card_url, surface_id, parent_path) {
 
       var jquery_card_selector = "#card-"+surface_id;
 
@@ -256,6 +257,7 @@ function submit_surface_card_ajax(card_url, surface_id) {
         timeout: 0,
         data: {
            surface_id: surface_id,
+           parent_path: parent_path
         },
         success : function(data, textStatus, xhr) {
             // console.log("Received response for card '" + jquery_card_selector + "'. Status: " + xhr.status);

@@ -45,7 +45,10 @@ class TopographyFileUploadForm(forms.ModelForm):
         ),
         FormActions(
             Submit('save', 'Next'),
-            Submit('cancel', 'Cancel', formnovalidate="formnovalidate"),
+            HTML("""
+            <a href="{{ cancel_action }}" class="btn btn-default" id="cancel-btn">Cancel</a>
+            """),
+            # Submit('cancel', 'Cancel', formnovalidate="formnovalidate"),
         ),
     )
 
@@ -109,7 +112,10 @@ class TopographyMetaDataForm(forms.ModelForm):
         ),
         FormActions(
             Submit('save', 'Next'),
-            Submit('cancel', 'Cancel', formnovalidate="formnovalidate"),
+            HTML("""
+                <a href="{{ cancel_action }}" class="btn btn-default" id="cancel-btn">Cancel</a>
+                """),
+            # Submit('cancel', 'Cancel', formnovalidate="formnovalidate"),
         ),
     )
 
@@ -233,7 +239,9 @@ class Topography1DUnitsForm(TopographyUnitsForm):
             ),
             FormActions(
                 Submit('save', 'Save new topography'),
-                Submit('cancel', 'Cancel', formnovalidate="formnovalidate"),
+                HTML("""
+                  <a href="{{ cancel_action }}" class="btn btn-default" id="cancel-btn">Cancel</a>
+                """),
             ),
         )
 
@@ -270,7 +278,10 @@ class Topography2DUnitsForm(TopographyUnitsForm):
             ),
             FormActions(
                 Submit('save', 'Save new topography'),
-                Submit('cancel', 'Cancel', formnovalidate="formnovalidate"),
+                HTML("""
+                    <a href="{{ cancel_action }}" class="btn btn-default" id="cancel-btn">Cancel</a>
+                    """),
+                # Submit('cancel', 'Cancel', formnovalidate="formnovalidate"),
             ),
         )
 
