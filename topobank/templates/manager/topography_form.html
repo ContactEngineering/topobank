@@ -25,14 +25,29 @@
 
 
 <div class="card">
-  <h3 class="card-header">
+  <div class="card-header">
       {% if object %}
-        {% fontawesome_icon 'edit' %}
-        Edit topography <b>{{ topography.name }}</b> of surface <i>{{ topography.surface.name }}</i>
+        <div class="pull-left">
+          <h3>{% fontawesome_icon 'edit' %}
+            Edit topography <b>{{ topography.name }}</b> of surface <i>{{ topography.surface.name }}</i>
+          </h3>
+        </div>
+        <div class="btn-group pull-right">
+          <a href="{% url 'manager:topography-update' topography_next %}"
+             class="btn btn-default {% if topography_next == topography.id %} disabled {% endif %}">
+            {% fontawesome_icon 'chevron-left' %}
+          </a>
+          <a href="{% url 'manager:topography-update' topography_prev %}"
+             class="btn btn-default {% if topography_prev == topography.id %} disabled {% endif %}">
+            {% fontawesome_icon 'chevron-right' %}
+          </a>
+        </div>
       {% else %}
-        Create new topography for surface <i>{{ surface.name }}</i>
+        <div class="pull-left">
+          <h3>Create new topography for surface <i>{{ surface.name }}</i></h3>
+        </div>
       {% endif %}
-  </h3>
+  </div>
   <div class="card-body">
     {% if form.errors %}
       {% for field in form %}
