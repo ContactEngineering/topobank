@@ -12,14 +12,7 @@
 {% if this_surface_explicitly_selected or selected_topographies_for_this_surface %}
   <div class="card search-result-card">
     <div class="card-header">
-      <div class="pull-left">
-        <div>
-          <span class="surface-name-headline align-baseline">
-            {{ surface.name }}
-          </span>
-        </div>
-      </div>
-      <div class="btn-group pull-right dropdown">
+      <div class="btn-group btn-group-sm pull-right dropdown">
         <a href="{% url 'manager:surface-detail' surface.id %}" class="btn btn-default">
           {% fontawesome_icon 'folder-open-o' %} Open
         </a>
@@ -49,6 +42,7 @@
           {% endif %}
         </div>
       </div>
+      <h5>{{ surface.name }}</h5>
     </div>
 
     <div class="card-body">
