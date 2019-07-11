@@ -877,11 +877,13 @@ def contact_mechanics_data(request):
 
             topo = analysis.topography
             aspect_ratio = topo.size_x / topo.size_y
-            frame_height = 350
+            frame_height = 500
             frame_width = int(frame_height * aspect_ratio)
 
-            if frame_width > 500: # rule of thumb, scale down if too wide
-                frame_width = 500
+            MAX_FRAME_WIDTH = 550
+
+            if frame_width > MAX_FRAME_WIDTH: # rule of thumb, scale down if too wide
+                frame_width = MAX_FRAME_WIDTH
                 frame_height = int(frame_width/aspect_ratio)
 
             common_kwargs = dict(frame_width=frame_width,
