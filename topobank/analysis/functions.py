@@ -703,6 +703,8 @@ def contact_mechanics(topography, substrate_str="periodic", hardness=None, nstep
     pentol = rms_height / (10 * np.mean(topography.resolution))
     pentol = max(pentol, min_pentol)
 
+    netcdf_format = 'NETCDF4'
+
     data_paths = [] # collect in _next_contact_step?
 
     history = None
@@ -731,7 +733,7 @@ def contact_mechanics(topography, substrate_str="periodic", hardness=None, nstep
 
         with tempfile.NamedTemporaryFile(prefix='analysis-') as tmpfile:
 
-            dataset.to_netcdf(tmpfile.name, format='NETCDF3_64BIT_DATA')
+            dataset.to_netcdf(tmpfile.name, format=netcdf_format)
 
             storage_path = storage_prefix+"result-step-{}.nc".format(i)
             tmpfile.seek(0)
