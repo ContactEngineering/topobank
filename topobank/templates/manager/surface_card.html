@@ -12,46 +12,37 @@
 {% if this_surface_explicitly_selected or selected_topographies_for_this_surface %}
   <div class="card search-result-card">
     <div class="card-header">
-      <div class="pull-left">
-        <div>
-          <span class="surface-name-headline align-baseline">
-            {{ surface.name }}
-          </span>
-        </div>
-      </div>
-      <div class="pull-right">
+      <div class="btn-group btn-group-sm pull-right dropdown">
         <a href="{% url 'manager:surface-detail' surface.id %}" class="btn btn-default">
           {% fontawesome_icon 'folder-open-o' %} Open
         </a>
-        <div class="btn-group pull-right dropdown">
-          <button type="button" class="btn btn-default" data-toggle="dropdown"
-                  aria-haspopup="true" aria-expanded="false">
-            <i class="fa fa-chevron-down"></i>
-          </button>
-          <div class="dropdown-menu dropdown-menu-right">
-            {% if "change_surface" in surface_perms %}
-              <a href="{% url 'manager:surface-update' surface.id %}" class="dropdown-item">
-                {% fontawesome_icon 'edit' %} Edit
-              </a>
-              <a href="{% url 'manager:topography-create' surface.id %}?redirect={{ parent_path }}" class="dropdown-item">
-                {% fontawesome_icon 'plus-square' %} Add Topography
-              </a>
-            {% endif %}
-            {% if "share_surface" in surface_perms %}
-              <a href="{% url 'manager:surface-share' surface.id %}" class="dropdown-item">
-                {% fontawesome_icon 'share-alt' %} Share
-              </a>
-            {% endif %}
-            {% if "delete_surface" in surface_perms %}
-              <div class="dropdown-divider"></div>
-              <a href="{% url 'manager:surface-delete' surface.id %}" class="dropdown-item">
-                {% fontawesome_icon 'trash' %} Delete
-              </a>
-            {% endif %}
-
-          </div>
+        <button type="button" class="btn btn-default" data-toggle="dropdown"
+                aria-haspopup="true" aria-expanded="false">
+          <i class="fa fa-chevron-down"></i>
+        </button>
+        <div class="dropdown-menu dropdown-menu-right">
+          {% if "change_surface" in surface_perms %}
+            <a href="{% url 'manager:surface-update' surface.id %}" class="dropdown-item">
+              {% fontawesome_icon 'edit' %} Edit
+            </a>
+            <a href="{% url 'manager:topography-create' surface.id %}?redirect={{ parent_path }}" class="dropdown-item">
+              {% fontawesome_icon 'plus-square' %} Add Topography
+            </a>
+          {% endif %}
+          {% if "share_surface" in surface_perms %}
+            <a href="{% url 'manager:surface-share' surface.id %}" class="dropdown-item">
+              {% fontawesome_icon 'share-alt' %} Share
+            </a>
+          {% endif %}
+          {% if "delete_surface" in surface_perms %}
+            <div class="dropdown-divider"></div>
+            <a href="{% url 'manager:surface-delete' surface.id %}" class="dropdown-item">
+              {% fontawesome_icon 'trash' %} Delete
+            </a>
+          {% endif %}
         </div>
       </div>
+      <h5>{{ surface.name }}</h5>
     </div>
 
     <div class="card-body">
