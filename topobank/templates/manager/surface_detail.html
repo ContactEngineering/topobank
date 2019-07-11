@@ -121,7 +121,7 @@
               {% endif %}
 
               {% if "change_surface" in surface_perms %}
-                <a href="{% url 'manager:topography-create' surface.id %}" class="btn btn-default btn-block btn-lg">
+                <a href="{% url 'manager:topography-create' surface.id %}?redirect={{ request.path }}" class="btn btn-default btn-block btn-lg">
                   {% fontawesome_icon 'plus-square-o' %} Add Topography
                 </a>
               {% endif %}
