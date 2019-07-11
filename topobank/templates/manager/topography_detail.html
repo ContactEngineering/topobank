@@ -48,20 +48,20 @@
         <li class="nav-item">
           <a class="nav-link active" data-toggle="pill" href="#plot" role="tab">Plot</a>
         </li>
-        <li class="nav-item">
+        <li class="nav-item mr-2">
           <a class="nav-link" data-toggle="pill" href="#properties" role="tab">Properties</a>
         </li>
         <li>
-          <a href="{% url 'manager:topography-detail' topography_next %}"
-             class="btn btn-default {% if topography_next == topography.id %} disabled {% endif %}">
-            {% fontawesome_icon 'chevron-left' %}
-          </a>
-        </li>
-        <li>
-          <a href="{% url 'manager:topography-detail' topography_prev %}"
-             class="btn btn-default {% if topography_prev == topography.id %} disabled {% endif %}">
-            {% fontawesome_icon 'chevron-right' %}
-          </a>
+          <div class="btn-group">
+            <a href="{% url 'manager:topography-detail' topography_next %}"
+               class="btn btn-default {% if topography_next == topography.id %} disabled {% endif %}">
+              {% fontawesome_icon 'chevron-left' %}
+            </a>
+            <a href="{% url 'manager:topography-detail' topography_prev %}"
+               class="btn btn-default {% if topography_prev == topography.id %} disabled {% endif %}">
+              {% fontawesome_icon 'chevron-right' %}
+            </a>
+          </div>
         </li>
       </ul>
     </div>
