@@ -41,8 +41,7 @@
     <div class="card-header">
 
       <div class="pull-left">
-        <h2>{{ topography.name }}</h2>
-
+        <h3>{{ topography.name }}</h3>
       </div>
 
       <ul class="nav nav-pills card-header-pills pull-right">
@@ -51,6 +50,18 @@
         </li>
         <li class="nav-item">
           <a class="nav-link" data-toggle="pill" href="#properties" role="tab">Properties</a>
+        </li>
+        <li>
+          <a href="{% url 'manager:topography-detail' topography_next %}"
+             class="btn btn-default {% if topography_next == topography.id %} disabled {% endif %}">
+            {% fontawesome_icon 'chevron-left' %}
+          </a>
+        </li>
+        <li>
+          <a href="{% url 'manager:topography-detail' topography_prev %}"
+             class="btn btn-default {% if topography_prev == topography.id %} disabled {% endif %}">
+            {% fontawesome_icon 'chevron-right' %}
+          </a>
         </li>
       </ul>
     </div>

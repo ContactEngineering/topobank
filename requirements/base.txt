@@ -49,6 +49,9 @@ celery-flower>=1.0.1<2
 # See https://github.com/mher/flower/issues/878
 tornado>=4.2.0,<6.0.0 # maybe possible to upgrade this now, TODO CHECK
 
+# progress bars for celery tasks, served by Django
+celery-progress>=0.0.4,<0.1
+
 #
 # Contact Mechanics
 #
@@ -58,7 +61,7 @@ tornado>=4.2.0,<6.0.0 # maybe possible to upgrade this now, TODO CHECK
 #-e git+http://git@github.com/pastewka/PyCo.git@0.30.0#egg=PyCo
 #git+http://git@github.com/scipy/scipy/releases/download/v1.2.1/scipy-1.2.1-cp37-cp37m-manylinux1_x86_64.whl
 scipy
-PyCo==0.31.0
+PyCo==0.31.3
 
 # plotting
 bokeh==1.2.0
@@ -66,6 +69,11 @@ bokeh==1.2.0
 
 # pandas is currently needed for downloading xlsx files from analyses
 pandas>=0.23.4<0.24
+
+# xarray is used to write analysis data to netcdf files
+xarray>=0.12.2<0.13
+netcdf4>=1.4.1<2.0
+h5netcdf>=0.7.4<1.0
 
 # form wizard for defining a topography in several steps
 django-formtools==2.1

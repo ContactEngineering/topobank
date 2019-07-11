@@ -11,8 +11,12 @@
     <div class="jumbotron">
       <div class="container">
         <h1 class="display-4">Welcome to <b>contact.engineering</b></h1>
-        <p class="lead">This is an application for organizing surfaces and related topography measurements. You can perform
-        various analyses and compare the results.</p>
+        <p class="lead">This is a web-based application that allows you to:
+          Store and organize surface measurements,
+          characterize surface topography,
+          analyze contact properties and
+          (if you wish) share your data with collaborators or even publish your datasets
+        </p>
         {#  <p><a class="btn btn-primary btn-lg" href="#" role="button">Learn more &raquo;</a></p> #}
         <div class="row">
           {% with request.user.is_authenticated as is_authenticated %}
@@ -91,32 +95,37 @@
         {% if request.user.is_authenticated %}
         <div class="col-md-3">
           <h2>Surfaces</h2>
-          <p>A <em>Surface</em> represents a physical surface together with some metadata. Each surface
-          can be measured several times. These measurements are the <em>topographies</em>.</p>
-          <p><a class="btn btn-secondary" href="{% url 'manager:surface-create' %}" role="button">Create a surface &raquo;</a></p>
+          <p>A <em>surface</em> represents the real-life surface you are measuring, together with its descriptive
+            metadata. If you make multiple measurements on the same real-world surface (even using different
+            techniques), you can collect all the <em>topography</em> measurements together in a single <em>surface</em>.
+          </p>
+          <p><a class="btn btn-secondary" href="{% url 'manager:surface-create' %}" role="button">Create a surface
+            &raquo;</a></p>
         </div>
         <div class="col-md-3">
           <h2>Topographies</h2>
-          <p>For each surface you can upload one or more topographies, specify meta data for them
-            or run pre-defined analyses on them.</p>
-          <p><a class="btn btn-secondary" href="{% url 'manager:surface-list' %}" role="button">Select topographies &raquo;</a></p>
+          <p>For each <em>surface</em>, you must upload one or more <em>topographies</em>. These represent each
+            individual measurement you performed. You can save metadata for each one, and perform basic pre-analysis.
+          </p>
+          <p><a class="btn btn-secondary" href="{% url 'manager:surface-list' %}" role="button">Select topographies
+            &raquo;</a></p>
         </div>
         <div class="col-md-3">
           <h2>Analyses</h2>
-          <p>All analyses are stored, can be retriggered or compared.
-          Pre-defined analyis functions available.</p>
+          <p>All <em>analyses</em> are stored, can be retriggered, visualized or compared.
+          A number of analyis functions available.</p>
           <p><a class="btn btn-secondary" href="{% url 'analysis:list' %}" role="button">Show analyses &raquo;</a></p>
         </div>
          <div class="col-md-3">
           <h2>Sharing</h2>
-          <p>Share your surfaces with others for collaboration. Decide whether they can modify them or not.</p>
+           <p><em>Share</em> your surfaces with others for collaboration. Decide whether they can modify them or not.</p>
         <p><a class="btn btn-secondary" href="{% url 'manager:sharing-info' %}" role="button">Show sharing info &raquo;</a></p>
         </div>
         {% else %}
         <div class="col-md-12">
           <h2>Login via ORCID.</h2>
           <p>
-            Please allow the ORCID site to authenticate yourself to TopoBank.
+            Please allow the ORCID site to authenticate yourself to contact.engineering.
             If you don't have an ORCID account yet, you will be able to register.
           </p>
           <p>

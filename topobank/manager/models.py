@@ -192,5 +192,13 @@ class Topography(models.Model):
 
         transaction.on_commit(lambda: submit_all(self))
 
-
-
+    def to_dict(self):
+        """Create dictionary for export of metadata to json or yaml"""
+        return {'name': self.name,
+                'data_source': self.data_source,
+                'creator': {'name': self.creator.name, 'orcid': self.creator.orcid_id},
+                'measurement_date': self.measurement_date,
+                'description': self.description,
+                'unit': self.unit,
+                'height_scale': self.height_scale,
+                'size': (self.size_x, self.size_y)}

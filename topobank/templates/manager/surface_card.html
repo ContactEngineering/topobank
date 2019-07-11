@@ -10,7 +10,7 @@
 
 {% is_surface_explicitly_selected request surface as this_surface_explicitly_selected %}
 {% if this_surface_explicitly_selected or selected_topographies_for_this_surface %}
-  <div class="card">
+  <div class="card search-result-card">
     <div class="card-header">
       <div class="pull-left">
         <div>
@@ -33,7 +33,7 @@
               <a href="{% url 'manager:surface-update' surface.id %}" class="dropdown-item">
                 {% fontawesome_icon 'edit' %} Edit
               </a>
-              <a href="{% url 'manager:topography-create' surface.id %}" class="dropdown-item">
+              <a href="{% url 'manager:topography-create' surface.id %}?redirect={{ parent_path }}" class="dropdown-item">
                 {% fontawesome_icon 'plus-square' %} Add Topography
               </a>
             {% endif %}

@@ -5,8 +5,20 @@ The first argument is always a PyCo Topography!
 """
 
 import numpy as np
+import tempfile
+
+# These imports are needed for storage
+from django.core.files.storage import default_storage
+from django.core.files import File
+import xarray as xr
 
 from PyCo.Topography import Topography
+
+from PyCo.SolidMechanics import PeriodicFFTElasticHalfSpace, FreeFFTElasticHalfSpace
+from PyCo.ContactMechanics import HardWall
+from PyCo.System.Factory import make_system
+from PyCo.Topography import PlasticTopography
+
 
 # TODO: _unicode_map and super and subscript functions should be moved to some support module.
 
@@ -126,8 +138,6 @@ def analysis_function(card_view_flavor="simple", name=None, automatic=False):
         :return: decorated function
         """
 
-        func.card_view_flavor = card_view_flavor # will be used when choosing the right view on request
-
         if name is None:
             name_ = func.__name__.replace('_', ' ').title()
         else:
@@ -139,6 +149,19 @@ def analysis_function(card_view_flavor="simple", name=None, automatic=False):
             pyfunc = func.__name__,
             automatic = automatic
         ))
+
+        # TODO: Can a default argument be automated without writing it?
+        # Add progress_recorder argument with default value, if not defined:
+        # sig = signature(func)
+        #if 'progress_recorder' not in sig.parameters:
+        #    func = lambda *args, **kw: func(*args, progress_recorder=ConsoleProgressRecorder(), **kw)
+        #    # the console progress recorder will work in tests and when calling the function
+        #    # outside of an celery context
+        #    #
+        #    # When used in a celery context, this argument will be overwritten with
+        #    # another recorder updated by a celery task
+
+        func.card_view_flavor = card_view_flavor  # will be used when choosing the right view on request
 
         return func
     return register_decorator
@@ -200,8 +223,24 @@ def test_function(topography):
     return { 'name': 'Test result for test function called for topography {}.'.format(topography)}
 test_function.card_view_flavor = 'simple'
 
+#
+# Use this during development if you need a long running task with failures
+#
+# @analysis_function(card_view_flavor='simple', automatic=True)
+# def long_running_task(topography, progress_recorder=None, storage_prefix=None):
+#     import time, random
+#     n = 10 + random.randint(1,10)
+#     F = 30
+#     for i in range(n):
+#         time.sleep(0.5)
+#         if random.randint(1, F) == 1:
+#             raise ValueError("This error is intended and happens with probability 1/{}.".format(F))
+#         progress_recorder.set_progress(i+1, n)
+#     return dict(message="done", size=topography.size, n=n)
+
 @analysis_function(card_view_flavor='plot', automatic=True)
-def height_distribution(topography, bins=None, wfac=5):
+def height_distribution(topography, bins=None, wfac=5, progress_recorder=None, storage_prefix=None):
+
     if bins is None:
         bins = _reasonable_bins_argument(topography)
 
@@ -293,7 +332,7 @@ def _moments_histogram_gaussian(arr, bins, wfac, quantity, label, gaussian=True)
 
 
 @analysis_function(card_view_flavor='plot', automatic=True)
-def slope_distribution(topography, bins=None, wfac=5):
+def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, storage_prefix=None):
 
     if bins is None:
         bins = _reasonable_bins_argument(topography)
@@ -355,7 +394,7 @@ def slope_distribution(topography, bins=None, wfac=5):
     return result
 
 @analysis_function(card_view_flavor='plot', automatic=True)
-def curvature_distribution(topography, bins=None, wfac=5):
+def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None, storage_prefix=None):
     if bins is None:
         bins = _reasonable_bins_argument(topography)
 
@@ -401,7 +440,7 @@ def curvature_distribution(topography, bins=None, wfac=5):
     )
 
 @analysis_function(card_view_flavor='plot', automatic=True)
-def power_spectrum(topography, window='hann', tip_radius=None):
+def power_spectrum(topography, window='hann', tip_radius=None, progress_recorder=None, storage_prefix=None):
     if window == 'None':
         window = None
 
@@ -458,7 +497,7 @@ def power_spectrum(topography, window='hann', tip_radius=None):
     return result
 
 @analysis_function(card_view_flavor='plot', automatic=True)
-def autocorrelation(topography):
+def autocorrelation(topography, progress_recorder=None, storage_prefix=None):
 
     if topography.dim == 2:
         sx, sy = topography.size
@@ -525,7 +564,7 @@ def autocorrelation(topography):
 
 
 @analysis_function(card_view_flavor='plot', automatic=True)
-def variable_bandwidth(topography):
+def variable_bandwidth(topography, progress_recorder=None, storage_prefix=None):
 
     magnifications, bandwidths, rms_heights = topography.variable_bandwidth()
 
@@ -546,3 +585,184 @@ def variable_bandwidth(topography):
                  ),
         ]
     )
+
+def _next_contact_step(system, history=None, pentol=None, maxiter=None):
+    """
+    Run a full contact calculation. Try to guess displacement such that areas
+    are equally spaced on a log scale.
+
+    Parameters
+    ----------
+    system : PyCo.System.SystemBase object
+        The contact mechanical system.
+    history : tuple
+        History returned by past calls to next_step
+
+    Returns
+    -------
+    displacements : numpy.ndarray
+        Current surface displacement field.
+    forces : numpy.ndarray
+        Current surface pressure field.
+    displacement : float
+        Current displacement of the rigid surface
+    load : float
+        Current load.
+    area : float
+        Current fractional contact area.
+    history : tuple
+        History of contact calculations.
+    """
+
+    topography = system.surface
+    substrate = system.substrate
+
+    # Get the profile as a numpy array
+    heights = topography.heights()
+
+    # Find max, min and mean heights
+    top = np.max(heights)
+    middle = np.mean(heights)
+    bot = np.min(heights)
+
+    if history is None:
+        step = 0
+    else:
+        mean_displacements, mean_gaps, mean_pressures, total_contact_areas, converged = history
+        step = len(mean_displacements)
+
+    if step == 0:
+        mean_displacements = []
+        mean_gaps = []
+        mean_pressures = []
+        total_contact_areas = []
+        converged = np.array([], dtype=bool)
+
+        mean_displacement = -middle
+    elif step == 1:
+        mean_displacement = -top + 0.01 * (top - middle)
+    else:
+        # Intermediate sort by area
+        sorted_disp, sorted_area = np.transpose(sorted(zip(mean_displacements, total_contact_areas), key=lambda x:x[1]))
+
+        ref_area = np.log10(np.array(sorted_area + 1 / np.prod(topography.resolution)))
+        darea = np.append(ref_area[1:] - ref_area[:-1], -ref_area[-1])
+        i = np.argmax(darea)
+        if i == step - 1:
+            mean_displacement = bot + 2 * (sorted_disp[-1] - bot)
+        else:
+            mean_displacement = (sorted_disp[i] + sorted_disp[i + 1]) / 2
+
+    opt = system.minimize_proxy(offset=mean_displacement, pentol=pentol, maxiter=maxiter)
+    force_xy = opt.jac
+    displacement_xy = opt.x[:force_xy.shape[0], :force_xy.shape[1]]
+    mean_displacements = np.append(mean_displacements, [mean_displacement])
+    mean_gaps = np.append(mean_gaps, [np.mean(displacement_xy) - middle - mean_displacement])
+    mean_load = force_xy.sum() / np.prod(topography.size)
+    mean_pressures = np.append(mean_pressures, [mean_load])
+    total_contact_area = (force_xy > 0).sum() / np.prod(topography.resolution)
+    total_contact_areas = np.append(total_contact_areas, [total_contact_area])
+    converged = np.append(converged, np.array([opt.success], dtype=bool))
+
+    area_per_pt = substrate.area_per_pt
+    pressure_xy = force_xy / area_per_pt
+    gap_xy = displacement_xy - topography.heights() - opt.offset
+    gap_xy[gap_xy < 0.0] = 0.0
+
+    contacting_points_xy = force_xy > 0
+
+    return displacement_xy, gap_xy, pressure_xy, contacting_points_xy, \
+           mean_displacement, mean_load, total_contact_area, \
+           (mean_displacements, mean_gaps, mean_pressures, total_contact_areas, converged)
+
+@analysis_function(card_view_flavor='contact mechanics', automatic=True)
+def contact_mechanics(topography, substrate_str="periodic", hardness=None, nsteps=10,
+                      progress_recorder=None, storage_prefix=None):
+
+    #
+    # Some constants
+    #
+    maxiter = 100
+    min_pentol = 1e-12  # lower bound for the penetration tolerance
+
+    if (hardness is not None) and (hardness > 0):
+        topography = PlasticTopography(topography, hardness)
+
+    half_space_factory = dict(periodic=PeriodicFFTElasticHalfSpace,
+                              nonperiodic=FreeFFTElasticHalfSpace)
+
+    substrate = half_space_factory[substrate_str](topography.resolution, 1.0, topography.size)
+
+    interaction = HardWall()
+    system = make_system(substrate, interaction, topography)
+
+    # Heuristics for the possible tolerance on penetration.
+    # This is necessary because numbers can vary greatly
+    # depending on the system of units.
+    rms_height = topography.rms_height()
+    pentol = rms_height / (10 * np.mean(topography.resolution))
+    pentol = max(pentol, min_pentol)
+
+    netcdf_format = 'NETCDF4'
+
+    data_paths = [] # collect in _next_contact_step?
+
+    history = None
+    for i in range(nsteps):
+        displacement_xy, gap_xy, pressure_xy, contacting_points_xy, \
+            mean_displacement, mean_pressure, total_contact_area, history = \
+            _next_contact_step(system, history=history, pentol=pentol, maxiter=maxiter)
+        #
+        # Save displacement_xy, gap_xy, pressure_xy and contacting_points_xy
+        # to storage, will be retrieved later for visualization
+        #
+        pressure_xy = xr.DataArray(pressure_xy, dims=('x', 'y')) # maybe define coordinates
+        gap_xy = xr.DataArray(gap_xy, dims=('x', 'y'))
+        displacement_xy = xr.DataArray(displacement_xy, dims=('x', 'y'))
+        contacting_points_xy = xr.DataArray(contacting_points_xy, dims=('x', 'y'))
+
+        dataset = xr.Dataset({'pressure': pressure_xy,
+                              'contacting_points': contacting_points_xy,
+                              'gap': gap_xy,
+                              'displacement': displacement_xy}) # one dataset per analysis step: smallest unit to retrieve
+        dataset.attrs['mean_pressure'] = mean_pressure
+        dataset.attrs['total_contact_area'] = total_contact_area
+        dataset.attrs['type'] = substrate_str
+        if hardness:
+            dataset.attrs['hardness'] = hardness # TODO how to save hardness=None? Not possible in netCDF
+
+        with tempfile.NamedTemporaryFile(prefix='analysis-') as tmpfile:
+
+            dataset.to_netcdf(tmpfile.name, format=netcdf_format)
+
+            storage_path = storage_prefix+"result-step-{}.nc".format(i)
+            tmpfile.seek(0)
+            storage_path = default_storage.save(storage_path, File(tmpfile))
+            data_paths.append(storage_path)
+
+        progress_recorder.set_progress(i + 1, nsteps)
+
+    mean_displacement, mean_gap, mean_pressure, total_contact_area, converged = history
+
+    mean_pressure = np.array(mean_pressure)
+    total_contact_area = np.array(total_contact_area)
+    mean_displacement = np.array(mean_displacement)
+    mean_gap = np.array(mean_gap)
+    converged = np.array(converged)
+
+    data_paths = np.array(data_paths, dtype='str')
+    sort_order = np.argsort(mean_pressure)
+
+    return dict(
+        name='Contact mechanics',
+        area_per_pt=substrate.area_per_pt,
+        maxiter=maxiter,
+        min_pentol=min_pentol,
+        mean_pressures=mean_pressure[sort_order],
+        total_contact_areas=total_contact_area[sort_order],
+        mean_displacements=mean_displacement[sort_order]/rms_height,
+        mean_gaps=mean_gap[sort_order]/rms_height,
+        converged=converged[sort_order],
+        data_paths=data_paths[sort_order],
+    )
+

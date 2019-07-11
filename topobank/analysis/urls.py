@@ -11,14 +11,9 @@ urlpatterns = [
         name='list'
     ),
     url(
-        regex=r'(?P<ids>[\d,]+)/download/txt$',
-        view=login_required(views.download_analysis_to_txt),
-        name='download-txt'
-    ),
-    url(
-        regex=r'(?P<ids>[\d,]+)/download/xlsx$',
-        view=login_required(views.download_analysis_to_xlsx),
-        name='download-xlsx'
+        regex=r'download/(?P<ids>[\d,]+)/(?P<card_view_flavor>[\w\s]+)/(?P<file_format>\w+)$',
+        view=login_required(views.download_analyses),
+        name='download'
     ),
     url(
         regex=r'function/(?P<pk>[\d,]+)/$',
@@ -29,6 +24,11 @@ urlpatterns = [
         regex=r'card/submit$',
         view=login_required(views.submit_analyses_view),
         name='card-submit'
+    ),
+    url(
+        regex=r'card/contact-mechanics-data$',
+        view=login_required(views.contact_mechanics_data),
+        name='contact-mechanics-data'
     ),
     url(
         regex=r'card/$',

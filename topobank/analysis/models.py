@@ -58,6 +58,10 @@ class Analysis(models.Model):
     def result_obj(self):
         return pickle.loads(self.result) if self.result else None
 
+    @property
+    def storage_prefix(self):
+        return "analyses/{}/".format(self.id)
+
 class AnalysisFunction(models.Model):
     name = models.CharField(max_length=80, help_text="A human-readable name.", unique=True)
     pyfunc = models.CharField(max_length=256,

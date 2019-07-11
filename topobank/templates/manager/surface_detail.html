@@ -121,11 +121,14 @@
               {% endif %}
 
               {% if "change_surface" in surface_perms %}
-                <a href="{% url 'manager:topography-create' surface.id %}" class="btn btn-default btn-block btn-lg">
+                <a href="{% url 'manager:topography-create' surface.id %}?redirect={{ request.path }}" class="btn btn-default btn-block btn-lg">
                   {% fontawesome_icon 'plus-square-o' %} Add Topography
                 </a>
               {% endif %}
 
+              <a href="{% url 'manager:surface-download' surface.id %}" class="btn btn-default btn-block btn-lg">
+                {% fontawesome_icon 'download' %} Download
+              </a>
 
               {% if "share_surface" in surface_perms %}
                 <a href="{% url 'manager:surface-share' surface.id %}" class="btn btn-default btn-block btn-lg">

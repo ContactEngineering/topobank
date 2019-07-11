@@ -54,6 +54,7 @@
           {% if wizard.steps.step1 == 1 %}
             {% progress_bar %}
           {% endif %}
+          <input type="hidden" name="redirect" value="{{ cancel_action }}" />
       </form>
 
   </div>
@@ -61,5 +62,7 @@
 {% endblock content %}
 
 {% block javascript %}
-  {% progress_bar_media %}
+  {% if wizard.steps.step1 == 1 %}
+    {% progress_bar_media %}
+  {% endif %}
 {% endblock %}

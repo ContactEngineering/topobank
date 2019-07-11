@@ -45,6 +45,7 @@ def test_autoload_analysis_functions():
         dict(pyfunc='power_spectrum', automatic=True, name='Power Spectrum'),
         dict(pyfunc='autocorrelation', automatic=True, name='Autocorrelation'),
         dict(pyfunc='variable_bandwidth', automatic=True, name='Variable Bandwidth'),
+        dict(pyfunc='contact_mechanics', automatic=True, name='Contact Mechanics'),
     ], key=itemgetter('name'))
 
     assert len(expected_funcs) == len(funcs)

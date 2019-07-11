@@ -384,7 +384,7 @@ def test_analyis_download_as_txt(client, two_topos, ids_downloadable_analyses):
     assert client.login(username=username, password=password)
 
     ids_str = ",".join(str(i) for i in ids_downloadable_analyses)
-    download_url = reverse('analysis:download-txt', kwargs=dict(ids=ids_str))
+    download_url = reverse('analysis:download', kwargs=dict(ids=ids_str, card_view_flavor='plot', file_format='txt'))
 
     response = client.get(download_url)
 
@@ -439,7 +439,7 @@ def test_analyis_download_as_xlsx(client, two_topos, ids_downloadable_analyses):
     assert client.login(username=username, password=password)
 
     ids_str = ",".join(str(i) for i in ids_downloadable_analyses)
-    download_url = reverse('analysis:download-xlsx', kwargs=dict(ids=ids_str))
+    download_url = reverse('analysis:download', kwargs=dict(ids=ids_str, card_view_flavor='plot', file_format='xlsx'))
 
     response = client.get(download_url)
 

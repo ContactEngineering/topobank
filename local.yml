@@ -36,18 +36,18 @@ services:
     ports:
       - "5433:5432"
 
-  dbbackup:
-    build:
-      context: .
-      dockerfile: ./compose/production/dbbackup/Dockerfile
-    image: topobank_local_dbbackup
-    depends_on:
-      - postgres
-      - minio
-    env_file:
-      - ./.envs/.local/.django
-      - ./.envs/.local/.postgres
-    entrypoint: /entrypoint
+#  dbbackup:
+#    build:
+#      context: .
+#      dockerfile: ./compose/production/dbbackup/Dockerfile
+#    image: topobank_local_dbbackup
+#    depends_on:
+#      - postgres
+#      - minio
+#    env_file:
+#      - ./.envs/.local/.django
+#      - ./.envs/.local/.postgres
+#    entrypoint: /entrypoint
 
   mailhog:
     image: mailhog/mailhog:v1.0.0

@@ -2,6 +2,7 @@
 {% load fontawesome %}
 {% load crispy_forms_tags %}
 {% load analysis_tags %}
+{% load static %}
 
 {% block content-title %}
   Analysis Results
@@ -42,7 +43,7 @@
     {% for card in cards %}
       <div class="col-xl-6 mb-4">
         <div id="card-{{ forloop.counter }}">
-          <div class="card">
+          <div class="card search-result-card">
             <div class="card-header">
               <h4>{{ card.function.name }}</h4>
             </div>
@@ -65,18 +66,21 @@
   <script src="https://cdn.pydata.org/bokeh/release/bokeh-widgets-1.2.0.min.js"></script>
   <script src="https://cdn.pydata.org/bokeh/release/bokeh-tables-1.2.0.min.js"></script>
 
+  <!-- for task progress bar -->
+  <script src="{% static 'celery_progress/celery_progress.js' %}"></script>
+
   <!-- Trigger fetching analysis results -->
   <script>
     // for each card submit ajax call to insert result card
+    $(document).ready(function () {
+      {% url 'analysis:card' as card_url %}
+      {% for card in cards %}
+        submit_analyses_card_ajax("{{ card_url }}", "card-{{ forloop.counter }}", "list", {{ card.function.id }}, {{ card.topography_ids_json|safe }}, true);
+      {% endfor %}
+    });
 
-
-      $(document).ready(function () {
-        {% url 'analysis:card' as card_url %}
-        {% for card in cards %}
-        submit_analyses_card_ajax("{{ card_url }}", "card-{{ forloop.counter }}", "list", {{ card.function.id }}, {{ card.topography_ids_json|safe }});
-        {% endfor %}
-      });
-
+    // we don't want error messages if the page is left before everything is loaded
+    install_handler_for_aborting_all_ajax_calls_on_page_leave();
   </script>
 
   <!-- for crispy form -->

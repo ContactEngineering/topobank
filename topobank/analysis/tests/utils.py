@@ -21,7 +21,7 @@ class AnalysisFunctionFactory(factory.django.DjangoModelFactory):
     pyfunc = "test_function" # this function exists in topobank.analysis.functions
 
 def _analysis_result(analysis):
-    result = analysis.function.python_function(analysis.topography)
+    result = analysis.function.python_function(analysis.topography, **pickle.loads(analysis.kwargs))
     return pickle.dumps(result)
 
 class AnalysisFactory(factory.django.DjangoModelFactory):

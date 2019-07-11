@@ -1,7 +1,11 @@
+import yaml
+import zipfile
+from io import BytesIO, StringIO
+
 from django.shortcuts import redirect, render
 from django.views.generic import DetailView, ListView, UpdateView, CreateView, DeleteView, TemplateView
 from django.urls import reverse, reverse_lazy
-from django.core.files.storage import FileSystemStorage # TODO use default_storage instead?
+from django.core.files.storage import FileSystemStorage
 from django.core.files.storage import default_storage
 from django.core.files import File
 from django.core.exceptions import PermissionDenied
@@ -110,11 +114,6 @@ class TopographyCreateWizard(SessionWizardView):
     template_name = 'manager/topography_wizard.html'
     file_storage = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT,'topographies/wizard'))
 
-    def dispatch(self, request, *args, **kwargs):
-        if request.POST.get('cancel'):
-            return redirect(reverse('manager:surface-list'))
-        return super().dispatch(request, *args, **kwargs)
-
     def get_form_initial(self, step):
 
         initial = {}
@@ -171,7 +170,7 @@ class TopographyCreateWizard(SessionWizardView):
                 #
                 unit, conversion_factor = optimal_unit(topo.size, unit)
 
-                initial_size_x *= conversion_factor # TODO Is it correct to do this if there is "int()" afterwards?
+                initial_size_x *= conversion_factor  # TODO Is it correct to do this if there is "int()" afterwards?
                 if has_2_dim:
                     initial_size_y *= conversion_factor
 
@@ -220,7 +219,7 @@ class TopographyCreateWizard(SessionWizardView):
             if topo.dim == 2:
                 initial['resolution_x'], initial['resolution_y'] = topo.resolution
             else:
-                initial['resolution_x'] = len(topo.positions()) # TODO Check: also okay for uniform line scans?
+                initial['resolution_x'] = len(topo.positions())  # TODO Check: also okay for uniform line scans?
 
         return initial
 
@@ -257,6 +256,15 @@ class TopographyCreateWizard(SessionWizardView):
     def get_context_data(self, form, **kwargs):
         context = super().get_context_data(form, **kwargs)
         context['surface'] = Surface.objects.get(id=int(self.kwargs['surface_id']))
+
+        redirect_in_get = self.request.GET.get("redirect")
+        redirect_in_post = self.request.POST.get("redirect")
+
+        if redirect_in_get:
+            context.update({'cancel_action': redirect_in_get})
+        elif redirect_in_post:
+            context.update({'cancel_action': redirect_in_post})
+
         return context
 
     def done(self, form_list, **kwargs):
@@ -270,12 +278,6 @@ class TopographyCreateWizard(SessionWizardView):
         # collect all data from forms
         #
         d = dict((k, v) for form in form_list for k, v in form.cleaned_data.items())
-        # TODO maybe use self.get_all_cleaned_data()
-
-        #
-        # collect additional data
-        #
-        # TODO Check if we'd better get resolution here
 
         #
         # Check whether given surface can be altered by this user
@@ -293,10 +295,6 @@ class TopographyCreateWizard(SessionWizardView):
             d['datafile'] = default_storage.save(new_path, File(datafile))
 
         #
-        # TODO remove topography file object from cache
-        #
-
-        #
         # Set the topography's creator to the current user uploading the file
         #
         d['creator'] = self.request.user
@@ -308,7 +306,7 @@ class TopographyCreateWizard(SessionWizardView):
         instance.save()
 
         # put automated analysis in queue
-        instance.submit_automated_analyses() # TODO create notification
+        instance.submit_automated_analyses()
 
         return redirect(reverse('manager:topography-detail', kwargs=dict(pk=instance.pk)))
 
@@ -439,6 +437,15 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
         else:
             raise Exception(f"Don't know how to display topographies with {pyco_topo.dim} dimensions.")
 
+        try:
+            context['topography_next'] = topo.get_next_by_measurement_date(surface=topo.surface).id
+        except Topography.DoesNotExist:
+            context['topography_next'] = topo.id
+        try:
+            context['topography_prev'] = topo.get_previous_by_measurement_date(surface=topo.surface).id
+        except Topography.DoesNotExist:
+            context['topography_prev'] = topo.id
+
         script, div = components(plot)
         context['image_plot_script'] = script
         context['image_plot_div'] = div
@@ -561,6 +568,7 @@ class SurfaceCardView(TemplateView):
         request_method = request.GET
         try:
             surface_id = int(request_method.get('surface_id'))
+            parent_path = request_method.get('parent_path')
         except (KeyError, ValueError):
             return HttpResponse("Error in GET arguments")
 
@@ -570,6 +578,7 @@ class SurfaceCardView(TemplateView):
             raise PermissionDenied
 
         context['surface'] = surface
+        context['parent_path'] = parent_path
         return context
 
 
@@ -820,3 +829,53 @@ def sharing_info(request):
                   template_name='manager/sharing_info.html',
                   context={'sharing_info_table': sharing_info_table})
 
+def download_surface(request, surface_id):
+    """Returns a file comprised from topographies contained in a surface.
+
+    :param request:
+    :param surface_id: surface id
+    :param file_format: requested file format
+    :return:
+    """
+
+    #
+    # Check permissions and collect analyses
+    #
+    user = request.user
+    if not user.is_authenticated:
+        return HttpResponseForbidden()
+
+    #surface = Surface.objects.get(id=id)
+    topographies = Topography.objects.filter(surface=surface_id)
+
+    bytes = BytesIO()
+    with zipfile.ZipFile(bytes, mode='w') as zf:
+        for topography in topographies:
+            zf.writestr(topography.name, topography.datafile.read())
+
+        #
+        # Add metadata file
+        #
+        zf.writestr("meta.yml", yaml.dump([topography.to_dict() for topography in topographies]))
+
+        #
+        # Add a Readme file
+        #
+        zf.writestr("README.md", \
+"""    
+Contents of this ZIP archive
+============================
+This archive contains a surface: A collection of individual topography measurements.
+
+Version information
+===================
+
+TopoBank: {}
+""".format(settings.TOPOBANK_VERSION))
+
+    # Prepare response object.
+    response = HttpResponse(bytes.getvalue(),
+                            content_type='application/x-zip-compressed')
+    response['Content-Disposition'] = 'attachment; filename="{}"'.format('surface.zip')
+
+    return response

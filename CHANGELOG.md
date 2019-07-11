@@ -1,5 +1,14 @@
 # Changelog for *TopoBank*
 
+## 0.5.0
+
+- added contact mechanics analysis and visualization (#84)
+- added progress bars for analysis tasks (#202)
+- old analyses for same topography and same function will be deleted (#221)
+- added download of contact mechanics data (#228)
+- added download of surface container archive (#48)
+- fixed wrong unit conversion in analysis plots (#240)
+- fixed sometimes wrong target url for cancel button in upload wizard (#237)
 
 ## 0.4.2
 

@@ -14,10 +14,12 @@
           <i class="fa fa-chevron-down"></i>
         </button>
         <div class="dropdown-menu dropdown-menu-right">
+          <!--
           {% if analyses_success %}
-          <a class="dropdown-item" href="{% url 'analysis:download' analyses_success|analyses_results_ids_list_str 'plot' 'txt' %}">Download as TXT</a>
-          <a class="dropdown-item" href="{% url 'analysis:download' analyses_success|analyses_results_ids_list_str 'plot' 'xlsx' %}">Download as XLSX</a>
+          <a class="dropdown-item" href="#">Download as TXT</a>
+          <a class="dropdown-item" href="#">Download as XLSX</a>
           {% endif %}
+          -->
           {% if not analyses_unready %}
             <div class="dropdown-divider"></div>
             <a class="dropdown-item" href="#" data-toggle="modal"

@@ -1,0 +1,433 @@
+{# Needs some keys in context. See AJAX view "PlotCardView" #}
+{% extends 'analysis/simple_card_detail.html' %}
+{% load analysis_tags %}
+{% load fontawesome %}
+
+{% block card_header %}
+  <div class="pull-left">
+    <h2>{{ title }}</h2>
+  </div>
+
+  {# Tab navigation on right side #}
+  <ul class="nav nav-pills card-header-pills pull-right" role="tablist">
+    <li class="nav-item">
+      <a class="nav-link active" data-toggle="pill" href="#tools-pill">Tools</a>
+    </li>
+    {% if not analyses_unready %}
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" data-toggle="dropdown" href="#">
+          Details
+        </a>
+        <div class="dropdown-menu">
+          <a class="dropdown-item" data-toggle="pill" href="#contact-geometry-pill">Contact geometry</a>
+          <a class="dropdown-item" data-toggle="pill" href="#contact-pressure-pill">Contact pressure</a>
+          <a class="dropdown-item" data-toggle="pill" href="#pressure-distribution-pill">Pressure distribution</a>
+          <a class="dropdown-item" data-toggle="pill" href="#displacement-pill">Displacement</a>
+          <a class="dropdown-item" data-toggle="pill" href="#gap-pill">Gap</a>
+          <a class="dropdown-item" data-toggle="pill" href="#gap-distribution-pill">Gap distribution</a>
+          <a class="dropdown-item" data-toggle="pill" href="#cluster-size-distribution-pill">Cluster size
+            distribution</a>
+        </div>
+
+      </li>
+    {% endif %}
+    {% if analyses_failure %}
+      <li class="nav-item" style="list-style-type: none;">
+        {# Use href with card_id because the included HTML uses this too #}
+        <a class="nav-link" data-toggle="pill" href="#failures-pill-{{ card_id }}" role="tab">Failures</a>
+      </li>
+    {% endif %}
+    {% if not analyses_unready %}
+      <li class="nav-item">
+        <a class="nav-link" data-toggle="pill" href="#notes-pill">Notes</a>
+      </li>
+    {% endif %}
+  </ul>
+
+{% endblock card_header %}
+
+
+{% block card_body %}
+
+  <div class="row">
+
+    {# Left side #}
+    <div class="col-sm-6">
+      {% include 'analysis/analyses_alerts.html' %}
+
+      {% if not analyses_unready %}
+      <div class="container">
+            {% if not analyses_unready and analyses_success %}
+              {# Show all analyses for which we have results #}
+              {{ plot_div | safe }}
+            {% endif %}
+      </div>
+      {% endif %}
+
+    </div>
+
+
+    {# Right side #}
+    <div class="col-sm-6">
+          {# Tab contents on right side #}
+
+          <div class="tab-content">
+            <div class="tab-pane container active" id="tools-pill">
+
+              {# BUTTON "TASK INFORMATION" #}
+              <div class="row p-3">
+                <div class="col-6">
+                  {% if analyses_available and not analyses_unready %}
+                    <a class="btn btn-default btn-block btn-lg" href="#" data-toggle="modal"
+                       data-target="#statusesModal-{{ card_id }}">{% fontawesome_icon 'tasks' %} Task information</a>
+                  {% endif %}
+                </div>
+              </div>
+
+              {% if not analyses_unready and analyses_success %}
+              {# BUTTON "DOWNLOAD" #}
+              <div class="row p-3">
+                <div class="col-6">
+                  <a id="download" class="btn btn-default btn-block btn-lg"
+                  href="{% url 'analysis:download' analyses_success|analyses_results_ids_list_str 'contact mechanics' 'zip' %}">
+                    {% fontawesome_icon 'download' %} Download
+                  </a>
+                </div>
+              </div>
+              {% endif %}
+
+              {# BUTTON "BACK TO SEARCH RESULTS" #}
+              <div class="row p-3">
+                <div class="col-6">
+
+                  <a href="{% url 'analysis:list' %}"
+                     class="btn btn-default btn-block btn-lg">
+                    {% fontawesome_icon 'list' %} Back to search results
+                  </a>
+                </div>
+              </div>
+
+              {# ELEMENTS FOR TRIGGERING A CALCULATION #}
+              {% if not analyses_unready %}
+              <div class="row p-1">
+                <div class="col-6">
+
+                  <form>
+                    <div class="form-group row">
+
+                      {# Substrate selection #}
+
+                      <div class="input-group col-auto">
+                        <div class="input-group-prepend">
+                          <div class="input-group-text">
+                            Type
+                          </div>
+
+                        </div>
+                        <select class="custom-select" id="substrate-select">
+                          <option value="periodic" selected>Periodic (repeating array of the topography)</option>
+                          <option value="nonperiodic">Free boundaries (flat punch with topography)</option>
+                        </select>
+                        <div class="input-group-append">
+                          <div class="input-group-text">
+                            <i class="fa fa-info-circle" data-toggle="popover"
+                               tabindex="0" data-trigger="focus" role="button"
+                               title="Type of calculation"
+                               data-content="This option determines how the elastic interactions are calculated.
+                                       This affects edge effects that may show up in the results at large contact area.
+                                       Calculations can assume that the surface repeats periodically or that it is pushing down on a nonperiodic,
+                                       infinitely expanded half-space. The latter option corresponds to mapping the surface topography on a flat punch."></i>
+                          </div>
+                        </div>
+                      </div>
+
+                      {# Hardness input #}
+                      <div class="input-group col-auto">
+
+                        <div class="input-group-prepend">
+                          <div class="input-group-text">
+                            Hardness
+                          </div>
+                          <div class="input-group-text">
+                            <input id="hardness-checkbox" type="checkbox" aria-label="enable-hardness">
+                          </div>
+                        </div>
+                        <input id="hardness-input" type="number" min="0" step="0.1" class="form-control"
+                               disabled="true"
+                          {# will be clicked automatically if hardness was given in arguments, see below #}
+                               value="{{ initial_calc_kwargs.hardness }}">
+                        <div class="input-group-append ">
+                          <div class="input-group-text">
+                            E<sup>*</sup>
+                          </div>
+                          <div class="input-group-text">
+                            <i class="fa fa-info-circle" data-toggle="popover"
+                               tabindex="0" data-trigger="focus" role="button"
+                               title="Hardness"
+                               data-content="Setting a hardness enables plastic calculations. Local pressure cannot exceed hardness value."></i>
+                          </div>
+                        </div>
+                        <!--
+                             -->
+                      </div>
+                      <div class="input-group col-auto">
+                        <div class="input-group-prepend">
+                          <div class="input-group-text">
+                            Number of steps
+                          </div>
+                        </div>
+                        <input id='nsteps-input' type="number" min="0" max="50" step="1" class="form-control"
+                               value="{{ initial_calc_kwargs.nsteps }}">
+                      </div>
+
+                    </div>
+                  </form>
+
+                </div>
+              </div>
+
+              <div class="row p-1">
+                <div class="col-6">
+                  <a id="recalculate" class="btn btn-primary btn-block btn-lg">
+                    {% fontawesome_icon 'repeat' %} Recalculate
+                  </a>
+                </div>
+              </div>
+
+              {% endif %}
+
+            </div>
+
+            {% if not analyses_unready %}
+            <div class="tab-pane fade" id="contact-geometry-pill">
+              <div id="contact-geometry" class="alert alert-info">For contact geometry, select a point in the graphs on the left!</div>
+            </div>
+            <div class="tab-pane fade" id="contact-pressure-pill">
+              <div id="contact-pressure" class="alert alert-info">For contact pressure, select a point in the graphs on the left!</div>
+            </div>
+            <div class="tab-pane fade" id="pressure-distribution-pill">
+              <div id="pressure-distribution" class="alert alert-info">For pressure distribution, select a point in the graphs on the left!</div>
+            </div>
+            <div class="tab-pane fade" id="displacement-pill">
+              <div id="displacement" class="alert alert-info">For displacement, select a point in the graphs on the left!</div>
+            </div>
+            <div class="tab-pane fade" id="gap-pill">
+              <div id="gap" class="alert alert-info">For gap, select a point in the graphs on the left!</div>
+            </div>
+            <div class="tab-pane fade" id="gap-distribution-pill">
+              <div id="gap-distribution" class="alert alert-info">For gap distribution, select a point in the graphs on the left!</div>
+            </div>
+            <div class="tab-pane fade" id="cluster-size-distribution-pill">
+              <div id="cluster-size-distribution" class="alert alert-info">For cluser size distribution, select a point in the graphs on the left!</div>
+            </div>
+            <div class="tab-pane fade" id="notes-pill">
+              <div class="alert alert-info">
+                Translucent data points did not converge within iteration limit and may carry large errors.
+                <i>A</i> is the true contact area and <i>A0</i> the apparent contact area,
+                i.e. the size of the provided topography.
+              </div>
+            </div>
+            {% endif %}
+            {% include 'analysis/analyses_failure_tab_pane.html' %}
+
+          </div>
+    </div>
+
+  </div>
+{% endblock card_body %}
+
+{% block card_javascript %}
+
+  {% if not analyses_unready and analyses_success %}
+    {# Insert the script code needed for the plot #}
+    {{ plot_script | safe }}
+{#    {{ load_plot_script | safe }}#}
+  {% endif %}
+
+  {# Additonal code for initialization #}
+  <script>
+
+  function debug_msg(msg) {
+    alert("Debug: "+msg);
+    console.log("Debug: "+msg);
+  }
+
+  function activate_pill(pill){
+    $('.nav-pills a[href="#' + pill + '"]').tab('show');
+  };
+
+  function is_pill_activated(pill){
+    return $('.nav-pills a[href="#' + pill + '"]').hasClass("active");
+  };
+
+
+  function selection_handler(obj, data, sources) {
+    var selected = data.source.selected;
+    var index = selected.indices[0];
+    var name = data.source.name; // name of source = topography name
+
+    var analysis_id = name.split('-')[1];
+
+    console.log("Selected index: "+index+" in source: "+name+" -> analysis_id: "+analysis_id);
+
+
+
+    // console.log("Sources: "+sources);
+    // setting indices selects points
+    // console.log("Object:"); console.dir(obj);
+    // console.log("Data:"); console.dir(data);
+
+
+    /**
+     * Make sure only the selection for one topography is active
+     * and deselect all others
+     */
+    for (i=0; i<sources.length; i++) {
+      var selection = []; // default: unselect all points
+      var s = sources[i];
+
+      if (s == data.source) {
+        // console.log("Skipping source "+s+" ...");
+        continue; // we do not modify the source for the clicked point, should be okay as bokeh does it
+      }
+
+      if (name == s.name) {
+        selection = [index]; // if name of source is same as clicked point, select point equivalent point there
+      }
+
+      // console.log("Selection for source "+s+": "+selection);
+      sources[i].selected.indices = selection;
+
+    }
+
+    /**
+     * Trigger loading of extra data by using analysis id and index of point
+     */
+
+    var tab_names = ['contact-geometry', 'contact-pressure', 'displacement', 'gap',
+                     'pressure-distribution', 'gap-distribution', 'cluster-size-distribution'];
+
+    tab_names.forEach(function(tn){
+      var div = $('#'+tn);
+      div.html(""); // Delete all old contents
+      div.addClass('spinner');
+    });
+
+    if (is_pill_activated('tools-pill')) {
+      activate_pill('contact-geometry-pill');
+    }
+
+    $.ajax({
+          type: "POST",
+          url: "{% url 'analysis:contact-mechanics-data' %}",
+          timeout: 0,
+          data: {
+            analysis_id: analysis_id,
+            index: index,
+            csrfmiddlewaretoken: "{{csrf_token}}"
+          },
+          success : function(data, textStatus, xhr) {
+            // debug_msg("Job submission successful. Status: "+xhr.status+" textStatus: "+textStatus+" data: "+data.data_path);
+
+            tab_names.forEach(function(tn){
+              var div = $('#'+tn);
+              div.removeClass('spinner alert alert-info');
+              div.html(""); // Delete all old contents
+
+              var plot = JSON.parse(data[tn]);
+              Bokeh.embed.embed_item(plot, tn); // in Python code, the correct tab names must be used
+            });
+
+          },
+          error: function(xhr, textStatus, errorThrown) {
+            console.log("AJAX error when submitting jobs: errorThrown: "+errorThrown+" status: " +xhr.status+" responseText: "+xhr.responseText);
+
+            // show the error in a prominent way
+            tab_names.forEach(function(tn) {
+              var div = $('#' + tn);
+              div.removeClass('spinner alert alert-info');
+              div.html("Please report this error: " + errorThrown + xhr.status + xhr.responseText);
+              div.addClass("alert alert-danger");
+            });
+          }
+        });
+
+
+  }
+
+
+
+  // enable all popovers in the document
+  $(document).ready(function() {
+    $('[data-toggle="popover"]').popover();
+
+    // set value for substrate based on initial value
+    $("#substrate-select").val("{{ initial_calc_kwargs.substrate_str }}");
+
+
+    var hardness_checkbox = $("#hardness-checkbox");
+
+    hardness_checkbox.click( function () {
+      var hardness_input = $("#hardness-input");
+      if (hardness_checkbox.prop("checked")) {
+        hardness_input.prop("disabled", false);
+      } else {
+        hardness_input.prop("disabled", true);
+      }
+    });
+
+    // check checkbox or not, depending on whether there is an initial value for hardness or not
+    {% if initial_calc_kwargs.hardness %}
+      hardness_checkbox.click()
+    {% endif %}
+
+
+    $("#recalculate").click( function() {
+
+         var substrate_str = $('#substrate-select').val();
+         var hardness = null;
+         var nsteps = parseInt($('#nsteps-input').val());
+
+         if ($('#hardness-checkbox').prop("checked") == true) {
+           hardness = parseFloat($('#hardness-input').val());
+         };
+
+         // debug_msg("Clicked button. substrate: "+substrate_str+" hardness: "+hardness+" nsteps: "+nsteps);
+
+         $.ajax({
+          type: "POST",
+          url: "{% url 'analysis:card-submit' %}",
+          timeout: 0,
+          data: {
+            function_id: {{ function.id }},
+            topography_ids: {{ topography_ids_requested_json|safe }},
+            function_kwargs_json: JSON.stringify({ 'substrate_str': substrate_str, 'hardness': hardness, 'nsteps': nsteps}),
+            csrfmiddlewaretoken: "{{csrf_token}}"
+          },
+          success : function(data, textStatus, xhr) {
+            // debug_msg("Job submission successful. Status: "+xhr.status+" textStatus: "+textStatus);
+            if (xhr.status==200) {
+              console.log("Triggering reload of card");
+              submit_analyses_card_ajax("{% url 'analysis:card' %}", "card", "detail", {{ function.id }},{{ topography_ids_requested_json|safe }}, true);
+              // debug_msg("Triggered card reload. Status: "+xhr.status+" textStatus: "+textStatus);
+            } else {
+              console.log("Submitting analyses failed");
+              var div = $('#contact_area_vs_load'); // show the error in a prominent way
+              $(div).html("Triggering calculation failed, status: "+xhr.status+" response:"+xhr.responseText);
+              $(div).addClass("alert alert-danger");
+            }
+          },
+          error: function(xhr, textStatus, errorThrown) {
+            console.log("AJAX error when submitting jobs: errorThrown: "+errorThrown+" status: " +xhr.status+" responseText: "+xhr.responseText);
+            var div = $('#contact_area_vs_load'); // show the error in a prominent way
+            $(div).html("Please report this error: "+errorThrown+xhr.status+xhr.responseText);
+            $(div).addClass("alert alert-danger");
+          }
+        });
+
+     });
+
+  });
+
+  </script>
+{% endblock card_javascript %}

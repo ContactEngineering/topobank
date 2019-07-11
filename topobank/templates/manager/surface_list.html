@@ -64,12 +64,24 @@
   {{ form.media.js }}
 
   <script>
+
+    /** Use this as start when loading new cards without form submission
+    $('.django-select2').on('change.select2', function (e) {
+       var data = e.params.data;
+       console.log("select, data "+data);
+       console.dir(data);
+    });
+    */
+
     // for each surface submit ajax call to insert a bootstrap card
     $(document).ready(function () {
       {% url 'manager:surface-card' as card_url %}
       {% for surface in surfaces %}
-        submit_surface_card_ajax("{{ card_url }}", {{ surface.id }});
+        submit_surface_card_ajax("{{ card_url }}", {{ surface.id }}, "{{ request.path }}");
       {% endfor %}
     });
+
+    // we don't want error messages if the page is left before everything is loaded
+    install_handler_for_aborting_all_ajax_calls_on_page_leave();
   </script>
 {% endblock javascript %}

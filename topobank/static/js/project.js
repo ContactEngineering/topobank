@@ -78,21 +78,6 @@ function surface_summary_plot(element, bandwidths_data) {
     click_interaction.attachTo(plot);
 
     //
-    // Adjust color of bar when moving over
-    //
-    var move_interaction = new Plottable.Interactions.Pointer();
-    move_interaction.onPointerMove(function(p) {
-      plot.entities().forEach(function(entity) {
-        entity.selection.attr("fill", inactiveBarColor);
-      });
-      var entities = plot.entitiesAt(p);
-      if (entities.length > 0) {
-          entities[0].selection.attr("fill", activeBarColor);
-      }
-    });
-    move_interaction.attachTo(plot);
-
-    //
     // Arrange components and render
     //
     var chart = new Plottable.Components.Table([
@@ -102,6 +87,45 @@ function surface_summary_plot(element, bandwidths_data) {
     ]);
 
     chart.renderTo(element);
+
+    // Initializing tooltip anchor
+    var tooltipAnchorSelection = plot.foreground().append("rect").attr("opacity", 0);
+
+    var tooltipAnchor = $(tooltipAnchorSelection.node());
+    tooltipAnchor.tooltip({
+        animation: false,
+        container: "body",
+        placement: "auto",
+        title: "text",
+        trigger: "manual"
+    });
+
+    //
+    // Adjust color of bar and show tooltip when moving over
+    //
+    var move_interaction = new Plottable.Interactions.Pointer();
+    move_interaction.onPointerMove(function(p) {
+      plot.entities().forEach(function(entity) {
+        entity.selection.attr("fill", inactiveBarColor);
+      });
+      var entities = plot.entitiesAt(p);
+      if (entities.length > 0) {
+          entities[0].selection.attr("fill", activeBarColor);
+          tooltipAnchor.attr({
+              "x": entities[0].bounds.x,
+              "y": entities[0].bounds.y,
+              "width": entities[0].bounds.width,
+              "height": entities[0].bounds.height,
+              "data-original-title": entities[0].datum.name
+          });
+          tooltipAnchor.position({of: entities[0]});
+          tooltipAnchor.tooltip("show");
+      }
+    });
+    move_interaction.onPointerExit(function() {
+      tooltipAnchor.tooltip("hide");
+    });
+    move_interaction.attachTo(plot);
 
     window.addEventListener("resize", function () {
       chart.redraw();
@@ -196,8 +220,9 @@ function format_exponential(d, maxNumberOfDecimalPlaces) {
  * @param template_flavor {String} defines which template should be finally used (e.g. 'list', 'detail')
  * @param function_id {Number} Integer number of the analysis function which should be displayed
  * @param topography_ids {Object} list of integer numbers with ids of topographies which should be displayed
+ * @param first_call {Boolean} true if this is the first call in a chain of ajax calls
  */
-function submit_analyses_card_ajax(card_url, card_element_id, template_flavor, function_id, topography_ids) {
+function submit_analyses_card_ajax(card_url, card_element_id, template_flavor, function_id, topography_ids, first_call) {
 
       var jquery_card_selector = "#"+card_element_id;
 
@@ -212,21 +237,27 @@ function submit_analyses_card_ajax(card_url, card_element_id, template_flavor, f
            topography_ids: topography_ids
         },
         success : function(data, textStatus, xhr) {
-          // console.log("Received response for card '"+card_element_id+"'. Status: "+xhr.status)
-          $(jquery_card_selector).html(data); // insert resulting HTML code
+
+          if (first_call || (xhr.status==200) ) {
+            $(jquery_card_selector).html(data); // insert resulting HTML code
+            // We want to only insert cards on first and last call and
+            // only once if there is only one call.
+          }
           if (xhr.status==202) {
-            // Data is not ready, retrigger AJAX call
+            // Not all analyses are ready, retrigger AJAX call
             console.log("Analyses for card with element id '"+card_element_id+"' not ready. Retrying..");
             setTimeout(function () {
-              submit_analyses_card_ajax(card_url, card_element_id, template_flavor, function_id, topography_ids);
+              submit_analyses_card_ajax(card_url, card_element_id, template_flavor, function_id, topography_ids, false);
             }, 1000); // TODO limit number of retries?
           }
         },
         error: function(xhr, textStatus, errorThrown) {
           // console.log("Error receiving response for card '"+card_element_id+"'. Status: "+xhr.status
           //            +" Response: "+xhr.responseText)
-          $(jquery_card_selector).html("Please report this error: "+errorThrown+xhr.status+xhr.responseText);
-          $(jquery_card_selector).addClass("alert alert-danger");
+          if (errorThrown != "abort") {
+              $(jquery_card_selector).html("Please report this error: " + errorThrown + " " + xhr.status + " " + xhr.responseText);
+              $(jquery_card_selector).addClass("alert alert-danger");
+          }
         }
       });
 }
@@ -236,8 +267,9 @@ function submit_analyses_card_ajax(card_url, card_element_id, template_flavor, f
  *
  * @param card_url {String} URL to call in order to get card content as HTTP response
  * @param surface_id {Number} Id of the surface being displayed
+ * @param parent_path {String} URL which can be used to provide a target on pressing cancel button
  */
-function submit_surface_card_ajax(card_url, surface_id) {
+function submit_surface_card_ajax(card_url, surface_id, parent_path) {
 
       var jquery_card_selector = "#card-"+surface_id;
 
@@ -249,6 +281,7 @@ function submit_surface_card_ajax(card_url, surface_id) {
         timeout: 0,
         data: {
            surface_id: surface_id,
+           parent_path: parent_path
         },
         success : function(data, textStatus, xhr) {
             // console.log("Received response for card '" + jquery_card_selector + "'. Status: " + xhr.status);
@@ -263,10 +296,52 @@ function submit_surface_card_ajax(card_url, surface_id) {
         error: function(xhr, textStatus, errorThrown) {
           // console.log("Error receiving response for card '"+card_element_id+"'. Status: "+xhr.status
           //            +" Response: "+xhr.responseText)
-          $(jquery_card_selector).html("Please report this error: "+errorThrown+xhr.status+xhr.responseText);
-          $(jquery_card_selector).addClass("alert alert-danger");
+          if (errorThrown != "abort") {
+              $(jquery_card_selector).html("Please report this error: " + errorThrown + " " + xhr.status + " " +xhr.responseText);
+              $(jquery_card_selector).addClass("alert alert-danger");
+          }
         }
       });
+}
+
+/*
+ * Install a handler which aborts all running AJAX calls when leaving the page
+ */
+function install_handler_for_aborting_all_ajax_calls_on_page_leave() {
+
+    // taken from https://stackoverflow.com/a/10701856/10608001, thanks grr, kzfabi on Stackoverflow!
+
+    // Automatically cancel unfinished ajax requests
+    // when the user navigates elsewhere.
+    (function($) {
+      var xhrPool = [];
+      $(document).ajaxSend(function(e, jqXHR, options){
+        xhrPool.push(jqXHR);
+        // console.log("Added AJAX to pool. Now "+xhrPool.length+" AJAX calls in pool.");
+      });
+      $(document).ajaxComplete(function(e, jqXHR, options) {
+        xhrPool = $.grep(xhrPool, function(x){return x!=jqXHR});
+        // console.log("Removed AJAX from pool. Now "+xhrPool.length+" AJAX calls in pool.");
+      });
+      var abort_all_ajax_calls = function() {
+        // console.log("Aborting all "+xhrPool.length+" AJAX calls..");
+        $.each(xhrPool, function(idx, jqXHR) {
+          jqXHR.abort();
+        });
+      };
+
+      var oldbeforeunload = window.onbeforeunload;
+      window.onbeforeunload = function() {
+        var r = oldbeforeunload ? oldbeforeunload() : undefined;
+        if (r == undefined) {
+          // only cancel requests if there is no prompt to stay on the page
+          // if there is a prompt, it will likely give the requests enough time to finish
+          abort_all_ajax_calls();
+        }
+        return r;
+      }
+    })(jQuery);
+
 }
 
 

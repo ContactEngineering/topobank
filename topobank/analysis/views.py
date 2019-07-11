@@ -4,31 +4,39 @@ import json
 import numpy as np
 import itertools
 from collections import OrderedDict
+from io import BytesIO
+import zipfile
+import os.path
 
-from django.http import HttpResponse, HttpResponseForbidden, Http404, JsonResponse
+from django.http import HttpResponse, HttpResponseForbidden, Http404, JsonResponse, HttpResponseBadRequest
 from django.views.generic import DetailView, FormView, TemplateView
 from django.urls import reverse_lazy
-from django.contrib import messages
 from django.db.models import Q
 from django.conf import settings
 from django import template
 from rest_framework.generics import RetrieveAPIView
+from django.core.files.storage import default_storage
+from django.core.cache import cache # default cache
 
 from bokeh.layouts import row, column, widgetbox
-from bokeh.models import ColumnDataSource, CustomJS
+from bokeh.models import ColumnDataSource, CustomJS, TapTool, Circle
 from bokeh.palettes import Category10
 from bokeh.models.formatters import FuncTickFormatter
 from bokeh.models.ranges import DataRange1d
 from bokeh.plotting import figure
-from bokeh.embed import components
-from bokeh.models.widgets import CheckboxGroup
+from bokeh.embed import components, json_item
+from bokeh.models.widgets import CheckboxGroup, Tabs, Panel
 from bokeh.models.widgets.markups import Paragraph
+from bokeh.models import Legend, LinearColorMapper, ColorBar, CategoricalColorMapper
+
+import xarray as xr
 
 from pint import UnitRegistry, UndefinedUnitError
 
 from guardian.shortcuts import get_objects_for_user
 
 import PyCo
+from PyCo.Tools.ContactAreaAnalysis import patch_areas, assign_patch_numbers
 
 from ..manager.models import Topography, Surface
 from ..manager.utils import selected_instances, selection_from_session
@@ -44,7 +52,7 @@ _log = logging.getLogger(__name__)
 SMALLEST_ABSOLUT_NUMBER_IN_LOGPLOTS = 1e-18
 MAX_NUM_POINTS_FOR_SYMBOLS = 50
 
-CARD_VIEW_FLAVORS = ['simple', 'plot', 'power spectrum']
+CARD_VIEW_FLAVORS = ['simple', 'plot', 'power spectrum', 'contact mechanics']
 
 def card_view_class(card_view_flavor):
     if card_view_flavor not in CARD_VIEW_FLAVORS:
@@ -133,6 +141,9 @@ class SimpleCardView(TemplateView):
         The returned dict has the following keys:
 
           card_id: A CSS id referencing the card which is to be delivered
+          title: card title
+          function: AnalysisFunction instance
+          unique_kwargs: dict with common kwargs for all analyses, None if not unique
           analysis_available: queryset of all analyses which are relevant for this view
           analyses_success: queryset of successfully finished analyses (result is useable, can be displayed)
           analyses_failure: queryset of analyses finished with failures (result has traceback, can't be displayed)
@@ -183,12 +194,25 @@ class SimpleCardView(TemplateView):
         topographies_missing = [Topography.objects.get(id=tid) for tid in topography_ids
                                 if tid not in topographies_available_ids]
 
+        #
+        # collect all keyword arguments and check whether they are equal
+        #
+        unique_kwargs = None # means: there are differences
+        for av in analyses_avail:
+            kwargs = pickle.loads(av.kwargs)
+            if unique_kwargs is None:
+                unique_kwargs = kwargs
+            elif kwargs != unique_kwargs:
+                unique_kwargs = None
+                break
+
         function = AnalysisFunction.objects.get(id=function_id)
 
         context.update(dict(
             card_id=card_id,
             title=function.name,
             function=function,
+            unique_kwargs=unique_kwargs,
             analyses_available=analyses_avail,  # all Analysis objects related to this card
             analyses_success=analyses_success,  # ..the ones which were successful and can be displayed
             analyses_failure=analyses_failure,  # ..the ones which have failures and can't be displayed
@@ -250,8 +274,8 @@ class PlotCardView(SimpleCardView):
         first_analysis_result = analyses_success[0].result_obj
         title = first_analysis_result['name']
 
-        xunit = first_analysis_result['xunit']
-        yunit = first_analysis_result['yunit']
+        xunit = first_analysis_result['xunit'] if 'xunit' in first_analysis_result else None
+        yunit = first_analysis_result['yunit'] if 'yunit' in first_analysis_result else None
 
         ureg = UnitRegistry()  # for unit conversion for each analysis individually, see below
 
@@ -264,8 +288,12 @@ class PlotCardView(SimpleCardView):
         def get_axis_type(key):
             return first_analysis_result.get(key) or "linear"
 
-        x_axis_label = first_analysis_result['xlabel'] + f' ({xunit})'
-        y_axis_label = first_analysis_result['ylabel'] + f' ({yunit})'
+        x_axis_label = first_analysis_result['xlabel']
+        if xunit is not None:
+            x_axis_label += f' ({xunit})'
+        y_axis_label = first_analysis_result['ylabel']
+        if yunit is not None:
+            y_axis_label += f' ({yunit})'
 
         #
         # Create the plot figure
@@ -330,14 +358,26 @@ class PlotCardView(SimpleCardView):
             #
             analysis_result = analysis.result_obj
 
-            try:
-                analysis_xscale = ureg.convert(1, xunit, analysis_result['xunit'])
-                analysis_yscale = ureg.convert(1, yunit, analysis_result['yunit'])
-            except UndefinedUnitError as exc:
-                _log.error("Cannot convert units when displaying results for analysis with id %s. Cause: %s",
-                           analysis.id, str(exc))
-                continue
-                # TODO How to handle such an error here? Notification? Message in analysis box?
+            if xunit is None:
+                analysis_xscale = 1
+            else:
+                try:
+                    analysis_xscale = ureg.convert(1, analysis_result['xunit'], xunit)
+                except UndefinedUnitError as exc:
+                    _log.error("Cannot convert units when displaying results for analysis with id %s. Cause: %s",
+                               analysis.id, str(exc))
+                    continue
+                    # TODO How to handle such an error here? Notification? Message in analysis box?
+            if yunit is None:
+                analysis_yscale = 1
+            else:
+                try:
+                    analysis_yscale = ureg.convert(1, analysis_result['yunit'], yunit)
+                except UndefinedUnitError as exc:
+                    _log.error("Cannot convert units when displaying results for analysis with id %s. Cause: %s",
+                               analysis.id, str(exc))
+                    continue
+                    # TODO How to handle such an error here? Notification? Message in analysis box?
 
             for s in series:
                 # One could use AjaxDataSource for retrieving the results, but useful if we are already in AJAX call?
@@ -483,8 +523,164 @@ class PlotCardView(SimpleCardView):
 class PowerSpectrumCardView(PlotCardView):
     pass
 
+class ContactMechanicsCardView(SimpleCardView):
 
-def submit_analyses_view(request):
+
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        analyses_success = context['analyses_success']
+
+        if len(analyses_success) == 0:
+            #
+            # Prepare plot, controls, and table with special values..
+            #
+            context.update(
+                dict(plot_script="",
+                     plot_div="No successfully finished analyses available")
+            )
+        else:
+
+            #
+            # Generate two plots in two tabs based on same data sources
+            #
+            sources = []
+            labels = []
+            for analysis in analyses_success:
+                analysis_result = analysis.result_obj
+
+                data = dict(
+                    mean_pressure=analysis_result['mean_pressures'],
+                    total_contact_area=analysis_result['total_contact_areas'],
+                    mean_displacement=analysis_result['mean_displacements'],
+                    mean_gap=analysis_result['mean_gaps'],
+                    fill_alpha=[1 if c else 0.3 for c in analysis_result['converged']],
+                    data_path=analysis_result['data_paths'])
+                # here, for not convergent points we plot a circle with an x
+
+
+                # the name of the data source is used in javascript in
+                # order to find out the analysis id
+                source = ColumnDataSource(data, name="analysis-{}".format(analysis.id))
+
+                sources.append(source)
+                labels.append(analysis.topography.name)
+
+            load_axis_label = "Normalized pressure p/E*"
+            area_axis_label = "Fractional contact area A/A0"
+            disp_axis_label = "Normalized mean gap u/h_rms"
+
+            color_cycle = itertools.cycle(Category10[10])
+
+            callback = CustomJS(args=dict(sources=sources), code="selection_handler(cb_obj, cb_data, sources);")
+
+            tap = TapTool(behavior='select', callback=callback)
+
+            tools = ["pan", "reset", "save", "wheel_zoom", "box_zoom", tap]
+
+            contact_area_plot = figure(title=None,
+                      plot_height=400,
+                      sizing_mode='scale_width',
+                      x_axis_label=load_axis_label,
+                      y_axis_label=area_axis_label,
+                      x_axis_type="log",
+                      y_axis_type="log", tools=tools)
+
+            contact_area_plot.xaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
+            contact_area_plot.yaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
+
+            load_plot = figure(title=None,
+                               plot_height=400,
+                               sizing_mode='scale_width',
+                               x_axis_label=disp_axis_label,
+                               y_axis_label=load_axis_label,
+                               x_axis_type="linear",
+                               y_axis_type="log",tools=tools)
+
+            load_plot.yaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
+
+            contact_area_legend_items = []
+            load_legend_items = []
+
+            for source, label in zip(sources, labels):
+                curr_color = next(color_cycle)
+                r1 = contact_area_plot.circle('mean_pressure', 'total_contact_area',
+                                               source=source,
+                                               fill_alpha='fill_alpha', # to indicate if converged or not
+                                               fill_color=curr_color,
+                                               line_color=None,
+                                               size=12)
+                r2 = load_plot.circle('mean_gap', 'mean_pressure',
+                                      source=source,
+                                      fill_alpha='fill_alpha',  # to indicate if converged or not
+                                      fill_color=curr_color,
+                                      line_color=None,
+                                      size=12)
+
+                contact_area_legend_items.append((label, [r1]))
+                load_legend_items.append((label, [r2]))
+
+                selected_circle = Circle(fill_alpha='fill_alpha', fill_color=curr_color,
+                                         line_color="black", line_width=4)
+                nonselected_circle = Circle(fill_alpha='fill_alpha', fill_color=curr_color,
+                                            line_color=None)
+
+                for renderer in [r1,r2]:
+                    renderer.selection_glyph = selected_circle
+                    renderer.nonselection_glyph = nonselected_circle
+
+            _configure_plot(contact_area_plot)
+            _configure_plot(load_plot)
+
+            #
+            # Legend
+            #
+            contact_area_legend = Legend(items=contact_area_legend_items)
+            contact_area_legend.click_policy = 'hide'
+            load_legend = Legend(items=load_legend_items)
+            load_legend.click_policy = 'hide'
+
+            contact_area_plot.add_layout(contact_area_legend, "below")
+            load_plot.add_layout(load_legend, "below")
+
+            #
+            # Layout plot
+            #
+            contact_area_tab = Panel(child=contact_area_plot, title="Contact area versus load")
+            load_tab = Panel(child=load_plot, title="Load versus displacement")
+
+            tabs = Tabs(tabs=[contact_area_tab, load_tab])
+            col = column(tabs, sizing_mode='scale_width')
+
+            plot_script, plot_div = components(col)
+
+            context.update(plot_script=plot_script, plot_div=plot_div)
+
+        unique_kwargs = context['unique_kwargs']
+        if unique_kwargs:
+            initial_calc_kwargs = unique_kwargs
+        else:
+            # default initial arguments for form if we don't have unique common arguments
+            initial_calc_kwargs = dict(substrate_str='periodic',
+                                       hardness=None,
+                                       nsteps=10)
+
+        context['initial_calc_kwargs'] = initial_calc_kwargs
+
+        return context
+
+
+def _configure_plot(plot):
+    plot.toolbar.logo = None
+    plot.toolbar.active_inspect = None
+    plot.xaxis.axis_label_text_font_style = "normal"
+    plot.yaxis.axis_label_text_font_style = "normal"
+    plot.xaxis.major_label_text_font_size = "12pt"
+    plot.yaxis.major_label_text_font_size = "12pt"
+
+
+def submit_analyses_view(request): # TODO use REST framework?
     """Submits analyses.
     :param request:
     :return: HTTPResponse
@@ -492,14 +688,13 @@ def submit_analyses_view(request):
     if not request.is_ajax():
         return Http404
 
-    request_method = request.POST # TODO POST because this view changes sth.
+    request_method = request.POST
 
     # args_dict = request_method
     try:
         function_id = int(request_method.get('function_id'))
         topography_ids = [int(tid) for tid in request_method.getlist('topography_ids[]')]
         function_kwargs_json = request_method.get('function_kwargs_json')
-        # function_window = request_method.get('function_kwargs[window]')
     except (KeyError, ValueError, TypeError):
         return JsonResponse({'error': 'error in request data'}, status=400)
 
@@ -510,10 +705,250 @@ def submit_analyses_view(request):
     topographies = Topography.objects.filter(id__in=topography_ids)
     function_kwargs = json.loads(function_kwargs_json)
 
+    allowed = True
     for topo in topographies:
-        submit_analysis(function, topo, **function_kwargs)
+        allowed &= request.user.has_perm('view_surface', topo.surface) # TODO discuss who is allowed to trigger calculations
+        if not allowed:
+            break
 
-    return JsonResponse({}, status=200) # what to return here? 200 means: successfully triggered calculations
+    if allowed:
+        for topo in topographies:
+            submit_analysis(function, topo, **function_kwargs)
+        status = 200
+    else:
+        status = 403
+
+    return JsonResponse({}, status=status)
+
+
+def _contact_mechanics_geometry_figure(values, frame_width, frame_height, topo_unit, topo_size, title=None, value_unit=None):
+    """
+
+    :param values: 2D numpy array
+    :param frame_width:
+    :param frame_height:
+    :param topo_unit:
+    :param topo_size:
+    :param title:
+    :param value_unit:
+    :return:
+    """
+
+    x_range = DataRange1d(start=0, end=topo_size[0], bounds='auto', range_padding=5)
+    y_range = DataRange1d(start=0, end=topo_size[1], bounds='auto', range_padding=5)
+
+    p = figure(title=title,
+               x_range=x_range,
+               y_range=y_range,
+               frame_width=frame_width,
+               frame_height=frame_height,
+               sizing_mode="scale_both",
+               x_axis_label="Position x ({})".format(topo_unit),
+               y_axis_label="Position y ({})".format(topo_unit),
+               match_aspect=True,
+               toolbar_location="above")
+
+    boolean_values = values.dtype == np.bool
+
+    if boolean_values:
+        color_mapper = LinearColorMapper(palette=["black", "white"], low=0, high=1)
+    else:
+        min_val = values.min()
+        max_val = values.max()
+
+        color_mapper = LinearColorMapper(palette='Viridis256', low=min_val, high=max_val)
+
+    p.image([values], x=0, y=0, dw=topo_size[0], dh=topo_size[1], color_mapper=color_mapper)
+
+    if not boolean_values:
+        colorbar = ColorBar(color_mapper=color_mapper,
+                            label_standoff=12,
+                            location=(0,0),
+                            title=value_unit)
+
+        p.add_layout(colorbar, "right")
+
+    _configure_plot(p)
+
+    return p
+
+
+def _contact_mechanics_distribution_figure(values, x_axis_label, y_axis_label,
+                                           frame_width, frame_height,
+                                           x_axis_type='auto',
+                                           y_axis_type='auto',
+                                           title=None):
+
+    hist, edges = np.histogram(values, density=True, bins=50)
+
+    p = figure(title=title,
+               frame_width=frame_width,
+               frame_height=frame_height,
+               sizing_mode='scale_width',
+               x_axis_label=x_axis_label,
+               y_axis_label=y_axis_label,
+               x_axis_type=x_axis_type,
+               y_axis_type=y_axis_type,
+               toolbar_location="above")
+
+    if x_axis_type == "log":
+        p.xaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
+    if y_axis_type == "log":
+        p.yaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
+
+    p.step(edges[:-1], hist, mode="before", line_width=2)
+
+    _configure_plot(p)
+
+    return p
+
+def _contact_mechanics_displacement_figure():
+    pass
+
+
+def contact_mechanics_data(request):
+    """Loads extra data for an analysis card
+
+    :param request:
+    :return:
+    """
+    if not request.is_ajax():
+        return Http404
+
+    request_method = request.POST
+
+    try:
+        analysis_id = int(request_method.get('analysis_id'))
+        index = int(request_method.get('index'))
+    except (KeyError, ValueError, TypeError):
+        return JsonResponse({'error': 'error in request data'}, status=400)
+
+    #
+    # Interpret given arguments
+    #
+    analysis = Analysis.objects.get(id=analysis_id)
+
+    unit = analysis.topography.unit
+
+    if request.user.has_perm('view_surface', analysis.topography.surface):
+
+        #
+        # Try to get results from cache
+        #
+        cache_key = "contact-mechanics-plots-json-analysis-{}-index-{}".format(analysis.id, index)
+        plots_json = cache.get(cache_key)
+        if plots_json is None:
+
+            #
+            # generate plots and save in cache
+            #
+
+            pressure_tol = 0 # tolerance for deciding whether point is in contact
+            gap_tol = 0 # tolerance for deciding whether point is in contact
+            # min_pentol = 1e-12 # lower bound for the penetration tolerance
+
+
+            #
+            # Here we assume a special format for the analysis results
+            #
+            data_path = analysis.result_obj['data_paths'][index]
+
+            data = default_storage.open(data_path)
+            ds = xr.load_dataset(data.open(mode='rb'))
+
+            pressure = ds['pressure'].values
+            contacting_points = ds['contacting_points'].values
+            displacement = ds['displacement'].values
+            gap = ds['gap'].values
+
+            # gap, displacement
+
+            #
+            # calculate contact areas
+            #
+
+            patch_ids = assign_patch_numbers(contacting_points)[1]
+            contact_areas = patch_areas(patch_ids) * analysis.result_obj['area_per_pt']
+
+
+            #
+            # Common figure parameters
+            #
+
+            topo = analysis.topography
+            aspect_ratio = topo.size_x / topo.size_y
+            frame_height = 500
+            frame_width = int(frame_height * aspect_ratio)
+
+            MAX_FRAME_WIDTH = 550
+
+            if frame_width > MAX_FRAME_WIDTH: # rule of thumb, scale down if too wide
+                frame_width = MAX_FRAME_WIDTH
+                frame_height = int(frame_width/aspect_ratio)
+
+            common_kwargs = dict(frame_width=frame_width,
+                                 frame_height=frame_height)
+
+            geometry_figure_common_args = common_kwargs.copy()
+            geometry_figure_common_args.update(topo_unit=topo.unit, topo_size=(topo.size_x, topo.size_y))
+
+            plots = {
+                #
+                #  Geometry figures
+                #
+                'contact-geometry': _contact_mechanics_geometry_figure(
+                            contacting_points,
+                            title="Contact geometry",
+                            **geometry_figure_common_args),
+                'contact-pressure': _contact_mechanics_geometry_figure(
+                            pressure,
+                            title=r'Contact pressure p(E*)', value_unit="unit?",
+                            **geometry_figure_common_args),
+                'displacement': _contact_mechanics_geometry_figure(
+                            displacement,
+                            title=r'Displacement', value_unit=unit,
+                            **geometry_figure_common_args),
+                'gap': _contact_mechanics_geometry_figure(
+                            gap, title=r'Gap', value_unit=unit,
+                            **geometry_figure_common_args),
+                #
+                # Distribution figures
+                #
+                'pressure-distribution': _contact_mechanics_distribution_figure(
+                            pressure[contacting_points],
+                            title="Pressure distribution",
+                            x_axis_label="Pressure p (E*)",
+                            y_axis_label="Probability P(p) (1/E*)",
+                            **common_kwargs),
+                'gap-distribution': _contact_mechanics_distribution_figure(
+                    gap[gap > gap_tol],
+                    title="Gap distribution",
+                    x_axis_label="Gap g ({})".format(topo.unit),
+                    y_axis_label="Probability P(g) (1/{})".format(topo.unit),
+                    **common_kwargs),
+                'cluster-size-distribution': _contact_mechanics_distribution_figure(
+                    contact_areas, # TODO check data
+                    title="Cluster size distribution",
+                    x_axis_label="Cluster area A({}²)".format(topo.unit),
+                    y_axis_label="Probability P(A)",
+                    x_axis_type="log",
+                    y_axis_type="log",
+                    **common_kwargs),
+            }
+
+            plots_json = { pn: json.dumps(json_item(plots[pn])) for pn in plots }
+            cache.set(cache_key, plots_json)
+        else:
+            _log.debug("Using plots from cache.")
+
+        return JsonResponse(plots_json, status=200)
+    else:
+        return JsonResponse({}, status=403)
+
+
+
+
+
 
 class AnalysisFunctionDetailView(DetailView):
 
@@ -593,39 +1028,99 @@ class AnalysesListView(FormView):
         context['cards'] = cards
         return context
 
+#######################################################################
+# Download views
+#######################################################################
+
+
+def download_analyses(request, ids, card_view_flavor, file_format):
+    """Returns a file comprised from analyses results.
+
+    :param request:
+    :param ids: comma separated string with analyses ids
+    :param card_view_flavor: card view flavor, see CARD_VIEW_FLAVORS
+    :param file_format: requested file format
+    :return:
+    """
+
+    #
+    # Check permissions and collect analyses
+    #
+    user = request.user
+    if not user.is_authenticated:
+        return HttpResponseForbidden()
+
+    analyses_ids = [int(i) for i in ids.split(',')]  # TODO check whether user has permissions to download this data
+
+    analyses= []
+
+    for aid in analyses_ids:
+        analysis = Analysis.objects.get(id=aid)
+
+        #
+        # Check whether user has view permission for requested analysis
+        #
+        if not user.has_perm("view_surface", analysis.topography.surface):
+            return HttpResponseForbidden()
+
+        analyses.append(analysis)
+
+    #
+    # Check flavor and format argument
+    #
+    card_view_flavor = card_view_flavor.replace('_', ' ') # may be given with underscore in URL
+    if not card_view_flavor in CARD_VIEW_FLAVORS:
+        return HttpResponseBadRequest("Unknown card view flavor '{}'.".format(card_view_flavor))
+
+    download_response_functions = {
+        ('plot', 'xlsx'): download_plot_analyses_to_xlsx,
+        ('plot', 'txt') : download_plot_analyses_to_txt,
+        ('contact mechanics', 'zip'): download_contact_mechanics_analyses_as_zip,
+    }
+
+    #
+    # Dispatch
+    #
+    key = (card_view_flavor, file_format)
+    if key not in download_response_functions:
+        return HttpResponseBadRequest("Cannot provide a download for card view flavor {} in file format ".format(card_view_flavor))
+
+    return download_response_functions[key](request, analyses)
+
+
 class AnalysisRetrieveView(RetrieveAPIView): #TODO needed?
     queryset = Analysis.objects.all()
     serializer_class = AnalysisSerializer
 
 
-def download_analysis_to_txt(request, ids):
-    ids = [int(i) for i in ids.split(',')]
+def download_plot_analyses_to_txt(request, analyses):
 
     # TODO: It would probably be useful to use the (some?) template engine for this.
     # TODO: We need a mechanism for embedding references to papers into output.
 
     # Pack analysis results into a single text file.
     f = io.StringIO()
-    for i, id in enumerate(ids):
-        a = Analysis.objects.get(pk=id)
+    for i, analysis in enumerate(analyses):
         if i == 0:
-            f.write('# {}\n'.format(a.function) +
-                    '# {}\n'.format('='*len(str(a.function))) +
+            f.write('# {}\n'.format(analysis.function) +
+                    '# {}\n'.format('='*len(str(analysis.function))) +
                     '# TopoBank version: {}\n'.format(settings.TOPOBANK_VERSION) +
                     '# PyCo version: {}\n'.format(PyCo.__version__) +
                     '# IF YOU USE THIS DATA IN A PUBLICATION, PLEASE CITE XXX.\n' +
                     '\n')
 
-        f.write('# Topography: {}\n'.format(a.topography.name) +
-                '# {}\n'.format('='*(len('Topography: ')+len(str(a.topography.name)))) +
-                '# Further arguments of analysis function: {}\n'.format(a.get_kwargs_display()) +
-                '# Start time of analysis task: {}\n'.format(a.start_time) +
-                '# End time of analysis task: {}\n'.format(a.end_time) +
-                '# Duration of analysis task: {}\n'.format(a.duration()) +
+        f.write('# Topography: {}\n'.format(analysis.topography.name) +
+                '# {}\n'.format('='*(len('Topography: ')+len(str(analysis.topography.name)))) +
+                '# Further arguments of analysis function: {}\n'.format(analysis.get_kwargs_display()) +
+                '# Start time of analysis task: {}\n'.format(analysis.start_time) +
+                '# End time of analysis task: {}\n'.format(analysis.end_time) +
+                '# Duration of analysis task: {}\n'.format(analysis.duration()) +
                 '\n')
 
-        result = pickle.loads(a.result)
-        header = 'Columns: {} ({}), {} ({})'.format(result['xlabel'], result['xunit'], result['ylabel'], result['yunit'])
+        result = pickle.loads(analysis.result)
+        xunit_str = '' if result['xunit'] is None else ' ({})'.format(result['xunit'])
+        yunit_str = '' if result['yunit'] is None else ' ({})'.format(result['yunit'])
+        header = 'Columns: {}{}, {}{}'.format(result['xlabel'], xunit_str, result['ylabel'], yunit_str)
 
         for series in result['series']:
             np.savetxt(f, np.transpose([series['x'], series['y']]),
@@ -634,15 +1129,14 @@ def download_analysis_to_txt(request, ids):
 
     # Prepare response object.
     response = HttpResponse(f.getvalue(), content_type='application/text')
-    response['Content-Disposition'] = 'attachment; filename="{}"'.format('{}.txt'.format(a.function.pyfunc))
+    response['Content-Disposition'] = 'attachment; filename="{}"'.format('{}.txt'.format(analysis.function.pyfunc))
 
     # Close file and return response.
     f.close()
     return response
 
 
-def download_analysis_to_xlsx(request, ids):
-    ids = [int(i) for i in ids.split(',')]
+def download_plot_analyses_to_xlsx(request, analyses):
 
     # TODO: We need a mechanism for embedding references to papers into output.
     # TODO: Probably this function leaves out data if the sheet names are not unique (built from topography+series name)
@@ -656,33 +1150,148 @@ def download_analysis_to_xlsx(request, ids):
     # Global properties and values.
     properties = []
     values = []
-    for i, id in enumerate(ids):
-        a = Analysis.objects.get(pk=id)
+    for i, analysis in enumerate(analyses):
+
         if i == 0:
             properties += ['Function', 'TopoBank version', 'PyCo version']
-            values += [str(a.function), settings.TOPOBANK_VERSION, PyCo.__version__]
+            values += [str(analysis.function), settings.TOPOBANK_VERSION, PyCo.__version__]
 
         properties += ['Topography',
                        'Further arguments of analysis function', 'Start time of analysis task',
                        'End time of analysis task', 'Duration of analysis task']
-        values += [str(a.topography.name), a.get_kwargs_display(), str(a.start_time),
-                   str(a.end_time), str(a.duration())]
+        values += [str(analysis.topography.name), analysis.get_kwargs_display(), str(analysis.start_time),
+                   str(analysis.end_time), str(analysis.duration())]
 
-        result = pickle.loads(a.result)
+        result = pickle.loads(analysis.result)
         column1 = '{} ({})'.format(result['xlabel'], result['xunit'])
         column2 = '{} ({})'.format(result['ylabel'], result['yunit'])
 
         for series in result['series']:
             df = pd.DataFrame({column1: series['x'], column2: series['y']})
-            df.to_excel(excel, sheet_name='{} - {}'.format(a.topography.name, series['name'].replace('/', ' div ')))
+            df.to_excel(excel, sheet_name='{} - {}'.format(analysis.topography.name, series['name'].replace('/', ' div ')))
     df = pd.DataFrame({'Property': properties, 'Value': values})
     df.to_excel(excel, sheet_name='INFORMATION', index=False)
     excel.close()
 
     # Prepare response object.
     response = HttpResponse(f.getvalue(), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    response['Content-Disposition'] = 'attachment; filename="{}"'.format('{}.xlsx'.format(a.function.pyfunc))
+    response['Content-Disposition'] = 'attachment; filename="{}"'.format('{}.xlsx'.format(analysis.function.pyfunc))
 
     # Close file and return response.
     f.close()
     return response
+
+def download_contact_mechanics_analyses_as_zip(request, analyses):
+    """Provides a ZIP file with contact mechanics data.
+
+    :param request: HTTPRequest
+    :param analyses: sequence of Analysis instances
+    :return: HTTP Response with file download
+    """
+
+    bytes = BytesIO()
+
+    zf = zipfile.ZipFile(bytes, mode='w')
+
+    #
+    # Add directories and files for all analyses
+    #
+    zip_dirs = set()
+
+    for analysis in analyses:
+
+        zip_dir = analysis.topography.name
+        if zip_dir in zip_dirs:
+            # make directory unique
+            zip_dir += "-{}".format(analysis.topography.id)
+        zip_dirs.add(zip_dir)
+
+        prefix = analysis.storage_prefix
+
+        directories, filenames = default_storage.listdir(prefix)
+
+        for file_no, fname in enumerate(filenames):
+
+            input_file = default_storage.open(prefix+fname)
+
+            filename_in_zip = os.path.join(zip_dir, fname)
+
+            try:
+                zf.writestr(filename_in_zip, input_file.read())
+            except Exception as exc:
+                zf.writestr("errors-{}.txt".format(file_no),
+                            "Cannot save file {} in ZIP, reason: {}".format(filename_in_zip, str(exc)))
+
+    #
+    # Add a Readme file
+    #
+    zf.writestr("README.md", \
+    """    
+Contents of this ZIP archive
+============================
+This archive contains data from contact mechanics calculation.
+
+Each directory corresponds to one topography and is named after the topography.
+Inside you find classical NetCDF files, one for each calculation step.
+Each file corresponds to one external pressure. Inside you'll find the variables
+    
+* `contact_points`: boolean array, true if point is in contact
+* `pressure`: floating-point array containing local pressure (in units of `E*)
+* `gap`: floating-point array containing the local gap
+* `displacement`: floating-point array containing
+      
+as well as the attributes 
+    
+* `mean_pressure`: mean pressure
+* `total_contact_area`: total contact area
+    
+In order to read the data, you can use a netCDF library.
+Here are some examples:
+
+Accessing the NetCDF files
+==========================
+
+### Python
+
+Given the package [`netcdf4-python`](http://netcdf4-python.googlecode.com/) is installed:
+
+```
+import netCDF4
+ds = netCDF4.Dataset("result-step-0.nc")
+print(ds)
+pressure = ds['pressure'][:]
+mean_pressure = ds.load
+```
+      
+Another convenient package you can use is [`xarray`](xarray.pydata.org/).
+    
+### Matlab
+
+In order to read the pressure map in Matlab, use
+    
+```
+ncid = netcdf.open("result-step-0.nc",'NC_NOWRITE');
+varid = netcdf.inqVarID(ncid,"pressure");
+pressure = netcdf.getVar(ncid,varid);
+```
+
+Have look in the official Matlab documentation for more information.
+    
+Version information
+===================
+    
+PyCo:     {}  
+TopoBank: {}
+    """.format(PyCo.__version__, settings.TOPOBANK_VERSION))
+
+    zf.close()
+
+    # Prepare response object.
+    response = HttpResponse(bytes.getvalue(),
+                            content_type='application/x-zip-compressed')
+    response['Content-Disposition'] = 'attachment; filename="{}"'.format('contact_mechanics.zip')
+
+    return response
+
+
+
