@@ -1,5 +1,11 @@
 # Changelog for *TopoBank*
 
+## 0.5.2
+
+- workaround for slow autocorrelation computation for
+  nonuniform topographies with a large number of data points
+- navigation chevron buttons also in topography update form
+
 ## 0.5.1
 
 - cosmetic changes like e.g. harmonizing sizes and loading
