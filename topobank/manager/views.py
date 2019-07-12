@@ -321,7 +321,22 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
 
     def get_success_url(self):
         self.object.submit_automated_analyses()
-        return reverse('manager:topography-detail', kwargs=dict(pk=self.object.pk))
+        return reverse('manager:topography-update', kwargs=dict(pk=self.object.pk))
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        topo = self.object
+        try:
+            context['topography_next'] = topo.get_next_by_measurement_date(surface=topo.surface).id
+        except Topography.DoesNotExist:
+            context['topography_next'] = topo.id
+        try:
+            context['topography_prev'] = topo.get_previous_by_measurement_date(surface=topo.surface).id
+        except Topography.DoesNotExist:
+            context['topography_prev'] = topo.id
+
+        return context
 
 class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
     model = Topography

@@ -510,7 +510,20 @@ def autocorrelation(topography, progress_recorder=None, storage_prefix=None):
     else:
         s, = topography.size
 
-    r, A = topography.autocorrelation_1D()
+    if topography.is_uniform:
+        r, A = topography.autocorrelation_1D()
+    else:
+        # Work around. The implementation for non-uniform line scans is very slow. Map onto a uniform grid.
+        x, h = topography.positions_and_heights()
+        min_dist = np.min(np.diff(x))
+        if min_dist <= 0:
+            raise RuntimeError('Positions not sorted')
+        else:
+            n = min(100000, 10 * int(s / min_dist))
+        r, A = topography.to_uniform(n, 0).autocorrelation_1D()
+        r = r[::10]
+        A = A[::10]
+
     A = A[r < s]
     r = r[r < s]
     # Remove NaNs and Infs
