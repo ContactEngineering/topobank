@@ -54,8 +54,8 @@ def assert_not_in_content(response, x):
 
 def assert_no_form_errors(response):
     """Asserts that there is no more form, and if there is, show errors in form"""
-    assert 'form' not in response.context, "Form is still in context, with errors: {}".format(
-        response.context['form'].errors)
+    assert ('form' not in response.context) or (len(response.context['form'].errors) == 0), \
+        "Form is still in context, with errors: {}".format(response.context['form'].errors)
 
 # abbreviation for use with pytest
 assert_redirects = SimpleTestCase().assertRedirects

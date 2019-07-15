@@ -475,9 +475,12 @@ def test_edit_topography(client, two_topos, django_user_model, topo_example3):
 
     assert_no_form_errors(response)
 
-    # we should have been redirected to topography details
-    assert_redirects(response, reverse('manager:topography-detail', kwargs=dict(pk=topo_example3.pk)))
+    # we should stay on the update page for this topography
+    assert_redirects(response, reverse('manager:topography-update', kwargs=dict(pk=topo_example3.pk)))
 
+    #
+    # let's check whether it has been changed
+    #
     topos = Topography.objects.filter(surface=topo_example3.surface).order_by('pk')
 
     assert len(topos) == 2
@@ -492,7 +495,7 @@ def test_edit_topography(client, two_topos, django_user_model, topo_example3):
     assert pytest.approx(t.size_y) == 1000
 
     #
-    # should also appear in the list of topographies
+    # the changed topography should also appear in the list of topographies
     #
     response = client.get(reverse('manager:surface-detail', kwargs=dict(pk=t.surface.pk)))
     assert bytes(new_name, 'utf-8') in response.content
@@ -549,8 +552,9 @@ def test_edit_line_scan(client, one_line_scan, django_user_model):
 
     assert response.context is None, "Errors in form: {}".format(response.context['form'].errors)
     assert response.status_code == 302
-    # we should have been redirected to topography details
-    assert reverse('manager:topography-detail', kwargs=dict(pk=topo_id)) == response.url
+
+    # we should stay on topography update page
+    assert reverse('manager:topography-update', kwargs=dict(pk=topo_id)) == response.url
 
     topos = Topography.objects.filter(surface__creator__username=username).order_by('pk')
 
