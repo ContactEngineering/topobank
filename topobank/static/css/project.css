@@ -92,3 +92,7 @@ input.checkbox-color-design:checked+span:after {
 .btn:active {
   box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125);
 }
+
+.btn {
+  white-space: normal; /** we want the text in buttons wrap if the windows is made smaller, issue 272 */
+}

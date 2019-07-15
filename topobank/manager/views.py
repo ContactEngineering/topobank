@@ -858,9 +858,16 @@ def download_surface(request, surface_id):
     #
     user = request.user
     if not user.is_authenticated:
-        return HttpResponseForbidden()
+        raise PermissionDenied()
 
-    #surface = Surface.objects.get(id=id)
+    try:
+        surface = Surface.objects.get(id=surface_id)
+    except Surface.DoesNotExist:
+        raise PermissionDenied()
+
+    if not user.has_perm('view_surface', surface):
+        raise PermissionDenied()
+
     topographies = Topography.objects.filter(surface=surface_id)
 
     bytes = BytesIO()

@@ -307,7 +307,18 @@ class PlotCardView(SimpleCardView):
                       y_axis_label=y_axis_label,
                       x_axis_type=get_axis_type('xscale'),
                       y_axis_type=get_axis_type('yscale'),
-                      tools="crosshair,pan,reset,save,wheel_zoom,box_zoom")
+                      tools="pan,reset,save,wheel_zoom,box_zoom,hover")
+
+        #
+        # Configure hover tool
+        #
+        plot.hover.tooltips = [
+            ("topography", "$name"),
+            ("series", "@series"),
+            (x_axis_label, "@x"),
+            (y_axis_label, "@y"),
+        ]
+
 
         #
         # Prepare helpers for dashes and colors
@@ -391,10 +402,15 @@ class PlotCardView(SimpleCardView):
                 if get_axis_type('yscale') == 'log':
                     mask |= np.isclose(yarr, 0, atol=SMALLEST_ABSOLUT_NUMBER_IN_LOGPLOTS)
 
-                source = ColumnDataSource(data=dict(x=analysis_xscale * xarr[~mask],
-                                                    y=analysis_yscale * yarr[~mask]))
-
                 series_name = s['name']
+
+                source = ColumnDataSource(data=dict(x=analysis_xscale * xarr[~mask],
+                                                    y=analysis_yscale * yarr[~mask],
+                                                    series=(series_name,)*len(xarr)))
+                # it's a little dirty to add the same value for series for every point
+                # but I don't know to a have a second field next to "name", which
+                # is used for the topography here
+
                 #
                 # find out dashes for data series
                 #
@@ -414,15 +430,20 @@ class PlotCardView(SimpleCardView):
                 curr_dash = series_dashes[series_name]
                 # curr_symbol = series_symbols[series_name]
 
+                # hover_name = "{} for '{}'".format(series_name, topography_name)
+
                 line_glyph = plot.line('x', 'y', source=source, legend=legend_entry,
                                        line_color=curr_color,
-                                       line_dash=curr_dash)
+                                       line_dash=curr_dash, name=topography_name)
                 if show_symbols:
-                    symbol_glyph = plot.scatter('x', 'y', source=source, legend=legend_entry,
+                    symbol_glyph = plot.scatter('x', 'y', source=source,
+                                                legend=legend_entry,
                                                 marker='circle',
+                                                size=10,
                                                 line_color=curr_color,
                                                 line_dash=curr_dash,
-                                                fill_color=curr_color)
+                                                fill_color=curr_color,
+                                                name=topography_name)
 
                 #
                 # Prepare JS code to toggle visibility
@@ -902,7 +923,7 @@ def contact_mechanics_data(request):
                             **geometry_figure_common_args),
                 'contact-pressure': _contact_mechanics_geometry_figure(
                             pressure,
-                            title=r'Contact pressure p(E*)', value_unit="unit?",
+                            title=r'Contact pressure p(E*)',
                             **geometry_figure_common_args),
                 'displacement': _contact_mechanics_geometry_figure(
                             displacement,
@@ -1236,14 +1257,14 @@ Inside you find classical NetCDF files, one for each calculation step.
 Each file corresponds to one external pressure. Inside you'll find the variables
     
 * `contact_points`: boolean array, true if point is in contact
-* `pressure`: floating-point array containing local pressure (in units of `E*)
+* `pressure`: floating-point array containing local pressure (in units of `E*`)
 * `gap`: floating-point array containing the local gap
-* `displacement`: floating-point array containing
+* `displacement`: floating-point array containing the local displacements
       
 as well as the attributes 
     
-* `mean_pressure`: mean pressure
-* `total_contact_area`: total contact area
+* `mean_pressure`: mean pressure (in units of `E*`)
+* `total_contact_area`: total contact area (fractional)
     
 In order to read the data, you can use a netCDF library.
 Here are some examples:
@@ -1260,7 +1281,7 @@ import netCDF4
 ds = netCDF4.Dataset("result-step-0.nc")
 print(ds)
 pressure = ds['pressure'][:]
-mean_pressure = ds.load
+mean_pressure = ds.mean_pressure
 ```
       
 Another convenient package you can use is [`xarray`](xarray.pydata.org/).
