@@ -62,14 +62,14 @@
       </tbody>
     </table>
 {% else %}
-    {# Show info bars for analyses which failed #}
-    {% for af in analyses_failure %}
+    {# Show info bar if there are analyses which failed #}
+    {% if analyses_failure %}
     <div class="alert alert-warning">
       {% fontawesome_icon 'exclamation-circle' %}
-      Analysis for topography <em>{{ au.topography.name }}</em> failed.
+      Analysis for {{ analyses_failure|length }} topograph{{ analyses_failure|length|pluralize:"y,ies" }} failed.
       See tab "Failures" for details.
     </div>
-    {% endfor %}
+    {% endif %}
 {% endif %}
 
 {% if not unique_kwargs %}
