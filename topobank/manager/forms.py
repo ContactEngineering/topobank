@@ -339,10 +339,12 @@ class TopographyForm(TopographyUnitsForm):
                 *self.editable_fields,
             ),
             FormActions(
-                    Submit('save', 'Save'),
+                    Submit('save-stay', 'Save and keep editing'),
+                    Submit('save-finish', 'Save and finish editing'),
                     HTML("""
-                        <a href="{% url 'manager:topography-detail' object.id %}" class="btn btn-default" id="cancel-btn">Cancel</a>
-                    """),# for topographies it's okay to always return to topography detail view
+                        <a href="{% url 'manager:topography-detail' object.id %}" class="btn btn-default" id="cancel-btn">
+                        Finish editing without saving</a>
+                    """),
                 ),
         )
 
