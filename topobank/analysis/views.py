@@ -1236,9 +1236,9 @@ Inside you find classical NetCDF files, one for each calculation step.
 Each file corresponds to one external pressure. Inside you'll find the variables
     
 * `contact_points`: boolean array, true if point is in contact
-* `pressure`: floating-point array containing local pressure (in units of `E*)
+* `pressure`: floating-point array containing local pressure (in units of `E*`)
 * `gap`: floating-point array containing the local gap
-* `displacement`: floating-point array containing
+* `displacement`: floating-point array containing the dlocal displacements
       
 as well as the attributes 
     
