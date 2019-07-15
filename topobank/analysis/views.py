@@ -923,7 +923,7 @@ def contact_mechanics_data(request):
                             **geometry_figure_common_args),
                 'contact-pressure': _contact_mechanics_geometry_figure(
                             pressure,
-                            title=r'Contact pressure p(E*)', value_unit="unit?",
+                            title=r'Contact pressure p(E*)',
                             **geometry_figure_common_args),
                 'displacement': _contact_mechanics_geometry_figure(
                             displacement,
