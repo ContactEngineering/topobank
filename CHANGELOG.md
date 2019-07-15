@@ -6,6 +6,7 @@
   using PyCo 0.32.0 now (#269)
 - in analysis plots, replace crosshair with inpsect tool (#256,284)
 - fixes wrong messages about differing function arguments (#285,#251)
+- checking now permissions when downloading data (#286)
 
 ## 0.5.2
 
