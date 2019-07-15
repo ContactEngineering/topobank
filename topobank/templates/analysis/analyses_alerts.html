@@ -72,7 +72,7 @@
     {% endif %}
 {% endif %}
 
-{% if not unique_kwargs %}
+{% if unique_kwargs is None %}
   <div class="alert alert-warning">
       {% fontawesome_icon 'exclamation-circle' %}
       Arguments for this analysis differ among topographies.
