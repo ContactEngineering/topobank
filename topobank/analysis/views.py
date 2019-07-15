@@ -1238,12 +1238,12 @@ Each file corresponds to one external pressure. Inside you'll find the variables
 * `contact_points`: boolean array, true if point is in contact
 * `pressure`: floating-point array containing local pressure (in units of `E*`)
 * `gap`: floating-point array containing the local gap
-* `displacement`: floating-point array containing the dlocal displacements
+* `displacement`: floating-point array containing the local displacements
       
 as well as the attributes 
     
-* `mean_pressure`: mean pressure
-* `total_contact_area`: total contact area
+* `mean_pressure`: mean pressure (in units of `E*`)
+* `total_contact_area`: total contact area (fractional)
     
 In order to read the data, you can use a netCDF library.
 Here are some examples:
@@ -1260,7 +1260,7 @@ import netCDF4
 ds = netCDF4.Dataset("result-step-0.nc")
 print(ds)
 pressure = ds['pressure'][:]
-mean_pressure = ds.load
+mean_pressure = ds.mean_pressure
 ```
       
 Another convenient package you can use is [`xarray`](xarray.pydata.org/).
