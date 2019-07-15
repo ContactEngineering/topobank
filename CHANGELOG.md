@@ -1,5 +1,12 @@
 # Changelog for *TopoBank*
 
+## 0.5.3
+
+- fixes for slow PSD calculations for line scans with lots of data points,
+  using PyCo 0.32.0 now (#269)
+- in analysis plots, replace crosshair with inpsect tool (#256,284)
+
+
 ## 0.5.2
 
 - workaround for slow autocorrelation computation for
