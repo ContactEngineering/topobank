@@ -76,7 +76,7 @@ class TopographyFile:
         """
 
         if hasattr(fname, 'seek') and not hasattr(fname, 'mode'):
-            # WORKAROUND in order to make PyCo's "detect_format" (Version 0.31)
+            # WORKAROUND in order to make PyCo's "detect_format" (Version 0.3x)
             # work with S3 backend. The S3 backend file has no attribute "mode"
             # and so "detect_format" does not work, because this attribute
             # is used to find out whether the stream is binary or not.
