@@ -475,8 +475,8 @@ def test_edit_topography(client, two_topos, django_user_model, topo_example3):
 
     assert_no_form_errors(response)
 
-    # we should have been redirected to topography details
-    assert_redirects(response, reverse('manager:topography-detail', kwargs=dict(pk=topo_example3.pk)))
+    # due to the changed topography editing, we should stay on update page
+    assert_redirects(response, reverse('manager:topography-update', kwargs=dict(pk=topo_example3.pk)))
 
     topos = Topography.objects.filter(surface=topo_example3.surface).order_by('pk')
 
@@ -549,8 +549,9 @@ def test_edit_line_scan(client, one_line_scan, django_user_model):
 
     assert response.context is None, "Errors in form: {}".format(response.context['form'].errors)
     assert response.status_code == 302
-    # we should have been redirected to topography details
-    assert reverse('manager:topography-detail', kwargs=dict(pk=topo_id)) == response.url
+
+    # due to the changed topography editing, we should stay on update page
+    assert reverse('manager:topography-update', kwargs=dict(pk=topo_id)) == response.url
 
     topos = Topography.objects.filter(surface__creator__username=username).order_by('pk')
 
