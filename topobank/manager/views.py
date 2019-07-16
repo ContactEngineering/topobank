@@ -37,7 +37,7 @@ import logging
 from .models import Topography, Surface
 from .forms import TopographyForm, SurfaceForm, TopographySelectForm, SurfaceShareForm
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, Topography1DUnitsForm, Topography2DUnitsForm
-from .utils import optimal_unit, get_topography_file,\
+from .utils import get_topography_file,\
     selected_instances, selection_from_session, selection_for_select_all, \
     bandwidths_data, surfaces_for_user
 from topobank.users.models import User
@@ -163,16 +163,6 @@ class TopographyCreateWizard(SessionWizardView):
             else:
                 initial_size_x, = topo.size # size is always a tuple
                 initial_size_y = None # needed for database field
-
-            if unit is not None:
-                #
-                # Try to optimize unit
-                #
-                unit, conversion_factor = optimal_unit(topo.size, unit)
-
-                initial_size_x *= conversion_factor  # TODO Is it correct to do this if there is "int()" afterwards?
-                if has_2_dim:
-                    initial_size_y *= conversion_factor
 
             initial['size_x'] = initial_size_x
             initial['size_y'] = initial_size_y

@@ -1,5 +1,11 @@
 # Changelog for *TopoBank*
 
+## 0.5.4
+
+- fix for wrong height scale in case automated unit conversion
+  was applied on upload (#290), metadata of already uploaded 
+  topographies (size+unit) may be wrong
+  
 ## 0.5.3
 
 - fixes for slow PSD calculations for line scans with lots of data points,
