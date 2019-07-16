@@ -37,7 +37,7 @@ import logging
 from .models import Topography, Surface
 from .forms import TopographyForm, SurfaceForm, TopographySelectForm, SurfaceShareForm
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, Topography1DUnitsForm, Topography2DUnitsForm
-from .utils import optimal_unit, get_topography_file,\
+from .utils import get_topography_file,\
     selected_instances, selection_from_session, selection_for_select_all, \
     bandwidths_data, surfaces_for_user
 from topobank.users.models import User
@@ -163,16 +163,6 @@ class TopographyCreateWizard(SessionWizardView):
             else:
                 initial_size_x, = topo.size # size is always a tuple
                 initial_size_y = None # needed for database field
-
-            if unit is not None:
-                #
-                # Try to optimize unit
-                #
-                unit, conversion_factor = optimal_unit(topo.size, unit)
-
-                initial_size_x *= conversion_factor  # TODO Is it correct to do this if there is "int()" afterwards?
-                if has_2_dim:
-                    initial_size_y *= conversion_factor
 
             initial['size_x'] = initial_size_x
             initial['size_y'] = initial_size_y
@@ -901,3 +891,41 @@ TopoBank: {}
     response['Content-Disposition'] = 'attachment; filename="{}"'.format('surface.zip')
 
     return response
+
+def show_analyses_for_surface(request, surface_id):
+
+    try:
+        surface = Surface.objects.get(id=surface_id)
+    except Surface.DoesNotExist:
+        raise PermissionDenied()
+
+    if not request.user.has_perm('view_surface', surface):
+        raise PermissionDenied()
+
+    #
+    # So we have an existing surface and are allowed to view it.
+    # Select this surface and switch to "Analyses" view.
+    #
+    request.session['selection'] = ['surface-{}'.format(surface_id)]
+
+    return redirect(reverse('analysis:list'))
+
+def show_analyses_for_topography(request, topography_id):
+
+    try:
+        topo = Topography.objects.get(id=topography_id)
+    except Topography.DoesNotExist:
+        raise PermissionDenied()
+
+    if not request.user.has_perm('view_surface', topo.surface):
+        raise PermissionDenied()
+
+    #
+    # So we have an existing topography and are allowed to view it.
+    # Select this topography and switch to "Analyses" view.
+    #
+    request.session['selection'] = ['topography-{}'.format(topography_id)]
+
+    return redirect(reverse('analysis:list'))
+
+

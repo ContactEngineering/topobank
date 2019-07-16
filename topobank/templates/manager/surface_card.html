@@ -21,6 +21,11 @@
           <i class="fa fa-chevron-down"></i>
         </button>
         <div class="dropdown-menu dropdown-menu-right">
+          {% if surface.num_topographies > 0 %}
+            <a href="{% url 'manager:surface-show-analyses' surface.id %}" class="dropdown-item">
+                    {% fontawesome_icon 'area-chart' %} Show analyses
+            </a>
+          {% endif %}
           {% if "change_surface" in surface_perms %}
             <a href="{% url 'manager:surface-update' surface.id %}" class="dropdown-item">
               {% fontawesome_icon 'edit' %} Edit

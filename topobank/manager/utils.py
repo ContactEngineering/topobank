@@ -139,31 +139,6 @@ class TopographyFile:
 
         return self._topographies[data_source]
 
-
-def optimal_unit(length, unit='m'): # TODO write unit tests
-    """
-    Return a unit and a scale factor that minimizes the display width of a
-    length.
-    """
-    if unit is None:
-        return 'unknown', 1
-    unit_fac = UNIT_TO_METERS[unit]
-    if unit_fac is None:
-        return unit, 1
-
-    # Convert length to meters
-    length = np.mean(length)*unit_fac # TODO why mean here? Test missing.
-
-    # Length is meters now
-    new_unit = 'm'
-    conversion_factor = unit_fac / UNIT_TO_METERS['m']
-    for name, meters in sorted(UNIT_TO_METERS.items(), key=lambda x: x[1]):
-        if meters is not None and length > 1.1*meters:
-            new_unit = name
-            conversion_factor = unit_fac/meters
-
-    return new_unit, conversion_factor
-
 def mangle_unit(unit): # TODO needed?
     """
     Matplotlib does not support 'MICRO SIGN' unicode character - convert to

@@ -1,10 +1,18 @@
 # Changelog for *TopoBank*
 
+## 0.5.4
+
+- fix for wrong height scale in case automated unit conversion
+  was applied on upload (#290), metadata of already uploaded 
+  topographies (size+unit) may be wrong
+- added buttons and a menu entry to directly show analyses
+  for the surface/topography the user is looking at (#264)
+  
 ## 0.5.3
 
 - fixes for slow PSD calculations for line scans with lots of data points,
   using PyCo 0.32.0 now (#269)
-- in analysis plots, replace crosshair with inpsect tool (#256,284)
+- in analysis plots, replace crosshair with inspect tool (#256,#284)
 - fixes wrong messages about differing function arguments (#285,#251)
 - checking now permissions when downloading data (#286)
 
