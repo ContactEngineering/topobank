@@ -5,6 +5,8 @@
 - fix for wrong height scale in case automated unit conversion
   was applied on upload (#290), metadata of already uploaded 
   topographies (size+unit) may be wrong
+- added buttons and a menu entry to directly show analyses
+  for the surface/topography the user is looking at (#264)
   
 ## 0.5.3
 
