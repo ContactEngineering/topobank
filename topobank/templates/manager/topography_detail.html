@@ -139,6 +139,13 @@
           </div>
           <div class="row p-3">
             <div class="col">
+              <a href="{% url 'manager:topography-show-analyses' topography.id %}" class="btn btn-default btn-block btn-lg">
+                  {% fontawesome_icon 'area-chart' %} Show analyses
+              </a>
+            </div>
+          </div>
+          <div class="row p-3">
+            <div class="col">
               {% if "change_surface" in surface_perms %}
                 <a href="{% url 'manager:topography-update' topography.id %}"
                    class="btn btn-default btn-block btn-lg">

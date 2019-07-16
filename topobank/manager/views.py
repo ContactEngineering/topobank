@@ -891,3 +891,41 @@ TopoBank: {}
     response['Content-Disposition'] = 'attachment; filename="{}"'.format('surface.zip')
 
     return response
+
+def show_analyses_for_surface(request, surface_id):
+
+    try:
+        surface = Surface.objects.get(id=surface_id)
+    except Surface.DoesNotExist:
+        raise PermissionDenied()
+
+    if not request.user.has_perm('view_surface', surface):
+        raise PermissionDenied()
+
+    #
+    # So we have an existing surface and are allowed to view it.
+    # Select this surface and switch to "Analyses" view.
+    #
+    request.session['selection'] = ['surface-{}'.format(surface_id)]
+
+    return redirect(reverse('analysis:list'))
+
+def show_analyses_for_topography(request, topography_id):
+
+    try:
+        topo = Topography.objects.get(id=topography_id)
+    except Topography.DoesNotExist:
+        raise PermissionDenied()
+
+    if not request.user.has_perm('view_surface', topo.surface):
+        raise PermissionDenied()
+
+    #
+    # So we have an existing topography and are allowed to view it.
+    # Select this topography and switch to "Analyses" view.
+    #
+    request.session['selection'] = ['topography-{}'.format(topography_id)]
+
+    return redirect(reverse('analysis:list'))
+
+
