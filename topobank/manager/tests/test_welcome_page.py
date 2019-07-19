@@ -2,6 +2,7 @@
 from django.shortcuts import reverse
 
 from topobank.manager.tests.utils import SurfaceFactory, TopographyFactory
+from topobank.analysis.tests.utils import AnalysisFactory
 
 from topobank.utils import assert_in_content
 
@@ -21,6 +22,8 @@ def test_welcome_page_statistics(client, django_user_model):
 
     surface_2.share(user_2)
 
+    AnalysisFactory(topography=topography_1)
+
     #
     # Test statistics if user is not yet authenticated
     #
@@ -29,6 +32,7 @@ def test_welcome_page_statistics(client, django_user_model):
     assert_in_content(response, '<div class="welcome-page-statistics">2</div> registered users')
     assert_in_content(response, '<div class="welcome-page-statistics">2</div> surfaces in database')
     assert_in_content(response, '<div class="welcome-page-statistics">1</div> individual topographies')
+    assert_in_content(response, '<div class="welcome-page-statistics">1</div> computed analyses')
 
     #
     # Test statistics if user_1 is authenticated
@@ -36,9 +40,9 @@ def test_welcome_page_statistics(client, django_user_model):
     assert client.login(username=user_1.username, password=password)
     response = client.get(reverse('home'))
 
-    assert_in_content(response, "Your last login was on")
     assert_in_content(response, '<div class="welcome-page-statistics">2</div> surfaces in database')
     assert_in_content(response, '<div class="welcome-page-statistics">1</div> individual topographies')
+    assert_in_content(response, '<div class="welcome-page-statistics">1</div> computed analyses')
     assert_in_content(response, '<div class="welcome-page-statistics">0</div> surfaces with you')
 
     client.logout()
@@ -49,9 +53,9 @@ def test_welcome_page_statistics(client, django_user_model):
     assert client.login(username=user_2.username, password=password)
     response = client.get(reverse('home'))
 
-    assert_in_content(response, "Your last login was on")
     assert_in_content(response, '<div class="welcome-page-statistics">0</div> surfaces in database')
     assert_in_content(response, '<div class="welcome-page-statistics">0</div> individual topographies')
+    assert_in_content(response, '<div class="welcome-page-statistics">0</div> computed analyses')
     assert_in_content(response, '<div class="welcome-page-statistics">1</div> surfaces with you')
 
     client.logout()
