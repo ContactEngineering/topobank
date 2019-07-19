@@ -873,11 +873,14 @@ def download_surface(request, surface_id):
         #
         # Add a Readme file
         #
-        zf.writestr("README.md", \
+        zf.writestr("README.txt", \
 """    
 Contents of this ZIP archive
 ============================
 This archive contains a surface: A collection of individual topography measurements.
+
+The meta data for the surface and the individual topographies can be found in the
+auxiliary file 'meta.yml'. It is formatted as a [YAML](https://yaml.org/) file.
 
 Version information
 ===================

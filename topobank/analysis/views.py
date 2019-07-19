@@ -1246,7 +1246,7 @@ def download_contact_mechanics_analyses_as_zip(request, analyses):
     #
     # Add a Readme file
     #
-    zf.writestr("README.md", \
+    zf.writestr("README.txt", \
     """    
 Contents of this ZIP archive
 ============================
