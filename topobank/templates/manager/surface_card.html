@@ -31,7 +31,7 @@
               {% fontawesome_icon 'edit' %} Edit meta data
             </a>
             <a href="{% url 'manager:topography-create' surface.id %}?redirect={{ parent_path }}" class="dropdown-item">
-              {% fontawesome_icon 'plus-square' %} Add Topography
+              {% fontawesome_icon 'plus-square' %} Add topography
             </a>
           {% endif %}
           <a href="{% url 'manager:surface-download' surface.id %}" class="dropdown-item">

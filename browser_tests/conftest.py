@@ -187,7 +187,7 @@ def surface_1_with_topographies_testuser_logged_in(one_empty_surface_testuser_si
 
     for dp in data_paths:
 
-        link = webdriver.find_element_by_link_text("Add Topography")
+        link = webdriver.find_element_by_link_text("Add topography")
         link.click()
 
         input = webdriver.find_element_by_id("id_0-datafile")
