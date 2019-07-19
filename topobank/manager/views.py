@@ -534,24 +534,6 @@ class SurfaceListView(FormMixin, ListView):
 
         self.request.session['selection'] = tuple(selection)
 
-        # when pressing the analyze button, trigger analysis for
-        # all selected topographies
-        if 'analyze' in self.request.POST:
-            #
-            # trigger analysis for all functions
-            #
-            from topobank.taskapp.tasks import submit_analysis
-            from topobank.analysis.models import AnalysisFunction
-
-            auto_analysis_funcs = AnalysisFunction.objects.filter(automatic=True)
-
-            topographies, surfaces = selected_instances(self.request)
-            for topo in topographies:
-                for af in auto_analysis_funcs:
-                    submit_analysis(af, topo)
-
-            messages.info(self.request, "Submitted analyses for {} topographies.".format(len(topographies)))
-
         return super().form_valid(form)
 
 class SurfaceCardView(TemplateView):

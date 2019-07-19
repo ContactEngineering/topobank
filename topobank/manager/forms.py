@@ -469,7 +469,6 @@ class TopographySelectForm(forms.Form):
             FormActions(
                 Submit('save', 'Save selection', css_class='btn-primary'),
                 Submit('select-all', 'Select all', css_class='btn-primary'),
-                Submit('analyze', 'Save selection & trigger analysis', css_class='btn-primary'),
                 HTML("""
                     <a href="{% url 'manager:surface-create' %}" class="btn btn-primary">
                         <i class="fa fa-plus-square-o"></i> Add Surface
