@@ -28,12 +28,15 @@
           {% endif %}
           {% if "change_surface" in surface_perms %}
             <a href="{% url 'manager:surface-update' surface.id %}" class="dropdown-item">
-              {% fontawesome_icon 'edit' %} Edit
+              {% fontawesome_icon 'edit' %} Edit meta data
             </a>
             <a href="{% url 'manager:topography-create' surface.id %}?redirect={{ parent_path }}" class="dropdown-item">
               {% fontawesome_icon 'plus-square' %} Add Topography
             </a>
           {% endif %}
+          <a href="{% url 'manager:surface-download' surface.id %}" class="dropdown-item">
+            {% fontawesome_icon 'download' %} Download
+          </a>
           {% if "share_surface" in surface_perms %}
             <a href="{% url 'manager:surface-share' surface.id %}" class="dropdown-item">
               {% fontawesome_icon 'share-alt' %} Share
