@@ -7,6 +7,7 @@ from guardian.shortcuts import get_objects_for_user, get_perms_for_model
 from termsandconditions.models import TermsAndConditions
 from topobank.users.models import User
 from topobank.manager.models import Surface, Topography
+from topobank.analysis.models import Analysis
 
 class HomeView(TemplateView):
 
@@ -18,9 +19,11 @@ class HomeView(TemplateView):
         if self.request.user.is_authenticated:
             user = self.request.user
             surfaces = Surface.objects.filter(creator=user)
-            topographies_count = Topography.objects.filter(surface__in=surfaces).count()
+            topographies = Topography.objects.filter(surface__in=surfaces)
+            analyses = Analysis.objects.filter(topography__in=topographies)
             context['num_surfaces'] = surfaces.count()
-            context['num_topographies'] = topographies_count
+            context['num_topographies'] = topographies.count()
+            context['num_analyses'] = analyses.count()
             # count surfaces you can view, but you are not creator
             context['num_shared_surfaces'] = get_objects_for_user(user, 'view_surface', klass=Surface)\
                                                 .filter(~Q(creator=user)).count()
