@@ -20,6 +20,10 @@ Issues with the above approach:
 */
 $('.form-group').removeClass('row');
 
+function siSuffixMeters(numberOfSignificantFigures = 3) {
+  return d => d3.format("." + numberOfSignificantFigures + "s")(d)+ "m";
+}
+
 /**
  * Create a plottable plot with surface summary
  *
@@ -40,9 +44,9 @@ function surface_summary_plot(element, bandwidths_data) {
     var inactiveBarColor = "#7c7c7d";
 
     var xScale = new Plottable.Scales.Log();
-    var xAxisFormatter = new Plottable.Formatters.siSuffix(2)
+    var xAxisFormatter = siSuffixMeters(2);
     var xAxis = new Plottable.Axes.Numeric(xScale, "bottom").formatter(xAxisFormatter);
-    var xAxisLabel = new Plottable.Components.Label("Bandwidth (m)");
+    var xAxisLabel = new Plottable.Components.Label("Bandwidth");
 
     var yScale = new Plottable.Scales.Category();
 
