@@ -32,6 +32,7 @@ class HomeView(TemplateView):
             context['num_users'] = User.objects.filter(Q(is_active=True) & ~Q(pk=anon.pk)).count()
             context['num_surfaces'] = Surface.objects.filter().count()
             context['num_topographies'] = Topography.objects.filter().count()
+            context['num_analyses'] = Analysis.objects.filter().count()
 
         return context
 
