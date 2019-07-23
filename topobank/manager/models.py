@@ -98,7 +98,7 @@ class Topography(models.Model):
     ]
 
     DETREND_MODE_CHOICES = [
-        ('center', 'No detrending'),
+        ('center', 'No detrending, but substract mean height'),
         ('height', 'Remove tilt'),
         ('curvature', 'Remove curvature'),
     ]
@@ -158,7 +158,7 @@ class Topography(models.Model):
         - scaled and detrended with the saved parameters
 
         """
-        topofile = get_topography_file(self.datafile)
+        topofile = get_topography_file(self.datafile, self.id)
         topo = topofile.topography(int(self.data_source))
 
         #
@@ -173,8 +173,11 @@ class Topography(models.Model):
             else:
                 topo.size = self.size_x, self.size_y
 
-        topo = topo.scale(self.height_scale).detrend(detrend_mode=self.detrend_mode,
-                                                     info=dict(unit=self.unit))
+        if self.height_scale_editable:
+            # Adjust height scale to value chosen by user
+            topo.coeff = self.height_scale # TODO use .scale_factor with PyCo >=0.5
+
+        topo = topo.detrend(detrend_mode=self.detrend_mode, info=dict(unit=self.unit))
 
         return topo
 
