@@ -98,7 +98,7 @@ class Topography(models.Model):
     ]
 
     DETREND_MODE_CHOICES = [
-        ('center', 'No detrending'),
+        ('center', 'No detrending, but substract mean height'),
         ('height', 'Remove tilt'),
         ('curvature', 'Remove curvature'),
     ]
