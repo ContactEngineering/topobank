@@ -1,5 +1,12 @@
 # Changelog for *TopoBank*
 
+## 0.5.5
+
+- fixed wrong heights in topography data, using PyCo 0.32.1 now (#295,#320)
+- changed buttons in when editing topographies
+  and added tooltips to chevron buttons in order to  make
+  more clear how batch editing works (#262)
+
 ## 0.5.4
 
 - fix for wrong height scale in case automated unit conversion
