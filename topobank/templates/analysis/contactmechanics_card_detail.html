@@ -309,8 +309,8 @@
 
     tab_names.forEach(function(tn){
       var div = $('#'+tn);
-      div.html(""); // Delete all old contents
-      div.addClass('spinner');
+      div.addClass('alert alert-info');
+      div.html("<span class='spinner'></span>Getting data, please wait.."); // Delete all old contents
     });
 
     if (is_pill_activated('tools-pill')) {
@@ -331,7 +331,7 @@
 
             tab_names.forEach(function(tn){
               var div = $('#'+tn);
-              div.removeClass('spinner alert alert-info');
+              div.removeClass('alert alert-info');
               div.html(""); // Delete all old contents
 
               var plot = JSON.parse(data[tn]);
@@ -345,7 +345,7 @@
             // show the error in a prominent way
             tab_names.forEach(function(tn) {
               var div = $('#' + tn);
-              div.removeClass('spinner alert alert-info');
+              div.removeClass('alert alert-info');
               div.html("Please report this error: " + errorThrown + xhr.status + xhr.responseText);
               div.addClass("alert alert-danger");
             });
