@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 0.5.6
+
+- changed site address for Caddy server to be just the domain name
+
 ## 0.5.5
 
 - fixed wrong heights in topography data, using PyCo 0.32.1 now (#295,#320)
