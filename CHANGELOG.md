@@ -7,6 +7,7 @@
   and added tooltips to chevron buttons in order to  make
   more clear how batch editing works (#262)
 - showing a spinner every time a point is chosen in contact mechanics (#288)
+- workaround for tooltips on multiple data points in 1D plot (#246) 
 
 ## 0.5.4
 

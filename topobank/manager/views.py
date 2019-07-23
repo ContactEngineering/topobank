@@ -354,6 +354,26 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
         x_range = DataRange1d(bounds='auto')
         y_range = DataRange1d(bounds='auto')
 
+        TOOLTIPS = """
+            <style>
+                .bk-tooltip>div:not(:first-child) {{display:none;}}
+                td.tooltip-varname {{ text-align:right; font-weight: bold}}
+            </style>
+
+            <table>
+              <tr>
+                <td class="tooltip-varname">x</td>
+                <td>:</td>
+                <td>@x {}</td>
+              </tr>
+              <tr>
+                <td class="tooltip-varname">height</td>
+                <td>:</td>
+                <td >@y {}</td>
+              </tr>
+            </table>
+        """.format(topo.unit, topo.unit)
+
         plot = figure(x_range=x_range, y_range=y_range,
                       x_axis_label=f'x ({topo.unit})',
                       y_axis_label=f'height ({topo.unit})',
