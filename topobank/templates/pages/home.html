@@ -9,7 +9,7 @@
 
 {% block content %}
     <div class="alert alert-warning">
-      This is a beta release. All uploaded data is permament, but the UI may undergo changes.
+      This is a beta release. All uploaded data is permament, but the user interface may undergo changes.
       If you would like to report any comments, issues, or suggestions,
       please <a href="mailto:topobank@imtek.uni-freiburg.de">drop us an email</a>.
       For a transition period, the old surface topography analyzer is still available
@@ -27,20 +27,30 @@
         {#  <p><a class="btn btn-primary btn-lg" href="#" role="button">Learn more &raquo;</a></p> #}
         <div class="row">
           {% with request.user.is_authenticated as is_authenticated %}
+            {% if not is_authenticated %}
             <div class="{% column_div_class is_authenticated %}">
-              <div class="card text-white bg-primary o-hidden h-100">
+              <div class="card text-white bg-secondary o-hidden h-100">
                 <div class="card-body">
                   <div class="card-body-icon">
                     <i class="fa fa-fw fa-user"></i>
                   </div>
                   <div class="mr-2">
-                  {% if is_authenticated %}
-                    Your last login was on
-                    <div class="welcome-page-statistics">{{ request.user.last_login|date }}</div>
-                    You joined on {{ request.user.date_joined|date }}
-                  {% else %}
-                    <div class="welcome-page-statistics">{{ num_users }}</div> registered users
-                  {% endif %}
+                    <div class="welcome-page-statistics">{{ num_users }}</div> registered users.
+                  </div>
+                </div>
+              </div>
+            </div>
+            {% endif %}
+
+            <div class="{% column_div_class is_authenticated %}">
+              <div class="card text-white bg-primary o-hidden h-100">
+                <div class="card-body">
+                  <div class="card-body-icon">
+                    <i class="fa fa-fw fa-diamond"></i>
+                  </div>
+                  <div class="mr-2">
+                  {% if is_authenticated %}You have{% endif %}
+                    <div class="welcome-page-statistics">{{ num_surfaces }}</div> surfaces in database.
                   </div>
                 </div>
               </div>
@@ -50,11 +60,11 @@
               <div class="card text-white bg-danger o-hidden h-100">
                 <div class="card-body">
                   <div class="card-body-icon">
-                    <i class="fa fa-fw fa-diamond"></i>
+                    <i class="fa fa-fw fa-edit"></i>
                   </div>
                   <div class="mr-2">
-                  {% if is_authenticated %} You have {% endif %}
-                    <div class="welcome-page-statistics">{{ num_surfaces }}</div> surfaces in database
+                  {% if is_authenticated %}You have{% endif %}
+                    <div class="welcome-page-statistics">{{ num_topographies }}</div> individual topographies.
                   </div>
                 </div>
               </div>
@@ -64,11 +74,11 @@
               <div class="card text-white bg-warning o-hidden h-100">
                 <div class="card-body">
                   <div class="card-body-icon">
-                    <i class="fa fa-fw fa-edit"></i>
+                    <i class="fa fa-fw fa-area-chart"></i>
                   </div>
                   <div class="mr-2">
-                    {% if is_authenticated %} You have {% endif %}
-                    <div class="welcome-page-statistics">{{ num_topographies }}</div> individual topographies
+                  {% if is_authenticated %}You have{% endif %}
+                    <div class="welcome-page-statistics">{{ num_analyses }}</div> computed analyses.
                   </div>
                 </div>
               </div>
@@ -83,7 +93,7 @@
                   </div>
                   <div class="mr-2">
                     Other users shared
-                    <div class="welcome-page-statistics">{{ num_shared_surfaces }}</div> surfaces with you
+                    <div class="welcome-page-statistics">{{ num_shared_surfaces }}</div> surfaces with you.
                   </div>
                 </div>
               </div>
@@ -119,13 +129,15 @@
         </div>
         <div class="col-md-3">
           <h2>Analyses</h2>
-          <p>All <em>analyses</em> are stored, can be retriggered, visualized or compared.
-          A number of analysis functions available.</p>
+          <p>A number <em>analyses</em>, such as computing the power-spectral density or the real area of contact, are
+          automatically performed on all uploaded <em>topographies</em>.
+          These analyses are stored, can be retriggered, visualized or compared.</p>
           <p><a class="btn btn-secondary" href="{% url 'analysis:list' %}" role="button">Show analyses &raquo;</a></p>
         </div>
          <div class="col-md-3">
           <h2>Sharing</h2>
-           <p><em>Share</em> your surfaces with others for collaboration. Decide whether they can modify them or not.</p>
+           <p><em>Surfaces</em> can be <em>shared</em> with others for collaboration. You decide whether your
+             collaborators can modify them or not.</p>
         <p><a class="btn btn-secondary" href="{% url 'manager:sharing-info' %}" role="button">Show sharing info &raquo;</a></p>
         </div>
         {% else %}

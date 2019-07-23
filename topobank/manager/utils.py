@@ -45,20 +45,21 @@ class TopographyFileReadingException(TopographyFileException):
     def message(self):
         return self._message
 
-def get_topography_file(filefield):
+def get_topography_file(filefield, topography_id=None):
     """Returns TopographyFile object from cache if possible.
 
     If not in cache, the TopographyFile object is created
-    and save to cache.
+    and saved to cache.
 
     :param filefield: models.FileField instance
+    :param topography_id: integer with topography id in order not to mix up files with same name
     :return: TopographyFile instance
     """
     if hasattr(filefield, 'storage'):
         middle = 'storage'
     else:
         middle = "temporary"
-    cache_key = "topofile:{}:{}".format(middle,filefield.name)
+    cache_key = "topofile:{}:{}:{}".format(middle, filefield.name, topography_id)
     topofile = cache.get(cache_key)
     if topofile is None:
         topofile = TopographyFile(filefield.open(mode='rb'))
@@ -117,7 +118,9 @@ class TopographyFile:
                 unit = None
 
             if not isinstance(unit, tuple):
-                topographies.append(topography) # scale + detrend is done later, see Topography.topography()
+                if not hasattr(topography, 'coeff'): # 'coeff' for scaling, 'coeffs' for detrending
+                    topography = topography.scale(1.0)
+                topographies.append(topography) # detrend is done later, see Topography.topography()
 
         self._topographies = topographies
 

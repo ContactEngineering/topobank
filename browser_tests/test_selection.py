@@ -115,7 +115,7 @@ def test_selection_only_own_surfaces_and_topos(live_server, django_user_model,
 
         for dp in data_paths:
 
-            link = webdriver.find_element_by_link_text("Add Topography")
+            link = webdriver.find_element_by_link_text("Add topography")
             link.click()
 
             input = webdriver.find_element_by_id("id_0-datafile")
@@ -211,9 +211,9 @@ def test_show_empty_surface_when_explicitly_selected(one_empty_surface_testuser_
     btn.click()
 
     #
-    # Now "Add Topography" button should be shown
+    # Now "Add topography" button should be shown
     #
-    webdriver.find_element_by_link_text("Add Topography")
+    webdriver.find_element_by_link_text("Add topography")
 
 
 

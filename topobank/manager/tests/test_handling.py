@@ -461,6 +461,7 @@ def test_edit_topography(client, two_topos, django_user_model, topo_example3):
     #
     response = client.post(reverse('manager:topography-update', kwargs=dict(pk=topo_example3.pk)),
                            data={
+                            'save-stay': 1, # we want to save, but stay on page
                             'surface': topo_example3.surface.pk,
                             'data_source': 0,
                             'name': new_name,
@@ -475,9 +476,12 @@ def test_edit_topography(client, two_topos, django_user_model, topo_example3):
 
     assert_no_form_errors(response)
 
-    # due to the changed topography editing, we should stay on update page
+    # we should stay on the update page for this topography
     assert_redirects(response, reverse('manager:topography-update', kwargs=dict(pk=topo_example3.pk)))
 
+    #
+    # let's check whether it has been changed
+    #
     topos = Topography.objects.filter(surface=topo_example3.surface).order_by('pk')
 
     assert len(topos) == 2
@@ -492,7 +496,7 @@ def test_edit_topography(client, two_topos, django_user_model, topo_example3):
     assert pytest.approx(t.size_y) == 1000
 
     #
-    # should also appear in the list of topographies
+    # the changed topography should also appear in the list of topographies
     #
     response = client.get(reverse('manager:surface-detail', kwargs=dict(pk=t.surface.pk)))
     assert bytes(new_name, 'utf-8') in response.content
@@ -536,6 +540,7 @@ def test_edit_line_scan(client, one_line_scan, django_user_model):
     #
     response = client.post(reverse('manager:topography-update', kwargs=dict(pk=topo_id)),
                            data={
+                            'save-stay': 1,  # we want to save, but stay on page
                             'surface': 1,
                             'data_source': 0,
                             'name': new_name,

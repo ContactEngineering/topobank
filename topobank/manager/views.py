@@ -311,7 +311,11 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
 
     def get_success_url(self):
         self.object.submit_automated_analyses()
-        return reverse('manager:topography-update', kwargs=dict(pk=self.object.pk))
+
+        if "save-stay" in self.request.POST:
+            return reverse('manager:topography-update', kwargs=dict(pk=self.object.pk))
+        else:
+            return reverse('manager:topography-detail', kwargs=dict(pk=self.object.pk))
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -349,6 +353,26 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
 
         x_range = DataRange1d(bounds='auto')
         y_range = DataRange1d(bounds='auto')
+
+        TOOLTIPS = """
+            <style>
+                .bk-tooltip>div:not(:first-child) {{display:none;}}
+                td.tooltip-varname {{ text-align:right; font-weight: bold}}
+            </style>
+
+            <table>
+              <tr>
+                <td class="tooltip-varname">x</td>
+                <td>:</td>
+                <td>@x {}</td>
+              </tr>
+              <tr>
+                <td class="tooltip-varname">height</td>
+                <td>:</td>
+                <td >@y {}</td>
+              </tr>
+            </table>
+        """.format(topo.unit, topo.unit)
 
         plot = figure(x_range=x_range, y_range=y_range,
                       x_axis_label=f'x ({topo.unit})',
@@ -533,24 +557,6 @@ class SurfaceListView(FormMixin, ListView):
         _log.info('Form valid, selection: %s', selection)
 
         self.request.session['selection'] = tuple(selection)
-
-        # when pressing the analyze button, trigger analysis for
-        # all selected topographies
-        if 'analyze' in self.request.POST:
-            #
-            # trigger analysis for all functions
-            #
-            from topobank.taskapp.tasks import submit_analysis
-            from topobank.analysis.models import AnalysisFunction
-
-            auto_analysis_funcs = AnalysisFunction.objects.filter(automatic=True)
-
-            topographies, surfaces = selected_instances(self.request)
-            for topo in topographies:
-                for af in auto_analysis_funcs:
-                    submit_analysis(af, topo)
-
-            messages.info(self.request, "Submitted analyses for {} topographies.".format(len(topographies)))
 
         return super().form_valid(form)
 
@@ -873,11 +879,14 @@ def download_surface(request, surface_id):
         #
         # Add a Readme file
         #
-        zf.writestr("README.md", \
+        zf.writestr("README.txt", \
 """    
 Contents of this ZIP archive
 ============================
 This archive contains a surface: A collection of individual topography measurements.
+
+The meta data for the surface and the individual topographies can be found in the
+auxiliary file 'meta.yml'. It is formatted as a [YAML](https://yaml.org/) file.
 
 Version information
 ===================

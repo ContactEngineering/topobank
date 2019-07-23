@@ -23,7 +23,7 @@ def test_deleting_topography(one_empty_surface_testuser_signed_in, webdriver):
     btn = webdriver.find_element_by_id("submit-id-save")
     btn.click()
 
-    link = webdriver.find_element_by_partial_link_text("Add Topography")
+    link = webdriver.find_element_by_partial_link_text("Add topography")
     link.click()
 
     input = webdriver.find_element_by_id("id_0-datafile")
@@ -100,7 +100,7 @@ def test_cancel_while_creating_topography(one_empty_surface_testuser_signed_in, 
     btn = webdriver.find_element_by_id("submit-id-save")
     btn.click()
 
-    link = webdriver.find_element_by_link_text("Add Topography")
+    link = webdriver.find_element_by_link_text("Add topography")
     link.click()
 
     input = webdriver.find_element_by_id("id_0-datafile")
@@ -117,7 +117,7 @@ def test_cancel_while_creating_topography(one_empty_surface_testuser_signed_in, 
     # Now cancel from step 2
     #
 
-    link = webdriver.find_element_by_link_text("Add Topography")
+    link = webdriver.find_element_by_link_text("Add topography")
 
     link.click()
 
@@ -139,7 +139,7 @@ def test_cancel_while_creating_topography(one_empty_surface_testuser_signed_in, 
     # Now cancel from step 3
     #
 
-    link = webdriver.find_element_by_link_text("Add Topography")
+    link = webdriver.find_element_by_link_text("Add topography")
 
     link.click()
 

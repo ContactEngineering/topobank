@@ -339,10 +339,12 @@ class TopographyForm(TopographyUnitsForm):
                 *self.editable_fields,
             ),
             FormActions(
-                    Submit('save', 'Save'),
+                    Submit('save-stay', 'Save and keep editing'),
+                    Submit('save-finish', 'Save and finish editing'),
                     HTML("""
-                        <a href="{% url 'manager:topography-detail' object.id %}" class="btn btn-default" id="cancel-btn">Cancel</a>
-                    """),# for topographies it's okay to always return to topography detail view
+                        <a href="{% url 'manager:topography-detail' object.id %}" class="btn btn-default" id="cancel-btn">
+                        Finish editing without saving</a>
+                    """),
                 ),
         )
 
@@ -469,7 +471,6 @@ class TopographySelectForm(forms.Form):
             FormActions(
                 Submit('save', 'Save selection', css_class='btn-primary'),
                 Submit('select-all', 'Select all', css_class='btn-primary'),
-                Submit('analyze', 'Save selection & trigger analysis', css_class='btn-primary'),
                 HTML("""
                     <a href="{% url 'manager:surface-create' %}" class="btn btn-primary">
                         <i class="fa fa-plus-square-o"></i> Add Surface
