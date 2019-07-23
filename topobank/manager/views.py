@@ -311,7 +311,11 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
 
     def get_success_url(self):
         self.object.submit_automated_analyses()
-        return reverse('manager:topography-update', kwargs=dict(pk=self.object.pk))
+
+        if "save-stay" in self.request.POST:
+            return reverse('manager:topography-update', kwargs=dict(pk=self.object.pk))
+        else:
+            return reverse('manager:topography-detail', kwargs=dict(pk=self.object.pk))
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
