@@ -461,6 +461,7 @@ def test_edit_topography(client, two_topos, django_user_model, topo_example3):
     #
     response = client.post(reverse('manager:topography-update', kwargs=dict(pk=topo_example3.pk)),
                            data={
+                            'save-stay': 1, # we want to save, but stay on page
                             'surface': topo_example3.surface.pk,
                             'data_source': 0,
                             'name': new_name,
@@ -539,6 +540,7 @@ def test_edit_line_scan(client, one_line_scan, django_user_model):
     #
     response = client.post(reverse('manager:topography-update', kwargs=dict(pk=topo_id)),
                            data={
+                            'save-stay': 1,  # we want to save, but stay on page
                             'surface': 1,
                             'data_source': 0,
                             'name': new_name,
