@@ -1,5 +1,10 @@
 # Changelog for *TopoBank*
 
+## 0.5.7
+
+- workaround: increased limit for maximum request line (#328)
+- fix for server error when uploading files with space in filename (#329)
+
 ## 0.5.6
 
 - changed site address for Caddy server to be just the domain name
