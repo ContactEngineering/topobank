@@ -23,4 +23,9 @@ GUNICORN=/opt/conda/bin/gunicorn
 # This location would be used with python3.7-alpine as base image
 # GUNICORN=/usr/local/bin/gunicorn
 
-${GUNICORN} config.wsgi --bind 0.0.0.0:5000 --chdir=/app --worker-class eventlet --timeout 300
+${GUNICORN} config.wsgi --bind 0.0.0.0:5000 --chdir=/app --worker-class eventlet --timeout 300 --limit-request-line 8190
+
+# Default maximum for request line is 4094.
+# See here: https://docs.gunicorn.org/en/latest/settings.html?highlight=limit_request_line#limit-request-line
+# The value 0 would remove the limit but may be used for DDOS attacks.
+

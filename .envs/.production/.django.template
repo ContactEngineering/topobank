@@ -8,7 +8,7 @@
 DJANGO_SETTINGS_MODULE=config.settings.production
 DJANGO_SECRET_KEY=<replace with your own secret key, a very long random string>
 DJANGO_ADMIN_URL=<replace with a long random url>
-DJANGO_ALLOWED_HOSTS=topobank.contact.engineering
+DJANGO_ALLOWED_HOSTS=contact.engineering
 
 # Security
 # ------------------------------------------------------------------------------

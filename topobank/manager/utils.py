@@ -59,7 +59,12 @@ def get_topography_file(filefield, topography_id=None):
         middle = 'storage'
     else:
         middle = "temporary"
-    cache_key = "topofile:{}:{}:{}".format(middle, filefield.name, topography_id)
+
+    cache_key = "topofile:{}:{}:{}".format(middle, topography_id, filefield.name)
+
+    # Memcached keys should not contain spaces and mustn't be larger than 250 characters
+    cache_key = cache_key.replace(' ', '_')[:250]
+
     topofile = cache.get(cache_key)
     if topofile is None:
         topofile = TopographyFile(filefield.open(mode='rb'))
