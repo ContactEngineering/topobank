@@ -346,7 +346,8 @@ topobank.db
 orcid.yaml
 
 # This is the source code for PyCo which we need to build docker containers
-PyCo-0*.tar.gz
+PyCo-*.tar.gz
 
 # Some stuff which may appear during development
 .ipynb_checkpoints/
+/media/topographies/**/*
