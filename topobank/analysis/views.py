@@ -43,7 +43,7 @@ from ..manager.utils import selected_instances, selection_from_session
 from .models import Analysis, AnalysisFunction
 from .serializers import AnalysisSerializer
 from .forms import TopographyFunctionSelectForm
-from .utils import get_latest_analyses
+from .utils import get_latest_analyses, mangle_sheet_name
 from topobank.taskapp.tasks import submit_analysis
 
 import logging
@@ -1189,7 +1189,8 @@ def download_plot_analyses_to_xlsx(request, analyses):
 
         for series in result['series']:
             df = pd.DataFrame({column1: series['x'], column2: series['y']})
-            df.to_excel(excel, sheet_name='{} - {}'.format(analysis.topography.name, series['name'].replace('/', ' div ')))
+            sheet_name = '{} - {}'.format(analysis.topography.name, series['name'].replace('/', ' div '))
+            df.to_excel(excel, sheet_name=mangle_sheet_name(sheet_name))
     df = pd.DataFrame({'Property': properties, 'Value': values})
     df.to_excel(excel, sheet_name='INFORMATION', index=False)
     excel.close()
