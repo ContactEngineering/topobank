@@ -350,4 +350,4 @@ PyCo-*.tar.gz
 
 # Some stuff which may appear during development
 .ipynb_checkpoints/
-/media/topographies/**/*
+/media/**/*
