@@ -484,7 +484,7 @@ def test_edit_topography(client, two_topos, django_user_model, topo_example3):
     #
     topos = Topography.objects.filter(surface=topo_example3.surface).order_by('pk')
 
-    assert len(topos) == 2
+    assert len(topos) == 1
 
     t = topos[0]
 

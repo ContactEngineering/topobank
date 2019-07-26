@@ -16,8 +16,11 @@ def test_topography_name(two_topos):
 def test_topography_str(two_topos):
     surface = Surface.objects.get(name="Surface 1")
     topos = Topography.objects.filter(surface=surface).order_by('name')
-    assert [ str(t) for t in topos ] == ["Topography 'Example 3 - ZSensor' from 2018-01-01",
-                                         "Topography 'Example 4 - Default' from 2018-01-02"]
+    assert [ str(t) for t in topos ] == ["Topography 'Example 3 - ZSensor' from 2018-01-01"]
+
+    surface = Surface.objects.get(name="Surface 2")
+    topos = Topography.objects.filter(surface=surface).order_by('name')
+    assert [str(t) for t in topos] == ["Topography 'Example 4 - Default' from 2018-01-02"]
 
 @pytest.mark.django_db
 def test_call_topography_method_multiple_times(two_topos):

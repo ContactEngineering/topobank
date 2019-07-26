@@ -6,6 +6,7 @@ import pytest
 import datetime
 import pickle
 import numpy as np
+import tempfile, openpyxl
 
 from django.urls import reverse
 
@@ -335,7 +336,7 @@ def test_show_multiple_analyses_for_two_functions(client, two_topos):
     assert b"Example 4 - Default" in response.content
 
 @pytest.fixture
-def ids_downloadable_analyses():
+def ids_downloadable_analyses(two_topos):
     #
     # create two analyses with resuls
     #
@@ -430,8 +431,26 @@ def test_analyis_download_as_txt(client, two_topos, ids_downloadable_analyses):
 
     assert arr == pytest.approx(expected_arr)
 
+@pytest.mark.parametrize("same_names", [ False, True])
 @pytest.mark.django_db
-def test_analyis_download_as_xlsx(client, two_topos, ids_downloadable_analyses):
+def test_analyis_download_as_xlsx(client, two_topos, ids_downloadable_analyses, same_names):
+
+    topos = Topography.objects.all()
+    assert len(topos) == 2
+
+    # if tested with "same_names=True", make sure both topographies have the same name
+    if same_names:
+        topos[0].name = topos[1].name
+        topos[0].save()
+
+    first_topo_name = topos[0].name
+    second_topo_name = topos[1].name
+
+    first_topo_name_in_sheet_name = first_topo_name
+    second_topo_name_in_sheet_name = second_topo_name
+    if same_names:
+        first_topo_name_in_sheet_name += " (1)"
+        second_topo_name_in_sheet_name += " (2)"
 
     username = 'testuser'
     password = 'abcd$1234'
@@ -443,17 +462,17 @@ def test_analyis_download_as_xlsx(client, two_topos, ids_downloadable_analyses):
 
     response = client.get(download_url)
 
-    import tempfile, openpyxl
-
     tmp = tempfile.NamedTemporaryFile(suffix='.xlsx') # will be deleted automatically
     tmp.write(response.content)
     tmp.seek(0)
 
     xlsx = openpyxl.load_workbook(tmp.name)
 
-    assert len(xlsx.worksheets) == 2*2 + 1 # TODO this would currently fail if the topographies had the same name
+    print(xlsx.sheetnames)
 
-    ws = xlsx.get_sheet_by_name("Example 3 - ZSensor - First Series")
+    assert len(xlsx.worksheets) == 2*2 + 1
+
+    ws = xlsx.get_sheet_by_name(f"{first_topo_name_in_sheet_name} - First Series")
 
     assert list(ws.values) == [
         (None, 'time (s)', 'distance (m)'),
@@ -464,7 +483,7 @@ def test_analyis_download_as_xlsx(client, two_topos, ids_downloadable_analyses):
         (4, 4, 8),
     ]
 
-    ws = xlsx.get_sheet_by_name("Example 3 - ZSensor - Second Series")
+    ws = xlsx.get_sheet_by_name(f"{first_topo_name_in_sheet_name} - Second Series")
 
     assert list(ws.values) == [
         (None, 'time (s)', 'distance (m)'),
@@ -475,7 +494,7 @@ def test_analyis_download_as_xlsx(client, two_topos, ids_downloadable_analyses):
         (4, 5, 15),
     ]
 
-    ws = xlsx.get_sheet_by_name("Example 4 - Default - First Series")
+    ws = xlsx.get_sheet_by_name(f"{second_topo_name_in_sheet_name} - First Series")
 
     assert list(ws.values) == [
         (None, 'time (s)', 'distance (m)'),
@@ -486,7 +505,7 @@ def test_analyis_download_as_xlsx(client, two_topos, ids_downloadable_analyses):
         (4, 5, 9),
     ]
 
-    ws = xlsx.get_sheet_by_name("Example 4 - Default - Second Series")
+    ws = xlsx.get_sheet_by_name(f"{second_topo_name_in_sheet_name} - Second Series")
 
     assert list(ws.values) == [
         (None, 'time (s)', 'distance (m)'),
@@ -496,6 +515,40 @@ def test_analyis_download_as_xlsx(client, two_topos, ids_downloadable_analyses):
         (3, 5, 13),
         (4, 6, 16),
     ]
+
+# @pytest.mark.django_db
+# def test_analysis_download_xlsx_with_same_topography_names(client):
+#
+#     username = 'testuser'
+#     password = 'abcd$1234'
+#
+#     user = UserFactory(username=username, password=password)
+#
+#     s1 = SurfaceFactory(name="S1", creator=user)
+#     s2 = SurfaceFactory(name="S2", creator=user)
+#
+#     t1 = TopographyFactory(surface=s1, name="samename")
+#     t2 = TopographyFactory(surface=s2, name="samename")
+#
+#     assert client.login(username=username, password=password)
+#
+#     f = AnalysisFunctionFactory()
+#     a1 = AnalysisFactory(topography=t1, function=f)
+#     a2 = AnalysisFactory(topography=t2, function=f)
+#
+#     ids_str = f"{a1.id},{a2.id}"
+#     download_url = reverse('analysis:download', kwargs=dict(ids=ids_str, card_view_flavor='plot', file_format='xlsx'))
+#
+#     response = client.get(download_url)
+#
+#     tmp = tempfile.NamedTemporaryFile(suffix='.xlsx')  # will be deleted automatically
+#     tmp.write(response.content)
+#     tmp.seek(0)
+#
+#     xlsx = openpyxl.load_workbook(tmp)
+#
+#     assert len(xlsx.worksheets) == 2*2 + 1
+
 
 
 @pytest.mark.django_db

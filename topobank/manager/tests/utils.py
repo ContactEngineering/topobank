@@ -52,12 +52,13 @@ def two_topos():
     call_command('register_analysis_functions')
 
     user = UserFactory(username='testuser', password='abcd$1234')
-    surface = SurfaceFactory(name="Surface 1", creator=user)
+    surface1 = SurfaceFactory(name="Surface 1", creator=user)
+    surface2 = SurfaceFactory(name="Surface 2", creator=user)
 
     datafile1 = factory.django.FileField(from_path="topobank/manager/fixtures/example3.di")
     datafile2 = factory.django.FileField(from_path="topobank/manager/fixtures/example4.txt")
 
-    TopographyFactory(surface=surface,
+    TopographyFactory(surface=surface1,
                       creator=user,
                       name='Example 3 - ZSensor',
                       data_source=0,
@@ -72,7 +73,7 @@ def two_topos():
                       resolution_x=256,
                       resolution_y=256)
 
-    TopographyFactory(surface=surface,
+    TopographyFactory(surface=surface2,
                       creator=user,
                       name='Example 4 - Default',
                       data_source=0,

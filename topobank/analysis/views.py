@@ -1160,7 +1160,6 @@ def download_plot_analyses_to_txt(request, analyses):
 def download_plot_analyses_to_xlsx(request, analyses):
 
     # TODO: We need a mechanism for embedding references to papers into output.
-    # TODO: Probably this function leaves out data if the sheet names are not unique (built from topography+series name)
     # TODO: pandas is a requirement that takes quite long when building docker images, do we really need it here?
     import pandas as pd
 
@@ -1168,9 +1167,24 @@ def download_plot_analyses_to_xlsx(request, analyses):
     f = io.BytesIO()
     excel = pd.ExcelWriter(f)
 
+
+    # Analyze topography names and store a distinct name
+    # which can be used in sheet names if topography names are not unique
+    topography_names_in_sheet_names = [ a.topography.name for a in analyses]
+
+    for tn in set(topography_names_in_sheet_names): # iterate over distinct names
+
+        # replace name with a unique one using a counter
+        indices = [ i for i, a in enumerate(analyses) if a.topography.name == tn]
+
+        if len(indices) > 1: # only rename if not unique
+            for k, idx in enumerate(indices):
+                topography_names_in_sheet_names[idx] += f" ({k+1})"
+
     # Global properties and values.
     properties = []
     values = []
+
     for i, analysis in enumerate(analyses):
 
         if i == 0:
@@ -1187,9 +1201,14 @@ def download_plot_analyses_to_xlsx(request, analyses):
         column1 = '{} ({})'.format(result['xlabel'], result['xunit'])
         column2 = '{} ({})'.format(result['ylabel'], result['yunit'])
 
+        # determine name of topography in sheet name
+
+
         for series in result['series']:
             df = pd.DataFrame({column1: series['x'], column2: series['y']})
-            sheet_name = '{} - {}'.format(analysis.topography.name, series['name'].replace('/', ' div '))
+
+            sheet_name = '{} - {}'.format(topography_names_in_sheet_names[i],
+                                          series['name'].replace('/', ' div '))
             df.to_excel(excel, sheet_name=mangle_sheet_name(sheet_name))
     df = pd.DataFrame({'Property': properties, 'Value': values})
     df.to_excel(excel, sheet_name='INFORMATION', index=False)
