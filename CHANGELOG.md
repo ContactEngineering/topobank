@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 0.6.0
+
+- fixed sheet names for XLSX download of analysis data (#39,#77)
+
 ## 0.5.7
 
 - workaround: increased limit for maximum request line (#328)
