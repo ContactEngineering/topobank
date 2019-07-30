@@ -3,6 +3,7 @@
 ## 0.6.0
 
 - fixed sheet names for XLSX download of analysis data (#39,#77)
+- fixed version numbers for used dependencies, they are tracked now (#176) 
 
 ## 0.5.7
 
