@@ -5,6 +5,7 @@ import inspect
 from django.utils import timezone
 from django.db import transaction
 from django.db.models import Q
+from django.conf import settings
 
 from celery_progress.backend import ProgressRecorder
 
@@ -41,7 +42,7 @@ def submit_analysis(analysis_func, topography, *other_args, **kwargs):
     # progress recorder should also not be saved:
     if 'progress_recorder' in pyfunc_kwargs:
         del pyfunc_kwargs['progress_recorder']
-        
+
     # same for storage prefix
     if 'storage_prefix' in pyfunc_kwargs:
         del pyfunc_kwargs['storage_prefix']
@@ -84,6 +85,39 @@ def submit_analysis(analysis_func, topography, *other_args, **kwargs):
     transaction.on_commit(lambda : perform_analysis.delay(analysis.id))
 
 
+
+
+def current_configuration():
+    """Determine current configuration (package versions) and create appropriate database entries.
+
+    The configuration is needed in order to track down analysis results
+    to specific module and package versions. Like this it is possible to
+    find all analyses which have been calculated with buggy packages.
+
+    :return: Configuration instance which can be used for analyses
+    """
+    versions = [get_package_version_instance(pkg_name, version_expr)
+                for pkg_name, version_expr in settings.TRACKED_PACKAGES]
+
+    def make_config_from_versions():
+        c = Configuration.objects.create()
+        c.versions.set(versions)
+        return c
+
+    if Configuration.objects.count() == 0:
+        return make_config_from_versions()
+
+    #
+    # Find out whether the latest configuration has exactly these versions
+    #
+    latest_config = Configuration.objects.latest('valid_since')
+
+    if versions == latest_config.versions:
+        return latest_config
+    else:
+        return make_config_from_versions()
+
+
 @app.task(bind=True)
 def perform_analysis(self, analysis_id):
     """Perform an analysis which is already present in the database.
@@ -110,6 +144,7 @@ def perform_analysis(self, analysis_id):
     analysis.task_state = Analysis.STARTED
     analysis.task_id = self.request.id
     analysis.start_time = timezone.now() # with timezone
+    analysis.configuration = current_configuration()
     analysis.save()
 
     def save_result(result, task_state):

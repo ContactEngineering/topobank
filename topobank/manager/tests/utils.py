@@ -98,13 +98,13 @@ def one_line_scan():
 
     datafile = factory.django.FileField(from_path="topobank/manager/fixtures/line_scan_1.asc")
 
-    TopographyFactory(surface=surface,
-                      name='Simple Line Scan',
-                      measurement_date=datetime.date(2018,1,1),
-                      description="description1",
-                      size_x=9,
-                      detrend_mode='height',
-                      datafile=datafile)
+    return TopographyFactory(surface=surface,
+                             name='Simple Line Scan',
+                             measurement_date=datetime.date(2018,1,1),
+                             description="description1",
+                             size_x=9,
+                             detrend_mode='height',
+                             datafile=datafile)
 
 
 def export_reponse_as_html(response, fname='/tmp/response.html'):

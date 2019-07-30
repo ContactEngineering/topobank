@@ -4,6 +4,40 @@ import pickle
 from topobank.manager.models import Topography
 import topobank.analysis.functions as functions_module
 
+
+class Dependency(models.Model):
+    """A dependency of analysis results, e.g. "PyCo", "topobank"
+    """
+    import_name = models.CharField(max_length=30, unique=True)  # this is used with "import"
+    # version_expr =
+    # TODO where to place code which detects the versions?
+
+class Version(models.Model):
+    """
+    A specific version of a dependency.
+    Part of a configuration.
+    """
+    dependency = models.ForeignKey(Dependency, on_delete=models.CASCADE)
+
+    major = models.SmallIntegerField()
+    minor = models.SmallIntegerField()
+    micro = models.SmallIntegerField(null=True)
+
+    # the following can be used to indicate that this
+    # version should not be used any more / or the analyses
+    # should be recalculated
+    # valid = models.BooleanField(default=True)
+
+
+class Configuration(models.Model):
+    """For keeping track which versions were used for an analysis.
+    """
+    valid_since = models.DateTimeField(auto_now_add=True)
+    # pyco_version = models.CharField(max_length=20, help_text="PyCo version.")
+
+    versions = models.ManyToManyField(Version)
+
+
 class Analysis(models.Model):
 
     PENDING = 'pe'
@@ -35,6 +69,8 @@ class Analysis(models.Model):
     end_time = models.DateTimeField(null=True)
 
     result = models.BinaryField(null=True, default=None)  # for pickle, in case of failure, can be Exception instance
+
+    configuration = models.ForeignKey(Configuration, null=True, on_delete=models.SET_NULL)
 
     def __str__(self):
         return "Task {} with state {}".format(self.task_id, self.get_task_state_display())

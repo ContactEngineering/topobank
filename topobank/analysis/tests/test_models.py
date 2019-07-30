@@ -62,3 +62,35 @@ def test_autoload_analysis_functions():
     funcs = AnalysisFunction.objects.all()
     assert len(expected_funcs) == len(funcs)
 
+@pytest.mark.django_db
+def test_configuration(settings):
+
+    settings.TRACKED_PACKAGES = [
+        ('PyCo', 'PyCo.__version__'),
+        ('topobank', 'topobank.__version__'),
+        ('numpy', 'numpy.version.full_version')
+    ]
+
+    from topobank.taskapp.tasks import current_configuration
+
+    config = current_configuration()
+
+    versions = config.versions.order_by('dependency__import_name')
+
+    assert len(versions) == 3
+
+    v0, v1, v2 = versions
+
+    import numpy
+    assert v0.dependency.import_name == 'numpy'
+    assert f"{v0.major}.{v0.minor}.{v0.micro}" == numpy.version.full_version
+
+    import PyCo
+    assert v1.dependency.import_name == 'PyCo'
+    assert f"{v1.major}.{v1.minor}.{v1.micro}" == PyCo.__version__
+
+    import topobank
+    assert v2.dependency.import_name == 'topobank'
+    assert f"{v2.major}.{v2.minor}.{v2.micro}" == topobank.__version__
+
+

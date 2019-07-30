@@ -512,7 +512,8 @@ def test_edit_line_scan(client, one_line_scan, django_user_model):
     username = 'testuser'
     password = 'abcd$1234'
 
-    topo_id = 1
+    topo_id = one_line_scan.id
+    surface_id = one_line_scan.surface.id
 
     assert client.login(username=username, password=password)
 
@@ -541,7 +542,7 @@ def test_edit_line_scan(client, one_line_scan, django_user_model):
     response = client.post(reverse('manager:topography-update', kwargs=dict(pk=topo_id)),
                            data={
                             'save-stay': 1,  # we want to save, but stay on page
-                            'surface': 1,
+                            'surface': surface_id,
                             'data_source': 0,
                             'name': new_name,
                             'measurement_date': new_measurement_date,
