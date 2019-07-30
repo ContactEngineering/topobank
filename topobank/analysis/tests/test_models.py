@@ -64,7 +64,7 @@ def test_autoload_analysis_functions():
     assert len(expected_funcs) == len(funcs)
 
 @pytest.mark.django_db
-def test_configuration(settings):
+def test_current_configuration(settings):
 
     settings.TRACKED_PACKAGES = [
         ('PyCo', 'PyCo.__version__'),
@@ -94,5 +94,8 @@ def test_configuration(settings):
     import topobank
     assert v2.dependency.import_name == 'topobank'
     assert f"{v2.major}.{v2.minor}.{v2.micro}" == topobank.__version__
+
+
+
 
 

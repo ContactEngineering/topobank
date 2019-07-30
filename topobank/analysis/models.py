@@ -12,6 +12,9 @@ class Dependency(models.Model):
     # this is used with "import":
     import_name = models.CharField(max_length=30, unique=True)
 
+    def __str__(self):
+        return self.import_name
+
 class Version(models.Model):
     """
     A specific version of a dependency.
@@ -28,6 +31,12 @@ class Version(models.Model):
     # should be recalculated
     # valid = models.BooleanField(default=True)
 
+    def __str__(self):
+        x = f"{self.dependency} {self.major}.{self.minor}"
+        if self.micro:
+            x += f".{self.micro}"
+        return x
+
 
 class Configuration(models.Model):
     """For keeping track which versions were used for an analysis.
@@ -36,6 +45,10 @@ class Configuration(models.Model):
     # pyco_version = models.CharField(max_length=20, help_text="PyCo version.")
 
     versions = models.ManyToManyField(Version)
+
+    def __str__(self):
+        versions = [ str(v) for v in self.versions.all()]
+        return f"Valid since: {self.valid_since}, versions: {versions}"
 
 
 class Analysis(models.Model):

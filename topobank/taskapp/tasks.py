@@ -114,7 +114,10 @@ def current_configuration():
     #
     latest_config = Configuration.objects.latest('valid_since')
 
-    if versions == latest_config.versions:
+    current_version_ids = set(v.id for v in versions)
+    latest_version_ids = set(v.id for v in latest_config.versions.all())
+
+    if current_version_ids == latest_version_ids:
         return latest_config
     else:
         return make_config_from_versions()
@@ -134,7 +137,7 @@ def perform_analysis(self, analysis_id):
     - end time on finish
     - task_id
     - task_state
-
+    - current configuration (link to versions of installed dependencies)
     """
 
     progress_recorder = ProgressRecorder(self)
@@ -167,7 +170,7 @@ def perform_analysis(self, analysis_id):
         save_result(result, Analysis.SUCCESS)
     except Exception as exc:
         save_result(dict(error=traceback.format_exc()), Analysis.FAILURE)
-        # we want a real exception here so flower can show the task as failure
+        # we want a real exception here so celery's flower can show the task as failure
         raise
 
 
