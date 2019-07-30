@@ -99,7 +99,7 @@ def current_configuration():
     :return: Configuration instance which can be used for analyses
     """
     versions = [get_package_version_instance(pkg_name, version_expr)
-                for pkg_name, version_expr in settings.TRACKED_PACKAGES]
+                for pkg_name, version_expr in settings.TRACKED_DEPENDENCIES]
 
     def make_config_from_versions():
         c = Configuration.objects.create()

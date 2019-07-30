@@ -66,7 +66,7 @@ def test_autoload_analysis_functions():
 @pytest.mark.django_db
 def test_current_configuration(settings):
 
-    settings.TRACKED_PACKAGES = [
+    settings.TRACKED_DEPENDENCIES = [
         ('PyCo', 'PyCo.__version__'),
         ('topobank', 'topobank.__version__'),
         ('numpy', 'numpy.version.full_version')

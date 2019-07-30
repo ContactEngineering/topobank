@@ -56,7 +56,7 @@ def test_perform_analysis(mocker, two_topos, settings):
     #
     # No let's change the version of PyCo
     #
-    settings.TRACKED_PACKAGES = [
+    settings.TRACKED_DEPENDENCIES = [
         ('PyCo', '"0.5.1"'),
         ('topobank', 'topobank.__version__'),
         ('numpy', 'numpy.version.full_version')
