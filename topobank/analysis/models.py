@@ -1,4 +1,5 @@
 from django.db import models
+
 import pickle
 
 from topobank.manager.models import Topography
@@ -8,9 +9,8 @@ import topobank.analysis.functions as functions_module
 class Dependency(models.Model):
     """A dependency of analysis results, e.g. "PyCo", "topobank"
     """
-    import_name = models.CharField(max_length=30, unique=True)  # this is used with "import"
-    # version_expr =
-    # TODO where to place code which detects the versions?
+    # this is used with "import":
+    import_name = models.CharField(max_length=30, unique=True)
 
 class Version(models.Model):
     """

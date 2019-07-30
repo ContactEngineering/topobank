@@ -10,7 +10,9 @@ from django.conf import settings
 from celery_progress.backend import ProgressRecorder
 
 from .celery import app
-from topobank.analysis.models import Analysis
+from .utils import get_package_version_instance
+
+from topobank.analysis.models import Analysis, Configuration
 from topobank.manager.models import Topography
 
 
