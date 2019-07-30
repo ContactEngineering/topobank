@@ -1,6 +1,7 @@
 import pytest
 from operator import itemgetter
 import datetime
+from django.db.models.functions import Lower
 
 from ..models import Analysis, AnalysisFunction
 from topobank.manager.models import Topography
@@ -75,7 +76,8 @@ def test_configuration(settings):
 
     config = current_configuration()
 
-    versions = config.versions.order_by('dependency__import_name')
+    versions = config.versions.order_by(Lower('dependency__import_name'))
+    # Lower: Just to have a defined order independent from database used
 
     assert len(versions) == 3
 
