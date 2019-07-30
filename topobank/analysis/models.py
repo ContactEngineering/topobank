@@ -31,11 +31,14 @@ class Version(models.Model):
     # should be recalculated
     # valid = models.BooleanField(default=True)
 
-    def __str__(self):
-        x = f"{self.dependency} {self.major}.{self.minor}"
+    def number_as_string(self):
+        x = f"{self.major}.{self.minor}"
         if self.micro:
             x += f".{self.micro}"
         return x
+
+    def __str__(self):
+        return f"{self.dependency} {self.number_as_string()}"
 
 
 class Configuration(models.Model):

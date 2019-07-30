@@ -10,6 +10,8 @@ import tempfile, openpyxl
 
 from django.urls import reverse
 
+import PyCo
+
 from ..models import Analysis, AnalysisFunction
 from topobank.manager.tests.utils import two_topos # needed for fixture, see arguments below
 from topobank.manager.models import Topography, Surface
@@ -17,6 +19,7 @@ from topobank.manager.tests.utils import export_reponse_as_html, \
     SurfaceFactory, UserFactory, TopographyFactory
 from .utils import AnalysisFactory, AnalysisFunctionFactory
 from topobank.utils import assert_in_content, assert_not_in_content
+from topobank.taskapp.tasks import current_configuration
 
 def selection_from_instances(instances):
     """A little helper for constructing a selection."""
@@ -337,6 +340,9 @@ def test_show_multiple_analyses_for_two_functions(client, two_topos):
 
 @pytest.fixture
 def ids_downloadable_analyses(two_topos):
+
+    config = current_configuration()
+
     #
     # create two analyses with resuls
     #
@@ -371,13 +377,14 @@ def ids_downloadable_analyses(two_topos):
         analysis = Analysis.objects.create(topography=topos[k],
                                            function=function,
                                            result=pickle.dumps(result),
-                                           kwargs=pickle.dumps({}))
+                                           kwargs=pickle.dumps({}),
+                                           configuration=config)
         ids.append(analysis.id)
 
     return ids
 
 @pytest.mark.django_db
-def test_analyis_download_as_txt(client, two_topos, ids_downloadable_analyses):
+def test_analyis_download_as_txt(client, two_topos, ids_downloadable_analyses, settings):
 
     username = 'testuser'
     password = 'abcd$1234'
@@ -395,6 +402,10 @@ def test_analyis_download_as_txt(client, two_topos, ids_downloadable_analyses):
     txt = response.content.decode()
 
     assert "Test Function" in txt # function name should be in there
+
+    # check whether version numbers are in there
+    assert PyCo.__version__ in txt
+    assert settings.TOPOBANK_VERSION in txt
 
     # remove comments and empty lines
     filtered_lines = []
@@ -433,7 +444,7 @@ def test_analyis_download_as_txt(client, two_topos, ids_downloadable_analyses):
 
 @pytest.mark.parametrize("same_names", [ False, True])
 @pytest.mark.django_db
-def test_analyis_download_as_xlsx(client, two_topos, ids_downloadable_analyses, same_names):
+def test_analyis_download_as_xlsx(client, two_topos, ids_downloadable_analyses, same_names, settings):
 
     topos = Topography.objects.all()
     assert len(topos) == 2
@@ -516,40 +527,16 @@ def test_analyis_download_as_xlsx(client, two_topos, ids_downloadable_analyses, 
         (4, 6, 16),
     ]
 
-# @pytest.mark.django_db
-# def test_analysis_download_xlsx_with_same_topography_names(client):
-#
-#     username = 'testuser'
-#     password = 'abcd$1234'
-#
-#     user = UserFactory(username=username, password=password)
-#
-#     s1 = SurfaceFactory(name="S1", creator=user)
-#     s2 = SurfaceFactory(name="S2", creator=user)
-#
-#     t1 = TopographyFactory(surface=s1, name="samename")
-#     t2 = TopographyFactory(surface=s2, name="samename")
-#
-#     assert client.login(username=username, password=password)
-#
-#     f = AnalysisFunctionFactory()
-#     a1 = AnalysisFactory(topography=t1, function=f)
-#     a2 = AnalysisFactory(topography=t2, function=f)
-#
-#     ids_str = f"{a1.id},{a2.id}"
-#     download_url = reverse('analysis:download', kwargs=dict(ids=ids_str, card_view_flavor='plot', file_format='xlsx'))
-#
-#     response = client.get(download_url)
-#
-#     tmp = tempfile.NamedTemporaryFile(suffix='.xlsx')  # will be deleted automatically
-#     tmp.write(response.content)
-#     tmp.seek(0)
-#
-#     xlsx = openpyxl.load_workbook(tmp)
-#
-#     assert len(xlsx.worksheets) == 2*2 + 1
+    # check whether version numbers are available in INFORMATION sheet
+    ws = xlsx.get_sheet_by_name("INFORMATION")
 
+    vals = list(ws.values)
+    assert ("Version of 'PyCo'", PyCo.__version__) in vals
+    assert ("Version of 'topobank'", settings.TOPOBANK_VERSION) in vals
 
+    # topography names should also be included
+    for t in topos:
+        assert ('Topography', t.name) in vals
 
 @pytest.mark.django_db
 def test_view_shared_analysis_results(client):

@@ -1124,10 +1124,10 @@ def download_plot_analyses_to_txt(request, analyses):
     for i, analysis in enumerate(analyses):
         if i == 0:
             f.write('# {}\n'.format(analysis.function) +
-                    '# {}\n'.format('='*len(str(analysis.function))) +
-                    '# TopoBank version: {}\n'.format(settings.TOPOBANK_VERSION) +
-                    '# PyCo version: {}\n'.format(PyCo.__version__) +
-                    '# IF YOU USE THIS DATA IN A PUBLICATION, PLEASE CITE XXX.\n' +
+                    '# {}\n'.format('='*len(str(analysis.function))))
+
+
+            f.write('# IF YOU USE THIS DATA IN A PUBLICATION, PLEASE CITE XXX.\n' +
                     '\n')
 
         f.write('# Topography: {}\n'.format(analysis.topography.name) +
@@ -1135,8 +1135,16 @@ def download_plot_analyses_to_txt(request, analyses):
                 '# Further arguments of analysis function: {}\n'.format(analysis.get_kwargs_display()) +
                 '# Start time of analysis task: {}\n'.format(analysis.start_time) +
                 '# End time of analysis task: {}\n'.format(analysis.end_time) +
-                '# Duration of analysis task: {}\n'.format(analysis.duration()) +
-                '\n')
+                '# Duration of analysis task: {}\n'.format(analysis.duration()))
+        if analysis.configuration is None:
+            f.write('# Versions of dependencies (like PyCo) are unknown for this analysis.\n')
+            f.write('# Please recalculate in order to have version information here.')
+        else:
+            versions_used = analysis.configuration.versions.order_by('dependency__import_name')
+
+            for version in versions_used:
+                f.write(f"# Version of '{version.dependency.import_name}': {version.number_as_string()}\n")
+        f.write('\n')
 
         result = pickle.loads(analysis.result)
         xunit_str = '' if result['xunit'] is None else ' ({})'.format(result['xunit'])
@@ -1188,21 +1196,32 @@ def download_plot_analyses_to_xlsx(request, analyses):
     for i, analysis in enumerate(analyses):
 
         if i == 0:
-            properties += ['Function', 'TopoBank version', 'PyCo version']
-            values += [str(analysis.function), settings.TOPOBANK_VERSION, PyCo.__version__]
+            properties = ["Function"]
+            values = [str(analysis.function)]
 
         properties += ['Topography',
                        'Further arguments of analysis function', 'Start time of analysis task',
                        'End time of analysis task', 'Duration of analysis task']
         values += [str(analysis.topography.name), analysis.get_kwargs_display(), str(analysis.start_time),
                    str(analysis.end_time), str(analysis.duration())]
+        if analysis.configuration is None:
+            properties.append("Versions of dependencies")
+            values.append("Unknown. Please recalculate this analysis in order to have version information here.")
+        else:
+            versions_used = analysis.configuration.versions.order_by('dependency__import_name')
+
+            for version in versions_used:
+                properties.append(f"Version of '{version.dependency.import_name}'")
+                values.append(f"{version.number_as_string()}")
+        # We want an empty line on the properties sheet in order to distinguish the topographies
+        properties.append("")
+        values.append("")
 
         result = pickle.loads(analysis.result)
         column1 = '{} ({})'.format(result['xlabel'], result['xunit'])
         column2 = '{} ({})'.format(result['ylabel'], result['yunit'])
 
         # determine name of topography in sheet name
-
 
         for series in result['series']:
             df = pd.DataFrame({column1: series['x'], column2: series['y']})
