@@ -3,8 +3,17 @@
 ## 0.6.0
 
 - fixed sheet names for XLSX download of analysis data (#39,#77)
-- fixed version numbers for used dependencies, they are tracked now (#176) 
-
+- fixed version numbers for used dependencies, they are tracked now (#176)
+- tab "Warnings" instead of "Failures", incompatible topographies
+  for an analysis function is shown as information in a blue box;
+  hint about translucent points are shown as warning in a yellow box;
+  exceptions in analyses are now shown as error, together with a link
+  which makes it easy to send a bug report as e-mail with detailed 
+  information (#230)
+- extended management command "trigger_analyses" such that failed
+  analyses can be retriggered
+  
+   
 ## 0.5.7
 
 - workaround: increased limit for maximum request line (#328)
