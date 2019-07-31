@@ -5,8 +5,10 @@ import pytest
 from PyCo.Topography import Topography, NonuniformLineScan
 
 from topobank.analysis.functions import (
+    IncompatibleTopographyException,
     height_distribution, slope_distribution, curvature_distribution,
-    power_spectrum, autocorrelation, variable_bandwidth)
+    power_spectrum, autocorrelation, variable_bandwidth,
+    contact_mechanics)
 
 ###############################################################################
 # Tests for line scans
@@ -391,4 +393,14 @@ def test_variable_bandwidth_simple_2D_topography():
 
     assert result['name'] == 'Variable-bandwidth analysis'
     # TODO Check result values for bandwidht
+
+def test_contact_mechanics_incompatible_topography():
+
+    x = np.arange(10)
+    arr = 2*x
+    info = dict(unit='nm')
+    t = NonuniformLineScan(x,arr, info=info).detrend("center")
+
+    with pytest.raises(IncompatibleTopographyException):
+        contact_mechanics(t)
 

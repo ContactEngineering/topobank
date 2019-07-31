@@ -14,7 +14,7 @@ from .utils import get_package_version_instance
 
 from topobank.analysis.models import Analysis, Configuration
 from topobank.manager.models import Topography
-
+from topobank.analysis.functions import IncompatibleTopographyException
 
 def submit_analysis(analysis_func, topography, *other_args, **kwargs):
     """Create an analysis entry and submit a task to the task queue.
@@ -169,7 +169,11 @@ def perform_analysis(self, analysis_id):
         result = analysis.function.eval(topography, **kwargs)
         save_result(result, Analysis.SUCCESS)
     except Exception as exc:
-        save_result(dict(error=traceback.format_exc()), Analysis.FAILURE)
+        is_incompatible = isinstance(exc, IncompatibleTopographyException)
+        save_result(dict(message=str(exc),
+                         traceback=traceback.format_exc(),
+                         is_incompatible=is_incompatible),
+                    Analysis.FAILURE)
         # we want a real exception here so celery's flower can show the task as failure
         raise
 

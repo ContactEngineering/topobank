@@ -219,6 +219,7 @@ class SimpleCardView(TemplateView):
             analyses_unready=analyses_unready,  # ..the ones which are still running
             topographies_missing=topographies_missing , # topographies for which there is no Analysis object yet
             topography_ids_requested_json=json.dumps(topography_ids), # can be used to retrigger analyses
+            extra_warnings=[], # use list of dicts of form {'alert_class': 'alert-info', 'message': 'your message'}
         ))
 
         return context
@@ -688,6 +689,14 @@ class ContactMechanicsCardView(SimpleCardView):
                                        nsteps=10)
 
         context['initial_calc_kwargs'] = initial_calc_kwargs
+
+        context['extra_warnings'] = [
+            dict(alert_class='alert-warning',
+                 message="""
+                 Translucent data points did not converge within iteration limit and may carry large errors.
+                 <i>A</i> is the true contact area and <i>A0</i> the apparent contact area,
+                 i.e. the size of the provided topography.""")
+        ]
 
         return context
 

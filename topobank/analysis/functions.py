@@ -223,6 +223,14 @@ def test_function(topography):
     return { 'name': 'Test result for test function called for topography {}.'.format(topography)}
 test_function.card_view_flavor = 'simple'
 
+class IncompatibleTopographyException(Exception):
+    """Raise this exception in case a function cannot handle a topography.
+
+    By handling this special exception, the UI can show the incompatibility
+    as note to the user, not as failure. It is an excepted failure.
+    """
+    pass
+
 #
 # Use this during development if you need a long running task with failures
 #
@@ -691,6 +699,9 @@ def _next_contact_step(system, history=None, pentol=None, maxiter=None):
 @analysis_function(card_view_flavor='contact mechanics', automatic=True)
 def contact_mechanics(topography, substrate_str="periodic", hardness=None, nsteps=10,
                       progress_recorder=None, storage_prefix=None):
+
+    if topography.dim == 1:
+        raise IncompatibleTopographyException("Contact mechanics not implemented for line scans.")
 
     #
     # Some constants
