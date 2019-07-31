@@ -34,7 +34,7 @@
     {% if analyses_failure or extra_warnings %}
       <li class="nav-item" style="list-style-type: none;">
         {# Use href with card_id because the included HTML uses this too #}
-        <a class="nav-link" data-toggle="pill" href="#failures-pill-{{ card_id }}" role="tab">Warnings</a>
+        <a class="nav-link" data-toggle="pill" href="#warnings-pill-{{ card_id }}" role="tab">Warnings</a>
       </li>
     {% endif %}
   </ul>
@@ -216,7 +216,7 @@
               <div id="cluster-size-distribution" class="alert alert-info">For cluser size distribution, select a point in the graphs on the left!</div>
             </div>
             {% endif %}
-            {% include 'analysis/analyses_failure_tab_pane.html' %}
+            {% include 'analysis/analyses_warnings_tab_pane.html' %}
 
           </div>
     </div>

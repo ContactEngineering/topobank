@@ -29,7 +29,7 @@
         </li>
         {% if analyses_failure %}
         <li class="nav-item" style="list-style-type: none;">
-          <a class="nav-link" data-toggle="pill" href="#failures-pill-{{ card_id }}">Failures</a>
+          <a class="nav-link" data-toggle="pill" href="#warnings-pill-{{ card_id }}">Warnings</a>
         </li>
         {% endif %}
       </ul>
@@ -55,7 +55,7 @@
            </table>
           {% endif %}
         </div>
-        {% include 'analysis/analyses_failure_tab_pane.html' %}
+        {% include 'analysis/analyses_warnings_tab_pane.html' %}
       </div>
       {% endblock card_body %}
     </div>

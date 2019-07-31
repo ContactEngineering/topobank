@@ -37,7 +37,7 @@
           <a class="nav-link active" data-toggle="pill" href="#plot-pill-{{ card_id }}">Plot</a>
         </li>
         <li class="nav-item" style="list-style-type: none;">
-          <a class="nav-link" data-toggle="pill" href="#failures-pill-{{ card_id }}">Failures</a>
+          <a class="nav-link" data-toggle="pill" href="#warnings-pill-{{ card_id }}">Warnings</a>
         </li>
         {% endif %}
       </ul>
@@ -50,7 +50,7 @@
            {{ plot_div | safe }}
           {% endif %}
         </div>
-        {% include 'analysis/analyses_failure_tab_pane.html' %}
+        {% include 'analysis/analyses_warnings_tab_pane.html' %}
       </div>
     </div>
 </div>
