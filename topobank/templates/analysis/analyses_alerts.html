@@ -83,7 +83,8 @@
 
 {% for mt in topographies_missing %}
   <div class="alert alert-warning">
-    Analysis for topography <em>{{ mt.name }}</em> not triggered yet. Please trigger if needed.
-    {# TODO Provide link to trigger analysis #}
+    Analysis for topography <a href="{% url 'manager:topography-detail' mt.id %}" class="alert-link">{{ mt.name }}</a>
+    of surface <a href="{% url 'manager:surface-detail' mt.surface.id %}" class="alert-link">{{ mt.surface.name }}</a>
+    not triggered yet. Please trigger if needed.
   </div>
 {% endfor %}
