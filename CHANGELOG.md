@@ -12,6 +12,8 @@
   information (#230)
 - extended management command "trigger_analyses" such that failed
   analyses can be retriggered
+- ported backend to use newer PyCo version 0.50.0 (#289),
+  this allows to load ... ()
   
    
 ## 0.5.7

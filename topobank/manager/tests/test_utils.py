@@ -92,7 +92,7 @@ def test_topographyfile_txt_open_with_fname():
     input_file_path = Path('topobank/manager/fixtures/10x10.txt')
     tf = TopographyFile(input_file_path)
     pyco_topo = tf.topography(0)
-    assert pyco_topo.resolution == (10,10)
+    assert pyco_topo.nb_grid_pts == (10,10)
 
 def test_topographyfile_txt_open_with_text_fobj():
     input_file_path = Path('topobank/manager/fixtures/10x10.txt')
@@ -101,7 +101,7 @@ def test_topographyfile_txt_open_with_text_fobj():
 
     tf = TopographyFile(input_file)
     pyco_topo = tf.topography(0)
-    assert pyco_topo.resolution == (10,10)
+    assert pyco_topo.nb_grid_pts == (10,10)
 
 def test_topographyfile_txt_open_with_text_fobj():
     input_file_path = Path('topobank/manager/fixtures/10x10.txt')
@@ -110,7 +110,7 @@ def test_topographyfile_txt_open_with_text_fobj():
 
     tf = TopographyFile(input_file)
     pyco_topo = tf.topography(0)
-    assert pyco_topo.resolution == (10,10)
+    assert pyco_topo.nb_grid_pts == (10,10)
 
 
 def test_topographyfile_txt_open_with_bytesio():
@@ -122,5 +122,5 @@ def test_topographyfile_txt_open_with_bytesio():
 
     tf = TopographyFile(io.BytesIO(input_data))
     pyco_topo = tf.topography(0)
-    assert pyco_topo.resolution == (10,10)
+    assert pyco_topo.nb_grid_pts == (10,10)
 

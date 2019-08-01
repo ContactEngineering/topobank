@@ -159,9 +159,9 @@ class TopographyCreateWizard(SessionWizardView):
             has_2_dim = topo.dim == 2
 
             if has_2_dim:
-                initial_size_x, initial_size_y = topo.size
+                initial_size_x, initial_size_y = topo.physical_sizes
             else:
-                initial_size_x, = topo.size # size is always a tuple
+                initial_size_x, = topo.physical_sizes # size is always a tuple
                 initial_size_y = None # needed for database field
 
             initial['size_x'] = initial_size_x
@@ -173,7 +173,7 @@ class TopographyCreateWizard(SessionWizardView):
             # Allowed if the topography/line scan object returned by read allows it
             # (i.e. there is a setter for the size)
             try:
-                topo.size = topo.size # there are hopefully no side-effects
+                topo.physical_sizes = topo.physical_sizes # there are hopefully no side-effects
                 size_setter_avail = True
             except AttributeError:
                 size_setter_avail = False
@@ -207,7 +207,7 @@ class TopographyCreateWizard(SessionWizardView):
             # Set resolution (only for having the data later)
             #
             if topo.dim == 2:
-                initial['resolution_x'], initial['resolution_y'] = topo.resolution
+                initial['resolution_x'], initial['resolution_y'] = topo.nb_grid_pts
             else:
                 initial['resolution_x'] = len(topo.positions())  # TODO Check: also okay for uniform line scans?
 
@@ -399,7 +399,7 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
         """
         heights = pyco_topo.heights()
 
-        topo_size = pyco_topo.size
+        topo_size = pyco_topo.physical_sizes
         #x_range = DataRange1d(start=0, end=topo_size[0], bounds='auto')
         #y_range = DataRange1d(start=0, end=topo_size[1], bounds='auto')
         x_range = DataRange1d(start=0, end=topo_size[0], bounds='auto', range_padding=5)

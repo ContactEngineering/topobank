@@ -154,7 +154,7 @@ class Topography(models.Model):
         This instance is guaranteed to
 
         - have an info dict with 'unit' key: .info['unit']
-        - have a size: .size
+        - have a size: .physical_sizes
         - scaled and detrended with the saved parameters
 
         """
@@ -169,9 +169,9 @@ class Topography(models.Model):
         # (see also  TopographyCreateWizard.get_form_initial)
         if self.size_editable:
             if self.size_y is None:
-                topo.size = self.size_x, # size is now always a tuple
+                topo.physical_sizes = self.size_x, # size is now always a tuple
             else:
-                topo.size = self.size_x, self.size_y
+                topo.physical_sizes = self.size_x, self.size_y
 
         if self.height_scale_editable:
             # Adjust height scale to value chosen by user

@@ -214,7 +214,7 @@ def _reasonable_bins_argument(topography):
     :return: argument for 'bins' argument of np.histogram
     """
     if topography.is_uniform:
-        return int(np.sqrt(np.prod(topography.resolution)) + 1.0)
+        return int(np.sqrt(np.prod(topography.nb_grid_pts)) + 1.0)
     else:
         return int(np.sqrt(np.prod(len(topography.positions()))) + 1.0) # TODO discuss whether auto or this
         # return 'auto'
@@ -244,7 +244,7 @@ class IncompatibleTopographyException(Exception):
 #         if random.randint(1, F) == 1:
 #             raise ValueError("This error is intended and happens with probability 1/{}.".format(F))
 #         progress_recorder.set_progress(i+1, n)
-#     return dict(message="done", size=topography.size, n=n)
+#     return dict(message="done", physical_sizes=topography.physical_sizes, n=n)
 
 @analysis_function(card_view_flavor='plot', automatic=True)
 def height_distribution(topography, bins=None, wfac=5, progress_recorder=None, storage_prefix=None):
@@ -479,7 +479,7 @@ def power_spectrum(topography, window='hann', tip_radius=None, progress_recorder
         #
         # Add two more series with power spectra
         #
-        sx, sy = topography.size
+        sx, sy = topography.physical_sizes
         transposed_topography = Topography(topography.heights().T, (sy, sx))
         q_1D_T, C_1D_T = transposed_topography.power_spectrum_1D(window=window)
         q_2D, C_2D = topography.power_spectrum_2D(window=window,
@@ -508,15 +508,15 @@ def power_spectrum(topography, window='hann', tip_radius=None, progress_recorder
 def autocorrelation(topography, progress_recorder=None, storage_prefix=None):
 
     if topography.dim == 2:
-        sx, sy = topography.size
-        transposed_topography = Topography(topography.heights().T, size=(sy,sx), periodic=topography.is_periodic)
+        sx, sy = topography.physical_sizes
+        transposed_topography = Topography(topography.heights().T, physical_sizes=(sy,sx), periodic=topography.is_periodic)
         r_T, A_T = transposed_topography.autocorrelation_1D()
         r_2D, A_2D = topography.autocorrelation_2D()
 
         # Truncate ACF at half the system size
         s = min(sx, sy) / 2
     else:
-        s, = topography.size
+        s, = topography.physical_sizes
 
     if topography.is_uniform:
         r, A = topography.autocorrelation_1D()
@@ -666,7 +666,7 @@ def _next_contact_step(system, history=None, pentol=None, maxiter=None):
         # Intermediate sort by area
         sorted_disp, sorted_area = np.transpose(sorted(zip(mean_displacements, total_contact_areas), key=lambda x:x[1]))
 
-        ref_area = np.log10(np.array(sorted_area + 1 / np.prod(topography.resolution)))
+        ref_area = np.log10(np.array(sorted_area + 1 / np.prod(topography.nb_grid_pts)))
         darea = np.append(ref_area[1:] - ref_area[:-1], -ref_area[-1])
         i = np.argmax(darea)
         if i == step - 1:
@@ -679,9 +679,9 @@ def _next_contact_step(system, history=None, pentol=None, maxiter=None):
     displacement_xy = opt.x[:force_xy.shape[0], :force_xy.shape[1]]
     mean_displacements = np.append(mean_displacements, [mean_displacement])
     mean_gaps = np.append(mean_gaps, [np.mean(displacement_xy) - middle - mean_displacement])
-    mean_load = force_xy.sum() / np.prod(topography.size)
+    mean_load = force_xy.sum() / np.prod(topography.physical_sizes)
     mean_pressures = np.append(mean_pressures, [mean_load])
-    total_contact_area = (force_xy > 0).sum() / np.prod(topography.resolution)
+    total_contact_area = (force_xy > 0).sum() / np.prod(topography.nb_grid_pts)
     total_contact_areas = np.append(total_contact_areas, [total_contact_area])
     converged = np.append(converged, np.array([opt.success], dtype=bool))
 
@@ -715,7 +715,7 @@ def contact_mechanics(topography, substrate_str="periodic", hardness=None, nstep
     half_space_factory = dict(periodic=PeriodicFFTElasticHalfSpace,
                               nonperiodic=FreeFFTElasticHalfSpace)
 
-    substrate = half_space_factory[substrate_str](topography.resolution, 1.0, topography.size)
+    substrate = half_space_factory[substrate_str](topography.nb_grid_pts, 1.0, topography.physical_sizes)
 
     interaction = HardWall()
     system = make_system(substrate, interaction, topography)
@@ -724,7 +724,7 @@ def contact_mechanics(topography, substrate_str="periodic", hardness=None, nstep
     # This is necessary because numbers can vary greatly
     # depending on the system of units.
     rms_height = topography.rms_height()
-    pentol = rms_height / (10 * np.mean(topography.resolution))
+    pentol = rms_height / (10 * np.mean(topography.nb_grid_pts))
     pentol = max(pentol, min_pentol)
 
     netcdf_format = 'NETCDF4'
