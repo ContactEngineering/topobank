@@ -33,7 +33,7 @@ class Version(models.Model):
 
     def number_as_string(self):
         x = f"{self.major}.{self.minor}"
-        if self.micro:
+        if self.micro is not None:
             x += f".{self.micro}"
         return x
 
