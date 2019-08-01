@@ -12,6 +12,9 @@ RUN apt-get update \
   # Pillow requirements
   && apt-get install --yes libjpeg-dev zlib1g-dev libfreetype6-dev \
      liblcms2-dev libtiff-dev tk-dev tcl-dev librabbitmq-dev
+  # Requirements in order to built muspectre
+  # && apt-get install --yes mpicc libfftw3-mpi-dev
+  # && apt-get install --yes clang-5 libfftw3-dev
 
 # clean up image
 RUN apt-get -qy autoremove
@@ -20,11 +23,11 @@ RUN apt-get -qy autoremove
 # Installation of PyCo + dependencies
 #
 # Copy PyCo source code into container, uncompress
-COPY PyCo-0.32.1.tar.gz .
-RUN tar xfvz PyCo-0.32.1.tar.gz
+COPY PyCo-0.50.0.tar.gz .
+RUN tar xfvz PyCo-0.50.0.tar.gz
 
 # install PyCo
-WORKDIR PyCo-0.32.1
+WORKDIR PyCo-0.50.0
 RUN pip install wheel
 RUN pip install -r requirements.txt
 RUN pip install .
