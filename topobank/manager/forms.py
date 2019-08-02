@@ -11,7 +11,7 @@ from bootstrap_datepicker_plus import DatePickerInput
 import logging
 
 from topobank.manager.utils import selection_choices, \
-    TopographyFileReadingException, TopographyFileFormatException, get_topography_file
+    TopographyFileReadingException, TopographyFileFormatException, get_topography_reader
 from .models import Topography, Surface
 
 from topobank.users.models import User
@@ -56,7 +56,7 @@ class TopographyFileUploadForm(forms.ModelForm):
         # try to load topography file, show up error if this doesn't work
         datafile = self.cleaned_data['datafile']
         try:
-            tf = get_topography_file(datafile)
+            toporeader = get_topography_reader(datafile) # here only the header is checked
         except TopographyFileReadingException as exc:
             msg = f"Error while reading file contents of file '{datafile.name}', detected format: {exc.detected_format}. "
             if exc.message:
@@ -70,10 +70,11 @@ class TopographyFileUploadForm(forms.ModelForm):
             msg += "Please try another file or contact us."
             raise forms.ValidationError(msg, code='invalid_topography_file')
 
-        if len(tf.data_sources) == 0:
+        if len(toporeader.channels) == 0:
             raise forms.ValidationError("No topographies found in file.", code='empty_topography_file')
 
-        first_topo = tf.topography(0)
+        first_topo = toporeader.topography(channel=0)
+
         if first_topo.dim > 2:
             raise forms.ValidationError("Number of surface map dimensions > 2.", code='invalid_topography')
 

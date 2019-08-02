@@ -37,7 +37,7 @@ import logging
 from .models import Topography, Surface
 from .forms import TopographyForm, SurfaceForm, TopographySelectForm, SurfaceShareForm
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, Topography1DUnitsForm, Topography2DUnitsForm
-from .utils import get_topography_file,\
+from .utils import get_topography_reader,\
     selected_instances, selection_from_session, selection_for_select_all, \
     bandwidths_data, surfaces_for_user
 from topobank.users.models import User
@@ -145,10 +145,10 @@ class TopographyCreateWizard(SessionWizardView):
 
             step1_data = self.get_cleaned_data_for_step('metadata')
 
-            topofile = get_topography_file(datafile)
+            toporeader = get_topography_reader(datafile)
 
-            topo = topofile.topography(int(step1_data['data_source']))
-            # topography as it is in file
+
+            topo = toporeader.topography(channel=int(step1_data['data_source']))
 
             unit = topo.info['unit']
 
@@ -220,16 +220,17 @@ class TopographyCreateWizard(SessionWizardView):
         if step == 'metadata':
             step0_data = self.get_cleaned_data_for_step('upload')
 
-            topofile = get_topography_file(step0_data['datafile'])
+            toporeader = get_topography_reader(step0_data['datafile'])
 
             #
             # Set data source choices based on file contents
             #
-            kwargs['data_source_choices'] = [(k, ds) for k, ds in
-                                             enumerate(topofile.data_sources)]
+            kwargs['data_source_choices'] = [(k, channel_dict['name']) for k, channel_dict in
+                                             enumerate(toporeader.channels)
+                                             if not isinstance(channel_dict['unit'], tuple) ]
 
             #
-            # Set surface in order to check for suplicate topography names
+            # Set surface in order to check for duplicate topography names
             #
             kwargs['surface'] = step0_data['surface']
 

@@ -1,11 +1,14 @@
 from django.db import models, transaction
 from django.shortcuts import reverse
+from django.core.cache import cache
 
 from guardian.shortcuts import assign_perm, remove_perm
 
+from PyCo.Topography import open_topography
+
 from topobank.users.models import User
 
-from .utils import get_topography_file
+from .utils import get_topography_reader
 
 def user_directory_path(instance, filename):
     # file will be uploaded to MEDIA_ROOT/user_<id>/<filename>
@@ -158,24 +161,41 @@ class Topography(models.Model):
         - scaled and detrended with the saved parameters
 
         """
-        topofile = get_topography_file(self.datafile, self.id)
-        topo = topofile.topography(int(self.data_source))
+        cache_key = f"topography-{self.id}-channel-{self.data_source}"
 
         #
-        # Now prepare topography using the parameters from database
+        # Try to get topography from cache if possible
         #
+        topo = cache.get(cache_key)
+        if topo is None:
+            toporeader = open_topography(self.datafile)
 
-        # set size if physical size was not given in datafile
-        # (see also  TopographyCreateWizard.get_form_initial)
-        if self.size_editable:
-            if self.size_y is None:
-                topo.physical_sizes = self.size_x, # size is now always a tuple
-            else:
-                topo.physical_sizes = self.size_x, self.size_y
+            topo_args = {}
+            # set size if physical size was not given in datafile
+            # (see also  TopographyCreateWizard.get_form_initial)
+            if self.size_editable:
+                if self.size_y is None:
+                    topo_args['physical_sizes'] = self.size_x,  # size is now always a tuple
+                else:
+                    topo_args['physical_sizes'] = self.size_x, self.size_y
+
+            try:
+                topo = toporeader.topography(channel=int(self.data_source))
+            except RuntimeError:
+                # TODO remove if #184 in PyCo is closed
+                topo = toporeader.topography()
+
+            cache.set(cache_key, topo)
+
+        #
+        # Make it a scaled topography
+        #
+        if not hasattr(topo, 'scale_factor'):  # 'scale_factor' for scaling, 'coeffs' for detrending
+            topo = topo.scale(1.0)
 
         if self.height_scale_editable:
             # Adjust height scale to value chosen by user
-            topo.coeff = self.height_scale # TODO use .scale_factor with PyCo >=0.5
+            topo.scale_factor = self.height_scale
 
         topo = topo.detrend(detrend_mode=self.detrend_mode, info=dict(unit=self.unit))
 

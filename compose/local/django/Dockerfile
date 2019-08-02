@@ -23,11 +23,15 @@ RUN apt-get -qy autoremove
 # Installation of PyCo + dependencies
 #
 # Copy PyCo source code into container, uncompress
-COPY PyCo-0.50.0.tar.gz .
-RUN tar xfvz PyCo-0.50.0.tar.gz
+COPY PyCo-0.50.2.tar.gz .
+RUN tar xfvz PyCo-0.50.2.tar.gz
 
 # install PyCo
-WORKDIR PyCo-0.50.0
+WORKDIR PyCo-0.50.2
+
+# workaround for problem with muFFT always expecting MPI (see #179 in PyCo)
+RUN sed -i "s/#egg=mufft/@feat\/19_fftw_detection#egg=mufft/g" requirements.txt
+
 RUN pip install wheel
 RUN pip install -r requirements.txt
 RUN pip install .

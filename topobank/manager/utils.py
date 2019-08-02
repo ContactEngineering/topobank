@@ -2,12 +2,10 @@ from django.shortcuts import reverse
 from guardian.shortcuts import get_objects_for_user
 from django.core.cache import cache # default cache
 
-from PyCo.Topography import FromFile
+from PyCo.Topography import open_topography
 
 from topobank.taskapp.celery import app
 
-import os.path
-import numpy as np
 from operator import itemgetter
 import logging
 
@@ -45,33 +43,67 @@ class TopographyFileReadingException(TopographyFileException):
     def message(self):
         return self._message
 
-def get_topography_file(filefield, topography_id=None):
-    """Returns TopographyFile object from cache if possible.
-
-    If not in cache, the TopographyFile object is created
-    and saved to cache.
+def get_topography_reader(filefield, topography_id=None):
+    """Returns PyCo.Topography.IO.ReaderBase object.
 
     :param filefield: models.FileField instance
     :param topography_id: integer with topography id in order not to mix up files with same name
-    :return: TopographyFile instance
+    :return: ReaderBase instance
     """
-    if hasattr(filefield, 'storage'):
-        middle = 'storage'
-    else:
-        middle = "temporary"
+    return open_topography(filefield.open(mode='rb'))
 
-    cache_key = "topofile:{}:{}:{}".format(middle, topography_id, filefield.name)
+# def get_topography_reader_with_cache(filefield, topography_id=None):
+#     """Returns PyCo.Topography.IO.ReaderBase object from cache if possible.
+#
+#     If not in cache, the reader object is created and saved to cache.
+#
+#     :param filefield: models.FileField instance
+#     :param topography_id: integer with topography id in order not to mix up files with same name
+#     :return: ReaderBase instance
+#     """
+#     if hasattr(filefield, 'storage'):
+#         middle = 'storage'
+#     else:
+#         middle = "temporary"
+#
+#     cache_key = "toporeader:{}:{}:{}".format(middle, topography_id, filefield.name)
+#
+#     # Memcached keys should not contain spaces and mustn't be larger than 250 characters
+#     cache_key = cache_key.replace(' ', '_')[:250]
+#     reader = cache.get(cache_key)
+#     if reader is None:
+#         reader = open_topography(filefield.open(mode='rb'))
+#         cache.set(cache_key, reader)
+#     return reader
 
-    # Memcached keys should not contain spaces and mustn't be larger than 250 characters
-    cache_key = cache_key.replace(' ', '_')[:250]
 
-    topofile = cache.get(cache_key)
-    if topofile is None:
-        topofile = TopographyFile(filefield.open(mode='rb'))
-        cache.set(cache_key, topofile)
-    return topofile
-
-
+# def get_topography_file(filefield, topography_id=None):
+#     """Returns TopographyFile object from cache if possible.
+#
+#     If not in cache, the TopographyFile object is created
+#     and saved to cache.
+#
+#     :param filefield: models.FileField instance
+#     :param topography_id: integer with topography id in order not to mix up files with same name
+#     :return: TopographyFile instance
+#     """
+#     if hasattr(filefield, 'storage'):
+#         middle = 'storage'
+#     else:
+#         middle = "temporary"
+#
+#     cache_key = "topofile:{}:{}:{}".format(middle, topography_id, filefield.name)
+#
+#     # Memcached keys should not contain spaces and mustn't be larger than 250 characters
+#     cache_key = cache_key.replace(' ', '_')[:250]
+#
+#     topofile = cache.get(cache_key)
+#     if topofile is None:
+#         topofile = TopographyFile(filefield.open(mode='rb'))
+#         cache.set(cache_key, topofile)
+#     return topofile
+#
+#
 class TopographyFile:
     """Provide a simple generic interface to topography files independent of format."""
 

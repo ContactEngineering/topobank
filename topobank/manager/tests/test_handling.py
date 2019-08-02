@@ -113,8 +113,8 @@ def test_upload_topography_di(client, django_user_model):
 
     # we should have two datasources as options, "ZSensor" and "Height"
 
-    assert b'<option value="0">ZSensor</option>' in response.content
-    assert b'<option value="1">Height</option>' in response.content
+    assert_in_content(response, '<option value="0">ZSensor</option>')
+    assert_in_content(response, '<option value="3">Height</option>')
 
     assert response.context['form'].initial['name'] == 'example3.di'
 
@@ -226,9 +226,7 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
     # now we should be on the page with second step
     assert b"Step 2 of 3" in response.content, "Errors:"+str(response.context['form'].errors)
 
-    # we should have two datasources as options, "ZSensor" and "Height"
-
-    assert b'<option value="0">Default</option>' in response.content
+    assert_in_content(response, '<option value="0">NoName</option>')
 
     assert response.context['form'].initial['name'] == expected_toponame
 

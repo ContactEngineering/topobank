@@ -4,7 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.views.generic import TemplateView
 
 from . import views
-from .utils import get_topography_file
+from .utils import get_topography_reader
 from . import forms
 
 def creating_2D_topography(wizard):
@@ -19,8 +19,8 @@ def creating_2D_topography(wizard):
     if step1_data is None:
         return False
 
-    topofile = get_topography_file(datafile)
-    topo = topofile.topography(int(step1_data['data_source']))
+    topofile = get_topography_reader(datafile)
+    topo = topofile.topography(channel=int(step1_data['data_source']))
 
     return topo.dim == 2
 
