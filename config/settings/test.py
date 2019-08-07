@@ -109,12 +109,12 @@ LOGGING = {
 }
 
 DATABASES = {
-    'default': {
+    'default-sqlite3': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': '/dev/shm/topobank.sqlite3',
         # 'NAME': 'topobank.sqlite3',
     },
-    'default-postgres': {
+    'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
         'NAME': 'topobank_test',
         'USER': 'topobank',

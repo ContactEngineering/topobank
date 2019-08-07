@@ -65,6 +65,7 @@ def test_initial_surface(live_server, client, django_user_model):
     for topo in topos:
         assert topo.size_x == topo.size_y # so far all examples are like this, want to ensure here that size_y is set
         pyco_topo = topo.topography()
+        assert pyco_topo.info['unit'] == 'µm'
         assert pyco_topo.physical_sizes == (topo.size_x, topo.size_y)
 
         assert topo.height_scale_editable

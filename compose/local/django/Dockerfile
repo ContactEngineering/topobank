@@ -23,14 +23,14 @@ RUN apt-get -qy autoremove
 # Installation of PyCo + dependencies
 #
 # Copy PyCo source code into container, uncompress
-COPY PyCo-0.50.2.tar.gz .
-RUN tar xfvz PyCo-0.50.2.tar.gz
+COPY PyCo-0.51.0.tar.gz .
+RUN tar xfvz PyCo-0.51.0.tar.gz
 
 # install PyCo
-WORKDIR PyCo-0.50.2
+WORKDIR PyCo-0.51.0
 
-# workaround for problem with muFFT always expecting MPI (see #179 in PyCo)
-RUN sed -i "s/#egg=mufft/@feat\/19_fftw_detection#egg=mufft/g" requirements.txt
+# workaround for typo in requiremnts.txt
+RUN sed -i "s/#egg=muff$/#egg=mufft/g" requirements.txt
 
 RUN pip install wheel
 RUN pip install -r requirements.txt
@@ -41,8 +41,8 @@ RUN pip install .
 #
 COPY ./requirements /requirements
 WORKDIR /
-RUN pip install -r /requirements/local.txt
-RUN pip install -r /requirements/test.txt
+RUN pip install -r /requirements/local.txt --ignore-installed
+RUN pip install -r /requirements/test.txt --ignore-installed
 # TODO remove test requirements as they are always useful for local?
 
 # Here the entrypoint from production settings is taken!

@@ -404,7 +404,7 @@ def test_analyis_download_as_txt(client, two_topos, ids_downloadable_analyses, s
     assert "Test Function" in txt # function name should be in there
 
     # check whether version numbers are in there
-    assert PyCo.__version__ in txt
+    assert PyCo.__version__.split('+')[0] in txt
     assert settings.TOPOBANK_VERSION in txt
 
     # remove comments and empty lines
@@ -531,7 +531,7 @@ def test_analyis_download_as_xlsx(client, two_topos, ids_downloadable_analyses, 
     ws = xlsx.get_sheet_by_name("INFORMATION")
 
     vals = list(ws.values)
-    assert ("Version of 'PyCo'", PyCo.__version__) in vals
+    assert ("Version of 'PyCo'", PyCo.__version__.split('+')[0]) in vals
     assert ("Version of 'topobank'", settings.TOPOBANK_VERSION) in vals
 
     # topography names should also be included

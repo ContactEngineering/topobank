@@ -4,10 +4,12 @@ from django.contrib.auth.decorators import login_required
 from django.views.generic import TemplateView
 
 from . import views
-from .utils import get_topography_reader
 from . import forms
+from .utils import get_topography_reader
 
 def creating_2D_topography(wizard):
+    """Indicator function, returns True if wizard is creating a 2D topography, else False.
+    """
 
     step0_data = wizard.get_cleaned_data_for_step('upload')
     if step0_data is None:
@@ -19,10 +21,11 @@ def creating_2D_topography(wizard):
     if step1_data is None:
         return False
 
-    topofile = get_topography_reader(datafile)
-    topo = topofile.topography(channel=int(step1_data['data_source']))
+    toporeader = get_topography_reader(datafile)
+    data_source = int(step1_data['data_source'])
+    channel_info_dict = toporeader.channels[data_source]
 
-    return topo.dim == 2
+    return channel_info_dict['dim'] == 2
 
 WIZARD_FORMS = [
     ('upload', forms.TopographyFileUploadForm),

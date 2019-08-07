@@ -4,11 +4,9 @@ from django.core.cache import cache
 
 from guardian.shortcuts import assign_perm, remove_perm
 
-from PyCo.Topography import open_topography
+from .utils import get_topography_reader
 
 from topobank.users.models import User
-
-from .utils import get_topography_reader
 
 def user_directory_path(instance, filename):
     # file will be uploaded to MEDIA_ROOT/user_<id>/<filename>
@@ -168,34 +166,26 @@ class Topography(models.Model):
         #
         topo = cache.get(cache_key)
         if topo is None:
-            toporeader = open_topography(self.datafile)
+            toporeader = get_topography_reader(self.datafile)
+            topography_kwargs = dict(channel=self.data_source)
 
-            topo_args = {}
-            # set size if physical size was not given in datafile
+            # Set size if physical size was not given in datafile
             # (see also  TopographyCreateWizard.get_form_initial)
+            # Physical size is always a tuple.
             if self.size_editable:
                 if self.size_y is None:
-                    topo_args['physical_sizes'] = self.size_x,  # size is now always a tuple
+                    topography_kwargs['physical_sizes'] = self.size_x,
                 else:
-                    topo_args['physical_sizes'] = self.size_x, self.size_y
+                    topography_kwargs['physical_sizes'] = self.size_x, self.size_y
 
-            try:
-                topo = toporeader.topography(channel=int(self.data_source))
-            except RuntimeError:
-                # TODO remove if #184 in PyCo is closed
-                topo = toporeader.topography()
+            if self.height_scale_editable:
+                # Adjust height scale to value chosen by user
+                topography_kwargs['height_scale_factor'] = self.height_scale
+
+            # Eventually get PyCo topography using the given keywords
+            topo = toporeader.topography(**topography_kwargs)
 
             cache.set(cache_key, topo)
-
-        #
-        # Make it a scaled topography
-        #
-        if not hasattr(topo, 'scale_factor'):  # 'scale_factor' for scaling, 'coeffs' for detrending
-            topo = topo.scale(1.0)
-
-        if self.height_scale_editable:
-            # Adjust height scale to value chosen by user
-            topo.scale_factor = self.height_scale
 
         topo = topo.detrend(detrend_mode=self.detrend_mode, info=dict(unit=self.unit))
 

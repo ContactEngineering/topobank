@@ -58,7 +58,7 @@ def two_topos():
     datafile1 = factory.django.FileField(from_path="topobank/manager/fixtures/example3.di")
     datafile2 = factory.django.FileField(from_path="topobank/manager/fixtures/example4.txt")
 
-    TopographyFactory(surface=surface1,
+    topos1 = TopographyFactory(surface=surface1,
                       creator=user,
                       name='Example 3 - ZSensor',
                       data_source=0,
@@ -73,7 +73,7 @@ def two_topos():
                       resolution_x=256,
                       resolution_y=256)
 
-    TopographyFactory(surface=surface2,
+    topos2 = TopographyFactory(surface=surface2,
                       creator=user,
                       name='Example 4 - Default',
                       data_source=0,
@@ -87,7 +87,7 @@ def two_topos():
                       datafile=datafile2,
                       resolution_x=305,
                       resolution_y=75)
-
+    return topos1, topos2
 
 @pytest.fixture
 def one_line_scan():

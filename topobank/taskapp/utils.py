@@ -31,21 +31,21 @@ def get_package_version_tuple(pkg_name, version_expr):
                                      format(pkg_name, version))
 
     try:
-        micro: int = int(version_tuple[2])
+        micro: int = int(version_tuple[2].split('+')[0]) # because of version strings like '0.51.0+0.g2c488bd.dirty'
     except:
         micro = None
 
     return major, minor, micro
 
 
-def get_package_version_instance(pkg_name, version_attr):
+def get_package_version_instance(pkg_name, version_expr):
     """Return version instance for currently installed version of a package.
 
-    :param pkg_name:
-    :param version_attr:
+    :param pkg_name: name of the package which is used in import statement
+    :param version_expr: expression used to get the version from already imported module
     :return: Version instance
     """
-    major, minor, micro = get_package_version_tuple(pkg_name, version_attr)
+    major, minor, micro = get_package_version_tuple(pkg_name, version_expr)
 
     dep, created = Dependency.objects.get_or_create(import_name=pkg_name)
 

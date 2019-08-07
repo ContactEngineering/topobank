@@ -37,9 +37,8 @@ import logging
 from .models import Topography, Surface
 from .forms import TopographyForm, SurfaceForm, TopographySelectForm, SurfaceShareForm
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, Topography1DUnitsForm, Topography2DUnitsForm
-from .utils import get_topography_reader,\
-    selected_instances, selection_from_session, selection_for_select_all, \
-    bandwidths_data, surfaces_for_user
+from .utils import selected_instances, selection_from_session, selection_for_select_all, \
+    bandwidths_data, surfaces_for_user, get_topography_reader
 from topobank.users.models import User
 
 _log = logging.getLogger(__name__)
@@ -146,19 +145,18 @@ class TopographyCreateWizard(SessionWizardView):
             step1_data = self.get_cleaned_data_for_step('metadata')
 
             toporeader = get_topography_reader(datafile)
-
-
-            topo = toporeader.topography(channel=int(step1_data['data_source']))
-
-            unit = topo.info['unit']
+            data_source = int(step1_data['data_source'])
+            topo = toporeader.topography(channel=data_source)
 
             #
-            # Set initial size and unit
+            # Set initial size
             #
 
             has_2_dim = topo.dim == 2
 
-            if has_2_dim:
+            if topo.physical_sizes is None:
+                initial_size_x, initial_size_y = None, None
+            elif has_2_dim:
                 initial_size_x, initial_size_y = topo.physical_sizes
             else:
                 initial_size_x, = topo.physical_sizes # size is always a tuple
@@ -180,8 +178,11 @@ class TopographyCreateWizard(SessionWizardView):
 
             initial['size_editable'] = size_setter_avail
 
-            initial['unit'] = unit
-            initial['unit_editable'] = unit is None
+            #
+            # Set unit
+            #
+            initial['unit'] = topo.info['unit'] if 'unit' in topo.info else None
+            initial['unit_editable'] = initial['unit'] is None
 
             #
             # Set initial height and height unit
@@ -220,6 +221,8 @@ class TopographyCreateWizard(SessionWizardView):
         if step == 'metadata':
             step0_data = self.get_cleaned_data_for_step('upload')
 
+            assert step0_data is not None # TODO remove if clear when this happens and why
+
             toporeader = get_topography_reader(step0_data['datafile'])
 
             #
@@ -227,7 +230,8 @@ class TopographyCreateWizard(SessionWizardView):
             #
             kwargs['data_source_choices'] = [(k, channel_dict['name']) for k, channel_dict in
                                              enumerate(toporeader.channels)
-                                             if not isinstance(channel_dict['unit'], tuple) ]
+                                             if not (('unit' in channel_dict)
+                                                     and isinstance(channel_dict['unit'], tuple)) ]
 
             #
             # Set surface in order to check for duplicate topography names
@@ -255,6 +259,21 @@ class TopographyCreateWizard(SessionWizardView):
             context.update({'cancel_action': redirect_in_get})
         elif redirect_in_post:
             context.update({'cancel_action': redirect_in_post})
+
+        #
+        # Somehow the step counting in django-formtools is broken
+        # and shows step 4 for 'unit2D' instead of 3, should
+        # be 3 because of conditional. So we create our own step
+        # counting here as workaround.
+        #
+        MY_STEP_NUMBERS = {
+            0: 1,
+            1: 2,
+            2: 3,
+            3: 3
+        }
+        # context['my_step_number'] = MY_STEP_NUMBERS[self.steps.index]
+        context['my_step_number'] = MY_STEP_NUMBERS[self.steps.index]
 
         return context
 

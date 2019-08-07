@@ -226,7 +226,7 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
     # now we should be on the page with second step
     assert b"Step 2 of 3" in response.content, "Errors:"+str(response.context['form'].errors)
 
-    assert_in_content(response, '<option value="0">NoName</option>')
+    assert_in_content(response, '<option value="0">Default</option>')
 
     assert response.context['form'].initial['name'] == expected_toponame
 
@@ -244,7 +244,7 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
                            })
 
     assert response.status_code == 200
-    assert b"Step 3 of 3" in response.content, "Errors:" + str(response.context['form'].errors)
+    assert_in_content(response, "Step 3 of 3")
 
     #
     # Send data for third page
@@ -384,7 +384,7 @@ def test_trying_upload_of_invalid_topography_file(client, django_user_model):
     assert response.status_code == 200
 
     form = response.context['form']
-    assert 'Error while reading file contents' in form.errors['datafile'][0]
+    assert 'Cannot determine file format of file ' in form.errors['datafile'][0]
 
 @pytest.mark.django_db
 def test_topography_list(client, two_topos, django_user_model):

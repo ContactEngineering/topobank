@@ -450,7 +450,7 @@ def test_upload_topography_for_shared_surface(client):
     # we should have two datasources as options, "ZSensor" and "Height"
 
     assert b'<option value="0">ZSensor</option>' in response.content
-    assert b'<option value="1">Height</option>' in response.content
+    assert b'<option value="3">Height</option>' in response.content
 
     assert response.context['form'].initial['name'] == 'example3.di'
 

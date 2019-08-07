@@ -85,15 +85,17 @@ def test_current_configuration(settings):
 
     import numpy
     assert v0.dependency.import_name == 'numpy'
-    assert f"{v0.major}.{v0.minor}.{v0.micro}" == numpy.version.full_version
+    assert v0.number_as_string() == numpy.version.full_version
 
     import PyCo
     assert v1.dependency.import_name == 'PyCo'
-    assert f"{v1.major}.{v1.minor}.{v1.micro}" == PyCo.__version__
+    assert PyCo.__version__.startswith(v1.number_as_string())
+    # startswith: in development there are often additional characters
+    #             in versio number, e.g. 0.51.0+0.g2c488bd.dirty
 
     import topobank
     assert v2.dependency.import_name == 'topobank'
-    assert f"{v2.major}.{v2.minor}.{v2.micro}" == topobank.__version__
+    assert v2.number_as_string() == topobank.__version__
 
 
 

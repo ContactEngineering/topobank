@@ -35,10 +35,10 @@ def test_call_topography_method_multiple_times(two_topos):
     # assert isinstance(pyco_topo,
 
     coeffs_before = pyco_topo.coeffs
-    scaling_factor_before = pyco_topo.parent_topography.coeff
+    scaling_factor_before = pyco_topo.parent_topography.scale_factor
     pyco_topo = topo.topography()
 
-    assert pyco_topo.parent_topography.coeff == scaling_factor_before
+    assert pyco_topo.parent_topography.scale_factor == scaling_factor_before
     assert pyco_topo.coeffs == coeffs_before
 
 
