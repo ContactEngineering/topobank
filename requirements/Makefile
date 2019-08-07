@@ -7,8 +7,7 @@ all: $(outputs)
 
 %.txt: %.in
 	pip-compile -v --output-file $@ $<
-
-test.txt: base.txt
+	# echo "PyCo==0.51.1" >> $@
 
 check:
 	@which pip-compile > /dev/null

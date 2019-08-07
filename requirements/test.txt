@@ -11,9 +11,9 @@ attrs==19.1.0
 babel==2.7.0
 beautifulsoup4==4.8.0
 billiard==3.6.0.0
-bokeh==1.3.2
-boto3==1.9.201
-botocore==1.12.201
+bokeh==1.3.4
+boto3==1.9.202
+botocore==1.12.202
 celery-flower==1.0.1
 celery-progress==0.0.4
 celery==4.3.0
@@ -43,7 +43,7 @@ django-storages==1.7.1
 django-tables2==2.1.0
 git+http://git@github.com/mcrot/django-termsandconditions.git@optional_terms
 django-test-plus==1.3.1
-django==2.1
+django==2.2.4
 djangorestframework==3.10.2
 docutils==0.14
 entrypoints==0.3          # via flake8
@@ -68,7 +68,7 @@ mccabe==0.6.1             # via flake8
 more-itertools==7.2.0     # via pytest
 netcdf4==1.5.1.2
 numpy==1.17.0
-oauthlib==3.0.2
+oauthlib==3.1.0
 openpyxl==2.6.2
 packaging==19.1
 pandas==0.25.0
@@ -83,7 +83,7 @@ pylibmc==1.6.0
 pyparsing==2.4.2
 pytest-base-url==1.4.1    # via pytest-selenium
 pytest-django==3.5.1
-pytest-html==1.21.1       # via pytest-selenium
+pytest-html==1.22.0       # via pytest-selenium
 pytest-metadata==1.8.0    # via pytest-html
 pytest-mock==1.10.4
 pytest-selenium==1.17.0
@@ -103,6 +103,7 @@ selenium==3.141.0
 six==1.12.0
 soupsieve==1.9.2          # via beautifulsoup4
 splinter[django]==0.11.0
+sqlparse==0.3.0
 termcolor==1.1.0          # via pytest-sugar
 text-unidecode==1.2
 tornado==5.1.1

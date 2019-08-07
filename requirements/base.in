@@ -6,7 +6,7 @@ whitenoise  # https://github.com/evansd/whitenoise
 
 # Django
 # ------------------------------------------------------------------------------
-django==2.1  #  does this work with pyup?  # https://www.djangoproject.com/
+django==2.1.11  #  does this work with pyup?  # https://www.djangoproject.com/
 # version 2.1 fixed because of problems with django-formtools and django 2.2
 django-environ  # https://github.com/joke2k/django-environ
 django-model-utils  # https://github.com/jazzband/django-model-utils
@@ -30,12 +30,12 @@ git+http://github.com/IMTEK-Simulation/django-progressbarupload.git
 #
 # Storage
 #
-boto3
+psycopg2 # PostGreSQL as database
+boto3 # S3
 django-storages
 
 # Permissions on object level
 django-guardian
-
 
 # Celery
 django-kombu # is this still needed? See https://pypi.org/project/django-kombu/
@@ -60,7 +60,8 @@ celery-progress
 #git+ssh://git@github.com/pastewka/PyCo.git@0.30.0#egg=PyCo
 #-e git+http://git@github.com/pastewka/PyCo.git@0.30.0#egg=PyCo
 #git+http://git@github.com/scipy/scipy/releases/download/v1.2.1/scipy-1.2.1-cp37-cp37m-manylinux1_x86_64.whl
-#PyCo==0.51.0
+# PyCo==0.51.1
+#### see Makefile
 
 # plotting
 bokeh
