@@ -145,72 +145,62 @@ class TopographyCreateWizard(SessionWizardView):
             step1_data = self.get_cleaned_data_for_step('metadata')
 
             toporeader = get_topography_reader(datafile)
-            data_source = int(step1_data['data_source'])
-            topo = toporeader.topography(channel=data_source)
+            channel = int(step1_data['data_source'])
+            channel_info_dict = toporeader.channels[channel]
 
             #
             # Set initial size
             #
 
-            has_2_dim = topo.dim == 2
+            has_2_dim = channel_info_dict['dim'] == 2
 
-            if topo.physical_sizes is None:
+            if 'physical_sizes' not in channel_info_dict:
+                channel_info_dict['physical_sizes'] = None
+
+            physical_sizes = channel_info_dict['physical_sizes']
+
+            if physical_sizes is None:
                 initial_size_x, initial_size_y = None, None
             elif has_2_dim:
-                initial_size_x, initial_size_y = topo.physical_sizes
+                initial_size_x, initial_size_y = physical_sizes
             else:
-                initial_size_x, = topo.physical_sizes # size is always a tuple
+                initial_size_x, = physical_sizes # size is always a tuple
                 initial_size_y = None # needed for database field
 
             initial['size_x'] = initial_size_x
             initial['size_y'] = initial_size_y
 
-            # Check whether the user should be able to change the size
-            # see also #39
-            #
-            # Allowed if the topography/line scan object returned by read allows it
-            # (i.e. there is a setter for the size)
-            try:
-                topo.physical_sizes = topo.physical_sizes # there are hopefully no side-effects
-                size_setter_avail = True
-            except AttributeError:
-                size_setter_avail = False
-
-            initial['size_editable'] = size_setter_avail
+            initial['size_editable'] = physical_sizes is None
 
             #
             # Set unit
             #
-            initial['unit'] = topo.info['unit'] if 'unit' in topo.info else None
+            initial['unit'] = channel_info_dict['unit'] if 'unit' in channel_info_dict else None
             initial['unit_editable'] = initial['unit'] is None
 
             #
             # Set initial height and height unit
             #
-            try:
-                initial['height_scale'] = topo.coeff
-                # initial['height_scale_editable'] = False
-            except AttributeError:
+            if 'height_scale_factor' in channel_info_dict:
+                initial['height_scale'] = channel_info_dict['height_scale_factor']
+            else:
                 initial['height_scale'] = 1
-                # initial['height_scale_editable'] = True # this factor can be changed by user because not given in file
 
             initial['height_scale_editable'] = True  # because of GH 131 we decided to always allow editing
 
             #
             # Set initial detrend mode
             #
-            try:
-                initial['detrend_mode'] = topo.detrend_mode
-            except AttributeError:
-                initial['detrend_mode'] = 'center'
+
+            initial['detrend_mode'] = 'center'
 
             #
             # Set resolution (only for having the data later)
             #
-            if topo.dim == 2:
-                initial['resolution_x'], initial['resolution_y'] = topo.nb_grid_pts
+            if channel_info_dict['dim'] == 2:
+                initial['resolution_x'], initial['resolution_y'] = channel_info_dict['nb_grid_pts']
             else:
-                initial['resolution_x'] = len(topo.positions())  # TODO Check: also okay for uniform line scans?
+                initial['resolution_x'], = channel_info_dict['nb_grid_pts']
 
         return initial
 
