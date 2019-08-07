@@ -1,0 +1,23 @@
+# Test dependencies go here.
+-r base.txt
+
+coverage
+flake8
+django-test-plus
+factory-boy
+django-coverage-plugin
+
+# pytest
+pytest-django
+pytest
+pytest-sugar
+pytest-mock
+
+# additional for browser test
+pytest-splinter
+splinter[django]
+selenium
+pytest-selenium
+
+# for parsing html
+beautifulsoup4
