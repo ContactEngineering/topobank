@@ -30,7 +30,6 @@ git+http://github.com/IMTEK-Simulation/django-progressbarupload.git
 #
 # Storage
 #
-psycopg2 # PostGreSQL as database
 boto3 # S3
 django-storages
 

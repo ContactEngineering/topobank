@@ -1,7 +1,8 @@
 .PHONY: all check clean
 
 objects = $(wildcard *.in)
-outputs := $(objects:.in=.txt)
+outputs := base.txt local.txt test.txt production.txt
+# outputs := $(objects:.in=.txt)
 
 all: $(outputs)
 
