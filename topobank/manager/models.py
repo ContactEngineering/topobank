@@ -175,7 +175,7 @@ class Topography(models.Model):
             # Set size if physical size was not given in datafile
             # (see also  TopographyCreateWizard.get_form_initial)
             # Physical size is always a tuple.
-            if self.size_editable:
+            if self.size_editable: # TODO: could be removed in favor of "channel_dict['physical_sizes'] is None"
                 if self.size_y is None:
                     topography_kwargs['physical_sizes'] = self.size_x,
                 else:
@@ -187,6 +187,7 @@ class Topography(models.Model):
 
             # Eventually get PyCo topography using the given keywords
             topo = toporeader.topography(**topography_kwargs)
+            topo = topo.detrend(detrend_mode=self.detrend_mode, info=dict(unit=self.unit))
 
             cache.set(cache_key, topo)
 
