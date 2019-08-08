@@ -161,6 +161,7 @@ class TopographyCreateWizard(SessionWizardView):
 
             if physical_sizes is None:
                 initial_size_x, initial_size_y = None, None
+                # both database fields are always set, also for 1D topographies
             elif has_2_dim:
                 initial_size_x, initial_size_y = physical_sizes
             else:
@@ -191,13 +192,12 @@ class TopographyCreateWizard(SessionWizardView):
             #
             # Set initial detrend mode
             #
-
             initial['detrend_mode'] = 'center'
 
             #
             # Set resolution (only for having the data later)
             #
-            if channel_info_dict['dim'] == 2:
+            if has_2_dim:
                 initial['resolution_x'], initial['resolution_y'] = channel_info_dict['nb_grid_pts']
             else:
                 initial['resolution_x'], = channel_info_dict['nb_grid_pts']
