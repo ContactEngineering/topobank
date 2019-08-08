@@ -190,10 +190,7 @@ class Topography(models.Model):
             topo = topo.detrend(detrend_mode=self.detrend_mode, info=dict(unit=self.unit))
 
             cache.set(cache_key, topo)
-
             # be sure to invalidate the cache key if topography is saved again -> signals.py
-
-
 
         return topo
 
