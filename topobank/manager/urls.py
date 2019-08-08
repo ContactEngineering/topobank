@@ -62,6 +62,11 @@ urlpatterns = [
         )),
         name='topography-create'
     ),
+    url(
+        regex=r'surface/(?P<surface_id>\d+)/new-topography/corrupted$',
+        view=login_required(views.CorruptedTopographyView.as_view()),
+        name='topography-corrupted'
+    ),
     path('topography/<int:topography_id>/show-analyses/',
          login_required(views.show_analyses_for_topography),
          name='topography-show-analyses'

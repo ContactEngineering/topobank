@@ -304,11 +304,41 @@ class TopographyCreateWizard(SessionWizardView):
         #
         instance = Topography(**d)
         instance.save()
+        # we save once so the member variables like "data_source"
+        # have the correct type for the next step
 
-        # put automated analysis in queue
-        instance.submit_automated_analyses()
+        # try to load topography once in order to
+        # check whether it can be loaded - we don't want a corrupt
+        # topography file in the system:
+        topo = Topography.objects.get(id=instance.id)
+        try:
+            topo.topography()
+            # since the topography should be saved in the cache this
+            # should not take much extra time
+        except Exception as exc:
+            _log.warning("Cannot read topography from file '{}', exception: {}".format(
+                d['datafile'], str(exc)
+            ))
+            _log.warning("Topography {} was created, but will be deleted now.".format(topo.id))
+            topo.delete()
+            #
+            # Redirect to an error page
+            #
+            return redirect('manager:topography-corrupted', surface_id=surface.id)
 
-        return redirect(reverse('manager:topography-detail', kwargs=dict(pk=instance.pk)))
+        # put all automated analysis in queue
+        topo.submit_automated_analyses()
+
+        # The topography could be correctly loaded and we show a page with details
+        return redirect('manager:topography-detail', pk=topo.pk)
+
+class CorruptedTopographyView(TemplateView):
+    template_name = "manager/topography_corrupted.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['surface'] = Surface.objects.get(id=kwargs['surface_id'])
+        return context
 
 class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
     model = Topography

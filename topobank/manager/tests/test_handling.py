@@ -358,9 +358,9 @@ def test_upload_topography_and_name_like_an_exisiting_for_same_surface(client):
     assert "A topography with same name 'TOPO' already exists for same surface" in form.errors['name'][0]
 
 @pytest.mark.django_db
-def test_trying_upload_of_invalid_topography_file(client, django_user_model):
+def test_trying_upload_of_topography_file_with_unkown_format(client, django_user_model):
 
-    input_file_path = Path('topobank/manager/views.py')
+    input_file_path = Path('topobank/manager/views.py') # this is nonsense and cannot be interpreted
 
     username = 'testuser'
     password = 'abcd$1234'
@@ -395,6 +395,112 @@ def test_trying_upload_of_invalid_topography_file(client, django_user_model):
 
     form = response.context['form']
     assert 'Cannot determine file format of file ' in form.errors['datafile'][0]
+
+@pytest.mark.django_db
+def test_trying_upload_of_corrupted_topography_file(client, django_user_model):
+
+    input_file_path = Path('topobank/manager/fixtures/example3_corrupt.di')
+    # I used the correct file "example3.di" and broke it on purpose
+    # The headers are still okay, but the topography can't be read by PyCo
+    # using .topography() and leads to a "ValueError: buffer is smaller
+    # than requested size"
+
+    description = "test description"
+    category = 'exp'
+
+    username = 'testuser'
+    password = 'abcd$1234'
+
+    user = django_user_model.objects.create_user(username=username, password=password)
+
+    assert client.login(username=username, password=password)
+
+    # first create a surface
+    response = client.post(reverse('manager:surface-create'),
+                               data={
+                                'name': 'surface1',
+                                'creator': user.id,
+                                'category': category,
+                               }, follow=True)
+
+    assert_no_form_errors(response)
+
+    assert response.status_code == 200
+
+    surface = Surface.objects.get(name='surface1')
+
+    #
+    # open first step of wizard: file upload
+    #
+    with open(str(input_file_path), mode='rb') as fp:
+
+        response = client.post(reverse('manager:topography-create',
+                                       kwargs=dict(surface_id=surface.id)),
+                               data={
+                                'topography_create_wizard-current_step': 'upload',
+                                'upload-datafile': fp,
+                                'upload-surface': surface.id,
+                               }, follow=True)
+
+    assert response.status_code == 200
+
+    #
+    # check contents of second page
+    #
+
+    # now we should be on the page with second step
+    assert b"Step 2 of 3" in response.content, "Errors:"+str(response.context['form'].errors)
+
+    assert_in_content(response, '<option value="2">Height</option>')
+
+    assert response.context['form'].initial['name'] == 'example3_corrupt.di'
+
+    #
+    # Send data for second page
+    #
+    response = client.post(reverse('manager:topography-create',
+                                   kwargs=dict(surface_id=surface.id)),
+                           data={
+                            'topography_create_wizard-current_step': 'metadata',
+                            'metadata-name': 'topo1',
+                            'metadata-measurement_date': '2018-06-21',
+                            'metadata-data_source': 2,
+                            'metadata-description': description,
+                           })
+
+    assert response.status_code == 200
+    assert b"Step 3 of 3" in response.content, "Errors:" + str(response.context['form'].errors)
+
+    #
+    # Send data for third page
+    #
+    response = client.post(reverse('manager:topography-create',
+                                   kwargs=dict(surface_id=surface.id)),
+                           data={
+                               'topography_create_wizard-current_step': 'units2D',
+                               'units2D-size_x': '9000',
+                               'units2D-size_y': '9000',
+                               'units2D-unit': 'nm',
+                               'units2D-height_scale': 0.3,
+                               'units2D-detrend_mode': 'height',
+                               'units2D-resolution_x': 256,
+                               'units2D-resolution_y': 256,
+                           }, follow=True)
+
+    assert response.status_code == 200
+
+    assert_in_content(response, 'seems to be corrupted')
+    # assert_in_content(response, 'example3_corrupted.di')
+    # don't know yet how to pass the filename
+
+    #
+    # Topography has not been saved
+    #
+    surface = Surface.objects.get(name='surface1')
+    topos = surface.topography_set.all()
+
+    assert len(topos) == 0
+
 
 @pytest.mark.django_db
 def test_topography_list(client, two_topos, django_user_model):
