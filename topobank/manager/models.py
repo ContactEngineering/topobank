@@ -149,6 +149,9 @@ class Topography(models.Model):
     def get_absolute_url(self):
         return reverse('manager:topography-detail', kwargs=dict(pk=self.pk))
 
+    def cache_key(self):
+        return f"topography-{self.id}-channel-{self.data_source}"
+
     def topography(self):
         """Return a PyCo Topography/Line Scan instance.
 
@@ -159,7 +162,7 @@ class Topography(models.Model):
         - scaled and detrended with the saved parameters
 
         """
-        cache_key = f"topography-{self.id}-channel-{self.data_source}"
+        cache_key = self.cache_key()
 
         #
         # Try to get topography from cache if possible
@@ -187,7 +190,9 @@ class Topography(models.Model):
 
             cache.set(cache_key, topo)
 
-        topo = topo.detrend(detrend_mode=self.detrend_mode, info=dict(unit=self.unit))
+            # be sure to invalidate the cache key if topography is saved again -> signals.py
+
+
 
         return topo
 

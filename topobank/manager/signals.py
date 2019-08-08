@@ -1,5 +1,7 @@
 from django.db.models.signals import pre_delete, post_save, pre_save
 from django.dispatch import receiver
+from django.core.cache import cache
+
 from guardian.shortcuts import assign_perm
 
 import logging
@@ -40,4 +42,7 @@ def set_creator_if_needed(sender, instance, **kwargs):
     if instance.creator is None:
         instance.creator = instance.surface.creator
 
+@receiver(post_save, sender=Topography)
+def invalidate_cached_topograpphy(sender, instance, **kwargs):
+    cache.delete(instance.cache_key())
 
