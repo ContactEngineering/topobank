@@ -170,14 +170,16 @@ def test_upload_topography_di(client, django_user_model):
     assert 256 == t.resolution_y
     assert t.creator == user
 
-@pytest.mark.parametrize(("input_filename", "exp_resolution_x", "exp_resolution_y"),
-                         [("topobank/manager/fixtures/10x10.txt", 10, 10),
-                          ("topobank/manager/fixtures/line_scan_1.asc", 11, None),
-                          ("topobank/manager/fixtures/line_scan_1_minimal_spaces.asc", 11, None)])
+@pytest.mark.parametrize(("input_filename", "exp_resolution_x", "exp_resolution_y",
+                          "physical_sizes_to_be_set", "exp_physical_sizes"),
+                         [("topobank/manager/fixtures/10x10.txt", 10, 10, (1,1), (1,1)),
+                          ("topobank/manager/fixtures/line_scan_1.asc", 11, None, None, (9.0,)),
+                          ("topobank/manager/fixtures/line_scan_1_minimal_spaces.asc", 11, None, None, (9.0,))])
 # Add this for a larger file: ("topobank/manager/fixtures/500x500_random.txt", 500)]) # takes quire long
 @pytest.mark.django_db
 def test_upload_topography_txt(client, django_user_model, input_filename,
-                               exp_resolution_x, exp_resolution_y):
+                               exp_resolution_x, exp_resolution_y,
+                               physical_sizes_to_be_set, exp_physical_sizes):
 
     input_file_path = Path(input_filename)
     expected_toponame = input_file_path.name
@@ -254,7 +256,7 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
                                        kwargs=dict(surface_id=surface.id)),
                                data={
                                    'topography_create_wizard-current_step': "units1D",
-                                   'units1D-size_x': '1',
+                                   'units2D-size_editable': False,  # would be sent when initialize form
                                    'units1D-unit': 'nm',
                                    'units1D-height_scale': 1,
                                    'units1D-detrend_mode': 'height',
@@ -265,8 +267,10 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
                                        kwargs=dict(surface_id=surface.id)),
                                data={
                                    'topography_create_wizard-current_step': "units2D",
-                                   'units2D-size_x': '1',
-                                   'units2D-size_y': '1',
+                                   'units2D-size_editable': True, # would be sent when initialize form
+                                   'units2D-unit_editable': True,  # would be sent when initialize form
+                                   'units2D-size_x': physical_sizes_to_be_set[0],
+                                   'units2D-size_y': physical_sizes_to_be_set[1],
                                    'units2D-unit': 'nm',
                                    'units2D-height_scale': 1,
                                    'units2D-detrend_mode': 'height',
@@ -291,6 +295,12 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
     assert input_file_path.stem in t.datafile.name
     assert exp_resolution_x == t.resolution_x
     assert exp_resolution_y == t.resolution_y
+
+    #
+    # Also check some properties of the PyCo Topography
+    #
+    pyco_t = t.topography()
+    assert pyco_t.physical_sizes == exp_physical_sizes
 
 @pytest.mark.django_db
 def test_upload_topography_and_name_like_an_exisiting_for_same_surface(client):
