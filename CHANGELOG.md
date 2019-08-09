@@ -1,5 +1,25 @@
 # Changelog for *TopoBank*
 
+## 0.6.0
+
+- fixed sheet names for XLSX download of analysis data (#39,#77)
+- fixed version numbers for used dependencies, they are tracked now (#176)
+- tab "Warnings" instead of "Failures", incompatible topographies
+  for an analysis function is shown as information in a blue box;
+  hint about translucent points are shown as warning in a yellow box;
+  exceptions in analyses are now shown as error, together with a link
+  which makes it easy to send a bug report as e-mail with detailed 
+  information (#230)
+- extended management command "trigger_analyses" such that failed
+  analyses can be retriggered
+- ported backend to use newer PyCo version 0.51.1 (#289),
+  among other things this release allows to load HDF5 files (302) 
+  and OPDX files (#325), more memory efficient caching of file
+  contents 
+- now shows an error message when file contents are corrupt
+- updated dependencies  
+  
+   
 ## 0.5.7
 
 - workaround: increased limit for maximum request line (#328)

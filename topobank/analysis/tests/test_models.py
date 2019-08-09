@@ -1,6 +1,7 @@
 import pytest
 from operator import itemgetter
 import datetime
+from django.db.models.functions import Lower
 
 from ..models import Analysis, AnalysisFunction
 from topobank.manager.models import Topography
@@ -61,4 +62,42 @@ def test_autoload_analysis_functions():
 
     funcs = AnalysisFunction.objects.all()
     assert len(expected_funcs) == len(funcs)
+
+@pytest.mark.django_db
+def test_current_configuration(settings):
+
+    settings.TRACKED_DEPENDENCIES = [
+        ('PyCo', 'PyCo.__version__'),
+        ('topobank', 'topobank.__version__'),
+        ('numpy', 'numpy.version.full_version')
+    ]
+
+    from topobank.taskapp.tasks import current_configuration
+
+    config = current_configuration()
+
+    versions = config.versions.order_by(Lower('dependency__import_name'))
+    # Lower: Just to have a defined order independent from database used
+
+    assert len(versions) == 3
+
+    v0, v1, v2 = versions
+
+    import numpy
+    assert v0.dependency.import_name == 'numpy'
+    assert v0.number_as_string() == numpy.version.full_version
+
+    import PyCo
+    assert v1.dependency.import_name == 'PyCo'
+    assert PyCo.__version__.startswith(v1.number_as_string())
+    # startswith: in development there are often additional characters
+    #             in versio number, e.g. 0.51.0+0.g2c488bd.dirty
+
+    import topobank
+    assert v2.dependency.import_name == 'topobank'
+    assert v2.number_as_string() == topobank.__version__
+
+
+
+
 

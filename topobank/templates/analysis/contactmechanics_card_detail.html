@@ -31,15 +31,10 @@
 
       </li>
     {% endif %}
-    {% if analyses_failure %}
+    {% if analyses_failure or extra_warnings %}
       <li class="nav-item" style="list-style-type: none;">
         {# Use href with card_id because the included HTML uses this too #}
-        <a class="nav-link" data-toggle="pill" href="#failures-pill-{{ card_id }}" role="tab">Failures</a>
-      </li>
-    {% endif %}
-    {% if not analyses_unready %}
-      <li class="nav-item">
-        <a class="nav-link" data-toggle="pill" href="#notes-pill">Notes</a>
+        <a class="nav-link" data-toggle="pill" href="#warnings-pill-{{ card_id }}" role="tab">Warnings</a>
       </li>
     {% endif %}
   </ul>
@@ -220,15 +215,8 @@
             <div class="tab-pane fade" id="cluster-size-distribution-pill">
               <div id="cluster-size-distribution" class="alert alert-info">For cluser size distribution, select a point in the graphs on the left!</div>
             </div>
-            <div class="tab-pane fade" id="notes-pill">
-              <div class="alert alert-info">
-                Translucent data points did not converge within iteration limit and may carry large errors.
-                <i>A</i> is the true contact area and <i>A0</i> the apparent contact area,
-                i.e. the size of the provided topography.
-              </div>
-            </div>
             {% endif %}
-            {% include 'analysis/analyses_failure_tab_pane.html' %}
+            {% include 'analysis/analyses_warnings_tab_pane.html' %}
 
           </div>
     </div>

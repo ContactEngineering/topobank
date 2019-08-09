@@ -6,8 +6,11 @@ import pytest
 import datetime
 import pickle
 import numpy as np
+import tempfile, openpyxl
 
 from django.urls import reverse
+
+import PyCo
 
 from ..models import Analysis, AnalysisFunction
 from topobank.manager.tests.utils import two_topos # needed for fixture, see arguments below
@@ -16,6 +19,7 @@ from topobank.manager.tests.utils import export_reponse_as_html, \
     SurfaceFactory, UserFactory, TopographyFactory
 from .utils import AnalysisFactory, AnalysisFunctionFactory
 from topobank.utils import assert_in_content, assert_not_in_content
+from topobank.taskapp.tasks import current_configuration
 
 def selection_from_instances(instances):
     """A little helper for constructing a selection."""
@@ -335,7 +339,10 @@ def test_show_multiple_analyses_for_two_functions(client, two_topos):
     assert b"Example 4 - Default" in response.content
 
 @pytest.fixture
-def ids_downloadable_analyses():
+def ids_downloadable_analyses(two_topos):
+
+    config = current_configuration()
+
     #
     # create two analyses with resuls
     #
@@ -370,13 +377,14 @@ def ids_downloadable_analyses():
         analysis = Analysis.objects.create(topography=topos[k],
                                            function=function,
                                            result=pickle.dumps(result),
-                                           kwargs=pickle.dumps({}))
+                                           kwargs=pickle.dumps({}),
+                                           configuration=config)
         ids.append(analysis.id)
 
     return ids
 
 @pytest.mark.django_db
-def test_analyis_download_as_txt(client, two_topos, ids_downloadable_analyses):
+def test_analyis_download_as_txt(client, two_topos, ids_downloadable_analyses, settings):
 
     username = 'testuser'
     password = 'abcd$1234'
@@ -394,6 +402,10 @@ def test_analyis_download_as_txt(client, two_topos, ids_downloadable_analyses):
     txt = response.content.decode()
 
     assert "Test Function" in txt # function name should be in there
+
+    # check whether version numbers are in there
+    assert PyCo.__version__.split('+')[0] in txt
+    assert settings.TOPOBANK_VERSION in txt
 
     # remove comments and empty lines
     filtered_lines = []
@@ -430,8 +442,26 @@ def test_analyis_download_as_txt(client, two_topos, ids_downloadable_analyses):
 
     assert arr == pytest.approx(expected_arr)
 
+@pytest.mark.parametrize("same_names", [ False, True])
 @pytest.mark.django_db
-def test_analyis_download_as_xlsx(client, two_topos, ids_downloadable_analyses):
+def test_analyis_download_as_xlsx(client, two_topos, ids_downloadable_analyses, same_names, settings):
+
+    topos = Topography.objects.all()
+    assert len(topos) == 2
+
+    # if tested with "same_names=True", make sure both topographies have the same name
+    if same_names:
+        topos[0].name = topos[1].name
+        topos[0].save()
+
+    first_topo_name = topos[0].name
+    second_topo_name = topos[1].name
+
+    first_topo_name_in_sheet_name = first_topo_name
+    second_topo_name_in_sheet_name = second_topo_name
+    if same_names:
+        first_topo_name_in_sheet_name += " (1)"
+        second_topo_name_in_sheet_name += " (2)"
 
     username = 'testuser'
     password = 'abcd$1234'
@@ -443,17 +473,17 @@ def test_analyis_download_as_xlsx(client, two_topos, ids_downloadable_analyses):
 
     response = client.get(download_url)
 
-    import tempfile, openpyxl
-
     tmp = tempfile.NamedTemporaryFile(suffix='.xlsx') # will be deleted automatically
     tmp.write(response.content)
     tmp.seek(0)
 
     xlsx = openpyxl.load_workbook(tmp.name)
 
-    assert len(xlsx.worksheets) == 2*2 + 1 # TODO this would currently fail if the topographies had the same name
+    print(xlsx.sheetnames)
 
-    ws = xlsx.get_sheet_by_name("Example 3 - ZSensor - First Series")
+    assert len(xlsx.worksheets) == 2*2 + 1
+
+    ws = xlsx.get_sheet_by_name(f"{first_topo_name_in_sheet_name} - First Series")
 
     assert list(ws.values) == [
         (None, 'time (s)', 'distance (m)'),
@@ -464,7 +494,7 @@ def test_analyis_download_as_xlsx(client, two_topos, ids_downloadable_analyses):
         (4, 4, 8),
     ]
 
-    ws = xlsx.get_sheet_by_name("Example 3 - ZSensor - Second Series")
+    ws = xlsx.get_sheet_by_name(f"{first_topo_name_in_sheet_name} - Second Series")
 
     assert list(ws.values) == [
         (None, 'time (s)', 'distance (m)'),
@@ -475,7 +505,7 @@ def test_analyis_download_as_xlsx(client, two_topos, ids_downloadable_analyses):
         (4, 5, 15),
     ]
 
-    ws = xlsx.get_sheet_by_name("Example 4 - Default - First Series")
+    ws = xlsx.get_sheet_by_name(f"{second_topo_name_in_sheet_name} - First Series")
 
     assert list(ws.values) == [
         (None, 'time (s)', 'distance (m)'),
@@ -486,7 +516,7 @@ def test_analyis_download_as_xlsx(client, two_topos, ids_downloadable_analyses):
         (4, 5, 9),
     ]
 
-    ws = xlsx.get_sheet_by_name("Example 4 - Default - Second Series")
+    ws = xlsx.get_sheet_by_name(f"{second_topo_name_in_sheet_name} - Second Series")
 
     assert list(ws.values) == [
         (None, 'time (s)', 'distance (m)'),
@@ -497,6 +527,16 @@ def test_analyis_download_as_xlsx(client, two_topos, ids_downloadable_analyses):
         (4, 6, 16),
     ]
 
+    # check whether version numbers are available in INFORMATION sheet
+    ws = xlsx.get_sheet_by_name("INFORMATION")
+
+    vals = list(ws.values)
+    assert ("Version of 'PyCo'", PyCo.__version__.split('+')[0]) in vals
+    assert ("Version of 'topobank'", settings.TOPOBANK_VERSION) in vals
+
+    # topography names should also be included
+    for t in topos:
+        assert ('Topography', t.name) in vals
 
 @pytest.mark.django_db
 def test_view_shared_analysis_results(client):

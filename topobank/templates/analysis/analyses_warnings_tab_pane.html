@@ -1,0 +1,28 @@
+{% load analysis_tags %}
+{% if analyses_failure or extra_warnings %}
+  <div class="tab-pane fade" id="warnings-pill-{{ card_id }}" role="tabpanel">
+    {% for ew in extra_warnings %}
+        <div class="alert {{ ew.alert_class }}" role="alert">
+            {{ ew.message|safe }}
+        </div>
+    {% endfor %}
+    {% for af in analyses_failure %}
+        {% if af.result_obj.is_incompatible %}
+          <div class="alert alert-info" role="alert">
+            Topography
+            <a class="alert-link" href="{% url 'manager:topography-detail' af.topography.id %}">{{ af.topography.name }}</a>
+            is incompatible with this kind of analysis: {{ af.result_obj.message }}
+          </div>
+        {% else %}
+          <div class="alert alert-error" role="alert">
+            <p>Analysis failed for topography
+               <a class="alert-link" href="{% url 'manager:topography-detail' af.topography.id %}">{{ af.topography.name }}</a>.
+              Traceback:</p>
+            <pre>{{ af.result_obj.traceback }}</pre>
+            Please send us an e-mail about this issue by using this
+            <a href="mailto:topobank@imtek.uni-freiburg.de?subject=Failure while performing '{{ af.function.name }}' analysis&body={% body_for_mailto_link af request.user %}">link</a>.
+          </div>
+        {% endif %}
+    {% endfor %}
+  </div>
+{% endif %}

@@ -114,7 +114,7 @@ DATABASES = {
         'NAME': '/dev/shm/topobank.sqlite3',
         # 'NAME': 'topobank.sqlite3',
     },
-    'default-postgres': {
+    'default-postgresql': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
         'NAME': 'topobank_test',
         'USER': 'topobank',

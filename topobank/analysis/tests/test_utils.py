@@ -3,8 +3,10 @@ import pickle
 import datetime
 
 from topobank.analysis.models import Analysis, AnalysisFunction
+from topobank.analysis.utils import mangle_sheet_name
 from topobank.manager.models import Topography
 from topobank.manager.tests.utils import two_topos # for fixture
+
 
 from ..utils import get_latest_analyses
 
@@ -93,3 +95,15 @@ def test_latest_analyses(two_topos, django_user_model):
 
     assert at1.start_time == tz.localize(datetime.datetime(2018, 1, 2, 12))
     assert at2.start_time == tz.localize(datetime.datetime(2018, 1, 5, 12))
+
+def test_mangle_sheet_name():
+
+    # Not sure, what the real restrictions are. An error message
+    # states that e.g. ":" should not be the first or last character,
+    # but actually it is also not allowed in the middle?!
+    # So we remove them completely.
+
+    assert mangle_sheet_name("RMS height: 19.6 mm") == "RMS height 19.6 mm"
+    assert mangle_sheet_name("Right?") == "Right"
+    assert mangle_sheet_name("*") == ""
+

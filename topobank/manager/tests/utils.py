@@ -52,12 +52,13 @@ def two_topos():
     call_command('register_analysis_functions')
 
     user = UserFactory(username='testuser', password='abcd$1234')
-    surface = SurfaceFactory(name="Surface 1", creator=user)
+    surface1 = SurfaceFactory(name="Surface 1", creator=user)
+    surface2 = SurfaceFactory(name="Surface 2", creator=user)
 
     datafile1 = factory.django.FileField(from_path="topobank/manager/fixtures/example3.di")
     datafile2 = factory.django.FileField(from_path="topobank/manager/fixtures/example4.txt")
 
-    TopographyFactory(surface=surface,
+    topos1 = TopographyFactory(surface=surface1,
                       creator=user,
                       name='Example 3 - ZSensor',
                       data_source=0,
@@ -72,7 +73,7 @@ def two_topos():
                       resolution_x=256,
                       resolution_y=256)
 
-    TopographyFactory(surface=surface,
+    topos2 = TopographyFactory(surface=surface2,
                       creator=user,
                       name='Example 4 - Default',
                       data_source=0,
@@ -86,7 +87,7 @@ def two_topos():
                       datafile=datafile2,
                       resolution_x=305,
                       resolution_y=75)
-
+    return topos1, topos2
 
 @pytest.fixture
 def one_line_scan():
@@ -97,13 +98,13 @@ def one_line_scan():
 
     datafile = factory.django.FileField(from_path="topobank/manager/fixtures/line_scan_1.asc")
 
-    TopographyFactory(surface=surface,
-                      name='Simple Line Scan',
-                      measurement_date=datetime.date(2018,1,1),
-                      description="description1",
-                      size_x=9,
-                      detrend_mode='height',
-                      datafile=datafile)
+    return TopographyFactory(surface=surface,
+                             name='Simple Line Scan',
+                             measurement_date=datetime.date(2018,1,1),
+                             description="description1",
+                             size_x=9,
+                             detrend_mode='height',
+                             datafile=datafile)
 
 
 def export_reponse_as_html(response, fname='/tmp/response.html'):

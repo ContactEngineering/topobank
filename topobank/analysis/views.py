@@ -43,7 +43,7 @@ from ..manager.utils import selected_instances, selection_from_session
 from .models import Analysis, AnalysisFunction
 from .serializers import AnalysisSerializer
 from .forms import TopographyFunctionSelectForm
-from .utils import get_latest_analyses
+from .utils import get_latest_analyses, mangle_sheet_name
 from topobank.taskapp.tasks import submit_analysis
 
 import logging
@@ -219,6 +219,7 @@ class SimpleCardView(TemplateView):
             analyses_unready=analyses_unready,  # ..the ones which are still running
             topographies_missing=topographies_missing , # topographies for which there is no Analysis object yet
             topography_ids_requested_json=json.dumps(topography_ids), # can be used to retrigger analyses
+            extra_warnings=[], # use list of dicts of form {'alert_class': 'alert-info', 'message': 'your message'}
         ))
 
         return context
@@ -689,6 +690,14 @@ class ContactMechanicsCardView(SimpleCardView):
 
         context['initial_calc_kwargs'] = initial_calc_kwargs
 
+        context['extra_warnings'] = [
+            dict(alert_class='alert-warning',
+                 message="""
+                 Translucent data points did not converge within iteration limit and may carry large errors.
+                 <i>A</i> is the true contact area and <i>A0</i> the apparent contact area,
+                 i.e. the size of the provided topography.""")
+        ]
+
         return context
 
 
@@ -1124,10 +1133,10 @@ def download_plot_analyses_to_txt(request, analyses):
     for i, analysis in enumerate(analyses):
         if i == 0:
             f.write('# {}\n'.format(analysis.function) +
-                    '# {}\n'.format('='*len(str(analysis.function))) +
-                    '# TopoBank version: {}\n'.format(settings.TOPOBANK_VERSION) +
-                    '# PyCo version: {}\n'.format(PyCo.__version__) +
-                    '# IF YOU USE THIS DATA IN A PUBLICATION, PLEASE CITE XXX.\n' +
+                    '# {}\n'.format('='*len(str(analysis.function))))
+
+
+            f.write('# IF YOU USE THIS DATA IN A PUBLICATION, PLEASE CITE XXX.\n' +
                     '\n')
 
         f.write('# Topography: {}\n'.format(analysis.topography.name) +
@@ -1135,8 +1144,16 @@ def download_plot_analyses_to_txt(request, analyses):
                 '# Further arguments of analysis function: {}\n'.format(analysis.get_kwargs_display()) +
                 '# Start time of analysis task: {}\n'.format(analysis.start_time) +
                 '# End time of analysis task: {}\n'.format(analysis.end_time) +
-                '# Duration of analysis task: {}\n'.format(analysis.duration()) +
-                '\n')
+                '# Duration of analysis task: {}\n'.format(analysis.duration()))
+        if analysis.configuration is None:
+            f.write('# Versions of dependencies (like PyCo) are unknown for this analysis.\n')
+            f.write('# Please recalculate in order to have version information here.')
+        else:
+            versions_used = analysis.configuration.versions.order_by('dependency__import_name')
+
+            for version in versions_used:
+                f.write(f"# Version of '{version.dependency.import_name}': {version.number_as_string()}\n")
+        f.write('\n')
 
         result = pickle.loads(analysis.result)
         xunit_str = '' if result['xunit'] is None else ' ({})'.format(result['xunit'])
@@ -1160,7 +1177,6 @@ def download_plot_analyses_to_txt(request, analyses):
 def download_plot_analyses_to_xlsx(request, analyses):
 
     # TODO: We need a mechanism for embedding references to papers into output.
-    # TODO: Probably this function leaves out data if the sheet names are not unique (built from topography+series name)
     # TODO: pandas is a requirement that takes quite long when building docker images, do we really need it here?
     import pandas as pd
 
@@ -1168,28 +1184,60 @@ def download_plot_analyses_to_xlsx(request, analyses):
     f = io.BytesIO()
     excel = pd.ExcelWriter(f)
 
+
+    # Analyze topography names and store a distinct name
+    # which can be used in sheet names if topography names are not unique
+    topography_names_in_sheet_names = [ a.topography.name for a in analyses]
+
+    for tn in set(topography_names_in_sheet_names): # iterate over distinct names
+
+        # replace name with a unique one using a counter
+        indices = [ i for i, a in enumerate(analyses) if a.topography.name == tn]
+
+        if len(indices) > 1: # only rename if not unique
+            for k, idx in enumerate(indices):
+                topography_names_in_sheet_names[idx] += f" ({k+1})"
+
     # Global properties and values.
     properties = []
     values = []
+
     for i, analysis in enumerate(analyses):
 
         if i == 0:
-            properties += ['Function', 'TopoBank version', 'PyCo version']
-            values += [str(analysis.function), settings.TOPOBANK_VERSION, PyCo.__version__]
+            properties = ["Function"]
+            values = [str(analysis.function)]
 
         properties += ['Topography',
                        'Further arguments of analysis function', 'Start time of analysis task',
                        'End time of analysis task', 'Duration of analysis task']
         values += [str(analysis.topography.name), analysis.get_kwargs_display(), str(analysis.start_time),
                    str(analysis.end_time), str(analysis.duration())]
+        if analysis.configuration is None:
+            properties.append("Versions of dependencies")
+            values.append("Unknown. Please recalculate this analysis in order to have version information here.")
+        else:
+            versions_used = analysis.configuration.versions.order_by('dependency__import_name')
+
+            for version in versions_used:
+                properties.append(f"Version of '{version.dependency.import_name}'")
+                values.append(f"{version.number_as_string()}")
+        # We want an empty line on the properties sheet in order to distinguish the topographies
+        properties.append("")
+        values.append("")
 
         result = pickle.loads(analysis.result)
         column1 = '{} ({})'.format(result['xlabel'], result['xunit'])
         column2 = '{} ({})'.format(result['ylabel'], result['yunit'])
 
+        # determine name of topography in sheet name
+
         for series in result['series']:
             df = pd.DataFrame({column1: series['x'], column2: series['y']})
-            df.to_excel(excel, sheet_name='{} - {}'.format(analysis.topography.name, series['name'].replace('/', ' div ')))
+
+            sheet_name = '{} - {}'.format(topography_names_in_sheet_names[i],
+                                          series['name'].replace('/', ' div '))
+            df.to_excel(excel, sheet_name=mangle_sheet_name(sheet_name))
     df = pd.DataFrame({'Property': properties, 'Value': values})
     df.to_excel(excel, sheet_name='INFORMATION', index=False)
     excel.close()

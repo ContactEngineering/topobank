@@ -2,12 +2,10 @@ from django.shortcuts import reverse
 from guardian.shortcuts import get_objects_for_user
 from django.core.cache import cache # default cache
 
-from PyCo.Topography import FromFile
+from PyCo.Topography import open_topography
 
 from topobank.taskapp.celery import app
 
-import os.path
-import numpy as np
 from operator import itemgetter
 import logging
 
@@ -45,107 +43,16 @@ class TopographyFileReadingException(TopographyFileException):
     def message(self):
         return self._message
 
-def get_topography_file(filefield, topography_id=None):
-    """Returns TopographyFile object from cache if possible.
-
-    If not in cache, the TopographyFile object is created
-    and saved to cache.
+def get_topography_reader(filefield):
+    """Returns PyCo.Topography.IO.ReaderBase object.
 
     :param filefield: models.FileField instance
-    :param topography_id: integer with topography id in order not to mix up files with same name
-    :return: TopographyFile instance
+    :return: ReaderBase instance
     """
-    if hasattr(filefield, 'storage'):
-        middle = 'storage'
-    else:
-        middle = "temporary"
-
-    cache_key = "topofile:{}:{}:{}".format(middle, topography_id, filefield.name)
-
-    # Memcached keys should not contain spaces and mustn't be larger than 250 characters
-    cache_key = cache_key.replace(' ', '_')[:250]
-
-    topofile = cache.get(cache_key)
-    if topofile is None:
-        topofile = TopographyFile(filefield.open(mode='rb'))
-        cache.set(cache_key, topofile)
-    return topofile
-
-
-class TopographyFile:
-    """Provide a simple generic interface to topography files independent of format."""
-
-    def __init__(self, fname):
-        """
-        :param fname: filename of topography file or open file
-        :raises: TopographyFileReadingException
-        """
-
-        if hasattr(fname, 'seek') and not hasattr(fname, 'mode'):
-            # WORKAROUND in order to make PyCo's "detect_format" (Version 0.3x)
-            # work with S3 backend. The S3 backend file has no attribute "mode"
-            # and so "detect_format" does not work, because this attribute
-            # is used to find out whether the stream is binary or not.
-            # TODO Is this workaround still needed with the new reader infrastructure in PyCo?
-            fname.mode = 'rb'
-
-        try:
-            self._fmt = FromFile.detect_format(fname)
-        except Exception as exc:
-            raise TopographyFileFormatException("Cannot detect file format. Details: "+str(exc)) from exc
-
-        if hasattr(fname, 'seek'):
-            fname.seek(0)
-
-        try:
-            raw_topographies = FromFile.read(fname, format=self._fmt)
-            # we are relying here on a fixed order of data sources
-            # every time the same file is read (TODO: is that ensured in PyCo?)
-        except Exception as exc:
-            raise TopographyFileReadingException(fname, self._fmt, str(exc)) from exc
-
-        #
-        # read() may return only one topography if there is only one
-        #
-        if not isinstance(raw_topographies, list):
-            raw_topographies = [raw_topographies]
-
-        topographies = [] # filtered topographies
-        # ignore all topographies which have other units than lenghts
-        # code taken from PyCo-web
-        for topography in raw_topographies:
-            #
-            # ignore all data sources which have tuples as unit
-            #
-            try:
-                unit = topography.info['unit']
-            except KeyError:
-                unit = None
-
-            if not isinstance(unit, tuple):
-                if not hasattr(topography, 'coeff'): # 'coeff' for scaling, 'coeffs' for detrending
-                    topography = topography.scale(1.0)
-                topographies.append(topography) # detrend is done later, see Topography.topography()
-
-        self._topographies = topographies
-
-
-    @property
-    def data_sources(self):
-        """Return list of data source strings from topography infos."""
-        return [s.info['data_source'] if 'data_source' in s.info else DEFAULT_DATASOURCE_NAME
-                for s in self._topographies]
-
-    def topography(self, data_source):
-        """Get topography/line scan instance from data_source.
-
-        The result is the unmodified topography as returned from PyCo's read function.
-
-        :param data_source: integer
-        :return: TODO specify data type
-        """
-
-        return self._topographies[data_source]
+    # Workaround such that PyCo recognizes this a binary stream
+    if not hasattr(filefield, 'mode'):
+        filefield.mode = 'rb'
+    return open_topography(filefield)
 
 def mangle_unit(unit): # TODO needed?
     """
@@ -305,7 +212,11 @@ def bandwidths_data(topographies):
 
         pyco_topo = topo.topography()
 
-        unit = pyco_topo.info['unit']
+        try:
+            unit = pyco_topo.info['unit']
+        except KeyError:
+            unit = None
+
         if unit is None:
             _log.warning("No unit given for topography {}. Cannot calculate bandwidth.".format(topo.name))
             continue

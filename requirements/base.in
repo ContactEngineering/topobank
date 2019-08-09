@@ -1,0 +1,99 @@
+pytz  # https://github.com/stub42/pytz
+python-slugify  # https://github.com/un33k/python-slugify
+Pillow  # https://github.com/python-pillow/Pillow
+argon2-cffi  # https://github.com/hynek/argon2_cffi
+whitenoise  # https://github.com/evansd/whitenoise
+
+# Django
+# ------------------------------------------------------------------------------
+django==2.1.11  #  does this work with pyup?  # https://www.djangoproject.com/
+# version 2.1 fixed because of problems with django-formtools and django 2.2
+django-environ  # https://github.com/joke2k/django-environ
+django-model-utils  # https://github.com/jazzband/django-model-utils
+django-allauth  # https://github.com/pennersr/django-allauth
+django-crispy-forms  # https://github.com/django-crispy-forms/django-crispy-forms
+django-tables2 # https://github.com/jieter/django-tables2
+
+# Django REST Framework
+djangorestframework  # https://github.com/encode/django-rest-framework
+coreapi  # https://github.com/core-api/python-client
+
+# Icons
+django-fontawesome
+
+# progressbar for upload
+# django-progressbarupload>=0.1.7<0.2
+git+http://github.com/IMTEK-Simulation/django-progressbarupload.git
+# we use a forked version, because so far there is no published release
+# which works with Django 2.1 but the HEAD version does
+
+#
+# Storage
+#
+boto3 # S3
+django-storages
+
+# Permissions on object level
+django-guardian
+
+# Celery
+django-kombu # is this still needed? See https://pypi.org/project/django-kombu/
+celery
+# pylibmc is also used for memcached in production
+pylibmc
+# librabbitmq>=2.0
+# problems while compiling librabbitmq
+celery-flower
+# The follwing is needed, otherwise Tornado 6.0 breaks celery
+# See https://github.com/mher/flower/issues/878
+tornado>=4.2.0,<6.0.0
+
+# progress bars for celery tasks, served by Django
+celery-progress
+
+#
+# Contact Mechanics
+#
+# http://github.com/pastewka/PyCo/archive/0.30.0.tar.gz
+# git+https://github.com/pastewka/PyCo/releases/tag/0.30.0
+#git+ssh://git@github.com/pastewka/PyCo.git@0.30.0#egg=PyCo
+#-e git+http://git@github.com/pastewka/PyCo.git@0.30.0#egg=PyCo
+#git+http://git@github.com/scipy/scipy/releases/download/v1.2.1/scipy-1.2.1-cp37-cp37m-manylinux1_x86_64.whl
+# PyCo==0.51.1
+#### see Makefile
+
+# plotting
+bokeh
+# link to CSS+JS in HTML files must must this version!
+
+# pandas is currently needed for downloading xlsx files from analyses
+pandas
+
+# xarray is used to write analysis data to netcdf files
+xarray
+netcdf4
+h5netcdf
+
+# form wizard for defining a topography in several steps
+django-formtools
+
+# multiple select widget
+django-select2
+
+# openpyxl
+openpyxl
+
+# Unit conversion
+pint
+
+# terms and conditions
+# django-termsandconditions>=1.2.13<2.0
+# install from own optional_terms branch
+git+http://git@github.com/mcrot/django-termsandconditions.git@optional_terms
+# TODO fork this into account of IMTEK/Simulation organisation if still needed (maybe we don't need optional terms)
+
+# markdown conversion for terms & conditions
+markdown2
+
+# datepicker
+django-bootstrap-datepicker-plus

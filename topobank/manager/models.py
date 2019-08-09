@@ -1,11 +1,12 @@
 from django.db import models, transaction
 from django.shortcuts import reverse
+from django.core.cache import cache
 
 from guardian.shortcuts import assign_perm, remove_perm
 
-from topobank.users.models import User
+from .utils import get_topography_reader
 
-from .utils import get_topography_file
+from topobank.users.models import User
 
 def user_directory_path(instance, filename):
     # file will be uploaded to MEDIA_ROOT/user_<id>/<filename>
@@ -148,36 +149,48 @@ class Topography(models.Model):
     def get_absolute_url(self):
         return reverse('manager:topography-detail', kwargs=dict(pk=self.pk))
 
+    def cache_key(self):
+        return f"topography-{self.id}-channel-{self.data_source}"
+
     def topography(self):
         """Return a PyCo Topography/Line Scan instance.
 
         This instance is guaranteed to
 
         - have an info dict with 'unit' key: .info['unit']
-        - have a size: .size
+        - have a size: .physical_sizes
         - scaled and detrended with the saved parameters
 
         """
-        topofile = get_topography_file(self.datafile, self.id)
-        topo = topofile.topography(int(self.data_source))
+        cache_key = self.cache_key()
 
         #
-        # Now prepare topography using the parameters from database
+        # Try to get topography from cache if possible
         #
+        topo = cache.get(cache_key)
+        if topo is None:
+            toporeader = get_topography_reader(self.datafile)
+            topography_kwargs = dict(channel=self.data_source)
 
-        # set size if physical size was not given in datafile
-        # (see also  TopographyCreateWizard.get_form_initial)
-        if self.size_editable:
-            if self.size_y is None:
-                topo.size = self.size_x, # size is now always a tuple
-            else:
-                topo.size = self.size_x, self.size_y
+            # Set size if physical size was not given in datafile
+            # (see also  TopographyCreateWizard.get_form_initial)
+            # Physical size is always a tuple.
+            if self.size_editable: # TODO: could be removed in favor of "channel_dict['physical_sizes'] is None"
+                if self.size_y is None:
+                    topography_kwargs['physical_sizes'] = self.size_x,
+                else:
+                    topography_kwargs['physical_sizes'] = self.size_x, self.size_y
 
-        if self.height_scale_editable:
-            # Adjust height scale to value chosen by user
-            topo.coeff = self.height_scale # TODO use .scale_factor with PyCo >=0.5
+            if self.height_scale_editable:
+                # Adjust height scale to value chosen by user
+                topography_kwargs['height_scale_factor'] = self.height_scale
 
-        topo = topo.detrend(detrend_mode=self.detrend_mode, info=dict(unit=self.unit))
+            # Eventually get PyCo topography using the given keywords
+            topo = toporeader.topography(**topography_kwargs)
+            topo = topo.detrend(detrend_mode=self.detrend_mode, info=dict(unit=self.unit))
+
+            cache.set(cache_key, topo)
+            # be sure to invalidate the cache key if topography is saved again -> signals.py
 
         return topo
 

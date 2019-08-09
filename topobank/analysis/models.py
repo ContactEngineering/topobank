@@ -1,8 +1,58 @@
 from django.db import models
+
 import pickle
 
 from topobank.manager.models import Topography
 import topobank.analysis.functions as functions_module
+
+
+class Dependency(models.Model):
+    """A dependency of analysis results, e.g. "PyCo", "topobank"
+    """
+    # this is used with "import":
+    import_name = models.CharField(max_length=30, unique=True)
+
+    def __str__(self):
+        return self.import_name
+
+class Version(models.Model):
+    """
+    A specific version of a dependency.
+    Part of a configuration.
+    """
+    dependency = models.ForeignKey(Dependency, on_delete=models.CASCADE)
+
+    major = models.SmallIntegerField()
+    minor = models.SmallIntegerField()
+    micro = models.SmallIntegerField(null=True)
+
+    # the following can be used to indicate that this
+    # version should not be used any more / or the analyses
+    # should be recalculated
+    # valid = models.BooleanField(default=True)
+
+    def number_as_string(self):
+        x = f"{self.major}.{self.minor}"
+        if self.micro is not None:
+            x += f".{self.micro}"
+        return x
+
+    def __str__(self):
+        return f"{self.dependency} {self.number_as_string()}"
+
+
+class Configuration(models.Model):
+    """For keeping track which versions were used for an analysis.
+    """
+    valid_since = models.DateTimeField(auto_now_add=True)
+    # pyco_version = models.CharField(max_length=20, help_text="PyCo version.")
+
+    versions = models.ManyToManyField(Version)
+
+    def __str__(self):
+        versions = [ str(v) for v in self.versions.all()]
+        return f"Valid since: {self.valid_since}, versions: {versions}"
+
 
 class Analysis(models.Model):
 
@@ -35,6 +85,8 @@ class Analysis(models.Model):
     end_time = models.DateTimeField(null=True)
 
     result = models.BinaryField(null=True, default=None)  # for pickle, in case of failure, can be Exception instance
+
+    configuration = models.ForeignKey(Configuration, null=True, on_delete=models.SET_NULL)
 
     def __str__(self):
         return "Task {} with state {}".format(self.task_id, self.get_task_state_display())

@@ -404,3 +404,13 @@ FILE_UPLOAD_HANDLERS = (
     "django.core.files.uploadhandler.TemporaryFileUploadHandler",
 )
 PROGRESSBARUPLOAD_INCLUDE_JQUERY = False
+
+#
+# Settings for tracking package versions for analyses
+#
+# list of tuples of form (import_name, expression_returning_version_string)
+TRACKED_DEPENDENCIES = [
+    ('PyCo', 'PyCo.__version__'),
+    ('topobank', 'topobank.__version__'),
+    ('numpy', 'numpy.version.full_version')
+]

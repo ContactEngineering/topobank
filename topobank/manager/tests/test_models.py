@@ -16,8 +16,11 @@ def test_topography_name(two_topos):
 def test_topography_str(two_topos):
     surface = Surface.objects.get(name="Surface 1")
     topos = Topography.objects.filter(surface=surface).order_by('name')
-    assert [ str(t) for t in topos ] == ["Topography 'Example 3 - ZSensor' from 2018-01-01",
-                                         "Topography 'Example 4 - Default' from 2018-01-02"]
+    assert [ str(t) for t in topos ] == ["Topography 'Example 3 - ZSensor' from 2018-01-01"]
+
+    surface = Surface.objects.get(name="Surface 2")
+    topos = Topography.objects.filter(surface=surface).order_by('name')
+    assert [str(t) for t in topos] == ["Topography 'Example 4 - Default' from 2018-01-02"]
 
 @pytest.mark.django_db
 def test_call_topography_method_multiple_times(two_topos):
@@ -32,10 +35,10 @@ def test_call_topography_method_multiple_times(two_topos):
     # assert isinstance(pyco_topo,
 
     coeffs_before = pyco_topo.coeffs
-    scaling_factor_before = pyco_topo.parent_topography.coeff
+    scaling_factor_before = pyco_topo.parent_topography.scale_factor
     pyco_topo = topo.topography()
 
-    assert pyco_topo.parent_topography.coeff == scaling_factor_before
+    assert pyco_topo.parent_topography.scale_factor == scaling_factor_before
     assert pyco_topo.coeffs == coeffs_before
 
 

@@ -67,7 +67,7 @@
     <div class="alert alert-warning">
       {% fontawesome_icon 'exclamation-circle' %}
       Analysis for {{ analyses_failure|length }} topograph{{ analyses_failure|length|pluralize:"y,ies" }} failed.
-      See tab "Failures" for details.
+      See tab "Warnings" for details.
     </div>
     {% endif %}
 {% endif %}
@@ -83,7 +83,8 @@
 
 {% for mt in topographies_missing %}
   <div class="alert alert-warning">
-    Analysis for topography <em>{{ mt.name }}</em> not triggered yet. Please trigger if needed.
-    {# TODO Provide link to trigger analysis #}
+    Analysis for topography <a href="{% url 'manager:topography-detail' mt.id %}" class="alert-link">{{ mt.name }}</a>
+    of surface <a href="{% url 'manager:surface-detail' mt.surface.id %}" class="alert-link">{{ mt.surface.name }}</a>
+    not triggered yet. Please trigger if needed.
   </div>
 {% endfor %}

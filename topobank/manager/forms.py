@@ -10,8 +10,9 @@ from bootstrap_datepicker_plus import DatePickerInput
 
 import logging
 
-from topobank.manager.utils import selection_choices, \
-    TopographyFileReadingException, TopographyFileFormatException, get_topography_file
+from PyCo.Topography.IO.Reader import CannotDetectFileFormat, CorruptFile, UnknownFileFormatGiven, ReadFileError
+
+from topobank.manager.utils import selection_choices, get_topography_reader
 from .models import Topography, Surface
 
 from topobank.users.models import User
@@ -53,31 +54,55 @@ class TopographyFileUploadForm(forms.ModelForm):
     )
 
     def clean_datafile(self):
-        # try to load topography file, show up error if this doesn't work
+        """Do some checks on data file.
+
+        :return:
+        """
+        #import tempfile # TODO tempfile just for debugging
+        #tmpfile = tempfile.NamedTemporaryFile()
+        ## try to load topography file, show up error if this doesn't work
         datafile = self.cleaned_data['datafile']
         try:
-            tf = get_topography_file(datafile)
-        except TopographyFileReadingException as exc:
-            msg = f"Error while reading file contents of file '{datafile.name}', detected format: {exc.detected_format}. "
+
+            #tmpfile.write(datafile.read())
+            #tmpfile.seek(0)
+            #toporeader = get_topography_reader(tmpfile) # here only the header is checked
+            toporeader = get_topography_reader(datafile)
+
+        except UnknownFileFormatGiven as exc:
+            msg = f"The format of the given file '{datafile.name}' is unkown. "
+            msg += "Please try another file or contact us."
+            raise forms.ValidationError(msg, code='invalid_topography_file')
+        except CannotDetectFileFormat as exc:
+            msg = f"Cannot determine file format of file '{datafile.name}'."
+            msg += "Please try another file or contact us."
+            raise forms.ValidationError(msg, code='invalid_topography_file')
+        except CorruptFile as exc:
+            msg = f"File '{datafile.name}' has a known format, but is seems corrupted. "
+            msg += "Please check the file or contact us."
+            raise forms.ValidationError(msg, code='invalid_topography_file')
+        except ReadFileError as exc:
+            msg = f"Error while reading file contents of file '{datafile.name}'. "
             if exc.message:
                 msg += f"Reason: {exc.message} "
 
             msg += " Please try another file or contact us."
             _log.info(msg+" Exception: "+str(exc))
             raise forms.ValidationError(msg, code='invalid_topography_file')
-        except TopographyFileFormatException as exc:
-            msg = f"Cannot determine file format of file '{datafile.name}'. "
-            msg += "Please try another file or contact us."
-            raise forms.ValidationError(msg, code='invalid_topography_file')
 
-        if len(tf.data_sources) == 0:
+        if len(toporeader.channels) == 0:
             raise forms.ValidationError("No topographies found in file.", code='empty_topography_file')
 
-        first_topo = tf.topography(0)
-        if first_topo.dim > 2:
+        first_channel_info = toporeader.channels[0]
+        if ('dim' in first_channel_info) and (first_channel_info['dim'] > 2):
             raise forms.ValidationError("Number of surface map dimensions > 2.", code='invalid_topography')
 
-        return self.cleaned_data['datafile']
+        #first_topo = toporeader.topography(channel=0)
+
+        #if first_topo.dim > 2:
+        #    raise forms.ValidationError("Number of surface map dimensions > 2.", code='invalid_topography')
+
+        return datafile
 
 
 class TopographyMetaDataForm(forms.ModelForm):

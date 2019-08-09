@@ -1,7 +1,7 @@
 import pytest
 import pickle
 
-from ..tasks import perform_analysis
+from ..tasks import perform_analysis, current_configuration
 
 from topobank.analysis.models import Analysis
 from topobank.analysis.models import AnalysisFunction
@@ -48,3 +48,45 @@ def test_perform_analysis(mocker, two_topos, settings):
         'x': 30,
         's': 'hamming'
     }
+
+    # Analysis object should remember current configuration
+    first_config = current_configuration()
+    assert analysis.configuration == first_config
+
+    #
+    # No let's change the version of PyCo
+    #
+    settings.TRACKED_DEPENDENCIES = [
+        ('PyCo', '"0.5.1"'),
+        ('topobank', 'topobank.__version__'),
+        ('numpy', 'numpy.version.full_version')
+    ]
+
+    topo2 = Topography.objects.last()
+    analysis2 = Analysis.objects.create(
+        topography=topo2,
+        function=af,
+        kwargs=pickle.dumps(func_kwargs))
+
+    analysis2.save()
+    perform_analysis(analysis2.id)
+
+    analysis2 = Analysis.objects.get(id=analysis2.id)
+
+    # configuration should have been changed
+    assert analysis2.configuration is not None
+    assert analysis2.configuration != first_config
+
+    new_pyco_version = analysis2.configuration.versions.get(dependency__import_name='PyCo')
+
+    assert new_pyco_version.major == 0
+    assert new_pyco_version.minor == 5
+    assert new_pyco_version.micro == 1
+
+    # other versions stay the same
+    numpy_version = analysis2.configuration.versions.get(dependency__import_name='numpy')
+    assert numpy_version == first_config.versions.get(dependency__import_name='numpy')
+
+    topobank_version = analysis2.configuration.versions.get(dependency__import_name='topobank')
+    assert topobank_version == first_config.versions.get(dependency__import_name='topobank')
+

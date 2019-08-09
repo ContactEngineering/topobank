@@ -30,3 +30,24 @@ def get_latest_analyses(function_id, topography_ids):
 
     return analyses
 
+def mangle_sheet_name(s: str) -> str:
+    """Return a string suitable for a sheet name in Excel/Libre Office.
+
+    :param s: sheet name
+    :return: string which should be suitable for sheet names
+    """
+
+    replacements = {
+        ':': '',
+        '[': '(',
+        ']': ')',
+        '*': '',
+        '?': '',
+        "'": '"',
+        "\\": ""
+    }
+
+    for x, y in replacements.items():
+        s = s.replace(x, y)
+
+    return s

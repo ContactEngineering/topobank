@@ -37,9 +37,8 @@ import logging
 from .models import Topography, Surface
 from .forms import TopographyForm, SurfaceForm, TopographySelectForm, SurfaceShareForm
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, Topography1DUnitsForm, Topography2DUnitsForm
-from .utils import get_topography_file,\
-    selected_instances, selection_from_session, selection_for_select_all, \
-    bandwidths_data, surfaces_for_user
+from .utils import selected_instances, selection_from_session, selection_for_select_all, \
+    bandwidths_data, surfaces_for_user, get_topography_reader
 from topobank.users.models import User
 
 _log = logging.getLogger(__name__)
@@ -145,71 +144,63 @@ class TopographyCreateWizard(SessionWizardView):
 
             step1_data = self.get_cleaned_data_for_step('metadata')
 
-            topofile = get_topography_file(datafile)
-
-            topo = topofile.topography(int(step1_data['data_source']))
-            # topography as it is in file
-
-            unit = topo.info['unit']
+            toporeader = get_topography_reader(datafile)
+            channel = int(step1_data['data_source'])
+            channel_info_dict = toporeader.channels[channel]
 
             #
-            # Set initial size and unit
+            # Set initial size
             #
 
-            has_2_dim = topo.dim == 2
+            has_2_dim = channel_info_dict['dim'] == 2
 
-            if has_2_dim:
-                initial_size_x, initial_size_y = topo.size
+            if 'physical_sizes' not in channel_info_dict:
+                channel_info_dict['physical_sizes'] = None
+
+            physical_sizes = channel_info_dict['physical_sizes']
+
+            if physical_sizes is None:
+                initial_size_x, initial_size_y = None, None
+                # both database fields are always set, also for 1D topographies
+            elif has_2_dim:
+                initial_size_x, initial_size_y = physical_sizes
             else:
-                initial_size_x, = topo.size # size is always a tuple
+                initial_size_x, = physical_sizes # size is always a tuple
                 initial_size_y = None # needed for database field
 
             initial['size_x'] = initial_size_x
             initial['size_y'] = initial_size_y
 
-            # Check whether the user should be able to change the size
-            # see also #39
+            initial['size_editable'] = physical_sizes is None
+
             #
-            # Allowed if the topography/line scan object returned by read allows it
-            # (i.e. there is a setter for the size)
-            try:
-                topo.size = topo.size # there are hopefully no side-effects
-                size_setter_avail = True
-            except AttributeError:
-                size_setter_avail = False
-
-            initial['size_editable'] = size_setter_avail
-
-            initial['unit'] = unit
-            initial['unit_editable'] = unit is None
+            # Set unit
+            #
+            initial['unit'] = channel_info_dict['unit'] if 'unit' in channel_info_dict else None
+            initial['unit_editable'] = initial['unit'] is None
 
             #
             # Set initial height and height unit
             #
-            try:
-                initial['height_scale'] = topo.coeff
-                # initial['height_scale_editable'] = False
-            except AttributeError:
+            if 'height_scale_factor' in channel_info_dict:
+                initial['height_scale'] = channel_info_dict['height_scale_factor']
+            else:
                 initial['height_scale'] = 1
-                # initial['height_scale_editable'] = True # this factor can be changed by user because not given in file
 
             initial['height_scale_editable'] = True  # because of GH 131 we decided to always allow editing
 
             #
             # Set initial detrend mode
             #
-            try:
-                initial['detrend_mode'] = topo.detrend_mode
-            except AttributeError:
-                initial['detrend_mode'] = 'center'
+            initial['detrend_mode'] = 'center'
 
             #
             # Set resolution (only for having the data later)
             #
-            if topo.dim == 2:
-                initial['resolution_x'], initial['resolution_y'] = topo.resolution
+            if has_2_dim:
+                initial['resolution_x'], initial['resolution_y'] = channel_info_dict['nb_grid_pts']
             else:
-                initial['resolution_x'] = len(topo.positions())  # TODO Check: also okay for uniform line scans?
+                initial['resolution_x'], = channel_info_dict['nb_grid_pts']
 
         return initial
 
@@ -220,16 +211,20 @@ class TopographyCreateWizard(SessionWizardView):
         if step == 'metadata':
             step0_data = self.get_cleaned_data_for_step('upload')
 
-            topofile = get_topography_file(step0_data['datafile'])
+            assert step0_data is not None # TODO remove if clear when this happens and why
+
+            toporeader = get_topography_reader(step0_data['datafile'])
 
             #
             # Set data source choices based on file contents
             #
-            kwargs['data_source_choices'] = [(k, ds) for k, ds in
-                                             enumerate(topofile.data_sources)]
+            kwargs['data_source_choices'] = [(k, channel_dict['name']) for k, channel_dict in
+                                             enumerate(toporeader.channels)
+                                             if not (('unit' in channel_dict)
+                                                     and isinstance(channel_dict['unit'], tuple)) ]
 
             #
-            # Set surface in order to check for suplicate topography names
+            # Set surface in order to check for duplicate topography names
             #
             kwargs['surface'] = step0_data['surface']
 
@@ -254,6 +249,21 @@ class TopographyCreateWizard(SessionWizardView):
             context.update({'cancel_action': redirect_in_get})
         elif redirect_in_post:
             context.update({'cancel_action': redirect_in_post})
+
+        #
+        # Somehow the step counting in django-formtools is broken
+        # and shows step 4 for 'unit2D' instead of 3, should
+        # be 3 because of conditional. So we create our own step
+        # counting here as workaround.
+        #
+        MY_STEP_NUMBERS = {
+            0: 1,
+            1: 2,
+            2: 3,
+            3: 3
+        }
+        # context['my_step_number'] = MY_STEP_NUMBERS[self.steps.index]
+        context['my_step_number'] = MY_STEP_NUMBERS[self.steps.index]
 
         return context
 
@@ -294,11 +304,41 @@ class TopographyCreateWizard(SessionWizardView):
         #
         instance = Topography(**d)
         instance.save()
+        # we save once so the member variables like "data_source"
+        # have the correct type for the next step
 
-        # put automated analysis in queue
-        instance.submit_automated_analyses()
+        # try to load topography once in order to
+        # check whether it can be loaded - we don't want a corrupt
+        # topography file in the system:
+        topo = Topography.objects.get(id=instance.id)
+        try:
+            topo.topography()
+            # since the topography should be saved in the cache this
+            # should not take much extra time
+        except Exception as exc:
+            _log.warning("Cannot read topography from file '{}', exception: {}".format(
+                d['datafile'], str(exc)
+            ))
+            _log.warning("Topography {} was created, but will be deleted now.".format(topo.id))
+            topo.delete()
+            #
+            # Redirect to an error page
+            #
+            return redirect('manager:topography-corrupted', surface_id=surface.id)
 
-        return redirect(reverse('manager:topography-detail', kwargs=dict(pk=instance.pk)))
+        # put all automated analysis in queue
+        topo.submit_automated_analyses()
+
+        # The topography could be correctly loaded and we show a page with details
+        return redirect('manager:topography-detail', pk=topo.pk)
+
+class CorruptedTopographyView(TemplateView):
+    template_name = "manager/topography_corrupted.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['surface'] = Surface.objects.get(id=kwargs['surface_id'])
+        return context
 
 class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
     model = Topography
@@ -399,7 +439,7 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
         """
         heights = pyco_topo.heights()
 
-        topo_size = pyco_topo.size
+        topo_size = pyco_topo.physical_sizes
         #x_range = DataRange1d(start=0, end=topo_size[0], bounds='auto')
         #y_range = DataRange1d(start=0, end=topo_size[1], bounds='auto')
         x_range = DataRange1d(start=0, end=topo_size[0], bounds='auto', range_padding=5)
