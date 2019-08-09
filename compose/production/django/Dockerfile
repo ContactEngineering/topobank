@@ -47,7 +47,7 @@ RUN pip install .
 #
 COPY ./requirements /requirements
 WORKDIR /
-RUN pip install --no-cache-dir -r /requirements/production.txt && rm -Rf /requirements
+RUN pip install --no-cache-dir -r /requirements/production.txt --ignore-installed && rm -Rf /requirements
 
 COPY ./compose/production/django/entrypoint /entrypoint
 RUN sed -i 's/\r//' /entrypoint
