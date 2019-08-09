@@ -12,8 +12,12 @@
   information (#230)
 - extended management command "trigger_analyses" such that failed
   analyses can be retriggered
-- ported backend to use newer PyCo version 0.50.0 (#289),
-  this allows to load ... ()
+- ported backend to use newer PyCo version 0.51.1 (#289),
+  among other things this release allows to load HDF5 files (302) 
+  and OPDX files (#325), more memory efficient caching of file
+  contents 
+- now shows an error message when file contents are corrupt
+- updated dependencies  
   
    
 ## 0.5.7
