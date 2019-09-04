@@ -6,7 +6,10 @@ outputs := base.txt local.txt test.txt production.txt
 
 all: $(outputs)
 
-%.txt: %.in
+base.txt: base.in
+	pip-compile -v --output-file $@ $<
+
+%.txt: %.in base.txt
 	pip-compile -v --output-file $@ $<
 	# echo "PyCo==0.51.1" >> $@
 

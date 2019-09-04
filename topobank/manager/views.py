@@ -11,21 +11,17 @@ from django.core.files import File
 from django.core.exceptions import PermissionDenied
 from django.conf import settings
 from django.http import HttpResponse
-
-from formtools.wizard.views import SessionWizardView
-
 from django.http import HttpResponseForbidden
 from django.views.generic.edit import FormMixin
 from django.contrib.auth.mixins import UserPassesTestMixin
-from django.contrib import messages
-
-from guardian.decorators import permission_required_or_403
-from guardian.shortcuts import assign_perm, get_users_with_perms, get_objects_for_user
 from django.utils.decorators import method_decorator
 
+from formtools.wizard.views import SessionWizardView
+from guardian.decorators import permission_required_or_403
+from guardian.shortcuts import assign_perm, get_users_with_perms, get_objects_for_user
+from notifications.signals import notify
 import django_tables2 as tables
 from django_tables2 import RequestConfig
-
 from bokeh.plotting import figure
 from bokeh.embed import components
 from bokeh.models import DataRange1d, LinearColorMapper, ColorBar
@@ -762,12 +758,28 @@ class SurfaceShareView(FormMixin, DetailView):
         if 'save' in self.request.POST:
             users = form.cleaned_data.get('users', [])
             allow_change = form.cleaned_data.get('allow_change', False)
+            surface = self.object
             for user in users:
                 _log.info("Sharing surface {} with user {} (allow change? {}).".format(
-                    self.object.pk, user.username, allow_change))
+                    surface.pk, user.username, allow_change))
                 assign_perm('view_surface', user, self.object)
+
+                notification_message = f"{self.request.user} has shared surface '{surface.name}' with you."
+                notify.send(self.request.user, recipient=user,
+                            verb="share", # TODO Does verb follow activity stream defintions?
+                            target=surface,
+                            public=False,
+                            description=notification_message,
+                            href=surface.get_absolute_url())
+
                 if allow_change:
-                    assign_perm('change_surface', user, self.object)
+                    assign_perm('change_surface', user, surface)
+                    notify.send(self.request.user, recipient=user, verb="allow change",
+                                target=surface, public=False,
+                                description=f"""
+                                You are allowed to change the surface '{surface.name}' shared by {self.request.user} 
+                                """,
+                                href=surface.get_absolute_url())
 
         return super().form_valid(form)
 
@@ -830,9 +842,15 @@ def sharing_info(request):
 
             if unshare:
                 surface.unshare(share_with)
+                notify.send(sender=request.user, recipient=share_with, verb='unshare', public=False,
+                            description=f"Surface '{surface.name}' from {request.user} is no longer shared with you.",
+                            href=reverse('manager:sharing-info'))
             elif allow_change and (request.user == surface.creator): # only allow change for surface creator
                 surface.share(share_with, allow_change=True)
-
+                notify.send(sender=request.user, recipient=share_with, verb='allow change', target=surface,
+                            public=False,
+                            description=f"{request.user} has given you permissions to change surface '{surface.name}'.",
+                            href=surface.get_absolute_url())
     #
     # Collect information to display
     #
