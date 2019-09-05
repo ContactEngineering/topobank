@@ -337,6 +337,7 @@
           if (menus) {
             var messages = data.unread_list.map(function (item) {
 
+                // We have to build the full url here, because the item slug not available when sending the notification
                 var href = '/inbox/notifications/mark-as-read/'+item.slug+'/?next='; {# TODO remove hard-coded prefix #}
                 var message = item.description;
 
