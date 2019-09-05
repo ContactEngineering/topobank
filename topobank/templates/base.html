@@ -336,31 +336,27 @@
           var menus = document.getElementsByClassName(notify_menu_class);
           if (menus) {
             var messages = data.unread_list.map(function (item) {
-                /**
-                var message = "";
-                if(typeof item.actor !== 'undefined'){
-                    message = item.actor;
-                }
-                if(typeof item.verb !== 'undefined'){
-                    message = message + " " + item.verb;
-                }
-                if(typeof item.target !== 'undefined'){
-                    message = message + " " + item.target;
-                }
-                if(typeof item.timestamp !== 'undefined'){
-                    message = message + " " + item.timestamp;
-                }
-                */
-                console.log(item);
+
                 var href = '/inbox/notifications/mark-as-read/'+item.slug+'/?next='; {# TODO remove hard-coded prefix #}
+                var message = item.description;
+
+                // console.log(item);
+
                 if (typeof item.data.href !== 'undefined') {
                     href += item.data.href;
                 } else {
                     href += "#";
                 }
 
-                return '<a class="dropdown-item" href=' + href + "> " + item.description + '</a>';
+                if(typeof item.timestamp !== 'undefined'){
+                    message = message + " (<i>" + item.timestamp + "</i>)";
+                }
+                return '<a class="dropdown-item" href=' + href + "> " + message + '</a>';
             }).join('')
+
+            if (messages.length==0) {
+                messages = '<span class="dropdown-item"><i>No unread notifications</i></span>';
+            }
 
             for (var i = 0; i < menus.length; i++){
                 menus[i].innerHTML = messages;

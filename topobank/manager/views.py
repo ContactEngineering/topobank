@@ -764,7 +764,7 @@ class SurfaceShareView(FormMixin, DetailView):
                     surface.pk, user.username, allow_change))
                 assign_perm('view_surface', user, self.object)
 
-                notification_message = f"{self.request.user} has shared surface '{surface.name}' with you."
+                notification_message = f"{self.request.user} has shared surface '{surface.name}' with you"
                 notify.send(self.request.user, recipient=user,
                             verb="share", # TODO Does verb follow activity stream defintions?
                             target=surface,
@@ -843,13 +843,13 @@ def sharing_info(request):
             if unshare:
                 surface.unshare(share_with)
                 notify.send(sender=request.user, recipient=share_with, verb='unshare', public=False,
-                            description=f"Surface '{surface.name}' from {request.user} is no longer shared with you.",
+                            description=f"Surface '{surface.name}' from {request.user} is no longer shared with you",
                             href=reverse('manager:sharing-info'))
             elif allow_change and (request.user == surface.creator): # only allow change for surface creator
                 surface.share(share_with, allow_change=True)
                 notify.send(sender=request.user, recipient=share_with, verb='allow change', target=surface,
                             public=False,
-                            description=f"{request.user} has given you permissions to change surface '{surface.name}'.",
+                            description=f"{request.user} has given you permissions to change surface '{surface.name}'",
                             href=surface.get_absolute_url())
     #
     # Collect information to display
