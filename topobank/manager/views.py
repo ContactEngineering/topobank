@@ -37,6 +37,8 @@ from .utils import selected_instances, selection_from_session, selection_for_sel
     bandwidths_data, surfaces_for_user, get_topography_reader
 from topobank.users.models import User
 
+MAX_NUM_POINTS_FOR_SYMBOLS_IN_LINE_SCAN_PLOT = 100
+
 _log = logging.getLogger(__name__)
 
 
@@ -416,8 +418,11 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
                       toolbar_location="above",
                       tooltips=TOOLTIPS)
 
+        show_symbols = y.shape[0] <= MAX_NUM_POINTS_FOR_SYMBOLS_IN_LINE_SCAN_PLOT
 
-        plot.circle(x,y)
+        plot.line(x,y)
+        if show_symbols:
+            plot.circle(x, y)
 
         plot.xaxis.axis_label_text_font_style = "normal"
         plot.yaxis.axis_label_text_font_style = "normal"
