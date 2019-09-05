@@ -1,5 +1,14 @@
 # Changelog for *TopoBank*
 
+## 0.7.0
+
+- added notifications through a "bell" symbol in the navigation bar;
+  notifications are show if a surface is shared or unshared
+  with the current user or if he/she gets change access to 
+  a surface (#26)
+- plotting now line scans with lines; symbols are also used
+  if no more than 100 points (#312)
+
 ## 0.6.0
 
 - fixed sheet names for XLSX download of analysis data (#39,#77)
