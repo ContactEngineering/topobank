@@ -47,7 +47,7 @@ def create_example_surface(sender, **kwargs):
 
         topo.save()
 
-        topo.submit_automated_analyses()
+        topo.renew_analyses()
 
 
 

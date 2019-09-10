@@ -3,12 +3,30 @@ import pickle
 import datetime
 
 from topobank.analysis.models import Analysis, AnalysisFunction
-from topobank.analysis.utils import mangle_sheet_name
+from topobank.analysis.utils import mangle_sheet_name, request_analysis
 from topobank.manager.models import Topography
-from topobank.manager.tests.utils import two_topos # for fixture
+from topobank.manager.tests.utils import two_topos # or fixture
 
 
 from ..utils import get_latest_analyses
+
+@pytest.mark.django_db
+def test_request_analysis(two_topos, django_user_model):
+    topo1 = Topography.objects.get(name="Example 3 - ZSensor")
+    topo2 = Topography.objects.get(name="Example 4 - Default")
+    af = AnalysisFunction.objects.first()
+
+    # delete all prior analyses for these two topographies in order to have a clean state
+    Analysis.objects.filter(topography__in=[topo1, topo2]).delete()
+
+    user = django_user_model.objects.create(name='testuser')
+
+    analysis = request_analysis(user=user, topography=topo1, analysis_func=af)
+
+    assert analysis.topography == topo1
+    assert analysis.function == af
+    assert user in analysis.users
+
 
 @pytest.mark.django_db
 def test_latest_analyses(two_topos, django_user_model):
@@ -79,7 +97,7 @@ def test_latest_analyses(two_topos, django_user_model):
     )
     analysis.save()
 
-    analyses = get_latest_analyses(af.id, [topo1.id, topo2.id])
+    analyses = get_latest_analyses(af.id, [topo1.id, topo2.id]) # TODO use "owner" field
 
     assert len(analyses) == 2 # one analysis per function and topography
 

@@ -82,9 +82,52 @@
 {% endif %}
 
 {% for mt in topographies_missing %}
-  <div class="alert alert-warning">
+
+  <div class="alert alert-warning" id="trigger-div-{{ function.id }}-{{ mt.id }}">
     Analysis for topography <a href="{% url 'manager:topography-detail' mt.id %}" class="alert-link">{{ mt.name }}</a>
     of surface <a href="{% url 'manager:surface-detail' mt.surface.id %}" class="alert-link">{{ mt.surface.name }}</a>
-    not triggered yet. Please trigger if needed.
+    not triggered yet. Please <button id="trigger-button-{{ function.id }}-{{ mt.id }}">trigger</button> if needed.
   </div>
+  <script>
+   $("#trigger-button-{{ function.id }}-{{ mt.id }}").click( function() {
+         var div = $('#trigger-div-{{ function.id }}-{{ mt.id }}'); // show answer for click in a prominent way
+
+         console.log("Button 'trigger' clicked for function {{ function.name }} and topography {{ mt.id }}!");
+
+         $.ajax({
+          type: "POST",
+          url: "{% url 'analysis:card-submit' %}",
+          timeout: 0,
+          data: {
+            function_id: {{ function.id }},
+            topography_ids: [{{ mt.id }}],
+            function_kwargs_json: JSON.stringify({}), // empty object -> default parameter
+            csrfmiddlewaretoken: "{{csrf_token}}"
+          },
+          success : function(data, textStatus, xhr) {
+            // debug_msg("Job submission successful. Status: "+xhr.status+" textStatus: "+textStatus);
+            if (xhr.status==200) {
+              $(div).html("Triggered for topography '{{ mt.name }}'. Reload page for results.");
+              $(div).removeClass("alert-warning");
+              $(div).addClass("alert-success");
+              // submit_analyses_card_ajax("{% url 'analysis:card' %}", "{{ card.id }}", "detail", {{ function.id }},{{ topography_ids_requested_json|safe }}, true);
+              // debug_msg("Triggered card reload. Status: "+xhr.status+" textStatus: "+textStatus);
+            } else {
+              console.log("Submitting analyses failed");
+              $(div).html("Triggering calculation failed, status: "+xhr.status+" response:"+xhr.responseText);
+              $(div).removeClass("alert-warning");
+              $(div).addClass("alert-danger");
+            }
+          },
+          error: function(xhr, textStatus, errorThrown) {
+            console.log("AJAX error when submitting jobs: errorThrown: "+errorThrown+" status: " +xhr.status+" responseText: "+xhr.responseText);
+            $(div).html("Please report this error: "+errorThrown+xhr.status+xhr.responseText);
+            $(div).removeClass("alert-warning");
+            $(div).addClass("alert-danger");
+          }
+        });
+
+     });
+   </script>
+
 {% endfor %}

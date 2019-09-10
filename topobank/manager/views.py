@@ -325,7 +325,7 @@ class TopographyCreateWizard(SessionWizardView):
             return redirect('manager:topography-corrupted', surface_id=surface.id)
 
         # put all automated analysis in queue
-        topo.submit_automated_analyses()
+        topo.renew_analyses()
 
         # The topography could be correctly loaded and we show a page with details
         return redirect('manager:topography-detail', pk=topo.pk)
@@ -348,7 +348,7 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
         return kwargs
 
     def get_success_url(self):
-        self.object.submit_automated_analyses()
+        self.object.renew_analyses()
 
         if "save-stay" in self.request.POST:
             return reverse('manager:topography-update', kwargs=dict(pk=self.object.pk))

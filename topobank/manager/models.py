@@ -194,17 +194,27 @@ class Topography(models.Model):
 
         return topo
 
-    def submit_automated_analyses(self):
-        """Submit all automatic analysis for this Topography.
+    def renew_analyses(self):
+        """Submit all automatic analysis for this topography.
+
+        Before make sure to delete all analyses for same topography,
+        they all can be wrong if this topography changed.
+
+        TODO Maybe also renew all already existing analyses with different parameters?
         """
-        from topobank.taskapp.tasks import submit_analysis
-        from topobank.analysis.models import AnalysisFunction
+        from topobank.analysis.utils import submit_analysis
+        from topobank.analysis.models import AnalysisFunction, Analysis
+        from guardian.shortcuts import get_users_with_perms
 
         auto_analysis_funcs = AnalysisFunction.objects.filter(automatic=True)
 
+        # collect users which are allowed to view analyses
+        users = get_users_with_perms(self.surface)
+
         def submit_all(instance=self):
             for af in auto_analysis_funcs:
-                submit_analysis(af, instance)
+                Analysis.objects.filter(function=af, topography=instance).delete()
+                submit_analysis(users, af, instance)
 
         transaction.on_commit(lambda: submit_all(self))
 

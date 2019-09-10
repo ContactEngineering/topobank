@@ -40,11 +40,11 @@ from PyCo.Tools.ContactAreaAnalysis import patch_areas, assign_patch_numbers
 
 from ..manager.models import Topography, Surface
 from ..manager.utils import selected_instances, selection_from_session
-from .models import Analysis, AnalysisFunction
+from .models import Analysis, AnalysisFunction, AnalysisCollection
 from .serializers import AnalysisSerializer
 from .forms import TopographyFunctionSelectForm
 from .utils import get_latest_analyses, mangle_sheet_name
-from topobank.taskapp.tasks import submit_analysis
+from topobank.analysis.utils import request_analysis
 
 import logging
 _log = logging.getLogger(__name__)
@@ -165,7 +165,7 @@ class SimpleCardView(TemplateView):
         #
         # Get all relevant analysis objects for this function and topography ids
         #
-        analyses_avail = get_latest_analyses(function_id, topography_ids)
+        analyses_avail = get_latest_analyses(function_id, topography_ids, request.user)
 
         #
         # Filter for analyses where the user has read permission for the related surface
@@ -710,8 +710,8 @@ def _configure_plot(plot):
     plot.yaxis.major_label_text_font_size = "12pt"
 
 
-def submit_analyses_view(request): # TODO use REST framework?
-    """Submits analyses.
+def submit_analyses_view(request): # TODO use REST framework? Rename to request?
+    """Requests analyses.
     :param request:
     :return: HTTPResponse
     """
@@ -737,14 +737,31 @@ def submit_analyses_view(request): # TODO use REST framework?
 
     allowed = True
     for topo in topographies:
-        allowed &= request.user.has_perm('view_surface', topo.surface) # TODO discuss who is allowed to trigger calculations
+        allowed &= request.user.has_perm('view_surface', topo.surface)
         if not allowed:
             break
 
     if allowed:
-        for topo in topographies:
-            submit_analysis(function, topo, **function_kwargs)
+        analyses = [ request_analysis(request.user, function, topo, **function_kwargs) for topo in topographies]
+
         status = 200
+
+        # create a collection of analyses such that points to all analyses
+
+        #from celery import chord
+        from notifications.signals import notify
+
+        #watchdog = chord(tasks_signatures)(lambda: notify.send(sender="Watchdog", recipient=request.user, verb="finish",
+        #                                   description=f"Manually triggered {function.name} finished for {len(topographies)} topographies"))
+        #watchdog.delay()
+
+        collection = AnalysisCollection.objects.create(name=f"{function.name} for {len(topographies)} topographies.",
+                                                       combined_task_state=Analysis.PENDING,
+                                                       owner=request.user)
+        collection.analyses.set(analyses)
+        #
+        # Each finished analysis checks whether related collections are finished, see "topobank.taskapp.tasks"
+        #
     else:
         status = 403
 

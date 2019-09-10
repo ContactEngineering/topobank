@@ -3,6 +3,7 @@ from django.db import models
 import pickle
 
 from topobank.manager.models import Topography
+from topobank.users.models import User
 import topobank.analysis.functions as functions_module
 
 
@@ -75,6 +76,9 @@ class Analysis(models.Model):
     topography = models.ForeignKey(Topography,
                                    on_delete=models.CASCADE)
 
+    # According to github #208, each user should be able to see analysis with parameters chosen by himself
+    users = models.ManyToManyField(User)
+
     kwargs = models.BinaryField() # for pickle
 
     task_id = models.CharField(max_length=155, unique=True, null=True)
@@ -137,3 +141,18 @@ class AnalysisFunction(models.Model):
     @property
     def card_view_flavor(self):
         return self.python_function.card_view_flavor
+
+class AnalysisCollection(models.Model):
+    name = models.CharField(max_length=160)
+    owner = models.ForeignKey(User, on_delete=models.CASCADE)
+    # notfiy = models.BooleanField(default=False)
+    analyses = models.ManyToManyField(Analysis)
+    combined_task_state = models.CharField(max_length=7,
+                                           choices=Analysis.TASK_STATE_CHOICES)
+
+    # We have a manytomany field, because an analysis could be part of multiple collections.
+    # This happens e.g. if the user presses "recalculate" several times and
+    # one analysis becomes part in each of these requests.
+
+
+
