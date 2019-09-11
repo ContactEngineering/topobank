@@ -3,6 +3,7 @@ import traceback
 
 from django.utils import timezone
 from django.conf import settings
+from django.shortcuts import reverse
 
 from celery_progress.backend import ProgressRecorder
 from notifications.signals import notify
@@ -123,7 +124,8 @@ def check_analysis_collection(collection_id):
 
     collection = AnalysisCollection.objects.get(id=collection_id)
 
-    task_states = [ analysis.task_state for analysis in collection.analyses.all() ]
+    analyses = collection.analyses.all()
+    task_states = [ analysis.task_state for analysis in analyses ]
 
     has_started = any(ts not in ['pe'] for ts in task_states)
     has_failure = any(ts in ['fa'] for ts in task_states)
@@ -135,9 +137,13 @@ def check_analysis_collection(collection_id):
             # Notify owner of the collection
             #
             collection.combined_task_state = 'fa' if has_failure else 'su'
+
+            href = reverse('analysis:collection', kwargs=dict(collection_id=collection.id))
+
             notify.send(sender=collection, recipient=collection.owner, verb="finished",
-                        description="Tasks finished: "+collection.name)
-            # TODO maybe add link which selects all those analyses in analyses view
+                        description="Tasks finished: "+collection.name,
+                        href=href)
+
         else:
             collection.combined_task_state = 'st'
 

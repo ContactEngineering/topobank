@@ -358,6 +358,13 @@
             if (messages.length==0) {
                 messages = '<span class="dropdown-item"><i>No unread notifications</i></span>';
             }
+            //else {
+            //    messages += '<div class="dropdown-divider"></div>';
+            //    messages += '<a class="dropdown-item" href="#"><b>Mark all as read</b></a>';
+            //}
+            // Not clear yet how to mark only those as read which where shown in the list,
+            // probably we should do an API call in background like "api/unread_list/?max=3&mark_as_read=true"
+
 
             for (var i = 0; i < menus.length; i++){
                 menus[i].innerHTML = messages;

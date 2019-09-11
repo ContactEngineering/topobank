@@ -17,6 +17,7 @@ from django import template
 from rest_framework.generics import RetrieveAPIView
 from django.core.files.storage import default_storage
 from django.core.cache import cache # default cache
+from django.core.exceptions import PermissionDenied
 
 from bokeh.layouts import row, column, widgetbox
 from bokeh.models import ColumnDataSource, CustomJS, TapTool, Circle
@@ -39,7 +40,7 @@ import PyCo
 from PyCo.Tools.ContactAreaAnalysis import patch_areas, assign_patch_numbers
 
 from ..manager.models import Topography, Surface
-from ..manager.utils import selected_instances, selection_from_session
+from ..manager.utils import selected_instances, selection_from_session, instances_to_selection
 from .models import Analysis, AnalysisFunction, AnalysisCollection
 from .serializers import AnalysisSerializer
 from .forms import TopographyFunctionSelectForm
@@ -1022,6 +1023,28 @@ class AnalysesListView(FormView):
     template_name = "analysis/analyses_list.html"
 
     def get_initial(self):
+
+        if 'collection_id' in self.kwargs:
+            collection_id = self.kwargs['collection_id']
+            try:
+                collection = AnalysisCollection.objects.get(id=collection_id)
+            except AnalysisCollection.DoesNotExist:
+                raise Http404("Collection does not exist")
+
+            if collection.owner != self.request.user:
+                raise PermissionDenied()
+
+            functions = set(a.function for a in collection.analyses.all())
+            topographies = set(a.topography for a in collection.analyses.all())
+
+            # as long as we have the current UI (before implementing GH #304)
+            # we also set the collection's function and topographies as selection
+            topography_selection = instances_to_selection(topographies=topographies)
+            self.request.session['selection'] = tuple(topography_selection)
+            self.request.session['selected_functions'] = tuple(f.id for f in functions)
+
+
+
         return dict(
             selection=selection_from_session(self.request.session),
             functions=AnalysesListView._selected_functions(self.request),
@@ -1063,12 +1086,11 @@ class AnalysesListView(FormView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
+        functions = self._selected_functions(self.request)
+        topographies, *rest = selected_instances(self.request)
+
         cards = []
-
-        for function in self._selected_functions(self.request):
-
-            topographies, *rest = selected_instances(self.request)
-
+        for function in functions:
             cards.append(dict(function=function,
                               topography_ids_json=json.dumps([ t.id for t in topographies])))
 
