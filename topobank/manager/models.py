@@ -68,6 +68,17 @@ class Surface(models.Model):
         if allow_change:
             assign_perm('change_surface', with_user, self)
 
+        #
+        # Request all standard analyses to be available for that user
+        #
+        from topobank.analysis.models import AnalysisFunction
+        from topobank.analysis.utils import request_analysis
+        auto_analysis_funcs = AnalysisFunction.objects.filter(automatic=True)
+        for topo in self.topography_set.all():
+            for af in auto_analysis_funcs:
+                request_analysis(with_user, af, topo) # standard arguments
+
+
     def unshare(self, with_user):
         """Remove share on this surface for given user.
 

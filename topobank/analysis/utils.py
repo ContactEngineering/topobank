@@ -67,20 +67,20 @@ def request_analysis(user, analysis_func, topography, *other_args, **kwargs):
         analysis = submit_analysis(users=[user], analysis_func=analysis_func, topography=topography,
                                    pickled_pyfunc_kwargs=pickled_pyfunc_kwargs)
         _log.info("Submitted new analysis..")
-    else:
-        analysis.users.add(user)
 
-    #
-    # Remove user from other analysis with same topography and function
-    #
-    other_analyses_with_same_user = Analysis.objects.filter(
-        ~Q(id=analysis.id)\
-        & Q(topography=topography) \
-        & Q(function=analysis_func) \
-        & Q(users__in=[user]))
-    for a in other_analyses_with_same_user:
-        a.users.remove(user)
-        _log.info("Removed user %s from analysis %s with kwargs %s.", user, analysis, pickle.loads(analysis.kwargs))
+        #
+        # Remove user from other analysis with same topography and function
+        #
+        other_analyses_with_same_user = Analysis.objects.filter(
+            ~Q(id=analysis.id) \
+            & Q(topography=topography) \
+            & Q(function=analysis_func) \
+            & Q(users__in=[user]))
+        for a in other_analyses_with_same_user:
+            a.users.remove(user)
+            _log.info("Removed user %s from analysis %s with kwargs %s.", user, analysis, pickle.loads(analysis.kwargs))
+    elif user not in analysis.users.all():
+        analysis.users.add(user)
 
     return analysis
 
@@ -140,12 +140,13 @@ def submit_analysis(users, analysis_func, topography, pickled_pyfunc_kwargs=None
 
 
 
-def get_latest_analyses(function_id, topography_ids, user):
+def get_latest_analyses(user, function_id, topography_ids):
     """Get latest analyses for given function and topographies and user.
 
+    :param user: user which views the analyses
     :param function_id: id of AnalysisFunction instance
     :param topography_ids: iterable of ids of Topography instances
-    :param user: user which views the analyses
+
     :return: Queryset of analyses
 
     The returned queryset is comprised of only the latest analyses,

@@ -343,7 +343,7 @@
 
                 // console.log(item);
 
-                if (typeof item.data.href !== 'undefined') {
+                if ((item.data !== null) && (typeof item.data.href !== 'undefined')) {
                     href += item.data.href;
                 } else {
                     href += "#";

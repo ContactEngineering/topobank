@@ -7,7 +7,6 @@ from topobank.analysis.utils import mangle_sheet_name, request_analysis
 from topobank.manager.models import Topography
 from topobank.manager.tests.utils import two_topos # or fixture
 
-
 from ..utils import get_latest_analyses
 
 @pytest.mark.django_db
@@ -25,11 +24,13 @@ def test_request_analysis(two_topos, django_user_model):
 
     assert analysis.topography == topo1
     assert analysis.function == af
-    assert user in analysis.users
+    assert user in analysis.users.all()
 
 
 @pytest.mark.django_db
 def test_latest_analyses(two_topos, django_user_model):
+
+    user = django_user_model.objects.get(username="testuser")
 
     topo1 = Topography.objects.get(name="Example 3 - ZSensor")
     topo2 = Topography.objects.get(name="Example 4 - Default")
@@ -50,6 +51,7 @@ def test_latest_analyses(two_topos, django_user_model):
         end_time=datetime.datetime(2018, 1, 1, 13, 1, 1),
     )
     analysis.save()
+    analysis.users.add(user)
 
     # save a second only, which has a later start time
     analysis = Analysis.objects.create(
@@ -61,6 +63,7 @@ def test_latest_analyses(two_topos, django_user_model):
         end_time=datetime.datetime(2018, 1, 2, 13, 1, 1),
     )
     analysis.save()
+    analysis.users.add(user)
 
     #
     # Topography 2
@@ -74,6 +77,7 @@ def test_latest_analyses(two_topos, django_user_model):
         end_time=datetime.datetime(2018, 1, 3, 13, 1, 1),
     )
     analysis.save()
+    analysis.users.add(user)
 
     # save a second one, which has the latest start time
     analysis = Analysis.objects.create(
@@ -85,6 +89,7 @@ def test_latest_analyses(two_topos, django_user_model):
         end_time=datetime.datetime(2018, 1, 5, 13, 1, 1),
     )
     analysis.save()
+    analysis.users.add(user)
 
     # save a third one, which has a later start time than the first
     analysis = Analysis.objects.create(
@@ -96,8 +101,9 @@ def test_latest_analyses(two_topos, django_user_model):
         end_time=datetime.datetime(2018, 1, 4, 13, 1, 1),
     )
     analysis.save()
+    analysis.users.add(user)
 
-    analyses = get_latest_analyses(af.id, [topo1.id, topo2.id]) # TODO use "owner" field
+    analyses = get_latest_analyses(user, af.id, [topo1.id, topo2.id])
 
     assert len(analyses) == 2 # one analysis per function and topography
 

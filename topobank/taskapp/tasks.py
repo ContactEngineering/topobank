@@ -137,6 +137,7 @@ def check_analysis_collection(collection_id):
             collection.combined_task_state = 'fa' if has_failure else 'su'
             notify.send(sender=collection, recipient=collection.owner, verb="finished",
                         description="Tasks finished: "+collection.name)
+            # TODO maybe add link which selects all those analyses in analyses view
         else:
             collection.combined_task_state = 'st'
 

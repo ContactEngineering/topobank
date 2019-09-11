@@ -47,12 +47,10 @@ def test_selection_from_instances(mocker):
 
 
 @pytest.mark.django_db
-def test_analysis_times(client, two_topos):
+def test_analysis_times(client, two_topos, django_user_model):
 
-    username = 'testuser'
-    password = 'abcd$1234'
-
-    assert client.login(username=username, password=password)
+    user = django_user_model.objects.get(username='testuser')
+    client.force_login(user)
 
     topo = Topography.objects.first()
     af = AnalysisFunction.objects.first()
@@ -74,6 +72,7 @@ def test_analysis_times(client, two_topos):
         end_time=datetime.datetime(2018, 1, 1, 13, 1, 1), # duration: 1 hour, 1 minute, 1 sec
         result=pickled_result,
     )
+    analysis.users.add(user)
     analysis.save()
 
     response = client.get(reverse("analysis:card"),
@@ -88,20 +87,16 @@ def test_analysis_times(client, two_topos):
 
     assert response.status_code == 200
 
-    # export_reponse_as_html(response, fname='/tmp/response-analysis-times.html')
+    assert_in_content(response, "2018-01-01 12:00:00") # start_time
+    assert_in_content(response, "1:01:01") # duration
 
-    assert b"2018-01-01 12:00:00" in response.content # start
-    # assert b"2018-01-01 13:01:01" in response.content # end, lef out for now
-    assert b"1:01:01" in response.content # duration
 
 @pytest.mark.django_db
-def test_show_only_last_analysis(client, two_topos):
-    # TODO use mocks for topographies if possible
+def test_show_only_last_analysis(client, two_topos, django_user_model):
 
     username = 'testuser'
-    password = 'abcd$1234'
-
-    assert client.login(username=username, password=password)
+    user = django_user_model.objects.get(username=username)
+    client.force_login(user)
 
     topo1 = Topography.objects.first()
     topo2 = Topography.objects.last()
@@ -127,6 +122,7 @@ def test_show_only_last_analysis(client, two_topos):
         end_time=datetime.datetime(2018, 1, 1, 13, 1, 1),
         result=pickled_result,
     )
+    analysis.users.add(user)
     analysis.save()
 
     # save a second only, which has a later start time
@@ -139,6 +135,7 @@ def test_show_only_last_analysis(client, two_topos):
         end_time=datetime.datetime(2018, 1, 2, 13, 1, 1),
         result=pickled_result,
     )
+    analysis.users.add(user)
     analysis.save()
 
     #
@@ -153,6 +150,7 @@ def test_show_only_last_analysis(client, two_topos):
         end_time=datetime.datetime(2018, 1, 3, 13, 1, 1),
         result=pickled_result,
     )
+    analysis.users.add(user)
     analysis.save()
 
     # save a second only, which has a later start time
@@ -165,6 +163,7 @@ def test_show_only_last_analysis(client, two_topos):
         end_time=datetime.datetime(2018, 1, 4, 13, 1, 1),
         result=pickled_result,
     )
+    analysis.users.add(user)
     analysis.save()
 
     #
@@ -192,13 +191,11 @@ def test_show_only_last_analysis(client, two_topos):
     assert b"2018-01-03 12:00:00" not in response.content
 
 @pytest.mark.django_db
-def test_show_analyses_with_different_arguments(client, two_topos):
-    # TODO use mocks for topographies if possible or factories
+def test_show_analyses_with_different_arguments(client, two_topos, django_user_model):
 
-    username = 'testuser'
-    password = 'abcd$1234'
 
-    assert client.login(username=username, password=password)
+    user = django_user_model.objects.get(username='testuser')
+    client.force_login(user)
 
     topo1 = Topography.objects.first()
     af = AnalysisFunction.objects.first()
@@ -223,6 +220,7 @@ def test_show_analyses_with_different_arguments(client, two_topos):
         end_time=datetime.datetime(2018, 1, 1, 13, 1, 1),
         result=pickled_result,
     )
+    analysis.users.add(user)
     analysis.save()
 
     # save a second only, which has a later start time
@@ -235,6 +233,7 @@ def test_show_analyses_with_different_arguments(client, two_topos):
         end_time=datetime.datetime(2018, 1, 2, 13, 1, 1),
         result=pickled_result,
     )
+    analysis.users.add(user)
     analysis.save()
 
     # save a second only, which has a later start time
@@ -247,6 +246,7 @@ def test_show_analyses_with_different_arguments(client, two_topos):
         end_time=datetime.datetime(2018, 1, 3, 13, 1, 1),
         result=pickled_result,
     )
+    analysis.users.add(user)
     analysis.save()
 
     #
@@ -552,9 +552,6 @@ def test_view_shared_analysis_results(client):
     surface1 = SurfaceFactory(creator=user1)
     surface2 = SurfaceFactory(creator=user2)
 
-    # user2 shares surfaces, so user 1 should see surface1+surface2
-    surface2.share(user1)
-
     # create topographies + functions + analyses
     func1 = AnalysisFunctionFactory()
     #func2 = AnalysisFunctionFactory()
@@ -580,6 +577,9 @@ def test_view_shared_analysis_results(client):
     #                                start_time=datetime.datetime(2019, 1, 1, 16))
     # analysis2a_2 = AnalysisFactory(topography=topo2a, function=func2,
     #                                start_time=datetime.datetime(2019, 1, 1, 17))
+
+    # user2 shares surfaces, so user 1 should see surface1+surface2
+    surface2.share(user1)
 
     #
     # Now we change to the analysis card view and look what we get

@@ -165,7 +165,7 @@ class SimpleCardView(TemplateView):
         #
         # Get all relevant analysis objects for this function and topography ids
         #
-        analyses_avail = get_latest_analyses(function_id, topography_ids, request.user)
+        analyses_avail = get_latest_analyses(request.user, function_id, topography_ids)
 
         #
         # Filter for analyses where the user has read permission for the related surface
@@ -1054,7 +1054,7 @@ class AnalysesListView(FormView):
 
     @staticmethod
     def _selected_functions(request):
-        """Returns selected functions as saved in session.
+        """Returns selected functions as saved in session or, if given, in GET parameters.
         """
         function_ids = request.session.get('selected_functions', [])
         functions = AnalysisFunction.objects.filter(id__in=function_ids)
