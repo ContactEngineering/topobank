@@ -41,6 +41,7 @@ class TopographyFactory(factory.django.DjangoModelFactory):
     size_editable = True
     unit_editable = True
     height_scale_editable = True
+    unit = 'nm'
 
 #
 # Define fixtures

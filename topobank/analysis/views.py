@@ -717,7 +717,7 @@ def submit_analyses_view(request): # TODO use REST framework? Rename to request?
     :return: HTTPResponse
     """
     if not request.is_ajax():
-        return Http404
+        raise Http404
 
     request_method = request.POST
 
@@ -855,7 +855,7 @@ def contact_mechanics_data(request):
     :return:
     """
     if not request.is_ajax():
-        return Http404
+        raise Http404
 
     request_method = request.POST
 

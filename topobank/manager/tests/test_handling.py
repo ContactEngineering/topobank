@@ -1,14 +1,12 @@
-
-import pytest
 from django.shortcuts import reverse
 
+import pytest
 from pathlib import Path
 import datetime
 import os.path
 
 from ..tests.utils import two_topos, one_line_scan, SurfaceFactory, TopographyFactory, UserFactory
 from ..models import Topography, Surface
-from ..utils import selected_instances
 
 from topobank.utils import assert_in_content, assert_not_in_content,\
     assert_redirects, assert_no_form_errors
@@ -614,6 +612,7 @@ def test_edit_topography(client, two_topos, django_user_model, topo_example3):
     #
     response = client.get(reverse('manager:surface-detail', kwargs=dict(pk=t.surface.pk)))
     assert bytes(new_name, 'utf-8') in response.content
+
 
 
 @pytest.mark.django_db

@@ -3,9 +3,10 @@ from pathlib import Path
 import datetime
 from django.shortcuts import reverse
 from bs4 import BeautifulSoup
+from notifications.models import Notification
 
 from .utils import SurfaceFactory, TopographyFactory, UserFactory
-from topobank.utils import assert_in_content, assert_not_in_content
+from topobank.utils import assert_in_content, assert_not_in_content, assert_no_form_errors
 
 
 def test_individual_read_access_permissions(client, django_user_model):
@@ -311,7 +312,7 @@ def test_sharing_info_table(client):
     client.logout()
 
     #
-    # Now first user removes share for user 3
+    # First: User 1 removes share for user 3
     #
     assert client.login(username=user1.username, password=password)
 
@@ -339,7 +340,7 @@ def test_sharing_info_table(client):
     ]
 
     #
-    # Next user 1 allows changing surface 1 for user 2
+    # Next: User 1 allows changing surface 1 for user 2
     #
     response = client.post(reverse('manager:sharing-info'),
                            {
@@ -391,6 +392,155 @@ def test_sharing_info_table(client):
     ]
 
     client.logout()
+
+    #
+    # Test notifications
+    #
+    assert Notification.objects.filter(unread=True, recipient=user3, verb='unshare').count() == 1
+    assert Notification.objects.filter(unread=True, recipient=user2, verb='allow change').count() == 1
+
+@pytest.mark.django_db
+def test_share_surface_through_UI(client):
+
+    user1 = UserFactory()
+    user2 = UserFactory()
+
+    surface = SurfaceFactory(creator=user1)
+    assert not user2.has_perm('view_surface', surface)
+    assert not user2.has_perm('change_surface', surface)
+    assert not user2.has_perm('delete_surface', surface)
+    assert not user2.has_perm('share_surface', surface)
+
+    client.force_login(user1)
+
+    response = client.get(reverse("manager:surface-detail", kwargs=dict(pk=surface.pk)))
+
+    share_link = reverse("manager:surface-share", kwargs=dict(pk=surface.pk))
+    assert_in_content(response, share_link)
+
+    response = client.get(share_link)
+    assert_in_content(response, "Share this surface")
+
+    response = client.post(share_link, {
+        'save': 'save',
+        'users': [user2.id],
+        'allow_change': True
+    }, follow=True)
+
+    assert response.status_code == 200
+
+    #
+    # Now the surface should be shared
+    #
+    assert user2.has_perm('view_surface', surface)
+    assert user2.has_perm('change_surface', surface)
+
+    # still no delete or change allowed
+    assert not user2.has_perm('delete_surface', surface)
+    assert not user2.has_perm('share_surface', surface)
+
+    #
+    # There are notifications for user 2
+    #
+    assert Notification.objects.filter(recipient=user2, verb='share',
+                                       description__contains=surface.name).count() == 1
+    assert Notification.objects.filter(recipient=user2, verb='allow change',
+                                       description__contains=surface.name).count() == 1
+
+@pytest.mark.django_db
+def test_notification_when_deleting_shared_stuff(client):
+
+    user1 = UserFactory()
+    user2 = UserFactory()
+    surface = SurfaceFactory(creator=user1)
+    topography = TopographyFactory(surface=surface)
+
+    surface.share(user2, allow_change=True)
+
+    #
+    # First: user2 deletes the topography, user1 should be notified
+    #
+    client.force_login(user2)
+
+    response = client.post(reverse('manager:topography-delete', kwargs=dict(pk=topography.pk)))
+    assert response.status_code == 302 # redirect
+
+    assert Notification.objects.filter(recipient=user1, verb='delete',
+                                       description__contains=topography.name).count() == 1
+    client.logout()
+
+    #
+    # Second: user1 deletes the surface, user2 should be notified
+    #
+    client.force_login(user1)
+
+    response = client.post(reverse('manager:surface-delete', kwargs=dict(pk=surface.pk)))
+    assert response.status_code == 302 # redirect
+
+    assert Notification.objects.filter(recipient=user2, verb='delete',
+                                       description__contains=surface.name).count() == 1
+    client.logout()
+
+@pytest.mark.django_db
+def test_notification_when_editing_shared_stuff(client):
+
+    user1 = UserFactory()
+    user2 = UserFactory()
+    surface = SurfaceFactory(creator=user1)
+    topography = TopographyFactory(surface=surface, size_y=512)
+
+    surface.share(user2, allow_change=True)
+
+    #
+    # First: user2 edits the topography, user1 should be notified
+    #
+    client.force_login(user2)
+
+    response = client.post(reverse('manager:topography-update', kwargs=dict(pk=topography.pk)), {
+        'save-stay': 1,  # we want to save, but stay on page
+        'surface': surface.id,
+        'data_source': 0,
+        'name': topography.name,
+        'measurement_date': topography.measurement_date,
+        'description': topography.description,
+        'size_x': topography.size_x,
+        'size_y': topography.size_y,
+        'unit': topography.unit,
+        'height_scale': 0.1,  # we also change a significant value here -> recalculate
+        'detrend_mode': 'height',
+    }, follow=True)
+    assert response.status_code == 200
+    assert_no_form_errors(response)
+
+    note = Notification.objects.get(recipient=user1, verb='change',
+                                    description__contains=topography.name)
+    assert "recalculate" in note.description
+    client.logout()
+
+    #
+    # Second: user1 edits the surface, user2 should be notified
+    #
+    client.force_login(user1)
+
+    new_name = "This is a better surface name"
+    new_description = "This is new description"
+    new_category = 'dum'
+
+    response = client.post(reverse('manager:surface-update', kwargs=dict(pk=surface.pk)),
+                           data={
+                               'name': new_name,
+                               'creator': user1.id,
+                               'description': new_description,
+                               'category': new_category
+                           })
+
+    assert response.status_code == 302
+    #assert_no_form_errors(response)
+
+    assert Notification.objects.filter(recipient=user2, verb='change',
+                                       description__contains=new_name).count() == 1
+    client.logout()
+
 
 @pytest.mark.django_db
 def test_upload_topography_for_shared_surface(client):
@@ -521,4 +671,12 @@ def test_upload_topography_for_shared_surface(client):
     assert_in_content(response, 'uploaded by {}'.format(user2.name))
     client.logout()
 
+    #
+    # There should be a notification of the user
+    #
+    exp_mesg = f"User '{user2.name}' has created the topography '{t.name}' "+\
+                                    f"in surface '{t.surface.name}'."
+
+    assert Notification.objects.filter(unread=True, recipient=user1, verb='create',
+                                       description__contains=exp_mesg).count() == 1
 

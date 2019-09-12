@@ -333,7 +333,7 @@ class TopographyCreateWizard(SessionWizardView):
         other_users = get_users_with_perms(topo.surface).filter(~Q(id=self.request.user.id))
         for u in other_users:
             notify.send(sender=self.request.user, verb='create', target=topo, recipient=u,
-                        description=f"User '{u.name}' has created the topography '{topo.name}' "+\
+                        description=f"User '{self.request.user.name}' has created the topography '{topo.name}' "+\
                                     f"in surface '{topo.surface.name}'.",
                         href=reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)))
 
@@ -779,6 +779,24 @@ class SurfaceUpdateView(UpdateView):
     @surface_update_permission_required
     def dispatch(self, request, *args, **kwargs):
         return super().dispatch(request, *args, *kwargs)
+
+    def form_valid(self, form):
+
+        surface = self.object
+        user = self.request.user
+        notification_msg = f"User {user} changed surface '{surface.name}'. Changed fields: {','.join(form.changed_data)}."
+
+        #
+        # notify other users
+        #
+        other_users = get_users_with_perms(surface).filter(~Q(id=user.id))
+        for u in other_users:
+            notify.send(sender=user, verb='change', target=surface,
+                        recipient=u,
+                        description=notification_msg,
+                        href=reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)))
+
+        return super().form_valid(form)
 
     def get_success_url(self):
         return reverse('manager:surface-detail', kwargs=dict(pk=self.object.pk))

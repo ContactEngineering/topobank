@@ -36,7 +36,7 @@ def test_perform_analysis(mocker, two_topos, settings):
                                 kwargs=pickle.dumps(func_kwargs))
     analysis.save()
 
-    settings.CELERY_ALWAYS_EAGER = True # perform tasks locally
+    settings.CELERY_TASK_ALWAYS_EAGER = True # perform tasks locally
 
     # with mocker.patch('django.conf.settings.CELERY_ALWAYS_EAGER', True, create=True):
     perform_analysis(analysis.id)
