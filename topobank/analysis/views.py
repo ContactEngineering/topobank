@@ -747,15 +747,9 @@ def submit_analyses_view(request): # TODO use REST framework? Rename to request?
 
         status = 200
 
+        #
         # create a collection of analyses such that points to all analyses
-
-        #from celery import chord
-        from notifications.signals import notify
-
-        #watchdog = chord(tasks_signatures)(lambda: notify.send(sender="Watchdog", recipient=request.user, verb="finish",
-        #                                   description=f"Manually triggered {function.name} finished for {len(topographies)} topographies"))
-        #watchdog.delay()
-
+        #
         collection = AnalysisCollection.objects.create(name=f"{function.name} for {len(topographies)} topographies.",
                                                        combined_task_state=Analysis.PENDING,
                                                        owner=request.user)
