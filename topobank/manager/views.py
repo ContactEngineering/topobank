@@ -567,7 +567,23 @@ class TopographyDeleteView(TopographyUpdatePermissionMixin, DeleteView):
     success_url = reverse_lazy('manager:surface-list')
 
     def get_success_url(self):
-        return reverse('manager:surface-detail', kwargs=dict(pk=self.object.surface.pk))
+        user = self.request.user
+        topo = self.object
+        surface = topo.surface
+
+        link = reverse('manager:surface-detail', kwargs=dict(pk=surface.pk))
+        #
+        # notify other users
+        #
+        other_users = get_users_with_perms(surface).filter(~Q(id=user.id))
+        for u in other_users:
+            notify.send(sender=user, verb="delete", target=self.object,
+                        recipient=u,
+                        description=f"User '{user.name}' deleted topography '{topo.name}' "+\
+                                    f"from surface '{surface.name}'.",
+                        href=link)
+
+        return link
 
 class SelectedTopographyView(FormMixin, ListView):
     model = Topography
@@ -775,6 +791,22 @@ class SurfaceDeleteView(DeleteView):
     @surface_delete_permission_required
     def dispatch(self, request, *args, **kwargs):
         return super().dispatch(request, *args, *kwargs)
+
+    def get_success_url(self):
+        user = self.request.user
+        surface = self.object
+
+        link = reverse('manager:surface-list')
+        #
+        # notify other users
+        #
+        other_users = get_users_with_perms(surface).filter(~Q(id=user.id))
+        for u in other_users:
+            notify.send(sender=user, verb="delete", target=surface,
+                        recipient=u,
+                        description=f"User '{user.name}' deleted surface '{surface.name}'.",
+                        href=link)
+        return link
 
 class SurfaceShareView(FormMixin, DetailView):
     model = Surface
