@@ -1,6 +1,7 @@
-from django.db import models, transaction
+from django.db import models
 from django.shortcuts import reverse
 from django.core.cache import cache
+from django.db import transaction
 
 from guardian.shortcuts import assign_perm, remove_perm
 
@@ -212,6 +213,12 @@ class Topography(models.Model):
         they all can be wrong if this topography changed.
 
         TODO Maybe also renew all already existing analyses with different parameters?
+
+        Implementation Note:
+
+        This method cannot be easily used in a post_save signal,
+        because the pre_delete signal deletes the datafile and
+        this also then triggers "renew_analyses".
         """
         from topobank.analysis.utils import submit_analysis
         from topobank.analysis.models import AnalysisFunction, Analysis
