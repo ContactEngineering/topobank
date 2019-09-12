@@ -15,6 +15,7 @@ from django.http import HttpResponseForbidden
 from django.views.generic.edit import FormMixin
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.utils.decorators import method_decorator
+from django.db.models import Q
 
 from formtools.wizard.views import SessionWizardView
 from guardian.decorators import permission_required_or_403
@@ -324,10 +325,21 @@ class TopographyCreateWizard(SessionWizardView):
             #
             return redirect('manager:topography-corrupted', surface_id=surface.id)
 
-        # put all automated analysis in queue
         topo.renew_analyses()
 
+        #
+        # Notify other others with access to the topography
+        #
+        other_users = get_users_with_perms(topo.surface).filter(~Q(id=self.request.user.id))
+        for u in other_users:
+            notify.send(sender=self.request.user, verb='create', target=topo, recipient=u,
+                        description=f"User '{u.name}' has created the topography '{topo.name}' "+\
+                                    f"in surface '{topo.surface.name}'.",
+                        href=reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)))
+
+        #
         # The topography could be correctly loaded and we show a page with details
+        #
         return redirect('manager:topography-detail', pk=topo.pk)
 
 class CorruptedTopographyView(TemplateView):
@@ -347,9 +359,36 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
         kwargs['has_size_y'] = self.object.size_y is not None
         return kwargs
 
-    def get_success_url(self):
-        self.object.renew_analyses()
+    def form_valid(self, form):
 
+        topo = self.object
+        user = self.request.user
+        notification_msg = f"User {user} changed topography '{topo.name}'. Changed fields: {','.join(form.changed_data)}."
+
+        #
+        # If a significant field changed, renew all analyses
+        #
+        significant_fields = set(['size_x', 'size_y', 'unit', 'height_scale', 'detrend_mode', 'datafile', 'data_source'])
+        significant_fields_with_changes = set(form.changed_data).intersection(significant_fields)
+        if len(significant_fields_with_changes) > 0:
+            _log.info(f"During edit of topography {topo.id} significant fields changed: "+\
+                      f"{significant_fields_with_changes}. Renewing analyses...")
+            topo.renew_analyses()
+            notification_msg += f"\nBecause significant fields have changed, all analyses are recalculated now."
+
+        #
+        # notify other users
+        #
+        other_users = get_users_with_perms(topo.surface).filter(~Q(id=user.id))
+        for u in other_users:
+            notify.send(sender=user, verb='change', target=topo,
+                        recipient=u,
+                        description=notification_msg,
+                        href=reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)))
+
+        return super().form_valid(form)
+
+    def get_success_url(self):
         if "save-stay" in self.request.POST:
             return reverse('manager:topography-update', kwargs=dict(pk=self.object.pk))
         else:
