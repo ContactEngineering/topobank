@@ -123,7 +123,7 @@ class Topography(models.Model):
     #
     surface = models.ForeignKey('Surface', on_delete=models.CASCADE)
     name = models.CharField(max_length=80)
-    creator = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
+    creator = models.ForeignKey(User, null=True, on_delete=models.SET_NULL)
     measurement_date = models.DateField()
     description = models.TextField(blank=True)
 

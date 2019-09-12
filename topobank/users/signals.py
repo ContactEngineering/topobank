@@ -55,7 +55,7 @@ def create_example_surface(sender, **kwargs):
     #
     # Notify user
     #
-    notify.send(sender=sender, verb="create", target=surface,
+    notify.send(sender=surface, verb="create", target=surface,
                 recipient=user,
                 description="An example surface has been created for you. Click here to have a look.",
                 href=reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)))
