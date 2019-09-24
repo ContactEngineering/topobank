@@ -19,6 +19,8 @@
   function and arguments; for each user a specific combination
   is shown; one benefit is if user selects already known parameters,
   the result is immediately there (#208)
+- workaround for missing points in PSD plots (#356)   
+  
   
 ## 0.6.0
 

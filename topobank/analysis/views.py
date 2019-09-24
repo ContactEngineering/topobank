@@ -50,7 +50,7 @@ from topobank.analysis.utils import request_analysis
 import logging
 _log = logging.getLogger(__name__)
 
-SMALLEST_ABSOLUT_NUMBER_IN_LOGPLOTS = 1e-18
+SMALLEST_ABSOLUT_NUMBER_IN_LOGPLOTS = 1e-100
 MAX_NUM_POINTS_FOR_SYMBOLS = 50
 
 CARD_VIEW_FLAVORS = ['simple', 'plot', 'power spectrum', 'contact mechanics']
