@@ -58,6 +58,14 @@
       <ul class="navbar-nav ml-auto">
         {% if request.user.is_authenticated %}
           <li class="nav-item">
+              <a class="nav-link {% navbar_active request.path 'Workbench' %}"
+                 href="{% url 'workbench' %}">
+                <i class="fa fa-fw fa-cubes"></i>
+                <span>Workbench</span>
+              </a>
+          </li>
+
+          <li class="nav-item">
               <a class="nav-link {% navbar_active request.path 'Surfaces' %}"
                  href="{% url 'manager:surface-list' %}">
                 <i class="fa fa-fw fa-diamond"></i>

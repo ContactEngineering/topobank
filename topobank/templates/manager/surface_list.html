@@ -6,17 +6,19 @@
 {% load guardian_tags %}
 
 {% block extra_css %}
+
+  {# gijgo: for having a searchable tree #}
+
+
+  <link rel="stylesheet" href="https://unpkg.com/gijgo@1.9.13/css/gijgo.min.css">
+
+  {# vuejs for interactivity #}
+  {# TODO move script tag to end? #}
+  <script src="https://unpkg.com/vue@latest"></script>
+  <script src="https://unpkg.com/vue-select@latest"></script>
+  <link rel="stylesheet" href="https://unpkg.com/vue-select@latest/dist/vue-select.css">
   {{ form.media.css }}
 {% endblock extra_css %}
-
-{% block content-title %}
-  My Surfaces and Topographies
-  <div class="pull-right">
-    <a href="{% url 'manager:surface-create' %}" class="btn btn-primary">
-      {% fontawesome_icon 'plus-square-o' %} Add Surface
-    </a>
-  </div>
-{% endblock content-title %}
 
 {% block breadcrumbs %}
   <li class="breadcrumb-item active" aria-current="page">
@@ -35,8 +37,31 @@
 
 {% block content %}
 
+  {# search box #}
+  {# full text search in names, descriptions, labels #}
+  <div class="input-group mb-3">
+    <input type="text" class="form-control" placeholder="Search.." aria-label="Search">
+  </div>
+
+  {# search result as list #}
+
+  <div id="tree"></div>
+
+
+
+  <nav aria-label="Page navigation example">
+    <ul class="pagination">
+      <li class="page-item"><a class="page-link" href="#">Previous</a></li>
+      <li class="page-item"><a class="page-link" href="#">1</a></li>
+      <li class="page-item"><a class="page-link" href="#">2</a></li>
+      <li class="page-item"><a class="page-link" href="#">3</a></li>
+      <li class="page-item"><a class="page-link" href="#">Next</a></li>
+    </ul>
+  </nav>
+
+
    <!--
-  Show one card for each surface
+  Show one card for each selected surface
 
   Will be replaced by AJAX call.
   -->
@@ -62,6 +87,61 @@
 
 {% block javascript %}
   {{ form.media.js }}
+
+  <script src="https://unpkg.com/gijgo@1.9.13/js/gijgo.min.js"></script>
+
+  <script>
+  var store = {
+         debug: true,
+         state: {
+          items: []
+         },
+         add_item (item) {
+          if (this.debug) console.log('adding item ', item);
+          this.state.items.push(item);
+         },
+         remove_item (item) {
+          if (this.debug) console.log('remove item ', item);
+          var index = this.state.items.indexOf(item);
+          if (index > -1) {
+            this.state.items.splice(index, 1);
+           }
+         }
+        };
+
+  store.state.items = JSON.parse('{{ selected_json | safe }}');
+
+
+  var tree = $('#tree').tree({
+      uiLibrary: 'bootstrap4',
+      primaryKey: 'pk',
+      textField: 'name',
+      childrenField: 'topographies',
+      checkboxes: true,
+      cascadeCheck: true, // enable cascade check and uncheck of children
+      dataSource: "{% url 'manager:surface-search' %}",
+      // imageUrlField: 'flagUrl'
+  });
+
+  function select_surface(pk) {
+
+  }
+
+  tree.on('checkboxChange', function (e, $node, record, state) {
+     console.log('Node '+ $node +': The new state of record ' + record.name + '(pk' + record.pk +' ) ' + ' is ' + state);
+  });
+
+  /**
+  tree.on('dataBound', function () {
+      var node = tree.getNodeByText('North America');
+      tree.expand(node);
+  });
+  */
+
+
+
+  </script>
+
 
   <script>
 

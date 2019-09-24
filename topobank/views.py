@@ -4,9 +4,12 @@ from django.db.models import Q, F
 from guardian.compat import get_user_model as guardian_user_model
 from guardian.shortcuts import get_objects_for_user, get_perms_for_model
 
+import json
+
 from termsandconditions.models import TermsAndConditions
 from topobank.users.models import User
 from topobank.manager.models import Surface, Topography
+from topobank.manager.utils import selected_instances, selection_choices
 from topobank.analysis.models import Analysis
 
 class HomeView(TemplateView):
@@ -59,3 +62,17 @@ class TermsView(TemplateView):
 
         return context
 
+class WorkbenchView(TemplateView):
+    template_name = 'pages/workbench.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data()
+
+        selected_topos, selected_surfaces = selected_instances(self.request)
+        selected = [{'name': x.name, 'type': 'topography', 'id': x.id} for x in selected_topos]
+        selected.extend([{'name': x.name, 'type': 'surface', 'id': x.id} for x in selected_surfaces])
+
+        context['selected_json'] = json.dumps(selected)
+        context['choices'] = selection_choices(self.request.user)
+
+        return context

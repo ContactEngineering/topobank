@@ -27,6 +27,9 @@ from bokeh.plotting import figure
 from bokeh.embed import components
 from bokeh.models import DataRange1d, LinearColorMapper, ColorBar
 
+from rest_framework.views import APIView
+from rest_framework.generics import ListAPIView
+
 import json
 import os.path
 import logging
@@ -35,7 +38,8 @@ from .models import Topography, Surface
 from .forms import TopographyForm, SurfaceForm, TopographySelectForm, SurfaceShareForm
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, Topography1DUnitsForm, Topography2DUnitsForm
 from .utils import selected_instances, selection_from_session, selection_for_select_all, \
-    bandwidths_data, surfaces_for_user, get_topography_reader
+    bandwidths_data, surfaces_for_user, get_topography_reader, selection_choices
+from .serializers import SurfaceSerializer, TopographySerializer
 from topobank.users.models import User
 
 MAX_NUM_POINTS_FOR_SYMBOLS_IN_LINE_SCAN_PLOT = 100
@@ -656,6 +660,19 @@ class SurfaceListView(FormMixin, ListView):
 
         return super().form_valid(form)
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data()
+
+        selected_topos, selected_surfaces = selected_instances(self.request)
+        selected = [{'name': x.name, 'type': 'topography', 'id': x.id} for x in selected_topos]
+        selected.extend([{'name': x.name, 'type': 'surface', 'id': x.id} for x in selected_surfaces])
+
+        context['selected_json'] = json.dumps(selected)
+        context['choices'] = selection_choices(self.request.user)
+
+        return context
+
+
 class SurfaceCardView(TemplateView):
     template_name = 'manager/surface_card.html'
 
@@ -1089,4 +1106,30 @@ def show_analyses_for_topography(request, topography_id):
 
     return redirect(reverse('analysis:list'))
 
+#######################################################################################
+# Views for REST interface
+#######################################################################################
 
+class SurfaceSearch(ListAPIView):
+    """
+    List all surfaces
+    """
+    serializer_class = SurfaceSerializer
+
+    def get_queryset(self):
+
+
+
+        return surfaces_for_user(self.request.user)
+
+class Search(ListAPIView):
+    serializer_class = TopographySerializer
+
+    def get_queryset(self):
+
+        user = self.request.user
+        surfaces = surfaces_for_user(user)
+
+        topographies = Topography.objects.filter(surface__in=surfaces)
+
+        return topographies

@@ -7,6 +7,7 @@ from . import views
 from . import forms
 from .utils import get_topography_reader
 
+
 def creating_2D_topography(wizard):
     """Indicator function, returns True if wizard is creating a 2D topography, else False.
     """
@@ -114,6 +115,11 @@ urlpatterns = [
         regex=r'surface/$',
         view=login_required(views.SurfaceListView.as_view()),
         name='surface-list'
+    ),
+    url(
+        regex=r'surface/search/$',
+        view=login_required(views.SurfaceSearch.as_view()),
+        name='surface-search'
     ),
     url(
         regex=r'access-denied/$',
