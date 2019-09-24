@@ -5,6 +5,7 @@ from django.conf.urls import url
 from django.contrib import admin
 from django.views.generic import TemplateView
 from django.views import defaults as default_views
+import notifications.urls
 
 from topobank.views import TermsView, HomeView
 
@@ -33,15 +34,6 @@ urlpatterns = [
         include("topobank.users.urls", namespace="users"),
     ),
     path("accounts/", include("allauth.urls")),
-    # Your stuff: custom urls includes go here
-    path(
-        "manager/",
-        include("topobank.manager.urls", namespace="manager"),
-    ),
-    path(
-        "analysis/",
-        include("topobank.analysis.urls", namespace="analysis"),
-    ),
 
     # For interactive select boxes
     url(r'^select2/', include('django_select2.urls')),
@@ -55,6 +47,17 @@ urlpatterns = [
     # progress bar for celery tasks
     url(r'^celery-progress/', include('celery_progress.urls')),
 
+    # for notifications - see package djano-notifications
+    url('^inbox/notifications/', include(notifications.urls, namespace='notifications')),
+    # Your stuff: custom urls includes go here
+    path(
+        "manager/",
+        include("topobank.manager.urls", namespace="manager"),
+    ),
+    path(
+        "analysis/",
+        include("topobank.analysis.urls", namespace="analysis"),
+    ),
 ] + static(
     settings.MEDIA_URL, document_root=settings.MEDIA_ROOT
 )

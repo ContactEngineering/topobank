@@ -1,6 +1,7 @@
-from django.db import models, transaction
+from django.db import models
 from django.shortcuts import reverse
 from django.core.cache import cache
+from django.db import transaction
 
 from guardian.shortcuts import assign_perm, remove_perm
 
@@ -68,6 +69,17 @@ class Surface(models.Model):
         if allow_change:
             assign_perm('change_surface', with_user, self)
 
+        #
+        # Request all standard analyses to be available for that user
+        #
+        from topobank.analysis.models import AnalysisFunction
+        from topobank.analysis.utils import request_analysis
+        auto_analysis_funcs = AnalysisFunction.objects.filter(automatic=True)
+        for topo in self.topography_set.all():
+            for af in auto_analysis_funcs:
+                request_analysis(with_user, af, topo) # standard arguments
+
+
     def unshare(self, with_user):
         """Remove share on this surface for given user.
 
@@ -111,7 +123,7 @@ class Topography(models.Model):
     #
     surface = models.ForeignKey('Surface', on_delete=models.CASCADE)
     name = models.CharField(max_length=80)
-    creator = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
+    creator = models.ForeignKey(User, null=True, on_delete=models.SET_NULL)
     measurement_date = models.DateField()
     description = models.TextField(blank=True)
 
@@ -194,17 +206,33 @@ class Topography(models.Model):
 
         return topo
 
-    def submit_automated_analyses(self):
-        """Submit all automatic analysis for this Topography.
+    def renew_analyses(self):
+        """Submit all automatic analysis for this topography.
+
+        Before make sure to delete all analyses for same topography,
+        they all can be wrong if this topography changed.
+
+        TODO Maybe also renew all already existing analyses with different parameters?
+
+        Implementation Note:
+
+        This method cannot be easily used in a post_save signal,
+        because the pre_delete signal deletes the datafile and
+        this also then triggers "renew_analyses".
         """
-        from topobank.taskapp.tasks import submit_analysis
-        from topobank.analysis.models import AnalysisFunction
+        from topobank.analysis.utils import submit_analysis
+        from topobank.analysis.models import AnalysisFunction, Analysis
+        from guardian.shortcuts import get_users_with_perms
 
         auto_analysis_funcs = AnalysisFunction.objects.filter(automatic=True)
 
+        # collect users which are allowed to view analyses
+        users = get_users_with_perms(self.surface)
+
         def submit_all(instance=self):
             for af in auto_analysis_funcs:
-                submit_analysis(af, instance)
+                Analysis.objects.filter(function=af, topography=instance).delete()
+                submit_analysis(users, af, instance)
 
         transaction.on_commit(lambda: submit_all(self))
 

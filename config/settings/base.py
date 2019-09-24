@@ -82,6 +82,7 @@ THIRD_PARTY_APPS = [
     'django_tables2',
     'progressbarupload',
     'celery_progress',
+    'notifications',
 ]
 LOCAL_APPS = [
     'topobank.users.apps.UsersAppConfig',
@@ -414,3 +415,9 @@ TRACKED_DEPENDENCIES = [
     ('topobank', 'topobank.__version__'),
     ('numpy', 'numpy.version.full_version')
 ]
+
+#
+# Settings for notifications package
+#
+DJANGO_NOTIFICATIONS_CONFIG = { 'USE_JSONFIELD': True}
+# I would like to pass the target url to a notification

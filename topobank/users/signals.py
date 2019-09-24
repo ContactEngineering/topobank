@@ -3,9 +3,12 @@ from allauth.account.signals import user_signed_up
 from django.dispatch import receiver
 from django.contrib.staticfiles.storage import staticfiles_storage
 from django.core.files import File
+from django.shortcuts import reverse
 
 import os.path
 import yaml
+
+from notifications.signals import notify
 
 from topobank.manager.models import Surface, Topography
 
@@ -47,7 +50,15 @@ def create_example_surface(sender, **kwargs):
 
         topo.save()
 
-        topo.submit_automated_analyses()
+        topo.renew_analyses()
+
+    #
+    # Notify user
+    #
+    notify.send(sender=surface, verb="create", target=surface,
+                recipient=user,
+                description="An example surface has been created for you. Click here to have a look.",
+                href=reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)))
 
 
 

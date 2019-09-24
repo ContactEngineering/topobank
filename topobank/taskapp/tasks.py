@@ -1,97 +1,23 @@
 import pickle
 import traceback
-import inspect
 
 from django.utils import timezone
-from django.db import transaction
-from django.db.models import Q
 from django.conf import settings
+from django.shortcuts import reverse
 
 from celery_progress.backend import ProgressRecorder
+from notifications.signals import notify
 
 from PyCo.System.Systems import IncompatibleFormulationError
 
 from .celery import app
 from .utils import get_package_version_instance
 
-from topobank.analysis.models import Analysis, Configuration
+from topobank.analysis.models import Analysis, Configuration, AnalysisCollection
 from topobank.manager.models import Topography
 from topobank.analysis.functions import IncompatibleTopographyException
 
 EXCEPTION_CLASSES_FOR_INCOMPATIBILITIES = (IncompatibleTopographyException, IncompatibleFormulationError)
-
-def submit_analysis(analysis_func, topography, *other_args, **kwargs):
-    """Create an analysis entry and submit a task to the task queue.
-
-    :param topography: Topography instance which will be used to extract first argument to analysis function
-    :param analysis_func: AnalysisFunc instance
-    :param other_args: other positional arguments for analysis_func
-    :param kwargs: keyword arguments for analysis func
-    """
-
-    #
-    # Build function signature with current arguments
-    #
-    pyfunc = analysis_func.python_function
-
-    sig = inspect.signature(pyfunc)
-
-    bound_sig = sig.bind(topography, *other_args, **kwargs)
-    bound_sig.apply_defaults()
-
-    pyfunc_kwargs = dict(bound_sig.arguments)
-
-    # topography will always be second positional argument
-    # and has an extra column, do not safe reference
-    del pyfunc_kwargs['topography']
-
-    # progress recorder should also not be saved:
-    if 'progress_recorder' in pyfunc_kwargs:
-        del pyfunc_kwargs['progress_recorder']
-
-    # same for storage prefix
-    if 'storage_prefix' in pyfunc_kwargs:
-        del pyfunc_kwargs['storage_prefix']
-
-    #
-    # create entry in Analysis table
-    #
-    analysis = Analysis.objects.create(
-        topography=topography,
-        function=analysis_func,
-        task_state=Analysis.PENDING,
-        kwargs=pickle.dumps(pyfunc_kwargs))
-
-    #
-    # delete all completed old analyses for same function and topography
-    #
-    Analysis.objects.filter(
-        ~Q(id=analysis.id)
-        & Q(topography=topography)
-        & Q(function=analysis_func)
-        & Q(task_state__in=[Analysis.FAILURE, Analysis.SUCCESS])).delete()
-
-    #
-    # TODO delete all started old analyses, where the task does not exist any more
-    #
-    #maybe_aborted_analyses = Analysis.objects.filter(
-    #    ~Q(id=analysis.id)
-    #    & Q(topography=topography)
-    #    & Q(function=analysis_func)
-    #    & Q(task_state__in=[Analysis.STARTED]))
-    # How to find out if task is still running?
-    #
-    #for a in maybe_aborted_analyses:
-    #    result = app.AsyncResult(a.task_id)
-
-
-    #
-    # Send task to the queue
-    #
-    transaction.on_commit(lambda : perform_analysis.delay(analysis.id))
-
-
-
 
 def current_configuration():
     """Determine current configuration (package versions) and create appropriate database entries.
@@ -150,6 +76,7 @@ def perform_analysis(self, analysis_id):
     # update entry in Analysis table
     #
     analysis = Analysis.objects.get(id=analysis_id)
+
     analysis.task_state = Analysis.STARTED
     analysis.task_id = self.request.id
     analysis.start_time = timezone.now() # with timezone
@@ -180,6 +107,48 @@ def perform_analysis(self, analysis_id):
                     Analysis.FAILURE)
         # we want a real exception here so celery's flower can show the task as failure
         raise
+    finally:
+        #
+        # Check whether sth. is to be done because this analysis is part of a collection
+        #
+        for coll in analysis.analysiscollection_set.all():
+            check_analysis_collection.delay(coll.id)
+
+@app.task
+def check_analysis_collection(collection_id):
+    """Perform checks on analysis collection. Send notification if needed.
+
+    :param collection_id: id of an AnalysisCollection instance
+    :return:
+    """
+
+    collection = AnalysisCollection.objects.get(id=collection_id)
+
+    analyses = collection.analyses.all()
+    task_states = [ analysis.task_state for analysis in analyses ]
+
+    has_started = any(ts not in ['pe'] for ts in task_states)
+    has_failure = any(ts in ['fa'] for ts in task_states)
+    is_done = all(ts in ['fa', 'su'] for ts in task_states)
+
+    if has_started:
+        if is_done:
+            #
+            # Notify owner of the collection
+            #
+            collection.combined_task_state = 'fa' if has_failure else 'su'
+
+            href = reverse('analysis:collection', kwargs=dict(collection_id=collection.id))
+
+            notify.send(sender=collection, recipient=collection.owner, verb="finished",
+                        description="Tasks finished: "+collection.name,
+                        href=href)
+
+        else:
+            collection.combined_task_state = 'st'
+
+        collection.save()
+
 
 
 

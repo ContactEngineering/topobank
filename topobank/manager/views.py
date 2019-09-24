@@ -11,21 +11,18 @@ from django.core.files import File
 from django.core.exceptions import PermissionDenied
 from django.conf import settings
 from django.http import HttpResponse
-
-from formtools.wizard.views import SessionWizardView
-
 from django.http import HttpResponseForbidden
 from django.views.generic.edit import FormMixin
 from django.contrib.auth.mixins import UserPassesTestMixin
-from django.contrib import messages
+from django.utils.decorators import method_decorator
+from django.db.models import Q
 
+from formtools.wizard.views import SessionWizardView
 from guardian.decorators import permission_required_or_403
 from guardian.shortcuts import assign_perm, get_users_with_perms, get_objects_for_user
-from django.utils.decorators import method_decorator
-
+from notifications.signals import notify
 import django_tables2 as tables
 from django_tables2 import RequestConfig
-
 from bokeh.plotting import figure
 from bokeh.embed import components
 from bokeh.models import DataRange1d, LinearColorMapper, ColorBar
@@ -40,6 +37,8 @@ from .forms import TopographyFileUploadForm, TopographyMetaDataForm, Topography1
 from .utils import selected_instances, selection_from_session, selection_for_select_all, \
     bandwidths_data, surfaces_for_user, get_topography_reader
 from topobank.users.models import User
+
+MAX_NUM_POINTS_FOR_SYMBOLS_IN_LINE_SCAN_PLOT = 100
 
 _log = logging.getLogger(__name__)
 
@@ -326,10 +325,21 @@ class TopographyCreateWizard(SessionWizardView):
             #
             return redirect('manager:topography-corrupted', surface_id=surface.id)
 
-        # put all automated analysis in queue
-        topo.submit_automated_analyses()
+        topo.renew_analyses()
 
+        #
+        # Notify other others with access to the topography
+        #
+        other_users = get_users_with_perms(topo.surface).filter(~Q(id=self.request.user.id))
+        for u in other_users:
+            notify.send(sender=self.request.user, verb='create', target=topo, recipient=u,
+                        description=f"User '{self.request.user.name}' has created the topography '{topo.name}' "+\
+                                    f"in surface '{topo.surface.name}'.",
+                        href=reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)))
+
+        #
         # The topography could be correctly loaded and we show a page with details
+        #
         return redirect('manager:topography-detail', pk=topo.pk)
 
 class CorruptedTopographyView(TemplateView):
@@ -349,9 +359,36 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
         kwargs['has_size_y'] = self.object.size_y is not None
         return kwargs
 
-    def get_success_url(self):
-        self.object.submit_automated_analyses()
+    def form_valid(self, form):
 
+        topo = self.object
+        user = self.request.user
+        notification_msg = f"User {user} changed topography '{topo.name}'. Changed fields: {','.join(form.changed_data)}."
+
+        #
+        # If a significant field changed, renew all analyses
+        #
+        significant_fields = set(['size_x', 'size_y', 'unit', 'height_scale', 'detrend_mode', 'datafile', 'data_source'])
+        significant_fields_with_changes = set(form.changed_data).intersection(significant_fields)
+        if len(significant_fields_with_changes) > 0:
+            _log.info(f"During edit of topography {topo.id} significant fields changed: "+\
+                      f"{significant_fields_with_changes}. Renewing analyses...")
+            topo.renew_analyses()
+            notification_msg += f"\nBecause significant fields have changed, all analyses are recalculated now."
+
+        #
+        # notify other users
+        #
+        other_users = get_users_with_perms(topo.surface).filter(~Q(id=user.id))
+        for u in other_users:
+            notify.send(sender=user, verb='change', target=topo,
+                        recipient=u,
+                        description=notification_msg,
+                        href=reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)))
+
+        return super().form_valid(form)
+
+    def get_success_url(self):
         if "save-stay" in self.request.POST:
             return reverse('manager:topography-update', kwargs=dict(pk=self.object.pk))
         else:
@@ -420,8 +457,11 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
                       toolbar_location="above",
                       tooltips=TOOLTIPS)
 
+        show_symbols = y.shape[0] <= MAX_NUM_POINTS_FOR_SYMBOLS_IN_LINE_SCAN_PLOT
 
-        plot.circle(x,y)
+        plot.line(x,y)
+        if show_symbols:
+            plot.circle(x, y)
 
         plot.xaxis.axis_label_text_font_style = "normal"
         plot.yaxis.axis_label_text_font_style = "normal"
@@ -527,7 +567,23 @@ class TopographyDeleteView(TopographyUpdatePermissionMixin, DeleteView):
     success_url = reverse_lazy('manager:surface-list')
 
     def get_success_url(self):
-        return reverse('manager:surface-detail', kwargs=dict(pk=self.object.surface.pk))
+        user = self.request.user
+        topo = self.object
+        surface = topo.surface
+
+        link = reverse('manager:surface-detail', kwargs=dict(pk=surface.pk))
+        #
+        # notify other users
+        #
+        other_users = get_users_with_perms(surface).filter(~Q(id=user.id))
+        for u in other_users:
+            notify.send(sender=user, verb="delete", target=self.object,
+                        recipient=u,
+                        description=f"User '{user.name}' deleted topography '{topo.name}' "+\
+                                    f"from surface '{surface.name}'.",
+                        href=link)
+
+        return link
 
 class SelectedTopographyView(FormMixin, ListView):
     model = Topography
@@ -724,6 +780,24 @@ class SurfaceUpdateView(UpdateView):
     def dispatch(self, request, *args, **kwargs):
         return super().dispatch(request, *args, *kwargs)
 
+    def form_valid(self, form):
+
+        surface = self.object
+        user = self.request.user
+        notification_msg = f"User {user} changed surface '{surface.name}'. Changed fields: {','.join(form.changed_data)}."
+
+        #
+        # notify other users
+        #
+        other_users = get_users_with_perms(surface).filter(~Q(id=user.id))
+        for u in other_users:
+            notify.send(sender=user, verb='change', target=surface,
+                        recipient=u,
+                        description=notification_msg,
+                        href=reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)))
+
+        return super().form_valid(form)
+
     def get_success_url(self):
         return reverse('manager:surface-detail', kwargs=dict(pk=self.object.pk))
 
@@ -735,6 +809,22 @@ class SurfaceDeleteView(DeleteView):
     @surface_delete_permission_required
     def dispatch(self, request, *args, **kwargs):
         return super().dispatch(request, *args, *kwargs)
+
+    def get_success_url(self):
+        user = self.request.user
+        surface = self.object
+
+        link = reverse('manager:surface-list')
+        #
+        # notify other users
+        #
+        other_users = get_users_with_perms(surface).filter(~Q(id=user.id))
+        for u in other_users:
+            notify.send(sender=user, verb="delete", target=surface,
+                        recipient=u,
+                        description=f"User '{user.name}' deleted surface '{surface.name}'.",
+                        href=link)
+        return link
 
 class SurfaceShareView(FormMixin, DetailView):
     model = Surface
@@ -762,12 +852,28 @@ class SurfaceShareView(FormMixin, DetailView):
         if 'save' in self.request.POST:
             users = form.cleaned_data.get('users', [])
             allow_change = form.cleaned_data.get('allow_change', False)
+            surface = self.object
             for user in users:
                 _log.info("Sharing surface {} with user {} (allow change? {}).".format(
-                    self.object.pk, user.username, allow_change))
+                    surface.pk, user.username, allow_change))
                 assign_perm('view_surface', user, self.object)
+
+                notification_message = f"{self.request.user} has shared surface '{surface.name}' with you"
+                notify.send(self.request.user, recipient=user,
+                            verb="share", # TODO Does verb follow activity stream defintions?
+                            target=surface,
+                            public=False,
+                            description=notification_message,
+                            href=surface.get_absolute_url())
+
                 if allow_change:
-                    assign_perm('change_surface', user, self.object)
+                    assign_perm('change_surface', user, surface)
+                    notify.send(self.request.user, recipient=user, verb="allow change",
+                                target=surface, public=False,
+                                description=f"""
+                                You are allowed to change the surface '{surface.name}' shared by {self.request.user} 
+                                """,
+                                href=surface.get_absolute_url())
 
         return super().form_valid(form)
 
@@ -830,9 +936,15 @@ def sharing_info(request):
 
             if unshare:
                 surface.unshare(share_with)
+                notify.send(sender=request.user, recipient=share_with, verb='unshare', public=False,
+                            description=f"Surface '{surface.name}' from {request.user} is no longer shared with you",
+                            href=reverse('manager:sharing-info'))
             elif allow_change and (request.user == surface.creator): # only allow change for surface creator
                 surface.share(share_with, allow_change=True)
-
+                notify.send(sender=request.user, recipient=share_with, verb='allow change', target=surface,
+                            public=False,
+                            description=f"{request.user} has given you permissions to change surface '{surface.name}'",
+                            href=surface.get_absolute_url())
     #
     # Collect information to display
     #

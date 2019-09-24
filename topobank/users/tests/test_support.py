@@ -4,6 +4,7 @@ Tests related to user support.
 from django.urls import reverse
 from django.core.management import call_command
 import pytest
+from notifications.models import Notification
 
 from topobank.manager.models import Surface
 from topobank.analysis.models import AnalysisFunction, Analysis
@@ -76,6 +77,12 @@ def test_initial_surface(live_server, client, django_user_model):
     for af in AnalysisFunction.objects.filter(automatic=True):
         analyses = Analysis.objects.filter(topography__surface_id=surface.id, function=af)
         assert analyses.count() == len(topos)
+
+    #
+    # There should be a notification of the user
+    #
+    assert Notification.objects.filter(unread=True, recipient=user, verb='create',
+                                       description__contains="An example surface has been created for you").count() == 1
 
 
 

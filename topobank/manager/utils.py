@@ -120,6 +120,27 @@ def selection_for_select_all(user):
     """
     return ['surface-{}'.format(s.id) for s in surfaces_for_user(user)]
 
+def instances_to_selection(topographies=[], surfaces=[]):
+    """Returns a list of strings suitable for selecting instances.
+
+    :param topographies: sequence of Topography instances
+    :param surfaces: sequence of Surface instances
+    :return: list of str, alphabetically sorted
+    """
+    selection = []
+    for topo in topographies:
+        if topo.surface in surfaces:
+            # will be included by surface
+            continue
+        selection.append(f'topography-{topo.id}')
+
+    for surf in surfaces:
+        selection.append(f'surface-{surf.id}')
+
+    return sorted(selection)
+
+
+
 def selection_to_instances(selection, surface=None):
     """Returns a dict with querysets of selected topographies and surfaces as saved in session.
 

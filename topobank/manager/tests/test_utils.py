@@ -9,8 +9,8 @@ import io
 
 from ..tests.utils import two_topos
 from ..utils import DEFAULT_DATASOURCE_NAME, \
-    selection_to_instances, selection_for_select_all, selection_choices
-from ..models import Surface
+    selection_to_instances, selection_for_select_all, selection_choices, instances_to_selection
+from ..models import Surface, Topography
 
 # def test_data_sources_txt():
 #
@@ -79,3 +79,38 @@ def test_selection_choices(two_topos, testuser):
 
     assert ['Surface 2',
             'Example 4 - Default'] == choice_labels
+
+@pytest.mark.django_db
+def test_instances_to_selection(two_topos):
+
+    topo1 = Topography.objects.get(name="Example 3 - ZSensor")
+    topo2 = Topography.objects.get(name="Example 4 - Default")
+
+    surface1 = Surface.objects.get(name="Surface 1")
+    surface2 = Surface.objects.get(name="Surface 2")
+
+    assert topo1.surface != topo2.surface
+
+    s = instances_to_selection(topographies=[topo1, topo2])
+
+    assert s == [f'topography-{topo1.id}', f'topography-{topo2.id}']
+
+    #
+    # Giving an extra surface here should make no difference
+    #
+    s = instances_to_selection(topographies=[topo1, topo2])
+    assert s == [f'topography-{topo1.id}', f'topography-{topo2.id}']
+
+    #
+    # Should be summarized to one surface if all topographies are given?
+    #
+    #topo2.surface = topo1.surface
+    #topo2.save()
+    #s = instances_to_selection([topo1, topo2])
+    #assert s == [f'surface-{topo1.surface.id}']
+
+    #
+    # It should be possible to give surfaces
+    #
+    s = instances_to_selection(surfaces=[surface1, surface2])
+    assert s == [f'surface-{surface1.id}', f'surface-{surface2.id}']

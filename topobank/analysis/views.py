@@ -17,6 +17,7 @@ from django import template
 from rest_framework.generics import RetrieveAPIView
 from django.core.files.storage import default_storage
 from django.core.cache import cache # default cache
+from django.core.exceptions import PermissionDenied
 
 from bokeh.layouts import row, column, widgetbox
 from bokeh.models import ColumnDataSource, CustomJS, TapTool, Circle
@@ -39,17 +40,17 @@ import PyCo
 from PyCo.Tools.ContactAreaAnalysis import patch_areas, assign_patch_numbers
 
 from ..manager.models import Topography, Surface
-from ..manager.utils import selected_instances, selection_from_session
-from .models import Analysis, AnalysisFunction
+from ..manager.utils import selected_instances, selection_from_session, instances_to_selection
+from .models import Analysis, AnalysisFunction, AnalysisCollection
 from .serializers import AnalysisSerializer
 from .forms import TopographyFunctionSelectForm
 from .utils import get_latest_analyses, mangle_sheet_name
-from topobank.taskapp.tasks import submit_analysis
+from topobank.analysis.utils import request_analysis
 
 import logging
 _log = logging.getLogger(__name__)
 
-SMALLEST_ABSOLUT_NUMBER_IN_LOGPLOTS = 1e-18
+SMALLEST_ABSOLUT_NUMBER_IN_LOGPLOTS = 1e-100
 MAX_NUM_POINTS_FOR_SYMBOLS = 50
 
 CARD_VIEW_FLAVORS = ['simple', 'plot', 'power spectrum', 'contact mechanics']
@@ -165,7 +166,7 @@ class SimpleCardView(TemplateView):
         #
         # Get all relevant analysis objects for this function and topography ids
         #
-        analyses_avail = get_latest_analyses(function_id, topography_ids)
+        analyses_avail = get_latest_analyses(request.user, function_id, topography_ids)
 
         #
         # Filter for analyses where the user has read permission for the related surface
@@ -710,13 +711,13 @@ def _configure_plot(plot):
     plot.yaxis.major_label_text_font_size = "12pt"
 
 
-def submit_analyses_view(request): # TODO use REST framework?
-    """Submits analyses.
+def submit_analyses_view(request): # TODO use REST framework? Rename to request?
+    """Requests analyses.
     :param request:
     :return: HTTPResponse
     """
     if not request.is_ajax():
-        return Http404
+        raise Http404
 
     request_method = request.POST
 
@@ -737,14 +738,25 @@ def submit_analyses_view(request): # TODO use REST framework?
 
     allowed = True
     for topo in topographies:
-        allowed &= request.user.has_perm('view_surface', topo.surface) # TODO discuss who is allowed to trigger calculations
+        allowed &= request.user.has_perm('view_surface', topo.surface)
         if not allowed:
             break
 
     if allowed:
-        for topo in topographies:
-            submit_analysis(function, topo, **function_kwargs)
+        analyses = [ request_analysis(request.user, function, topo, **function_kwargs) for topo in topographies]
+
         status = 200
+
+        #
+        # create a collection of analyses such that points to all analyses
+        #
+        collection = AnalysisCollection.objects.create(name=f"{function.name} for {len(topographies)} topographies.",
+                                                       combined_task_state=Analysis.PENDING,
+                                                       owner=request.user)
+        collection.analyses.set(analyses)
+        #
+        # Each finished analysis checks whether related collections are finished, see "topobank.taskapp.tasks"
+        #
     else:
         status = 403
 
@@ -843,7 +855,7 @@ def contact_mechanics_data(request):
     :return:
     """
     if not request.is_ajax():
-        return Http404
+        raise Http404
 
     request_method = request.POST
 
@@ -1005,6 +1017,28 @@ class AnalysesListView(FormView):
     template_name = "analysis/analyses_list.html"
 
     def get_initial(self):
+
+        if 'collection_id' in self.kwargs:
+            collection_id = self.kwargs['collection_id']
+            try:
+                collection = AnalysisCollection.objects.get(id=collection_id)
+            except AnalysisCollection.DoesNotExist:
+                raise Http404("Collection does not exist")
+
+            if collection.owner != self.request.user:
+                raise PermissionDenied()
+
+            functions = set(a.function for a in collection.analyses.all())
+            topographies = set(a.topography for a in collection.analyses.all())
+
+            # as long as we have the current UI (before implementing GH #304)
+            # we also set the collection's function and topographies as selection
+            topography_selection = instances_to_selection(topographies=topographies)
+            self.request.session['selection'] = tuple(topography_selection)
+            self.request.session['selected_functions'] = tuple(f.id for f in functions)
+
+
+
         return dict(
             selection=selection_from_session(self.request.session),
             functions=AnalysesListView._selected_functions(self.request),
@@ -1037,7 +1071,7 @@ class AnalysesListView(FormView):
 
     @staticmethod
     def _selected_functions(request):
-        """Returns selected functions as saved in session.
+        """Returns selected functions as saved in session or, if given, in GET parameters.
         """
         function_ids = request.session.get('selected_functions', [])
         functions = AnalysisFunction.objects.filter(id__in=function_ids)
@@ -1046,12 +1080,11 @@ class AnalysesListView(FormView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
+        functions = self._selected_functions(self.request)
+        topographies, *rest = selected_instances(self.request)
+
         cards = []
-
-        for function in self._selected_functions(self.request):
-
-            topographies, *rest = selected_instances(self.request)
-
+        for function in functions:
             cards.append(dict(function=function,
                               topography_ids_json=json.dumps([ t.id for t in topographies])))
 

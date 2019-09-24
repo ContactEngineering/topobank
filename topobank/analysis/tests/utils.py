@@ -41,3 +41,13 @@ class AnalysisFactory(factory.django.DjangoModelFactory):
     start_time = factory.LazyFunction(lambda: datetime.datetime.now()-datetime.timedelta(0,1))
     end_time = factory.LazyFunction(datetime.datetime.now)
 
+    @factory.post_generation
+    def users(self, create, extracted, **kwargs):
+        if create:
+            self.users.set([self.topography.surface.creator])
+
+        if extracted:
+            # a list of users was passed in, add those users
+            for user in extracted:
+                self.users.add(user)
+

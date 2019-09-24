@@ -1,11 +1,152 @@
-from topobank.analysis.models import Analysis
 from django.db.models import OuterRef, Subquery
+from django.db import transaction
+from django.db.models import Q
+import inspect
+import pickle
+import logging
 
-def get_latest_analyses(function_id, topography_ids):
-    """Get latest analyses for given function and topographies.
+from topobank.analysis.models import Analysis
+from topobank.taskapp.tasks import perform_analysis
 
+_log = logging.getLogger(__name__)
+
+def request_analysis(user, analysis_func, topography, *other_args, **kwargs):
+    """Request an analysis for a given user.
+
+    :param user: User instance, user who want to see this analysis
+    :param topography: Topography instance which will be used to extract first argument to analysis function
+    :param analysis_func: AnalysisFunc instance
+    :param other_args: other positional arguments for analysis_func
+    :param kwargs: keyword arguments for analysis func
+    :returns: Analysis object
+
+    The returned analysis can be a precomputed one or a new analysis is
+    submitted may or may not be completed in future. Check database fields
+    (e.g. task_state) in order to check for completion.
+
+    The analysis will be marked such that the "users" field points to
+    the given user and that there is no other analysis for same function
+    and topography that points to that user.
+    """
+
+    #
+    # Build function signature with current arguments
+    #
+    pyfunc = analysis_func.python_function
+
+    sig = inspect.signature(pyfunc)
+
+    bound_sig = sig.bind(topography, *other_args, **kwargs)
+    bound_sig.apply_defaults()
+
+    pyfunc_kwargs = dict(bound_sig.arguments)
+
+    # topography will always be second positional argument
+    # and has an extra column, do not safe reference
+    del pyfunc_kwargs['topography']
+
+    # progress recorder should also not be saved:
+    if 'progress_recorder' in pyfunc_kwargs:
+        del pyfunc_kwargs['progress_recorder']
+
+    # same for storage prefix
+    if 'storage_prefix' in pyfunc_kwargs:
+        del pyfunc_kwargs['storage_prefix']
+
+    #
+    # Search for analyses with same topography, function and (pickled) function args
+    #
+    pickled_pyfunc_kwargs = pickle.dumps(pyfunc_kwargs)
+    analysis = Analysis.objects.filter(\
+        Q(topography=topography)
+        & Q(function=analysis_func)
+        & Q(kwargs=pickled_pyfunc_kwargs)).order_by('start_time').last() # will be None if not found
+    # TODO what if pickle protocol changes? -> No match, old must be sorted out later
+
+    if analysis is None:
+        analysis = submit_analysis(users=[user], analysis_func=analysis_func, topography=topography,
+                                   pickled_pyfunc_kwargs=pickled_pyfunc_kwargs)
+        _log.info("Submitted new analysis..")
+    elif user not in analysis.users.all():
+        analysis.users.add(user)
+
+    #
+    # Remove user from other analysis with same topography and function
+    #
+    other_analyses_with_same_user = Analysis.objects.filter(
+        ~Q(id=analysis.id) \
+        & Q(topography=topography) \
+        & Q(function=analysis_func) \
+        & Q(users__in=[user]))
+    for a in other_analyses_with_same_user:
+        a.users.remove(user)
+        _log.info("Removed user %s from analysis %s with kwargs %s.", user, analysis, pickle.loads(analysis.kwargs))
+
+    return analysis
+
+
+
+def submit_analysis(users, analysis_func, topography, pickled_pyfunc_kwargs=None):
+    """Create an analysis entry and submit a task to the task queue.
+
+    :param users: sequence of User instances; users which should see the analysis
+    :param topography: Topography instance which will be used to extract first argument to analysis function
+    :param analysis_func: AnalysisFunc instance
+    :param pickled_pyfunc_kwargs: pickled kwargs for function which should be safed to database
+    :returns: Analysis object
+    """
+    #
+    # create entry in Analysis table
+    #
+    if pickled_pyfunc_kwargs is None:
+        pickled_pyfunc_kwargs = pickle.dumps({})
+
+    analysis = Analysis.objects.create(
+        topography=topography,
+        function=analysis_func,
+        task_state=Analysis.PENDING,
+        kwargs=pickled_pyfunc_kwargs)
+
+    analysis.users.set(users)
+
+    #
+    # delete all completed old analyses for same function and topography and arguments
+    # There should be only one analysis per function, topography and arguments
+    #
+    Analysis.objects.filter(
+        ~Q(id=analysis.id)
+        & Q(topography=topography)
+        & Q(function=analysis_func)
+        & Q(kwargs=pickled_pyfunc_kwargs)
+        & Q(task_state__in=[Analysis.FAILURE, Analysis.SUCCESS])).delete()
+
+    #
+    # TODO delete all started old analyses, where the task does not exist any more
+    #
+    #maybe_aborted_analyses = Analysis.objects.filter(
+    #    ~Q(id=analysis.id)
+    #    & Q(topography=topography)
+    #    & Q(function=analysis_func)
+    #    & Q(task_state__in=[Analysis.STARTED]))
+    # How to find out if task is still running?
+    #
+    #for a in maybe_aborted_analyses:
+    #    result = app.AsyncResult(a.task_id)
+
+    # Send task to the queue if the analysis has been created
+    transaction.on_commit(lambda : perform_analysis.delay(analysis.id))
+
+    return analysis
+
+
+
+def get_latest_analyses(user, function_id, topography_ids):
+    """Get latest analyses for given function and topographies and user.
+
+    :param user: user which views the analyses
     :param function_id: id of AnalysisFunction instance
     :param topography_ids: iterable of ids of Topography instances
+
     :return: Queryset of analyses
 
     The returned queryset is comprised of only the latest analyses,
@@ -15,7 +156,8 @@ def get_latest_analyses(function_id, topography_ids):
 
     sq_analyses = Analysis.objects \
                 .filter(topography_id__in=topography_ids,
-                        function_id=function_id) \
+                        function_id=function_id,
+                        users__in=[user]) \
                 .filter(topography=OuterRef('topography'), function=OuterRef('function'),
                         kwargs=OuterRef('kwargs')) \
                 .order_by('-start_time')

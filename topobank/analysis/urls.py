@@ -1,4 +1,5 @@
 from django.conf.urls import url
+from django.urls import path
 from django.contrib.auth.decorators import login_required
 
 from . import views
@@ -6,9 +7,14 @@ from . import views
 app_name = "analysis"
 urlpatterns = [
     url(
-        regex=r'list/$',
+        regex=r'list/$', # TODO rename to "selected"?
         view=login_required(views.AnalysesListView.as_view()),
         name='list'
+    ),
+    path(
+        'collection/<int:collection_id>/',
+        view=login_required(views.AnalysesListView.as_view()),
+        name='collection'
     ),
     url(
         regex=r'download/(?P<ids>[\d,]+)/(?P<card_view_flavor>[\w\s]+)/(?P<file_format>\w+)$',

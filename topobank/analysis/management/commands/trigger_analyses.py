@@ -1,10 +1,11 @@
 from django.core.management.base import BaseCommand
+from guardian.shortcuts import get_users_with_perms
 import logging
 
 from topobank.manager.models import Topography, Surface
 from topobank.analysis.models import Analysis
 from topobank.analysis.models import AnalysisFunction
-from topobank.taskapp.tasks import submit_analysis
+from topobank.analysis.utils import submit_analysis
 
 _log = logging.getLogger(__name__)
 
@@ -84,8 +85,6 @@ class Command(BaseCommand):
         return result
 
     def handle(self, *args, **options):
-
-
         #
         # collect topographies and surfaces
         #
@@ -101,7 +100,9 @@ class Command(BaseCommand):
         # Trigger analyses
         #
         for func, topo in trigger_set:
-            submit_analysis(func, topo)
+            # collect users which are allowed to view analyses
+            users = get_users_with_perms(topo.surface)
+            submit_analysis(users, func, topo)
             num_triggered += 1
 
         self.stdout.write(self.style.SUCCESS(f"Triggered {num_triggered} analyses."))

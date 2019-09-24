@@ -1,9 +1,7 @@
 from django.db.models.signals import pre_delete, post_save, pre_save
 from django.dispatch import receiver
 from django.core.cache import cache
-
 from guardian.shortcuts import assign_perm
-
 import logging
 
 from .models import Topography, Surface
@@ -22,7 +20,6 @@ def grant_permissions_to_owner(sender, instance, created, **kwargs):
 
         # This should be only done when creating a surface,
         # otherwise all permissions would be granted when editing a surface
-
 
 @receiver(pre_delete, sender=Topography)
 def remove_files(sender, instance, **kwargs):
@@ -45,4 +42,3 @@ def set_creator_if_needed(sender, instance, **kwargs):
 @receiver(post_save, sender=Topography)
 def invalidate_cached_topograpphy(sender, instance, **kwargs):
     cache.delete(instance.cache_key())
-
