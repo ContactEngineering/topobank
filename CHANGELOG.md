@@ -1,14 +1,27 @@
 # Changelog for *TopoBank*
 
-## 0.7.0
+## 0.6.1
 
-- added notifications through a "bell" symbol in the navigation bar;
-  notifications are show if a surface is shared or unshared
-  with the current user or if he/she gets change access to 
-  a surface (#26)
+- added notifications through a "bell" symbol in the navigation bar
+  (#26,#332); notifications are stored in the database and shown 
+  to a logged-in user; they're triggered by these events:
+   
+  + a surface is shared or unshared with the current user 
+  + a user gets change access to a surface
+  + a shared item was edited
+  + a collection of analyses, which has been manually triggered
+    has been finished
+  + an example surface was created on first login
+           
 - plotting now line scans with lines; symbols are also used
   if no more than 100 points (#312)
-
+- internal change: analyses are now saved for every combination of topography,
+  function and arguments; for each user a specific combination
+  is shown; one benefit is if user selects already known parameters,
+  the result is immediately there (#208)
+- workaround for missing points in PSD plots (#356)   
+  
+  
 ## 0.6.0
 
 - fixed sheet names for XLSX download of analysis data (#39,#77)
