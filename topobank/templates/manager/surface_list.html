@@ -118,9 +118,11 @@
       textField: 'name',
       childrenField: 'topographies',
       checkboxes: true,
+      checkedField: 'is_selected',
       cascadeCheck: true, // enable cascade check and uncheck of children
       dataSource: "{% url 'manager:surface-search' %}",
       // imageUrlField: 'flagUrl'
+      // TODO add filters to REST call
   });
 
   function select_surface(pk) {
@@ -128,7 +130,43 @@
   }
 
   tree.on('checkboxChange', function (e, $node, record, state) {
-     console.log('Node '+ $node +': The new state of record ' + record.name + '(pk' + record.pk +' ) ' + ' is ' + state);
+     console.log('Node '+ $node +': The new state of record ' + record.name + '(pk' + record.pk +' ) ' + ' is *' + state+'*');
+
+     if (state == 'checked') {
+         $.ajax({
+             type: "POST",
+             url: record.select_url,
+             data: {
+                csrfmiddlewaretoken: "{{csrf_token}}"
+             },
+             success : function(data, textStatus, xhr){
+                 // TODO make selection visible
+                 console.log("Selected! "+textStatus);
+
+             },
+             error: function(xhr, textStatus, errorThrown) {
+                 console.log("Could not select: " + errorThrown + " " + xhr.status + " " +xhr.responseText);
+             }
+         });
+
+     } else if (state == 'unchecked') {
+
+         $.ajax({
+             type: "POST",
+             url: record.unselect_url,
+             data: {
+                csrfmiddlewaretoken: "{{csrf_token}}"
+             },
+             success : function(data, textStatus, xhr){
+                 // TODO make selection invisible
+                 console.log("Unselected! "+textStatus);
+             },
+             error: function(xhr, textStatus, errorThrown) {
+                 console.log("Could not unselect: " + errorThrown + " " + xhr.status + " " +xhr.responseText);
+             }
+         });
+
+     }
   });
 
   /**
@@ -157,7 +195,8 @@
     $(document).ready(function () {
       {% url 'manager:surface-card' as card_url %}
       {% for surface in surfaces %}
-        submit_surface_card_ajax("{{ card_url }}", {{ surface.id }}, "{{ request.path }}");
+        // TODO disabled temporarily
+        // submit_surface_card_ajax("{{ card_url }}", {{ surface.id }}, "{{ request.path }}");
       {% endfor %}
     });
 

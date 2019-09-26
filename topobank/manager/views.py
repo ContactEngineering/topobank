@@ -28,7 +28,10 @@ from bokeh.embed import components
 from bokeh.models import DataRange1d, LinearColorMapper, ColorBar
 
 from rest_framework.views import APIView
-from rest_framework.generics import ListAPIView
+from rest_framework.generics import ListAPIView, GenericAPIView
+from rest_framework.response import Response
+from rest_framework.decorators import api_view
+
 
 import json
 import os.path
@@ -1117,19 +1120,147 @@ class SurfaceSearch(ListAPIView):
     serializer_class = SurfaceSerializer
 
     def get_queryset(self):
-
-
-
         return surfaces_for_user(self.request.user)
 
-class Search(ListAPIView):
-    serializer_class = TopographySerializer
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['selected_instances'] = selected_instances(self.request)
+        return context
 
-    def get_queryset(self):
 
-        user = self.request.user
-        surfaces = surfaces_for_user(user)
+def _selection_set(request):
+    return set(request.session['selection'])
 
-        topographies = Topography.objects.filter(surface__in=surfaces)
+def _surface_key(pk):
+    return 'surface-{}'.format(pk)
 
-        return topographies
+@api_view(['GET','POST'])
+def select_surface(request, pk):
+    """Marks the given surface as 'selected' in session or checks this.
+
+    :param request: request
+    :param pk: primary key of the surface
+    :return: JSON Response
+
+    The response looks like this
+
+    {
+      is_selected: <boolean>
+    }
+
+    The value of 'is_selected' is true if the surface is selected
+    after the call, else false.
+
+    As GET request, the current state is returned.
+    As a POST request, the surface is selected.
+    """
+
+    _log.warning("Selection before: %s", request.session.get('selection', []))
+    try:
+        pk = int(pk)
+        surface = Surface.objects.get(pk=pk)
+        user = request.user
+        assert user.has_perm('view_surface', surface)
+    except:
+        raise PermissionDenied() # This should be shown independent of whether the surface exists
+
+    surface_key = _surface_key(pk)
+    selection = _selection_set(request)
+    is_selected = surface_key in selection
+
+    if request.method == 'POST':
+        if not is_selected:
+            selection.add(surface_key)
+            request.session['selection'] = list(selection)
+            request.session.modified = True
+        result = { 'is_selected': True }
+    elif request.method == 'GET':
+        result = { 'is_selected': is_selected }
+    _log.warning("Selection after: %s", request.session.get('selection', []))
+
+    result['selection'] = selection_from_session(request.session)
+    return Response(result)
+
+@api_view(['GET','POST'])
+def unselect_surface(request, pk):
+    try:
+        pk = int(pk)
+        surface = Surface.objects.get(pk=pk)
+        user = request.user
+        assert user.has_perm('view_surface', surface)
+    except:
+        raise PermissionDenied() # This should be shown independent of whether the surface exists
+
+    surface_key = _surface_key(pk)
+    selection = _selection_set(request)
+    is_selected = surface_key in selection
+
+    if request.method == 'POST':
+        if is_selected:
+            selection.remove(surface_key)
+            request.session['selection'] = list(selection)
+            request.session.modified = True
+        result = { 'is_selected': False }
+    elif request.method == 'GET':
+        result = { 'is_selected': is_selected }
+
+    result['selection'] = selection_from_session(request.session)
+    return Response(result)
+
+
+# class SurfaceSelect(APIView):
+#     """
+#     Marks the given surface in session as "selected".
+#     """
+#
+#     def check_permissions(self, request):
+#         surface_pk = int(self.kwargs['pk'])
+#         surface = Surface.objects.get(pk=surface_pk)
+#         user = self.request.user
+#         _log.warning("Checking permissions on surface %d", surface_pk)
+#         #if not user.has_perm(surface, 'view_surface'):
+#         #    raise PermissionDenied()
+#
+#     @staticmethod
+#     def _selection_set(request):
+#         return set(request.session['selection'])
+#
+#     @staticmethod
+#     def _surface_key(pk):
+#         return 'surface-{}'.format(pk)
+#
+#     def get(self, request, **kwargs):
+#         """Returns whether the surface is selected or not."""
+#         surface_pk = self.kwargs['pk']
+#         surface_key = self._surface_key(surface_pk)
+#         is_selected = surface_key in self._selection_set(request)
+#         return Response({'selected': is_selected})
+#
+#     def post(self, request, **kwargs):
+#         surface_key = self._surface_key(kwargs['pk'])
+#         selection = self._selection_set(request)
+#         if surface_key not in selection:
+#             selection.add(surface_key)
+#
+#         request.session['selection'] = list(selection)
+#
+#         return Response()
+
+
+
+# class Search(ListAPIView):
+#     serializer_class = TopographySerializer
+#
+#     def get_queryset(self):
+#
+#         user = self.request.user
+#         surfaces = surfaces_for_user(user)
+#         topographies = Topography.objects.filter(surface__in=surfaces)
+#
+#         return topographies
+#
+#     def get_serializer_context(self):
+#         context = super().get_serializer_context()
+#         context['selected_instances'] = selected_instances(self.request)
+#         print(context)
+#         return context

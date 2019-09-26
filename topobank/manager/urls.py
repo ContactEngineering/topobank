@@ -97,6 +97,16 @@ urlpatterns = [
        name='surface-share'
     ),
     url(
+       regex=r'surface/(?P<pk>\d+)/select/$',
+       view=login_required(views.select_surface),
+       name='surface-select'
+    ),
+    url(
+       regex=r'surface/(?P<pk>\d+)/unselect/$',
+       view=login_required(views.unselect_surface),
+       name='surface-unselect'
+    ),
+    url(
         regex=r'surface/(?P<surface_id>\d+)/download/$',
         view=login_required(views.download_surface),
         name='surface-download'
