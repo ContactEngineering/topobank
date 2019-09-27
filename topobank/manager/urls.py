@@ -53,6 +53,16 @@ urlpatterns = [
         name='topography-delete'
     ),
     url(
+        regex=r'topography/(?P<pk>\d+)/select/$',
+        view=login_required(views.select_topography),
+        name='topography-select'
+    ),
+    url(
+        regex=r'topography/(?P<pk>\d+)/unselect/$',
+        view=login_required(views.unselect_topography),
+        name='topography-unselect'
+    ),
+    url(
         regex=r'surface/(?P<surface_id>\d+)/new-topography/$',
         view=login_required(views.TopographyCreateWizard.as_view(
             WIZARD_FORMS,
