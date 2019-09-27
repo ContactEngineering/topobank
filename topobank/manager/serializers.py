@@ -19,7 +19,16 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
         lookup_field='username',
     )
 
+    select_url = serializers.SerializerMethodField()
+    unselect_url = serializers.SerializerMethodField()
     is_selected = serializers.SerializerMethodField()
+
+    def get_select_url(self, obj):
+        return reverse('manager:topography-select', kwargs=dict(pk=obj.pk))
+
+    def get_unselect_url(self, obj):
+        return reverse('manager:topography-unselect', kwargs=dict(pk=obj.pk))
+
     def get_is_selected(self, obj):
         topographies, surfaces = self.context['selected_instances']
         # _log.info("Topography selected? %s in %s? %s in %s?", obj, topographies, obj.surface, surfaces)
@@ -27,7 +36,7 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Topography
-        fields = ['pk', 'name', 'creator', 'description', 'is_selected']
+        fields = ['pk', 'name', 'creator', 'description', 'select_url', 'unselect_url', 'is_selected']
 
 
 class SurfaceSerializer(serializers.HyperlinkedModelSerializer):

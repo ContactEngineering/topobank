@@ -33,9 +33,16 @@
       {% crispy form form.helper %}
     </div>
   </div>
+
+  <pre>
+   {{ selected_json }}
+  </pre>
+
 {% endblock searchbox %}
 
 {% block content %}
+
+
 
   {# search box #}
   {# full text search in names, descriptions, labels #}
