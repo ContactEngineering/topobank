@@ -22,6 +22,8 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
     select_url = serializers.SerializerMethodField()
     unselect_url = serializers.SerializerMethodField()
     is_selected = serializers.SerializerMethodField()
+    is_surface_selected = serializers.SerializerMethodField()
+    key = serializers.SerializerMethodField()
 
     def get_select_url(self, obj):
         return reverse('manager:topography-select', kwargs=dict(pk=obj.pk))
@@ -31,12 +33,19 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
 
     def get_is_selected(self, obj):
         topographies, surfaces = self.context['selected_instances']
-        # _log.info("Topography selected? %s in %s? %s in %s?", obj, topographies, obj.surface, surfaces)
         return (obj in topographies) or (obj.surface in surfaces)
+
+    def get_is_surface_selected(self, obj):
+        topographies, surfaces = self.context['selected_instances']
+        return obj.surface in surfaces
+
+    def get_key(self, obj):
+        return f"topography-{obj.pk}"
 
     class Meta:
         model = Topography
-        fields = ['pk', 'name', 'creator', 'description', 'select_url', 'unselect_url', 'is_selected']
+        fields = ['pk', 'name', 'creator', 'description',
+                  'select_url', 'unselect_url', 'is_selected', 'is_surface_selected', 'key']
 
 
 class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
@@ -56,6 +65,7 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
     select_url = serializers.SerializerMethodField()
     unselect_url = serializers.SerializerMethodField()
     is_selected = serializers.SerializerMethodField()
+    key = serializers.SerializerMethodField()
 
     def get_select_url(self, obj):
         return reverse('manager:surface-select', kwargs=dict(pk=obj.pk))
@@ -68,22 +78,11 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
         # _log.info("Surface selected? %s in %s?", obj, surfaces)
         return obj in surfaces
 
+    def get_key(self, obj):
+        return f"surface-{obj.pk}"
+
     class Meta:
         model = Surface
         fields = ['pk', 'name', 'creator', 'description', 'category', 'topographies',
-                  'select_url', 'unselect_url', 'is_selected']
+                  'select_url', 'unselect_url', 'is_selected', 'key']
 
-
-# class SearchResult(object):
-#
-#     def __init__(self, surfaces, topographies):
-#         self._surfaces = surfaces
-#         self._topographies = topographies
-#
-#
-#
-# class SeachResultSerializer(serializers.Serializer):
-#
-#     surfaces = serializers.RelatedField
-#
-#

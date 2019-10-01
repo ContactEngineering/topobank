@@ -27,16 +27,21 @@
 {% endblock breadcrumbs %}
 
 {% block searchbox %}
-  <!-- Filter for topographies  -->
+
+  <!--
+
   <div class="bg-light border-top border-bottom">
     <div class="container-fluid">
       {% crispy form form.helper %}
     </div>
   </div>
+  -->
 
-  <pre>
-   {{ selected_json }}
-  </pre>
+  <h2>Selected items</h2>
+  <div id="basket">
+    <basket-element v-for="x in items" v-bind:item="x" v-bind:key="x.key"></basket-element>
+  </div>
+
 
 {% endblock searchbox %}
 
@@ -98,7 +103,7 @@
   <script src="https://unpkg.com/gijgo@1.9.13/js/gijgo.min.js"></script>
 
   <script>
-  var store = {
+  var search_result = {
          debug: true,
          state: {
           items: []
@@ -116,7 +121,7 @@
          }
         };
 
-  store.state.items = JSON.parse('{{ selected_json | safe }}');
+  // store.state.items = JSON.parse('{{ selected_json | safe }}');
 
 
   var tree = $('#tree').tree({
@@ -132,14 +137,11 @@
       // TODO add filters to REST call
   });
 
-  function select_surface(pk) {
-
-  }
-
   tree.on('checkboxChange', function (e, $node, record, state) {
-     console.log('Node '+ $node +': The new state of record ' + record.name + '(pk' + record.pk +' ) ' + ' is *' + state+'*');
+     // console.log('Node '+ $node +': The new state of record ' + record.name + '(pk' + record.pk +' ) ' + ' is *' + state+'*');
 
      if (state == 'checked') {
+
          $.ajax({
              type: "POST",
              url: record.select_url,
@@ -148,11 +150,11 @@
              },
              success : function(data, textStatus, xhr){
                  // TODO make selection visible
-                 console.log("Selected! "+textStatus);
+                 // console.log("Selected! "+textStatus);
 
              },
              error: function(xhr, textStatus, errorThrown) {
-                 console.log("Could not select: " + errorThrown + " " + xhr.status + " " +xhr.responseText);
+                 console.error("Could not select: " + errorThrown + " " + xhr.status + " " +xhr.responseText);
              }
          });
 
@@ -166,22 +168,65 @@
              },
              success : function(data, textStatus, xhr){
                  // TODO make selection invisible
-                 console.log("Unselected! "+textStatus);
+                 // console.log("Unselected! "+textStatus);
              },
              error: function(xhr, textStatus, errorThrown) {
-                 console.log("Could not unselect: " + errorThrown + " " + xhr.status + " " +xhr.responseText);
+                 console.error("Could not unselect: " + errorThrown + " " + xhr.status + " " +xhr.responseText);
              }
          });
 
      }
+     set_basket_items();
   });
 
   /**
-  tree.on('dataBound', function () {
-      var node = tree.getNodeByText('North America');
-      tree.expand(node);
+   *  Using vue component for displaying selected items
+   */
+
+   Vue.component('basket-element', {
+        props: ['item'],
+        delimiters: ['[[', ']]'],
+        template: `
+         <span v-if="item.key.startsWith('surface')" class="badge badge-primary mr-1" v-on:click="handle_click">[[ item.name ]]</span>
+         <span v-else class="badge badge-secondary mr-1" v-on:click="handle_click">[[ item.name ]]</span>
+         `,
+        methods: {
+          handle_click: function (item) {
+            tree.uncheck(item); // TODO pass node here
+          },
+          is_surface: function (item) {
+              console.log("is_surface? "+item);
+              return item.key.startsWith("surface");
+          }
+        }
+   });
+
+  var basket = new Vue({
+          delimiters: ['[[', ']]'],
+          el: '#basket',
+          data: {
+              items: [],
+          }
   });
-  */
+
+  function set_basket_items() {
+      basket.items = [];
+      tree.getCheckedNodes().forEach( function(id) {
+            var item = window.tree.getDataById(id);
+
+            // only push topography item if surface is not
+            // included
+            if (~item.hasOwnProperty('is_surface_selected') || ~item.is_surface_selected) {
+                basket.items.push(item);
+            }
+      });
+  }
+
+
+
+  tree.on('dataBound', function () {
+      set_basket_items();
+  });
 
 
 
