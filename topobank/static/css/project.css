@@ -96,3 +96,7 @@ input.checkbox-color-design:checked+span:after {
 .btn {
   white-space: normal; /** we want the text in buttons wrap if the windows is made smaller, issue 272 */
 }
+
+.highlight {
+  background-color: yellow;
+}

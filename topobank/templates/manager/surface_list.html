@@ -4,6 +4,7 @@
 {% load crispy_forms_tags %}
 {% load surface_tags %}
 {% load guardian_tags %}
+{% load static i18n %}
 
 {% block extra_css %}
 
@@ -18,6 +19,14 @@
   <script src="https://unpkg.com/vue-select@latest"></script>
   <link rel="stylesheet" href="https://unpkg.com/vue-select@latest/dist/vue-select.css">
   {{ form.media.css }}
+
+  <!-- Include Fancytree skin  -->
+  <link href="{% static 'vendor/fancytree-2.32.0/dist/skin-awesome/ui.fancytree.min.css' %}" rel="stylesheet">
+  <!-- include jquery.fancytree.glyph.js below für 'glyph' extension of "fancytree" -->
+
+
+  <!-- TODO Use CDN? -->
+
 {% endblock extra_css %}
 
 {% block breadcrumbs %}
@@ -39,7 +48,9 @@
 
   <h2>Selected items</h2>
   <div id="basket">
-    <basket-element v-for="x in items" v-bind:item="x" v-bind:key="x.key"></basket-element>
+    <h3>
+      <basket-element v-for="node in nodes" v-bind:node="node" v-bind:key="node.key"></basket-element>
+    </h3>
   </div>
 
 
@@ -47,29 +58,38 @@
 
 {% block content %}
 
-
-
   {# search box #}
   {# full text search in names, descriptions, labels #}
-  <div class="input-group mb-3">
-    <input type="text" class="form-control" placeholder="Search.." aria-label="Search">
+  <div class="input-group input-group-lg mb-3">
+    <input id="searchbar" type="text" class="form-control" aria-label="Search" placeholder="Filter..." autocomplete="off">
+    <div class="input-group-append">
+      <button class="btn btn-default form-control" id="button_reset_filter" type="button">&times;</button>
+    </div>
   </div>
 
-  {# search result as list #}
+  {# search result as a tree table #}
 
-  <div id="tree"></div>
+  <div id="search-result">
 
 
+    <table id="newtree">
+      <colgroup>
+        <col width="5%"></col>
+        <col width="35%"></col>
+        <col width="50%"></col>
+      </colgroup>
+      <thead>
+      <tr>
+        <th></th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+      </thead>
+      <tbody>
+      </tbody>
+    </table>
+  </div>
 
-  <nav aria-label="Page navigation example">
-    <ul class="pagination">
-      <li class="page-item"><a class="page-link" href="#">Previous</a></li>
-      <li class="page-item"><a class="page-link" href="#">1</a></li>
-      <li class="page-item"><a class="page-link" href="#">2</a></li>
-      <li class="page-item"><a class="page-link" href="#">3</a></li>
-      <li class="page-item"><a class="page-link" href="#">Next</a></li>
-    </ul>
-  </nav>
 
 
    <!--
@@ -77,23 +97,25 @@
 
   Will be replaced by AJAX call.
   -->
-  <div class="row">
-    {% for surface in surfaces %}
-      <div class="col-xl-4 mb-4">
-        <div id="card-{{ surface.id }}">
-          <div class="card">
-            <div class="card-header">
-              <h5>{{ surface.name }}</h5>
-            </div>
-            <div class="card-body">
-              <p>Please wait..</p>
-              <div class="spinner"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    {% endfor %}
-  </div>
+{#  #}
+{#  <div class="row">#}
+{#    {% for surface in surfaces %}#}
+{#      <div class="col-xl-4 mb-4">#}
+{#        <div id="card-{{ surface.id }}">#}
+{#          <div class="card">#}
+{#            <div class="card-header">#}
+{#              <h5>{{ surface.name }}</h5>#}
+{#            </div>#}
+{#            <div class="card-body">#}
+{#              <p>Please wait..</p>#}
+{#              <div class="spinner"></div>#}
+{#            </div>#}
+{#          </div>#}
+{#        </div>#}
+{#      </div>#}
+{#    {% endfor %}#}
+{#  </div>#}
+
 
 {% endblock content %}
 
@@ -101,139 +123,264 @@
   {{ form.media.js }}
 
   <script src="https://unpkg.com/gijgo@1.9.13/js/gijgo.min.js"></script>
+  <script src="{% static 'vendor/jquery-highlight-3.3.0/jquery.highlight.js' %}"></script>
+  <script src="{% static 'vendor/fancytree-2.32.0/dist/jquery.fancytree-all-deps.min.js' %}"></script>
+  <script src="{% static 'vendor/fancytree-2.32.0/dist/modules/jquery.fancytree.glyph.js' %}"></script>
+  <script src="{% static 'vendor/fancytree-2.32.0/dist/modules/jquery.fancytree.table.js' %}"></script>
+  <script src="{% static 'vendor/fancytree-2.32.0/dist/modules/jquery.fancytree.filter.js' %}"></script>
+
+
 
   <script>
-  var search_result = {
-         debug: true,
-         state: {
-          items: []
-         },
-         add_item (item) {
-          if (this.debug) console.log('adding item ', item);
-          this.state.items.push(item);
-         },
-         remove_item (item) {
-          if (this.debug) console.log('remove item ', item);
-          var index = this.state.items.indexOf(item);
-          if (index > -1) {
-            this.state.items.splice(index, 1);
-           }
-         }
-        };
 
-  // store.state.items = JSON.parse('{{ selected_json | safe }}');
+      /**
+       * Display search results as tree
+       * @type {*|jQuery}
+       */
 
 
-  var tree = $('#tree').tree({
-      uiLibrary: 'bootstrap4',
-      primaryKey: 'pk',
-      textField: 'name',
-      childrenField: 'topographies',
-      checkboxes: true,
-      checkedField: 'is_selected',
-      cascadeCheck: true, // enable cascade check and uncheck of children
-      dataSource: "{% url 'manager:surface-search' %}",
-      // imageUrlField: 'flagUrl'
-      // TODO add filters to REST call
-  });
 
-  tree.on('checkboxChange', function (e, $node, record, state) {
-     // console.log('Node '+ $node +': The new state of record ' + record.name + '(pk' + record.pk +' ) ' + ' is *' + state+'*');
-
-     if (state == 'checked') {
-
-         $.ajax({
-             type: "POST",
-             url: record.select_url,
-             data: {
-                csrfmiddlewaretoken: "{{csrf_token}}"
-             },
-             success : function(data, textStatus, xhr){
-                 // TODO make selection visible
-                 // console.log("Selected! "+textStatus);
-
-             },
-             error: function(xhr, textStatus, errorThrown) {
-                 console.error("Could not select: " + errorThrown + " " + xhr.status + " " +xhr.responseText);
-             }
-         });
-
-     } else if (state == 'unchecked') {
-
-         $.ajax({
-             type: "POST",
-             url: record.unselect_url,
-             data: {
-                csrfmiddlewaretoken: "{{csrf_token}}"
-             },
-             success : function(data, textStatus, xhr){
-                 // TODO make selection invisible
-                 // console.log("Unselected! "+textStatus);
-             },
-             error: function(xhr, textStatus, errorThrown) {
-                 console.error("Could not unselect: " + errorThrown + " " + xhr.status + " " +xhr.responseText);
-             }
-         });
-
-     }
-     set_basket_items();
-  });
-
-  /**
-   *  Using vue component for displaying selected items
-   */
-
-   Vue.component('basket-element', {
-        props: ['item'],
-        delimiters: ['[[', ']]'],
-        template: `
-         <span v-if="item.key.startsWith('surface')" class="badge badge-primary mr-1" v-on:click="handle_click">[[ item.name ]]</span>
-         <span v-else class="badge badge-secondary mr-1" v-on:click="handle_click">[[ item.name ]]</span>
-         `,
-        methods: {
-          handle_click: function (item) {
-            tree.uncheck(item); // TODO pass node here
-          },
-          is_surface: function (item) {
-              console.log("is_surface? "+item);
-              return item.key.startsWith("surface");
-          }
-        }
-   });
-
-  var basket = new Vue({
+      var basket = new Vue({
           delimiters: ['[[', ']]'],
           el: '#basket',
           data: {
-              items: [],
+            current_time: Date.now(), // see https://github.com/vuejs/vue/issues/214#issuecomment-57822806
+            nodes: [],
+          },
+          methods:{
+              update: function () {
+
+                  console.log("Update new tree");
+
+                  var tree = $("#newtree").fancytree("getTree");
+
+
+                  var nodes = [];
+
+                  tree.getSelectedNodes(true).forEach(function (node) {
+                      // here called with stopOnParents=true,
+                      // so selected surfaces are pushed but not single topographies then
+                      console.log("Push into basket: "+node.data);
+                      nodes.push(node);
+                  });
+
+                  //console.log("Result: "+nodes);
+                  //console.dir(nodes[0]);
+                  this.nodes = nodes;
+              }
+          },
+
+          computed: {
+              items_sav: function () {
+
+                  console.log("Update new tree");
+
+                  var tree = $("#newtree").fancytree("getTree");
+
+
+
+                  var result = [];
+
+                  tree.getSelectedNodes().forEach(function (node) {
+                      // TODO only push
+                      result.push(node.data);
+                  });
+
+                  console.log("Result for basket:"+result);
+                  return result;
+                  //
+                  // return tree.getSelectedNodes().filter(function (node) {
+                  //
+                  //       var data = node.data;
+                  //
+                  //
+                  //
+                  //       // only push topography item if
+                  //       // - it is a surface
+                  //       // - or it is a topography and its surface is not already
+                  //       //   included because all topographies of the surface are included
+                  //       // console.log(item.name + " " + item.is_surface_selected);
+                  //       if (!item.hasOwnProperty('is_surface_selected') || (item.is_surface_selected == false)) {
+                  //           console.log("Pushed: " + item.key + " " + item.name + " " + item.is_surface_selected);
+                  //           return true; // TODO can be easily written more compact
+                  //       } else {
+                  //           console.log("Not pushed: " + item.key + " " + item.name + " " + item.is_surface_selected);
+                  //           return false;
+                  //       }
+                  //   });
+              }
+          },
+          /**
+          created: function(){
+              var self = this
+              setInterval(function () {
+                console.log("Update basket");
+                self.current_time = Date.now();
+              }, 1000)
           }
-  });
-
-  function set_basket_items() {
-      basket.items = [];
-      tree.getCheckedNodes().forEach( function(id) {
-            var item = window.tree.getDataById(id);
-
-            // only push topography item if surface is not
-            // included
-            if (~item.hasOwnProperty('is_surface_selected') || ~item.is_surface_selected) {
-                basket.items.push(item);
-            }
+           */
       });
-  }
+
+
+      var newtree = $('#newtree').fancytree({
+          extensions: ["glyph", "table", "filter"],
+          glyph: {
+              preset: "awesome4",
+          },
+          table: {
+		        checkboxColumnIdx: 0,    // render the checkboxes into the this column index (default: nodeColumnIdx)
+		        indentation: 16,         // indent every node level by 16px
+		        nodeColumnIdx: 1         // render node expander, icon, and title to this column (default: #0)
+	        },
+          filter: {
+            autoApply: true,   // Re-apply last filter if lazy data is loaded
+            autoExpand: true, // Expand all branches that contain matches while filtered
+            counter: false,     // Show a badge with number of matching child nodes near parent icons
+            fuzzy: false,      // Match single characters in order, e.g. 'fb' will match 'FooBar'
+            hideExpandedCounter: true,  // Hide counter badge if parent is expanded
+            hideExpanders: false,       // Hide expanders if all child nodes are hidden by filter
+            highlight: false,   // Highlight matches by wrapping inside <mark> tags | we do this outself because of extra columns
+            leavesOnly: false, // Match end nodes only
+            nodata: true,      // Display a 'no data' status node if result is empty
+            mode: "hide"
+          },
+          source: {
+              url: "{% url 'manager:surface-search' %}",
+              cache: false
+          },
+          checkbox: true,
+          selectMode: 3, // 'multi-hier'
+          init: function() {
+            basket.update();
+          },
+          select: function(event, data) {
+              var node = data.node;
+              var is_selected = node.isSelected();
+
+              if (is_selected) {
+                   $.ajax({
+                       type: "POST",
+                       url: node.data.select_url,
+                       data: {
+                           csrfmiddlewaretoken: "{{csrf_token}}"
+                       },
+                       success: function (data, textStatus, xhr) {
+                           console.log("Selected: " + node.data.name + " " + node.key);
+                           basket.update();
+                       },
+                       error: function (xhr, textStatus, errorThrown) {
+                           console.error("Could not select: " + errorThrown + " " + xhr.status + " " + xhr.responseText);
+                       }
+                   });
+              } else {
+                  $.ajax({
+                       type: "POST",
+                       url: node.data.unselect_url,
+                       data: {
+                           csrfmiddlewaretoken: "{{csrf_token}}"
+                       },
+                       success: function (data, textStatus, xhr) {
+                           console.log("Unselected: " + node.data.name + " " + node.key);
+
+                           basket.update();
+
+                       },
+                       error: function (xhr, textStatus, errorThrown) {
+                           console.error("Could not unselect: " + errorThrown + " " + xhr.status + " " + xhr.responseText);
+                       }
+                   });
+              }
+          },
+          renderColumns: function(event, data) {
+              var node = data.node,
+                $tdList = $(node.tr).find(">td");
+
+                // (Index #0 is rendered by fancytree by adding the checkbox)
+                // (Index #1 is rendered by fancytree)
+                // Set column #2 info from node data:
+                $tdList
+                  .eq(2)
+                    .text(node.data.description);
+                // Static markup (more efficiently defined as html row template):
+                // $tdList.eq(3).html("<input type='input' value='" + "" + "'>");
+                // ...
+            },
+      });
+
+      Vue.component('basket-element', {
+        props: ['node'],
+        delimiters: ['[[', ']]'],
+        template: `
+               <span v-if="node.key.startsWith('surface')" class="badge badge-pill badge-primary mr-1" v-on:click="handle_click">[[ node.title ]]
+                    <span class="fa fa-close"></span>
+               </span>
+               <span v-else class="badge badge-pill badge-secondary mr-1" v-on:click="handle_click">[[ node.title ]]
+                    <span class="fa fa-close"></span>
+               </span>
+             `,
+        methods: {
+            handle_click: function (event) {
+                // Clicking means "deselect"
+                this.node.setSelected(false);
+                basket.update();
+            },
+        }
+      });
+
+
+      // TODO replace with filtering of fancytree?
+
+      $("#searchbar").on('input', function (){
+
+          //tree.collapseAll();
+
+          $("#newtree").fancytree("getTree").filterNodes( function(node) {
+              var term = $('#searchbar').val().toLocaleLowerCase();
+              var data = node.data;
+              // Perform case insensitive search
+              return data.name.toLocaleLowerCase().includes(term) || data.description.toLocaleLowerCase().includes(term);
+          });
+
+          // Highlight the search items in tree
+          $("#newtree").unhighlight();
+          $("#newtree").highlight($('#searchbar').val());
 
 
 
-  tree.on('dataBound', function () {
-      set_basket_items();
-  });
+          return
 
 
 
-  </script>
 
 
-  <script>
+
+
+          /** Fetching new search results given the search query */
+          // tree.reload({search: $('#searchbar').val() });
+          /**
+          var tree = $("#newtree").fancytree("getTree");
+          tree.reload( {
+               url: "{% url 'manager:surface-search' %}?search="+$('#searchbar').val(),
+               cache: false
+          }).then(function(){
+              basket.update();
+              tree.expandAll();
+
+              // Highlight the search items in tree
+              $("#newtree").unhighlight();
+              $("#newtree").highlight($('#searchbar').val());
+          });
+          */
+
+          /**  Expand the tree */
+          //tree.expandAll();
+      });
+
+      $('#button_reset_filter').click( function(){
+        $('#searchbar').val('');
+        $("#newtree").fancytree("getTree").clearFilter();
+      });
+
 
     /** Use this as start when loading new cards without form submission
     $('.django-select2').on('change.select2', function (e) {
@@ -244,6 +391,7 @@
     */
 
     // for each surface submit ajax call to insert a bootstrap card
+    /**
     $(document).ready(function () {
       {% url 'manager:surface-card' as card_url %}
       {% for surface in surfaces %}
@@ -251,8 +399,9 @@
         // submit_surface_card_ajax("{{ card_url }}", {{ surface.id }}, "{{ request.path }}");
       {% endfor %}
     });
-
+    */
     // we don't want error messages if the page is left before everything is loaded
     install_handler_for_aborting_all_ajax_calls_on_page_leave();
   </script>
+
 {% endblock javascript %}

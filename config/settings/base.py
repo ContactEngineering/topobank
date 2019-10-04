@@ -83,6 +83,7 @@ THIRD_PARTY_APPS = [
     'progressbarupload',
     'celery_progress',
     'notifications',
+    'django_filters',
 ]
 LOCAL_APPS = [
     'topobank.users.apps.UsersAppConfig',

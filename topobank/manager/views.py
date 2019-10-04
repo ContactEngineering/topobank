@@ -27,11 +27,12 @@ from bokeh.plotting import figure
 from bokeh.embed import components
 from bokeh.models import DataRange1d, LinearColorMapper, ColorBar
 
-from rest_framework.views import APIView
-from rest_framework.generics import ListAPIView, GenericAPIView
+
+from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
-
+# from django_filters import rest_framework as filters
+from rest_framework import filters
 
 import json
 import os.path
@@ -43,6 +44,7 @@ from .forms import TopographyFileUploadForm, TopographyMetaDataForm, Topography1
 from .utils import selected_instances, selection_from_session, selection_for_select_all, \
     bandwidths_data, surfaces_for_user, get_topography_reader, selection_choices
 from .serializers import SurfaceSerializer, TopographySerializer
+
 from topobank.users.models import User
 
 MAX_NUM_POINTS_FOR_SYMBOLS_IN_LINE_SCAN_PLOT = 100
@@ -1118,6 +1120,8 @@ class SurfaceSearch(ListAPIView):
     List all surfaces
     """
     serializer_class = SurfaceSerializer
+    filter_backends = (filters.SearchFilter,)
+    search_fields = ('name', 'description', 'topography__name', 'topography__description')
 
     def get_queryset(self):
         return surfaces_for_user(self.request.user)
@@ -1160,11 +1164,20 @@ def set_surface_select_status(request, pk, select_status):
     is_selected = surface_key in selection
 
     if request.method == 'POST':
-        if is_selected and not select_status:
-            selection.remove(surface_key)
-        if not is_selected:
+        # remove all explicity selected topographies from this surface
+        for t in surface.topography_set.all():
+            topo_key = _topography_key(t.pk)
+            if topo_key in selection:
+                selection.remove(topo_key)
+
+        if select_status:
+            # surface should be selected
             selection.add(surface_key)
+        elif is_selected:
+            selection.remove(surface_key)
+
         request.session['selection'] = list(selection)
+        _log.info("New selection: %s", selection)
 
     return Response()
 
@@ -1211,15 +1224,46 @@ def set_topography_select_status(request, pk, select_status):
         raise PermissionDenied() # This should be shown independent of whether the surface exists
 
     topography_key = _topography_key(pk)
+    surface_key = _surface_key(topo.surface.pk)
     selection = _selection_set(request)
     is_selected = topography_key in selection
+    is_surface_selected =  surface_key in selection
 
     if request.method == 'POST':
-        if is_selected and not select_status:
-            selection.remove(topography_key)
-        elif not is_selected and select_status:
-            selection.add(topography_key)
+
+        if select_status:
+            # topography should be selected
+
+            if is_surface_selected:
+                pass # is already selected implicitly
+            else:
+                # check if all other topographies are selected - if yes,
+                # remove those and add surface as selection
+                other_topo_keys_in_surface = [_topography_key(t.pk) for t in topo.surface.topography_set.all()
+                                              if t!=topo]
+
+                if all( k in selection for k in other_topo_keys_in_surface):
+                    for k in other_topo_keys_in_surface:
+                        selection.remove(k)
+                    selection.add(_surface_key(topo.surface.pk))
+                else:
+                    selection.add(topography_key)
+        else:
+            # topography should be unselected
+
+            # if surface is selected, remove this selection but add all other topographies instead
+            if is_surface_selected:
+                selection.remove(surface_key)
+                for t in topo.surface.topography_set.all():
+                    if t != topo:
+                        selection.add(_topography_key(t.pk))
+
+            # if topography is explicitly selected, remove it
+            if is_selected:
+                selection.remove(topography_key)
+
         request.session['selection'] = list(selection)
+        _log.info("New selection: %s", selection)
 
     return Response()
 
