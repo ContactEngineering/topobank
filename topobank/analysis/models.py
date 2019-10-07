@@ -32,6 +32,10 @@ class Version(models.Model):
     # should be recalculated
     # valid = models.BooleanField(default=True)
 
+    # TODO After upgrade to Django 2.2, use contraints: https://docs.djangoproject.com/en/2.2/ref/models/constraints/
+    class Meta:
+        unique_together = (('dependency', 'major', 'minor', 'micro'),)
+
     def number_as_string(self):
         x = f"{self.major}.{self.minor}"
         if self.micro is not None:
@@ -40,6 +44,7 @@ class Version(models.Model):
 
     def __str__(self):
         return f"{self.dependency} {self.number_as_string()}"
+
 
 
 class Configuration(models.Model):

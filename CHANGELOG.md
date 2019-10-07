@@ -1,5 +1,10 @@
 # Changelog for *TopoBank*
 
+## 0.6.2
+
+- bug fix for race conditions while managing dependency versions,
+  stopped new analyses (#366)
+
 ## 0.6.1
 
 - added notifications through a "bell" symbol in the navigation bar
