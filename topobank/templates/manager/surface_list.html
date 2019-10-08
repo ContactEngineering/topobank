@@ -96,14 +96,16 @@
       <table id="newtree" class="table table-bordered">
         <colgroup>
           <col width="5%"></col>
-          <col width="30%"></col>
-          <col width="60%"></col>
+          <col width="25%"></col>
+          <col width="50%"></col>
+          <col width="20%"></col>
         </colgroup>
         <thead>
           <tr>
             <th scope="col"></th>
             <th scope="col">Name</th>
             <th scope="col">Description</th>
+            <th scope="col">Tags</th>
           </tr>
         </thead>
         <tbody>
@@ -333,6 +335,14 @@
                 $tdList
                   .eq(2)
                     .text(node.data.description);
+                var tag_html = [];
+                node.data.tags.forEach(function (tag) {
+                   tag_html += "<span class='badge badge-success mr-1'>"+tag+"</span>"
+                });
+                console.log(tag_html);
+                $tdList
+                  .eq(3)
+                    .html(tag_html);
                 // Static markup (more efficiently defined as html row template):
                 // $tdList.eq(3).html("<input type='input' value='" + "" + "'>");
                 // ...

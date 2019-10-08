@@ -4,6 +4,7 @@ from django.core.cache import cache
 from django.db import transaction
 
 from guardian.shortcuts import assign_perm, remove_perm
+from tagulous.models import TagField
 
 from .utils import get_topography_reader
 
@@ -28,6 +29,7 @@ class Surface(models.Model):
     creator = models.ForeignKey(User, on_delete=models.CASCADE)
     description = models.TextField(blank=True)
     category = models.TextField(choices=CATEGORY_CHOICES, null=True, blank=False) #  TODO change in character field
+    tags = TagField(force_lowercase=True, tree=True)
 
     class Meta:
         ordering = ['name']

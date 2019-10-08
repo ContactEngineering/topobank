@@ -84,6 +84,7 @@ THIRD_PARTY_APPS = [
     'celery_progress',
     'notifications',
     'django_filters',
+    'tagulous',
 ]
 LOCAL_APPS = [
     'topobank.users.apps.UsersAppConfig',

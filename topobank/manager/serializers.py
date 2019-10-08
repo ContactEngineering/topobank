@@ -77,7 +77,7 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
     key = serializers.SerializerMethodField()
     folder = serializers.SerializerMethodField()
     sharing_status = serializers.SerializerMethodField()
-
+    tags = serializers.SerializerMethodField()
 
     def get_urls(self, obj):
         return {
@@ -104,9 +104,11 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
     def get_folder(self, obj):
         return True
 
+    def get_tags(self, obj): # TODO prove if own method needed
+        return [ t.name for t in obj.tags.all()]
 
     class Meta:
         model = Surface
-        fields = ['pk', 'name', 'creator', 'description', 'category', 'topographies',
+        fields = ['pk', 'name', 'creator', 'description', 'category', 'tags', 'topographies',
                   'sharing_status', 'urls', 'selected', 'key', 'title', 'children', 'folder']
 

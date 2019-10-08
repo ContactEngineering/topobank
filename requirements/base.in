@@ -30,6 +30,9 @@ git+http://github.com/IMTEK-Simulation/django-progressbarupload.git
 # filtering search results
 django-filter
 
+# tagging support
+django-tagulous
+
 #
 # Storage
 #
