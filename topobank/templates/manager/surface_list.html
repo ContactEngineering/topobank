@@ -66,7 +66,7 @@
     <input id="searchbar" type="text" class="form-control" aria-label="Search"
            placeholder="Filter by name and description..." autocomplete="off">
     <div class="input-group-append">
-      <button class="btn btn-default form-control" id="button_reset_filter" type="button">&times;</button>
+      <button class="btn btn-outline-secondary form-control" id="button_reset_filter" type="button">&times;</button>
     </div>
     <select class="form-control" id="select-category-filter">
       <option value="all" selected>All categories</option>
@@ -85,23 +85,24 @@
 
   <div id="search-result">
 
-
-    <table id="newtree" class="table table-striped">
-      <colgroup>
-        <col width="5%"></col>
-        <col width="35%"></col>
-        <col width="50%"></col>
-      </colgroup>
-      <thead>
-      <tr>
-        <th></th>
-        <th>Name</th>
-        <th>Description</th>
-      </tr>
-      </thead>
-      <tbody>
-      </tbody>
-    </table>
+    <div id="scrollParent" style="height: 500px; overflow: auto;">
+      <table id="newtree" class="table table-bordered">
+        <colgroup>
+          <col width="5%"></col>
+          <col width="30%"></col>
+          <col width="60%"></col>
+        </colgroup>
+        <thead>
+          <tr>
+            <th scope="col"></th>
+            <th scope="col">Name</th>
+            <th scope="col">Description</th>
+          </tr>
+        </thead>
+        <tbody>
+        </tbody>
+      </table>
+    </div>
   </div>
 
 
@@ -267,6 +268,7 @@
               url: "{% url 'manager:surface-search' %}",
               cache: false
           },
+          scrollParent: $("#scrollParent"),
           checkbox: true,
           selectMode: 3, // 'multi-hier'
           init: function() {
