@@ -46,15 +46,19 @@
   </div>
   -->
 
-  <h2>Selected items</h2>
-  <div id="basket">
-    <h3>
-      <basket-element v-for="node in nodes" v-bind:node="node" v-bind:key="node.key"></basket-element>
-    </h3>
+  <div class="row">
+    <div class="col">
+
+      <div id="basket">
+        <h3>
+          <basket-element v-for="node in nodes" v-bind:node="node" v-bind:key="node.key"></basket-element>
+        </h3>
+      </div>
   </div>
-
-  <a href="{% url 'manager:surface-create' %}" class="btn btn-primary">Create Surface</a>
-
+  <div class="col">
+    <a href="{% url 'manager:surface-create' %}" class="btn btn-primary">Create Surface</a>
+  </div>
+  </div>
 
 {% endblock searchbox %}
 
@@ -62,7 +66,9 @@
 
   {# search box #}
   {# full text search in names, descriptions, labels #}
+
   <div class="input-group input-group-lg mb-3">
+
     <input id="searchbar" type="text" class="form-control" aria-label="Search"
            placeholder="Filter by name and description..." autocomplete="off">
     <div class="input-group-append">
@@ -79,6 +85,7 @@
       <option value="own">Only own surfaces</option>
       <option value="shared">Only surfaces shared with you</option>
     </select>
+
   </div>
 
   {# search result as a tree table #}
