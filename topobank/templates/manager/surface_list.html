@@ -53,6 +53,8 @@
     </h3>
   </div>
 
+  <a href="{% url 'manager:surface-create' %}" class="btn btn-primary">Create Surface</a>
+
 
 {% endblock searchbox %}
 
@@ -61,10 +63,22 @@
   {# search box #}
   {# full text search in names, descriptions, labels #}
   <div class="input-group input-group-lg mb-3">
-    <input id="searchbar" type="text" class="form-control" aria-label="Search" placeholder="Filter..." autocomplete="off">
+    <input id="searchbar" type="text" class="form-control" aria-label="Search"
+           placeholder="Filter by name and description..." autocomplete="off">
     <div class="input-group-append">
       <button class="btn btn-default form-control" id="button_reset_filter" type="button">&times;</button>
     </div>
+    <select class="form-control" id="select-category-filter">
+      <option value="all" selected>All categories</option>
+      <option value="exp">Experimental data only</option>
+      <option value="sim">Simulated data only</option>
+      <option value="dum">Dummy data only</option>
+    </select>
+    <select class="form-control" id="select-sharing-status-filter">
+      <option value="all" selected>All</option>
+      <option value="own">Only own surfaces</option>
+      <option value="shared">Only surfaces shared with you</option>
+    </select>
   </div>
 
   {# search result as a tree table #}
@@ -72,7 +86,7 @@
   <div id="search-result">
 
 
-    <table id="newtree">
+    <table id="newtree" class="table table-striped">
       <colgroup>
         <col width="5%"></col>
         <col width="35%"></col>
@@ -226,6 +240,11 @@
           extensions: ["glyph", "table", "filter"],
           glyph: {
               preset: "awesome4",
+              map: {
+                // Override distinct default icons here
+                folder: "fa-folder",
+                folderOpen: "fa-folder-open"
+              }
           },
           table: {
 		        checkboxColumnIdx: 0,    // render the checkboxes into the this column index (default: nodeColumnIdx)
@@ -253,6 +272,10 @@
           init: function() {
             basket.update();
           },
+          dblclick: function(event, data) {
+            // window.open(data.node.data.urls.detail);
+            window.location = data.node.data.urls.detail;
+          },
           select: function(event, data) {
               var node = data.node;
               var is_selected = node.isSelected();
@@ -260,7 +283,7 @@
               if (is_selected) {
                    $.ajax({
                        type: "POST",
-                       url: node.data.select_url,
+                       url: node.data.urls.select,
                        data: {
                            csrfmiddlewaretoken: "{{csrf_token}}"
                        },
@@ -275,7 +298,7 @@
               } else {
                   $.ajax({
                        type: "POST",
-                       url: node.data.unselect_url,
+                       url: node.data.urls.unselect,
                        data: {
                            csrfmiddlewaretoken: "{{csrf_token}}"
                        },
@@ -327,8 +350,19 @@
         }
       });
 
+      $("#select-category-filter").on('change', function() {
+         $("#newtree").fancytree("getTree").filterNodes( function(node) {
+            var category = $('#select-category-filter').val();
+            return (category==='all') || (node.data.category === category);
+         });
+      });
 
-      // TODO replace with filtering of fancytree?
+      $("#select-sharing-status-filter").on('change', function() {
+         $("#newtree").fancytree("getTree").filterNodes( function(node) {
+            var status = $('#select-sharing-status-filter').val();
+            return (status==='all') || (node.data.sharing_status === status);
+         });
+      });
 
       $("#searchbar").on('input', function (){
 

@@ -1129,6 +1129,7 @@ class SurfaceSearch(ListAPIView):
     def get_serializer_context(self):
         context = super().get_serializer_context()
         context['selected_instances'] = selected_instances(self.request)
+        context['request'] = self.request
         return context
 
 

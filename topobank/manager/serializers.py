@@ -20,18 +20,18 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
         lookup_field='username',
     )
 
-    select_url = serializers.SerializerMethodField()
-    unselect_url = serializers.SerializerMethodField()
+    urls = serializers.SerializerMethodField()
     selected = serializers.SerializerMethodField()
     is_surface_selected = serializers.SerializerMethodField()
     key = serializers.SerializerMethodField()
     folder = serializers.SerializerMethodField()
 
-    def get_select_url(self, obj):
-        return reverse('manager:topography-select', kwargs=dict(pk=obj.pk))
-
-    def get_unselect_url(self, obj):
-        return reverse('manager:topography-unselect', kwargs=dict(pk=obj.pk))
+    def get_urls(self, obj):
+        return {
+            'select': reverse('manager:topography-select', kwargs=dict(pk=obj.pk)),
+            'unselect': reverse('manager:topography-unselect', kwargs=dict(pk=obj.pk)),
+            'detail': reverse('manager:topography-detail', kwargs=dict(pk=obj.pk)),
+        }
 
     def get_selected(self, obj):
         topographies, surfaces = self.context['selected_instances']
@@ -47,10 +47,11 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
     def get_folder(self, obj):
         return False
 
+
     class Meta:
         model = Topography
         fields = ['pk', 'name', 'creator', 'description',
-                  'select_url', 'unselect_url', 'selected', 'is_surface_selected',
+                  'urls', 'selected', 'is_surface_selected',
                   'key', 'title', 'folder']
 
 
@@ -71,20 +72,19 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
 
     topographies = TopographySerializer(source='topography_set', many=True)
 
-    select_url = serializers.SerializerMethodField()
-    unselect_url = serializers.SerializerMethodField()
+    urls = serializers.SerializerMethodField()
     selected = serializers.SerializerMethodField()
     key = serializers.SerializerMethodField()
     folder = serializers.SerializerMethodField()
+    sharing_status = serializers.SerializerMethodField()
 
-    def get_folder(self, obj):
-        return True
 
-    def get_select_url(self, obj):
-        return reverse('manager:surface-select', kwargs=dict(pk=obj.pk))
-
-    def get_unselect_url(self, obj):
-        return reverse('manager:surface-unselect', kwargs=dict(pk=obj.pk))
+    def get_urls(self, obj):
+        return {
+            'select': reverse('manager:surface-select', kwargs=dict(pk=obj.pk)),
+            'unselect': reverse('manager:surface-unselect', kwargs=dict(pk=obj.pk)),
+            'detail': reverse('manager:surface-detail', kwargs=dict(pk=obj.pk)),
+        }
 
     def get_selected(self, obj):
         topographies, surfaces  = self.context['selected_instances']
@@ -94,8 +94,19 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
     def get_key(self, obj):
         return f"surface-{obj.pk}"
 
+    def get_sharing_status(self, obj):
+        user = self.context['request'].user
+        if user == obj.creator:
+            return "own"
+        else:
+            return "shared"
+
+    def get_folder(self, obj):
+        return True
+
+
     class Meta:
         model = Surface
         fields = ['pk', 'name', 'creator', 'description', 'category', 'topographies',
-                  'select_url', 'unselect_url', 'selected', 'key', 'title', 'children', 'folder']
+                  'sharing_status', 'urls', 'selected', 'key', 'title', 'children', 'folder']
 
