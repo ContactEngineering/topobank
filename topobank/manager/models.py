@@ -4,7 +4,7 @@ from django.core.cache import cache
 from django.db import transaction
 
 from guardian.shortcuts import assign_perm, remove_perm
-from tagulous.models import TagField
+import tagulous.models as tm
 
 from .utils import get_topography_reader
 
@@ -13,6 +13,13 @@ from topobank.users.models import User
 def user_directory_path(instance, filename):
     # file will be uploaded to MEDIA_ROOT/user_<id>/<filename>
     return 'topographies/user_{0}/{1}'.format(instance.surface.creator.id, filename)
+
+
+class TagModel(tm.TagTreeModel):
+    """This is the common tag model for surfaces and topographies.
+    """
+    class TagMeta:
+        force_lowercase = True
 
 class Surface(models.Model):
     """Physical Surface.
@@ -29,7 +36,7 @@ class Surface(models.Model):
     creator = models.ForeignKey(User, on_delete=models.CASCADE)
     description = models.TextField(blank=True)
     category = models.TextField(choices=CATEGORY_CHOICES, null=True, blank=False) #  TODO change in character field
-    tags = TagField(force_lowercase=True, tree=True)
+    tags = tm.TagField(to=TagModel)
 
     class Meta:
         ordering = ['name']
@@ -128,6 +135,7 @@ class Topography(models.Model):
     creator = models.ForeignKey(User, null=True, on_delete=models.SET_NULL)
     measurement_date = models.DateField()
     description = models.TextField(blank=True)
+    tags = tm.TagField(to=TagModel)
 
     #
     # Fields related to raw data
@@ -248,3 +256,5 @@ class Topography(models.Model):
                 'unit': self.unit,
                 'height_scale': self.height_scale,
                 'size': (self.size_x, self.size_y)}
+
+

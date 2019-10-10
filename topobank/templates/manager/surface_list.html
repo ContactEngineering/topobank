@@ -21,11 +21,9 @@
   {{ form.media.css }}
 
   <!-- Include Fancytree skin  -->
-  <link href="{% static 'vendor/fancytree-2.32.0/dist/skin-awesome/ui.fancytree.min.css' %}" rel="stylesheet">
-  <!-- include jquery.fancytree.glyph.js below für 'glyph' extension of "fancytree" -->
-
-
+  <!-- link href="{# static 'vendor/fancytree/skin-awesome/ui.fancytree.min.css' #}" rel="stylesheet" -->
   <!-- TODO Use CDN? -->
+  <link href="https://unpkg.com/jquery.fancytree@2.32.0/dist/skin-awesome/ui.fancytree.min.css" rel="stylesheet">
 
 {% endblock extra_css %}
 
@@ -46,73 +44,106 @@
   </div>
   -->
 
-  <div class="row">
-    <div class="col">
-
-      <div id="basket">
-        <h3>
-          <basket-element v-for="node in nodes" v-bind:node="node" v-bind:key="node.key"></basket-element>
-        </h3>
-      </div>
-  </div>
-  <div class="col">
-    <a href="{% url 'manager:surface-create' %}" class="btn btn-primary">Create Surface</a>
-  </div>
-  </div>
 
 {% endblock searchbox %}
 
 {% block content %}
 
+  {# selected items in session #}
+  <div class="card">
+    <div class="card-header">
+      Seleted items
+    </div>
+    <div class="card-body">
+      <div id="basket">
+        <div v-if="nodes.length">
+          <basket-element v-for="node in nodes" v-bind:node="node" v-bind:key="node.key"></basket-element>
+        </div>
+        <span v-else>No items selected yet. In order to select, please use the checkboxes in the search result tree.</span>
+      </div>
+    </div>
+  </div>
+
   {# search box #}
   {# full text search in names, descriptions, labels #}
-
-  <div class="input-group input-group-lg mb-3">
-
-    <input id="searchbar" type="text" class="form-control" aria-label="Search"
-           placeholder="Filter by name and description..." autocomplete="off">
-    <div class="input-group-append">
-      <button class="btn btn-outline-secondary form-control" id="button_reset_filter" type="button">&times;</button>
+  <div class="card">
+    <div class="card-header">
+      Search items
     </div>
-    <select class="form-control" id="select-category-filter">
-      <option value="all" selected>All categories</option>
-      <option value="exp">Experimental data only</option>
-      <option value="sim">Simulated data only</option>
-      <option value="dum">Dummy data only</option>
-    </select>
-    <select class="form-control" id="select-sharing-status-filter">
-      <option value="all" selected>All</option>
-      <option value="own">Only own surfaces</option>
-      <option value="shared">Only surfaces shared with you</option>
-    </select>
+    <div class="card-body">
+      <form>
+        <div class="form-row">
 
+          <div class="form-group col-md-5">
+            <div class="input-group">
+              <input id="searchbar" type="text" class="form-control" aria-label="Search"
+                     placeholder="Filter by name, description, and tags..." autocomplete="off">
+              <div class="input-group-append">
+                <button class="btn btn-outline-secondary form-control" id="button_reset_filter" type="button">&times;</button>
+              </div>
+            </div>
+          </div>
+
+
+
+          <div class="form-group col-md2">
+            <select class="form-control" id="select-category-filter">
+              <option value="all" selected>All categories</option>
+              <option value="exp">Experimental data only</option>
+              <option value="sim">Simulated data only</option>
+              <option value="dum">Dummy data only</option>
+            </select>
+          </div>
+
+          <div class="form-group col-md-2">
+            <select class="form-control" id="select-sharing-status-filter">
+              <option value="all" selected>Own and shared surfaces</option>
+              <option value="own">Only own surfaces</option>
+              <option value="shared">Only surfaces shared with you</option>
+            </select>
+          </div>
+
+          <div class="form-group col-md-1">
+            <a class="btn btn-primary" href="{% url 'manager:surface-create' %}">Create Surface</a>
+          </div>
+
+        </div>
+
+      </form>
+      <div id="search-result">
+
+        <div id="scrollParent" style="height: 500px; overflow: auto;">
+          <table id="newtree" class="table table-condensed">
+            <colgroup>
+              <col width="2%"></col>
+              <col width="35%"></col>
+              <col width="48%"></col>
+              <col width="15%"></col>
+            </colgroup>
+            <thead>
+            <tr>
+              <th scope="col"></th>
+              <th scope="col">Name</th>
+              <th scope="col">Description</th>
+              <th scope="col">Tags</th>
+            </tr>
+            </thead>
+            <tbody>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="card-footer">
+      <div id="result-summary"></div>
+    </div>
+  </div>
   </div>
 
   {# search result as a tree table #}
 
-  <div id="search-result">
-
-    <div id="scrollParent" style="height: 500px; overflow: auto;">
-      <table id="newtree" class="table table-bordered">
-        <colgroup>
-          <col width="5%"></col>
-          <col width="25%"></col>
-          <col width="50%"></col>
-          <col width="20%"></col>
-        </colgroup>
-        <thead>
-          <tr>
-            <th scope="col"></th>
-            <th scope="col">Name</th>
-            <th scope="col">Description</th>
-            <th scope="col">Tags</th>
-          </tr>
-        </thead>
-        <tbody>
-        </tbody>
-      </table>
-    </div>
-  </div>
 
 
 
@@ -147,11 +178,17 @@
   {{ form.media.js }}
 
   <script src="https://unpkg.com/gijgo@1.9.13/js/gijgo.min.js"></script>
-  <script src="{% static 'vendor/jquery-highlight-3.3.0/jquery.highlight.js' %}"></script>
-  <script src="{% static 'vendor/fancytree-2.32.0/dist/jquery.fancytree-all-deps.min.js' %}"></script>
-  <script src="{% static 'vendor/fancytree-2.32.0/dist/modules/jquery.fancytree.glyph.js' %}"></script>
-  <script src="{% static 'vendor/fancytree-2.32.0/dist/modules/jquery.fancytree.table.js' %}"></script>
-  <script src="{% static 'vendor/fancytree-2.32.0/dist/modules/jquery.fancytree.filter.js' %}"></script>
+
+  <script src="https://unpkg.com/jquery-highlight@3.3.0/jquery.highlight.js"></script>
+  <script src="https://unpkg.com/jquery.fancytree@2.32.0/dist/jquery.fancytree-all-deps.min.js"></script>
+  <script src="https://unpkg.com/jquery.fancytree@2.32.0/dist/modules/jquery.fancytree.glyph.js"></script>
+  <script src="https://unpkg.com/jquery.fancytree@2.32.0/dist/modules/jquery.fancytree.table.js"></script>
+  <script src="https://unpkg.com/jquery.fancytree@2.32.0/dist/modules/jquery.fancytree.filter.js"></script>
+  {#  <script src="{% static 'vendor/jquery-highlight-3.3.0/jquery.highlight.js' %}"></script>#}
+  {#  <script src="{% static 'vendor/fancytree/jquery.fancytree-all-deps.min.js' %}"></script>#}
+  {#  <script src="{% static 'vendor/fancytree/modules/jquery.fancytree.glyph.js' %}"></script>#}
+  {#  <script src="{% static 'vendor/fancytree/modules/jquery.fancytree.table.js' %}"></script>#}
+  {#  <script src="{% static 'vendor/fancytree/modules/jquery.fancytree.filter.js' %}"></script>#}
 
 
 
@@ -162,87 +199,51 @@
        * @type {*|jQuery}
        */
 
-
+      function get_tree() {
+          return $("#newtree").fancytree("getTree");
+      }
 
       var basket = new Vue({
           delimiters: ['[[', ']]'],
           el: '#basket',
           data: {
-            current_time: Date.now(), // see https://github.com/vuejs/vue/issues/214#issuecomment-57822806
-            nodes: [],
+              nodes: [],
           },
           methods:{
               update: function () {
-
-                  console.log("Update new tree");
-
-                  var tree = $("#newtree").fancytree("getTree");
-
-
+                  var tree = get_tree();
                   var nodes = [];
 
                   tree.getSelectedNodes(true).forEach(function (node) {
                       // here called with stopOnParents=true,
                       // so selected surfaces are pushed but not single topographies then
-                      console.log("Push into basket: "+node.data);
                       nodes.push(node);
                   });
 
-                  //console.log("Result: "+nodes);
-                  //console.dir(nodes[0]);
                   this.nodes = nodes;
               }
-          },
-
-          computed: {
-              items_sav: function () {
-
-                  console.log("Update new tree");
-
-                  var tree = $("#newtree").fancytree("getTree");
-
-
-
-                  var result = [];
-
-                  tree.getSelectedNodes().forEach(function (node) {
-                      // TODO only push
-                      result.push(node.data);
-                  });
-
-                  console.log("Result for basket:"+result);
-                  return result;
-                  //
-                  // return tree.getSelectedNodes().filter(function (node) {
-                  //
-                  //       var data = node.data;
-                  //
-                  //
-                  //
-                  //       // only push topography item if
-                  //       // - it is a surface
-                  //       // - or it is a topography and its surface is not already
-                  //       //   included because all topographies of the surface are included
-                  //       // console.log(item.name + " " + item.is_surface_selected);
-                  //       if (!item.hasOwnProperty('is_surface_selected') || (item.is_surface_selected == false)) {
-                  //           console.log("Pushed: " + item.key + " " + item.name + " " + item.is_surface_selected);
-                  //           return true; // TODO can be easily written more compact
-                  //       } else {
-                  //           console.log("Not pushed: " + item.key + " " + item.name + " " + item.is_surface_selected);
-                  //           return false;
-                  //       }
-                  //   });
-              }
-          },
-          /**
-          created: function(){
-              var self = this
-              setInterval(function () {
-                console.log("Update basket");
-                self.current_time = Date.now();
-              }, 1000)
           }
-           */
+      });
+
+      var summary_vm = new Vue({
+          delimiters: ['[[', ']]'],
+          el: '#result-summary',
+          template: `
+            <span>Showing [[ num_surfaces_shown ]] surfaces out of [[ num_surfaces ]].</span>
+          `,
+          data: {
+              num_surfaces: 0,
+              num_surfaces_shown: 0
+          },
+          methods: {
+              update: function() {
+                  var tree = get_tree();
+                  this.num_surfaces = tree.rootNode.children.length;
+                  this.num_surfaces_shown = tree.rootNode.children.filter(function (node){
+                      return node.isMatched();
+                  }).length;
+              }
+          }
       });
 
 
@@ -267,7 +268,7 @@
             counter: false,     // Show a badge with number of matching child nodes near parent icons
             fuzzy: false,      // Match single characters in order, e.g. 'fb' will match 'FooBar'
             hideExpandedCounter: true,  // Hide counter badge if parent is expanded
-            hideExpanders: false,       // Hide expanders if all child nodes are hidden by filter
+            hideExpanders: true,       // Hide expanders if all child nodes are hidden by filter
             highlight: false,   // Highlight matches by wrapping inside <mark> tags | we do this outself because of extra columns
             leavesOnly: false, // Match end nodes only
             nodata: true,      // Display a 'no data' status node if result is empty
@@ -282,6 +283,7 @@
           selectMode: 3, // 'multi-hier'
           init: function() {
             basket.update();
+            summary_vm.update();
           },
           dblclick: function(event, data) {
             // window.open(data.node.data.urls.detail);
@@ -339,7 +341,6 @@
                 node.data.tags.forEach(function (tag) {
                    tag_html += "<span class='badge badge-success mr-1'>"+tag+"</span>"
                 });
-                console.log(tag_html);
                 $tdList
                   .eq(3)
                     .html(tag_html);
@@ -369,92 +370,58 @@
         }
       });
 
-      $("#select-category-filter").on('change', function() {
-         $("#newtree").fancytree("getTree").filterNodes( function(node) {
+      function filter_items() {
+          get_tree().filterNodes( function(node) {
             var category = $('#select-category-filter').val();
-            return (category==='all') || (node.data.category === category);
+            var status = $('#select-sharing-status-filter').val();
+            var term = $('#searchbar').val().toLocaleLowerCase();
+            var data = node.data;
+
+            return (data.name.toLocaleLowerCase().includes(term) || data.description.toLocaleLowerCase().includes(term)
+                    || data.tags.some(function (tag) {return tag.includes(term)}))
+                  && ((category==='all') || (node.data.category === category))
+                  && ((status==='all') || (node.data.sharing_status === status));
          });
+
+
+         // Highlight the search items in tree
+         $("#newtree").unhighlight();
+         $("#newtree").highlight($('#searchbar').val());
+
+         summary_vm.update();
+      }
+
+      $("#select-category-filter").on('change', function() {
+         filter_items();
       });
 
       $("#select-sharing-status-filter").on('change', function() {
-         $("#newtree").fancytree("getTree").filterNodes( function(node) {
-            var status = $('#select-sharing-status-filter').val();
-            return (status==='all') || (node.data.sharing_status === status);
-         });
+         filter_items();
       });
 
       $("#searchbar").on('input', function (){
-
-          //tree.collapseAll();
-
-          $("#newtree").fancytree("getTree").filterNodes( function(node) {
-              var term = $('#searchbar').val().toLocaleLowerCase();
-              var data = node.data;
-              // Perform case insensitive search
-              return data.name.toLocaleLowerCase().includes(term) || data.description.toLocaleLowerCase().includes(term);
-          });
-
-          // Highlight the search items in tree
-          $("#newtree").unhighlight();
-          $("#newtree").highlight($('#searchbar').val());
-
-
-
-          return
-
-
-
-
-
-
-
-          /** Fetching new search results given the search query */
-          // tree.reload({search: $('#searchbar').val() });
-          /**
-          var tree = $("#newtree").fancytree("getTree");
-          tree.reload( {
-               url: "{% url 'manager:surface-search' %}?search="+$('#searchbar').val(),
-               cache: false
-          }).then(function(){
-              basket.update();
-              tree.expandAll();
-
-              // Highlight the search items in tree
-              $("#newtree").unhighlight();
-              $("#newtree").highlight($('#searchbar').val());
-          });
-          */
-
-          /**  Expand the tree */
-          //tree.expandAll();
+          filter_items();
       });
 
       $('#button_reset_filter').click( function(){
-        $('#searchbar').val('');
-        $("#newtree").fancytree("getTree").clearFilter();
+          $('#searchbar').val('');
+          get_tree().clearFilter();
+          filter_items();
       });
 
 
-    /** Use this as start when loading new cards without form submission
-    $('.django-select2').on('change.select2', function (e) {
-       var data = e.params.data;
-       console.log("select, data "+data);
-       console.dir(data);
-    });
-    */
-
-    // for each surface submit ajax call to insert a bootstrap card
-    /**
-    $(document).ready(function () {
-      {% url 'manager:surface-card' as card_url %}
-      {% for surface in surfaces %}
-        // TODO disabled temporarily
-        // submit_surface_card_ajax("{{ card_url }}", {{ surface.id }}, "{{ request.path }}");
-      {% endfor %}
-    });
-    */
-    // we don't want error messages if the page is left before everything is loaded
-    install_handler_for_aborting_all_ajax_calls_on_page_leave();
+      // for each surface submit ajax call to insert a bootstrap card
+      /**
+      $(document).ready(function () {
+        {% url 'manager:surface-card' as card_url %}
+        {% for surface in surfaces %}
+          // TODO disabled temporarily
+          // submit_surface_card_ajax("{{ card_url }}", {{ surface.id }}, "{{ request.path }}");
+        {% endfor %}
+      });
+      */
+      // we don't want error messages if the page is left before everything is loaded
+      install_handler_for_aborting_all_ajax_calls_on_page_leave();
   </script>
 
 {% endblock javascript %}

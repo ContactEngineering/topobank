@@ -25,6 +25,7 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
     is_surface_selected = serializers.SerializerMethodField()
     key = serializers.SerializerMethodField()
     folder = serializers.SerializerMethodField()
+    tags = serializers.SerializerMethodField()
 
     def get_urls(self, obj):
         return {
@@ -47,10 +48,12 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
     def get_folder(self, obj):
         return False
 
+    def get_tags(self, obj):  # TODO prove if own method needed
+        return [t.name for t in obj.tags.all()]
 
     class Meta:
         model = Topography
-        fields = ['pk', 'name', 'creator', 'description',
+        fields = ['pk', 'name', 'creator', 'description', 'tags',
                   'urls', 'selected', 'is_surface_selected',
                   'key', 'title', 'folder']
 
