@@ -61,18 +61,3 @@ class TermsView(TemplateView):
             context['active_terms'] = active_terms.order_by('optional')
 
         return context
-
-class WorkbenchView(TemplateView):
-    template_name = 'pages/workbench.html'
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data()
-
-        selected_topos, selected_surfaces = selected_instances(self.request)
-        selected = [{'name': x.name, 'type': 'topography', 'id': x.id} for x in selected_topos]
-        selected.extend([{'name': x.name, 'type': 'surface', 'id': x.id} for x in selected_surfaces])
-
-        context['selected_json'] = json.dumps(selected)
-        context['choices'] = selection_choices(self.request.user)
-
-        return context

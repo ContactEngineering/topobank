@@ -7,7 +7,7 @@ from django.views.generic import TemplateView
 from django.views import defaults as default_views
 import notifications.urls
 
-from topobank.views import TermsView, HomeView, WorkbenchView
+from topobank.views import TermsView, HomeView
 
 urlpatterns = [
     path("", HomeView.as_view(), name="home"),
@@ -57,11 +57,6 @@ urlpatterns = [
     path(
         "analysis/",
         include("topobank.analysis.urls", namespace="analysis"),
-    ),
-    path(
-        "workbench/",
-        WorkbenchView.as_view(),
-        name="workbench",
     ),
 ] + static(
     settings.MEDIA_URL, document_root=settings.MEDIA_ROOT
