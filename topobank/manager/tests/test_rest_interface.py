@@ -1,14 +1,11 @@
 import pytest
-import json
-from collections import OrderedDict
-from operator import itemgetter
 
 from django.shortcuts import reverse
 from rest_framework.test import APIRequestFactory
 
 from ..views import select_surface, unselect_surface, SurfaceSearch, select_topography, unselect_topography
 from ..utils import selected_instances
-from .utils import SurfaceFactory, UserFactory, TopographyFactory
+from .utils import SurfaceFactory, UserFactory, TopographyFactory, ordereddicts_to_dicts
 
 
 @pytest.mark.django_db
@@ -256,13 +253,6 @@ def test_unselect_topography():
     assert selected_instances(request)[1] == [surface2]
 
 
-def ordereddict_to_dict(input_ordered_dict, sorted_by='pk'):
-    result = json.loads(json.dumps(input_ordered_dict))
-    if sorted_by is not None:
-        result = sorted(result, key=itemgetter(sorted_by))
-    return result
-
-
 @pytest.mark.django_db
 def test_surface_search_with_request_factory():
     #
@@ -452,4 +442,4 @@ def test_surface_search_with_request_factory():
         },
     ]
 
-    assert ordereddict_to_dict(response.data) == expected_dicts
+    assert ordereddicts_to_dicts(response.data) == expected_dicts
