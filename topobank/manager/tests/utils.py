@@ -108,7 +108,7 @@ def one_line_scan():
                              datafile=datafile)
 
 
-def export_reponse_as_html(response, fname='/tmp/response.html'):
+def export_reponse_as_html(response, fname='/tmp/response.html'): # pragma: no cover
     """
     Helper function which can be used for debugging.
 
