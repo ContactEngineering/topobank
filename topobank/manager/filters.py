@@ -1,3 +1,6 @@
+#
+# So far these filters are not used, since the filtering is done in the client
+#
 from django_filters import rest_framework as filters
 
 from.models import Surface, Topography
