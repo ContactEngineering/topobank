@@ -1133,7 +1133,7 @@ class SurfaceSearch(ListAPIView):
     List all surfaces
     """
     serializer_class = SurfaceSerializer
-    filter_backends = (filters.SearchFilter,) # so far not used because the filtering is done in client
+    #filter_backends = (filters.SearchFilter,) # so far not used because the filtering is done in client
     search_fields = ('name', 'description', 'topography__name', 'topography__description')
 
     def get_queryset(self):
