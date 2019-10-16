@@ -1,6 +1,6 @@
 import yaml
 import zipfile
-from io import BytesIO, StringIO
+from io import BytesIO
 
 from django.shortcuts import redirect, render
 from django.views.generic import DetailView, ListView, UpdateView, CreateView, DeleteView, TemplateView
@@ -14,7 +14,7 @@ from django.http import HttpResponse
 from django.http import HttpResponseForbidden
 from django.views.generic.edit import FormMixin
 from django.contrib.auth.mixins import UserPassesTestMixin
-from django.contrib.auth.decorators import login_required
+# from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 from django.db.models import Q
 
@@ -27,7 +27,7 @@ from django_tables2 import RequestConfig
 from bokeh.plotting import figure
 from bokeh.embed import components
 from bokeh.models import DataRange1d, LinearColorMapper, ColorBar
-import tagulous.views
+# import tagulous.views
 
 from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
@@ -1178,7 +1178,7 @@ def set_surface_select_status(request, pk, select_status):
     is_selected = surface_key in selection
 
     if request.method == 'POST':
-        # remove all explicity selected topographies from this surface
+        # remove all explicitly selected topographies from this surface
         for t in surface.topography_set.all():
             topo_key = _topography_key(t.pk)
             if topo_key in selection:
@@ -1305,10 +1305,10 @@ def unselect_topography(request, pk):
     """
     return set_topography_select_status(request, pk, False)
 
-@login_required
-def autocomplete_tags(request):
-
-    return tagulous.views.autocomplete(
-        request,
-        tags_for_user(request.user)
-    )
+# @login_required
+# def autocomplete_tags(request):
+#
+#     return tagulous.views.autocomplete(
+#         request,
+#         tags_for_user(request.user)
+#     )
