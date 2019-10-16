@@ -6,6 +6,7 @@ from PyCo.Topography import open_topography
 
 from topobank.taskapp.celery import app
 
+
 from operator import itemgetter
 import logging
 
@@ -72,6 +73,22 @@ def surfaces_for_user(user, perms=['view_surface']):
     """
     from topobank.manager.models import Surface
     return get_objects_for_user(user, perms, klass=Surface, accept_global_perms=False)
+
+def tags_for_user(user):
+    """Return set of tags which can be used for autocompletion when editing tags.
+
+    A user should not see all tags ever used on the app, but only those
+    which were chosen by herself or collaborators.
+
+    :param user: User instance
+    :return: list of strings
+    """
+    surfaces = surfaces_for_user(user)
+
+    from .models import TagModel
+    from django.db.models import Q
+
+    return TagModel.objects.filter(Q(surface__in=surfaces) | Q(topography__surface__in=surfaces)).distinct()
 
 
 def selection_choices(user):
@@ -157,6 +174,9 @@ def selection_to_instances(selection, surface=None):
      'surfaces': all surfaces explicitly found in the selection (not only because its topography was selected)
 
     Also surfaces without topographies are returned in 'surfaces' if selected.
+
+    If a surface is selected, all topographies for this surface will also
+    be returned.
     """
     from .models import Topography, Surface
 
@@ -171,8 +191,10 @@ def selection_to_instances(selection, surface=None):
         elif type == 'surface':
             surface_ids.add(id)
             if (surface is not None) and (surface.id != id):
-                continue # skip this surface, it is not relevant
+                continue # skip this surface, it is not relevant because argument surface was given
 
+            # either surface is None or this is the interesting surface
+            # -> Also add all topographies from this surface
             topography_ids.update(list(Topography.objects.filter(surface__id=id).values_list('id', flat=True)))
 
     topography_ids = list(topography_ids)

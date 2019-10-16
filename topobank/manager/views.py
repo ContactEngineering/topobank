@@ -14,6 +14,7 @@ from django.http import HttpResponse
 from django.http import HttpResponseForbidden
 from django.views.generic.edit import FormMixin
 from django.contrib.auth.mixins import UserPassesTestMixin
+from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 from django.db.models import Q
 
@@ -26,7 +27,7 @@ from django_tables2 import RequestConfig
 from bokeh.plotting import figure
 from bokeh.embed import components
 from bokeh.models import DataRange1d, LinearColorMapper, ColorBar
-
+import tagulous.views
 
 from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
@@ -42,7 +43,7 @@ from .models import Topography, Surface
 from .forms import TopographyForm, SurfaceForm, TopographySelectForm, SurfaceShareForm
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, Topography1DUnitsForm, Topography2DUnitsForm
 from .utils import selected_instances, selection_from_session, selection_for_select_all, \
-    bandwidths_data, surfaces_for_user, get_topography_reader, selection_choices
+    bandwidths_data, surfaces_for_user, get_topography_reader, selection_choices, tags_for_user
 from .serializers import SurfaceSerializer, TopographySerializer
 
 from topobank.users.models import User
@@ -235,6 +236,7 @@ class TopographyCreateWizard(SessionWizardView):
             # Set surface in order to check for duplicate topography names
             #
             kwargs['surface'] = step0_data['surface']
+            kwargs['autocomplete_tags'] = tags_for_user(self.request.user)
 
         return kwargs
 
@@ -366,6 +368,7 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs['has_size_y'] = self.object.size_y is not None
+        kwargs['autocomplete_tags'] = tags_for_user(self.request.user)
         return kwargs
 
     def form_valid(self, form):
@@ -715,6 +718,11 @@ class SurfaceCreateView(CreateView):
     model = Surface
     form_class = SurfaceForm
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['autocomplete_tags'] = tags_for_user(self.request.user)
+        return kwargs
+
     def get_initial(self, *args, **kwargs):
         initial = super(SurfaceCreateView, self).get_initial()
         initial = initial.copy()
@@ -801,6 +809,11 @@ class SurfaceUpdateView(UpdateView):
     @surface_update_permission_required
     def dispatch(self, request, *args, **kwargs):
         return super().dispatch(request, *args, *kwargs)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['autocomplete_tags'] = tags_for_user(self.request.user)
+        return kwargs
 
     def form_valid(self, form):
 
@@ -1291,3 +1304,11 @@ def unselect_topography(request, pk):
     The response has no data.
     """
     return set_topography_select_status(request, pk, False)
+
+@login_required
+def autocomplete_tags(request):
+
+    return tagulous.views.autocomplete(
+        request,
+        tags_for_user(request.user)
+    )

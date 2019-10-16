@@ -1,5 +1,8 @@
 from django.shortcuts import reverse
+
 from rest_framework import serializers
+from guardian.shortcuts import get_perms
+
 import logging
 
 from .models import Surface, Topography
@@ -22,25 +25,43 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
 
     urls = serializers.SerializerMethodField()
     selected = serializers.SerializerMethodField()
-    is_surface_selected = serializers.SerializerMethodField()
     key = serializers.SerializerMethodField()
     folder = serializers.SerializerMethodField()
     tags = serializers.SerializerMethodField()
 
     def get_urls(self, obj):
-        return {
+        """Return only those urls which are usable for the usser
+
+        :param obj: topography object
+        :return: dict with { url_name: url }
+        """
+        user = self.context['request'].user
+        surface = obj.surface
+
+        perms = get_perms(user, surface)
+
+        urls = {
             'select': reverse('manager:topography-select', kwargs=dict(pk=obj.pk)),
-            'unselect': reverse('manager:topography-unselect', kwargs=dict(pk=obj.pk)),
-            'detail': reverse('manager:topography-detail', kwargs=dict(pk=obj.pk)),
+            'unselect': reverse('manager:topography-unselect', kwargs=dict(pk=obj.pk))
         }
+
+        if 'view_surface' in perms:
+            urls['detail'] = reverse('manager:topography-detail', kwargs=dict(pk=obj.pk))
+            urls['show_analyses'] = reverse('manager:topography-show-analyses', kwargs=dict(topography_id=obj.pk))
+
+        if 'change_surface' in perms:
+            urls.update({
+                'update': reverse('manager:topography-update', kwargs=dict(pk=obj.pk))
+            })
+
+        if 'delete_surface' in perms:
+            urls['delete'] = reverse('manager:topography-delete', kwargs=dict(pk=obj.pk))
+
+        return urls
 
     def get_selected(self, obj):
         topographies, surfaces = self.context['selected_instances']
         return (obj in topographies) or (obj.surface in surfaces)
-
-    def get_is_surface_selected(self, obj):
-        topographies, surfaces = self.context['selected_instances']
-        return obj.surface in surfaces
 
     def get_key(self, obj):
         return f"topography-{obj.pk}"
@@ -54,7 +75,7 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Topography
         fields = ['pk', 'name', 'creator', 'description', 'tags',
-                  'urls', 'selected', 'is_surface_selected',
+                  'urls', 'selected',
                   'key', 'title', 'folder']
 
 
@@ -73,8 +94,6 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
         lookup_field='username',
     )
 
-    topographies = TopographySerializer(source='topography_set', many=True)
-
     urls = serializers.SerializerMethodField()
     selected = serializers.SerializerMethodField()
     key = serializers.SerializerMethodField()
@@ -83,11 +102,37 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
     tags = serializers.SerializerMethodField()
 
     def get_urls(self, obj):
-        return {
+
+        user = self.context['request'].user
+        perms = get_perms(user, obj)
+
+        urls =  {
             'select': reverse('manager:surface-select', kwargs=dict(pk=obj.pk)),
-            'unselect': reverse('manager:surface-unselect', kwargs=dict(pk=obj.pk)),
-            'detail': reverse('manager:surface-detail', kwargs=dict(pk=obj.pk)),
+            'unselect': reverse('manager:surface-unselect', kwargs=dict(pk=obj.pk))
         }
+        if 'view_surface' in perms:
+            urls['detail'] = reverse('manager:surface-detail', kwargs=dict(pk=obj.pk))
+            if obj.num_topographies() > 0:
+                urls.update({
+                    'show_analyses': reverse('manager:surface-show-analyses', kwargs=dict(surface_id=obj.id)),
+                    'download': reverse('manager:surface-download', kwargs=dict(surface_id=obj.id)),
+
+                })
+        if 'change_surface' in perms:
+            urls.update({
+                'add_topography': reverse('manager:topography-create', kwargs=dict(surface_id=obj.id)),
+                'update': reverse('manager:surface-update', kwargs=dict(pk=obj.pk)),
+            })
+        if 'delete_surface' in perms:
+            urls.update({
+                'delete': reverse('manager:surface-delete', kwargs=dict(pk=obj.pk)),
+            })
+        if 'share_surface' in perms:
+            urls.update({
+                'share': reverse('manager:surface-share', kwargs=dict(pk=obj.pk)),
+            })
+
+        return urls
 
     def get_selected(self, obj):
         topographies, surfaces  = self.context['selected_instances']
@@ -112,6 +157,6 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Surface
-        fields = ['pk', 'name', 'creator', 'description', 'category', 'tags', 'topographies',
-                  'sharing_status', 'urls', 'selected', 'key', 'title', 'children', 'folder']
+        fields = ['pk', 'name', 'creator', 'description', 'category', 'tags', 'children',
+                  'sharing_status', 'urls', 'selected', 'key', 'title', 'folder']
 

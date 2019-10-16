@@ -84,8 +84,6 @@
             </div>
           </div>
 
-
-
           <div class="form-group col-md2">
             <select class="form-control" id="select-category-filter">
               <option value="all" selected>All categories</option>
@@ -103,7 +101,7 @@
             </select>
           </div>
 
-          <div class="form-group col-md-1">
+          <div class="form-group col-md-2">
             <a class="btn btn-primary" href="{% url 'manager:surface-create' %}">Create Surface</a>
           </div>
 
@@ -117,13 +115,15 @@
             <colgroup>
               <col width="2%"></col>
               <col width="35%"></col>
-              <col width="48%"></col>
+              <col width="2%"></col>
+              <col width="46%"></col>
               <col width="15%"></col>
             </colgroup>
             <thead>
             <tr>
               <th scope="col"></th>
               <th scope="col">Name</th>
+              <th scope="col"></th>{# for actions #}
               <th scope="col">Description</th>
               <th scope="col">Tags</th>
             </tr>
@@ -246,6 +246,71 @@
           }
       });
 
+      function menu_items(node, urls) {
+          // node: tree node for which this function is called
+          // urls: object with url names as keys and urls as values
+          //
+          // Use this function to compile menu items for surfaces and topographies
+          //
+          // return HTML
+
+          var result = "";
+          if (urls.hasOwnProperty('detail')) {
+              result += `
+                  <a href="${urls.detail}" class="dropdown-item">
+                    {% fontawesome_icon 'folder-open-o' %} Details
+                  </a>
+              `
+          }
+          if (urls.hasOwnProperty('show_analyses')) {
+              result += `
+                  <a href="${urls.show_analyses}" class="dropdown-item">
+                    {% fontawesome_icon 'area-chart' %} Show analyses
+                  </a>
+              `
+          }
+          if (urls.hasOwnProperty('update')) {
+              result += `
+                  <div class="dropdown-divider"></div>
+                  <a href="${urls.update}?redirect=${window.location}" class="dropdown-item">
+                    {% fontawesome_icon 'edit' %} Edit meta data
+                  </a>
+              `
+          }
+          if (urls.hasOwnProperty('add_topography')) {
+              result += `
+                  <a href="${urls.add_topography}" class="dropdown-item">
+                    {% fontawesome_icon 'plus-square' %} Add topography
+                  </a>
+              `
+          }
+          /** DOES NOT WORK YET
+           * Make node expand when click on "Expand"
+          if (node.hasOwnProperty('children')) {
+
+              var expand_id = "expand-" + node.key;
+              result += `
+                  <div class="dropdown-divider"></div>
+                  <a href="#" id="${expand_id}" class="dropdown-item">
+                    {% fontawesome_icon 'chevron-down' %} Expand
+                  </a>
+              `;
+
+              $("#"+expand_id).click(function () {
+                  node.setExpanded(true)
+              });
+          }
+          */
+          if (urls.hasOwnProperty('delete')) {
+              result += `
+                  <div class="dropdown-divider"></div>
+                  <a href="${urls.delete}" class="dropdown-item text-danger">
+                    {% fontawesome_icon 'trash' %} Delete
+                  </a>
+              `
+          }
+          return result;
+      }
 
       var newtree = $('#newtree').fancytree({
           extensions: ["glyph", "table", "filter"],
@@ -268,7 +333,7 @@
             counter: false,     // Show a badge with number of matching child nodes near parent icons
             fuzzy: false,      // Match single characters in order, e.g. 'fb' will match 'FooBar'
             hideExpandedCounter: true,  // Hide counter badge if parent is expanded
-            hideExpanders: true,       // Hide expanders if all child nodes are hidden by filter
+            hideExpanders: false,       // Hide expanders if all child nodes are hidden by filter
             highlight: false,   // Highlight matches by wrapping inside <mark> tags | we do this outself because of extra columns
             leavesOnly: false, // Match end nodes only
             nodata: true,      // Display a 'no data' status node if result is empty
@@ -278,16 +343,15 @@
               url: "{% url 'manager:surface-search' %}",
               cache: false
           },
+          //autoActivate: false,
+          //titlesTabbable: false,
+          focusOnSelect: false,
           scrollParent: $("#scrollParent"),
           checkbox: true,
           selectMode: 3, // 'multi-hier'
           init: function() {
             basket.update();
             summary_vm.update();
-          },
-          dblclick: function(event, data) {
-            // window.open(data.node.data.urls.detail);
-            window.location = data.node.data.urls.detail;
           },
           select: function(event, data) {
               var node = data.node;
@@ -329,24 +393,47 @@
           },
           renderColumns: function(event, data) {
               var node = data.node,
-                $tdList = $(node.tr).find(">td");
 
-                // (Index #0 is rendered by fancytree by adding the checkbox)
-                // (Index #1 is rendered by fancytree)
-                // Set column #2 info from node data:
-                $tdList
-                  .eq(2)
-                    .text(node.data.description);
-                var tag_html = [];
-                node.data.tags.forEach(function (tag) {
-                   tag_html += "<span class='badge badge-success mr-1'>"+tag+"</span>"
-                });
-                $tdList
-                  .eq(3)
-                    .html(tag_html);
-                // Static markup (more efficiently defined as html row template):
-                // $tdList.eq(3).html("<input type='input' value='" + "" + "'>");
-                // ...
+              $tdList = $(node.tr).find(">td");
+
+              // (Index #0 is rendered by fancytree by adding the checkbox)
+              // (Index #1 is rendered by fancytree)
+
+              // Set rest from node data:
+              var menu_html = `
+              <div class="btn-group btn-group-sm pull-right dropdown">
+                <button type="button" class="btn btn-default button-small" data-toggle="dropdown"
+                        aria-haspopup="true" aria-expanded="false">
+                  <i class="fa fa-chevron-down"></i>
+                </button>
+                <div class="dropdown-menu">
+                  <h5 class="dropdown-header">
+                  ${ node.key.includes('surface') ? 'Surface' : 'Topography' }
+                  </h5>
+                  <div class="dropdown-divider"></div>
+                  ${ menu_items(node, node.data.urls) }
+                </div>
+              </div>
+              `;
+
+              $tdList
+                .eq(2)
+                  .html(menu_html);
+
+              $tdList
+                .eq(3)
+                  .text(node.data.description);
+
+              var tag_html = [];
+              node.data.tags.forEach(function (tag) {
+                 tag_html += "<span class='badge badge-success mr-1'>"+tag+"</span>"
+              });
+              $tdList
+                .eq(4)
+                  .html(tag_html);
+              // Static markup (more efficiently defined as html row template):
+              // $tdList.eq(3).html("<input type='input' value='" + "" + "'>");
+              // ...
             },
       });
 

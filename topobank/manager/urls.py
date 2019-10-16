@@ -151,4 +151,9 @@ urlpatterns = [
         view=login_required(views.sharing_info),
         name='sharing-info'
     ),
+    url(
+        regex=r'tags/$',
+        view=login_required(views.autocomplete_tags),
+        name='autocomplete-tags',
+    ),
 ]

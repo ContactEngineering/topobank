@@ -20,6 +20,8 @@ class TagModel(tm.TagTreeModel):
     """
     class TagMeta:
         force_lowercase = True
+        # not needed yet
+        # autocomplete_view = 'manager:autocomplete-tags'
 
 class Surface(models.Model):
     """Physical Surface.
