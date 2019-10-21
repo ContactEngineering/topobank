@@ -441,11 +441,11 @@
         props: ['node'],
         delimiters: ['[[', ']]'],
         template: `
-               <span v-if="node.key.startsWith('surface')" class="badge badge-pill badge-primary mr-1" v-on:click="handle_click">[[ node.title ]]
-                    <span class="fa fa-close"></span>
+               <span v-if="node.key.startsWith('surface')" class="badge badge-pill badge-primary mr-1">[[ node.title ]]
+                    <span class="fa fa-close" v-on:click="handle_click"></span>
                </span>
-               <span v-else class="badge badge-pill badge-secondary mr-1" v-on:click="handle_click">[[ node.title ]]
-                    <span class="fa fa-close"></span>
+               <span v-else class="badge badge-pill badge-secondary mr-1">[[ node.title ]]
+                    <span class="fa fa-close" v-on:click="handle_click"></span>
                </span>
              `,
         methods: {
