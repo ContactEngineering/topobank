@@ -258,14 +258,14 @@
           if (urls.hasOwnProperty('detail')) {
               result += `
                   <a href="${urls.detail}" class="dropdown-item">
-                    {% fontawesome_icon 'folder-open-o' %} Details
+                    {% fontawesome_icon 'folder-open-o' fixed=True  %} Details
                   </a>
               `
           }
           if (urls.hasOwnProperty('show_analyses')) {
               result += `
                   <a href="${urls.show_analyses}" class="dropdown-item">
-                    {% fontawesome_icon 'area-chart' %} Show analyses
+                    {% fontawesome_icon 'area-chart' fixed=True %} Show analyses
                   </a>
               `
           }
@@ -273,14 +273,14 @@
               result += `
                   <div class="dropdown-divider"></div>
                   <a href="${urls.update}?redirect=${window.location}" class="dropdown-item">
-                    {% fontawesome_icon 'edit' %} Edit meta data
+                    {% fontawesome_icon 'edit' fixed=True %} Edit meta data
                   </a>
               `
           }
           if (urls.hasOwnProperty('add_topography')) {
               result += `
                   <a href="${urls.add_topography}" class="dropdown-item">
-                    {% fontawesome_icon 'plus-square' %} Add topography
+                    {% fontawesome_icon 'plus-square' fixed=True %} Add topography
                   </a>
               `
           }
@@ -305,7 +305,7 @@
               result += `
                   <div class="dropdown-divider"></div>
                   <a href="${urls.delete}" class="dropdown-item text-danger">
-                    {% fontawesome_icon 'trash' %} Delete
+                    {% fontawesome_icon 'trash' fixed=True  %} Delete
                   </a>
               `
           }
@@ -404,7 +404,7 @@
               <div class="btn-group btn-group-sm pull-right dropdown">
                 <button type="button" class="btn btn-default button-small" data-toggle="dropdown"
                         aria-haspopup="true" aria-expanded="false">
-                  <i class="fa fa-chevron-down"></i>
+                  <i class="fa fa-bars fa-sm"></i>
                 </button>
                 <div class="dropdown-menu">
                   <h5 class="dropdown-header">
