@@ -78,7 +78,8 @@ def tags_for_user(user):
     """Return set of tags which can be used for autocompletion when editing tags.
 
     A user should not see all tags ever used on the app, but only those
-    which were chosen by herself or collaborators.
+    which were chosen by herself or collaborators
+    and corresponding parent tags.
 
     :param user: User instance
     :return: list of strings
