@@ -44,7 +44,7 @@ from .forms import TopographyForm, SurfaceForm, TopographySelectForm, SurfaceSha
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, Topography1DUnitsForm, Topography2DUnitsForm
 from .utils import selected_instances, selection_from_session, selection_for_select_all, \
     bandwidths_data, surfaces_for_user, get_topography_reader, selection_choices, tags_for_user
-from .serializers import SurfaceSerializer, TopographySerializer
+from .serializers import SurfaceSerializer, TopographySerializer, TagSerializer
 
 from topobank.users.models import User
 
@@ -1127,6 +1127,65 @@ def show_analyses_for_topography(request, topography_id):
 #######################################################################################
 # Views for REST interface
 #######################################################################################
+
+class TagListView(ListAPIView):
+    """
+    List all surfaces
+    """
+    serializer_class = TagSerializer
+
+    def get_queryset(self):
+        return tags_for_user(self.request.user).filter(parent=None).order_by('label') # only top level
+
+    def list(self, request, *args, **kwargs):
+        response = super().list(request, args, kwargs)
+        # Add extra data to response.data for an empty tag
+        context = self.get_serializer_context()
+        surface_serializer = SurfaceSerializer(context=context)
+        topography_serializer = TopographySerializer(context=context)
+
+        surfaces_without_tags = context['surfaces'].filter(tags=None)
+        topographies_without_tags = context['topographies'].filter(tags=None)
+
+        serialized_surfaces_without_tags = [ surface_serializer.to_representation(s)
+                                             for s in surfaces_without_tags ]
+
+        serialized_topographies_without_tags = [ topography_serializer.to_representation(t)
+                                                 for t in topographies_without_tags ]
+
+        response.data.append(dict(
+            type='tag',
+            title='(untagged surfaces)',
+            pk=None,
+            name=None,
+            folder=True,
+            selected=False,
+            children=serialized_surfaces_without_tags
+        ))
+        response.data.append(dict(
+            type='tag',
+            title='(untagged topographies)',
+            pk=None,
+            name=None,
+            folder=True,
+            selected=False,
+            children=serialized_topographies_without_tags
+        ))
+
+        return response
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['selected_instances'] = selected_instances(self.request)
+        context['request'] = self.request
+        context['tags_for_user'] = tags_for_user(self.request.user)
+
+        #
+        # also pass all surfaces and topographies the user has access to
+        #
+        context['surfaces'] = surfaces_for_user(self.request.user)
+        context['topographies'] = Topography.objects.filter(surface__in=context['surfaces'])
+        return context
 
 class SurfaceSearch(ListAPIView):
     """

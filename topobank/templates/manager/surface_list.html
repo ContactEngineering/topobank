@@ -8,11 +8,6 @@
 
 {% block extra_css %}
 
-  {# gijgo: for having a searchable tree #}
-
-
-  <link rel="stylesheet" href="https://unpkg.com/gijgo@1.9.13/css/gijgo.min.css">
-
   {# vuejs for interactivity #}
   {# TODO move script tag to end? #}
   <script src="https://unpkg.com/vue@latest"></script>
@@ -52,14 +47,14 @@
   {# selected items in session #}
   <div class="card">
     <div class="card-header">
-      Seleted items
+      Items selected in surface list
     </div>
     <div class="card-body">
       <div id="basket">
-        <div v-if="nodes.length">
-          <basket-element v-for="node in nodes" v-bind:node="node" v-bind:key="node.key"></basket-element>
+        <div v-if="keys.length">
+          <basket-element v-for="elem in elements" v-bind:elem="elem"></basket-element>
         </div>
-        <span v-else>No items selected yet. In order to select, please use the checkboxes in the search result tree.</span>
+        <span v-else>No items selected yet. In order to select, please use the checkboxes in the surface list.</span>
       </div>
     </div>
   </div>
@@ -74,7 +69,7 @@
       <form>
         <div class="form-row">
 
-          <div class="form-group col-md-5">
+          <div class="form-group col-md-4">
             <div class="input-group">
               <input id="searchbar" type="text" class="form-control" aria-label="Search"
                      placeholder="Filter by name, description, and tags..." autocomplete="off">
@@ -84,7 +79,7 @@
             </div>
           </div>
 
-          <div class="form-group col-md2">
+          <div class="form-group col-md-2">
             <select class="form-control" id="select-category-filter">
               <option value="all" selected>All categories</option>
               <option value="exp">Experimental data only</option>
@@ -101,17 +96,34 @@
             </select>
           </div>
 
+
+          <div id="tree-selector" class="form-group btn-group btn-group-toggle col-md-2" data-toggle="buttons">
+            <label class="btn btn-default active">
+              <input type="radio" name="options" value="surface list" id="surface-list-radio-btn" autocomplete="off" checked>
+              {% fontawesome_icon 'diamond' %} Surface list
+            </label>
+            <label class="btn btn-default">
+                <input type="radio" name="options" value="tag tree" id="tag-tree-radio-btn" autocomplete="off">
+                {% fontawesome_icon 'tag' %}Tag tree
+            </label>
+          </div>
+
           <div class="form-group col-md-2">
-            <a class="btn btn-primary" href="{% url 'manager:surface-create' %}">Create Surface</a>
+            <a class="btn btn-primary form-control" href="{% url 'manager:surface-create' %}">Create Surface</a>
           </div>
 
         </div>
 
+
       </form>
+
+
       <div id="search-result">
 
+
+
         <div id="scrollParent" style="height: 500px; overflow: auto;">
-          <table id="newtree" class="table table-condensed">
+          <table id="result-tree" class="table table-condensed">
             <colgroup>
               <col width="2%"></col>
               <col width="35%"></col>
@@ -125,7 +137,7 @@
               <th scope="col">Name</th>
               <th scope="col"></th>{# for actions #}
               <th scope="col">Description</th>
-              <th scope="col">Tags</th>
+              <th scope="col">{% fontawesome_icon 'tag' %}Tags</th>
             </tr>
             </thead>
             <tbody>
@@ -133,19 +145,12 @@
           </table>
         </div>
       </div>
-
     </div>
 
     <div class="card-footer">
       <div id="result-summary"></div>
     </div>
   </div>
-  </div>
-
-  {# search result as a tree table #}
-
-
-
 
    <!--
   Show one card for each selected surface
@@ -177,8 +182,6 @@
 {% block javascript %}
   {{ form.media.js }}
 
-  <script src="https://unpkg.com/gijgo@1.9.13/js/gijgo.min.js"></script>
-
   <script src="https://unpkg.com/jquery-highlight@3.3.0/jquery.highlight.js"></script>
   <script src="https://unpkg.com/jquery.fancytree@2.32.0/dist/jquery.fancytree-all-deps.min.js"></script>
   <script src="https://unpkg.com/jquery.fancytree@2.32.0/dist/modules/jquery.fancytree.glyph.js"></script>
@@ -200,27 +203,67 @@
        */
 
       function get_tree() {
-          return $("#newtree").fancytree("getTree");
+          return $("#result-tree").fancytree("getTree");
       }
 
       var basket = new Vue({
           delimiters: ['[[', ']]'],
           el: '#basket',
           data: {
-              nodes: [],
+              keys: [],
+              elements: {} // key: key like "surface-1", value is object, see below
           },
           methods:{
               update: function () {
                   var tree = get_tree();
-                  var nodes = [];
+                  var elements = {};
+                  var keys = [];
 
-                  tree.getSelectedNodes(true).forEach(function (node) {
-                      // here called with stopOnParents=true,
-                      // so selected surfaces are pushed but not single topographies then
-                      nodes.push(node);
+                  tree.getSelectedNodes().forEach(function (node) {
+
+                      // console.log("is selected: "+node.key);
+
+                      if (node.type!="tag") { // TODO also push list of tags?
+
+                          var key = node.key;
+
+                          // Only add a new key if key is not yet in elements
+                          if (!(key in elements)) {
+                                console.log("Added key " + key);
+                                elements[key] = {
+                                    name: node.data.name,
+                                    type: node.type,
+                                    nodes: [node] // at least one node
+                                };
+                                keys.push(key);
+                          } else {
+                                console.log("Key " + key + " already included in basket");
+                                elements[key].nodes.push(node); // maintain list of nodes where this key is used
+                          }
+                          // console.log("Current element: ", elements[key]);
+                      }
+                  });
+                  console.log("All elements before removal: ", elements);
+
+                  // remove all elements which parent element is already included
+                  var keys_to_remove = []
+                  keys.forEach(function (key) {
+                     var elem = elements[key];
+                     var first_node_data = elem.nodes[0].data;
+                     if (first_node_data.hasOwnProperty('surface_key') && (first_node_data.surface_key in elements)) {
+                         keys_to_remove.push(key);
+                     }
+                  });
+                  keys_to_remove.forEach(function (key) {
+                      delete elements[key];
+                  });
+                  keys = keys.filter( function (key) {
+                     return keys_to_remove.indexOf(key) == -1
                   });
 
-                  this.nodes = nodes;
+                  // console.log("All elements: ", elements);
+                  this.elements = elements;
+                  this.keys = keys;
               }
           }
       });
@@ -229,17 +272,28 @@
           delimiters: ['[[', ']]'],
           el: '#result-summary',
           template: `
-            <span>Showing [[ num_surfaces_shown ]] surfaces out of [[ num_surfaces ]].</span>
+            <span>Showing [[ num_elements_shown ]] [[ element_kind ]] out of [[ num_elements ]].</span>
           `,
           data: {
-              num_surfaces: 0,
-              num_surfaces_shown: 0
+              num_elements: 0,
+              num_elements_shown: 0,
+              element_kind: "surfaces",
+              tree_mode: "surface list"
           },
           methods: {
               update: function() {
                   var tree = get_tree();
-                  this.num_surfaces = tree.rootNode.children.length;
-                  this.num_surfaces_shown = tree.rootNode.children.filter(function (node){
+
+                  if (this.tree_mode == "surface list") {
+                      this.element_kind = "surfaces";
+                  } else if (this.tree_mode == "tag tree") {
+                      this.element_kind = "top level tags";
+                  } else {
+                      this.element_kind = "(?)";
+                  }
+
+                  this.num_elements = tree.rootNode.children.length;
+                  this.num_elements_shown = tree.rootNode.children.filter(function (node){
                       return node.isMatched();
                   }).length;
               }
@@ -312,7 +366,7 @@
           return result;
       }
 
-      var newtree = $('#newtree').fancytree({
+      var result_tree = $('#result-tree').fancytree({
           extensions: ["glyph", "table", "filter"],
           glyph: {
               preset: "awesome4",
@@ -322,9 +376,23 @@
                 folderOpen: "fa-folder-open"
               }
           },
+          types: {
+            "surface": {icon: "fa fa-diamond fa-fw", iconTooltip: "This is a surface"},
+            "topography": {icon: "fa fa-file-o fa-fw", iconTooltip: "This is a topography"},
+            "tag": {icon: "fa fa-tag fa-fw", iconTooltip: "This is a tag"},
+          },
+          icon: function(event, data) {
+            // data.typeInfo contains tree.types[node.type] (or {} if not found)
+            // Here we will return the specific icon for that type, or `undefined` if
+            // not type info is defined (in this case a default icon is displayed).
+            return data.typeInfo.icon;
+          },
+          iconTooltip: function(event, data) {
+             return data.typeInfo.iconTooltip; // set tooltip which appears when hovering an icon
+          },
           table: {
 		        checkboxColumnIdx: 0,    // render the checkboxes into the this column index (default: nodeColumnIdx)
-		        indentation: 16,         // indent every node level by 16px
+		        indentation: 20,         // indent every node level by these number of pixels
 		        nodeColumnIdx: 1         // render node expander, icon, and title to this column (default: #0)
 	        },
           filter: {
@@ -352,6 +420,7 @@
           init: function() {
             basket.update();
             summary_vm.update();
+            set_tree_mode_styles("surface list");
           },
           select: function(event, data) {
               var node = data.node;
@@ -365,7 +434,7 @@
                            csrfmiddlewaretoken: "{{csrf_token}}"
                        },
                        success: function (data, textStatus, xhr) {
-                           console.log("Selected: " + node.data.name + " " + node.key);
+                           // console.log("Selected: " + node.data.name + " " + node.key);
                            basket.update();
                        },
                        error: function (xhr, textStatus, errorThrown) {
@@ -380,10 +449,8 @@
                            csrfmiddlewaretoken: "{{csrf_token}}"
                        },
                        success: function (data, textStatus, xhr) {
-                           console.log("Unselected: " + node.data.name + " " + node.key);
-
+                           // console.log("Unselected: " + node.data.name + " " + node.key);
                            basket.update();
-
                        },
                        error: function (xhr, textStatus, errorThrown) {
                            console.error("Could not unselect: " + errorThrown + " " + xhr.status + " " + xhr.responseText);
@@ -392,45 +459,71 @@
               }
           },
           renderColumns: function(event, data) {
-              var node = data.node,
+              var node = data.node;
+              var $tdList = $(node.tr).find(">td");
 
-              $tdList = $(node.tr).find(">td");
+              /**
+                Add special css classes to nodes depending on type
+               */
+
+              var extra_classes = {
+                  surface: [],
+                  topography: [],
+                  tag: ['font-italic']
+              };
+
+              extra_classes[node.type].forEach(function (c) {
+                node.addClass(c);
+              });
+
+
+              /**
+               * Render columns
+               */
+
 
               // (Index #0 is rendered by fancytree by adding the checkbox)
               // (Index #1 is rendered by fancytree)
 
               // Set rest from node data:
-              var menu_html = `
-              <div class="btn-group btn-group-sm pull-right dropdown">
-                <button type="button" class="btn btn-default button-small" data-toggle="dropdown"
-                        aria-haspopup="true" aria-expanded="false">
-                  <i class="fa fa-bars fa-sm"></i>
-                </button>
-                <div class="dropdown-menu">
-                  <h5 class="dropdown-header">
-                  ${ node.key.includes('surface') ? 'Surface' : 'Topography' }
-                  </h5>
-                  <div class="dropdown-divider"></div>
-                  ${ menu_items(node, node.data.urls) }
+              if (node.type !== "tag") {
+                  var menu_html = `
+                <div class="btn-group btn-group-sm pull-right dropdown">
+                  <button type="button" class="btn btn-default button-small" data-toggle="dropdown"
+                          aria-haspopup="true" aria-expanded="false">
+                    <i class="fa fa-bars fa-sm"></i>
+                  </button>
+                  <div class="dropdown-menu">
+                    <h5 class="dropdown-header">
+                    ${node.key.includes('surface') ? 'Surface' : 'Topography'} <em>${node.data.name}</em>
+                    </h5>
+                    <div class="dropdown-divider"></div>
+                    ${menu_items(node, node.data.urls)}
+                  </div>
                 </div>
-              </div>
-              `;
+                `;
 
-              $tdList
-                .eq(2)
-                  .html(menu_html);
 
-              $tdList
-                .eq(3)
-                  .text(node.data.description);
+                  $tdList
+                      .eq(2)
+                      .html(menu_html);
+              }
+              if (node.data.description !== undefined) {
+                  $tdList
+                      .eq(3)
+                      .text(node.data.description);
+              }
 
-              var tag_html = [];
-              node.data.tags.forEach(function (tag) {
-                 tag_html += "<span class='badge badge-success mr-1'>"+tag+"</span>"
-              });
-              $tdList
-                .eq(4)
-                  .html(tag_html);
+              if (node.data.tags !== undefined) {
+                  var tag_html = [];
+                  node.data.tags.forEach(function (tag) {
+                      tag_html += "<span class='badge badge-success mr-1'>" + tag + "</span>"
+                  });
+                  $tdList
+                      .eq(4)
+                      .html(tag_html);
+
+              }
               // Static markup (more efficiently defined as html row template):
               // $tdList.eq(3).html("<input type='input' value='" + "" + "'>");
               // ...
@@ -438,20 +531,23 @@
       });
 
       Vue.component('basket-element', {
-        props: ['node'],
+        props: ['elem'], // object with keys: 'name', 'type', 'nodes'
         delimiters: ['[[', ']]'],
         template: `
-               <span v-if="node.key.startsWith('surface')" class="badge badge-pill badge-primary mr-1">[[ node.title ]]
-                    <span class="fa fa-close" v-on:click="handle_click"></span>
+               <span v-if="elem.type=='surface'" class="badge badge-pill badge-primary mr-1">[[ elem.name ]]
+                    <span class="fa fa-close" v-on:click="handle_close"></span>
                </span>
-               <span v-else class="badge badge-pill badge-secondary mr-1">[[ node.title ]]
-                    <span class="fa fa-close" v-on:click="handle_click"></span>
+               <span v-else class="badge badge-pill badge-secondary mr-1">[[ elem.name ]]
+                    <span class="fa fa-close" v-on:click="handle_close"></span>
                </span>
              `,
         methods: {
-            handle_click: function (event) {
+            handle_close: function (event) {
                 // Clicking means "deselect"
-                this.node.setSelected(false);
+                // All nodes must be deselected - there can be several in the tag tree
+                this.elem.nodes.forEach( function(node) {
+                    node.setSelected(false);
+                })
                 basket.update();
             },
         }
@@ -459,23 +555,54 @@
 
       function filter_items() {
           get_tree().filterNodes( function(node) {
-            var category = $('#select-category-filter').val();
-            var status = $('#select-sharing-status-filter').val();
-            var term = $('#searchbar').val().toLocaleLowerCase();
-            var data = node.data;
 
-            return (data.name.toLocaleLowerCase().includes(term) || data.description.toLocaleLowerCase().includes(term)
+            if ((node.type == "surface") || (node.type == "topography")) {
+
+              var category = $('#select-category-filter').val();
+              var status = $('#select-sharing-status-filter').val();
+              var term = $('#searchbar').val().toLocaleLowerCase();
+              var data = node.data;
+
+              return (data.name.toLocaleLowerCase().includes(term) || data.description.toLocaleLowerCase().includes(term)
                     || data.tags.some(function (tag) {return tag.includes(term)}))
                   && ((category==='all') || (node.data.category === category))
                   && ((status==='all') || (node.data.sharing_status === status));
+            } else {
+              return true; // let all other nodes pass (tag & root)
+            }
          });
 
-
          // Highlight the search items in tree
-         $("#newtree").unhighlight();
-         $("#newtree").highlight($('#searchbar').val());
+         $("#result-tree").unhighlight();
+         $("#result-tree").highlight($('#searchbar').val());
 
          summary_vm.update();
+      }
+
+      function set_tree_mode_styles(tree_mode) {
+
+          var tree = get_tree();
+          console.log('set tree mode styles:', tree_mode);
+
+          var surface_list_label = $('#surface-list-radio-btn').parent('label');
+          var tag_tree_label = $('#tag-tree-radio-btn').parent('label');
+
+          if (tree_mode == 'tag tree') {
+              // tree.setOption("filter.leavesOnly", true);
+              tree.setOption("selectMode", 2);
+              // otherwise tags are selected automatically and hide surface selection when traversing
+
+              tree.setOption("checkbox", false); // this quite complicated..
+              tag_tree_label.addClass('btn-success').removeClass('btn-default');
+              surface_list_label.addClass('btn-default').removeClass('btn-success');
+
+          } else if (tree_mode == 'surface list') {
+              // tree.setOption("filter.leavesOnly", false);
+              tree.setOption("selectMode", 3);
+              tree.setOption("checkbox", true);
+              surface_list_label.addClass('btn-success').removeClass('btn-default');
+              tag_tree_label.addClass('btn-default').removeClass('btn-success');
+          }
       }
 
       $("#select-category-filter").on('change', function() {
@@ -492,8 +619,51 @@
 
       $('#button_reset_filter').click( function(){
           $('#searchbar').val('');
-          get_tree().clearFilter();
+
+          var tree = get_tree();
+
+          tree.clearFilter();
+          tree.expandAll(false);
           filter_items();
+      });
+
+      $('#tree-selector :input').change( function (){
+          var tree = get_tree();
+          var new_mode = this.value;
+          var new_source;
+
+          console.log("Triggering reload of tree for mode '"+new_mode+"'..");
+
+          if (new_mode == 'surface list') {
+            console.log("Trigger loading surface list...");
+            new_source = {
+                url: "{% url 'manager:surface-search' %}",
+                cache: false
+            };
+
+          } else if (new_mode == 'tag tree') {
+            console.log("Trigger loading tag tree...");
+            new_source = {
+                url: "{% url 'manager:tag-list' %}",
+                cache: false
+            }
+          } else {
+              console.error("Unknown tree mode: "+new_mode);
+          }
+
+          // hint: Source in tree oprion is not set when
+          // reloading here, also usig "tree.setOption"
+          // did not work. Therefore the tree mode is saved
+          // in the Vuejs component "summary_vm".
+          // There it is also needed to update the footer accordingly.
+
+          tree.reload(new_source).then( function() {
+              set_tree_mode_styles(new_mode);
+              summary_vm.tree_mode = new_mode;
+              summary_vm.update();
+              filter_items();
+              tree.expandAll(false); // collapse all nodes
+          });
       });
 
 

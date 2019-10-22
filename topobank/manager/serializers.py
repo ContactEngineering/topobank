@@ -5,15 +5,11 @@ from guardian.shortcuts import get_perms
 
 import logging
 
-from .models import Surface, Topography
+from .models import Surface, Topography, TagModel
 
 _log = logging.getLogger(__name__)
 
 class TopographySerializer(serializers.HyperlinkedModelSerializer):
-
-    #
-    # we could use a custom "ListSerializer" in order to
-    # minimize the number of call when finding whether an instance is selected or not.
 
     title = serializers.CharField(source='name')
 
@@ -26,8 +22,10 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
     urls = serializers.SerializerMethodField()
     selected = serializers.SerializerMethodField()
     key = serializers.SerializerMethodField()
+    surface_key = serializers.SerializerMethodField()
     folder = serializers.SerializerMethodField()
     tags = serializers.SerializerMethodField()
+    type = serializers.SerializerMethodField()
 
     def get_urls(self, obj):
         """Return only those urls which are usable for the usser
@@ -66,24 +64,26 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
     def get_key(self, obj):
         return f"topography-{obj.pk}"
 
+    def get_surface_key(self, obj):
+        return f"surface-{obj.surface.pk}"
+
     def get_folder(self, obj):
         return False
 
     def get_tags(self, obj):  # TODO prove if own method needed
         return [t.name for t in obj.tags.all()]
 
+    def get_type(self, obj):
+        return "topography"
+
     class Meta:
         model = Topography
-        fields = ['pk', 'name', 'creator', 'description', 'tags',
+        fields = ['pk', 'type', 'name', 'creator', 'description', 'tags',
                   'urls', 'selected',
-                  'key', 'title', 'folder']
+                  'key', 'surface_key', 'title', 'folder']
 
 
 class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
-
-    #
-    # we could use a custom "ListSerializer" in order to
-    # minimize the number of call when finding whether an instance is selected or not.
 
     title = serializers.CharField(source='name')
     children = TopographySerializer(source='topography_set', many=True)
@@ -100,6 +100,7 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
     folder = serializers.SerializerMethodField()
     sharing_status = serializers.SerializerMethodField()
     tags = serializers.SerializerMethodField()
+    type = serializers.SerializerMethodField()
 
     def get_urls(self, obj):
 
@@ -155,8 +156,66 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
     def get_tags(self, obj): # TODO prove if own method needed
         return [ t.name for t in obj.tags.all()]
 
+    def get_type(self, obj):
+        return "surface"
+
     class Meta:
         model = Surface
-        fields = ['pk', 'name', 'creator', 'description', 'category', 'tags', 'children',
+        fields = ['pk', 'type', 'name', 'creator', 'description', 'category', 'tags', 'children',
                   'sharing_status', 'urls', 'selected', 'key', 'title', 'folder']
+
+
+class TagSerializer(serializers.ModelSerializer):
+
+    title = serializers.CharField(source='label')
+    children = serializers.SerializerMethodField()
+    folder = serializers.SerializerMethodField()
+    type = serializers.SerializerMethodField()
+    key = serializers.SerializerMethodField()
+    selected = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TagModel
+        fields = ['pk', 'key', 'type', 'title', 'name', 'children', 'folder', 'selected']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._surface_serializer = SurfaceSerializer(context=self.context)
+        self._topography_serializer = TopographySerializer(context=self.context)
+
+    def get_folder(self, obj):
+        return True
+
+    def get_type(self, obj):
+        return "tag"
+
+    def get_key(self, obj):
+        return f"tag-{obj.pk}"
+
+    def get_selected(self, obj): # TODO Needed?
+        selected_topographies, selected_surfaces = self.context['selected_instances']
+        surfaces = self.context['surfaces'].filter(tags__name=obj.name)
+        topographies = self.context['topographies'].filter(tags__name=obj.name)
+
+        return all(s in selected_surfaces for s in surfaces) and all(t in selected_topographies for t in topographies)
+
+    def get_children(self, obj):
+
+        result = []
+
+        surfaces = self.context['surfaces'].filter(tags__name=obj.name)
+        topographies = self.context['topographies'].filter(tags__name=obj.name)
+
+        for t in topographies:
+            result.append(self._topography_serializer.to_representation(t))
+
+        for s in surfaces:
+            result.append(self._surface_serializer.to_representation(s))
+
+        if obj.pk is not None:
+            # find all tags which are direct children of current tag and available for this user
+            result.extend(self.to_representation(x) for x in obj.children.all() if x in self.context['tags_for_user'])
+
+        return result
+
 

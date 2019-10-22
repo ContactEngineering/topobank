@@ -151,6 +151,11 @@ urlpatterns = [
         view=login_required(views.sharing_info),
         name='sharing-info'
     ),
+    url(
+        regex=r'tags/$',
+        view=login_required(views.TagListView.as_view()),
+        name='tag-list'
+    ),
     # url(
     #     regex=r'tags/$',
     #     view=login_required(views.autocomplete_tags),
