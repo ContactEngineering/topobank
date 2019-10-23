@@ -15,8 +15,7 @@ import PyCo
 from ..models import Analysis, AnalysisFunction
 from topobank.manager.tests.utils import two_topos # needed for fixture, see arguments below
 from topobank.manager.models import Topography, Surface
-from topobank.manager.tests.utils import export_reponse_as_html, \
-    SurfaceFactory, UserFactory, TopographyFactory
+from topobank.manager.tests.utils import SurfaceFactory, UserFactory, TopographyFactory
 from .utils import AnalysisFactory, AnalysisFunctionFactory
 from topobank.utils import assert_in_content, assert_not_in_content
 from topobank.taskapp.tasks import current_configuration
@@ -311,32 +310,36 @@ def test_show_multiple_analyses_for_two_functions(client, two_topos):
             analysis.save()
 
     #
+    # Select both topographies
+    #
+    client.post(reverse("manager:topography-select", kwargs=dict(pk=topo1.pk)))
+    client.post(reverse("manager:topography-select", kwargs=dict(pk=topo2.pk)))
+
+    #
     # Check response when selecting only first function, both analyses should be shown
     #
     response = client.post(reverse("analysis:list"),
                            data={
-                               'selection': selection_from_instances([topo1, topo2]),
                                'functions': [af1.id],
                            }, follow=True)
 
     assert response.status_code == 200
 
-    assert b"Example 3 - ZSensor" in response.content
-    assert b"Example 4 - Default" in response.content
+    assert_in_content(response, "Example 3 - ZSensor")
+    assert_in_content(response, "Example 4 - Default")
 
     #
     # Check response when selecting only both functions, both analyses should be shown
     #
     response = client.post(reverse("analysis:list"),
                            data={
-                               'selection': selection_from_instances([topo1, topo2]),
                                'functions': [af1.id, af2.id],
                            }, follow=True)
 
     assert response.status_code == 200
 
-    assert b"Example 3 - ZSensor" in response.content
-    assert b"Example 4 - Default" in response.content
+    assert_in_content(response, "Example 3 - ZSensor")
+    assert_in_content(response, "Example 4 - Default")
 
 @pytest.fixture
 def ids_downloadable_analyses(two_topos):

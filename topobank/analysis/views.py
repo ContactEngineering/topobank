@@ -18,6 +18,7 @@ from rest_framework.generics import RetrieveAPIView
 from django.core.files.storage import default_storage
 from django.core.cache import cache # default cache
 from django.core.exceptions import PermissionDenied
+from django.shortcuts import reverse
 
 from bokeh.layouts import row, column, widgetbox
 from bokeh.models import ColumnDataSource, CustomJS, TapTool, Circle
@@ -43,7 +44,7 @@ from ..manager.models import Topography, Surface
 from ..manager.utils import selected_instances, selection_from_session, instances_to_selection
 from .models import Analysis, AnalysisFunction, AnalysisCollection
 from .serializers import AnalysisSerializer
-from .forms import TopographyFunctionSelectForm
+from .forms import FunctionSelectForm
 from .utils import get_latest_analyses, mangle_sheet_name
 from topobank.analysis.utils import request_analysis
 
@@ -1010,9 +1011,8 @@ class AnalysisFunctionDetailView(DetailView):
         context['card'] = card
         return context
 
-
 class AnalysesListView(FormView):
-    form_class = TopographyFunctionSelectForm
+    form_class = FunctionSelectForm
     success_url = reverse_lazy('analysis:list')
     template_name = "analysis/analyses_list.html"
 
@@ -1037,17 +1037,9 @@ class AnalysesListView(FormView):
             self.request.session['selection'] = tuple(topography_selection)
             self.request.session['selected_functions'] = tuple(f.id for f in functions)
 
-
-
         return dict(
-            selection=selection_from_session(self.request.session),
             functions=AnalysesListView._selected_functions(self.request),
         )
-
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs['user'] = self.request.user
-        return kwargs
 
     def post(self, request, *args, **kwargs):  # TODO is this really needed?
         if not request.user.is_authenticated:
@@ -1059,14 +1051,8 @@ class AnalysesListView(FormView):
             return self.form_invalid(form)
 
     def form_valid(self, form):
-
-        selection = form.cleaned_data.get('selection', [])
-
-        self.request.session['selection'] = tuple(selection)
-
         functions = form.cleaned_data.get('functions', [])
         self.request.session['selected_functions'] = list(t.id for t in functions)
-
         return super().form_valid(form)
 
     @staticmethod
@@ -1080,15 +1066,32 @@ class AnalysesListView(FormView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        functions = self._selected_functions(self.request)
-        topographies, *rest = selected_instances(self.request)
+        selected_functions = self._selected_functions(self.request)
+        topographies, surfaces = selected_instances(self.request)
 
         cards = []
-        for function in functions:
+        for function in selected_functions:
             cards.append(dict(function=function,
                               topography_ids_json=json.dumps([ t.id for t in topographies])))
 
         context['cards'] = cards
+
+        basket_items = []
+        for s in surfaces:
+            unselect_url = reverse('manager:surface-unselect', kwargs=dict(pk=s.pk))
+            basket_items.append(dict(name=s.name,
+                                     type="surface",
+                                     unselect_url=unselect_url,
+                                     key=f"surface-{s.pk}"))
+        for t in topographies:
+            unselect_url = reverse('manager:topography-unselect', kwargs=dict(pk=t.pk))
+            basket_items.append(dict(name=t.name,
+                                     type="topography",
+                                     unselect_url=unselect_url,
+                                     key=f"topography-{t.pk}",
+                                     surface_key=f"surface-{t.surface.pk}"))
+        context['basket_items_json'] = json.dumps(basket_items)
+
         return context
 
 #######################################################################
