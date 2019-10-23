@@ -714,7 +714,7 @@ def test_tag_search_with_request_factory():
             'title': 'train',
             'type': 'tag',
             'pk': train_pk,
-            'key': f"train-{train_pk}",
+            'key': f"tag-{train_pk}",
             'folder': True,
             'name': 'train',
             'selected': False,
@@ -723,7 +723,7 @@ def test_tag_search_with_request_factory():
                     'title': 'ice',
                     'type': 'tag',
                     'pk': train_ice_pk,
-                    'key': f"train-{train_ice_pk}",
+                    'key': f"tag-{train_ice_pk}",
                     'folder': True,
                     'name': 'train/ice',
                     'selected': False,
@@ -734,7 +734,10 @@ def test_tag_search_with_request_factory():
                             'title': 'restaurant',
                             'type': 'tag',
                             'pk': train_ice_restaurant_pk,
-                            'key': f"train-{train_ice_restaurant_pk}",
+                            'key': f"tag-{train_ice_restaurant_pk}",
+                            'folder': True,
+                            'name': 'train/ice/restaurant',
+                            'selected': False,
                             'children': [
                                 # topo2b
                                 expected_dict_topo2b
@@ -746,7 +749,7 @@ def test_tag_search_with_request_factory():
                     'title': 'tgv',
                     'type': 'tag',
                     'pk': train_tgv_pk,
-                    'key': f"train-{train_tgv_pk}",
+                    'key': f"tag-{train_tgv_pk}",
                     'folder': True,
                     'name': 'train/tgv',
                     'selected': False,
@@ -763,6 +766,6 @@ def test_tag_search_with_request_factory():
     resulted_dicts = ordereddicts_to_dicts(response.data, sorted_by='title')
 
     for rd, ed in zip(resulted_dicts, expected_dicts):
-        assert ed == rd
+        assert rd == ed
 
     # assert ordereddicts_to_dicts(response.data, sorted_by='title') == expected_dicts

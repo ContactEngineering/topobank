@@ -192,12 +192,11 @@ class TagSerializer(serializers.ModelSerializer):
     def get_key(self, obj):
         return f"tag-{obj.pk}"
 
-    def get_selected(self, obj): # TODO Needed?
-        selected_topographies, selected_surfaces = self.context['selected_instances']
-        surfaces = self.context['surfaces'].filter(tags__name=obj.name)
-        topographies = self.context['topographies'].filter(tags__name=obj.name)
-
-        return all(s in selected_surfaces for s in surfaces) and all(t in selected_topographies for t in topographies)
+    def get_selected(self, obj):
+        return False
+        # So far tags should not be considered as selected.
+        # It would be an interesting enhancement to also allow the selection of tags,
+        # but that's not yet implemented.
 
     def get_children(self, obj):
 

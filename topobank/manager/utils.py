@@ -78,8 +78,7 @@ def tags_for_user(user):
     """Return set of tags which can be used for autocompletion when editing tags.
 
     A user should not see all tags ever used on the app, but only those
-    which were chosen by herself or collaborators
-    and corresponding parent tags.
+    which were chosen by herself or collaborators and corresponding parent tags.
 
     :param user: User instance
     :return: list of strings
@@ -89,7 +88,13 @@ def tags_for_user(user):
     from .models import TagModel
     from django.db.models import Q
 
-    return TagModel.objects.filter(Q(surface__in=surfaces) | Q(topography__surface__in=surfaces)).distinct()
+    tags = TagModel.objects.filter(Q(surface__in=surfaces) | Q(topography__surface__in=surfaces))
+
+    # add parent tags not already included
+    for t in tags:
+        tags |= t.get_ancestors()
+
+    return tags.distinct()
 
 
 def selection_choices(user):

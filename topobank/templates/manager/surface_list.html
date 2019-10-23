@@ -52,7 +52,7 @@
     <div class="card-body">
       <div id="basket">
         <div v-if="keys.length">
-          <basket-element v-for="elem in elements" v-bind:elem="elem"></basket-element>
+          <basket-element v-for="key in keys" v-bind:elem="get_element(key)"></basket-element>
         </div>
         <span v-else>No items selected yet. In order to select, please use the checkboxes in the surface list.</span>
       </div>
@@ -214,6 +214,9 @@
               elements: {} // key: key like "surface-1", value is object, see below
           },
           methods:{
+              get_element: function (key) {
+                return this.elements[key];
+              },
               update: function () {
                   var tree = get_tree();
                   var elements = {};
@@ -260,6 +263,7 @@
                   keys = keys.filter( function (key) {
                      return keys_to_remove.indexOf(key) == -1
                   });
+                  keys.sort() // we want always the same order, independent from traversal order
 
                   // console.log("All elements: ", elements);
                   this.elements = elements;
@@ -589,7 +593,7 @@
 
           if (tree_mode == 'tag tree') {
               // tree.setOption("filter.leavesOnly", true);
-              tree.setOption("selectMode", 2);
+              // tree.setOption("selectMode", 2);
               // otherwise tags are selected automatically and hide surface selection when traversing
 
               tree.setOption("checkbox", false); // this quite complicated..
@@ -598,7 +602,7 @@
 
           } else if (tree_mode == 'surface list') {
               // tree.setOption("filter.leavesOnly", false);
-              tree.setOption("selectMode", 3);
+              // tree.setOption("selectMode", 3);
               tree.setOption("checkbox", true);
               surface_list_label.addClass('btn-success').removeClass('btn-default');
               tag_tree_label.addClass('btn-default').removeClass('btn-success');
@@ -640,13 +644,16 @@
                 url: "{% url 'manager:surface-search' %}",
                 cache: false
             };
-
+            // tree.setOption("selectMode", 3);
+            // must be set before loading so "intermediate" selection states
+            // are correctly applied
           } else if (new_mode == 'tag tree') {
             console.log("Trigger loading tag tree...");
             new_source = {
                 url: "{% url 'manager:tag-list' %}",
                 cache: false
             }
+            // tree.setOption("selectMode", 2); // in order sur
           } else {
               console.error("Unknown tree mode: "+new_mode);
           }
