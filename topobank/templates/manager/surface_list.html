@@ -120,10 +120,10 @@
             <thead>
             <tr>
               <th scope="col"></th>
-              <th scope="col">Name</th>
+              <th scope="col"></th>
               <th scope="col"></th>{# for actions #}
-              <th scope="col">Description</th>
-              <th scope="col">{% fontawesome_icon 'tag' %}Tags</th>
+              <th scope="col">{% fontawesome_icon 'sticky-note' %} Description</th>
+              <th scope="col">{% fontawesome_icon 'tag' %} Tags</th>
             </tr>
             </thead>
             <tbody>
@@ -261,13 +261,22 @@
           delimiters: ['[[', ']]'],
           el: '#result-summary',
           template: `
-            <span>Showing [[ num_elements_shown ]] [[ element_kind ]] out of [[ num_elements ]].</span>
+            <span>Showing [[ num_elements_shown ]] [[ element_kinds[tree_mode] ]] out of [[ num_elements ]]. [[ hints[tree_mode] ]]</span>
           `,
           data: {
               num_elements: 0,
               num_elements_shown: 0,
-              element_kind: "surfaces",
-              tree_mode: "surface list"
+              element_kinds: {
+                  "surface list": "surfaces",
+                  "tag tree": "top level tags",
+                  "unknown": "(?)"
+              },
+              tree_mode: "surface list",
+              hints: {
+                  "surface list": "The selected items are used when switching to analyses.",
+                  "tag tree": "Tags can be introduced or changed when editing meta data of surfaces and topographies.",
+                  "unknown": ""
+              }
           },
           methods: {
               update: function() {
@@ -275,10 +284,12 @@
 
                   if (this.tree_mode == "surface list") {
                       this.element_kind = "surfaces";
+                      this.hint = "The selected items are used when switching to analyses.";
                   } else if (this.tree_mode == "tag tree") {
                       this.element_kind = "top level tags";
+                      this.hint = "New tags can be introduced when editing meta data of surfaces and topographies.";
                   } else {
-                      this.element_kind = "(?)";
+                      this.tree_mode = "unknown";
                   }
 
                   this.num_elements = tree.rootNode.children.length;
