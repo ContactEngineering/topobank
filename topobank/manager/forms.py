@@ -3,8 +3,10 @@ from django import forms
 from django_select2.forms import Select2MultipleWidget, ModelSelect2MultipleWidget
 
 from crispy_forms.helper import FormHelper
-from crispy_forms.layout import Submit, Layout, Field, HTML, Div, Fieldset, Button
+from crispy_forms.layout import Submit, Layout, Field, HTML, Div, Fieldset
 from crispy_forms.bootstrap import FormActions
+
+from tagulous.forms import TagField
 
 from bootstrap_datepicker_plus import DatePickerInput
 
@@ -109,14 +111,16 @@ class TopographyMetaDataForm(forms.ModelForm):
 
     class Meta:
         model = Topography
-        fields = ('name', 'description', 'measurement_date', 'data_source')
+        fields = ('name', 'description', 'measurement_date', 'data_source', 'tags')
 
     def __init__(self, *args, **kwargs):
         data_source_choices = kwargs.pop('data_source_choices')
+        autocomplete_tags = kwargs.pop('autocomplete_tags')
         self._surface = kwargs.pop('surface')
         super(TopographyMetaDataForm, self).__init__(*args, **kwargs)
         self.fields['data_source'] = forms.ChoiceField(choices=data_source_choices)
 
+        self.fields['tags'] = TagField(required=False, autocomplete_tags=autocomplete_tags)
 
     helper = FormHelper()
     helper.form_method = 'POST'
@@ -128,12 +132,15 @@ class TopographyMetaDataForm(forms.ModelForm):
                                        help_text=MEASUREMENT_DATE_HELP_TEXT)
     description = forms.Textarea()
 
+
+
     helper.layout = Layout(
         Div(
             Field('data_source'),
             Field('name'),
             Field('measurement_date'),
             Field('description'),
+            Field('tags'),
         ),
         FormActions(
             Submit('save', 'Next'),
@@ -324,7 +331,8 @@ class TopographyForm(TopographyUnitsForm):
         fields = ('size_editable',
                   'unit_editable',
                   'height_scale_editable',
-                  'name', 'description', 'measurement_date',
+                  'name', 'description',
+                  'measurement_date', 'tags',
                   'datafile', 'data_source',
                   'size_x', 'size_y', 'unit',
                   'height_scale', 'detrend_mode',
@@ -332,6 +340,7 @@ class TopographyForm(TopographyUnitsForm):
 
     def __init__(self, *args, **kwargs):
         has_size_y = kwargs.pop('has_size_y')
+        autocomplete_tags = kwargs.pop('autocomplete_tags')
         super().__init__(*args, **kwargs)
 
         for fn in ['surface', 'data_source']:
@@ -357,6 +366,7 @@ class TopographyForm(TopographyUnitsForm):
                 Field('name'),
                 Field('measurement_date'),
                 Field('description'),
+                Field('tags'),
                 Fieldset(*size_fieldset_args),
                 Fieldset('Height Conversion',
                          Field('height_scale')),
@@ -371,6 +381,10 @@ class TopographyForm(TopographyUnitsForm):
                         Finish editing without saving</a>
                     """),
                 ),
+        )
+        self.fields['tags'] = TagField(
+            required=False,
+            autocomplete_tags=autocomplete_tags  # set special values for user
         )
 
     datafile = forms.FileInput()
@@ -388,7 +402,16 @@ class SurfaceForm(forms.ModelForm):
 
     class Meta:
         model = Surface
-        fields = ('name', 'description', 'category', 'creator')
+        fields = ('name', 'description', 'category', 'creator', 'tags')
+
+    def __init__(self, *args, **kwargs):
+        autocomplete_tags = kwargs.pop('autocomplete_tags')
+        super().__init__(*args, **kwargs)
+
+        self.fields['tags'] = TagField(
+            required=False,
+            autocomplete_tags=autocomplete_tags # set special values for user
+        )
 
     helper = FormHelper()
     helper.form_method = 'POST'
@@ -401,7 +424,8 @@ class SurfaceForm(forms.ModelForm):
             Field('name'),
             Field('description'),
             Field('category'),
-            Field('creator', type="hidden"),
+            Field('tags'),
+            Field('creator', type='hidden')
         ),
         FormActions(
                 Submit('save', 'Save'),

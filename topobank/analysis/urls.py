@@ -7,7 +7,7 @@ from . import views
 app_name = "analysis"
 urlpatterns = [
     url(
-        regex=r'list/$', # TODO rename to "selected"?
+        regex=r'list/$',
         view=login_required(views.AnalysesListView.as_view()),
         name='list'
     ),

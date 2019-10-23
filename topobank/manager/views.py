@@ -1,6 +1,6 @@
 import yaml
 import zipfile
-from io import BytesIO, StringIO
+from io import BytesIO
 
 from django.shortcuts import redirect, render
 from django.views.generic import DetailView, ListView, UpdateView, CreateView, DeleteView, TemplateView
@@ -14,6 +14,7 @@ from django.http import HttpResponse
 from django.http import HttpResponseForbidden
 from django.views.generic.edit import FormMixin
 from django.contrib.auth.mixins import UserPassesTestMixin
+# from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 from django.db.models import Q
 
@@ -26,6 +27,13 @@ from django_tables2 import RequestConfig
 from bokeh.plotting import figure
 from bokeh.embed import components
 from bokeh.models import DataRange1d, LinearColorMapper, ColorBar
+# import tagulous.views
+
+from rest_framework.generics import ListAPIView
+from rest_framework.response import Response
+from rest_framework.decorators import api_view
+# from django_filters import rest_framework as filters
+from rest_framework import filters
 
 import json
 import os.path
@@ -35,7 +43,9 @@ from .models import Topography, Surface
 from .forms import TopographyForm, SurfaceForm, TopographySelectForm, SurfaceShareForm
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, Topography1DUnitsForm, Topography2DUnitsForm
 from .utils import selected_instances, selection_from_session, selection_for_select_all, \
-    bandwidths_data, surfaces_for_user, get_topography_reader
+    bandwidths_data, surfaces_for_user, get_topography_reader, selection_choices, tags_for_user
+from .serializers import SurfaceSerializer, TopographySerializer, TagSerializer
+
 from topobank.users.models import User
 
 MAX_NUM_POINTS_FOR_SYMBOLS_IN_LINE_SCAN_PLOT = 100
@@ -226,6 +236,7 @@ class TopographyCreateWizard(SessionWizardView):
             # Set surface in order to check for duplicate topography names
             #
             kwargs['surface'] = step0_data['surface']
+            kwargs['autocomplete_tags'] = tags_for_user(self.request.user)
 
         return kwargs
 
@@ -357,6 +368,7 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs['has_size_y'] = self.object.size_y is not None
+        kwargs['autocomplete_tags'] = tags_for_user(self.request.user)
         return kwargs
 
     def form_valid(self, form):
@@ -606,56 +618,6 @@ class SelectedTopographyView(FormMixin, ListView):
 
         return topographies
 
-class SurfaceListView(FormMixin, ListView):
-    model = Surface
-    context_object_name = 'surfaces'
-    form_class = TopographySelectForm
-    success_url = reverse_lazy('manager:surface-list') # stay on same view
-
-    def get_queryset(self):
-        #
-        # Filter out non-empty surfaces, for which no topography was selected.
-        # Non-empty because we need to show empty surfaces in order to interact with them.
-        #
-        topographies, surfaces = selected_instances(self.request)
-        surface_ids = set(t.surface.id for t in topographies)
-        surface_ids.update(s.id for s in surfaces)
-        return Surface.objects.filter(id__in=surface_ids)
-
-    def get_initial(self):
-        # make sure the form is already filled with earlier selection
-        return dict(selection=selection_from_session(self.request.session))
-
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs['user'] = self.request.user
-        return kwargs
-
-    def post(self, request, *args, **kwargs):
-        if not request.user.is_authenticated:
-            return HttpResponseForbidden()
-        form = self.get_form()
-        if form.is_valid():
-            return self.form_valid(form)
-        else:
-            return self.form_invalid(form)
-
-    def form_valid(self, form):
-
-        # when pressing "select all" button, select all topographies
-        # of current user
-        if 'select-all' in self.request.POST:
-            selection = selection_for_select_all(self.request.user)
-        else:
-            # take selection from form
-            selection = form.cleaned_data.get('selection', [])
-
-        _log.info('Form valid, selection: %s', selection)
-
-        self.request.session['selection'] = tuple(selection)
-
-        return super().form_valid(form)
-
 class SurfaceCardView(TemplateView):
     template_name = 'manager/surface_card.html'
 
@@ -692,6 +654,11 @@ class SurfaceCardView(TemplateView):
 class SurfaceCreateView(CreateView):
     model = Surface
     form_class = SurfaceForm
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['autocomplete_tags'] = tags_for_user(self.request.user)
+        return kwargs
 
     def get_initial(self, *args, **kwargs):
         initial = super(SurfaceCreateView, self).get_initial()
@@ -779,6 +746,11 @@ class SurfaceUpdateView(UpdateView):
     @surface_update_permission_required
     def dispatch(self, request, *args, **kwargs):
         return super().dispatch(request, *args, *kwargs)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['autocomplete_tags'] = tags_for_user(self.request.user)
+        return kwargs
 
     def form_valid(self, form):
 
@@ -1089,4 +1061,250 @@ def show_analyses_for_topography(request, topography_id):
 
     return redirect(reverse('analysis:list'))
 
+#######################################################################################
+# Views for REST interface
+#######################################################################################
 
+class TagListView(ListAPIView):
+    """
+    List all surfaces
+    """
+    serializer_class = TagSerializer
+
+    def get_queryset(self):
+        return tags_for_user(self.request.user).filter(parent=None).order_by('label') # only top level
+
+    def list(self, request, *args, **kwargs):
+        response = super().list(request, args, kwargs)
+        # Add extra data to response.data for an empty tag
+        context = self.get_serializer_context()
+        surface_serializer = SurfaceSerializer(context=context)
+        topography_serializer = TopographySerializer(context=context)
+
+        surfaces_without_tags = context['surfaces'].filter(tags=None)
+        topographies_without_tags = context['topographies'].filter(tags=None)
+
+        serialized_surfaces_without_tags = [ surface_serializer.to_representation(s)
+                                             for s in surfaces_without_tags ]
+
+        serialized_topographies_without_tags = [ topography_serializer.to_representation(t)
+                                                 for t in topographies_without_tags ]
+
+        response.data.append(dict(
+            type='tag',
+            title='(untagged surfaces)',
+            pk=None,
+            name=None,
+            folder=True,
+            selected=False,
+            children=serialized_surfaces_without_tags
+        ))
+        response.data.append(dict(
+            type='tag',
+            title='(untagged topographies)',
+            pk=None,
+            name=None,
+            folder=True,
+            selected=False,
+            children=serialized_topographies_without_tags
+        ))
+
+        return response
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['selected_instances'] = selected_instances(self.request)
+        context['request'] = self.request
+        context['tags_for_user'] = tags_for_user(self.request.user)
+
+        #
+        # also pass all surfaces and topographies the user has access to
+        #
+        context['surfaces'] = surfaces_for_user(self.request.user)
+        context['topographies'] = Topography.objects.filter(surface__in=context['surfaces'])
+        return context
+
+class SurfaceSearch(ListAPIView):
+    """
+    List all surfaces
+    """
+    serializer_class = SurfaceSerializer
+    #filter_backends = (filters.SearchFilter,) # so far not used because the filtering is done in client
+    search_fields = ('name', 'description', 'topography__name', 'topography__description')
+
+    def get_queryset(self):
+        return surfaces_for_user(self.request.user)
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['selected_instances'] = selected_instances(self.request)
+        context['request'] = self.request
+        return context
+
+
+def _selection_set(request):
+    return set(request.session.get('selection', []))
+
+def _surface_key(pk): # TODO use such a function everywhere: instance_key_for_selection()
+    return 'surface-{}'.format(pk)
+
+def _topography_key(pk):
+    return 'topography-{}'.format(pk)
+
+def set_surface_select_status(request, pk, select_status):
+    """Marks the given surface as 'selected' in session or checks this.
+
+        :param request: request
+        :param pk: primary key of the surface
+        :param select_status: True if surface should be selected, False if it should be unselected
+        :return: JSON Response
+
+        The response is empty.
+    """
+    try:
+        pk = int(pk)
+        surface = Surface.objects.get(pk=pk)
+        user = request.user
+        assert user.has_perm('view_surface', surface)
+    except:
+        raise PermissionDenied()  # This should be shown independent of whether the surface exists
+
+    surface_key = _surface_key(pk)
+    selection = _selection_set(request)
+    is_selected = surface_key in selection
+
+    if request.method == 'POST':
+        # remove all explicitly selected topographies from this surface
+        for t in surface.topography_set.all():
+            topo_key = _topography_key(t.pk)
+            if topo_key in selection:
+                selection.remove(topo_key)
+
+        if select_status:
+            # surface should be selected
+            selection.add(surface_key)
+        elif is_selected:
+            selection.remove(surface_key)
+
+        request.session['selection'] = list(selection)
+        _log.info("New selection: %s", selection)
+
+    return Response()
+
+@api_view(['POST'])
+def select_surface(request, pk):
+    """Marks the given surface as 'selected' in session.
+
+    :param request: request
+    :param pk: primary key of the surface
+    :return: JSON Response
+
+    The response is empty.
+    """
+    return set_surface_select_status(request, pk, True)
+
+@api_view(['POST'])
+def unselect_surface(request, pk):
+    """Marks the given surface as 'unselected' in session.
+
+    :param request: request
+    :param pk: primary key of the surface
+    :return: JSON Response
+
+    The response is empty.
+    """
+    return set_surface_select_status(request, pk, False)
+
+def set_topography_select_status(request, pk, select_status):
+    """Marks the given topography as 'selected' or 'unselected' in session.
+
+        :param request: request
+        :param pk: primary key of the surface
+        :param select_status: True or False, True means "mark as selected", False means "mark as unselected"
+        :return: JSON Response
+
+        The response has no data.
+    """
+    try:
+        pk = int(pk)
+        topo = Topography.objects.get(pk=pk)
+        user = request.user
+        assert user.has_perm('view_surface', topo.surface)
+    except:
+        raise PermissionDenied() # This should be shown independent of whether the surface exists
+
+    topography_key = _topography_key(pk)
+    surface_key = _surface_key(topo.surface.pk)
+    selection = _selection_set(request)
+    is_selected = topography_key in selection
+    is_surface_selected =  surface_key in selection
+
+    if request.method == 'POST':
+
+        if select_status:
+            # topography should be selected
+
+            if is_surface_selected:
+                pass # is already selected implicitly
+            else:
+                # check if all other topographies are selected - if yes,
+                # remove those and add surface as selection
+                other_topo_keys_in_surface = [_topography_key(t.pk) for t in topo.surface.topography_set.all()
+                                              if t!=topo]
+
+                if all( k in selection for k in other_topo_keys_in_surface):
+                    for k in other_topo_keys_in_surface:
+                        selection.remove(k)
+                    selection.add(_surface_key(topo.surface.pk))
+                else:
+                    selection.add(topography_key)
+        else:
+            # topography should be unselected
+
+            # if surface is selected, remove this selection but add all other topographies instead
+            if is_surface_selected:
+                selection.remove(surface_key)
+                for t in topo.surface.topography_set.all():
+                    if t != topo:
+                        selection.add(_topography_key(t.pk))
+
+            # if topography is explicitly selected, remove it
+            if is_selected:
+                selection.remove(topography_key)
+
+        request.session['selection'] = list(selection)
+        _log.info("New selection: %s", selection)
+
+    return Response()
+
+@api_view(['POST'])
+def select_topography(request, pk):
+    """Marks the given topography as 'selected' in session.
+
+    :param request: request
+    :param pk: primary key of the surface
+    :return: JSON Response
+
+    The response has no data.
+    """
+    return set_topography_select_status(request, pk, True)
+
+@api_view(['POST'])
+def unselect_topography(request, pk):
+    """Marks the given topography as 'selected' in session.
+
+    :param request: request
+    :param pk: primary key of the surface
+    :return: JSON Response
+
+    The response has no data.
+    """
+    return set_topography_select_status(request, pk, False)
+
+# @login_required
+# def autocomplete_tags(request):
+#
+#     return tagulous.views.autocomplete(
+#         request,
+#         tags_for_user(request.user)
+#     )

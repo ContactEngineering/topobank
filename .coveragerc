@@ -1,5 +1,8 @@
 [run]
 include = topobank/*
-omit = *migrations*, *tests*
+omit = *migrations*, *static*, *.html
 plugins =
     django_coverage_plugin
+
+[report]
+skip_covered = True

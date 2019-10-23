@@ -9,28 +9,44 @@
 {% endblock content-title %}
 
 {% block extra_css %}
-<link href="https://cdn.pydata.org/bokeh/release/bokeh-1.2.0.min.css"
-      rel="stylesheet" type="text/css">
-<link href="https://cdn.pydata.org/bokeh/release/bokeh-widgets-1.2.0.min.css"
-      rel="stylesheet" type="text/css">
-<link href="https://cdn.pydata.org/bokeh/release/bokeh-tables-1.2.0.min.css"
-      rel="stylesheet" type="text/css">
-{{ form.media.css }}
+  <link href="https://cdn.bokeh.org/bokeh/release/bokeh-1.3.4.min.css"
+        rel="stylesheet" type="text/css">
+  <link href="https://cdn.bokeh.org/bokeh/release/bokeh-widgets-1.3.4.min.css"
+        rel="stylesheet" type="text/css">
+  <link href="https://cdn.bokeh.org/bokeh/release/bokeh-tables-1.3.4.min.css"
+        rel="stylesheet" type="text/css">
+  {{ form.media.css }}
+
+   {# TODO move script tag to end? #}
+  <script src="https://unpkg.com/vue@latest"></script>
+  <script src="https://unpkg.com/vue-select@latest"></script>
+  <link rel="stylesheet" href="https://unpkg.com/vue-select@latest/dist/vue-select.css">
+
 {% endblock extra_css %}
 
 {% block breadcrumbs %}
   <li class="breadcrumb-item active" aria-current="page">Analyses</li>
 {% endblock breadcrumbs %}
 
-{% block searchbox %}
+{% block basket %}
   <!-- Filter for topographies and analysis functions -->
   <div class="bg-light border-top border-bottom">
     <div class="container-fluid">
+      <div class="py-2">
+        <label for="basket"><h5>Items selected in <a href="{% url 'manager:surface-list' %}">surface list</a></h5></label>
+        <div id="basket">
+          <div v-if="keys.length">
+            <basket-element v-for="key in keys" v-bind:elem="get_element(key)" v-bind:key="key"></basket-element>
+          </div>
+          <span v-else>No items selected yet. In order to select, please use the checkboxes in the surface list.</span>
+        </div>
+      </div>
+      <hr/>
       {% crispy form form.helper %}
       {# TODO for some reason here also JS code for select2 is inserted too early, this causes warnings #}
     </div>
   </div>
-{% endblock searchbox %}
+{% endblock basket %}
 
 {% block content %}
 
@@ -62,12 +78,93 @@
 
 {% block javascript %}
   <!-- ----------- for bokeh plot ----- -->
-  <script src="https://cdn.pydata.org/bokeh/release/bokeh-1.2.0.min.js"></script>
-  <script src="https://cdn.pydata.org/bokeh/release/bokeh-widgets-1.2.0.min.js"></script>
-  <script src="https://cdn.pydata.org/bokeh/release/bokeh-tables-1.2.0.min.js"></script>
+  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-1.3.4.min.js"></script>
+  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-widgets-1.3.4.min.js"></script>
+  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-tables-1.3.4.min.js"></script>
 
   <!-- for task progress bar -->
   <script src="{% static 'celery_progress/celery_progress.js' %}"></script>
+
+  <!-- fill the basket with selected topographies and surfaces -->
+  <script>
+  var basket = new Vue({
+          delimiters: ['[[', ']]'],
+          el: '#basket',
+          data: {
+              keys: [],
+              elements: {} // key: key like "surface-1", value is object, see below
+          },
+          mounted: function() {
+            this.update();
+          },
+          methods:{
+
+              get_element: function (key) {
+                return this.elements[key];
+              },
+              update: function () {
+                  var elements = {};
+                  var keys = [];
+
+                  var basket_items = {{ basket_items_json | safe }};
+
+                  console.log(basket_items);
+
+                  basket_items.forEach(function (item) {
+                     keys.push(item.key);
+                     elements[item.key] = item;
+                  });
+
+                  // remove all elements which parent element is already included
+                  var keys_to_remove = []
+                  keys.forEach(function (key) {
+                     var elem = elements[key];
+                     if (elem.hasOwnProperty('surface_key') && (elem.surface_key in elements)) {
+                         keys_to_remove.push(key);
+                     }
+                  });
+                  keys_to_remove.forEach(function (key) {
+                      delete elements[key];
+                  });
+                  keys = keys.filter( function (key) {
+                     return keys_to_remove.indexOf(key) == -1
+                  });
+                  keys.sort() // we want always the same order, independent from traversal order
+
+                  // console.log("All elements: ", elements);
+                  this.elements = elements;
+                  this.keys = keys;
+              }
+          }
+      });
+
+  Vue.component('basket-element', {
+    props: ['elem'], // object with keys: 'name', 'key', 'surface_key' (optional), 'unselect_url'
+    delimiters: ['[[', ']]'],
+    template: `
+           <span v-if="elem.type=='surface'" class="badge badge-pill badge-primary mr-1">[[ elem.name ]]
+                <!-- <span class="fa fa-close" v-on:click="handle_close"></span> -->
+           </span>
+           <span v-else class="badge badge-pill badge-secondary mr-1">[[ elem.name ]]
+                <!-- <span class="fa fa-close" v-on:click="handle_close"></span> -->
+           </span>
+         `,
+    methods: {
+        handle_close: function (event) {
+            // Clicking means "deselect"
+            // All nodes must be deselected - there can be several in the tag tree
+            //this.elem.nodes.forEach( function(node) {
+            //    node.setSelected(false);
+            //})
+            // basket.update();
+            // TODO handle later
+        },
+    }
+  });
+
+  {# TODO use same code in surface view and analysis view #}
+  </script>
+
 
   <!-- Trigger fetching analysis results -->
   <script>

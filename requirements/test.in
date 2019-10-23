@@ -12,6 +12,7 @@ pytest-django
 pytest
 pytest-sugar
 pytest-mock
+pytest-cov
 
 # additional for browser test
 pytest-splinter

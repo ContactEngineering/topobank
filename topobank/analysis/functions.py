@@ -715,7 +715,12 @@ def contact_mechanics(topography, substrate_str="periodic", hardness=None, nstep
     half_space_factory = dict(periodic=PeriodicFFTElasticHalfSpace,
                               nonperiodic=FreeFFTElasticHalfSpace)
 
-    substrate = half_space_factory[substrate_str](topography.nb_grid_pts, 1.0, topography.physical_sizes)
+    half_space_kwargs = {}
+    if substrate_str == 'nonperiodic':
+        half_space_kwargs['check_boundaries'] = False # TODO remove this with PyCo > 0.52.0, there the default is changed
+
+    substrate = half_space_factory[substrate_str](topography.nb_grid_pts, 1.0, topography.physical_sizes,
+                                                  **half_space_kwargs)
 
     interaction = HardWall()
     system = make_system(substrate, interaction, topography)

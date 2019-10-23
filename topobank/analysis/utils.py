@@ -71,6 +71,16 @@ def request_analysis(user, analysis_func, topography, *other_args, **kwargs):
         analysis.users.add(user)
 
     #
+    # Retrigger an analysis if there was a failure, maybe sth has been fixed
+    #
+    if analysis.task_state == 'fa':
+        new_analysis = submit_analysis(users=analysis.users.all(), analysis_func=analysis_func, topography=topography,
+                                   pickled_pyfunc_kwargs=pickled_pyfunc_kwargs)
+        _log.info("Submitted analysis again because of failure..")
+        analysis.delete()
+        analysis = new_analysis
+
+    #
     # Remove user from other analysis with same topography and function
     #
     other_analyses_with_same_user = Analysis.objects.filter(

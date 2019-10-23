@@ -9,7 +9,8 @@ import io
 
 from ..tests.utils import two_topos
 from ..utils import DEFAULT_DATASOURCE_NAME, \
-    selection_to_instances, selection_for_select_all, selection_choices, instances_to_selection
+    selection_to_instances, selection_for_select_all, selection_choices, instances_to_selection, \
+    tags_for_user
 from ..models import Surface, Topography
 
 # def test_data_sources_txt():
@@ -114,3 +115,36 @@ def test_instances_to_selection(two_topos):
     #
     s = instances_to_selection(surfaces=[surface1, surface2])
     assert s == [f'surface-{surface1.id}', f'surface-{surface2.id}']
+
+@pytest.mark.django_db
+def test_tags_for_user(two_topos):
+
+    topo1 = Topography.objects.get(name="Example 3 - ZSensor")
+    topo1.tags = ['rough', 'projects/a']
+    topo1.save()
+
+    from topobank.manager.models import TagModel
+    print("Tags of topo1:", topo1.tags)
+    print(TagModel.objects.all())
+
+    topo2 = Topography.objects.get(name="Example 4 - Default")
+    topo2.tags = ['interesting']
+    topo2.save()
+
+    surface1 = Surface.objects.get(name="Surface 1")
+    surface1.tags = ['projects/C', 'rare']
+    surface1.save()
+
+    surface2 = Surface.objects.get(name="Surface 2")
+    surface2.tags = ['projects/B', 'a long tag with spaces']
+    surface2.save()
+
+    user = surface1.creator
+
+    assert surface2.creator == user
+
+    tags = tags_for_user(user)
+
+    assert set( t.name for t in tags) == set(['a long tag with spaces', 'interesting', 'rare', 'rough',
+                                              'projects/a', 'projects/b', 'projects/c', 'projects'])
+

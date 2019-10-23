@@ -4,9 +4,12 @@ from django.db.models import Q, F
 from guardian.compat import get_user_model as guardian_user_model
 from guardian.shortcuts import get_objects_for_user, get_perms_for_model
 
+import json
+
 from termsandconditions.models import TermsAndConditions
 from topobank.users.models import User
 from topobank.manager.models import Surface, Topography
+from topobank.manager.utils import selected_instances, selection_choices
 from topobank.analysis.models import Analysis
 
 class HomeView(TemplateView):
@@ -58,4 +61,3 @@ class TermsView(TemplateView):
             context['active_terms'] = active_terms.order_by('optional')
 
         return context
-

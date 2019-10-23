@@ -7,6 +7,7 @@ from . import views
 from . import forms
 from .utils import get_topography_reader
 
+
 def creating_2D_topography(wizard):
     """Indicator function, returns True if wizard is creating a 2D topography, else False.
     """
@@ -50,6 +51,16 @@ urlpatterns = [
         regex=r'topography/(?P<pk>\d+)/delete/$',
         view=login_required(views.TopographyDeleteView.as_view()),
         name='topography-delete'
+    ),
+    url(
+        regex=r'topography/(?P<pk>\d+)/select/$',
+        view=login_required(views.select_topography),
+        name='topography-select'
+    ),
+    url(
+        regex=r'topography/(?P<pk>\d+)/unselect/$',
+        view=login_required(views.unselect_topography),
+        name='topography-unselect'
     ),
     url(
         regex=r'surface/(?P<surface_id>\d+)/new-topography/$',
@@ -96,6 +107,16 @@ urlpatterns = [
        name='surface-share'
     ),
     url(
+       regex=r'surface/(?P<pk>\d+)/select/$',
+       view=login_required(views.select_surface),
+       name='surface-select'
+    ),
+    url(
+       regex=r'surface/(?P<pk>\d+)/unselect/$',
+       view=login_required(views.unselect_surface),
+       name='surface-unselect'
+    ),
+    url(
         regex=r'surface/(?P<surface_id>\d+)/download/$',
         view=login_required(views.download_surface),
         name='surface-download'
@@ -112,8 +133,13 @@ urlpatterns = [
     ),
     url(
         regex=r'surface/$',
-        view=login_required(views.SurfaceListView.as_view()),
+        view=login_required(views.TemplateView.as_view(template_name='manager/surface_list.html')),
         name='surface-list'
+    ),
+    url(
+        regex=r'surface/search/$',
+        view=login_required(views.SurfaceSearch.as_view()),
+        name='surface-search'
     ),
     url(
         regex=r'access-denied/$',
@@ -125,4 +151,14 @@ urlpatterns = [
         view=login_required(views.sharing_info),
         name='sharing-info'
     ),
+    url(
+        regex=r'tags/$',
+        view=login_required(views.TagListView.as_view()),
+        name='tag-list'
+    ),
+    # url(
+    #     regex=r'tags/$',
+    #     view=login_required(views.autocomplete_tags),
+    #     name='autocomplete-tags',
+    # ),
 ]

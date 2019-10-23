@@ -96,3 +96,16 @@ input.checkbox-color-design:checked+span:after {
 .btn {
   white-space: normal; /** we want the text in buttons wrap if the windows is made smaller, issue 272 */
 }
+
+.highlight {
+  background-color: yellow;
+}
+
+/** Workaround for problem with django-tagolous and crispy forms
+ See https://github.com/radiac/django-tagulous/issues/35
+ */
+.select2-container-multi .select2-choices {
+  background-image: linear-gradient(to bottom, #eee0 1%, #f3f3f300 15%) !important;
+  border: none !important;
+  background-color: transparent !important;
+}

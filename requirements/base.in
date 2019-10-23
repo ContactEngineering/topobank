@@ -27,6 +27,15 @@ git+http://github.com/IMTEK-Simulation/django-progressbarupload.git
 # we use a forked version, because so far there is no published release
 # which works with Django 2.1 but the HEAD version does
 
+# filtering search results
+django-filter
+
+# tagging support
+# django-tagulous
+# The original version has a bug #81 I want to have fixed. There is
+# a PR (#82) and as long it is not integrated, I use my own version:
+git+http://github.com/mcrot/django-tagulous.git
+
 #
 # Storage
 #

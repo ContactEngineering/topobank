@@ -83,6 +83,8 @@ THIRD_PARTY_APPS = [
     'progressbarupload',
     'celery_progress',
     'notifications',
+    'django_filters',
+    'tagulous',
 ]
 LOCAL_APPS = [
     'topobank.users.apps.UsersAppConfig',
@@ -421,3 +423,12 @@ TRACKED_DEPENDENCIES = [
 #
 DJANGO_NOTIFICATIONS_CONFIG = { 'USE_JSONFIELD': True}
 # I would like to pass the target url to a notification
+
+#
+# Settings for django-tagulous (tagging)
+#
+TAGULOUS_AUTOCOMPLETE_JS = (
+    'tagulous/lib/select2-3/select2.min.js',
+    'tagulous/tagulous.js',
+    'tagulous/adaptor/select2-3.js'
+)

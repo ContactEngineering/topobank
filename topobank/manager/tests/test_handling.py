@@ -28,23 +28,14 @@ def test_empty_surface_selection(client, django_user_model):
     surface = SurfaceFactory(creator=user)
     assert surface.topography_set.count() == 0
 
-    #
-    #
-    #
     assert client.login(username=username, password=password)
 
-    response = client.post(reverse('manager:surface-list'),
-                { 'selection': ['surface-{}'.format(surface.id) ]},
-                follow=True)
+    client.post(reverse('manager:surface-select', kwargs=dict(pk=surface.pk)))
 
-    # now the context should contain the empty surface
-    assert surface in response.context['surfaces']
-
-    # we cannot test the card here, because it is inserted by javascript
-    #response = client.get(reverse('manager:surface-list'))
-    #assert_in_content(response, "Open")
-    #assert_in_content(response, "Add Topography")
-
+    #
+    # Now the selection should contain one empty surface
+    #
+    assert client.session['selection'] == [f'surface-{surface.pk}']
 
 
 
@@ -932,6 +923,8 @@ def test_delete_surface(client, django_user_model):
 
     assert Surface.objects.all().count() == 0
 
+
+@pytest.mark.skip(reason="Surface cards are currently not returned by surface-list. Maybe remove later.")
 def test_surface_cards(client, django_user_model):
 
     #

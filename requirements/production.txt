@@ -27,6 +27,7 @@ django-appconf==1.0.3
 django-bootstrap-datepicker-plus==3.0.5
 django-crispy-forms==1.7.2
 django-environ==0.4.5
+django-filter==2.2.0
 django-fontawesome==1.0
 django-formtools==2.1
 django-guardian==2.0.0
@@ -37,6 +38,7 @@ git+http://github.com/IMTEK-Simulation/django-progressbarupload.git
 django-select2==7.1.1
 django-storages==1.7.1
 django-tables2==2.1.0
+git+http://github.com/mcrot/django-tagulous.git
 git+http://git@github.com/mcrot/django-termsandconditions.git@optional_terms
 django==2.1.11
 djangorestframework==3.10.2

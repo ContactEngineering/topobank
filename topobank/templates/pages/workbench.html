@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% load static i18n %}
+{% load socialaccount %}
+{% load welcome_page_tags %}
+
+{% block breadcrumbs %}
+  <li class="breadcrumb-item active" aria-current="page">Workbench</li>
+{% endblock breadcrumbs %}
+
+{% block extra_css %}
+  {# TODO move script tag to end? #}
+  <script src="https://unpkg.com/vue@latest"></script>
+  <script src="https://unpkg.com/vue-select@latest"></script>
+  <link rel="stylesheet" href="https://unpkg.com/vue-select@latest/dist/vue-select.css">
+{% endblock %}
+
+{% block content %}
+   <nav class="navbar navbar-expand navbar-light bg-light">
+     <li class="nav-item">
+      <div id="selection">
+        <h2>Selected items</h2>
+        <ul>
+          <li v-for="item in selected_items">
+            [[ item.name ]]
+          </li>
+        </ul>
+      </div>
+     </li>
+   </nav>
+
+   <nav>
+     <ul class="nav nav-tabs">
+      <li class="nav-item">
+        <a class="nav-link active" data-toggle="tab" href="#nav-search">Search</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" data-toggle="tab" href="#nav-analyze">Analyze</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" data-toggle="tab" href="#nav-share">Share</a>
+      </li>
+
+     </ul>
+   </nav>
+
+    <div class="tab-content" id="nav-tabContent">
+      <div class="tab-pane fade show active" id="nav-search" role="tabpanel" aria-labelledby="nav-search-tab">
+
+        <div id="search">
+          <h2>Search</h2>
+
+          <input v-model="expression" placeholder="Enter search terms">
+
+          <p>You are searching for: [[ expression ]]</p>
+
+          <h2>Search results</h2>
+          <ul>
+            <search-result-item
+                    v-for="item in search_result"
+                    v-bind:item="item"
+                    v-bind:key="item.type+item.id"
+            ></search-result-item>
+          </ul>
+
+        </div>
+
+      </div>
+      <div class="tab-pane fade" id="nav-analyze" role="tabpanel" aria-labelledby="nav-analyze-tab">
+        B
+      </div>
+      <div class="tab-pane fade" id="nav-share" role="tabpanel" aria-labelledby="nav-share-tab">
+        C
+      </div>
+    </div>
+
+
+{% endblock %}
+
+{% block javascript %}
+
+
+   <script>
+     var store = {
+         debug: true,
+         state: {
+          items: []
+         },
+         add_item (item) {
+          if (this.debug) console.log('adding item ', item);
+          this.state.items.push(item);
+         },
+         remove_item (item) {
+          if (this.debug) console.log('remove item ', item);
+          var index = this.state.items.indexOf(item);
+          if (index > -1) {
+            this.state.items.splice(index, 1);
+           }
+         }
+        };
+
+     store.state.items = JSON.parse('{{ selected_json | safe }}');
+
+     var selection = new Vue({
+          delimiters: ['[[', ']]'],
+          el: '#selection',
+          data: function () { return {
+                  selected_items: store.state.items // use shared state
+                  // selected_items: [ {name: 'a'}, {name:'b'}, {name:'c'}]
+              }
+          }
+     });
+
+     Vue.component('search-result-item', {
+        props: ['item'],
+        delimiters: ['[[', ']]'],
+        template: `
+         <li>
+          <input type="checkbox" id="checkbox" v-model="item.checked" v-on:click="handle_checkbox_click(item)">
+	        <label for="checkbox">[[ item.name ]] -> [[ item.checked ]]</em>
+         </li>`,
+        methods: {
+          handle_checkbox_click: function (item) {
+           if (item.checked) {
+             store.remove_item(item);
+           } else {
+             store.add_item(item);
+           }
+          }
+        }
+      });
+
+     var search = new Vue({
+        delimiters: ['[[', ']]'],
+        el: '#search',
+        data: function() { return {
+          expression: "",
+          search_result: []
+        }}
+     });
+
+   </script>
+{% endblock %}

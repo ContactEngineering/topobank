@@ -1,3 +1,6 @@
+import json
+from operator import itemgetter
+
 import pytest
 from django.core.management import call_command
 from django.conf import settings
@@ -108,7 +111,7 @@ def one_line_scan():
                              datafile=datafile)
 
 
-def export_reponse_as_html(response, fname='/tmp/response.html'):
+def export_reponse_as_html(response, fname='/tmp/response.html'): # pragma: no cover
     """
     Helper function which can be used for debugging.
 
@@ -119,3 +122,10 @@ def export_reponse_as_html(response, fname='/tmp/response.html'):
 
     f.write(response.content.decode('utf-8').replace('\\n','\n'))
     f.close()
+
+
+def ordereddicts_to_dicts(input_ordered_dict, sorted_by='pk'):
+    result = json.loads(json.dumps(input_ordered_dict))
+    if sorted_by is not None:
+        result = sorted(result, key=itemgetter(sorted_by))
+    return result

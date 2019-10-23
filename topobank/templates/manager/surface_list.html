@@ -1,22 +1,24 @@
 
 {% extends 'base.html' %}
 {% load fontawesome %}
-{% load crispy_forms_tags %}
 {% load surface_tags %}
 {% load guardian_tags %}
+{% load static i18n %}
 
 {% block extra_css %}
-  {{ form.media.css }}
-{% endblock extra_css %}
 
-{% block content-title %}
-  My Surfaces and Topographies
-  <div class="pull-right">
-    <a href="{% url 'manager:surface-create' %}" class="btn btn-primary">
-      {% fontawesome_icon 'plus-square-o' %} Add Surface
-    </a>
-  </div>
-{% endblock content-title %}
+  {# vuejs for interactivity #}
+  {# TODO move script tag to end? #}
+  <script src="https://unpkg.com/vue@latest"></script>
+  <script src="https://unpkg.com/vue-select@latest"></script>
+  <link rel="stylesheet" href="https://unpkg.com/vue-select@latest/dist/vue-select.css">
+
+  <!-- Include Fancytree skin  -->
+  <!-- link href="{# static 'vendor/fancytree/skin-awesome/ui.fancytree.min.css' #}" rel="stylesheet" -->
+  <!-- TODO Use CDN? -->
+  <link href="https://unpkg.com/jquery.fancytree@2.32.0/dist/skin-awesome/ui.fancytree.min.css" rel="stylesheet">
+
+{% endblock extra_css %}
 
 {% block breadcrumbs %}
   <li class="breadcrumb-item active" aria-current="page">
@@ -24,64 +26,662 @@
   </li>
 {% endblock breadcrumbs %}
 
-{% block searchbox %}
-  <!-- Filter for topographies  -->
-  <div class="bg-light border-top border-bottom">
-    <div class="container-fluid">
-      {% crispy form form.helper %}
+{% block basket %}
+
+  {# display selected items in session #}
+  <div class="bg-light border-top border-bottom py-2">
+    <div class="container-fluid ">
+      <label for="basket"><h5>Items selected in <a href="{% url 'manager:surface-list' %}">surface list</a></h5></label>
+      <div id="basket">
+        <div v-if="keys.length">
+          <basket-element v-for="key in keys" v-bind:elem="get_element(key)"></basket-element>
+        </div>
+        <span v-else>No items selected yet. In order to select, please use the checkboxes in the surface list.</span>
+      </div>
     </div>
   </div>
-{% endblock searchbox %}
+
+{% endblock basket %}
 
 {% block content %}
 
+  {# display search box #}
+  {# full text search in names, descriptions, tags #}
+  <div class="card">
+    <div class="card-header">
+      Search items
+    </div>
+    <div class="card-body">
+      <form>
+        <div class="form-row">
+
+          <div class="form-group col-md-4">
+            <div class="input-group">
+              <input id="searchbar" type="text" class="form-control" aria-label="Search"
+                     placeholder="Filter by name, description, and tags..." autocomplete="off">
+              <div class="input-group-append">
+                <button class="btn btn-outline-secondary form-control" id="button_reset_filter" type="button">&times;</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group col-md-2">
+            <select class="form-control" id="select-category-filter">
+              <option value="all" selected>All categories</option>
+              <option value="exp">Experimental data only</option>
+              <option value="sim">Simulated data only</option>
+              <option value="dum">Dummy data only</option>
+            </select>
+          </div>
+
+          <div class="form-group col-md-2">
+            <select class="form-control" id="select-sharing-status-filter">
+              <option value="all" selected>Own and shared surfaces</option>
+              <option value="own">Only own surfaces</option>
+              <option value="shared">Only surfaces shared with you</option>
+            </select>
+          </div>
+
+
+          <div id="tree-selector" class="form-group btn-group btn-group-toggle col-md-2" data-toggle="buttons">
+            <label class="btn btn-default active">
+              <input type="radio" name="options" value="surface list" id="surface-list-radio-btn" autocomplete="off" checked>
+              {% fontawesome_icon 'diamond' %} Surface list
+            </label>
+            <label class="btn btn-default">
+                <input type="radio" name="options" value="tag tree" id="tag-tree-radio-btn" autocomplete="off">
+                {% fontawesome_icon 'tag' %}Tag tree
+            </label>
+          </div>
+
+          <div class="form-group col-md-2">
+            <a class="btn btn-primary form-control" href="{% url 'manager:surface-create' %}">Create Surface</a>
+          </div>
+
+        </div>
+
+
+      </form>
+
+
+      <div id="search-result">
+
+
+
+        <div id="scrollParent" style="height: 500px; overflow: auto;">
+          <table id="result-tree" class="table table-condensed">
+            <colgroup>
+              <col width="2%"></col>
+              <col width="35%"></col>
+              <col width="2%"></col>
+              <col width="46%"></col>
+              <col width="15%"></col>
+            </colgroup>
+            <thead>
+            <tr>
+              <th scope="col"></th>
+              <th scope="col"></th>
+              <th scope="col"></th>{# for actions #}
+              <th scope="col">{% fontawesome_icon 'sticky-note' %} Description</th>
+              <th scope="col">{% fontawesome_icon 'tag' %} Tags</th>
+            </tr>
+            </thead>
+            <tbody>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-footer">
+      <div id="result-summary"></div>
+    </div>
+  </div>
+
    <!--
-  Show one card for each surface
+  Show one card for each selected surface
 
   Will be replaced by AJAX call.
   -->
-  <div class="row">
-    {% for surface in surfaces %}
-      <div class="col-xl-4 mb-4">
-        <div id="card-{{ surface.id }}">
-          <div class="card">
-            <div class="card-header">
-              <h5>{{ surface.name }}</h5>
-            </div>
-            <div class="card-body">
-              <p>Please wait..</p>
-              <div class="spinner"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    {% endfor %}
-  </div>
+{#  #}
+{#  <div class="row">#}
+{#    {% for surface in surfaces %}#}
+{#      <div class="col-xl-4 mb-4">#}
+{#        <div id="card-{{ surface.id }}">#}
+{#          <div class="card">#}
+{#            <div class="card-header">#}
+{#              <h5>{{ surface.name }}</h5>#}
+{#            </div>#}
+{#            <div class="card-body">#}
+{#              <p>Please wait..</p>#}
+{#              <div class="spinner"></div>#}
+{#            </div>#}
+{#          </div>#}
+{#        </div>#}
+{#      </div>#}
+{#    {% endfor %}#}
+{#  </div>#}
+
 
 {% endblock content %}
 
 {% block javascript %}
-  {{ form.media.js }}
+
+  <script src="https://unpkg.com/jquery-highlight@3.3.0/jquery.highlight.js"></script>
+  <script src="https://unpkg.com/jquery.fancytree@2.32.0/dist/jquery.fancytree-all-deps.min.js"></script>
+  <script src="https://unpkg.com/jquery.fancytree@2.32.0/dist/modules/jquery.fancytree.glyph.js"></script>
+  <script src="https://unpkg.com/jquery.fancytree@2.32.0/dist/modules/jquery.fancytree.table.js"></script>
+  <script src="https://unpkg.com/jquery.fancytree@2.32.0/dist/modules/jquery.fancytree.filter.js"></script>
+  {#  <script src="{% static 'vendor/jquery-highlight-3.3.0/jquery.highlight.js' %}"></script>#}
+  {#  <script src="{% static 'vendor/fancytree/jquery.fancytree-all-deps.min.js' %}"></script>#}
+  {#  <script src="{% static 'vendor/fancytree/modules/jquery.fancytree.glyph.js' %}"></script>#}
+  {#  <script src="{% static 'vendor/fancytree/modules/jquery.fancytree.table.js' %}"></script>#}
+  {#  <script src="{% static 'vendor/fancytree/modules/jquery.fancytree.filter.js' %}"></script>#}
+
+
 
   <script>
 
-    /** Use this as start when loading new cards without form submission
-    $('.django-select2').on('change.select2', function (e) {
-       var data = e.params.data;
-       console.log("select, data "+data);
-       console.dir(data);
-    });
-    */
+      /**
+       * Display search results as tree
+       * @type {*|jQuery}
+       */
 
-    // for each surface submit ajax call to insert a bootstrap card
-    $(document).ready(function () {
-      {% url 'manager:surface-card' as card_url %}
-      {% for surface in surfaces %}
-        submit_surface_card_ajax("{{ card_url }}", {{ surface.id }}, "{{ request.path }}");
-      {% endfor %}
-    });
+      function get_tree() {
+          return $("#result-tree").fancytree("getTree");
+      }
 
-    // we don't want error messages if the page is left before everything is loaded
-    install_handler_for_aborting_all_ajax_calls_on_page_leave();
+      var basket = new Vue({
+          delimiters: ['[[', ']]'],
+          el: '#basket',
+          data: {
+              keys: [],
+              elements: {} // key: key like "surface-1", value is object, see below
+          },
+          methods:{
+              get_element: function (key) {
+                return this.elements[key];
+              },
+              update: function () {
+                  var tree = get_tree();
+                  var elements = {};
+                  var keys = [];
+
+                  tree.getSelectedNodes().forEach(function (node) {
+
+                      // console.log("is selected: "+node.key);
+
+                      if (node.type!="tag") { // TODO also push list of tags?
+
+                          var key = node.key;
+
+                          // Only add a new key if key is not yet in elements
+                          if (!(key in elements)) {
+                                console.log("Added key " + key);
+                                elements[key] = {
+                                    name: node.data.name,
+                                    type: node.type,
+                                    nodes: [node] // at least one node
+                                };
+                                keys.push(key);
+                          } else {
+                                console.log("Key " + key + " already included in basket");
+                                elements[key].nodes.push(node); // maintain list of nodes where this key is used
+                          }
+                          // console.log("Current element: ", elements[key]);
+                      }
+                  });
+                  console.log("All elements before removal: ", elements);
+
+                  // remove all elements which parent element is already included
+                  var keys_to_remove = []
+                  keys.forEach(function (key) {
+                     var elem = elements[key];
+                     var first_node_data = elem.nodes[0].data;
+                     if (first_node_data.hasOwnProperty('surface_key') && (first_node_data.surface_key in elements)) {
+                         keys_to_remove.push(key);
+                     }
+                  });
+                  keys_to_remove.forEach(function (key) {
+                      delete elements[key];
+                  });
+                  keys = keys.filter( function (key) {
+                     return keys_to_remove.indexOf(key) == -1
+                  });
+                  keys.sort() // we want always the same order, independent from traversal order
+
+                  // console.log("All elements: ", elements);
+                  this.elements = elements;
+                  this.keys = keys;
+              }
+          }
+      });
+
+      var summary_vm = new Vue({
+          delimiters: ['[[', ']]'],
+          el: '#result-summary',
+          template: `
+            <span>Showing [[ num_elements_shown ]] [[ element_kinds[tree_mode] ]] out of [[ num_elements ]]. [[ hints[tree_mode] ]]</span>
+          `,
+          data: {
+              num_elements: 0,
+              num_elements_shown: 0,
+              element_kinds: {
+                  "surface list": "surfaces",
+                  "tag tree": "top level tags",
+                  "unknown": "(?)"
+              },
+              tree_mode: "surface list",
+              hints: {
+                  "surface list": "The selected items are used when switching to analyses.",
+                  "tag tree": "Tags can be introduced or changed when editing meta data of surfaces and topographies.",
+                  "unknown": ""
+              }
+          },
+          methods: {
+              update: function() {
+                  var tree = get_tree();
+
+                  if (this.tree_mode == "surface list") {
+                      this.element_kind = "surfaces";
+                      this.hint = "The selected items are used when switching to analyses.";
+                  } else if (this.tree_mode == "tag tree") {
+                      this.element_kind = "top level tags";
+                      this.hint = "New tags can be introduced when editing meta data of surfaces and topographies.";
+                  } else {
+                      this.tree_mode = "unknown";
+                  }
+
+                  this.num_elements = tree.rootNode.children.length;
+                  this.num_elements_shown = tree.rootNode.children.filter(function (node){
+                      return node.isMatched();
+                  }).length;
+              }
+          }
+      });
+
+      function menu_items(node, urls) {
+          // node: tree node for which this function is called
+          // urls: object with url names as keys and urls as values
+          //
+          // Use this function to compile menu items for surfaces and topographies
+          //
+          // return HTML
+
+          var result = "";
+          if (urls.hasOwnProperty('detail')) {
+              result += `
+                  <a href="${urls.detail}" class="dropdown-item">
+                    {% fontawesome_icon 'folder-open-o' fixed=True  %} Details
+                  </a>
+              `
+          }
+          if (urls.hasOwnProperty('show_analyses')) {
+              result += `
+                  <a href="${urls.show_analyses}" class="dropdown-item">
+                    {% fontawesome_icon 'area-chart' fixed=True %} Show analyses
+                  </a>
+              `
+          }
+          if (urls.hasOwnProperty('update')) {
+              result += `
+                  <div class="dropdown-divider"></div>
+                  <a href="${urls.update}?redirect=${window.location}" class="dropdown-item">
+                    {% fontawesome_icon 'edit' fixed=True %} Edit meta data (also tags)
+                  </a>
+              `
+          }
+          if (urls.hasOwnProperty('add_topography')) {
+              result += `
+                  <a href="${urls.add_topography}" class="dropdown-item">
+                    {% fontawesome_icon 'plus-square' fixed=True %} Add topography
+                  </a>
+              `
+          }
+          /** DOES NOT WORK YET
+           * Make node expand when click on "Expand"
+          if (node.hasOwnProperty('children')) {
+
+              var expand_id = "expand-" + node.key;
+              result += `
+                  <div class="dropdown-divider"></div>
+                  <a href="#" id="${expand_id}" class="dropdown-item">
+                    {% fontawesome_icon 'chevron-down' %} Expand
+                  </a>
+              `;
+
+              $("#"+expand_id).click(function () {
+                  node.setExpanded(true)
+              });
+          }
+          */
+          if (urls.hasOwnProperty('delete')) {
+              result += `
+                  <div class="dropdown-divider"></div>
+                  <a href="${urls.delete}" class="dropdown-item text-danger">
+                    {% fontawesome_icon 'trash' fixed=True  %} Delete
+                  </a>
+              `
+          }
+          return result;
+      }
+
+      var result_tree = $('#result-tree').fancytree({
+          extensions: ["glyph", "table", "filter"],
+          glyph: {
+              preset: "awesome4",
+              map: {
+                // Override distinct default icons here
+                folder: "fa-folder",
+                folderOpen: "fa-folder-open"
+              }
+          },
+          types: {
+            "surface": {icon: "fa fa-diamond fa-fw", iconTooltip: "This is a surface"},
+            "topography": {icon: "fa fa-file-o fa-fw", iconTooltip: "This is a topography"},
+            "tag": {icon: "fa fa-tag fa-fw", iconTooltip: "This is a tag"},
+          },
+          icon: function(event, data) {
+            // data.typeInfo contains tree.types[node.type] (or {} if not found)
+            // Here we will return the specific icon for that type, or `undefined` if
+            // not type info is defined (in this case a default icon is displayed).
+            return data.typeInfo.icon;
+          },
+          iconTooltip: function(event, data) {
+             return data.typeInfo.iconTooltip; // set tooltip which appears when hovering an icon
+          },
+          table: {
+		        checkboxColumnIdx: 0,    // render the checkboxes into the this column index (default: nodeColumnIdx)
+		        indentation: 20,         // indent every node level by these number of pixels
+		        nodeColumnIdx: 1         // render node expander, icon, and title to this column (default: #0)
+	        },
+          filter: {
+            autoApply: true,   // Re-apply last filter if lazy data is loaded
+            autoExpand: true, // Expand all branches that contain matches while filtered
+            counter: false,     // Show a badge with number of matching child nodes near parent icons
+            fuzzy: false,      // Match single characters in order, e.g. 'fb' will match 'FooBar'
+            hideExpandedCounter: true,  // Hide counter badge if parent is expanded
+            hideExpanders: false,       // Hide expanders if all child nodes are hidden by filter
+            highlight: false,   // Highlight matches by wrapping inside <mark> tags | we do this outself because of extra columns
+            leavesOnly: false, // Match end nodes only
+            nodata: true,      // Display a 'no data' status node if result is empty
+            mode: "hide"
+          },
+          source: {
+              url: "{% url 'manager:surface-search' %}",
+              cache: false
+          },
+          //autoActivate: false,
+          //titlesTabbable: false,
+          focusOnSelect: false,
+          scrollParent: $("#scrollParent"),
+          checkbox: true,
+          selectMode: 3, // 'multi-hier'
+          init: function() {
+            basket.update();
+            summary_vm.update();
+            set_tree_mode_styles("surface list");
+          },
+          select: function(event, data) {
+              var node = data.node;
+              var is_selected = node.isSelected();
+
+              if (is_selected) {
+                   $.ajax({
+                       type: "POST",
+                       url: node.data.urls.select,
+                       data: {
+                           csrfmiddlewaretoken: "{{csrf_token}}"
+                       },
+                       success: function (data, textStatus, xhr) {
+                           // console.log("Selected: " + node.data.name + " " + node.key);
+                           basket.update();
+                       },
+                       error: function (xhr, textStatus, errorThrown) {
+                           console.error("Could not select: " + errorThrown + " " + xhr.status + " " + xhr.responseText);
+                       }
+                   });
+              } else {
+                  $.ajax({
+                       type: "POST",
+                       url: node.data.urls.unselect,
+                       data: {
+                           csrfmiddlewaretoken: "{{csrf_token}}"
+                       },
+                       success: function (data, textStatus, xhr) {
+                           // console.log("Unselected: " + node.data.name + " " + node.key);
+                           basket.update();
+                       },
+                       error: function (xhr, textStatus, errorThrown) {
+                           console.error("Could not unselect: " + errorThrown + " " + xhr.status + " " + xhr.responseText);
+                       }
+                   });
+              }
+          },
+          renderColumns: function(event, data) {
+              var node = data.node;
+              var $tdList = $(node.tr).find(">td");
+
+              /**
+                Add special css classes to nodes depending on type
+               */
+
+              var extra_classes = {
+                  surface: [],
+                  topography: [],
+                  tag: ['font-italic']
+              };
+
+              extra_classes[node.type].forEach(function (c) {
+                node.addClass(c);
+              });
+
+
+              /**
+               * Render columns
+               */
+
+
+              // (Index #0 is rendered by fancytree by adding the checkbox)
+              // (Index #1 is rendered by fancytree)
+
+              // Set rest from node data:
+              if (node.type !== "tag") {
+                  var menu_html = `
+                <div class="btn-group btn-group-sm pull-right dropdown">
+                  <button type="button" class="btn btn-default button-small" data-toggle="dropdown"
+                          aria-haspopup="true" aria-expanded="false">
+                    <i class="fa fa-bars fa-sm"></i>
+                  </button>
+                  <div class="dropdown-menu">
+                    <h5 class="dropdown-header">
+                    ${node.key.includes('surface') ? 'Surface' : 'Topography'} <em>${node.data.name}</em>
+                    </h5>
+                    <div class="dropdown-divider"></div>
+                    ${menu_items(node, node.data.urls)}
+                  </div>
+                </div>
+                `;
+
+
+                  $tdList
+                      .eq(2)
+                      .html(menu_html);
+              }
+              if (node.data.description !== undefined) {
+                  $tdList
+                      .eq(3)
+                      .text(node.data.description);
+              }
+
+              if (node.data.tags !== undefined) {
+                  var tag_html = [];
+                  node.data.tags.forEach(function (tag) {
+                      tag_html += "<span class='badge badge-success mr-1'>" + tag + "</span>"
+                  });
+                  $tdList
+                      .eq(4)
+                      .html(tag_html);
+
+              }
+              // Static markup (more efficiently defined as html row template):
+              // $tdList.eq(3).html("<input type='input' value='" + "" + "'>");
+              // ...
+            },
+      });
+
+      Vue.component('basket-element', {
+        props: ['elem'], // object with keys: 'name', 'type', 'nodes'
+        delimiters: ['[[', ']]'],
+        template: `
+               <span v-if="elem.type=='surface'" class="badge badge-pill badge-primary mr-1">[[ elem.name ]]
+                    <span class="fa fa-close" v-on:click="handle_close"></span>
+               </span>
+               <span v-else class="badge badge-pill badge-secondary mr-1">[[ elem.name ]]
+                    <span class="fa fa-close" v-on:click="handle_close"></span>
+               </span>
+             `,
+        methods: {
+            handle_close: function (event) {
+                // Clicking means "deselect"
+                // All nodes must be deselected - there can be several in the tag tree
+                this.elem.nodes.forEach( function(node) {
+                    node.setSelected(false);
+                })
+                basket.update();
+            },
+        }
+      });
+
+      function filter_items() {
+          get_tree().filterNodes( function(node) {
+
+            if ((node.type == "surface") || (node.type == "topography")) {
+
+              var category = $('#select-category-filter').val();
+              var status = $('#select-sharing-status-filter').val();
+              var term = $('#searchbar').val().toLocaleLowerCase();
+              var data = node.data;
+
+              return (data.name.toLocaleLowerCase().includes(term) || data.description.toLocaleLowerCase().includes(term)
+                    || data.tags.some(function (tag) {return tag.includes(term)}))
+                  && ((category==='all') || (node.data.category === category))
+                  && ((status==='all') || (node.data.sharing_status === status));
+            } else {
+              return true; // let all other nodes pass (tag & root)
+            }
+         });
+
+         // Highlight the search items in tree
+         $("#result-tree").unhighlight();
+         $("#result-tree").highlight($('#searchbar').val());
+
+         summary_vm.update();
+      }
+
+      function set_tree_mode_styles(tree_mode) {
+
+          var tree = get_tree();
+          console.log('set tree mode styles:', tree_mode);
+
+          var surface_list_label = $('#surface-list-radio-btn').parent('label');
+          var tag_tree_label = $('#tag-tree-radio-btn').parent('label');
+
+          if (tree_mode == 'tag tree') {
+              // tree.setOption("filter.leavesOnly", true);
+              // tree.setOption("selectMode", 2);
+              // otherwise tags are selected automatically and hide surface selection when traversing
+
+              tree.setOption("checkbox", false); // this quite complicated..
+              tag_tree_label.addClass('btn-success').removeClass('btn-default');
+              surface_list_label.addClass('btn-default').removeClass('btn-success');
+
+          } else if (tree_mode == 'surface list') {
+              // tree.setOption("filter.leavesOnly", false);
+              // tree.setOption("selectMode", 3);
+              tree.setOption("checkbox", true);
+              surface_list_label.addClass('btn-success').removeClass('btn-default');
+              tag_tree_label.addClass('btn-default').removeClass('btn-success');
+          }
+      }
+
+      $("#select-category-filter").on('change', function() {
+         filter_items();
+      });
+
+      $("#select-sharing-status-filter").on('change', function() {
+         filter_items();
+      });
+
+      $("#searchbar").on('input', function (){
+          filter_items();
+      });
+
+      $('#button_reset_filter').click( function(){
+          $('#searchbar').val('');
+
+          var tree = get_tree();
+
+          tree.clearFilter();
+          tree.expandAll(false);
+          filter_items();
+      });
+
+      $('#tree-selector :input').change( function (){
+          var tree = get_tree();
+          var new_mode = this.value;
+          var new_source;
+
+          console.log("Triggering reload of tree for mode '"+new_mode+"'..");
+
+          if (new_mode == 'surface list') {
+            console.log("Trigger loading surface list...");
+            new_source = {
+                url: "{% url 'manager:surface-search' %}",
+                cache: false
+            };
+            // tree.setOption("selectMode", 3);
+            // must be set before loading so "intermediate" selection states
+            // are correctly applied
+          } else if (new_mode == 'tag tree') {
+            console.log("Trigger loading tag tree...");
+            new_source = {
+                url: "{% url 'manager:tag-list' %}",
+                cache: false
+            }
+            // tree.setOption("selectMode", 2); // in order sur
+          } else {
+              console.error("Unknown tree mode: "+new_mode);
+          }
+
+          // hint: Source in tree oprion is not set when
+          // reloading here, also usig "tree.setOption"
+          // did not work. Therefore the tree mode is saved
+          // in the Vuejs component "summary_vm".
+          // There it is also needed to update the footer accordingly.
+
+          tree.reload(new_source).then( function() {
+              set_tree_mode_styles(new_mode);
+              summary_vm.tree_mode = new_mode;
+              summary_vm.update();
+              filter_items();
+              tree.expandAll(false); // collapse all nodes
+          });
+      });
+
+
+      // for each surface submit ajax call to insert a bootstrap card
+      /**
+      $(document).ready(function () {
+        {% url 'manager:surface-card' as card_url %}
+        {% for surface in surfaces %}
+          // TODO disabled temporarily
+          // submit_surface_card_ajax("{{ card_url }}", {{ surface.id }}, "{{ request.path }}");
+        {% endfor %}
+      });
+      */
+      // we don't want error messages if the page is left before everything is loaded
+      install_handler_for_aborting_all_ajax_calls_on_page_leave();
   </script>
+
 {% endblock javascript %}
