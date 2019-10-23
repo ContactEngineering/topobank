@@ -1,7 +1,6 @@
 
 {% extends 'base.html' %}
 {% load fontawesome %}
-{% load crispy_forms_tags %}
 {% load surface_tags %}
 {% load guardian_tags %}
 {% load static i18n %}
@@ -13,7 +12,6 @@
   <script src="https://unpkg.com/vue@latest"></script>
   <script src="https://unpkg.com/vue-select@latest"></script>
   <link rel="stylesheet" href="https://unpkg.com/vue-select@latest/dist/vue-select.css">
-  {{ form.media.css }}
 
   <!-- Include Fancytree skin  -->
   <!-- link href="{# static 'vendor/fancytree/skin-awesome/ui.fancytree.min.css' #}" rel="stylesheet" -->
@@ -28,28 +26,12 @@
   </li>
 {% endblock breadcrumbs %}
 
-{% block searchbox %}
+{% block basket %}
 
-  <!--
-
-  <div class="bg-light border-top border-bottom">
-    <div class="container-fluid">
-      {% crispy form form.helper %}
-    </div>
-  </div>
-  -->
-
-
-{% endblock searchbox %}
-
-{% block content %}
-
-  {# selected items in session #}
-  <div class="card">
-    <div class="card-header">
-      Items selected in surface list
-    </div>
-    <div class="card-body">
+  {# display selected items in session #}
+  <div class="bg-light border-top border-bottom py-2">
+    <div class="container-fluid ">
+      <label for="basket"><h5>Items selected in <a href="{% url 'manager:surface-list' %}">surface list</a></h5></label>
       <div id="basket">
         <div v-if="keys.length">
           <basket-element v-for="key in keys" v-bind:elem="get_element(key)"></basket-element>
@@ -59,8 +41,12 @@
     </div>
   </div>
 
-  {# search box #}
-  {# full text search in names, descriptions, labels #}
+{% endblock basket %}
+
+{% block content %}
+
+  {# display search box #}
+  {# full text search in names, descriptions, tags #}
   <div class="card">
     <div class="card-header">
       Search items
@@ -180,7 +166,6 @@
 {% endblock content %}
 
 {% block javascript %}
-  {{ form.media.js }}
 
   <script src="https://unpkg.com/jquery-highlight@3.3.0/jquery.highlight.js"></script>
   <script src="https://unpkg.com/jquery.fancytree@2.32.0/dist/jquery.fancytree-all-deps.min.js"></script>

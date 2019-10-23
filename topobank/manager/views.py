@@ -618,69 +618,6 @@ class SelectedTopographyView(FormMixin, ListView):
 
         return topographies
 
-class SurfaceListView(FormMixin, ListView):
-    model = Surface
-    context_object_name = 'surfaces'
-    form_class = TopographySelectForm
-    success_url = reverse_lazy('manager:surface-list') # stay on same view
-
-    def get_queryset(self):
-        #
-        # Filter out non-empty surfaces, for which no topography was selected.
-        # Non-empty because we need to show empty surfaces in order to interact with them.
-        #
-        topographies, surfaces = selected_instances(self.request)
-        surface_ids = set(t.surface.id for t in topographies)
-        surface_ids.update(s.id for s in surfaces)
-        return Surface.objects.filter(id__in=surface_ids)
-
-    def get_initial(self):
-        # make sure the form is already filled with earlier selection
-        return dict(selection=selection_from_session(self.request.session))
-
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs['user'] = self.request.user
-        return kwargs
-
-    def post(self, request, *args, **kwargs):
-        if not request.user.is_authenticated:
-            return HttpResponseForbidden()
-        form = self.get_form()
-        if form.is_valid():
-            return self.form_valid(form)
-        else:
-            return self.form_invalid(form)
-
-    def form_valid(self, form):
-
-        # when pressing "select all" button, select all topographies
-        # of current user
-        if 'select-all' in self.request.POST:
-            selection = selection_for_select_all(self.request.user)
-        else:
-            # take selection from form
-            selection = form.cleaned_data.get('selection', [])
-
-        _log.info('Form valid, selection: %s', selection)
-
-        self.request.session['selection'] = tuple(selection)
-
-        return super().form_valid(form)
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data()
-
-        selected_topos, selected_surfaces = selected_instances(self.request)
-        selected = [{'name': x.name, 'type': 'topography', 'id': x.id} for x in selected_topos]
-        selected.extend([{'name': x.name, 'type': 'surface', 'id': x.id} for x in selected_surfaces])
-
-        context['selected_json'] = json.dumps(selected)
-        context['choices'] = selection_choices(self.request.user)
-
-        return context
-
-
 class SurfaceCardView(TemplateView):
     template_name = 'manager/surface_card.html'
 
