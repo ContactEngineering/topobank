@@ -1,5 +1,18 @@
 # Changelog for *TopoBank*
 
+## 0.7.0
+
+- surfaces and topographies can now be tagged (#52)
+- hierachical tags can be used when inserting slashes in the tag name, 
+  e.g. "projects/big/part_one" (#266)
+- replaced view of surfaces by cards with a tree widget, either listing
+  all surfaces with topographies, or listing all top level tags which build 
+  the main branches of a tag tree; all entries can be searched by name,
+  description and tags (#304,#266)  
+- search tree can be filtered by sharing state and category (#185)   
+- using checkboxes for selecting analysis functions (#271)
+- failed analyses are retriggered now when requested again (#371)
+
 ## 0.6.3
 
 - added migrations needed for bug fix (#366)
