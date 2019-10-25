@@ -1175,8 +1175,12 @@ def download_plot_analyses_to_txt(request, analyses):
             f.write('# IF YOU USE THIS DATA IN A PUBLICATION, PLEASE CITE XXX.\n' +
                     '\n')
 
-        f.write('# Topography: {}\n'.format(analysis.topography.name) +
-                '# {}\n'.format('='*(len('Topography: ')+len(str(analysis.topography.name)))) +
+        topography = analysis.topography
+        topo_creator = topography.creator
+
+        f.write('# Topography: {}\n'.format(topography.name) +
+                '# {}\n'.format('='*(len('Topography: ')+len(str(topography.name)))) +
+                '# Creator: {}\n'.format(topo_creator) +
                 '# Further arguments of analysis function: {}\n'.format(analysis.get_kwargs_display()) +
                 '# Start time of analysis task: {}\n'.format(analysis.start_time) +
                 '# End time of analysis task: {}\n'.format(analysis.end_time) +
@@ -1244,10 +1248,11 @@ def download_plot_analyses_to_xlsx(request, analyses):
             properties = ["Function"]
             values = [str(analysis.function)]
 
-        properties += ['Topography',
+        properties += ['Topography', 'Creator',
                        'Further arguments of analysis function', 'Start time of analysis task',
                        'End time of analysis task', 'Duration of analysis task']
-        values += [str(analysis.topography.name), analysis.get_kwargs_display(), str(analysis.start_time),
+        values += [str(analysis.topography.name), str(analysis.topography.creator),
+                   analysis.get_kwargs_display(), str(analysis.start_time),
                    str(analysis.end_time), str(analysis.duration())]
         if analysis.configuration is None:
             properties.append("Versions of dependencies")
