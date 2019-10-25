@@ -14,7 +14,6 @@ from django.http import HttpResponse
 from django.http import HttpResponseForbidden
 from django.views.generic.edit import FormMixin
 from django.contrib.auth.mixins import UserPassesTestMixin
-# from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 from django.db.models import Q
 
@@ -27,7 +26,6 @@ from django_tables2 import RequestConfig
 from bokeh.plotting import figure
 from bokeh.embed import components
 from bokeh.models import DataRange1d, LinearColorMapper, ColorBar
-# import tagulous.views
 
 from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
@@ -40,10 +38,9 @@ import os.path
 import logging
 
 from .models import Topography, Surface
-from .forms import TopographyForm, SurfaceForm, TopographySelectForm, SurfaceShareForm
+from .forms import TopographyForm, SurfaceForm, SurfaceShareForm
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, Topography1DUnitsForm, Topography2DUnitsForm
-from .utils import selected_instances, selection_from_session, selection_for_select_all, \
-    bandwidths_data, surfaces_for_user, get_topography_reader, selection_choices, tags_for_user
+from .utils import selected_instances, bandwidths_data, surfaces_for_user, get_topography_reader, tags_for_user
 from .serializers import SurfaceSerializer, TopographySerializer, TagSerializer
 
 from topobank.users.models import User
@@ -596,27 +593,6 @@ class TopographyDeleteView(TopographyUpdatePermissionMixin, DeleteView):
                         href=link)
 
         return link
-
-class SelectedTopographyView(FormMixin, ListView):
-    model = Topography
-    context_object_name = 'topographies'
-    form_class = TopographySelectForm
-
-    def get_queryset(self):
-        user = self.request.user
-
-        topography_ids = self.request.GET.get('topographies',[])
-
-        filter_kwargs = dict(
-            surface__creator=user
-        )
-
-        if len(topography_ids) > 0:
-            filter_kwargs['id__in'] = topography_ids
-
-        topographies = Topography.objects.filter(**filter_kwargs)
-
-        return topographies
 
 class SurfaceCardView(TemplateView):
     template_name = 'manager/surface_card.html'

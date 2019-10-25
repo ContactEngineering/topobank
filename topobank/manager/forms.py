@@ -1,6 +1,6 @@
-from django.forms import forms, TypedMultipleChoiceField, ModelMultipleChoiceField
+from django.forms import forms, ModelMultipleChoiceField
 from django import forms
-from django_select2.forms import Select2MultipleWidget, ModelSelect2MultipleWidget
+from django_select2.forms import ModelSelect2MultipleWidget
 
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Submit, Layout, Field, HTML, Div, Fieldset
@@ -14,7 +14,7 @@ import logging
 
 from PyCo.Topography.IO.Reader import CannotDetectFileFormat, CorruptFile, UnknownFileFormatGiven, ReadFileError
 
-from topobank.manager.utils import selection_choices, get_topography_reader
+from topobank.manager.utils import get_topography_reader
 from .models import Topography, Surface
 
 from topobank.users.models import User
@@ -500,39 +500,5 @@ class SurfaceShareForm(forms.Form):
                 """),
             ),
             ASTERISK_HELP_HTML
-        )
-    )
-
-class TopographySelectForm(forms.Form):
-
-    def __init__(self, *args, **kwargs):
-        user = kwargs.pop('user')
-        super().__init__(*args, **kwargs)
-
-        self.fields['selection'].choices = lambda : selection_choices(user)
-
-    selection = TypedMultipleChoiceField(
-        required=False,
-        widget=Select2MultipleWidget,
-        label="Items chosen for selection",
-        help_text="""Select one or multiple topographies or surfaces. Search by name.
-        A surface represents all its topographies.
-        """)
-
-    helper = FormHelper()
-    helper.form_method = 'POST'
-
-    helper.layout = Layout(
-        Div(
-            Field('selection', css_class='col-5'),
-            FormActions(
-                Submit('save', 'Save selection', css_class='btn-primary'),
-                Submit('select-all', 'Select all', css_class='btn-primary'),
-                HTML("""
-                    <a href="{% url 'manager:surface-create' %}" class="btn btn-primary">
-                        <i class="fa fa-plus-square-o"></i> Add Surface
-                    </a>
-                """)
-            )
         )
     )
