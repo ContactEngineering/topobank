@@ -3,6 +3,8 @@
 ## 0.7.1
 
 - added help texts explaining the asterisk in forms (#305)
+- added reference to analyses' download files which user has
+  uploaded a topography file (#188) 
 
 ## 0.7.0
 
