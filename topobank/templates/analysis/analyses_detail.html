@@ -59,7 +59,7 @@
     // for the card submit ajax call to insert result card
     $(document).ready(function () {
       submit_analyses_card_ajax("{% url 'analysis:card' %}", "card", "detail",
-                                {{ card.function.id }}, {{ card.topography_ids_json|safe }}, true);
+                                {{ card.function.id }}, {{ card.topography_ids_json|safe }}, 0);
     });
 
     // we don't want error messages if the page is left before everything is loaded

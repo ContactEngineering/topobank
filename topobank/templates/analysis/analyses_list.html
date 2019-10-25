@@ -64,8 +64,8 @@
               <h5>{{ card.function.name }}</h5>
             </div>
             <div class="card-body">
-              <p>Please wait..</p>
-              <div class="spinner"></div>
+              <span class="spinner"></span>
+              <span>Please wait</span>
             </div>
           </div>
         </div>
@@ -172,7 +172,7 @@
     $(document).ready(function () {
       {% url 'analysis:card' as card_url %}
       {% for card in cards %}
-        submit_analyses_card_ajax("{{ card_url }}", "card-{{ forloop.counter }}", "list", {{ card.function.id }}, {{ card.topography_ids_json|safe }}, true);
+        submit_analyses_card_ajax("{{ card_url }}", "card-{{ forloop.counter }}", "list", {{ card.function.id }}, {{ card.topography_ids_json|safe }}, 0);
       {% endfor %}
     });
 

@@ -51,7 +51,7 @@
           if (xhr.status==200) {
             console.log("Triggering reload of card");
             submit_analyses_card_ajax("{% url 'analysis:card' %}", "card", "detail", {{ function.id }},
-                                       {{ topography_ids_requested_json|safe }});
+                                       {{ topography_ids_requested_json|safe }}, 0);
           } else {
             console.log("Submitting analyses failed");
           }

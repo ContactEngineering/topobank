@@ -110,7 +110,7 @@
               $(div).html("Triggered for topography '{{ mt.name }}'. Reload page for results.");
               $(div).removeClass("alert-warning");
               $(div).addClass("alert-success");
-              // submit_analyses_card_ajax("{% url 'analysis:card' %}", "{{ card.id }}", "detail", {{ function.id }},{{ topography_ids_requested_json|safe }}, true);
+              // submit_analyses_card_ajax("{% url 'analysis:card' %}", "{{ card.id }}", "detail", {{ function.id }},{{ topography_ids_requested_json|safe }}, 0);
               // debug_msg("Triggered card reload. Status: "+xhr.status+" textStatus: "+textStatus);
             } else {
               console.log("Submitting analyses failed");

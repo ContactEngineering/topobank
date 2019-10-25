@@ -224,11 +224,19 @@ function format_exponential(d, maxNumberOfDecimalPlaces) {
  * @param template_flavor {String} defines which template should be finally used (e.g. 'list', 'detail')
  * @param function_id {Number} Integer number of the analysis function which should be displayed
  * @param topography_ids {Object} list of integer numbers with ids of topographies which should be displayed
- * @param first_call {Boolean} true if this is the first call in a chain of ajax calls
+ * @param call_count {Integer} 0 for first call in a chain of ajax calls, increased by one in further calls
  */
-function submit_analyses_card_ajax(card_url, card_element_id, template_flavor, function_id, topography_ids, first_call) {
+function submit_analyses_card_ajax(card_url, card_element_id, template_flavor, function_id, topography_ids, call_count) {
 
       var jquery_card_selector = "#"+card_element_id;
+
+      if (call_count === undefined) {
+          call_count = 0; // first call
+      }
+
+      // Provide effect of growing list of dots as long as background task is not finished (see #236)
+      var dots = '.'.repeat((call_count % 9)+1);
+      $(jquery_card_selector+' span:contains("wait")').html('Please wait'+dots);
 
       $.ajax({
         type: "GET",
@@ -242,7 +250,7 @@ function submit_analyses_card_ajax(card_url, card_element_id, template_flavor, f
         },
         success : function(data, textStatus, xhr) {
 
-          if (first_call || (xhr.status==200) ) {
+          if ((call_count == 0) || (xhr.status==200) ) {
             $(jquery_card_selector).html(data); // insert resulting HTML code
             // We want to only insert cards on first and last call and
             // only once if there is only one call.
@@ -251,7 +259,7 @@ function submit_analyses_card_ajax(card_url, card_element_id, template_flavor, f
             // Not all analyses are ready, retrigger AJAX call
             console.log("Analyses for card with element id '"+card_element_id+"' not ready. Retrying..");
             setTimeout(function () {
-              submit_analyses_card_ajax(card_url, card_element_id, template_flavor, function_id, topography_ids, false);
+              submit_analyses_card_ajax(card_url, card_element_id, template_flavor, function_id, topography_ids, call_count+1);
             }, 1000); // TODO limit number of retries?
           }
         },

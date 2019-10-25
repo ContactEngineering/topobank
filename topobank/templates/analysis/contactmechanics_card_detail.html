@@ -396,7 +396,7 @@
             // debug_msg("Job submission successful. Status: "+xhr.status+" textStatus: "+textStatus);
             if (xhr.status==200) {
               console.log("Triggering reload of card");
-              submit_analyses_card_ajax("{% url 'analysis:card' %}", "card", "detail", {{ function.id }},{{ topography_ids_requested_json|safe }}, true);
+              submit_analyses_card_ajax("{% url 'analysis:card' %}", "card", "detail", {{ function.id }},{{ topography_ids_requested_json|safe }}, 0);
               // debug_msg("Triggered card reload. Status: "+xhr.status+" textStatus: "+textStatus);
             } else {
               console.log("Submitting analyses failed");
