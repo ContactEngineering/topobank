@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 0.7.1
+
+- added help texts explaining the asterisk in forms (#305)
+
 ## 0.7.0
 
 - surfaces and topographies can now be tagged (#52)
