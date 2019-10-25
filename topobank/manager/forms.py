@@ -23,6 +23,7 @@ _log = logging.getLogger(__name__)
 
 MEASUREMENT_DATE_INPUT_FORMAT = '%Y-%m-%d'
 MEASUREMENT_DATE_HELP_TEXT = 'Valid format: "YYYY-mm-dd"'
+ASTERISK_HELP_HTML = HTML("<p>Fields marked with an asterisk (*) are mandatory.</p>")
 
 ################################################################
 # Topography Forms
@@ -53,6 +54,7 @@ class TopographyFileUploadForm(forms.ModelForm):
             """),
             # Submit('cancel', 'Cancel', formnovalidate="formnovalidate"),
         ),
+        ASTERISK_HELP_HTML
     )
 
     def clean_datafile(self):
@@ -149,6 +151,7 @@ class TopographyMetaDataForm(forms.ModelForm):
                 """),
             # Submit('cancel', 'Cancel', formnovalidate="formnovalidate"),
         ),
+        ASTERISK_HELP_HTML
     )
 
 
@@ -275,6 +278,7 @@ class Topography1DUnitsForm(TopographyUnitsForm):
                   <a href="{{ cancel_action }}" class="btn btn-default" id="cancel-btn">Cancel</a>
                 """),
             ),
+            ASTERISK_HELP_HTML
         )
 
 class Topography2DUnitsForm(TopographyUnitsForm):
@@ -315,6 +319,7 @@ class Topography2DUnitsForm(TopographyUnitsForm):
                     """),
                 # Submit('cancel', 'Cancel', formnovalidate="formnovalidate"),
             ),
+            ASTERISK_HELP_HTML
         )
 
     def clean_size_y(self):
@@ -381,6 +386,7 @@ class TopographyForm(TopographyUnitsForm):
                         Finish editing without saving</a>
                     """),
                 ),
+            ASTERISK_HELP_HTML
         )
         self.fields['tags'] = TagField(
             required=False,
@@ -433,6 +439,7 @@ class SurfaceForm(forms.ModelForm):
                     <a class="btn btn-default" id="cancel-btn" onclick="history.back(-1)">Cancel</a>
                 """),
             ),
+        ASTERISK_HELP_HTML
     )
 
 class MultipleUserSelectWidget(ModelSelect2MultipleWidget):
@@ -491,7 +498,8 @@ class SurfaceShareForm(forms.Form):
                 HTML("""
                 <a href="{% url 'manager:surface-detail' surface.pk %}" class="btn btn-default" id="cancel-btn">Cancel</a>
                 """),
-            )
+            ),
+            ASTERISK_HELP_HTML
         )
     )
 
