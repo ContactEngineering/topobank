@@ -31,7 +31,7 @@
   {# display selected items in session #}
   <div class="bg-light border-top border-bottom py-2">
     <div class="container-fluid ">
-      <label for="basket"><h5>Items selected in <a href="{% url 'manager:surface-list' %}">surface list</a></h5></label>
+      <label for="basket"><h5>Items selected</h5></label>
       <div id="basket">
         <div v-if="keys.length">
           <basket-element v-for="key in keys" v-bind:elem="get_element(key)"></basket-element>
