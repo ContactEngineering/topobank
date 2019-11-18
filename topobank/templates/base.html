@@ -342,8 +342,6 @@
                 var href = '/inbox/notifications/mark-as-read/'+item.slug+'/?next='; {# TODO remove hard-coded prefix #}
                 var message = item.description;
 
-                // console.log(item);
-
                 if ((item.data !== null) && (typeof item.data.href !== 'undefined')) {
                     href += item.data.href;
                 } else {
@@ -351,7 +349,8 @@
                 }
 
                 if(typeof item.timestamp !== 'undefined'){
-                    message = message + " (<i>" + item.timestamp + "</i>)";
+                    var ts = new Date(item.timestamp);
+                    message = message + " (<i>" + ts.toLocaleString() + "</i>)";
                 }
                 return '<a class="dropdown-item" href=' + href + "> " + message + '</a>';
             }).join('')
