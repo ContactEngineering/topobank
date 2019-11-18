@@ -58,17 +58,21 @@
   <div class="row">
     {% for card in cards %}
       <div class="col-xl-6 mb-4">
+
         <div id="card-{{ forloop.counter }}">
           <div class="card search-result-card">
             <div class="card-header">
               <h5>{{ card.function.name }}</h5>
             </div>
             <div class="card-body">
-              <span class="spinner"></span>
-              <span>Please wait</span>
+              <div id="wait-indicator-card-{{ forloop.counter }}">
+                <span class="spinner"></span>
+                Please wait
+              </div>
             </div>
           </div>
         </div>
+
       </div>
     {% endfor %}
   </div>
@@ -108,7 +112,7 @@
 
                   var basket_items = {{ basket_items_json | safe }};
 
-                  console.log(basket_items);
+                  // console.log(basket_items);
 
                   basket_items.forEach(function (item) {
                      keys.push(item.key);
