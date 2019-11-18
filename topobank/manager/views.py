@@ -10,8 +10,7 @@ from django.core.files.storage import default_storage
 from django.core.files import File
 from django.core.exceptions import PermissionDenied
 from django.conf import settings
-from django.http import HttpResponse
-from django.http import HttpResponseForbidden
+from django.http import HttpResponse, Http404
 from django.views.generic.edit import FormMixin
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.utils.decorators import method_decorator
@@ -86,7 +85,10 @@ class TopographyPermissionMixin(UserPassesTestMixin):
         if 'pk' not in self.kwargs:
             return True
 
-        topo = Topography.objects.get(pk=self.kwargs['pk'])
+        try:
+            topo = Topography.objects.get(pk=self.kwargs['pk'])
+        except Topography.DoesNotExist:
+            raise Http404()
         return all(self.request.user.has_perm(perm, topo.surface) for perm in perms)
 
     def test_func(self):

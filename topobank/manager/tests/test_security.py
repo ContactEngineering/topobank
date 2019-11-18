@@ -102,3 +102,31 @@ def test_prevent_topography_access_by_other_user(client, django_user_model, mock
 
     response = client.get(reverse('manager:topography-delete', kwargs=dict(pk=topography_id)))
     assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_pagenotfound__if_surface_does_not_exist(client, django_user_model):
+
+    username = 'testuser1'
+    password = 'abcd$1234'
+
+    django_user_model.objects.create_user(username=username, password=password)
+
+    assert client.login(username=username, password=password)
+
+    response = client.get(reverse('manager:surface-detail', kwargs=dict(pk=999)))
+    assert response.status_code == 404
+
+
+@pytest.mark.django_db
+def test_pagenotfound_if_topography_does_not_exist(client, django_user_model):
+    username = 'testuser1'
+    password = 'abcd$1234'
+
+    django_user_model.objects.create_user(username=username, password=password)
+
+    assert client.login(username=username, password=password)
+
+    response = client.get(reverse('manager:topography-detail', kwargs=dict(pk=999)))
+    assert response.status_code == 404
+
