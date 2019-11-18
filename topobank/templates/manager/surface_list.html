@@ -138,31 +138,6 @@
     </div>
   </div>
 
-   <!--
-  Show one card for each selected surface
-
-  Will be replaced by AJAX call.
-  -->
-{#  #}
-{#  <div class="row">#}
-{#    {% for surface in surfaces %}#}
-{#      <div class="col-xl-4 mb-4">#}
-{#        <div id="card-{{ surface.id }}">#}
-{#          <div class="card">#}
-{#            <div class="card-header">#}
-{#              <h5>{{ surface.name }}</h5>#}
-{#            </div>#}
-{#            <div class="card-body">#}
-{#              <p>Please wait..</p>#}
-{#              <div class="spinner"></div>#}
-{#            </div>#}
-{#          </div>#}
-{#        </div>#}
-{#      </div>#}
-{#    {% endfor %}#}
-{#  </div>#}
-
-
 {% endblock content %}
 
 {% block javascript %}
@@ -172,13 +147,6 @@
   <script src="https://unpkg.com/jquery.fancytree@2.32.0/dist/modules/jquery.fancytree.glyph.js"></script>
   <script src="https://unpkg.com/jquery.fancytree@2.32.0/dist/modules/jquery.fancytree.table.js"></script>
   <script src="https://unpkg.com/jquery.fancytree@2.32.0/dist/modules/jquery.fancytree.filter.js"></script>
-  {#  <script src="{% static 'vendor/jquery-highlight-3.3.0/jquery.highlight.js' %}"></script>#}
-  {#  <script src="{% static 'vendor/fancytree/jquery.fancytree-all-deps.min.js' %}"></script>#}
-  {#  <script src="{% static 'vendor/fancytree/modules/jquery.fancytree.glyph.js' %}"></script>#}
-  {#  <script src="{% static 'vendor/fancytree/modules/jquery.fancytree.table.js' %}"></script>#}
-  {#  <script src="{% static 'vendor/fancytree/modules/jquery.fancytree.filter.js' %}"></script>#}
-
-
 
   <script>
 
@@ -654,8 +622,8 @@
               console.error("Unknown tree mode: "+new_mode);
           }
 
-          // hint: Source in tree oprion is not set when
-          // reloading here, also usig "tree.setOption"
+          // hint: Source in tree option is not set when
+          // reloading here, also using "tree.setOption"
           // did not work. Therefore the tree mode is saved
           // in the Vuejs component "summary_vm".
           // There it is also needed to update the footer accordingly.
@@ -669,17 +637,6 @@
           });
       });
 
-
-      // for each surface submit ajax call to insert a bootstrap card
-      /**
-      $(document).ready(function () {
-        {% url 'manager:surface-card' as card_url %}
-        {% for surface in surfaces %}
-          // TODO disabled temporarily
-          // submit_surface_card_ajax("{{ card_url }}", {{ surface.id }}, "{{ request.path }}");
-        {% endfor %}
-      });
-      */
       // we don't want error messages if the page is left before everything is loaded
       install_handler_for_aborting_all_ajax_calls_on_page_leave();
   </script>
