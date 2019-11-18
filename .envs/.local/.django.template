@@ -7,6 +7,7 @@
 USE_DOCKER=yes
 DJANGO_SETTINGS_MODULE=config.settings.local
 # settings seem to be local implicitly, but let's be explicit here
+DJANGO_DEBUG=yes
 
 # Celery
 # ------------------------------------------------------------------------------
