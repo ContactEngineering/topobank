@@ -229,7 +229,7 @@ function format_exponential(d, maxNumberOfDecimalPlaces) {
 function submit_analyses_card_ajax(card_url, card_element_id, template_flavor, function_id, topography_ids, call_count) {
 
       var jquery_card_selector = "#"+card_element_id;
-      var jquery_indicator_selector = "#wait-indicator-"+card_element_id; // for increasing number of dots after each ajax call
+      var jquery_indicator_selector = jquery_card_selector+"-wait-text"; // for increasing number of dots after each ajax call
       // see GH 236
 
       if (call_count === undefined) {

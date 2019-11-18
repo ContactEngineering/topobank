@@ -65,14 +65,13 @@
               <h5>{{ card.function.name }}</h5>
             </div>
             <div class="card-body">
-              <div id="wait-indicator-card-{{ forloop.counter }}">
                 <span class="spinner"></span>
-                Please wait
-              </div>
+                <div id="card-{{ forloop.counter }}-wait-text">
+                  Please wait
+                </div>
             </div>
           </div>
         </div>
-
       </div>
     {% endfor %}
   </div>
