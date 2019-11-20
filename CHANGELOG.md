@@ -11,6 +11,7 @@
   access a surface which is no longer accesible
 - showing now 404 page also for topography urls which do not exist
   (before server error) 
+- fixed invalid links in notifications when an object is deleted (#363)
  
 ## 0.7.0
 

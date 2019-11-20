@@ -588,7 +588,7 @@ class TopographyDeleteView(TopographyUpdatePermissionMixin, DeleteView):
         #
         other_users = get_users_with_perms(surface).filter(~Q(id=user.id))
         for u in other_users:
-            notify.send(sender=user, verb="delete", target=self.object,
+            notify.send(sender=user, verb="delete",
                         recipient=u,
                         description=f"User '{user.name}' deleted topography '{topo.name}' "+\
                                     f"from surface '{surface.name}'.",
@@ -770,7 +770,7 @@ class SurfaceDeleteView(DeleteView):
         #
         other_users = get_users_with_perms(surface).filter(~Q(id=user.id))
         for u in other_users:
-            notify.send(sender=user, verb="delete", target=surface,
+            notify.send(sender=user, verb="delete",
                         recipient=u,
                         description=f"User '{user.name}' deleted surface '{surface.name}'.",
                         href=link)
