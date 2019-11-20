@@ -12,6 +12,7 @@
 - showing now 404 page also for topography urls which do not exist
   (before server error) 
 - fixed invalid links in notifications when an object is deleted (#363)
+- fixed invisible topographies in surface list when filtering for category/sharing status (#376)
  
 ## 0.7.0
 

@@ -185,7 +185,7 @@
 
                           // Only add a new key if key is not yet in elements
                           if (!(key in elements)) {
-                                console.log("Added key " + key);
+                                // console.log("Added key " + key);
                                 elements[key] = {
                                     name: node.data.name,
                                     type: node.type,
@@ -193,13 +193,13 @@
                                 };
                                 keys.push(key);
                           } else {
-                                console.log("Key " + key + " already included in basket");
+                                // console.log("Key " + key + " already included in basket");
                                 elements[key].nodes.push(node); // maintain list of nodes where this key is used
                           }
                           // console.log("Current element: ", elements[key]);
                       }
                   });
-                  console.log("All elements before removal: ", elements);
+                  // console.log("All elements before removal: ", elements);
 
                   // remove all elements which parent element is already included
                   var keys_to_remove = []
@@ -521,23 +521,39 @@
         }
       });
 
+      function node_data_matches_because_of_name_description_tag(data, term) {
+          return data.name.toLocaleLowerCase().includes(term)
+              || data.description.toLocaleLowerCase().includes(term)
+              || data.tags.some(function (tag) {return tag.includes(term)})
+      }
+
       function filter_items() {
           get_tree().filterNodes( function(node) {
-
-            if ((node.type == "surface") || (node.type == "topography")) {
 
               var category = $('#select-category-filter').val();
               var status = $('#select-sharing-status-filter').val();
               var term = $('#searchbar').val().toLocaleLowerCase();
               var data = node.data;
 
-              return (data.name.toLocaleLowerCase().includes(term) || data.description.toLocaleLowerCase().includes(term)
-                    || data.tags.some(function (tag) {return tag.includes(term)}))
-                  && ((category==='all') || (node.data.category === category))
-                  && ((status==='all') || (node.data.sharing_status === status));
-            } else {
-              return true; // let all other nodes pass (tag & root)
-            }
+              if (node.type == "surface") {
+
+                  return node_data_matches_because_of_name_description_tag(data, term)
+                      && ( (category==='all') || (node.data.category === category))
+                      && ( (status==='all') || (node.data.sharing_status === status));
+
+                  // topographies should be included, if surface matches category or status
+              } else if (node.type == "topography") {
+
+                  var surface_node_data = node.parent.data;
+
+                  return node_data_matches_because_of_name_description_tag(data, term)
+                    && ((category==='all') || (surface_node_data.category === category))
+                    && ((status==='all') || (surface_node_data.sharing_status === status));
+
+                  // topographies should be included, if surface matches category or status
+              } else {
+                return true; // let all other nodes pass (tag & root)
+              }
          });
 
          // Highlight the search items in tree
@@ -550,7 +566,7 @@
       function set_tree_mode_styles(tree_mode) {
 
           var tree = get_tree();
-          console.log('set tree mode styles:', tree_mode);
+          // console.log('set tree mode styles:', tree_mode);
 
           var surface_list_label = $('#surface-list-radio-btn').parent('label');
           var tag_tree_label = $('#tag-tree-radio-btn').parent('label');
@@ -600,7 +616,7 @@
           var new_mode = this.value;
           var new_source;
 
-          console.log("Triggering reload of tree for mode '"+new_mode+"'..");
+          // console.log("Triggering reload of tree for mode '"+new_mode+"'..");
 
           if (new_mode == 'surface list') {
             console.log("Trigger loading surface list...");
