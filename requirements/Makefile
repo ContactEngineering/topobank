@@ -11,7 +11,7 @@ base.txt: base.in
 
 %.txt: %.in base.txt
 	pip-compile -v --output-file $@ $<
-	# echo "PyCo==0.53.0" >> $@
+	# echo "PyCo==0.53.1" >> $@
 
 check:
 	@which pip-compile > /dev/null
