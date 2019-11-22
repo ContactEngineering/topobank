@@ -448,7 +448,7 @@ def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None
     )
 
 @analysis_function(card_view_flavor='plot', automatic=True)
-def power_spectrum(topography, window='hann', tip_radius=None, progress_recorder=None, storage_prefix=None):
+def power_spectrum(topography, window=None, tip_radius=None, progress_recorder=None, storage_prefix=None):
     if window == 'None':
         window = None
 
