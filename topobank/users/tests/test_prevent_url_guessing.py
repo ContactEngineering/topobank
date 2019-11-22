@@ -1,8 +1,11 @@
+import pytest
 from django.urls import reverse
 from django.contrib.auth.models import Permission
 
 from .test_utils import are_collaborating, SurfaceFactory
 
+
+@pytest.mark.django_db
 def test_sharing_profile(client, django_user_model):
 
     user1 = django_user_model.objects.create_user(username='testuser1', password="abcd$1234")
@@ -23,7 +26,7 @@ def test_sharing_profile(client, django_user_model):
     #
     assert not are_collaborating(user1, user2)
 
-    response = client.get(reverse('users:detail', kwargs={'username': 'testuser2'})) # other user!!
+    response = client.get(reverse('users:detail', kwargs={'username': 'testuser2'}))  # other user!!
     assert response.status_code == 403 # Forbidden
 
     # share sth. and the view of profile is possible

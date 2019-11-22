@@ -1,5 +1,21 @@
 # Changelog for *TopoBank*
 
+## 0.7.1
+
+- added "is_periodic" flag for topographies (#347)
+- added help texts explaining the asterisk in forms (#305)
+- added reference to analyses' download files which user has
+  uploaded a topography file (#188)
+- unified "please wait" indicators when loading analysis results by AJAX (#236)
+- showing notification time stamps now in local time zone
+- showing now 403 page if entering a URL which tries to
+  access a surface which is no longer accesible
+- showing now 404 page also for topography urls which do not exist
+  (before server error) 
+- fixed invalid links in notifications when an object is deleted (#363)
+- fixed invisible topographies in surface list when filtering for category/sharing status (#376)
+- improved some visual aspects in surface list (#381, not finished yet)
+ 
 ## 0.7.0
 
 - surfaces and topographies can now be tagged (#52)

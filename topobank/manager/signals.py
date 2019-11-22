@@ -1,7 +1,9 @@
-from django.db.models.signals import pre_delete, post_save, pre_save
+from django.db.models.signals import pre_delete, post_delete, pre_save, post_save
 from django.dispatch import receiver
 from django.core.cache import cache
 from guardian.shortcuts import assign_perm
+from notifications.models import Notification
+from django.contrib.contenttypes.models import ContentType
 import logging
 
 from .models import Topography, Surface
@@ -34,11 +36,28 @@ def remove_files(sender, instance, **kwargs):
     except Exception as exc:
         _log.warning("Cannot delete data file '%s', reason: %s", instance.datafile.name, str(exc))
 
+
 @receiver(pre_save, sender=Topography)
 def set_creator_if_needed(sender, instance, **kwargs):
     if instance.creator is None:
         instance.creator = instance.surface.creator
 
+
 @receiver(post_save, sender=Topography)
-def invalidate_cached_topograpphy(sender, instance, **kwargs):
+def invalidate_cached_topography(sender, instance, **kwargs):
     cache.delete(instance.cache_key())
+
+
+def _remove_notifications(instance):
+    ct = ContentType.objects.get_for_model(instance)
+    Notification.objects.filter(target_object_id=instance.id, target_content_type=ct).delete()
+
+
+@receiver(post_delete, sender=Surface)
+def remove_notifications_for_surface(sender, instance, using, **kwargs):
+    _remove_notifications(instance)
+
+
+@receiver(post_delete, sender=Topography)
+def remove_notifications_for_topography(sender, instance, using, **kwargs):
+    _remove_notifications(instance)

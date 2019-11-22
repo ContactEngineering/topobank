@@ -31,9 +31,9 @@ RUN addgroup django \
 # Installation of PyCo + dependencies
 #
 # Copy PyCo source code into container, uncompress
-COPY PyCo-0.51.1.tar.gz .
-RUN tar xfvz PyCo-0.51.1.tar.gz
-WORKDIR PyCo-0.51.1
+COPY PyCo-0.53.1.tar.gz .
+RUN tar xfvz PyCo-0.53.1.tar.gz
+WORKDIR PyCo-0.53.1
 
 # install additional PyCo dependencies
 RUN pip install wheel

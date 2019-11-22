@@ -108,6 +108,12 @@
                   </td>
                 </tr>
                 <tr>
+                  <th scope="row">Periodicity</th>
+                  <td>
+                    This topography is {% if not topography.is_periodic %}not {% endif %}periodic.
+                  </td>
+                </tr>
+                <tr>
                   <th scope="row">Height Conversion Factor</th>
                   <td>{{ topography.height_scale }} {{ topography.unit }}</td>
                 </tr>

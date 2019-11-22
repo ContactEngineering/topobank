@@ -399,7 +399,6 @@ def test_analyis_download_as_txt(client, two_topos, ids_downloadable_analyses, s
 
     response = client.get(download_url)
 
-
     from io import StringIO
 
     txt = response.content.decode()
@@ -409,6 +408,15 @@ def test_analyis_download_as_txt(client, two_topos, ids_downloadable_analyses, s
     # check whether version numbers are in there
     assert PyCo.__version__.split('+')[0] in txt
     assert settings.TOPOBANK_VERSION in txt
+
+    # check whether creator of topography is listed
+    topo1, topo2 = two_topos
+
+    assert "Creator" in txt
+    assert topo1.creator.name in txt
+    assert topo1.creator.orcid_id in txt
+    assert topo2.creator.name in txt
+    assert topo2.creator.orcid_id in txt
 
     # remove comments and empty lines
     filtered_lines = []
@@ -537,9 +545,10 @@ def test_analyis_download_as_xlsx(client, two_topos, ids_downloadable_analyses, 
     assert ("Version of 'PyCo'", PyCo.__version__.split('+')[0]) in vals
     assert ("Version of 'topobank'", settings.TOPOBANK_VERSION) in vals
 
-    # topography names should also be included
+    # topography names should also be included, as well as the creator
     for t in topos:
         assert ('Topography', t.name) in vals
+        assert ('Creator', str(t.creator)) in vals
 
 @pytest.mark.django_db
 def test_view_shared_analysis_results(client):

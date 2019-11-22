@@ -21,6 +21,7 @@ topographies:
     size_x: 1
     size_y: 1
     unit: 'µm'
+    is_periodic: False
     resolution_x: 500
     resolution_y: 500
     height_scale: 1
@@ -34,6 +35,7 @@ topographies:
     size_x: 10
     size_y: 10
     unit: 'µm'
+    is_periodic: False
     resolution_x: 500
     resolution_y: 500
     height_scale: 1
@@ -47,6 +49,7 @@ topographies:
     size_x: 100
     size_y: 100
     unit: 'µm'
+    is_periodic: False
     resolution_x: 500
     resolution_y: 500
     height_scale: 1

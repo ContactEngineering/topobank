@@ -4,7 +4,8 @@ from .base import env
 # GENERAL
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#debug
-DEBUG = True
+# DEBUG = True
+# DEBUG = False
 # https://docs.djangoproject.com/en/dev/ref/settings/#secret-key
 SECRET_KEY = env('DJANGO_SECRET_KEY', default='4IZmXA8orNipbjyYuMIkFjUEzRWADMsuKYMkVjkYRFheCobKf7RRxHLXKlgU6TC6')
 # https://docs.djangoproject.com/en/dev/ref/settings/#allowed-hosts

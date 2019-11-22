@@ -31,7 +31,7 @@
   {# display selected items in session #}
   <div class="bg-light border-top border-bottom py-2">
     <div class="container-fluid ">
-      <label for="basket"><h5>Items selected in <a href="{% url 'manager:surface-list' %}">surface list</a></h5></label>
+      <label for="basket"><h5>Surfaces and topographies selected for analysis</h5></label>
       <div id="basket">
         <div v-if="keys.length">
           <basket-element v-for="key in keys" v-bind:elem="get_element(key)"></basket-element>
@@ -138,31 +138,6 @@
     </div>
   </div>
 
-   <!--
-  Show one card for each selected surface
-
-  Will be replaced by AJAX call.
-  -->
-{#  #}
-{#  <div class="row">#}
-{#    {% for surface in surfaces %}#}
-{#      <div class="col-xl-4 mb-4">#}
-{#        <div id="card-{{ surface.id }}">#}
-{#          <div class="card">#}
-{#            <div class="card-header">#}
-{#              <h5>{{ surface.name }}</h5>#}
-{#            </div>#}
-{#            <div class="card-body">#}
-{#              <p>Please wait..</p>#}
-{#              <div class="spinner"></div>#}
-{#            </div>#}
-{#          </div>#}
-{#        </div>#}
-{#      </div>#}
-{#    {% endfor %}#}
-{#  </div>#}
-
-
 {% endblock content %}
 
 {% block javascript %}
@@ -172,13 +147,6 @@
   <script src="https://unpkg.com/jquery.fancytree@2.32.0/dist/modules/jquery.fancytree.glyph.js"></script>
   <script src="https://unpkg.com/jquery.fancytree@2.32.0/dist/modules/jquery.fancytree.table.js"></script>
   <script src="https://unpkg.com/jquery.fancytree@2.32.0/dist/modules/jquery.fancytree.filter.js"></script>
-  {#  <script src="{% static 'vendor/jquery-highlight-3.3.0/jquery.highlight.js' %}"></script>#}
-  {#  <script src="{% static 'vendor/fancytree/jquery.fancytree-all-deps.min.js' %}"></script>#}
-  {#  <script src="{% static 'vendor/fancytree/modules/jquery.fancytree.glyph.js' %}"></script>#}
-  {#  <script src="{% static 'vendor/fancytree/modules/jquery.fancytree.table.js' %}"></script>#}
-  {#  <script src="{% static 'vendor/fancytree/modules/jquery.fancytree.filter.js' %}"></script>#}
-
-
 
   <script>
 
@@ -217,7 +185,7 @@
 
                           // Only add a new key if key is not yet in elements
                           if (!(key in elements)) {
-                                console.log("Added key " + key);
+                                // console.log("Added key " + key);
                                 elements[key] = {
                                     name: node.data.name,
                                     type: node.type,
@@ -225,13 +193,13 @@
                                 };
                                 keys.push(key);
                           } else {
-                                console.log("Key " + key + " already included in basket");
+                                // console.log("Key " + key + " already included in basket");
                                 elements[key].nodes.push(node); // maintain list of nodes where this key is used
                           }
                           // console.log("Current element: ", elements[key]);
                       }
                   });
-                  console.log("All elements before removal: ", elements);
+                  // console.log("All elements before removal: ", elements);
 
                   // remove all elements which parent element is already included
                   var keys_to_remove = []
@@ -553,23 +521,39 @@
         }
       });
 
+      function node_data_matches_because_of_name_description_tag(data, term) {
+          return data.name.toLocaleLowerCase().includes(term)
+              || data.description.toLocaleLowerCase().includes(term)
+              || data.tags.some(function (tag) {return tag.includes(term)})
+      }
+
       function filter_items() {
           get_tree().filterNodes( function(node) {
-
-            if ((node.type == "surface") || (node.type == "topography")) {
 
               var category = $('#select-category-filter').val();
               var status = $('#select-sharing-status-filter').val();
               var term = $('#searchbar').val().toLocaleLowerCase();
               var data = node.data;
 
-              return (data.name.toLocaleLowerCase().includes(term) || data.description.toLocaleLowerCase().includes(term)
-                    || data.tags.some(function (tag) {return tag.includes(term)}))
-                  && ((category==='all') || (node.data.category === category))
-                  && ((status==='all') || (node.data.sharing_status === status));
-            } else {
-              return true; // let all other nodes pass (tag & root)
-            }
+              if (node.type == "surface") {
+
+                  return node_data_matches_because_of_name_description_tag(data, term)
+                      && ( (category==='all') || (node.data.category === category))
+                      && ( (status==='all') || (node.data.sharing_status === status));
+
+                  // topographies should be included, if surface matches category or status
+              } else if (node.type == "topography") {
+
+                  var surface_node_data = node.parent.data;
+
+                  return node_data_matches_because_of_name_description_tag(data, term)
+                    && ((category==='all') || (surface_node_data.category === category))
+                    && ((status==='all') || (surface_node_data.sharing_status === status));
+
+                  // topographies should be included, if surface matches category or status
+              } else {
+                return true; // let all other nodes pass (tag & root)
+              }
          });
 
          // Highlight the search items in tree
@@ -582,7 +566,7 @@
       function set_tree_mode_styles(tree_mode) {
 
           var tree = get_tree();
-          console.log('set tree mode styles:', tree_mode);
+          // console.log('set tree mode styles:', tree_mode);
 
           var surface_list_label = $('#surface-list-radio-btn').parent('label');
           var tag_tree_label = $('#tag-tree-radio-btn').parent('label');
@@ -632,7 +616,7 @@
           var new_mode = this.value;
           var new_source;
 
-          console.log("Triggering reload of tree for mode '"+new_mode+"'..");
+          // console.log("Triggering reload of tree for mode '"+new_mode+"'..");
 
           if (new_mode == 'surface list') {
             console.log("Trigger loading surface list...");
@@ -654,8 +638,8 @@
               console.error("Unknown tree mode: "+new_mode);
           }
 
-          // hint: Source in tree oprion is not set when
-          // reloading here, also usig "tree.setOption"
+          // hint: Source in tree option is not set when
+          // reloading here, also using "tree.setOption"
           // did not work. Therefore the tree mode is saved
           // in the Vuejs component "summary_vm".
           // There it is also needed to update the footer accordingly.
@@ -669,17 +653,6 @@
           });
       });
 
-
-      // for each surface submit ajax call to insert a bootstrap card
-      /**
-      $(document).ready(function () {
-        {% url 'manager:surface-card' as card_url %}
-        {% for surface in surfaces %}
-          // TODO disabled temporarily
-          // submit_surface_card_ajax("{{ card_url }}", {{ surface.id }}, "{{ request.path }}");
-        {% endfor %}
-      });
-      */
       // we don't want error messages if the page is left before everything is loaded
       install_handler_for_aborting_all_ajax_calls_on_page_leave();
   </script>

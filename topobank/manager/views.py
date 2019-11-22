@@ -10,11 +10,9 @@ from django.core.files.storage import default_storage
 from django.core.files import File
 from django.core.exceptions import PermissionDenied
 from django.conf import settings
-from django.http import HttpResponse
-from django.http import HttpResponseForbidden
+from django.http import HttpResponse, Http404
 from django.views.generic.edit import FormMixin
 from django.contrib.auth.mixins import UserPassesTestMixin
-# from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 from django.db.models import Q
 
@@ -27,7 +25,6 @@ from django_tables2 import RequestConfig
 from bokeh.plotting import figure
 from bokeh.embed import components
 from bokeh.models import DataRange1d, LinearColorMapper, ColorBar
-# import tagulous.views
 
 from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
@@ -40,10 +37,9 @@ import os.path
 import logging
 
 from .models import Topography, Surface
-from .forms import TopographyForm, SurfaceForm, TopographySelectForm, SurfaceShareForm
+from .forms import TopographyForm, SurfaceForm, SurfaceShareForm
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, Topography1DUnitsForm, Topography2DUnitsForm
-from .utils import selected_instances, selection_from_session, selection_for_select_all, \
-    bandwidths_data, surfaces_for_user, get_topography_reader, selection_choices, tags_for_user
+from .utils import selected_instances, bandwidths_data, surfaces_for_user, get_topography_reader, tags_for_user
 from .serializers import SurfaceSerializer, TopographySerializer, TagSerializer
 
 from topobank.users.models import User
@@ -89,7 +85,10 @@ class TopographyPermissionMixin(UserPassesTestMixin):
         if 'pk' not in self.kwargs:
             return True
 
-        topo = Topography.objects.get(pk=self.kwargs['pk'])
+        try:
+            topo = Topography.objects.get(pk=self.kwargs['pk'])
+        except Topography.DoesNotExist:
+            raise Http404()
         return all(self.request.user.has_perm(perm, topo.surface) for perm in perms)
 
     def test_func(self):
@@ -182,6 +181,8 @@ class TopographyCreateWizard(SessionWizardView):
 
             initial['size_editable'] = physical_sizes is None
 
+            initial['is_periodic'] = False  # so far, this is not returned by the readers
+
             #
             # Set unit
             #
@@ -217,26 +218,38 @@ class TopographyCreateWizard(SessionWizardView):
 
         kwargs = super().get_form_kwargs(step)
 
-        if step == 'metadata':
+        if step in ['metadata', 'units2D', 'units1D']:
+            # provide datafile attribute and reader from first step
             step0_data = self.get_cleaned_data_for_step('upload')
+            datafile = step0_data['datafile']
+            toporeader = get_topography_reader(datafile)
 
-            assert step0_data is not None # TODO remove if clear when this happens and why
-
-            toporeader = get_topography_reader(step0_data['datafile'])
-
+        if step == 'metadata':
             #
             # Set data source choices based on file contents
             #
             kwargs['data_source_choices'] = [(k, channel_dict['name']) for k, channel_dict in
                                              enumerate(toporeader.channels)
                                              if not (('unit' in channel_dict)
-                                                     and isinstance(channel_dict['unit'], tuple)) ]
+                                                     and isinstance(channel_dict['unit'], tuple))]
 
             #
             # Set surface in order to check for duplicate topography names
             #
             kwargs['surface'] = step0_data['surface']
             kwargs['autocomplete_tags'] = tags_for_user(self.request.user)
+
+        if step in ['units2D','units1D']:
+
+            step1_data = self.get_cleaned_data_for_step('metadata')
+            channel = int(step1_data['data_source'])
+            channel_info_dict = toporeader.channels[channel]
+
+            has_2_dim = channel_info_dict['dim'] == 2
+            no_sizes_given = ('physical_sizes' in channel_info_dict) and (channel_info_dict['physical_sizes'] == None)
+
+            # only allow periodic topographies in case of 2 dimension
+            kwargs['allow_periodic'] = has_2_dim and no_sizes_given
 
         return kwargs
 
@@ -367,8 +380,19 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
-        kwargs['has_size_y'] = self.object.size_y is not None
+
+        topo = self.object
+
+        kwargs['has_size_y'] = topo.size_y is not None
         kwargs['autocomplete_tags'] = tags_for_user(self.request.user)
+
+        toporeader = get_topography_reader(topo.datafile)
+
+        channel_info_dict = toporeader.channels[topo.data_source]
+        has_2_dim = channel_info_dict['dim'] == 2
+        no_sizes_given = ('physical_sizes' in channel_info_dict) and (channel_info_dict['physical_sizes'] == None)
+
+        kwargs['allow_periodic'] = has_2_dim and no_sizes_given
         return kwargs
 
     def form_valid(self, form):
@@ -380,7 +404,8 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
         #
         # If a significant field changed, renew all analyses
         #
-        significant_fields = set(['size_x', 'size_y', 'unit', 'height_scale', 'detrend_mode', 'datafile', 'data_source'])
+        significant_fields = set(['size_x', 'size_y', 'unit', 'is_periodic', 'height_scale',
+                                  'detrend_mode', 'datafile', 'data_source'])
         significant_fields_with_changes = set(form.changed_data).intersection(significant_fields)
         if len(significant_fields_with_changes) > 0:
             _log.info(f"During edit of topography {topo.id} significant fields changed: "+\
@@ -589,34 +614,13 @@ class TopographyDeleteView(TopographyUpdatePermissionMixin, DeleteView):
         #
         other_users = get_users_with_perms(surface).filter(~Q(id=user.id))
         for u in other_users:
-            notify.send(sender=user, verb="delete", target=self.object,
+            notify.send(sender=user, verb="delete",
                         recipient=u,
                         description=f"User '{user.name}' deleted topography '{topo.name}' "+\
                                     f"from surface '{surface.name}'.",
                         href=link)
 
         return link
-
-class SelectedTopographyView(FormMixin, ListView):
-    model = Topography
-    context_object_name = 'topographies'
-    form_class = TopographySelectForm
-
-    def get_queryset(self):
-        user = self.request.user
-
-        topography_ids = self.request.GET.get('topographies',[])
-
-        filter_kwargs = dict(
-            surface__creator=user
-        )
-
-        if len(topography_ids) > 0:
-            filter_kwargs['id__in'] = topography_ids
-
-        topographies = Topography.objects.filter(**filter_kwargs)
-
-        return topographies
 
 class SurfaceCardView(TemplateView):
     template_name = 'manager/surface_card.html'
@@ -792,7 +796,7 @@ class SurfaceDeleteView(DeleteView):
         #
         other_users = get_users_with_perms(surface).filter(~Q(id=user.id))
         for u in other_users:
-            notify.send(sender=user, verb="delete", target=surface,
+            notify.send(sender=user, verb="delete",
                         recipient=u,
                         description=f"User '{user.name}' deleted surface '{surface.name}'.",
                         href=link)

@@ -390,6 +390,9 @@ if USE_S3_STORAGE:
 # Settings for django-guardian
 #
 GUARDIAN_MONKEY_PATCH = False
+GUARDIAN_RENDER_403 = True
+# uses template "403.html" by default
+# see https://django-guardian.readthedocs.io/en/stable/configuration.html#guardian-render-403
 
 #
 # Settings for django-tables2

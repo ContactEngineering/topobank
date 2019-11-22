@@ -23,11 +23,11 @@ RUN apt-get -qy autoremove
 # Installation of PyCo + dependencies
 #
 # Copy PyCo source code into container, uncompress
-COPY PyCo-0.51.1.tar.gz .
-RUN tar xfvz PyCo-0.51.1.tar.gz
+COPY PyCo-0.53.1.tar.gz .
+RUN tar xfvz PyCo-0.53.1.tar.gz
 
 # install PyCo
-WORKDIR PyCo-0.51.1
+WORKDIR PyCo-0.53.1
 
 # workaround for typo in requiremnts.txt
 RUN sed -i "s/#egg=muff$/#egg=mufft/g" requirements.txt

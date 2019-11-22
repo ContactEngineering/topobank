@@ -2,6 +2,8 @@ import pytest
 
 from django.db.utils import IntegrityError
 from django.db import transaction
+from notifications.signals import notify
+from notifications.models import Notification
 
 from ..models import Topography, Surface
 from .utils import two_topos, SurfaceFactory, UserFactory, TopographyFactory
@@ -11,6 +13,13 @@ def test_topography_name(two_topos):
     topos = Topography.objects.all().order_by('name')
     assert [ t.name for t in topos ] == ['Example 3 - ZSensor',
                                          'Example 4 - Default']
+
+@pytest.mark.django_db
+def test_topography_has_periodic_flag(two_topos):
+    topos = Topography.objects.all().order_by('name')
+    assert not topos[0].is_periodic
+    assert not topos[1].is_periodic
+
 
 @pytest.mark.django_db
 def test_topography_str(two_topos):
@@ -150,6 +159,53 @@ def test_other_methods_about_sharing():
     assert not surface.is_shared(user2)
     assert not surface.is_shared(user2, allow_change=True)
 
+@pytest.mark.django_db
+def test_notifications_are_deleted_when_surface_deleted():
+
+    password = "abcd$1234"
+    user = UserFactory(password=password)
+    surface = SurfaceFactory(creator=user)
+    surface_id = surface.id
+
+    notify.send(sender=user, verb="create", target=surface, recipient=user, description="You have a new surface")
+    notify.send(sender=user, verb="info", target=surface, recipient=user, description="Another info.")
+
+    from django.contrib.contenttypes.models import ContentType
+    ct = ContentType.objects.get_for_model(surface)
+
+    assert Notification.objects.filter(target_content_type=ct, target_object_id=surface_id).count() == 2
+
+    #
+    # now delete the surface, the notification is no longer valid and should be also deleted
+    #
+    surface.delete()
+
+    assert Notification.objects.filter(target_content_type=ct, target_object_id=surface_id).count() == 0
+
+@pytest.mark.django_db
+def test_notifications_are_deleted_when_topography_deleted():
+
+    password = "abcd$1234"
+    user = UserFactory(password=password)
+    surface = SurfaceFactory(creator=user)
+
+    topo = TopographyFactory(surface=surface)
+    topo_id = topo.id
+
+    notify.send(sender=user, verb="create", target=topo, recipient=user, description="You have a new topography")
+    notify.send(sender=user, verb="info", target=topo, recipient=user, description="Another info.")
+
+    from django.contrib.contenttypes.models import ContentType
+    ct = ContentType.objects.get_for_model(topo)
+
+    assert Notification.objects.filter(target_content_type=ct, target_object_id=topo_id).count() == 2
+
+    #
+    # now delete the topography, the notification is no longer valid and should be also deleted
+    #
+    topo.delete()
+
+    assert Notification.objects.filter(target_content_type=ct, target_object_id=topo_id).count() == 0
 
 
 

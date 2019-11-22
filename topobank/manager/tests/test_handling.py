@@ -7,9 +7,10 @@ import os.path
 
 from ..tests.utils import two_topos, one_line_scan, SurfaceFactory, TopographyFactory, UserFactory
 from ..models import Topography, Surface
+from ..forms import TopographyForm, Topography1DUnitsForm, Topography2DUnitsForm
 
 from topobank.utils import assert_in_content, assert_not_in_content,\
-    assert_redirects, assert_no_form_errors
+    assert_redirects, assert_no_form_errors, assert_form_error
 
 
 #######################################################################
@@ -639,6 +640,7 @@ def test_edit_line_scan(client, one_line_scan, django_user_model):
     assert pytest.approx(initial['height_scale']) == 1.
     assert initial['detrend_mode'] == 'height'
     assert 'size_y' not in form.fields # should have been removed by __init__
+    assert initial['is_periodic'] == False
 
     #
     # Then send a post with updated data
@@ -681,6 +683,98 @@ def test_edit_line_scan(client, one_line_scan, django_user_model):
     #
     response = client.get(reverse('manager:surface-detail', kwargs=dict(pk=t.surface.pk)))
     assert bytes(new_name, 'utf-8') in response.content
+
+@pytest.mark.django_db
+def test_edit_topography_only_detrend_center_when_periodic(client, django_user_model):
+
+    input_file_path = Path("topobank/manager/fixtures/10x10.txt")
+    user = UserFactory()
+    surface = SurfaceFactory(creator=user)
+    client.force_login(user)
+
+    #
+    # Create a topography without sizes given in original file
+    #
+    # Step 1
+    with input_file_path.open(mode='rb') as fp:
+        response = client.post(reverse('manager:topography-create',
+                                       kwargs=dict(surface_id=surface.id)),
+                               data={
+                                   'topography_create_wizard-current_step': 'upload',
+                                   'upload-datafile': fp,
+                                   'upload-surface': surface.id,
+                               }, follow=True)
+
+    assert response.status_code == 200
+    assert_no_form_errors(response)
+
+    #
+    # Step 2
+    #
+    response = client.post(reverse('manager:topography-create',
+                                   kwargs=dict(surface_id=surface.id)),
+                           data={
+                               'topography_create_wizard-current_step': 'metadata',
+                               'metadata-name': 'topo1',
+                               'metadata-measurement_date': '2019-11-22',
+                               'metadata-data_source': 0,
+                               'metadata-description': "only for test",
+                           })
+
+    assert response.status_code == 200
+    assert_no_form_errors(response)
+
+    #
+    # Step 3
+    #
+    response = client.post(reverse('manager:topography-create',
+                                   kwargs=dict(surface_id=surface.id)),
+                           data={
+                               'topography_create_wizard-current_step': 'units2D',
+                               'units2D-size_x': '9',
+                               'units2D-size_y': '9',
+                               'units2D-unit': 'nm',
+                               'units2D-height_scale': 1,
+                               'units2D-detrend_mode': 'height',
+                               'units2D-resolution_x': 10,
+                               'units2D-resolution_y': 10,
+                           })
+
+    assert response.status_code == 302
+
+    # there should be only one topography now
+    topo = Topography.objects.get(surface=surface)
+
+    #
+    # First get the form and look whether all the expected data is in there
+    #
+    response = client.get(reverse('manager:topography-update', kwargs=dict(pk=topo.pk)))
+    assert response.status_code == 200
+    assert 'form' in response.context
+
+    #
+    # Then send a post with updated data
+    #
+    response = client.post(reverse('manager:topography-update', kwargs=dict(pk=topo.pk)),
+                           data={
+                            'save-stay': 1, # we want to save, but stay on page
+                            'surface': surface.pk,
+                            'data_source': 0,
+                            'name': topo.name,
+                            'measurement_date': topo.measurement_date,
+                            'description': topo.description,
+                            'size_x': 500,
+                            'size_y': 1000,
+                            'unit': 'nm',
+                            'height_scale': 0.1,
+                            'detrend_mode': 'height',
+                            'is_periodic': True, # <--------- this should not be allowed with detrend_mode 'height'
+                           }, follow=True)
+
+    assert Topography.DETREND_MODE_CHOICES[0][0] == 'center'
+    # this asserts that the clean() method of form has the correct reference
+
+    assert_form_error(response, "When enabling periodicity only detrend mode")
 
 
 @pytest.mark.django_db
@@ -1003,6 +1097,36 @@ def test_surface_cards(client, django_user_model):
     assert_in_content(response, t2a.get_absolute_url())
     assert_not_in_content(response, t2b.get_absolute_url())
 
+def test_topography_form_field_is_periodic():
+
+    data = {
+        'size_editable': True,
+        'unit_editable': True,
+        'height_scale_editable': True,
+        'size_x': 1,
+        'unit': 'm',
+        'is_periodic': False,
+        'height_scale': 1,
+        'detrend_mode': 'center',
+        'resolution_x': '1',
+    }
+
+    form = Topography1DUnitsForm(initial=data, allow_periodic=False)
+    assert form.fields['is_periodic'].disabled
+
+    data['size_y'] = 1
+
+    form = Topography2DUnitsForm(initial=data, allow_periodic=False)
+    assert form.fields['is_periodic'].disabled
+
+    form = Topography2DUnitsForm(initial=data, allow_periodic=True)
+    assert not form.fields['is_periodic'].disabled
+
+    form = TopographyForm(initial=data, has_size_y=True, allow_periodic=True, autocomplete_tags=[])
+    assert not form.fields['is_periodic'].disabled
+
+    form = TopographyForm(initial=data, has_size_y=True, allow_periodic=False, autocomplete_tags=[])
+    assert form.fields['is_periodic'].disabled
 
 
 

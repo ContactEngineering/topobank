@@ -33,7 +33,7 @@
   <div class="bg-light border-top border-bottom">
     <div class="container-fluid">
       <div class="py-2">
-        <label for="basket"><h5>Items selected in <a href="{% url 'manager:surface-list' %}">surface list</a></h5></label>
+        <label for="basket"><h5>Surfaces and topographies selected for analysis in <a href="{% url 'manager:surface-list' %}">surface list</a></h5></label>
         <div id="basket">
           <div v-if="keys.length">
             <basket-element v-for="key in keys" v-bind:elem="get_element(key)" v-bind:key="key"></basket-element>
@@ -58,14 +58,17 @@
   <div class="row">
     {% for card in cards %}
       <div class="col-xl-6 mb-4">
+
         <div id="card-{{ forloop.counter }}">
           <div class="card search-result-card">
             <div class="card-header">
               <h5>{{ card.function.name }}</h5>
             </div>
             <div class="card-body">
-              <p>Please wait..</p>
-              <div class="spinner"></div>
+                <span class="spinner"></span>
+                <div id="card-{{ forloop.counter }}-wait-text">
+                  Please wait
+                </div>
             </div>
           </div>
         </div>
@@ -108,7 +111,7 @@
 
                   var basket_items = {{ basket_items_json | safe }};
 
-                  console.log(basket_items);
+                  // console.log(basket_items);
 
                   basket_items.forEach(function (item) {
                      keys.push(item.key);
@@ -172,7 +175,7 @@
     $(document).ready(function () {
       {% url 'analysis:card' as card_url %}
       {% for card in cards %}
-        submit_analyses_card_ajax("{{ card_url }}", "card-{{ forloop.counter }}", "list", {{ card.function.id }}, {{ card.topography_ids_json|safe }}, true);
+        submit_analyses_card_ajax("{{ card_url }}", "card-{{ forloop.counter }}", "list", {{ card.function.id }}, {{ card.topography_ids_json|safe }}, 0);
       {% endfor %}
     });
 
