@@ -2,6 +2,7 @@
 
 ## 0.7.1
 
+- added "is_periodic" flag for topographies (#347)
 - added help texts explaining the asterisk in forms (#305)
 - added reference to analyses' download files which user has
   uploaded a topography file (#188)
@@ -13,6 +14,7 @@
   (before server error) 
 - fixed invalid links in notifications when an object is deleted (#363)
 - fixed invisible topographies in surface list when filtering for category/sharing status (#376)
+- improved some visual aspects in surface list (#381, not finished yet)
  
 ## 0.7.0
 
