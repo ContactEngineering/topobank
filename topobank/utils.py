@@ -57,5 +57,22 @@ def assert_no_form_errors(response):
     assert ('form' not in response.context) or (len(response.context['form'].errors) == 0), \
         "Form is still in context, with errors: {}".format(response.context['form'].errors)
 
+
+def assert_form_error(response, error_msg_fragment):
+    """Asserts that there is an error in form.
+
+    The error message must contain the given error_msg_fragment.
+    """
+    assert ('form' in response.context) and (len(response.context['form'].errors) > 0), \
+        "Form is expected to show errors, but there is no error."
+
+    assert 'detrend_mode' in response.context['form'].errors, \
+        "Form shows errors, but not for detrend_mode which is expected"
+
+    errors = response.context['form'].errors['detrend_mode']
+
+    assert any((error_msg_fragment in err) for err in errors), \
+        f"Form has errors as expected, but no error contains the given error message fragment '{error_msg_fragment}'."
+
 # abbreviation for use with pytest
 assert_redirects = SimpleTestCase().assertRedirects

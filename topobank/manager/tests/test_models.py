@@ -15,6 +15,13 @@ def test_topography_name(two_topos):
                                          'Example 4 - Default']
 
 @pytest.mark.django_db
+def test_topography_has_periodic_flag(two_topos):
+    topos = Topography.objects.all().order_by('name')
+    assert not topos[0].is_periodic
+    assert not topos[1].is_periodic
+
+
+@pytest.mark.django_db
 def test_topography_str(two_topos):
     surface = Surface.objects.get(name="Surface 1")
     topos = Topography.objects.filter(surface=surface).order_by('name')

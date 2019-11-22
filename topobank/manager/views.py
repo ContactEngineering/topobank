@@ -181,6 +181,8 @@ class TopographyCreateWizard(SessionWizardView):
 
             initial['size_editable'] = physical_sizes is None
 
+            initial['is_periodic'] = False  # so far, this is not returned by the readers
+
             #
             # Set unit
             #
@@ -216,26 +218,37 @@ class TopographyCreateWizard(SessionWizardView):
 
         kwargs = super().get_form_kwargs(step)
 
-        if step == 'metadata':
+        if step in ['metadata', 'units2D', 'units1D']:
+            # provide datafile attribute and reader from first step
             step0_data = self.get_cleaned_data_for_step('upload')
+            datafile = step0_data['datafile']
+            toporeader = get_topography_reader(datafile)
 
-            assert step0_data is not None # TODO remove if clear when this happens and why
-
-            toporeader = get_topography_reader(step0_data['datafile'])
-
+        if step == 'metadata':
             #
             # Set data source choices based on file contents
             #
             kwargs['data_source_choices'] = [(k, channel_dict['name']) for k, channel_dict in
                                              enumerate(toporeader.channels)
                                              if not (('unit' in channel_dict)
-                                                     and isinstance(channel_dict['unit'], tuple)) ]
+                                                     and isinstance(channel_dict['unit'], tuple))]
 
             #
             # Set surface in order to check for duplicate topography names
             #
             kwargs['surface'] = step0_data['surface']
             kwargs['autocomplete_tags'] = tags_for_user(self.request.user)
+
+        if step in ['units2D','units1D']:
+
+            step1_data = self.get_cleaned_data_for_step('metadata')
+            channel = int(step1_data['data_source'])
+            channel_info_dict = toporeader.channels[channel]
+
+            has_2_dim = channel_info_dict['dim'] == 2
+
+            # only allow periodic topographies in case of 2 dimension
+            kwargs['allow_periodic'] = has_2_dim
 
         return kwargs
 
@@ -366,8 +379,18 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
-        kwargs['has_size_y'] = self.object.size_y is not None
+
+        topo = self.object
+
+        kwargs['has_size_y'] = topo.size_y is not None
         kwargs['autocomplete_tags'] = tags_for_user(self.request.user)
+
+        toporeader = get_topography_reader(topo.datafile)
+
+        channel_info_dict = toporeader.channels[topo.data_source]
+        has_2_dim = channel_info_dict['dim'] == 2
+
+        kwargs['allow_periodic'] = has_2_dim
         return kwargs
 
     def form_valid(self, form):
@@ -379,7 +402,8 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
         #
         # If a significant field changed, renew all analyses
         #
-        significant_fields = set(['size_x', 'size_y', 'unit', 'height_scale', 'detrend_mode', 'datafile', 'data_source'])
+        significant_fields = set(['size_x', 'size_y', 'unit', 'is_periodic', 'height_scale',
+                                  'detrend_mode', 'datafile', 'data_source'])
         significant_fields_with_changes = set(form.changed_data).intersection(significant_fields)
         if len(significant_fields_with_changes) > 0:
             _log.info(f"During edit of topography {topo.id} significant fields changed: "+\

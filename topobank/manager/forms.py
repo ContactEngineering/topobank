@@ -164,6 +164,20 @@ class TopographyMetaDataForm(forms.ModelForm):
 
         return name
 
+def make_is_periodic_field():
+    """Generate a boolean field which can be used for "is_periodic" field in several forms.
+
+    :return: forms.BooleanField instance
+    """
+    return forms.BooleanField(widget=forms.CheckboxInput, required=False,
+                              label='This topography should be considered periodic in terms of a repeating array'
+                                    ' of the uploaded data',
+                              help_text="""<b>Can only be enabled for 2D topographies.</b>
+                                    When enabled, this affects analysis results like PSD or ACF.
+                                    No detrending can be used for periodic topographies, except of
+                                    substracting the mean height. 
+                                    Additionally, the default calculation type for contact mechanics
+                                    will be set to 'periodic'. """)
 
 class TopographyUnitsForm(forms.ModelForm):
     """
@@ -171,7 +185,10 @@ class TopographyUnitsForm(forms.ModelForm):
     The form is not directly used.
     """
 
+    is_periodic = make_is_periodic_field()
+
     def __init__(self, *args, **kwargs):
+        self._allow_periodic = kwargs.pop('allow_periodic')
         super().__init__(*args, **kwargs)
 
         helper = FormHelper()
@@ -223,6 +240,11 @@ class TopographyUnitsForm(forms.ModelForm):
             Field('height_scale_editable', type='hidden'),
         ]
 
+        #
+        # For certain cases like line scans we need to disable the periodic checkbox
+        #
+        self.fields['is_periodic'].disabled = not self._allow_periodic
+
     def _clean_size_element(self, dim_name):
         """Checks whether given value is larger than zero.
 
@@ -243,6 +265,19 @@ class TopographyUnitsForm(forms.ModelForm):
     def clean_size_x(self):
         return self._clean_size_element('x')
 
+    def clean_detrend_mode(self):
+        #
+        # If topography should be periodic, only detrend mode 'center' is allowed.
+        #
+        cleaned_data = super().clean()
+
+        if cleaned_data['is_periodic'] and (cleaned_data['detrend_mode'] != 'center'):
+            raise forms.ValidationError("When enabling periodicity only detrend mode "+\
+                                        f"'{Topography.DETREND_MODE_CHOICES[0][1]}' is a valid option. "+\
+                                        "Either choose that option or disable periodicity (see checkbox).")
+        return cleaned_data['detrend_mode']
+
+
 class Topography1DUnitsForm(TopographyUnitsForm):
     """
     This form is used when asking for size+units while creating a new 1D topography (line scan).
@@ -253,7 +288,7 @@ class Topography1DUnitsForm(TopographyUnitsForm):
         fields = ('size_editable',
                   'unit_editable',
                   'height_scale_editable',
-                  'size_x', 'unit',
+                  'size_x', 'unit', 'is_periodic',
                   'height_scale', 'detrend_mode',
                   'resolution_x') # resolution_y, size_y is saved as NULL
 
@@ -265,7 +300,8 @@ class Topography1DUnitsForm(TopographyUnitsForm):
                 Fieldset('Physical Size',
                          Field('size_editable', type="hidden"),
                          Field('size_x'),
-                         Field('unit')),
+                         Field('unit'),
+                         Field('is_periodic')),
                 Fieldset('Height Conversion',
                          Field('height_scale')),
                 Field('detrend_mode'),
@@ -291,7 +327,7 @@ class Topography2DUnitsForm(TopographyUnitsForm):
         fields = ('size_editable',
                   'unit_editable',
                   'height_scale_editable',
-                  'size_x', 'size_y', 'unit',
+                  'size_x', 'size_y', 'unit', 'is_periodic',
                   'height_scale', 'detrend_mode',
                   'resolution_x', 'resolution_y')
 
@@ -304,7 +340,8 @@ class Topography2DUnitsForm(TopographyUnitsForm):
                 Fieldset('Physical Size',
                          Field('size_x'),
                          Field('size_y'),
-                         Field('unit')),
+                         Field('unit'),
+                         Field('is_periodic')),
                 Fieldset('Height Conversion',
                          Field('height_scale')),
                 Field('detrend_mode'),
@@ -339,7 +376,8 @@ class TopographyForm(TopographyUnitsForm):
                   'name', 'description',
                   'measurement_date', 'tags',
                   'datafile', 'data_source',
-                  'size_x', 'size_y', 'unit',
+                  'size_x', 'size_y',
+                  'unit', 'is_periodic',
                   'height_scale', 'detrend_mode',
                   'surface')
 
@@ -363,6 +401,7 @@ class TopographyForm(TopographyUnitsForm):
             del self.fields['size_y']
 
         size_fieldset_args.append(Field('unit'))
+        size_fieldset_args.append(Field('is_periodic'))
 
         self.helper.layout = Layout(
             Div(
@@ -397,6 +436,8 @@ class TopographyForm(TopographyUnitsForm):
     measurement_date = forms.DateField(widget=DatePickerInput(format=MEASUREMENT_DATE_INPUT_FORMAT),
                                        help_text=MEASUREMENT_DATE_HELP_TEXT)
     description = forms.Textarea()
+
+    is_periodic = make_is_periodic_field()
 
     def clean_size_y(self):
         return self._clean_size_element('y')

@@ -689,7 +689,7 @@ class ContactMechanicsCardView(SimpleCardView):
             initial_calc_kwargs = unique_kwargs
         else:
             # default initial arguments for form if we don't have unique common arguments
-            initial_calc_kwargs = dict(substrate_str='periodic',
+            initial_calc_kwargs = dict(substrate_str='nonperiodic', # because most topographies are non-periodic
                                        hardness=None,
                                        nsteps=10)
 

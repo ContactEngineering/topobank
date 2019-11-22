@@ -697,11 +697,27 @@ def _next_contact_step(system, history=None, pentol=None, maxiter=None):
            (mean_displacements, mean_gaps, mean_pressures, total_contact_areas, converged)
 
 @analysis_function(card_view_flavor='contact mechanics', automatic=True)
-def contact_mechanics(topography, substrate_str="periodic", hardness=None, nsteps=10,
+def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
                       progress_recorder=None, storage_prefix=None):
+    """
+
+    :param topography:
+    :param substrate_str: one of ['periodic', 'nonperiodic', None ]; if None, choose from topography's 'is_periodic' flag
+    :param hardness:
+    :param nsteps:
+    :param progress_recorder:
+    :param storage_prefix:
+    :return:
+    """
 
     if topography.dim == 1:
         raise IncompatibleTopographyException("Contact mechanics not implemented for line scans.")
+
+    #
+    # Choose substrate str from 'is_periodic' flag, if not given
+    #
+    if substrate_str is None:
+        substrate_str = 'periodic' if topography.is_periodic else 'nonperiodic'
 
     #
     # Some constants

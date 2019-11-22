@@ -163,6 +163,8 @@ class Topography(models.Model):
     resolution_x = models.IntegerField(null=True) # null for line scans
     resolution_y = models.IntegerField(null=True) # null for line scans
 
+    is_periodic = models.BooleanField(default=False)
+
     #
     # Methods
     #
@@ -194,7 +196,8 @@ class Topography(models.Model):
         topo = cache.get(cache_key)
         if topo is None:
             toporeader = get_topography_reader(self.datafile)
-            topography_kwargs = dict(channel=self.data_source)
+            topography_kwargs = dict(channel=self.data_source,
+                                     periodic=self.is_periodic)
 
             # Set size if physical size was not given in datafile
             # (see also  TopographyCreateWizard.get_form_initial)
