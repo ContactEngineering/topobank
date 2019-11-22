@@ -172,7 +172,8 @@ def make_is_periodic_field():
     return forms.BooleanField(widget=forms.CheckboxInput, required=False,
                               label='This topography should be considered periodic in terms of a repeating array'
                                     ' of the uploaded data',
-                              help_text="""<b>Can only be enabled for 2D topographies.</b>
+                              help_text="""<b>Can only be enabled for 2D topographies and if no sizes were given in
+                                    original file.</b>
                                     When enabled, this affects analysis results like PSD or ACF.
                                     No detrending can be used for periodic topographies, except of
                                     substracting the mean height. 

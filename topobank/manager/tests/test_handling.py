@@ -685,30 +685,84 @@ def test_edit_line_scan(client, one_line_scan, django_user_model):
     assert bytes(new_name, 'utf-8') in response.content
 
 @pytest.mark.django_db
-def test_edit_topography_only_detrend_center_when_periodic(client, django_user_model, two_topos, topo_example3):
+def test_edit_topography_only_detrend_center_when_periodic(client, django_user_model):
 
-    user = django_user_model.objects.get(username="testuser")
-
+    input_file_path = Path("topobank/manager/fixtures/10x10.txt")
+    user = UserFactory()
+    surface = SurfaceFactory(creator=user)
     client.force_login(user)
+
+    #
+    # Create a topography without sizes given in original file
+    #
+    # Step 1
+    with input_file_path.open(mode='rb') as fp:
+        response = client.post(reverse('manager:topography-create',
+                                       kwargs=dict(surface_id=surface.id)),
+                               data={
+                                   'topography_create_wizard-current_step': 'upload',
+                                   'upload-datafile': fp,
+                                   'upload-surface': surface.id,
+                               }, follow=True)
+
+    assert response.status_code == 200
+    assert_no_form_errors(response)
+
+    #
+    # Step 2
+    #
+    response = client.post(reverse('manager:topography-create',
+                                   kwargs=dict(surface_id=surface.id)),
+                           data={
+                               'topography_create_wizard-current_step': 'metadata',
+                               'metadata-name': 'topo1',
+                               'metadata-measurement_date': '2019-11-22',
+                               'metadata-data_source': 0,
+                               'metadata-description': "only for test",
+                           })
+
+    assert response.status_code == 200
+    assert_no_form_errors(response)
+
+    #
+    # Step 3
+    #
+    response = client.post(reverse('manager:topography-create',
+                                   kwargs=dict(surface_id=surface.id)),
+                           data={
+                               'topography_create_wizard-current_step': 'units2D',
+                               'units2D-size_x': '9',
+                               'units2D-size_y': '9',
+                               'units2D-unit': 'nm',
+                               'units2D-height_scale': 1,
+                               'units2D-detrend_mode': 'height',
+                               'units2D-resolution_x': 10,
+                               'units2D-resolution_y': 10,
+                           })
+
+    assert response.status_code == 302
+
+    # there should be only one topography now
+    topo = Topography.objects.get(surface=surface)
 
     #
     # First get the form and look whether all the expected data is in there
     #
-    response = client.get(reverse('manager:topography-update', kwargs=dict(pk=topo_example3.pk)))
+    response = client.get(reverse('manager:topography-update', kwargs=dict(pk=topo.pk)))
     assert response.status_code == 200
     assert 'form' in response.context
 
     #
     # Then send a post with updated data
     #
-    response = client.post(reverse('manager:topography-update', kwargs=dict(pk=topo_example3.pk)),
+    response = client.post(reverse('manager:topography-update', kwargs=dict(pk=topo.pk)),
                            data={
                             'save-stay': 1, # we want to save, but stay on page
-                            'surface': topo_example3.surface.pk,
+                            'surface': surface.pk,
                             'data_source': 0,
-                            'name': topo_example3.name,
-                            'measurement_date': topo_example3.measurement_date,
-                            'description': topo_example3.description,
+                            'name': topo.name,
+                            'measurement_date': topo.measurement_date,
+                            'description': topo.description,
                             'size_x': 500,
                             'size_y': 1000,
                             'unit': 'nm',
