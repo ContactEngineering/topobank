@@ -112,8 +112,7 @@
           <table id="result-tree" class="table table-condensed">
             <colgroup>
               <col width="2%"></col>
-              <col width="35%"></col>
-              <col width="2%"></col>
+              <col width="37%"></col>
               <col width="46%"></col>
               <col width="15%"></col>
             </colgroup>
@@ -121,7 +120,6 @@
             <tr>
               <th scope="col"></th>
               <th scope="col">Name</th>
-              <th scope="col">Tags</th>
               <th scope="col">Description</th>
               <th scope="col">Actions</th>{# for actions #}
             </tr>
@@ -436,36 +434,45 @@
                */
 
 
-              // (Index #0 is rendered by fancytree by adding the checkbox)
-              // (Index #1 is rendered by fancytree)
+              // Index #0 is rendered by fancytree by adding the checkbox
 
-              // Set rest from node data:
-              if (node.type !== "tag") {
-                  var menu_html = `
-                    <div aria-label="Actions">
-                     ${item_buttons(node.data.urls)}
-                    </div>
-                  `;
-                  $tdList
-                      .eq(4)
-                      .html(menu_html);
-              }
-              if (node.data.description !== undefined) {
-                  $tdList
-                      .eq(3)
-                      .text(node.data.description);
-              }
-
+              // Index #1 is rendered by fancytree, but extended here by tags
               if (node.data.tags !== undefined) {
                   var tag_html = [];
                   node.data.tags.forEach(function (tag) {
                       tag_html += "<span class='badge badge-success mr-1'>" + tag + "</span>"
                   });
-                  $tdList
-                      .eq(2)
-                      .html(tag_html);
+
+                  // append tags to fancytree-title
+                  $tdList.eq(1).find('.fancytree-title').after(tag_html);
+
+                  // Display tags in extra column
+                  //$tdList
+                  //    .eq(2)
+                  //    .html(tag_html)
 
               }
+
+              // Set column with description
+              if (node.data.description !== undefined) {
+                  $tdList
+                      .eq(2)
+                      .text(node.data.description);
+              }
+
+
+              // Set columns with buttons:
+              if (node.type !== "tag") {
+                  var actions_html = `
+                    <div aria-label="Actions">
+                     ${item_buttons(node.data.urls)}
+                    </div>
+                  `;
+                  $tdList
+                      .eq(3)
+                      .html(actions_html);
+              }
+
               // Static markup (more efficiently defined as html row template):
               // $tdList.eq(3).html("<input type='input' value='" + "" + "'>");
               // ...
