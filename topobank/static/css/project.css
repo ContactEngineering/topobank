@@ -127,3 +127,14 @@ span.fancytree-checkbox {
   display: table-cell;
   vertical-align: middle;
 }
+
+tr.fancytree-active  {
+  background-color: #007bff !important; /** bootstrap "primary" color */
+  /** background-color: rgba(0,0,0,0.03) !important; */ /** bootstrap "card header" color */
+}
+
+/**
+tbody tr.fancytree-active {
+  background-color: #007bff; !important;
+}
+*/
