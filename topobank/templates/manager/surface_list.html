@@ -16,7 +16,7 @@
   <!-- Include Fancytree skin  -->
   <!-- link href="{# static 'vendor/fancytree/skin-awesome/ui.fancytree.min.css' #}" rel="stylesheet" -->
   <!-- TODO Use CDN? -->
-  <link href="https://unpkg.com/jquery.fancytree@2.32.0/dist/skin-awesome/ui.fancytree.min.css" rel="stylesheet">
+  <link href="https://unpkg.com/jquery.fancytree@2.33.0/dist/skin-awesome/ui.fancytree.min.css" rel="stylesheet">
 
 {% endblock extra_css %}
 
@@ -120,10 +120,10 @@
             <thead>
             <tr>
               <th scope="col"></th>
-              <th scope="col"></th>
-              <th scope="col"></th>{# for actions #}
-              <th scope="col">{% fontawesome_icon 'sticky-note' %} Description</th>
-              <th scope="col">{% fontawesome_icon 'tag' %} Tags</th>
+              <th scope="col">Name</th>
+              <th scope="col">Tags</th>
+              <th scope="col">Description</th>
+              <th scope="col">Actions</th>{# for actions #}
             </tr>
             </thead>
             <tbody>
@@ -143,10 +143,10 @@
 {% block javascript %}
 
   <script src="https://unpkg.com/jquery-highlight@3.3.0/jquery.highlight.js"></script>
-  <script src="https://unpkg.com/jquery.fancytree@2.32.0/dist/jquery.fancytree-all-deps.min.js"></script>
-  <script src="https://unpkg.com/jquery.fancytree@2.32.0/dist/modules/jquery.fancytree.glyph.js"></script>
-  <script src="https://unpkg.com/jquery.fancytree@2.32.0/dist/modules/jquery.fancytree.table.js"></script>
-  <script src="https://unpkg.com/jquery.fancytree@2.32.0/dist/modules/jquery.fancytree.filter.js"></script>
+  <script src="https://unpkg.com/jquery.fancytree@2.33.0/dist/jquery.fancytree-all-deps.min.js"></script>
+  <script src="https://unpkg.com/jquery.fancytree@2.33.0/dist/modules/jquery.fancytree.glyph.js"></script>
+  <script src="https://unpkg.com/jquery.fancytree@2.33.0/dist/modules/jquery.fancytree.table.js"></script>
+  <script src="https://unpkg.com/jquery.fancytree@2.33.0/dist/modules/jquery.fancytree.filter.js"></script>
 
   <script>
 
@@ -268,71 +268,48 @@
           }
       });
 
-      function menu_items(node, urls) {
+      function item_button_link_attributes(urls, urlname) {
+          var attr = "";
+
+          // console.log(urls, urlname);
+
+          if (urls.hasOwnProperty(urlname)) {
+              attr = `href="${urls[urlname]}"`;
+          } else {
+              attr = "href='#' disabled";
+          }
+          return attr;
+      }
+
+      function item_buttons(urls) {
           // node: tree node for which this function is called
           // urls: object with url names as keys and urls as values
           //
-          // Use this function to compile menu items for surfaces and topographies
+          // Use this function to compile buttons for surfaces and topographies in the result table
           //
           // return HTML
-
           var result = "";
+
           if (urls.hasOwnProperty('detail')) {
               result += `
-                  <a href="${urls.detail}" class="dropdown-item">
-                    {% fontawesome_icon 'folder-open-o' fixed=True  %} Details
-                  </a>
+                <a href="${urls['detail']}">
+                  <button class="btn btn-primary">
+                    Properties
+                  </button>
+                </a>
               `
           }
           if (urls.hasOwnProperty('show_analyses')) {
               result += `
-                  <a href="${urls.show_analyses}" class="dropdown-item">
-                    {% fontawesome_icon 'area-chart' fixed=True %} Show analyses
-                  </a>
+                <a href="${urls['show_analyses']}">
+                  <button class="btn btn-primary">Analyze</button>
+                </a>
               `
           }
-          if (urls.hasOwnProperty('update')) {
-              result += `
-                  <div class="dropdown-divider"></div>
-                  <a href="${urls.update}?redirect=${window.location}" class="dropdown-item">
-                    {% fontawesome_icon 'edit' fixed=True %} Edit meta data (also tags)
-                  </a>
-              `
-          }
-          if (urls.hasOwnProperty('add_topography')) {
-              result += `
-                  <a href="${urls.add_topography}" class="dropdown-item">
-                    {% fontawesome_icon 'plus-square' fixed=True %} Add topography
-                  </a>
-              `
-          }
-          /** DOES NOT WORK YET
-           * Make node expand when click on "Expand"
-          if (node.hasOwnProperty('children')) {
 
-              var expand_id = "expand-" + node.key;
-              result += `
-                  <div class="dropdown-divider"></div>
-                  <a href="#" id="${expand_id}" class="dropdown-item">
-                    {% fontawesome_icon 'chevron-down' %} Expand
-                  </a>
-              `;
-
-              $("#"+expand_id).click(function () {
-                  node.setExpanded(true)
-              });
-          }
-          */
-          if (urls.hasOwnProperty('delete')) {
-              result += `
-                  <div class="dropdown-divider"></div>
-                  <a href="${urls.delete}" class="dropdown-item text-danger">
-                    {% fontawesome_icon 'trash' fixed=True  %} Delete
-                  </a>
-              `
-          }
           return result;
       }
+
 
       var result_tree = $('#result-tree').fancytree({
           extensions: ["glyph", "table", "filter"],
@@ -426,6 +403,15 @@
                    });
               }
           },
+
+          //renderTitle: function (event, data) {
+          //    return data.node.title;
+          //},
+
+       		//renderTitle: function() {
+          //  return this.tree._callHook("nodeRenderTitle", this);
+		      //},
+
           renderColumns: function(event, data) {
               var node = data.node;
               var $tdList = $(node.tr).find(">td");
@@ -456,24 +442,12 @@
               // Set rest from node data:
               if (node.type !== "tag") {
                   var menu_html = `
-                <div class="btn-group btn-group-sm pull-right dropdown">
-                  <button type="button" class="btn btn-default button-small" data-toggle="dropdown"
-                          aria-haspopup="true" aria-expanded="false">
-                    <i class="fa fa-bars fa-sm"></i>
-                  </button>
-                  <div class="dropdown-menu">
-                    <h5 class="dropdown-header">
-                    ${node.key.includes('surface') ? 'Surface' : 'Topography'} <em>${node.data.name}</em>
-                    </h5>
-                    <div class="dropdown-divider"></div>
-                    ${menu_items(node, node.data.urls)}
-                  </div>
-                </div>
-                `;
-
-
+                    <div aria-label="Actions">
+                     ${item_buttons(node.data.urls)}
+                    </div>
+                  `;
                   $tdList
-                      .eq(2)
+                      .eq(4)
                       .html(menu_html);
               }
               if (node.data.description !== undefined) {
@@ -488,7 +462,7 @@
                       tag_html += "<span class='badge badge-success mr-1'>" + tag + "</span>"
                   });
                   $tdList
-                      .eq(4)
+                      .eq(2)
                       .html(tag_html);
 
               }
