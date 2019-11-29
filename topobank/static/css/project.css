@@ -111,22 +111,31 @@ input.checkbox-color-design:checked+span:after {
 }
 
 /** make chevrons for showing topographies in surface list tree larger, GH #381 */
+
 span.fancytree-node > span.fancytree-expander {
   font-size: x-large;
   vertical-align: top;
-  margin-right: 10px;
+  margin-right: 20px;
 }
+
+
 span.fancytree-node > span.fancytree-title {
   font-size: larger;
   vertical-align: middle;
+  margin-right: 20px;
 }
+
+
 span.fancytree-checkbox {
-  margin: 0;
-  padding: 25%;
+  padding-top: 1%;
+  /** padding: 2%; */
   font-size: larger;
-  display: table-cell;
+  /** display: table-cell; */
   vertical-align: middle;
+  margin-right: 20px;
 }
+
+
 
 tr.fancytree-active  {
   background-color: #007bff !important; /** bootstrap "primary" color */

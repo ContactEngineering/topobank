@@ -111,17 +111,15 @@
         <div id="scrollParent" style="height: 500px; overflow: auto;">
           <table id="result-tree" class="table table-condensed">
             <colgroup>
-              <col width="2%"></col>
-              <col width="37%"></col>
-              <col width="46%"></col>
+              <col width="40%"></col>
+              <col width="45%"></col>
               <col width="15%"></col>
             </colgroup>
             <thead>
             <tr>
-              <th scope="col"></th>
               <th scope="col">Name</th>
               <th scope="col">Description</th>
-              <th scope="col">Actions</th>{# for actions #}
+              <th scope="col">Actions</th>
             </tr>
             </thead>
             <tbody>
@@ -290,17 +288,15 @@
 
           if (urls.hasOwnProperty('detail')) {
               result += `
-                <a href="${urls['detail']}">
-                  <button class="btn btn-info">
+                <a href="${urls['detail']}" class="btn btn-info" type="button">
                     Properties
-                  </button>
                 </a>
               `
           }
           if (urls.hasOwnProperty('show_analyses')) {
               result += `
-                <a href="${urls['show_analyses']}">
-                  <button class="btn btn-info">Analyze</button>
+                <a href="${urls['show_analyses']}" class="btn btn-info" type="button">
+                    Analyze
                 </a>
               `
           }
@@ -334,9 +330,9 @@
              return data.typeInfo.iconTooltip; // set tooltip which appears when hovering an icon
           },
           table: {
-		        checkboxColumnIdx: 0,    // render the checkboxes into the this column index (default: nodeColumnIdx)
+		        checkboxColumnIdx: null,    // render the checkboxes into the this column index (default: nodeColumnIdx)
 		        indentation: 20,         // indent every node level by these number of pixels
-		        nodeColumnIdx: 1         // render node expander, icon, and title to this column (default: #0)
+		        nodeColumnIdx: 0         // render node expander, icon, and title to this column (default: #0)
 	        },
           filter: {
             autoApply: true,   // Re-apply last filter if lazy data is loaded
@@ -433,22 +429,39 @@
                * Render columns
                */
 
-
-              // Index #0 is rendered by fancytree by adding the checkbox
-
-              // Index #1 is rendered by fancytree, but extended here by tags
+              // Index #0 is rendered by fancytree, but extended here by tags
               if (node.data.tags !== undefined) {
                   var tag_html = [];
                   node.data.tags.forEach(function (tag) {
                       tag_html += "<span class='badge badge-success mr-1'>" + tag + "</span>"
                   });
 
+                  /**
+                  node.data.title = `
+                  <div class="row">
+                    <div class="col-md-auto">
+                      ${node.data.title}
+                    </div>
+                    <div class="col-md-auto">
+                      ${tag_html}
+                    </div>
+                  </div>
+                  `;
+                  */
+                  /**
+                  tag_html = `
+                  <div class="container-fluid pull-right">
+                   ${tag_html}
+                  </div>
+                  `
+                  */
+
                   // append tags to fancytree-title
-                  $tdList.eq(1).find('.fancytree-title').after(tag_html);
+                  $tdList.eq(0).find('.fancytree-title').after(tag_html);
 
                   // Display tags in extra column
                   //$tdList
-                  //    .eq(2)
+                  //    .eq(1)
                   //    .html(tag_html)
 
               }
@@ -456,7 +469,7 @@
               // Set column with description
               if (node.data.description !== undefined) {
                   $tdList
-                      .eq(2)
+                      .eq(1)
                       .text(node.data.description);
               }
 
@@ -464,12 +477,12 @@
               // Set columns with buttons:
               if (node.type !== "tag") {
                   var actions_html = `
-                    <div aria-label="Actions">
+                    <div class="btn-group btn-group-sm" role="group" aria-label="Actions">
                      ${item_buttons(node.data.urls)}
                     </div>
                   `;
                   $tdList
-                      .eq(3)
+                      .eq(2)
                       .html(actions_html);
               }
 
