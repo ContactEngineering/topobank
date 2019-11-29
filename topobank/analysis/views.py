@@ -20,14 +20,14 @@ from django.core.cache import cache  # default cache
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import reverse
 
-from bokeh.layouts import row, column, widgetbox
+from bokeh.layouts import row, column, grid
 from bokeh.models import ColumnDataSource, CustomJS, TapTool, Circle
 from bokeh.palettes import Category10
 from bokeh.models.formatters import FuncTickFormatter
 from bokeh.models.ranges import DataRange1d
 from bokeh.plotting import figure
 from bokeh.embed import components, json_item
-from bokeh.models.widgets import CheckboxGroup, Tabs, Panel
+from bokeh.models.widgets import CheckboxGroup, Tabs, Panel, Toggle
 from bokeh.models.widgets.markups import Paragraph
 from bokeh.models import Legend, LinearColorMapper, ColorBar, CategoricalColorMapper
 
@@ -512,11 +512,15 @@ class PlotCardView(SimpleCardView):
         topography_button_group = CheckboxGroup(
             labels=topo_names,
             css_classes=["topobank-topography-checkbox"],
+            visible=False, # MAYBE make visible if not to many topographies
             active=list(range(len(topo_names))))  # all active
+
+        topography_btn_group_toggle_button = Toggle(label="Show selection")
 
         # extend mapping of Python to JS objects
         js_args['series_btn_group'] = series_button_group
         js_args['topography_btn_group'] = topography_button_group
+        js_args['topography_btn_group_toggle_btn'] = topography_btn_group_toggle_button
 
         # add code for setting styles of widgetbox elements
         # js_code += """
@@ -524,16 +528,24 @@ class PlotCardView(SimpleCardView):
         # """.format(card_idx)
 
         toggle_lines_callback = CustomJS(args=js_args, code=js_code)
+        toggle_topography_checkboxes = CustomJS(args=js_args, code="""
+            topography_btn_group.visible = topography_btn_group_toggle_btn.active;
+            topography_btn_group_toggle_btn.label = (topography_btn_group_toggle_btn.active ? 'Hide':'Show')\
+                                                    +' selection';                                                  
+        """)
 
         #
         # TODO Idea: Generate DIVs with Markup of colors and dashes and align with Buttons/Checkboxes
         #
-        widgets = row(widgetbox(Paragraph(text="Topographies"), topography_button_group),
-                      widgetbox(Paragraph(text="Data Series"), series_button_group))
+
+        widgets = grid([
+            [row(Paragraph(text="Topographies"), topography_btn_group_toggle_button), Paragraph(text="Data Series")],
+            [topography_button_group, series_button_group]
+        ])
 
         series_button_group.js_on_click(toggle_lines_callback)
         topography_button_group.js_on_click(toggle_lines_callback)
-
+        topography_btn_group_toggle_button.js_on_click(toggle_topography_checkboxes)
         #
         # Convert plot and widgets to HTML, add meta data for template
         #
