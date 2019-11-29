@@ -1,5 +1,11 @@
 # Changelog for *TopoBank*
 
+## 0.7.2
+
+- further improvements on the usability of the surface list (#381)
+ 
+
+
 ## 0.7.1
 
 - added "is_periodic" flag for topographies (#347)
