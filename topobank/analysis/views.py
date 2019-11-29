@@ -1273,7 +1273,7 @@ def download_plot_analyses_to_xlsx(request, analyses):
             df = pd.DataFrame({column1: series['x'], column2: series['y']})
 
             sheet_name = '{} - {}'.format(topography_names_in_sheet_names[i],
-                                          series['name'].replace('/', ' div '))
+                                          series['name']).replace('/', ' div ')
             df.to_excel(excel, sheet_name=mangle_sheet_name(sheet_name))
     df = pd.DataFrame({'Property': properties, 'Value': values})
     df.to_excel(excel, sheet_name='INFORMATION', index=False)
