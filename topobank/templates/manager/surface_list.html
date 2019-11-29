@@ -398,13 +398,6 @@
               }
           },
 
-          //renderTitle: function (event, data) {
-          //    return data.node.title;
-          //},
-
-       		//renderTitle: function() {
-          //  return this.tree._callHook("nodeRenderTitle", this);
-		      //},
 
           renderColumns: function(event, data) {
               var node = data.node;
@@ -436,33 +429,8 @@
                       tag_html += "<span class='badge badge-success mr-1'>" + tag + "</span>"
                   });
 
-                  /**
-                  node.data.title = `
-                  <div class="row">
-                    <div class="col-md-auto">
-                      ${node.data.title}
-                    </div>
-                    <div class="col-md-auto">
-                      ${tag_html}
-                    </div>
-                  </div>
-                  `;
-                  */
-                  /**
-                  tag_html = `
-                  <div class="container-fluid pull-right">
-                   ${tag_html}
-                  </div>
-                  `
-                  */
-
                   // append tags to fancytree-title
                   $tdList.eq(0).find('.fancytree-title').after(tag_html);
-
-                  // Display tags in extra column
-                  //$tdList
-                  //    .eq(1)
-                  //    .html(tag_html)
 
               }
 
