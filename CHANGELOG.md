@@ -3,9 +3,9 @@
 ## 0.7.2
 
 - further improvements on the usability of the surface list (#381)
- 
-
-
+- replace / in sheetnames before saving xlsx from analyses (#77),
+  was closed already but we forgot slashes in topography names
+   
 ## 0.7.1
 
 - added "is_periodic" flag for topographies (#347)
