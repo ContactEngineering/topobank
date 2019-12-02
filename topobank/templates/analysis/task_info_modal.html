@@ -3,7 +3,7 @@
 <div class="modal fade" id="statusesModal-{{ card_id }}" tabindex="-1" role="dialog"
      aria-labelledby="statusesModalLabel"
      aria-hidden="true">
-  <div class="modal-dialog modal-lg" role="document">
+  <div class="modal-dialog modal-xl" role="document">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="statusesModalLabel">Tasks</h5>
@@ -14,7 +14,7 @@
       <div class="modal-body">
         {% if analyses_available %}
         <small>
-          <table class="table table-hover">
+          <table class="table table-hover task-table">
             <thead>
             <tr>
               <th scope="col">Function</th>
@@ -29,9 +29,10 @@
             {% for analysis in analyses_available %}
               <tr>
                 <td>{{ analysis.function.name }}</td>
-                <td>
-                  <a
-                    href="{% url 'manager:topography-detail' analysis.topography_id %}">{{ analysis.topography.name }}</a>
+                <td class="ellipsis">
+                  <a href="{% url 'manager:topography-detail' analysis.topography_id %}">
+                      {{ analysis.topography.name }}
+                  </a>
                 </td>
                 <td>{{ analysis.get_kwargs_display }}</td>
                 <td>{{ analysis.get_task_state_display }}</td>

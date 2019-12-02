@@ -139,3 +139,24 @@ tr.fancytree-active  {
   background-color: #007bff !important; /** bootstrap "primary" color */
   /** background-color: rgba(0,0,0,0.03) !important; */ /** bootstrap "card header" color */
 }
+
+/** Settings for task table
+*/
+
+.task-table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+td.ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/** Thanks to user Christina on SO, see https://stackoverflow.com/a/25859829/10608001 */
+@media (min-width: 992px) {
+  .modal-xl {
+    width: 90%;
+    max-width:1200px;
+  }
+}
