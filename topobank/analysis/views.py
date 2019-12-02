@@ -803,7 +803,6 @@ def _contact_mechanics_geometry_figure(values, frame_width, frame_height, topo_u
                y_range=y_range,
                frame_width=frame_width,
                frame_height=frame_height,
-               sizing_mode="scale_both",
                x_axis_label="Position x ({})".format(topo_unit),
                y_axis_label="Position y ({})".format(topo_unit),
                match_aspect=True,
