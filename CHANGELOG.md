@@ -9,7 +9,9 @@
 - in contact plot, show for each point a small over showing 
    whether a point properly converged or not (#297)
 - upgraded pillow which had security issues (#400)
-- match aspect ratio in displacement plots (#277)   
+- match aspect ratio in displacement plots (#277)
+- made task information larger, topography names which cannot
+  be broken down to lines are now limited by ellipsis (#252)   
    
    
 ## 0.7.1
