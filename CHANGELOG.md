@@ -8,6 +8,8 @@
 - hide selection of topographies in analysis view by default (#310)
 - in contact plot, show for each point a small over showing 
    whether a point properly converged or not (#297)
+- upgraded pillow which had security issues (#400)   
+   
    
 ## 0.7.1
 
