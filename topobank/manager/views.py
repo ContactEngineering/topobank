@@ -246,7 +246,7 @@ class TopographyCreateWizard(SessionWizardView):
             channel_info_dict = toporeader.channels[channel]
 
             has_2_dim = channel_info_dict['dim'] == 2
-            no_sizes_given = ('physical_sizes' in channel_info_dict) and (channel_info_dict['physical_sizes'] == None)
+            no_sizes_given = ('physical_sizes' not in channel_info_dict) or (channel_info_dict['physical_sizes'] == None)
 
             # only allow periodic topographies in case of 2 dimension
             kwargs['allow_periodic'] = has_2_dim and no_sizes_given
@@ -390,7 +390,7 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
 
         channel_info_dict = toporeader.channels[topo.data_source]
         has_2_dim = channel_info_dict['dim'] == 2
-        no_sizes_given = ('physical_sizes' in channel_info_dict) and (channel_info_dict['physical_sizes'] == None)
+        no_sizes_given = ('physical_sizes' not in channel_info_dict) or (channel_info_dict['physical_sizes'] == None)
 
         kwargs['allow_periodic'] = has_2_dim and no_sizes_given
         return kwargs
