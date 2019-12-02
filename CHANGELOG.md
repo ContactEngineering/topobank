@@ -11,7 +11,9 @@
 - upgraded pillow which had security issues (#400)
 - match aspect ratio in displacement plots (#277)
 - made task information larger, topography names which cannot
-  be broken down to lines are now limited by ellipsis (#252)   
+  be broken down to lines are now limited by ellipsis (#252)
+- fix for topographies from HDF5 files which could't be flagged 
+  as periodic (#399)    
    
    
 ## 0.7.1
