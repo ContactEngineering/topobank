@@ -21,7 +21,7 @@ from django.core.exceptions import PermissionDenied
 from django.shortcuts import reverse
 
 from bokeh.layouts import row, column, grid
-from bokeh.models import ColumnDataSource, CustomJS, TapTool, Circle
+from bokeh.models import ColumnDataSource, CustomJS, TapTool, Circle, HoverTool
 from bokeh.palettes import Category10
 from bokeh.models.formatters import FuncTickFormatter
 from bokeh.models.ranges import DataRange1d
@@ -596,8 +596,8 @@ class ContactMechanicsCardView(SimpleCardView):
                     mean_displacement=analysis_result['mean_displacements'],
                     mean_gap=analysis_result['mean_gaps'],
                     fill_alpha=[1 if c else 0.3 for c in analysis_result['converged']],
+                    converged_info=["yes" if c else "no" for c in analysis_result['converged']],
                     data_path=analysis_result['data_paths'])
-                # here, for not convergent points we plot a circle with an x
 
                 # the name of the data source is used in javascript in
                 # order to find out the analysis id
@@ -612,11 +612,13 @@ class ContactMechanicsCardView(SimpleCardView):
 
             color_cycle = itertools.cycle(Category10[10])
 
-            callback = CustomJS(args=dict(sources=sources), code="selection_handler(cb_obj, cb_data, sources);")
+            select_callback = CustomJS(args=dict(sources=sources), code="selection_handler(cb_obj, cb_data, sources);")
+            tap = TapTool(behavior='select', callback=select_callback)
 
-            tap = TapTool(behavior='select', callback=callback)
+            tooltips = [("properly converged", "@converged_info")]
+            hover = HoverTool(tooltips=tooltips)
 
-            tools = ["pan", "reset", "save", "wheel_zoom", "box_zoom", tap]
+            tools = ["pan", "reset", "save", "wheel_zoom", "box_zoom", tap, hover]
 
             contact_area_plot = figure(title=None,
                                        plot_height=400,
@@ -624,7 +626,8 @@ class ContactMechanicsCardView(SimpleCardView):
                                        x_axis_label=load_axis_label,
                                        y_axis_label=area_axis_label,
                                        x_axis_type="log",
-                                       y_axis_type="log", tools=tools)
+                                       y_axis_type="log",
+                                       tools=tools)
 
             contact_area_plot.xaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
             contact_area_plot.yaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
@@ -720,7 +723,6 @@ class ContactMechanicsCardView(SimpleCardView):
 
 def _configure_plot(plot):
     plot.toolbar.logo = None
-    plot.toolbar.active_inspect = None
     plot.xaxis.axis_label_text_font_style = "normal"
     plot.yaxis.axis_label_text_font_style = "normal"
     plot.xaxis.major_label_text_font_size = "12pt"
