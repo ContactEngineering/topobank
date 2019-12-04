@@ -140,7 +140,18 @@ tr.fancytree-active  {
   /** background-color: rgba(0,0,0,0.03) !important; */ /** bootstrap "card header" color */
 }
 
-/** Settings for task table
+tr.fancytree-active span.fancytree-node {
+   color: white; /** for some reason, this does not affect the title, so there is an extra rule below */
+}
+
+tr.fancytree-active span.fancytree-title {
+   color: white;
+}
+
+
+
+/**
+  Settings for task table
 */
 
 .task-table {

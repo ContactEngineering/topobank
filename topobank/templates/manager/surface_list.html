@@ -288,14 +288,14 @@
 
           if (urls.hasOwnProperty('detail')) {
               result += `
-                <a href="${urls['detail']}" class="btn btn-info" type="button">
+                <a href="${urls['detail']}" class="btn btn-default" type="button">
                     Properties
                 </a>
               `
           }
           if (urls.hasOwnProperty('show_analyses')) {
               result += `
-                <a href="${urls['show_analyses']}" class="btn btn-info" type="button">
+                <a href="${urls['show_analyses']}" class="btn btn-default" type="button">
                     Analyze
                 </a>
               `
@@ -350,8 +350,9 @@
               url: "{% url 'manager:surface-search' %}",
               cache: false
           },
-          //autoActivate: false,
-          //titlesTabbable: false,
+          autoActivate: true,
+          //  titlesTabbable: false,
+          tabbable: false,
           focusOnSelect: false,
           scrollParent: $("#scrollParent"),
           checkbox: true,
