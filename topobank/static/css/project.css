@@ -171,3 +171,35 @@ td.ellipsis {
     max-width:1200px;
   }
 }
+
+/**
+  Search result table
+ */
+
+#search-box {
+  display: flex;
+  flex-flow: column;
+
+  /** height: 80vh; */
+  /** background: blueviolet; */
+}
+
+#search-result > #scrollParent {
+  height: 70vh;
+  flex: 1 1 auto;
+  overflow: auto;
+  /** background: green; */
+  /** height: 500px;
+  overflow: auto;
+   */
+}
+/**
+body, html {
+  height: 100%;
+  overflow: auto;
+}
+
+*/
+
+
+
