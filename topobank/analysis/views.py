@@ -620,7 +620,15 @@ class ContactMechanicsCardView(SimpleCardView):
             select_callback = CustomJS(args=dict(sources=sources), code="selection_handler(cb_obj, cb_data, sources);")
             tap = TapTool(behavior='select', callback=select_callback)
 
-            tooltips = [("properly converged", "@converged_info")]
+            #
+            # Configure tooltips
+            #
+            tooltips = [
+                (load_axis_label, "@mean_pressure"),
+                (area_axis_label, "@total_contact_area"),
+                (disp_axis_label, "@mean_gap"),
+                ("properly converged", "@converged_info")
+            ]
             hover = HoverTool(tooltips=tooltips)
 
             tools = ["pan", "reset", "save", "wheel_zoom", "box_zoom", tap, hover]
