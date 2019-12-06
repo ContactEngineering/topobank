@@ -8,9 +8,11 @@
   when choosing another tab (#372) 
 - replace / in sheet names before saving xlsx from analyses (#77),
   was closed already but we forgot slashes in topography names
-- hide selection of topographies and series in analysis view by default (#310, #404)
+- hide selection of topographies and series in analysis view by 
+  default (#310, #404)
 - in contact plot, show for each point a small over showing 
-   whether a point properly converged or not (#297)
+  whether a point properly converged or not, as well as values 
+  from the axes (#297, #406)
 - upgraded pillow package which had security issues (#400)
 - fix for topographies from HDF5 files which could't be flagged 
   as periodic (#399)   
@@ -18,6 +20,7 @@
 - made task information larger, topography names which cannot
   be broken down to lines are now limited by ellipsis (#252)
 - fixes color of "Recalculate" button (#405)   
+- removed unneeded white space in contact mechanics' README file
    
    
 ## 0.7.1
