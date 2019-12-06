@@ -4,38 +4,38 @@
 {% load fontawesome %}
 
 {% block card_header %}
-  <div class="pull-left">
-    <h3>{{ title }}</h3>
+  <div class="card-title">
+   <h3>{{ title }}</h3>
   </div>
-  <ul class="nav nav-pills card-header-pills pull-right">
-    {% if special_values or analyses_failure %}{#  we only need the plot pill if there is anything else #}
-    <li class="nav-item">
-      <a class="nav-link active" data-toggle="pill" href="#plot" role="tab">Plot</a>
-    </li>
-    {% endif %}
-    {% if special_values %}
-    <li class="nav-item" style="list-style-type: none;">
-      <a class="nav-link" data-toggle="pill" href="#values">Special values</a>
-    </li>
-    {% endif %}
-    {% if analyses_failure %}
-    <li class="nav-item" style="list-style-type: none;">
-      {# Use href with card_id because the included HTML uses this too #}
-      <a class="nav-link" data-toggle="pill" href="#warnings-pill-{{ card_id }}">Warnings</a>
-    </li>
-    {% endif %}
-  </ul>
 {% endblock card_header %}
-
 
 {% block card_body %}
 
   <div class="row">
 
     <div class="col-9">
-      <div class="tab-content">
+      <ul class="nav nav-tabs">
+        {% if special_values or analyses_failure %}{#  we only need the plot tab if there is anything else #}
+        <li class="nav-item">
+          <a class="nav-link active" href="#plot" data-toggle="tab" role="tab">Plot</a>
+        </li>
+        {% endif %}
+        {% if special_values %}
+        <li class="nav-item">
+          <a class="nav-link" href="#values" data-toggle="tab" role="tab">Special values</a>
+        </li>
+        {% endif %}
+        {% if analyses_failure %}
+        <li class="nav-item">
+          {# Use href with card_id because the included HTML uses this too #}
+          <a class="nav-link" href="#warnings-pill-{{ card_id }}" data-toggle="tab" role="tab">Warnings</a>
+        </li>
+        {% endif %}
+      </ul>
 
-        <div class="tab-pane fade show active" id="plot" role="tabpanel" aria-labelledby="card-tab">
+      <div class="tab-content mt-3">
+
+        <div class="tab-pane show active" id="plot" role="tabpanel" aria-labelledby="card-tab">
           {% include 'analysis/analyses_alerts.html' %}
           {% if analyses_success %}
             {# Show all analyses for which we have results #}
