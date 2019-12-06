@@ -1,6 +1,6 @@
 {% load analysis_tags %}
 {% if analyses_failure or extra_warnings %}
-  <div class="tab-pane fade" id="warnings-pill-{{ card_id }}" role="tabpanel">
+  <div class="tab-pane fade" id="warnings-tab-{{ card_id }}" role="tabpanel">
     {% for ew in extra_warnings %}
         <div class="alert {{ ew.alert_class }}" role="alert">
             {{ ew.message|safe }}
