@@ -150,7 +150,7 @@ class SimpleCardView(TemplateView):
           title: card title
           function: AnalysisFunction instance
           unique_kwargs: dict with common kwargs for all analyses, None if not unique
-          analysis_available: queryset of all analyses which are relevant for this view
+          analyses_available: queryset of all analyses which are relevant for this view
           analyses_success: queryset of successfully finished analyses (result is useable, can be displayed)
           analyses_failure: queryset of analyses finished with failures (result has traceback, can't be displayed)
           analyses_unready: queryset of analyses which are still running
