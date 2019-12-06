@@ -15,7 +15,10 @@
   <div class="row">
 
     {# Left side #}
+
     <div class="col-sm-6">
+      {% include 'analysis/analyses_alerts.html' %}
+
       {% if not analyses_unready %}
       <div class="container">
             {% if not analyses_unready and analyses_success %}
@@ -29,9 +32,8 @@
 
     {# Right side #}
     <div class="col-sm-6">
-      {% include 'analysis/analyses_alerts.html' %}
-
       {# Tab navigation on right side #}
+      {% if not analyses_unready %}
       <ul class="nav nav-tabs" role="tablist">
         <li class="nav-item">
           <a class="nav-link active" data-toggle="tab" href="#tools-tab">Tools</a>
@@ -59,6 +61,7 @@
         </li>
         {% endif %}
       </ul>
+      {% endif %}
 
       {# Tab contents on right side #}
       <div class="tab-content mt-3">
