@@ -3,17 +3,21 @@
 ## 0.7.2
 
 - further improvements on the usability of the surface list (#381)
+- removed tabs from card headers and shifted them as tabs
+  to relevant places in order to make clear which part changes
+  when choosing another tab (#372) 
 - replace / in sheet names before saving xlsx from analyses (#77),
   was closed already but we forgot slashes in topography names
 - hide selection of topographies in analysis view by default (#310)
 - in contact plot, show for each point a small over showing 
    whether a point properly converged or not (#297)
 - upgraded pillow package which had security issues (#400)
+- fix for topographies from HDF5 files which could't be flagged 
+  as periodic (#399)   
 - match aspect ratio in displacement plots (#277)
 - made task information larger, topography names which cannot
   be broken down to lines are now limited by ellipsis (#252)
-- fix for topographies from HDF5 files which could't be flagged 
-  as periodic (#399)    
+- fixes color of "Recalculate" button (#405)   
    
    
 ## 0.7.1
