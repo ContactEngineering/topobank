@@ -3,6 +3,7 @@
 ## 0.7.2
 
 - further improvements on the usability of the surface list (#381)
+- added menu option to mark all notifications as read (#391)
 - removed tabs from card headers and shifted them as tabs
   to relevant places in order to make clear which part changes
   when choosing another tab (#372) 
