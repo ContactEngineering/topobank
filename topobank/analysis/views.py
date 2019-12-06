@@ -507,20 +507,23 @@ class PlotCardView(SimpleCardView):
         series_button_group = CheckboxGroup(
             labels=series_names,
             css_classes=["topobank-series-checkbox"],
+            visible=False,
             active=list(range(len(series_names))))  # all active
 
         topography_button_group = CheckboxGroup(
             labels=topo_names,
             css_classes=["topobank-topography-checkbox"],
-            visible=False, # MAYBE make visible if not to many topographies
+            visible=False,
             active=list(range(len(topo_names))))  # all active
 
-        topography_btn_group_toggle_button = Toggle(label="Show selection")
+        topography_btn_group_toggle_button = Toggle(label="Topographies")
+        series_btn_group_toggle_button = Toggle(label="Data Series")
 
         # extend mapping of Python to JS objects
         js_args['series_btn_group'] = series_button_group
         js_args['topography_btn_group'] = topography_button_group
         js_args['topography_btn_group_toggle_btn'] = topography_btn_group_toggle_button
+        js_args['series_btn_group_toggle_btn'] = series_btn_group_toggle_button
 
         # add code for setting styles of widgetbox elements
         # js_code += """
@@ -530,8 +533,9 @@ class PlotCardView(SimpleCardView):
         toggle_lines_callback = CustomJS(args=js_args, code=js_code)
         toggle_topography_checkboxes = CustomJS(args=js_args, code="""
             topography_btn_group.visible = topography_btn_group_toggle_btn.active;
-            topography_btn_group_toggle_btn.label = (topography_btn_group_toggle_btn.active ? 'Hide':'Show')\
-                                                    +' selection';                                                  
+        """)
+        toggle_series_checkboxes = CustomJS(args=js_args, code="""
+            series_btn_group.visible = series_btn_group_toggle_btn.active;
         """)
 
         #
@@ -539,13 +543,14 @@ class PlotCardView(SimpleCardView):
         #
 
         widgets = grid([
-            [row(Paragraph(text="Topographies"), topography_btn_group_toggle_button), Paragraph(text="Data Series")],
+            [topography_btn_group_toggle_button, series_btn_group_toggle_button],
             [topography_button_group, series_button_group]
         ])
 
         series_button_group.js_on_click(toggle_lines_callback)
         topography_button_group.js_on_click(toggle_lines_callback)
         topography_btn_group_toggle_button.js_on_click(toggle_topography_checkboxes)
+        series_btn_group_toggle_button.js_on_click(toggle_series_checkboxes)
         #
         # Convert plot and widgets to HTML, add meta data for template
         #

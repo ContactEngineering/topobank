@@ -8,7 +8,7 @@
   when choosing another tab (#372) 
 - replace / in sheet names before saving xlsx from analyses (#77),
   was closed already but we forgot slashes in topography names
-- hide selection of topographies in analysis view by default (#310)
+- hide selection of topographies and series in analysis view by default (#310, #404)
 - in contact plot, show for each point a small over showing 
    whether a point properly converged or not (#297)
 - upgraded pillow package which had security issues (#400)
