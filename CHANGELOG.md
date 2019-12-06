@@ -14,6 +14,8 @@
 - in contact plot, show for each point a small over showing 
   whether a point properly converged or not, as well as values 
   from the axes (#297, #406)
+- jump to surfaces, topographies or sharing page when clicking 
+  the statistics panel (#248) 
 - upgraded pillow package which had security issues (#400)
 - fix for topographies from HDF5 files which could't be flagged 
   as periodic (#399)   
