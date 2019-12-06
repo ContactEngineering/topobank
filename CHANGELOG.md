@@ -22,7 +22,9 @@
   be broken down to lines are now limited by ellipsis (#252)
 - fixes color of "Recalculate" button (#405)   
 - removed unneeded white space in contact mechanics' README file
-   
+- don't show "Arguments for this analysis differ" in analyses results
+  if nothing is selected; instead, show an info box that no surfaces 
+  and topographies have been chosen yet (#408)
    
 ## 0.7.1
 
