@@ -29,19 +29,19 @@
       <h5>{{ title }}</h5>
     </div>
     <div class="card-body">
-      <ul class="nav nav-pills">
-        {% if analyses_failure %}
+      {% if analyses_failure %}
+      <ul class="nav nav-tabs">
         <li class="nav-item" style="list-style-type: none;">
-          <a class="nav-link active" data-toggle="pill" href="#plot-pill-{{ card_id }}">Plot</a>
+          <a class="nav-link active" data-toggle="tab" href="#plot-tab-{{ card_id }}">Plot</a>
         </li>
         <li class="nav-item" style="list-style-type: none;">
-          <a class="nav-link" data-toggle="pill" href="#warnings-pill-{{ card_id }}">Warnings</a>
+          <a class="nav-link" data-toggle="tab" href="#warnings-pill-{{ card_id }}">Warnings</a>
         </li>
-        {% endif %}
       </ul>
+      {% endif %}
 
-      <div class="tab-content">
-        <div class="tab-pane fade show active" id="plot-pill-{{ card_id }}" role="tabpanel">
+      <div class="tab-content mt-3">
+        <div class="tab-pane fade show active" id="plot-tab-{{ card_id }}" role="tabpanel">
           {% include 'analysis/analyses_alerts.html' %}
           {% if not analyses_unready and analyses_success %}
            {# Show all analyses for which we have results #}
