@@ -201,5 +201,9 @@ body, html {
 
 */
 
-
+/** Checkboxes in analyses plot */
+.topobank-topography-checkbox div.bk-input-group {
+  overflow: hidden;
+  text-overflow: ellipsis; /** this does not work here, don't know why */
+}
 
