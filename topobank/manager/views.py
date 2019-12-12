@@ -186,7 +186,9 @@ class TopographyCreateWizard(SessionWizardView):
             #
             # Set unit
             #
-            initial['unit'] = channel_info_dict['unit'] if 'unit' in channel_info_dict else None
+            initial['unit'] = channel_info_dict['unit'] \
+                              if (('unit' in channel_info_dict) and (not isinstance(channel_info_dict['unit', tuple])))\
+                              else None
             initial['unit_editable'] = initial['unit'] is None
 
             #
@@ -847,7 +849,7 @@ class SurfaceShareView(FormMixin, DetailView):
                     notify.send(self.request.user, recipient=user, verb="allow change",
                                 target=surface, public=False,
                                 description=f"""
-                                You are allowed to change the surface '{surface.name}' shared by {self.request.user} 
+                                You are allowed to change the surface '{surface.name}' shared by {self.request.user}
                                 """,
                                 href=surface.get_absolute_url())
 
@@ -1008,7 +1010,7 @@ def download_surface(request, surface_id):
         # Add a Readme file
         #
         zf.writestr("README.txt", \
-"""    
+"""
 Contents of this ZIP archive
 ============================
 This archive contains a surface: A collection of individual topography measurements.
