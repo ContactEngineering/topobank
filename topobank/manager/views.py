@@ -187,7 +187,7 @@ class TopographyCreateWizard(SessionWizardView):
             # Set unit
             #
             initial['unit'] = channel_info_dict['unit'] \
-                              if (('unit' in channel_info_dict) and (not isinstance(channel_info_dict['unit', tuple])))\
+                              if (('unit' in channel_info_dict) and (not isinstance(channel_info_dict['unit'], tuple)))\
                               else None
             initial['unit_editable'] = initial['unit'] is None
 
