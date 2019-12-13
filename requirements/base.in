@@ -1,6 +1,6 @@
 pytz  # https://github.com/stub42/pytz
 python-slugify  # https://github.com/un33k/python-slugify
-Pillow  # https://github.com/python-pillow/Pillow
+Pillow>=6.2.0  # https://github.com/python-pillow/Pillow
 argon2-cffi  # https://github.com/hynek/argon2_cffi
 whitenoise  # https://github.com/evansd/whitenoise
 

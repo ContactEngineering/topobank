@@ -23,19 +23,19 @@
     </div>
     <div class="card-body">
       {% block card_body %}
-      <ul class="nav nav-pills">
+      <ul class="nav nav-tabs">
         <li class="nav-item" style="list-style-type: none;">
-          <a class="nav-link active" data-toggle="pill" href="#raw-pill-{{ card_id }}">Raw Results</a>
+          <a class="nav-link active" data-toggle="tab" href="#raw-tab-{{ card_id }}">Raw Results</a>
         </li>
         {% if analyses_failure %}
         <li class="nav-item" style="list-style-type: none;">
-          <a class="nav-link" data-toggle="pill" href="#warnings-pill-{{ card_id }}">Warnings</a>
+          <a class="nav-link" data-toggle="tab" href="#warnings-tab-{{ card_id }}">Warnings</a>
         </li>
         {% endif %}
       </ul>
 
-      <div class="tab-content">
-        <div class="tab-pane fade show active" id="raw-pill-{{ card_id }}" role="tabpanel">
+      <div class="tab-content mt-3">
+        <div class="tab-pane fade show active" id="raw-tab-{{ card_id }}" role="tabpanel">
           {% include 'analysis/analyses_alerts.html' %}
           {% if not analyses_unready and analyses_success %}
            {# If all tasks are finished, show all analyses for which we have results #}

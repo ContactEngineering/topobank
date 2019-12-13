@@ -88,7 +88,7 @@ pandas==0.25.1
 parso==0.5.1              # via jedi
 pexpect==4.7.0            # via ipython
 pickleshare==0.7.5        # via ipython
-pillow==6.1.0
+pillow==6.2.1
 pint==0.9
 pip-tools==4.1.0
 pluggy==0.12.0            # via pytest
@@ -138,4 +138,4 @@ xarray==0.12.3
 zipp==0.6.0
 
 # The following packages are considered to be unsafe in a requirements file:
-# setuptools==41.4.0        # via ipdb, ipython, sphinx
+# setuptools==42.0.2        # via ipdb, ipython, sphinx

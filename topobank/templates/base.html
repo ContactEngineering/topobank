@@ -319,18 +319,37 @@
     <!-- show new notifications immediately -->
     <script src="{% static 'notifications/notify.js' %}" type="text/javascript"></script>
     <script>
+
+      var no_unread_notifications_html = '<span class="dropdown-item"><i>No unread notifications</i></span>';
+
       function fill_notification_badge_or_hide_if_none(data) {
        var badges = document.getElementsByClassName(notify_badge_class);
        if (badges) {
         for(var i = 0; i < badges.length; i++){
-            badges[i].innerHTML = data.unread_count;
-            if (data.unread_count > 0) {
+            var count;
+            if (data === undefined) {
+              count = undefined;
+              badges[i].innerHTML = "";
+            } else {
+              count = data.unread_count;
+              badges[i].innerHTML = count;
+            }
+            if ((count !== undefined) && (count > 0)) {
               badges[i].style.display = "block"; // show
             } else {
               badges[i].style.display = "none"; // hide
             }
         }
        }
+      }
+
+      function emtpy_notification_list() {
+          var menus = document.getElementsByClassName(notify_menu_class);
+          if (menus) {
+            for (var i = 0; i < menus.length; i++){
+                menus[i].innerHTML = no_unread_notifications_html;
+            }
+          }
       }
 
       function fill_notification_list_with_linked_items(data) {
@@ -356,21 +375,36 @@
             }).join('')
 
             if (messages.length==0) {
-                messages = '<span class="dropdown-item"><i>No unread notifications</i></span>';
+                messages = no_unread_notifications_html;
             }
-            //else {
-            //    messages += '<div class="dropdown-divider"></div>';
-            //    messages += '<a class="dropdown-item" href="#"><b>Mark all as read</b></a>';
-            //}
+            else {
+                messages += '<div class="dropdown-divider"></div>';
+                messages += `<a class="dropdown-item" href="#" id="mark-all-as-read-btn"><b>Mark all as read</b></a>`;
+            }
+
             // Not clear yet how to mark only those as read which where shown in the list,
             // probably we should do an API call in background like "api/unread_list/?max=3&mark_as_read=true"
-
 
             for (var i = 0; i < menus.length; i++){
                 menus[i].innerHTML = messages;
             }
+
+            $("#mark-all-as-read-btn").click( function() {
+              // console.log("Clicked marked all as read");
+              // please_wait_notification_list();
+              fill_notification_badge_or_hide_if_none(undefined); // hide badge
+              $.ajax({
+                url: "{% url 'notifications:mark_all_as_read' %}",
+                success: function(data, textStatus, jqXHR) {
+                  emtpy_notification_list();
+                  // console.log("Successfully marked all notifications as read. status: "+textStatus);
+                },
+              }); // mark all notifications as read in background
+            })
           }
       }
+
+
     </script>
     {% register_notify_callbacks callbacks='fill_notification_badge_or_hide_if_none,fill_notification_list_with_linked_items' %}
 

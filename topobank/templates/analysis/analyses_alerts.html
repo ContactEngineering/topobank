@@ -72,7 +72,13 @@
     {% endif %}
 {% endif %}
 
-{% if unique_kwargs is None %}
+{% if not analyses_available %}
+  <div class="alert alert-info">
+      {% fontawesome_icon 'exclamation-circle' %}
+      You haven't chosen any surfaces or topographies yet. You can do this in the
+      <a class="alert-link" href="{% url 'manager:surface-list' %}">surface list</a>.
+  </div>
+{% elif unique_kwargs is None%}
   <div class="alert alert-warning">
       {% fontawesome_icon 'exclamation-circle' %}
       Arguments for this analysis differ among topographies.

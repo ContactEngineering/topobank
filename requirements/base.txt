@@ -65,7 +65,7 @@ oauthlib==3.1.0           # via requests-oauthlib
 openpyxl==2.6.3
 packaging==19.1           # via bokeh
 pandas==0.25.1
-pillow==6.1.0
+pillow==6.2.1
 pint==0.9
 pycparser==2.19           # via cffi
 pylibmc==1.6.1

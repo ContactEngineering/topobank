@@ -111,19 +111,99 @@ input.checkbox-color-design:checked+span:after {
 }
 
 /** make chevrons for showing topographies in surface list tree larger, GH #381 */
+
 span.fancytree-node > span.fancytree-expander {
   font-size: x-large;
   vertical-align: top;
-  margin-right: 10px;
+  margin-right: 20px;
 }
+
+
 span.fancytree-node > span.fancytree-title {
   font-size: larger;
   vertical-align: middle;
+  margin-right: 20px;
 }
+
+
 span.fancytree-checkbox {
-  margin: 0;
-  padding: 25%;
+  padding-top: 1%;
+  /** padding: 2%; */
   font-size: larger;
-  display: table-cell;
+  /** display: table-cell; */
   vertical-align: middle;
+  margin-right: 20px;
 }
+
+tr.fancytree-active  {
+  background-color: #007bff !important; /** bootstrap "primary" color */
+  /** background-color: rgba(0,0,0,0.03) !important; */ /** bootstrap "card header" color */
+}
+
+tr.fancytree-active span.fancytree-node {
+   color: white; /** for some reason, this does not affect the title, so there is an extra rule below */
+}
+
+tr.fancytree-active span.fancytree-title {
+   color: white;
+}
+
+
+
+/**
+  Settings for task table
+*/
+
+.task-table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+td.ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/** Thanks to user Christina on SO, see https://stackoverflow.com/a/25859829/10608001 */
+@media (min-width: 992px) {
+  .modal-xl {
+    width: 90%;
+    max-width:1200px;
+  }
+}
+
+/**
+  Search result table
+ */
+
+#search-box {
+  display: flex;
+  flex-flow: column;
+
+  /** height: 80vh; */
+  /** background: blueviolet; */
+}
+
+#search-result > #scrollParent {
+  height: 70vh;
+  flex: 1 1 auto;
+  overflow: auto;
+  /** background: green; */
+  /** height: 500px;
+  overflow: auto;
+   */
+}
+/**
+body, html {
+  height: 100%;
+  overflow: auto;
+}
+
+*/
+
+/** Checkboxes in analyses plot */
+.topobank-topography-checkbox div.bk-input-group {
+  overflow: hidden;
+  text-overflow: ellipsis; /** this does not work here, don't know why */
+}
+

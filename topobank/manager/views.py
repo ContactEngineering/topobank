@@ -186,7 +186,9 @@ class TopographyCreateWizard(SessionWizardView):
             #
             # Set unit
             #
-            initial['unit'] = channel_info_dict['unit'] if 'unit' in channel_info_dict else None
+            initial['unit'] = channel_info_dict['unit'] \
+                              if (('unit' in channel_info_dict) and (not isinstance(channel_info_dict['unit'], tuple)))\
+                              else None
             initial['unit_editable'] = initial['unit'] is None
 
             #
@@ -246,7 +248,7 @@ class TopographyCreateWizard(SessionWizardView):
             channel_info_dict = toporeader.channels[channel]
 
             has_2_dim = channel_info_dict['dim'] == 2
-            no_sizes_given = ('physical_sizes' in channel_info_dict) and (channel_info_dict['physical_sizes'] == None)
+            no_sizes_given = ('physical_sizes' not in channel_info_dict) or (channel_info_dict['physical_sizes'] == None)
 
             # only allow periodic topographies in case of 2 dimension
             kwargs['allow_periodic'] = has_2_dim and no_sizes_given
@@ -390,7 +392,7 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
 
         channel_info_dict = toporeader.channels[topo.data_source]
         has_2_dim = channel_info_dict['dim'] == 2
-        no_sizes_given = ('physical_sizes' in channel_info_dict) and (channel_info_dict['physical_sizes'] == None)
+        no_sizes_given = ('physical_sizes' not in channel_info_dict) or (channel_info_dict['physical_sizes'] == None)
 
         kwargs['allow_periodic'] = has_2_dim and no_sizes_given
         return kwargs
@@ -847,7 +849,7 @@ class SurfaceShareView(FormMixin, DetailView):
                     notify.send(self.request.user, recipient=user, verb="allow change",
                                 target=surface, public=False,
                                 description=f"""
-                                You are allowed to change the surface '{surface.name}' shared by {self.request.user} 
+                                You are allowed to change the surface '{surface.name}' shared by {self.request.user}
                                 """,
                                 href=surface.get_absolute_url())
 
@@ -1008,7 +1010,7 @@ def download_surface(request, surface_id):
         # Add a Readme file
         #
         zf.writestr("README.txt", \
-"""    
+"""
 Contents of this ZIP archive
 ============================
 This archive contains a surface: A collection of individual topography measurements.

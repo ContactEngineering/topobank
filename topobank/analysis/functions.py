@@ -406,9 +406,15 @@ def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None
     if bins is None:
         bins = _reasonable_bins_argument(topography)
 
+    #
+    # Calculate the Laplacian
+    #
     if topography.dim == 2:
         curv_x, curv_y = topography.derivative(n=2)
-        curv = curv_x[:, 1:-1] + curv_y[1:-1, :]
+        if topography.is_periodic:
+            curv = curv_x[:,:] + curv_y[:,:]
+        else:
+            curv = curv_x[:, 1:-1] + curv_y[1:-1, :]
     else:
         curv = topography.derivative(n=2)
 

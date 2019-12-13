@@ -1,5 +1,39 @@
 # Changelog for *TopoBank*
 
+## 0.7.2
+
+- further improvements on the usability of the surface list (#381)
+- added menu option to mark all notifications as read (#391)
+- removed tabs from card headers and shifted them as tabs
+  to relevant places in order to make clear which part changes
+  when choosing another tab (#372) 
+- replace / in sheet names before saving xlsx from analyses (#77),
+  was closed already but we forgot slashes in topography names
+- hide selection of topographies and series in analysis view by 
+  default (#310, #404); also clip too long topography names here
+- in contact plot, show for each point a small over showing 
+  whether a point properly converged or not, as well as values 
+  from the axes (#297, #406)
+- jump to surfaces, topographies or sharing page when clicking 
+  the statistics panel (#248) 
+- upgraded pillow package which had security issues (#400)
+- upgraded PyCo package to version 0.54.2
+- fix that curvature distribution can be calculated for
+  periodic surfaces (#382)
+- fix for missing "is_periodic" in pipeline which made e.g. that
+  PSD couldn't be calculated nonuniform topographies (#409) 
+- OPDx files can now be loaded (#325)  
+- fix for topographies from HDF5 files which could't be flagged 
+  as periodic (#399)   
+- match aspect ratio in displacement plots (#277)
+- made task information larger, topography names which cannot
+  be broken down to lines are now limited by ellipsis (#252)  
+- fixes color of "Recalculate" button (#405)   
+- removed unneeded white space in contact mechanics' README file
+- don't show "Arguments for this analysis differ" in analyses results
+  if nothing is selected; instead, show an info box that no surfaces 
+  and topographies have been chosen yet (#408)
+   
 ## 0.7.1
 
 - added "is_periodic" flag for topographies (#347)

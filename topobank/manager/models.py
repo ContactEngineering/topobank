@@ -212,6 +212,13 @@ class Topography(models.Model):
                 # Adjust height scale to value chosen by user
                 topography_kwargs['height_scale_factor'] = self.height_scale
 
+                # from PyCo docstring:
+                #
+                # height_scale_factor : float
+                #    Override height scale factor found in the data file.
+                #
+                # So default is to use the factor from the file.
+
             # Eventually get PyCo topography using the given keywords
             topo = toporeader.topography(**topography_kwargs)
             topo = topo.detrend(detrend_mode=self.detrend_mode, info=dict(unit=self.unit))

@@ -20,14 +20,14 @@ from django.core.cache import cache  # default cache
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import reverse
 
-from bokeh.layouts import row, column, widgetbox
-from bokeh.models import ColumnDataSource, CustomJS, TapTool, Circle
+from bokeh.layouts import row, column, grid
+from bokeh.models import ColumnDataSource, CustomJS, TapTool, Circle, HoverTool
 from bokeh.palettes import Category10
 from bokeh.models.formatters import FuncTickFormatter
 from bokeh.models.ranges import DataRange1d
 from bokeh.plotting import figure
 from bokeh.embed import components, json_item
-from bokeh.models.widgets import CheckboxGroup, Tabs, Panel
+from bokeh.models.widgets import CheckboxGroup, Tabs, Panel, Toggle
 from bokeh.models.widgets.markups import Paragraph
 from bokeh.models import Legend, LinearColorMapper, ColorBar, CategoricalColorMapper
 
@@ -150,7 +150,7 @@ class SimpleCardView(TemplateView):
           title: card title
           function: AnalysisFunction instance
           unique_kwargs: dict with common kwargs for all analyses, None if not unique
-          analysis_available: queryset of all analyses which are relevant for this view
+          analyses_available: queryset of all analyses which are relevant for this view
           analyses_success: queryset of successfully finished analyses (result is useable, can be displayed)
           analyses_failure: queryset of analyses finished with failures (result has traceback, can't be displayed)
           analyses_unready: queryset of analyses which are still running
@@ -507,16 +507,23 @@ class PlotCardView(SimpleCardView):
         series_button_group = CheckboxGroup(
             labels=series_names,
             css_classes=["topobank-series-checkbox"],
+            visible=False,
             active=list(range(len(series_names))))  # all active
 
         topography_button_group = CheckboxGroup(
             labels=topo_names,
             css_classes=["topobank-topography-checkbox"],
+            visible=False,
             active=list(range(len(topo_names))))  # all active
+
+        topography_btn_group_toggle_button = Toggle(label="Topographies")
+        series_btn_group_toggle_button = Toggle(label="Data Series")
 
         # extend mapping of Python to JS objects
         js_args['series_btn_group'] = series_button_group
         js_args['topography_btn_group'] = topography_button_group
+        js_args['topography_btn_group_toggle_btn'] = topography_btn_group_toggle_button
+        js_args['series_btn_group_toggle_btn'] = series_btn_group_toggle_button
 
         # add code for setting styles of widgetbox elements
         # js_code += """
@@ -524,16 +531,26 @@ class PlotCardView(SimpleCardView):
         # """.format(card_idx)
 
         toggle_lines_callback = CustomJS(args=js_args, code=js_code)
+        toggle_topography_checkboxes = CustomJS(args=js_args, code="""
+            topography_btn_group.visible = topography_btn_group_toggle_btn.active;
+        """)
+        toggle_series_checkboxes = CustomJS(args=js_args, code="""
+            series_btn_group.visible = series_btn_group_toggle_btn.active;
+        """)
 
         #
         # TODO Idea: Generate DIVs with Markup of colors and dashes and align with Buttons/Checkboxes
         #
-        widgets = row(widgetbox(Paragraph(text="Topographies"), topography_button_group),
-                      widgetbox(Paragraph(text="Data Series"), series_button_group))
+
+        widgets = grid([
+            [topography_btn_group_toggle_button, series_btn_group_toggle_button],
+            [topography_button_group, series_button_group]
+        ])
 
         series_button_group.js_on_click(toggle_lines_callback)
         topography_button_group.js_on_click(toggle_lines_callback)
-
+        topography_btn_group_toggle_button.js_on_click(toggle_topography_checkboxes)
+        series_btn_group_toggle_button.js_on_click(toggle_series_checkboxes)
         #
         # Convert plot and widgets to HTML, add meta data for template
         #
@@ -584,8 +601,8 @@ class ContactMechanicsCardView(SimpleCardView):
                     mean_displacement=analysis_result['mean_displacements'],
                     mean_gap=analysis_result['mean_gaps'],
                     fill_alpha=[1 if c else 0.3 for c in analysis_result['converged']],
+                    converged_info=["yes" if c else "no" for c in analysis_result['converged']],
                     data_path=analysis_result['data_paths'])
-                # here, for not convergent points we plot a circle with an x
 
                 # the name of the data source is used in javascript in
                 # order to find out the analysis id
@@ -600,11 +617,21 @@ class ContactMechanicsCardView(SimpleCardView):
 
             color_cycle = itertools.cycle(Category10[10])
 
-            callback = CustomJS(args=dict(sources=sources), code="selection_handler(cb_obj, cb_data, sources);")
+            select_callback = CustomJS(args=dict(sources=sources), code="selection_handler(cb_obj, cb_data, sources);")
+            tap = TapTool(behavior='select', callback=select_callback)
 
-            tap = TapTool(behavior='select', callback=callback)
+            #
+            # Configure tooltips
+            #
+            tooltips = [
+                (load_axis_label, "@mean_pressure"),
+                (area_axis_label, "@total_contact_area"),
+                (disp_axis_label, "@mean_gap"),
+                ("properly converged", "@converged_info")
+            ]
+            hover = HoverTool(tooltips=tooltips)
 
-            tools = ["pan", "reset", "save", "wheel_zoom", "box_zoom", tap]
+            tools = ["pan", "reset", "save", "wheel_zoom", "box_zoom", tap, hover]
 
             contact_area_plot = figure(title=None,
                                        plot_height=400,
@@ -612,7 +639,8 @@ class ContactMechanicsCardView(SimpleCardView):
                                        x_axis_label=load_axis_label,
                                        y_axis_label=area_axis_label,
                                        x_axis_type="log",
-                                       y_axis_type="log", tools=tools)
+                                       y_axis_type="log",
+                                       tools=tools)
 
             contact_area_plot.xaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
             contact_area_plot.yaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
@@ -708,7 +736,6 @@ class ContactMechanicsCardView(SimpleCardView):
 
 def _configure_plot(plot):
     plot.toolbar.logo = None
-    plot.toolbar.active_inspect = None
     plot.xaxis.axis_label_text_font_style = "normal"
     plot.yaxis.axis_label_text_font_style = "normal"
     plot.xaxis.major_label_text_font_size = "12pt"
@@ -789,7 +816,6 @@ def _contact_mechanics_geometry_figure(values, frame_width, frame_height, topo_u
                y_range=y_range,
                frame_width=frame_width,
                frame_height=frame_height,
-               sizing_mode="scale_both",
                x_axis_label="Position x ({})".format(topo_unit),
                y_axis_label="Position y ({})".format(topo_unit),
                match_aspect=True,
@@ -1273,7 +1299,7 @@ def download_plot_analyses_to_xlsx(request, analyses):
             df = pd.DataFrame({column1: series['x'], column2: series['y']})
 
             sheet_name = '{} - {}'.format(topography_names_in_sheet_names[i],
-                                          series['name'].replace('/', ' div '))
+                                          series['name']).replace('/', ' div ')
             df.to_excel(excel, sheet_name=mangle_sheet_name(sheet_name))
     df = pd.DataFrame({'Property': properties, 'Value': values})
     df.to_excel(excel, sheet_name='INFORMATION', index=False)
@@ -1334,7 +1360,7 @@ def download_contact_mechanics_analyses_as_zip(request, analyses):
     # Add a Readme file
     #
     zf.writestr("README.txt", \
-                """    
+                """
 Contents of this ZIP archive
 ============================
 This archive contains data from contact mechanics calculation.
@@ -1342,17 +1368,17 @@ This archive contains data from contact mechanics calculation.
 Each directory corresponds to one topography and is named after the topography.
 Inside you find classical NetCDF files, one for each calculation step.
 Each file corresponds to one external pressure. Inside you'll find the variables
-    
+
 * `contact_points`: boolean array, true if point is in contact
 * `pressure`: floating-point array containing local pressure (in units of `E*`)
 * `gap`: floating-point array containing the local gap
 * `displacement`: floating-point array containing the local displacements
-      
-as well as the attributes 
-    
+
+as well as the attributes
+
 * `mean_pressure`: mean pressure (in units of `E*`)
 * `total_contact_area`: total contact area (fractional)
-    
+
 In order to read the data, you can use a netCDF library.
 Here are some examples:
 
@@ -1370,13 +1396,13 @@ print(ds)
 pressure = ds['pressure'][:]
 mean_pressure = ds.mean_pressure
 ```
-      
+
 Another convenient package you can use is [`xarray`](xarray.pydata.org/).
-    
+
 ### Matlab
 
 In order to read the pressure map in Matlab, use
-    
+
 ```
 ncid = netcdf.open("result-step-0.nc",'NC_NOWRITE');
 varid = netcdf.inqVarID(ncid,"pressure");
@@ -1384,11 +1410,11 @@ pressure = netcdf.getVar(ncid,varid);
 ```
 
 Have look in the official Matlab documentation for more information.
-    
+
 Version information
 ===================
-    
-PyCo:     {}  
+
+PyCo:     {}
 TopoBank: {}
     """.format(PyCo.__version__, settings.TOPOBANK_VERSION))
 

@@ -97,14 +97,26 @@ class TopographyFileUploadForm(forms.ModelForm):
         if len(toporeader.channels) == 0:
             raise forms.ValidationError("No topographies found in file.", code='empty_topography_file')
 
-        first_channel_info = toporeader.channels[0]
-        if ('dim' in first_channel_info) and (first_channel_info['dim'] > 2):
-            raise forms.ValidationError("Number of surface map dimensions > 2.", code='invalid_topography')
-
-        #first_topo = toporeader.topography(channel=0)
-
-        #if first_topo.dim > 2:
-        #    raise forms.ValidationError("Number of surface map dimensions > 2.", code='invalid_topography')
+        #
+        # Check all channels for having correct keys
+        #
+        for channel_index, channel_info in enumerate(toporeader.channels):
+            if 'name' not in channel_info:
+                raise forms.ValidationError(f"Missing channel name for channel no. {channel_index}",
+                                            code='invalid_topography')
+            if 'dim' not in channel_info:
+                raise forms.ValidationError(f"Missing number of dimensions for channel no. {channel_index}",
+                                            code='invalid_topography')
+            else:
+                try:
+                    dim = int(channel_info['dim'])
+                except:
+                    raise forms.ValidationError("Cannot interpret number of dimensions for channel no. "+\
+                                                f"{channel_index}: {channel_info['dim']}",
+                                                code='invalid_topography')
+                if dim>2:
+                    raise forms.ValidationError(f"Number of dimensions for channel no. {channel_index } > 2.",
+                                                code='invalid_topography')
 
         return datafile
 
@@ -176,7 +188,7 @@ def make_is_periodic_field():
                                     original file.</b>
                                     When enabled, this affects analysis results like PSD or ACF.
                                     No detrending can be used for periodic topographies, except of
-                                    substracting the mean height. 
+                                    substracting the mean height.
                                     Additionally, the default calculation type for contact mechanics
                                     will be set to 'periodic'. """)
 
@@ -521,7 +533,7 @@ class SurfaceShareForm(forms.Form):
         widget=MultipleUserSelectWidget,
         label="Users to share with",
         help_text="""<b>Type at least {} characters to start a search.</b>
-          Select one or multiple users you want to give access to this surface.  
+          Select one or multiple users you want to give access to this surface.
           """.format(SHARING_MIN_LETTERS_FOR_USER_DISPLAY))
 
     allow_change = forms.BooleanField(widget=forms.CheckboxInput, required=False,

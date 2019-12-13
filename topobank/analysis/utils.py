@@ -102,7 +102,7 @@ def submit_analysis(users, analysis_func, topography, pickled_pyfunc_kwargs=None
     :param users: sequence of User instances; users which should see the analysis
     :param topography: Topography instance which will be used to extract first argument to analysis function
     :param analysis_func: AnalysisFunc instance
-    :param pickled_pyfunc_kwargs: pickled kwargs for function which should be safed to database
+    :param pickled_pyfunc_kwargs: pickled kwargs for function which should be saved to database
     :returns: Analysis object
     """
     #

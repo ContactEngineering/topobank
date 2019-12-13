@@ -16,7 +16,7 @@
   <!-- Include Fancytree skin  -->
   <!-- link href="{# static 'vendor/fancytree/skin-awesome/ui.fancytree.min.css' #}" rel="stylesheet" -->
   <!-- TODO Use CDN? -->
-  <link href="https://unpkg.com/jquery.fancytree@2.32.0/dist/skin-awesome/ui.fancytree.min.css" rel="stylesheet">
+  <link href="https://unpkg.com/jquery.fancytree@2.33.0/dist/skin-awesome/ui.fancytree.min.css" rel="stylesheet">
 
 {% endblock extra_css %}
 
@@ -47,7 +47,7 @@
 
   {# display search box #}
   {# full text search in names, descriptions, tags #}
-  <div class="card">
+  <div class="card" id="search-box">
     <div class="card-header">
       Search items
     </div>
@@ -105,25 +105,18 @@
 
 
       <div id="search-result">
-
-
-
-        <div id="scrollParent" style="height: 500px; overflow: auto;">
+        <div id="scrollParent">
           <table id="result-tree" class="table table-condensed">
             <colgroup>
-              <col width="2%"></col>
-              <col width="35%"></col>
-              <col width="2%"></col>
-              <col width="46%"></col>
+              <col width="40%"></col>
+              <col width="45%"></col>
               <col width="15%"></col>
             </colgroup>
             <thead>
             <tr>
-              <th scope="col"></th>
-              <th scope="col"></th>
-              <th scope="col"></th>{# for actions #}
-              <th scope="col">{% fontawesome_icon 'sticky-note' %} Description</th>
-              <th scope="col">{% fontawesome_icon 'tag' %} Tags</th>
+              <th scope="col">Name</th>
+              <th scope="col">Description</th>
+              <th scope="col">Actions</th>
             </tr>
             </thead>
             <tbody>
@@ -143,10 +136,10 @@
 {% block javascript %}
 
   <script src="https://unpkg.com/jquery-highlight@3.3.0/jquery.highlight.js"></script>
-  <script src="https://unpkg.com/jquery.fancytree@2.32.0/dist/jquery.fancytree-all-deps.min.js"></script>
-  <script src="https://unpkg.com/jquery.fancytree@2.32.0/dist/modules/jquery.fancytree.glyph.js"></script>
-  <script src="https://unpkg.com/jquery.fancytree@2.32.0/dist/modules/jquery.fancytree.table.js"></script>
-  <script src="https://unpkg.com/jquery.fancytree@2.32.0/dist/modules/jquery.fancytree.filter.js"></script>
+  <script src="https://unpkg.com/jquery.fancytree@2.33.0/dist/jquery.fancytree-all-deps.min.js"></script>
+  <script src="https://unpkg.com/jquery.fancytree@2.33.0/dist/modules/jquery.fancytree.glyph.js"></script>
+  <script src="https://unpkg.com/jquery.fancytree@2.33.0/dist/modules/jquery.fancytree.table.js"></script>
+  <script src="https://unpkg.com/jquery.fancytree@2.33.0/dist/modules/jquery.fancytree.filter.js"></script>
 
   <script>
 
@@ -268,71 +261,46 @@
           }
       });
 
-      function menu_items(node, urls) {
+      function item_button_link_attributes(urls, urlname) {
+          var attr = "";
+
+          // console.log(urls, urlname);
+
+          if (urls.hasOwnProperty(urlname)) {
+              attr = `href="${urls[urlname]}"`;
+          } else {
+              attr = "href='#' disabled";
+          }
+          return attr;
+      }
+
+      function item_buttons(urls) {
           // node: tree node for which this function is called
           // urls: object with url names as keys and urls as values
           //
-          // Use this function to compile menu items for surfaces and topographies
+          // Use this function to compile buttons for surfaces and topographies in the result table
           //
           // return HTML
-
           var result = "";
+
           if (urls.hasOwnProperty('detail')) {
               result += `
-                  <a href="${urls.detail}" class="dropdown-item">
-                    {% fontawesome_icon 'folder-open-o' fixed=True  %} Details
-                  </a>
+                <a href="${urls['detail']}" class="btn btn-default" type="button">
+                    Properties
+                </a>
               `
           }
           if (urls.hasOwnProperty('show_analyses')) {
               result += `
-                  <a href="${urls.show_analyses}" class="dropdown-item">
-                    {% fontawesome_icon 'area-chart' fixed=True %} Show analyses
-                  </a>
+                <a href="${urls['show_analyses']}" class="btn btn-default" type="button">
+                    Analyze
+                </a>
               `
           }
-          if (urls.hasOwnProperty('update')) {
-              result += `
-                  <div class="dropdown-divider"></div>
-                  <a href="${urls.update}?redirect=${window.location}" class="dropdown-item">
-                    {% fontawesome_icon 'edit' fixed=True %} Edit meta data (also tags)
-                  </a>
-              `
-          }
-          if (urls.hasOwnProperty('add_topography')) {
-              result += `
-                  <a href="${urls.add_topography}" class="dropdown-item">
-                    {% fontawesome_icon 'plus-square' fixed=True %} Add topography
-                  </a>
-              `
-          }
-          /** DOES NOT WORK YET
-           * Make node expand when click on "Expand"
-          if (node.hasOwnProperty('children')) {
 
-              var expand_id = "expand-" + node.key;
-              result += `
-                  <div class="dropdown-divider"></div>
-                  <a href="#" id="${expand_id}" class="dropdown-item">
-                    {% fontawesome_icon 'chevron-down' %} Expand
-                  </a>
-              `;
-
-              $("#"+expand_id).click(function () {
-                  node.setExpanded(true)
-              });
-          }
-          */
-          if (urls.hasOwnProperty('delete')) {
-              result += `
-                  <div class="dropdown-divider"></div>
-                  <a href="${urls.delete}" class="dropdown-item text-danger">
-                    {% fontawesome_icon 'trash' fixed=True  %} Delete
-                  </a>
-              `
-          }
           return result;
       }
+
 
       var result_tree = $('#result-tree').fancytree({
           extensions: ["glyph", "table", "filter"],
@@ -359,9 +327,9 @@
              return data.typeInfo.iconTooltip; // set tooltip which appears when hovering an icon
           },
           table: {
-		        checkboxColumnIdx: 0,    // render the checkboxes into the this column index (default: nodeColumnIdx)
+		        checkboxColumnIdx: null,    // render the checkboxes into the this column index (default: nodeColumnIdx)
 		        indentation: 20,         // indent every node level by these number of pixels
-		        nodeColumnIdx: 1         // render node expander, icon, and title to this column (default: #0)
+		        nodeColumnIdx: 0         // render node expander, icon, and title to this column (default: #0)
 	        },
           filter: {
             autoApply: true,   // Re-apply last filter if lazy data is loaded
@@ -379,8 +347,9 @@
               url: "{% url 'manager:surface-search' %}",
               cache: false
           },
-          //autoActivate: false,
-          //titlesTabbable: false,
+          autoActivate: true,
+          //  titlesTabbable: false,
+          tabbable: false,
           focusOnSelect: false,
           scrollParent: $("#scrollParent"),
           checkbox: true,
@@ -426,6 +395,8 @@
                    });
               }
           },
+
+
           renderColumns: function(event, data) {
               var node = data.node;
               var $tdList = $(node.tr).find(">td");
@@ -449,49 +420,38 @@
                * Render columns
                */
 
-
-              // (Index #0 is rendered by fancytree by adding the checkbox)
-              // (Index #1 is rendered by fancytree)
-
-              // Set rest from node data:
-              if (node.type !== "tag") {
-                  var menu_html = `
-                <div class="btn-group btn-group-sm pull-right dropdown">
-                  <button type="button" class="btn btn-default button-small" data-toggle="dropdown"
-                          aria-haspopup="true" aria-expanded="false">
-                    <i class="fa fa-bars fa-sm"></i>
-                  </button>
-                  <div class="dropdown-menu">
-                    <h5 class="dropdown-header">
-                    ${node.key.includes('surface') ? 'Surface' : 'Topography'} <em>${node.data.name}</em>
-                    </h5>
-                    <div class="dropdown-divider"></div>
-                    ${menu_items(node, node.data.urls)}
-                  </div>
-                </div>
-                `;
-
-
-                  $tdList
-                      .eq(2)
-                      .html(menu_html);
-              }
-              if (node.data.description !== undefined) {
-                  $tdList
-                      .eq(3)
-                      .text(node.data.description);
-              }
-
+              // Index #0 is rendered by fancytree, but extended here by tags
               if (node.data.tags !== undefined) {
                   var tag_html = [];
                   node.data.tags.forEach(function (tag) {
                       tag_html += "<span class='badge badge-success mr-1'>" + tag + "</span>"
                   });
-                  $tdList
-                      .eq(4)
-                      .html(tag_html);
+
+                  // append tags to fancytree-title
+                  $tdList.eq(0).find('.fancytree-title').after(tag_html);
 
               }
+
+              // Set column with description
+              if (node.data.description !== undefined) {
+                  $tdList
+                      .eq(1)
+                      .text(node.data.description);
+              }
+
+
+              // Set columns with buttons:
+              if (node.type !== "tag") {
+                  var actions_html = `
+                    <div class="btn-group btn-group-sm" role="group" aria-label="Actions">
+                     ${item_buttons(node.data.urls)}
+                    </div>
+                  `;
+                  $tdList
+                      .eq(2)
+                      .html(actions_html);
+              }
+
               // Static markup (more efficiently defined as html row template):
               // $tdList.eq(3).html("<input type='input' value='" + "" + "'>");
               // ...

@@ -550,6 +550,41 @@ def test_analyis_download_as_xlsx(client, two_topos, ids_downloadable_analyses, 
         assert ('Topography', t.name) in vals
         assert ('Creator', str(t.creator)) in vals
 
+
+@pytest.mark.django_db
+def test_analyis_download_as_xlsx_despite_slash_in_sheetname(client, two_topos, ids_downloadable_analyses, django_user_model):
+
+    topos = Topography.objects.all()
+    assert len(topos) == 2
+
+    # change topography name such that a slash is in there
+    topos[0].name = "This is a slash: /"
+    topos[0].save()
+
+    #
+    # download analysis data as xlsx, the slash should be replaced by "div"
+    #
+    user = django_user_model.objects.get(username='testuser')
+    client.force_login(user)
+
+    ids_str = ",".join(str(i) for i in ids_downloadable_analyses)
+    download_url = reverse('analysis:download', kwargs=dict(ids=ids_str, card_view_flavor='plot', file_format='xlsx'))
+
+    response = client.get(download_url)
+
+    # if this works without error, it's okay, let's test also if the sheet can be loaded:
+
+    tmp = tempfile.NamedTemporaryFile(suffix='.xlsx') # will be deleted automatically
+    tmp.write(response.content)
+    tmp.seek(0)
+
+    xlsx = openpyxl.load_workbook(tmp.name)
+
+    print(xlsx.sheetnames)
+
+    assert len(xlsx.worksheets) == 2*2 + 1
+
+
 @pytest.mark.django_db
 def test_view_shared_analysis_results(client):
 
