@@ -323,6 +323,29 @@ def test_curvature_distribution_simple_2D_topography():
     assert s1['name'] == 'RMS curvature'
     # Not testing gaussian here
 
+def test_curvature_distribution_simple_2D_topography_periodic():
+
+    unit = 'nm'
+    info = dict(unit=unit)
+
+    y = np.arange(100).reshape((1, -1))
+    x = np.arange(100).reshape((-1, 1))
+
+    arr = np.sin(y/2/np.pi) # only slope in y direction, second derivative is -sin
+
+    t = Topography(arr, (100,100), periodic=True, info=info).detrend('center')
+
+    # resulting heights follow this function: h(x,y)=-4y+9
+
+    result = curvature_distribution(t, bins=3)
+
+    assert sorted(result.keys()) == sorted(['name', 'scalars', 'xlabel', 'ylabel', 'xunit', 'yunit', 'series'])
+
+    assert result['name'] == 'Curvature distribution'
+
+    assert pytest.approx(result['scalars']['Mean Curvature']) == 0.
+
+
 def test_power_spectrum_simple_2D_topography():
 
     unit = 'nm'
