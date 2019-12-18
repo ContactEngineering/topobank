@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 0.7.3
+
+- fixes wrong orientation in topography image plots (#253,#378)
+
 ## 0.7.2
 
 - further improvements on the usability of the surface list (#381)
