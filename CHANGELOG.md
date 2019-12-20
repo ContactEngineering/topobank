@@ -3,6 +3,7 @@
 ## 0.7.3
 
 - fixes wrong orientation in topography image plots (#253,#378)
+- fixes internal server error with existing ibw files (#413)
 
 ## 0.7.2
 
