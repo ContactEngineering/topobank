@@ -558,7 +558,9 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
         plot.xaxis.axis_label_text_font_style = "normal"
         plot.yaxis.axis_label_text_font_style = "normal"
 
-        plot.image([heights], x=0, y=0, dw=topo_size[0], dh=topo_size[1], color_mapper=color_mapper)
+        # we need to transpose the height data in order to be compatible with bokeh's image plot
+
+        plot.image([heights.T], x=0, y=0, dw=topo_size[0], dh=topo_size[1], color_mapper=color_mapper)
 
         plot.toolbar.logo = None
 

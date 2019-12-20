@@ -434,9 +434,10 @@
 
               // Set column with description
               if (node.data.description !== undefined) {
+                  var description_html = `<div class='description-column'>${node.data.description}</div>`
                   $tdList
                       .eq(1)
-                      .text(node.data.description);
+                      .html(description_html);
               }
 
 
