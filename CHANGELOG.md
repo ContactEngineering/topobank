@@ -26,7 +26,7 @@
 - upgraded PyCo package to version 0.54.2
 - fix that curvature distribution can be calculated for
   periodic surfaces (#382)
-- fix for missing "is_periodic" in pipeline which made e.g. that
+- fix for missing "is_periodic" in pipeline which made e.g. that    
   PSD couldn't be calculated nonuniform topographies (#409) 
 - OPDx files can now be loaded (#325)  
 - fix for topographies from HDF5 files which could't be flagged 
