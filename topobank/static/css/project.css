@@ -144,11 +144,9 @@ tr.fancytree-active span.fancytree-node {
    color: white; /** for some reason, this does not affect the title, so there is an extra rule below */
 }
 
-tr.fancytree-active span.fancytree-title {
+tr.fancytree-active span.fancytree-title, tr.fancytree-active div.description-column {
    color: white;
 }
-
-
 
 /**
   Settings for task table
