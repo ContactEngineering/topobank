@@ -4,6 +4,7 @@
 
 - fixes wrong orientation in topography image plots (#253,#378)
 - fixes internal server error with existing ibw files (#413)
+- fixes white description in active row of search list (#414)
 
 ## 0.7.2
 
