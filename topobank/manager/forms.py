@@ -118,6 +118,30 @@ class TopographyFileUploadForm(forms.ModelForm):
                     raise forms.ValidationError(f"Number of dimensions for channel no. {channel_index } > 2.",
                                                 code='invalid_topography')
 
+            if 'nb_grid_pts' not in channel_info:
+                raise forms.ValidationError(f"Missing number of grid points for channel no. {channel_index}",
+                                            code='invalid_topography')
+            else:
+                numbers = channel_info['nb_grid_pts']
+
+                try:
+                    numbers = tuple(numbers)
+                except:
+                    raise forms.ValidationError("Cannot interpret number of grid points for channel no. " + \
+                                                f"{channel_index} as tuple: {channel_info['nb_grid_pts']}",
+                                                code='invalid_topography')
+                for n in numbers:
+                    try:
+                        n = int(n)
+                    except:
+                        raise forms.ValidationError("Cannot interpret number of grid points for channel no. " + \
+                                                    f"{channel_index}: {channel_info['nb_grid_pts']}",
+                                                    code='invalid_topography')
+                    if n <= 0:
+                        raise forms.ValidationError("Number of grid points must be a positive number > 0."+\
+                                                    f" (channel: {channel_index})", code='invalid_topography')
+
+
         return datafile
 
 

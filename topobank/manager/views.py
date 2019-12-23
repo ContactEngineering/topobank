@@ -227,10 +227,18 @@ class TopographyCreateWizard(SessionWizardView):
             toporeader = get_topography_reader(datafile)
 
         if step == 'metadata':
+
+            def clean_channel_name(s):
+                """Restrict data shown in the dropdown for the channel name.
+                :param s: channel name as found in the file
+                :return: string without NULL characters, 100 chars maximum
+                """
+                return s.strip('\0')[:100]
+
             #
             # Set data source choices based on file contents
             #
-            kwargs['data_source_choices'] = [(k, channel_dict['name']) for k, channel_dict in
+            kwargs['data_source_choices'] = [(k, clean_channel_name(channel_dict['name'])) for k, channel_dict in
                                              enumerate(toporeader.channels)
                                              if not (('unit' in channel_dict)
                                                      and isinstance(channel_dict['unit'], tuple))]
@@ -578,14 +586,24 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
         context = super().get_context_data(**kwargs)
 
         topo = self.object
-        pyco_topo = topo.topography()
 
-        if pyco_topo.dim == 1:
-            plot = self.get_1D_plot(pyco_topo, topo)
-        elif pyco_topo.dim == 2:
-            plot = self.get_2D_plot(pyco_topo, topo)
-        else:
-            raise Exception(f"Don't know how to display topographies with {pyco_topo.dim} dimensions.")
+        try:
+            pyco_topo = topo.topography()
+
+            if pyco_topo.dim == 1:
+                plot = self.get_1D_plot(pyco_topo, topo)
+            elif pyco_topo.dim == 2:
+                plot = self.get_2D_plot(pyco_topo, topo)
+            else:
+                raise Exception(f"Don't know how to display topographies with {pyco_topo.dim} dimensions.")
+
+            script, div = components(plot)
+            context['image_plot_script'] = script
+            context['image_plot_div'] = div
+
+        except Exception as exc:
+            _log.error("Topography {} cannot be instantiated any more. Exception: {}".format(topo.name, exc))
+            # TODO return some error here which can be shown in the user interface
 
         try:
             context['topography_next'] = topo.get_next_by_measurement_date(surface=topo.surface).id
@@ -596,9 +614,6 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
         except Topography.DoesNotExist:
             context['topography_prev'] = topo.id
 
-        script, div = components(plot)
-        context['image_plot_script'] = script
-        context['image_plot_div'] = div
 
         return context
 

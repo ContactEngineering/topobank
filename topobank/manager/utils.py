@@ -259,7 +259,11 @@ def bandwidths_data(topographies):
 
     for topo in topographies:
 
-        pyco_topo = topo.topography()
+        try:
+            pyco_topo = topo.topography()
+        except Exception as exc:
+            _log.error("Topography {} cannot be instantiated any more. Exception: {}".format(topo.name, exc))
+            continue  # TODO return some error here which can be shown in the user interface
 
         try:
             unit = pyco_topo.info['unit']
