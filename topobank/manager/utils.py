@@ -6,8 +6,7 @@ from PyCo.Topography import open_topography
 
 from topobank.taskapp.celery import app
 
-
-from operator import itemgetter
+import traceback
 import logging
 
 _log = logging.getLogger(__name__)
@@ -240,45 +239,79 @@ def selected_instances(request, surface=None):
 
     return topographies, surfaces
 
-def bandwidths_data(topographies):
-    """Return bandwidths data as needed in surface summary plots.
 
-    :param topographies: iterable with manager.models.Topography instances
-    :return: list of dicts with bandwidths data
+def body_for_mailto_link_for_reporting_an_error(info, err_msg, traceback):
+    """Use this to create a mail body for reporting an error.
 
-    Each list element is a dict with keys
-
-    'upper_bound': upper bound in meters
-    'lower_bound': lower bound in meters
-    'name': name of topography
-    'link': link to topography details
-
-    The list is sorted by the lower bound with larger lower bound first.
+    :param info: some text about the context, where the error happened
+    :param err_msg: error message
+    :param traceback: as reported by traceback.format_exc()
+    :return: a string which can be used in a mailto link for the mail body
     """
-    bandwidths_data = []
 
-    for topo in topographies:
+    body = ("Hey there,\n\n"
+            "I've problems with 'contact.engineering'.\nHere are some details:\n\n"
+            f"Context: {info}"
+            f"Error message: {err_msg}\n")
 
-        try:
-            pyco_topo = topo.topography()
-        except Exception as exc:
-            _log.error("Topography {} cannot be instantiated any more. Exception: {}".format(topo.name, exc))
-            continue  # TODO return some error here which can be shown in the user interface
+    body += "Traceback:\n"
 
-        try:
-            unit = pyco_topo.info['unit']
-        except KeyError:
-            unit = None
+    body += "-"*72+"\n"
+    body += f"\n{traceback}\n"
+    body += "-"*72+"\n"
 
-        if unit is None:
-            _log.warning("No unit given for topography {}. Cannot calculate bandwidth.".format(topo.name))
-            continue
-        elif not unit in UNIT_TO_METERS:
-            _log.warning("Unknown unit {} given for topography {}. Cannot calculate bandwidth.".format(
-                unit, topo.name))
-            continue
+    # change characters to we can use this in a link
+    body = body.replace('\n', '%0D%0A')
+    return body
 
-        meter_factor = UNIT_TO_METERS[unit]
+
+
+def _bandwidths_data_entry(topo):
+    """Return an entry for bandwiths_data
+
+    :param topo: topobank.manager.models.Topography instance
+    :return: dict
+    """
+
+    err_message = None
+
+    try:
+        pyco_topo = topo.topography()
+    except Exception as exc:
+        err_message = "Topography '{}' (id: {}) cannot be loaded. Please click to report this issue.".format(
+            topo.name, topo.id)
+        _log.error(err_message+"\n"+traceback.format_exc())
+
+        link = "mailto:topobank@imtek.uni-freiburg.de?subject=Failure loading topography&body="+\
+            body_for_mailto_link_for_reporting_an_error("Bandwidth data calculation",
+                                                        err_message,
+                                                        traceback.format_exc())
+
+        return {
+                'lower_bound': None,
+                'upper_bound': None,
+                'name': topo.name,
+                'link': link,
+                'error_message': err_message
+        }
+
+    try:
+        unit = pyco_topo.info['unit']
+    except KeyError:
+        unit = None
+
+    if unit is None:
+        _log.warning("No unit given for topography {}. Cannot calculate bandwidth.".format(topo.name))
+        err_message = 'No unit given for topography, cannot calculate bandwidth.'
+    elif not unit in UNIT_TO_METERS:
+        _log.warning("Unknown unit {} given for topography {}. Cannot calculate bandwidth.".format(
+            unit, topo.name))
+        err_message = "Unknown unit {} given for topography {}. Cannot calculate bandwidth.".format(
+            unit, topo.name)
+
+    meter_factor = UNIT_TO_METERS[unit]
+
+    if err_message is None:
 
         lower_bound, upper_bound = pyco_topo.bandwidth()
         # Workaround for https://github.com/pastewka/PyCo/issues/55
@@ -288,16 +321,48 @@ def bandwidths_data(topographies):
         lower_bound_meters = lower_bound * meter_factor
         upper_bound_meters = upper_bound * meter_factor
 
-        bandwidths_data.append(
-            {
-                'lower_bound': lower_bound_meters,
-                'upper_bound': upper_bound_meters,
-                'name': topo.name,
-                'link': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk))
-            }
-        )
+    else:
+        lower_bound_meters = None
+        upper_bound_meters = None
 
-    # Finally sort by lower bound
-    bandwidths_data.sort(key=itemgetter('lower_bound'), reverse=True)
+    return {
+            'lower_bound': lower_bound_meters,
+            'upper_bound': upper_bound_meters,
+            'name': topo.name,
+            'link': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
+            'error_message': err_message
+    }
+
+
+
+def bandwidths_data(topographies):
+    """Return bandwidths data as needed in surface summary plots.
+
+    :param topographies: iterable with manager.models.Topography instances
+    :return: list of dicts with bandwidths data
+
+    Each list element is a dict with keys
+
+    'upper_bound': upper bound in meters (or None if there is an error)
+    'lower_bound': lower bound in meters (or None if there is an error)
+    'name': name of topography
+    'link': link to topography details
+    'error_message': None or a string with an error message if calculation failed
+
+    The list is sorted by the lower bound with larger lower bound first.
+
+    The idea is to be able to display error messages and the links
+    also on javascript level which gets this data.
+    """
+    bandwidths_data = [ _bandwidths_data_entry(t) for t in topographies]
+
+    #
+    # Sort by lower bound, put lower bound=None first to show error messages first in plot
+    #
+    def weight(entry):
+        lb = entry['lower_bound']
+        return float('inf') if lb is None else lb
+
+    bandwidths_data.sort(key=lambda entry: weight(entry), reverse=True)
 
     return bandwidths_data

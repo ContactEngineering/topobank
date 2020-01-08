@@ -59,3 +59,55 @@ def test_bandwidth_with_angstrom():
     bd = bandwidths_data([topo])
 
     assert len(bd) == 1
+
+@pytest.mark.django_db
+def test_bandwidth_error_message_when_problems_while_loading():
+
+    #
+    # Theoretically loading of a topography can fail during
+    # creation of the bandwidth plot, although it worked before.
+    # This can happen e.g. because of an update of the PyCo lib
+    # which may introduce new errors.
+    # In this case the user should see an error message.
+    #
+
+    topo1 = TopographyFactory()
+    topo2 = TopographyFactory()
+    bd = bandwidths_data([topo1, topo2])
+    assert len(bd) == 2
+
+    #
+    # No errors at first
+    #
+    bd1, bd2 = bd
+    assert bd1['error_message'] is None
+    assert bd2['error_message'] is None
+
+    #
+    # monkey patch the topography() method of topo1 so we have
+    # an exception when trying to egt the pyco topography
+    #
+    def just_raising_an_exception():
+        raise Exception("Cannot load any more.")
+
+    topo1.topography = just_raising_an_exception
+
+    bd = bandwidths_data([topo1, topo2])
+    assert len(bd) == 2
+
+    bd1, bd2 = bd
+
+    # first one should indicate that there is an error
+    assert bd1['name'] == topo1.name
+    assert bd1['error_message'] == f"Topography '{topo1.name}' (id: {topo1.id}) cannot be loaded. " + \
+           "Please click to report this issue."
+    assert 'Failure loading' in bd1['link']
+    assert "id: {}".format(topo1.id) in bd1['link']
+    assert bd1['lower_bound'] is None
+    assert bd1['upper_bound'] is None
+
+    # second one should be okay (no errors)
+    assert bd2['name'] == topo2.name
+    assert bd2['error_message'] is None  # No error
+    assert bd2['lower_bound'] is not None
+    assert bd2['upper_bound'] is not None
