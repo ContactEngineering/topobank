@@ -99,8 +99,7 @@ def test_bandwidth_error_message_when_problems_while_loading():
 
     # first one should indicate that there is an error
     assert bd1['name'] == topo1.name
-    assert bd1['error_message'] == f"Topography '{topo1.name}' (id: {topo1.id}) cannot be loaded. " + \
-           "Please click to report this issue."
+    assert bd1['error_message'] == f"Topography '{topo1.name}' (id: {topo1.id}) cannot be loaded unexpectedly."
     assert 'Failure loading' in bd1['link']
     assert "id: {}".format(topo1.id) in bd1['link']
     assert bd1['lower_bound'] is None

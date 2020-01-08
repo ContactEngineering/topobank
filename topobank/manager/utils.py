@@ -250,8 +250,8 @@ def body_for_mailto_link_for_reporting_an_error(info, err_msg, traceback):
     """
 
     body = ("Hey there,\n\n"
-            "I've problems with 'contact.engineering'.\nHere are some details:\n\n"
-            f"Context: {info}"
+            "I've problems with 'contact.engineering'.\n\nHere are some details:\n\n"
+            f"Context: {info}\n"
             f"Error message: {err_msg}\n")
 
     body += "Traceback:\n"
@@ -259,6 +259,7 @@ def body_for_mailto_link_for_reporting_an_error(info, err_msg, traceback):
     body += "-"*72+"\n"
     body += f"\n{traceback}\n"
     body += "-"*72+"\n"
+    body += "\n\nBest, <your name>"
 
     # change characters to we can use this in a link
     body = body.replace('\n', '%0D%0A')
@@ -278,7 +279,7 @@ def _bandwidths_data_entry(topo):
     try:
         pyco_topo = topo.topography()
     except Exception as exc:
-        err_message = "Topography '{}' (id: {}) cannot be loaded. Please click to report this issue.".format(
+        err_message = "Topography '{}' (id: {}) cannot be loaded unexpectedly.".format(
             topo.name, topo.id)
         _log.error(err_message+"\n"+traceback.format_exc())
 

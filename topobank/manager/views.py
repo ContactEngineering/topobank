@@ -707,7 +707,13 @@ class SurfaceDetailView(DetailView):
         # bandwidth data
         #
         bw_data = bandwidths_data(self.object.topography_set.all())
-        context['bandwidths_data'] = json.dumps(bw_data)
+
+        # filter out all entries with errors and display error messages
+        bw_data_with_errors = [ x for x in bw_data if x['error_message'] is not None ]
+        bw_data_without_errors = [x for x in bw_data if x['error_message'] is None]
+
+        context['bandwidths_data_without_errors'] = json.dumps(bw_data_without_errors)
+        context['bandwidths_data_with_errors'] = bw_data_with_errors
 
         #
         # permission data
