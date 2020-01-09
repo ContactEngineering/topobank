@@ -30,4 +30,4 @@ def versions_processor(request):
 
     ]
 
-    return dict(versions=versions)
+    return dict(versions=versions, contact_email_address=settings.CONTACT_EMAIL_ADDRESS)
