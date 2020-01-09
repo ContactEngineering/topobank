@@ -1,5 +1,6 @@
 import yaml
 import zipfile
+import traceback
 from io import BytesIO
 
 from django.shortcuts import redirect, render
@@ -41,6 +42,7 @@ from .forms import TopographyForm, SurfaceForm, SurfaceShareForm
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, Topography1DUnitsForm, Topography2DUnitsForm
 from .utils import selected_instances, bandwidths_data, surfaces_for_user, get_topography_reader, tags_for_user
 from .serializers import SurfaceSerializer, TopographySerializer, TagSerializer
+from .utils import mailto_link_for_reporting_an_error
 
 from topobank.users.models import User
 
@@ -587,23 +589,47 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
 
         topo = self.object
 
+        errors = []  # list of dicts with keys 'message' and 'link'
+
+        loaded = False
+        plotted = False
+
         try:
             pyco_topo = topo.topography()
+            loaded = True
+        except Exception as exc:
+            err_message = "Topography '{}' (id: {}) cannot be loaded unexpectedly.".format(topo.name, topo.id)
+            _log.error(err_message)
+            link = mailto_link_for_reporting_an_error("Failure loading topography",
+                                                      "Image plot for topography",
+                                                      err_message,
+                                                      traceback.format_exc())
 
+            errors.append(dict(message=err_message, link=link))
+
+        if loaded:
             if pyco_topo.dim == 1:
                 plot = self.get_1D_plot(pyco_topo, topo)
+                plotted = True
             elif pyco_topo.dim == 2:
                 plot = self.get_2D_plot(pyco_topo, topo)
+                plotted = True
             else:
-                raise Exception(f"Don't know how to display topographies with {pyco_topo.dim} dimensions.")
+                err_message = f"Don't know how to display topographies with {pyco_topo.dim} dimensions."
+                link = mailto_link_for_reporting_an_error("Invalid dimensions for topography",
+                                                          "Image plot for topography",
+                                                          err_message,
+                                                          traceback.format_exc())
+                errors.append(dict(message=err_message, link=link))
 
-            script, div = components(plot)
-            context['image_plot_script'] = script
-            context['image_plot_div'] = div
 
-        except Exception as exc:
-            _log.error("Topography {} cannot be instantiated any more. Exception: {}".format(topo.name, exc))
-            # TODO return some error here which can be shown in the user interface
+            if plotted:
+                script, div = components(plot)
+                context['image_plot_script'] = script
+                context['image_plot_div'] = div
+
+
+        context['errors'] = errors
 
         try:
             context['topography_next'] = topo.get_next_by_measurement_date(surface=topo.surface).id
@@ -613,7 +639,6 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
             context['topography_prev'] = topo.get_previous_by_measurement_date(surface=topo.surface).id
         except Topography.DoesNotExist:
             context['topography_prev'] = topo.id
-
 
         return context
 

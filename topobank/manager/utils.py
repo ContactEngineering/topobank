@@ -1,6 +1,7 @@
 from django.shortcuts import reverse
 from guardian.shortcuts import get_objects_for_user
-from django.core.cache import cache # default cache
+from django.core.cache import cache  # default cache
+from django.conf import settings
 
 from PyCo.Topography import open_topography
 
@@ -240,7 +241,20 @@ def selected_instances(request, surface=None):
     return topographies, surfaces
 
 
-def body_for_mailto_link_for_reporting_an_error(info, err_msg, traceback):
+def mailto_link_for_reporting_an_error(subject, info, err_msg, traceback) -> str:
+    """Use this to create a mail body for reporting an error.
+
+    :param subject: mail subject (str)
+    :param info: some text about the context, where the error happened (str)
+    :param err_msg: error message (str)
+    :param traceback: as reported by traceback.format_exc() (str)
+    :return: a string which can be used in a mailto link for the mail body
+    """
+    body = body_for_mailto_link_for_reporting_an_error(info, err_msg, traceback)
+    return f"mailto:{settings.CONTACT_EMAIL_ADDRESS}?subject={subject}&body={body}"
+
+
+def body_for_mailto_link_for_reporting_an_error(info, err_msg, traceback) -> str:
     """Use this to create a mail body for reporting an error.
 
     :param info: some text about the context, where the error happened
@@ -278,15 +292,15 @@ def _bandwidths_data_entry(topo):
 
     try:
         pyco_topo = topo.topography()
-    except Exception as exc:
+    except Exception:
         err_message = "Topography '{}' (id: {}) cannot be loaded unexpectedly.".format(
             topo.name, topo.id)
         _log.error(err_message+"\n"+traceback.format_exc())
 
-        link = "mailto:topobank@imtek.uni-freiburg.de?subject=Failure loading topography&body="+\
-            body_for_mailto_link_for_reporting_an_error("Bandwidth data calculation",
-                                                        err_message,
-                                                        traceback.format_exc())
+        link = mailto_link_for_reporting_an_error("Failure loading topography",
+                                                  "Bandwidth data calculation",
+                                                  err_message,
+                                                  traceback.format_exc())
 
         return {
                 'lower_bound': None,

@@ -78,6 +78,13 @@
 
           <div class="tab-content mt-2">
             <div class="tab-pane fade active show" id="plot" role="tabpanel" aria-labelledby="plot-tab">
+              {% for err in errors %}
+                <div class="alert alert-error">
+                  {{ err.message }}
+                  Please <a class="alert-link" href="{{ err.link }}">click here</a>
+                  to send us an e-mail about this issue. Sorry for the inconvenience.
+                </div>
+              {% endfor %}
               {{ image_plot_div|safe }}
             </div>
 

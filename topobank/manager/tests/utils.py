@@ -129,3 +129,15 @@ def ordereddicts_to_dicts(input_ordered_dict, sorted_by='pk'):
     if sorted_by is not None:
         result = sorted(result, key=itemgetter(sorted_by))
     return result
+
+
+@pytest.fixture
+def topography_with_broken_pyco_topography():
+    topo = TopographyFactory()
+
+    from django.core.files.base import ContentFile
+    new_content = ContentFile('\x00') # some nonsense which cannot be interpreted by PyCo
+    fname = topo.datafile.name
+    topo.datafile.save(fname, new_content)
+
+    return topo

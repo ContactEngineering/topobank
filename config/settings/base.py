@@ -435,3 +435,8 @@ TAGULOUS_AUTOCOMPLETE_JS = (
     'tagulous/tagulous.js',
     'tagulous/adaptor/select2-3.js'
 )
+
+#
+# E-Mail address to contact us
+#
+CONTACT_EMAIL_ADDRESS = "topobank@imtek.uni-freiburg.de"

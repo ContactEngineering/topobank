@@ -8,7 +8,7 @@ from django.shortcuts import reverse
 from ..models import Topography
 from ..utils import bandwidths_data
 
-from .utils import TopographyFactory
+from .utils import TopographyFactory, topography_with_broken_pyco_topography
 from topobank.utils import assert_in_content
 
 @pytest.fixture
@@ -62,27 +62,6 @@ def test_bandwidth_with_angstrom():
     bd = bandwidths_data([topo])
 
     assert len(bd) == 1
-
-@pytest.fixture
-def topography_with_broken_pyco_topography():
-    topo = TopographyFactory()
-
-    #
-    # monkey patch the topography() method of topo so we have
-    # an exception when trying to egt the pyco topography
-    #
-    def just_raising_an_exception():
-        raise Exception("Cannot load any more.")
-
-    # topo.topography = just_raising_an_exception
-
-
-    from django.core.files.base import ContentFile
-    new_content = ContentFile('\x00') # some nonsense which cannot be interpreted by PyCo
-    fname = topo.datafile.name
-    topo.datafile.save(fname, new_content)
-
-    return topo
 
 
 @pytest.mark.django_db
