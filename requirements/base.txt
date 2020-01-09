@@ -40,7 +40,7 @@ django-storages==1.7.1
 django-tables2==2.1.0
 git+http://github.com/mcrot/django-tagulous.git
 git+http://git@github.com/mcrot/django-termsandconditions.git@optional_terms
-django==2.1.11
+django==2.2.9
 djangorestframework==3.10.2
 docutils==0.15.2          # via botocore
 et-xmlfile==1.0.1         # via openpyxl
@@ -79,6 +79,7 @@ requests-oauthlib==1.2.0  # via django-allauth
 requests==2.22.0          # via coreapi, django-allauth, requests-oauthlib
 s3transfer==0.2.1         # via boto3
 six==1.12.0               # via argon2-cffi, bokeh, django-appconf, h5py, packaging, python-dateutil
+sqlparse==0.3.0           # via django
 text-unidecode==1.2       # via python-slugify
 tornado==5.1.1
 uritemplate==3.0.0        # via coreapi
