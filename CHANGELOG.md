@@ -1,5 +1,11 @@
 # Changelog for *TopoBank*
 
+## 0.7.4
+
+- problems during loading of topographies which could already
+  be loaded earlier now show error message and a mailto link
+  in order to report the issue (#416) 
+  
 ## 0.7.3
 
 - fixes wrong orientation in topography image plots (#253,#378)
