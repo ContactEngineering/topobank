@@ -55,8 +55,8 @@
               {% for bw_err in bandwidths_data_with_errors %}
                 <div class="alert alert-error">
                   {{ bw_err.error_message }}
-                  Please <a class="alert-link" href="{{ bw_err.link }}">click here</a> to send us an e-mail
-                  about this issue. Sorry for the inconvenience.
+                  Please <a class="alert-link" href="{{ bw_err.link }}">click here</a>
+                  to send us an e-mail about this issue. Sorry for the inconvenience.
                 </div>
               {% endfor %}
               <div id="bandwidths" class="surface-summary-plot">

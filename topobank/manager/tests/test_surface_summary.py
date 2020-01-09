@@ -3,10 +3,13 @@ from pytest import approx
 
 from dataclasses import dataclass
 
+from django.shortcuts import reverse
+
 from ..models import Topography
 from ..utils import bandwidths_data
 
 from .utils import TopographyFactory
+from topobank.utils import assert_in_content
 
 @pytest.fixture
 def two_topos_mock(mocker):
@@ -60,38 +63,41 @@ def test_bandwidth_with_angstrom():
 
     assert len(bd) == 1
 
+@pytest.fixture
+def topography_with_broken_pyco_topography():
+    topo = TopographyFactory()
+
+    #
+    # monkey patch the topography() method of topo so we have
+    # an exception when trying to egt the pyco topography
+    #
+    def just_raising_an_exception():
+        raise Exception("Cannot load any more.")
+
+    # topo.topography = just_raising_an_exception
+
+
+    from django.core.files.base import ContentFile
+    new_content = ContentFile('\x00') # some nonsense which cannot be interpreted by PyCo
+    fname = topo.datafile.name
+    topo.datafile.save(fname, new_content)
+
+    return topo
+
+
 @pytest.mark.django_db
-def test_bandwidth_error_message_when_problems_while_loading():
+def test_bandwidth_error_message_in_dict_when_problems_while_loading(topography_with_broken_pyco_topography):
 
     #
     # Theoretically loading of a topography can fail during
     # creation of the bandwidth plot, although it worked before.
     # This can happen e.g. because of an update of the PyCo lib
     # which may introduce new errors.
-    # In this case the user should see an error message.
+    # In this case the bandwidths_data function should return entries with errors.
     #
 
-    topo1 = TopographyFactory()
+    topo1 = topography_with_broken_pyco_topography
     topo2 = TopographyFactory()
-    bd = bandwidths_data([topo1, topo2])
-    assert len(bd) == 2
-
-    #
-    # No errors at first
-    #
-    bd1, bd2 = bd
-    assert bd1['error_message'] is None
-    assert bd2['error_message'] is None
-
-    #
-    # monkey patch the topography() method of topo1 so we have
-    # an exception when trying to egt the pyco topography
-    #
-    def just_raising_an_exception():
-        raise Exception("Cannot load any more.")
-
-    topo1.topography = just_raising_an_exception
-
     bd = bandwidths_data([topo1, topo2])
     assert len(bd) == 2
 
@@ -110,3 +116,24 @@ def test_bandwidth_error_message_when_problems_while_loading():
     assert bd2['error_message'] is None  # No error
     assert bd2['lower_bound'] is not None
     assert bd2['upper_bound'] is not None
+
+@pytest.mark.django_db
+def test_bandwidth_error_message_in_UI_when_problems_while_loading(client, topography_with_broken_pyco_topography):
+    #
+    # Theoretically loading of a topography can fail during
+    # creation of the bandwidth plot, although it worked before.
+    # This can happen e.g. because of an update of the PyCo lib
+    # which may introduce new errors.
+    # In this case the user should see an error message in the UI.
+    #
+    surface = topography_with_broken_pyco_topography.surface
+    user = surface.creator
+
+    client.force_login(user=user)
+
+    response = client.get(reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)))
+    assert response.status_code == 200
+
+    assert_in_content(response, f"{topography_with_broken_pyco_topography.name}")
+    assert_in_content(response, f"(id: {topography_with_broken_pyco_topography.id}) cannot be loaded unexpectedly.")
+    assert_in_content(response, "send us an e-mail about this issue")
