@@ -13,9 +13,10 @@ from bootstrap_datepicker_plus import DatePickerInput
 import logging
 
 from PyCo.Topography.IO.Reader import CannotDetectFileFormat, CorruptFile, UnknownFileFormatGiven, ReadFileError
+from PyCo.Topography.IO import detect_format  # TODO replace with reader.format, when available in PyCo
 
 from topobank.manager.utils import get_topography_reader
-from .models import Topography, Surface
+from .models import Topography, Surface, MAX_LENGTH_DATAFILE_FORMAT
 
 from topobank.users.models import User
 
@@ -33,7 +34,7 @@ class TopographyFileUploadForm(forms.ModelForm):
 
     class Meta:
         model = Topography
-        fields = ('datafile', 'surface')
+        fields = ('datafile', 'datafile_format', 'surface')
 
     helper = FormHelper()
     helper.form_method = 'POST'
@@ -45,6 +46,7 @@ class TopographyFileUploadForm(forms.ModelForm):
     helper.layout = Layout(
         Div(
             Field('datafile'),
+            Field('datafile_format', type='hidden'),  # in order to have data later in wizard's done() method
             Field('surface', type='hidden') # in order to have data later in wizard's done() method
         ),
         FormActions(
@@ -62,17 +64,10 @@ class TopographyFileUploadForm(forms.ModelForm):
 
         :return:
         """
-        #import tempfile # TODO tempfile just for debugging
-        #tmpfile = tempfile.NamedTemporaryFile()
-        ## try to load topography file, show up error if this doesn't work
+
         datafile = self.cleaned_data['datafile']
         try:
-
-            #tmpfile.write(datafile.read())
-            #tmpfile.seek(0)
-            #toporeader = get_topography_reader(tmpfile) # here only the header is checked
             toporeader = get_topography_reader(datafile)
-
         except UnknownFileFormatGiven as exc:
             msg = f"The format of the given file '{datafile.name}' is unkown. "
             msg += "Please try another file or contact us."
@@ -111,11 +106,11 @@ class TopographyFileUploadForm(forms.ModelForm):
                 try:
                     dim = int(channel_info['dim'])
                 except:
-                    raise forms.ValidationError("Cannot interpret number of dimensions for channel no. "+\
+                    raise forms.ValidationError("Cannot interpret number of dimensions for channel no. " + \
                                                 f"{channel_index}: {channel_info['dim']}",
                                                 code='invalid_topography')
-                if dim>2:
-                    raise forms.ValidationError(f"Number of dimensions for channel no. {channel_index } > 2.",
+                if dim > 2:
+                    raise forms.ValidationError(f"Number of dimensions for channel no. {channel_index} > 2.",
                                                 code='invalid_topography')
 
             if 'nb_grid_pts' not in channel_info:
@@ -138,7 +133,7 @@ class TopographyFileUploadForm(forms.ModelForm):
                                                     f"{channel_index}: {channel_info['nb_grid_pts']}",
                                                     code='invalid_topography')
                     if n <= 0:
-                        raise forms.ValidationError("Number of grid points must be a positive number > 0."+\
+                        raise forms.ValidationError("Number of grid points must be a positive number > 0." + \
                                                     f" (channel: {channel_index})", code='invalid_topography')
 
 
@@ -315,6 +310,7 @@ class TopographyUnitsForm(forms.ModelForm):
         return cleaned_data['detrend_mode']
 
 
+
 class Topography1DUnitsForm(TopographyUnitsForm):
     """
     This form is used when asking for size+units while creating a new 1D topography (line scan).
@@ -327,7 +323,7 @@ class Topography1DUnitsForm(TopographyUnitsForm):
                   'height_scale_editable',
                   'size_x', 'unit', 'is_periodic',
                   'height_scale', 'detrend_mode',
-                  'resolution_x') # resolution_y, size_y is saved as NULL
+                  'resolution_x')  # resolution_y, size_y is saved as NULL
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -393,6 +389,65 @@ class Topography2DUnitsForm(TopographyUnitsForm):
                     """),
                 # Submit('cancel', 'Cancel', formnovalidate="formnovalidate"),
             ),
+            ASTERISK_HELP_HTML
+        )
+
+    def clean_size_y(self):
+        return self._clean_size_element('y')
+
+
+class TopographyWizardUnitsForm(TopographyUnitsForm):
+    """
+    This form is used for editing units of 1D and 2D topographies in the topography wizard.
+    """
+
+    class Meta:
+        model = Topography
+        fields = ('size_editable',
+                  'unit_editable',
+                  'height_scale_editable',
+                  'size_x', 'size_y',
+                  'unit', 'is_periodic',
+                  'height_scale', 'detrend_mode',
+                  'resolution_x', 'resolution_y')
+
+    def __init__(self, *args, **kwargs):
+        has_size_y = kwargs.pop('has_size_y')
+
+        super().__init__(*args, **kwargs)
+
+        self.helper.form_tag = True
+
+        size_fieldset_args = ['Physical Size',
+                               Field('size_x')]
+        resolution_fieldset_args = [Field('resolution_x', type="hidden")]
+        # resolution is handled here only in order to have the data in wizard's .done() method
+
+        if has_size_y:
+            size_fieldset_args.append(Field('size_y'))
+            if not self.initial['size_editable']:
+                self.fields['size_y'].disabled = True
+            resolution_fieldset_args.append(Field('resolution_y', type="hidden"))
+        else:
+            del self.fields['size_y']
+            del self.fields['resolution_y']
+
+        size_fieldset_args.append(Field('unit'))
+        size_fieldset_args.append(Field('is_periodic'))
+
+        self.helper.layout = Layout(
+            Div(
+                Fieldset(*size_fieldset_args),
+                Fieldset('Height Conversion',
+                         Field('height_scale')),
+                Field('detrend_mode'),
+                *self.editable_fields,
+                *resolution_fieldset_args
+            ),
+            FormActions(
+                Submit('save', 'Save new topography'),
+                HTML("""<a href="{{ cancel_action }}" class="btn btn-default" id="cancel-btn">Cancel</a>"""),
+                ),
             ASTERISK_HELP_HTML
         )
 

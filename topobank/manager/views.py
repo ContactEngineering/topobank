@@ -140,21 +140,24 @@ class TopographyCreateWizard(SessionWizardView):
             if not self.request.user.has_perm('change_surface', surface):
                 raise PermissionDenied()
 
+            # initial['datafile_format'] = ''  # just to have some initial value
             initial['surface'] = surface
 
-        if step in ['metadata', 'units2D', 'units1D']:
+        if step in ['metadata', 'units']:
             # provide datafile attribute from first step
             step0_data = self.get_cleaned_data_for_step('upload')
             datafile = step0_data['datafile']
+            datafile_format = step0_data['datafile_format']
 
         if step == 'metadata':
             initial['name'] = os.path.basename(datafile.name) # the original file name
 
-        if step in ['units2D','units1D']:
+        if step in ['units']:
 
             step1_data = self.get_cleaned_data_for_step('metadata')
 
-            toporeader = get_topography_reader(datafile)
+            # toporeader = get_topography_reader(datafile, format=datafile_format)
+            toporeader = get_topography_reader(datafile)  # make use of format
             channel = int(step1_data['data_source'])
             channel_info_dict = toporeader.channels[channel]
 
@@ -209,12 +212,15 @@ class TopographyCreateWizard(SessionWizardView):
             initial['detrend_mode'] = 'center'
 
             #
-            # Set resolution (only for having the data later)
+            # Set resolution (only for having the data later in the done method)
+            #
+            # TODO Can this be passed to done() differently? Creating the reader again later e.g.?
             #
             if has_2_dim:
                 initial['resolution_x'], initial['resolution_y'] = channel_info_dict['nb_grid_pts']
             else:
                 initial['resolution_x'], = channel_info_dict['nb_grid_pts']
+                initial['resolution_y'] = None
 
         return initial
 
@@ -222,11 +228,13 @@ class TopographyCreateWizard(SessionWizardView):
 
         kwargs = super().get_form_kwargs(step)
 
-        if step in ['metadata', 'units2D', 'units1D']:
+        if step in ['metadata', 'units']:
             # provide datafile attribute and reader from first step
             step0_data = self.get_cleaned_data_for_step('upload')
             datafile = step0_data['datafile']
-            toporeader = get_topography_reader(datafile)
+            datafile_format = step0_data['datafile_format']
+            # toporeader = get_topography_reader(datafile, format=datafile_format)
+            toporeader = get_topography_reader(datafile)  # TODO make use of format
 
         if step == 'metadata':
 
@@ -251,7 +259,7 @@ class TopographyCreateWizard(SessionWizardView):
             kwargs['surface'] = step0_data['surface']
             kwargs['autocomplete_tags'] = tags_for_user(self.request.user)
 
-        if step in ['units2D','units1D']:
+        if step in ['units']:
 
             step1_data = self.get_cleaned_data_for_step('metadata')
             channel = int(step1_data['data_source'])
@@ -261,7 +269,8 @@ class TopographyCreateWizard(SessionWizardView):
             no_sizes_given = ('physical_sizes' not in channel_info_dict) or (channel_info_dict['physical_sizes'] == None)
 
             # only allow periodic topographies in case of 2 dimension
-            kwargs['allow_periodic'] = has_2_dim and no_sizes_given
+            kwargs['allow_periodic'] = has_2_dim and no_sizes_given   # TODO simplify in 'no_sizes_given'?
+            kwargs['has_size_y'] = has_2_dim  # TODO find common term, now we have 'has_size_y' and 'has_2_dim'
 
         return kwargs
 
@@ -284,21 +293,6 @@ class TopographyCreateWizard(SessionWizardView):
             context.update({'cancel_action': redirect_in_get})
         elif redirect_in_post:
             context.update({'cancel_action': redirect_in_post})
-
-        #
-        # Somehow the step counting in django-formtools is broken
-        # and shows step 4 for 'unit2D' instead of 3, should
-        # be 3 because of conditional. So we create our own step
-        # counting here as workaround.
-        #
-        MY_STEP_NUMBERS = {
-            0: 1,
-            1: 2,
-            2: 3,
-            3: 3
-        }
-        # context['my_step_number'] = MY_STEP_NUMBERS[self.steps.index]
-        context['my_step_number'] = MY_STEP_NUMBERS[self.steps.index]
 
         return context
 
@@ -350,6 +344,7 @@ class TopographyCreateWizard(SessionWizardView):
             topo.topography()
             # since the topography should be saved in the cache this
             # should not take much extra time
+            # TODO can't we determine/save resolution here?!
         except Exception as exc:
             _log.warning("Cannot read topography from file '{}', exception: {}".format(
                 d['datafile'], str(exc)
@@ -398,7 +393,8 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
         kwargs['has_size_y'] = topo.size_y is not None
         kwargs['autocomplete_tags'] = tags_for_user(self.request.user)
 
-        toporeader = get_topography_reader(topo.datafile)
+        # toporeader = get_topography_reader(topo.datafile, format=topo.datafile_format)
+        toporeader = get_topography_reader(topo.datafile)  # TODO make use of format
 
         channel_info_dict = toporeader.channels[topo.data_source]
         has_2_dim = channel_info_dict['dim'] == 2

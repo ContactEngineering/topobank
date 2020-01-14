@@ -10,6 +10,8 @@ from .utils import get_topography_reader
 
 from topobank.users.models import User
 
+MAX_LENGTH_DATAFILE_FORMAT = 15  # some more characters than currently needed, we may have sub formats in future
+
 def user_directory_path(instance, filename):
     # file will be uploaded to MEDIA_ROOT/user_<id>/<filename>
     return 'topographies/user_{0}/{1}'.format(instance.surface.creator.id, filename)
@@ -88,7 +90,7 @@ class Surface(models.Model):
         auto_analysis_funcs = AnalysisFunction.objects.filter(automatic=True)
         for topo in self.topography_set.all():
             for af in auto_analysis_funcs:
-                request_analysis(with_user, af, topo) # standard arguments
+                request_analysis(with_user, af, topo)  # standard arguments
 
 
     def unshare(self, with_user):
@@ -143,14 +145,20 @@ class Topography(models.Model):
     # Fields related to raw data
     #
     datafile = models.FileField(max_length=250, upload_to=user_directory_path)  # currently upload_to not used in forms
+    datafile_format = models.CharField(max_length=MAX_LENGTH_DATAFILE_FORMAT, null=True, default=None, blank=True)
     data_source = models.IntegerField()
+    # Django documentation discourages the use of null=True on a CharField. I'll use it here
+    # nevertheless, because I need this values as argument to a function where None has
+    # a special meaning (autodetection of format). If I would use an empty string
+    # as proposed in the docs, I would have to implement extra logic everywhere the field
+    # 'datafile_format' is used.
 
     #
     # Fields with physical meta data
     #
     size_editable = models.BooleanField(default=False)
     size_x = models.FloatField()
-    size_y = models.FloatField(null=True) # null for line scans
+    size_y = models.FloatField(null=True)  # null for line scans
 
     unit_editable = models.BooleanField(default=False)
     unit = models.TextField(choices=LENGTH_UNIT_CHOICES)
@@ -160,8 +168,8 @@ class Topography(models.Model):
 
     detrend_mode = models.TextField(choices=DETREND_MODE_CHOICES, default='center')
 
-    resolution_x = models.IntegerField(null=True) # null for line scans
-    resolution_y = models.IntegerField(null=True) # null for line scans
+    resolution_x = models.IntegerField(null=True)  # null for line scans TODO really?
+    resolution_y = models.IntegerField(null=True)  # null for line scans
 
     is_periodic = models.BooleanField(default=False)
 
@@ -195,7 +203,8 @@ class Topography(models.Model):
         #
         topo = cache.get(cache_key)
         if topo is None:
-            toporeader = get_topography_reader(self.datafile)
+            # toporeader = get_topography_reader(self.datafile, format=self.datafile_format)
+            toporeader = get_topography_reader(self.datafile)  # TODO make use of saved format
             topography_kwargs = dict(channel=self.data_source,
                                      periodic=self.is_periodic)
 

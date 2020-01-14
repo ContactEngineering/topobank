@@ -44,16 +44,29 @@ class TopographyFileReadingException(TopographyFileException):
     def message(self):
         return self._message
 
-def get_topography_reader(filefield):
+def get_topography_reader(filefield, format=None):
     """Returns PyCo.Topography.IO.ReaderBase object.
 
-    :param filefield: models.FileField instance
-    :return: ReaderBase instance
+    Parameters
+    ----------
+
+    filefield: models.FileField instance
+        reference to file which should be opened by the reader
+    format: str, optional
+        specify in which format the file should be interpreted;
+        if not given, the format is determined automatically
+
+    Returns
+    -------
+        Instance of a `ReaderBase` subclass according to the format.
     """
     # Workaround such that PyCo recognizes this a binary stream
     if not hasattr(filefield, 'mode'):
         filefield.mode = 'rb'
-    return open_topography(filefield)
+    if hasattr(filefield.file, 'seek'):
+        # make sure the file is rewinded
+        filefield.file.seek(0)
+    return open_topography(filefield, format=format)
 
 def mangle_unit(unit): # TODO needed?
     """

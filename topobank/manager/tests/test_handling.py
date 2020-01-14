@@ -12,24 +12,26 @@ from ..forms import TopographyForm, Topography1DUnitsForm, Topography2DUnitsForm
 from topobank.utils import assert_in_content, assert_not_in_content,\
     assert_redirects, assert_no_form_errors, assert_form_error
 
+FIXTURE_DIR = os.path.join(
+    os.path.dirname(os.path.realpath(__file__)),
+    '../fixtures'
+)
 
 #######################################################################
 # Selections
 #######################################################################
 
 @pytest.mark.django_db
-def test_empty_surface_selection(client, django_user_model):
+def test_empty_surface_selection(client):
 
-    username = 'testuser'
-    password = 'abcd$1234'
     #
     # database objects
     #
-    user = django_user_model.objects.create_user(username=username, password=password)
+    user = UserFactory()
     surface = SurfaceFactory(creator=user)
     assert surface.topography_set.count() == 0
 
-    assert client.login(username=username, password=password)
+    client.force_login(user)
 
     client.post(reverse('manager:surface-select', kwargs=dict(pk=surface.pk)))
 
@@ -52,18 +54,15 @@ def test_empty_surface_selection(client, django_user_model):
 # of the topobank code
 #
 @pytest.mark.django_db
-def test_upload_topography_di(client, django_user_model):
+def test_upload_topography_di(client):
 
-    input_file_path = Path('topobank/manager/fixtures/example3.di') # TODO use standardized way to find files
+    input_file_path = Path(FIXTURE_DIR+'/example3.di')  # TODO use pytest-datafiles
     description = "test description"
     category = 'exp'
 
-    username = 'testuser'
-    password = 'abcd$1234'
+    user = UserFactory()
 
-    user = django_user_model.objects.create_user(username=username, password=password)
-
-    assert client.login(username=username, password=password)
+    client.force_login(user)
 
     # first create a surface
     response = client.post(reverse('manager:surface-create'),
@@ -89,6 +88,7 @@ def test_upload_topography_di(client, django_user_model):
                                data={
                                 'topography_create_wizard-current_step': 'upload',
                                 'upload-datafile': fp,
+                                'upload-datafile_format': '',
                                 'upload-surface': surface.id,
                                }, follow=True)
 
@@ -130,14 +130,14 @@ def test_upload_topography_di(client, django_user_model):
     response = client.post(reverse('manager:topography-create',
                                    kwargs=dict(surface_id=surface.id)),
                            data={
-                               'topography_create_wizard-current_step': 'units2D',
-                               'units2D-size_x': '9000',
-                               'units2D-size_y': '9000',
-                               'units2D-unit': 'nm',
-                               'units2D-height_scale': 0.3,
-                               'units2D-detrend_mode': 'height',
-                               'units2D-resolution_x': 256,
-                               'units2D-resolution_y': 256,
+                               'topography_create_wizard-current_step': 'units',
+                               'units-size_x': '9000',
+                               'units-size_y': '9000',
+                               'units-unit': 'nm',
+                               'units-height_scale': 0.3,
+                               'units-detrend_mode': 'height',
+                               'units-resolution_x': 256,
+                               'units-resolution_y': 256,
                            }, follow=True)
 
     assert response.status_code == 200
@@ -162,9 +162,9 @@ def test_upload_topography_di(client, django_user_model):
 
 @pytest.mark.parametrize(("input_filename", "exp_resolution_x", "exp_resolution_y",
                           "physical_sizes_to_be_set", "exp_physical_sizes"),
-                         [("topobank/manager/fixtures/10x10.txt", 10, 10, (1,1), (1,1)),
-                          ("topobank/manager/fixtures/line_scan_1.asc", 11, None, None, (9.0,)),
-                          ("topobank/manager/fixtures/line_scan_1_minimal_spaces.asc", 11, None, None, (9.0,))])
+                         [(FIXTURE_DIR+"/10x10.txt", 10, 10, (1,1), (1,1)),
+                          (FIXTURE_DIR+"/line_scan_1.asc", 11, None, None, (9.0,)),
+                          (FIXTURE_DIR+"/line_scan_1_minimal_spaces.asc", 11, None, None, (9.0,))])
 # Add this for a larger file: ("topobank/manager/fixtures/500x500_random.txt", 500)]) # takes quire long
 @pytest.mark.django_db
 def test_upload_topography_txt(client, django_user_model, input_filename,
@@ -210,6 +210,7 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
                                }, follow=True)
 
     assert response.status_code == 200
+    assert_no_form_errors(response)
 
     #
     # check contents of second page
@@ -236,6 +237,7 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
                            })
 
     assert response.status_code == 200
+    assert_no_form_errors(response)
     assert_in_content(response, "Step 3 of 3")
 
     #
@@ -245,33 +247,31 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
         response = client.post(reverse('manager:topography-create',
                                        kwargs=dict(surface_id=surface.id)),
                                data={
-                                   'topography_create_wizard-current_step': "units1D",
-                                   'units2D-size_editable': False,  # would be sent when initialize form
-                                   'units1D-unit': 'nm',
-                                   'units1D-height_scale': 1,
-                                   'units1D-detrend_mode': 'height',
-                                   'units1D-resolution_x': exp_resolution_x,
+                                   'topography_create_wizard-current_step': "units",
+                                   'units-size_editable': False,  # would be sent when initialize form
+                                   'units-unit': 'nm',
+                                   'units-height_scale': 1,
+                                   'units-detrend_mode': 'height',
+                                   'units-resolution_x': exp_resolution_x,
                                }, follow=True)
     else:
         response = client.post(reverse('manager:topography-create',
                                        kwargs=dict(surface_id=surface.id)),
                                data={
-                                   'topography_create_wizard-current_step': "units2D",
-                                   'units2D-size_editable': True, # would be sent when initialize form
-                                   'units2D-unit_editable': True,  # would be sent when initialize form
-                                   'units2D-size_x': physical_sizes_to_be_set[0],
-                                   'units2D-size_y': physical_sizes_to_be_set[1],
-                                   'units2D-unit': 'nm',
-                                   'units2D-height_scale': 1,
-                                   'units2D-detrend_mode': 'height',
-                                   'units2D-resolution_x': exp_resolution_x,
-                                   'units2D-resolution_y': exp_resolution_y,
+                                   'topography_create_wizard-current_step': "units",
+                                   'units-size_editable': True, # would be sent when initialize form
+                                   'units-unit_editable': True,  # would be sent when initialize form
+                                   'units-size_x': physical_sizes_to_be_set[0],
+                                   'units-size_y': physical_sizes_to_be_set[1],
+                                   'units-unit': 'nm',
+                                   'units-height_scale': 1,
+                                   'units-detrend_mode': 'height',
+                                   'units-resolution_x': exp_resolution_x,
+                                   'units-resolution_y': exp_resolution_y,
                                }, follow=True)
 
     assert response.status_code == 200
-
-    # there is no form, if there is a form, it probably shows an error
-    assert 'form' not in response.context, "Errors:" + str(response.context['form'].errors)
+    assert_no_form_errors(response)
 
     surface = Surface.objects.get(name='surface1')
     topos = surface.topography_set.all()
@@ -295,16 +295,13 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
 @pytest.mark.django_db
 def test_upload_topography_and_name_like_an_exisiting_for_same_surface(client):
 
-    input_file_path = Path("topobank/manager/fixtures/10x10.txt")
+    input_file_path = Path(FIXTURE_DIR+"/10x10.txt")
 
-    password = 'abcd$1234'
-
-    user = UserFactory(password=password)
-
+    user = UserFactory()
     surface = SurfaceFactory(creator=user)
-    topo1 = TopographyFactory(surface=surface, name="TOPO")
+    TopographyFactory(surface=surface, name="TOPO")   # <-- we will try to create another topography named TOPO later
 
-    assert client.login(username=user.username, password=password)
+    client.force_login(user)
 
     # Try to create topography with same name again
     #
@@ -317,6 +314,7 @@ def test_upload_topography_and_name_like_an_exisiting_for_same_surface(client):
                                data={
                                 'topography_create_wizard-current_step': 'upload',
                                 'upload-datafile': fp,
+                                'upload-datafile_format': '',
                                 'upload-surface': surface.id,
                                }, follow=True)
 
@@ -350,7 +348,7 @@ def test_upload_topography_and_name_like_an_exisiting_for_same_surface(client):
 @pytest.mark.django_db
 def test_trying_upload_of_topography_file_with_unkown_format(client, django_user_model):
 
-    input_file_path = Path('topobank/manager/views.py') # this is nonsense and cannot be interpreted
+    input_file_path = Path(FIXTURE_DIR+'/../views.py') # this is nonsense and cannot be interpreted
 
     username = 'testuser'
     password = 'abcd$1234'
@@ -380,16 +378,16 @@ def test_trying_upload_of_topography_file_with_unkown_format(client, django_user
                                data={
                                 'topography_create_wizard-current_step': 'upload',
                                 'upload-datafile': fp,
+                                'upload-datafile_format': '',
                                })
     assert response.status_code == 200
+    assert_form_error(response, 'Cannot determine file format', 'datafile')
 
-    form = response.context['form']
-    assert 'Cannot determine file format of file ' in form.errors['datafile'][0]
 
 @pytest.mark.django_db
 def test_trying_upload_of_corrupted_topography_file(client, django_user_model):
 
-    input_file_path = Path('topobank/manager/fixtures/example3_corrupt.di')
+    input_file_path = Path(FIXTURE_DIR+'/example3_corrupt.di')
     # I used the correct file "example3.di" and broke it on purpose
     # The headers are still okay, but the topography can't be read by PyCo
     # using .topography() and leads to a "ValueError: buffer is smaller
@@ -467,14 +465,14 @@ def test_trying_upload_of_corrupted_topography_file(client, django_user_model):
     response = client.post(reverse('manager:topography-create',
                                    kwargs=dict(surface_id=surface.id)),
                            data={
-                               'topography_create_wizard-current_step': 'units2D',
-                               'units2D-size_x': '9000',
-                               'units2D-size_y': '9000',
-                               'units2D-unit': 'nm',
-                               'units2D-height_scale': 0.3,
-                               'units2D-detrend_mode': 'height',
-                               'units2D-resolution_x': 256,
-                               'units2D-resolution_y': 256,
+                               'topography_create_wizard-current_step': 'units',
+                               'units-size_x': '9000',
+                               'units-size_y': '9000',
+                               'units-unit': 'nm',
+                               'units-height_scale': 0.3,
+                               'units-detrend_mode': 'height',
+                               'units-resolution_x': 256,
+                               'units-resolution_y': 256,
                            }, follow=True)
 
     assert response.status_code == 200
@@ -687,7 +685,7 @@ def test_edit_line_scan(client, one_line_scan, django_user_model):
 @pytest.mark.django_db
 def test_edit_topography_only_detrend_center_when_periodic(client, django_user_model):
 
-    input_file_path = Path("topobank/manager/fixtures/10x10.txt")
+    input_file_path = Path(FIXTURE_DIR+"/10x10.txt")
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
     client.force_login(user)
@@ -730,14 +728,14 @@ def test_edit_topography_only_detrend_center_when_periodic(client, django_user_m
     response = client.post(reverse('manager:topography-create',
                                    kwargs=dict(surface_id=surface.id)),
                            data={
-                               'topography_create_wizard-current_step': 'units2D',
-                               'units2D-size_x': '9',
-                               'units2D-size_y': '9',
-                               'units2D-unit': 'nm',
-                               'units2D-height_scale': 1,
-                               'units2D-detrend_mode': 'height',
-                               'units2D-resolution_x': 10,
-                               'units2D-resolution_y': 10,
+                               'topography_create_wizard-current_step': 'units',
+                               'units-size_x': '9',
+                               'units-size_y': '9',
+                               'units-unit': 'nm',
+                               'units-height_scale': 1,
+                               'units-detrend_mode': 'height',
+                               'units-resolution_x': 10,
+                               'units-resolution_y': 10,
                            })
 
     assert response.status_code == 302
@@ -774,7 +772,7 @@ def test_edit_topography_only_detrend_center_when_periodic(client, django_user_m
     assert Topography.DETREND_MODE_CHOICES[0][0] == 'center'
     # this asserts that the clean() method of form has the correct reference
 
-    assert_form_error(response, "When enabling periodicity only detrend mode")
+    assert_form_error(response, "When enabling periodicity only detrend mode", "detrend_mode")
 
 
 @pytest.mark.django_db

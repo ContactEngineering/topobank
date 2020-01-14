@@ -31,8 +31,9 @@ def creating_2D_topography(wizard):
 WIZARD_FORMS = [
     ('upload', forms.TopographyFileUploadForm),
     ('metadata', forms.TopographyMetaDataForm),
-    ('units1D', forms.Topography1DUnitsForm),
-    ('units2D', forms.Topography2DUnitsForm),
+    ('units', forms.TopographyWizardUnitsForm),
+    #('units1D', forms.Topography1DUnitsForm),
+    #('units2D', forms.Topography2DUnitsForm),
 ]
 
 app_name = "manager"
@@ -66,10 +67,10 @@ urlpatterns = [
         regex=r'surface/(?P<surface_id>\d+)/new-topography/$',
         view=login_required(views.TopographyCreateWizard.as_view(
             WIZARD_FORMS,
-            condition_dict={
-                'units2D': creating_2D_topography,
-                'units1D': lambda w: not creating_2D_topography(w),
-            }
+            # condition_dict={
+            #     'units2D': creating_2D_topography,
+            #     'units1D': lambda w: not creating_2D_topography(w),
+            # }
         )),
         name='topography-create'
     ),

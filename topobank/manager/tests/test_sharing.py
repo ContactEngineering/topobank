@@ -626,14 +626,14 @@ def test_upload_topography_for_shared_surface(client):
     response = client.post(reverse('manager:topography-create',
                                    kwargs=dict(surface_id=surface.id)),
                            data={
-                               'topography_create_wizard-current_step': 'units2D',
-                               'units2D-size_x': '9000',
-                               'units2D-size_y': '9000',
-                               'units2D-unit': 'nm',
-                               'units2D-height_scale': 0.3,
-                               'units2D-detrend_mode': 'height',
-                               'units2D-resolution_x': 256,
-                               'units2D-resolution_y': 256,
+                               'topography_create_wizard-current_step': 'units',
+                               'units-size_x': '9000',
+                               'units-size_y': '9000',
+                               'units-unit': 'nm',
+                               'units-height_scale': 0.3,
+                               'units-detrend_mode': 'height',
+                               'units-resolution_x': 256,
+                               'units-resolution_y': 256,
                            }, follow=True)
 
     assert response.status_code == 200
