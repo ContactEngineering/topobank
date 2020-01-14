@@ -55,6 +55,7 @@ celery-flower
 # The follwing is needed, otherwise Tornado 6.0 breaks celery
 # See https://github.com/mher/flower/issues/878
 tornado>=4.2.0,<6.0.0
+# TODO Check whether this still holds, issue 878 is fixed
 
 # progress bars for celery tasks, served by Django
 celery-progress
@@ -83,7 +84,7 @@ netcdf4
 h5netcdf
 
 # form wizard for defining a topography in several steps
-django-formtools
+django-formtools>=2.2
 
 # notifications
 django-notifications-hq
