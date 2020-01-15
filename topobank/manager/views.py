@@ -156,8 +156,7 @@ class TopographyCreateWizard(SessionWizardView):
 
             step1_data = self.get_cleaned_data_for_step('metadata')
 
-            # toporeader = get_topography_reader(datafile, format=datafile_format)
-            toporeader = get_topography_reader(datafile)  # make use of format
+            toporeader = get_topography_reader(datafile, format=datafile_format)
             channel = int(step1_data['data_source'])
             channel_info_dict = toporeader.channels[channel]
 
