@@ -271,13 +271,6 @@ class TopographyCreateWizard(SessionWizardView):
 
         return kwargs
 
-    def get_form_instance(self, step):
-        # if there is no instance yet, but should be one,
-        # get instance from database
-        if not self.instance_dict:
-            if 'pk' in self.kwargs:
-                return Topography.objects.get(pk=self.kwargs['pk']) # TODO this code is maybe wrong, needed?
-        return None
 
     def get_context_data(self, form, **kwargs):
         context = super().get_context_data(form, **kwargs)
