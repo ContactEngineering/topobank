@@ -11,11 +11,6 @@ from topobank.views import TermsView, HomeView
 
 urlpatterns = [
     path("", HomeView.as_view(), name="home"),
-    #path(
-    #    "dashboard/",
-    #    TemplateView.as_view(template_name="pages/dashboard.html"),
-    #    name="dashboard",
-    #),
     path(
         "about/",
         TemplateView.as_view(template_name="pages/about.html"),
