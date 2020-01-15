@@ -651,38 +651,6 @@ class TopographyDeleteView(TopographyUpdatePermissionMixin, DeleteView):
 
         return link
 
-class SurfaceCardView(TemplateView):
-    template_name = 'manager/surface_card.html'
-
-    def get_context_data(self, **kwargs):
-        """
-        Gets "surface_id" from GET parameters.
-
-        :return: dict to be used in surface card template context
-
-        The returned dict has the following keys:
-
-          surface: Surface
-        """
-        context = super().get_context_data(**kwargs)
-
-        request = self.request
-        request_method = request.GET
-        try:
-            surface_id = int(request_method.get('surface_id'))
-            parent_path = request_method.get('parent_path')
-        except (KeyError, ValueError):
-            return HttpResponse("Error in GET arguments")
-
-        surface = Surface.objects.get(id=surface_id)
-
-        if not self.request.user.has_perm('view_surface', surface):
-            raise PermissionDenied
-
-        context['surface'] = surface
-        context['parent_path'] = parent_path
-        return context
-
 
 class SurfaceCreateView(CreateView):
     model = Surface

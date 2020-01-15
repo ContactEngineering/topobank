@@ -99,11 +99,6 @@ urlpatterns = [
         name='surface-create'
     ),
     url(
-        regex=r'card/$',
-        view=login_required(views.SurfaceCardView.as_view()),
-        name='surface-card'
-    ),
-    url(
         regex=r'surface/$',
         view=login_required(views.TemplateView.as_view(template_name='manager/surface_list.html')),
         name='surface-list'
