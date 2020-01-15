@@ -1180,11 +1180,6 @@ def download_analyses(request, ids, card_view_flavor, file_format):
     return download_response_functions[key](request, analyses)
 
 
-class AnalysisRetrieveView(RetrieveAPIView):  # TODO needed?
-    queryset = Analysis.objects.all()
-    serializer_class = AnalysisSerializer
-
-
 def download_plot_analyses_to_txt(request, analyses):
     # TODO: It would probably be useful to use the (some?) template engine for this.
     # TODO: We need a mechanism for embedding references to papers into output.
