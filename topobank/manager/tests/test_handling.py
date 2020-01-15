@@ -93,16 +93,16 @@ def test_upload_topography_di(client):
                                }, follow=True)
 
     assert response.status_code == 200
+    assert_no_form_errors(response)
 
     #
     # check contents of second page
     #
 
     # now we should be on the page with second step
-    assert b"Step 2 of 3" in response.content, "Errors:"+str(response.context['form'].errors)
+    assert_in_content(response, "Step 2 of 3")
 
     # we should have two datasources as options, "ZSensor" and "Height"
-
     assert_in_content(response, '<option value="0">ZSensor</option>')
     assert_in_content(response, '<option value="3">Height</option>')
 
@@ -122,7 +122,9 @@ def test_upload_topography_di(client):
                            })
 
     assert response.status_code == 200
-    assert b"Step 3 of 3" in response.content, "Errors:" + str(response.context['form'].errors)
+    assert_no_form_errors(response)
+
+    assert_in_content(response, "Step 3 of 3")
 
     #
     # Send data for third page
@@ -382,7 +384,7 @@ def test_trying_upload_of_topography_file_with_unkown_format(client, django_user
                                 'upload-datafile_format': '',
                                })
     assert response.status_code == 200
-    assert_form_error(response, 'Cannot determine file format', 'datafile')
+    assert_form_error(response, 'Cannot determine file format')
 
 
 @pytest.mark.django_db

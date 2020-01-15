@@ -58,18 +58,38 @@ def assert_no_form_errors(response):
         "Form is still in context, with errors: {}".format(response.context['form'].errors)
 
 
-def assert_form_error(response, error_msg_fragment, field_name):
+def assert_form_error(response, error_msg_fragment, field_name=None):
     """Asserts that there is an error in form.
 
-    The error message must contain the given error_msg_fragment.
+    Parameters
+    ----------
+    response: HTTPResponse object
+    error_msg_fragment: str
+        Substring which should be included in the error message.
+    field_name: str, optional
+        Field name for which the error should occur.
+        If a general error message (not bound to a field) is meant,
+        use `None`.
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    AssertionError
+        If forms hasn't errors or not for the field as expected or the substring was not included.
     """
     assert ('form' in response.context) and (len(response.context['form'].errors) > 0), \
         "Form is expected to show errors, but there is no error."
 
-    assert field_name in response.context['form'].errors, \
-        f"Form shows errors, but not for field '{field_name}' which is expected"
+    if field_name:
+        assert field_name in response.context['form'].errors, \
+            f"Form shows errors, but not for field '{field_name}' which is expected"
 
-    errors = response.context['form'].errors[field_name]
+        errors = response.context['form'].errors[field_name]
+    else:
+        errors = response.context['form'].errors['__all__']
 
     assert any((error_msg_fragment in err) for err in errors), \
         f"Form has errors as expected, but no error contains the given error message fragment '{error_msg_fragment}'."+\

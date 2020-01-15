@@ -65,28 +65,27 @@ class TopographyFileUploadForm(forms.ModelForm):
         try:
             datafile = cleaned_data['datafile']
         except KeyError:
-            raise forms.ValidationError("Cannot proceed without a valid data file.", code='invalid_topography_file')
+            raise forms.ValidationError("Cannot proceed without given a data file.", code='invalid_topography_file')
 
+        #
+        # Format detection
+        #
         try:
-            fmt = detect_format(datafile)
+            if hasattr(datafile, 'seek'):
+                datafile.seek(0)  # rewind
+            datafile_format = detect_format(datafile)
         except CannotDetectFileFormat as exc:
             msg = f"Cannot determine file format of file '{datafile.name}'."
             msg += "Please try another file or contact us."
             raise forms.ValidationError(msg, code='invalid_topography_file')
 
-        cleaned_data['datafile_format'] = fmt
-        return cleaned_data
+        cleaned_data['datafile_format'] = datafile_format
 
-
-    def clean_datafile(self):
-        """Do some checks on data file.
-
-        :return:
-        """
-
-        datafile = self.cleaned_data['datafile']
+        #
+        # Check whether file can be loaded and has all necessary meta data
+        #
         try:
-            toporeader = get_topography_reader(datafile)
+            toporeader = get_topography_reader(datafile, format=datafile_format)
         except UnknownFileFormatGiven as exc:
             msg = f"The format of the given file '{datafile.name}' is unkown. "
             msg += "Please try another file or contact us."
@@ -155,8 +154,8 @@ class TopographyFileUploadForm(forms.ModelForm):
                         raise forms.ValidationError("Number of grid points must be a positive number > 0." + \
                                                     f" (channel: {channel_index})", code='invalid_topography')
 
+        return cleaned_data
 
-        return datafile
 
 
 class TopographyMetaDataForm(forms.ModelForm):

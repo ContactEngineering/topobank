@@ -42,7 +42,7 @@ urlpatterns = [
     ),
     url(
         regex=r'surface/(?P<surface_id>\d+)/new-topography/$',
-        view=login_required(views.TopographyCreateWizard.as_view()),
+        view=login_required(views.TopographyCreateWizard.as_view(WIZARD_FORMS)),
         name='topography-create'
     ),
     url(
