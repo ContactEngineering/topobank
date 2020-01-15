@@ -90,13 +90,6 @@
               <i class="fa fa-bell"></i>
             </a>
             <div class="dropdown-menu dropdown-menu-right live_notify_list" aria-labelledby="notificationsDropdown">
-              <!--
-              {% for notice in request.user.notifications.unread %}  {# TODO use live-updater #}
-                  <a class="dropdown-item" href="{% url 'notifications:mark_as_read' notice.slug %}?next={{ notice.target.get_absolute_url }}">
-                    {{ notice.description }}
-                  </a>
-              {% endfor %}
-              -->
             </div>
           </li>
 
