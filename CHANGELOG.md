@@ -5,6 +5,7 @@
 - problems during loading of topographies which could already
   be loaded earlier now show error message and a mailto link
   in order to report the issue (#416)
+- format detection is only done once file has been uploaded (#412)
 - upgrade to Django 2.2.9 (#417) 
   
 ## 0.7.3
