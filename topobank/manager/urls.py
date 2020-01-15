@@ -123,9 +123,4 @@ urlpatterns = [
         view=login_required(views.TagListView.as_view()),
         name='tag-list'
     ),
-    # url(
-    #     regex=r'tags/$',
-    #     view=login_required(views.autocomplete_tags),
-    #     name='autocomplete-tags',
-    # ),
 ]
