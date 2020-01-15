@@ -69,7 +69,8 @@ celery-progress
 #-e git+http://git@github.com/pastewka/PyCo.git@0.30.0#egg=PyCo
 #git+http://git@github.com/scipy/scipy/releases/download/v1.2.1/scipy-1.2.1-cp37-cp37m-manylinux1_x86_64.whl
 # PyCo==0.51.1
-#### see Makefile
+#### As long as we can't install PyCo by pip, install manually (for development)
+#### of copy the .tar.gz file to source root directory for use with Docker. Also see Dockerfile(s).
 
 # plotting
 bokeh
