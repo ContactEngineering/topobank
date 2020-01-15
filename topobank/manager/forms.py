@@ -59,6 +59,26 @@ class TopographyFileUploadForm(forms.ModelForm):
         ASTERISK_HELP_HTML
     )
 
+
+    def clean(self):
+        cleaned_data = super().clean()
+
+        try:
+            datafile = cleaned_data['datafile']
+        except KeyError:
+            raise forms.ValidationError("Cannot proceed without a valid data file.", code='invalid_topography_file')
+
+        try:
+            fmt = detect_format(datafile)
+        except CannotDetectFileFormat as exc:
+            msg = f"Cannot determine file format of file '{datafile.name}'."
+            msg += "Please try another file or contact us."
+            raise forms.ValidationError(msg, code='invalid_topography_file')
+
+        cleaned_data['datafile_format'] = fmt
+        return cleaned_data
+
+
     def clean_datafile(self):
         """Do some checks on data file.
 

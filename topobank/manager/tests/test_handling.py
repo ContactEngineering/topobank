@@ -159,15 +159,18 @@ def test_upload_topography_di(client):
     assert 256 == t.resolution_x
     assert 256 == t.resolution_y
     assert t.creator == user
+    assert t.datafile_format == 'di'
 
-@pytest.mark.parametrize(("input_filename", "exp_resolution_x", "exp_resolution_y",
+@pytest.mark.parametrize(("input_filename", "exp_datafile_format",
+                          "exp_resolution_x", "exp_resolution_y",
                           "physical_sizes_to_be_set", "exp_physical_sizes"),
-                         [(FIXTURE_DIR+"/10x10.txt", 10, 10, (1,1), (1,1)),
-                          (FIXTURE_DIR+"/line_scan_1.asc", 11, None, None, (9.0,)),
-                          (FIXTURE_DIR+"/line_scan_1_minimal_spaces.asc", 11, None, None, (9.0,))])
+                         [(FIXTURE_DIR+"/10x10.txt", 'asc', 10, 10, (1,1), (1,1)),
+                          (FIXTURE_DIR+"/line_scan_1.asc", 'xyz', 11, None, None, (9.0,)),
+                          (FIXTURE_DIR+"/line_scan_1_minimal_spaces.asc", 'xyz', 11, None, None, (9.0,))])
 # Add this for a larger file: ("topobank/manager/fixtures/500x500_random.txt", 500)]) # takes quire long
 @pytest.mark.django_db
 def test_upload_topography_txt(client, django_user_model, input_filename,
+                               exp_datafile_format,
                                exp_resolution_x, exp_resolution_y,
                                physical_sizes_to_be_set, exp_physical_sizes):
 
@@ -285,6 +288,7 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
     assert input_file_path.stem in t.datafile.name
     assert exp_resolution_x == t.resolution_x
     assert exp_resolution_y == t.resolution_y
+    assert t.datafile_format == exp_datafile_format
 
     #
     # Also check some properties of the PyCo Topography
@@ -316,16 +320,15 @@ def test_upload_topography_and_name_like_an_exisiting_for_same_surface(client):
                                 'upload-datafile': fp,
                                 'upload-datafile_format': '',
                                 'upload-surface': surface.id,
-                               }, follow=True)
+                               })
 
     assert response.status_code == 200
+    assert_no_form_errors(response)
 
     #
     # check contents of second page
     #
-
-    # now we should be on the page with second step
-    assert b"Step 2 of 3" in response.content, "Errors:"+str(response.context['form'].errors)
+    assert_in_content(response, "Step 2 of 3")
 
     #
     # Send data for second page, with same name as exisiting topography
@@ -341,9 +344,7 @@ def test_upload_topography_and_name_like_an_exisiting_for_same_surface(client):
                            })
 
     assert response.status_code == 200
-
-    form = response.context['form']
-    assert "A topography with same name 'TOPO' already exists for same surface" in form.errors['name'][0]
+    assert_form_error(response, "A topography with same name 'TOPO' already exists for same surface", 'name')
 
 @pytest.mark.django_db
 def test_trying_upload_of_topography_file_with_unkown_format(client, django_user_model):
