@@ -68,14 +68,6 @@ def get_topography_reader(filefield, format=None):
         filefield.file.seek(0)
     return open_topography(filefield, format=format)
 
-def mangle_unit(unit): # TODO needed?
-    """
-    Matplotlib does not support 'MICRO SIGN' unicode character - convert to
-    'GREEK SMALL LETTER MU'.
-    """
-    if unit == 'µm':
-        return 'μm'
-    return unit
 
 def surfaces_for_user(user, perms=['view_surface']):
     """Return a queryset of all surfaces, the user has *all* given permissions.
