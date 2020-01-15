@@ -73,7 +73,6 @@ COPY ./compose/production/django/celery/flower/start /start-flower
 RUN sed -i 's/\r//' /start-flower
 RUN chmod +x /start-flower
 
-
 #
 # Prepare application code
 #
@@ -81,8 +80,6 @@ COPY . /app
 # TODO is the following needed?
 RUN mkdir -p /app/media/topographies
 RUN chown -R django /app
-# is the following needed?
-# RUN chmod -R u+w /app
 
 #
 # Finalize..
