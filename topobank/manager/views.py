@@ -233,8 +233,7 @@ class TopographyCreateWizard(SessionWizardView):
             step0_data = self.get_cleaned_data_for_step('upload')
             datafile = step0_data['datafile']
             datafile_format = step0_data['datafile_format']
-            # toporeader = get_topography_reader(datafile, format=datafile_format)
-            toporeader = get_topography_reader(datafile)  # TODO make use of format
+            toporeader = get_topography_reader(datafile, format=datafile_format)
 
         if step == 'metadata':
 
@@ -393,8 +392,7 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
         kwargs['has_size_y'] = topo.size_y is not None
         kwargs['autocomplete_tags'] = tags_for_user(self.request.user)
 
-        # toporeader = get_topography_reader(topo.datafile, format=topo.datafile_format)
-        toporeader = get_topography_reader(topo.datafile)  # TODO make use of format
+        toporeader = get_topography_reader(topo.datafile, format=topo.datafile_format)
 
         channel_info_dict = toporeader.channels[topo.data_source]
         has_2_dim = channel_info_dict['dim'] == 2
