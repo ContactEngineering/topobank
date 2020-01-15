@@ -140,7 +140,6 @@ class TopographyCreateWizard(SessionWizardView):
             if not self.request.user.has_perm('change_surface', surface):
                 raise PermissionDenied()
 
-            # initial['datafile_format'] = ''  # just to have some initial value
             initial['surface'] = surface
 
         if step in ['metadata', 'units']:

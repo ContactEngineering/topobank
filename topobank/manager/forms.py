@@ -39,7 +39,7 @@ class TopographyFileUploadForm(forms.ModelForm):
     helper = FormHelper()
     helper.form_method = 'POST'
     helper.form_show_errors = False  # crispy forms has nicer template code for errors
-    helper.form_tag = False # we use an own form tag with the wizard
+    helper.form_tag = False  # we use an own form tag with the wizard
 
     datafile = forms.FileField()
 
@@ -47,14 +47,13 @@ class TopographyFileUploadForm(forms.ModelForm):
         Div(
             Field('datafile'),
             Field('datafile_format', type='hidden'),  # in order to have data later in wizard's done() method
-            Field('surface', type='hidden') # in order to have data later in wizard's done() method
+            Field('surface', type='hidden')  # in order to have data later in wizard's done() method
         ),
         FormActions(
             Submit('save', 'Next'),
             HTML("""
             <a href="{{ cancel_action }}" class="btn btn-default" id="cancel-btn">Cancel</a>
             """),
-            # Submit('cancel', 'Cancel', formnovalidate="formnovalidate"),
         ),
         ASTERISK_HELP_HTML
     )
