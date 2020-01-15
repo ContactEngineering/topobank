@@ -83,13 +83,16 @@ def assert_form_error(response, error_msg_fragment, field_name=None):
     assert ('form' in response.context) and (len(response.context['form'].errors) > 0), \
         "Form is expected to show errors, but there is no error."
 
-    if field_name:
-        assert field_name in response.context['form'].errors, \
-            f"Form shows errors, but not for field '{field_name}' which is expected"
+    if not field_name:
+        field_name = '__all__'
 
-        errors = response.context['form'].errors[field_name]
-    else:
-        errors = response.context['form'].errors['__all__']
+    assert field_name in response.context['form'].errors, \
+        "Form shows errors, but not {} which is expected. Errors: {}".format(
+            "independent from a special field" if field_name=='__all__' else f"for field '{field_name}'",
+            response.context['form'].errors
+        )
+
+    errors = response.context['form'].errors[field_name]
 
     assert any((error_msg_fragment in err) for err in errors), \
         f"Form has errors as expected, but no error contains the given error message fragment '{error_msg_fragment}'."+\

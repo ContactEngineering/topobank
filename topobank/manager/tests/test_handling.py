@@ -6,7 +6,7 @@ import datetime
 import os.path
 
 from .utils import FIXTURE_DIR, SurfaceFactory, TopographyFactory, UserFactory, two_topos, one_line_scan
-from ..models import Topography, Surface
+from ..models import Topography, Surface, MAX_LENGTH_DATAFILE_FORMAT
 from ..forms import TopographyForm, Topography1DUnitsForm, Topography2DUnitsForm
 
 from topobank.utils import assert_in_content, \
@@ -381,6 +381,41 @@ def test_trying_upload_of_topography_file_with_unkown_format(client, django_user
                                })
     assert response.status_code == 200
     assert_form_error(response, 'Cannot determine file format')
+
+@pytest.mark.django_db
+def test_trying_upload_of_topography_file_with_too_long_format_name(client, django_user_model, mocker):
+
+    import PyCo.Topography.IO
+
+    m = mocker.patch('PyCo.Topography.IO.detect_format')
+    m.return_value='a'*(MAX_LENGTH_DATAFILE_FORMAT+1)
+    # this special detect_format function returns a format which is too long
+    # this should result in an error message
+    assert PyCo.Topography.IO.detect_format("does_not_matter_what_we_pass_here") == 'a'*(MAX_LENGTH_DATAFILE_FORMAT+1)
+
+    input_file_path = Path(FIXTURE_DIR + '/example3.di')
+
+    user = UserFactory()
+
+    client.force_login(user)
+
+    surface = SurfaceFactory(creator=user)
+
+    #
+    # open first step of wizard: file upload
+    #
+    with open(str(input_file_path), mode='rb') as fp:
+
+        response = client.post(reverse('manager:topography-create',
+                                       kwargs=dict(surface_id=surface.id)),
+                               data={
+                                'topography_create_wizard-current_step': 'upload',
+                                'upload-datafile': fp,
+                                'upload-datafile_format': '',
+                                'upload-surface': surface.id,
+                               })
+    assert response.status_code == 200
+    assert_form_error(response, 'Too long name for datafile format')
 
 
 @pytest.mark.django_db

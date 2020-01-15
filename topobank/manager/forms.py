@@ -13,7 +13,7 @@ from bootstrap_datepicker_plus import DatePickerInput
 import logging
 
 from PyCo.Topography.IO.Reader import CannotDetectFileFormat, CorruptFile, UnknownFileFormatGiven, ReadFileError
-from PyCo.Topography.IO import detect_format  # TODO replace with reader.format, when available in PyCo
+import PyCo.Topography.IO
 
 from topobank.manager.utils import get_topography_reader
 from .models import Topography, Surface, MAX_LENGTH_DATAFILE_FORMAT
@@ -73,11 +73,18 @@ class TopographyFileUploadForm(forms.ModelForm):
         try:
             if hasattr(datafile, 'seek'):
                 datafile.seek(0)  # rewind
-            datafile_format = detect_format(datafile)
+            datafile_format =  PyCo.Topography.IO.detect_format(datafile)
+            # absolute import is used here because of making detect_format in a test
+            # TODO replace detect_format with reader.format, when available in PyCo
         except CannotDetectFileFormat as exc:
             msg = f"Cannot determine file format of file '{datafile.name}'."
             msg += "Please try another file or contact us."
             raise forms.ValidationError(msg, code='invalid_topography_file')
+
+        if len(datafile_format) > MAX_LENGTH_DATAFILE_FORMAT:
+            raise forms.ValidationError("Too long name for datafile format: '%(fmt)s'. At maximum %(maxlen)d characters allowed.",
+                                        params=dict(fmt=datafile_format, maxlen=MAX_LENGTH_DATAFILE_FORMAT),
+                                        code='too_long_datafile_format')
 
         cleaned_data['datafile_format'] = datafile_format
 
