@@ -45,17 +45,14 @@ django-storages
 django-guardian
 
 # Celery
-django-kombu # is this still needed? See https://pypi.org/project/django-kombu/
+# django-kombu # is this still needed? See https://pypi.org/project/django-kombu/
 celery
 # pylibmc is also used for memcached in production
 pylibmc
 # librabbitmq>=2.0
 # problems while compiling librabbitmq
 celery-flower
-# The follwing is needed, otherwise Tornado 6.0 breaks celery
-# See https://github.com/mher/flower/issues/878
-tornado>=4.2.0,<6.0.0
-# TODO Check whether this still holds, issue 878 is fixed
+# tornado
 
 # progress bars for celery tasks, served by Django
 celery-progress

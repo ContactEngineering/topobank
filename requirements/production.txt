@@ -31,7 +31,6 @@ django-filter==2.2.0
 django-fontawesome==1.0
 django-formtools==2.2
 django-guardian==2.0.0
-django-kombu==0.9.4
 django-model-utils==3.2.0
 django-notifications-hq==1.5.0
 git+http://github.com/IMTEK-Simulation/django-progressbarupload.git
