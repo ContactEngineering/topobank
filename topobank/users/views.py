@@ -6,6 +6,7 @@ from django.core.exceptions import PermissionDenied
 from .models import User
 from .utils import are_collaborating
 
+
 class UserDetailView(LoginRequiredMixin, DetailView):
     model = User
     # These next two lines tell the view to index lookups by username
@@ -19,11 +20,13 @@ class UserDetailView(LoginRequiredMixin, DetailView):
             raise PermissionDenied
         return super().dispatch(request, *args, **kwargs)
 
+
 class UserRedirectView(LoginRequiredMixin, RedirectView):
     permanent = False
 
     def get_redirect_url(self):
         return reverse("users:detail", kwargs={"username": self.request.user.username})
+
 
 class UserUpdateView(LoginRequiredMixin, UpdateView):
 
@@ -37,9 +40,10 @@ class UserUpdateView(LoginRequiredMixin, UpdateView):
     def get_success_url(self):
         return reverse("users:detail", kwargs={"username": self.request.user.username})
 
-    def get_object(self):
+    def get_object(self, queryset=None):
         # Only get the User record for the user making the request
         return User.objects.get(username=self.request.user.username)
+
 
 class UserListView(LoginRequiredMixin, ListView):
     model = User

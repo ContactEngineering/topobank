@@ -2,6 +2,7 @@
 from ..utils import are_collaborating
 from topobank.manager.tests.utils import UserFactory, SurfaceFactory
 
+
 def test_collaborators(django_user_model):
 
     user1 = django_user_model.objects.create_user(username='testuser1', password="abcd$1234")

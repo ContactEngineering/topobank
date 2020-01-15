@@ -12,8 +12,10 @@ from termsandconditions.models import UserTermsAndConditions
 
 _log = logging.getLogger(__name__)
 
+
 class Command(BaseCommand):
-    help = "Deletes a user and all associated data (surfaces, topographies, analyses, files, terms, shares). Handle with care."
+    help = "Deletes a user and all associated data (surfaces, topographies, analyses, files, terms, shares). "+\
+           "Handle with care."
 
     def add_arguments(self, parser):
         parser.add_argument('username', type=str)
@@ -50,8 +52,6 @@ class Command(BaseCommand):
         _log.info("Removing terms and conditions seen or accepted by user '{}'..".format(user.name))
         userterms.delete()
 
-
-
         #
         # The media path of this user should not be deleted in general
         # because there might be still data files for topographies
@@ -62,7 +62,7 @@ class Command(BaseCommand):
         #
         media_path = user.get_media_path()
         media_dirs, media_files = default_storage.listdir(media_path)
-        if (len(media_dirs)==0) and (len(media_files)):
+        if (len(media_dirs) == 0) and (len(media_files)):
             _log.info("Deleting empty media path '%s'..", media_path)
             default_storage.delete(user.get_media_path())
 

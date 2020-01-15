@@ -145,6 +145,6 @@ def test_tags_for_user(two_topos):
 
     tags = tags_for_user(user)
 
-    assert set( t.name for t in tags) == set(['a long tag with spaces', 'interesting', 'rare', 'rough',
-                                              'projects/a', 'projects/b', 'projects/c', 'projects'])
+    assert set( t.name for t in tags) == {'a long tag with spaces', 'interesting', 'rare', 'rough',
+                                          'projects/a', 'projects/b', 'projects/c', 'projects'}
 

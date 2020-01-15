@@ -11,7 +11,7 @@ def navbar_active(url, section):
     which is a string. If the url is part of the given section,
     the string "active" is returned, otherwise ''.
 
-    :param request:
+    :param url:
     :param section: a string, one of ['Surfaces', 'Analyses', 'Sharing' ]
     :return: "active" or ""
     """

@@ -4,6 +4,7 @@ from django.conf import settings
 
 from topobank.users.tests.factories import UserFactory
 
+
 @pytest.mark.django_db
 def test_media_dir():
 

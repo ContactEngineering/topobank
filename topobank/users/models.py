@@ -11,8 +11,10 @@ from guardian.shortcuts import get_objects_for_user
 
 import os
 
+
 class ORCIDException(Exception):
     pass
+
 
 class User(GuardianUserMixin, AbstractUser):
 
@@ -35,7 +37,7 @@ class User(GuardianUserMixin, AbstractUser):
         """Return relative path of directory for files of this user."""
         return os.path.join('topographies', 'user_{}'.format(self.id))
 
-    def _orcid_info(self): # TODO use local cache
+    def _orcid_info(self):  # TODO use local cache
         try:
             social_account = SocialAccount.objects.get(user_id=self.id)
         except SocialAccount.DoesNotExist as exc:
@@ -74,15 +76,14 @@ class User(GuardianUserMixin, AbstractUser):
 
         objs = get_objects_for_user(user, 'view_surface', klass=Surface)
         for o in objs:
-            if o.creator == self: # this surface is shared by this user
+            if o.creator == self:  # this surface is shared by this user
                 return True
-        return False # nothing shared
+        return False  # nothing shared
 
     class Meta:
         permissions = (
             ("can_skip_terms", "Can skip all checkings for terms and conditions."),
         )
-
 
 
 #
@@ -92,6 +93,3 @@ class User(GuardianUserMixin, AbstractUser):
 def ensure_name_field_set(sender, instance, **kwargs):
     if not instance.name:
         instance.name = f"{instance.first_name} {instance.last_name}"
-
-
-

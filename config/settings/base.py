@@ -77,7 +77,7 @@ THIRD_PARTY_APPS = [
     'termsandconditions',
     'storages',
     'guardian',
-    'bootstrap_datepicker_plus', # for datepicker, see https://github.com/monim67/django-bootstrap-datepicker-plus
+    'bootstrap_datepicker_plus',  # for datepicker, see https://github.com/monim67/django-bootstrap-datepicker-plus
     'django_select2',
     'django_tables2',
     'progressbarupload',
@@ -252,7 +252,7 @@ if USE_TZ:
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-broker_url
 CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='amqp://')
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-result_backend
-CELERY_RESULT_BACKEND = env('CELERY_RESULT_BACKEND', default='cache+memcached://127.0.0.1:11211/') # CELERY_BROKER_URL
+CELERY_RESULT_BACKEND = env('CELERY_RESULT_BACKEND', default='cache+memcached://127.0.0.1:11211/')  # CELERY_BROKER_URL
 # we don't use rpc:// as default here, because Python 3.7 is not officially supported by celery 4.2
 # and there is a problem with Python 3.7's keyword 'async' which is used in the celery code
 
@@ -271,20 +271,20 @@ CELERYD_TASK_SOFT_TIME_LIMIT = 60
 
 
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-broker_url
-#CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='django://')
-#CELERY_BROKER_URL = 'amqp://guest:guest@localhost:5672//'
+# CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='django://')
+# CELERY_BROKER_URL = 'amqp://guest:guest@localhost:5672//'
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-result_backend
-#if CELERY_BROKER_URL == 'django://':
-#    CELERY_RESULT_BACKEND = 'redis://'
-#else:
-#    CELERY_RESULT_BACKEND = CELERY_BROKER_URL
+# if CELERY_BROKER_URL == 'django://':
+#     CELERY_RESULT_BACKEND = 'redis://'
+# else:
+#     CELERY_RESULT_BACKEND = CELERY_BROKER_URL
 
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-accept_content
-#CELERY_ACCEPT_CONTENT = ['json', 'pickle']
-# http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-task_serializer
-#CELERY_TASK_SERIALIZER = 'pickle'
-# http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-result_serializer
-#CELERY_RESULT_SERIALIZER = 'pickle' # because of arrays
+# CELERY_ACCEPT_CONTENT = ['json', 'pickle']
+#  http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-task_serializer
+# CELERY_TASK_SERIALIZER = 'pickle'
+#  http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-result_serializer
+# CELERY_RESULT_SERIALIZER = 'pickle' # because of arrays
 
 # django-allauth
 # ------------------------------------------------------------------------------
@@ -298,7 +298,7 @@ ACCOUNT_USERNAME_REQUIRED = False
 # we keep the username field for now, because it is used in the "users" app
 # ACCOUNT_USER_MODEL_USERNAME_FIELD = None
 
-ACCOUNT_FORMS = { 'signup': 'topobank.users.forms.SignupFormWithName' }
+ACCOUNT_FORMS = {'signup': 'topobank.users.forms.SignupFormWithName'}
 
 # https://django-allauth.readthedocs.io/en/latest/configuration.html
 # ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
@@ -307,7 +307,7 @@ ACCOUNT_EMAIL_VERIFICATION = 'none'
 ACCOUNT_ADAPTER = 'topobank.users.adapters.AccountAdapter'
 # https://django-allauth.readthedocs.io/en/latest/configuration.html
 SOCIALACCOUNT_ADAPTER = 'topobank.users.adapters.SocialAccountAdapter'
-ACCOUNT_LOGOUT_ON_GET = True # True: disable intermediate page
+ACCOUNT_LOGOUT_ON_GET = True  # True: disable intermediate page
 
 # Your stuff...
 # ------------------------------------------------------------------------------
@@ -337,7 +337,7 @@ REST_FRAMEWORK = {
 }
 
 # Version number used in the GUI
-TOPOBANK_VERSION=topobank.__version__
+TOPOBANK_VERSION = topobank.__version__
 
 #
 # Settings for authentication with ORCID
@@ -350,16 +350,17 @@ SOCIALACCOUNT_PROVIDERS = {
         # 'MEMBER_API': False,  # for the member API
     }
 }
-SOCIALACCOUNT_QUERY_EMAIL = True # e-mail should be aquired from social account provider
-ACCOUNT_USER_DISPLAY = lambda user: user.name
+SOCIALACCOUNT_QUERY_EMAIL = True  # e-mail should be aquired from social account provider
+def ACCOUNT_USER_DISPLAY(user):
+    return user.name
 
 #
 # Settings for handling terms and conditions
 #
-TERMS_EXCLUDE_URL_LIST = { '/accounts/logout/' }
+TERMS_EXCLUDE_URL_LIST = {'/accounts/logout/'}
 # TERMS_EXCLUDE_URL_PREFIX_LIST = {'/users/'}
 TERMS_EXCLUDE_USERS_WITH_PERM = 'users.can_skip_terms'
-TERMS_STORE_IP_ADDRESS=False
+TERMS_STORE_IP_ADDRESS = False
 
 #
 # Storage Settings
@@ -424,7 +425,7 @@ TRACKED_DEPENDENCIES = [
 #
 # Settings for notifications package
 #
-DJANGO_NOTIFICATIONS_CONFIG = { 'USE_JSONFIELD': True}
+DJANGO_NOTIFICATIONS_CONFIG = {'USE_JSONFIELD': True}
 # I would like to pass the target url to a notification
 
 #

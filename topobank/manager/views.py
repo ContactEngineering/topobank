@@ -401,8 +401,8 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
         #
         # If a significant field changed, renew all analyses
         #
-        significant_fields = set(['size_x', 'size_y', 'unit', 'is_periodic', 'height_scale',
-                                  'detrend_mode', 'datafile', 'data_source'])
+        significant_fields = {'size_x', 'size_y', 'unit', 'is_periodic', 'height_scale',
+                              'detrend_mode', 'datafile', 'data_source'}
         significant_fields_with_changes = set(form.changed_data).intersection(significant_fields)
         if len(significant_fields_with_changes) > 0:
             _log.info(f"During edit of topography {topo.id} significant fields changed: "+\
@@ -976,7 +976,6 @@ def download_surface(request, surface_id):
 
     :param request:
     :param surface_id: surface id
-    :param file_format: requested file format
     :return:
     """
 

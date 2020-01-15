@@ -227,7 +227,7 @@ def test_sharing_info_table(client):
 
     surface2.share(user1)
 
-    TopographyFactory(surface=surface1) # one topography for surface 1
+    TopographyFactory(surface=surface1)  # one topography for surface 1
 
     FALSE_CHAR = '✘'
     TRUE_CHAR = '✔'

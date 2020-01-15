@@ -5,6 +5,7 @@ from django.utils import timezone
 from topobank.utils import assert_in_content
 from termsandconditions.models import TermsAndConditions
 
+
 @pytest.mark.django_db
 def test_terms_conditions_as_anonymous(client):
 
