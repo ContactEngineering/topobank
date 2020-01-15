@@ -114,7 +114,6 @@ class Topography(models.Model):
         unique_together = (('surface', 'name'),)
 
     LENGTH_UNIT_CHOICES = [
-        # (None, '(unknown)') # TODO should this be allowed?
         ('km', 'kilometers'),
         ('m','meters'),
         ('mm', 'millimeters'),
