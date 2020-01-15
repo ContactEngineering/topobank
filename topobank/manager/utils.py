@@ -1,11 +1,8 @@
 from django.shortcuts import reverse
 from guardian.shortcuts import get_objects_for_user
-from django.core.cache import cache  # default cache
 from django.conf import settings
 
 from PyCo.Topography import open_topography
-
-from topobank.taskapp.celery import app
 
 import traceback
 import logging
