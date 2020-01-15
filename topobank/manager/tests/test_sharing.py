@@ -5,7 +5,7 @@ from django.shortcuts import reverse
 from bs4 import BeautifulSoup
 from notifications.models import Notification
 
-from .utils import SurfaceFactory, TopographyFactory, UserFactory
+from .utils import FIXTURE_DIR, SurfaceFactory, TopographyFactory, UserFactory
 from topobank.utils import assert_in_content, assert_not_in_content, assert_no_form_errors
 
 
@@ -545,7 +545,7 @@ def test_notification_when_editing_shared_stuff(client):
 @pytest.mark.django_db
 def test_upload_topography_for_shared_surface(client):
 
-    input_file_path = Path('topobank/manager/fixtures/example3.di') # TODO use standardized way to find files
+    input_file_path = Path(FIXTURE_DIR+'/example3.di')
     description = "test description"
 
     password = 'abcd$1234'

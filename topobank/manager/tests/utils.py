@@ -15,6 +15,12 @@ from topobank.users.tests.factories import UserFactory
 from topobank.users.models import User
 from topobank.analysis.functions import register_all
 
+
+FIXTURE_DIR = os.path.join(
+    os.path.dirname(os.path.realpath(__file__)),
+    '../fixtures'
+)
+
 _log = logging.getLogger(__name__)
 
 #
@@ -36,7 +42,7 @@ class TopographyFactory(factory.django.DjangoModelFactory):
     surface = factory.SubFactory(SurfaceFactory)
     # creator is set automatically to surface's creator if not set, see signals
     name = factory.Sequence(lambda n: "topography-{}".format(n))
-    datafile = factory.django.FileField(from_path=str(settings.ROOT_DIR.path("topobank/manager/fixtures/10x10.txt")))
+    datafile = factory.django.FileField(from_path=str(settings.ROOT_DIR.path(FIXTURE_DIR+"/10x10.txt")))
     data_source = 0
     measurement_date = factory.Sequence(lambda n: datetime.date(2019,1,1)+datetime.timedelta(days=n))
     size_x = 512
@@ -59,8 +65,8 @@ def two_topos():
     surface1 = SurfaceFactory(name="Surface 1", creator=user)
     surface2 = SurfaceFactory(name="Surface 2", creator=user)
 
-    datafile1 = factory.django.FileField(from_path="topobank/manager/fixtures/example3.di")
-    datafile2 = factory.django.FileField(from_path="topobank/manager/fixtures/example4.txt")
+    datafile1 = factory.django.FileField(from_path=FIXTURE_DIR+"/example3.di")
+    datafile2 = factory.django.FileField(from_path=FIXTURE_DIR+"/example4.txt")
 
     topos1 = TopographyFactory(surface=surface1,
                       creator=user,
@@ -100,7 +106,7 @@ def one_line_scan():
     surface = Surface(name="Line Scans", creator=user)
     surface.save()
 
-    datafile = factory.django.FileField(from_path="topobank/manager/fixtures/line_scan_1.asc")
+    datafile = factory.django.FileField(from_path=FIXTURE_DIR+"/line_scan_1.asc")
 
     return TopographyFactory(surface=surface,
                              name='Simple Line Scan',
@@ -141,3 +147,4 @@ def topography_with_broken_pyco_topography():
     topo.datafile.save(fname, new_content)
 
     return topo
+

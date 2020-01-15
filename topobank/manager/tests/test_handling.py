@@ -5,17 +5,13 @@ from pathlib import Path
 import datetime
 import os.path
 
-from ..tests.utils import two_topos, one_line_scan, SurfaceFactory, TopographyFactory, UserFactory
+from .utils import FIXTURE_DIR, SurfaceFactory, TopographyFactory, UserFactory, two_topos, one_line_scan
 from ..models import Topography, Surface
 from ..forms import TopographyForm, Topography1DUnitsForm, Topography2DUnitsForm
 
-from topobank.utils import assert_in_content, assert_not_in_content,\
+from topobank.utils import assert_in_content, \
     assert_redirects, assert_no_form_errors, assert_form_error
 
-FIXTURE_DIR = os.path.join(
-    os.path.dirname(os.path.realpath(__file__)),
-    '../fixtures'
-)
 
 #######################################################################
 # Selections
@@ -56,7 +52,7 @@ def test_empty_surface_selection(client):
 @pytest.mark.django_db
 def test_upload_topography_di(client):
 
-    input_file_path = Path(FIXTURE_DIR+'/example3.di')  # TODO use pytest-datafiles
+    input_file_path = Path(FIXTURE_DIR + '/example3.di')  # maybe use package 'pytest-datafiles' here instead
     description = "test description"
     category = 'exp'
 
@@ -166,9 +162,9 @@ def test_upload_topography_di(client):
 @pytest.mark.parametrize(("input_filename", "exp_datafile_format",
                           "exp_resolution_x", "exp_resolution_y",
                           "physical_sizes_to_be_set", "exp_physical_sizes"),
-                         [(FIXTURE_DIR+"/10x10.txt", 'asc', 10, 10, (1,1), (1,1)),
-                          (FIXTURE_DIR+"/line_scan_1.asc", 'xyz', 11, None, None, (9.0,)),
-                          (FIXTURE_DIR+"/line_scan_1_minimal_spaces.asc", 'xyz', 11, None, None, (9.0,))])
+                         [(FIXTURE_DIR + "/10x10.txt", 'asc', 10, 10, (1, 1), (1, 1)),
+                          (FIXTURE_DIR + "/line_scan_1.asc", 'xyz', 11, None, None, (9.0,)),
+                          (FIXTURE_DIR + "/line_scan_1_minimal_spaces.asc", 'xyz', 11, None, None, (9.0,))])
 # Add this for a larger file: ("topobank/manager/fixtures/500x500_random.txt", 500)]) # takes quire long
 @pytest.mark.django_db
 def test_upload_topography_txt(client, django_user_model, input_filename,
@@ -301,7 +297,7 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
 @pytest.mark.django_db
 def test_upload_topography_and_name_like_an_exisiting_for_same_surface(client):
 
-    input_file_path = Path(FIXTURE_DIR+"/10x10.txt")
+    input_file_path = Path(FIXTURE_DIR + "/10x10.txt")
 
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
@@ -351,7 +347,7 @@ def test_upload_topography_and_name_like_an_exisiting_for_same_surface(client):
 @pytest.mark.django_db
 def test_trying_upload_of_topography_file_with_unkown_format(client, django_user_model):
 
-    input_file_path = Path(FIXTURE_DIR+'/../views.py') # this is nonsense and cannot be interpreted
+    input_file_path = Path(FIXTURE_DIR + '/../views.py') # this is nonsense and cannot be interpreted
 
     username = 'testuser'
     password = 'abcd$1234'
@@ -390,7 +386,7 @@ def test_trying_upload_of_topography_file_with_unkown_format(client, django_user
 @pytest.mark.django_db
 def test_trying_upload_of_corrupted_topography_file(client, django_user_model):
 
-    input_file_path = Path(FIXTURE_DIR+'/example3_corrupt.di')
+    input_file_path = Path(FIXTURE_DIR + '/example3_corrupt.di')
     # I used the correct file "example3.di" and broke it on purpose
     # The headers are still okay, but the topography can't be read by PyCo
     # using .topography() and leads to a "ValueError: buffer is smaller
@@ -688,7 +684,7 @@ def test_edit_line_scan(client, one_line_scan, django_user_model):
 @pytest.mark.django_db
 def test_edit_topography_only_detrend_center_when_periodic(client, django_user_model):
 
-    input_file_path = Path(FIXTURE_DIR+"/10x10.txt")
+    input_file_path = Path(FIXTURE_DIR + "/10x10.txt")
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
     client.force_login(user)
