@@ -270,8 +270,7 @@ def test_show_analyses_with_different_arguments(client, two_topos, django_user_m
     # arguments should be visible in output
 
     import html.parser
-    html_parser = html.parser.HTMLParser()
-    unescaped = html_parser.unescape(response.content.decode())
+    unescaped = html.unescape(response.content.decode())
 
     assert str(dict(bins=10)) in unescaped
     assert str(dict(bins=20)) in unescaped
