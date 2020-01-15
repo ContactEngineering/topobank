@@ -998,7 +998,7 @@ def contact_mechanics_data(request):
                     y_axis_label="Probability P(g) (1/{})".format(topo.unit),
                     **common_kwargs),
                 'cluster-size-distribution': _contact_mechanics_distribution_figure(
-                    contact_areas,  # TODO check data
+                    contact_areas,
                     title="Cluster size distribution",
                     x_axis_label="Cluster area A({}²)".format(topo.unit),
                     y_axis_label="Probability P(A)",
@@ -1141,7 +1141,7 @@ def download_analyses(request, ids, card_view_flavor, file_format):
     if not user.is_authenticated:
         return HttpResponseForbidden()
 
-    analyses_ids = [int(i) for i in ids.split(',')]  # TODO check whether user has permissions to download this data
+    analyses_ids = [int(i) for i in ids.split(',')]
 
     analyses = []
 
