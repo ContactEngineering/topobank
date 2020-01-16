@@ -7,7 +7,7 @@ import os.path
 
 from .utils import FIXTURE_DIR, SurfaceFactory, TopographyFactory, UserFactory, two_topos, one_line_scan
 from ..models import Topography, Surface, MAX_LENGTH_DATAFILE_FORMAT
-from ..forms import TopographyForm, Topography1DUnitsForm, Topography2DUnitsForm
+from ..forms import TopographyForm, TopographyWizardUnitsForm
 
 from topobank.utils import assert_in_content, \
     assert_redirects, assert_no_form_errors, assert_form_error
@@ -1064,15 +1064,15 @@ def test_topography_form_field_is_periodic():
         'resolution_x': '1',
     }
 
-    form = Topography1DUnitsForm(initial=data, allow_periodic=False)
+    form = TopographyWizardUnitsForm(initial=data, allow_periodic=False, has_size_y=False)
     assert form.fields['is_periodic'].disabled
 
     data['size_y'] = 1
 
-    form = Topography2DUnitsForm(initial=data, allow_periodic=False)
+    form = TopographyWizardUnitsForm(initial=data, allow_periodic=False, has_size_y=True)
     assert form.fields['is_periodic'].disabled
 
-    form = Topography2DUnitsForm(initial=data, allow_periodic=True)
+    form = TopographyWizardUnitsForm(initial=data, allow_periodic=True, has_size_y=True)
     assert not form.fields['is_periodic'].disabled
 
     form = TopographyForm(initial=data, has_size_y=True, allow_periodic=True, autocomplete_tags=[])

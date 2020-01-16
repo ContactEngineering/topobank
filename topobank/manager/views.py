@@ -39,7 +39,7 @@ import logging
 
 from .models import Topography, Surface
 from .forms import TopographyForm, SurfaceForm, SurfaceShareForm
-from .forms import TopographyFileUploadForm, TopographyMetaDataForm, Topography1DUnitsForm, Topography2DUnitsForm
+from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm
 from .utils import selected_instances, bandwidths_data, surfaces_for_user, get_topography_reader, tags_for_user
 from .serializers import SurfaceSerializer, TopographySerializer, TagSerializer
 from .utils import mailto_link_for_reporting_an_error
@@ -107,19 +107,18 @@ class TopographyUpdatePermissionMixin(TopographyPermissionMixin):
 #
 # Using a wizard because we need intermediate calculations
 #
-# There are 4 forms, used in 3 steps (0,1, then 2 or 3):
+# There are 3 forms, used in 3 steps (0,1, then 2):
 #
 # 0: loading of the topography file
 # 1: choosing the data source, add measurement date and a description
-# 2: adding physical size and units (if 2D and only for data which is not available in the file)
-# 3: adding physical size and units (if 1D and only for data is not available in the file)
+# 2: adding physical size and units (for data which is not available in the file, for 1D or 2D)
 #
 # Maybe an alternative would be to use AJAX calls as described here (under "GET"):
 #
 #  https://sixfeetup.com/blog/making-your-django-templates-ajax-y
 #
 class TopographyCreateWizard(SessionWizardView):
-    form_list = [TopographyFileUploadForm, TopographyMetaDataForm, Topography2DUnitsForm, Topography1DUnitsForm]
+    form_list = [TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm]
     template_name = 'manager/topography_wizard.html'
     file_storage = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT,'topographies/wizard'))
 
