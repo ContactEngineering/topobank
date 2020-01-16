@@ -6,6 +6,8 @@
   be loaded earlier now show error message and a mailto link
   in order to report the issue (#416)
 - format detection is only done once file has been uploaded (#412)
+- make sure there is no intermediate login page when pressing
+  on colored boxes on welcome page (#423)
 - upgrade to Django 2.2.9 (#417) 
   
 ## 0.7.3
