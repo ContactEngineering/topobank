@@ -1,8 +1,11 @@
 from django.views.generic import TemplateView
 from django.db.models import Q, F
+from django.shortcuts import reverse
 
 from guardian.compat import get_user_model as guardian_user_model
 from guardian.shortcuts import get_objects_for_user, get_perms_for_model
+
+from allauth.socialaccount.providers.orcid.provider import OrcidProvider
 
 import json
 
@@ -30,12 +33,34 @@ class HomeView(TemplateView):
             # count surfaces you can view, but you are not creator
             context['num_shared_surfaces'] = get_objects_for_user(user, 'view_surface', klass=Surface)\
                                                 .filter(~Q(creator=user)).count()
+            context['surfaces_link'] = reverse('manager:surface-list')
+            context['analyses_link'] = reverse('analysis:list')
         else:
             anon = guardian_user_model().get_anonymous()
             context['num_users'] = User.objects.filter(Q(is_active=True) & ~Q(pk=anon.pk)).count()
             context['num_surfaces'] = Surface.objects.filter().count()
             context['num_topographies'] = Topography.objects.filter().count()
             context['num_analyses'] = Analysis.objects.filter().count()
+
+            # The following is a workaround in order to skip the intermediate
+            # login page when clicking on 'surfaces' when not logged in.
+            # There is an GH issue to solve this in allauth,
+            # but it's unlikely that we can use it in foreseeable future:
+            #  https://github.com/pennersr/django-allauth/issues/345
+            #
+            # This is only implemented specifically for ORCID so far.
+            # One could look for the actually used providers,
+            # but this can be done later if there are any others
+
+            provider = OrcidProvider(self.request)
+
+            def get_login_link(next_url_name):
+                return provider.get_login_url(self.request,
+                                              method='oauth2',
+                                              next=reverse(next_url_name))
+
+            context['surfaces_link'] = get_login_link('manager:surface-list')
+            context['analyses_link'] = get_login_link('analysis:list')
 
         return context
 

@@ -43,7 +43,7 @@
             {% endif %}
 
             <div class="{% column_div_class is_authenticated %}">
-              <a href="{% url 'manager:surface-list' %}" class="card-link">
+              <a href="{{ surfaces_link}}" class="card-link">
                 <div class="card text-white bg-primary o-hidden h-100">
                   <div class="card-body">
                     <div class="card-body-icon">
@@ -59,7 +59,7 @@
             </div>
 
             <div class="{% column_div_class is_authenticated %}">
-              <a href="{% url 'manager:surface-list' %}" class="card-link">
+              <a href="{{ surfaces_link }}" class="card-link">
                 <div class="card text-white bg-danger o-hidden h-100">
                   <div class="card-body">
                     <div class="card-body-icon">
@@ -75,7 +75,7 @@
             </div>
 
             <div class="{% column_div_class is_authenticated %}">
-              <a href="{% url 'analysis:list' %}" class="card-link">
+              <a href="{{ analyses_link }}" class="card-link">
                 <div class="card text-white bg-warning o-hidden h-100">
                   <div class="card-body">
                     <div class="card-body-icon">
