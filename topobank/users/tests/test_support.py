@@ -10,7 +10,7 @@ from topobank.manager.models import Surface
 from topobank.analysis.models import AnalysisFunction, Analysis
 
 
-@pytest.mark.db_django
+@pytest.mark.django_db
 def test_initial_surface(live_server, client, django_user_model):
 
     import topobank.users.signals  # in order to have signals activated
