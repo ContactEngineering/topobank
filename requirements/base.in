@@ -35,6 +35,10 @@ django-filter
 # a PR (#82) and as long it is not integrated, I use my own version:
 git+http://github.com/mcrot/django-tagulous.git
 
+# statistics
+# django-statsy  # cannot be used currently because of fixed version in requirements
+django-trackstats
+
 #
 # Storage
 #
