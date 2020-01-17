@@ -85,6 +85,7 @@ THIRD_PARTY_APPS = [
     'notifications',
     'django_filters',
     'tagulous',
+    'trackstats',
 ]
 LOCAL_APPS = [
     'topobank.users.apps.UsersAppConfig',
