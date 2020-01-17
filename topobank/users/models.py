@@ -2,9 +2,8 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
-from django.db.models.signals import post_save, pre_save
+from django.db.models.signals import pre_save
 from django.dispatch import receiver
-from django.conf import settings
 from allauth.socialaccount.models import SocialAccount
 from guardian.mixins import GuardianUserMixin
 from guardian.shortcuts import get_objects_for_user
