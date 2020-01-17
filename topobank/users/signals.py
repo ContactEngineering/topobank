@@ -12,7 +12,6 @@ from notifications.signals import notify
 import os.path
 import yaml
 
-from .models import User
 from .utils import register_metrics
 from topobank.manager.models import Surface, Topography
 
@@ -71,6 +70,7 @@ def create_example_surface(sender, **kwargs):
 def track_user_login(sender, **kwargs):
 
     register_metrics()
+    from .models import User
 
     today = now().date()
     num_users_today = User.objects.filter(
