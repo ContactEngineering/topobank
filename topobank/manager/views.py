@@ -27,6 +27,8 @@ from bokeh.plotting import figure
 from bokeh.embed import components
 from bokeh.models import DataRange1d, LinearColorMapper, ColorBar
 
+from trackstats.models import Metric, Period
+
 from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
@@ -42,7 +44,7 @@ from .forms import TopographyForm, SurfaceForm, SurfaceShareForm
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm
 from .utils import selected_instances, bandwidths_data, surfaces_for_user, get_topography_reader, tags_for_user
 from .serializers import SurfaceSerializer, TopographySerializer, TagSerializer
-from .utils import mailto_link_for_reporting_an_error
+from .utils import mailto_link_for_reporting_an_error, increase_statistics_by_date
 
 from topobank.users.models import User
 
@@ -649,6 +651,17 @@ class TopographyDeleteView(TopographyUpdatePermissionMixin, DeleteView):
                         href=link)
 
         return link
+
+
+class SurfaceSearchView(TemplateView):
+    template_name = "manager/surface_list.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        # count this view event for statistics
+
+        metric = Metric.objects.SEARCH_VIEW_COUNT
+        increase_statistics_by_date(metric, period=Period.DAY)
+        return super().dispatch(request, *args, **kwargs)
 
 
 class SurfaceCreateView(CreateView):

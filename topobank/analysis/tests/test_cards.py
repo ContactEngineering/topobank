@@ -6,8 +6,9 @@ from topobank.manager.tests.utils import TopographyFactory, UserFactory
 from .utils import AnalysisFunctionFactory
 from ..views import card_view_class, SimpleCardView, PlotCardView, PowerSpectrumCardView
 
+
 @pytest.mark.django_db
-def test_card_templates_simple(client, mocker):
+def test_card_templates_simple(client, mocker, handle_usage_statistics):
 
     #
     # Create database objects
@@ -52,7 +53,7 @@ def test_card_templates_simple(client, mocker):
     assert response.template_name == [ 'analysis/simple_card_detail.html']
 
 @pytest.mark.django_db
-def test_card_templates_for_power_spectrum(client, mocker):
+def test_card_templates_for_power_spectrum(client, mocker, handle_usage_statistics):
     #
     # Create database objects
     #

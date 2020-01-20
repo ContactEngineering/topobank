@@ -100,7 +100,7 @@ urlpatterns = [
     ),
     url(
         regex=r'surface/$',
-        view=login_required(views.TemplateView.as_view(template_name='manager/surface_list.html')),
+        view=login_required(views.SurfaceSearchView.as_view()),
         name='surface-list'
     ),
     url(

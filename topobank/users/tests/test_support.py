@@ -11,7 +11,7 @@ from topobank.analysis.models import AnalysisFunction, Analysis
 
 
 @pytest.mark.django_db
-def test_initial_surface(live_server, client, django_user_model):
+def test_initial_surface(live_server, client, django_user_model, handle_usage_statistics):
 
     import topobank.users.signals  # in order to have signals activated
 

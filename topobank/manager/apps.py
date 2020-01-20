@@ -6,3 +6,6 @@ class ManagerAppConfig(AppConfig):
     def ready(self):
         # make sure the signals are registered now
         import topobank.manager.signals
+
+        from topobank.manager.utils import register_metrics
+        register_metrics()

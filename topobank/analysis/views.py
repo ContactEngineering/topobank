@@ -37,11 +37,14 @@ from pint import UnitRegistry, UndefinedUnitError
 
 from guardian.shortcuts import get_objects_for_user
 
+from trackstats.models import Metric
+
 import PyCo
 from PyCo.Tools.ContactAreaAnalysis import patch_areas, assign_patch_numbers
 
 from ..manager.models import Topography, Surface
-from ..manager.utils import selected_instances, selection_from_session, instances_to_selection
+from ..manager.utils import selected_instances, selection_from_session, instances_to_selection, \
+    increase_statistics_by_date_and_object
 from .models import Analysis, AnalysisFunction, AnalysisCollection
 from .serializers import AnalysisSerializer
 from .forms import FunctionSelectForm
@@ -94,6 +97,12 @@ def switch_card_view(request):
     function = AnalysisFunction.objects.get(id=function_id)
 
     view_class = card_view_class(function.card_view_flavor)
+
+    #
+    # for statistics, count views per function
+    #
+    metric = Metric.objects.ANALYSES_RESULTS_VIEW_COUNT
+    increase_statistics_by_date_and_object(metric, obj=function)
 
     return view_class.as_view()(request)
 
