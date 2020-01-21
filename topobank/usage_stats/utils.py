@@ -1,10 +1,15 @@
 from django.db.models import F
-from django.contrib.contenttypes.models import ContentType
-
 from trackstats.models import StatisticByDate, StatisticByDateAndObject, Period
 
-
 def register_metrics():
+    """Registers all metrics used with package 'trackstats'.
+
+    Make sure this is called before using metrics.
+
+    Returns
+    -------
+        None
+    """
 
     from trackstats.models import Domain, Metric
 
@@ -99,6 +104,7 @@ def increase_statistics_by_date_and_object(metric, obj, period=Period.DAY, incre
     -------
         None
     """
+    from django.contrib.contenttypes.models import ContentType
     ct = ContentType.objects.get_for_model(obj)
 
     if StatisticByDateAndObject.objects.filter(metric=metric, object_id=obj.id, object_type_id=ct.id).exists():

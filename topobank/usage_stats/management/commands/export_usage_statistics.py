@@ -2,6 +2,7 @@ from django.core.management.base import BaseCommand
 from django.contrib.contenttypes.models import ContentType
 
 from trackstats.models import Metric, StatisticByDate, StatisticByDateAndObject
+from topobank.usage_stats.utils import register_metrics
 
 import pandas as pd
 import logging
@@ -42,8 +43,17 @@ def _adjust_columns_widths(worksheet):
         worksheet.column_dimensions[column].width = adjusted_width
 
 
+def _empty_date_dataframe():
+    return pd.DataFrame(columns=['date']).set_index('date')
+
+
 def _statisticByDate2dataframe(metric_ref):
-    metric = Metric.objects.get(ref=metric_ref)
+    try:
+        metric = Metric.objects.get(ref=metric_ref)
+    except Metric.DoesNotExist:
+        _log.warning("No data for metric '%s'.", metric_ref)
+        return _empty_date_dataframe()
+
     statistics = StatisticByDate.objects.filter(metric=metric)
 
     dates = []
@@ -75,7 +85,12 @@ def _statisticByDateAndObject2dataframe(metric_ref, content_type):
         DataFrame, with date as index and objects in columns
 
     """
-    metric = Metric.objects.get(ref=metric_ref)
+    try:
+        metric = Metric.objects.get(ref=metric_ref)
+    except Metric.DoesNotExist:
+        _log.warning("No data for metric '%s'.", metric_ref)
+        return _empty_date_dataframe()
+
     statistics = StatisticByDateAndObject.objects.filter(metric=metric, object_type_id=content_type.id)
 
     values = []
@@ -96,6 +111,8 @@ class Command(BaseCommand):
     help = "Exports a file with usage statistics."
 
     def handle(self, *args, **options):
+
+        register_metrics()
 
         #
         # Compile results with single value for a date
