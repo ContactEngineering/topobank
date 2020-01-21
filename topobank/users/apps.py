@@ -14,8 +14,4 @@ class UsersAppConfig(AppConfig):
         except ImportError:
             pass
 
-        from .utils import register_metrics
-        register_metrics()
-
-
 

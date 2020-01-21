@@ -44,9 +44,10 @@ from .forms import TopographyForm, SurfaceForm, SurfaceShareForm
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm
 from .utils import selected_instances, bandwidths_data, surfaces_for_user, get_topography_reader, tags_for_user
 from .serializers import SurfaceSerializer, TopographySerializer, TagSerializer
-from .utils import mailto_link_for_reporting_an_error, increase_statistics_by_date
+from .utils import mailto_link_for_reporting_an_error
 
-from topobank.users.models import User
+from ..usage_stats.utils import increase_statistics_by_date
+from ..users.models import User
 
 MAX_NUM_POINTS_FOR_SYMBOLS_IN_LINE_SCAN_PLOT = 100
 

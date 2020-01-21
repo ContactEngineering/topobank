@@ -1,0 +1,117 @@
+from django.db.models import F
+from django.contrib.contenttypes.models import ContentType
+
+from trackstats.models import StatisticByDate, StatisticByDateAndObject, Period
+
+
+def register_metrics():
+
+    from trackstats.models import Domain, Metric
+
+    Domain.objects.VIEWS = Domain.objects.register(
+        ref='views',
+        name='Views'
+    )
+
+    Metric.objects.SEARCH_VIEW_COUNT = Metric.objects.register(
+        domain=Domain.objects.VIEWS,
+        ref='search_view_count',
+        name='Number of views for Search page'
+    )
+
+    Metric.objects.ANALYSES_RESULTS_VIEW_COUNT = Metric.objects.register(
+        domain=Domain.objects.VIEWS,
+        ref='analyses_results_view_count',
+        name='Number of views for Analyses results'
+    )
+
+    Domain.objects.USERS = Domain.objects.register(
+        ref='users',
+        name='Users'
+    )
+    Metric.objects.USERS_LOGIN_COUNT = Metric.objects.register(
+        domain=Domain.objects.USERS,
+        ref='login_count',
+        name='Number of users having logged in'
+    )
+
+
+def increase_statistics_by_date(metric, period=Period.DAY, increment=1):
+    """Increase statistics by date in database using the current date.
+
+    Initializes statistics by date to given increment, if it does not
+    exist.
+
+    Parameters
+    ----------
+    metric: trackstats.models.Metric object
+
+    period: trackstats.models.Period object, optional
+        Examples: Period.LIFETIME, Period.DAY
+        Defaults to Period.DAY, i.e. store
+        incremental values on a daily basis.
+
+    increment: int, optional
+        How big the the increment, default to 1.
+
+
+    Returns
+    -------
+        None
+    """
+
+    if StatisticByDate.objects.filter(metric=metric).exists():
+        # we need this if-clause, because F() expressions
+        # only works on updates but not on inserts
+        StatisticByDate.objects.record(
+            metric=metric,
+            value=F('value') + increment,
+            period=period)
+    else:
+        StatisticByDate.objects.record(
+            metric=metric,
+            value=increment,
+            period=period)
+
+
+def increase_statistics_by_date_and_object(metric, obj, period=Period.DAY, increment=1):
+    """Increase statistics by date in database using the current date.
+
+    Initializes statistics by date to given increment, if it does not
+    exist.
+
+    Parameters
+    ----------
+    metric: trackstats.models.Metric object
+
+    obj: any class for which a contenttype exists, e.g. Topography
+        Some object for which this metric should be increased.
+    period: trackstats.models.Period object, optional
+        Examples: Period.LIFETIME, Period.DAY
+        Defaults to Period.DAY, i.e. store
+        incremental values on a daily basis.
+
+    increment: int, optional
+        How big the the increment, default to 1.
+
+
+    Returns
+    -------
+        None
+    """
+    ct = ContentType.objects.get_for_model(obj)
+
+    if StatisticByDateAndObject.objects.filter(metric=metric, object_id=obj.id, object_type_id=ct.id).exists():
+        # we need this if-clause, because F() expressions
+        # only works on updates but not on inserts
+        StatisticByDateAndObject.objects.record(
+            metric=metric,
+            object=obj,
+            value=F('value') + increment,
+            period=period)
+    else:
+        StatisticByDateAndObject.objects.record(
+            metric=metric,
+            object=obj,
+            value=increment,
+            period=period)

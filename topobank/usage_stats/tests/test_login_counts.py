@@ -4,7 +4,7 @@ import datetime
 from trackstats.models import Metric, StatisticByDate
 
 from topobank.manager.tests.utils import UserFactory
-from ..signals import track_user_login
+from topobank.users.signals import track_user_login
 
 
 @pytest.mark.django_db
@@ -27,6 +27,7 @@ def test_login_statistics(client):
     #
     # There should be two logins for two users now for today
     #
-    m = Metric.objects.get(ref='login_count')
+    m = Metric.objects.USERS_LOGIN_COUNT
     s = StatisticByDate.objects.get(metric=m, date=today)
     assert s.value == 2
+

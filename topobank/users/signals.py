@@ -84,4 +84,3 @@ def track_user_login(sender, **kwargs):
         period=Period.DAY
     )
 
-

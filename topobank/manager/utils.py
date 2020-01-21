@@ -1,10 +1,6 @@
 from django.shortcuts import reverse
 from guardian.shortcuts import get_objects_for_user
 from django.conf import settings
-from django.db.models import F
-from django.contrib.contenttypes.models import ContentType
-
-from trackstats.models import StatisticByDate, StatisticByDateAndObject, Period
 
 from PyCo.Topography import open_topography
 
@@ -19,11 +15,14 @@ UNIT_TO_METERS = {'Å': 1e-10, 'nm': 1e-9, 'µm': 1e-6, 'mm': 1e-3, 'm': 1.0,
 
 SELECTION_SESSION_VARNAME = 'selection'
 
+
 class TopographyFileException(Exception):
     pass
 
+
 class TopographyFileFormatException(TopographyFileException):
     pass
+
 
 class TopographyFileReadingException(TopographyFileException):
 
@@ -44,6 +43,7 @@ class TopographyFileReadingException(TopographyFileException):
     @property
     def message(self):
         return self._message
+
 
 def get_topography_reader(filefield, format=None):
     """Returns PyCo.Topography.IO.ReaderBase object.
@@ -130,6 +130,7 @@ def selection_choices(user):
 
     return choices
 
+
 def selection_from_session(session):
     """Get selection from session.
 
@@ -141,6 +142,7 @@ def selection_from_session(session):
     """
     return session.get(SELECTION_SESSION_VARNAME, [])
 
+
 def selection_for_select_all(user):
     """Return selection if given user wants to select all topographies and surfaces.
 
@@ -148,6 +150,7 @@ def selection_for_select_all(user):
     :return:
     """
     return ['surface-{}'.format(s.id) for s in surfaces_for_user(user)]
+
 
 def instances_to_selection(topographies=[], surfaces=[]):
     """Returns a list of strings suitable for selecting instances.
@@ -387,97 +390,3 @@ def bandwidths_data(topographies):
     bandwidths_data.sort(key=lambda entry: weight(entry), reverse=True)
 
     return bandwidths_data
-
-def increase_statistics_by_date(metric, period=Period.DAY, increment=1):
-    """Increase statistics by date in database using the current date.
-
-    Initializes statistics by date to given increment, if it does not
-    exist.
-
-    Parameters
-    ----------
-    metric: trackstats.models.Metric object
-
-    period: trackstats.models.Period object, optional
-        Examples: Period.LIFETIME, Period.DAY
-        Defaults to Period.DAY, i.e. store
-        incremental values on a daily basis.
-
-    increment: int, optional
-        How big the the increment, default to 1.
-
-
-    Returns
-    -------
-        None
-    """
-
-    if StatisticByDate.objects.filter(metric=metric).exists():
-        # we need this if-clause, because F() expressions
-        # only works on updates but not on inserts
-        StatisticByDate.objects.record(
-            metric=metric,
-            value=F('value') + increment,
-            period=period)
-    else:
-        StatisticByDate.objects.record(
-            metric=metric,
-            value=increment,
-            period=period)
-
-
-def increase_statistics_by_date_and_object(metric, obj, period=Period.DAY, increment=1):
-    """Increase statistics by date in database using the current date.
-
-    Initializes statistics by date to given increment, if it does not
-    exist.
-
-    Parameters
-    ----------
-    metric: trackstats.models.Metric object
-
-    obj: any class for which a contenttype exists, e.g. Topography
-        Some object for which this metric should be increased.
-    period: trackstats.models.Period object, optional
-        Examples: Period.LIFETIME, Period.DAY
-        Defaults to Period.DAY, i.e. store
-        incremental values on a daily basis.
-
-    increment: int, optional
-        How big the the increment, default to 1.
-
-
-    Returns
-    -------
-        None
-    """
-    ct = ContentType.objects.get_for_model(obj)
-
-    if StatisticByDateAndObject.objects.filter(metric=metric, object_id=obj.id, object_type_id=ct.id).exists():
-        # we need this if-clause, because F() expressions
-        # only works on updates but not on inserts
-        StatisticByDateAndObject.objects.record(
-            metric=metric,
-            object=obj,
-            value=F('value') + increment,
-            period=period)
-    else:
-        StatisticByDateAndObject.objects.record(
-            metric=metric,
-            object=obj,
-            value=increment,
-            period=period)
-
-
-def register_metrics():
-    from trackstats.models import Domain, Metric
-
-    Domain.objects.VIEWS = Domain.objects.register(
-        ref='views',
-        name='Views'
-    )
-    Metric.objects.SEARCH_VIEW_COUNT = Metric.objects.register(
-        domain=Domain.objects.VIEWS,
-        ref='search_view_count',
-        name='Number of views for Search page'
-    )

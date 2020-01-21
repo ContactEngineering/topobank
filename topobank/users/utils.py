@@ -9,16 +9,3 @@ def are_collaborating(user1, user2):
     :return: True if collaborators, else False
     """
     return (user1 == user2) or user1.is_sharing_with(user2) or user2.is_sharing_with(user1)
-
-def register_metrics():
-    from trackstats.models import Domain, Metric
-
-    Domain.objects.USERS = Domain.objects.register(
-        ref='users',
-        name='Users'
-    )
-    Metric.objects.USERS_LOGIN_COUNT = Metric.objects.register(
-        domain=Domain.objects.USERS,
-        ref='login_count',
-        name='Number of users having logged in'
-    )

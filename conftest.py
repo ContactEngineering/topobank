@@ -55,12 +55,8 @@ def handle_usage_statistics():
     -------
         None
     """
-    from topobank.manager.utils import register_metrics as manager_register_metrics
-    from topobank.analysis.utils import register_metrics as analysis_register_metrics
-    from topobank.users.utils import register_metrics as users_register_metrics
-    manager_register_metrics()
-    analysis_register_metrics()
-    users_register_metrics()
+    from topobank.usage_stats.utils import register_metrics
+    register_metrics()
     yield
     #
     # Teardown code which is run after the test function

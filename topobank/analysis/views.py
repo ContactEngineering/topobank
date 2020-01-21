@@ -43,8 +43,8 @@ import PyCo
 from PyCo.Tools.ContactAreaAnalysis import patch_areas, assign_patch_numbers
 
 from ..manager.models import Topography, Surface
-from ..manager.utils import selected_instances, selection_from_session, instances_to_selection, \
-    increase_statistics_by_date_and_object
+from ..manager.utils import selected_instances, selection_from_session, instances_to_selection
+from ..usage_stats.utils import increase_statistics_by_date_and_object
 from .models import Analysis, AnalysisFunction, AnalysisCollection
 from .serializers import AnalysisSerializer
 from .forms import FunctionSelectForm

@@ -42,7 +42,6 @@ def _adjust_columns_widths(worksheet):
         worksheet.column_dimensions[column].width = adjusted_width
 
 
-
 def _statisticByDate2dataframe(metric_ref):
     metric = Metric.objects.get(ref=metric_ref)
     statistics = StatisticByDate.objects.filter(metric=metric)
@@ -57,6 +56,7 @@ def _statisticByDate2dataframe(metric_ref):
     df.set_index('date', inplace=True)
 
     return df
+
 
 def _statisticByDateAndObject2dataframe(metric_ref, content_type):
     """

@@ -1,5 +1,6 @@
 import pytest
 from django.shortcuts import reverse
+
 from trackstats.models import Metric, Period
 
 from topobank.analysis.tests.utils import AnalysisFactory

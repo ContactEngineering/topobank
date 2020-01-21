@@ -204,16 +204,3 @@ def mangle_sheet_name(s: str) -> str:
         s = s.replace(x, y)
 
     return s
-
-def register_metrics():
-    from trackstats.models import Domain, Metric
-
-    Domain.objects.VIEWS = Domain.objects.register(
-        ref='views',
-        name='Views'
-    )
-    Metric.objects.ANALYSES_RESULTS_VIEW_COUNT = Metric.objects.register(
-        domain=Domain.objects.VIEWS,
-        ref='analyses_results_view_count',
-        name='Number of views for Analyses results'
-    )
