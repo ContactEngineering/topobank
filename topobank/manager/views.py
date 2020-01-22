@@ -587,7 +587,7 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
         except Exception as exc:
             err_message = "Topography '{}' (id: {}) cannot be loaded unexpectedly.".format(topo.name, topo.id)
             _log.error(err_message)
-            link = mailto_link_for_reporting_an_error("Failure loading topography",
+            link = mailto_link_for_reporting_an_error(f"Failure loading topography (id: {topo.id})",
                                                       "Image plot for topography",
                                                       err_message,
                                                       traceback.format_exc())
@@ -603,7 +603,7 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
                 plotted = True
             else:
                 err_message = f"Don't know how to display topographies with {pyco_topo.dim} dimensions."
-                link = mailto_link_for_reporting_an_error("Invalid dimensions for topography",
+                link = mailto_link_for_reporting_an_error(f"Invalid dimensions for topography (id: {topo.id})",
                                                           "Image plot for topography",
                                                           err_message,
                                                           traceback.format_exc())

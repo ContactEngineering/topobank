@@ -306,7 +306,7 @@ def _bandwidths_data_entry(topo):
             topo.name, topo.id)
         _log.error(err_message+"\n"+traceback.format_exc())
 
-        link = mailto_link_for_reporting_an_error("Failure loading topography",
+        link = mailto_link_for_reporting_an_error(f"Failure loading topography (id: {topo.id})",
                                                   "Bandwidth data calculation",
                                                   err_message,
                                                   traceback.format_exc())
