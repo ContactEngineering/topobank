@@ -1,3 +1,5 @@
+from datetime import date
+
 from django.db.models import F
 from trackstats.models import StatisticByDate, StatisticByDateAndObject, Period
 
@@ -64,16 +66,19 @@ def increase_statistics_by_date(metric, period=Period.DAY, increment=1):
     -------
         None
     """
+    today = date.today()
 
-    if StatisticByDate.objects.filter(metric=metric).exists():
+    if StatisticByDate.objects.filter(metric=metric, period=period, date=today).exists():
         # we need this if-clause, because F() expressions
         # only works on updates but not on inserts
         StatisticByDate.objects.record(
+            date=today,
             metric=metric,
             value=F('value') + increment,
             period=period)
     else:
         StatisticByDate.objects.record(
+            date=today,
             metric=metric,
             value=increment,
             period=period)
@@ -104,19 +109,27 @@ def increase_statistics_by_date_and_object(metric, obj, period=Period.DAY, incre
     -------
         None
     """
+    today = date.today()
+
     from django.contrib.contenttypes.models import ContentType
     ct = ContentType.objects.get_for_model(obj)
 
-    if StatisticByDateAndObject.objects.filter(metric=metric, object_id=obj.id, object_type_id=ct.id).exists():
+    at_least_one_entry_exists = StatisticByDateAndObject.objects.filter(metric=metric, period=period,
+                                                                        date=today,
+                                                                        object_id=obj.id, object_type_id=ct.id).exists()
+
+    if at_least_one_entry_exists:
         # we need this if-clause, because F() expressions
         # only works on updates but not on inserts
         StatisticByDateAndObject.objects.record(
+            date=today,
             metric=metric,
             object=obj,
             value=F('value') + increment,
             period=period)
     else:
         StatisticByDateAndObject.objects.record(
+            date=today,
             metric=metric,
             object=obj,
             value=increment,
