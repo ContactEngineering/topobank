@@ -203,7 +203,7 @@ class Topography(models.Model):
         topo = cache.get(cache_key)
         if topo is None:
             toporeader = get_topography_reader(self.datafile, format=self.datafile_format)
-            topography_kwargs = dict(channel=self.data_source,
+            topography_kwargs = dict(channel_index=self.data_source,
                                      periodic=self.is_periodic)
 
             # Set size if physical size was not given in datafile

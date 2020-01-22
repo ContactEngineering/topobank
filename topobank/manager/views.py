@@ -159,18 +159,14 @@ class TopographyCreateWizard(SessionWizardView):
 
             toporeader = get_topography_reader(datafile, format=datafile_format)
             channel = int(step1_data['data_source'])
-            channel_info_dict = toporeader.channels[channel]
+            channel_info = toporeader.channels[channel]
 
             #
             # Set initial size
             #
 
-            has_2_dim = channel_info_dict['dim'] == 2
-
-            if 'physical_sizes' not in channel_info_dict:
-                channel_info_dict['physical_sizes'] = None
-
-            physical_sizes = channel_info_dict['physical_sizes']
+            has_2_dim = channel_info.dim == 2
+            physical_sizes = channel_info.physical_sizes
 
             if physical_sizes is None:
                 initial_size_x, initial_size_y = None, None
@@ -191,16 +187,16 @@ class TopographyCreateWizard(SessionWizardView):
             #
             # Set unit
             #
-            initial['unit'] = channel_info_dict['unit'] \
-                              if (('unit' in channel_info_dict) and (not isinstance(channel_info_dict['unit'], tuple)))\
+            initial['unit'] = channel_info.info['unit'] \
+                              if (('unit' in channel_info.info) and (not isinstance(channel_info.info['unit'], tuple)))\
                               else None
             initial['unit_editable'] = initial['unit'] is None
 
             #
             # Set initial height and height unit
             #
-            if 'height_scale_factor' in channel_info_dict:
-                initial['height_scale'] = channel_info_dict['height_scale_factor']
+            if 'height_scale_factor' in channel_info.info:
+                initial['height_scale'] = channel_info.info['height_scale_factor']
             else:
                 initial['height_scale'] = 1
 
@@ -217,9 +213,9 @@ class TopographyCreateWizard(SessionWizardView):
             # TODO Can this be passed to done() differently? Creating the reader again later e.g.?
             #
             if has_2_dim:
-                initial['resolution_x'], initial['resolution_y'] = channel_info_dict['nb_grid_pts']
+                initial['resolution_x'], initial['resolution_y'] = channel_info.nb_grid_pts
             else:
-                initial['resolution_x'], = channel_info_dict['nb_grid_pts']
+                initial['resolution_x'], = channel_info.nb_grid_pts
                 initial['resolution_y'] = None
 
         return initial
@@ -247,10 +243,10 @@ class TopographyCreateWizard(SessionWizardView):
             #
             # Set data source choices based on file contents
             #
-            kwargs['data_source_choices'] = [(k, clean_channel_name(channel_dict['name'])) for k, channel_dict in
+            kwargs['data_source_choices'] = [(k, clean_channel_name(channel_info.name)) for k, channel_info in
                                              enumerate(toporeader.channels)
-                                             if not (('unit' in channel_dict)
-                                                     and isinstance(channel_dict['unit'], tuple))]
+                                             if not (('unit' in channel_info.info)
+                                                     and isinstance(channel_info.info['unit'], tuple))]
 
             #
             # Set surface in order to check for duplicate topography names
@@ -262,10 +258,10 @@ class TopographyCreateWizard(SessionWizardView):
 
             step1_data = self.get_cleaned_data_for_step('metadata')
             channel = int(step1_data['data_source'])
-            channel_info_dict = toporeader.channels[channel]
+            channel_info = toporeader.channels[channel]
 
-            has_2_dim = channel_info_dict['dim'] == 2
-            no_sizes_given = ('physical_sizes' not in channel_info_dict) or (channel_info_dict['physical_sizes'] == None)
+            has_2_dim = channel_info.dim == 2
+            no_sizes_given = channel_info.physical_sizes is None
 
             # only allow periodic topographies in case of 2 dimension
             kwargs['allow_periodic'] = has_2_dim and no_sizes_given   # TODO simplify in 'no_sizes_given'?
@@ -387,9 +383,9 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
 
         toporeader = get_topography_reader(topo.datafile, format=topo.datafile_format)
 
-        channel_info_dict = toporeader.channels[topo.data_source]
-        has_2_dim = channel_info_dict['dim'] == 2
-        no_sizes_given = ('physical_sizes' not in channel_info_dict) or (channel_info_dict['physical_sizes'] == None)
+        channel_info = toporeader.channels[topo.data_source]
+        has_2_dim = channel_info.dim == 2
+        no_sizes_given = channel_info.physical_sizes is None
 
         kwargs['allow_periodic'] = has_2_dim and no_sizes_given
         return kwargs
