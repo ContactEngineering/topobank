@@ -47,7 +47,22 @@ def _empty_date_dataframe():
     return pd.DataFrame(columns=['date']).set_index('date')
 
 
-def _statisticByDate2dataframe(metric_ref):
+def _statisticByDate2dataframe(metric_ref, column_heading=None):
+    """
+
+    Parameters
+    ----------
+    metric_ref: str
+        Reference of metric.
+    column_heading: str, optional
+        Column heading used in dataframe. Use
+        name of metric, if not given.
+
+    Returns
+    -------
+    DataFrame with index 'date'
+
+    """
     try:
         metric = Metric.objects.get(ref=metric_ref)
     except Metric.DoesNotExist:
@@ -62,7 +77,10 @@ def _statisticByDate2dataframe(metric_ref):
         dates.append(l['date'])
         values.append(l['value'])
 
-    df = pd.DataFrame({'date': dates, metric.name: values})
+    if column_heading is None:
+        column_heading = metric.name
+
+    df = pd.DataFrame({'date': dates, column_heading: values})
     df.set_index('date', inplace=True)
 
     return df
@@ -76,7 +94,7 @@ def _statisticByDateAndObject2dataframe(metric_ref, content_type):
     metric_ref: str
         Reference string for metrics.
 
-    content_type
+    content_type: ContentType instance
         Objects of the given type needs to have a field 'name' which is unique.
         This is used as column name for the resulting dataframe.
 
@@ -102,7 +120,7 @@ def _statisticByDateAndObject2dataframe(metric_ref, content_type):
 
         values.append({'date': l['date'], obj_name: l['value']})
 
-    df = pd.DataFrame.from_records(values, index='date')
+    df = pd.DataFrame.from_records(values, index='date').groupby('date').sum()
     df.fillna(0, inplace=True)
     return df
 
@@ -119,7 +137,12 @@ class Command(BaseCommand):
         #
         login_count_df = _statisticByDate2dataframe('login_count')
         search_view_count_df = _statisticByDate2dataframe('search_view_count')
-        statistics_by_date_df = pd.merge(login_count_df, search_view_count_df, on='date', how='outer')
+        total_analyis_cpu_seconds_df = _statisticByDate2dataframe('total_analysis_cpu_ms',
+                                                                  column_heading='Total analysis CPU time in seconds')/1000
+        statistics_by_date_df = pd.merge(login_count_df, search_view_count_df,
+                                         on='date', how='outer')
+        statistics_by_date_df = pd.merge(statistics_by_date_df, total_analyis_cpu_seconds_df,
+                                         on='date', how='outer')
         statistics_by_date_df.fillna(0, inplace=True)
 
         #
@@ -127,14 +150,15 @@ class Command(BaseCommand):
         #
         ct = ContentType.objects.get(model='analysisfunction')
         result_views_by_date_function_df = _statisticByDateAndObject2dataframe('analyses_results_view_count', ct)
+        analysis_cpu_seconds_by_date_function_df = _statisticByDateAndObject2dataframe('total_analysis_cpu_ms', ct)/1000
 
         #
         # Write all dataframes to Excel file
         #
         with pd.ExcelWriter(EXPORT_FILE_NAME) as writer:
             statistics_by_date_df.to_excel(writer, sheet_name='statistics by date')
-            result_views_by_date_function_df.to_excel(writer, sheet_name='views of analyses by date')
-
+            result_views_by_date_function_df.to_excel(writer, sheet_name='views of analyses by date+function')
+            analysis_cpu_seconds_by_date_function_df.to_excel(writer, sheet_name='cpu seconds by date+function')
             for sheetname, sheet in writer.sheets.items():
                 _adjust_columns_widths(sheet)
 

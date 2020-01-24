@@ -20,13 +20,11 @@ def register_metrics():
         ref='views',
         name='Views'
     )
-
     Metric.objects.SEARCH_VIEW_COUNT = Metric.objects.register(
         domain=Domain.objects.VIEWS,
         ref='search_view_count',
         name='Number of views for Search page'
     )
-
     Metric.objects.ANALYSES_RESULTS_VIEW_COUNT = Metric.objects.register(
         domain=Domain.objects.VIEWS,
         ref='analyses_results_view_count',
@@ -42,6 +40,17 @@ def register_metrics():
         ref='login_count',
         name='Number of users having logged in'
     )
+
+    Domain.objects.PROFILE = Domain.objects.register(
+        ref='profile',
+        name='Profile'
+    )
+    Metric.objects.TOTAL_ANALYSIS_CPU_MS = Metric.objects.register(
+        domain=Domain.objects.PROFILE,
+        ref='total_analysis_cpu_ms',
+        name='Total number of milliseconds spent for analysis computation'
+    )
+
 
 @transaction.atomic
 def increase_statistics_by_date(metric, period=Period.DAY, increment=1):

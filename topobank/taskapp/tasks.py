@@ -7,6 +7,7 @@ from django.shortcuts import reverse
 
 from celery_progress.backend import ProgressRecorder
 from notifications.signals import notify
+from trackstats.models import Metric
 
 from PyCo.System.Systems import IncompatibleFormulationError
 
@@ -16,6 +17,8 @@ from .utils import get_package_version_instance
 from topobank.analysis.models import Analysis, Configuration, AnalysisCollection
 from topobank.manager.models import Topography
 from topobank.analysis.functions import IncompatibleTopographyException
+from topobank.usage_stats.utils import increase_statistics_by_date, increase_statistics_by_date_and_object
+
 
 EXCEPTION_CLASSES_FOR_INCOMPATIBILITIES = (IncompatibleTopographyException, IncompatibleFormulationError)
 
@@ -113,6 +116,19 @@ def perform_analysis(self, analysis_id):
         #
         for coll in analysis.analysiscollection_set.all():
             check_analysis_collection.delay(coll.id)
+
+        #
+        # Add up number of seconds for CPU time
+        #
+        analysis = Analysis.objects.get(id=analysis_id)
+        td = analysis.end_time-analysis.start_time
+        increase_statistics_by_date(metric=Metric.objects.TOTAL_ANALYSIS_CPU_MS,
+                                    increment=1000*td.total_seconds())
+        increase_statistics_by_date_and_object(
+                                    metric=Metric.objects.TOTAL_ANALYSIS_CPU_MS,
+                                    obj=analysis.function,
+                                    increment=1000 * td.total_seconds())
+
 
 @app.task
 def check_analysis_collection(collection_id):
