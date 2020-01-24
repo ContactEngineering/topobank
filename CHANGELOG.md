@@ -6,14 +6,14 @@
   be loaded earlier now show error message and a mailto link
   in order to report the issue (#416)
 - format detection is only done once file has been uploaded (#412)
-- added collection of anonymous usage statistics in local database (#147),
-  a non-personal overview with timelines can be exported via
-  the management command "export_usage_statistics" (#147) 
+- added collection of anonymous usage statistics in local database
+  (#147, #427); a non-personal overview with aggregated values per day
+  can be exported via the management command "export_usage_statistics" 
 - make sure there is no intermediate login page when pressing
   on colored boxes on welcome page (#423)
 - upgrade to Django 2.2.9 (#417) 
 - upgrade to PyCo 0.55.0 (#428), this fixes problems with
-  MI and OPDx file format (see PyCo project for details)
+  various file format (see PyCo's changelog for details)
   
 ## 0.7.3
 
