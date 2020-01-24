@@ -12,6 +12,8 @@
 - make sure there is no intermediate login page when pressing
   on colored boxes on welcome page (#423)
 - upgrade to Django 2.2.9 (#417) 
+- upgrade to PyCo 0.55.0 (#428), this fixes problems with
+  MI and OPDx file format (see PyCo project for details)
   
 ## 0.7.3
 
