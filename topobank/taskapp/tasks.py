@@ -122,6 +122,7 @@ def perform_analysis(self, analysis_id):
         #
         # Add up number of seconds for CPU time
         #
+        from trackstats.models import Metric
         analysis = Analysis.objects.get(id=analysis_id)
         td = analysis.end_time-analysis.start_time
         increase_statistics_by_date(metric=Metric.objects.TOTAL_ANALYSIS_CPU_MS,
