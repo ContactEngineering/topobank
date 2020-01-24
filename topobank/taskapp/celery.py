@@ -34,7 +34,7 @@ class CeleryAppConfig(AppConfig):
         app.conf.beat_schedule = {
             'save-landing-page-statistics': {
                 'task': 'topobank.taskapp.tasks.save_landing_page_statistics',
-                'schedule': 10,
+                'schedule': crontab(minute='*'),
             }
         }
 

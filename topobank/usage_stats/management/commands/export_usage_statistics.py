@@ -135,14 +135,25 @@ class Command(BaseCommand):
         #
         # Compile results with single value for a date
         #
-        login_count_df = _statisticByDate2dataframe('login_count')
-        search_view_count_df = _statisticByDate2dataframe('search_view_count')
-        total_analyis_cpu_seconds_df = _statisticByDate2dataframe('total_analysis_cpu_ms',
-                                                                  column_heading='Total analysis CPU time in seconds')/1000
-        statistics_by_date_df = pd.merge(login_count_df, search_view_count_df,
-                                         on='date', how='outer')
-        statistics_by_date_df = pd.merge(statistics_by_date_df, total_analyis_cpu_seconds_df,
-                                         on='date', how='outer')
+        single_value_metrics = [
+            ('login_count', 1, None),
+            ('search_view_count', 1, None),
+            ('total_analysis_cpu_ms', .001, 'Total analysis CPU time in seconds'),
+            ('total_number_users', 1, None),
+            ('total_number_surfaces', 1, None),
+            ('total_number_topographies', 1, None),
+            ('total_number_analyses', 1, None),
+        ]
+
+        statistics_by_date_df = pd.DataFrame({'date': []}).set_index('date')
+
+        for metric_ref, factor, column_heading in  single_value_metrics:
+            metric_df = factor * _statisticByDate2dataframe(metric_ref,
+                                                            column_heading=column_heading)
+            statistics_by_date_df = pd.merge(statistics_by_date_df,
+                                             metric_df,
+                                             on='date', how='outer')
+
         statistics_by_date_df.fillna(0, inplace=True)
 
         #
@@ -157,7 +168,7 @@ class Command(BaseCommand):
         #
         with pd.ExcelWriter(EXPORT_FILE_NAME) as writer:
             statistics_by_date_df.to_excel(writer, sheet_name='statistics by date')
-            result_views_by_date_function_df.to_excel(writer, sheet_name='views of analyses by date+function')
+            result_views_by_date_function_df.to_excel(writer, sheet_name='analysis views by date+function')
             analysis_cpu_seconds_by_date_function_df.to_excel(writer, sheet_name='cpu seconds by date+function')
             for sheetname, sheet in writer.sheets.items():
                 _adjust_columns_widths(sheet)

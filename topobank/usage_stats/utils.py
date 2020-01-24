@@ -58,7 +58,7 @@ def register_metrics():
     Metric.objects.USER_COUNT = Metric.objects.register(
         domain=Domain.objects.OBJECTS,
         ref='total_number_users',
-        name='Total number of users'
+        name='Total number of registerd users'
     )
     Metric.objects.SURFACE_COUNT = Metric.objects.register(
         domain=Domain.objects.OBJECTS,

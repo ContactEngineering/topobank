@@ -172,8 +172,35 @@ def check_analysis_collection(collection_id):
 def save_landing_page_statistics():
     from trackstats.models import Metric, Period, StatisticByDate
 
+    #
+    # Number of users
+    #
+    from django.db.models import Q
+    from guardian.compat import get_user_model as guardian_user_model
+    anon = guardian_user_model().get_anonymous()
+    num_users = User.objects.filter(Q(is_active=True) & ~Q(pk=anon.pk)).count()
+
     StatisticByDate.objects.record(
         metric=Metric.objects.USER_COUNT,
-        value=User.objects.filter(is_active=True).count(),
+        value=num_users,
+        period=Period.DAY
+    )
+
+    #
+    # Number of surfaces, topographies, analyses
+    #
+    StatisticByDate.objects.record(
+        metric=Metric.objects.SURFACE_COUNT,
+        value=Surface.objects.filter().count(),
+        period=Period.DAY
+    )
+    StatisticByDate.objects.record(
+        metric=Metric.objects.TOPOGRAPHY_COUNT,
+        value=Topography.objects.filter().count(),
+        period=Period.DAY
+    )
+    StatisticByDate.objects.record(
+        metric=Metric.objects.ANALYSIS_COUNT,
+        value=Analysis.objects.filter().count(),
         period=Period.DAY
     )
