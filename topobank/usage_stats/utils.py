@@ -51,6 +51,31 @@ def register_metrics():
         name='Total number of milliseconds spent for analysis computation'
     )
 
+    Domain.objects.OBJECTS = Domain.objects.register(
+        ref='objects',
+        name='Objects'
+    )
+    Metric.objects.USER_COUNT = Metric.objects.register(
+        domain=Domain.objects.OBJECTS,
+        ref='total_number_users',
+        name='Total number of users'
+    )
+    Metric.objects.SURFACE_COUNT = Metric.objects.register(
+        domain=Domain.objects.OBJECTS,
+        ref='total_number_surfaces',
+        name='Total number of surfaces'
+    )
+    Metric.objects.TOPOGRAPHY_COUNT = Metric.objects.register(
+        domain=Domain.objects.OBJECTS,
+        ref='total_number_topographies',
+        name='Total number of topographies'
+    )
+    Metric.objects.ANALYSIS_COUNT = Metric.objects.register(
+        domain=Domain.objects.OBJECTS,
+        ref='total_number_analyses',
+        name='Total number of analyses'
+    )
+
 
 @transaction.atomic
 def increase_statistics_by_date(metric, period=Period.DAY, increment=1):

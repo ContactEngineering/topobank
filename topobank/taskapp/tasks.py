@@ -6,8 +6,8 @@ from django.conf import settings
 from django.shortcuts import reverse
 
 from celery_progress.backend import ProgressRecorder
+
 from notifications.signals import notify
-from trackstats.models import Metric
 
 from PyCo.System.Systems import IncompatibleFormulationError
 
@@ -15,9 +15,11 @@ from .celery import app
 from .utils import get_package_version_instance
 
 from topobank.analysis.models import Analysis, Configuration, AnalysisCollection
-from topobank.manager.models import Topography
+from topobank.manager.models import Topography, Surface
+from topobank.users.models import User
 from topobank.analysis.functions import IncompatibleTopographyException
 from topobank.usage_stats.utils import increase_statistics_by_date, increase_statistics_by_date_and_object
+
 
 
 EXCEPTION_CLASSES_FOR_INCOMPATIBILITIES = (IncompatibleTopographyException, IncompatibleFormulationError)
@@ -166,5 +168,12 @@ def check_analysis_collection(collection_id):
         collection.save()
 
 
+@app.task
+def save_landing_page_statistics():
+    from trackstats.models import Metric, Period, StatisticByDate
 
-
+    StatisticByDate.objects.record(
+        metric=Metric.objects.USER_COUNT,
+        value=User.objects.filter(is_active=True).count(),
+        period=Period.DAY
+    )
