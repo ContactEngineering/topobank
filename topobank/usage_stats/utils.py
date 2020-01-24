@@ -1,5 +1,6 @@
 from datetime import date
 
+from django.db import transaction
 from django.db.models import F
 from trackstats.models import StatisticByDate, StatisticByDateAndObject, Period
 
@@ -42,7 +43,7 @@ def register_metrics():
         name='Number of users having logged in'
     )
 
-
+@transaction.atomic
 def increase_statistics_by_date(metric, period=Period.DAY, increment=1):
     """Increase statistics by date in database using the current date.
 
@@ -83,7 +84,7 @@ def increase_statistics_by_date(metric, period=Period.DAY, increment=1):
             value=increment,
             period=period)
 
-
+@transaction.atomic
 def increase_statistics_by_date_and_object(metric, obj, period=Period.DAY, increment=1):
     """Increase statistics by date in database using the current date.
 
