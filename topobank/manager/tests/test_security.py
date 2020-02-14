@@ -4,6 +4,7 @@ import pytest
 from django.urls import reverse
 from django.contrib.auth.models import Permission
 
+from .utils import FIXTURE_DIR
 from ..models import Surface, Topography
 from topobank.utils import assert_in_content, assert_redirects
 
@@ -71,7 +72,7 @@ def test_prevent_topography_access_by_other_user(client, django_user_model, mock
     #
     # Mock a topography
     #
-    input_file_path = Path('topobank/manager/fixtures/example3.di')  # TODO use standardized way to find files
+    input_file_path = Path(FIXTURE_DIR+'/example3.di')
 
     # prevent signals when creating topography
     with mocker.patch('django.db.models.signals.pre_save.send'):

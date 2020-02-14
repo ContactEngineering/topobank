@@ -1,16 +1,19 @@
 
-from allauth.account.signals import user_signed_up
+from allauth.account.signals import user_signed_up, user_logged_in
 from django.dispatch import receiver
 from django.contrib.staticfiles.storage import staticfiles_storage
 from django.core.files import File
 from django.shortcuts import reverse
+from django.utils.timezone import now
+
+from trackstats.models import StatisticByDate, Metric, Period
+from notifications.signals import notify
 
 import os.path
 import yaml
 
-from notifications.signals import notify
-
 from topobank.manager.models import Surface, Topography
+
 
 @receiver(user_signed_up)
 def create_example_surface(sender, **kwargs):
@@ -44,7 +47,7 @@ def create_example_surface(sender, **kwargs):
         topo = Topography(surface=surface, **topo_kwargs)
 
         abs_fn = staticfiles_storage.path(topo_info['static_filename'])
-        file = open(abs_fn, 'rb') # we need binary mode for boto3 (S3 library)
+        file = open(abs_fn, 'rb')  # we need binary mode for boto3 (S3 library)
 
         topo.datafile.save(os.path.basename(abs_fn), File(file))
 
@@ -61,7 +64,23 @@ def create_example_surface(sender, **kwargs):
                 href=reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)))
 
 
+@receiver(user_logged_in)
+def track_user_login(sender, **kwargs):
 
+    from topobank.users.models import User
 
+    today = now().date()
+    num_users_today = User.objects.filter(
+       last_login__year=today.year,
+       last_login__month=today.month,
+       last_login__day=today.day,
+    ).count()
+    # since only one "last_login" is saved per user
+    # at most one login is counted per user
 
+    StatisticByDate.objects.record(
+        metric=Metric.objects.USERS_LOGIN_COUNT,
+        value=num_users_today,
+        period=Period.DAY
+    )
 

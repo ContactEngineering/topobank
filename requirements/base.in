@@ -6,8 +6,7 @@ whitenoise  # https://github.com/evansd/whitenoise
 
 # Django
 # ------------------------------------------------------------------------------
-django==2.1.11  #  does this work with pyup?  # https://www.djangoproject.com/
-# version 2.1 fixed because of problems with django-formtools and django 2.2
+django==2.2.9  #  does this work with pyup?  # https://www.djangoproject.com/
 django-environ  # https://github.com/joke2k/django-environ
 django-model-utils  # https://github.com/jazzband/django-model-utils
 django-allauth  # https://github.com/pennersr/django-allauth
@@ -36,6 +35,10 @@ django-filter
 # a PR (#82) and as long it is not integrated, I use my own version:
 git+http://github.com/mcrot/django-tagulous.git
 
+# statistics
+# django-statsy  # cannot be used currently because of fixed version in requirements
+django-trackstats
+
 #
 # Storage
 #
@@ -46,16 +49,14 @@ django-storages
 django-guardian
 
 # Celery
-django-kombu # is this still needed? See https://pypi.org/project/django-kombu/
+# django-kombu # is this still needed? See https://pypi.org/project/django-kombu/
 celery
 # pylibmc is also used for memcached in production
 pylibmc
 # librabbitmq>=2.0
 # problems while compiling librabbitmq
 celery-flower
-# The follwing is needed, otherwise Tornado 6.0 breaks celery
-# See https://github.com/mher/flower/issues/878
-tornado>=4.2.0,<6.0.0
+# tornado
 
 # progress bars for celery tasks, served by Django
 celery-progress
@@ -69,7 +70,8 @@ celery-progress
 #-e git+http://git@github.com/pastewka/PyCo.git@0.30.0#egg=PyCo
 #git+http://git@github.com/scipy/scipy/releases/download/v1.2.1/scipy-1.2.1-cp37-cp37m-manylinux1_x86_64.whl
 # PyCo==0.51.1
-#### see Makefile
+#### As long as we can't install PyCo by pip, install manually (for development)
+#### of copy the .tar.gz file to source root directory for use with Docker. Also see Dockerfile(s).
 
 # plotting
 bokeh
@@ -84,7 +86,7 @@ netcdf4
 h5netcdf
 
 # form wizard for defining a topography in several steps
-django-formtools
+django-formtools>=2.2
 
 # notifications
 django-notifications-hq

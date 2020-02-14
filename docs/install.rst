@@ -51,6 +51,7 @@ Dann Abhängigkeiten installieren:
 .. code:: bash
 
     $ pip install -r requirements/local.txt
+    $ pip install -r requirements/test.txt    # um tests laufen zu lassen
     $ pip install matplotlib          # fehlt noch in requirements
 
 (Bei mir unter Ubuntu war hier noch "sudo apt-get install python3-tk" nötig)

@@ -5,7 +5,7 @@ from django.shortcuts import reverse
 from bs4 import BeautifulSoup
 from notifications.models import Notification
 
-from .utils import SurfaceFactory, TopographyFactory, UserFactory
+from .utils import FIXTURE_DIR, SurfaceFactory, TopographyFactory, UserFactory
 from topobank.utils import assert_in_content, assert_not_in_content, assert_no_form_errors
 
 
@@ -227,7 +227,7 @@ def test_sharing_info_table(client):
 
     surface2.share(user1)
 
-    TopographyFactory(surface=surface1) # one topography for surface 1
+    TopographyFactory(surface=surface1)  # one topography for surface 1
 
     FALSE_CHAR = '✘'
     TRUE_CHAR = '✔'
@@ -545,7 +545,7 @@ def test_notification_when_editing_shared_stuff(client):
 @pytest.mark.django_db
 def test_upload_topography_for_shared_surface(client):
 
-    input_file_path = Path('topobank/manager/fixtures/example3.di') # TODO use standardized way to find files
+    input_file_path = Path(FIXTURE_DIR+'/example3.di')
     description = "test description"
 
     password = 'abcd$1234'
@@ -626,14 +626,14 @@ def test_upload_topography_for_shared_surface(client):
     response = client.post(reverse('manager:topography-create',
                                    kwargs=dict(surface_id=surface.id)),
                            data={
-                               'topography_create_wizard-current_step': 'units2D',
-                               'units2D-size_x': '9000',
-                               'units2D-size_y': '9000',
-                               'units2D-unit': 'nm',
-                               'units2D-height_scale': 0.3,
-                               'units2D-detrend_mode': 'height',
-                               'units2D-resolution_x': 256,
-                               'units2D-resolution_y': 256,
+                               'topography_create_wizard-current_step': 'units',
+                               'units-size_x': '9000',
+                               'units-size_y': '9000',
+                               'units-unit': 'nm',
+                               'units-height_scale': 0.3,
+                               'units-detrend_mode': 'height',
+                               'units-resolution_x': 256,
+                               'units-resolution_y': 256,
                            }, follow=True)
 
     assert response.status_code == 200

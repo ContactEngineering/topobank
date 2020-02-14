@@ -31,9 +31,9 @@ RUN addgroup django \
 # Installation of PyCo + dependencies
 #
 # Copy PyCo source code into container, uncompress
-COPY PyCo-0.54.4.tar.gz .
-RUN tar xfvz PyCo-0.54.4.tar.gz
-WORKDIR PyCo-0.54.4
+COPY PyCo-0.55.0.tar.gz .
+RUN tar xfvz PyCo-0.55.0.tar.gz
+WORKDIR PyCo-0.55.0
 
 # install additional PyCo dependencies
 RUN pip install wheel
@@ -73,7 +73,6 @@ COPY ./compose/production/django/celery/flower/start /start-flower
 RUN sed -i 's/\r//' /start-flower
 RUN chmod +x /start-flower
 
-
 #
 # Prepare application code
 #
@@ -81,8 +80,6 @@ COPY . /app
 # TODO is the following needed?
 RUN mkdir -p /app/media/topographies
 RUN chown -R django /app
-# is the following needed?
-# RUN chmod -R u+w /app
 
 #
 # Finalize..

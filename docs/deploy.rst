@@ -993,6 +993,25 @@ If building the containers was successful, aks yourself these questions:
 
 - Is there any need to change sth. in the S3 storage?
 
+- Is there a change to the file format strings?
+
+  Since version 0.7.4, for each topography the file format specifier is also saved in the
+  database in order to do format detection only once on file upload.
+  If a file had no format saved before (e.g. for all topographies uploaded before 0.7.4)
+  or the file format specifiers change for some reason (e.g. of a major change in PyCo),
+  the file format specifiers in the database have to be rewritten.
+  This can be done by the management command `set_datafile_format`.
+  With this command you get a help string:
+
+  .. code:: bash
+
+     docker-compose -f production.yml run --rm django python manage.py set_datafile_format --help
+
+  Choose whether you want to replace the file format for all topographies (i.e. re-run autodetection)
+  or only for those which have no file format saved yet and run again without `--help`.
+  You can also do a "dry-run" before, in order to see whether autodetection for any topography will fail.
+
+
 Restart application
 ...................
 

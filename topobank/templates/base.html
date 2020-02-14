@@ -90,13 +90,6 @@
               <i class="fa fa-bell"></i>
             </a>
             <div class="dropdown-menu dropdown-menu-right live_notify_list" aria-labelledby="notificationsDropdown">
-              <!--
-              {% for notice in request.user.notifications.unread %}  {# TODO use live-updater #}
-                  <a class="dropdown-item" href="{% url 'notifications:mark_as_read' notice.slug %}?next={{ notice.target.get_absolute_url }}">
-                    {{ notice.description }}
-                  </a>
-              {% endfor %}
-              -->
             </div>
           </li>
 
@@ -275,7 +268,7 @@
             <p>We would like to hear from you. Please contact us, if you have any comments, suggestions, or bug reports!</p>
             <p>
               <ul>
-               <li>Drop us an <a href="mailto:topobank@imtek.uni-freiburg.de">email</a> or</li>
+               <li>Drop us an <a href="mailto:{{ contact_email_address }}">email</a> or</li>
                <li>open an <a href="https://github.com/pastewka/TopoBank/issues" target="_blank">issue on GitHub</a>.</li>
               </ul>
             </p>
@@ -308,13 +301,6 @@
     <!-- D3 and Plottable -->
     <script src="https://d3js.org/d3.v5.min.js"></script>
     <script src="{% static 'vendor/plottable/js/plottable.js' %}"></script>
-
-    <!-- Scripts from sb-admin-2-bs4 -->
-    <script src="{% static 'js/sb-admin.js' %}"></script>{# TODO is this still neded, layout changed signicantly #}
-    <!-- sb-admin.js is without metismenu, sb-admin-2.js needs metismenu (and maybe an additional
-    pointer to .nav-link, see
-      https://github.com/onokumus/metisMenu#triggerelement
-    -->
 
     <!-- show new notifications immediately -->
     <script src="{% static 'notifications/notify.js' %}" type="text/javascript"></script>

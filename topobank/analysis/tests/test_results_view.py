@@ -13,12 +13,13 @@ from django.urls import reverse
 import PyCo
 
 from ..models import Analysis, AnalysisFunction
-from topobank.manager.tests.utils import two_topos # needed for fixture, see arguments below
+from topobank.manager.tests.utils import two_topos  # needed for fixture, see arguments below
 from topobank.manager.models import Topography, Surface
 from topobank.manager.tests.utils import SurfaceFactory, UserFactory, TopographyFactory
 from .utils import AnalysisFactory, AnalysisFunctionFactory
 from topobank.utils import assert_in_content, assert_not_in_content
 from topobank.taskapp.tasks import current_configuration
+
 
 def selection_from_instances(instances):
     """A little helper for constructing a selection."""
@@ -91,7 +92,7 @@ def test_analysis_times(client, two_topos, django_user_model):
 
 
 @pytest.mark.django_db
-def test_show_only_last_analysis(client, two_topos, django_user_model):
+def test_show_only_last_analysis(client, two_topos, django_user_model, handle_usage_statistics):
 
     username = 'testuser'
     user = django_user_model.objects.get(username=username)
@@ -190,7 +191,7 @@ def test_show_only_last_analysis(client, two_topos, django_user_model):
     assert b"2018-01-03 12:00:00" not in response.content
 
 @pytest.mark.django_db
-def test_show_analyses_with_different_arguments(client, two_topos, django_user_model):
+def test_show_analyses_with_different_arguments(client, two_topos, django_user_model, handle_usage_statistics):
 
 
     user = django_user_model.objects.get(username='testuser')
@@ -270,8 +271,7 @@ def test_show_analyses_with_different_arguments(client, two_topos, django_user_m
     # arguments should be visible in output
 
     import html.parser
-    html_parser = html.parser.HTMLParser()
-    unescaped = html_parser.unescape(response.content.decode())
+    unescaped = html.unescape(response.content.decode())
 
     assert str(dict(bins=10)) in unescaped
     assert str(dict(bins=20)) in unescaped
@@ -586,7 +586,7 @@ def test_analyis_download_as_xlsx_despite_slash_in_sheetname(client, two_topos, 
 
 
 @pytest.mark.django_db
-def test_view_shared_analysis_results(client):
+def test_view_shared_analysis_results(client, handle_usage_statistics):
 
     password = 'abcd$1234'
 

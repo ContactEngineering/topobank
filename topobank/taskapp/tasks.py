@@ -6,6 +6,7 @@ from django.conf import settings
 from django.shortcuts import reverse
 
 from celery_progress.backend import ProgressRecorder
+
 from notifications.signals import notify
 
 from PyCo.System.Systems import IncompatibleFormulationError
@@ -14,8 +15,12 @@ from .celery import app
 from .utils import get_package_version_instance
 
 from topobank.analysis.models import Analysis, Configuration, AnalysisCollection
-from topobank.manager.models import Topography
+from topobank.manager.models import Topography, Surface
+from topobank.users.models import User
 from topobank.analysis.functions import IncompatibleTopographyException
+from topobank.usage_stats.utils import increase_statistics_by_date, increase_statistics_by_date_and_object
+
+
 
 EXCEPTION_CLASSES_FOR_INCOMPATIBILITIES = (IncompatibleTopographyException, IncompatibleFormulationError)
 
@@ -114,6 +119,20 @@ def perform_analysis(self, analysis_id):
         for coll in analysis.analysiscollection_set.all():
             check_analysis_collection.delay(coll.id)
 
+        #
+        # Add up number of seconds for CPU time
+        #
+        from trackstats.models import Metric
+        analysis = Analysis.objects.get(id=analysis_id)
+        td = analysis.end_time-analysis.start_time
+        increase_statistics_by_date(metric=Metric.objects.TOTAL_ANALYSIS_CPU_MS,
+                                    increment=1000*td.total_seconds())
+        increase_statistics_by_date_and_object(
+                                    metric=Metric.objects.TOTAL_ANALYSIS_CPU_MS,
+                                    obj=analysis.function,
+                                    increment=1000 * td.total_seconds())
+
+
 @app.task
 def check_analysis_collection(collection_id):
     """Perform checks on analysis collection. Send notification if needed.
@@ -150,5 +169,39 @@ def check_analysis_collection(collection_id):
         collection.save()
 
 
+@app.task
+def save_landing_page_statistics():
+    from trackstats.models import Metric, Period, StatisticByDate
 
+    #
+    # Number of users
+    #
+    from django.db.models import Q
+    from guardian.compat import get_user_model as guardian_user_model
+    anon = guardian_user_model().get_anonymous()
+    num_users = User.objects.filter(Q(is_active=True) & ~Q(pk=anon.pk)).count()
 
+    StatisticByDate.objects.record(
+        metric=Metric.objects.USER_COUNT,
+        value=num_users,
+        period=Period.DAY
+    )
+
+    #
+    # Number of surfaces, topographies, analyses
+    #
+    StatisticByDate.objects.record(
+        metric=Metric.objects.SURFACE_COUNT,
+        value=Surface.objects.filter().count(),
+        period=Period.DAY
+    )
+    StatisticByDate.objects.record(
+        metric=Metric.objects.TOPOGRAPHY_COUNT,
+        value=Topography.objects.filter().count(),
+        period=Period.DAY
+    )
+    StatisticByDate.objects.record(
+        metric=Metric.objects.ANALYSIS_COUNT,
+        value=Analysis.objects.filter().count(),
+        period=Period.DAY
+    )

@@ -1,6 +1,5 @@
 from django.apps import AppConfig
 
-
 class UsersAppConfig(AppConfig):
     name = "topobank.users"
     verbose_name = "Users"
@@ -14,3 +13,5 @@ class UsersAppConfig(AppConfig):
             import users.signals  # noqa F401
         except ImportError:
             pass
+
+

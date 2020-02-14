@@ -1,5 +1,22 @@
 # Changelog for *TopoBank*
 
+## 0.7.4
+
+- problems during loading of topographies which could already
+  be loaded earlier now show error message and a mailto link
+  in order to report the issue (#416)
+- format detection is only done once file has been uploaded (#412)
+- added collection of anonymous usage statistics in local database
+  (#147, #427, #431); a non-personal overview with aggregated values per day
+  can be exported via the management command "export_usage_statistics" 
+- make sure there is no intermediate login page when pressing
+  on colored boxes on welcome page (#423)
+- upgrade to Django 2.2.9 (#417) 
+- upgrade to PyCo 0.55.0 (#428), this fixes problems with
+  various file format (see PyCo's changelog for details)
+- fix for endless recursion on 404 responses (#367), should also
+  fix problems with too many database connections (#436)
+  
 ## 0.7.3
 
 - fixes wrong orientation in topography image plots (#253,#378)
@@ -26,7 +43,7 @@
 - upgraded PyCo package to version 0.54.2
 - fix that curvature distribution can be calculated for
   periodic surfaces (#382)
-- fix for missing "is_periodic" in pipeline which made e.g. that
+- fix for missing "is_periodic" in pipeline which made e.g. that    
   PSD couldn't be calculated nonuniform topographies (#409) 
 - OPDx files can now be loaded (#325)  
 - fix for topographies from HDF5 files which could't be flagged 

@@ -12,6 +12,7 @@ Contents:
    :maxdepth: 2
 
    deploy
+   maintenance
    install-docker
    orcid
    pycharm/configuration

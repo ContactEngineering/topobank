@@ -31,7 +31,7 @@ def get_package_version_tuple(pkg_name, version_expr):
                                      format(pkg_name, version))
 
     try:
-        micro: int = int(version_tuple[2].split('+')[0]) # because of version strings like '0.51.0+0.g2c488bd.dirty'
+        micro: int = int(version_tuple[2].split('+')[0])  # because of version strings like '0.51.0+0.g2c488bd.dirty'
     except:
         micro = None
 

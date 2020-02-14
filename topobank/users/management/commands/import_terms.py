@@ -9,6 +9,7 @@ import markdown2
 
 from termsandconditions.models import TermsAndConditions
 
+
 def valid_date(s):
     try:
         return datetime.strptime(s, "%Y-%m-%d")
@@ -16,12 +17,14 @@ def valid_date(s):
         msg = "Not a valid date: '{0}'.".format(s)
         raise argparse.ArgumentTypeError(msg)
 
+
 def valid_version(s):
     try:
         return decimal.Decimal(s)
     except Exception:
         msg = "Not a valid decimal number: '{0}'.".format(s)
         raise argparse.ArgumentTypeError(msg)
+
 
 class Command(BaseCommand):
     help = """Imports or updates terms and conditions to the database.
@@ -83,10 +86,10 @@ class Command(BaseCommand):
         else:
             terms_markdown_lines = terms_markdown.splitlines()
             name = terms_markdown_lines[0].replace('#', ' ').strip()
-            terms_markdown = "\n".join(terms_markdown_lines[1:]) # remove first line, will be inserted by terms pkg
+            terms_markdown = "\n".join(terms_markdown_lines[1:])  # remove first line, will be inserted by terms pkg
             self.stdout.write(self.style.NOTICE("Using first line of terms as name."))
 
-        name = escape(name) # e.g. convert & to &amp;
+        name = escape(name)  # e.g. convert & to &amp;
 
         terms_html = markdown2.markdown(terms_markdown)
 

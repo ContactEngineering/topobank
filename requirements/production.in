@@ -2,7 +2,13 @@
 
 -r ./base.txt
 
-gunicorn[eventlet]>=20.0.4
+greenlet
+gevent
+gunicorn[gevent]>=20.0.4
+# gunicorn[eventlet]>=20.0.4
+#
+# Got problems with eventlet, see issue #415
+
 # psycopg2 --no-binary psycopg2  # https://github.com/psycopg/psycopg2
 psycopg2-binary  # https://github.com/psycopg/psycopg2
 

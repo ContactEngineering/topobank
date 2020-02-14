@@ -1,5 +1,6 @@
 import yaml
 import zipfile
+import traceback
 from io import BytesIO
 
 from django.shortcuts import redirect, render
@@ -26,6 +27,8 @@ from bokeh.plotting import figure
 from bokeh.embed import components
 from bokeh.models import DataRange1d, LinearColorMapper, ColorBar
 
+from trackstats.models import Metric, Period
+
 from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
@@ -38,11 +41,13 @@ import logging
 
 from .models import Topography, Surface
 from .forms import TopographyForm, SurfaceForm, SurfaceShareForm
-from .forms import TopographyFileUploadForm, TopographyMetaDataForm, Topography1DUnitsForm, Topography2DUnitsForm
+from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm
 from .utils import selected_instances, bandwidths_data, surfaces_for_user, get_topography_reader, tags_for_user
 from .serializers import SurfaceSerializer, TopographySerializer, TagSerializer
+from .utils import mailto_link_for_reporting_an_error
 
-from topobank.users.models import User
+from ..usage_stats.utils import increase_statistics_by_date
+from ..users.models import User
 
 MAX_NUM_POINTS_FOR_SYMBOLS_IN_LINE_SCAN_PLOT = 100
 
@@ -105,19 +110,18 @@ class TopographyUpdatePermissionMixin(TopographyPermissionMixin):
 #
 # Using a wizard because we need intermediate calculations
 #
-# There are 4 forms, used in 3 steps (0,1, then 2 or 3):
+# There are 3 forms, used in 3 steps (0,1, then 2):
 #
 # 0: loading of the topography file
 # 1: choosing the data source, add measurement date and a description
-# 2: adding physical size and units (if 2D and only for data which is not available in the file)
-# 3: adding physical size and units (if 1D and only for data is not available in the file)
+# 2: adding physical size and units (for data which is not available in the file, for 1D or 2D)
 #
 # Maybe an alternative would be to use AJAX calls as described here (under "GET"):
 #
 #  https://sixfeetup.com/blog/making-your-django-templates-ajax-y
 #
 class TopographyCreateWizard(SessionWizardView):
-    form_list = [TopographyFileUploadForm, TopographyMetaDataForm, Topography2DUnitsForm, Topography1DUnitsForm]
+    form_list = [TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm]
     template_name = 'manager/topography_wizard.html'
     file_storage = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT,'topographies/wizard'))
 
@@ -140,32 +144,29 @@ class TopographyCreateWizard(SessionWizardView):
 
             initial['surface'] = surface
 
-        if step in ['metadata', 'units2D', 'units1D']:
+        if step in ['metadata', 'units']:
             # provide datafile attribute from first step
             step0_data = self.get_cleaned_data_for_step('upload')
             datafile = step0_data['datafile']
+            datafile_format = step0_data['datafile_format']
 
         if step == 'metadata':
             initial['name'] = os.path.basename(datafile.name) # the original file name
 
-        if step in ['units2D','units1D']:
+        if step in ['units']:
 
             step1_data = self.get_cleaned_data_for_step('metadata')
 
-            toporeader = get_topography_reader(datafile)
+            toporeader = get_topography_reader(datafile, format=datafile_format)
             channel = int(step1_data['data_source'])
-            channel_info_dict = toporeader.channels[channel]
+            channel_info = toporeader.channels[channel]
 
             #
             # Set initial size
             #
 
-            has_2_dim = channel_info_dict['dim'] == 2
-
-            if 'physical_sizes' not in channel_info_dict:
-                channel_info_dict['physical_sizes'] = None
-
-            physical_sizes = channel_info_dict['physical_sizes']
+            has_2_dim = channel_info.dim == 2
+            physical_sizes = channel_info.physical_sizes
 
             if physical_sizes is None:
                 initial_size_x, initial_size_y = None, None
@@ -186,16 +187,16 @@ class TopographyCreateWizard(SessionWizardView):
             #
             # Set unit
             #
-            initial['unit'] = channel_info_dict['unit'] \
-                              if (('unit' in channel_info_dict) and (not isinstance(channel_info_dict['unit'], tuple)))\
+            initial['unit'] = channel_info.info['unit'] \
+                              if (('unit' in channel_info.info) and (not isinstance(channel_info.info['unit'], tuple)))\
                               else None
             initial['unit_editable'] = initial['unit'] is None
 
             #
             # Set initial height and height unit
             #
-            if 'height_scale_factor' in channel_info_dict:
-                initial['height_scale'] = channel_info_dict['height_scale_factor']
+            if 'height_scale_factor' in channel_info.info:
+                initial['height_scale'] = channel_info.info['height_scale_factor']
             else:
                 initial['height_scale'] = 1
 
@@ -207,12 +208,15 @@ class TopographyCreateWizard(SessionWizardView):
             initial['detrend_mode'] = 'center'
 
             #
-            # Set resolution (only for having the data later)
+            # Set resolution (only for having the data later in the done method)
+            #
+            # TODO Can this be passed to done() differently? Creating the reader again later e.g.?
             #
             if has_2_dim:
-                initial['resolution_x'], initial['resolution_y'] = channel_info_dict['nb_grid_pts']
+                initial['resolution_x'], initial['resolution_y'] = channel_info.nb_grid_pts
             else:
-                initial['resolution_x'], = channel_info_dict['nb_grid_pts']
+                initial['resolution_x'], = channel_info.nb_grid_pts
+                initial['resolution_y'] = None
 
         return initial
 
@@ -220,20 +224,29 @@ class TopographyCreateWizard(SessionWizardView):
 
         kwargs = super().get_form_kwargs(step)
 
-        if step in ['metadata', 'units2D', 'units1D']:
+        if step in ['metadata', 'units']:
             # provide datafile attribute and reader from first step
             step0_data = self.get_cleaned_data_for_step('upload')
             datafile = step0_data['datafile']
-            toporeader = get_topography_reader(datafile)
+            datafile_format = step0_data['datafile_format']
+            toporeader = get_topography_reader(datafile, format=datafile_format)
 
         if step == 'metadata':
+
+            def clean_channel_name(s):
+                """Restrict data shown in the dropdown for the channel name.
+                :param s: channel name as found in the file
+                :return: string without NULL characters, 100 chars maximum
+                """
+                return s.strip('\0')[:100]
+
             #
             # Set data source choices based on file contents
             #
-            kwargs['data_source_choices'] = [(k, channel_dict['name']) for k, channel_dict in
+            kwargs['data_source_choices'] = [(k, clean_channel_name(channel_info.name)) for k, channel_info in
                                              enumerate(toporeader.channels)
-                                             if not (('unit' in channel_dict)
-                                                     and isinstance(channel_dict['unit'], tuple))]
+                                             if not (('unit' in channel_info.info)
+                                                     and isinstance(channel_info.info['unit'], tuple))]
 
             #
             # Set surface in order to check for duplicate topography names
@@ -241,27 +254,21 @@ class TopographyCreateWizard(SessionWizardView):
             kwargs['surface'] = step0_data['surface']
             kwargs['autocomplete_tags'] = tags_for_user(self.request.user)
 
-        if step in ['units2D','units1D']:
+        if step in ['units']:
 
             step1_data = self.get_cleaned_data_for_step('metadata')
             channel = int(step1_data['data_source'])
-            channel_info_dict = toporeader.channels[channel]
+            channel_info = toporeader.channels[channel]
 
-            has_2_dim = channel_info_dict['dim'] == 2
-            no_sizes_given = ('physical_sizes' not in channel_info_dict) or (channel_info_dict['physical_sizes'] == None)
+            has_2_dim = channel_info.dim == 2
+            no_sizes_given = channel_info.physical_sizes is None
 
             # only allow periodic topographies in case of 2 dimension
-            kwargs['allow_periodic'] = has_2_dim and no_sizes_given
+            kwargs['allow_periodic'] = has_2_dim and no_sizes_given   # TODO simplify in 'no_sizes_given'?
+            kwargs['has_size_y'] = has_2_dim  # TODO find common term, now we have 'has_size_y' and 'has_2_dim'
 
         return kwargs
 
-    def get_form_instance(self, step):
-        # if there is no instance yet, but should be one,
-        # get instance from database
-        if not self.instance_dict:
-            if 'pk' in self.kwargs:
-                return Topography.objects.get(pk=self.kwargs['pk']) # TODO this code is maybe wrong, needed?
-        return None
 
     def get_context_data(self, form, **kwargs):
         context = super().get_context_data(form, **kwargs)
@@ -274,21 +281,6 @@ class TopographyCreateWizard(SessionWizardView):
             context.update({'cancel_action': redirect_in_get})
         elif redirect_in_post:
             context.update({'cancel_action': redirect_in_post})
-
-        #
-        # Somehow the step counting in django-formtools is broken
-        # and shows step 4 for 'unit2D' instead of 3, should
-        # be 3 because of conditional. So we create our own step
-        # counting here as workaround.
-        #
-        MY_STEP_NUMBERS = {
-            0: 1,
-            1: 2,
-            2: 3,
-            3: 3
-        }
-        # context['my_step_number'] = MY_STEP_NUMBERS[self.steps.index]
-        context['my_step_number'] = MY_STEP_NUMBERS[self.steps.index]
 
         return context
 
@@ -340,6 +332,7 @@ class TopographyCreateWizard(SessionWizardView):
             topo.topography()
             # since the topography should be saved in the cache this
             # should not take much extra time
+            # TODO can't we determine/save resolution here?!
         except Exception as exc:
             _log.warning("Cannot read topography from file '{}', exception: {}".format(
                 d['datafile'], str(exc)
@@ -388,11 +381,11 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
         kwargs['has_size_y'] = topo.size_y is not None
         kwargs['autocomplete_tags'] = tags_for_user(self.request.user)
 
-        toporeader = get_topography_reader(topo.datafile)
+        toporeader = get_topography_reader(topo.datafile, format=topo.datafile_format)
 
-        channel_info_dict = toporeader.channels[topo.data_source]
-        has_2_dim = channel_info_dict['dim'] == 2
-        no_sizes_given = ('physical_sizes' not in channel_info_dict) or (channel_info_dict['physical_sizes'] == None)
+        channel_info = toporeader.channels[topo.data_source]
+        has_2_dim = channel_info.dim == 2
+        no_sizes_given = channel_info.physical_sizes is None
 
         kwargs['allow_periodic'] = has_2_dim and no_sizes_given
         return kwargs
@@ -406,8 +399,8 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
         #
         # If a significant field changed, renew all analyses
         #
-        significant_fields = set(['size_x', 'size_y', 'unit', 'is_periodic', 'height_scale',
-                                  'detrend_mode', 'datafile', 'data_source'])
+        significant_fields = {'size_x', 'size_y', 'unit', 'is_periodic', 'height_scale',
+                              'detrend_mode', 'datafile', 'data_source'}
         significant_fields_with_changes = set(form.changed_data).intersection(significant_fields)
         if len(significant_fields_with_changes) > 0:
             _log.info(f"During edit of topography {topo.id} significant fields changed: "+\
@@ -578,14 +571,48 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
         context = super().get_context_data(**kwargs)
 
         topo = self.object
-        pyco_topo = topo.topography()
 
-        if pyco_topo.dim == 1:
-            plot = self.get_1D_plot(pyco_topo, topo)
-        elif pyco_topo.dim == 2:
-            plot = self.get_2D_plot(pyco_topo, topo)
-        else:
-            raise Exception(f"Don't know how to display topographies with {pyco_topo.dim} dimensions.")
+        errors = []  # list of dicts with keys 'message' and 'link'
+
+        loaded = False
+        plotted = False
+
+        try:
+            pyco_topo = topo.topography()
+            loaded = True
+        except Exception as exc:
+            err_message = "Topography '{}' (id: {}) cannot be loaded unexpectedly.".format(topo.name, topo.id)
+            _log.error(err_message)
+            link = mailto_link_for_reporting_an_error(f"Failure loading topography (id: {topo.id})",
+                                                      "Image plot for topography",
+                                                      err_message,
+                                                      traceback.format_exc())
+
+            errors.append(dict(message=err_message, link=link))
+
+        if loaded:
+            if pyco_topo.dim == 1:
+                plot = self.get_1D_plot(pyco_topo, topo)
+                plotted = True
+            elif pyco_topo.dim == 2:
+                plot = self.get_2D_plot(pyco_topo, topo)
+                plotted = True
+            else:
+                err_message = f"Don't know how to display topographies with {pyco_topo.dim} dimensions."
+                link = mailto_link_for_reporting_an_error(f"Invalid dimensions for topography (id: {topo.id})",
+                                                          "Image plot for topography",
+                                                          err_message,
+                                                          traceback.format_exc())
+                errors.append(dict(message=err_message, link=link))
+
+
+            if plotted:
+                script, div = components(plot)
+                context['image_plot_script'] = script
+                context['image_plot_div'] = div
+
+
+        context['errors'] = errors
 
         try:
             context['topography_next'] = topo.get_next_by_measurement_date(surface=topo.surface).id
@@ -595,10 +622,6 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
             context['topography_prev'] = topo.get_previous_by_measurement_date(surface=topo.surface).id
         except Topography.DoesNotExist:
             context['topography_prev'] = topo.id
-
-        script, div = components(plot)
-        context['image_plot_script'] = script
-        context['image_plot_div'] = div
 
         return context
 
@@ -626,37 +649,16 @@ class TopographyDeleteView(TopographyUpdatePermissionMixin, DeleteView):
 
         return link
 
-class SurfaceCardView(TemplateView):
-    template_name = 'manager/surface_card.html'
 
-    def get_context_data(self, **kwargs):
-        """
-        Gets "surface_id" from GET parameters.
+class SurfaceSearchView(TemplateView):
+    template_name = "manager/surface_list.html"
 
-        :return: dict to be used in surface card template context
+    def dispatch(self, request, *args, **kwargs):
+        # count this view event for statistics
 
-        The returned dict has the following keys:
-
-          surface: Surface
-        """
-        context = super().get_context_data(**kwargs)
-
-        request = self.request
-        request_method = request.GET
-        try:
-            surface_id = int(request_method.get('surface_id'))
-            parent_path = request_method.get('parent_path')
-        except (KeyError, ValueError):
-            return HttpResponse("Error in GET arguments")
-
-        surface = Surface.objects.get(id=surface_id)
-
-        if not self.request.user.has_perm('view_surface', surface):
-            raise PermissionDenied
-
-        context['surface'] = surface
-        context['parent_path'] = parent_path
-        return context
+        metric = Metric.objects.SEARCH_VIEW_COUNT
+        increase_statistics_by_date(metric, period=Period.DAY)
+        return super().dispatch(request, *args, **kwargs)
 
 
 class SurfaceCreateView(CreateView):
@@ -692,7 +694,13 @@ class SurfaceDetailView(DetailView):
         # bandwidth data
         #
         bw_data = bandwidths_data(self.object.topography_set.all())
-        context['bandwidths_data'] = json.dumps(bw_data)
+
+        # filter out all entries with errors and display error messages
+        bw_data_with_errors = [ x for x in bw_data if x['error_message'] is not None ]
+        bw_data_without_errors = [x for x in bw_data if x['error_message'] is None]
+
+        context['bandwidths_data_without_errors'] = json.dumps(bw_data_without_errors)
+        context['bandwidths_data_with_errors'] = bw_data_with_errors
 
         #
         # permission data
@@ -977,7 +985,6 @@ def download_surface(request, surface_id):
 
     :param request:
     :param surface_id: surface id
-    :param file_format: requested file format
     :return:
     """
 

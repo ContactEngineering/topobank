@@ -5,34 +5,12 @@ from django.views.generic import TemplateView
 
 from . import views
 from . import forms
-from .utils import get_topography_reader
 
-
-def creating_2D_topography(wizard):
-    """Indicator function, returns True if wizard is creating a 2D topography, else False.
-    """
-
-    step0_data = wizard.get_cleaned_data_for_step('upload')
-    if step0_data is None:
-        return False
-
-    datafile = step0_data['datafile']
-    step1_data = wizard.get_cleaned_data_for_step('metadata')
-
-    if step1_data is None:
-        return False
-
-    toporeader = get_topography_reader(datafile)
-    data_source = int(step1_data['data_source'])
-    channel_info_dict = toporeader.channels[data_source]
-
-    return channel_info_dict['dim'] == 2
 
 WIZARD_FORMS = [
     ('upload', forms.TopographyFileUploadForm),
     ('metadata', forms.TopographyMetaDataForm),
-    ('units1D', forms.Topography1DUnitsForm),
-    ('units2D', forms.Topography2DUnitsForm),
+    ('units', forms.TopographyWizardUnitsForm),
 ]
 
 app_name = "manager"
@@ -64,13 +42,7 @@ urlpatterns = [
     ),
     url(
         regex=r'surface/(?P<surface_id>\d+)/new-topography/$',
-        view=login_required(views.TopographyCreateWizard.as_view(
-            WIZARD_FORMS,
-            condition_dict={
-                'units2D': creating_2D_topography,
-                'units1D': lambda w: not creating_2D_topography(w),
-            }
-        )),
+        view=login_required(views.TopographyCreateWizard.as_view(WIZARD_FORMS)),
         name='topography-create'
     ),
     url(
@@ -127,13 +99,8 @@ urlpatterns = [
         name='surface-create'
     ),
     url(
-        regex=r'card/$',
-        view=login_required(views.SurfaceCardView.as_view()),
-        name='surface-card'
-    ),
-    url(
         regex=r'surface/$',
-        view=login_required(views.TemplateView.as_view(template_name='manager/surface_list.html')),
+        view=login_required(views.SurfaceSearchView.as_view()),
         name='surface-list'
     ),
     url(
@@ -156,9 +123,4 @@ urlpatterns = [
         view=login_required(views.TagListView.as_view()),
         name='tag-list'
     ),
-    # url(
-    #     regex=r'tags/$',
-    #     view=login_required(views.autocomplete_tags),
-    #     name='autocomplete-tags',
-    # ),
 ]

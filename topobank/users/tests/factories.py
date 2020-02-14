@@ -1,13 +1,14 @@
 import factory
 
+
 class OrcidSocialAccountFactory(factory.django.DjangoModelFactory):
 
     class Meta:
         model = "socialaccount.SocialAccount"
 
-    user_id = 0 # overwrite on construction
+    user_id = 0  # overwrite on construction
     provider = 'orcid'
-    uid = factory.Sequence(lambda n: "{:04d}-{:04d}-{:04d}-{:04d}".format(n,n,n,n))
+    uid = factory.Sequence(lambda n: "{:04d}-{:04d}-{:04d}-{:04d}".format(n, n, n, n))
     extra_data = {}
 
     @factory.post_generation

@@ -9,10 +9,11 @@ from notifications.models import Notification
 from topobank.manager.models import Surface
 from topobank.analysis.models import AnalysisFunction, Analysis
 
-@pytest.mark.db_django
-def test_initial_surface(live_server, client, django_user_model):
 
-    import topobank.users.signals # in order to have signals activated
+@pytest.mark.django_db
+def test_initial_surface(live_server, client, django_user_model, handle_usage_statistics):
+
+    import topobank.users.signals  # in order to have signals activated
 
     # Make sure, we have automated analysis functions
     call_command('register_analysis_functions')
@@ -27,17 +28,16 @@ def test_initial_surface(live_server, client, django_user_model):
     password = "test$1234"
     name = 'New User'
 
-    response = client.post(reverse('account_signup'),
-                {
+    response = client.post(reverse('account_signup'), {
                     'email': email,
                     'password1': password,
                     'password2': password,
                     'name': name,
-                })
+    })
 
     assert 'form' not in response.context, "Errors in form: {}".format(response.context['form'].errors)
 
-    assert response.status_code == 302 # redirect
+    assert response.status_code == 302  # redirect
 
     user = django_user_model.objects.get(email=email)
 
@@ -55,16 +55,16 @@ def test_initial_surface(live_server, client, django_user_model):
 
     assert len(topos) == 3
 
-    assert sorted([ t.name for t in topos]) == [ "50000x50000_random.txt",
-                                                 "5000x5000_random.txt",
-                                                 "500x500_random.txt" ]
+    assert sorted([t.name for t in topos]) == ["50000x50000_random.txt",
+                                               "5000x5000_random.txt",
+                                               "500x500_random.txt"]
 
     #
     # All these topographies should have the same size as in the database
     # and the height scale should be editable
     #
     for topo in topos:
-        assert topo.size_x == topo.size_y # so far all examples are like this, want to ensure here that size_y is set
+        assert topo.size_x == topo.size_y  # so far all examples are like this, want to ensure here that size_y is set
         pyco_topo = topo.topography()
         assert pyco_topo.info['unit'] == 'µm'
         assert pyco_topo.physical_sizes == (topo.size_x, topo.size_y)

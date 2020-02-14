@@ -4,22 +4,11 @@ and other things in topobank.manager.utils
 """
 
 import pytest
-from pathlib import Path
-import io
 
 from ..tests.utils import two_topos
-from ..utils import DEFAULT_DATASOURCE_NAME, \
-    selection_to_instances, selection_for_select_all, selection_choices, instances_to_selection, \
-    tags_for_user
+from ..utils import selection_to_instances, selection_for_select_all, selection_choices, \
+    instances_to_selection, tags_for_user
 from ..models import Surface, Topography
-
-# def test_data_sources_txt():
-#
-#     input_file_path = Path('topobank/manager/fixtures/example4.txt')  # TODO use standardized way to find files
-#
-#     topofile = TopographyFile(input_file_path)
-#
-#     assert topofile.data_sources == [DEFAULT_DATASOURCE_NAME]
 
 
 @pytest.fixture
@@ -145,6 +134,7 @@ def test_tags_for_user(two_topos):
 
     tags = tags_for_user(user)
 
-    assert set( t.name for t in tags) == set(['a long tag with spaces', 'interesting', 'rare', 'rough',
-                                              'projects/a', 'projects/b', 'projects/c', 'projects'])
+    assert set( t.name for t in tags) == {'a long tag with spaces', 'interesting', 'rare', 'rough',
+                                          'projects/a', 'projects/b', 'projects/c', 'projects'}
+
 

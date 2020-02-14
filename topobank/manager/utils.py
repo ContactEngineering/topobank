@@ -1,13 +1,10 @@
 from django.shortcuts import reverse
 from guardian.shortcuts import get_objects_for_user
-from django.core.cache import cache # default cache
+from django.conf import settings
 
 from PyCo.Topography import open_topography
 
-from topobank.taskapp.celery import app
-
-
-from operator import itemgetter
+import traceback
 import logging
 
 _log = logging.getLogger(__name__)
@@ -18,11 +15,14 @@ UNIT_TO_METERS = {'Å': 1e-10, 'nm': 1e-9, 'µm': 1e-6, 'mm': 1e-3, 'm': 1.0,
 
 SELECTION_SESSION_VARNAME = 'selection'
 
+
 class TopographyFileException(Exception):
     pass
 
+
 class TopographyFileFormatException(TopographyFileException):
     pass
+
 
 class TopographyFileReadingException(TopographyFileException):
 
@@ -44,25 +44,31 @@ class TopographyFileReadingException(TopographyFileException):
     def message(self):
         return self._message
 
-def get_topography_reader(filefield):
+
+def get_topography_reader(filefield, format=None):
     """Returns PyCo.Topography.IO.ReaderBase object.
 
-    :param filefield: models.FileField instance
-    :return: ReaderBase instance
+    Parameters
+    ----------
+
+    filefield: models.FileField instance
+        reference to file which should be opened by the reader
+    format: str, optional
+        specify in which format the file should be interpreted;
+        if not given, the format is determined automatically
+
+    Returns
+    -------
+        Instance of a `ReaderBase` subclass according to the format.
     """
     # Workaround such that PyCo recognizes this a binary stream
     if not hasattr(filefield, 'mode'):
         filefield.mode = 'rb'
-    return open_topography(filefield)
+    if hasattr(filefield.file, 'seek'):
+        # make sure the file is rewinded
+        filefield.file.seek(0)
+    return open_topography(filefield, format=format)
 
-def mangle_unit(unit): # TODO needed?
-    """
-    Matplotlib does not support 'MICRO SIGN' unicode character - convert to
-    'GREEK SMALL LETTER MU'.
-    """
-    if unit == 'µm':
-        return 'μm'
-    return unit
 
 def surfaces_for_user(user, perms=['view_surface']):
     """Return a queryset of all surfaces, the user has *all* given permissions.
@@ -124,6 +130,7 @@ def selection_choices(user):
 
     return choices
 
+
 def selection_from_session(session):
     """Get selection from session.
 
@@ -135,6 +142,7 @@ def selection_from_session(session):
     """
     return session.get(SELECTION_SESSION_VARNAME, [])
 
+
 def selection_for_select_all(user):
     """Return selection if given user wants to select all topographies and surfaces.
 
@@ -142,6 +150,7 @@ def selection_for_select_all(user):
     :return:
     """
     return ['surface-{}'.format(s.id) for s in surfaces_for_user(user)]
+
 
 def instances_to_selection(topographies=[], surfaces=[]):
     """Returns a list of strings suitable for selecting instances.
@@ -240,41 +249,93 @@ def selected_instances(request, surface=None):
 
     return topographies, surfaces
 
-def bandwidths_data(topographies):
-    """Return bandwidths data as needed in surface summary plots.
 
-    :param topographies: iterable with manager.models.Topography instances
-    :return: list of dicts with bandwidths data
+def mailto_link_for_reporting_an_error(subject, info, err_msg, traceback) -> str:
+    """Use this to create a mail body for reporting an error.
 
-    Each list element is a dict with keys
-
-    'upper_bound': upper bound in meters
-    'lower_bound': lower bound in meters
-    'name': name of topography
-    'link': link to topography details
-
-    The list is sorted by the lower bound with larger lower bound first.
+    :param subject: mail subject (str)
+    :param info: some text about the context, where the error happened (str)
+    :param err_msg: error message (str)
+    :param traceback: as reported by traceback.format_exc() (str)
+    :return: a string which can be used in a mailto link for the mail body
     """
-    bandwidths_data = []
+    body = body_for_mailto_link_for_reporting_an_error(info, err_msg, traceback)
+    return f"mailto:{settings.CONTACT_EMAIL_ADDRESS}?subject={subject}&body={body}"
 
-    for topo in topographies:
 
+def body_for_mailto_link_for_reporting_an_error(info, err_msg, traceback) -> str:
+    """Use this to create a mail body for reporting an error.
+
+    :param info: some text about the context, where the error happened
+    :param err_msg: error message
+    :param traceback: as reported by traceback.format_exc()
+    :return: a string which can be used in a mailto link for the mail body
+    """
+
+    body = ("Hey there,\n\n"
+            "I've problems with 'contact.engineering'.\n\nHere are some details:\n\n"
+            f"Context: {info}\n"
+            f"Error message: {err_msg}\n")
+
+    body += "Traceback:\n"
+
+    body += "-"*72+"\n"
+    body += f"\n{traceback}\n"
+    body += "-"*72+"\n"
+    body += "\n\nBest, <your name>"
+
+    # change characters to we can use this in a link
+    body = body.replace('\n', '%0D%0A')
+    return body
+
+
+
+def _bandwidths_data_entry(topo):
+    """Return an entry for bandwiths_data
+
+    :param topo: topobank.manager.models.Topography instance
+    :return: dict
+    """
+
+    err_message = None
+
+    try:
         pyco_topo = topo.topography()
+    except Exception:
+        err_message = "Topography '{}' (id: {}) cannot be loaded unexpectedly.".format(
+            topo.name, topo.id)
+        _log.error(err_message+"\n"+traceback.format_exc())
 
-        try:
-            unit = pyco_topo.info['unit']
-        except KeyError:
-            unit = None
+        link = mailto_link_for_reporting_an_error(f"Failure loading topography (id: {topo.id})",
+                                                  "Bandwidth data calculation",
+                                                  err_message,
+                                                  traceback.format_exc())
 
-        if unit is None:
-            _log.warning("No unit given for topography {}. Cannot calculate bandwidth.".format(topo.name))
-            continue
-        elif not unit in UNIT_TO_METERS:
-            _log.warning("Unknown unit {} given for topography {}. Cannot calculate bandwidth.".format(
-                unit, topo.name))
-            continue
+        return {
+                'lower_bound': None,
+                'upper_bound': None,
+                'name': topo.name,
+                'link': link,
+                'error_message': err_message
+        }
 
-        meter_factor = UNIT_TO_METERS[unit]
+    try:
+        unit = pyco_topo.info['unit']
+    except KeyError:
+        unit = None
+
+    if unit is None:
+        _log.warning("No unit given for topography {}. Cannot calculate bandwidth.".format(topo.name))
+        err_message = 'No unit given for topography, cannot calculate bandwidth.'
+    elif not unit in UNIT_TO_METERS:
+        _log.warning("Unknown unit {} given for topography {}. Cannot calculate bandwidth.".format(
+            unit, topo.name))
+        err_message = "Unknown unit {} given for topography {}. Cannot calculate bandwidth.".format(
+            unit, topo.name)
+
+    meter_factor = UNIT_TO_METERS[unit]
+
+    if err_message is None:
 
         lower_bound, upper_bound = pyco_topo.bandwidth()
         # Workaround for https://github.com/pastewka/PyCo/issues/55
@@ -284,16 +345,48 @@ def bandwidths_data(topographies):
         lower_bound_meters = lower_bound * meter_factor
         upper_bound_meters = upper_bound * meter_factor
 
-        bandwidths_data.append(
-            {
-                'lower_bound': lower_bound_meters,
-                'upper_bound': upper_bound_meters,
-                'name': topo.name,
-                'link': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk))
-            }
-        )
+    else:
+        lower_bound_meters = None
+        upper_bound_meters = None
 
-    # Finally sort by lower bound
-    bandwidths_data.sort(key=itemgetter('lower_bound'), reverse=True)
+    return {
+            'lower_bound': lower_bound_meters,
+            'upper_bound': upper_bound_meters,
+            'name': topo.name,
+            'link': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
+            'error_message': err_message
+    }
+
+
+
+def bandwidths_data(topographies):
+    """Return bandwidths data as needed in surface summary plots.
+
+    :param topographies: iterable with manager.models.Topography instances
+    :return: list of dicts with bandwidths data
+
+    Each list element is a dict with keys
+
+    'upper_bound': upper bound in meters (or None if there is an error)
+    'lower_bound': lower bound in meters (or None if there is an error)
+    'name': name of topography
+    'link': link to topography details
+    'error_message': None or a string with an error message if calculation failed
+
+    The list is sorted by the lower bound with larger lower bound first.
+
+    The idea is to be able to display error messages and the links
+    also on javascript level which gets this data.
+    """
+    bandwidths_data = [ _bandwidths_data_entry(t) for t in topographies]
+
+    #
+    # Sort by lower bound, put lower bound=None first to show error messages first in plot
+    #
+    def weight(entry):
+        lb = entry['lower_bound']
+        return float('inf') if lb is None else lb
+
+    bandwidths_data.sort(key=lambda entry: weight(entry), reverse=True)
 
     return bandwidths_data

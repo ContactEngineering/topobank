@@ -61,7 +61,8 @@ def request_analysis(user, analysis_func, topography, *other_args, **kwargs):
         Q(topography=topography)
         & Q(function=analysis_func)
         & Q(kwargs=pickled_pyfunc_kwargs)).order_by('start_time').last() # will be None if not found
-    # TODO what if pickle protocol changes? -> No match, old must be sorted out later
+    # what if pickle protocol changes? -> No match, old must be sorted out later
+    # See also GH 426.
 
     if analysis is None:
         analysis = submit_analysis(users=[user], analysis_func=analysis_func, topography=topography,

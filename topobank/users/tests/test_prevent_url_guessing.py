@@ -27,7 +27,7 @@ def test_sharing_profile(client, django_user_model):
     assert not are_collaborating(user1, user2)
 
     response = client.get(reverse('users:detail', kwargs={'username': 'testuser2'}))  # other user!!
-    assert response.status_code == 403 # Forbidden
+    assert response.status_code == 403  # Forbidden
 
     # share sth. and the view of profile is possible
     surface = SurfaceFactory(creator=user1)

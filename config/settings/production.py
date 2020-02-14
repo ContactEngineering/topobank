@@ -21,8 +21,8 @@ CACHES = {
         'BACKEND': env.str("DJANGO_DEFAULT_CACHE_BACKEND",
                            default='django.core.cache.backends.memcached.MemcachedCache'),
         'LOCATION': env.str("DJANGO_DEFAULT_CACHE_LOCATION", default='memcached:11211'),
-        #'BACKEND': 'django.core.cache.backends.memcached.PyLibMCCache',
-        #'LOCATION': '/tmp/memcached.sock',
+        # 'BACKEND': 'django.core.cache.backends.memcached.PyLibMCCache',
+        # 'LOCATION': '/tmp/memcached.sock',
     }
     # 'default': {
     #     'BACKEND': 'django_redis.cache.RedisCache',
@@ -76,8 +76,8 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # MEDIA
 # ------------------------------------------------------------------------------
-#DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-#MEDIA_URL = f'https://s3.amazonaws.com/{AWS_STORAGE_BUCKET_NAME}/'
+# DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+# MEDIA_URL = f'https://s3.amazonaws.com/{AWS_STORAGE_BUCKET_NAME}/'
 
 # TEMPLATES
 # ------------------------------------------------------------------------------
@@ -130,17 +130,17 @@ EMAIL_CONFIG = env.email_url(
 # Anymail (Mailgun, PostMark and others)
 # ------------------------------------------------------------------------------
 # https://anymail.readthedocs.io/en/stable/installation/#installing-anymail
-#INSTALLED_APPS += ['anymail']  # noqa F405
-#EMAIL_BACKEND = 'anymail.backends.postmark.EmailBackend' # TODO there is also an entry in base.py, also use here?
-#ANYMAIL = {
-#    "POSTMARK_SERVER_TOKEN": env('POSTMARK_SERVER_TOKEN')
-#}
-#EMAIL_BACKEND = 'anymail.backends.mailgun.EmailBackend'
-# https://anymail.readthedocs.io/en/stable/installation/#anymail-settings-reference
-#ANYMAIL = {
-#    'MAILGUN_API_KEY': env('MAILGUN_API_KEY'),
-#    'MAILGUN_SENDER_DOMAIN': env('MAILGUN_DOMAIN')
-#}
+# INSTALLED_APPS += ['anymail']  # noqa F405
+# EMAIL_BACKEND = 'anymail.backends.postmark.EmailBackend' # TODO there is also an entry in base.py, also use here?
+# ANYMAIL = {
+#     "POSTMARK_SERVER_TOKEN": env('POSTMARK_SERVER_TOKEN')
+# }
+# EMAIL_BACKEND = 'anymail.backends.mailgun.EmailBackend'
+#  https://anymail.readthedocs.io/en/stable/installation/#anymail-settings-reference
+# ANYMAIL = {
+#     'MAILGUN_API_KEY': env('MAILGUN_API_KEY'),
+#     'MAILGUN_SENDER_DOMAIN': env('MAILGUN_DOMAIN')
+# }
 
 # Gunicorn
 # ------------------------------------------------------------------------------

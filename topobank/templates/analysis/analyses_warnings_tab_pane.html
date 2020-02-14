@@ -20,7 +20,7 @@
               Traceback:</p>
             <pre>{{ af.result_obj.traceback }}</pre>
             Please send us an e-mail about this issue by using this
-            <a href="mailto:topobank@imtek.uni-freiburg.de?subject=Failure while performing '{{ af.function.name }}' analysis&body={% body_for_mailto_link af request.user %}">link</a>.
+            <a href="mailto:{{ contact_email_address }}?subject=Failure while performing '{{ af.function.name }}' analysis&body={% body_for_mailto_link af request.user %}">link</a>.
           </div>
         {% endif %}
     {% endfor %}

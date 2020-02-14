@@ -1,6 +1,8 @@
 
 import os
 from celery import Celery
+from celery.schedules import crontab
+
 from django.apps import apps, AppConfig
 from django.conf import settings
 
@@ -9,8 +11,7 @@ if not settings.configured:
     # set the default Django settings module for the 'celery' program.
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings.local')  # pragma: no cover
 
-
-app = Celery('topobank' )
+app = Celery('topobank')
 
 
 class CeleryAppConfig(AppConfig):
@@ -24,5 +25,16 @@ class CeleryAppConfig(AppConfig):
         installed_apps = [app_config.name for app_config in apps.get_app_configs()]
         app.autodiscover_tasks(lambda: installed_apps, force=True)
 
-
+        #
+        # I had problems using the celery signal 'on_after_configure'.
+        # Also see here: https://github.com/celery/celery/issues/3589
+        # Therefore I'm using an explicit configuration of the schedule instead
+        # of using the decorator.
+        #
+        app.conf.beat_schedule = {
+            'save-landing-page-statistics': {
+                'task': 'topobank.taskapp.tasks.save_landing_page_statistics',
+                'schedule': crontab(hour='0', minute='0'),
+            }
+        }
 

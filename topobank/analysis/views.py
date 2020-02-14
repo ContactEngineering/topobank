@@ -37,11 +37,14 @@ from pint import UnitRegistry, UndefinedUnitError
 
 from guardian.shortcuts import get_objects_for_user
 
+from trackstats.models import Metric
+
 import PyCo
 from PyCo.Tools.ContactAreaAnalysis import patch_areas, assign_patch_numbers
 
 from ..manager.models import Topography, Surface
 from ..manager.utils import selected_instances, selection_from_session, instances_to_selection
+from ..usage_stats.utils import increase_statistics_by_date_and_object
 from .models import Analysis, AnalysisFunction, AnalysisCollection
 from .serializers import AnalysisSerializer
 from .forms import FunctionSelectForm
@@ -94,6 +97,12 @@ def switch_card_view(request):
     function = AnalysisFunction.objects.get(id=function_id)
 
     view_class = card_view_class(function.card_view_flavor)
+
+    #
+    # for statistics, count views per function
+    #
+    metric = Metric.objects.ANALYSES_RESULTS_VIEW_COUNT
+    increase_statistics_by_date_and_object(metric, obj=function)
 
     return view_class.as_view()(request)
 
@@ -998,7 +1007,7 @@ def contact_mechanics_data(request):
                     y_axis_label="Probability P(g) (1/{})".format(topo.unit),
                     **common_kwargs),
                 'cluster-size-distribution': _contact_mechanics_distribution_figure(
-                    contact_areas,  # TODO check data
+                    contact_areas,
                     title="Cluster size distribution",
                     x_axis_label="Cluster area A({}²)".format(topo.unit),
                     y_axis_label="Probability P(A)",
@@ -1141,7 +1150,7 @@ def download_analyses(request, ids, card_view_flavor, file_format):
     if not user.is_authenticated:
         return HttpResponseForbidden()
 
-    analyses_ids = [int(i) for i in ids.split(',')]  # TODO check whether user has permissions to download this data
+    analyses_ids = [int(i) for i in ids.split(',')]
 
     analyses = []
 
@@ -1178,11 +1187,6 @@ def download_analyses(request, ids, card_view_flavor, file_format):
             "Cannot provide a download for card view flavor {} in file format ".format(card_view_flavor))
 
     return download_response_functions[key](request, analyses)
-
-
-class AnalysisRetrieveView(RetrieveAPIView):  # TODO needed?
-    queryset = Analysis.objects.all()
-    serializer_class = AnalysisSerializer
 
 
 def download_plot_analyses_to_txt(request, analyses):
