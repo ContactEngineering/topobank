@@ -1,4 +1,5 @@
 from django.urls import resolve
+from django.urls.exceptions import Resolver404
 from django import template
 register = template.Library()
 
@@ -18,7 +19,11 @@ def navbar_active(url, section):
     ACTIVE = "active"
     INACTIVE = ""
 
-    resolve_match = resolve(url)
+    try:
+        resolve_match = resolve(url)
+    except Resolver404:
+        # we need to aviod a recursion here, see GH 367
+        return INACTIVE
 
     if (section == "Analyses") and (resolve_match.app_name == "analysis"):
         return ACTIVE
