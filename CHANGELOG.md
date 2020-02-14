@@ -14,6 +14,8 @@
 - upgrade to Django 2.2.9 (#417) 
 - upgrade to PyCo 0.55.0 (#428), this fixes problems with
   various file format (see PyCo's changelog for details)
+- fix for endless recursion on 404 responses (#367), should also
+  fix problems with too many database connections (#436)
   
 ## 0.7.3
 
