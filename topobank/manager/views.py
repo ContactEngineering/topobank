@@ -35,6 +35,7 @@ from rest_framework.decorators import api_view
 # from django_filters import rest_framework as filters
 from rest_framework import filters
 
+import numpy as np
 import json
 import os.path
 import logging
@@ -515,7 +516,7 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
         #x_range = DataRange1d(start=0, end=topo_size[0], bounds='auto')
         #y_range = DataRange1d(start=0, end=topo_size[1], bounds='auto')
         x_range = DataRange1d(start=0, end=topo_size[0], bounds='auto', range_padding=5)
-        y_range = DataRange1d(start=0, end=topo_size[1], bounds='auto', range_padding=5)
+        y_range = DataRange1d(start=topo_size[1], end=0, flipped=True, range_padding=5)
 
         color_mapper = LinearColorMapper(palette="Viridis256", low=heights.min(), high=heights.max())
 
@@ -551,9 +552,11 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
         plot.xaxis.axis_label_text_font_style = "normal"
         plot.yaxis.axis_label_text_font_style = "normal"
 
-        # we need to transpose the height data in order to be compatible with bokeh's image plot
-
-        plot.image([heights.T], x=0, y=0, dw=topo_size[0], dh=topo_size[1], color_mapper=color_mapper)
+        # we need to rotate the height data in order to be compatible with image in Gwyddion
+        plot.image([np.rot90(heights)], x=0, y=topo_size[1],
+                   dw=topo_size[0], dh=topo_size[1], color_mapper=color_mapper)
+        # the anchor point of (0,topo_size[1]) is needed because the y range is flipped
+        # in order to have the origin in upper left like in Gwyddion
 
         plot.toolbar.logo = None
 
