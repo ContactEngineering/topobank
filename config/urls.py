@@ -7,7 +7,7 @@ from django.views.generic import TemplateView
 from django.views import defaults as default_views
 import notifications.urls
 
-from topobank.views import TermsView, HomeView
+from topobank.views import TermsView, HomeView, FileFormatsView
 
 urlpatterns = [
     path("", HomeView.as_view(), name="home"),
@@ -20,6 +20,11 @@ urlpatterns = [
         "termsandconditions/",
         TermsView.as_view(),
         name="terms",
+    ),
+    path(
+        "fileformats/",
+        FileFormatsView.as_view(),
+        name="file_formats",
     ),
     # Django Admin, use {% url 'admin:index' %}
     path(settings.ADMIN_URL, admin.site.urls),

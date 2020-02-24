@@ -2,6 +2,8 @@
 
 ## 0.7.5
 
+- added help page with supported file formats, descriptions for the readers
+  are defined in PyCo (#424)
 - more consistent orientation of topography images,
   including an upgrade to PyCo 0.56.0 (#440)
 - more robust when no channel name was given in data file (#441),
