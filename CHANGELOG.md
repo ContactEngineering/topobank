@@ -4,7 +4,9 @@
 
 - more consistent orientation of topography images,
   including an upgrade to PyCo 0.56.0 (#440)
-- more robust when no channel name was given in data file (#441)
+- more robust when no channel name was given in data file (#441),
+  this seemed to generate a lot of exceptions in production
+  maybe resulting in too many database clients (#436) 
 - upgrade to Django 2.2.10 (#439)
 
 ## 0.7.4
