@@ -1,5 +1,12 @@
 # Changelog for *TopoBank*
 
+## 0.7.5
+
+- more consistent orientation of topography images,
+  including an upgrade to PyCo 0.56.0 (#440)
+- more robust when no channel name was given in data file (#441)
+- upgrade to Django 2.2.10 (#439)
+
 ## 0.7.4
 
 - problems during loading of topographies which could already
