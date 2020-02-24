@@ -239,6 +239,8 @@ class TopographyCreateWizard(SessionWizardView):
                 :param s: channel name as found in the file
                 :return: string without NULL characters, 100 chars maximum
                 """
+                if s is None:
+                    return "(unknown)"
                 return s.strip('\0')[:100]
 
             #
