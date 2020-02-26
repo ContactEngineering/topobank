@@ -29,8 +29,8 @@ def test_height_distribution_simple_line_scan():
 
     assert result['name'] == 'Height distribution'
     assert result['scalars'] == {
-            'Mean Height': 0,
-            'RMS Height': math.sqrt(4./3),
+            'Mean Height': {'value': 0,               'unit': 'nm'},
+            'RMS Height':  {'value': math.sqrt(4./3), 'unit': 'nm'},
     }
 
     assert result['xlabel'] == 'Height'
@@ -62,8 +62,8 @@ def test_slope_distribution_simple_line_scan():
 
     assert result['name'] == 'Slope distribution'
     assert result['scalars'] == {
-            'Mean Slope (x direction)': -2.,  # absolut value of slope
-            'RMS Slope (x direction)': 2.,  # absolut value of slope
+            'Mean Slope (x direction)': dict(value=-2., unit='1'),  # absolute value of slope
+            'RMS Slope (x direction)':  dict(value=2., unit='1'),   # absolute value of slope
     }
 
     assert result['xlabel'] == 'Slope'
@@ -98,8 +98,10 @@ def test_curvature_distribution_simple_line_scan():
 
     assert result['name'] == 'Curvature distribution'
 
-    assert pytest.approx(result['scalars']['Mean Curvature']) == -4
-    assert pytest.approx(result['scalars']['RMS Curvature']) == 4
+    assert pytest.approx(result['scalars']['Mean Curvature']['value']) == -4
+    assert pytest.approx(result['scalars']['RMS Curvature']['value']) == 4
+    assert result['scalars']['Mean Curvature']['unit'] == '{}⁻¹'.format(unit)
+    assert result['scalars']['RMS Curvature']['unit'] == '{}⁻¹'.format(unit)
 
     assert result['xlabel'] == 'Curvature'
     assert result['ylabel'] == 'Probability'
@@ -211,8 +213,10 @@ def test_height_distribution_simple_2d_topography():
 
     assert result['name'] == 'Height distribution'
 
-    assert pytest.approx(result['scalars']['Mean Height']) == 0.
-    assert pytest.approx(result['scalars']['RMS Height']) == np.sqrt(33)
+    assert pytest.approx(result['scalars']['Mean Height']['value']) == 0.
+    assert pytest.approx(result['scalars']['RMS Height']['value']) == np.sqrt(33)
+    assert result['scalars']['Mean Height']['unit'] == unit
+    assert result['scalars']['RMS Height']['unit'] == unit
 
     assert result['xlabel'] == 'Height'
     assert result['ylabel'] == 'Probability'
@@ -251,10 +255,13 @@ def test_slope_distribution_simple_2d_topography():
 
     assert result['name'] == 'Slope distribution'
 
-    assert pytest.approx(result['scalars']['Mean Slope (x direction)']) == 0.
-    assert pytest.approx(result['scalars']['Mean Slope (y direction)']) == -4.
-    assert pytest.approx(result['scalars']['RMS Slope (x direction)']) == 0.
-    assert pytest.approx(result['scalars']['RMS Slope (y direction)']) == 4.
+    assert pytest.approx(result['scalars']['Mean Slope (x direction)']['value']) == 0.
+    assert pytest.approx(result['scalars']['Mean Slope (y direction)']['value']) == -4.
+    assert pytest.approx(result['scalars']['RMS Slope (x direction)']['value']) == 0.
+    assert pytest.approx(result['scalars']['RMS Slope (y direction)']['value']) == 4.
+
+    for kind, dir in zip(['Mean', 'RMS'], ['x', 'y']):
+        assert result['scalars'][f'{kind} Slope ({dir} direction)']['unit'] == '1'
 
     assert result['xlabel'] == 'Slope'
     assert result['ylabel'] == 'Probability'
@@ -305,8 +312,10 @@ def test_curvature_distribution_simple_2d_topography():
 
     assert result['name'] == 'Curvature distribution'
 
-    assert pytest.approx(result['scalars']['Mean Curvature']) == 0.
-    assert pytest.approx(result['scalars']['RMS Curvature']) == 0.
+    assert pytest.approx(result['scalars']['Mean Curvature']['value']) == 0.
+    assert pytest.approx(result['scalars']['RMS Curvature']['value']) == 0.
+    assert result['scalars']['Mean Curvature']['unit'] == '{}⁻¹'.format(unit)
+    assert result['scalars']['RMS Curvature']['unit'] == '{}⁻¹'.format(unit)
 
     assert result['xlabel'] == 'Curvature'
     assert result['ylabel'] == 'Probability'
@@ -347,7 +356,8 @@ def test_curvature_distribution_simple_2d_topography_periodic():
 
     assert result['name'] == 'Curvature distribution'
 
-    assert pytest.approx(result['scalars']['Mean Curvature']) == 0.
+    assert pytest.approx(result['scalars']['Mean Curvature']['value']) == 0.
+    assert result['scalars']['Mean Curvature']['unit'] == '{}⁻¹'.format(unit)
 
 
 def test_power_spectrum_simple_2d_topography():
