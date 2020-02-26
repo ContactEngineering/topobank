@@ -164,7 +164,8 @@ def test_upload_topography_di(client):
                           "physical_sizes_to_be_set", "exp_physical_sizes"),
                          [(FIXTURE_DIR + "/10x10.txt", 'asc', 10, 10, (1, 1), (1, 1)),
                           (FIXTURE_DIR + "/line_scan_1.asc", 'xyz', 11, None, None, (9.0,)),
-                          (FIXTURE_DIR + "/line_scan_1_minimal_spaces.asc", 'xyz', 11, None, None, (9.0,))])
+                          (FIXTURE_DIR + "/line_scan_1_minimal_spaces.asc", 'xyz', 11, None, None, (9.0,)),
+                          (FIXTURE_DIR + "/example6.txt", 'xyz', 10, None, (1.,), (1.,) )])
 # Add this for a larger file: ("topobank/manager/fixtures/500x500_random.txt", 500)]) # takes quire long
 @pytest.mark.django_db
 def test_upload_topography_txt(client, django_user_model, input_filename,
