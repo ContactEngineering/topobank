@@ -33,47 +33,74 @@
   <div class="bg-light border-top border-bottom">
     <div class="container-fluid">
       <div class="py-2">
-        <label for="basket"><h5>Surfaces and topographies selected for analysis in <a href="{% url 'manager:surface-list' %}">surface list</a></h5></label>
         <div id="basket">
           <div v-if="keys.length">
             <basket-element v-for="key in keys" v-bind:elem="get_element(key)" v-bind:key="key"></basket-element>
           </div>
-          <span v-else>No items selected yet. In order to select, please use the checkboxes in the surface list.</span>
+          <span v-else>No items selected yet. In order to select, please use the checkboxes in the Search Results.</span>
         </div>
       </div>
-      <hr/>
-      {% crispy form form.helper %}
-      {# TODO for some reason here also JS code for select2 is inserted too early, this causes warnings #}
+
     </div>
   </div>
 {% endblock basket %}
 
 {% block content %}
 
-  <!--
-  Show one card for each analysis function
+   <ul class="nav nav-tabs">
+    <li class="nav-item">
+      <a class="nav-link" href="{% url 'manager:surface-list' %}">
+        <i class="fa fa-fw fa-diamond"></i> Search Results
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link active" href="{% url 'analysis:list' %}">
+        <i class="fa fa-fw fa-area-chart"></i> Analyze
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" href="{% url 'manager:sharing-info' %}">
+        <i class="fa fa-fw fa-share-alt"></i> Share
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link disabled" href="#">Disabled</a>
+    </li>
+  </ul>
 
-  Will be replaced by AJAX call.
-  -->
-  <div class="row">
-    {% for card in cards %}
-      <div class="col-xl-6 mb-4">
+  <div class="tab-content mt-2">
+    <div id="analyses" class="tab-pane active">
 
-        <div id="card-{{ forloop.counter }}">
-          <div class="card search-result-card">
-            <div class="card-header">
-              <h5>{{ card.function.name }}</h5>
-            </div>
-            <div class="card-body">
-                <span class="spinner"></span>
-                <div id="card-{{ forloop.counter }}-wait-text">
-                  Please wait
+      {% crispy form form.helper %}
+
+      {# TODO for some reason here also JS code for select2 is inserted too early, this causes warnings #}
+      <!--
+      Show one card for each analysis function
+
+      Will be replaced by AJAX call.
+      -->
+      <div class="row">
+        {% for card in cards %}
+          <div class="col-xl-6 mb-4">
+
+            <div id="card-{{ forloop.counter }}">
+              <div class="card search-result-card">
+                <div class="card-header">
+                  <h5>{{ card.function.name }}</h5>
                 </div>
+                <div class="card-body">
+                    <span class="spinner"></span>
+                    <div id="card-{{ forloop.counter }}-wait-text">
+                      Please wait
+                    </div>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
+        {% endfor %}
       </div>
-    {% endfor %}
+
+    </div>
   </div>
 
 

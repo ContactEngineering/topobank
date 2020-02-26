@@ -39,47 +39,34 @@
     <!-- jquery must be loaded early, e.g. because of datepicker -->
     <script src="{% static 'vendor/jquery/jquery-3.3.1.min.js' %}"></script>
 
-    <nav class="navbar navbar-expand navbar-light bg-light static-top">
+    <nav class="navbar navbar-expand-md navbar-dark bg-dark static-top">
 
       <!-- Navbar -->
 
-      {# Show user where we are #}
+      {# Logo / name of the application #}
+      <a class="navbar-brand" href="{% url 'home' %}">contact.engineering</a>
+      <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbar_supported_content">
+        <span class="navbar-toggler-icon"></span>
+      </button>
 
-      <ol class="navbar-nav">
-        <li class="breadcrumb-item">
-          <a class="" href="{% url 'home' %}">
-            <i class="fa fa-fw fa-database"></i>
-          </a>
-        </li>
+      <div class="collapse navbar-collapse" id="navbar_supported_content">
+
+      {% if request.user.is_authenticated %}
+      {# Search Bar #}
+      <form class="form-inline">
+        <input class="form-control mr-sm-2" type="search" placeholder="Search" aria-label="Search">
+        <button class="btn btn-light my-sm-0" type="submit">Search</button>
+      </form>
+
+      {# Breadcrumbs: Show user where we are #}
+      <ol class="navbar-nav ml-2">
         {% block breadcrumbs %}
         {% endblock breadcrumbs %}
       </ol>
+      {% endif %}
 
       <ul class="navbar-nav ml-auto">
         {% if request.user.is_authenticated %}
-
-          <li class="nav-item">
-              <a class="nav-link {% navbar_active request.path 'Surfaces' %}"
-                 href="{% url 'manager:surface-list' %}">
-                <i class="fa fa-fw fa-diamond"></i>
-                <span>Surfaces</span>
-              </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% navbar_active request.path 'Analyses' %}"
-               href="{% url 'analysis:list' %}">
-              <i class="fa fa-fw fa-area-chart"></i>
-              <span>Analyses</span>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% navbar_active request.path 'Sharing' %}"
-               href="{% url 'manager:sharing-info' %}">
-              <i class="fa fa-fw fa-share-alt"></i>
-              <span>Sharing</span>
-            </a>
-          </li>
-
 
           <li class="nav-item dropdown no-arrow">
 
@@ -132,6 +119,9 @@
         </li>
       </ul>
 
+
+      </div>
+
     </nav>
 
     {% block basket %}{% endblock basket %}
@@ -139,7 +129,7 @@
     <div id="wrapper">
       <div id="content-wrapper">
 
-        <div class="container-fluid">
+        <div class="container-fluid mt-1">
 
           {# Places Messages #}
           {% if messages %}
