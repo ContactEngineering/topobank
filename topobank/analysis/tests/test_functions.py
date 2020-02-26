@@ -63,7 +63,7 @@ def test_slope_distribution_simple_line_scan():
     assert result['name'] == 'Slope distribution'
     assert result['scalars'] == {
             'Mean Slope (x direction)': -2.,  # absolut value of slope
-            'RMS Slope (x direction)': 2., # absolut value of slope
+            'RMS Slope (x direction)': 2.,  # absolut value of slope
     }
 
     assert result['xlabel'] == 'Slope'
@@ -73,14 +73,15 @@ def test_slope_distribution_simple_line_scan():
 
     assert len(result['series']) == 2
 
-    exp_bins = np.array([-2.33333333333, -2, -1.66666666666]) # for slopes
-    exp_slope_dist_values = [0, 3, 0] # integral with dx=1/3 results to 1
+    exp_bins = np.array([-2.33333333333, -2, -1.66666666666])  # for slopes
+    exp_slope_dist_values = [0, 3, 0]  # integral with dx=1/3 results to 1
     series0 = result['series'][0]
     np.testing.assert_almost_equal(series0['x'], exp_bins)
     np.testing.assert_almost_equal(series0['y'], exp_slope_dist_values)
 
     # not testing gauss values yet since number of points is unknown
     # proposal: use a well tested function instead of own formula
+
 
 def test_curvature_distribution_simple_line_scan():
 
@@ -113,13 +114,13 @@ def test_curvature_distribution_simple_line_scan():
     # integral over dx= should be 1
     assert np.trapz(exp_curv_dist_values, exp_bins) == pytest.approx(1)
 
-
     series0 = result['series'][0]
     np.testing.assert_almost_equal(series0['x'], exp_bins)
     np.testing.assert_almost_equal(series0['y'], exp_curv_dist_values)
 
     # not testing gauss values yet since number of points is unknown
     # proposal: use a well tested function instead of own formula
+
 
 def test_power_spectrum_simple_nonuniform_linescan():
 
@@ -148,6 +149,7 @@ def test_power_spectrum_simple_nonuniform_linescan():
 
     # TODO Also check values here as integration test?
 
+
 def test_autocorrelation_simple_nonuniform_topography():
 
     x = np.arange(5)
@@ -165,6 +167,7 @@ def test_autocorrelation_simple_nonuniform_topography():
 
     # TODO Check result values for autocorrelation
 
+
 def test_variable_bandwidth_simple_nonuniform_linescan():
 
     x = np.arange(5)
@@ -178,14 +181,15 @@ def test_variable_bandwidth_simple_nonuniform_linescan():
     assert sorted(result.keys()) == sorted(['name', 'xlabel', 'ylabel', 'xscale', 'yscale', 'xunit', 'yunit', 'series'])
 
     assert result['name'] == 'Variable-bandwidth analysis'
-    # TODO Check result values for bandwidht
+    # TODO Check result values for bandwidth
 
 
 ###############################################################################
 # Tests for 2D topographies
 ###############################################################################
 
-def test_height_distribution_simple_2D_topography():
+
+def test_height_distribution_simple_2d_topography():
 
     unit = 'nm'
     info = dict(unit=unit)
@@ -217,8 +221,8 @@ def test_height_distribution_simple_2D_topography():
 
     assert len(result['series']) == 2
 
-    exp_bins = np.array([-8.1, -6.3, -4.5, -2.7, -0.9,  0.9,  2.7,  4.5,  6.3,  8.1]) # for heights
-    exp_height_dist_values = np.ones((10,))*1/(10*1.8) # each interval has width of 1.8, 10 intervals
+    exp_bins = np.array([-8.1, -6.3, -4.5, -2.7, -0.9,  0.9,  2.7,  4.5,  6.3,  8.1])  # for heights
+    exp_height_dist_values = np.ones((10,))*1/(10*1.8)  # each interval has width of 1.8, 10 intervals
     series0 = result['series'][0]
 
     assert series0['name'] == 'Height distribution'
@@ -230,7 +234,7 @@ def test_height_distribution_simple_2D_topography():
     # proposal: use a well tested function instead of own formula
 
 
-def test_slope_distribution_simple_2D_topography():
+def test_slope_distribution_simple_2d_topography():
 
     y = np.arange(10).reshape((1, -1))
     x = np.arange(5).reshape((-1, 1))
@@ -280,7 +284,8 @@ def test_slope_distribution_simple_2D_topography():
     # TODO not testing gauss values yet since number of points is unknown
     # proposal: use a well tested function instead of own formula
 
-def test_curvature_distribution_simple_2D_topography():
+
+def test_curvature_distribution_simple_2d_topography():
 
     unit = 'nm'
     info = dict(unit=unit)
@@ -323,13 +328,12 @@ def test_curvature_distribution_simple_2D_topography():
     assert s1['name'] == 'RMS curvature'
     # Not testing gaussian here
 
-def test_curvature_distribution_simple_2D_topography_periodic():
+def test_curvature_distribution_simple_2d_topography_periodic():
 
     unit = 'nm'
     info = dict(unit=unit)
 
     y = np.arange(100).reshape((1, -1))
-    x = np.arange(100).reshape((-1, 1))
 
     arr = np.sin(y/2/np.pi) # only slope in y direction, second derivative is -sin
 
@@ -346,7 +350,7 @@ def test_curvature_distribution_simple_2D_topography_periodic():
     assert pytest.approx(result['scalars']['Mean Curvature']) == 0.
 
 
-def test_power_spectrum_simple_2D_topography():
+def test_power_spectrum_simple_2d_topography():
 
     unit = 'nm'
     info = dict(unit=unit)
@@ -380,7 +384,8 @@ def test_power_spectrum_simple_2D_topography():
 
     # TODO Also check values here as integration test?
 
-def test_autocorrelation_simple_2D_topography():
+
+def test_autocorrelation_simple_2d_topography():
     y = np.arange(10).reshape((1, -1))
     x = np.arange(5).reshape((-1, 1))
 
@@ -399,7 +404,8 @@ def test_autocorrelation_simple_2D_topography():
 
     # TODO Check result values for autocorrelation
 
-def test_variable_bandwidth_simple_2D_topography():
+
+def test_variable_bandwidth_simple_2d_topography():
     y = np.arange(10).reshape((1, -1))
     x = np.arange(5).reshape((-1, 1))
 
@@ -415,7 +421,8 @@ def test_variable_bandwidth_simple_2D_topography():
     assert sorted(result.keys()) == sorted(['name', 'xlabel', 'ylabel', 'xscale', 'yscale', 'xunit', 'yunit', 'series'])
 
     assert result['name'] == 'Variable-bandwidth analysis'
-    # TODO Check result values for bandwidht
+    # TODO Check result values for bandwidth
+
 
 def test_contact_mechanics_incompatible_topography():
 
