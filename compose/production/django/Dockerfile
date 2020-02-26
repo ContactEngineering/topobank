@@ -5,6 +5,7 @@ FROM continuumio/miniconda3
 #FROM python:3.7-alpine
 
 ENV PYTHONUNBUFFERED 1
+ARG PYCO_VERSION=0.56.0
 
 #
 # System dependencies for Python + Django
@@ -31,9 +32,9 @@ RUN addgroup django \
 # Installation of PyCo + dependencies
 #
 # Copy PyCo source code into container, uncompress
-COPY PyCo-0.55.0.tar.gz .
-RUN tar xfvz PyCo-0.55.0.tar.gz
-WORKDIR PyCo-0.55.0
+COPY PyCo-${PYCO_VERSION}.tar.gz .
+RUN tar xfvz PyCo-${PYCO_VERSION}.tar.gz
+WORKDIR PyCo-${PYCO_VERSION}
 
 # install additional PyCo dependencies
 RUN pip install wheel

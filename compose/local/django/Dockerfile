@@ -3,6 +3,7 @@ FROM continuumio/miniconda3
 #FROM python:3.7-alpine
 
 ENV PYTHONUNBUFFERED 1
+ARG PYCO_VERSION=0.56.0
 
 #
 # System dependencies for Python + Django
@@ -23,11 +24,11 @@ RUN apt-get -qy autoremove
 # Installation of PyCo + dependencies
 #
 # Copy PyCo source code into container, uncompress
-COPY PyCo-0.55.0.tar.gz .
-RUN tar xfvz PyCo-0.55.0.tar.gz
+COPY PyCo-${PYCO_VERSION}.tar.gz .
+RUN tar xfvz PyCo-${PYCO_VERSION}.tar.gz
 
 # install PyCo
-WORKDIR PyCo-0.55.0
+WORKDIR PyCo-${PYCO_VERSION}
 
 # workaround for typo in requiremnts.txt
 RUN sed -i "s/#egg=muff$/#egg=mufft/g" requirements.txt
