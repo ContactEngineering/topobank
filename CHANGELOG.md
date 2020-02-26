@@ -6,6 +6,8 @@
   are defined in PyCo (#424)
 - management command 'trigger_analyses' now can trigger analyses also 
   for given functions or specific analyses
+- added management command 'notify_users' for sending a simple notification 
+  to all users (#437)
 - more consistent orientation of topography images,
   including an upgrade to PyCo 0.56.0 (#440)
 - more robust when no channel name was given in data file (#441),

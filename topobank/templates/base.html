@@ -349,7 +349,7 @@
                 var href = '/inbox/notifications/mark-as-read/'+item.slug+'/?next='; {# TODO remove hard-coded prefix #}
                 var message = item.description;
 
-                if ((item.data !== null) && (typeof item.data.href !== 'undefined')) {
+                if ((item.data !== null) && (item.data.href !== null) && (typeof item.data.href !== 'undefined')) {
                     href += item.data.href;
                 } else {
                     href += "#";
