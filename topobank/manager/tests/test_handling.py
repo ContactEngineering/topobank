@@ -165,7 +165,7 @@ def test_upload_topography_di(client):
                          [(FIXTURE_DIR + "/10x10.txt", 'asc', 10, 10, (1, 1), (1, 1)),
                           (FIXTURE_DIR + "/line_scan_1.asc", 'xyz', 11, None, None, (9.0,)),
                           (FIXTURE_DIR + "/line_scan_1_minimal_spaces.asc", 'xyz', 11, None, None, (9.0,)),
-                          (FIXTURE_DIR + "/example6.txt", 'xyz', 10, None, (1.,), (1.,) )])
+                          (FIXTURE_DIR + "/example6.txt", 'asc', 10, None, (1.,), (1.,))])
 # Add this for a larger file: ("topobank/manager/fixtures/500x500_random.txt", 500)]) # takes quire long
 @pytest.mark.django_db
 def test_upload_topography_txt(client, django_user_model, input_filename,
@@ -250,7 +250,8 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
                                        kwargs=dict(surface_id=surface.id)),
                                data={
                                    'topography_create_wizard-current_step': "units",
-                                   'units-size_editable': False,  # would be sent when initialize form
+                                   'units-size_editable': physical_sizes_to_be_set is not None,  # would be sent when initialize form
+                                   'units-size_x': physical_sizes_to_be_set[0] if physical_sizes_to_be_set else '',
                                    'units-unit': 'nm',
                                    'units-height_scale': 1,
                                    'units-detrend_mode': 'height',
@@ -261,7 +262,7 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
                                        kwargs=dict(surface_id=surface.id)),
                                data={
                                    'topography_create_wizard-current_step': "units",
-                                   'units-size_editable': True, # would be sent when initialize form
+                                   'units-size_editable': True,  # would be sent when initialize form
                                    'units-unit_editable': True,  # would be sent when initialize form
                                    'units-size_x': physical_sizes_to_be_set[0],
                                    'units-size_y': physical_sizes_to_be_set[1],

@@ -152,7 +152,7 @@ class TopographyCreateWizard(SessionWizardView):
             datafile_format = step0_data['datafile_format']
 
         if step == 'metadata':
-            initial['name'] = os.path.basename(datafile.name) # the original file name
+            initial['name'] = os.path.basename(datafile.name)  # the original file name
 
         if step in ['units']:
 
@@ -168,20 +168,23 @@ class TopographyCreateWizard(SessionWizardView):
 
             has_2_dim = channel_info.dim == 2
             physical_sizes = channel_info.physical_sizes
+            physical_sizes_is_None = (physical_sizes is None) or (physical_sizes == (None,)) \
+                                     or (physical_sizes == (None, None))
+            # workaround for GH 299 in PyCo and GH 446 in TopoBank
 
-            if physical_sizes is None:
+            if physical_sizes_is_None:
                 initial_size_x, initial_size_y = None, None
                 # both database fields are always set, also for 1D topographies
             elif has_2_dim:
                 initial_size_x, initial_size_y = physical_sizes
             else:
-                initial_size_x, = physical_sizes # size is always a tuple
-                initial_size_y = None # needed for database field
+                initial_size_x, = physical_sizes  # size is always a tuple
+                initial_size_y = None  # needed for database field
 
             initial['size_x'] = initial_size_x
             initial['size_y'] = initial_size_y
 
-            initial['size_editable'] = physical_sizes is None
+            initial['size_editable'] = physical_sizes_is_None
 
             initial['is_periodic'] = False  # so far, this is not returned by the readers
 

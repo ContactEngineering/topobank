@@ -12,7 +12,8 @@
   this seemed to generate a lot of exceptions in production
   maybe resulting in too many database clients (#436)
 - fix for wrong units of special values (mean+rms) of slope and 
-  curvature distributions (#444)   
+  curvature distributions (#444)
+- fix for problem when loading line scans without position (#446)
 - upgrade to Django 2.2.10 (#439)
 
 ## 0.7.4 (2020-02-14)
