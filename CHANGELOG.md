@@ -1,6 +1,24 @@
 # Changelog for *TopoBank*
 
-## 0.7.4
+## 0.7.5 (2020-02-27)
+
+- added help page with supported file formats, descriptions for the readers
+  are defined in PyCo (#424)
+- management command 'trigger_analyses' now can trigger analyses also 
+  for given functions or specific analyses
+- added management command 'notify_users' for sending a simple notification 
+  to all users (#437)
+- more consistent orientation of topography images,
+  including an upgrade to PyCo 0.56.0 (#440)
+- more robust when no channel name was given in data file (#441),
+  this seemed to generate a lot of exceptions in production
+  maybe resulting in too many database clients (#436)
+- fix for wrong units of special values (mean+rms) of slope and 
+  curvature distributions (#444)
+- fix for problem when loading line scans without position (#446)
+- upgrade to Django 2.2.10 (#439)
+
+## 0.7.4 (2020-02-14)
 
 - problems during loading of topographies which could already
   be loaded earlier now show error message and a mailto link
@@ -17,13 +35,13 @@
 - fix for endless recursion on 404 responses (#367), should also
   fix problems with too many database connections (#436)
   
-## 0.7.3
+## 0.7.3 (2019-12-20)
 
 - fixes wrong orientation in topography image plots (#253,#378)
 - fixes internal server error with existing ibw files (#413)
 - fixes white description in active row of search list (#414)
 
-## 0.7.2
+## 0.7.2 (2019-12-13)
 
 - further improvements on the usability of the surface list (#381)
 - added menu option to mark all notifications as read (#391)
@@ -57,7 +75,7 @@
   if nothing is selected; instead, show an info box that no surfaces 
   and topographies have been chosen yet (#408)
    
-## 0.7.1
+## 0.7.1 (2019-11-22)
 
 - added "is_periodic" flag for topographies (#347)
 - added help texts explaining the asterisk in forms (#305)
@@ -73,7 +91,7 @@
 - fixed invisible topographies in surface list when filtering for category/sharing status (#376)
 - improved some visual aspects in surface list (#381, not finished yet)
  
-## 0.7.0
+## 0.7.0 (2019-10-23)
 
 - surfaces and topographies can now be tagged (#52)
 - hierachical tags can be used when inserting slashes in the tag name, 
@@ -86,18 +104,18 @@
 - using checkboxes for selecting analysis functions (#271)
 - failed analyses are retriggered now when requested again (#371)
 
-## 0.6.3
+## 0.6.3 (2019-10-07)
 
 - added migrations needed for bug fix (#366)
 - fixed setting of topography creator to NULL if uploading user
   is removed
 
-## 0.6.2
+## 0.6.2 (2019-10-07)
 
 - bug fix for race conditions while managing dependency versions,
   stopped new analyses (#366)
   
-## 0.6.1
+## 0.6.1 (2019-09-24)
 
 - added notifications through a "bell" symbol in the navigation bar
   (#26,#332); notifications are stored in the database and shown 
@@ -119,7 +137,7 @@
 - workaround for missing points in PSD plots (#356)   
   
   
-## 0.6.0
+## 0.6.0 (2019-08-09)
 
 - fixed sheet names for XLSX download of analysis data (#39,#77)
 - fixed version numbers for used dependencies, they are tracked now (#176)
@@ -139,16 +157,16 @@
 - updated dependencies  
   
    
-## 0.5.7
+## 0.5.7 (2019-07-24)
 
 - workaround: increased limit for maximum request line (#328)
 - fix for server error when uploading files with space in filename (#329)
 
-## 0.5.6
+## 0.5.6 (2019-07-23)
 
 - changed site address for Caddy server to be just the domain name
 
-## 0.5.5
+## 0.5.5 (2019-07-23)
 
 - fixed wrong heights in topography data, using PyCo 0.32.1 now (#295,#320)
 - changed buttons in when editing topographies
@@ -157,7 +175,7 @@
 - showing a spinner every time a point is chosen in contact mechanics (#288)
 - workaround for tooltips on multiple data points in 1D plot (#246) 
 
-## 0.5.4
+## 0.5.4 (2019-07-16)
 
 - fix for wrong height scale in case automated unit conversion
   was applied on upload (#290), metadata of already uploaded 
@@ -165,7 +183,7 @@
 - added buttons and a menu entry to directly show analyses
   for the surface/topography the user is looking at (#264)
   
-## 0.5.3
+## 0.5.3 (2019-07-15)
 
 - fixes for slow PSD calculations for line scans with lots of data points,
   using PyCo 0.32.0 now (#269)
@@ -173,18 +191,18 @@
 - fixes wrong messages about differing function arguments (#285,#251)
 - checking now permissions when downloading data (#286)
 
-## 0.5.2
+## 0.5.2 (2019-07-12)
 
 - workaround for slow autocorrelation computation for
   nonuniform topographies with a large number of data points
 - navigation chevron buttons also in topography update form
 
-## 0.5.1
+## 0.5.1 (2019-07-11)
 
 - cosmetic changes like e.g. harmonizing sizes and loading
   behavior of opened surface and analyses cards
 
-## 0.5.0
+## 0.5.0 (2019-07-11)
 
 - added contact mechanics analysis and visualization (#84)
 - added progress bars for analysis tasks (#202)
@@ -196,11 +214,11 @@
 - fixed sometimes wrong target url for cancel button in 
   upload wizard (#237)
 
-## 0.4.2
+## 0.4.2 (2019-06-13)
 
 - added missing template fragment which caused crashes in analyses view (#216)
 
-## 0.4.1
+## 0.4.1 (2019-06-12)
 
 - allow case-insensitive search for user names (#192)
 - fixes wrong task information for cards in analyses view (#209)
@@ -209,7 +227,7 @@
 - workaround for crash when uploading large file (#212)
 - version upgrades: celery, bokeh, caddy, gunicorn
 
-## 0.4.0
+## 0.4.0 (2019-05-28)
 
 - more responsive surface list through AJAX calls (#203)
 - added progress bar when uploading a topography file (#127)
@@ -220,7 +238,7 @@
 - fixed bug, that users couldn't upload topographies for shared surfaces (#205)
 - fixed target for cancel button when editing surface details (#198)
 
-## 0.3.1
+## 0.3.1 (2019-05-10)
 
 - fixes bug that analyses results were not shown for shared surfaces (#186)
 - fixes bug that single topographies couldn't be selected in surface list (#190)
@@ -229,7 +247,7 @@
 - improves display of help texts in topography forms (#180)
 - added truncation for too long breadcrumb items in navigation bar (#134)
 
-## 0.3.0
+## 0.3.0 (2019-05-08)
 
 - surfaces can be shared for viewing and optionally also for changing
 - user can view/select each others profiles if they collaborate, i.e. share something
@@ -239,7 +257,7 @@
 - prevent duplicate topography names for same surface (fixes #91)
 - topographies with angstrom units can now be display in summary plot (fixes #161)
 
-## 0.2.0
+## 0.2.0 (2019-04-24)
 
 - added category to surfaces (experimental/simulated/dummy data, #145)
 - show units to users even if they cannot be changed (#149)
@@ -248,7 +266,7 @@
 - added statistics on welcome page (#148)
 - other bug fixes: #98
 
-## 0.1
+## 0.1 (2019-04-17)
 
 - login via ORCID
 - creation of surfaces with metadata

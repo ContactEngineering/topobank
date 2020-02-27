@@ -488,8 +488,16 @@ class PlotCardView(SimpleCardView):
             # Collect special values to be shown in the result card
             #
             if 'scalars' in analysis.result_obj:
-                for k, v in analysis.result_obj['scalars'].items():
-                    special_values.append((analysis.topography, k, v, analysis.topography.unit))
+                for scalar_name, scalar_dict in analysis.result_obj['scalars'].items():
+                    try:
+                        scalar_unit = scalar_dict['unit']
+                        if scalar_unit == '1':
+                            scalar_unit =''  # we don't want to display '1' as unit
+                        special_values.append((analysis.topography, scalar_name,
+                                               scalar_dict['value'], scalar_unit))
+                    except (KeyError, IndexError):
+                        _log.warning("Cannot display scalar '%s' given as '%s'. Skipping.", scalar_name, scalar_dict)
+                        special_values.append((analysis.topography, scalar_name, str(scalar_dict), ''))
 
         #
         # Final configuration of the plot

@@ -40,7 +40,7 @@ django-tables2==2.1.0
 git+http://github.com/mcrot/django-tagulous.git
 git+http://git@github.com/mcrot/django-termsandconditions.git@optional_terms
 django-trackstats==0.5.0
-django==2.2.9
+django==2.2.10
 djangorestframework==3.10.2
 docutils==0.15.2
 et-xmlfile==1.0.1
@@ -95,4 +95,4 @@ xarray==0.12.3
 zipp==0.6.0
 
 # The following packages are considered to be unsafe in a requirements file:
-# setuptools==45.0.0        # via gunicorn
+# setuptools==45.2.0        # via gunicorn

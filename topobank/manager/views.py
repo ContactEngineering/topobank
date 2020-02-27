@@ -35,6 +35,7 @@ from rest_framework.decorators import api_view
 # from django_filters import rest_framework as filters
 from rest_framework import filters
 
+import numpy as np
 import json
 import os.path
 import logging
@@ -151,7 +152,7 @@ class TopographyCreateWizard(SessionWizardView):
             datafile_format = step0_data['datafile_format']
 
         if step == 'metadata':
-            initial['name'] = os.path.basename(datafile.name) # the original file name
+            initial['name'] = os.path.basename(datafile.name)  # the original file name
 
         if step in ['units']:
 
@@ -167,20 +168,23 @@ class TopographyCreateWizard(SessionWizardView):
 
             has_2_dim = channel_info.dim == 2
             physical_sizes = channel_info.physical_sizes
+            physical_sizes_is_None = (physical_sizes is None) or (physical_sizes == (None,)) \
+                                     or (physical_sizes == (None, None))
+            # workaround for GH 299 in PyCo and GH 446 in TopoBank
 
-            if physical_sizes is None:
+            if physical_sizes_is_None:
                 initial_size_x, initial_size_y = None, None
                 # both database fields are always set, also for 1D topographies
             elif has_2_dim:
                 initial_size_x, initial_size_y = physical_sizes
             else:
-                initial_size_x, = physical_sizes # size is always a tuple
-                initial_size_y = None # needed for database field
+                initial_size_x, = physical_sizes  # size is always a tuple
+                initial_size_y = None  # needed for database field
 
             initial['size_x'] = initial_size_x
             initial['size_y'] = initial_size_y
 
-            initial['size_editable'] = physical_sizes is None
+            initial['size_editable'] = physical_sizes_is_None
 
             initial['is_periodic'] = False  # so far, this is not returned by the readers
 
@@ -238,6 +242,8 @@ class TopographyCreateWizard(SessionWizardView):
                 :param s: channel name as found in the file
                 :return: string without NULL characters, 100 chars maximum
                 """
+                if s is None:
+                    return "(unknown)"
                 return s.strip('\0')[:100]
 
             #
@@ -515,7 +521,7 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
         #x_range = DataRange1d(start=0, end=topo_size[0], bounds='auto')
         #y_range = DataRange1d(start=0, end=topo_size[1], bounds='auto')
         x_range = DataRange1d(start=0, end=topo_size[0], bounds='auto', range_padding=5)
-        y_range = DataRange1d(start=0, end=topo_size[1], bounds='auto', range_padding=5)
+        y_range = DataRange1d(start=topo_size[1], end=0, flipped=True, range_padding=5)
 
         color_mapper = LinearColorMapper(palette="Viridis256", low=heights.min(), high=heights.max())
 
@@ -551,9 +557,11 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
         plot.xaxis.axis_label_text_font_style = "normal"
         plot.yaxis.axis_label_text_font_style = "normal"
 
-        # we need to transpose the height data in order to be compatible with bokeh's image plot
-
-        plot.image([heights.T], x=0, y=0, dw=topo_size[0], dh=topo_size[1], color_mapper=color_mapper)
+        # we need to rotate the height data in order to be compatible with image in Gwyddion
+        plot.image([np.rot90(heights)], x=0, y=topo_size[1],
+                   dw=topo_size[0], dh=topo_size[1], color_mapper=color_mapper)
+        # the anchor point of (0,topo_size[1]) is needed because the y range is flipped
+        # in order to have the origin in upper left like in Gwyddion
 
         plot.toolbar.logo = None
 

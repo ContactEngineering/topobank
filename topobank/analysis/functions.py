@@ -272,8 +272,8 @@ def height_distribution(topography, bins=None, wfac=5, progress_recorder=None, s
     return dict(
         name='Height distribution',
         scalars={
-            'Mean Height': mean_height, # topography.unit
-            'RMS Height': rms_height, # topography.unit
+            'Mean Height': dict(value=mean_height, unit=unit),
+            'RMS Height': dict(value=rms_height, unit=unit),
         },
         xlabel='Height',
         ylabel='Probability',
@@ -291,14 +291,15 @@ def height_distribution(topography, bins=None, wfac=5, progress_recorder=None, s
         ]
     )
 
-def _moments_histogram_gaussian(arr, bins, wfac, quantity, label, gaussian=True):
+def _moments_histogram_gaussian(arr, bins, wfac, quantity, label, unit, gaussian=True):
     """Return moments, histogram and gaussian for an array.
 
     :param arr: array
     :param bins: bins argument for np.histogram
     :param wfac: numeric width factor
-    :param quantity: str, what kind of quantity this is (e.g. 'slope)
-    :param label: str, how these results should be extra labeled (e.g. 'x direction)
+    :param quantity: str, what kind of quantity this is (e.g. 'slope')
+    :param label: str, how these results should be extra labeled (e.g. 'x direction')
+    :param unit: str, unit of the quantity (e.g. '1/nm')
     :param gaussian: bool, if True, add gaussian
     :return: scalars, series
 
@@ -315,8 +316,8 @@ def _moments_histogram_gaussian(arr, bins, wfac, quantity, label, gaussian=True)
     hist, bin_edges = np.histogram(arr, bins=bins, density=True)
 
     scalars = {
-        f"Mean {quantity.capitalize()} ({label})": mean,
-        f"RMS {quantity.capitalize()} ({label})": rms,
+        f"Mean {quantity.capitalize()} ({label})": dict(value=mean, unit=unit),
+        f"RMS {quantity.capitalize()} ({label})": dict(value=rms, unit=unit),
     }
 
     series = [
@@ -365,7 +366,8 @@ def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, st
         # Results for x direction
         #
         scalars_slope_x, series_slope_x = _moments_histogram_gaussian(dh_dx, bins=bins, wfac=wfac,
-                                                                      quantity="slope", label='x direction')
+                                                                      quantity="slope", unit='1',
+                                                                      label='x direction')
         result['scalars'].update(scalars_slope_x)
         result['series'].extend(series_slope_x)
 
@@ -373,18 +375,20 @@ def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, st
         # Results for x direction
         #
         scalars_slope_y, series_slope_y = _moments_histogram_gaussian(dh_dy, bins=bins, wfac=wfac,
-                                                                      quantity="slope", label='y direction')
+                                                                      quantity="slope", unit='1',
+                                                                      label='y direction')
         result['scalars'].update(scalars_slope_y)
         result['series'].extend(series_slope_y)
 
         #
         # Results for absolute gradient
         #
-        # TODO how to calculate absolute gradient?
+        # Not sure so far, how to calculate absolute gradient..
         #
         # absolute_gradients = np.sqrt(dh_dx**2+dh_dy**2)
         # scalars_grad, series_grad = _moments_histogram_gaussian(absolute_gradients, bins=bins, wfac=wfac,
-        #                                                         quantity="slope", label='absolute gradient',
+        #                                                         quantity="slope", unit="?",
+        #                                                         label='absolute gradient',
         #                                                         gaussian=False)
         # result['scalars'].update(scalars_grad)
         # result['series'].extend(series_grad)
@@ -393,7 +397,8 @@ def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, st
     elif topography.dim == 1:
         dh_dx = topography.derivative(n=1)
         scalars_slope_x, series_slope_x = _moments_histogram_gaussian(dh_dx, bins=bins, wfac=wfac,
-                                                                      quantity="slope", label='x direction')
+                                                                      quantity="slope", unit='1',
+                                                                      label='x direction')
         result['scalars'].update(scalars_slope_x)
         result['series'].extend(series_slope_x)
     else:
@@ -430,16 +435,17 @@ def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None
     y_gauss = np.exp(-(x_gauss - mean_curv) ** 2 / (2 * rms_curv ** 2)) / (np.sqrt(2 * np.pi) * rms_curv)
 
     unit = topography.info['unit']
+    inverse_unit = '{}⁻¹'.format(unit)
 
     return dict(
         name='Curvature distribution',
         scalars={
-            'Mean Curvature': mean_curv,
-            'RMS Curvature': rms_curv,
+            'Mean Curvature': dict(value=mean_curv, unit=inverse_unit),
+            'RMS Curvature': dict(value=rms_curv, unit=inverse_unit),
         },
         xlabel='Curvature',
         ylabel='Probability',
-        xunit='{}⁻¹'.format(unit),
+        xunit=inverse_unit,
         yunit=unit,
         series=[
             dict(name='Curvature distribution',
