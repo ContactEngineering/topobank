@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-## 0.7.5 (not published yet)
+## 0.7.5 (2020-02-27)
 
 - added help page with supported file formats, descriptions for the readers
   are defined in PyCo (#424)
