@@ -1,6 +1,7 @@
 from django.core.management.base import BaseCommand
 from guardian.shortcuts import get_users_with_perms
 import logging
+import sys
 
 from topobank.manager.models import Topography, Surface
 from topobank.analysis.models import Analysis
@@ -10,24 +11,36 @@ from topobank.analysis.utils import submit_analysis
 _log = logging.getLogger(__name__)
 
 class Command(BaseCommand):
-    help = "Trigger analyses. So for analyses for all functions will be triggered."
+    help = "Trigger analyses for given surfaces, topographies or functions."
 
     def add_arguments(self, parser):
 
-        parser.add_argument('items', nargs='+', type=str,
-                            help="Items for which analyses should be triggered. Format: "+\
-                            "'s<surfarce_id>' for surfaces and 't<topography_id>' for topographies. "+\
-                            "Use 'failed' for all failed analyses.")
+        parser.add_argument('item', nargs='+', type=str,
+                            help="""
+                            Item for which analyses should be triggered.
+                            Format:
+                              's<surface_id>':    all analyses for a specific surface,
+                              't<topography_id>': all analyses for a specific topography,
+                              'f<function_id>':   all analyses for a given function,
+                              'a<analysis_id>':   a specific analysis,
+                              'failed':           all failed analyses,
+                              'pending':          all pending analyses.
+                            """)
 
+        parser.add_argument(
+            '--dry-run',
+            action='store_true',
+            dest='dry_run',
+            help='Just parse arguments and print how much analyses would be triggered.',
+        )
 
-        # Named (optional) arguments
-        #parser.add_argument(
-        #    '-a',
-        #    '--all',
-        #    action='store_true',
-        #    dest='all',
-        #    help='Delete all analyses including all result files.',
-        #)
+        parser.add_argument(
+            '-l',
+            '--list-funcs',
+            action='store_true',
+            dest='list_funcs',
+            help='Just list analysis functions with ids and exit.',
+        )
 
     def parse_item(self, item, analysis_funcs):
         """Parse one item and return set of (function, topography).
@@ -39,8 +52,11 @@ class Command(BaseCommand):
         The parameter item can be
 
          "failed": return set for all failed analyses
+         "pending": return set for all pending analyses
          "s<surface_id>": return set for all topographies for given surface, e.g. "s13" means surface_id=13
-         "t<topo_id>: return set for given topography
+         "t<topo_id>": return set for given topography
+         "a<analysis_id>": return set only for given analysis
+         "f<analysis_id>": return set for given analysis function and all topographies
         """
 
         if item == "failed":
@@ -48,8 +64,13 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(f"Found {len(failed_analyses)} failed analyses."))
             return set( (a.function, a.topography) for a in failed_analyses)
 
+        if item == "pending":
+            pending_analyses = Analysis.objects.filter(task_state=Analysis.PENDING, function__in=analysis_funcs)
+            self.stdout.write(self.style.SUCCESS(f"Found {len(pending_analyses)} pending analyses."))
+            return set( (a.function, a.topography) for a in pending_analyses)
 
-        if item[0] not in ['s', 't']:
+
+        if item[0] not in 'staf':
             self.stdout.write(self.style.WARNING(f"Cannot interpret first character of item '{item}'. Skipping."))
             return ()
 
@@ -59,12 +80,14 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING(f"Cannot interpret id of item '{item}'. Skipping."))
             return ()
 
-        is_surface = item[0] == 's'
+        classes = {
+            's': Surface,
+            't': Topography,
+            'a': Analysis,
+            'f': AnalysisFunction,
+        }
 
-        if is_surface:
-            klass = Surface
-        else:
-            klass = Topography
+        klass = classes[item[0]]
 
         try:
             obj = klass.objects.get(id=id)
@@ -74,27 +97,39 @@ class Command(BaseCommand):
 
         result = set()
 
-        if is_surface:
+        if klass == Surface:
             for topo in obj.topography_set.all():
                 for af in analysis_funcs:
                     result.add((af, topo))
-        else:
+        elif klass == Topography:
             for af in analysis_funcs:
                 result.add((af, obj))
+        elif klass == Analysis:
+            result.add((obj.function, obj.topography))
+        elif klass == AnalysisFunction:
+            for topo in  Topography.objects.all():
+                result.add((obj, topo))
 
         return result
 
     def handle(self, *args, **options):
         #
-        # collect topographies and surfaces
+        # collect analyses to trigger
         #
         auto_analysis_funcs = AnalysisFunction.objects.filter(automatic=True)
+
+        if options['list_funcs']:
+            for af in auto_analysis_funcs:
+               self.stdout.write(self.style.SUCCESS(f"Id {af.id}: {af.name} (python: {af.pyfunc}, automatic: {af.automatic})"))
+            sys.exit(0)
+
+        dry_run = options['dry_run']
 
         num_triggered = 0
 
         trigger_set = set()
-        for item in options['items']:
-            trigger_set.update(self.parse_item(item, auto_analysis_funcs) )
+        for item in options['item']:
+            trigger_set.update(self.parse_item(item, auto_analysis_funcs))
 
         #
         # Trigger analyses
@@ -102,7 +137,11 @@ class Command(BaseCommand):
         for func, topo in trigger_set:
             # collect users which are allowed to view analyses
             users = get_users_with_perms(topo.surface)
-            submit_analysis(users, func, topo)
+            if not dry_run:
+                submit_analysis(users, func, topo)
             num_triggered += 1
 
-        self.stdout.write(self.style.SUCCESS(f"Triggered {num_triggered} analyses."))
+        if dry_run:
+            self.stdout.write(self.style.SUCCESS(f"Would trigger {num_triggered} analyses, but this is a dry run."))
+        else:
+            self.stdout.write(self.style.SUCCESS(f"Triggered {num_triggered} analyses."))

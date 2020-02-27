@@ -1,14 +1,21 @@
 # Changelog for *TopoBank*
 
-## 0.7.5 (not published yet)
+## 0.7.5 (2020-02-27)
 
 - added help page with supported file formats, descriptions for the readers
   are defined in PyCo (#424)
+- management command 'trigger_analyses' now can trigger analyses also 
+  for given functions or specific analyses
+- added management command 'notify_users' for sending a simple notification 
+  to all users (#437)
 - more consistent orientation of topography images,
   including an upgrade to PyCo 0.56.0 (#440)
 - more robust when no channel name was given in data file (#441),
   this seemed to generate a lot of exceptions in production
-  maybe resulting in too many database clients (#436) 
+  maybe resulting in too many database clients (#436)
+- fix for wrong units of special values (mean+rms) of slope and 
+  curvature distributions (#444)
+- fix for problem when loading line scans without position (#446)
 - upgrade to Django 2.2.10 (#439)
 
 ## 0.7.4 (2020-02-14)
