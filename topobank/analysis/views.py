@@ -492,7 +492,7 @@ class PlotCardView(SimpleCardView):
                     try:
                         scalar_unit = scalar_dict['unit']
                         if scalar_unit == '1':
-                            scalar_unit =''  # we don't want to display '1' as unit
+                            scalar_unit = ''  # we don't want to display '1' as unit
                         special_values.append((analysis.topography, scalar_name,
                                                scalar_dict['value'], scalar_unit))
                     except (KeyError, IndexError):

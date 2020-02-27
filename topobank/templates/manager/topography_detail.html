@@ -36,6 +36,37 @@
 
  {% get_obj_perms request.user for topography.surface as "surface_perms" %}
 
+  <ul class="nav nav-tabs">
+    <li class="nav-item">
+      <a class="nav-link" href="{% url 'manager:surface-list' %}">
+        <i class="fa fa-fw fa-diamond"></i> Search Results
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" href="{% url 'analysis:list' %}">
+        <i class="fa fa-fw fa-area-chart"></i> Analyze
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" href="{% url 'manager:sharing-info' %}">
+        <i class="fa fa-fw fa-share-alt"></i> Share
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link active" href="{% url 'manager:topography-detail' topography.id %}">
+        <i class="fa fa-fw fa-diamond"></i>
+        Topography <b>{{ topography.name }}</b>
+      </a>
+    </li>
+
+    <li class="nav-item">
+      <a class="nav-link" href="{% url 'manager:topography-update' topography.id %}">Edit</a>
+    </li>
+
+  </ul>
+
+  <div class="tab-content mt-2">
+
   <div class="card">
 
     <div class="card-header">
