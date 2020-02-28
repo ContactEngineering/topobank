@@ -214,7 +214,8 @@ TEMPLATES = [
                 'django.template.context_processors.static',
                 'django.template.context_processors.tz',
                 'django.contrib.messages.context_processors.messages',
-                'topobank.context_processors.versions_processor'
+                'topobank.context_processors.versions_processor',
+                'topobank.context_processors.basket_processor',
             ],
         },
     },

@@ -47,26 +47,7 @@
 
 {% block content %}
 
-   <ul class="nav nav-tabs">
-    <li class="nav-item">
-      <a class="nav-link" href="{% url 'manager:surface-list' %}">
-        <i class="fa fa-fw fa-diamond"></i> Search Results
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link active" href="{% url 'analysis:list' %}">
-        <i class="fa fa-fw fa-area-chart"></i> Analyze
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link" href="{% url 'manager:sharing-info' %}">
-        <i class="fa fa-fw fa-share-alt"></i> Share
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link disabled" href="#">Properties</a>
-    </li>
-  </ul>
+  {% include "tabs.html" with active_tab="analyze" %}
 
   <div class="tab-content mt-2">
     <div id="analyses" class="tab-pane active">
@@ -114,87 +95,6 @@
 
   <!-- for task progress bar -->
   <script src="{% static 'celery_progress/celery_progress.js' %}"></script>
-
-  <!-- fill the basket with selected topographies and surfaces -->
-  <script>
-  var basket = new Vue({
-          delimiters: ['[[', ']]'],
-          el: '#basket',
-          data: {
-              keys: [],
-              elements: {} // key: key like "surface-1", value is object, see below
-          },
-          mounted: function() {
-            this.update();
-          },
-          methods:{
-
-              get_element: function (key) {
-                return this.elements[key];
-              },
-              update: function () {
-                  var elements = {};
-                  var keys = [];
-
-                  var basket_items = {{ basket_items_json | safe }};
-
-                  // console.log(basket_items);
-
-                  basket_items.forEach(function (item) {
-                     keys.push(item.key);
-                     elements[item.key] = item;
-                  });
-
-                  // remove all elements which parent element is already included
-                  var keys_to_remove = []
-                  keys.forEach(function (key) {
-                     var elem = elements[key];
-                     if (elem.hasOwnProperty('surface_key') && (elem.surface_key in elements)) {
-                         keys_to_remove.push(key);
-                     }
-                  });
-                  keys_to_remove.forEach(function (key) {
-                      delete elements[key];
-                  });
-                  keys = keys.filter( function (key) {
-                     return keys_to_remove.indexOf(key) == -1
-                  });
-                  keys.sort() // we want always the same order, independent from traversal order
-
-                  // console.log("All elements: ", elements);
-                  this.elements = elements;
-                  this.keys = keys;
-              }
-          }
-      });
-
-  Vue.component('basket-element', {
-    props: ['elem'], // object with keys: 'name', 'key', 'surface_key' (optional), 'unselect_url'
-    delimiters: ['[[', ']]'],
-    template: `
-           <span v-if="elem.type=='surface'" class="badge badge-pill badge-primary mr-1">[[ elem.name ]]
-                <!-- <span class="fa fa-close" v-on:click="handle_close"></span> -->
-           </span>
-           <span v-else class="badge badge-pill badge-secondary mr-1">[[ elem.name ]]
-                <!-- <span class="fa fa-close" v-on:click="handle_close"></span> -->
-           </span>
-         `,
-    methods: {
-        handle_close: function (event) {
-            // Clicking means "deselect"
-            // All nodes must be deselected - there can be several in the tag tree
-            //this.elem.nodes.forEach( function(node) {
-            //    node.setSelected(false);
-            //})
-            // basket.update();
-            // TODO handle later
-        },
-    }
-  });
-
-  {# TODO use same code in surface view and analysis view #}
-  </script>
-
 
   <!-- Trigger fetching analysis results -->
   <script>

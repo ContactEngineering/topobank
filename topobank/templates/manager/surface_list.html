@@ -7,12 +7,6 @@
 
 {% block extra_css %}
 
-  {# vuejs for interactivity #}
-  {# TODO move script tag to end? #}
-  <script src="https://unpkg.com/vue@latest"></script>
-  <script src="https://unpkg.com/vue-select@latest"></script>
-  <link rel="stylesheet" href="https://unpkg.com/vue-select@latest/dist/vue-select.css">
-
   <!-- Include Fancytree skin  -->
   <!-- link href="{# static 'vendor/fancytree/skin-awesome/ui.fancytree.min.css' #}" rel="stylesheet" -->
   <!-- TODO Use CDN? -->
@@ -26,48 +20,16 @@
   </li>
 {% endblock breadcrumbs %}
 
-{% block basket %}
-
-  {# display selected items in session #}
-  <div class="bg-light border-top border-bottom py-2">
-    <div class="container-fluid ">
-      <div id="basket">
-        <div v-if="keys.length">
-          <basket-element v-for="key in keys" v-bind:elem="get_element(key)"></basket-element>
-        </div>
-        <span v-else>No items selected yet. In order to select, please use the checkboxes in the Search Results.</span>
-      </div>
-    </div>
-  </div>
-
-{% endblock basket %}
 
 {% block content %}
 
 
   {# full text search in names, descriptions, tags #}
 
-  <ul class="nav nav-tabs">
-    <li class="nav-item">
-      <a class="nav-link active" href="{% url 'manager:surface-list' %}">
-        <i class="fa fa-fw fa-diamond"></i> Search Results
-      </a>
-    </li>
-    <li class="nav-item">
-
-      <a class="nav-link" href="{% url 'analysis:list' %}">
-        <i class="fa fa-fw fa-area-chart"></i> Analyze
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link" href="{% url 'manager:sharing-info' %}">
-        <i class="fa fa-fw fa-share-alt"></i> Share
-      </a>
-    </li>
-  </ul>
+  {% include "tabs.html" with active_tab="select" %}
 
   <div class="tab-content mt-2">
-    <div id="search-results" class="tab-pane active">
+    <div class="tab-pane active">
 
       <form>
         <div class="form-row">
@@ -172,71 +134,6 @@
           return $("#result-tree").fancytree("getTree");
       }
 
-      var basket = new Vue({
-          delimiters: ['[[', ']]'],
-          el: '#basket',
-          data: {
-              keys: [],
-              elements: {} // key: key like "surface-1", value is object, see below
-          },
-          methods:{
-              get_element: function (key) {
-                return this.elements[key];
-              },
-              update: function () {
-                  var tree = get_tree();
-                  var elements = {};
-                  var keys = [];
-
-                  tree.getSelectedNodes().forEach(function (node) {
-
-                      // console.log("is selected: "+node.key);
-
-                      if (node.type!="tag") { // TODO also push list of tags?
-
-                          var key = node.key;
-
-                          // Only add a new key if key is not yet in elements
-                          if (!(key in elements)) {
-                                // console.log("Added key " + key);
-                                elements[key] = {
-                                    name: node.data.name,
-                                    type: node.type,
-                                    nodes: [node] // at least one node
-                                };
-                                keys.push(key);
-                          } else {
-                                // console.log("Key " + key + " already included in basket");
-                                elements[key].nodes.push(node); // maintain list of nodes where this key is used
-                          }
-                          // console.log("Current element: ", elements[key]);
-                      }
-                  });
-                  // console.log("All elements before removal: ", elements);
-
-                  // remove all elements which parent element is already included
-                  var keys_to_remove = []
-                  keys.forEach(function (key) {
-                     var elem = elements[key];
-                     var first_node_data = elem.nodes[0].data;
-                     if (first_node_data.hasOwnProperty('surface_key') && (first_node_data.surface_key in elements)) {
-                         keys_to_remove.push(key);
-                     }
-                  });
-                  keys_to_remove.forEach(function (key) {
-                      delete elements[key];
-                  });
-                  keys = keys.filter( function (key) {
-                     return keys_to_remove.indexOf(key) == -1
-                  });
-                  keys.sort() // we want always the same order, independent from traversal order
-
-                  // console.log("All elements: ", elements);
-                  this.elements = elements;
-                  this.keys = keys;
-              }
-          }
-      });
 
       var summary_vm = new Vue({
           delimiters: ['[[', ']]'],
@@ -479,28 +376,7 @@
             },
       });
 
-      Vue.component('basket-element', {
-        props: ['elem'], // object with keys: 'name', 'type', 'nodes'
-        delimiters: ['[[', ']]'],
-        template: `
-               <span v-if="elem.type=='surface'" class="badge badge-pill badge-primary mr-1">[[ elem.name ]]
-                    <span class="fa fa-close" v-on:click="handle_close"></span>
-               </span>
-               <span v-else class="badge badge-pill badge-secondary mr-1">[[ elem.name ]]
-                    <span class="fa fa-close" v-on:click="handle_close"></span>
-               </span>
-             `,
-        methods: {
-            handle_close: function (event) {
-                // Clicking means "deselect"
-                // All nodes must be deselected - there can be several in the tag tree
-                this.elem.nodes.forEach( function(node) {
-                    node.setSelected(false);
-                })
-                basket.update();
-            },
-        }
-      });
+
 
       function node_data_matches_because_of_name_description_tag(data, term) {
           return data.name.toLocaleLowerCase().includes(term)
@@ -633,6 +509,8 @@
               tree.expandAll(false); // collapse all nodes
           });
       });
+
+
 
       // we don't want error messages if the page is left before everything is loaded
       install_handler_for_aborting_all_ajax_calls_on_page_leave();

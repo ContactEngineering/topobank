@@ -1,0 +1,43 @@
+<ul class="nav nav-tabs">
+  <li class="nav-item">
+    <a class="nav-link {% if active_tab == 'home' %}active{% endif %}" href="{% url 'home' %}">
+      <i class="fa fa-fw fa-home"></i> Home
+    </a>
+  </li>
+  {% if request.user.is_authenticated %}
+    <li class="nav-item">
+      <a class="nav-link {% if active_tab == 'select' %}active{% endif %}" href="{% url 'manager:surface-list' %}">
+        <i class="fa fa-fw fa-check-square-o"></i> Select
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if active_tab == 'analyze' %}active{% endif %}" href="{% url 'analysis:list' %}">
+        <i class="fa fa-fw fa-area-chart"></i> Analyze
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if active_tab == 'shared' %}active{% endif %}" href="{% url 'manager:sharing-info' %}">
+        <i class="fa fa-fw fa-share-alt"></i> Shared
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if active_tab == 'help' %}active{% endif %}" href="{% url 'file_formats' %}">
+        <i class="fa fa-fw fa-question-circle"></i> Help
+      </a>
+    </li> {# Currently help only consists of file formats. #}
+    {% if extra_tab_1_data %}
+      <li class="nav-item">
+        <a class="nav-link {% if active_tab == 'extra-tab-1' %}active{% endif %}" href="{{ extra_tab_1_data.href }}">
+          <i class="fa fa-fw {{ extra_tab_1_data.icon}}"></i> {{ extra_tab_1_data.title|safe }}
+        </a>
+      </li>
+      {% if extra_tab_2_data %}
+        <li class="nav-item">
+          <a class="nav-link {% if active_tab == 'extra-tab-2' %}active{% endif %}" href="{{ extra_tab_2_data.href }}">
+            <i class="fa fa-fw {{ extra_tab_2_data.icon}}"></i> {{ extra_tab_2_data.title|safe }}
+          </a>
+        </li>
+      {% endif %}
+    {% endif %}
+  {% endif %}
+</ul>

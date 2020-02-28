@@ -20,44 +20,9 @@
 
 {% load crispy_forms_tags %}
 
-    <ul class="nav nav-tabs">
-    <li class="nav-item">
-      <a class="nav-link" href="{% url 'manager:surface-list' %}">
-        <i class="fa fa-fw fa-diamond"></i> Search Results
-      </a>
-    </li>
-    <li class="nav-item">
-
-      <a class="nav-link" href="{% url 'analysis:list' %}">
-        <i class="fa fa-fw fa-area-chart"></i> Analyze
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link" href="{% url 'manager:sharing-info' %}">
-        <i class="fa fa-fw fa-share-alt"></i> Share
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link" href="{% url 'manager:surface-detail' surface.id %}">
-        <i class="fa fa-fw fa-diamond"></i>
-        Surface <b>{{ surface.name }}</b>
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link active" href="#">
-        {% if object %}
-            {% fontawesome_icon 'edit' %}
-            Edit surface <b>{{ surface.name }}</b>
-          {% else %}
-            {% fontawesome_icon 'plus-square-o' %}
-            Create new surface
-          {% endif %}
-      </a>
-    </li>
-  </ul>
+  {% include "tabs.html" %}
 
   <div class="tab-content mt-2">
-
 
         {% if form.errors %}
           {% for field in form %}

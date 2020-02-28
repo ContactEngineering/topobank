@@ -124,7 +124,23 @@
 
     </nav>
 
-    {% block basket %}{% endblock basket %}
+    {# Display "basket" with all selected items in session #}
+
+    {% if request.user.is_authenticated %}
+      {# display selected items in session #}
+      <div class="bg-light border-top border-bottom py-2">
+        <div class="container-fluid ">
+          <div id="basket">
+            <div v-if="keys.length">
+              <basket-element v-for="key in keys" v-bind:elem="get_element(key)"></basket-element>
+            </div>
+            <span v-else>No items selected yet. In order to select, please use the checkboxes in the Search Results.</span>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+
+
 
     <div id="wrapper">
       <div id="content-wrapper">
@@ -139,9 +155,9 @@
           {% endif %}
 
           {# Insert actual content, see other templates #}
+
           {% block content %}
           {% endblock content %}
-
         </div>
         <!-- /#container-fluid -->
       </div>
@@ -381,10 +397,28 @@
             })
           }
       }
-
-
     </script>
     {% register_notify_callbacks callbacks='fill_notification_badge_or_hide_if_none,fill_notification_list_with_linked_items' %}
+
+    {# vuejs for interactivity #}
+
+    {% if debug %}
+    {# During development we use a vue online, so vuejs is not in production mode #}
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.11/dist/vue.js"></script>
+    <!--
+    <script src="https://unpkg.com/vue@latest"></script>
+    <script src="https://unpkg.com/vue-select@latest"></script>
+    <link rel="stylesheet" href="https://unpkg.com/vue-select@latest/dist/vue-select.css">
+    -->
+    {% else %}
+    {# In production, we use a minified version of vuejs TODO make local #}
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.11/dist/vue.min.js"></script>
+    {% endif %}
+    <script src="{% static 'js/basket.js' %}"></script>
+    <script>
+      var basket = make_basket({{ basket_items_json|safe }});
+    </script>
+
 
     <!-- Custom scripts for all pages -->
     <script src="{% static 'js/project.js' %}"></script>
