@@ -205,3 +205,24 @@ body, html {
   text-overflow: ellipsis; /** this does not work here, don't know why */
 }
 
+/** Extra (dynamic) tabs */
+.nav-tabs {
+  /* border-bottom:none; */
+}
+
+.nav-tabs .nav-link.extra-tab {
+  background-color: #f8f9fa;
+  border-bottom: #f8f9fa;
+  font-weight: bold;
+}
+
+
+.tab-content.extra-tab  {
+  background-color: #f8f9fa;
+  border-top-right-radius: .5rem;
+  border-top-left-radius: .5rem;
+  border-bottom-right-radius: .5rem;
+  border-bottom-left-radius: .5rem;
+}
+
+

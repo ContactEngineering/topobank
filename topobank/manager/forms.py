@@ -55,10 +55,7 @@ class TopographyFileUploadForm(forms.ModelForm):
             <a href="{{ cancel_action }}" class="btn btn-default" id="cancel-btn">Cancel</a>
             """),
         ),
-        ASTERISK_HELP_HTML,
-        HTML("""
-        For information on the supported file formats, please refer to <a href={% url 'file_formats' %}>this page</a>.
-        """)
+        ASTERISK_HELP_HTML
     )
 
 

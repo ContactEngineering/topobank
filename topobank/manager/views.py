@@ -43,7 +43,8 @@ import logging
 from .models import Topography, Surface
 from .forms import TopographyForm, SurfaceForm, SurfaceShareForm
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm
-from .utils import selected_instances, bandwidths_data, surfaces_for_user, get_topography_reader, tags_for_user
+from .utils import selected_instances, bandwidths_data, surfaces_for_user, \
+    get_topography_reader, tags_for_user, get_reader_infos
 from .serializers import SurfaceSerializer, TopographySerializer, TagSerializer
 from .utils import mailto_link_for_reporting_an_error
 
@@ -278,7 +279,8 @@ class TopographyCreateWizard(SessionWizardView):
 
     def get_context_data(self, form, **kwargs):
         context = super().get_context_data(form, **kwargs)
-        context['surface'] = Surface.objects.get(id=int(self.kwargs['surface_id']))
+        surface = Surface.objects.get(id=int(self.kwargs['surface_id']))
+        context['surface'] = surface
 
         redirect_in_get = self.request.GET.get("redirect")
         redirect_in_post = self.request.POST.get("redirect")
@@ -287,6 +289,27 @@ class TopographyCreateWizard(SessionWizardView):
             context.update({'cancel_action': redirect_in_get})
         elif redirect_in_post:
             context.update({'cancel_action': redirect_in_post})
+
+        #
+        # We want to display information about readers directly on upload page
+        #
+        if self.steps.current == "upload":
+            context['reader_infos'] = get_reader_infos()
+
+        #
+        # Add context needed for tabs
+        #
+        context['active_tab'] = 'extra-tab-2'
+        context['extra_tab_1_data'] = {
+            'title': f"Surface <b>{surface.name}</b>",
+            'icon': "fa-diamond",
+            'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
+        }
+        context['extra_tab_2_data'] = {
+            'title': f"Add topography to Surface <b>{surface.name}</b>",
+            'icon': "fa-plus-square-o",
+            'href': self.request.path,
+        }
 
         return context
 
@@ -445,6 +468,26 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
         except Topography.DoesNotExist:
             context['topography_prev'] = topo.id
 
+        #
+        # Add context needed for tabs
+        #
+        context['active_tab'] = 'extra-tab-3'
+        context['extra_tab_1_data'] = {
+            'title': f"Surface <b>{topo.surface.name}</b>",
+            'icon': "fa-diamond",
+            'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
+        }
+        context['extra_tab_2_data'] = {
+            'title': f"Topography <b>{topo.name}</b>",
+            'icon': "fa-file-o",
+            'href': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
+        }
+        context['extra_tab_3_data'] = {
+            'title': f"Edit Topography <b>{topo.name}</b>",
+            'icon': "fa-pencil",
+            'href': self.request.path,
+        }
+
         return context
 
 class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
@@ -505,6 +548,9 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
         plot.yaxis.axis_label_text_font_style = "normal"
 
         plot.toolbar.logo = None
+
+        plot.background_fill_color = "#f8f9fa"  # to be compatible with tab color
+        plot.border_fill_color = "#f8f9fa"
 
         return plot
 
@@ -573,6 +619,10 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
 
         plot.add_layout(colorbar, 'right')
 
+        plot.background_fill_color = "#f8f9fa"  # to be compatible with tab color
+        plot.border_fill_color = "#f8f9fa"
+        colorbar.background_fill_color = "#f8f9fa"
+
         return plot
 
     def get_context_data(self, **kwargs):
@@ -631,6 +681,21 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
         except Topography.DoesNotExist:
             context['topography_prev'] = topo.id
 
+        #
+        # Add context needed for tabs
+        #
+        context['active_tab'] = 'extra-tab-2'
+        context['extra_tab_1_data'] = {
+            'title': f"Surface <b>{topo.surface.name}</b>",
+            'icon': "fa-diamond",
+            'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
+        }
+        context['extra_tab_2_data'] = {
+            'title': f"Topography <b>{topo.name}</b>",
+            'icon': "fa-file-o",
+            'href': self.request.path,
+        }
+
         return context
 
 class TopographyDeleteView(TopographyUpdatePermissionMixin, DeleteView):
@@ -657,6 +722,28 @@ class TopographyDeleteView(TopographyUpdatePermissionMixin, DeleteView):
 
         return link
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        topo = self.object
+        surface = topo.surface
+        context['active_tab'] = 'extra-tab-3'
+        context['extra_tab_1_data'] = {
+            'title': f"Surface <b>{surface.name}</b>",
+            'icon': "fa-diamond",
+            'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
+        }
+        context['extra_tab_2_data'] = {
+            'title': f"Topography <b>{topo.name}</b>",
+            'icon': "fa-file-o",
+            'href': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
+        }
+        context['extra_tab_3_data'] = {
+            'title': f"Delete Topography <b>{topo.name}</b>?",
+            'icon': "fa-trash",
+            'href': self.request.path,
+        }
+
+        return context
 
 class SurfaceSearchView(TemplateView):
     template_name = "manager/surface_list.html"
@@ -858,6 +945,27 @@ class SurfaceDeleteView(DeleteView):
                         href=link)
         return link
 
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        surface = self.object
+        #
+        # Add context needed for tabs
+        #
+        context['active_tab'] = 'extra-tab-2'
+        context['extra_tab_1_data'] = {
+            'title': f"Surface <b>{surface.name}</b>",
+            'icon': "fa-diamond",
+            'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
+        }
+        context['extra_tab_2_data'] = {
+            'title': f"Delete Surface <b>{surface.name}</b>?",
+            'icon': "fa-trash",
+            'href': self.request.path,
+        }
+        return context
+
+
 class SurfaceShareView(FormMixin, DetailView):
     model = Surface
     context_object_name = 'surface'
@@ -908,6 +1016,24 @@ class SurfaceShareView(FormMixin, DetailView):
                                 href=surface.get_absolute_url())
 
         return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        surface = self.object
+
+        context['active_tab'] = 'extra-tab-2'
+        context['extra_tab_1_data'] = {
+            'title': f"Surface <b>{surface.name}</b>",
+            'icon': "fa-diamond",
+            'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
+        }
+        context['extra_tab_2_data'] = {
+            'title': f"Share surface <b>{surface.name}</b>",
+            'icon': "fa-share-alt",
+            'href': self.request.path,
+        }
+
+        return context
 
 
 class SharingInfoTable(tables.Table):

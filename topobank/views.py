@@ -1,19 +1,18 @@
 from django.views.generic import TemplateView
-from django.db.models import Q, F
+from django.db.models import Q
 from django.shortcuts import reverse
 
 from guardian.compat import get_user_model as guardian_user_model
-from guardian.shortcuts import get_objects_for_user, get_perms_for_model
+from guardian.shortcuts import get_objects_for_user
 
 from allauth.socialaccount.providers.orcid.provider import OrcidProvider
-
-import markdown2
 
 from termsandconditions.models import TermsAndConditions
 
 from topobank.users.models import User
 from topobank.manager.models import Surface, Topography
 from topobank.analysis.models import Analysis
+from topobank.manager.utils import get_reader_infos
 
 class HomeView(TemplateView):
 
@@ -93,20 +92,5 @@ class FileFormatsView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data()
-
-        from PyCo.Topography.IO import readers
-
-        reader_infos = []
-        for reader_class in readers:
-            try:
-                # some reader classes have no description yet
-                descr = reader_class.description()
-            except Exception:
-                descr = "*description not yet available*"
-
-            descr = markdown2.markdown(descr)
-
-            reader_infos.append((reader_class.name(), reader_class.format(), descr))
-        context['reader_infos'] = reader_infos
-
+        context['reader_infos'] = get_reader_infos()
         return context

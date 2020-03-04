@@ -1,8 +1,10 @@
 from django.shortcuts import reverse
 from guardian.shortcuts import get_objects_for_user
 from django.conf import settings
+import markdown2
 
 from PyCo.Topography import open_topography
+from PyCo.Topography.IO import readers as pyco_readers
 
 import traceback
 import logging
@@ -44,6 +46,21 @@ class TopographyFileReadingException(TopographyFileException):
     def message(self):
         return self._message
 
+
+def get_reader_infos():
+    reader_infos = []
+    for reader_class in pyco_readers:
+        try:
+            # some reader classes have no description yet
+            descr = reader_class.description()
+        except Exception:
+            descr = "*description not yet available*"
+
+        descr = markdown2.markdown(descr)
+
+        reader_infos.append((reader_class.name(), reader_class.format(), descr))
+
+    return reader_infos
 
 def get_topography_reader(filefield, format=None):
     """Returns PyCo.Topography.IO.ReaderBase object.

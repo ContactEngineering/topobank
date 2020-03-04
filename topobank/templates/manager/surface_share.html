@@ -14,14 +14,10 @@
 
 {% block content %}
 
-{% load crispy_forms_tags %}
+  {% load crispy_forms_tags %}
 
-<div class="card">
-  <h3 class="card-header">
-      {% fontawesome_icon 'share-alt' %}
-      Share surface <em>{{ surface.name }}</em>
-  </h3>
-  <div class="card-body">
+  {% include "tabs.html" %}
+  <div class="tab-content mt-2">
     {% if form.errors %}
       {% for field in form %}
           {% for error in field.errors %}
@@ -42,9 +38,9 @@
         {% crispy form form.helper %}
       </div>
     </div>
-  </div>
 
-</div>
+
+  </div>
 
 {% endblock content %}
 

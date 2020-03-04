@@ -21,23 +21,25 @@
 
   {% include "tabs.html" with active_tab="extra-tab-1" %}
 
-  <div class="tab-content mt-2">
+  <div class="tab-content extra-tab">
 
       <div class="row">
 
-        <div class="col-9">
+        <div class="col-1">
 
-          <ul class="nav nav-tabs">
+          <ul class="nav nav-pills">
             <li class="nav-item">
-              <a class="nav-link active" data-toggle="tab" href="#topographies" role="tab">Topographies</a>
+              <a class="nav-link active" data-toggle="pill" href="#topographies" role="tab">Topographies</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" data-toggle="tab" href="#description" role="tab">Description</a>
+              <a class="nav-link" data-toggle="pill" href="#description" role="tab">Description</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" data-toggle="tab" href="#permissions" role="tab">Permissions</a>
+              <a class="nav-link" data-toggle="pill" href="#permissions" role="tab">Permissions</a>
             </li>
           </ul>
+        </div>
+        <div class="col-8">
 
           <div class="tab-content mt-4">
 
@@ -55,7 +57,7 @@
             </div>
 
             <div class="tab-pane fade" id="description">
-              {{ surface.description }}
+              {{ surface.description|default:"(no description)" }}
             </div>
 
             <div class="tab-pane fade" id="permissions">
@@ -102,13 +104,13 @@
 
             <div class="col">
 
-              <div class="card-text">
+              <div>
                   <span class="badge badge-info surface-category-headline">
                   {{ surface.get_category_display|default_if_none:"category not defined yet" }}
                   </span>
                 {% render_shared_by_badge request surface %}
               </div>
-              <div class="card-text">
+              <div>
                 {% for tag in surface.tags.all %}
                   <span class="badge badge-success">{{ tag.name }}</span>
                 {% endfor %}

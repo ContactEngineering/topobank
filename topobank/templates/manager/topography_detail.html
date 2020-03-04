@@ -36,76 +36,20 @@
 
  {% get_obj_perms request.user for topography.surface as "surface_perms" %}
 
-  <ul class="nav nav-tabs">
-    <li class="nav-item">
-      <a class="nav-link" href="{% url 'manager:surface-list' %}">
-        <i class="fa fa-fw fa-diamond"></i> Search Results
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link" href="{% url 'analysis:list' %}">
-        <i class="fa fa-fw fa-area-chart"></i> Analyze
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link" href="{% url 'manager:sharing-info' %}">
-        <i class="fa fa-fw fa-share-alt"></i> Share
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link active" href="{% url 'manager:topography-detail' topography.id %}">
-        <i class="fa fa-fw fa-diamond"></i>
-        Topography <b>{{ topography.name }}</b>
-      </a>
-    </li>
+  {% include "tabs.html" %}
 
-    <li class="nav-item">
-      <a class="nav-link" href="{% url 'manager:topography-update' topography.id %}">Edit</a>
-    </li>
-
-  </ul>
-
-  <div class="tab-content mt-2">
-
-  <div class="card">
-
-    <div class="card-header">
-
-      <div class="pull-left">
-        <h3>{{ topography.name }}</h3>
-      </div>
-
-      <ul class="nav nav-pills card-header-pills pull-right">
-
-        <li>
-          <div class="btn-group">
-            <a href="{% url 'manager:topography-detail' topography_next %}"
-               class="btn btn-default {% if topography_next == topography.id %} disabled {% endif %}">
-              {% fontawesome_icon 'chevron-left' %}
-            </a>
-            <a href="{% url 'manager:topography-detail' topography_prev %}"
-               class="btn btn-default {% if topography_prev == topography.id %} disabled {% endif %}">
-              {% fontawesome_icon 'chevron-right' %}
-            </a>
-          </div>
-        </li>
-      </ul>
-    </div>
-
-    <div class="card-body">
+  <div class="tab-content extra-tab">
 
       <div class="row">
 
-        <div class="col-9">
+        <div class="col-md-1 mb-2">
+          <div class="nav nav-pills flex-column" role="tablist" aria-orientation="vertical">
+             <a class="nav-link active" data-toggle="tab" href="#plot" role="tab">Plot</a>
+             <a class="nav-link" data-toggle="tab" href="#properties" role="tab">Properties</a>
+          </div>
+        </div>
 
-          <ul class="nav nav-tabs">
-            <li class="nav-item">
-              <a class="nav-link active" data-toggle="tab" href="#plot" role="tab">Plot</a>
-            </li>
-            <li class="nav-item mr-2">
-              <a class="nav-link" data-toggle="tab" href="#properties" role="tab">Properties</a>
-            </li>
-          </ul>
+        <div class="col-8">
 
           <div class="tab-content mt-2">
             <div class="tab-pane fade active show" id="plot" role="tabpanel" aria-labelledby="plot-tab">
@@ -184,8 +128,25 @@
 
         <div class="col-3">
 
+          <div class="row p-3 pull-right">
+            <ul class="nav nav-pills">
+              <li>
+                <div class="btn-group">
+                  <a href="{% url 'manager:topography-detail' topography_next %}"
+                     class="btn btn-default {% if topography_next == topography.id %} disabled {% endif %}"
+                     data-toggle="tooltip" title="previous topography">
+                    {% fontawesome_icon 'chevron-left' %}
+                  </a>
+                  <a href="{% url 'manager:topography-detail' topography_prev %}"
+                     class="btn btn-default {% if topography_prev == topography.id %} disabled {% endif %}"
+                     data-toggle="tooltip" title="next topography">
+                    {% fontawesome_icon 'chevron-right' %}
+                  </a>
+                </div>
+              </li>
+            </ul>
+          </div>
           <div class="row p-3">
-
             <div class="col">
               {% render_uploaded_by_badge request topography %}
             </div>
@@ -239,7 +200,7 @@
 
 
     </div>
-  </div>
+
 
 
 {% endblock content %}

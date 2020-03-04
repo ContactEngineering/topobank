@@ -21,36 +21,25 @@
 
 {% block content %}
 
-{% load crispy_forms_tags %}
+  {% load crispy_forms_tags %}
+
+  {% include "tabs.html" %}
+  <div class="tab-content p-2 extra-tab">
+
+    <div class="btn-group pull-right">
+      <a href="{% url 'manager:topography-update' topography_prev %}"
+         class="btn btn-default {% if topography_prev == topography.id %} disabled {% endif %}"
+         data-toggle="tooltip" data-placement="bottom" title="Discard unsaved changes and show previous topography">
+        {% fontawesome_icon 'chevron-left' %}
+      </a>
+      <a href="{% url 'manager:topography-update' topography_next %}"
+         class="btn btn-default {% if topography_next == topography.id %} disabled {% endif %}"
+         data-toggle="tooltip" data-placement="bottom" title="Discard unsaved changes and show next topography">
+        {% fontawesome_icon 'chevron-right' %}
+      </a>
+    </div>
 
 
-<div class="card">
-  <div class="card-header">
-      {% if object %}
-        <div class="pull-left">
-          <h3>{% fontawesome_icon 'edit' %}
-            Edit topography <b>{{ topography.name }}</b> of surface <i>{{ topography.surface.name }}</i>
-          </h3>
-        </div>
-        <div class="btn-group pull-right">
-          <a href="{% url 'manager:topography-update' topography_prev %}"
-             class="btn btn-default {% if topography_prev == topography.id %} disabled {% endif %}"
-             data-toggle="tooltip" data-placement="bottom" title="Discard unsaved changes and show previous topography">
-            {% fontawesome_icon 'chevron-left' %}
-          </a>
-          <a href="{% url 'manager:topography-update' topography_next %}"
-             class="btn btn-default {% if topography_next == topography.id %} disabled {% endif %}"
-             data-toggle="tooltip" data-placement="bottom" title="Discard unsaved changes and show next topography">
-            {% fontawesome_icon 'chevron-right' %}
-          </a>
-        </div>
-      {% else %}
-        <div class="pull-left">
-          <h3>Create new topography for surface <i>{{ surface.name }}</i></h3>
-        </div>
-      {% endif %}
-  </div>
-  <div class="card-body">
     {% if form.errors %}
       {% for field in form %}
           {% for error in field.errors %}
@@ -71,9 +60,8 @@
         {% crispy form form.helper %}
       </div>
     </div>
-  </div>
 
-</div>
+  </div>
 
 {% endblock content %}
 
