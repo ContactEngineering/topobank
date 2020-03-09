@@ -1034,6 +1034,48 @@ def contact_mechanics_data(request):
         return JsonResponse({}, status=403)
 
 
+def context_for_extra_tabs_if_single_item_selected(topographies, surfaces):
+    """Return contribution to context for opening extra tabs if a single topography/surface is selected.
+
+    Parameters
+    ----------
+    topographies: list of topographies
+        Use here the result of function `utils.selected_instances`.
+
+    surfaces: list of surfaces
+        Use here the result of function `utils.selected_instances`.
+
+    Returns
+    -------
+    Dict with maybe extra context for extra tabs.
+    Update an existing context with this result.
+
+    """
+    context = {}
+
+    if len(topographies) == 1 and len(surfaces) == 0:
+        # exactly one topography was selected -> show also tabs of topography
+        topo = topographies[0]
+        context['extra_tab_1_data'] = {
+            'title': f"Surface <b>{topo.surface.name}</b>",
+            'icon': "fa-diamond",
+            'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
+        }
+        context['extra_tab_2_data'] = {
+            'title': f"Topography <b>{topo.name}</b>",
+            'icon': "fa-file-o",
+            'href': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
+        }
+    elif len(surfaces) == 1 and all(t.surface == surfaces[0] for t in topographies):
+        # exactly one surface was selected -> show also tab of surface
+        surface = surfaces[0]
+        context['extra_tab_1_data'] = {
+            'title': f"Surface <b>{surface.name}</b>",
+            'icon': "fa-diamond",
+            'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
+        }
+    return context
+
 class AnalysisFunctionDetailView(DetailView):
     model = AnalysisFunction
     template_name = "analysis/analyses_detail.html"
@@ -1049,6 +1091,21 @@ class AnalysisFunctionDetailView(DetailView):
                     topography_ids_json=json.dumps([t.id for t in topographies]))
 
         context['card'] = card
+
+        #
+        # Open in extra tab
+        #
+        context['active_tab'] = 'extra-tab-4'
+        context['extra_tab_4_data'] = {
+            'title': f"{function.name}",
+            'icon': "fa-area-chart",
+            'href': self.request.path,
+        }
+        #
+        # Decide whether to open extra tabs for surface/topography details
+        #
+        context.update(context_for_extra_tabs_if_single_item_selected(topographies, surfaces))
+
         return context
 
 
@@ -1166,49 +1223,10 @@ class AnalysesListView(FormView):
                                      surface_key=f"surface-{t.surface.pk}"))
         context['basket_items_json'] = json.dumps(basket_items)
 
-        if 'surface_id' in self.kwargs:
-            surface_id = self.kwargs['surface_id']
-            try:
-                surface = Surface.objects.get(id=surface_id)
-            except Surface.DoesNotExist:
-                raise PermissionDenied()
-
-            if not self.request.user.has_perm('view_surface', surface):
-                raise PermissionDenied()
-
-            #
-            # Keep extra tab with surface open
-            #
-            context['active_tab'] = 'analyze'
-            context['extra_tab_1_data'] = {
-                'title': f"Surface <b>{surface.name}</b>",
-                'icon': "fa-diamond",
-                'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
-            }
-        if 'topography_id' in self.kwargs:
-            topo_id = self.kwargs['topography_id']
-            try:
-                topo = Topography.objects.get(id=topo_id)
-            except Topography.DoesNotExist:
-                raise PermissionDenied()
-
-            if not self.request.user.has_perm('view_surface', topo.surface):
-                raise PermissionDenied()
-
-            #
-            # Keep extra tab with surface open
-            #
-            context['active_tab'] = 'analyze'
-            context['extra_tab_1_data'] = {
-                'title': f"Surface <b>{topo.surface.name}</b>",
-                'icon': "fa-diamond",
-                'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
-            }
-            context['extra_tab_2_data'] = {
-                'title': f"Topography <b>{topo.name}</b>",
-                'icon': "fa-file-o",
-                'href': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
-            }
+        #
+        # Decide whether to open extra tabs for surface/topography details
+        #
+        context.update(context_for_extra_tabs_if_single_item_selected(topographies, surfaces))
 
         return context
 

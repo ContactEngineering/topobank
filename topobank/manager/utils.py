@@ -242,23 +242,26 @@ def selection_to_instances(selection, surface=None):
     return (topographies, surfaces)
 
 def selected_instances(request, surface=None):
-    """Return a dict with topography and surface instances which are currently selected.
+    """Return a tuple with topography and surface instances which are currently selected.
 
     :request: HTTP request
     :surface: if given, return only topographies of this Surface instance
     :return: tuple (topographies, surfaces)
 
-    The tuple has two elements:
+    The returned tuple has two elements:
 
      'topographies': all topographies in the selection (if 'surface' is given, filtered by this surface)
      'surfaces': all surfaces explicitly found in the selection (not only because its topography was selected)
 
     Also surfaces without topographies are returned in 'surfaces' if selected.
+
+    If only one topography is selected, it's surface is *not* returned in 'surfaces'.
+    If a surface is explicitly selected, all of its topographies are contained in 'topographies'.
     """
     selection = selection_from_session(request.session)
     topographies, surfaces = selection_to_instances(selection, surface=surface)
 
-    # make sure that only topographies with read permission can be effectively selected
+    # make sure that only topographies with read permission can be found here
     topographies = [t for t in topographies
                     if request.user.has_perm('view_surface', t.surface)]
     surfaces = [s for s in surfaces
