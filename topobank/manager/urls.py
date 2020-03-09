@@ -50,18 +50,10 @@ urlpatterns = [
         view=login_required(views.CorruptedTopographyView.as_view()),
         name='topography-corrupted'
     ),
-    path('topography/<int:topography_id>/show-analyses/',
-         login_required(views.show_analyses_for_topography),
-         name='topography-show-analyses'
-    ),
     url(
         regex=r'surface/(?P<pk>\d+)/$',
         view=login_required(views.SurfaceDetailView.as_view()),
         name='surface-detail'
-    ),
-    path('surface/<int:surface_id>/show-analyses/',
-         login_required(views.show_analyses_for_surface),
-         name='surface-show-analyses'
     ),
     url(
         regex=r'surface/(?P<pk>\d+)/update/$',

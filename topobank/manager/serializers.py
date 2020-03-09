@@ -45,7 +45,7 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
 
         if 'view_surface' in perms:
             urls['detail'] = reverse('manager:topography-detail', kwargs=dict(pk=obj.pk))
-            urls['show_analyses'] = reverse('manager:topography-show-analyses', kwargs=dict(topography_id=obj.pk))
+            urls['analyze'] = reverse('analysis:topography', kwargs=dict(topography_id=obj.pk))
 
         if 'change_surface' in perms:
             urls.update({
@@ -115,7 +115,7 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
             urls['detail'] = reverse('manager:surface-detail', kwargs=dict(pk=obj.pk))
             if obj.num_topographies() > 0:
                 urls.update({
-                    'show_analyses': reverse('manager:surface-show-analyses', kwargs=dict(surface_id=obj.id)),
+                    'analyze': reverse('analysis:surface', kwargs=dict(surface_id=obj.id)),
                     'download': reverse('manager:surface-download', kwargs=dict(surface_id=obj.id)),
 
                 })

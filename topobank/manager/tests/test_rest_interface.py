@@ -307,6 +307,13 @@ def test_surface_search_with_request_factory():
 
     surface3_prefix = f"/manager/surface/{surface3.pk}/"
 
+    topo1a_analyze = f"/analysis/topography/{topo1a.pk}/"
+    topo1b_analyze = f"/analysis/topography/{topo1b.pk}/"
+    topo2a_analyze = f"/analysis/topography/{topo2a.pk}/"
+    topo2b_analyze = f"/analysis/topography/{topo2b.pk}/"
+    surface1_analyze = f"/analysis/surface/{surface1.pk}/"
+    surface2_analyze = f"/analysis/surface/{surface2.pk}/"
+
     expected_dicts = [
         {
             'category': None,
@@ -325,7 +332,7 @@ def test_surface_search_with_request_factory():
                  'urls': {'delete': topo1a_prefix + 'delete/',
                           'detail': topo1a_prefix,
                           'select': topo1a_prefix + 'select/',
-                          'show_analyses': topo1a_prefix + 'show-analyses/',
+                          'analyze': topo1a_analyze,
                           'unselect': topo1a_prefix + 'unselect/',
                           'update': topo1a_prefix + 'update/'}},
                 {'creator': user_url,
@@ -342,7 +349,7 @@ def test_surface_search_with_request_factory():
                  'urls': {'delete': topo1b_prefix + 'delete/',
                           'detail': topo1b_prefix,
                           'select': topo1b_prefix + 'select/',
-                          'show_analyses': topo1b_prefix + 'show-analyses/',
+                          'analyze': topo1b_analyze,
                           'unselect': topo1b_prefix + 'unselect/',
                           'update': topo1b_prefix + 'update/'}},
 
@@ -364,7 +371,7 @@ def test_surface_search_with_request_factory():
                      'download': surface1_prefix + 'download/',
                      'select': surface1_prefix + 'select/',
                      'share': surface1_prefix + 'share/',
-                     'show_analyses': surface1_prefix + 'show-analyses/',
+                     'analyze': surface1_analyze,
                      'unselect': surface1_prefix + 'unselect/',
                      'update': surface1_prefix + 'update/'}
         },
@@ -385,7 +392,7 @@ def test_surface_search_with_request_factory():
                  'urls': {'delete': topo2a_prefix + 'delete/',
                           'detail': topo2a_prefix,
                           'select': topo2a_prefix + 'select/',
-                          'show_analyses': topo2a_prefix + 'show-analyses/',
+                          'analyze': topo2a_analyze,
                           'unselect': topo2a_prefix + 'unselect/',
                           'update': topo2a_prefix + 'update/'}},
                 {'creator': user_url,
@@ -402,7 +409,7 @@ def test_surface_search_with_request_factory():
                  'urls': {'delete': topo2b_prefix + 'delete/',
                           'detail': topo2b_prefix,
                           'select': topo2b_prefix + 'select/',
-                          'show_analyses': topo2b_prefix + 'show-analyses/',
+                          'analyze': topo2b_analyze,
                           'unselect': topo2b_prefix + 'unselect/',
                           'update': topo2b_prefix + 'update/'}},
 
@@ -424,7 +431,7 @@ def test_surface_search_with_request_factory():
                      'download': surface2_prefix + 'download/',
                      'select': surface2_prefix + 'select/',
                      'share': surface2_prefix + 'share/',
-                     'show_analyses': surface2_prefix + 'show-analyses/',
+                     'analyze': surface2_analyze,
                      'unselect': surface2_prefix + 'unselect/',
                      'update': surface2_prefix + 'update/'}
         },
@@ -448,7 +455,7 @@ def test_surface_search_with_request_factory():
                      # 'download': surface3_prefix + 'download/', # this should be missing, because no topographies yet
                      'select': surface3_prefix + 'select/',
                      'share': surface3_prefix + 'share/',
-                     # 'show_analyses': surface3_prefix + 'show-analyses/', # this should be missing
+                     # 'analyze': surface3_prefix + 'show-analyses/', # this should be missing
                      'unselect': surface3_prefix + 'unselect/',
                      'update': surface3_prefix + 'update/'}
         },
@@ -511,6 +518,13 @@ def test_tag_search_with_request_factory():
 
     surface3_prefix = f"/manager/surface/{surface3.pk}/"
 
+    topo1a_analyze = f"/analysis/topography/{topo1a.pk}/"
+    topo1b_analyze = f"/analysis/topography/{topo1b.pk}/"
+    topo2a_analyze = f"/analysis/topography/{topo2a.pk}/"
+    topo2b_analyze = f"/analysis/topography/{topo2b.pk}/"
+    surface1_analyze = f"/analysis/surface/{surface1.pk}/"
+    surface2_analyze = f"/analysis/surface/{surface2.pk}/"
+
     expected_dict_topo1a = {
         'creator': user_url,
         'description': '',
@@ -526,7 +540,7 @@ def test_tag_search_with_request_factory():
         'urls': {'delete': topo1a_prefix + 'delete/',
                  'detail': topo1a_prefix,
                  'select': topo1a_prefix + 'select/',
-                 'show_analyses': topo1a_prefix + 'show-analyses/',
+                 'analyze': topo1a_analyze,
                  'unselect': topo1a_prefix + 'unselect/',
                  'update': topo1a_prefix + 'update/'}
     }
@@ -545,7 +559,7 @@ def test_tag_search_with_request_factory():
         'urls': {'delete': topo1b_prefix + 'delete/',
                  'detail': topo1b_prefix,
                  'select': topo1b_prefix + 'select/',
-                 'show_analyses': topo1b_prefix + 'show-analyses/',
+                 'analyze': topo1b_analyze,
                  'unselect': topo1b_prefix + 'unselect/',
                  'update': topo1b_prefix + 'update/'}
     }
@@ -565,7 +579,7 @@ def test_tag_search_with_request_factory():
         'urls': {'delete': topo2a_prefix + 'delete/',
                  'detail': topo2a_prefix,
                  'select': topo2a_prefix + 'select/',
-                 'show_analyses': topo2a_prefix + 'show-analyses/',
+                 'analyze': topo2a_analyze,
                  'unselect': topo2a_prefix + 'unselect/',
                  'update': topo2a_prefix + 'update/'}
     }
@@ -585,7 +599,7 @@ def test_tag_search_with_request_factory():
         'urls': {'delete': topo2b_prefix + 'delete/',
                  'detail': topo2b_prefix,
                  'select': topo2b_prefix + 'select/',
-                 'show_analyses': topo2b_prefix + 'show-analyses/',
+                 'analyze': topo2b_analyze,
                  'unselect': topo2b_prefix + 'unselect/',
                  'update': topo2b_prefix + 'update/'}
     }
@@ -610,7 +624,7 @@ def test_tag_search_with_request_factory():
                  'download': surface1_prefix + 'download/',
                  'select': surface1_prefix + 'select/',
                  'share': surface1_prefix + 'share/',
-                 'show_analyses': surface1_prefix + 'show-analyses/',
+                 'analyze': surface1_analyze,
                  'unselect': surface1_prefix + 'unselect/',
                  'update': surface1_prefix + 'update/'}
     }
@@ -634,7 +648,7 @@ def test_tag_search_with_request_factory():
                  'download': surface2_prefix + 'download/',
                  'select': surface2_prefix + 'select/',
                  'share': surface2_prefix + 'share/',
-                 'show_analyses': surface2_prefix + 'show-analyses/',
+                 'analyze': surface2_analyze,
                  'unselect': surface2_prefix + 'unselect/',
                  'update': surface2_prefix + 'update/'}
     }
@@ -658,7 +672,7 @@ def test_tag_search_with_request_factory():
                  # 'download': surface3_prefix + 'download/', # this should be missing, because no topographies yet
                  'select': surface3_prefix + 'select/',
                  'share': surface3_prefix + 'share/',
-                 # 'show_analyses': surface3_prefix + 'show-analyses/', # this should be missing
+                 # 'analyze': surface3_analyze, # this should be missing
                  'unselect': surface3_prefix + 'unselect/',
                  'update': surface3_prefix + 'update/'}
     }

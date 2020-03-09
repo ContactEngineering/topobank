@@ -29,19 +29,25 @@
 
 {% block content %}
 
-  <!--
-  Show card. Will be replaced by AJAX call.
-  -->
-  <div id="card">
-    <div class="card">
-      <div class="card-header">
-        <h3>{{ card.function.name }}</h3>
-      </div>
-      <div class="card-body">
-          <span class="spinner"></span>
-          <div id="card-wait-text">
-            Please wait
+  {% include "tabs.html" with active_tab="analyze" %}
+
+  <div class="tab-content mt-2">
+    <div class="tab-pane active">
+      <!--
+      Show card. Will be replaced by AJAX call.
+      -->
+      <div id="card">
+        <div class="card">
+          <div class="card-header">
+            <h3>{{ card.function.name }}</h3>
           </div>
+          <div class="card-body">
+              <span class="spinner"></span>
+              <div id="card-wait-text">
+                Please wait
+              </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>

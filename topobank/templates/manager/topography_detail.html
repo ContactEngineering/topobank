@@ -134,12 +134,12 @@
                 <div class="btn-group">
                   <a href="{% url 'manager:topography-detail' topography_next %}"
                      class="btn btn-default {% if topography_next == topography.id %} disabled {% endif %}"
-                     data-toggle="tooltip" title="previous topography">
+                     data-toggle="tooltip" title="previous topography of related surface">
                     {% fontawesome_icon 'chevron-left' %}
                   </a>
                   <a href="{% url 'manager:topography-detail' topography_prev %}"
                      class="btn btn-default {% if topography_prev == topography.id %} disabled {% endif %}"
-                     data-toggle="tooltip" title="next topography">
+                     data-toggle="tooltip" title="next topography of related surface">
                     {% fontawesome_icon 'chevron-right' %}
                   </a>
                 </div>
@@ -161,8 +161,8 @@
 
           <div class="row p-3">
             <div class="col">
-              <a href="{% url 'manager:topography-show-analyses' topography.id %}" class="btn btn-default btn-block btn-lg">
-                  {% fontawesome_icon 'area-chart' %} Show analyses
+              <a href="{% url 'analysis:topography' topography.id %}" class="btn btn-default btn-block btn-lg">
+                  {% fontawesome_icon 'area-chart' %} Analyze this topography
               </a>
             </div>
           </div>

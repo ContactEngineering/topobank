@@ -1078,6 +1078,37 @@ class AnalysesListView(FormView):
             self.request.session['selection'] = tuple(topography_selection)
             self.request.session['selected_functions'] = tuple(f.id for f in functions)
 
+        elif 'surface_id' in self.kwargs:
+            surface_id = self.kwargs['surface_id']
+            try:
+                surface = Surface.objects.get(id=surface_id)
+            except Surface.DoesNotExist:
+                raise PermissionDenied()
+
+            if not self.request.user.has_perm('view_surface', surface):
+                raise PermissionDenied()
+
+            #
+            # So we have an existing surface and are allowed to view it, so we select it
+            #
+            self.request.session['selection'] = ['surface-{}'.format(surface_id)]
+
+        elif 'topography_id' in self.kwargs:
+            topo_id = self.kwargs['topography_id']
+            try:
+                topo = Topography.objects.get(id=topo_id)
+            except Topography.DoesNotExist:
+                raise PermissionDenied()
+
+            if not self.request.user.has_perm('view_surface', topo.surface):
+                raise PermissionDenied()
+
+            #
+            # So we have an existing topography and are allowed to view it, so we select it
+            #
+            self.request.session['selection'] = ['topography-{}'.format(topo_id)]
+
+
         return dict(
             functions=AnalysesListView._selected_functions(self.request),
         )
@@ -1110,6 +1141,8 @@ class AnalysesListView(FormView):
         selected_functions = self._selected_functions(self.request)
         topographies, surfaces = selected_instances(self.request)
 
+        # for displaying result card, we need a dict for each card,
+        # which then can be used to load the result data in the background
         cards = []
         for function in selected_functions:
             cards.append(dict(function=function,
@@ -1132,6 +1165,50 @@ class AnalysesListView(FormView):
                                      key=f"topography-{t.pk}",
                                      surface_key=f"surface-{t.surface.pk}"))
         context['basket_items_json'] = json.dumps(basket_items)
+
+        if 'surface_id' in self.kwargs:
+            surface_id = self.kwargs['surface_id']
+            try:
+                surface = Surface.objects.get(id=surface_id)
+            except Surface.DoesNotExist:
+                raise PermissionDenied()
+
+            if not self.request.user.has_perm('view_surface', surface):
+                raise PermissionDenied()
+
+            #
+            # Keep extra tab with surface open
+            #
+            context['active_tab'] = 'analyze'
+            context['extra_tab_1_data'] = {
+                'title': f"Surface <b>{surface.name}</b>",
+                'icon': "fa-diamond",
+                'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
+            }
+        if 'topography_id' in self.kwargs:
+            topo_id = self.kwargs['topography_id']
+            try:
+                topo = Topography.objects.get(id=topo_id)
+            except Topography.DoesNotExist:
+                raise PermissionDenied()
+
+            if not self.request.user.has_perm('view_surface', topo.surface):
+                raise PermissionDenied()
+
+            #
+            # Keep extra tab with surface open
+            #
+            context['active_tab'] = 'analyze'
+            context['extra_tab_1_data'] = {
+                'title': f"Surface <b>{topo.surface.name}</b>",
+                'icon': "fa-diamond",
+                'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
+            }
+            context['extra_tab_2_data'] = {
+                'title': f"Topography <b>{topo.name}</b>",
+                'icon': "fa-file-o",
+                'href': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
+            }
 
         return context
 
