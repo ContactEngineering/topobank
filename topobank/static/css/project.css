@@ -211,14 +211,11 @@ body, html {
 }
 
 .nav-tabs .nav-link.extra-tab {
-  background-color: #f8f9fa;
-  border-bottom: #f8f9fa;
   font-weight: bold;
+  font-style: italic;
 }
 
-
 .tab-content.extra-tab  {
-  background-color: #f8f9fa;
   border-top-right-radius: .5rem;
   border-top-left-radius: .5rem;
   border-bottom-right-radius: .5rem;

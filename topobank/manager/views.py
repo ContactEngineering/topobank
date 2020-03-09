@@ -501,12 +501,6 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
         :param topo: TopoBank Topography instance
         :return: bokeh plot
         """
-
-        TOOLTIPS = [
-            ("x", "$x " + topo.unit),
-            ("height", "$y " + topo.unit),
-        ]
-
         x, y = pyco_topo.positions_and_heights()
 
         x_range = DataRange1d(bounds='auto')
@@ -548,9 +542,6 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
         plot.yaxis.axis_label_text_font_style = "normal"
 
         plot.toolbar.logo = None
-
-        plot.background_fill_color = "#f8f9fa"  # to be compatible with tab color
-        plot.border_fill_color = "#f8f9fa"
 
         return plot
 
@@ -618,10 +609,6 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
                             title=f"height ({topo.unit})")
 
         plot.add_layout(colorbar, 'right')
-
-        plot.background_fill_color = "#f8f9fa"  # to be compatible with tab color
-        plot.border_fill_color = "#f8f9fa"
-        colorbar.background_fill_color = "#f8f9fa"
 
         return plot
 

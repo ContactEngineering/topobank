@@ -19,19 +19,19 @@
     {% if extra_tab_1_data %}
       <li class="nav-item">
         <a class="nav-link extra-tab {% if active_tab == 'extra-tab-1' %}active{% endif %}" href="{{ extra_tab_1_data.href }}">
-          <i class="fa fa-fw {{ extra_tab_1_data.icon}}"></i> <em>{{ extra_tab_1_data.title|truncatechars:50|safe }}</em>
+          <i class="fa fa-fw {{ extra_tab_1_data.icon}}"></i> {{ extra_tab_1_data.title|truncatechars:50|safe }}
         </a>
       </li>
       {% if extra_tab_2_data %}
         <li class="nav-item extra-tab">
           <a class="nav-link extra-tab {% if active_tab == 'extra-tab-2' %}active{% endif %}" href="{{ extra_tab_2_data.href }}">
-            <i class="fa fa-fw {{ extra_tab_2_data.icon}}"></i> <em>{{ extra_tab_2_data.title|truncatechars:50|safe }}</em>
+            <i class="fa fa-fw {{ extra_tab_2_data.icon}}"></i> {{ extra_tab_2_data.title|truncatechars:50|safe }}
           </a>
         </li>
         {% if extra_tab_3_data %}
           <li class="nav-item">
             <a class="nav-link extra-tab {% if active_tab == 'extra-tab-3' %}active{% endif %}" href="{{ extra_tab_3_data.href }}">
-              <i class="fa fa-fw {{ extra_tab_3_data.icon}}"></i> <em>{{ extra_tab_3_data.title|truncatechars:50|safe }}</em>
+              <i class="fa fa-fw {{ extra_tab_3_data.icon}}"></i> {{ extra_tab_3_data.title|truncatechars:50|safe }}
             </a>
           </li>
         {% endif %}
