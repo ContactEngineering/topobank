@@ -34,6 +34,7 @@ services:
       - production_postgres_data_backups:/backups
     env_file:
       - ./.envs/.production/.postgres
+    entrypoint: /docker-entrypoint.sh -c "shared_buffers=1GB" -c "max_connections=1000"
 
   dbbackup:
     build:
