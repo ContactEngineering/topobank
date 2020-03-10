@@ -127,7 +127,7 @@
         <div class="container-fluid ">
           <div id="basket">
             <div v-if="keys.length">
-              <basket-element v-for="key in keys" v-bind:elem="get_element(key)"></basket-element>
+              <basket-element v-for="key in keys" v-bind:elem="get_element(key)" v-bind:key="key" v-bind:basket="this"></basket-element>
             </div>
             <span v-else>No items selected yet. In order to select, please use the checkboxes in the Search Results.</span>
           </div>

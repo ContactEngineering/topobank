@@ -8,7 +8,7 @@ import celery
 
 import PyCo
 
-from topobank.manager.utils import selected_instances
+from topobank.manager.utils import current_selection_as_basket_items
 
 def versions_processor(request):
 
@@ -53,21 +53,4 @@ def basket_processor(request):
     if not request.user.is_authenticated:
         return {}
 
-    topographies, surfaces = selected_instances(request)
-
-    basket_items = []
-    for s in surfaces:
-        unselect_url = reverse('manager:surface-unselect', kwargs=dict(pk=s.pk))
-        basket_items.append(dict(name=s.name,
-                                 type="surface",
-                                 unselect_url=unselect_url,
-                                 key=f"surface-{s.pk}"))
-    for t in topographies:
-        unselect_url = reverse('manager:topography-unselect', kwargs=dict(pk=t.pk))
-        basket_items.append(dict(name=t.name,
-                                 type="topography",
-                                 unselect_url=unselect_url,
-                                 key=f"topography-{t.pk}",
-                                 surface_key=f"surface-{t.surface.pk}"))
-
-    return dict(basket_items_json=json.dumps(basket_items))
+    return dict(basket_items_json=json.dumps(current_selection_as_basket_items(request)))

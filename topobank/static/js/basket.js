@@ -69,27 +69,27 @@
 //   }
 // });
 
- function make_basket(basket_items) {
+ function make_basket(initial_basket_items) {
     return new Vue({
         delimiters: ['[[', ']]'],
         el: '#basket',
         data: {
             keys: [],
-            elements: {} // key: key like "surface-1", value is object, see below
+            elements: {}, // key: key like "surface-1", value is object, see below
+            unselect_handler: null,  // set by calling basket.set_unselect_handler
         },
         mounted: function () {
-            this.update();
+            this.update(initial_basket_items);
         },
         methods: {
 
             get_element: function (key) {
                 return this.elements[key];
             },
-            update: function () {
+            update: function (basket_items) {
+
                 var elements = {};
                 var keys = [];
-
-                // console.log(basket_items);
 
                 basket_items.forEach(function (item) {
                     keys.push(item.key);
@@ -115,6 +115,10 @@
                 // console.log("All elements: ", elements);
                 this.elements = elements;
                 this.keys = keys;
+            },
+            set_unselect_handler: function (f) {
+                this.unselect_handler = f;
+                console.log("Unselect handler set.")
             }
         }
     });
@@ -123,24 +127,26 @@
 
 
 Vue.component('basket-element', {
-    props: ['elem'], // object with keys: 'name', 'type', 'nodes'
+    props: ['elem', 'basket'], // object with keys: 'name', 'type'
     delimiters: ['[[', ']]'],
     template: `
            <span v-if="elem.type=='surface'" class="badge badge-pill badge-primary mr-1">[[ elem.name ]]
-                <span class="fa fa-close" v-on:click="handle_close"></span>
+                <span v-if="basket.unselect_handler" class="fa fa-close" v-on:click="handle_close"></span>
            </span>
            <span v-else class="badge badge-pill badge-secondary mr-1">[[ elem.name ]]
-                <span class="fa fa-close" v-on:click="handle_close"></span>
+                <span v-if="basket.unselect_handler" class="fa fa-close" v-on:click="handle_close"></span>
            </span>
          `,
     methods: {
         handle_close: function (event) {
             // Clicking means "deselect"
             // All nodes must be deselected - there can be several in the tag tree
-            this.elem.nodes.forEach( function(node) {
-                node.setSelected(false);
-            })
-            basket.update();
+            //this.elem.nodes.forEach( function(node) {
+            //    node.setSelected(false);
+            //})
+            console.log("handle_close for elem ", elem, " and basket ", basket);
+            var elem = this.elem;
+            this.basket.unselect_handler(elem.key);
         },
     }
   });

@@ -11,7 +11,7 @@ from django.core.files.storage import default_storage
 from django.core.files import File
 from django.core.exceptions import PermissionDenied
 from django.conf import settings
-from django.http import HttpResponse, Http404
+from django.http import HttpResponse, Http404, JsonResponse
 from django.views.generic.edit import FormMixin
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.utils.decorators import method_decorator
@@ -46,7 +46,7 @@ from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyW
 from .utils import selected_instances, bandwidths_data, surfaces_for_user, \
     get_topography_reader, tags_for_user, get_reader_infos
 from .serializers import SurfaceSerializer, TopographySerializer, TagSerializer
-from .utils import mailto_link_for_reporting_an_error
+from .utils import mailto_link_for_reporting_an_error, current_selection_as_basket_items
 
 from ..usage_stats.utils import increase_statistics_by_date
 from ..users.models import User
@@ -54,7 +54,6 @@ from ..users.models import User
 MAX_NUM_POINTS_FOR_SYMBOLS_IN_LINE_SCAN_PLOT = 100
 
 _log = logging.getLogger(__name__)
-
 
 surface_view_permission_required = method_decorator(
     permission_required_or_403('manager.view_surface', ('manager.Surface', 'pk', 'pk'))
@@ -101,13 +100,16 @@ class TopographyPermissionMixin(UserPassesTestMixin):
     def test_func(self):
         return NotImplementedError()
 
+
 class TopographyViewPermissionMixin(TopographyPermissionMixin):
     def test_func(self):
         return self.has_surface_permissions(['view_surface'])
 
+
 class TopographyUpdatePermissionMixin(TopographyPermissionMixin):
     def test_func(self):
         return self.has_surface_permissions(['view_surface', 'change_surface'])
+
 
 #
 # Using a wizard because we need intermediate calculations
@@ -125,7 +127,7 @@ class TopographyUpdatePermissionMixin(TopographyPermissionMixin):
 class TopographyCreateWizard(SessionWizardView):
     form_list = [TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm]
     template_name = 'manager/topography_wizard.html'
-    file_storage = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT,'topographies/wizard'))
+    file_storage = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT, 'topographies/wizard'))
 
     def get_form_initial(self, step):
 
@@ -193,8 +195,8 @@ class TopographyCreateWizard(SessionWizardView):
             # Set unit
             #
             initial['unit'] = channel_info.info['unit'] \
-                              if (('unit' in channel_info.info) and (not isinstance(channel_info.info['unit'], tuple)))\
-                              else None
+                if (('unit' in channel_info.info) and (not isinstance(channel_info.info['unit'], tuple))) \
+                else None
             initial['unit_editable'] = initial['unit'] is None
 
             #
@@ -262,7 +264,6 @@ class TopographyCreateWizard(SessionWizardView):
             kwargs['autocomplete_tags'] = tags_for_user(self.request.user)
 
         if step in ['units']:
-
             step1_data = self.get_cleaned_data_for_step('metadata')
             channel = int(step1_data['data_source'])
             channel_info = toporeader.channels[channel]
@@ -271,11 +272,10 @@ class TopographyCreateWizard(SessionWizardView):
             no_sizes_given = channel_info.physical_sizes is None
 
             # only allow periodic topographies in case of 2 dimension
-            kwargs['allow_periodic'] = has_2_dim and no_sizes_given   # TODO simplify in 'no_sizes_given'?
+            kwargs['allow_periodic'] = has_2_dim and no_sizes_given  # TODO simplify in 'no_sizes_given'?
             kwargs['has_size_y'] = has_2_dim  # TODO find common term, now we have 'has_size_y' and 'has_2_dim'
 
         return kwargs
-
 
     def get_context_data(self, form, **kwargs):
         context = super().get_context_data(form, **kwargs)
@@ -381,7 +381,7 @@ class TopographyCreateWizard(SessionWizardView):
         other_users = get_users_with_perms(topo.surface).filter(~Q(id=self.request.user.id))
         for u in other_users:
             notify.send(sender=self.request.user, verb='create', target=topo, recipient=u,
-                        description=f"User '{self.request.user.name}' has created the topography '{topo.name}' "+\
+                        description=f"User '{self.request.user.name}' has created the topography '{topo.name}' " + \
                                     f"in surface '{topo.surface.name}'.",
                         href=reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)))
 
@@ -390,6 +390,7 @@ class TopographyCreateWizard(SessionWizardView):
         #
         return redirect('manager:topography-detail', pk=topo.pk)
 
+
 class CorruptedTopographyView(TemplateView):
     template_name = "manager/topography_corrupted.html"
 
@@ -397,6 +398,7 @@ class CorruptedTopographyView(TemplateView):
         context = super().get_context_data(**kwargs)
         context['surface'] = Surface.objects.get(id=kwargs['surface_id'])
         return context
+
 
 class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
     model = Topography
@@ -432,7 +434,7 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
                               'detrend_mode', 'datafile', 'data_source'}
         significant_fields_with_changes = set(form.changed_data).intersection(significant_fields)
         if len(significant_fields_with_changes) > 0:
-            _log.info(f"During edit of topography {topo.id} significant fields changed: "+\
+            _log.info(f"During edit of topography {topo.id} significant fields changed: " + \
                       f"{significant_fields_with_changes}. Renewing analyses...")
             topo.renew_analyses()
             notification_msg += f"\nBecause significant fields have changed, all analyses are recalculated now."
@@ -490,6 +492,7 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
 
         return context
 
+
 class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
     model = Topography
     context_object_name = 'topography'
@@ -534,7 +537,7 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
 
         show_symbols = y.shape[0] <= MAX_NUM_POINTS_FOR_SYMBOLS_IN_LINE_SCAN_PLOT
 
-        plot.line(x,y)
+        plot.line(x, y)
         if show_symbols:
             plot.circle(x, y)
 
@@ -555,8 +558,8 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
         heights = pyco_topo.heights()
 
         topo_size = pyco_topo.physical_sizes
-        #x_range = DataRange1d(start=0, end=topo_size[0], bounds='auto')
-        #y_range = DataRange1d(start=0, end=topo_size[1], bounds='auto')
+        # x_range = DataRange1d(start=0, end=topo_size[0], bounds='auto')
+        # y_range = DataRange1d(start=0, end=topo_size[1], bounds='auto')
         x_range = DataRange1d(start=0, end=topo_size[0], bounds='auto', range_padding=5)
         y_range = DataRange1d(start=topo_size[1], end=0, flipped=True, range_padding=5)
 
@@ -574,16 +577,16 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
         frame_height = 500
         frame_width = int(frame_height * aspect_ratio)
 
-        if frame_width > 1200: # rule of thumb, scale down if too wide
+        if frame_width > 1200:  # rule of thumb, scale down if too wide
             frame_width = 1200
-            frame_height = int(frame_width/aspect_ratio)
+            frame_height = int(frame_width / aspect_ratio)
 
         plot = figure(x_range=x_range,
                       y_range=y_range,
                       frame_width=frame_width,
                       frame_height=frame_height,
                       # sizing_mode='scale_both',
-                      #aspect_ratio=aspect_ratio,
+                      # aspect_ratio=aspect_ratio,
                       match_aspect=True,
                       x_axis_label=f'x ({topo.unit})',
                       y_axis_label=f'y ({topo.unit})',
@@ -650,12 +653,10 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
                                                           traceback.format_exc())
                 errors.append(dict(message=err_message, link=link))
 
-
             if plotted:
                 script, div = components(plot)
                 context['image_plot_script'] = script
                 context['image_plot_div'] = div
-
 
         context['errors'] = errors
 
@@ -685,6 +686,7 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
 
         return context
 
+
 class TopographyDeleteView(TopographyUpdatePermissionMixin, DeleteView):
     model = Topography
     context_object_name = 'topography'
@@ -703,7 +705,7 @@ class TopographyDeleteView(TopographyUpdatePermissionMixin, DeleteView):
         for u in other_users:
             notify.send(sender=user, verb="delete",
                         recipient=u,
-                        description=f"User '{user.name}' deleted topography '{topo.name}' "+\
+                        description=f"User '{user.name}' deleted topography '{topo.name}' " + \
                                     f"from surface '{surface.name}'.",
                         href=link)
 
@@ -731,6 +733,7 @@ class TopographyDeleteView(TopographyUpdatePermissionMixin, DeleteView):
         }
 
         return context
+
 
 class SurfaceSearchView(TemplateView):
     template_name = "manager/surface_list.html"
@@ -772,6 +775,7 @@ class SurfaceCreateView(CreateView):
         }
         return context
 
+
 class SurfaceDetailView(DetailView):
     model = Surface
     context_object_name = 'surface'
@@ -789,7 +793,7 @@ class SurfaceDetailView(DetailView):
         bw_data = bandwidths_data(self.object.topography_set.all())
 
         # filter out all entries with errors and display error messages
-        bw_data_with_errors = [ x for x in bw_data if x['error_message'] is not None ]
+        bw_data_with_errors = [x for x in bw_data if x['error_message'] is not None]
         bw_data_without_errors = [x for x in bw_data if x['error_message'] is None]
 
         context['bandwidths_data_without_errors'] = json.dumps(bw_data_without_errors)
@@ -798,7 +802,7 @@ class SurfaceDetailView(DetailView):
         #
         # permission data
         #
-        ACTIONS = ['view', 'change', 'delete', 'share'] # defines the order of permissions in table
+        ACTIONS = ['view', 'change', 'delete', 'share']  # defines the order of permissions in table
 
         # surface_perms = get_users_with_perms(self.object, attach_perms=True, only_with_perms_in=potential_perms)
         surface_perms = get_users_with_perms(self.object, attach_perms=True)
@@ -816,7 +820,7 @@ class SurfaceDetailView(DetailView):
         surface_perms_table = []
         for user in surface_users:
 
-            is_request_user = user==self.request.user
+            is_request_user = user == self.request.user
 
             if is_request_user:
                 user_display_name = "You"
@@ -826,7 +830,7 @@ class SurfaceDetailView(DetailView):
                 auxilliary = "has"
 
             # the current user is represented as None, can be displayed in a special way in template ("You")
-            row = [(user_display_name, user.get_absolute_url())] # cell title is used for passing a link here
+            row = [(user_display_name, user.get_absolute_url())]  # cell title is used for passing a link here
             for a in ACTIONS:
 
                 perm = a + '_surface'
@@ -842,7 +846,7 @@ class SurfaceDetailView(DetailView):
             surface_perms_table.append(row)
 
         context['permission_table'] = {
-            'head': ['']+ACTIONS,
+            'head': [''] + ACTIONS,
             'body': surface_perms_table
         }
 
@@ -853,6 +857,7 @@ class SurfaceDetailView(DetailView):
         }
 
         return context
+
 
 class SurfaceUpdateView(UpdateView):
     model = Surface
@@ -868,7 +873,6 @@ class SurfaceUpdateView(UpdateView):
         return kwargs
 
     def form_valid(self, form):
-
         surface = self.object
         user = self.request.user
         notification_msg = f"User {user} changed surface '{surface.name}'. Changed fields: {','.join(form.changed_data)}."
@@ -903,9 +907,9 @@ class SurfaceUpdateView(UpdateView):
 
         return context
 
-
     def get_success_url(self):
         return reverse('manager:surface-detail', kwargs=dict(pk=self.object.pk))
+
 
 class SurfaceDeleteView(DeleteView):
     model = Surface
@@ -931,7 +935,6 @@ class SurfaceDeleteView(DeleteView):
                         description=f"User '{user.name}' deleted surface '{surface.name}'.",
                         href=link)
         return link
-
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -987,7 +990,7 @@ class SurfaceShareView(FormMixin, DetailView):
 
                 notification_message = f"{self.request.user} has shared surface '{surface.name}' with you"
                 notify.send(self.request.user, recipient=user,
-                            verb="share", # TODO Does verb follow activity stream defintions?
+                            verb="share",  # TODO Does verb follow activity stream defintions?
                             target=surface,
                             public=False,
                             description=notification_message,
@@ -1053,10 +1056,10 @@ class SharingInfoTable(tables.Table):
         return user.name
 
     class Meta:
-        orderable = False # ordering does not work with custom columns
+        orderable = False  # ordering does not work with custom columns
+
 
 def sharing_info(request):
-
     #
     # Handle POST request if any
     #
@@ -1084,7 +1087,7 @@ def sharing_info(request):
                 notify.send(sender=request.user, recipient=share_with, verb='unshare', public=False,
                             description=f"Surface '{surface.name}' from {request.user} is no longer shared with you",
                             href=reverse('manager:sharing-info'))
-            elif allow_change and (request.user == surface.creator): # only allow change for surface creator
+            elif allow_change and (request.user == surface.creator):  # only allow change for surface creator
                 surface.share(share_with, allow_change=True)
                 notify.send(sender=request.user, recipient=share_with, verb='allow change', target=surface,
                             public=False,
@@ -1137,6 +1140,7 @@ def sharing_info(request):
                   template_name='manager/sharing_info.html',
                   context={'sharing_info_table': sharing_info_table})
 
+
 def download_surface(request, surface_id):
     """Returns a file comprised from topographies contained in a surface.
 
@@ -1176,7 +1180,7 @@ def download_surface(request, surface_id):
         # Add a Readme file
         #
         zf.writestr("README.txt", \
-"""
+                    """
 Contents of this ZIP archive
 ============================
 This archive contains a surface: A collection of individual topography measurements.
@@ -1209,7 +1213,7 @@ class TagListView(ListAPIView):
     serializer_class = TagSerializer
 
     def get_queryset(self):
-        return tags_for_user(self.request.user).filter(parent=None).order_by('label') # only top level
+        return tags_for_user(self.request.user).filter(parent=None).order_by('label')  # only top level
 
     def list(self, request, *args, **kwargs):
         response = super().list(request, args, kwargs)
@@ -1221,11 +1225,11 @@ class TagListView(ListAPIView):
         surfaces_without_tags = context['surfaces'].filter(tags=None)
         topographies_without_tags = context['topographies'].filter(tags=None)
 
-        serialized_surfaces_without_tags = [ surface_serializer.to_representation(s)
-                                             for s in surfaces_without_tags ]
+        serialized_surfaces_without_tags = [surface_serializer.to_representation(s)
+                                            for s in surfaces_without_tags]
 
-        serialized_topographies_without_tags = [ topography_serializer.to_representation(t)
-                                                 for t in topographies_without_tags ]
+        serialized_topographies_without_tags = [topography_serializer.to_representation(t)
+                                                for t in topographies_without_tags]
 
         response.data.append(dict(
             type='tag',
@@ -1261,12 +1265,13 @@ class TagListView(ListAPIView):
         context['topographies'] = Topography.objects.filter(surface__in=context['surfaces'])
         return context
 
+
 class SurfaceSearch(ListAPIView):
     """
     List all surfaces
     """
     serializer_class = SurfaceSerializer
-    #filter_backends = (filters.SearchFilter,) # so far not used because the filtering is done in client
+    # filter_backends = (filters.SearchFilter,) # so far not used because the filtering is done in client
     search_fields = ('name', 'description', 'topography__name', 'topography__description')
 
     def get_queryset(self):
@@ -1282,11 +1287,14 @@ class SurfaceSearch(ListAPIView):
 def _selection_set(request):
     return set(request.session.get('selection', []))
 
-def _surface_key(pk): # TODO use such a function everywhere: instance_key_for_selection()
+
+def _surface_key(pk):  # TODO use such a function everywhere: instance_key_for_selection()
     return 'surface-{}'.format(pk)
+
 
 def _topography_key(pk):
     return 'topography-{}'.format(pk)
+
 
 def set_surface_select_status(request, pk, select_status):
     """Marks the given surface as 'selected' in session or checks this.
@@ -1326,7 +1334,9 @@ def set_surface_select_status(request, pk, select_status):
         request.session['selection'] = list(selection)
         _log.info("New selection: %s", selection)
 
-    return Response()
+    data = current_selection_as_basket_items(request)
+    return Response(data)
+
 
 @api_view(['POST'])
 def select_surface(request, pk):
@@ -1340,6 +1350,7 @@ def select_surface(request, pk):
     """
     return set_surface_select_status(request, pk, True)
 
+
 @api_view(['POST'])
 def unselect_surface(request, pk):
     """Marks the given surface as 'unselected' in session.
@@ -1351,6 +1362,7 @@ def unselect_surface(request, pk):
     The response is empty.
     """
     return set_surface_select_status(request, pk, False)
+
 
 def set_topography_select_status(request, pk, select_status):
     """Marks the given topography as 'selected' or 'unselected' in session.
@@ -1368,13 +1380,13 @@ def set_topography_select_status(request, pk, select_status):
         user = request.user
         assert user.has_perm('view_surface', topo.surface)
     except:
-        raise PermissionDenied() # This should be shown independent of whether the surface exists
+        raise PermissionDenied()  # This should be shown independent of whether the surface exists
 
     topography_key = _topography_key(pk)
     surface_key = _surface_key(topo.surface.pk)
     selection = _selection_set(request)
     is_selected = topography_key in selection
-    is_surface_selected =  surface_key in selection
+    is_surface_selected = surface_key in selection
 
     if request.method == 'POST':
 
@@ -1382,14 +1394,14 @@ def set_topography_select_status(request, pk, select_status):
             # topography should be selected
 
             if is_surface_selected:
-                pass # is already selected implicitly
+                pass  # is already selected implicitly
             else:
                 # check if all other topographies are selected - if yes,
                 # remove those and add surface as selection
                 other_topo_keys_in_surface = [_topography_key(t.pk) for t in topo.surface.topography_set.all()
-                                              if t!=topo]
+                                              if t != topo]
 
-                if all( k in selection for k in other_topo_keys_in_surface):
+                if all(k in selection for k in other_topo_keys_in_surface):
                     for k in other_topo_keys_in_surface:
                         selection.remove(k)
                     selection.add(_surface_key(topo.surface.pk))
@@ -1412,7 +1424,9 @@ def set_topography_select_status(request, pk, select_status):
         request.session['selection'] = list(selection)
         _log.info("New selection: %s", selection)
 
-    return Response()
+    data = current_selection_as_basket_items(request)
+    return Response(data)
+
 
 @api_view(['POST'])
 def select_topography(request, pk):
@@ -1426,6 +1440,7 @@ def select_topography(request, pk):
     """
     return set_topography_select_status(request, pk, True)
 
+
 @api_view(['POST'])
 def unselect_topography(request, pk):
     """Marks the given topography as 'selected' in session.
@@ -1438,10 +1453,3 @@ def unselect_topography(request, pk):
     """
     return set_topography_select_status(request, pk, False)
 
-# @login_required
-# def autocomplete_tags(request):
-#
-#     return tagulous.views.autocomplete(
-#         request,
-#         tags_for_user(request.user)
-#     )

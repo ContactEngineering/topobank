@@ -125,11 +125,6 @@
 
   <script>
 
-      /**
-       * Display search results as tree
-       * @type {*|jQuery}
-       */
-
       function get_tree() {
           return $("#result-tree").fancytree("getTree");
       }
@@ -265,14 +260,22 @@
               cache: false
           },
           autoActivate: true,
-          //  titlesTabbable: false,
-          tabbable: false,
+          titlesTabbable: false,
+          tabindex: -1,
           focusOnSelect: false,
           scrollParent: $("#scrollParent"),
           checkbox: true,
           selectMode: 3, // 'multi-hier'
           init: function() {
-            basket.update();
+            // basket.update();
+            basket.set_unselect_handler( function (key) {
+              var tree = get_tree();
+              tree.findAll( function (node) {
+                return node.key == key;
+              }).forEach( function (node) {
+                node.setSelected(false);
+              })
+            });
             summary_vm.update();
             set_tree_mode_styles("surface list");
           },
@@ -289,7 +292,7 @@
                        },
                        success: function (data, textStatus, xhr) {
                            // console.log("Selected: " + node.data.name + " " + node.key);
-                           basket.update();
+                           basket.update(data);
                        },
                        error: function (xhr, textStatus, errorThrown) {
                            console.error("Could not select: " + errorThrown + " " + xhr.status + " " + xhr.responseText);
@@ -304,7 +307,7 @@
                        },
                        success: function (data, textStatus, xhr) {
                            // console.log("Unselected: " + node.data.name + " " + node.key);
-                           basket.update();
+                           basket.update(data);
                        },
                        error: function (xhr, textStatus, errorThrown) {
                            console.error("Could not unselect: " + errorThrown + " " + xhr.status + " " + xhr.responseText);

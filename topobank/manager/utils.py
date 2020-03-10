@@ -269,6 +269,35 @@ def selected_instances(request, surface=None):
 
     return topographies, surfaces
 
+def current_selection_as_basket_items(request):
+    """Returns current selection as JSON suitable for the basket.
+
+    Parameters
+    ----------
+    request
+
+    Returns
+    -------
+
+    """
+    topographies, surfaces = selected_instances(request)
+
+    basket_items = []
+    for s in surfaces:
+        unselect_url = reverse('manager:surface-unselect', kwargs=dict(pk=s.pk))
+        basket_items.append(dict(name=s.name,
+                                 type="surface",
+                                 unselect_url=unselect_url,
+                                 key=f"surface-{s.pk}"))
+    for t in topographies:
+        unselect_url = reverse('manager:topography-unselect', kwargs=dict(pk=t.pk))
+        basket_items.append(dict(name=t.name,
+                                 type="topography",
+                                 unselect_url=unselect_url,
+                                 key=f"topography-{t.pk}",
+                                 surface_key=f"surface-{t.surface.pk}"))
+    return basket_items
+
 
 def mailto_link_for_reporting_an_error(subject, info, err_msg, traceback) -> str:
     """Use this to create a mail body for reporting an error.
