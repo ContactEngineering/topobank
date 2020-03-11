@@ -84,6 +84,13 @@ class TermsView(TemplateView):
         else:
             context['active_terms'] = active_terms.order_by('optional')
 
+        context['active_tab'] = 'extra-tab-4'
+        context['extra_tab_4_data'] = {
+            'icon': 'fa-legal',
+            'title': "Terms and Conditions",
+            'href': self.request.path,
+        }
+
         return context
 
 class HelpView(TemplateView):

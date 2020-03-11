@@ -9,59 +9,64 @@
 
 {% block content %}
 
+  {% include "tabs.html" %}
 
-  {% if request.user.is_authenticated %}
+  <div class="tab-content p-2">
+    <div class="tab-pane active">
 
-    {% if agreed_terms|length > 0 %}
-    <div class="card">
-      <div class="card-header"><h2>You have accepted the following terms and conditions</h2></div>
-      <div class="card-body">
-        <ul>
-        {% for terms in agreed_terms %}
-          <li>
-            <a class="terms-link" href="{% url 'tc_view_specific_version_page' terms.slug terms.version_number %}{% if returnTo %}?returnTo={{ returnTo }}{% endif %}">
-            {% if terms.name %}{{ terms.name|safe }}, {% endif %}version {{ terms.version_number }}
-            </a>
-          </li>
-        {% endfor %}
-        </ul>
+    {% if request.user.is_authenticated %}
 
-      </div>
-    </div>
-    {% endif %}
-
-    {% if not_agreed_terms|length > 0 %}
-    <div class="card">
-      <div class="card-header"><h2>Terms and Conditions not accepted yet</h2></div>
-      <div class="card-body">
-        <ul>
-        {% for terms in not_agreed_terms %}
-            <li>
-              <a class="terms-link" href="{% url 'tc_accept_specific_page' terms.slug %}{% if returnTo %}?returnTo={{ returnTo }}{% endif %}">
-              {% if terms.name %}{{ terms.name|safe }}{% endif %}
-              </a> ({% if terms.optional %}optional{% else %}needed{% endif %})
-            </li>
-        {% endfor %}
-        </ul>
-      </div>
-    </div>
-    {% endif %}
-  {% else %}
-
-    {# This is shown to anonymous users #}
-    {% for terms in active_terms %}
+      {% if agreed_terms|length > 0 %}
       <div class="card">
-        <div class="card-header"><h2>{{ terms.name|safe }}{% if terms.optional %} (optional){% endif %}</h2></div>
+        <div class="card-header"><h2>You have accepted the following terms and conditions</h2></div>
         <div class="card-body">
-          {{ terms.text|safe }}
+          <ul>
+          {% for terms in agreed_terms %}
+            <li>
+              <a class="terms-link" href="{% url 'tc_view_specific_version_page' terms.slug terms.version_number %}{% if returnTo %}?returnTo={{ returnTo }}{% endif %}">
+              {% if terms.name %}{{ terms.name|safe }}, {% endif %}version {{ terms.version_number }}
+              </a>
+            </li>
+          {% endfor %}
+          </ul>
+
         </div>
       </div>
-     {% endfor %}
+      {% endif %}
 
-    <p>If you want to use this site, <a href="{% provider_login_url 'orcid' method="oauth2" %}">sign in via ORCID</a>.
-    Afterwards you have the possibility to review and accept terms and conditions.</p>
+      {% if not_agreed_terms|length > 0 %}
+      <div class="card">
+        <div class="card-header"><h2>Terms and Conditions not accepted yet</h2></div>
+        <div class="card-body">
+          <ul>
+          {% for terms in not_agreed_terms %}
+              <li>
+                <a class="terms-link" href="{% url 'tc_accept_specific_page' terms.slug %}{% if returnTo %}?returnTo={{ returnTo }}{% endif %}">
+                {% if terms.name %}{{ terms.name|safe }}{% endif %}
+                </a> ({% if terms.optional %}optional{% else %}needed{% endif %})
+              </li>
+          {% endfor %}
+          </ul>
+        </div>
+      </div>
+      {% endif %}
+    {% else %}
 
-  {% endif %}
+      {# This is shown to anonymous users #}
+      {% for terms in active_terms %}
+        <div class="card">
+          <div class="card-header"><h2>{{ terms.name|safe }}{% if terms.optional %} (optional){% endif %}</h2></div>
+          <div class="card-body">
+            {{ terms.text|safe }}
+          </div>
+        </div>
+       {% endfor %}
 
+      <p>If you want to use this site, <a href="{% provider_login_url 'orcid' method="oauth2" %}">sign in via ORCID</a>.
+      Afterwards you have the possibility to review and accept terms and conditions.</p>
+
+    {% endif %}
+    </div>
+  </div>
 
 {% endblock %}
