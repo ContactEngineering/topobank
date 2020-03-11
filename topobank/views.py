@@ -86,11 +86,17 @@ class TermsView(TemplateView):
 
         return context
 
-class FileFormatsView(TemplateView):
+class HelpView(TemplateView):
 
-    template_name = 'pages/file_formats.html'
+    template_name = 'pages/help.html'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data()
         context['reader_infos'] = get_reader_infos()
+        context['active_tab'] = 'extra-tab-4'
+        context['extra_tab_4_data'] = {
+            'icon': 'fa-question-circle',
+            'title': "Help",
+            'href': self.request.path,
+        }
         return context
