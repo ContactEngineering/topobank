@@ -128,12 +128,31 @@
             },
 
             unselect: function (key) {
-                if (this.unselect_handler) {
-                    console.log(`Calling unselect handler for key ${key} from basket..`);
-                    this.unselect_handler(key);
-                } else {
-                    console.warn("Unselect handler not set for basket, cannot call.")
-                }
+                // First call unselect url for this element
+                // then the additional handler if needed
+                var elem = this.elements[key];
+                var basket = this;
+                $.ajax({
+                       type: "POST",
+                       url: elem.unselect_url,
+                       data: {
+                           csrfmiddlewaretoken: csrf_token
+                       },
+                       success: function (data, textStatus, xhr) {
+                           basket.update(data);
+                           if (basket.unselect_handler) {
+                             console.log(`Calling unselect handler for key ${key} from basket..`);
+                             basket.unselect_handler(key);
+                           } else {
+                             console.debug("Unselect handler not set for basket, doing nothing extra.");
+                           }
+                       },
+                       error: function (xhr, textStatus, errorThrown) {
+                           console.error("Could not unselect: " + errorThrown + " " + xhr.status + " " + xhr.responseText);
+                       }
+                   });
+
+
             }
         }
     });

@@ -68,6 +68,14 @@
     $(document).ready(function () {
       submit_analyses_card_ajax("{% url 'analysis:card' %}", "card", "detail",
                                 {{ card.function.id }}, {{ card.topography_ids_json|safe }}, 0);
+
+      // we want that closing an item in the basket
+      // does unselect it and reload the analyses
+      basket.unselect_handler = function reload (key) {
+         location.reload();  // simplest way now to reduce analyses shown
+        // It would be better to only reload the cards, but so far the "cards" context variable
+        // does not come from an AJAX call
+      };
     });
 
     // we don't want error messages if the page is left before everything is loaded

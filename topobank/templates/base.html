@@ -129,7 +129,8 @@
             <div v-if="keys.length">
               <basket-element v-for="key in keys" v-bind:elem="get_element(key)" v-bind:key="key"></basket-element>
             </div>
-            <span v-else>No items selected yet. In order to select, please use the checkboxes in the Search Results.</span>
+            <span v-else>No items selected yet. In order to select, please use the checkboxes on the
+              <b><i class="fa fa-fw fa-check-square-o"></i>Select</b> tab.</span>
           </div>
         </div>
       </div>
@@ -411,8 +412,10 @@
     {% endif %}
     <script src="{% static 'js/basket.js' %}"></script>
     <script>
+      // Some globals on each page
       var event_hub = new Vue(); // used to register event handlers and to pass events
       var basket = make_basket({{ basket_items_json|safe }});
+      var csrf_token = '{{ csrf_token }}';  // useful when doing AJAX calls from JS files
     </script>
 
 

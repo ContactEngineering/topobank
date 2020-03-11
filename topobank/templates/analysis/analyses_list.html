@@ -28,22 +28,6 @@
   <li class="breadcrumb-item active" aria-current="page">Analyses</li>
 {% endblock breadcrumbs %}
 
-{% block basket %}
-  <!-- Filter for topographies and analysis functions -->
-  <div class="bg-light border-top border-bottom">
-    <div class="container-fluid">
-      <div class="py-2">
-        <div id="basket">
-          <div v-if="keys.length">
-            <basket-element v-for="key in keys" v-bind:elem="get_element(key)" v-bind:key="key"></basket-element>
-          </div>
-          <span v-else>No items selected yet. In order to select, please use the checkboxes in the Search Results.</span>
-        </div>
-      </div>
-
-    </div>
-  </div>
-{% endblock basket %}
 
 {% block content %}
 
@@ -98,12 +82,21 @@
 
   <!-- Trigger fetching analysis results -->
   <script>
-    // for each card submit ajax call to insert result card
+
     $(document).ready(function () {
+      // for each card submit ajax call to insert result card
       {% url 'analysis:card' as card_url %}
       {% for card in cards %}
         submit_analyses_card_ajax("{{ card_url }}", "card-{{ forloop.counter }}", "list", {{ card.function.id }}, {{ card.topography_ids_json|safe }}, 0);
       {% endfor %}
+
+      // we want that closing an item in the basket
+      // does unselect it and reload the analyses
+      basket.unselect_handler = function reload (key) {
+         location.reload();  // simplest way now to reduce analyses shown
+        // It would be better to only reload the cards, but so far the "cards" context variable
+        // does not come from an AJAX call
+      };
     });
 
     // we don't want error messages if the page is left before everything is loaded
