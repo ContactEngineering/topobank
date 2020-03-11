@@ -69,6 +69,8 @@
 //   }
 // });
 
+
+
  function make_basket(initial_basket_items) {
     return new Vue({
         delimiters: ['[[', ']]'],
@@ -81,12 +83,20 @@
         mounted: function () {
             this.update(initial_basket_items);
         },
+        created: function () {
+            event_hub.$on('unselect', this.unselect);
+        },
         methods: {
 
             get_element: function (key) {
                 return this.elements[key];
             },
             update: function (basket_items) {
+
+                if (basket_items === undefined) {
+                    console.debug("Using initial basket items for upate.");
+                    basket_items = initial_basket_items;
+                }
 
                 var elements = {};
                 var keys = [];
@@ -116,9 +126,14 @@
                 this.elements = elements;
                 this.keys = keys;
             },
-            set_unselect_handler: function (f) {
-                this.unselect_handler = f;
-                console.log("Unselect handler set.")
+
+            unselect: function (key) {
+                if (this.unselect_handler) {
+                    console.log(`Calling unselect handler for key ${key} from basket..`);
+                    this.unselect_handler(key);
+                } else {
+                    console.warn("Unselect handler not set for basket, cannot call.")
+                }
             }
         }
     });
@@ -127,26 +142,19 @@
 
 
 Vue.component('basket-element', {
-    props: ['elem', 'basket'], // object with keys: 'name', 'type'
+    props: ['elem'], // object with keys: 'name', 'type'
     delimiters: ['[[', ']]'],
     template: `
            <span v-if="elem.type=='surface'" class="badge badge-pill badge-primary mr-1">[[ elem.name ]]
-                <span v-if="basket.unselect_handler" class="fa fa-close" v-on:click="handle_close"></span>
+                <span class="fa fa-close" v-on:click="handle_close"></span>
            </span>
            <span v-else class="badge badge-pill badge-secondary mr-1">[[ elem.name ]]
-                <span v-if="basket.unselect_handler" class="fa fa-close" v-on:click="handle_close"></span>
+                <span class="fa fa-close" v-on:click="handle_close"></span>
            </span>
          `,
     methods: {
         handle_close: function (event) {
-            // Clicking means "deselect"
-            // All nodes must be deselected - there can be several in the tag tree
-            //this.elem.nodes.forEach( function(node) {
-            //    node.setSelected(false);
-            //})
-            console.log("handle_close for elem ", elem, " and basket ", basket);
-            var elem = this.elem;
-            this.basket.unselect_handler(elem.key);
-        },
+            event_hub.$emit('unselect', this.elem.key);  // See basket's "created" where event handlers are defined
+        }
     }
   });

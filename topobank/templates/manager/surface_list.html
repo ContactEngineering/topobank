@@ -267,15 +267,6 @@
           checkbox: true,
           selectMode: 3, // 'multi-hier'
           init: function() {
-            // basket.update();
-            basket.set_unselect_handler( function (key) {
-              var tree = get_tree();
-              tree.findAll( function (node) {
-                return node.key == key;
-              }).forEach( function (node) {
-                node.setSelected(false);
-              })
-            });
             summary_vm.update();
             set_tree_mode_styles("surface list");
           },
@@ -511,6 +502,17 @@
               filter_items();
               tree.expandAll(false); // collapse all nodes
           });
+      });
+
+      $(document).ready( function () {
+        basket.unselect_handler = function unselect_nodes(key) {
+              const tree = get_tree();
+              tree.findAll( function (node) {
+                return node.key == key;
+              }).forEach( function (node) {
+                node.setSelected(false);
+              })
+        };
       });
 
 
