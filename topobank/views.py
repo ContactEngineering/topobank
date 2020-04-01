@@ -1,4 +1,4 @@
-from django.views.generic import TemplateView
+from django.views.generic import TemplateView, RedirectView
 from django.db.models import Q
 from django.shortcuts import reverse
 
@@ -107,3 +107,8 @@ class HelpView(TemplateView):
             'href': self.request.path,
         }
         return context
+
+class SearchView(RedirectView):
+    pattern_name = 'manager:surface-list'
+    query_string = True
+

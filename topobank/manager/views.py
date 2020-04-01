@@ -32,8 +32,9 @@ from trackstats.models import Metric, Period
 from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
-# from django_filters import rest_framework as filters
-from rest_framework import filters
+from django_filters import rest_framework as filters
+# from rest_framework import filters
+from rest_framework.renderers import JSONRenderer
 
 import numpy as np
 import json
@@ -47,6 +48,7 @@ from .utils import selected_instances, bandwidths_data, surfaces_for_user, \
     get_topography_reader, tags_for_user, get_reader_infos
 from .serializers import SurfaceSerializer, TopographySerializer, TagSerializer
 from .utils import mailto_link_for_reporting_an_error, current_selection_as_basket_items
+from .filters import SurfaceFilter
 
 from ..usage_stats.utils import increase_statistics_by_date
 from ..users.models import User
@@ -735,8 +737,8 @@ class TopographyDeleteView(TopographyUpdatePermissionMixin, DeleteView):
         return context
 
 
-class SurfaceSearchView(TemplateView):
-    template_name = "manager/surface_list.html"
+class SelectView(TemplateView):
+    template_name = "manager/surface_list.html"  # TODO rename to select.html
 
     def dispatch(self, request, *args, **kwargs):
         # count this view event for statistics
@@ -744,6 +746,113 @@ class SurfaceSearchView(TemplateView):
         metric = Metric.objects.SEARCH_VIEW_COUNT
         increase_statistics_by_date(metric, period=Period.DAY)
         return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        search_term = self.request.GET.get('search')
+        category = self.request.GET.get('category')
+        sharing_status = self.request.GET.get('sharing_status')
+
+        if search_term:
+            search_term = search_term.strip()
+        if category and category not in [ 'all', 'exp', 'sim', 'dum']:  # TODO deduce automatically
+            raise PermissionDenied()
+        if sharing_status and sharing_status not in [ 'all', 'own', 'shared']:
+            raise PermissionDenied
+
+        search_url = reverse('manager:search')
+        if search_term:
+            search_term = search_term.strip()
+            search_url += f"?search={search_term}"
+
+
+
+        context['search_url'] = search_url  # this is used to load search results from tree
+        context['search_term'] = search_term
+
+        # #
+        # # Collect data for trees
+        # #
+        # surfaces = surfaces_for_user(self.request.user)
+        #
+        # # Filter for category and status
+        # if category:
+        #     surfaces = surfaces.filter(category=category)
+        # if sharing_status == 'own':
+        #     surfaces = surfaces.filter(creator=self.request.user)
+        # elif sharing_status == 'shared':
+        #     surfaces = surfaces.filter(~Q(creator=self.request.user))
+        # topographies = Topography.objects.filter(surface__in=surfaces)
+        #
+        # # Filter for search term
+        # if search_term:
+        #     topographies = topographies.filter(
+        #         Q(name__icontains=search_term) | Q(description__icontains=search_term))  # TODO tags missing
+        #     surfaces = surfaces.filter(
+        #         Q(name__icontains=search_term) | Q(description__icontains=search_term))  # TODO tags missing
+        #
+        # # matching topographies should be accessible via their surface as well as all topographies
+        # # from matching surfaces
+        # # surfaces_for_surface_tree = surfaces.union(t.surface for t in topographies)
+        #
+        #
+        # tags = tags_for_user(self.request.user).filter(parent=None).order_by('label')  # only top level
+        # surfaces_without_tags = surfaces.filter(tags=None)
+        # topographies_without_tags = topographies.filter(tags=None)
+        #
+        #
+        #
+        #
+        # #
+        # # Prepare tree data for tree with surfaces at top level
+        # #
+        # serializer_context = dict(request=self.request,
+        #                           selected_instances=selected_instances(self.request))
+        #
+        # surface_serializer = SurfaceSerializer(context=serializer_context)
+        # surface_tree_data = [ surface_serializer.to_representation(s) for s in surfaces]
+        #
+        # context['surface_tree_data'] = json.dumps(surface_tree_data)
+        # # TODO append _json to name
+        #
+        # #
+        # # Prepare tree data for tree with tags at top level
+        # #
+        # topography_serializer = TopographySerializer(context=serializer_context)
+        #
+        # tag_serializer_context = serializer_context.copy()
+        # tag_serializer_context['surfaces'] = surfaces
+        # tag_serializer_context['topographies'] = topographies
+        # tag_serializer = TagSerializer(context=tag_serializer_context)
+        # serialized_tags = [ tag_serializer.to_representation(t) for t in tags ]
+        #
+        # serialized_surfaces_without_tags = [surface_serializer.to_representation(s)
+        #                                     for s in surfaces_without_tags]
+        #
+        # serialized_topographies_without_tags = [topography_serializer.to_representation(t)
+        #                                         for t in topographies_without_tags]
+        #
+        # serialized_tags.append(dict(
+        #     type='tag',
+        #     title='(untagged surfaces)',
+        #     pk=None,
+        #     name=None,
+        #     folder=True,
+        #     selected=False,
+        #     children=serialized_surfaces_without_tags
+        # ))
+        # serialized_tags.append(dict(
+        #     type='tag',
+        #     title='(untagged topographies)',
+        #     pk=None,
+        #     name=None,
+        #     folder=True,
+        #     selected=False,
+        #     children=serialized_topographies_without_tags
+        # ))
+        #
+        # context['tag_tree_data'] = json.dumps(serialized_tags)
+        return context
 
 
 class SurfaceCreateView(CreateView):
@@ -1271,10 +1380,21 @@ class SurfaceSearch(ListAPIView):
     List all surfaces
     """
     serializer_class = SurfaceSerializer
-    # filter_backends = (filters.SearchFilter,) # so far not used because the filtering is done in client
-    search_fields = ('name', 'description', 'topography__name', 'topography__description')
+
+    #filter_backends = (filters.SearchFilter,)
+    filter_backends = (filters.DjangoFilterBackend,)
+    filterset_class = SurfaceFilter  # TODO using this leads to repeated instances in result, one for each topography
+    # search_fields = ('name', 'description', 'topography__name', 'topography__description')
 
     def get_queryset(self):
+        # from django.db.models import Prefetch
+        #
+        # search_term = self.request.GET.get('search', default='')
+        #
+        # return surfaces_for_user(self.request.user).prefetch_related(
+        #     Prefetch('topography_set', queryset=Topography.objects.filter(Q(name__icontains=search_term) | Q(description__icontains=search_term)),
+        #              to_attr='filtered_topographies')
+        # )
         return surfaces_for_user(self.request.user)
 
     def get_serializer_context(self):
@@ -1304,7 +1424,7 @@ def set_surface_select_status(request, pk, select_status):
         :param select_status: True if surface should be selected, False if it should be unselected
         :return: JSON Response
 
-        The response is empty.
+        The response returns the current selection as suitable for the basket.
     """
     try:
         pk = int(pk)
@@ -1346,7 +1466,7 @@ def select_surface(request, pk):
     :param pk: primary key of the surface
     :return: JSON Response
 
-    The response is empty.
+    The response returns the current selection as suitable for the basket.
     """
     return set_surface_select_status(request, pk, True)
 
@@ -1359,7 +1479,7 @@ def unselect_surface(request, pk):
     :param pk: primary key of the surface
     :return: JSON Response
 
-    The response is empty.
+    The response returns the current selection as suitable for the basket.
     """
     return set_surface_select_status(request, pk, False)
 
@@ -1367,12 +1487,12 @@ def unselect_surface(request, pk):
 def set_topography_select_status(request, pk, select_status):
     """Marks the given topography as 'selected' or 'unselected' in session.
 
-        :param request: request
-        :param pk: primary key of the surface
-        :param select_status: True or False, True means "mark as selected", False means "mark as unselected"
-        :return: JSON Response
+    :param request: request
+    :param pk: primary key of the surface
+    :param select_status: True or False, True means "mark as selected", False means "mark as unselected"
+    :return: JSON Response
 
-        The response has no data.
+    The response returns the current selection as suitable for the basket.
     """
     try:
         pk = int(pk)
@@ -1436,7 +1556,7 @@ def select_topography(request, pk):
     :param pk: primary key of the surface
     :return: JSON Response
 
-    The response has no data.
+    The response returns the current selection as suitable for the basket.
     """
     return set_topography_select_status(request, pk, True)
 
@@ -1449,7 +1569,6 @@ def unselect_topography(request, pk):
     :param pk: primary key of the surface
     :return: JSON Response
 
-    The response has no data.
+    The response returns the current selection as suitable for the basket.
     """
     return set_topography_select_status(request, pk, False)
-

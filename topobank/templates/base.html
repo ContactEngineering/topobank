@@ -53,8 +53,10 @@
 
       {% if request.user.is_authenticated %}
       {# Search Bar #}
-      <form class="form-inline">
-        <input class="form-control mr-sm-2" type="search" placeholder="Search" aria-label="Search">
+      <form class="form-inline" action="{% url 'search' %}" method="get">
+        <label class="sr-only" for="global-search-input">Search Term</label>
+        <input class="form-control mr-sm-2" type="search" id="global-search-input"
+               placeholder="Search names and descriptions" aria-label="Search" name="search">
         <button class="btn btn-light my-sm-0" type="submit">Search</button>
       </form>
 

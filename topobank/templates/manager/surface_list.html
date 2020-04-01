@@ -34,6 +34,7 @@
       <form>
         <div class="form-row">
 
+          <!--
           <div class="form-group col-md-4">
             <div class="input-group">
               <input id="searchbar" type="text" class="form-control" aria-label="Search"
@@ -43,6 +44,13 @@
               </div>
             </div>
           </div>
+          -->
+          {% if search_term %}
+          <div class="form-group col-md-4">
+            <a class="btn btn-warning form-control" href="{% url 'manager:surface-list' %}">Clear filter for <em>{{ search_term }}</em></a>
+          </div>
+          {% endif %}
+
 
           <div class="form-group col-md-2">
             <select class="form-control" id="select-category-filter">
@@ -82,10 +90,16 @@
 
       </form>
 
-
+      <nav aria-label="Surfaces and Topographies for selection">
+        <ul id="pagination" class="pagination">
+          <li class="page-item"><a class="page-link" v-on:click="$emit('prev_page_requested')">Previous</a></li>
+          <!-- TODO insert links to individual pages -->
+          <li class="page-item"><a class="page-link" v-on:click="$emit('next_page_requested')">Next</a></li>
+        </ul>
+      </nav>
       <div id="search-result">
         <div id="scrollParent">
-          <table id="result-tree" class="table table-condensed">
+          <table id="surface-tree" class="table table-condensed">
             <colgroup>
               <col width="40%"></col>
               <col width="45%"></col>
@@ -125,9 +139,19 @@
 
   <script>
 
-      function get_tree() {
-          return $("#result-tree").fancytree("getTree");
+      //function get_tree() { // TODO remove
+      //    return $("#result-tree").fancytree("getTree");
+      //}
+
+      function get_surface_tree() {
+          return $("#surface-tree").fancytree("getTree");
       }
+
+      function get_tag_tree() {
+          return $("#tag-tree").fancytree("getTree");
+      }
+
+
 
 
       var summary_vm = new Vue({
@@ -153,14 +177,16 @@
           },
           methods: {
               update: function() {
-                  var tree = get_tree();
+                  var tree;
 
                   if (this.tree_mode == "surface list") {
                       this.element_kind = "surfaces";
                       this.hint = "The selected items are used when switching to analyses.";
+                      tree = get_surface_tree();
                   } else if (this.tree_mode == "tag tree") {
                       this.element_kind = "top level tags";
                       this.hint = "New tags can be introduced when editing meta data of surfaces and topographies.";
+                      tree = get_tag_tree();
                   } else {
                       this.tree_mode = "unknown";
                   }
@@ -213,9 +239,13 @@
           return result;
       }
 
+      // var surface_tree_data = {{ surface_tree_data | safe }};  // data which should be shown (actual page)
+      // var tag_tree_data = {{ tag_tree_data | safe }};   // TODO maybe load later?
+      var search_url = "{{ search_url | safe }}";
 
-      var result_tree = $('#result-tree').fancytree({
-          extensions: ["glyph", "table", "filter"],
+
+      var common_tree_options = {
+          extensions: ["glyph", "table"],
           glyph: {
               preset: "awesome4",
               map: {
@@ -243,22 +273,6 @@
 		        indentation: 20,         // indent every node level by these number of pixels
 		        nodeColumnIdx: 0         // render node expander, icon, and title to this column (default: #0)
 	        },
-          filter: {
-            autoApply: true,   // Re-apply last filter if lazy data is loaded
-            autoExpand: true, // Expand all branches that contain matches while filtered
-            counter: false,     // Show a badge with number of matching child nodes near parent icons
-            fuzzy: false,      // Match single characters in order, e.g. 'fb' will match 'FooBar'
-            hideExpandedCounter: true,  // Hide counter badge if parent is expanded
-            hideExpanders: false,       // Hide expanders if all child nodes are hidden by filter
-            highlight: false,   // Highlight matches by wrapping inside <mark> tags | we do this outself because of extra columns
-            leavesOnly: false, // Match end nodes only
-            nodata: true,      // Display a 'no data' status node if result is empty
-            mode: "hide"
-          },
-          source: {
-              url: "{% url 'manager:surface-search' %}",
-              cache: false
-          },
           autoActivate: true,
           titlesTabbable: false,
           tabindex: -1,
@@ -266,15 +280,21 @@
           scrollParent: $("#scrollParent"),
           checkbox: true,
           selectMode: 3, // 'multi-hier'
-          init: function() {
-            summary_vm.update();
-            set_tree_mode_styles("surface list");
+          source: [], // will be replaced later
+          postProcess: function(event, data) {
+            // assuming the Ajax response contains a list of child nodes:
+            // console.log("PostProcess: ", data);
+            // We replace the result
+            pagination_vm.prev_url = data.response.previous;
+            pagination_vm.next_url = data.response.next;
+            data.result = data.response.results; // because of pagination, the results are underneath "results"
           },
           select: function(event, data) {
               var node = data.node;
               var is_selected = node.isSelected();
 
-              if (is_selected) {
+              if (node.data.urls !== undefined) {
+                if (is_selected) {
                    $.ajax({
                        type: "POST",
                        url: node.data.urls.select,
@@ -289,7 +309,7 @@
                            console.error("Could not select: " + errorThrown + " " + xhr.status + " " + xhr.responseText);
                        }
                    });
-              } else {
+                } else {
                   $.ajax({
                        type: "POST",
                        url: node.data.urls.unselect,
@@ -304,6 +324,10 @@
                            console.error("Could not unselect: " + errorThrown + " " + xhr.status + " " + xhr.responseText);
                        }
                    });
+                }
+              } else {
+                console.log("No urls defined for node. Cannot pass selection to session.");
+                basket.update();
               }
           },
 
@@ -368,145 +392,28 @@
               // $tdList.eq(3).html("<input type='input' value='" + "" + "'>");
               // ...
             },
-      });
-
-
-
-      function node_data_matches_because_of_name_description_tag(data, term) {
-          return data.name.toLocaleLowerCase().includes(term)
-              || data.description.toLocaleLowerCase().includes(term)
-              || data.tags.some(function (tag) {return tag.includes(term)})
       }
-
-      function filter_items() {
-          get_tree().filterNodes( function(node) {
-
-              var category = $('#select-category-filter').val();
-              var status = $('#select-sharing-status-filter').val();
-              var term = $('#searchbar').val().toLocaleLowerCase();
-              var data = node.data;
-
-              if (node.type == "surface") {
-
-                  return node_data_matches_because_of_name_description_tag(data, term)
-                      && ( (category==='all') || (node.data.category === category))
-                      && ( (status==='all') || (node.data.sharing_status === status));
-
-                  // topographies should be included, if surface matches category or status
-              } else if (node.type == "topography") {
-
-                  var surface_node_data = node.parent.data;
-
-                  return node_data_matches_because_of_name_description_tag(data, term)
-                    && ((category==='all') || (surface_node_data.category === category))
-                    && ((status==='all') || (surface_node_data.sharing_status === status));
-
-                  // topographies should be included, if surface matches category or status
-              } else {
-                return true; // let all other nodes pass (tag & root)
-              }
-         });
-
-         // Highlight the search items in tree
-         $("#result-tree").unhighlight();
-         $("#result-tree").highlight($('#searchbar').val());
-
-         summary_vm.update();
-      }
-
-      function set_tree_mode_styles(tree_mode) {
-
-          var tree = get_tree();
-          // console.log('set tree mode styles:', tree_mode);
-
-          var surface_list_label = $('#surface-list-radio-btn').parent('label');
-          var tag_tree_label = $('#tag-tree-radio-btn').parent('label');
-
-          if (tree_mode == 'tag tree') {
-              // tree.setOption("filter.leavesOnly", true);
-              // tree.setOption("selectMode", 2);
-              // otherwise tags are selected automatically and hide surface selection when traversing
-
-              tree.setOption("checkbox", false); // this quite complicated..
-              tag_tree_label.addClass('btn-success').removeClass('btn-default');
-              surface_list_label.addClass('btn-default').removeClass('btn-success');
-
-          } else if (tree_mode == 'surface list') {
-              // tree.setOption("filter.leavesOnly", false);
-              // tree.setOption("selectMode", 3);
-              tree.setOption("checkbox", true);
-              surface_list_label.addClass('btn-success').removeClass('btn-default');
-              tag_tree_label.addClass('btn-default').removeClass('btn-success');
-          }
-      }
-
-      $("#select-category-filter").on('change', function() {
-         filter_items();
-      });
-
-      $("#select-sharing-status-filter").on('change', function() {
-         filter_items();
-      });
-
-      $("#searchbar").on('input', function (){
-          filter_items();
-      });
 
       $('#button_reset_filter').click( function(){
-          $('#searchbar').val('');
-
-          var tree = get_tree();
-
-          tree.clearFilter();
-          tree.expandAll(false);
-          filter_items();
+        // TODO reload page or trees without search term
       });
 
-      $('#tree-selector :input').change( function (){
-          var tree = get_tree();
-          var new_mode = this.value;
-          var new_source;
 
-          // console.log("Triggering reload of tree for mode '"+new_mode+"'..");
 
-          if (new_mode == 'surface list') {
-            console.log("Trigger loading surface list...");
-            new_source = {
-                url: "{% url 'manager:surface-search' %}",
-                cache: false
-            };
-            // tree.setOption("selectMode", 3);
-            // must be set before loading so "intermediate" selection states
-            // are correctly applied
-          } else if (new_mode == 'tag tree') {
-            console.log("Trigger loading tag tree...");
-            new_source = {
-                url: "{% url 'manager:tag-list' %}",
-                cache: false
-            }
-            // tree.setOption("selectMode", 2); // in order sur
-          } else {
-              console.error("Unknown tree mode: "+new_mode);
-          }
 
-          // hint: Source in tree option is not set when
-          // reloading here, also using "tree.setOption"
-          // did not work. Therefore the tree mode is saved
-          // in the Vuejs component "summary_vm".
-          // There it is also needed to update the footer accordingly.
+      $(document).ready( function () { // TODO solve by event signal
 
-          tree.reload(new_source).then( function() {
-              set_tree_mode_styles(new_mode);
-              summary_vm.tree_mode = new_mode;
-              summary_vm.update();
-              filter_items();
-              tree.expandAll(false); // collapse all nodes
-          });
-      });
+        //$('#surface-tree').fancytree(common_tree_options);
+        // get_surface_tree().setOption('source', surface_tree_data);
+        //get_surface_tree().setOption('source', {
+        //  url: "{{ search_url }}",
+        //  cache: false,
+        //});
+        //$('#tag-tree').fancytree(common_tree_options);
+        //get_tag_tree().setOption('source', tag_tree_data);
 
-      $(document).ready( function () {
         basket.unselect_handler = function unselect_nodes(key) {
-              const tree = get_tree();
+              const tree = get_surface_tree();
               tree.findAll( function (node) {
                 return node.key == key;
               }).forEach( function (node) {
@@ -517,8 +424,23 @@
 
 
 
+
       // we don't want error messages if the page is left before everything is loaded
       install_handler_for_aborting_all_ajax_calls_on_page_leave();
   </script>
+
+  <script src="{% static 'js/trees.js' %}"></script>
+{#  <script>#}
+{#        $('#prev_page_btn').click( function(event) {#}
+{#           console.log("prev page btn clicked");#}
+{#           surface_tree_vm.load_prev_page(event);#}
+{#        });#}
+{##}
+{#        $('#next_page_btn').click( function(event) {#}
+{#          console.log("next page btn clicked");#}
+{#          surface_tree_vm.load_next_page(event);#}
+{#        });#}
+{##}
+{#  </script>#}
 
 {% endblock javascript %}

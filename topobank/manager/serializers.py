@@ -1,4 +1,5 @@
 from django.shortcuts import reverse
+from django.db.models import Q
 
 from rest_framework import serializers
 from guardian.shortcuts import get_perms
@@ -86,7 +87,9 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
 class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
 
     title = serializers.CharField(source='name')
-    children = TopographySerializer(source='topography_set', many=True)
+    # children = TopographySerializer(source='filtered_topographies', many=True, read_only=True)
+    children = TopographySerializer(source='topography_set', many=True, read_only=True)
+    # children = serializers.SerializerMethodField()
 
     creator = serializers.HyperlinkedRelatedField(
         read_only=True,
@@ -101,6 +104,18 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
     sharing_status = serializers.SerializerMethodField()
     tags = serializers.SerializerMethodField()
     type = serializers.SerializerMethodField()
+
+    # def get_children(self, obj):
+    #     #
+    #     # We only want topographies as children which match the given search term,
+    #     # if no search term is given, all topographies should match
+    #     #
+    #     request = self.context['request']
+    #     search_term = request.GET.get('search', default='')  # TODO check default
+    #     filtered_topographies = obj.topography_set.filter(Q(name__icontains=search_term) | Q(description__icontains=search_term))
+    #
+    #     return TopographySerializer(filtered_topographies, many=True).data
+
 
     def get_urls(self, obj):
 

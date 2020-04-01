@@ -91,14 +91,14 @@ urlpatterns = [
         name='surface-create'
     ),
     url(
-        regex=r'surface/$',
-        view=login_required(views.SurfaceSearchView.as_view()),
-        name='surface-list'
+        regex=r'select/$',
+        view=login_required(views.SelectView.as_view()),
+        name='surface-list'  # TODO rename to 'select'
     ),
     url(
-        regex=r'surface/search/$',
+        regex=r'search/$',
         view=login_required(views.SurfaceSearch.as_view()),
-        name='surface-search'
+        name='search'
     ),
     url(
         regex=r'access-denied/$',

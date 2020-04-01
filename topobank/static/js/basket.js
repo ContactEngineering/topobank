@@ -120,7 +120,8 @@
                 keys = keys.filter(function (key) {
                     return keys_to_remove.indexOf(key) == -1
                 });
-                keys.sort() // we want always the same order, independent from traversal order
+                keys.sort((key_a, key_b) => elements[key_a].name.toLowerCase() > elements[key_b].name.toLowerCase());
+                // we want always the same order, independent from traversal order
 
                 // console.log("All elements: ", elements);
                 this.elements = elements;
