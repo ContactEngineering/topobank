@@ -708,11 +708,82 @@ def _next_contact_step(system, history=None, pentol=None, maxiter=None):
            mean_displacement, mean_load, total_contact_area, \
            (mean_displacements, mean_gaps, mean_pressures, total_contact_areas, converged)
 
+def _contact_at_given_load(system, external_force, history=None, pentol=None, maxiter=None):
+    """
+    Run a full contact calculation at a given external load.
+
+    Parameters
+    ----------
+    system : PyCo.System.SystemBase object
+        The contact mechanical system.
+    external_force : float
+        The force pushing the surfaces together.
+    history : tuple
+        History returned by past calls to next_step
+
+    Returns
+    -------
+    displacements : numpy.ndarray
+        Current surface displacement field.
+    forces : numpy.ndarray
+        Current surface pressure field.
+    displacement : float
+        Current displacement of the rigid surface
+    load : float
+        Current load.
+    area : float
+        Current fractional contact area.
+    history : tuple
+        History of contact calculations.
+    """
+
+    topography = system.surface
+    substrate = system.substrate
+
+    # Get the profile as a numpy array
+    heights = topography.heights()
+
+    # Find max, min and mean heights
+    top = np.max(heights)
+    middle = np.mean(heights)
+    bot = np.min(heights)
+
+    if history is None:
+        mean_displacements = []
+        mean_gaps = []
+        mean_pressures = []
+        total_contact_areas = []
+        converged = np.array([], dtype=bool)
+    if history is not None:
+        mean_displacements, mean_gaps, mean_pressures, total_contact_areas, converged = history
+
+    opt = system.minimize_proxy(external_force=external_force, pentol=pentol, maxiter=maxiter)
+    force_xy = opt.jac
+    displacement_xy = opt.x[:force_xy.shape[0], :force_xy.shape[1]]
+    mean_displacements = np.append(mean_displacements, [mean_displacement])
+    mean_gaps = np.append(mean_gaps, [np.mean(displacement_xy) - middle - mean_displacement])
+    mean_load = force_xy.sum() / np.prod(topography.physical_sizes)
+    mean_pressures = np.append(mean_pressures, [mean_load])
+    total_contact_area = (force_xy > 0).sum() / np.prod(topography.nb_grid_pts)
+    total_contact_areas = np.append(total_contact_areas, [total_contact_area])
+    converged = np.append(converged, np.array([opt.success], dtype=bool))
+
+    area_per_pt = substrate.area_per_pt
+    pressure_xy = force_xy / area_per_pt
+    gap_xy = displacement_xy - topography.heights() - opt.offset
+    gap_xy[gap_xy < 0.0] = 0.0
+
+    contacting_points_xy = force_xy > 0
+
+    return displacement_xy, gap_xy, pressure_xy, contacting_points_xy, \
+           mean_displacement, mean_load, total_contact_area, \
+           (mean_displacements, mean_gaps, mean_pressures, total_contact_areas, converged)
+
 @analysis_function(card_view_flavor='contact mechanics', automatic=True)
 def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
-                      loads=None,
-                      progress_recorder=None, storage_prefix=None):
+                      loads=None, progress_recorder=None, storage_prefix=None):
     """
+    Note that `loads` is a list of pressures if the substrate is periodic and a list of forces otherwise.
 
     :param topography:
     :param substrate_str: one of ['periodic', 'nonperiodic', None ]; if None, choose from topography's 'is_periodic' flag
@@ -744,6 +815,9 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
 
     if nsteps is None:
         raise ValueError("Giving a fixed list of loads is not implemented yet for contact mechanics.")
+
+    # Conversion of force units
+    force_conv = np.prod(topography.physical_sizes) if substrate_str == 'periodic' else 1
 
     #
     # Some constants
@@ -778,11 +852,20 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
 
     data_paths = [] # collect in _next_contact_step?
 
+    if loads is not None:
+        nsteps = len(loads)
+
     history = None
     for i in range(nsteps):
-        displacement_xy, gap_xy, pressure_xy, contacting_points_xy, \
-            mean_displacement, mean_pressure, total_contact_area, history = \
-            _next_contact_step(system, history=history, pentol=pentol, maxiter=maxiter)
+        if loads is None:
+            displacement_xy, gap_xy, pressure_xy, contacting_points_xy, \
+                mean_displacement, mean_pressure, total_contact_area, history = \
+                _next_contact_step(system, history=history, pentol=pentol, maxiter=maxiter)
+        else:
+            displacement_xy, gap_xy, pressure_xy, contacting_points_xy, \
+                mean_displacement, mean_pressure, total_contact_area, history = \
+                _contact_at_given_load(system, loads[i]*force_conv, history=history, pentol=pentol, maxiter=maxiter)
+
         #
         # Save displacement_xy, gap_xy, pressure_xy and contacting_points_xy
         # to storage, will be retrieved later for visualization
@@ -803,7 +886,6 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
             dataset.attrs['hardness'] = hardness # TODO how to save hardness=None? Not possible in netCDF
 
         with tempfile.NamedTemporaryFile(prefix='analysis-') as tmpfile:
-
             dataset.to_netcdf(tmpfile.name, format=netcdf_format)
 
             storage_path = storage_prefix+"result-step-{}.nc".format(i)
