@@ -2,13 +2,13 @@
 {% extends 'analysis/simple_card_detail.html' %}
 {% load analysis_tags %}
 {% load fontawesome %}
+{% load static %}
 
 {% block card_header %}
   <div class="pull-left">
     <h3>{{ title }}</h3>
   </div>
 {% endblock card_header %}
-
 
 {% block card_body %}
 
@@ -160,22 +160,66 @@
                            data-content="Setting a hardness enables plastic calculations. Local pressure cannot exceed hardness value."></i>
                       </div>
                     </div>
-                    <!--
-                         -->
                   </div>
+
+                  {# Step selection #}
                   <div class="input-group col-auto">
+                    {# Automatic #}
                     <div class="input-group-prepend">
+                      <div class="input-group-text">
+                        <input type="radio"
+                               name="load-selection"
+                               value="automatic"
+                               checked="checked"
+                               aria-label="Radio button for automatic step selection">
+                      </div>
                       <div class="input-group-text">
                         Number of steps
                       </div>
                     </div>
                     <input id='nsteps-input' type="number" min="0" max="50" step="1" class="form-control"
                            value="{{ initial_calc_kwargs.nsteps }}">
+                    <div class="input-group-append ">
+                      <div class="input-group-text">
+                        <i class="fa fa-info-circle" data-toggle="popover"
+                           tabindex="0" data-trigger="focus" role="button"
+                           title="Automatic step selection"
+                           data-content="Number of load steps which are chosen automatically."></i>
+                      </div>
+                    </div>
                   </div>
-
+                  <div class="input-group col-auto">
+                    {# Fixed list #}
+                    <div class="input-group-prepend">
+                      <div class="input-group-text">
+                        <input type="radio" name="load-selection" value="manual" aria-label="Radio button for list of values">
+                      </div>
+                      <div class="input-group-text">
+                        Loads
+                      </div>
+                    </div>
+                    <select id="select-load-steps" class="form-control" multiple="">
+                      {% if initial_calc_kwargs.loads %}
+                        {% for load in initial_calc_kwargs.loads %}
+                          <option value={{ load }} selected>{{ load }}</option>
+                        {% endfor %}
+                      {% endif %}
+                    </select>
+                    <div class="input-group-append ">
+                      <div class="input-group-text">
+                        <i class="fa fa-info-circle" data-toggle="popover"
+                           tabindex="0" data-trigger="focus" role="button"
+                           title="Manual step selection"
+                           data-content="Enter positive load values for which you need results. You can also copy/paste
+                           a comma-separated list of values with a comma after every number. Use '.' as decimal separator."></i>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </form>
-
+              <div>
+                <h5>function kwargs for this analysis</h5>{{ initial_calc_kwargs }}
+              </div>
             </div>
           </div>
 
@@ -229,6 +273,8 @@
 {#    {{ load_plot_script | safe }}#}
   {% endif %}
 
+  <script src="{% static 'vendor/select2/js/select2.js' %}"></script>
+
   {# Additonal code for initialization #}
   <script>
 
@@ -254,14 +300,6 @@
     var analysis_id = name.split('-')[1];
 
     console.log("Selected index: "+index+" in source: "+name+" -> analysis_id: "+analysis_id);
-
-
-
-    // console.log("Sources: "+sources);
-    // setting indices selects points
-    // console.log("Object:"); console.dir(obj);
-    // console.log("Data:"); console.dir(data);
-
 
     /**
      * Make sure only the selection for one topography is active
@@ -340,17 +378,29 @@
 
   }
 
+  function set_load_selection_disable_flag() {
+    var nsteps_input = $("#nsteps-input");
+    var select_load_steps = $("#select-load-steps");
+    var load_selection_mode = $("input[name='load-selection']:checked").val();
 
+    if (load_selection_mode === "automatic") {
+      nsteps_input.prop("disabled", false);
+      select_load_steps.prop("disabled", true);
+    } else {
+      nsteps_input.prop("disabled", true);
+      select_load_steps.prop("disabled", false);
+    }
+  }
 
   // enable all popovers in the document
   $(document).ready(function() {
+
+    var hardness_checkbox = $("#hardness-checkbox");
+
     $('[data-toggle="popover"]').popover();
 
     // set value for substrate based on initial value
     $("#substrate-select").val("{{ initial_calc_kwargs.substrate_str }}");
-
-
-    var hardness_checkbox = $("#hardness-checkbox");
 
     hardness_checkbox.click( function () {
       var hardness_input = $("#hardness-input");
@@ -361,23 +411,82 @@
       }
     });
 
+    // The user should only be able to enter number of steps
+    // or a list of pressures, if the related row is activated
+    // by the radio button
+    $("input[name='load-selection']").change( function () {
+      set_load_selection_disable_flag();
+    });
+    if ($('#nsteps-input').val().length == 0) {
+      // activate manual if nsteps is not given initially
+      console.log("nsteps is null");
+      $("input[name='load-selection'][value='manual']").prop('checked', 'true');
+    }
+    set_load_selection_disable_flag();
+
     // check checkbox or not, depending on whether there is an initial value for hardness or not
     {% if initial_calc_kwargs.hardness %}
       hardness_checkbox.click()
     {% endif %}
 
 
+    // enable multiple selection of manually entered load steps
+    $('#select-load-steps').select2({
+      multiple: true,
+      tags: true,
+      allowClear: true,
+      maximumSelectionLength: 20,
+      language: {
+        noResults: null  // do not show "no result" dropdown
+      },
+      tokenSeparators: [',', ' '],
+      placeholder: "Enter positive decimal numbers",
+      createTag: function (params) {
+        // Don't offset to create a tag if it is no positive number
+        var x = params.term.trim();
+        console.log("Given: ", x);
+        if (isNaN(x)) {
+          console.warn("Only numbers are allowed.");
+          return null // invalid, because no number
+        } else {
+          x = parseFloat(x);
+          if (x <= 0) {
+            console.warn("Number must be positive.");
+            return null; // invalid because not positive
+          }
+        }
+        return {
+         id: params.term,
+         text: params.term
+        }
+      }
+    });
+
+
     $("#recalculate").click( function() {
 
-         var substrate_str = $('#substrate-select').val();
-         var hardness = null;
-         var nsteps = parseInt($('#nsteps-input').val());
+        var substrate_str = $('#substrate-select').val();
+        var hardness = null;
 
-         if ($('#hardness-checkbox').prop("checked") == true) {
-           hardness = parseFloat($('#hardness-input').val());
-         };
+        var load_selection_mode = $("input[name='load-selection']:checked").val();
+        var nsteps = null;
+        var loads = null;
 
-         // debug_msg("Clicked button. substrate: "+substrate_str+" hardness: "+hardness+" nsteps: "+nsteps);
+        if (load_selection_mode === "automatic") {
+          nsteps = parseInt($('#nsteps-input').val());
+        } else if (load_selection_mode === "manual") {
+          loads = $("#select-load-steps").val().map(parseFloat);
+        }
+
+        if ($('#hardness-checkbox').prop("checked") == true) {
+         hardness = parseFloat($('#hardness-input').val());
+        };
+
+        // debug_msg("Clicked button. substrate: "+substrate_str+" hardness: "+hardness);
+        debug_msg(" nsteps:"+nsteps+" loads:"+loads+" ");
+
+        var function_kwargs = { 'substrate_str': substrate_str, 'hardness': hardness,
+                                'nsteps': nsteps, 'loads': loads};
 
          $.ajax({
           type: "POST",
@@ -386,7 +495,7 @@
           data: {
             function_id: {{ function.id }},
             topography_ids: {{ topography_ids_requested_json|safe }},
-            function_kwargs_json: JSON.stringify({ 'substrate_str': substrate_str, 'hardness': hardness, 'nsteps': nsteps}),
+            function_kwargs_json: JSON.stringify(function_kwargs),
             csrfmiddlewaretoken: "{{csrf_token}}"
           },
           success : function(data, textStatus, xhr) {

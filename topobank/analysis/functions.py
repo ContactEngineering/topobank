@@ -710,13 +710,15 @@ def _next_contact_step(system, history=None, pentol=None, maxiter=None):
 
 @analysis_function(card_view_flavor='contact mechanics', automatic=True)
 def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
+                      loads=None,
                       progress_recorder=None, storage_prefix=None):
     """
 
     :param topography:
     :param substrate_str: one of ['periodic', 'nonperiodic', None ]; if None, choose from topography's 'is_periodic' flag
     :param hardness:
-    :param nsteps:
+    :param nsteps: int or None, if None, "loads" must be given a list
+    :param loads: list of floats or None, if None, choose pressures automatically by using given number of steps (nsteps)
     :param progress_recorder:
     :param storage_prefix:
     :return:
@@ -730,6 +732,18 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
     #
     if substrate_str is None:
         substrate_str = 'periodic' if topography.is_periodic else 'nonperiodic'
+
+    #
+    # Check whether either loads or nsteps is given, but not both
+    #
+    if (nsteps is None) and (loads is None):
+        raise ValueError("Either 'nsteps' or 'loads' must be given for contact mechanics calculation.")
+
+    if (nsteps is not None) and (loads is not None):
+        raise ValueError("Both 'nsteps' and 'loads' are given. One must be None.")
+
+    if nsteps is None:
+        raise ValueError("Giving a fixed list of loads is not implemented yet for contact mechanics.")
 
     #
     # Some constants
