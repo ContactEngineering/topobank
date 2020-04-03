@@ -69,7 +69,7 @@
 
           {# BUTTON "TASK INFORMATION" #}
           <div class="row p-3">
-            <div class="col-6">
+            <div class="col-8">
               {% if analyses_available and not analyses_unready %}
                 <a class="btn btn-default btn-block btn-lg" href="#" data-toggle="modal"
                    data-target="#statusesModal-{{ card_id }}">{% fontawesome_icon 'tasks' %} Task information</a>
@@ -80,7 +80,7 @@
           {% if not analyses_unready and analyses_success %}
           {# BUTTON "DOWNLOAD" #}
           <div class="row p-3">
-            <div class="col-6">
+            <div class="col-8">
               <a id="download" class="btn btn-default btn-block btn-lg"
               href="{% url 'analysis:download' analyses_success|analyses_results_ids_list_str 'contact mechanics' 'zip' %}">
                 {% fontawesome_icon 'download' %} Download
@@ -91,7 +91,7 @@
 
           {# BUTTON "BACK TO ANALYSIS RESULTS" #}
           <div class="row p-3">
-            <div class="col-6">
+            <div class="col-8">
 
               <a href="{% url 'analysis:list' %}"
                  class="btn btn-default btn-block btn-lg">
@@ -103,7 +103,7 @@
           {# ELEMENTS FOR TRIGGERING A CALCULATION #}
           {% if not analyses_unready %}
           <div class="row p-1">
-            <div class="col-6">
+            <div class="col-8">
 
               <form>
                 <div class="form-group row">
@@ -168,7 +168,7 @@
                     <div class="input-group-prepend">
                       <div class="input-group-text">
                         <input type="radio"
-                               name="load-selection"
+                               name="pressure-selection"
                                value="automatic"
                                checked="checked"
                                aria-label="Radio button for automatic step selection">
@@ -184,7 +184,7 @@
                         <i class="fa fa-info-circle" data-toggle="popover"
                            tabindex="0" data-trigger="focus" role="button"
                            title="Automatic step selection"
-                           data-content="Number of load steps which are chosen automatically."></i>
+                           data-content="Number of pressure steps which are chosen automatically."></i>
                       </div>
                     </div>
                   </div>
@@ -192,39 +192,39 @@
                     {# Fixed list #}
                     <div class="input-group-prepend">
                       <div class="input-group-text">
-                        <input type="radio" name="load-selection" value="manual" aria-label="Radio button for list of values">
+                        <input type="radio" name="pressure-selection" value="manual" aria-label="Radio button for list of values">
                       </div>
                       <div class="input-group-text">
-                        Loads
+                        pressures
                       </div>
                     </div>
-                    <select id="select-load-steps" class="form-control" multiple="">
-                      {% if initial_calc_kwargs.loads %}
-                        {% for load in initial_calc_kwargs.loads %}
-                          <option value={{ load }} selected>{{ load }}</option>
+                    <select id="select-pressure-steps" class="form-control" multiple="">
+                      {% if initial_calc_kwargs.pressures %}
+                        {% for pressure in initial_calc_kwargs.pressures %}
+                          <option value={{ pressure }} selected>{{ pressure }}</option>
                         {% endfor %}
                       {% endif %}
                     </select>
                     <div class="input-group-append ">
                       <div class="input-group-text">
+                        E<sup>*</sup>
+                      </div>
+                      <div class="input-group-text">
                         <i class="fa fa-info-circle" data-toggle="popover"
                            tabindex="0" data-trigger="focus" role="button"
                            title="Manual step selection"
-                           data-content="Enter positive load values for which you need results. You can also copy/paste
+                           data-content="Enter positive pressure values for which you need results. You can also copy/paste
                            a comma-separated list of values with a comma after every number. Use '.' as decimal separator."></i>
                       </div>
                     </div>
                   </div>
                 </div>
               </form>
-              <div>
-                <h5>function kwargs for this analysis</h5>{{ initial_calc_kwargs }}
-              </div>
             </div>
           </div>
 
           <div class="row p-1">
-            <div class="col-6">
+            <div class="col-8">
               <button id="recalculate" class="btn btn-primary btn-block btn-lg">
                 {% fontawesome_icon 'repeat' %} Recalculate
               </button>
@@ -378,17 +378,17 @@
 
   }
 
-  function set_load_selection_disable_flag() {
+  function set_pressure_selection_disable_flag() {
     var nsteps_input = $("#nsteps-input");
-    var select_load_steps = $("#select-load-steps");
-    var load_selection_mode = $("input[name='load-selection']:checked").val();
+    var select_pressure_steps = $("#select-pressure-steps");
+    var pressure_selection_mode = $("input[name='pressure-selection']:checked").val();
 
-    if (load_selection_mode === "automatic") {
+    if (pressure_selection_mode === "automatic") {
       nsteps_input.prop("disabled", false);
-      select_load_steps.prop("disabled", true);
+      select_pressure_steps.prop("disabled", true);
     } else {
       nsteps_input.prop("disabled", true);
-      select_load_steps.prop("disabled", false);
+      select_pressure_steps.prop("disabled", false);
     }
   }
 
@@ -414,15 +414,15 @@
     // The user should only be able to enter number of steps
     // or a list of pressures, if the related row is activated
     // by the radio button
-    $("input[name='load-selection']").change( function () {
-      set_load_selection_disable_flag();
+    $("input[name='pressure-selection']").change( function () {
+      set_pressure_selection_disable_flag();
     });
     if ($('#nsteps-input').val().length == 0) {
       // activate manual if nsteps is not given initially
       console.log("nsteps is null");
-      $("input[name='load-selection'][value='manual']").prop('checked', 'true');
+      $("input[name='pressure-selection'][value='manual']").prop('checked', 'true');
     }
-    set_load_selection_disable_flag();
+    set_pressure_selection_disable_flag();
 
     // check checkbox or not, depending on whether there is an initial value for hardness or not
     {% if initial_calc_kwargs.hardness %}
@@ -430,8 +430,8 @@
     {% endif %}
 
 
-    // enable multiple selection of manually entered load steps
-    $('#select-load-steps').select2({
+    // enable multiple selection of manually entered pressure steps
+    $('#select-pressure-steps').select2({
       multiple: true,
       tags: true,
       allowClear: true,
@@ -459,7 +459,28 @@
          id: params.term,
          text: params.term
         }
-      }
+      },
+      {#tokenizer: function(input, selection, callback) {#}
+      {#  // thanks to editors of https://stackoverflow.com/questions/17197223/is-it-possible-to-paste-a-list-to-a-select2-field-and-match-each-item-in-the-lis#}
+      {#  // no comma no need to tokenize#}
+      {#  console.log("tokenizer: ", input, selection, callback);#}
+      {##}
+      {#  var term = input.term;#}
+      {#  // if (term.indexOf(' ') <0 ) return;#}
+      {##}
+      {#  var parts = term.split(/\s+/);#}
+      {#  for (var i=0; i<parts.length; i++) {#}
+      {#      var part = parts[i];#}
+      {#      part = part.trim();#}
+      {##}
+      {#      // check for dupes (if part is already in [selection])#}
+      {#      //if (selection.indexOf(part) < 0) {#}
+      {#      //  callback({id:part,text:part});#}
+      {#      //}#}
+      {#    console.log("Part: "+part);#}
+      {#      callback({id:part,text:part});#}
+      {#  }#}
+
     });
 
 
@@ -468,14 +489,14 @@
         var substrate_str = $('#substrate-select').val();
         var hardness = null;
 
-        var load_selection_mode = $("input[name='load-selection']:checked").val();
+        var pressure_selection_mode = $("input[name='pressure-selection']:checked").val();
         var nsteps = null;
-        var loads = null;
+        var pressures = null;
 
-        if (load_selection_mode === "automatic") {
+        if (pressure_selection_mode === "automatic") {
           nsteps = parseInt($('#nsteps-input').val());
-        } else if (load_selection_mode === "manual") {
-          loads = $("#select-load-steps").val().map(parseFloat);
+        } else if (pressure_selection_mode === "manual") {
+          pressures = $("#select-pressure-steps").val().map(parseFloat);
         }
 
         if ($('#hardness-checkbox').prop("checked") == true) {
@@ -483,10 +504,10 @@
         };
 
         // debug_msg("Clicked button. substrate: "+substrate_str+" hardness: "+hardness);
-        debug_msg(" nsteps:"+nsteps+" loads:"+loads+" ");
+        // debug_msg(" nsteps:"+nsteps+" pressures:"+pressures+" ");
 
         var function_kwargs = { 'substrate_str': substrate_str, 'hardness': hardness,
-                                'nsteps': nsteps, 'loads': loads};
+                                'nsteps': nsteps, 'pressures': pressures};
 
          $.ajax({
           type: "POST",
