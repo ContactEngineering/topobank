@@ -173,12 +173,12 @@ var surface_tree_vm = new Vue({
                     },
                 }); // fancytree()
 
-            vm.$on('prev_page_requested', function() {
+            event_hub.$on('prev_page_requested', function() {
                 if (vm.prev_page_search_url != null) {
                     vm.load_prev_page();
                 }
             });
-            vm.$on('next_page_requested', function() {
+            event_hub.$on('next_page_requested', function() {
                 console.log("Got next signal");
                 if (vm.next_page_search_url != null) {
                     vm.load_next_page();
@@ -217,5 +217,8 @@ var pagination_vm = new Vue({
           num_pages: 0,
           prev_url: null,
           next_url: null,
+        },
+        created: function() {
+
         }
       });

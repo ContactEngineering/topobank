@@ -92,9 +92,9 @@
 
       <nav aria-label="Surfaces and Topographies for selection">
         <ul id="pagination" class="pagination">
-          <li class="page-item"><a class="page-link" v-on:click="$emit('prev_page_requested')">Previous</a></li>
+          <li class="page-item"><a class="page-link" id="prev_page_link">Previous</a></li>
           <!-- TODO insert links to individual pages -->
-          <li class="page-item"><a class="page-link" v-on:click="$emit('next_page_requested')">Next</a></li>
+          <li class="page-item"><a class="page-link" id="next_page_link">Next</a></li>
         </ul>
       </nav>
       <div id="search-result">
@@ -420,6 +420,12 @@
                 node.setSelected(false);
               })
         };
+        $('#prev_page_link').click(function() {
+          event_hub.$emit('prev_page_requested');
+        });
+        $('#next_page_link').click(function() {
+          event_hub.$emit('next_page_requested')
+        });
       });
 
 
