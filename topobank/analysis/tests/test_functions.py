@@ -444,3 +444,23 @@ def test_contact_mechanics_incompatible_topography():
     with pytest.raises(IncompatibleTopographyException):
         contact_mechanics(t)
 
+def test_contact_mechanics_whether_given_pressures_in_result():
+
+    y = np.arange(10).reshape((1, -1))
+    x = np.arange(5).reshape((-1, 1))
+
+    arr = -2 * y + 0 * x  # only slope in y direction
+
+    info = dict(unit='nm')
+    t = Topography(arr, (10, 5), info=info).detrend('center')
+
+    class ProgressRecorder:
+        def set_progress(self, a, nsteps):
+            pass # dummy
+
+    given_pressures = [2e-3, 1e-2]
+
+    result = contact_mechanics(t, nsteps=None, pressures=given_pressures, storage_prefix='test/',
+                               progress_recorder=ProgressRecorder())
+
+    np.testing.assert_almost_equal(result['mean_pressures'], given_pressures)

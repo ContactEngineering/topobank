@@ -35,7 +35,7 @@ class Command(BaseCommand):
         )
 
         parser.add_argument(
-            '-l'
+            '-l',
             '--list-funcs',
             action='store_true',
             dest='list_funcs',
