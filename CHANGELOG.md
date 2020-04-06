@@ -1,5 +1,12 @@
 # Changelog for *TopoBank*
 
+## 0.7.6 (not released yet)
+
+- contact mechanics: added option for manual pressure selection by entering a 
+  list of numbers (in addition to automatic pressure selection given the number 
+  of values, #452)
+- upgrade of Pillow library because of security issues (#454)
+
 ## 0.7.5 (2020-02-27)
 
 - added help page with supported file formats, descriptions for the readers

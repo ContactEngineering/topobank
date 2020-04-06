@@ -12,8 +12,10 @@ RUN apt-get update \
   && apt-get install --yes libfftw3-3 libfftw3-dev gcc g++ gettext \
   # Pillow requirements
   && apt-get install --yes libjpeg-dev zlib1g-dev libfreetype6-dev \
-     liblcms2-dev libtiff-dev tk-dev tcl-dev librabbitmq-dev
-  # Requirements in order to built muspectre
+     liblcms2-dev libtiff-dev tk-dev tcl-dev librabbitmq-dev \
+  # Requirements in order to built libmufft
+  # (curl is used to download pybind11 and Eigen3)
+  && apt-get install --yes curl
   # && apt-get install --yes mpicc libfftw3-mpi-dev
   # && apt-get install --yes clang-5 libfftw3-dev
 
