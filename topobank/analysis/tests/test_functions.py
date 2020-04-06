@@ -444,7 +444,7 @@ def test_contact_mechanics_incompatible_topography():
     with pytest.raises(IncompatibleTopographyException):
         contact_mechanics(t)
 
-def test_contact_mechanics__wether_given_pressures_in_result():
+def test_contact_mechanics_whether_given_pressures_in_result():
 
     y = np.arange(10).reshape((1, -1))
     x = np.arange(5).reshape((-1, 1))
