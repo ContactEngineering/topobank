@@ -78,7 +78,7 @@ var surface_tree_vm = new Vue({
                                type: "POST",
                                url: node.data.urls.select,
                                data: {
-                                   csrfmiddlewaretoken: "{{csrf_token}}"
+                                   csrfmiddlewaretoken: csrf_token
                                },
                                success: function (data, textStatus, xhr) {
                                    // console.log("Selected: " + node.data.name + " " + node.key);
@@ -93,7 +93,7 @@ var surface_tree_vm = new Vue({
                                type: "POST",
                                url: node.data.urls.unselect,
                                data: {
-                                   csrfmiddlewaretoken: "{{csrf_token}}"
+                                   csrfmiddlewaretoken: csrf_token
                                },
                                success: function (data, textStatus, xhr) {
                                    // console.log("Unselected: " + node.data.name + " " + node.key);
