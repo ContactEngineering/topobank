@@ -1374,6 +1374,40 @@ class TagListView(ListAPIView):
         context['topographies'] = Topography.objects.filter(surface__in=context['surfaces'])
         return context
 
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.utils.urls import remove_query_param, replace_query_param
+
+class SurfaceSearchPaginator(PageNumberPagination):
+    page_size = 2
+    page_query_param = 'page'
+
+    def get_paginated_response(self, data):
+        return Response({
+            'next_page_url': self.get_next_link(),
+            'prev_page_url': self.get_previous_link(),
+            'num_items': self.page.paginator.count,
+            'num_pages': self.page.paginator.num_pages,
+            'page_range': list(self.page.paginator.page_range),
+            'page_urls': list(self.get_page_urls()),
+            'current_page': self.page.number,
+            'num_items_on_current_page': self.page.end_index()-self.page.start_index()+1,
+            'page_size': self.page_size,
+            'page_results': data
+        })
+
+    def get_page_urls(self):
+        base_url = self.request.build_absolute_uri()
+        urls = []
+        for page_no in self.page.paginator.page_range:
+            url = base_url
+            if page_no == 1:
+                url = remove_query_param(base_url, self.page_query_param)
+            else:
+                url = replace_query_param(base_url, self.page_query_param, page_no)
+            urls.append(url)
+        return urls
+
+
 
 class SurfaceSearch(ListAPIView):
     """
@@ -1385,6 +1419,7 @@ class SurfaceSearch(ListAPIView):
     filter_backends = (filters.DjangoFilterBackend,)
     filterset_class = SurfaceFilter  # TODO using this leads to repeated instances in result, one for each topography
     # search_fields = ('name', 'description', 'topography__name', 'topography__description')
+    pagination_class = SurfaceSearchPaginator
 
     def get_queryset(self):
         # from django.db.models import Prefetch

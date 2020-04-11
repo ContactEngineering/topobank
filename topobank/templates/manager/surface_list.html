@@ -10,7 +10,9 @@
   <!-- Include Fancytree skin  -->
   <!-- link href="{# static 'vendor/fancytree/skin-awesome/ui.fancytree.min.css' #}" rel="stylesheet" -->
   <!-- TODO Use CDN? -->
-  <link href="https://unpkg.com/jquery.fancytree@2.33.0/dist/skin-awesome/ui.fancytree.min.css" rel="stylesheet">
+  <link href="https://unpkg.com/jquery.fancytree@2.33.0/dist/skin-awesome/ui.fancytree.min.css" rel="stylesheet"
+        xmlns:vbind="http://www.w3.org/1999/xhtml" xmlns:vbind="http://www.w3.org/1999/xhtml"
+        xmlns:v-bind="http://www.w3.org/1999/xhtml">
 
 {% endblock extra_css %}
 
@@ -90,14 +92,23 @@
 
       </form>
 
-      <nav aria-label="Surfaces and Topographies for selection">
-        <ul id="pagination" class="pagination">
-          <li class="page-item"><a class="page-link" id="prev_page_link">Previous</a></li>
-          <!-- TODO insert links to individual pages -->
-          <li class="page-item"><a class="page-link" id="next_page_link">Next</a></li>
-        </ul>
-      </nav>
-      <div id="search-result">
+
+      <div id="search-results">
+        <nav aria-label="Surfaces and Topographies for selection">
+          <ul id="pagination" class="pagination">
+            <li class="page-item" v-bind:class="{ disabled: prev_page_url == null }">
+              <a class="page-link" id="prev_page_link" v-on:click="load_prev_page">Previous</a>
+            </li>
+            <li v-for="page_no in page_range">
+              <a class="page-link" v-on:click="load_page(page_no)">[[ page_no ]]</a>
+            </li>
+            <!-- TODO insert links to individual pages -->
+            <li class="page-item" v-bind:class="{ disabled: next_page_url == null }" >
+              <a class="page-link" id="next_page_link" v-on:click="load_next_page">Next</a>
+            </li>
+          </ul>
+        </nav>
+
         <div id="scrollParent">
           <table id="surface-tree" class="table table-condensed">
             <colgroup>
@@ -116,15 +127,11 @@
             </tbody>
           </table>
         </div>
+        <div>
+          <span>Showing [[ num_items_on_current_page ]] [[ element_kinds[tree_mode] ]] out of [[ num_items ]]. [[ hints[tree_mode] ]]</span>
+        </div>
       </div>
     </div>
-
-
-    <div id="result-summary"></div>
-
-
-    </div>
-
   </div>
 
 {% endblock content %}
@@ -156,7 +163,7 @@
 
       var summary_vm = new Vue({
           delimiters: ['[[', ']]'],
-          el: '#result-summary',
+          el: '#result-summary-DEACTIVATED', // TODO remove
           template: `
             <span>Showing [[ num_elements_shown ]] [[ element_kinds[tree_mode] ]] out of [[ num_elements ]]. [[ hints[tree_mode] ]]</span>
           `,
@@ -420,12 +427,6 @@
                 node.setSelected(false);
               })
         };
-        $('#prev_page_link').click(function() {
-          event_hub.$emit('prev_page_requested');
-        });
-        $('#next_page_link').click(function() {
-          event_hub.$emit('next_page_requested')
-        });
       });
 
 

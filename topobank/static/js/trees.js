@@ -2,18 +2,37 @@
 
 // See https://vuejs.org/v2/examples/select2.html as example how to wrap 3rd party code into a component
 
-var surface_tree_vm = new Vue({
+let search_results_vm = new Vue({
         delimiters: ['[[', ']]'],
-        el: '#surface-tree',
+        el: '#search-results',
         data: {
-            total_num_items: 0,
-            prev_page_search_url: null,
-            next_page_search_url: null,
+            tree_element: '#surface-tree',
+            num_items: null,
+            num_pages: null,
+            page_range: null,
+            page_urls: null,
+            current_page: null,
+            num_items_on_current_page: null,
+            prev_page_url: null,
+            next_page_url: null,
+            search_url: null,
+
+            element_kinds: {
+                "surface list": "surfaces",
+                "tag tree": "top level tags",
+                "unknown": "(?)"
+            },
+            tree_mode: "surface list",
+            hints: {
+                "surface list": "The selected items are used when switching to analyses.",
+                "tag tree": "Tags can be introduced or changed when editing meta data of surfaces and topographies.",
+                "unknown": ""
+            }
         },
 
         mounted: function() {
             var vm = this;
-            $(this.$el)
+            $(vm.tree_element)
                 // init fancytree
                 .fancytree({
                   extensions: ["glyph", "table"],
@@ -60,13 +79,24 @@ var surface_tree_vm = new Vue({
                     console.log("PostProcess: ", data);
                     //console.log("vm in post process: ", vm);
                     // We replace the result
-                    vm.total_num_items = data.response.count;
-                    vm.prev_page_search_url = data.response.previous;
-                    vm.next_page_search_url = data.response.next;
+                    //vm.total_num_items = data.response.count;
+                    //vm.prev_page_search_url = data.response.previous;
+                    //vm.next_page_search_url = data.response.next;
 
-                    console.log("vm.prev_page_search_url: ", vm.prev_page_search_url);
-                    console.log("vm.next_page_search_url: ", vm.next_page_search_url);
-                    data.result = data.response.results; // because of pagination, the results are underneath "results"
+
+                    //console.log("vm.prev_page_search_url: ", vm.prev_page_search_url);
+                    //console.log("vm.next_page_search_url: ", vm.next_page_search_url);
+
+                    vm.num_pages = data.response.num_pages;
+                    vm.num_items = data.response.num_items;
+                    vm.next_page_url = data.response.next_page_url;
+                    vm.prev_page_url = data.response.prev_page_url;
+                    vm.current_page = data.response.current_page;
+                    vm.num_items_on_current_page = data.response.num_items_on_current_page;
+                    vm.page_range = data.response.page_range;
+                    vm.page_urls = data.response.page_urls;
+                    vm.search_url = data.options.source.url;
+                    data.result = data.response.page_results;
                   },
                   select: function(event, data) {
                       var node = data.node;
@@ -172,53 +202,69 @@ var surface_tree_vm = new Vue({
                       // ...
                     },
                 }); // fancytree()
-
-            event_hub.$on('prev_page_requested', function() {
-                if (vm.prev_page_search_url != null) {
-                    vm.load_prev_page();
-                }
-            });
-            event_hub.$on('next_page_requested', function() {
-                console.log("Got next signal");
-                if (vm.next_page_search_url != null) {
-                    vm.load_next_page();
-                }
-            });
         },   // mounted()
         methods: {
-            load_next_page: function (event){
-                if (this.next_page_search_url != null) {
-                    console.log("Loading next page from URL '" + this.next_page_search_url + "'..");
-                    tree = $(this.$el).fancytree("getTree");
+            load_next_page: function (){
+                if (this.next_page_url != null) {
+                    console.log("Loading next page from URL '" + this.next_page_url + "'..");
+                    tree = $(this.tree_element).fancytree("getTree");
                     tree.setOption('source', {
-                        url: this.next_page_search_url,
+                        url: this.next_page_url,
                         cache: false,
                     });
                 }
             },
-            load_prev_page: function (event){
-                if (this.prev_page_search_url != null) {
-                    console.log("Loading previous page from URL '"+this.prev_page_search_url+"'..");
-                    tree = $(this.$el).fancytree("getTree");
+            load_prev_page: function (){
+                if (this.prev_page_url != null) {
+                    console.log("Loading previous page from URL '"+this.prev_page_url+"'..");
+                    tree = $(this.tree_element).fancytree("getTree");
                     tree.setOption('source', {
-                      url: this.prev_page_search_url,
+                      url: this.prev_page_url,
                       cache: false,
                     });
                 }
 
-            }
+            },
+            load_page: function(page_no){
+                page_no = parseInt(page_no);
+
+                if ( (page_no>=1) && (page_no<=this.page_range.length) ) {
+                    const tree = $(this.tree_element).fancytree("getTree");
+                    const page_url = this.page_urls[page_no-1];
+                    console.log("Loading page "+page_no+" from "+page_url+"..");
+                    tree.setOption('source', {
+                      url: page_url,
+                      cache: false,
+                    });
+                } else {
+                    console.warn("Cannot load page "+page_no+", because the page number is invalid.")
+                }
+            },
+
         }
       });  // Vue
 
-var pagination_vm = new Vue({
-        delimiters: ['[[', ']]'],
-        el: '#pagination',
-        data: {
-          num_pages: 0,
-          prev_url: null,
-          next_url: null,
-        },
-        created: function() {
-
-        }
-      });
+// let pagination_vm = new Vue({
+//         delimiters: ['[[', ']]'],
+//         el: '#pagination',
+//         data: {
+//           num_pages: 0,
+//           current_page: null,
+//           prev_url: null,
+//           next_url: null,
+//         },
+//         created: function() {
+//
+//         },
+//         computed: {
+//             has_prev: function() {
+//                 return this.prev_url != null;
+//             },
+//             has_next: function() {
+//                 return this.next_url != null;
+//             },
+//         },
+//         methods: {
+//
+//         }
+//       });
