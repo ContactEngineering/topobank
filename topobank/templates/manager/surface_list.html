@@ -105,7 +105,7 @@
             <li class="page-item" v-bind:class="{ disabled: prev_page_url == null }">
               <a class="page-link" id="prev_page_link" v-on:click="load_prev_page">Previous</a>
             </li>
-            <li v-for="page_no in page_range">
+            <li class="page-item" v-bind:class="{ active: current_page==page_no}" v-for="page_no in page_range">
               <a class="page-link" v-on:click="load_page(page_no)">[[ page_no ]]</a>
             </li>
             <!-- TODO insert links to individual pages -->
