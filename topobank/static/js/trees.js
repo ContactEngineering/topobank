@@ -6,7 +6,6 @@ let search_results_vm = new Vue({
         delimiters: ['[[', ']]'],
         el: '#search-results',
         data: {
-            tree_element: '#surface-tree',
             num_items: null,
             num_pages: null,
             page_range: null,
@@ -15,23 +14,26 @@ let search_results_vm = new Vue({
             num_items_on_current_page: null,
             prev_page_url: null,
             next_page_url: null,
-            search_url: null,
-
-            element_kinds: {
-                "surface list": "surfaces",
-                "tag tree": "top level tags",
-                "unknown": "(?)"
-            },
+            base_search_url: base_search_url,
+            search_term: null, // for filtering, comes from outside (search bar is on every page)
+            category: null, // for filtering, will be set on page
+            sharing_status: null, // will be set on page
+            tree_element: "#surface-tree",
             tree_mode: "surface list",
-            hints: {
-                "surface list": "The selected items are used when switching to analyses.",
-                "tag tree": "Tags can be introduced or changed when editing meta data of surfaces and topographies.",
-                "unknown": ""
-            }
+            tree_mode_infos: {
+                "surface list": {
+                    element_kind: "surfaces",
+                    hint: "The selected items are used when switching to analyses.",
+                },
+               "tag tree": {
+                    element_kind: "top level tags",
+                    hint: "Tags can be introduced or changed when editing meta data of surfaces and topographies.",
+               }
+            },
         },
-
         mounted: function() {
             var vm = this;
+            // console.log("Search url when mouting: ", this.search_url);
             $(vm.tree_element)
                 // init fancytree
                 .fancytree({
@@ -72,21 +74,10 @@ let search_results_vm = new Vue({
                   selectMode: 3, // 'multi-hier'
                   // source: [], // will be replaced later
                   source: {
-                    url: search_url,
+                    url: this.search_url
                   },
                   postProcess: function(event, data) {
-                    // assuming the Ajax response contains a list of child nodes:
                     console.log("PostProcess: ", data);
-                    //console.log("vm in post process: ", vm);
-                    // We replace the result
-                    //vm.total_num_items = data.response.count;
-                    //vm.prev_page_search_url = data.response.previous;
-                    //vm.next_page_search_url = data.response.next;
-
-
-                    //console.log("vm.prev_page_search_url: ", vm.prev_page_search_url);
-                    //console.log("vm.next_page_search_url: ", vm.next_page_search_url);
-
                     vm.num_pages = data.response.num_pages;
                     vm.num_items = data.response.num_items;
                     vm.next_page_url = data.response.next_page_url;
@@ -95,7 +86,9 @@ let search_results_vm = new Vue({
                     vm.num_items_on_current_page = data.response.num_items_on_current_page;
                     vm.page_range = data.response.page_range;
                     vm.page_urls = data.response.page_urls;
-                    vm.search_url = data.options.source.url;
+                    // vm.base_search_url = data.options.source.url;
+                    // assuming the Ajax response contains a list of child nodes:
+                    // We replace the result
                     data.result = data.response.page_results;
                   },
                   select: function(event, data) {
@@ -203,11 +196,56 @@ let search_results_vm = new Vue({
                     },
                 }); // fancytree()
         },   // mounted()
+        computed: {
+          search_url: function () {
+              var url = this.base_search_url;
+              var query_strings = [];
+
+              if ((this.search_term != null) && (this.search_term.length > 0)) {
+                  query_strings.push("search="+this.search_term);
+              }
+              if ((this.category != null) && (this.category != 'all')) {
+                  query_strings.push("category="+this.category);
+              }
+              if (this.sharing_status != null && (this.sharing_status != 'all')) {
+                  query_strings.push("sharing_status="+this.sharing_status);
+              }
+
+              if (query_strings.length > 0) {
+                  url += "?"+query_strings.join('&');
+              }
+              url = encodeURI(url)
+
+              console.log("Computed encoded search url: "+url);
+              return url;
+          }
+        },
         methods: {
+            reload: function(base_search_url, tree_mode, search_term, category, sharing_status) {
+                var tree = $(this.tree_element).fancytree("getTree");
+
+                this.base_search_url = base_search_url;
+                this.tree_mode = tree_mode;
+                this.search_term = search_term;
+                this.category = category;
+                this.sharing_status = sharing_status;
+
+                tree.reload({
+                      url: this.search_url,
+                      cache: false,
+                });
+            },
+            change_tree_mode: function(tree_mode) {
+                this.tree_mode = tree_mode;
+                tree.reload({
+                      url: this.search_url,
+                      cache: false,
+                });
+            },
             load_next_page: function (){
                 if (this.next_page_url != null) {
+                    var tree = $(this.tree_element).fancytree("getTree");
                     console.log("Loading next page from URL '" + this.next_page_url + "'..");
-                    tree = $(this.tree_element).fancytree("getTree");
                     tree.setOption('source', {
                         url: this.next_page_url,
                         cache: false,
@@ -216,8 +254,8 @@ let search_results_vm = new Vue({
             },
             load_prev_page: function (){
                 if (this.prev_page_url != null) {
+                    var tree = $(this.tree_element).fancytree("getTree");
                     console.log("Loading previous page from URL '"+this.prev_page_url+"'..");
-                    tree = $(this.tree_element).fancytree("getTree");
                     tree.setOption('source', {
                       url: this.prev_page_url,
                       cache: false,
@@ -244,27 +282,3 @@ let search_results_vm = new Vue({
         }
       });  // Vue
 
-// let pagination_vm = new Vue({
-//         delimiters: ['[[', ']]'],
-//         el: '#pagination',
-//         data: {
-//           num_pages: 0,
-//           current_page: null,
-//           prev_url: null,
-//           next_url: null,
-//         },
-//         created: function() {
-//
-//         },
-//         computed: {
-//             has_prev: function() {
-//                 return this.prev_url != null;
-//             },
-//             has_next: function() {
-//                 return this.next_url != null;
-//             },
-//         },
-//         methods: {
-//
-//         }
-//       });

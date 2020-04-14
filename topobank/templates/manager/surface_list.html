@@ -51,6 +51,12 @@
           <div class="form-group col-md-4">
             <a class="btn btn-warning form-control" href="{% url 'manager:surface-list' %}">Clear filter for <em>{{ search_term }}</em></a>
           </div>
+          {% else %}
+          <div class="form-group col-md-4">
+            <button class="btn btn-outline-info form-control disabled" href="#">
+              Not filtered for search term
+            </button>
+          </div>
           {% endif %}
 
 
@@ -73,7 +79,7 @@
 
 
           <div id="tree-selector" class="form-group btn-group btn-group-toggle col-md-2" data-toggle="buttons">
-            <label class="btn btn-default active">
+            <label class="btn btn-success active">
               <input type="radio" name="options" value="surface list" id="surface-list-radio-btn" autocomplete="off" checked>
               {% fontawesome_icon 'diamond' %} Surface list
             </label>
@@ -128,7 +134,8 @@
           </table>
         </div>
         <div>
-          <span>Showing [[ num_items_on_current_page ]] [[ element_kinds[tree_mode] ]] out of [[ num_items ]]. [[ hints[tree_mode] ]]</span>
+          <span>Showing [[ num_items_on_current_page ]] [[ tree_mode_infos[tree_mode].element_kind ]] out of [[ num_items ]].
+            [[ tree_mode_infos[tree_mode].hint ]]</span>
         </div>
       </div>
     </div>
@@ -158,53 +165,6 @@
           return $("#tag-tree").fancytree("getTree");
       }
 
-
-
-
-      var summary_vm = new Vue({
-          delimiters: ['[[', ']]'],
-          el: '#result-summary-DEACTIVATED', // TODO remove
-          template: `
-            <span>Showing [[ num_elements_shown ]] [[ element_kinds[tree_mode] ]] out of [[ num_elements ]]. [[ hints[tree_mode] ]]</span>
-          `,
-          data: {
-              num_elements: 0,
-              num_elements_shown: 0,
-              element_kinds: {
-                  "surface list": "surfaces",
-                  "tag tree": "top level tags",
-                  "unknown": "(?)"
-              },
-              tree_mode: "surface list",
-              hints: {
-                  "surface list": "The selected items are used when switching to analyses.",
-                  "tag tree": "Tags can be introduced or changed when editing meta data of surfaces and topographies.",
-                  "unknown": ""
-              }
-          },
-          methods: {
-              update: function() {
-                  var tree;
-
-                  if (this.tree_mode == "surface list") {
-                      this.element_kind = "surfaces";
-                      this.hint = "The selected items are used when switching to analyses.";
-                      tree = get_surface_tree();
-                  } else if (this.tree_mode == "tag tree") {
-                      this.element_kind = "top level tags";
-                      this.hint = "New tags can be introduced when editing meta data of surfaces and topographies.";
-                      tree = get_tag_tree();
-                  } else {
-                      this.tree_mode = "unknown";
-                  }
-
-                  this.num_elements = tree.rootNode.children.length;
-                  this.num_elements_shown = tree.rootNode.children.filter(function (node){
-                      return node.isMatched();
-                  }).length;
-              }
-          }
-      });
 
       function item_button_link_attributes(urls, urlname) {
           var attr = "";
@@ -246,179 +206,53 @@
           return result;
       }
 
-      // var surface_tree_data = {{ surface_tree_data | safe }};  // data which should be shown (actual page)
-      // var tag_tree_data = {{ tag_tree_data | safe }};   // TODO maybe load later?
-      var search_url = "{{ search_url | safe }}";
+      var base_search_url = "{{ base_search_url_surface_tree | safe }}";
 
-
-      var common_tree_options = {
-          extensions: ["glyph", "table"],
-          glyph: {
-              preset: "awesome4",
-              map: {
-                // Override distinct default icons here
-                folder: "fa-folder",
-                folderOpen: "fa-folder-open"
-              }
-          },
-          types: {
-            "surface": {icon: "fa fa-diamond fa-fw", iconTooltip: "This is a surface"},
-            "topography": {icon: "fa fa-file-o fa-fw", iconTooltip: "This is a topography"},
-            "tag": {icon: "fa fa-tag fa-fw", iconTooltip: "This is a tag"},
-          },
-          icon: function(event, data) {
-            // data.typeInfo contains tree.types[node.type] (or {} if not found)
-            // Here we will return the specific icon for that type, or `undefined` if
-            // not type info is defined (in this case a default icon is displayed).
-            return data.typeInfo.icon;
-          },
-          iconTooltip: function(event, data) {
-             return data.typeInfo.iconTooltip; // set tooltip which appears when hovering an icon
-          },
-          table: {
-		        checkboxColumnIdx: null,    // render the checkboxes into the this column index (default: nodeColumnIdx)
-		        indentation: 20,         // indent every node level by these number of pixels
-		        nodeColumnIdx: 0         // render node expander, icon, and title to this column (default: #0)
-	        },
-          autoActivate: true,
-          titlesTabbable: false,
-          tabindex: -1,
-          focusOnSelect: false,
-          scrollParent: $("#scrollParent"),
-          checkbox: true,
-          selectMode: 3, // 'multi-hier'
-          source: [], // will be replaced later
-          postProcess: function(event, data) {
-            // assuming the Ajax response contains a list of child nodes:
-            // console.log("PostProcess: ", data);
-            // We replace the result
-            pagination_vm.prev_url = data.response.previous;
-            pagination_vm.next_url = data.response.next;
-            data.result = data.response.results; // because of pagination, the results are underneath "results"
-          },
-          select: function(event, data) {
-              var node = data.node;
-              var is_selected = node.isSelected();
-
-              if (node.data.urls !== undefined) {
-                if (is_selected) {
-                   $.ajax({
-                       type: "POST",
-                       url: node.data.urls.select,
-                       data: {
-                           csrfmiddlewaretoken: "{{csrf_token}}"
-                       },
-                       success: function (data, textStatus, xhr) {
-                           // console.log("Selected: " + node.data.name + " " + node.key);
-                           basket.update(data);
-                       },
-                       error: function (xhr, textStatus, errorThrown) {
-                           console.error("Could not select: " + errorThrown + " " + xhr.status + " " + xhr.responseText);
-                       }
-                   });
-                } else {
-                  $.ajax({
-                       type: "POST",
-                       url: node.data.urls.unselect,
-                       data: {
-                           csrfmiddlewaretoken: "{{csrf_token}}"
-                       },
-                       success: function (data, textStatus, xhr) {
-                           // console.log("Unselected: " + node.data.name + " " + node.key);
-                           basket.update(data);
-                       },
-                       error: function (xhr, textStatus, errorThrown) {
-                           console.error("Could not unselect: " + errorThrown + " " + xhr.status + " " + xhr.responseText);
-                       }
-                   });
-                }
-              } else {
-                console.log("No urls defined for node. Cannot pass selection to session.");
-                basket.update();
-              }
-          },
-
-
-          renderColumns: function(event, data) {
-              var node = data.node;
-              var $tdList = $(node.tr).find(">td");
-
-              /**
-                Add special css classes to nodes depending on type
-               */
-
-              var extra_classes = {
-                  surface: [],
-                  topography: [],
-                  tag: ['font-italic']
-              };
-
-              extra_classes[node.type].forEach(function (c) {
-                node.addClass(c);
-              });
-
-
-              /**
-               * Render columns
-               */
-
-              // Index #0 is rendered by fancytree, but extended here by tags
-              if (node.data.tags !== undefined) {
-                  var tag_html = [];
-                  node.data.tags.forEach(function (tag) {
-                      tag_html += "<span class='badge badge-success mr-1'>" + tag + "</span>"
-                  });
-
-                  // append tags to fancytree-title
-                  $tdList.eq(0).find('.fancytree-title').after(tag_html);
-
-              }
-
-              // Set column with description
-              if (node.data.description !== undefined) {
-                  var description_html = `<div class='description-column'>${node.data.description}</div>`
-                  $tdList
-                      .eq(1)
-                      .html(description_html);
-              }
-
-
-              // Set columns with buttons:
-              if (node.type !== "tag") {
-                  var actions_html = `
-                    <div class="btn-group btn-group-sm" role="group" aria-label="Actions">
-                     ${item_buttons(node.data.urls)}
-                    </div>
-                  `;
-                  $tdList
-                      .eq(2)
-                      .html(actions_html);
-              }
-
-              // Static markup (more efficiently defined as html row template):
-              // $tdList.eq(3).html("<input type='input' value='" + "" + "'>");
-              // ...
-            },
-      }
-
-      $('#button_reset_filter').click( function(){
-        // TODO reload page or trees without search term
+      $('#select-category-filter').change( function(){
+        reload_tree();
       });
 
+      $('#select-sharing-status-filter').change( function(){
+        reload_tree();
+      });
 
+      $('#tree-selector :input').change( function() {
+        var surface_list_label = $('#surface-list-radio-btn').parent('label');
+        var tag_tree_label = $('#tag-tree-radio-btn').parent('label');
 
+        switch (this.value) {
+          case 'surface list':
+            surface_list_label.addClass('btn-success').removeClass('btn-default');
+            tag_tree_label.addClass('btn-default').removeClass('btn-success');
+            break;
+          case 'tag tree':
+            tag_tree_label.addClass('btn-success').removeClass('btn-default');
+            surface_list_label.addClass('btn-default').removeClass('btn-success');
+            break;
+        }
+        reload_tree();
+      });
 
-      $(document).ready( function () { // TODO solve by event signal
+      function reload_tree() {
+        var search_term = "{{ search_term | default_if_none:'' | safe }}";
+        var category = $('#select-category-filter option:selected').val();
+        var sharing_status = $('#select-sharing-status-filter option:selected').val();
+        var tree_mode = $('#tree-selector :checked').val();
+        var base_search_url;
+        console.log(search_term, category, sharing_status, "mode: ", tree_mode);
+        if (tree_mode == "surface list") {
+          base_search_url = "{{ base_search_url_surface_tree | safe }}";
+        } else if (tree_mode == "tag tree") {
+          base_search_url = "{{ base_search_url_tag_tree | safe }}";
+        } else {
+          console.warn(`Unknown tree mode '${tree_mode}' given. Cannot reload tree.`);
+          return
+        }
+        search_results_vm.reload(base_search_url, tree_mode, search_term, category, sharing_status);
+      }
 
-        //$('#surface-tree').fancytree(common_tree_options);
-        // get_surface_tree().setOption('source', surface_tree_data);
-        //get_surface_tree().setOption('source', {
-        //  url: "{{ search_url }}",
-        //  cache: false,
-        //});
-        //$('#tag-tree').fancytree(common_tree_options);
-        //get_tag_tree().setOption('source', tag_tree_data);
-
+      $(document).ready( function () {
+        // TODO solve by event signal
         basket.unselect_handler = function unselect_nodes(key) {
               const tree = get_surface_tree();
               tree.findAll( function (node) {
@@ -427,10 +261,8 @@
                 node.setSelected(false);
               })
         };
+        reload_tree();
       });
-
-
-
 
       // we don't want error messages if the page is left before everything is loaded
       install_handler_for_aborting_all_ajax_calls_on_page_leave();

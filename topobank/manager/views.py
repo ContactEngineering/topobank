@@ -48,7 +48,7 @@ from .utils import selected_instances, bandwidths_data, surfaces_for_user, \
     get_topography_reader, tags_for_user, get_reader_infos
 from .serializers import SurfaceSerializer, TopographySerializer, TagSerializer
 from .utils import mailto_link_for_reporting_an_error, current_selection_as_basket_items
-from .filters import SurfaceFilter
+from .filters import SurfaceFilter, TagModelFilter
 
 from ..usage_stats.utils import increase_statistics_by_date
 from ..users.models import User
@@ -760,14 +760,8 @@ class SelectView(TemplateView):
         if sharing_status and sharing_status not in [ 'all', 'own', 'shared']:
             raise PermissionDenied
 
-        search_url = reverse('manager:search')
-        if search_term:
-            search_term = search_term.strip()
-            search_url += f"?search={search_term}"
-
-
-
-        context['search_url'] = search_url  # this is used to load search results from tree
+        context['base_search_url_surface_tree'] = reverse('manager:search')
+        context['base_search_url_tag_tree'] = reverse('manager:tag-list')
         context['search_term'] = search_term
 
         # #
@@ -1314,12 +1308,49 @@ TopoBank: {}
 #######################################################################################
 # Views for REST interface
 #######################################################################################
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.utils.urls import remove_query_param, replace_query_param
+
+
+class SurfaceSearchPaginator(PageNumberPagination):
+    page_size = 2
+    page_query_param = 'page'
+
+    def get_paginated_response(self, data):
+        return Response({
+            'next_page_url': self.get_next_link(),
+            'prev_page_url': self.get_previous_link(),
+            'num_items': self.page.paginator.count,
+            'num_pages': self.page.paginator.num_pages,
+            'page_range': list(self.page.paginator.page_range),
+            'page_urls': list(self.get_page_urls()),
+            'current_page': self.page.number,
+            'num_items_on_current_page': len(self.page.object_list),
+            'page_size': self.page_size,
+            'page_results': data
+        })
+
+    def get_page_urls(self):
+        base_url = self.request.build_absolute_uri()
+        urls = []
+        for page_no in self.page.paginator.page_range:
+            url = base_url
+            if page_no == 1:
+                url = remove_query_param(base_url, self.page_query_param)
+            else:
+                url = replace_query_param(base_url, self.page_query_param, page_no)
+            urls.append(url)
+        return urls
+
 
 class TagListView(ListAPIView):
     """
     List all surfaces
     """
     serializer_class = TagSerializer
+    pagination_class = SurfaceSearchPaginator
+    filter_backends = (filters.DjangoFilterBackend,)
+    filterset_class = TagModelFilter
 
     def get_queryset(self):
         return tags_for_user(self.request.user).filter(parent=None).order_by('label')  # only top level
@@ -1340,7 +1371,9 @@ class TagListView(ListAPIView):
         serialized_topographies_without_tags = [topography_serializer.to_representation(t)
                                                 for t in topographies_without_tags]
 
-        response.data.append(dict(
+        results = response.data['page_results']
+
+        results.append(dict(
             type='tag',
             title='(untagged surfaces)',
             pk=None,
@@ -1349,7 +1382,7 @@ class TagListView(ListAPIView):
             selected=False,
             children=serialized_surfaces_without_tags
         ))
-        response.data.append(dict(
+        results.append(dict(
             type='tag',
             title='(untagged topographies)',
             pk=None,
@@ -1374,38 +1407,6 @@ class TagListView(ListAPIView):
         context['topographies'] = Topography.objects.filter(surface__in=context['surfaces'])
         return context
 
-from rest_framework.pagination import PageNumberPagination
-from rest_framework.utils.urls import remove_query_param, replace_query_param
-
-class SurfaceSearchPaginator(PageNumberPagination):
-    page_size = 2
-    page_query_param = 'page'
-
-    def get_paginated_response(self, data):
-        return Response({
-            'next_page_url': self.get_next_link(),
-            'prev_page_url': self.get_previous_link(),
-            'num_items': self.page.paginator.count,
-            'num_pages': self.page.paginator.num_pages,
-            'page_range': list(self.page.paginator.page_range),
-            'page_urls': list(self.get_page_urls()),
-            'current_page': self.page.number,
-            'num_items_on_current_page': self.page.end_index()-self.page.start_index()+1,
-            'page_size': self.page_size,
-            'page_results': data
-        })
-
-    def get_page_urls(self):
-        base_url = self.request.build_absolute_uri()
-        urls = []
-        for page_no in self.page.paginator.page_range:
-            url = base_url
-            if page_no == 1:
-                url = remove_query_param(base_url, self.page_query_param)
-            else:
-                url = replace_query_param(base_url, self.page_query_param, page_no)
-            urls.append(url)
-        return urls
 
 
 
@@ -1417,7 +1418,7 @@ class SurfaceSearch(ListAPIView):
 
     #filter_backends = (filters.SearchFilter,)
     filter_backends = (filters.DjangoFilterBackend,)
-    filterset_class = SurfaceFilter  # TODO using this leads to repeated instances in result, one for each topography
+    filterset_class = SurfaceFilter
     # search_fields = ('name', 'description', 'topography__name', 'topography__description')
     pagination_class = SurfaceSearchPaginator
 
