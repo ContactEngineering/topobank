@@ -181,16 +181,13 @@ td.ellipsis {
   /** height: 80vh; */
   /** background: blueviolet; */
 }
-
+/**
 #search-result > #scrollParent {
   height: 70vh;
   flex: 1 1 auto;
   overflow: auto;
-  /** background: green; */
-  /** height: 500px;
-  overflow: auto;
-   */
 }
+*/
 /**
 body, html {
   height: 100%;
@@ -235,5 +232,26 @@ input[type=search] {
 When the input field gets focus, change its width to 100%
 input[type=search]:focus {
   width: 100%;
+}
+*/
+
+/** For multiple fixed navbars on top */
+/**
+.body {
+  padding-top: 300px;
+}
+*/
+/**
+.sticky-top {
+  padding-top: 56px;
+}
+
+.fixed-top {
+  margin-top: 56px;
+}
+*/
+/**
+#basket-container {
+  padding-top: 56px;
 }
 */
