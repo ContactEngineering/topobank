@@ -461,7 +461,7 @@ def test_surface_search_with_request_factory():
         },
     ]
 
-    assert ordereddicts_to_dicts(response.data) == expected_dicts
+    assert ordereddicts_to_dicts(response.data['page_results']) == expected_dicts
 
 @pytest.mark.django_db
 def test_tag_search_with_request_factory():
@@ -777,7 +777,7 @@ def test_tag_search_with_request_factory():
 
     ]
 
-    resulted_dicts = ordereddicts_to_dicts(response.data, sorted_by='title')
+    resulted_dicts = ordereddicts_to_dicts(response.data['page_results'], sorted_by='title')
 
     for rd, ed in zip(resulted_dicts, expected_dicts):
         assert rd == ed
