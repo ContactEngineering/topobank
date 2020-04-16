@@ -1,5 +1,4 @@
 from django.conf.urls import url
-from django.urls import path
 from django.contrib.auth.decorators import login_required
 from django.views.generic import TemplateView
 
@@ -98,7 +97,7 @@ urlpatterns = [
     url(
         regex=r'search/$',
         view=login_required(views.SurfaceSearch.as_view()),
-        name='search'
+        name='search'  # TODO rename
     ),
     url(
         regex=r'access-denied/$',
@@ -111,8 +110,18 @@ urlpatterns = [
         name='sharing-info'
     ),
     url(
-        regex=r'tags/$',
+        regex=r'tag/tree/$',
         view=login_required(views.TagListView.as_view()),
-        name='tag-list'
+        name='tag-list'  # TODO rename
+    ),
+    url(
+       regex=r'tag/(?P<pk>\d+)/select/$',
+       view=login_required(views.select_tag),
+       name='tag-select'
+    ),
+    url(
+       regex=r'tag/(?P<pk>\d+)/unselect/$',
+       view=login_required(views.unselect_tag),
+       name='tag-unselect'
     ),
 ]

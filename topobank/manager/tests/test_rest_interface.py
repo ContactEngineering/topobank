@@ -3,9 +3,10 @@ import pytest
 from django.shortcuts import reverse
 from rest_framework.test import APIRequestFactory
 
-from ..views import select_surface, unselect_surface, SurfaceSearch, select_topography, unselect_topography, TagListView
+from ..views import select_surface, unselect_surface, SurfaceSearch, select_topography, unselect_topography, \
+    TagListView, select_tag, unselect_tag
 from ..utils import selected_instances
-from .utils import SurfaceFactory, UserFactory, TopographyFactory, ordereddicts_to_dicts
+from .utils import SurfaceFactory, UserFactory, TopographyFactory, TagModelFactory, ordereddicts_to_dicts
 
 from topobank.manager.models import TagModel
 
@@ -683,6 +684,12 @@ def test_tag_search_with_request_factory():
     train_tgv_pk = TagModel.objects.get(name='train/tgv').pk
     train_ice_restaurant_pk = TagModel.objects.get(name='train/ice/restaurant').pk
 
+    bike_prefix = f"/manager/tag/{bike_pk}/"
+    train_prefix = f"/manager/tag/{train_pk}/"
+    train_ice_prefix = f"/manager/tag/{train_ice_pk}/"
+    train_tgv_prefix = f"/manager/tag/{train_tgv_pk}/"
+    train_ice_restaurant_prefix = f"/manager/tag/{train_ice_restaurant_pk}/"
+
     expected_dicts = [
         {
             'title': '(untagged surfaces)',
@@ -695,7 +702,11 @@ def test_tag_search_with_request_factory():
                 # surface3, surface2
                 expected_dict_surface2,
                 expected_dict_surface3
-            ]
+            ],
+            'urls': {
+                'select': None,
+                'unselect': None,
+            }
         },
         {
             'title': '(untagged topographies)',
@@ -708,7 +719,11 @@ def test_tag_search_with_request_factory():
                 # topo1a, topo1b
                 expected_dict_topo1a,
                 expected_dict_topo1b
-            ]
+            ],
+            'urls': {
+                'select': None,
+                'unselect': None,
+            }
         },
         {
             'title': 'bike',
@@ -722,7 +737,11 @@ def test_tag_search_with_request_factory():
                 # surface1, topo2a
                 expected_dict_topo2a,
                 expected_dict_surface1,
-            ]
+            ],
+            'urls': {
+                'select': bike_prefix + 'select/',
+                'unselect': bike_prefix + 'unselect/'
+            }
         },
         {
             'title': 'train',
@@ -755,9 +774,17 @@ def test_tag_search_with_request_factory():
                             'children': [
                                 # topo2b
                                 expected_dict_topo2b
-                            ]
+                            ],
+                            'urls': {
+                                'select': train_ice_restaurant_prefix + 'select/',
+                                'unselect': train_ice_restaurant_prefix + 'unselect/'
+                            }
                         }
-                    ]
+                    ],
+                    'urls': {
+                        'select': train_ice_prefix+'select/',
+                        'unselect': train_ice_prefix+'unselect/'
+                    }
                 },
                 {
                     'title': 'tgv',
@@ -770,9 +797,17 @@ def test_tag_search_with_request_factory():
                     'children': [
                         # surface1
                         expected_dict_surface1
-                    ]
+                    ],
+                    'urls': {
+                        'select': train_tgv_prefix + 'select/',
+                        'unselect': train_tgv_prefix + 'unselect/'
+                    }
                 }
-            ]
+            ],
+            'urls': {
+                'select': train_prefix + 'select/',
+                'unselect': train_prefix + 'unselect/'
+            }
         },
 
     ]
@@ -783,3 +818,72 @@ def test_tag_search_with_request_factory():
         assert rd == ed
 
     # assert ordereddicts_to_dicts(response.data, sorted_by='title') == expected_dicts
+
+#
+# Tests for selection of tags
+#
+@pytest.mark.django_db
+def test_select_tag():
+
+    user = UserFactory()
+    tag1 = TagModelFactory()
+    tag2 = TagModelFactory()
+
+    factory = APIRequestFactory()
+    session = {}
+
+    #
+    # First select a single tag
+    #
+    request = factory.post(reverse('manager:tag-select', kwargs=dict(pk=tag1.pk)))
+    request.user = user
+    request.session = session
+
+    response = select_tag(request, tag1.pk)
+
+    assert response.status_code == 200
+
+    assert request.session['selection'] == [f'tag-{tag1.pk}']
+
+    assert selected_instances(request)[2] == [tag1]
+
+    #
+    # Then select another
+    #
+    request = factory.post(reverse('manager:tag-select', kwargs=dict(pk=tag2.pk)))
+    request.user = user
+    request.session = session
+
+    response = select_tag(request, tag2.pk)
+
+    assert response.status_code == 200
+
+    assert sorted(request.session['selection']) == [f'tag-{tag1.pk}', f'tag-{tag2.pk}']
+
+    assert selected_instances(request)[2] == [tag1, tag2]
+
+
+@pytest.mark.django_db
+def test_unselect_tag():
+    user = UserFactory()
+
+    tag1 = TagModelFactory()
+    tag2 = TagModelFactory()
+
+    factory = APIRequestFactory()
+    session = dict(selection=[f'tag-{tag1.pk}', f'tag-{tag2.pk}'])
+
+    #
+    # deselect a tag
+    #
+    request = factory.post(reverse('manager:tag-unselect', kwargs=dict(pk=tag1.pk)))
+    request.user = user
+    request.session = session
+
+    response = unselect_tag(request, tag1.pk)
+
+    assert response.status_code == 200
+
+    assert request.session['selection'] == [f'tag-{tag2.pk}']
+
+    assert selected_instances(request)[2] == [tag2]

@@ -6,15 +6,15 @@ and other things in topobank.manager.utils
 import pytest
 
 from ..tests.utils import two_topos
-from ..utils import selection_to_instances, selection_for_select_all, selection_choices, \
-    instances_to_selection, tags_for_user
-from ..models import Surface, Topography
+from ..utils import selection_to_instances, instances_to_selection, tags_for_user
+from ..models import Surface, Topography, TagModel
 
 
 @pytest.fixture
 def mock_topos(mocker):
     mocker.patch('topobank.manager.models.Topography', autospec=True)
     mocker.patch('topobank.manager.models.Surface', autospec=True)
+    mocker.patch('topobank.manager.models.TagModel', autospec=True)
 
 @pytest.fixture
 def testuser(django_user_model):
@@ -24,13 +24,14 @@ def testuser(django_user_model):
 
 def test_selection_to_instances(testuser, mock_topos):
 
-    from topobank.manager.models import Topography, Surface
+    from topobank.manager.models import Topography, Surface, TagModel
 
-    selection = ('topography-1', 'topography-2', 'surface-1', 'surface-3')
+    selection = ('topography-1', 'topography-2', 'surface-1', 'surface-3', 'tag-1', 'tag-2', 'tag-4')
     selection_to_instances(selection)
 
     Topography.objects.filter.assert_called_with(id__in=[1,2])
-    Surface.objects.filter.assert_called_with(id__in={1, 3}) # set instead of list
+    Surface.objects.filter.assert_called_with(id__in={1, 3})  # set instead of list
+    TagModel.objects.filter.assert_called_with(id__in={1, 2, 4})  # set instead of list
 
 def test_selection_to_instances_with_given_surface(testuser, mock_topos):
 
@@ -43,32 +44,6 @@ def test_selection_to_instances_with_given_surface(testuser, mock_topos):
 
     Topography.objects.filter.assert_called_with(id__in=[1,2], surface=surface)
 
-@pytest.mark.django_db
-def test_select_all(two_topos, testuser):
-    selection = selection_for_select_all(testuser)
-    surfaces = Surface.objects.filter(name__in=["Surface 1", "Surface 2"]).order_by('id')
-    assert [ f"surface-{s.id}" for s in surfaces] == sorted(selection)
-
-@pytest.mark.django_db
-def test_selection_choices(two_topos, testuser):
-    choices = selection_choices(testuser)
-
-    # we expect only one group in choices (1 surface)
-    assert len(choices) == 2
-    assert choices[0][0] == 'Surface 1 - created by you'
-    assert choices[1][0] == 'Surface 2 - created by you'
-
-    # within each group, there should be one choice label,
-    # first one this the full surface
-    choice_labels = [ x[1] for x in choices[0][1] ]
-
-    assert [ 'Surface 1',
-             'Example 3 - ZSensor']  == choice_labels
-
-    choice_labels = [x[1] for x in choices[1][1]]
-
-    assert ['Surface 2',
-            'Example 4 - Default'] == choice_labels
 
 @pytest.mark.django_db
 def test_instances_to_selection(two_topos):

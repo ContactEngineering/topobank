@@ -20,7 +20,7 @@ def test_surface_serializer(rf):
 
     context = dict(
         request = request,
-        selected_instances = ([topo1a], [surface2]),
+        selected_instances = ([topo1a], [surface2], []),  # no tags selected here (3rd list is empty)
     )
 
     surfser = SurfaceSerializer(context=context)

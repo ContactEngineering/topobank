@@ -59,7 +59,7 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
         return urls
 
     def get_selected(self, obj):
-        topographies, surfaces = self.context['selected_instances']
+        topographies, surfaces, tags = self.context['selected_instances']
         return (obj in topographies) or (obj.surface in surfaces)
 
     def get_key(self, obj):
@@ -151,7 +151,7 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
         return urls
 
     def get_selected(self, obj):
-        topographies, surfaces  = self.context['selected_instances']
+        topographies, surfaces, tags  = self.context['selected_instances']
         # _log.info("Surface selected? %s in %s?", obj, surfaces)
         return obj in surfaces
 
@@ -182,6 +182,7 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
 
 class TagSerializer(serializers.ModelSerializer):
 
+    urls = serializers.SerializerMethodField()
     title = serializers.CharField(source='label')
     children = serializers.SerializerMethodField()
     folder = serializers.SerializerMethodField()
@@ -191,12 +192,24 @@ class TagSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = TagModel
-        fields = ['pk', 'key', 'type', 'title', 'name', 'children', 'folder', 'selected']
+        fields = ['pk', 'key', 'type', 'title', 'name', 'children', 'folder', 'urls', 'selected']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._surface_serializer = SurfaceSerializer(context=self.context)
         self._topography_serializer = TopographySerializer(context=self.context)
+
+    def get_urls(self, obj):
+
+        # user = self.context['request'].user
+
+        urls = {
+            'select': reverse('manager:tag-select', kwargs=dict(pk=obj.pk)),
+            'unselect': reverse('manager:tag-unselect', kwargs=dict(pk=obj.pk))
+        }
+
+        return urls
+
 
     def get_folder(self, obj):
         return True
@@ -208,10 +221,8 @@ class TagSerializer(serializers.ModelSerializer):
         return f"tag-{obj.pk}"
 
     def get_selected(self, obj):
-        return False
-        # So far tags should not be considered as selected.
-        # It would be an interesting enhancement to also allow the selection of tags,
-        # but that's not yet implemented.
+        topographies, surfaces, tags = self.context['selected_instances']
+        return obj in tags
 
     def get_children(self, obj):
 

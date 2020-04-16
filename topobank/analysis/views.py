@@ -43,7 +43,7 @@ import PyCo
 from PyCo.Tools.ContactAreaAnalysis import patch_areas, assign_patch_numbers
 
 from ..manager.models import Topography, Surface
-from ..manager.utils import selected_instances, selection_from_session, instances_to_selection
+from ..manager.utils import selected_instances, instances_to_selection, current_selection_as_basket_items
 from ..usage_stats.utils import increase_statistics_by_date_and_object
 from .models import Analysis, AnalysisFunction, AnalysisCollection
 from .serializers import AnalysisSerializer
@@ -1131,6 +1131,7 @@ class AnalysesListView(FormView):
 
             # as long as we have the current UI (before implementing GH #304)
             # we also set the collection's function and topographies as selection
+            # TODO is this still needed?
             topography_selection = instances_to_selection(topographies=topographies)
             self.request.session['selection'] = tuple(topography_selection)
             self.request.session['selected_functions'] = tuple(f.id for f in functions)
@@ -1196,7 +1197,7 @@ class AnalysesListView(FormView):
         context = super().get_context_data(**kwargs)
 
         selected_functions = self._selected_functions(self.request)
-        topographies, surfaces = selected_instances(self.request)
+        topographies, surfaces, tags = selected_instances(self.request)
 
         # for displaying result card, we need a dict for each card,
         # which then can be used to load the result data in the background
@@ -1207,20 +1208,7 @@ class AnalysesListView(FormView):
 
         context['cards'] = cards
 
-        basket_items = []
-        for s in surfaces:
-            unselect_url = reverse('manager:surface-unselect', kwargs=dict(pk=s.pk))
-            basket_items.append(dict(name=s.name,
-                                     type="surface",
-                                     unselect_url=unselect_url,
-                                     key=f"surface-{s.pk}"))
-        for t in topographies:
-            unselect_url = reverse('manager:topography-unselect', kwargs=dict(pk=t.pk))
-            basket_items.append(dict(name=t.name,
-                                     type="topography",
-                                     unselect_url=unselect_url,
-                                     key=f"topography-{t.pk}",
-                                     surface_key=f"surface-{t.surface.pk}"))
+        basket_items = current_selection_as_basket_items(self.request)
         context['basket_items_json'] = json.dumps(basket_items)
 
         #

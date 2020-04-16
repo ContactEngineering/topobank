@@ -74,7 +74,7 @@ let search_results_vm = new Vue({
                   selectMode: 3, // 'multi-hier'
                   // source: [], // will be replaced later
                   source: {
-                    url: this.search_url
+                    url: this.search_url  // this is a computed property, see below
                   },
                   postProcess: function(event, data) {
                     console.log("PostProcess: ", data);
@@ -94,7 +94,7 @@ let search_results_vm = new Vue({
                   select: function(event, data) {
                       var node = data.node;
                       var is_selected = node.isSelected();
-
+                      console.log("Select callback called with node "+node+", is_selected: "+is_selected);
                       if (node.data.urls !== undefined) {
                         if (is_selected) {
                            $.ajax({

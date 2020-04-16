@@ -32,16 +32,16 @@ from trackstats.models import Metric, Period
 from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.utils.urls import remove_query_param, replace_query_param
 from django_filters import rest_framework as filters
-# from rest_framework import filters
-from rest_framework.renderers import JSONRenderer
 
 import numpy as np
 import json
 import os.path
 import logging
 
-from .models import Topography, Surface
+from .models import Topography, Surface, TagModel
 from .forms import TopographyForm, SurfaceForm, SurfaceShareForm
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm
 from .utils import selected_instances, bandwidths_data, surfaces_for_user, \
@@ -1308,10 +1308,6 @@ TopoBank: {}
 #######################################################################################
 # Views for REST interface
 #######################################################################################
-from rest_framework.pagination import PageNumberPagination
-from rest_framework.utils.urls import remove_query_param, replace_query_param
-
-
 class SurfaceSearchPaginator(PageNumberPagination):
     page_size = 8
     page_query_param = 'page'
@@ -1380,7 +1376,8 @@ class TagListView(ListAPIView):
             name=None,
             folder=True,
             selected=False,
-            children=serialized_surfaces_without_tags
+            children=serialized_surfaces_without_tags,
+            urls=dict(select=None, unselect=None),
         ))
         results.append(dict(
             type='tag',
@@ -1389,7 +1386,8 @@ class TagListView(ListAPIView):
             name=None,
             folder=True,
             selected=False,
-            children=serialized_topographies_without_tags
+            children=serialized_topographies_without_tags,
+            urls=dict(select=None, unselect=None),
         ))
 
         return response
@@ -1398,13 +1396,14 @@ class TagListView(ListAPIView):
         context = super().get_serializer_context()
         context['selected_instances'] = selected_instances(self.request)
         context['request'] = self.request
-        context['tags_for_user'] = tags_for_user(self.request.user)
+        surfaces = surfaces_for_user(self.request.user)
+        context['tags_for_user'] = tags_for_user(self.request.user, surfaces)
 
         #
         # also pass all surfaces and topographies the user has access to
         #
-        context['surfaces'] = surfaces_for_user(self.request.user)
-        context['topographies'] = Topography.objects.filter(surface__in=context['surfaces'])
+        context['surfaces'] = surfaces
+        context['topographies'] = Topography.objects.filter(surface__in=surfaces)
         return context
 
 
@@ -1452,6 +1451,10 @@ def _topography_key(pk):
     return 'topography-{}'.format(pk)
 
 
+def _tag_key(pk):
+    return 'tag-{}'.format(pk)
+
+
 def set_surface_select_status(request, pk, select_status):
     """Marks the given surface as 'selected' in session or checks this.
 
@@ -1488,7 +1491,7 @@ def set_surface_select_status(request, pk, select_status):
             selection.remove(surface_key)
 
         request.session['selection'] = list(selection)
-        _log.info("New selection: %s", selection)
+        _log.info("New selection after setting surface select status: %s", selection)
 
     data = current_selection_as_basket_items(request)
     return Response(data)
@@ -1530,6 +1533,8 @@ def set_topography_select_status(request, pk, select_status):
 
     The response returns the current selection as suitable for the basket.
     """
+    _log.info("Topography selection %s %s", pk, select_status)  # TODO remove
+
     try:
         pk = int(pk)
         topo = Topography.objects.get(pk=pk)
@@ -1578,7 +1583,7 @@ def set_topography_select_status(request, pk, select_status):
                 selection.remove(topography_key)
 
         request.session['selection'] = list(selection)
-        _log.info("New selection: %s", selection)
+        _log.info("New selection after setting topography select status: %s", selection)
 
     data = current_selection_as_basket_items(request)
     return Response(data)
@@ -1608,3 +1613,67 @@ def unselect_topography(request, pk):
     The response returns the current selection as suitable for the basket.
     """
     return set_topography_select_status(request, pk, False)
+
+
+def set_tag_select_status(request, pk, select_status):
+    """Marks the given tag as 'selected' in session or checks this.
+
+        :param request: request
+        :param pk: primary key of the tag
+        :param select_status: True if tag should be selected, False if it should be unselected
+        :return: JSON Response
+
+        The response returns the current selection as suitable for the basket.
+    """
+    _log.info("Tag selection %s %s", pk, select_status)
+    try:
+        pk = int(pk)
+        # tag = TagModel.objects.get(pk=pk)
+        # TODO Check if user is select/unselect tag?
+    except:
+        raise PermissionDenied()  # This should be shown independent of whether the tag exists
+
+    tag_key = _tag_key(pk)
+    selection = _selection_set(request)
+    is_selected = tag_key in selection
+
+    if request.method == 'POST':
+
+        if select_status:
+            # tag should be selected
+            selection.add(tag_key)
+        elif is_selected:
+            selection.remove(tag_key)
+
+        request.session['selection'] = list(selection)
+        _log.info("New selection after setting tag select status: %s", selection)
+
+    data = current_selection_as_basket_items(request)
+    return Response(data)
+
+
+@api_view(['POST'])
+def select_tag(request, pk):
+    """Marks the given tag as 'selected' in session.
+
+    :param request: request
+    :param pk: primary key of the tag
+    :return: JSON Response
+
+    The response returns the current selection as suitable for the basket.
+    """
+    return set_tag_select_status(request, pk, True)
+
+
+@api_view(['POST'])
+def unselect_tag(request, pk):
+    """Marks the given tag as 'unselected' in session.
+
+    :param request: request
+    :param pk: primary key of the tag
+    :return: JSON Response
+
+    The response returns the current selection as suitable for the basket.
+    """
+    return set_tag_select_status(request, pk, False)
+
