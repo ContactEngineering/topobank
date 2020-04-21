@@ -90,9 +90,24 @@ urlpatterns = [
         name='surface-create'
     ),
     url(
+        regex=r'tag/tree/$',
+        view=login_required(views.TagListView.as_view()),
+        name='tag-list'  # TODO rename
+    ),
+    url(
+       regex=r'tag/(?P<pk>\d+)/select/$',
+       view=login_required(views.select_tag),
+       name='tag-select'
+    ),
+    url(
+       regex=r'tag/(?P<pk>\d+)/unselect/$',
+       view=login_required(views.unselect_tag),
+       name='tag-unselect'
+    ),
+    url(
         regex=r'select/$',
         view=login_required(views.SelectView.as_view()),
-        name='surface-list'  # TODO rename to 'select'
+        name='select'
     ),
     url(
         regex=r'search/$',
@@ -108,20 +123,5 @@ urlpatterns = [
         regex=r'sharing/$',
         view=login_required(views.sharing_info),
         name='sharing-info'
-    ),
-    url(
-        regex=r'tag/tree/$',
-        view=login_required(views.TagListView.as_view()),
-        name='tag-list'  # TODO rename
-    ),
-    url(
-       regex=r'tag/(?P<pk>\d+)/select/$',
-       view=login_required(views.select_tag),
-       name='tag-select'
-    ),
-    url(
-       regex=r'tag/(?P<pk>\d+)/unselect/$',
-       view=login_required(views.unselect_tag),
-       name='tag-unselect'
     ),
 ]

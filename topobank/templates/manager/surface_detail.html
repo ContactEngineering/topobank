@@ -8,7 +8,7 @@
 
 {% block breadcrumbs %}
   <li class="breadcrumb-item">
-    <a href="{% url 'manager:surface-list' %}">Surfaces</a>
+    <a href="{% url 'manager:select' %}">Surfaces</a>
   </li>
   <li class="breadcrumb-item active" aria-current="page">
     {{ surface.name|truncatechars:50 }}
@@ -162,7 +162,7 @@
           </div>
           <div class="row p-3">
             <div class="col">
-                <a href="{% url 'manager:surface-list' %}"
+                <a href="{% url 'manager:select' %}"
                    class="btn btn-default btn-block btn-lg">
                   {% fontawesome_icon 'list' %} Back to search results
                 </a>

@@ -32,7 +32,7 @@ class HomeView(TemplateView):
             # count surfaces you can view, but you are not creator
             context['num_shared_surfaces'] = get_objects_for_user(user, 'view_surface', klass=Surface)\
                                                 .filter(~Q(creator=user)).count()
-            context['surfaces_link'] = reverse('manager:surface-list')
+            context['surfaces_link'] = reverse('manager:select')
             context['analyses_link'] = reverse('analysis:list')
         else:
             anon = guardian_user_model().get_anonymous()
@@ -58,7 +58,7 @@ class HomeView(TemplateView):
                                               method='oauth2',
                                               next=reverse(next_url_name))
 
-            context['surfaces_link'] = get_login_link('manager:surface-list')
+            context['surfaces_link'] = get_login_link('manager:select')
             context['analyses_link'] = get_login_link('analysis:list')
 
         return context
@@ -109,6 +109,6 @@ class HelpView(TemplateView):
         return context
 
 class SearchView(RedirectView):
-    pattern_name = 'manager:surface-list'
+    pattern_name = 'manager:select'
     query_string = True
 

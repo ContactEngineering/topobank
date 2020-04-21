@@ -166,7 +166,8 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
             return "shared"
 
     def get_folder(self, obj):
-        return True
+        # return True
+        return False
 
     def get_tags(self, obj): # TODO prove if own method needed
         return [ t.name for t in obj.tags.all()]
@@ -189,6 +190,7 @@ class TagSerializer(serializers.ModelSerializer):
     type = serializers.SerializerMethodField()
     key = serializers.SerializerMethodField()
     selected = serializers.SerializerMethodField()
+    #checkbox = serializers.SerializerMethodField()
 
     class Meta:
         model = TagModel
@@ -200,14 +202,10 @@ class TagSerializer(serializers.ModelSerializer):
         self._topography_serializer = TopographySerializer(context=self.context)
 
     def get_urls(self, obj):
-
-        # user = self.context['request'].user
-
         urls = {
             'select': reverse('manager:tag-select', kwargs=dict(pk=obj.pk)),
             'unselect': reverse('manager:tag-unselect', kwargs=dict(pk=obj.pk))
         }
-
         return urls
 
 
@@ -222,6 +220,7 @@ class TagSerializer(serializers.ModelSerializer):
 
     def get_selected(self, obj):
         topographies, surfaces, tags = self.context['selected_instances']
+        _log.info("TagSerializer: %s selected ? %s", obj, obj in tags)
         return obj in tags
 
     def get_children(self, obj):

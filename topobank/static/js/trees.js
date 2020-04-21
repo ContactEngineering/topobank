@@ -94,7 +94,6 @@ let search_results_vm = new Vue({
                   select: function(event, data) {
                       var node = data.node;
                       var is_selected = node.isSelected();
-                      console.log("Select callback called with node "+node+", is_selected: "+is_selected);
                       if (node.data.urls !== undefined) {
                         if (is_selected) {
                            $.ajax({
@@ -215,53 +214,27 @@ let search_results_vm = new Vue({
                   url += "?"+query_strings.join('&');
               }
               url = encodeURI(url)
-
-              console.log("Computed encoded search url: "+url);
               return url;
           }
         },
         methods: {
+            get_tree: function() {
+              return $(this.tree_element).fancytree("getTree");
+            },
             reload: function(base_search_url, tree_mode, search_term, category, sharing_status) {
-                var tree = $(this.tree_element).fancytree("getTree");
+                var tree = this.get_tree();
 
                 this.base_search_url = base_search_url;
                 this.tree_mode = tree_mode;
                 this.search_term = search_term;
                 this.category = category;
                 this.sharing_status = sharing_status;
-
+                tree.setOption('selectMode', tree_mode=='surface-list' ? 3 : 2);
+                // in tag tree, a selected tag should not select all decendents in the tree
                 tree.reload({
                       url: this.search_url,
                       cache: false,
                 });
-            },
-            change_tree_mode: function(tree_mode) {
-                this.tree_mode = tree_mode;
-                tree.reload({
-                      url: this.search_url,
-                      cache: false,
-                });
-            },
-            load_next_page: function (){
-                if (this.next_page_url != null) {
-                    var tree = $(this.tree_element).fancytree("getTree");
-                    console.log("Loading next page from URL '" + this.next_page_url + "'..");
-                    tree.setOption('source', {
-                        url: this.next_page_url,
-                        cache: false,
-                    });
-                }
-            },
-            load_prev_page: function (){
-                if (this.prev_page_url != null) {
-                    var tree = $(this.tree_element).fancytree("getTree");
-                    console.log("Loading previous page from URL '"+this.prev_page_url+"'..");
-                    tree.setOption('source', {
-                      url: this.prev_page_url,
-                      cache: false,
-                    });
-                }
-
             },
             load_page: function(page_no){
                 page_no = parseInt(page_no);

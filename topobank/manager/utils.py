@@ -157,6 +157,8 @@ def instances_to_selection(topographies=[], surfaces=[]):
 def selection_to_instances(selection, surface=None):
     """Returns a tuple with querysets of selected topographies, surfaces, and tags as saved in session.
 
+    View permission is not checked.
+
     If surface is given, return only topographies for this
     Surface model object.
 
@@ -168,7 +170,7 @@ def selection_to_instances(selection, surface=None):
 
      'topographies': all topographies in the selection (if 'surface' is given, filtered by this surface)
      'surfaces': all surfaces explicitly found in the selection (not only because its topography was selected)
-     'tags': all tags explicitly found in the selection
+     'tags': all tags explicitly found in the selection (not only because all related items are selected)
 
     Also surfaces without topographies are returned in 'surfaces' if selected.
 
@@ -197,6 +199,10 @@ def selection_to_instances(selection, surface=None):
         elif type == 'tag':
             tag_ids.add(id)
 
+    # also add all topographies and surfaces with having the selected tags
+    topography_ids.update(list(Topography.objects.filter(tags__in=tag_ids).values_list('id', flat=True)))
+    surface_ids.update(list(Surface.objects.filter(tags__in=tag_ids).values_list('id', flat=True)))
+
     topography_ids = list(topography_ids)
 
     # filter for these topography ids and optionally also for surface if given one
@@ -213,6 +219,8 @@ def selection_to_instances(selection, surface=None):
 def selected_instances(request, surface=None):  # TODO check whether 'surface' argument is still needed
     """Return a tuple with topography, surface, and tag instances which are currently selected.
 
+    View permission is checked for the user of the request.
+
     :request: HTTP request
     :surface: if given, return only topographies of this Surface instance
     :return: tuple (topographies, surfaces, tags)
@@ -221,7 +229,7 @@ def selected_instances(request, surface=None):  # TODO check whether 'surface' a
 
      'topographies': all topographies in the selection (if 'surface' is given, filtered by this surface)
      'surfaces': all surfaces explicitly found in the selection (not only because its topography was selected)
-     'tags': all tags explicitly found in selection
+     'tags': all tags explicitly found in selection (not because all tagged items are selected)
 
     Also surfaces without topographies are returned in 'surfaces' if selected.
 

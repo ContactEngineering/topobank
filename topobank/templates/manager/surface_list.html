@@ -49,7 +49,7 @@
           -->
           {% if search_term %}
           <div class="form-group col-md-4">
-            <a class="btn btn-warning form-control" href="{% url 'manager:surface-list' %}">Clear filter for <em>{{ search_term }}</em></a>
+            <a class="btn btn-warning form-control" href="{% url 'manager:select' %}">Clear filter for <em>{{ search_term }}</em></a>
           </div>
           {% else %}
           <div class="form-group col-md-4">
@@ -92,25 +92,20 @@
           <div class="form-group col-md-2">
             <a class="btn btn-primary form-control" href="{% url 'manager:surface-create' %}">Create Surface</a>
           </div>
-
         </div>
-
-
       </form>
-
 
       <div id="search-results">
         <nav aria-label="Surfaces and Topographies for selection">
           <ul id="pagination" class="pagination">
-            <li class="page-item" v-bind:class="{ disabled: prev_page_url == null }">
-              <a class="page-link" id="prev_page_link" v-on:click="load_prev_page">Previous</a>
+            <li class="page-item" v-bind:class="{ disabled: current_page <= 1 }">
+              <a class="page-link" v-on:click="load_page(current_page-1)">Previous</a>
             </li>
             <li class="page-item" v-bind:class="{ active: current_page==page_no}" v-for="page_no in page_range">
               <a class="page-link" v-on:click="load_page(page_no)">[[ page_no ]]</a>
             </li>
-            <!-- TODO insert links to individual pages -->
-            <li class="page-item" v-bind:class="{ disabled: next_page_url == null }" >
-              <a class="page-link" id="next_page_link" v-on:click="load_next_page">Next</a>
+            <li class="page-item" v-bind:class="{ disabled: current_page >=num_pages }" >
+              <a class="page-link" v-on:click="load_page(current_page+1)">Next</a>
             </li>
           </ul>
         </nav>
@@ -234,11 +229,11 @@
       });
 
       function reload_tree() {
-        var search_term = "{{ search_term | default_if_none:'' | safe }}";
-        var category = $('#select-category-filter option:selected').val();
-        var sharing_status = $('#select-sharing-status-filter option:selected').val();
-        var tree_mode = $('#tree-selector :checked').val();
-        var base_search_url;
+        const search_term = "{{ search_term | default_if_none:'' | safe }}";
+        const category = $('#select-category-filter option:selected').val();
+        const sharing_status = $('#select-sharing-status-filter option:selected').val();
+        const tree_mode = $('#tree-selector :checked').val();
+        let base_search_url;
         console.log(search_term, category, sharing_status, "mode: ", tree_mode);
         if (tree_mode == "surface list") {
           base_search_url = "{{ base_search_url_surface_tree | safe }}";
@@ -250,6 +245,25 @@
         }
         search_results_vm.reload(base_search_url, tree_mode, search_term, category, sharing_status);
       }
+
+      $('#example-button-select-tag').click(function(){ // TODO remove, just test code in order to debug AJAX call
+        $.ajax({
+             type: "POST",
+             url: "{% url 'manager:tag-select' pk=39 %}",
+             // url: "{% url 'manager:surface-select' pk=42 %}",
+             data: {
+                 csrfmiddlewaretoken: csrf_token
+             },
+             success: function (data, textStatus, xhr) {
+                 console.log("TEST Selected");
+                 // basket.update(data);
+             },
+             error: function (xhr, textStatus, errorThrown) {
+                 console.error("Could not select: " + errorThrown + " " + xhr.status + " " + xhr.responseText);
+             }
+        });
+
+      });
 
       $(document).ready( function () {
         // TODO solve by event signal
@@ -269,17 +283,6 @@
   </script>
 
   <script src="{% static 'js/trees.js' %}"></script>
-{#  <script>#}
-{#        $('#prev_page_btn').click( function(event) {#}
-{#           console.log("prev page btn clicked");#}
-{#           surface_tree_vm.load_prev_page(event);#}
-{#        });#}
-{##}
-{#        $('#next_page_btn').click( function(event) {#}
-{#          console.log("next page btn clicked");#}
-{#          surface_tree_vm.load_next_page(event);#}
-{#        });#}
-{##}
-{#  </script>#}
+
 
 {% endblock javascript %}

@@ -9,7 +9,7 @@
 
 {% block breadcrumbs %}
   <li class="breadcrumb-item">
-    <a href="{% url 'manager:surface-list' %}">Surfaces</a>
+    <a href="{% url 'manager:select' %}">Surfaces</a>
   </li>
   <li class="breadcrumb-item">
     <a href="{% url 'manager:surface-detail' topography.surface.id %}">
@@ -188,7 +188,7 @@
                   {% fontawesome_icon 'diamond' %} Back to surface details
                 </a>
 
-                <a href="{% url 'manager:surface-list' %}"
+                <a href="{% url 'manager:select' %}"
                    class="btn btn-default btn-block btn-lg">
                   {% fontawesome_icon 'list' %} Back to search results
                 </a>

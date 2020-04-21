@@ -692,7 +692,7 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
 class TopographyDeleteView(TopographyUpdatePermissionMixin, DeleteView):
     model = Topography
     context_object_name = 'topography'
-    success_url = reverse_lazy('manager:surface-list')
+    success_url = reverse_lazy('manager:select')
 
     def get_success_url(self):
         user = self.request.user
@@ -1017,7 +1017,7 @@ class SurfaceUpdateView(UpdateView):
 class SurfaceDeleteView(DeleteView):
     model = Surface
     context_object_name = 'surface'
-    success_url = reverse_lazy('manager:surface-list')
+    success_url = reverse_lazy('manager:select')
 
     @surface_delete_permission_required
     def dispatch(self, request, *args, **kwargs):
@@ -1027,7 +1027,7 @@ class SurfaceDeleteView(DeleteView):
         user = self.request.user
         surface = self.object
 
-        link = reverse('manager:surface-list')
+        link = reverse('manager:select')
         #
         # notify other users
         #
@@ -1309,12 +1309,12 @@ TopoBank: {}
 # Views for REST interface
 #######################################################################################
 class SurfaceSearchPaginator(PageNumberPagination):
-    page_size = 8
+    page_size = 2
     page_query_param = 'page'
 
     def get_paginated_response(self, data):
         return Response({
-            'next_page_url': self.get_next_link(),
+            'next_page_url': self.get_next_link(),  # TODO remove?
             'prev_page_url': self.get_previous_link(),
             'num_items': self.page.paginator.count,
             'num_pages': self.page.paginator.num_pages,
@@ -1376,6 +1376,7 @@ class TagListView(ListAPIView):
             name=None,
             folder=True,
             selected=False,
+            checkbox=False,
             children=serialized_surfaces_without_tags,
             urls=dict(select=None, unselect=None),
         ))
@@ -1386,6 +1387,7 @@ class TagListView(ListAPIView):
             name=None,
             folder=True,
             selected=False,
+            checkbox=False,
             children=serialized_topographies_without_tags,
             urls=dict(select=None, unselect=None),
         ))
@@ -1430,6 +1432,7 @@ class SurfaceSearch(ListAPIView):
         #     Prefetch('topography_set', queryset=Topography.objects.filter(Q(name__icontains=search_term) | Q(description__icontains=search_term)),
         #              to_attr='filtered_topographies')
         # )
+
         return surfaces_for_user(self.request.user)
 
     def get_serializer_context(self):
@@ -1491,7 +1494,6 @@ def set_surface_select_status(request, pk, select_status):
             selection.remove(surface_key)
 
         request.session['selection'] = list(selection)
-        _log.info("New selection after setting surface select status: %s", selection)
 
     data = current_selection_as_basket_items(request)
     return Response(data)
@@ -1533,8 +1535,6 @@ def set_topography_select_status(request, pk, select_status):
 
     The response returns the current selection as suitable for the basket.
     """
-    _log.info("Topography selection %s %s", pk, select_status)  # TODO remove
-
     try:
         pk = int(pk)
         topo = Topography.objects.get(pk=pk)
@@ -1583,7 +1583,6 @@ def set_topography_select_status(request, pk, select_status):
                 selection.remove(topography_key)
 
         request.session['selection'] = list(selection)
-        _log.info("New selection after setting topography select status: %s", selection)
 
     data = current_selection_as_basket_items(request)
     return Response(data)
@@ -1625,12 +1624,11 @@ def set_tag_select_status(request, pk, select_status):
 
         The response returns the current selection as suitable for the basket.
     """
-    _log.info("Tag selection %s %s", pk, select_status)
     try:
         pk = int(pk)
         # tag = TagModel.objects.get(pk=pk)
         # TODO Check if user is select/unselect tag?
-    except:
+    except ValueError:
         raise PermissionDenied()  # This should be shown independent of whether the tag exists
 
     tag_key = _tag_key(pk)
@@ -1646,7 +1644,6 @@ def set_tag_select_status(request, pk, select_status):
             selection.remove(tag_key)
 
         request.session['selection'] = list(selection)
-        _log.info("New selection after setting tag select status: %s", selection)
 
     data = current_selection_as_basket_items(request)
     return Response(data)

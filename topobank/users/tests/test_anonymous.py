@@ -43,7 +43,7 @@ def test_no_intermediate_login_page_when_not_logged_in_and_pressing_surfaces(cli
     #
     # make sure the links redirect to surfaces/analyses
     #
-    surfaces_next = urlencode({'method':'oauth2', 'next': reverse('manager:surface-list')})
+    surfaces_next = urlencode({'method':'oauth2', 'next': reverse('manager:select')})
     analyses_next = urlencode({'method':'oauth2', 'next': reverse('analysis:list')})
 
     assert surfaces_next in response.context['surfaces_link']
@@ -60,7 +60,7 @@ def test_no_intermediate_login_page_when_not_logged_in_and_pressing_surfaces(cli
     # which is possible when https://github.com/pennersr/django-allauth/issues/345
     # is resolved (or by another workaround).
     #
-    # response = client.get(reverse('manager:surface-list'), follow=True)
+    # response = client.get(reverse('manager:select'), follow=True)
     #
     # # make sure that the message of intermediate page *doesn't* appear
     # assert_not_in_content(response, 'existing third party accounts')

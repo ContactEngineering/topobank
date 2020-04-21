@@ -285,7 +285,7 @@ def test_surface_search_with_request_factory():
     session = dict(selection=[f'surface-{surface2.pk}', f'topography-{topo1a.pk}', f'surface-{surface3.pk}'])
 
     factory = APIRequestFactory()
-    request = factory.get(reverse('manager:surface-list'))
+    request = factory.get(reverse('manager:select'))
     request.user = user
     request.session = session
 

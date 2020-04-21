@@ -1047,7 +1047,7 @@ def test_delete_surface(client, django_user_model):
     assert ('context' not in response) or ('form' not in response.context), "Still on form: {}".format(response.context['form'].errors)
 
     assert response.status_code == 302
-    assert reverse('manager:surface-list') == response.url
+    assert reverse('manager:select') == response.url
 
     assert Surface.objects.all().count() == 0
 
