@@ -133,8 +133,8 @@
             <basket-element v-for="key in keys" v-bind:elem="get_element(key)" v-bind:key="key"></basket-element>
             <small>Visit the <b><i class="fa fa-fw fa-area-chart"></i>Analyze</b> tab for analysis results.</small>
           </div>
-          <span v-else>No items selected yet. In order to select, please use the checkboxes on the
-            <b><i class="fa fa-fw fa-check-square-o"></i>Select</b> tab.</span>
+          <span v-else><small>No items selected yet. In order to select, please use the checkboxes on the
+            <b><i class="fa fa-fw fa-check-square-o"></i>Select</b> tab.</small></span>
         </div>
       </div>
     {% endif %}

@@ -108,7 +108,8 @@ class HelpView(TemplateView):
         }
         return context
 
-class SearchView(RedirectView):
+
+class GotoSelectView(RedirectView):
     pattern_name = 'manager:select'
     query_string = True
 

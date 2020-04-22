@@ -246,24 +246,6 @@
         search_results_vm.reload(base_search_url, tree_mode, search_term, category, sharing_status);
       }
 
-      $('#example-button-select-tag').click(function(){ // TODO remove, just test code in order to debug AJAX call
-        $.ajax({
-             type: "POST",
-             url: "{% url 'manager:tag-select' pk=39 %}",
-             // url: "{% url 'manager:surface-select' pk=42 %}",
-             data: {
-                 csrfmiddlewaretoken: csrf_token
-             },
-             success: function (data, textStatus, xhr) {
-                 console.log("TEST Selected");
-                 // basket.update(data);
-             },
-             error: function (xhr, textStatus, errorThrown) {
-                 console.error("Could not select: " + errorThrown + " " + xhr.status + " " + xhr.responseText);
-             }
-        });
-
-      });
 
       $(document).ready( function () {
         // TODO solve by event signal

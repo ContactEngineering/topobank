@@ -7,7 +7,7 @@ from django.views.generic import TemplateView
 from django.views import defaults as default_views
 import notifications.urls
 
-from topobank.views import TermsView, HomeView, HelpView, SearchView
+from topobank.views import TermsView, HomeView, HelpView, GotoSelectView
 
 urlpatterns = [
     path("", HomeView.as_view(), name="home"),
@@ -28,7 +28,7 @@ urlpatterns = [
     ),
     path(
         "search/",
-        SearchView.as_view(),
+        GotoSelectView.as_view(),
         name="search",
     ),
     # Django Admin, use {% url 'admin:index' %}

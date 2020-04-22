@@ -152,7 +152,6 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
 
     def get_selected(self, obj):
         topographies, surfaces, tags  = self.context['selected_instances']
-        # _log.info("Surface selected? %s in %s?", obj, surfaces)
         return obj in surfaces
 
     def get_key(self, obj):
@@ -166,8 +165,7 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
             return "shared"
 
     def get_folder(self, obj):
-        # return True
-        return False
+        return True
 
     def get_tags(self, obj): # TODO prove if own method needed
         return [ t.name for t in obj.tags.all()]
@@ -220,7 +218,6 @@ class TagSerializer(serializers.ModelSerializer):
 
     def get_selected(self, obj):
         topographies, surfaces, tags = self.context['selected_instances']
-        _log.info("TagSerializer: %s selected ? %s", obj, obj in tags)
         return obj in tags
 
     def get_children(self, obj):

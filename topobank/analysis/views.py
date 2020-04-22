@@ -43,7 +43,7 @@ import PyCo
 from PyCo.Tools.ContactAreaAnalysis import patch_areas, assign_patch_numbers
 
 from ..manager.models import Topography, Surface
-from ..manager.utils import selected_instances, instances_to_selection, current_selection_as_basket_items
+from ..manager.utils import selected_instances, instances_to_selection, current_selection_as_basket_items, instances_to_topographies
 from ..usage_stats.utils import increase_statistics_by_date_and_object
 from .models import Analysis, AnalysisFunction, AnalysisCollection
 from .serializers import AnalysisSerializer
@@ -1085,10 +1085,11 @@ class AnalysisFunctionDetailView(DetailView):
 
         function = self.object
 
-        topographies, surfaces = selected_instances(self.request)
+        topographies, surfaces, tags = selected_instances(self.request)
+        effective_topographies = instances_to_topographies(topographies, surfaces, tags)
 
         card = dict(function=function,
-                    topography_ids_json=json.dumps([t.id for t in topographies]))
+                    topography_ids_json=json.dumps([t.id for t in effective_topographies]))
 
         context['card'] = card
 
@@ -1198,13 +1199,14 @@ class AnalysesListView(FormView):
 
         selected_functions = self._selected_functions(self.request)
         topographies, surfaces, tags = selected_instances(self.request)
+        effective_topographies = instances_to_topographies(topographies, surfaces, tags)
 
         # for displaying result card, we need a dict for each card,
         # which then can be used to load the result data in the background
         cards = []
         for function in selected_functions:
             cards.append(dict(function=function,
-                              topography_ids_json=json.dumps([t.id for t in topographies])))
+                              topography_ids_json=json.dumps([t.id for t in effective_topographies])))
 
         context['cards'] = cards
 

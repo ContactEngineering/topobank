@@ -153,6 +153,49 @@ def instances_to_selection(topographies=[], surfaces=[]):
     return sorted(selection)
 
 
+def instances_to_topographies(topographies, surfaces, tags):
+    """Returns a queryset of topographies, based on given instances
+
+    Parameters
+    ----------
+    topographies: sequence of topographies
+    surfaces: sequence of surfaces
+    tags: sequence of tags
+
+    Returns
+    -------
+    Queryset of topography, distinct
+    """
+    from .models import Topography
+
+    topography_ids = [topo.id for topo in topographies]
+    surface_ids = [s.id for s in surfaces]
+    tag_ids = [tag.id for tag in tags]
+
+    topographies = Topography.objects.filter(id__in=topography_ids)
+    topographies |= Topography.objects.filter(surface__in=surface_ids)
+    topographies |= Topography.objects.filter(surface__tags__in=tag_ids)
+    topographies |= Topography.objects.filter(tags__in=tag_ids)
+
+    return topographies.distinct().order_by('id')
+
+
+def selection_to_topographies(selection):
+    """Returns a queryset of topographies, based on given selection.
+
+    The selection can contain topographies, surfaces, and tags.
+    The returned queryset is distinct with no topography is doubled.
+
+    Parameters
+    ----------
+    selection : list
+                List of strings like ['surface-1', 'topography-2', 'tag-3']
+
+    Returns
+    -------
+    Queryset of topographies.
+    """
+    pass
 
 def selection_to_instances(selection, surface=None):
     """Returns a tuple with querysets of selected topographies, surfaces, and tags as saved in session.

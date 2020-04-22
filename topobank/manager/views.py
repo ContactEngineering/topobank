@@ -1309,7 +1309,7 @@ TopoBank: {}
 # Views for REST interface
 #######################################################################################
 class SurfaceSearchPaginator(PageNumberPagination):
-    page_size = 2
+    page_size = 8
     page_query_param = 'page'
 
     def get_paginated_response(self, data):
@@ -1636,7 +1636,6 @@ def set_tag_select_status(request, pk, select_status):
     is_selected = tag_key in selection
 
     if request.method == 'POST':
-
         if select_status:
             # tag should be selected
             selection.add(tag_key)

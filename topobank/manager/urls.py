@@ -110,9 +110,9 @@ urlpatterns = [
         name='select'
     ),
     url(
-        regex=r'search/$',
-        view=login_required(views.SurfaceSearch.as_view()),
-        name='search'  # TODO rename
+        regex=r'surface/search/$',  # TODO check URL, rename?
+        view=login_required(views.SurfaceSearch.as_view()),  # TODO Check view name, rename?
+        name='search'  # TODO rename?
     ),
     url(
         regex=r'access-denied/$',
