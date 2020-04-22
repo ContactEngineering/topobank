@@ -34,17 +34,6 @@ def test_selection_to_instances(testuser, mock_topos):
     Surface.objects.filter.assert_called_with(id__in={1, 3})  # set instead of list
     TagModel.objects.filter.assert_called_with(id__in={1, 2, 4})  # set instead of list
 
-def test_selection_to_instances_with_given_surface(testuser, mock_topos):
-
-    from topobank.manager.models import Topography, Surface
-
-    surface = Surface(name='surface1')
-
-    selection = ('topography-1', 'topography-2', 'surface-1')
-    selection_to_instances(selection, surface=surface)
-
-    Topography.objects.filter.assert_called_with(id__in=[1,2], surface=surface)
-
 
 @pytest.mark.django_db
 def test_instances_to_selection(two_topos):

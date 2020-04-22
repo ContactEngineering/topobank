@@ -197,7 +197,7 @@ def selection_to_topographies(selection):
     """
     pass
 
-def selection_to_instances(selection, surface=None):
+def selection_to_instances(selection):
     """Returns a tuple with querysets of selected topographies, surfaces, and tags as saved in session.
 
     View permission is not checked.
@@ -206,7 +206,6 @@ def selection_to_instances(selection, surface=None):
     Surface model object.
 
     :param selection: selection list as saved in session
-    :param surface: optionally a surface to filter topographies in selection
     :return: tuple (topographies, surfaces)
 
     The returned tuple has 3 elements:
@@ -233,8 +232,7 @@ def selection_to_instances(selection, surface=None):
             topography_ids.add(id)
         elif type == 'surface':
             surface_ids.add(id)
-            if (surface is not None) and (surface.id != id):
-                continue # skip this surface, it is not relevant because argument surface was given
+
 
             # either surface is None or this is the interesting surface
             # -> Also add all topographies from this surface
@@ -249,23 +247,18 @@ def selection_to_instances(selection, surface=None):
     topography_ids = list(topography_ids)
 
     # filter for these topography ids and optionally also for surface if given one
-    filter_args = dict(id__in=topography_ids)
-    if surface is not None:
-        filter_args['surface'] = surface
-    topographies = Topography.objects.filter(**filter_args)
-
+    topographies = Topography.objects.filter(id__in=topography_ids)
     surfaces = Surface.objects.filter(id__in=surface_ids)
     tags = TagModel.objects.filter(id__in=tag_ids)
 
     return (topographies, surfaces, tags)
 
-def selected_instances(request, surface=None):  # TODO check whether 'surface' argument is still needed
+def selected_instances(request):
     """Return a tuple with topography, surface, and tag instances which are currently selected.
 
     View permission is checked for the user of the request.
 
     :request: HTTP request
-    :surface: if given, return only topographies of this Surface instance
     :return: tuple (topographies, surfaces, tags)
 
     The returned tuple has 3 elements, each a list:
@@ -280,7 +273,7 @@ def selected_instances(request, surface=None):  # TODO check whether 'surface' a
     If a surface is explicitly selected, all of its topographies are contained in 'topographies'.
     """
     selection = selection_from_session(request.session)
-    topographies, surfaces, tags = selection_to_instances(selection, surface=surface)
+    topographies, surfaces, tags = selection_to_instances(selection)
 
     # make sure that only topographies with read permission can be found here
     topographies = [t for t in topographies
