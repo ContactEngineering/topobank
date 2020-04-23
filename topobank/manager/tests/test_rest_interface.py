@@ -55,7 +55,7 @@ def test_select_surface():
 
     #
     # If a surface is selected after a single topography of this surface
-    # was selected, the selection of the single topography should be removed
+    # was selected, the selection of the single topography should be still there
     #
     request = factory.post(reverse('manager:topography-select', kwargs=dict(pk=topo3a.pk)))
     request.user = user
@@ -83,7 +83,9 @@ def test_select_surface():
     assert sorted(request.session['selection']) == [f'surface-{surface1.pk}', f'surface-{surface2.pk}',
                                                     f'surface-{surface3.pk}']
 
-    assert selected_instances(request)[0] == [topo3a, topo3b]
+    # only explicity selected topographies are returned and
+    # selecting of a surface should deselect the explicit selection of topographies
+    assert selected_instances(request)[0] == []
     assert selected_instances(request)[1] == [surface1, surface2, surface3]
 
 

@@ -198,26 +198,20 @@ def selection_to_topographies(selection):
     pass
 
 def selection_to_instances(selection):
-    """Returns a tuple with querysets of selected topographies, surfaces, and tags as saved in session.
+    """Returns a tuple with querysets of explicitly selected topographies, surfaces, and tags.
 
     View permission is not checked.
 
-    If surface is given, return only topographies for this
-    Surface model object.
-
     :param selection: selection list as saved in session
-    :return: tuple (topographies, surfaces)
+    :return: tuple (topographies, surfaces, tags)
 
     The returned tuple has 3 elements:
 
-     'topographies': all topographies in the selection (if 'surface' is given, filtered by this surface)
+     'topographies': all topographies explicitly found in the selection
      'surfaces': all surfaces explicitly found in the selection (not only because its topography was selected)
      'tags': all tags explicitly found in the selection (not only because all related items are selected)
 
     Also surfaces without topographies are returned in 'surfaces' if selected.
-
-    If a surface is selected, all topographies for this surface will also
-    be returned.
     """
     from .models import Topography, Surface, TagModel
 
@@ -232,21 +226,9 @@ def selection_to_instances(selection):
             topography_ids.add(id)
         elif type == 'surface':
             surface_ids.add(id)
-
-
-            # either surface is None or this is the interesting surface
-            # -> Also add all topographies from this surface
-            topography_ids.update(list(Topography.objects.filter(surface__id=id).values_list('id', flat=True)))
         elif type == 'tag':
             tag_ids.add(id)
 
-    # also add all topographies and surfaces with having the selected tags
-    topography_ids.update(list(Topography.objects.filter(tags__in=tag_ids).values_list('id', flat=True)))
-    surface_ids.update(list(Surface.objects.filter(tags__in=tag_ids).values_list('id', flat=True)))
-
-    topography_ids = list(topography_ids)
-
-    # filter for these topography ids and optionally also for surface if given one
     topographies = Topography.objects.filter(id__in=topography_ids)
     surfaces = Surface.objects.filter(id__in=surface_ids)
     tags = TagModel.objects.filter(id__in=tag_ids)

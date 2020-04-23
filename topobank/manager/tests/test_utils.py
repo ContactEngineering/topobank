@@ -30,7 +30,7 @@ def test_selection_to_instances(testuser, mock_topos):
     selection = ('topography-1', 'topography-2', 'surface-1', 'surface-3', 'tag-1', 'tag-2', 'tag-4')
     selection_to_instances(selection)
 
-    Topography.objects.filter.assert_called_with(id__in=[1,2])
+    Topography.objects.filter.assert_called_with(id__in={1,2})
     Surface.objects.filter.assert_called_with(id__in={1, 3})  # set instead of list
     TagModel.objects.filter.assert_called_with(id__in={1, 2, 4})  # set instead of list
 
