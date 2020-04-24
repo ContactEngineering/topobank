@@ -15,7 +15,7 @@ let search_results_vm = new Vue({
             prev_page_url: null,
             next_page_url: null,
             base_search_url: base_search_url,
-            search_term: null, // for filtering, comes from outside (search bar is on every page)
+            search_term: search_term, // for filtering, comes from outside (search bar is on every page)
             category: null, // for filtering, will be set on page
             sharing_status: null, // will be set on page
             tree_element: "#surface-tree",
@@ -32,7 +32,7 @@ let search_results_vm = new Vue({
             },
         },
         mounted: function() {
-            var vm = this;
+            const vm = this;
             // console.log("Search url when mouting: ", this.search_url);
             $(vm.tree_element)
                 // init fancytree
@@ -92,8 +92,8 @@ let search_results_vm = new Vue({
                     data.result = data.response.page_results;
                   },
                   select: function(event, data) {
-                      var node = data.node;
-                      var is_selected = node.isSelected();
+                      const node = data.node;
+                      const is_selected = node.isSelected();
                       if (node.data.urls !== undefined) {
                         if (is_selected) {
                            $.ajax({
@@ -134,14 +134,14 @@ let search_results_vm = new Vue({
 
 
                   renderColumns: function(event, data) {
-                      var node = data.node;
-                      var $tdList = $(node.tr).find(">td");
+                      const node = data.node;
+                      const $tdList = $(node.tr).find(">td");
 
                       /**
                         Add special css classes to nodes depending on type
                        */
 
-                      var extra_classes = {
+                      let extra_classes = {
                           surface: [],
                           topography: [],
                           tag: ['font-italic']
@@ -158,19 +158,18 @@ let search_results_vm = new Vue({
 
                       // Index #0 is rendered by fancytree, but extended here by tags
                       if (node.data.tags !== undefined) {
-                          var tag_html = [];
+                          let tag_html = [];
                           node.data.tags.forEach(function (tag) {
                               tag_html += "<span class='badge badge-success mr-1'>" + tag + "</span>"
                           });
 
                           // append tags to fancytree-title
                           $tdList.eq(0).find('.fancytree-title').after(tag_html);
-
                       }
 
                       // Set column with description
                       if (node.data.description !== undefined) {
-                          var description_html = `<div class='description-column'>${node.data.description}</div>`
+                          const description_html = `<div class='description-column'>${node.data.description}</div>`
                           $tdList
                               .eq(1)
                               .html(description_html);
@@ -179,7 +178,7 @@ let search_results_vm = new Vue({
 
                       // Set columns with buttons:
                       if (node.type !== "tag") {
-                          var actions_html = `
+                          const actions_html = `
                             <div class="btn-group btn-group-sm" role="group" aria-label="Actions">
                              ${item_buttons(node.data.urls)}
                             </div>
@@ -197,8 +196,8 @@ let search_results_vm = new Vue({
         },   // mounted()
         computed: {
           search_url: function () {
-              var url = this.base_search_url;
-              var query_strings = [];
+              let url = this.base_search_url;
+              let query_strings = [];
 
               if ((this.search_term != null) && (this.search_term.length > 0)) {
                   query_strings.push("search="+this.search_term);
@@ -222,7 +221,7 @@ let search_results_vm = new Vue({
               return $(this.tree_element).fancytree("getTree");
             },
             reload: function(base_search_url, tree_mode, search_term, category, sharing_status) {
-                var tree = this.get_tree();
+                const tree = this.get_tree();
 
                 this.base_search_url = base_search_url;
                 this.tree_mode = tree_mode;
@@ -230,7 +229,7 @@ let search_results_vm = new Vue({
                 this.category = category;
                 this.sharing_status = sharing_status;
                 tree.setOption('selectMode', tree_mode=='surface-list' ? 3 : 2);
-                // in tag tree, a selected tag should not select all decendents in the tree
+                // in tag tree, a selected tag should not select all descendants in the tree
                 tree.reload({
                       url: this.search_url,
                       cache: false,
@@ -240,7 +239,7 @@ let search_results_vm = new Vue({
                 page_no = parseInt(page_no);
 
                 if ( (page_no>=1) && (page_no<=this.page_range.length) ) {
-                    const tree = $(this.tree_element).fancytree("getTree");
+                    const tree = this.get_tree();
                     const page_url = this.page_urls[page_no-1];
                     console.log("Loading page "+page_no+" from "+page_url+"..");
                     tree.setOption('source', {
