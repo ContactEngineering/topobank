@@ -54,6 +54,7 @@ from ..usage_stats.utils import increase_statistics_by_date
 from ..users.models import User
 
 MAX_NUM_POINTS_FOR_SYMBOLS_IN_LINE_SCAN_PLOT = 100
+CATEGORY_FILTER_CHOICES = ['all'] + [x[0] for x in Surface.CATEGORY_CHOICES]
 
 _log = logging.getLogger(__name__)
 
@@ -754,7 +755,7 @@ class SelectView(TemplateView):
 
         if search_term:
             search_term = search_term.strip()
-        if category and category not in [ 'all', 'exp', 'sim', 'dum']:  # TODO deduce automatically
+        if category and category not in CATEGORY_FILTER_CHOICES:
             raise PermissionDenied()
         if sharing_status and sharing_status not in [ 'all', 'own', 'shared']:
             raise PermissionDenied
