@@ -12,6 +12,7 @@ from topobank.users.models import User
 
 MAX_LENGTH_DATAFILE_FORMAT = 15  # some more characters than currently needed, we may have sub formats in future
 
+
 def user_directory_path(instance, filename):
     # file will be uploaded to MEDIA_ROOT/user_<id>/<filename>
     return 'topographies/user_{0}/{1}'.format(instance.surface.creator.id, filename)
@@ -24,6 +25,7 @@ class TagModel(tm.TagTreeModel):
         force_lowercase = True
         # not needed yet
         # autocomplete_view = 'manager:autocomplete-tags'
+
 
 class Surface(models.Model):
     """Physical Surface.
