@@ -62,6 +62,7 @@ def get_reader_infos():
 
     return reader_infos
 
+
 def get_topography_reader(filefield, format=None):
     """Returns PyCo.Topography.IO.ReaderBase object.
 
@@ -97,6 +98,7 @@ def surfaces_for_user(user, perms=['view_surface']):
     from topobank.manager.models import Surface
     return get_objects_for_user(user, perms, klass=Surface, accept_global_perms=False)
 
+
 def tags_for_user(user, surfaces=None):
     """Return set of tags which can be used for autocompletion when editing tags.
 
@@ -120,6 +122,7 @@ def tags_for_user(user, surfaces=None):
         tags |= t.get_ancestors()
 
     return tags.distinct()
+
 
 def selection_from_session(session):
     """Get selection from session.
@@ -180,23 +183,6 @@ def instances_to_topographies(topographies, surfaces, tags):
     return topographies.distinct().order_by('id')
 
 
-def selection_to_topographies(selection):
-    """Returns a queryset of topographies, based on given selection.
-
-    The selection can contain topographies, surfaces, and tags.
-    The returned queryset is distinct with no topography is doubled.
-
-    Parameters
-    ----------
-    selection : list
-                List of strings like ['surface-1', 'topography-2', 'tag-3']
-
-    Returns
-    -------
-    Queryset of topographies.
-    """
-    pass
-
 def selection_to_instances(selection):
     """Returns a tuple with querysets of explicitly selected topographies, surfaces, and tags.
 
@@ -233,7 +219,8 @@ def selection_to_instances(selection):
     surfaces = Surface.objects.filter(id__in=surface_ids)
     tags = TagModel.objects.filter(id__in=tag_ids)
 
-    return (topographies, surfaces, tags)
+    return topographies, surfaces, tags
+
 
 def selected_instances(request):
     """Return a tuple with topography, surface, and tag instances which are currently selected.
@@ -265,6 +252,55 @@ def selected_instances(request):
 
     return topographies, surfaces, list(tags)
 
+
+def instances_to_basket_items(topographies, surfaces, tags):
+    """
+
+    Parameters
+    ----------
+    topographies
+    surfaces
+    tags
+
+    Returns
+    -------
+    List of items in the basket. Each is a dict with keys
+
+     name, type, unselect_url, key
+
+    Example with one selected surface:
+
+     [ {'name': "Test Surface",
+        'type': "surface",
+        'unselect_url': ".../manager/surface/13/unselect",
+        'key': "surface-13"}
+     ]
+
+    """
+    basket_items = []
+    for s in surfaces:
+        unselect_url = reverse('manager:surface-unselect', kwargs=dict(pk=s.pk))
+        basket_items.append(dict(name=s.name,
+                                 type="surface",
+                                 unselect_url=unselect_url,
+                                 key=f"surface-{s.pk}"))
+    for topo in topographies:
+        unselect_url = reverse('manager:topography-unselect', kwargs=dict(pk=topo.pk))
+        basket_items.append(dict(name=topo.name,
+                                 type="topography",
+                                 unselect_url=unselect_url,
+                                 key=f"topography-{topo.pk}",
+                                 surface_key=f"surface-{topo.surface.pk}"))
+    for tag in tags:
+        unselect_url = reverse('manager:tag-unselect', kwargs=dict(pk=tag.pk))
+        basket_items.append(dict(name=tag.name,
+                                 type="tag",
+                                 unselect_url=unselect_url,
+                                 key=f"tag-{tag.pk}"))
+
+    return basket_items
+
+
 def current_selection_as_basket_items(request):
     """Returns current selection as JSON suitable for the basket.
 
@@ -288,29 +324,7 @@ def current_selection_as_basket_items(request):
 
     """
     topographies, surfaces, tags = selected_instances(request)
-
-    basket_items = []
-    for s in surfaces:
-        unselect_url = reverse('manager:surface-unselect', kwargs=dict(pk=s.pk))
-        basket_items.append(dict(name=s.name,
-                                 type="surface",
-                                 unselect_url=unselect_url,
-                                 key=f"surface-{s.pk}"))
-    for topo in topographies:
-        unselect_url = reverse('manager:topography-unselect', kwargs=dict(pk=topo.pk))
-        basket_items.append(dict(name=topo.name,
-                                 type="topography",
-                                 unselect_url=unselect_url,
-                                 key=f"topography-{topo.pk}",
-                                 surface_key=f"surface-{topo.surface.pk}"))
-    for tag in tags:
-        unselect_url = reverse('manager:tag-unselect', kwargs=dict(pk=tag.pk))
-        basket_items.append(dict(name=tag.name,
-                                 type="tag",
-                                 unselect_url=unselect_url,
-                                 key=f"tag-{tag.pk}"))
-
-    return basket_items
+    return instances_to_basket_items(topographies, surfaces, tags)
 
 
 def mailto_link_for_reporting_an_error(subject, info, err_msg, traceback) -> str:
@@ -352,9 +366,8 @@ def body_for_mailto_link_for_reporting_an_error(info, err_msg, traceback) -> str
     return body
 
 
-
 def _bandwidths_data_entry(topo):
-    """Return an entry for bandwiths_data
+    """Returns an entry for bandwidths data.
 
     :param topo: topobank.manager.models.Topography instance
     :return: dict
@@ -419,7 +432,6 @@ def _bandwidths_data_entry(topo):
             'link': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
             'error_message': err_message
     }
-
 
 
 def bandwidths_data(topographies):

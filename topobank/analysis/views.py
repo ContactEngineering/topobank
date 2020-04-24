@@ -1076,6 +1076,7 @@ def context_for_extra_tabs_if_single_item_selected(topographies, surfaces):
         }
     return context
 
+
 class AnalysisFunctionDetailView(DetailView):
     model = AnalysisFunction
     template_name = "analysis/analyses_detail.html"
