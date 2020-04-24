@@ -7,7 +7,7 @@ import pytest
 
 from ..tests.utils import two_topos, TopographyFactory, SurfaceFactory, TagModelFactory, UserFactory
 from ..utils import selection_to_instances, instances_to_selection, tags_for_user, \
-    selection_to_topographies, instances_to_topographies, surfaces_for_user
+    instances_to_topographies, surfaces_for_user
 from ..models import Surface, Topography, TagModel
 
 
@@ -17,11 +17,13 @@ def mock_topos(mocker):
     mocker.patch('topobank.manager.models.Surface', autospec=True)
     mocker.patch('topobank.manager.models.TagModel', autospec=True)
 
+
 @pytest.fixture
 def testuser(django_user_model):
     username = 'testuser'
     user, created = django_user_model.objects.get_or_create(username=username)
     return user
+
 
 def test_selection_to_instances(testuser, mock_topos):
 
@@ -70,6 +72,7 @@ def test_instances_to_selection(two_topos):
     s = instances_to_selection(surfaces=[surface1, surface2])
     assert s == [f'surface-{surface1.id}', f'surface-{surface2.id}']
 
+
 @pytest.mark.django_db
 def test_tags_for_user(two_topos):
 
@@ -102,6 +105,7 @@ def test_tags_for_user(two_topos):
     assert set( t.name for t in tags) == {'a long tag with spaces', 'interesting', 'rare', 'rough',
                                           'projects/a', 'projects/b', 'projects/c', 'projects'}
 
+
 @pytest.fixture
 def user_three_topographies_three_surfaces_three_tags():
 
@@ -121,6 +125,7 @@ def user_three_topographies_three_surfaces_three_tags():
     surface3 = SurfaceFactory(creator=user, tags=[tag3])  # empty
 
     return user, (topo1a, topo1b, topo2a), (surface1, surface2, surface3), (tag1, tag2, tag3)
+
 
 @pytest.mark.django_db
 def test_surfaces_for_user(user_three_topographies_three_surfaces_three_tags):
