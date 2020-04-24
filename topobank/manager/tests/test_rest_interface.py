@@ -3,9 +3,9 @@ import pytest
 from django.shortcuts import reverse
 from rest_framework.test import APIRequestFactory
 
-from ..views import select_surface, unselect_surface, SurfaceSearch, SurfaceSearchPaginator,\
+from ..views import select_surface, unselect_surface, SurfaceListView, SurfaceSearchPaginator,\
     select_topography, unselect_topography, \
-    TagListView, select_tag, unselect_tag
+    TagTreeView, select_tag, unselect_tag
 from ..utils import selected_instances
 from .utils import SurfaceFactory, UserFactory, TopographyFactory, TagModelFactory, ordereddicts_to_dicts
 
@@ -296,7 +296,7 @@ def test_surface_search_with_request_factory():
     # Create search response and compare with expectation
     #
     assert SurfaceSearchPaginator.page_size >= 3  # needed in order to get all these test results
-    response = SurfaceSearch.as_view()(request)
+    response = SurfaceListView.as_view()(request)
 
     assert response.status_code == 200
 
@@ -507,7 +507,7 @@ def test_tag_search_with_request_factory():
     #
     # Create tag tree and compare with expectation
     #
-    response = TagListView.as_view()(request)
+    response = TagTreeView.as_view()(request)
 
     assert response.status_code == 200
 

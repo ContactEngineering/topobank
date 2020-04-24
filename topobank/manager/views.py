@@ -1339,9 +1339,9 @@ class SurfaceSearchPaginator(PageNumberPagination):
         return urls
 
 
-class TagListView(ListAPIView):
+class TagTreeView(ListAPIView):
     """
-    List all surfaces
+    Generate tree of tags with surfaces and topographies underneath.
     """
     serializer_class = TagSerializer
     pagination_class = SurfaceSearchPaginator
@@ -1411,16 +1411,13 @@ class TagListView(ListAPIView):
 
 
 
-class SurfaceSearch(ListAPIView):
+class SurfaceListView(ListAPIView):
     """
-    List all surfaces
+    List all surfaces with topographies underneath.
     """
     serializer_class = SurfaceSerializer
-
-    #filter_backends = (filters.SearchFilter,)
     filter_backends = (filters.DjangoFilterBackend,)
     filterset_class = SurfaceFilter
-    # search_fields = ('name', 'description', 'topography__name', 'topography__description')
     pagination_class = SurfaceSearchPaginator
 
     def get_queryset(self):

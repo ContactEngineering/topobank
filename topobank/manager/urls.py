@@ -91,7 +91,7 @@ urlpatterns = [
     ),
     url(
         regex=r'tag/tree/$',
-        view=login_required(views.TagListView.as_view()),
+        view=login_required(views.TagTreeView.as_view()),
         name='tag-list'  # TODO rename
     ),
     url(
@@ -111,7 +111,7 @@ urlpatterns = [
     ),
     url(
         regex=r'surface/search/$',  # TODO check URL, rename?
-        view=login_required(views.SurfaceSearch.as_view()),  # TODO Check view name, rename?
+        view=login_required(views.SurfaceListView.as_view()),  # TODO Check view name, rename?
         name='search'  # TODO rename?
     ),
     url(
