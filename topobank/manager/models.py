@@ -71,7 +71,6 @@ class Surface(models.Model):
             result = with_user.has_perm('change_surface', self)
         return result
 
-
     def share(self, with_user, allow_change=False):
         """Share this surface with a given user.
 
@@ -91,7 +90,6 @@ class Surface(models.Model):
         for topo in self.topography_set.all():
             for af in auto_analysis_funcs:
                 request_analysis(with_user, af, topo)  # standard arguments
-
 
     def unshare(self, with_user):
         """Remove share on this surface for given user.
