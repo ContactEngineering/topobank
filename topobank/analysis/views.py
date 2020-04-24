@@ -1210,9 +1210,6 @@ class AnalysesListView(FormView):
 
         context['cards'] = cards
 
-        basket_items = current_selection_as_basket_items(self.request)
-        context['basket_items_json'] = json.dumps(basket_items)
-
         #
         # Decide whether to open extra tabs for surface/topography details
         #
