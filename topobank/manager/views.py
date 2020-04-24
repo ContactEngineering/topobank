@@ -738,11 +738,10 @@ class TopographyDeleteView(TopographyUpdatePermissionMixin, DeleteView):
 
 
 class SelectView(TemplateView):
-    template_name = "manager/surface_list.html"  # TODO rename to select.html
+    template_name = "manager/select.html"
 
     def dispatch(self, request, *args, **kwargs):
         # count this view event for statistics
-
         metric = Metric.objects.SEARCH_VIEW_COUNT
         increase_statistics_by_date(metric, period=Period.DAY)
         return super().dispatch(request, *args, **kwargs)
