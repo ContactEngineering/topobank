@@ -201,7 +201,8 @@
           return result;
       }
 
-      var base_search_url = "{{ base_search_url_surface_tree | safe }}";
+      const base_search_url = "{{ base_search_url_surface_tree | safe }}";
+      const search_term = "{{ search_term | safe }}"
 
       $('#select-category-filter').change( function(){
         reload_tree();
@@ -212,8 +213,8 @@
       });
 
       $('#tree-selector :input').change( function() {
-        var surface_list_label = $('#surface-list-radio-btn').parent('label');
-        var tag_tree_label = $('#tag-tree-radio-btn').parent('label');
+        const surface_list_label = $('#surface-list-radio-btn').parent('label');
+        const tag_tree_label = $('#tag-tree-radio-btn').parent('label');
 
         switch (this.value) {
           case 'surface list':
