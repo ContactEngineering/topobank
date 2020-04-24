@@ -106,7 +106,8 @@ def tags_for_user(user, surfaces=None):
     which were chosen by herself or collaborators and corresponding parent tags.
 
     :param user: User instance
-    :param surfaces: surfaces for user, if None, will be computed; specify this to reuse previous calculation
+    :param surfaces: surfaces visible for user, if None,
+                     will be computed; specify this to reuse previous calculation
     :return: list of strings
     """
     if surfaces is None:

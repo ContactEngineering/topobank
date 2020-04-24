@@ -1409,8 +1409,6 @@ class TagTreeView(ListAPIView):
         return context
 
 
-
-
 class SurfaceListView(ListAPIView):
     """
     List all surfaces with topographies underneath.

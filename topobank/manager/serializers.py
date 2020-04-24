@@ -206,7 +206,6 @@ class TagSerializer(serializers.ModelSerializer):
         }
         return urls
 
-
     def get_folder(self, obj):
         return True
 
