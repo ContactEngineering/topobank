@@ -760,8 +760,11 @@ class SelectView(TemplateView):
         if sharing_status and sharing_status not in [ 'all', 'own', 'shared']:
             raise PermissionDenied
 
-        context['base_search_url_surface_tree'] = reverse('manager:search')
-        context['base_search_url_tag_tree'] = reverse('manager:tag-list')
+        # key: tree mode
+        context['base_search_urls'] = {
+            'surface list': reverse('manager:search'),
+            'tag tree': reverse('manager:tag-list')
+        }
         context['search_term'] = search_term
 
         # #
@@ -1349,50 +1352,52 @@ class TagTreeView(ListAPIView):
     filterset_class = TagModelFilter
 
     def get_queryset(self):
-        return tags_for_user(self.request.user).filter(parent=None).order_by('label')  # only top level
+        # return tags_for_user(self.request.user).filter(parent=None).order_by('label')  # only top level
+        return tags_for_user(self.request.user).order_by('label')  # only top level
 
-    def list(self, request, *args, **kwargs):
-        response = super().list(request, args, kwargs)
-        # Add extra data to response.data for an empty tag
-        context = self.get_serializer_context()
-        surface_serializer = SurfaceSerializer(context=context)
-        topography_serializer = TopographySerializer(context=context)
-
-        surfaces_without_tags = context['surfaces'].filter(tags=None)
-        topographies_without_tags = context['topographies'].filter(tags=None)
-
-        serialized_surfaces_without_tags = [surface_serializer.to_representation(s)
-                                            for s in surfaces_without_tags]
-
-        serialized_topographies_without_tags = [topography_serializer.to_representation(t)
-                                                for t in topographies_without_tags]
-
-        results = response.data['page_results']
-
-        results.append(dict(
-            type='tag',
-            title='(untagged surfaces)',
-            pk=None,
-            name=None,
-            folder=True,
-            selected=False,
-            checkbox=False,
-            children=serialized_surfaces_without_tags,
-            urls=dict(select=None, unselect=None),
-        ))
-        results.append(dict(
-            type='tag',
-            title='(untagged topographies)',
-            pk=None,
-            name=None,
-            folder=True,
-            selected=False,
-            checkbox=False,
-            children=serialized_topographies_without_tags,
-            urls=dict(select=None, unselect=None),
-        ))
-
-        return response
+    # def list(self, request, *args, **kwargs):
+    #     response = super().list(request, args, kwargs)
+    #     # Add extra data to response.data for an empty tag
+    #     context = self.get_serializer_context()
+    #     surface_serializer = SurfaceSerializer(context=context)
+    #     topography_serializer = TopographySerializer(context=context)
+    #
+    #     surfaces_without_tags = context['surfaces'].filter(tags=None)
+    #     topographies_without_tags = context['topographies'].filter(tags=None)
+    #
+    #     # serialized_surfaces_without_tags = [surface_serializer.to_representation(s)
+    #     #                                     for s in surfaces_without_tags]
+    #     #
+    #     # serialized_topographies_without_tags = [topography_serializer.to_representation(t)
+    #     #                                         for t in topographies_without_tags]
+    #     #
+    #     # results = response.data['page_results']
+    #
+    #     #
+    #     # results.append(dict(
+    #     #     type='tag',
+    #     #     title='(untagged surfaces)',
+    #     #     pk=None,
+    #     #     name=None,
+    #     #     folder=True,
+    #     #     selected=False,
+    #     #     checkbox=False,
+    #     #     children=serialized_surfaces_without_tags,
+    #     #     urls=dict(select=None, unselect=None),
+    #     # ))
+    #     # results.append(dict(
+    #     #     type='tag',
+    #     #     title='(untagged topographies)',
+    #     #     pk=None,
+    #     #     name=None,
+    #     #     folder=True,
+    #     #     selected=False,
+    #     #     checkbox=False,
+    #     #     children=serialized_topographies_without_tags,
+    #     #     urls=dict(select=None, unselect=None),
+    #     # ))
+    #
+    #     return response
 
     def get_serializer_context(self):
         context = super().get_serializer_context()

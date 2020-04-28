@@ -146,6 +146,9 @@
   <script src="https://unpkg.com/jquery.fancytree@2.33.0/dist/modules/jquery.fancytree.table.js"></script>
   <script src="https://unpkg.com/jquery.fancytree@2.33.0/dist/modules/jquery.fancytree.filter.js"></script>
 
+  {{ search_term | json_script:"search-term" }}
+  {{ base_search_urls | json_script:"base-search-urls" }}
+
   <script>
 
       //function get_tree() { // TODO remove
@@ -201,8 +204,8 @@
           return result;
       }
 
-      const base_search_url = "{{ base_search_url_surface_tree | safe }}";
-      const search_term = "{{ search_term | safe }}"
+      const base_search_urls = JSON.parse(document.getElementById('base-search-urls').textContent);
+      const search_term = JSON.parse(document.getElementById('search-term').textContent);
 
       $('#select-category-filter').change( function(){
         reload_tree();
@@ -230,23 +233,11 @@
       });
 
       function reload_tree() {
-        const search_term = "{{ search_term | default_if_none:'' | safe }}";
         const category = $('#select-category-filter option:selected').val();
         const sharing_status = $('#select-sharing-status-filter option:selected').val();
         const tree_mode = $('#tree-selector :checked').val();
-        let base_search_url;
-        console.log(search_term, category, sharing_status, "mode: ", tree_mode);
-        if (tree_mode == "surface list") {
-          base_search_url = "{{ base_search_url_surface_tree | safe }}";
-        } else if (tree_mode == "tag tree") {
-          base_search_url = "{{ base_search_url_tag_tree | safe }}";
-        } else {
-          console.warn(`Unknown tree mode '${tree_mode}' given. Cannot reload tree.`);
-          return
-        }
-        search_results_vm.reload(base_search_url, tree_mode, search_term, category, sharing_status);
+        search_results_vm.reload(tree_mode, search_term, category, sharing_status);
       }
-
 
       $(document).ready( function () {
         // TODO solve by event signal

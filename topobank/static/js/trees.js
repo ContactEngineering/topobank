@@ -14,7 +14,7 @@ let search_results_vm = new Vue({
             num_items_on_current_page: null,
             prev_page_url: null,
             next_page_url: null,
-            base_search_url: base_search_url,
+            base_search_urls: base_search_urls,
             search_term: search_term, // for filtering, comes from outside (search bar is on every page)
             category: null, // for filtering, will be set on page
             sharing_status: null, // will be set on page
@@ -86,7 +86,6 @@ let search_results_vm = new Vue({
                     vm.num_items_on_current_page = data.response.num_items_on_current_page;
                     vm.page_range = data.response.page_range;
                     vm.page_urls = data.response.page_urls;
-                    // vm.base_search_url = data.options.source.url;
                     // assuming the Ajax response contains a list of child nodes:
                     // We replace the result
                     data.result = data.response.page_results;
@@ -196,7 +195,7 @@ let search_results_vm = new Vue({
         },   // mounted()
         computed: {
           search_url: function () {
-              let url = this.base_search_url;
+              let url = this.base_search_urls[this.tree_mode];
               let query_strings = [];
 
               if ((this.search_term != null) && (this.search_term.length > 0)) {
@@ -220,10 +219,9 @@ let search_results_vm = new Vue({
             get_tree: function() {
               return $(this.tree_element).fancytree("getTree");
             },
-            reload: function(base_search_url, tree_mode, search_term, category, sharing_status) {
+            reload: function(tree_mode, search_term, category, sharing_status) {
                 const tree = this.get_tree();
 
-                this.base_search_url = base_search_url;
                 this.tree_mode = tree_mode;
                 this.search_term = search_term;
                 this.category = category;
