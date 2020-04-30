@@ -9,7 +9,19 @@ SHARING_STATUS_CHOICES = [
 ]
 
 
-class SurfaceFilter(filters.FilterSet):
+def get_search_term(request):
+    return request.GET.get('search', default=None)
+
+
+def get_category(request):
+    return request.GET.get('category', default=None)
+
+
+def get_sharing_status(request):
+    return request.GET.get('sharing_status', default=None)
+
+
+class SurfaceFilter(filters.FilterSet):  # TODO needed?
 
     search = filters.CharFilter(label="Search term", method='filter_by_search_term')
     category = filters.ChoiceFilter(choices=Surface.CATEGORY_CHOICES)  # is already sufficient with the defaults
@@ -42,7 +54,7 @@ class SurfaceFilter(filters.FilterSet):
         return queryset
 
 
-class TagModelFilter(filters.FilterSet):
+class TagModelFilter(filters.FilterSet):   # TODO needed?
 
     search = filters.CharFilter(label="Search term", method='filter_by_search_term')
     category = filters.ChoiceFilter(choices=Surface.CATEGORY_CHOICES, method='filter_by_category')
@@ -72,5 +84,3 @@ class TagModelFilter(filters.FilterSet):
         elif value == 'shared':
             queryset = queryset.filter(~Q(creator=self.request.user))
         return queryset
-
-

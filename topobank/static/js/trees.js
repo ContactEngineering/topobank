@@ -1,7 +1,15 @@
-
-
-// See https://vuejs.org/v2/examples/select2.html as example how to wrap 3rd party code into a component
-
+/**
+ * Compoment which represents the search result tree in the select page.
+ * The tree is either in "surface list" mode or "tag tree" mode.
+ *
+ * "surface list" mode: Shows list of surfaces and their topographies underneath
+ * "tag tree" mode: Shows tree of tags (multiple levels) and underneath the surfaces
+ *                  and topographies tagged with the corresponding tags
+ *
+ * @type {Vue}
+ *
+ * See https://vuejs.org/v2/examples/select2.html as example how to wrap 3rd party code into a component
+ */
 let search_results_vm = new Vue({
         delimiters: ['[[', ']]'],
         el: '#search-results',
@@ -33,7 +41,6 @@ let search_results_vm = new Vue({
         },
         mounted: function() {
             const vm = this;
-            // console.log("Search url when mouting: ", this.search_url);
             $(vm.tree_element)
                 // init fancytree
                 .fancytree({
@@ -71,8 +78,7 @@ let search_results_vm = new Vue({
                   focusOnSelect: false,
                   scrollParent: $("#scrollParent"),
                   checkbox: true,
-                  selectMode: 3, // 'multi-hier'
-                  // source: [], // will be replaced later
+                  selectMode: 2, // 'multi'
                   source: {
                     url: this.search_url  // this is a computed property, see below
                   },
@@ -104,6 +110,7 @@ let search_results_vm = new Vue({
                                success: function (data, textStatus, xhr) {
                                    // console.log("Selected: " + node.data.name + " " + node.key);
                                    basket.update(data);
+                                   vm.set_selected_by_key(node.key, true);
                                },
                                error: function (xhr, textStatus, errorThrown) {
                                    console.error("Could not select: " + errorThrown + " " + xhr.status + " " + xhr.responseText);
@@ -119,6 +126,7 @@ let search_results_vm = new Vue({
                                success: function (data, textStatus, xhr) {
                                    // console.log("Unselected: " + node.data.name + " " + node.key);
                                    basket.update(data);
+                                   vm.set_selected_by_key(node.key, false);
                                },
                                error: function (xhr, textStatus, errorThrown) {
                                    console.error("Could not unselect: " + errorThrown + " " + xhr.status + " " + xhr.responseText);
@@ -226,8 +234,6 @@ let search_results_vm = new Vue({
                 this.search_term = search_term;
                 this.category = category;
                 this.sharing_status = sharing_status;
-                tree.setOption('selectMode', tree_mode=='surface-list' ? 3 : 2);
-                // in tag tree, a selected tag should not select all descendants in the tree
                 tree.reload({
                       url: this.search_url,
                       cache: false,
@@ -248,6 +254,16 @@ let search_results_vm = new Vue({
                     console.warn("Cannot load page "+page_no+", because the page number is invalid.")
                 }
             },
+            set_selected_by_key: function(key, selected) {
+                // Set selection on all nodes with given key and
+                // set it to "selected" (bool)
+                const tree = this.get_tree();
+                tree.findAll( function (node) {
+                    return node.key == key;
+                }).forEach( function (node) {
+                    node.setSelected(selected);
+                })
+            }
 
         }
       });  // Vue

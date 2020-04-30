@@ -7,11 +7,12 @@ from guardian.shortcuts import get_perms
 import logging
 
 from .models import Surface, Topography, TagModel
+from .filters import get_search_term, get_category, get_sharing_status
 
 _log = logging.getLogger(__name__)
 
-class TopographySerializer(serializers.HyperlinkedModelSerializer):
 
+class TopographySerializer(serializers.HyperlinkedModelSerializer):
     title = serializers.CharField(source='name')
 
     creator = serializers.HyperlinkedRelatedField(
@@ -24,9 +25,9 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
     selected = serializers.SerializerMethodField()
     key = serializers.SerializerMethodField()
     surface_key = serializers.SerializerMethodField()
-    folder = serializers.SerializerMethodField()
+    folder = serializers.BooleanField(default=False)
     tags = serializers.SerializerMethodField()
-    type = serializers.SerializerMethodField()
+    type = serializers.CharField(default='topography')
 
     def get_urls(self, obj):
         """Return only those urls which are usable for the usser
@@ -60,7 +61,7 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
 
     def get_selected(self, obj):
         topographies, surfaces, tags = self.context['selected_instances']
-        return (obj in topographies) or (obj.surface in surfaces)
+        return obj in topographies
 
     def get_key(self, obj):
         return f"topography-{obj.pk}"
@@ -68,28 +69,20 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
     def get_surface_key(self, obj):
         return f"surface-{obj.surface.pk}"
 
-    def get_folder(self, obj):
-        return False
-
     def get_tags(self, obj):  # TODO prove if own method needed
         return [t.name for t in obj.tags.all()]
-
-    def get_type(self, obj):
-        return "topography"
 
     class Meta:
         model = Topography
         fields = ['pk', 'type', 'name', 'creator', 'description', 'tags',
-                  'urls', 'selected',
-                  'key', 'surface_key', 'title', 'folder']
+                  'urls', 'selected', 'key', 'surface_key', 'title', 'folder']
 
 
 class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
-
     title = serializers.CharField(source='name')
     # children = TopographySerializer(source='filtered_topographies', many=True, read_only=True)
-    children = TopographySerializer(source='topography_set', many=True, read_only=True)
-    # children = serializers.SerializerMethodField()
+    # children = TopographySerializer(source='topography_set', many=True, read_only=True)
+    children = serializers.SerializerMethodField()
 
     creator = serializers.HyperlinkedRelatedField(
         read_only=True,
@@ -100,29 +93,38 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
     urls = serializers.SerializerMethodField()
     selected = serializers.SerializerMethodField()
     key = serializers.SerializerMethodField()
-    folder = serializers.SerializerMethodField()
+    folder = serializers.BooleanField(default=True)
     sharing_status = serializers.SerializerMethodField()
     tags = serializers.SerializerMethodField()
-    type = serializers.SerializerMethodField()
+    type = serializers.CharField(default='surface')
 
-    # def get_children(self, obj):
-    #     #
-    #     # We only want topographies as children which match the given search term,
-    #     # if no search term is given, all topographies should match
-    #     #
-    #     request = self.context['request']
-    #     search_term = request.GET.get('search', default='')  # TODO check default
-    #     filtered_topographies = obj.topography_set.filter(Q(name__icontains=search_term) | Q(description__icontains=search_term))
-    #
-    #     return TopographySerializer(filtered_topographies, many=True).data
+    def get_children(self, obj):
+        #
+        # We only want topographies as children which match the given search term,
+        # if no search term is given, all topographies should be included, same, if the surface
+        # itself matches
+        #
+        request = self.context['request']
+        search_term = get_search_term(request)
+        topographies = obj.topography_set.all()
 
+        obj_match = (search_term is None) or (obj.name.lower() == search_term.lower()) or \
+                    (obj.description.lower() == search_term.lower()) or \
+                    (obj.tags.filter(name__icontains=search_term).count() > 0)
+
+        # only filter topographies by search term if surface does not match search term
+        if search_term and not obj_match:
+            topographies = topographies.filter(Q(name__icontains=search_term) |
+                                               Q(description__icontains=search_term) |
+                                               Q(tags__name__icontains=search_term)).distinct()
+        return TopographySerializer(topographies, many=True, context=self.context).data
 
     def get_urls(self, obj):
 
         user = self.context['request'].user
         perms = get_perms(user, obj)
 
-        urls =  {
+        urls = {
             'select': reverse('manager:surface-select', kwargs=dict(pk=obj.pk)),
             'unselect': reverse('manager:surface-unselect', kwargs=dict(pk=obj.pk))
         }
@@ -151,7 +153,7 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
         return urls
 
     def get_selected(self, obj):
-        topographies, surfaces, tags  = self.context['selected_instances']
+        topographies, surfaces, tags = self.context['selected_instances']
         return obj in surfaces
 
     def get_key(self, obj):
@@ -164,14 +166,8 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
         else:
             return "shared"
 
-    def get_folder(self, obj):
-        return True
-
-    def get_tags(self, obj): # TODO prove if own method needed
-        return [ t.name for t in obj.tags.all()]
-
-    def get_type(self, obj):
-        return "surface"
+    def get_tags(self, obj):  # TODO prove if own method needed
+        return [t.name for t in obj.tags.all()]
 
     class Meta:
         model = Surface
@@ -180,15 +176,14 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class TagSerializer(serializers.ModelSerializer):
-
     urls = serializers.SerializerMethodField()
     title = serializers.CharField(source='label')
     children = serializers.SerializerMethodField()
-    folder = serializers.SerializerMethodField()
-    type = serializers.SerializerMethodField()
+    folder = serializers.BooleanField(default=True)
+    type = serializers.CharField(default='tag')
     key = serializers.SerializerMethodField()
     selected = serializers.SerializerMethodField()
-    #checkbox = serializers.SerializerMethodField()
+    type = serializers.CharField(default='tag')
 
     class Meta:
         model = TagModel
@@ -206,12 +201,6 @@ class TagSerializer(serializers.ModelSerializer):
         }
         return urls
 
-    def get_folder(self, obj):
-        return True
-
-    def get_type(self, obj):
-        return "tag"
-
     def get_key(self, obj):
         return f"tag-{obj.pk}"
 
@@ -223,19 +212,43 @@ class TagSerializer(serializers.ModelSerializer):
 
         result = []
 
-        surfaces = self.context['surfaces'].filter(tags__name=obj.name)
-        topographies = self.context['topographies'].filter(tags__name=obj.name)
+        surfaces = self.context['surfaces'].filter(tags__pk=obj.pk)
+        topographies = self.context['topographies'].filter(tags__pk=obj.pk)
+        tags = [x for x in obj.children.all() if x in self.context['tags_for_user']]
 
-        for t in topographies:
-            result.append(self._topography_serializer.to_representation(t))
+        #
+        # Get filter criteria
+        #
+        request = self.context['request']
+        search_term = get_search_term(request)
+        category = get_category(request)
+        sharing_status = get_sharing_status(request)
 
-        for s in surfaces:
-            result.append(self._surface_serializer.to_representation(s))
+        #
+        # Filter children
+        #
+        if search_term:
+            topographies = topographies.filter(Q(name__icontains=search_term)
+                                               | Q(description__icontains=search_term)
+                                               | Q(tags__name__icontains=search_term)).distinct()
+            surfaces = surfaces.filter(Q(name__icontains=search_term) |
+                                       Q(description__icontains=search_term) |
+                                       Q(tags__name__icontains=search_term) |
+                                       Q(topography__name__icontains=search_term) |
+                                       Q(topography__description__icontains=search_term) |
+                                       Q(topography__tags__name__icontains=search_term)).distinct()
+        if category:
+            surfaces = surfaces.filter(category=category)
+        if sharing_status == 'own':
+            surfaces = surfaces.filter(creator=request.user)
+        elif sharing_status == 'shared':
+            surfaces = surfaces.filter(~Q(creator=request.user))
 
-        if obj.pk is not None:
-            # find all tags which are direct children of current tag and available for this user
-            result.extend(self.to_representation(x) for x in obj.children.all() if x in self.context['tags_for_user'])
+        #
+        # Serialize children and append to this tag
+        #
+        result.extend(TopographySerializer(topographies, many=True, context=self.context).data)
+        result.extend(SurfaceSerializer(surfaces, many=True, context=self.context).data)
+        result.extend(TagSerializer(tags, many=True, context=self.context).data)
 
         return result
-
-

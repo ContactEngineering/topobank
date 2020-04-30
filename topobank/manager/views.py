@@ -48,7 +48,7 @@ from .utils import selected_instances, bandwidths_data, surfaces_for_user, \
     get_topography_reader, tags_for_user, get_reader_infos
 from .serializers import SurfaceSerializer, TopographySerializer, TagSerializer
 from .utils import mailto_link_for_reporting_an_error, current_selection_as_basket_items
-from .filters import SurfaceFilter, TagModelFilter
+from .filters import SurfaceFilter, TagModelFilter, get_search_term, get_sharing_status, get_category
 
 from ..usage_stats.utils import increase_statistics_by_date
 from ..users.models import User
@@ -1348,56 +1348,18 @@ class TagTreeView(ListAPIView):
     """
     serializer_class = TagSerializer
     pagination_class = SurfaceSearchPaginator
-    filter_backends = (filters.DjangoFilterBackend,)
-    filterset_class = TagModelFilter
 
     def get_queryset(self):
-        # return tags_for_user(self.request.user).filter(parent=None).order_by('label')  # only top level
-        return tags_for_user(self.request.user).order_by('label')  # only top level
+        qs = tags_for_user(self.request.user).filter(parent=None)
+        # only top level are collected, the children are added in the serializer
 
-    # def list(self, request, *args, **kwargs):
-    #     response = super().list(request, args, kwargs)
-    #     # Add extra data to response.data for an empty tag
-    #     context = self.get_serializer_context()
-    #     surface_serializer = SurfaceSerializer(context=context)
-    #     topography_serializer = TopographySerializer(context=context)
-    #
-    #     surfaces_without_tags = context['surfaces'].filter(tags=None)
-    #     topographies_without_tags = context['topographies'].filter(tags=None)
-    #
-    #     # serialized_surfaces_without_tags = [surface_serializer.to_representation(s)
-    #     #                                     for s in surfaces_without_tags]
-    #     #
-    #     # serialized_topographies_without_tags = [topography_serializer.to_representation(t)
-    #     #                                         for t in topographies_without_tags]
-    #     #
-    #     # results = response.data['page_results']
-    #
-    #     #
-    #     # results.append(dict(
-    #     #     type='tag',
-    #     #     title='(untagged surfaces)',
-    #     #     pk=None,
-    #     #     name=None,
-    #     #     folder=True,
-    #     #     selected=False,
-    #     #     checkbox=False,
-    #     #     children=serialized_surfaces_without_tags,
-    #     #     urls=dict(select=None, unselect=None),
-    #     # ))
-    #     # results.append(dict(
-    #     #     type='tag',
-    #     #     title='(untagged topographies)',
-    #     #     pk=None,
-    #     #     name=None,
-    #     #     folder=True,
-    #     #     selected=False,
-    #     #     checkbox=False,
-    #     #     children=serialized_topographies_without_tags,
-    #     #     urls=dict(select=None, unselect=None),
-    #     # ))
-    #
-    #     return response
+        #
+        # Filter by search term
+        #
+        search_term = get_search_term(self.request)
+        if search_term:
+            qs = qs.filter(name__icontains=search_term)
+        return qs.order_by('label')
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -1411,6 +1373,7 @@ class TagTreeView(ListAPIView):
         #
         context['surfaces'] = surfaces
         context['topographies'] = Topography.objects.filter(surface__in=surfaces)
+
         return context
 
 
@@ -1419,21 +1382,55 @@ class SurfaceListView(ListAPIView):
     List all surfaces with topographies underneath.
     """
     serializer_class = SurfaceSerializer
-    filter_backends = (filters.DjangoFilterBackend,)
-    filterset_class = SurfaceFilter
     pagination_class = SurfaceSearchPaginator
 
     def get_queryset(self):
         # from django.db.models import Prefetch
+
+        # start with all surfaces which are visible for the user
+        qs = surfaces_for_user(self.request.user)
+
         #
-        # search_term = self.request.GET.get('search', default='')
+        # Filter by category and sharing status
         #
-        # return surfaces_for_user(self.request.user).prefetch_related(
-        #     Prefetch('topography_set', queryset=Topography.objects.filter(Q(name__icontains=search_term) | Q(description__icontains=search_term)),
-        #              to_attr='filtered_topographies')
+        category = get_category(self.request)
+        if category:
+            qs = qs.filter(category=category)
+
+        sharing_status = get_sharing_status(self.request)
+        if sharing_status == 'own':
+            qs = qs.filter(creator=self.request.user)
+        elif sharing_status == 'shared':
+            qs = qs.filter(creator=~Q(self.request.user))
+
+        #
+        # Filter by search term
+        #
+        search_term = get_search_term(self.request)
+        if search_term:
+            #
+            # find all topographies which should be at top level
+            #
+            qs = qs.filter(Q(name__icontains=search_term) |
+                           Q(description__icontains=search_term) |
+                           Q(tags__name__icontains=search_term) |
+                           Q(topography__name__icontains=search_term) |
+                           Q(topography__description__icontains=search_term) |
+                           Q(topography__tags__name__icontains=search_term))
+
+            #
+            # decide, which topographies should be shown underneath
+            #
+        #     topo_qs = Topography.objects.filter(Q(name__icontains=search_term) | Q(description__icontains=search_term))
+        # else:
+        #     topo_qs = Topography.objects.all()
+        # qs = qs.prefetch_related(
+        #     Prefetch('topography_set', queryset=topo_qs, to_attr='filtered_topographies')
         # )
 
-        return surfaces_for_user(self.request.user)
+        return qs.distinct()
+
+        # return surfaces_for_user(self.request.user)
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -1473,7 +1470,7 @@ def set_surface_select_status(request, pk, select_status):
         surface = Surface.objects.get(pk=pk)
         user = request.user
         assert user.has_perm('view_surface', surface)
-    except:
+    except (ValueError, Surface.DoesNotExist, AssertionError):
         raise PermissionDenied()  # This should be shown independent of whether the surface exists
 
     surface_key = _surface_key(pk)
@@ -1481,12 +1478,6 @@ def set_surface_select_status(request, pk, select_status):
     is_selected = surface_key in selection
 
     if request.method == 'POST':
-        # remove all explicitly selected topographies from this surface
-        for t in surface.topography_set.all():
-            topo_key = _topography_key(t.pk)
-            if topo_key in selection:
-                selection.remove(topo_key)
-
         if select_status:
             # surface should be selected
             selection.add(surface_key)
@@ -1540,46 +1531,18 @@ def set_topography_select_status(request, pk, select_status):
         topo = Topography.objects.get(pk=pk)
         user = request.user
         assert user.has_perm('view_surface', topo.surface)
-    except:
+    except (ValueError, Topography.DoesNotExist, AssertionError):
         raise PermissionDenied()  # This should be shown independent of whether the surface exists
 
     topography_key = _topography_key(pk)
-    surface_key = _surface_key(topo.surface.pk)
     selection = _selection_set(request)
     is_selected = topography_key in selection
-    is_surface_selected = surface_key in selection
 
     if request.method == 'POST':
-
         if select_status:
             # topography should be selected
-
-            if is_surface_selected:
-                pass  # is already selected implicitly
-            else:
-                # check if all other topographies are selected - if yes,
-                # remove those and add surface as selection
-                other_topo_keys_in_surface = [_topography_key(t.pk) for t in topo.surface.topography_set.all()
-                                              if t != topo]
-
-                if all(k in selection for k in other_topo_keys_in_surface):
-                    for k in other_topo_keys_in_surface:
-                        selection.remove(k)
-                    selection.add(_surface_key(topo.surface.pk))
-                else:
-                    selection.add(topography_key)
-        else:
-            # topography should be unselected
-
-            # if surface is selected, remove this selection but add all other topographies instead
-            if is_surface_selected:
-                selection.remove(surface_key)
-                for t in topo.surface.topography_set.all():
-                    if t != topo:
-                        selection.add(_topography_key(t.pk))
-
-            # if topography is explicitly selected, remove it
-            if is_selected:
+            selection.add(topography_key)
+        elif is_selected:
                 selection.remove(topography_key)
 
         request.session['selection'] = list(selection)

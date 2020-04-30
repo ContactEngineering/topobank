@@ -71,7 +71,6 @@ def test_select_surface():
     assert selected_instances(request)[0] == [topo3a]
     assert selected_instances(request)[1] == [surface1, surface2]
 
-
     request = factory.post(reverse('manager:surface-select', kwargs=dict(pk=surface3.pk)))
     request.user = user
     request.session = session
@@ -80,12 +79,11 @@ def test_select_surface():
 
     assert response.status_code == 200
 
+    # the selection for the single topography should still be present
     assert sorted(request.session['selection']) == [f'surface-{surface1.pk}', f'surface-{surface2.pk}',
-                                                    f'surface-{surface3.pk}']
+                                                    f'surface-{surface3.pk}', f'topography-{topo3a.pk}']
 
-    # only explicity selected topographies are returned and
-    # selecting of a surface should deselect the explicit selection of topographies
-    assert selected_instances(request)[0] == []
+    assert selected_instances(request)[0] == [topo3a]
     assert selected_instances(request)[1] == [surface1, surface2, surface3]
 
 
@@ -229,7 +227,7 @@ def test_select_topography():
     assert selected_instances(request)[0] == [topo1a, topo1b]
 
     #
-    # When selecting all topographies of a surface, the surface should be selected
+    # When selecting all topographies of a surface, the surface should not be selected
     #
     request = factory.post(reverse('manager:topography-select', kwargs=dict(pk=topo1c.pk)))
     request.user = user
@@ -239,24 +237,12 @@ def test_select_topography():
 
     assert response.status_code == 200
 
-    assert sorted(request.session['selection']) == [f'surface-{surface1.pk}']
+    assert sorted(request.session['selection']) == [f'topography-{topo1a.pk}', f'topography-{topo1b.pk}',
+                                                    f'topography-{topo1c.pk}']
 
-    assert selected_instances(request)[1] == [surface1]
+    assert selected_instances(request)[0] == [topo1a, topo1b, topo1c]
 
-    #
-    # When surface is already selected, a new selection of a topography of this surface has no effect
-    #
-    request = factory.post(reverse('manager:topography-select', kwargs=dict(pk=topo1c.pk)))
-    request.user = user
-    request.session = session
-
-    response = select_topography(request, topo1c.pk)
-
-    assert response.status_code == 200
-
-    assert sorted(request.session['selection']) == [f'surface-{surface1.pk}']
-
-    assert selected_instances(request)[1] == [surface1]
+    assert selected_instances(request)[1] == []  # we only want explicitly selected objects now
 
     #
     # When selecting some arbitrary topography, a permission denied should show up
@@ -279,7 +265,7 @@ def test_unselect_topography():
     surface2 = SurfaceFactory(creator=user)
 
     factory = APIRequestFactory()
-    session = dict(selection=[f'surface-{surface1.pk}', f'surface-{surface2.pk}'])
+    session = dict(selection=[f'surface-{surface1.pk}', f'surface-{surface2.pk}', f'topography-{topo1b.pk}'])
 
     #
     # deselect a topography
@@ -292,14 +278,15 @@ def test_unselect_topography():
 
     assert response.status_code == 200
 
-    # from surface 1, only topo1b should be left
-    assert sorted(request.session['selection']) == sorted([f'topography-{topo1b.pk}', f'surface-{surface2.pk}'])
+    # This has no effect, since the topography was not explicitly selected
+    assert sorted(request.session['selection']) == sorted([f'surface-{surface1.pk}', f'surface-{surface2.pk}',
+                                                           f'topography-{topo1b.pk}'])
 
     assert selected_instances(request)[0] == [topo1b]
-    assert selected_instances(request)[1] == [surface2]
+    assert selected_instances(request)[1] == [surface1, surface2]
 
     #
-    # Now also remove topo1b
+    # Now remove topo1b
     #
     request = factory.post(reverse('manager:topography-unselect', kwargs=dict(pk=topo1b.pk)))
     request.user = user
@@ -308,9 +295,9 @@ def test_unselect_topography():
     response = unselect_topography(request, topo1b.pk)
 
     assert response.status_code == 200
-    assert request.session['selection'] == [f'surface-{surface2.pk}']
+    assert sorted(request.session['selection']) == [f'surface-{surface1.pk}', f'surface-{surface2.pk}']
     assert selected_instances(request)[0] == []
-    assert selected_instances(request)[1] == [surface2]
+    assert selected_instances(request)[1] == [surface1, surface2]
 
 
 @pytest.mark.django_db
@@ -445,7 +432,7 @@ def test_surface_search_with_request_factory():
                  'surface_key': f'surface-{surface2.pk}',
                  'name': topo2a.name,
                  'pk': topo2a.pk,
-                 'selected': True,
+                 'selected': False,  # not explicitly selected
                  'tags': ['bike', 'train/ice'],
                  'title': topo2a.name,
                  'type': 'topography',
@@ -462,7 +449,7 @@ def test_surface_search_with_request_factory():
                  'surface_key': f'surface-{surface2.pk}',
                  'name': topo2b.name,
                  'pk': topo2b.pk,
-                 'selected': True,
+                 'selected': False,  # not explicitly selected
                  'tags': [],
                  'title': topo2b.name,
                  'type': 'topography',
@@ -529,14 +516,14 @@ def test_tag_search_with_request_factory():
     # Create some database objects
     #
     user = UserFactory()
-    surface1 = SurfaceFactory(creator=user)
-    surface2 = SurfaceFactory(creator=user)
-    surface3 = SurfaceFactory(creator=user)
+    surface1 = SurfaceFactory(name="surface1", creator=user)
+    surface2 = SurfaceFactory(name="surface2", creator=user)
+    surface3 = SurfaceFactory(name="surface3", creator=user)
 
-    topo1a = TopographyFactory(surface=surface1)
-    topo1b = TopographyFactory(surface=surface1)
-    topo2a = TopographyFactory(surface=surface2)
-    topo2b = TopographyFactory(surface=surface2)
+    topo1a = TopographyFactory(name="topo1a", surface=surface1)
+    topo1b = TopographyFactory(name="topo1b", surface=surface1)
+    topo2a = TopographyFactory(name="topo2a", surface=surface2)
+    topo2b = TopographyFactory(name="topo2b", surface=surface2)
     # no topography for surface3 on purpose
 
     #
@@ -632,7 +619,7 @@ def test_tag_search_with_request_factory():
         'surface_key': f'surface-{surface2.pk}',
         'name': topo2a.name,
         'pk': topo2a.pk,
-        'selected': True,
+        'selected': False,  # not explicitly selected
         'tags': ['bike', 'train/ice'],
         'title': topo2a.name,
         'type': 'topography',
@@ -652,7 +639,7 @@ def test_tag_search_with_request_factory():
         'surface_key': f'surface-{surface2.pk}',
         'name': topo2b.name,
         'pk': topo2b.pk,
-        'selected': True,
+        'selected': False,  # not explicitly selected
         'tags': ['train/ice/restaurant'],
         'title': topo2b.name,
         'type': 'topography',
@@ -688,54 +675,6 @@ def test_tag_search_with_request_factory():
                  'unselect': surface1_prefix + 'unselect/',
                  'update': surface1_prefix + 'update/'}
     }
-    expected_dict_surface2 = {
-        'category': None,
-        'children': [expected_dict_topo2a, expected_dict_topo2b],
-        'creator': user_url,
-        'description': '',
-        'folder': True,
-        'key': f'surface-{surface2.pk}',
-        'name': surface2.name,
-        'pk': surface2.pk,
-        'selected': True,
-        'sharing_status': 'own',
-        'tags': [],
-        'title': surface2.name,
-        'type': 'surface',
-        'urls': {'add_topography': surface2_prefix + 'new-topography/',
-                 'delete': surface2_prefix + 'delete/',
-                 'detail': surface2_prefix,
-                 'download': surface2_prefix + 'download/',
-                 'select': surface2_prefix + 'select/',
-                 'share': surface2_prefix + 'share/',
-                 'analyze': surface2_analyze,
-                 'unselect': surface2_prefix + 'unselect/',
-                 'update': surface2_prefix + 'update/'}
-    }
-    expected_dict_surface3 = {
-        'category': None,
-        'children': [],
-        'creator': user_url,
-        'description': '',
-        'folder': True,
-        'key': f'surface-{surface3.pk}',
-        'name': surface3.name,
-        'pk': surface3.pk,
-        'selected': True,
-        'sharing_status': 'own',
-        'tags': [],
-        'title': surface3.name,
-        'type': 'surface',
-        'urls': {'add_topography': surface3_prefix + 'new-topography/',
-                 'delete': surface3_prefix + 'delete/',
-                 'detail': surface3_prefix,
-                 # 'download': surface3_prefix + 'download/', # this should be missing, because no topographies yet
-                 'select': surface3_prefix + 'select/',
-                 'share': surface3_prefix + 'share/',
-                 # 'analyze': surface3_analyze, # this should be missing
-                 'unselect': surface3_prefix + 'unselect/',
-                 'update': surface3_prefix + 'update/'}
-    }
 
     bike_pk = TagModel.objects.get(name='bike').pk
     train_pk = TagModel.objects.get(name='train').pk
@@ -750,42 +689,6 @@ def test_tag_search_with_request_factory():
     train_ice_restaurant_prefix = f"/manager/tag/{train_ice_restaurant_pk}/"
 
     expected_dicts = [
-        {
-            'title': '(untagged surfaces)',
-            'type': 'tag',
-            'pk': None,
-            'checkbox': False,
-            'folder': True,
-            'name': None,
-            'selected': False,
-            'children': [
-                # surface3, surface2
-                expected_dict_surface2,
-                expected_dict_surface3
-            ],
-            'urls': {
-                'select': None,
-                'unselect': None,
-            }
-        },
-        {
-            'title': '(untagged topographies)',
-            'type': 'tag',
-            'pk': None,
-            'checkbox': False,
-            'folder': True,
-            'name': None,
-            'selected': False,
-            'children': [
-                # topo1a, topo1b
-                expected_dict_topo1a,
-                expected_dict_topo1b
-            ],
-            'urls': {
-                'select': None,
-                'unselect': None,
-            }
-        },
         {
             'title': 'bike',
             'type': 'tag',
@@ -874,11 +777,7 @@ def test_tag_search_with_request_factory():
     ]
 
     resulted_dicts = ordereddicts_to_dicts(response.data['page_results'], sorted_by='title')
-
-    for rd, ed in zip(resulted_dicts, expected_dicts):
-        assert rd == ed
-
-    # assert ordereddicts_to_dicts(response.data, sorted_by='title') == expected_dicts
+    assert resulted_dicts == expected_dicts
 
 
 #

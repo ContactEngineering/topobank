@@ -36,17 +36,6 @@
       <form>
         <div class="form-row">
 
-          <!--
-          <div class="form-group col-md-4">
-            <div class="input-group">
-              <input id="searchbar" type="text" class="form-control" aria-label="Search"
-                     placeholder="Filter by name, description, and tags..." autocomplete="off">
-              <div class="input-group-append">
-                <button class="btn btn-outline-secondary form-control" id="button_reset_filter" type="button">&times;</button>
-              </div>
-            </div>
-          </div>
-          -->
           {% if search_term %}
           <div class="form-group col-md-4">
             <a class="btn btn-warning form-control" href="{% url 'manager:select' %}">Clear filter for <em>{{ search_term }}</em></a>
@@ -58,7 +47,6 @@
             </button>
           </div>
           {% endif %}
-
 
           <div class="form-group col-md-2">
             <select class="form-control" id="select-category-filter">
@@ -150,25 +138,8 @@
   {{ base_search_urls | json_script:"base-search-urls" }}
 
   <script>
-
-      //function get_tree() { // TODO remove
-      //    return $("#result-tree").fancytree("getTree");
-      //}
-
-      function get_surface_tree() {
-          return $("#surface-tree").fancytree("getTree");
-      }
-
-      function get_tag_tree() {
-          return $("#tag-tree").fancytree("getTree");
-      }
-
-
       function item_button_link_attributes(urls, urlname) {
-          var attr = "";
-
-          // console.log(urls, urlname);
-
+          let attr = "";
           if (urls.hasOwnProperty(urlname)) {
               attr = `href="${urls[urlname]}"`;
           } else {
@@ -178,14 +149,11 @@
       }
 
       function item_buttons(urls) {
-          // node: tree node for which this function is called
           // urls: object with url names as keys and urls as values
           //
           // Use this function to compile buttons for surfaces and topographies in the result table
-          //
-          // return HTML
-          var result = "";
-
+          // Returns buttons as HTML.
+          let result = "";
           if (urls.hasOwnProperty('detail')) {
               result += `
                 <a href="${urls['detail']}" class="btn btn-default" type="button">
@@ -200,7 +168,6 @@
                 </a>
               `
           }
-
           return result;
       }
 
@@ -240,16 +207,11 @@
       }
 
       $(document).ready( function () {
-        // TODO solve by event signal
+        // Make sure, that a selected item, which is deselected in the basket
+        // is also deselected everywhere in the search result tree
         basket.unselect_handler = function unselect_nodes(key) {
-              const tree = get_surface_tree();
-              tree.findAll( function (node) {
-                return node.key == key;
-              }).forEach( function (node) {
-                node.setSelected(false);
-              })
+              search_results_vm.set_selected_by_key(key, false);
         };
-        // reload_tree();
       });
 
       // we don't want error messages if the page is left before everything is loaded
@@ -257,6 +219,5 @@
   </script>
 
   <script src="{% static 'js/trees.js' %}"></script>
-
 
 {% endblock javascript %}
