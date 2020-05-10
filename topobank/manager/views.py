@@ -1401,7 +1401,7 @@ class SurfaceListView(ListAPIView):
         if sharing_status == 'own':
             qs = qs.filter(creator=self.request.user)
         elif sharing_status == 'shared':
-            qs = qs.filter(creator=~Q(self.request.user))
+            qs = qs.filter(~Q(creator=self.request.user))
 
         #
         # Filter by search term
