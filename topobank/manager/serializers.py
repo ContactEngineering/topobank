@@ -30,7 +30,7 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
     type = serializers.CharField(default='topography')
 
     def get_urls(self, obj):
-        """Return only those urls which are usable for the usser
+        """Return only those urls which are usable for the user
 
         :param obj: topography object
         :return: dict with { url_name: url }
@@ -38,7 +38,7 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
         user = self.context['request'].user
         surface = obj.surface
 
-        perms = get_perms(user, surface)
+        perms = get_perms(user, surface)  # TODO are permissions needed here?
 
         urls = {
             'select': reverse('manager:topography-select', kwargs=dict(pk=obj.pk)),
@@ -106,10 +106,11 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
         #
         request = self.context['request']
         search_term = get_search_term(request)
+        search_term_lower = search_term.lower() if search_term else None
         topographies = obj.topography_set.all()
 
-        obj_match = (search_term is None) or (obj.name.lower() == search_term.lower()) or \
-                    (obj.description.lower() == search_term.lower()) or \
+        obj_match = (search_term is None) or (search_term_lower in obj.name.lower()) or \
+                    (search_term_lower in obj.description.lower()) or \
                     (obj.tags.filter(name__icontains=search_term).count() > 0)
 
         # only filter topographies by search term if surface does not match search term
@@ -122,7 +123,7 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
     def get_urls(self, obj):
 
         user = self.context['request'].user
-        perms = get_perms(user, obj)
+        perms = get_perms(user, obj)  # TODO are permissions needed here?
 
         urls = {
             'select': reverse('manager:surface-select', kwargs=dict(pk=obj.pk)),
