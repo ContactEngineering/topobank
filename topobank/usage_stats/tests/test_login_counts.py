@@ -10,7 +10,7 @@ from topobank.users.signals import track_user_login
 @pytest.mark.django_db
 def test_login_statistics(client):
 
-    today = datetime.datetime.today()
+    today = datetime.date.today()
 
     user1 = UserFactory()
     user2 = UserFactory()
