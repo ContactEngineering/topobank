@@ -1089,6 +1089,10 @@ class AnalysisFunctionDetailView(DetailView):
         topographies, surfaces, tags = selected_instances(self.request)
         effective_topographies = instances_to_topographies(topographies, surfaces, tags)
 
+        # Do we have permission for all of these?
+        user = self.request.user
+        effective_topographies = [t for t in effective_topographies if user.has_perm('view_surface', t.surface)]
+
         card = dict(function=function,
                     topography_ids_json=json.dumps([t.id for t in effective_topographies]))
 
@@ -1201,6 +1205,10 @@ class AnalysesListView(FormView):
         selected_functions = self._selected_functions(self.request)
         topographies, surfaces, tags = selected_instances(self.request)
         effective_topographies = instances_to_topographies(topographies, surfaces, tags)
+
+        # Do we have permission for all of these?
+        user = self.request.user
+        effective_topographies = [t for t in effective_topographies if user.has_perm('view_surface', t.surface)]
 
         # for displaying result card, we need a dict for each card,
         # which then can be used to load the result data in the background
