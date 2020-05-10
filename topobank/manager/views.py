@@ -1333,7 +1333,6 @@ class SurfaceSearchPaginator(PageNumberPagination):
         base_url = self.request.build_absolute_uri()
         urls = []
         for page_no in self.page.paginator.page_range:
-            url = base_url
             if page_no == 1:
                 url = remove_query_param(base_url, self.page_query_param)
             else:
@@ -1385,10 +1384,10 @@ class SurfaceListView(ListAPIView):
     pagination_class = SurfaceSearchPaginator
 
     def get_queryset(self):
-        # from django.db.models import Prefetch
 
+        user = self.request.user
         # start with all surfaces which are visible for the user
-        qs = surfaces_for_user(self.request.user)
+        qs = surfaces_for_user(user)
 
         #
         # Filter by category and sharing status
@@ -1399,9 +1398,9 @@ class SurfaceListView(ListAPIView):
 
         sharing_status = get_sharing_status(self.request)
         if sharing_status == 'own':
-            qs = qs.filter(creator=self.request.user)
+            qs = qs.filter(creator=user)
         elif sharing_status == 'shared':
-            qs = qs.filter(~Q(creator=self.request.user))
+            qs = qs.filter(~Q(creator=user))
 
         #
         # Filter by search term
@@ -1416,21 +1415,9 @@ class SurfaceListView(ListAPIView):
                            Q(tags__name__icontains=search_term) |
                            Q(topography__name__icontains=search_term) |
                            Q(topography__description__icontains=search_term) |
-                           Q(topography__tags__name__icontains=search_term))
+                           Q(topography__tags__name__icontains=search_term)).distinct()
 
-            #
-            # decide, which topographies should be shown underneath
-            #
-        #     topo_qs = Topography.objects.filter(Q(name__icontains=search_term) | Q(description__icontains=search_term))
-        # else:
-        #     topo_qs = Topography.objects.all()
-        # qs = qs.prefetch_related(
-        #     Prefetch('topography_set', queryset=topo_qs, to_attr='filtered_topographies')
-        # )
-
-        return qs.distinct()
-
-        # return surfaces_for_user(self.request.user)
+        return qs
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
