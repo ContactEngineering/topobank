@@ -1580,9 +1580,7 @@ def set_tag_select_status(request, pk, select_status):
     except ValueError:
         raise PermissionDenied()
 
-    ok = tag in tags_for_user(request.user)
-
-    if not ok:
+    if not tag in tags_for_user(request.user):
         raise PermissionDenied()
 
     tag_key = _tag_key(pk)
