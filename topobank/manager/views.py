@@ -1580,23 +1580,7 @@ def set_tag_select_status(request, pk, select_status):
     except ValueError:
         raise PermissionDenied()
 
-    # check if there is any object tagged by this user with this tag,
-    # if not, it cannot be selected (Permission denied)
-    related_objs = tag.get_related_objects(flat=True, distinct=True)
-    ok = False
-    for obj in related_objs:
-        try:
-            ok = obj.creator == request.user  # this is possible for surfaces
-        except AttributeError:
-            pass
-
-        try:
-            ok = obj.surface.creator == request.user  # this is possible for topographies
-        except AttributeError:
-            pass
-
-        if ok:
-            break  # we have found one valid case and can continue selecting the tag
+    ok = tag in tags_for_user(request.user)
 
     if not ok:
         raise PermissionDenied()
