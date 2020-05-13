@@ -1,54 +1,48 @@
-import yaml
-import zipfile
+import json
+import logging
+import os.path
 import traceback
+import zipfile
 from io import BytesIO
 
-from django.shortcuts import redirect, render
-from django.views.generic import DetailView, ListView, UpdateView, CreateView, DeleteView, TemplateView
-from django.urls import reverse, reverse_lazy
+import django_tables2 as tables
+import numpy as np
+import yaml
+from bokeh.embed import components
+from bokeh.models import DataRange1d, LinearColorMapper, ColorBar
+from bokeh.plotting import figure
+from django.conf import settings
+from django.contrib.auth.mixins import UserPassesTestMixin
+from django.core.exceptions import PermissionDenied
+from django.core.files import File
 from django.core.files.storage import FileSystemStorage
 from django.core.files.storage import default_storage
-from django.core.files import File
-from django.core.exceptions import PermissionDenied
-from django.conf import settings
-from django.http import HttpResponse, Http404, JsonResponse
-from django.views.generic.edit import FormMixin
-from django.contrib.auth.mixins import UserPassesTestMixin
-from django.utils.decorators import method_decorator
 from django.db.models import Q
-
+from django.http import HttpResponse, Http404
+from django.shortcuts import redirect, render
+from django.urls import reverse, reverse_lazy
+from django.utils.decorators import method_decorator
+from django.views.generic import DetailView, UpdateView, CreateView, DeleteView, TemplateView
+from django.views.generic.edit import FormMixin
+from django_tables2 import RequestConfig
 from formtools.wizard.views import SessionWizardView
 from guardian.decorators import permission_required_or_403
 from guardian.shortcuts import assign_perm, get_users_with_perms, get_objects_for_user
 from notifications.signals import notify
-import django_tables2 as tables
-from django_tables2 import RequestConfig
-from bokeh.plotting import figure
-from bokeh.embed import components
-from bokeh.models import DataRange1d, LinearColorMapper, ColorBar
-
+from rest_framework.decorators import api_view
+from rest_framework.generics import ListAPIView
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.response import Response
+from rest_framework.utils.urls import remove_query_param, replace_query_param
 from trackstats.models import Metric, Period
 
-from rest_framework.generics import ListAPIView
-from rest_framework.response import Response
-from rest_framework.decorators import api_view
-from rest_framework.pagination import PageNumberPagination
-from rest_framework.utils.urls import remove_query_param, replace_query_param
-from django_filters import rest_framework as filters
-
-import numpy as np
-import json
-import os.path
-import logging
-
-from .models import Topography, Surface, TagModel
-from .forms import TopographyForm, SurfaceForm, SurfaceShareForm
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm
+from .forms import TopographyForm, SurfaceForm, SurfaceShareForm
+from .models import Topography, Surface, TagModel
+from .serializers import SurfaceSerializer, TagSerializer
 from .utils import selected_instances, bandwidths_data, surfaces_for_user, \
-    get_topography_reader, tags_for_user, get_reader_infos, get_search_term, get_category, get_sharing_status
-from .serializers import SurfaceSerializer, TopographySerializer, TagSerializer
-from .utils import mailto_link_for_reporting_an_error, current_selection_as_basket_items
-
+    get_topography_reader, tags_for_user, get_reader_infos, get_search_term, get_category, get_sharing_status, \
+    mailto_link_for_reporting_an_error, current_selection_as_basket_items
 from ..usage_stats.utils import increase_statistics_by_date
 from ..users.models import User
 
