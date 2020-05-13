@@ -170,32 +170,6 @@ td.ellipsis {
   }
 }
 
-/**
-  Search result table
- */
-
-#search-box {
-  display: flex;
-  flex-flow: column;
-
-  /** height: 80vh; */
-  /** background: blueviolet; */
-}
-/**
-#search-result > #scrollParent {
-  height: 70vh;
-  flex: 1 1 auto;
-  overflow: auto;
-}
-*/
-/**
-body, html {
-  height: 100%;
-  overflow: auto;
-}
-
-*/
-
 /** Checkboxes in analyses plot */
 .topobank-topography-checkbox div.bk-input-group {
   overflow: hidden;
@@ -219,11 +193,7 @@ body, html {
   border-bottom-left-radius: .5rem;
 }
 
-/** Animate search bar
-
-DOES NOT WORK YET
-
-*/
+/** Animate search bar */
 #global-search {
   width: 20%;
   -webkit-transition: width 0.4s ease-in-out;
@@ -238,27 +208,6 @@ DOES NOT WORK YET
 #global-search-input {
   border-radius: 5px 0px 0px 5px; /* left side should be round */
 }
-
-/** For multiple fixed navbars on top */
-/**
-.body {
-  padding-top: 300px;
-}
-*/
-/**
-.sticky-top {
-  padding-top: 56px;
-}
-
-.fixed-top {
-  margin-top: 56px;
-}
-*/
-/**
-#basket-container {
-  padding-top: 56px;
-}
-*/
 
 /** More visible status node in fancytree while loading .. */
 tr.fancytree-statusnode-loading td {
