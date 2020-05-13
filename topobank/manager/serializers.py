@@ -7,7 +7,7 @@ from guardian.shortcuts import get_perms
 import logging
 
 from .models import Surface, Topography, TagModel
-from .filters import get_search_term, get_category, get_sharing_status
+from .utils import get_search_term, get_category, get_sharing_status
 
 _log = logging.getLogger(__name__)
 

@@ -466,3 +466,15 @@ def bandwidths_data(topographies):
     bandwidths_data.sort(key=lambda entry: weight(entry), reverse=True)
 
     return bandwidths_data
+
+
+def get_search_term(request):
+    return request.GET.get('search', default=None)
+
+
+def get_category(request):
+    return request.GET.get('category', default=None)
+
+
+def get_sharing_status(request):
+    return request.GET.get('sharing_status', default=None)

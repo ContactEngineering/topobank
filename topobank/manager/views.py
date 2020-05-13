@@ -45,10 +45,9 @@ from .models import Topography, Surface, TagModel
 from .forms import TopographyForm, SurfaceForm, SurfaceShareForm
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm
 from .utils import selected_instances, bandwidths_data, surfaces_for_user, \
-    get_topography_reader, tags_for_user, get_reader_infos
+    get_topography_reader, tags_for_user, get_reader_infos, get_search_term, get_category, get_sharing_status
 from .serializers import SurfaceSerializer, TopographySerializer, TagSerializer
 from .utils import mailto_link_for_reporting_an_error, current_selection_as_basket_items
-from .filters import SurfaceFilter, TagModelFilter, get_search_term, get_sharing_status, get_category
 
 from ..usage_stats.utils import increase_statistics_by_date
 from ..users.models import User
