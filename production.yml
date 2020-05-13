@@ -84,6 +84,4 @@ services:
   flower:
     <<: *django
     image: topobank_production_flower
-    ports:
-      - "5555:5555"
     command: /start-flower
