@@ -213,3 +213,8 @@ td.ellipsis {
 tr.fancytree-statusnode-loading td {
   font-size: xx-large;
 }
+
+/** larger font in basket elements */
+.basket-element {
+  font-size: medium;
+}
