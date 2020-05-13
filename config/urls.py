@@ -8,6 +8,7 @@ from django.views import defaults as default_views
 import notifications.urls
 
 from topobank.views import TermsView, HomeView, HelpView, GotoSelectView
+from topobank.users.views import TabbedEmailView
 
 urlpatterns = [
     path("", HomeView.as_view(), name="home"),
@@ -38,6 +39,8 @@ urlpatterns = [
         "users/",
         include("topobank.users.urls", namespace="users"),
     ),
+    url("^accounts/email/$", TabbedEmailView.as_view(),
+        name='account_email'),  # same as allauth.accounts.email.EmailView, but with tab data
     path("accounts/", include("allauth.urls")),
 
     # For interactive select boxes

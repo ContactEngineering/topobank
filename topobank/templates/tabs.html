@@ -49,5 +49,12 @@
         </a>
       </li>
     {% endif %}
+    {% if extra_tab_5_data %}
+      <li class="nav-item">
+        <a class="nav-link extra-tab {% if active_tab == 'extra-tab-5' %}active{% endif %}" href="{{ extra_tab_5_data.href }}">
+          <i class="fa fa-fw {{ extra_tab_5_data.icon}}"></i> {{ extra_tab_5_data.title|truncatechars:50|safe }}
+        </a>
+      </li>
+    {% endif %}
   {% endif %}
 </ul>
