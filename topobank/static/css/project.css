@@ -255,3 +255,8 @@ input[type=search]:focus {
   padding-top: 56px;
 }
 */
+
+/** More visible status node in fancytree while loading .. */
+tr.fancytree-statusnode-loading td {
+  font-size: xx-large;
+}
