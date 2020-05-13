@@ -224,15 +224,19 @@ body, html {
 DOES NOT WORK YET
 
 */
-#global-search-input {
+#global-search {
   width: 20%;
   -webkit-transition: width 0.4s ease-in-out;
   transition: width 0.4s ease-in-out;
 }
 
 /** When the input field gets focus, change width of search bar to 100% */
-#global-search-input:focus-within {
+#global-search:focus-within {
   width: 100%;
+}
+
+#global-search-input {
+  border-radius: 5px 0px 0px 5px; /* left side should be round */
 }
 
 /** For multiple fixed navbars on top */

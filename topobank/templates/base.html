@@ -57,9 +57,9 @@
       {# Search Bar #}
       <div class="col-4">
       <form class="form-inline" action="{% url 'search' %}" method="get">
-        <div class="input-group" id="global-search-input">
+        <div class="input-group" id="global-search">
           <label class="sr-only" for="global-search-input">Search Term</label>
-          <input class="form-control" type="search"
+          <input class="form-control" type="search" id="global-search-input"
                  placeholder="Search names, descriptions, and tags" name="search">
           <div class="input-group-append">
             <button class="btn btn-outline-secondary" type="submit">{% fontawesome_icon 'search' %}</button>
