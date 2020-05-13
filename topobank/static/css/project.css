@@ -223,17 +223,17 @@ body, html {
 
 DOES NOT WORK YET
 
-input[type=search] {
+*/
+#global-search-input {
   width: 20%;
   -webkit-transition: width 0.4s ease-in-out;
   transition: width 0.4s ease-in-out;
 }
 
-When the input field gets focus, change its width to 100%
-input[type=search]:focus {
+/** When the input field gets focus, change width of search bar to 100% */
+#global-search-input:focus-within {
   width: 100%;
 }
-*/
 
 /** For multiple fixed navbars on top */
 /**
