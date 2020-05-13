@@ -41,8 +41,8 @@ from .forms import TopographyForm, SurfaceForm, SurfaceShareForm
 from .models import Topography, Surface, TagModel
 from .serializers import SurfaceSerializer, TagSerializer
 from .utils import selected_instances, bandwidths_data, surfaces_for_user, \
-    get_topography_reader, tags_for_user, get_reader_infos, get_search_term, get_category, get_sharing_status, \
-    mailto_link_for_reporting_an_error, current_selection_as_basket_items
+    get_topography_reader, tags_for_user, get_reader_infos, get_search_term, \
+    mailto_link_for_reporting_an_error, current_selection_as_basket_items, filtered_surfaces_for_user
 from ..usage_stats.utils import increase_statistics_by_date
 from ..users.models import User
 
@@ -1347,7 +1347,6 @@ class TagTreeView(ListAPIView):
 
         #
         # Filter by search term
-        #
         search_term = get_search_term(self.request)
         if search_term:
             qs = qs.filter(name__icontains=search_term)
@@ -1357,7 +1356,9 @@ class TagTreeView(ListAPIView):
         context = super().get_serializer_context()
         context['selected_instances'] = selected_instances(self.request)
         context['request'] = self.request
-        surfaces = surfaces_for_user(self.request.user)
+
+        surfaces = filtered_surfaces_for_user(self.request)
+
         context['tags_for_user'] = tags_for_user(self.request.user, surfaces)
 
         #
@@ -1377,40 +1378,7 @@ class SurfaceListView(ListAPIView):
     pagination_class = SurfaceSearchPaginator
 
     def get_queryset(self):
-
-        user = self.request.user
-        # start with all surfaces which are visible for the user
-        qs = surfaces_for_user(user)
-
-        #
-        # Filter by category and sharing status
-        #
-        category = get_category(self.request)
-        if category:
-            qs = qs.filter(category=category)
-
-        sharing_status = get_sharing_status(self.request)
-        if sharing_status == 'own':
-            qs = qs.filter(creator=user)
-        elif sharing_status == 'shared':
-            qs = qs.filter(~Q(creator=user))
-
-        #
-        # Filter by search term
-        #
-        search_term = get_search_term(self.request)
-        if search_term:
-            #
-            # find all topographies which should be at top level
-            #
-            qs = qs.filter(Q(name__icontains=search_term) |
-                           Q(description__icontains=search_term) |
-                           Q(tags__name__icontains=search_term) |
-                           Q(topography__name__icontains=search_term) |
-                           Q(topography__description__icontains=search_term) |
-                           Q(topography__tags__name__icontains=search_term)).distinct()
-
-        return qs
+        return filtered_surfaces_for_user(self.request)
 
     def get_serializer_context(self):
         context = super().get_serializer_context()

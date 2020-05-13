@@ -1,6 +1,7 @@
 from django.shortcuts import reverse
 from guardian.shortcuts import get_objects_for_user
 from django.conf import settings
+from django.db.models import Q
 import markdown2
 
 from PyCo.Topography import open_topography
@@ -97,6 +98,54 @@ def surfaces_for_user(user, perms=['view_surface']):
     """
     from topobank.manager.models import Surface
     return get_objects_for_user(user, perms, klass=Surface, accept_global_perms=False)
+
+def filtered_surfaces_for_user(request, perms=['view_surface']):
+    """
+
+    Parameters
+    ----------
+    request
+        Request instance
+    perms
+        list of permission codenames, default is ['view_surface']
+
+    Returns
+    -------
+        Filtered queryset of surfaces
+    """
+
+    user = request.user
+    # start with all surfaces which are visible for the user
+    qs = surfaces_for_user(user)
+
+    #
+    # Filter by category and sharing status
+    #
+    category = get_category(request)
+    if category:
+        qs = qs.filter(category=category)
+
+    sharing_status = get_sharing_status(request)
+    if sharing_status == 'own':
+        qs = qs.filter(creator=user)
+    elif sharing_status == 'shared':
+        qs = qs.filter(~Q(creator=user))
+
+    #
+    # Filter by search term
+    #
+    search_term = get_search_term(request)
+    if search_term:
+        #
+        # find all topographies which should be at top level
+        #
+        qs = qs.filter(Q(name__icontains=search_term) |
+                       Q(description__icontains=search_term) |
+                       Q(tags__name__icontains=search_term) |
+                       Q(topography__name__icontains=search_term) |
+                       Q(topography__description__icontains=search_term) |
+                       Q(topography__tags__name__icontains=search_term)).distinct()
+    return qs
 
 
 def tags_for_user(user, surfaces=None):
@@ -478,3 +527,4 @@ def get_category(request):
 
 def get_sharing_status(request):
     return request.GET.get('sharing_status', default=None)
+
