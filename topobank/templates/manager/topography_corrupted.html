@@ -2,16 +2,6 @@
 {% load static i18n %}
 {% load fontawesome %}
 
-{% block breadcrumbs %}
-  <li class="breadcrumb-item">
-    <a href="{% url 'manager:select' %}">Surfaces</a>
-  </li>
-  <li class="breadcrumb-item">
-    <a href="{% url 'manager:surface-detail' surface.id %}">{{ surface.name|truncatechars:50 }}</a>
-  </li>
-  <li class="breadcrumb-item active" aria-current="page">New Topography: File corrupted</li>
-{% endblock breadcrumbs %}
-
 {% block content %}
 
     <h1>Corrupted File</h1>

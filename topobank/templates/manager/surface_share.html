@@ -2,15 +2,6 @@
 {% extends 'base.html' %}
 {% load fontawesome %}
 
-{% block breadcrumbs %}
-  <li class="breadcrumb-item">
-    <a href="{% url 'manager:select' %}">Surfaces</a>
-  </li>
-  <li class="breadcrumb-item">
-    <a href="{% url 'manager:surface-detail' surface.pk %}">{{ surface.name|truncatechars:50 }}</a>
-  </li>
-  <li class="breadcrumb-item active" aria-current="page">Share</li>
-{% endblock breadcrumbs %}
 
 {% block content %}
 

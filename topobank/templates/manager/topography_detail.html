@@ -7,19 +7,6 @@
 {% block content-title %}Details for Topography <i>{{ topography.name }}</i>
 {% endblock content-title %}
 
-{% block breadcrumbs %}
-  <li class="breadcrumb-item">
-    <a href="{% url 'manager:select' %}">Surfaces</a>
-  </li>
-  <li class="breadcrumb-item">
-    <a href="{% url 'manager:surface-detail' topography.surface.id %}">
-      {{ topography.surface.name|truncatechars:20 }}</a>
-  </li>
-  <li class="breadcrumb-item active" aria-current="page">
-    <em>{{ topography.name|truncatechars:30 }}</em>
-  </li>
-{% endblock breadcrumbs %}
-
 {% block extra_css %}
 <link
     href="https://cdn.bokeh.org/bokeh/release/bokeh-1.3.4.min.css"

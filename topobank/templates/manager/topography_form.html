@@ -2,22 +2,6 @@
 {% extends 'base.html' %}
 {% load fontawesome %}
 
-{% block breadcrumbs %}
-  <li class="breadcrumb-item">
-    <a href="{% url 'manager:select' %}">Surfaces</a>
-  </li>
-  <li class="breadcrumb-item">
-    <a href="{% url 'manager:surface-detail' topography.surface.id %}">
-      {{ topography.surface.name|truncatechars:20 }}</a>
-  </li>
-  <li class="breadcrumb-item">
-    <a href="{% url 'manager:topography-detail' topography.id %}">
-      <em>{{ topography.name|truncatechars:30 }}</em></a>
-  </li>
-  <li class="breadcrumb-item active" aria-current="page">
-    Edit
-  </li>
-{% endblock breadcrumbs %}
 
 {% block content %}
 

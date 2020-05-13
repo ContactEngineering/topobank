@@ -18,15 +18,6 @@
 {{ form.media.css }}
 {% endblock extra_css %}
 
-{% block breadcrumbs %}
-  <li class="breadcrumb-item">
-    <a href="{% url 'analysis:list' %}">Analyses</a>
-  </li>
-  <li class="breadcrumb-item active" aria-current="page">
-    {{ card.function.name|truncatechars:50 }}
-  </li>
-{% endblock breadcrumbs %}
-
 {% block content %}
 
   {% include "tabs.html" %}
