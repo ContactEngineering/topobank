@@ -781,7 +781,7 @@ def _contact_at_given_load(system, external_force, history=None, pentol=None, ma
 
 @analysis_function(card_view_flavor='contact mechanics', automatic=True)
 def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
-                      pressures=None, progress_recorder=None, storage_prefix=None):
+                      pressures=None, maxiter=100, progress_recorder=None, storage_prefix=None):
     """
     Note that `loads` is a list of pressures if the substrate is periodic and a list of forces otherwise.
 
@@ -790,6 +790,7 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
     :param hardness: float value (unit: E*)
     :param nsteps: int or None, if None, "loads" must be given a list
     :param pressures: list of floats or None, if None, choose pressures automatically by using given number of steps (nsteps)
+    :param maxiter: int, maximum number of iterations unless convergence
     :param progress_recorder:
     :param storage_prefix:
     :return:
@@ -819,7 +820,6 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
     #
     # Some constants
     #
-    maxiter = 100
     min_pentol = 1e-12  # lower bound for the penetration tolerance
 
     if (hardness is not None) and (hardness > 0):
