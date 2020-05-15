@@ -1343,13 +1343,13 @@ class TagTreeView(ListAPIView):
 
     def get_queryset(self):
         qs = tags_for_user(self.request.user).filter(parent=None)
-        # only top level are collected, the children are added in the serializer
-
+        # Only top level are collected, the children are added in the serializer.
         #
-        # Filter by search term
-        search_term = get_search_term(self.request)
-        if search_term:
-            qs = qs.filter(name__icontains=search_term)
+        # By doing this, always all top level tags are included in the
+        # result, also when a search term is given - otherwise
+        # we have to filter also here for surfaces+topographies
+        # (can this be done without calculating that twice?).
+        # See also GH 465.
         return qs.order_by('label')
 
     def get_serializer_context(self):
