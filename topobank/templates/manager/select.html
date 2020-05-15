@@ -1,0 +1,217 @@
+
+{% extends 'base.html' %}
+{% load fontawesome %}
+{% load surface_tags %}
+{% load guardian_tags %}
+{% load static i18n %}
+
+{% block extra_css %}
+
+  <!-- Include Fancytree skin  -->
+  <!-- link href="{# static 'vendor/fancytree/skin-awesome/ui.fancytree.min.css' #}" rel="stylesheet" -->
+  <!-- TODO Use CDN? -->
+  <link href="https://unpkg.com/jquery.fancytree@2.33.0/dist/skin-awesome/ui.fancytree.min.css" rel="stylesheet"
+        xmlns:vbind="http://www.w3.org/1999/xhtml" xmlns:vbind="http://www.w3.org/1999/xhtml"
+        xmlns:v-bind="http://www.w3.org/1999/xhtml">
+
+{% endblock extra_css %}
+
+
+{% block content %}
+
+
+  {# full text search in names, descriptions, tags #}
+
+  {% include "tabs.html" with active_tab="select" %}
+
+  <div class="tab-content mt-2">
+    <div class="tab-pane active">
+
+      <form>
+        <div class="form-row">
+
+          {% if search_term %}
+          <div class="form-group col-md-4">
+            <a class="btn btn-warning form-control" href="{% url 'manager:select' %}">Clear filter for <em>{{ search_term }}</em></a>
+          </div>
+          {% else %}
+          <div class="form-group col-md-4">
+            <button class="btn btn-outline-info form-control disabled" href="#">
+              Not filtered for search term
+            </button>
+          </div>
+          {% endif %}
+
+          <div class="form-group col-md-2">
+            <select class="form-control" id="select-category-filter">
+              <option value="all" selected>All categories</option>
+              <option value="exp">Experimental data only</option>
+              <option value="sim">Simulated data only</option>
+              <option value="dum">Dummy data only</option>
+            </select>
+          </div>
+
+          <div class="form-group col-md-2">
+            <select class="form-control" id="select-sharing-status-filter">
+              <option value="all" selected>Own and shared surfaces</option>
+              <option value="own">Only own surfaces</option>
+              <option value="shared">Only surfaces shared with you</option>
+            </select>
+          </div>
+
+
+          <div id="tree-selector" class="form-group btn-group btn-group-toggle col-md-2" data-toggle="buttons">
+            <label class="btn btn-success active">
+              <input type="radio" name="options" value="surface list" id="surface-list-radio-btn" autocomplete="off" checked>
+              {% fontawesome_icon 'diamond' %} Surface list
+            </label>
+            <label class="btn btn-default">
+                <input type="radio" name="options" value="tag tree" id="tag-tree-radio-btn" autocomplete="off">
+                {% fontawesome_icon 'tag' %}Tag tree
+            </label>
+          </div>
+
+          <div class="form-group col-md-2">
+            <a class="btn btn-primary form-control" href="{% url 'manager:surface-create' %}">Create Surface</a>
+          </div>
+        </div>
+      </form>
+
+      <div id="search-results">
+        <nav aria-label="Surfaces and Topographies for selection">
+          <ul id="pagination" class="pagination">
+            <li class="page-item" v-bind:class="{ disabled: current_page <= 1 }">
+              <a class="page-link" v-on:click="load_page(current_page-1)">Previous</a>
+            </li>
+            <li class="page-item" v-bind:class="{ active: current_page==page_no}" v-for="page_no in page_range">
+              <a class="page-link" v-on:click="load_page(page_no)">[[ page_no ]]</a>
+            </li>
+            <li class="page-item" v-bind:class="{ disabled: current_page >=num_pages }" >
+              <a class="page-link" v-on:click="load_page(current_page+1)">Next</a>
+            </li>
+          </ul>
+        </nav>
+
+        <div id="scrollParent">
+          <table id="surface-tree" class="table table-condensed">
+            <colgroup>
+              <col width="40%"></col>
+              <col width="45%"></col>
+              <col width="15%"></col>
+            </colgroup>
+            <thead>
+            <tr>
+              <th scope="col">Name</th>
+              <th scope="col">Description</th>
+              <th scope="col">Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <span>Showing [[ num_items_on_current_page ]] [[ tree_mode_infos[tree_mode].element_kind ]] out of [[ num_items ]].
+            [[ tree_mode_infos[tree_mode].hint ]]</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+{% endblock content %}
+
+{% block javascript %}
+
+  <script src="https://unpkg.com/jquery-highlight@3.3.0/jquery.highlight.js"></script>
+  <script src="https://unpkg.com/jquery.fancytree@2.33.0/dist/jquery.fancytree-all-deps.min.js"></script>
+  <script src="https://unpkg.com/jquery.fancytree@2.33.0/dist/modules/jquery.fancytree.glyph.js"></script>
+  <script src="https://unpkg.com/jquery.fancytree@2.33.0/dist/modules/jquery.fancytree.table.js"></script>
+  <script src="https://unpkg.com/jquery.fancytree@2.33.0/dist/modules/jquery.fancytree.filter.js"></script>
+
+  {{ search_term | json_script:"search-term" }}
+  {{ base_search_urls | json_script:"base-search-urls" }}
+
+  <script>
+      function item_button_link_attributes(urls, urlname) {
+          let attr = "";
+          if (urls.hasOwnProperty(urlname)) {
+              attr = `href="${urls[urlname]}"`;
+          } else {
+              attr = "href='#' disabled";
+          }
+          return attr;
+      }
+
+      function item_buttons(urls) {
+          // urls: object with url names as keys and urls as values
+          //
+          // Use this function to compile buttons for surfaces and topographies in the result table
+          // Returns buttons as HTML.
+          let result = "";
+          if (urls.hasOwnProperty('detail')) {
+              result += `
+                <a href="${urls['detail']}" class="btn btn-default" type="button">
+                    Properties
+                </a>
+              `
+          }
+          if (urls.hasOwnProperty('analyze')) {
+              result += `
+                <a href="${urls['analyze']}" class="btn btn-default" type="button">
+                    Analyze
+                </a>
+              `
+          }
+          return result;
+      }
+
+      const base_search_urls = JSON.parse(document.getElementById('base-search-urls').textContent);
+      const search_term = JSON.parse(document.getElementById('search-term').textContent);
+
+      $('#select-category-filter').change( function(){
+        reload_tree();
+      });
+
+      $('#select-sharing-status-filter').change( function(){
+        reload_tree();
+      });
+
+      $('#tree-selector :input').change( function() {
+        const surface_list_label = $('#surface-list-radio-btn').parent('label');
+        const tag_tree_label = $('#tag-tree-radio-btn').parent('label');
+
+        switch (this.value) {
+          case 'surface list':
+            surface_list_label.addClass('btn-success').removeClass('btn-default');
+            tag_tree_label.addClass('btn-default').removeClass('btn-success');
+            break;
+          case 'tag tree':
+            tag_tree_label.addClass('btn-success').removeClass('btn-default');
+            surface_list_label.addClass('btn-default').removeClass('btn-success');
+            break;
+        }
+        reload_tree();
+      });
+
+      function reload_tree() {
+        const category = $('#select-category-filter option:selected').val();
+        const sharing_status = $('#select-sharing-status-filter option:selected').val();
+        const tree_mode = $('#tree-selector :checked').val();
+        search_results_vm.reload(tree_mode, search_term, category, sharing_status);
+      }
+
+      $(document).ready( function () {
+        // Make sure, that a selected item, which is deselected in the basket
+        // is also deselected everywhere in the search result tree
+        basket.unselect_handler = function unselect_nodes(key) {
+              search_results_vm.set_selected_by_key(key, false);
+        };
+      });
+
+      // we don't want error messages if the page is left before everything is loaded
+      install_handler_for_aborting_all_ajax_calls_on_page_leave();
+  </script>
+
+  <script src="{% static 'js/trees.js' %}"></script>
+
+{% endblock javascript %}

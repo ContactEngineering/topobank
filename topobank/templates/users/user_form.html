@@ -4,13 +4,8 @@
 
 {% block title %}{{ user.username }}{% endblock %}
 
-{% block breadcrumbs %}
-  <li class="breadcrumb-item">User Profile</li>
-  <li class="breadcrumb-item active" aria-current="page">Edit</li>
-{% endblock breadcrumbs %}
-
-
 {% block content %}
+  {% include "tabs.html" %}
   <h1>{% user_display user %}</h1>
   <form class="form-horizontal" method="post" action="{% url 'users:update' %}">
     {% csrf_token %}

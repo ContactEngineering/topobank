@@ -20,7 +20,7 @@ def test_surface_serializer(rf):
 
     context = dict(
         request = request,
-        selected_instances = ([topo1a], [surface2]),
+        selected_instances = ([topo1a], [surface2], []),  # no tags selected here (3rd list is empty)
     )
 
     surfser = SurfaceSerializer(context=context)
@@ -34,7 +34,10 @@ def test_surface_serializer(rf):
     surface1_prefix = f"/manager/surface/{surface1.pk}/"
     topo1a_prefix = f"/manager/topography/{topo1a.pk}/"
     topo1b_prefix = f"/manager/topography/{topo1b.pk}/"
-    surface2_prefix = f"/manager/surface/{surface2.pk}/"
+
+    topo1a_analyze = f"/analysis/topography/{topo1a.pk}/"
+    topo1b_analyze = f"/analysis/topography/{topo1b.pk}/"
+    surface1_analyze = f"/analysis/surface/{surface1.pk}/"
 
     assert result[0] == {
 
@@ -54,7 +57,7 @@ def test_surface_serializer(rf):
              'urls': {'delete': topo1a_prefix + 'delete/',
                       'detail': topo1a_prefix,
                       'select': topo1a_prefix + 'select/',
-                      'show_analyses': topo1a_prefix + 'show-analyses/',
+                      'analyze': topo1a_analyze,
                       'unselect': topo1a_prefix + 'unselect/',
                       'update': topo1a_prefix + 'update/'}},
             {'creator': user_url,
@@ -71,7 +74,7 @@ def test_surface_serializer(rf):
              'urls': {'delete': topo1b_prefix + 'delete/',
                       'detail': topo1b_prefix,
                       'select': topo1b_prefix + 'select/',
-                      'show_analyses': topo1b_prefix + 'show-analyses/',
+                      'analyze': topo1b_analyze,
                       'unselect': topo1b_prefix + 'unselect/',
                       'update': topo1b_prefix + 'update/'}},
 
@@ -93,7 +96,7 @@ def test_surface_serializer(rf):
                  'download': surface1_prefix + 'download/',
                  'select': surface1_prefix + 'select/',
                  'share': surface1_prefix + 'share/',
-                 'show_analyses': surface1_prefix + 'show-analyses/',
+                 'analyze': surface1_analyze,
                  'unselect': surface1_prefix + 'unselect/',
                  'update': surface1_prefix + 'update/'}
 

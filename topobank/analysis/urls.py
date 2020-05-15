@@ -16,6 +16,16 @@ urlpatterns = [
         view=login_required(views.AnalysesListView.as_view()),
         name='collection'
     ),
+    path(
+        'surface/<int:surface_id>/',
+        view=login_required(views.AnalysesListView.as_view()),
+        name='surface'
+    ),
+    path(
+        'topography/<int:topography_id>/',
+        view=login_required(views.AnalysesListView.as_view()),
+        name='topography'
+    ),
     url(
         regex=r'download/(?P<ids>[\d,]+)/(?P<card_view_flavor>[\w\s]+)/(?P<file_format>\w+)$',
         view=login_required(views.download_analyses),

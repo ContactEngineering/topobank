@@ -24,56 +24,44 @@
 
 {% endblock extra_css %}
 
-{% block breadcrumbs %}
-  <li class="breadcrumb-item active" aria-current="page">Analyses</li>
-{% endblock breadcrumbs %}
-
-{% block basket %}
-  <!-- Filter for topographies and analysis functions -->
-  <div class="bg-light border-top border-bottom">
-    <div class="container-fluid">
-      <div class="py-2">
-        <label for="basket"><h5>Surfaces and topographies selected for analysis in <a href="{% url 'manager:surface-list' %}">surface list</a></h5></label>
-        <div id="basket">
-          <div v-if="keys.length">
-            <basket-element v-for="key in keys" v-bind:elem="get_element(key)" v-bind:key="key"></basket-element>
-          </div>
-          <span v-else>No items selected yet. In order to select, please use the checkboxes in the surface list.</span>
-        </div>
-      </div>
-      <hr/>
-      {% crispy form form.helper %}
-      {# TODO for some reason here also JS code for select2 is inserted too early, this causes warnings #}
-    </div>
-  </div>
-{% endblock basket %}
 
 {% block content %}
 
-  <!--
-  Show one card for each analysis function
+  {% include "tabs.html" with active_tab="analyze" %}
 
-  Will be replaced by AJAX call.
-  -->
-  <div class="row">
-    {% for card in cards %}
-      <div class="col-xl-6 mb-4">
+  <div class="tab-content mt-2">
+    <div id="analyses" class="tab-pane active">
 
-        <div id="card-{{ forloop.counter }}">
-          <div class="card search-result-card">
-            <div class="card-header">
-              <h5>{{ card.function.name }}</h5>
-            </div>
-            <div class="card-body">
-                <span class="spinner"></span>
-                <div id="card-{{ forloop.counter }}-wait-text">
-                  Please wait
+      {% crispy form form.helper %}
+
+      {# TODO for some reason here also JS code for select2 is inserted too early, this causes warnings #}
+      <!--
+      Show one card for each analysis function
+
+      Will be replaced by AJAX call.
+      -->
+      <div class="row">
+        {% for card in cards %}
+          <div class="col-xl-6 mb-4">
+
+            <div id="card-{{ forloop.counter }}">
+              <div class="card search-result-card">
+                <div class="card-header">
+                  <h5>{{ card.function.name }}</h5>
                 </div>
+                <div class="card-body">
+                    <span class="spinner"></span>
+                    <div id="card-{{ forloop.counter }}-wait-text">
+                      Please wait
+                    </div>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
+        {% endfor %}
       </div>
-    {% endfor %}
+
+    </div>
   </div>
 
 
@@ -88,95 +76,23 @@
   <!-- for task progress bar -->
   <script src="{% static 'celery_progress/celery_progress.js' %}"></script>
 
-  <!-- fill the basket with selected topographies and surfaces -->
-  <script>
-  var basket = new Vue({
-          delimiters: ['[[', ']]'],
-          el: '#basket',
-          data: {
-              keys: [],
-              elements: {} // key: key like "surface-1", value is object, see below
-          },
-          mounted: function() {
-            this.update();
-          },
-          methods:{
-
-              get_element: function (key) {
-                return this.elements[key];
-              },
-              update: function () {
-                  var elements = {};
-                  var keys = [];
-
-                  var basket_items = {{ basket_items_json | safe }};
-
-                  // console.log(basket_items);
-
-                  basket_items.forEach(function (item) {
-                     keys.push(item.key);
-                     elements[item.key] = item;
-                  });
-
-                  // remove all elements which parent element is already included
-                  var keys_to_remove = []
-                  keys.forEach(function (key) {
-                     var elem = elements[key];
-                     if (elem.hasOwnProperty('surface_key') && (elem.surface_key in elements)) {
-                         keys_to_remove.push(key);
-                     }
-                  });
-                  keys_to_remove.forEach(function (key) {
-                      delete elements[key];
-                  });
-                  keys = keys.filter( function (key) {
-                     return keys_to_remove.indexOf(key) == -1
-                  });
-                  keys.sort() // we want always the same order, independent from traversal order
-
-                  // console.log("All elements: ", elements);
-                  this.elements = elements;
-                  this.keys = keys;
-              }
-          }
-      });
-
-  Vue.component('basket-element', {
-    props: ['elem'], // object with keys: 'name', 'key', 'surface_key' (optional), 'unselect_url'
-    delimiters: ['[[', ']]'],
-    template: `
-           <span v-if="elem.type=='surface'" class="badge badge-pill badge-primary mr-1">[[ elem.name ]]
-                <!-- <span class="fa fa-close" v-on:click="handle_close"></span> -->
-           </span>
-           <span v-else class="badge badge-pill badge-secondary mr-1">[[ elem.name ]]
-                <!-- <span class="fa fa-close" v-on:click="handle_close"></span> -->
-           </span>
-         `,
-    methods: {
-        handle_close: function (event) {
-            // Clicking means "deselect"
-            // All nodes must be deselected - there can be several in the tag tree
-            //this.elem.nodes.forEach( function(node) {
-            //    node.setSelected(false);
-            //})
-            // basket.update();
-            // TODO handle later
-        },
-    }
-  });
-
-  {# TODO use same code in surface view and analysis view #}
-  </script>
-
-
   <!-- Trigger fetching analysis results -->
   <script>
-    // for each card submit ajax call to insert result card
+
     $(document).ready(function () {
+      // for each card submit ajax call to insert result card
       {% url 'analysis:card' as card_url %}
       {% for card in cards %}
         submit_analyses_card_ajax("{{ card_url }}", "card-{{ forloop.counter }}", "list", {{ card.function.id }}, {{ card.topography_ids_json|safe }}, 0);
       {% endfor %}
+
+      // we want that closing an item in the basket
+      // does unselect it and reload the analyses
+      basket.unselect_handler = function reload (key) {
+         location.reload();  // simplest way now to reduce analyses shown
+        // It would be better to only reload the cards, but so far the "cards" context variable
+        // does not come from an AJAX call
+      };
     });
 
     // we don't want error messages if the page is left before everything is loaded

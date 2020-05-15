@@ -37,3 +37,8 @@ pip-tools
 # ------------------------------------------------------------------------------
 # docker-compose
 # introduces dependency on a too old pyyaml version
+
+# Debugging
+# ------------------------------------------------------------------------------
+django-debug-toolbar-request-history
+# this allows to see context/requests of AJAX calls in debug toolbar

@@ -3,169 +3,170 @@
 {% load socialaccount %}
 {% load welcome_page_tags %}
 
-{% block breadcrumbs %}
-  <li class="breadcrumb-item active" aria-current="page">Home</li>
-{% endblock breadcrumbs %}
-
 {% block content %}
-    <div class="alert alert-warning">
-      This is a beta release. All uploaded data is permament, but the user interface may undergo changes.
-      If you would like to report any comments, issues, or suggestions,
-      please <a href="mailto:{{ contact_email_address }}">drop us an email</a>.
-      For a transition period, the old surface topography analyzer is still available
-      <a href="http://legacy.contact.engineering">here</a>.
-    </div>
-    <div class="jumbotron">
-      <div class="container">
-        <h1 class="display-4">Welcome to <b>contact.&#8203;engineering</b></h1>
-        <p class="lead">This is a web-based application that allows you to:
-          Store and organize surface measurements,
-          characterize surface topography,
-          analyze contact properties and
-          (if you wish) share your data with collaborators or even publish your datasets.
-        </p>
-        {#  <p><a class="btn btn-primary btn-lg" href="#" role="button">Learn more &raquo;</a></p> #}
-        <div class="row">
-          {% with request.user.is_authenticated as is_authenticated %}
-            {% if not is_authenticated %}
-            <div class="{% column_div_class is_authenticated %}">
-              <div class="card text-white bg-secondary o-hidden h-100">
-                <div class="card-body">
-                  <div class="card-body-icon">
-                    <i class="fa fa-fw fa-user"></i>
-                  </div>
-                  <div class="mr-2">
-                    <div class="welcome-page-statistics">{{ num_users }}</div> registered users.
+
+  {% include "tabs.html" with active_tab='home' %}
+
+  <div class="tab-content mt-2">
+    <div class="tab-pane active">
+
+      <div class="alert alert-warning">
+        This is a beta release. All uploaded data is permament, but the user interface may undergo changes.
+        If you would like to report any comments, issues, or suggestions,
+        please <a href="mailto:{{ contact_email_address }}">drop us an email</a>.
+      </div>
+      <div class="jumbotron">
+        <div class="container">
+          <h1 class="display-4">Welcome to <b>contact.&#8203;engineering</b></h1>
+          <p class="lead">This is a web-based application that allows you to:
+            Store and organize surface measurements,
+            characterize surface topography,
+            analyze contact properties and
+            (if you wish) share your data with collaborators or even publish your datasets.
+          </p>
+          {#  <p><a class="btn btn-primary btn-lg" href="#" role="button">Learn more &raquo;</a></p> #}
+          <div class="row">
+            {% with request.user.is_authenticated as is_authenticated %}
+              {% if not is_authenticated %}
+              <div class="{% column_div_class is_authenticated %}">
+                <div class="card text-white bg-secondary o-hidden h-100">
+                  <div class="card-body">
+                    <div class="card-body-icon">
+                      <i class="fa fa-fw fa-user"></i>
+                    </div>
+                    <div class="mr-2">
+                      <div class="welcome-page-statistics">{{ num_users }}</div> registered users.
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-            {% endif %}
+              {% endif %}
 
-            <div class="{% column_div_class is_authenticated %}">
-              <a href="{{ surfaces_link}}" class="card-link">
-                <div class="card text-white bg-primary o-hidden h-100">
-                  <div class="card-body">
-                    <div class="card-body-icon">
-                      <i class="fa fa-fw fa-diamond"></i>
-                    </div>
-                    <div class="mr-2">
-                    {% if is_authenticated %}You have{% endif %}
-                      <div class="welcome-page-statistics">{{ num_surfaces }}</div> surfaces in database.
+              <div class="{% column_div_class is_authenticated %}">
+                <a href="{{ surfaces_link}}" class="card-link">
+                  <div class="card text-white bg-primary o-hidden h-100">
+                    <div class="card-body">
+                      <div class="card-body-icon">
+                        <i class="fa fa-fw fa-diamond"></i>
+                      </div>
+                      <div class="mr-2">
+                      {% if is_authenticated %}You have{% endif %}
+                        <div class="welcome-page-statistics">{{ num_surfaces }}</div> surfaces in database.
+                      </div>
                     </div>
                   </div>
-                </div>
-              </a>
-            </div>
+                </a>
+              </div>
 
-            <div class="{% column_div_class is_authenticated %}">
-              <a href="{{ surfaces_link }}" class="card-link">
-                <div class="card text-white bg-danger o-hidden h-100">
-                  <div class="card-body">
-                    <div class="card-body-icon">
-                      <i class="fa fa-fw fa-edit"></i>
-                    </div>
-                    <div class="mr-2">
-                    {% if is_authenticated %}You have{% endif %}
-                      <div class="welcome-page-statistics">{{ num_topographies }}</div> individual topographies.
+              <div class="{% column_div_class is_authenticated %}">
+                <a href="{{ surfaces_link }}" class="card-link">
+                  <div class="card text-white bg-danger o-hidden h-100">
+                    <div class="card-body">
+                      <div class="card-body-icon">
+                        <i class="fa fa-fw fa-edit"></i>
+                      </div>
+                      <div class="mr-2">
+                      {% if is_authenticated %}You have{% endif %}
+                        <div class="welcome-page-statistics">{{ num_topographies }}</div> individual topographies.
+                      </div>
                     </div>
                   </div>
-                </div>
-              </a>
-            </div>
+                </a>
+              </div>
 
-            <div class="{% column_div_class is_authenticated %}">
-              <a href="{{ analyses_link }}" class="card-link">
-                <div class="card text-white bg-warning o-hidden h-100">
-                  <div class="card-body">
-                    <div class="card-body-icon">
-                      <i class="fa fa-fw fa-area-chart"></i>
-                    </div>
-                    <div class="mr-2">
-                    {% if is_authenticated %}You have{% endif %}
-                      <div class="welcome-page-statistics">{{ num_analyses }}</div> computed analyses.
+              <div class="{% column_div_class is_authenticated %}">
+                <a href="{{ analyses_link }}" class="card-link">
+                  <div class="card text-white bg-warning o-hidden h-100">
+                    <div class="card-body">
+                      <div class="card-body-icon">
+                        <i class="fa fa-fw fa-area-chart"></i>
+                      </div>
+                      <div class="mr-2">
+                      {% if is_authenticated %}You have{% endif %}
+                        <div class="welcome-page-statistics">{{ num_analyses }}</div> computed analyses.
+                      </div>
                     </div>
                   </div>
-                </div>
-              </a>
-            </div>
+                </a>
+              </div>
 
-            {% if is_authenticated %}
-            <div class="{% column_div_class is_authenticated %}">
-              <a href="{% url 'manager:sharing-info' %}" class="card-link">
-                <div class="card text-white bg-success o-hidden h-100">
-                  <div class="card-body">
-                    <div class="card-body-icon">
-                      <i class="fa fa-fw fa-share-alt"></i>
-                    </div>
-                    <div class="mr-2">
-                      Other users shared
-                      <div class="welcome-page-statistics">{{ num_shared_surfaces }}</div> surfaces with you.
+              {% if is_authenticated %}
+              <div class="{% column_div_class is_authenticated %}">
+                <a href="{% url 'manager:sharing-info' %}" class="card-link">
+                  <div class="card text-white bg-success o-hidden h-100">
+                    <div class="card-body">
+                      <div class="card-body-icon">
+                        <i class="fa fa-fw fa-share-alt"></i>
+                      </div>
+                      <div class="mr-2">
+                        Other users shared
+                        <div class="welcome-page-statistics">{{ num_shared_surfaces }}</div> surfaces with you.
+                      </div>
                     </div>
                   </div>
-                </div>
-              </a>
-            </div>
-            {% endif %}
-          {% endwith %}
+                </a>
+              </div>
+              {% endif %}
+            {% endwith %}
+          </div>
+          <!-- /.row -->
         </div>
-        <!-- /.row -->
       </div>
+
+
+      <div class="container">
+        <!-- Example row of columns -->
+        <div class="row">
+          {% if request.user.is_authenticated %}
+          <div class="col-md-3">
+            <h2>Surfaces</h2>
+            <p>A <em>surface</em> represents the real-life surface you are measuring, together with its descriptive
+              metadata. If you make multiple measurements on the same real-world surface (even using different
+              techniques), you can collect all the <em>topography</em> measurements together in a single <em>surface</em>.
+            </p>
+            <p><a class="btn btn-secondary" href="{% url 'manager:surface-create' %}" role="button">Create a surface
+              &raquo;</a></p>
+          </div>
+          <div class="col-md-3">
+            <h2>Topographies</h2>
+            <p>For each <em>surface</em>, you must upload one or more <em>topographies</em>. These represent each
+              individual measurement you performed. You can save metadata for each one, and perform basic pre-analysis.
+            </p>
+            <p><a class="btn btn-secondary" href="{% url 'manager:select' %}" role="button">Select topographies
+              &raquo;</a></p>
+          </div>
+          <div class="col-md-3">
+            <h2>Analyses</h2>
+            <p>A number <em>analyses</em>, such as computing the power-spectral density or the real area of contact, are
+            automatically performed on all uploaded <em>topographies</em>.
+            These analyses are stored, can be retriggered, visualized or compared.</p>
+            <p><a class="btn btn-secondary" href="{% url 'analysis:list' %}" role="button">Show analyses &raquo;</a></p>
+          </div>
+           <div class="col-md-3">
+            <h2>Sharing</h2>
+             <p><em>Surfaces</em> can be <em>shared</em> with others for collaboration. You decide whether your
+               collaborators can modify them or not.</p>
+          <p><a class="btn btn-secondary" href="{% url 'manager:sharing-info' %}" role="button">Show sharing info &raquo;</a></p>
+          </div>
+          {% else %}
+          <div class="col-md-12">
+            <h2>Login via ORCID.</h2>
+            <p>
+              Please allow the ORCID site to authenticate yourself to contact.engineering.
+              If you don't have an ORCID account yet, you will be able to register.
+            </p>
+            <p>
+              <a id="orcid-log-in-link" class="btn btn-secondary" href="{% provider_login_url 'orcid' method="oauth2" %}">
+                Sign in using your ORCID account
+              </a>
+            </p>
+          </div>
+          {% endif %}
+        </div>
+      </div> <!-- /container -->
+
     </div>
-
-
-    <div class="container">
-      <!-- Example row of columns -->
-      <div class="row">
-        {% if request.user.is_authenticated %}
-        <div class="col-md-3">
-          <h2>Surfaces</h2>
-          <p>A <em>surface</em> represents the real-life surface you are measuring, together with its descriptive
-            metadata. If you make multiple measurements on the same real-world surface (even using different
-            techniques), you can collect all the <em>topography</em> measurements together in a single <em>surface</em>.
-          </p>
-          <p><a class="btn btn-secondary" href="{% url 'manager:surface-create' %}" role="button">Create a surface
-            &raquo;</a></p>
-        </div>
-        <div class="col-md-3">
-          <h2>Topographies</h2>
-          <p>For each <em>surface</em>, you must upload one or more <em>topographies</em>. These represent each
-            individual measurement you performed. You can save metadata for each one, and perform basic pre-analysis.
-          </p>
-          <p><a class="btn btn-secondary" href="{% url 'manager:surface-list' %}" role="button">Select topographies
-            &raquo;</a></p>
-        </div>
-        <div class="col-md-3">
-          <h2>Analyses</h2>
-          <p>A number <em>analyses</em>, such as computing the power-spectral density or the real area of contact, are
-          automatically performed on all uploaded <em>topographies</em>.
-          These analyses are stored, can be retriggered, visualized or compared.</p>
-          <p><a class="btn btn-secondary" href="{% url 'analysis:list' %}" role="button">Show analyses &raquo;</a></p>
-        </div>
-         <div class="col-md-3">
-          <h2>Sharing</h2>
-           <p><em>Surfaces</em> can be <em>shared</em> with others for collaboration. You decide whether your
-             collaborators can modify them or not.</p>
-        <p><a class="btn btn-secondary" href="{% url 'manager:sharing-info' %}" role="button">Show sharing info &raquo;</a></p>
-        </div>
-        {% else %}
-        <div class="col-md-12">
-          <h2>Login via ORCID.</h2>
-          <p>
-            Please allow the ORCID site to authenticate yourself to contact.engineering.
-            If you don't have an ORCID account yet, you will be able to register.
-          </p>
-          <p>
-            <a id="orcid-log-in-link" class="btn btn-secondary" href="{% provider_login_url 'orcid' method="oauth2" %}">
-              Sign in using your ORCID account
-            </a>
-          </p>
-        </div>
-        {% endif %}
-      </div>
-    </div> <!-- /container -->
-
-
+  </div>
 
 
 {% endblock %}

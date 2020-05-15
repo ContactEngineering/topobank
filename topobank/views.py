@@ -1,19 +1,18 @@
-from django.views.generic import TemplateView
-from django.db.models import Q, F
+from django.views.generic import TemplateView, RedirectView
+from django.db.models import Q
 from django.shortcuts import reverse
 
 from guardian.compat import get_user_model as guardian_user_model
-from guardian.shortcuts import get_objects_for_user, get_perms_for_model
+from guardian.shortcuts import get_objects_for_user
 
 from allauth.socialaccount.providers.orcid.provider import OrcidProvider
-
-import markdown2
 
 from termsandconditions.models import TermsAndConditions
 
 from topobank.users.models import User
 from topobank.manager.models import Surface, Topography
 from topobank.analysis.models import Analysis
+from topobank.manager.utils import get_reader_infos
 
 class HomeView(TemplateView):
 
@@ -33,7 +32,7 @@ class HomeView(TemplateView):
             # count surfaces you can view, but you are not creator
             context['num_shared_surfaces'] = get_objects_for_user(user, 'view_surface', klass=Surface)\
                                                 .filter(~Q(creator=user)).count()
-            context['surfaces_link'] = reverse('manager:surface-list')
+            context['surfaces_link'] = reverse('manager:select')
             context['analyses_link'] = reverse('analysis:list')
         else:
             anon = guardian_user_model().get_anonymous()
@@ -59,7 +58,7 @@ class HomeView(TemplateView):
                                               method='oauth2',
                                               next=reverse(next_url_name))
 
-            context['surfaces_link'] = get_login_link('manager:surface-list')
+            context['surfaces_link'] = get_login_link('manager:select')
             context['analyses_link'] = get_login_link('analysis:list')
 
         return context
@@ -85,28 +84,32 @@ class TermsView(TemplateView):
         else:
             context['active_terms'] = active_terms.order_by('optional')
 
+        context['active_tab'] = 'extra-tab-4'
+        context['extra_tab_4_data'] = {
+            'icon': 'fa-legal',
+            'title': "Terms and Conditions",
+            'href': self.request.path,
+        }
+
         return context
 
-class FileFormatsView(TemplateView):
+class HelpView(TemplateView):
 
-    template_name = 'pages/file_formats.html'
+    template_name = 'pages/help.html'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data()
-
-        from PyCo.Topography.IO import readers
-
-        reader_infos = []
-        for reader_class in readers:
-            try:
-                # some reader classes have no description yet
-                descr = reader_class.description()
-            except Exception:
-                descr = "*description not yet available*"
-
-            descr = markdown2.markdown(descr)
-
-            reader_infos.append((reader_class.name(), reader_class.format(), descr))
-        context['reader_infos'] = reader_infos
-
+        context['reader_infos'] = get_reader_infos()
+        context['active_tab'] = 'extra-tab-4'
+        context['extra_tab_4_data'] = {
+            'icon': 'fa-question-circle',
+            'title': "Help",
+            'href': self.request.path,
+        }
         return context
+
+
+class GotoSelectView(RedirectView):
+    pattern_name = 'manager:select'
+    query_string = True
+

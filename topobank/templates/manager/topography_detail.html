@@ -7,19 +7,6 @@
 {% block content-title %}Details for Topography <i>{{ topography.name }}</i>
 {% endblock content-title %}
 
-{% block breadcrumbs %}
-  <li class="breadcrumb-item">
-    <a href="{% url 'manager:surface-list' %}">Surfaces</a>
-  </li>
-  <li class="breadcrumb-item">
-    <a href="{% url 'manager:surface-detail' topography.surface.id %}">
-      {{ topography.surface.name|truncatechars:20 }}</a>
-  </li>
-  <li class="breadcrumb-item active" aria-current="page">
-    <em>{{ topography.name|truncatechars:30 }}</em>
-  </li>
-{% endblock breadcrumbs %}
-
 {% block extra_css %}
 <link
     href="https://cdn.bokeh.org/bokeh/release/bokeh-1.3.4.min.css"
@@ -36,45 +23,20 @@
 
  {% get_obj_perms request.user for topography.surface as "surface_perms" %}
 
-  <div class="card">
+  {% include "tabs.html" %}
 
-    <div class="card-header">
-
-      <div class="pull-left">
-        <h3>{{ topography.name }}</h3>
-      </div>
-
-      <ul class="nav nav-pills card-header-pills pull-right">
-
-        <li>
-          <div class="btn-group">
-            <a href="{% url 'manager:topography-detail' topography_next %}"
-               class="btn btn-default {% if topography_next == topography.id %} disabled {% endif %}">
-              {% fontawesome_icon 'chevron-left' %}
-            </a>
-            <a href="{% url 'manager:topography-detail' topography_prev %}"
-               class="btn btn-default {% if topography_prev == topography.id %} disabled {% endif %}">
-              {% fontawesome_icon 'chevron-right' %}
-            </a>
-          </div>
-        </li>
-      </ul>
-    </div>
-
-    <div class="card-body">
+  <div class="tab-content mt-2 extra-tab">
 
       <div class="row">
 
-        <div class="col-9">
+        <div class="col-md-1 mb-2 border-right">
+          <div class="nav nav-pills flex-column" role="tablist" aria-orientation="vertical">
+             <a class="nav-link active" data-toggle="tab" href="#plot" role="tab">Plot</a>
+             <a class="nav-link" data-toggle="tab" href="#properties" role="tab">Properties</a>
+          </div>
+        </div>
 
-          <ul class="nav nav-tabs">
-            <li class="nav-item">
-              <a class="nav-link active" data-toggle="tab" href="#plot" role="tab">Plot</a>
-            </li>
-            <li class="nav-item mr-2">
-              <a class="nav-link" data-toggle="tab" href="#properties" role="tab">Properties</a>
-            </li>
-          </ul>
+        <div class="col-8">
 
           <div class="tab-content mt-2">
             <div class="tab-pane fade active show" id="plot" role="tabpanel" aria-labelledby="plot-tab">
@@ -153,8 +115,25 @@
 
         <div class="col-3">
 
+          <div class="row p-3 pull-right">
+            <ul class="nav nav-pills">
+              <li>
+                <div class="btn-group">
+                  <a href="{% url 'manager:topography-detail' topography_next %}"
+                     class="btn btn-default {% if topography_next == topography.id %} disabled {% endif %}"
+                     data-toggle="tooltip" title="previous topography of related surface">
+                    {% fontawesome_icon 'chevron-left' %}
+                  </a>
+                  <a href="{% url 'manager:topography-detail' topography_prev %}"
+                     class="btn btn-default {% if topography_prev == topography.id %} disabled {% endif %}"
+                     data-toggle="tooltip" title="next topography of related surface">
+                    {% fontawesome_icon 'chevron-right' %}
+                  </a>
+                </div>
+              </li>
+            </ul>
+          </div>
           <div class="row p-3">
-
             <div class="col">
               {% render_uploaded_by_badge request topography %}
             </div>
@@ -169,8 +148,8 @@
 
           <div class="row p-3">
             <div class="col">
-              <a href="{% url 'manager:topography-show-analyses' topography.id %}" class="btn btn-default btn-block btn-lg">
-                  {% fontawesome_icon 'area-chart' %} Show analyses
+              <a href="{% url 'analysis:topography' topography.id %}" class="btn btn-default btn-block btn-lg">
+                  {% fontawesome_icon 'area-chart' %} Analyze this topography
               </a>
             </div>
           </div>
@@ -196,9 +175,9 @@
                   {% fontawesome_icon 'diamond' %} Back to surface details
                 </a>
 
-                <a href="{% url 'manager:surface-list' %}"
+                <a href="{% url 'manager:select' %}"
                    class="btn btn-default btn-block btn-lg">
-                  {% fontawesome_icon 'list' %} Back to search results
+                  {% fontawesome_icon 'check-square-o' %} Back to selection tab
                 </a>
             </div>
           </div>
@@ -208,7 +187,7 @@
 
 
     </div>
-  </div>
+
 
 
 {% endblock content %}

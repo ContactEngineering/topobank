@@ -214,7 +214,8 @@ TEMPLATES = [
                 'django.template.context_processors.static',
                 'django.template.context_processors.tz',
                 'django.contrib.messages.context_processors.messages',
-                'topobank.context_processors.versions_processor'
+                'topobank.context_processors.versions_processor',
+                'topobank.context_processors.basket_processor',
             ],
         },
     },
@@ -335,7 +336,10 @@ SELECT2_I18N_PATH = '/static/vendor/select2/js/i18n'
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
-    )
+    ),
+    # 'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
+    #'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    #'PAGE_SIZE': 2,
 }
 
 # Version number used in the GUI

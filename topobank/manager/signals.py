@@ -10,6 +10,7 @@ from .models import Topography, Surface
 
 _log = logging.getLogger(__name__)
 
+
 @receiver(post_save, sender=Surface)
 def grant_permissions_to_owner(sender, instance, created, **kwargs):
 
@@ -22,6 +23,7 @@ def grant_permissions_to_owner(sender, instance, created, **kwargs):
 
         # This should be only done when creating a surface,
         # otherwise all permissions would be granted when editing a surface
+
 
 @receiver(pre_delete, sender=Topography)
 def remove_files(sender, instance, **kwargs):

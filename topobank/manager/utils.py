@@ -1,8 +1,11 @@
 from django.shortcuts import reverse
 from guardian.shortcuts import get_objects_for_user
 from django.conf import settings
+from django.db.models import Q
+import markdown2
 
 from PyCo.Topography import open_topography
+from PyCo.Topography.IO import readers as pyco_readers
 
 import traceback
 import logging
@@ -45,6 +48,22 @@ class TopographyFileReadingException(TopographyFileException):
         return self._message
 
 
+def get_reader_infos():
+    reader_infos = []
+    for reader_class in pyco_readers:
+        try:
+            # some reader classes have no description yet
+            descr = reader_class.description()
+        except Exception:
+            descr = "*description not yet available*"
+
+        descr = markdown2.markdown(descr)
+
+        reader_infos.append((reader_class.name(), reader_class.format(), descr))
+
+    return reader_infos
+
+
 def get_topography_reader(filefield, format=None):
     """Returns PyCo.Topography.IO.ReaderBase object.
 
@@ -80,16 +99,68 @@ def surfaces_for_user(user, perms=['view_surface']):
     from topobank.manager.models import Surface
     return get_objects_for_user(user, perms, klass=Surface, accept_global_perms=False)
 
-def tags_for_user(user):
+def filtered_surfaces_for_user(request, perms=['view_surface']):
+    """
+
+    Parameters
+    ----------
+    request
+        Request instance
+    perms
+        list of permission codenames, default is ['view_surface']
+
+    Returns
+    -------
+        Filtered queryset of surfaces
+    """
+
+    user = request.user
+    # start with all surfaces which are visible for the user
+    qs = surfaces_for_user(user)
+
+    #
+    # Filter by category and sharing status
+    #
+    category = get_category(request)
+    if category:
+        qs = qs.filter(category=category)
+
+    sharing_status = get_sharing_status(request)
+    if sharing_status == 'own':
+        qs = qs.filter(creator=user)
+    elif sharing_status == 'shared':
+        qs = qs.filter(~Q(creator=user))
+
+    #
+    # Filter by search term
+    #
+    search_term = get_search_term(request)
+    if search_term:
+        #
+        # find all topographies which should be at top level
+        #
+        qs = qs.filter(Q(name__icontains=search_term) |
+                       Q(description__icontains=search_term) |
+                       Q(tags__name__icontains=search_term) |
+                       Q(topography__name__icontains=search_term) |
+                       Q(topography__description__icontains=search_term) |
+                       Q(topography__tags__name__icontains=search_term)).distinct()
+    return qs
+
+
+def tags_for_user(user, surfaces=None):
     """Return set of tags which can be used for autocompletion when editing tags.
 
     A user should not see all tags ever used on the app, but only those
     which were chosen by herself or collaborators and corresponding parent tags.
 
     :param user: User instance
+    :param surfaces: surfaces visible for user, if None,
+                     will be computed; specify this to reuse previous calculation
     :return: list of strings
     """
-    surfaces = surfaces_for_user(user)
+    if surfaces is None:
+        surfaces = surfaces_for_user(user)
 
     from .models import TagModel
     from django.db.models import Q
@@ -103,34 +174,6 @@ def tags_for_user(user):
     return tags.distinct()
 
 
-def selection_choices(user):
-    """Compile all choices for selection topographies and surfaces for given user.
-
-    :param user: Django user
-    :return: list of choices which are 2-tuples, see documentation
-    """
-    surfaces = surfaces_for_user(user)
-
-    choices = []
-    for surf in surfaces:
-
-        surf_creator = surf.creator
-        group_label = "{}".format(surf.name)
-
-        if surf_creator == user:
-            group_label += " - created by you"
-        else:
-            group_label += " - shared by {}".format(str(surf_creator))
-
-        surface_choices = [('surface-{}'.format(surf.id), surf.name)]
-        surface_choices.extend([('topography-{}'.format(t.id), t.name)
-                        for t in surf.topography_set.all().order_by('id')])
-
-        choices.append((group_label, surface_choices)) # create subgroup
-
-    return choices
-
-
 def selection_from_session(session):
     """Get selection from session.
 
@@ -141,15 +184,6 @@ def selection_from_session(session):
     which represents the selected objects.
     """
     return session.get(SELECTION_SESSION_VARNAME, [])
-
-
-def selection_for_select_all(user):
-    """Return selection if given user wants to select all topographies and surfaces.
-
-    :param user: Django user
-    :return:
-    """
-    return ['surface-{}'.format(s.id) for s in surfaces_for_user(user)]
 
 
 def instances_to_selection(topographies=[], surfaces=[]):
@@ -172,31 +206,54 @@ def instances_to_selection(topographies=[], surfaces=[]):
     return sorted(selection)
 
 
+def instances_to_topographies(topographies, surfaces, tags):
+    """Returns a queryset of topographies, based on given instances
 
-def selection_to_instances(selection, surface=None):
-    """Returns a dict with querysets of selected topographies and surfaces as saved in session.
+    Parameters
+    ----------
+    topographies: sequence of topographies
+    surfaces: sequence of surfaces
+    tags: sequence of tags
 
-    If surface is given, return only topographies for this
-    Surface model object.
+    Returns
+    -------
+    Queryset of topography, distinct
+    """
+    from .models import Topography
+
+    topography_ids = [topo.id for topo in topographies]
+    surface_ids = [s.id for s in surfaces]
+    tag_ids = [tag.id for tag in tags]
+
+    topographies = Topography.objects.filter(id__in=topography_ids)
+    topographies |= Topography.objects.filter(surface__in=surface_ids)
+    topographies |= Topography.objects.filter(surface__tags__in=tag_ids)
+    topographies |= Topography.objects.filter(tags__in=tag_ids)
+
+    return topographies.distinct().order_by('id')
+
+
+def selection_to_instances(selection):
+    """Returns a tuple with querysets of explicitly selected topographies, surfaces, and tags.
+
+    View permission is not checked.
 
     :param selection: selection list as saved in session
-    :param surface: optionally a surface to filter topographies in selection
-    :return: tuple (topographies, surfaces)
+    :return: tuple (topographies, surfaces, tags)
 
-    The tuple has two elements:
+    The returned tuple has 3 elements:
 
-     'topographies': all topographies in the selection (if 'surface' is given, filtered by this surface)
+     'topographies': all topographies explicitly found in the selection
      'surfaces': all surfaces explicitly found in the selection (not only because its topography was selected)
+     'tags': all tags explicitly found in the selection (not only because all related items are selected)
 
     Also surfaces without topographies are returned in 'surfaces' if selected.
-
-    If a surface is selected, all topographies for this surface will also
-    be returned.
     """
-    from .models import Topography, Surface
+    from .models import Topography, Surface, TagModel
 
     topography_ids = set()
     surface_ids = set()
+    tag_ids = set()
 
     for type_id in selection:
         type, id = type_id.split('-')
@@ -205,49 +262,119 @@ def selection_to_instances(selection, surface=None):
             topography_ids.add(id)
         elif type == 'surface':
             surface_ids.add(id)
-            if (surface is not None) and (surface.id != id):
-                continue # skip this surface, it is not relevant because argument surface was given
+        elif type == 'tag':
+            tag_ids.add(id)
 
-            # either surface is None or this is the interesting surface
-            # -> Also add all topographies from this surface
-            topography_ids.update(list(Topography.objects.filter(surface__id=id).values_list('id', flat=True)))
-
-    topography_ids = list(topography_ids)
-
-    # filter for these topography ids and optionally also for surface if given one
-    filter_args = dict(id__in=topography_ids)
-    if surface is not None:
-        filter_args['surface'] = surface
-    topographies = Topography.objects.filter(**filter_args)
-
+    topographies = Topography.objects.filter(id__in=topography_ids)
     surfaces = Surface.objects.filter(id__in=surface_ids)
+    tags = TagModel.objects.filter(id__in=tag_ids)
 
-    return (topographies, surfaces)
+    return topographies, surfaces, tags
 
-def selected_instances(request, surface=None):
-    """Return a dict with topography and surface instances which are currently selected.
+
+def selected_instances(request):
+    """Return a tuple with topography, surface, and tag instances which are currently selected.
+
+    View permission is checked for the user of the request.
 
     :request: HTTP request
-    :surface: if given, return only topographies of this Surface instance
-    :return: tuple (topographies, surfaces)
+    :return: tuple (topographies, surfaces, tags)
 
-    The tuple has two elements:
+    The returned tuple has 3 elements, each a list:
 
      'topographies': all topographies in the selection (if 'surface' is given, filtered by this surface)
      'surfaces': all surfaces explicitly found in the selection (not only because its topography was selected)
+     'tags': all tags explicitly found in selection (not because all tagged items are selected)
 
     Also surfaces without topographies are returned in 'surfaces' if selected.
+
+    If only one topography is selected, it's surface is *not* returned in 'surfaces'.
+    If a surface is explicitly selected, all of its topographies are contained in 'topographies'.
     """
     selection = selection_from_session(request.session)
-    topographies, surfaces = selection_to_instances(selection, surface=surface)
+    topographies, surfaces, tags = selection_to_instances(selection)
 
-    # make sure that only topographies with read permission can be effectively selected
+    # make sure that only topographies with read permission can be found here
     topographies = [t for t in topographies
                     if request.user.has_perm('view_surface', t.surface)]
     surfaces = [s for s in surfaces
                 if request.user.has_perm('view_surface', s)]
 
-    return topographies, surfaces
+    return topographies, surfaces, list(tags)
+
+
+def instances_to_basket_items(topographies, surfaces, tags):
+    """
+
+    Parameters
+    ----------
+    topographies
+    surfaces
+    tags
+
+    Returns
+    -------
+    List of items in the basket. Each is a dict with keys
+
+     name, type, unselect_url, key
+
+    Example with one selected surface:
+
+     [ {'name': "Test Surface",
+        'type': "surface",
+        'unselect_url': ".../manager/surface/13/unselect",
+        'key': "surface-13"}
+     ]
+
+    """
+    basket_items = []
+    for s in surfaces:
+        unselect_url = reverse('manager:surface-unselect', kwargs=dict(pk=s.pk))
+        basket_items.append(dict(name=s.name,
+                                 type="surface",
+                                 unselect_url=unselect_url,
+                                 key=f"surface-{s.pk}"))
+    for topo in topographies:
+        unselect_url = reverse('manager:topography-unselect', kwargs=dict(pk=topo.pk))
+        basket_items.append(dict(name=topo.name,
+                                 type="topography",
+                                 unselect_url=unselect_url,
+                                 key=f"topography-{topo.pk}",
+                                 surface_key=f"surface-{topo.surface.pk}"))
+    for tag in tags:
+        unselect_url = reverse('manager:tag-unselect', kwargs=dict(pk=tag.pk))
+        basket_items.append(dict(name=tag.name,
+                                 type="tag",
+                                 unselect_url=unselect_url,
+                                 key=f"tag-{tag.pk}"))
+
+    return basket_items
+
+
+def current_selection_as_basket_items(request):
+    """Returns current selection as JSON suitable for the basket.
+
+    Parameters
+    ----------
+    request
+
+    Returns
+    -------
+    List of items in the basket. Each is a dict with keys
+
+     name, type, unselect_url, key
+
+    Example with one selected surface:
+
+     [ {'name': "Test Surface",
+        'type': "surface",
+        'unselect_url': ".../manager/surface/13/unselect",
+        'key': "surface-13"}
+     ]
+
+    """
+    topographies, surfaces, tags = selected_instances(request)
+    return instances_to_basket_items(topographies, surfaces, tags)
 
 
 def mailto_link_for_reporting_an_error(subject, info, err_msg, traceback) -> str:
@@ -289,9 +416,8 @@ def body_for_mailto_link_for_reporting_an_error(info, err_msg, traceback) -> str
     return body
 
 
-
 def _bandwidths_data_entry(topo):
-    """Return an entry for bandwiths_data
+    """Returns an entry for bandwidths data.
 
     :param topo: topobank.manager.models.Topography instance
     :return: dict
@@ -358,7 +484,6 @@ def _bandwidths_data_entry(topo):
     }
 
 
-
 def bandwidths_data(topographies):
     """Return bandwidths data as needed in surface summary plots.
 
@@ -390,3 +515,16 @@ def bandwidths_data(topographies):
     bandwidths_data.sort(key=lambda entry: weight(entry), reverse=True)
 
     return bandwidths_data
+
+
+def get_search_term(request):
+    return request.GET.get('search', default=None)
+
+
+def get_category(request):
+    return request.GET.get('category', default=None)
+
+
+def get_sharing_status(request):
+    return request.GET.get('sharing_status', default=None)
+

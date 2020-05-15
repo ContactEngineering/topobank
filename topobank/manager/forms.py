@@ -25,6 +25,8 @@ _log = logging.getLogger(__name__)
 MEASUREMENT_DATE_INPUT_FORMAT = '%Y-%m-%d'
 MEASUREMENT_DATE_HELP_TEXT = 'Valid format: "YYYY-mm-dd"'
 ASTERISK_HELP_HTML = HTML("<p>Fields marked with an asterisk (*) are mandatory.</p>")
+TAGS_HELP_TEXT = "You can choose existing tags or create new tags on-the-fly. "+\
+                 "Use '/' character to build hierarchies, e.g. 'fruit/apple'."
 
 ################################################################
 # Topography Forms
@@ -55,10 +57,7 @@ class TopographyFileUploadForm(forms.ModelForm):
             <a href="{{ cancel_action }}" class="btn btn-default" id="cancel-btn">Cancel</a>
             """),
         ),
-        ASTERISK_HELP_HTML,
-        HTML("""
-        For information on the supported file formats, please refer to <a href={% url 'file_formats' %}>this page</a>.
-        """)
+        ASTERISK_HELP_HTML
     )
 
 
@@ -172,7 +171,8 @@ class TopographyMetaDataForm(forms.ModelForm):
         super(TopographyMetaDataForm, self).__init__(*args, **kwargs)
         self.fields['data_source'] = forms.ChoiceField(choices=data_source_choices)
 
-        self.fields['tags'] = TagField(required=False, autocomplete_tags=autocomplete_tags)
+        self.fields['tags'] = TagField(required=False, autocomplete_tags=autocomplete_tags,
+                                       help_text=TAGS_HELP_TEXT)
 
     helper = FormHelper()
     helper.form_method = 'POST'
@@ -454,7 +454,8 @@ class TopographyForm(TopographyUnitsForm):
         )
         self.fields['tags'] = TagField(
             required=False,
-            autocomplete_tags=autocomplete_tags  # set special values for user
+            autocomplete_tags=autocomplete_tags,  # set special values for user
+            help_text=TAGS_HELP_TEXT,
         )
 
     datafile = forms.FileInput()
@@ -482,7 +483,8 @@ class SurfaceForm(forms.ModelForm):
 
         self.fields['tags'] = TagField(
             required=False,
-            autocomplete_tags=autocomplete_tags # set special values for user
+            autocomplete_tags=autocomplete_tags,  # set special values for user
+            help_text=TAGS_HELP_TEXT,
         )
 
     helper = FormHelper()

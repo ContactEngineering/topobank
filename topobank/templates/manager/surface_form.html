@@ -2,60 +2,38 @@
 {% extends 'base.html' %}
 {% load fontawesome %}
 
-{% block breadcrumbs %}
-  <li class="breadcrumb-item">
-    <a href="{% url 'manager:surface-list' %}">Surfaces</a>
-  </li>
-  {% if object %}
-    <li class="breadcrumb-item">
-      <a href="{% url 'manager:surface-detail' surface.id %}">{{ surface.name|truncatechars:50 }}</a>
-    </li>
-    <li class="breadcrumb-item active" aria-current="page">Edit</li>
-  {% else %}
-    <li class="breadcrumb-item active" aria-current="page">New Surface</li>
-  {% endif %}
-{% endblock breadcrumbs %}
 
 {% block content %}
 
 {% load crispy_forms_tags %}
 
+  {% include "tabs.html" %}
 
-<div class="card">
-  <h3 class="card-header">
-      {% if object %}
-        {% fontawesome_icon 'edit' %}
-        Edit surface <b>{{ surface.name }}</b>
-      {% else %}
-        {% fontawesome_icon 'plus-square-o' %}
-        Create new surface
-      {% endif %}
-  </h3>
-  <div class="card-body">
-    {% if form.errors %}
-      {% for field in form %}
-          {% for error in field.errors %}
+  <div class="tab-content pt-2 extra-tab">
+
+        {% if form.errors %}
+          {% for field in form %}
+              {% for error in field.errors %}
+                  <div class="alert alert-danger">
+                      <strong>Field {{ field.name }}: {{ error|escape }}</strong>
+                  </div>
+              {% endfor %}
+          {% endfor %}
+          {% for error in form.non_field_errors %}
               <div class="alert alert-danger">
-                  <strong>Field {{ field.name }}: {{ error|escape }}</strong>
+                  <strong>{{ error|escape }}</strong>
               </div>
           {% endfor %}
-      {% endfor %}
-      {% for error in form.non_field_errors %}
-          <div class="alert alert-danger">
-              <strong>{{ error|escape }}</strong>
+        {% endif %}
+
+        <div class="container">
+          <div class="row">
+            {% crispy form form.helper %}
           </div>
-      {% endfor %}
-    {% endif %}
 
-    <div class="container">
-      <div class="row">
-        {% crispy form form.helper %}
-      </div>
+        </div>
 
-    </div>
   </div>
-
-</div>
 
 {% endblock content %}
 

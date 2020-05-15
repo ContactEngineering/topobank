@@ -10,7 +10,7 @@ import logging
 import datetime
 import factory
 
-from ..models import Topography, Surface
+from ..models import Topography, Surface, TagModel
 from topobank.users.tests.factories import UserFactory
 from topobank.users.models import User
 from topobank.analysis.functions import register_all
@@ -53,6 +53,12 @@ class TopographyFactory(factory.django.DjangoModelFactory):
     unit_editable = True
     height_scale_editable = True
     unit = 'nm'
+
+
+class TagModelFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = TagModel
+    name = factory.Sequence(lambda n: "tag-{}".format(n))
 
 
 #

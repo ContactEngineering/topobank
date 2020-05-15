@@ -7,7 +7,8 @@ from django.views.generic import TemplateView
 from django.views import defaults as default_views
 import notifications.urls
 
-from topobank.views import TermsView, HomeView, FileFormatsView
+from topobank.views import TermsView, HomeView, HelpView, GotoSelectView
+from topobank.users.views import TabbedEmailView
 
 urlpatterns = [
     path("", HomeView.as_view(), name="home"),
@@ -22,9 +23,14 @@ urlpatterns = [
         name="terms",
     ),
     path(
-        "fileformats/",
-        FileFormatsView.as_view(),
-        name="file_formats",
+        "help/",
+        HelpView.as_view(),
+        name="help",
+    ),
+    path(
+        "search/",
+        GotoSelectView.as_view(),
+        name="search",
     ),
     # Django Admin, use {% url 'admin:index' %}
     path(settings.ADMIN_URL, admin.site.urls),
@@ -33,6 +39,8 @@ urlpatterns = [
         "users/",
         include("topobank.users.urls", namespace="users"),
     ),
+    url("^accounts/email/$", TabbedEmailView.as_view(),
+        name='account_email'),  # same as allauth.accounts.email.EmailView, but with tab data
     path("accounts/", include("allauth.urls")),
 
     # For interactive select boxes

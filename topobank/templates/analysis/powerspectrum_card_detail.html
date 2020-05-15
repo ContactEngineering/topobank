@@ -38,7 +38,7 @@
        console.log("Tip radius: "+tip_radius)
 
        $.ajax({
-        type: "POST", // TODO replace with POST
+        type: "POST",
         url: "{% url 'analysis:card-submit' %}",
         timeout: 0,
         data: {

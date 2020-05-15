@@ -276,6 +276,8 @@ def test_show_analyses_with_different_arguments(client, two_topos, django_user_m
     assert str(dict(bins=10)) in unescaped
     assert str(dict(bins=20)) in unescaped
 
+
+@pytest.mark.skip("Test makes no sense, because it needs AJAX call to be executed.")
 @pytest.mark.django_db
 def test_show_multiple_analyses_for_two_functions(client, two_topos):
 
