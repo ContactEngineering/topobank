@@ -32,6 +32,7 @@ from bokeh.models.widgets.markups import Paragraph
 from bokeh.models import Legend, LinearColorMapper, ColorBar, CategoricalColorMapper
 
 import xarray as xr
+import pandas as pd
 
 from pint import UnitRegistry, UndefinedUnitError
 
@@ -1343,8 +1344,6 @@ def download_plot_analyses_to_txt(request, analyses):
 
 def download_plot_analyses_to_xlsx(request, analyses):
     # TODO: We need a mechanism for embedding references to papers into output.
-    # TODO: pandas is a requirement that takes quite long when building docker images, do we really need it here?
-    import pandas as pd
 
     # Pack analysis results into a single text file.
     f = io.BytesIO()
@@ -1443,6 +1442,25 @@ def download_contact_mechanics_analyses_as_zip(request, analyses):
             zip_dir += "-{}".format(analysis.topography.id)
         zip_dirs.add(zip_dir)
 
+        #
+        # Add a csv file with plot data
+        #
+        analysis_result = analysis.result_obj
+
+        col_keys = ['mean_pressures', 'total_contact_areas', 'mean_gaps', 'converged', 'data_paths']
+        col_names = ["Normalized pressure p/E*", "Fractional contact area A/A0", "Normalized mean gap u/h_rms",
+                     "converged", "filename"]
+
+        col_dicts = {col_names[i]:analysis_result[k] for i,k in enumerate(col_keys)}
+        plot_df = pd.DataFrame(col_dicts)
+        plot_df['filename'] = plot_df['filename'].map(lambda fn: os.path.split(fn)[1])  # only simple filename
+
+        plot_filename_in_zip = os.path.join(zip_dir, 'plot.csv')
+        zf.writestr(plot_filename_in_zip, plot_df.to_csv())
+
+        #
+        # Add all files from storage
+        #
         prefix = analysis.storage_prefix
 
         directories, filenames = default_storage.listdir(prefix)
@@ -1469,8 +1487,24 @@ Contents of this ZIP archive
 This archive contains data from contact mechanics calculation.
 
 Each directory corresponds to one topography and is named after the topography.
-Inside you find classical NetCDF files, one for each calculation step.
-Each file corresponds to one external pressure. Inside you'll find the variables
+Inside you find two types of files:
+
+- a simple CSV file ('plot.csv')
+- a couple of classical netCDF files (Extension '.nc')
+
+The file 'plot.csv' contains a table with the data used in the plot,
+one line for each calculation step. It has the following columns:
+
+- Zero-based index column
+- Normalized pressure in units of p/E*
+- Fractional contact area in units of A/A0
+- Normalized mean gap in units of u/h_rms
+- A boolean flag (True/False) which indicates whether the calculation converged
+  within the given limit
+- Filename of the NetCDF file (order of filenames may be different than index)
+
+So each line also refers to one NetCDF file in the directory, it corresponds to
+one external pressure. Inside the NetCDF file you'll find the variables
 
 * `contact_points`: boolean array, true if point is in contact
 * `pressure`: floating-point array containing local pressure (in units of `E*`)
