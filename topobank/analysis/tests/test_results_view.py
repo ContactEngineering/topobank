@@ -600,6 +600,16 @@ def test_download_analysis_results_without_permission(client, two_topos, ids_dow
     response = client.get(download_url)
     assert response.status_code == 403  # Permission denied
 
+    # when user_2 has view permissions for one topography of both, it's still not okay to download
+    two_topos[0].surface.share(user_2)
+    response = client.get(download_url)
+    assert response.status_code == 403  # Permission denied
+
+    # when user_2 has view permissions for all related surfaces, it's okay to download
+    two_topos[1].surface.share(user_2)
+    response = client.get(download_url)
+    assert response.status_code == 200
+
 
 @pytest.mark.django_db
 def test_view_shared_analysis_results(client, handle_usage_statistics):
