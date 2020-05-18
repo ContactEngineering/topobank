@@ -84,7 +84,7 @@ class Analysis(models.Model):
     # According to github #208, each user should be able to see analysis with parameters chosen by himself
     users = models.ManyToManyField(User)
 
-    kwargs = models.BinaryField() # for pickle
+    kwargs = models.BinaryField()  # for pickle
 
     task_id = models.CharField(max_length=155, unique=True, null=True)
     task_state = models.CharField(max_length=7,
