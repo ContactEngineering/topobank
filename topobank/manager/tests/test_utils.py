@@ -141,7 +141,7 @@ def test_surfaces_for_user(user_three_topographies_three_surfaces_three_tags):
     surface4.share(user1)
 
     assert list(surfaces_for_user(user1)) == [surface1, surface2, surface3, surface4]
-    assert list(surfaces_for_user(user2)) == [surface4, surface5]
+    assert sorted(surfaces_for_user(user2), key=lambda s: s.id) == sorted([surface4, surface5], key=lambda s: s.id)
 
     assert list(surfaces_for_user(user1, perms=['view_surface', 'change_surface'])) == [surface1, surface2, surface3]
 
