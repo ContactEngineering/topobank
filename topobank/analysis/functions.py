@@ -19,6 +19,11 @@ from PyCo.ContactMechanics import HardWall
 from PyCo.System.Factory import make_system
 from PyCo.Topography import PlasticTopography
 
+CONTACT_MECHANICS_KWARGS_LIMITS = {
+            'nsteps': dict(min=1, max=50),
+            'maxiter': dict(min=1, max=1000),
+            'pressures': dict(maxlen=50),
+}
 
 # TODO: _unicode_map and super and subscript functions should be moved to some support module.
 
@@ -813,6 +818,17 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
 
     if (nsteps is not None) and (pressures is not None):
         raise ValueError("Both 'nsteps' and 'pressures' are given. One must be None.")
+
+    #
+    # Check some limits for number of pressures, maxiter, and nsteps
+    # (same should be used in HTML page and checked by JS)
+    #
+    if (nsteps) and ((nsteps<CONTACT_MECHANICS_KWARGS_LIMITS['nsteps']['min']) or (nsteps>CONTACT_MECHANICS_KWARGS_LIMITS['nsteps']['max'])):
+        raise ValueError(f"Invalid value for 'nsteps': {nsteps}")
+    if (pressures) and ((len(pressures)<1) or (len(pressures)>CONTACT_MECHANICS_KWARGS_LIMITS['pressures']['maxlen'])):
+        raise ValueError(f"Invalid number of pressures given: {len(pressures)}")
+    if (maxiter<CONTACT_MECHANICS_KWARGS_LIMITS['maxiter']['min']) or (maxiter>CONTACT_MECHANICS_KWARGS_LIMITS['maxiter']['max']):
+        raise ValueError(f"Invalid value for 'maxiter': {maxiter}")
 
     # Conversion of force units
     force_conv = np.prod(topography.physical_sizes)

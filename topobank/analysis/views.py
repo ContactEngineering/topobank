@@ -50,6 +50,7 @@ from .models import Analysis, AnalysisFunction, AnalysisCollection
 from .serializers import AnalysisSerializer
 from .forms import FunctionSelectForm
 from .utils import get_latest_analyses, mangle_sheet_name
+from .functions import CONTACT_MECHANICS_KWARGS_LIMITS
 from topobank.analysis.utils import request_analysis
 
 import logging
@@ -748,6 +749,8 @@ class ContactMechanicsCardView(SimpleCardView):
                  <i>A</i> is the true contact area and <i>A0</i> the apparent contact area,
                  i.e. the size of the provided topography.""")
         ]
+
+        context['limits_calc_kwargs'] = CONTACT_MECHANICS_KWARGS_LIMITS
 
         return context
 
