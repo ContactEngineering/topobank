@@ -588,6 +588,20 @@ def test_analyis_download_as_xlsx_despite_slash_in_sheetname(client, two_topos, 
 
 
 @pytest.mark.django_db
+def test_download_analysis_results_without_permission(client, two_topos, ids_downloadable_analyses, django_user_model):
+
+    # two_topos belong to a user "testuser"
+    user_2 = django_user_model.objects.create_user(username="attacker")
+    client.force_login(user_2)
+
+    ids_str = ",".join(str(i) for i in ids_downloadable_analyses)
+    download_url = reverse('analysis:download', kwargs=dict(ids=ids_str, card_view_flavor='plot', file_format='txt'))
+
+    response = client.get(download_url)
+    assert response.status_code == 403  # Permission denied
+
+
+@pytest.mark.django_db
 def test_view_shared_analysis_results(client, handle_usage_statistics):
 
     password = 'abcd$1234'
