@@ -50,7 +50,7 @@ from .models import Analysis, AnalysisFunction, AnalysisCollection
 from .serializers import AnalysisSerializer
 from .forms import FunctionSelectForm
 from .utils import get_latest_analyses, mangle_sheet_name
-from .functions import CONTACT_MECHANICS_KWARGS_LIMITS
+from .functions import CONTACT_MECHANICS_KWARGS_LIMITS, contact_mechanics
 from topobank.analysis.utils import request_analysis
 
 import logging
@@ -736,9 +736,9 @@ class ContactMechanicsCardView(SimpleCardView):
             initial_calc_kwargs = unique_kwargs
         else:
             # default initial arguments for form if we don't have unique common arguments
-            initial_calc_kwargs = dict(substrate_str='nonperiodic', # because most topographies are non-periodic
-                                       hardness=None,
-                                       nsteps=10, pressures=None, maxiter=100)
+            contact_mechanics_func = AnalysisFunction.objects.get(pyfunc=contact_mechanics.__name__)
+            initial_calc_kwargs = contact_mechanics_func.get_default_kwargs()
+            initial_calc_kwargs['substrate_str'] = 'nonperiodic'  # because most topographies are non-periodic
 
         context['initial_calc_kwargs'] = initial_calc_kwargs
 

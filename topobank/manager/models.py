@@ -10,6 +10,9 @@ from .utils import get_topography_reader
 
 from topobank.users.models import User
 
+import logging
+_log = logging.getLogger(__name__)
+
 MAX_LENGTH_DATAFILE_FORMAT = 15  # some more characters than currently needed, we may have sub formats in future
 
 
@@ -261,7 +264,11 @@ class Topography(models.Model):
         def submit_all(instance=self):
             for af in auto_analysis_funcs:
                 Analysis.objects.filter(function=af, topography=instance).delete()
-                submit_analysis(users, af, instance)
+                try:
+                    submit_analysis(users, af, instance)
+                except Exception as err:
+                    _log.error("Cannot submit analysis for function '%s' and topography %d. Reason: %s",
+                               af.name, instance.id, str(err))
 
         transaction.on_commit(lambda: submit_all(self))
 

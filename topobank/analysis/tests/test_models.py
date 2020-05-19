@@ -64,6 +64,25 @@ def test_autoload_analysis_functions():
     assert len(expected_funcs) == len(funcs)
 
 @pytest.mark.django_db
+def test_default_function_kwargs():
+    from django.core.management import call_command
+
+    call_command('register_analysis_functions')
+
+    func = AnalysisFunction.objects.get(pyfunc='contact_mechanics')
+
+    expected_kwargs = dict(
+        substrate_str = None,
+        hardness = None,
+        nsteps = 10,
+        pressures = None,
+        maxiter = 100,
+    )
+
+    assert func.get_default_kwargs() == expected_kwargs
+
+
+@pytest.mark.django_db
 def test_current_configuration(settings):
 
     settings.TRACKED_DEPENDENCIES = [

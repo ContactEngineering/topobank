@@ -1,24 +1,11 @@
 from django.core.management.base import BaseCommand
-import inspect
 import pickle
 from collections import defaultdict
 import logging
 
-
 from topobank.analysis.models import Analysis, AnalysisFunction
 
 _log = logging.getLogger(__name__)
-
-
-def get_default_args(func):
-    # thanks to mgilson, his answer on SO:
-    # https://stackoverflow.com/questions/12627118/get-a-function-arguments-default-value#12627202
-    signature = inspect.signature(func)
-    return {
-        k: v.default
-        for k, v in signature.parameters.items()
-        if v.default is not inspect.Parameter.empty
-    }
 
 
 class Command(BaseCommand):
@@ -47,15 +34,10 @@ class Command(BaseCommand):
         for af in AnalysisFunction.objects.all():
 
             try:
-                dkw = get_default_args(af.python_function)
+                dkw = af.get_default_kwargs()
             except AttributeError as err:
                 self.stdout.write(self.style.WARNING(f"Cannot use function '{af.pyfunc}'. Skipping it."))
                 continue
-
-            if 'storage_prefix' in dkw:
-                del dkw['storage_prefix']
-            if 'progress_recorder' in dkw:
-                del dkw['progress_recorder']
 
             self.stdout.write(self.style.SUCCESS(f"Default arguments for {af.name}: {dkw}"))
             default_kwargs[af] = dkw
