@@ -19,6 +19,11 @@ from PyCo.ContactMechanics import HardWall
 from PyCo.System.Factory import make_system
 from PyCo.Topography import PlasticTopography
 
+CONTACT_MECHANICS_KWARGS_LIMITS = {
+            'nsteps': dict(min=1, max=50),
+            'maxiter': dict(min=1, max=1000),
+            'pressures': dict(maxlen=50),
+}
 
 # TODO: _unicode_map and super and subscript functions should be moved to some support module.
 
@@ -781,7 +786,7 @@ def _contact_at_given_load(system, external_force, history=None, pentol=None, ma
 
 @analysis_function(card_view_flavor='contact mechanics', automatic=True)
 def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
-                      pressures=None, progress_recorder=None, storage_prefix=None):
+                      pressures=None, maxiter=100, progress_recorder=None, storage_prefix=None):
     """
     Note that `loads` is a list of pressures if the substrate is periodic and a list of forces otherwise.
 
@@ -790,6 +795,7 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
     :param hardness: float value (unit: E*)
     :param nsteps: int or None, if None, "loads" must be given a list
     :param pressures: list of floats or None, if None, choose pressures automatically by using given number of steps (nsteps)
+    :param maxiter: int, maximum number of iterations unless convergence
     :param progress_recorder:
     :param storage_prefix:
     :return:
@@ -813,13 +819,23 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
     if (nsteps is not None) and (pressures is not None):
         raise ValueError("Both 'nsteps' and 'pressures' are given. One must be None.")
 
+    #
+    # Check some limits for number of pressures, maxiter, and nsteps
+    # (same should be used in HTML page and checked by JS)
+    #
+    if (nsteps) and ((nsteps<CONTACT_MECHANICS_KWARGS_LIMITS['nsteps']['min']) or (nsteps>CONTACT_MECHANICS_KWARGS_LIMITS['nsteps']['max'])):
+        raise ValueError(f"Invalid value for 'nsteps': {nsteps}")
+    if (pressures) and ((len(pressures)<1) or (len(pressures)>CONTACT_MECHANICS_KWARGS_LIMITS['pressures']['maxlen'])):
+        raise ValueError(f"Invalid number of pressures given: {len(pressures)}")
+    if (maxiter<CONTACT_MECHANICS_KWARGS_LIMITS['maxiter']['min']) or (maxiter>CONTACT_MECHANICS_KWARGS_LIMITS['maxiter']['max']):
+        raise ValueError(f"Invalid value for 'maxiter': {maxiter}")
+
     # Conversion of force units
     force_conv = np.prod(topography.physical_sizes)
 
     #
     # Some constants
     #
-    maxiter = 100
     min_pentol = 1e-12  # lower bound for the penetration tolerance
 
     if (hardness is not None) and (hardness > 0):

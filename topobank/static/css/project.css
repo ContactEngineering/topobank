@@ -170,38 +170,51 @@ td.ellipsis {
   }
 }
 
-/**
-  Search result table
- */
-
-#search-box {
-  display: flex;
-  flex-flow: column;
-
-  /** height: 80vh; */
-  /** background: blueviolet; */
-}
-
-#search-result > #scrollParent {
-  height: 70vh;
-  flex: 1 1 auto;
-  overflow: auto;
-  /** background: green; */
-  /** height: 500px;
-  overflow: auto;
-   */
-}
-/**
-body, html {
-  height: 100%;
-  overflow: auto;
-}
-
-*/
-
 /** Checkboxes in analyses plot */
 .topobank-topography-checkbox div.bk-input-group {
   overflow: hidden;
   text-overflow: ellipsis; /** this does not work here, don't know why */
 }
 
+/** Extra (dynamic) tabs */
+.nav-tabs {
+  /* border-bottom:none; */
+}
+
+.nav-tabs .nav-link.extra-tab {
+  font-weight: bold;
+  font-style: italic;
+}
+
+.tab-content.extra-tab  {
+  border-top-right-radius: .5rem;
+  border-top-left-radius: .5rem;
+  border-bottom-right-radius: .5rem;
+  border-bottom-left-radius: .5rem;
+}
+
+/** Animate search bar */
+#global-search {
+  width: 120px;
+  -webkit-transition: width 0.4s ease-in-out;
+  transition: width 0.4s ease-in-out;
+}
+
+/** When the input field gets focus, change width of search bar to 100% */
+#global-search:focus-within {
+  width: 100%;
+}
+
+#global-search-input {
+  border-radius: 5px 0px 0px 5px; /* left side should be round */
+}
+
+/** More visible status node in fancytree while loading .. */
+tr.fancytree-statusnode-loading td {
+  font-size: xx-large;
+}
+
+/** larger font in basket elements */
+.basket-element {
+  font-size: medium;
+}

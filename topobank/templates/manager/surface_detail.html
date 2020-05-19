@@ -6,48 +6,35 @@
 {% block content-title %}Details for Surface <i>{{ surface.name }}</i>
 {% endblock content-title %}
 
-{% block breadcrumbs %}
-  <li class="breadcrumb-item">
-    <a href="{% url 'manager:surface-list' %}">Surfaces</a>
-  </li>
-  <li class="breadcrumb-item active" aria-current="page">
-    {{ surface.name|truncatechars:50 }}
-  </li>
-{% endblock breadcrumbs %}
 
 {% block content %}
 
   {% get_obj_perms request.user for surface as "surface_perms" %}
 
-  <div class="card">
+  {% include "tabs.html" with active_tab="extra-tab-1" %}
 
-    <div class="card-header">
-
-      <div class="pull-left">
-        <h3>{{ surface.name }}</h3>
-
-      </div>
-
-
-    </div>
-
-    <div class="card-body">
+  <div class="tab-content mt-2 extra-tab">
 
       <div class="row">
 
-        <div class="col-9">
+        <div class="col-1 border-right">
 
-          <ul class="nav nav-tabs">
+          <ul class="nav nav-pills">
             <li class="nav-item">
-              <a class="nav-link active" data-toggle="tab" href="#topographies" role="tab">Topographies</a>
+              <a class="nav-link active" data-toggle="pill" href="#topographies" role="tab">Topographies</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" data-toggle="tab" href="#description" role="tab">Description</a>
+              <a class="nav-link" data-toggle="pill" href="#description" role="tab">Description</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" data-toggle="tab" href="#permissions" role="tab">Permissions</a>
+              <a class="nav-link" data-toggle="pill" href="#permissions" role="tab">Permissions</a>
             </li>
           </ul>
+        </div>
+
+
+
+        <div class="col-8">
 
           <div class="tab-content mt-4">
 
@@ -65,7 +52,7 @@
             </div>
 
             <div class="tab-pane fade" id="description">
-              {{ surface.description }}
+              {{ surface.description|default:"(no description)" }}
             </div>
 
             <div class="tab-pane fade" id="permissions">
@@ -112,13 +99,13 @@
 
             <div class="col">
 
-              <div class="card-text">
+              <div>
                   <span class="badge badge-info surface-category-headline">
                   {{ surface.get_category_display|default_if_none:"category not defined yet" }}
                   </span>
                 {% render_shared_by_badge request surface %}
               </div>
-              <div class="card-text">
+              <div>
                 {% for tag in surface.tags.all %}
                   <span class="badge badge-success">{{ tag.name }}</span>
                 {% endfor %}
@@ -130,8 +117,8 @@
             <div class="col">
 
               {% if surface.num_topographies > 0 %}
-                <a href="{% url 'manager:surface-show-analyses' surface.id %}" class="btn btn-default btn-block btn-lg">
-                    {% fontawesome_icon 'area-chart' %} Show analyses
+                <a href="{% url 'analysis:surface' surface.id %}" class="btn btn-default btn-block btn-lg">
+                    {% fontawesome_icon 'area-chart' %} Analyze this surface
                 </a>
               {% endif %}
 
@@ -167,9 +154,9 @@
           </div>
           <div class="row p-3">
             <div class="col">
-                <a href="{% url 'manager:surface-list' %}"
+                <a href="{% url 'manager:select' %}"
                    class="btn btn-default btn-block btn-lg">
-                  {% fontawesome_icon 'list' %} Back to search results
+                  {% fontawesome_icon 'check-square-o' %} Back to selection tab
                 </a>
             </div>
           </div>
@@ -177,8 +164,6 @@
 
       </div>
 
-
-    </div>
   </div>
 
 

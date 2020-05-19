@@ -18,30 +18,27 @@
 {{ form.media.css }}
 {% endblock extra_css %}
 
-{% block breadcrumbs %}
-  <li class="breadcrumb-item">
-    <a href="{% url 'analysis:list' %}">Analyses</a>
-  </li>
-  <li class="breadcrumb-item active" aria-current="page">
-    {{ card.function.name|truncatechars:50 }}
-  </li>
-{% endblock breadcrumbs %}
-
 {% block content %}
 
-  <!--
-  Show card. Will be replaced by AJAX call.
-  -->
-  <div id="card">
-    <div class="card">
-      <div class="card-header">
-        <h3>{{ card.function.name }}</h3>
-      </div>
-      <div class="card-body">
-          <span class="spinner"></span>
-          <div id="card-wait-text">
-            Please wait
+  {% include "tabs.html" %}
+
+  <div class="tab-content mt-2">
+    <div class="tab-pane active">
+      <!--
+      Show card. Will be replaced by AJAX call.
+      -->
+      <div id="card">
+        <div class="card">
+          <div class="card-header">
+            <h3>{{ card.function.name }}</h3>
           </div>
+          <div class="card-body">
+              <span class="spinner"></span>
+              <div id="card-wait-text">
+                Please wait
+              </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -62,6 +59,14 @@
     $(document).ready(function () {
       submit_analyses_card_ajax("{% url 'analysis:card' %}", "card", "detail",
                                 {{ card.function.id }}, {{ card.topography_ids_json|safe }}, 0);
+
+      // we want that closing an item in the basket
+      // does unselect it and reload the analyses
+      basket.unselect_handler = function reload (key) {
+         location.reload();  // simplest way now to reduce analyses shown
+        // It would be better to only reload the cards, but so far the "cards" context variable
+        // does not come from an AJAX call
+      };
     });
 
     // we don't want error messages if the page is left before everything is loaded

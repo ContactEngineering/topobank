@@ -3,6 +3,8 @@ from django.urls import reverse
 from django.views.generic import DetailView, ListView, RedirectView, UpdateView
 from django.core.exceptions import PermissionDenied
 
+from allauth.account.views import EmailView
+
 from .models import User
 from .utils import are_collaborating
 
@@ -19,6 +21,16 @@ class UserDetailView(LoginRequiredMixin, DetailView):
         if not are_collaborating(user_to_view, request.user):
             raise PermissionDenied
         return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['active_tab'] = 'extra-tab-4'
+        context['extra_tab_4_data'] = {
+            'title': f"User Profile",
+            'icon': "fa-user",
+            'href': self.request.path,
+        }
+        return context
 
 
 class UserRedirectView(LoginRequiredMixin, RedirectView):
@@ -43,6 +55,37 @@ class UserUpdateView(LoginRequiredMixin, UpdateView):
     def get_object(self, queryset=None):
         # Only get the User record for the user making the request
         return User.objects.get(username=self.request.user.username)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['active_tab'] = 'extra-tab-5'
+        context['extra_tab_4_data'] = {
+            'title': f"User Profile",
+            'icon': "fa-user",
+            'href': reverse('users:detail', kwargs=dict(username=self.request.user.username)),
+        }
+        context['extra_tab_5_data'] = {
+            'title': f"Update user",
+            'icon': "fa-edit",
+            'href': self.request.path,
+        }
+        return context
+
+class TabbedEmailView(EmailView):
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['active_tab'] = 'extra-tab-5'
+        context['extra_tab_4_data'] = {
+            'title': f"User Profile",
+            'icon': "fa-user",
+            'href': reverse('users:detail', kwargs=dict(username=self.request.user.username)),
+        }
+        context['extra_tab_5_data'] = {
+            'title': f"Edit E-mail Addresses",
+            'icon': "fa-edit",
+            'href': self.request.path,
+        }
+        return context
 
 
 class UserListView(LoginRequiredMixin, ListView):

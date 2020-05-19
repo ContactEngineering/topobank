@@ -2,24 +2,13 @@
 {% load fontawesome %}
 {% load render_table from django_tables2 %}
 
-{% block breadcrumbs %}
-   <li class="breadcrumb-item active" aria-current="page">
-    Sharing
-  </li>
-{% endblock breadcrumbs %}
 
 {% block content %}
-  <div class="card">
-    <div class="card-header">
 
-      <h2>
-        <div class="pull-left">
-          {% fontawesome_icon 'share-alt' %}
-          Sharing
-        </div>
-      </h2>
-    </div>
-    <div class="card-body">
+ {% include  "tabs.html" with active_tab="shared" %}
+
+ <div class="tab-content mt-4">
+   <div class="tab-pane active">
       <form method="post">
         {% csrf_token %}
         {% render_table sharing_info_table %}
@@ -29,8 +18,8 @@
           <button class="btn btn-primary" onclick="location.reload(true)" formmethod="get">Reload</button>
         </div>
       </form>
-    </div>
-  </div>
+   </div>
+ </div>
 {% endblock content %}
 
 {% block javascript %}

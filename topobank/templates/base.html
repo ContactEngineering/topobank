@@ -24,7 +24,7 @@
     <link href="{% static 'vendor/plottable/css/plottable.css' %}" rel="stylesheet">
 
     <!-- CSS from sb-admin-2-bs4 template -->
-    <link href="{% static 'css/sb-admin-2.css' %}" rel="stylesheet">
+    <link href="{% static 'css/sb-admin-2.css' %}" rel="stylesheet"> <!-- TODO check what is really needed here -->
 
     <link href="{% static 'vendor/select2/css/select2.css' %}" rel="stylesheet">
 
@@ -41,47 +41,36 @@
     <!-- jquery must be loaded early, e.g. because of datepicker -->
     <script src="{% static 'vendor/jquery/jquery-3.3.1.min.js' %}"></script>
 
-    <nav class="navbar navbar-expand navbar-light bg-light static-top">
+    <nav class="navbar navbar-expand-md navbar-dark bg-dark sticky-top">
 
       <!-- Navbar -->
 
-      {# Show user where we are #}
+      {# Logo / name of the application #}
+      <a class="navbar-brand" href="{% url 'home' %}">contact.engineering</a>
+      <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbar_supported_content">
+        <span class="navbar-toggler-icon"></span>
+      </button>
 
-      <ol class="navbar-nav">
-        <li class="breadcrumb-item">
-          <a class="" href="{% url 'home' %}">
-            <i class="fa fa-fw fa-database"></i>
-          </a>
-        </li>
-        {% block breadcrumbs %}
-        {% endblock breadcrumbs %}
-      </ol>
+      <div class="collapse navbar-collapse" id="navbar_supported_content">
+
+      {% if request.user.is_authenticated %}
+      {# Search Bar #}
+      <div class="col-4">
+      <form class="form-inline" action="{% url 'search' %}" method="get">
+        <div class="input-group" id="global-search">
+          <label class="sr-only" for="global-search-input">Search Term</label>
+          <input class="form-control" type="search" id="global-search-input"
+                 placeholder="Search names, descriptions, and tags" name="search">
+          <div class="input-group-append">
+            <button class="btn btn-outline-secondary" type="submit">{% fontawesome_icon 'search' %}</button>
+          </div>
+        </div>
+      </form>
+      </div>
+      {% endif %}
 
       <ul class="navbar-nav ml-auto">
         {% if request.user.is_authenticated %}
-
-          <li class="nav-item">
-              <a class="nav-link {% navbar_active request.path 'Surfaces' %}"
-                 href="{% url 'manager:surface-list' %}">
-                <i class="fa fa-fw fa-diamond"></i>
-                <span>Surfaces</span>
-              </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% navbar_active request.path 'Analyses' %}"
-               href="{% url 'analysis:list' %}">
-              <i class="fa fa-fw fa-area-chart"></i>
-              <span>Analyses</span>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% navbar_active request.path 'Sharing' %}"
-               href="{% url 'manager:sharing-info' %}">
-              <i class="fa fa-fw fa-share-alt"></i>
-              <span>Sharing</span>
-            </a>
-          </li>
-
 
           <li class="nav-item dropdown no-arrow">
 
@@ -106,7 +95,7 @@
             <a class="dropdown-item" href="#" data-toggle="modal" data-target="#versionModal">Version Information</a>
             <a class="dropdown-item" href="{% url 'terms' %}">Terms &amp; Conditions</a>
             <div class="dropdown-divider"></div>
-            <a class="dropdown-item" href="{% url 'file_formats' %}">Supported File Formats</a>
+            <a class="dropdown-item" href="{% url 'help' %}">Help</a>
             <div class="dropdown-divider"></div>
             <a class="dropdown-item" href="#" data-toggle="modal" data-target="#contactModal">Contact</a>
           </div>
@@ -134,14 +123,33 @@
         </li>
       </ul>
 
+
+      </div>
+
     </nav>
 
-    {% block basket %}{% endblock basket %}
+    {# Display "basket" with all selected items in session #}
+
+    {% if request.user.is_authenticated %}
+      {# display selected items in session #}
+      <div id="basket-container" class="container-fluid bg-light border-top border-bottom py-2">
+        <div id="basket">
+          <div v-if="keys.length">
+            <basket-element v-for="key in keys" v-bind:elem="get_element(key)" v-bind:key="key"></basket-element>
+            <small>Visit the <b><i class="fa fa-fw fa-area-chart"></i>Analyze</b> tab for analysis results.</small>
+          </div>
+          <span v-else><small>No items selected yet. In order to select, please use the checkboxes on the
+            <b><i class="fa fa-fw fa-check-square-o"></i>Select</b> tab.</small></span>
+        </div>
+      </div>
+    {% endif %}
+
+
 
     <div id="wrapper">
       <div id="content-wrapper">
 
-        <div class="container-fluid">
+        <div class="container-fluid mt-1">
 
           {# Places Messages #}
           {% if messages %}
@@ -151,9 +159,9 @@
           {% endif %}
 
           {# Insert actual content, see other templates #}
+
           {% block content %}
           {% endblock content %}
-
         </div>
         <!-- /#container-fluid -->
       </div>
@@ -270,12 +278,12 @@
           <div class="modal-body">
             <p>Is TopoBank helpful for your research?</p>
             <p>We would like to hear from you. Please contact us, if you have any comments, suggestions, or bug reports!</p>
-            <p>
+            <div>
               <ul>
                <li>Drop us an <a href="mailto:{{ contact_email_address }}">email</a> or</li>
                <li>open an <a href="https://github.com/pastewka/TopoBank/issues" target="_blank">issue on GitHub</a>.</li>
               </ul>
-            </p>
+            </div>
             <p>Thank you! The TopoBank development team.</p>
             <p translate="no">
               <em>
@@ -393,10 +401,31 @@
             })
           }
       }
-
-
     </script>
     {% register_notify_callbacks callbacks='fill_notification_badge_or_hide_if_none,fill_notification_list_with_linked_items' %}
+
+    {# vuejs for interactivity #}
+
+    {% if debug %}
+    {# During development we use a vue online, so vuejs is not in production mode #}
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.11/dist/vue.js"></script>
+    <!--
+    <script src="https://unpkg.com/vue@latest"></script>
+    <script src="https://unpkg.com/vue-select@latest"></script>
+    <link rel="stylesheet" href="https://unpkg.com/vue-select@latest/dist/vue-select.css">
+    -->
+    {% else %}
+    {# In production, we use a minified version of vuejs TODO make local #}
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.11/dist/vue.min.js"></script>
+    {% endif %}
+    <script src="{% static 'js/basket.js' %}"></script>
+    <script>
+      // Some globals on each page
+      var event_hub = new Vue(); // used to register event handlers and to pass events
+      var basket = make_basket({{ basket_items_json|safe }});
+      var csrf_token = '{{ csrf_token }}';  // useful when doing AJAX calls from JS files
+    </script>
+
 
     <!-- Custom scripts for all pages -->
     <script src="{% static 'js/project.js' %}"></script>

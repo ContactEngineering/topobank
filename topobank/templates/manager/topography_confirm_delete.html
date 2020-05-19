@@ -2,31 +2,17 @@
 {% extends 'base.html' %}
 {% load fontawesome %}
 
-{% block breadcrumbs %}
-  <li class="breadcrumb-item">
-    <a href="{% url 'manager:surface-list' %}">Surfaces</a>
-  </li>
-  <li class="breadcrumb-item">
-    <a href="{% url 'manager:surface-detail' topography.surface.id %}">
-      {{ topography.surface.name|truncatechars:20 }}</a>
-  </li>
-  <li class="breadcrumb-item">
-    <a href="{% url 'manager:topography-detail' topography.id %}">
-      <em>{{ topography.name|truncatechars:30 }}</em></a>
-  </li>
-  <li class="breadcrumb-item active" aria-current="page">
-    Delete?
-  </li>
-{% endblock breadcrumbs %}
 
 {% block content %}
 
-<div class="card">
- <h3 class="card-header">
-   {% fontawesome_icon 'trash' %}
-   Are you sure?
- </h3>
- <div class="card-body">
+  {% include "tabs.html" %}
+
+<div class="tab-content p-2 extra-tab">
+   <h3>
+     {% fontawesome_icon 'trash' %}
+     Are you sure?
+   </h3>
+
    <div class="alert alert-warning" role="alert">Do you really want to delete topography <em>{{ topography.name }}</em>?
    </div>
    <form method="post">
@@ -34,7 +20,7 @@
      <button class="btn btn-danger" type="submit">Yes, delete</button>
      <a href="{% url 'manager:topography-detail' topography.id %}" class="btn btn-default" type="button">Cancel</a>
    </form>
- </div>
+
 </div>
 
 {% endblock content %}

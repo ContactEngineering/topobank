@@ -110,7 +110,8 @@ def submit_analysis(users, analysis_func, topography, pickled_pyfunc_kwargs=None
     # create entry in Analysis table
     #
     if pickled_pyfunc_kwargs is None:
-        pickled_pyfunc_kwargs = pickle.dumps({})
+        # Instead of an empty dict, we explicitly store the current default arguments of the analysis function
+        pickled_pyfunc_kwargs = pickle.dumps(analysis_func.get_default_kwargs())
 
     analysis = Analysis.objects.create(
         topography=topography,

@@ -32,6 +32,7 @@ from bokeh.models.widgets.markups import Paragraph
 from bokeh.models import Legend, LinearColorMapper, ColorBar, CategoricalColorMapper
 
 import xarray as xr
+import pandas as pd
 
 from pint import UnitRegistry, UndefinedUnitError
 
@@ -43,12 +44,13 @@ import PyCo
 from PyCo.Tools.ContactAreaAnalysis import patch_areas, assign_patch_numbers
 
 from ..manager.models import Topography, Surface
-from ..manager.utils import selected_instances, selection_from_session, instances_to_selection
+from ..manager.utils import selected_instances, instances_to_selection, current_selection_as_basket_items, instances_to_topographies
 from ..usage_stats.utils import increase_statistics_by_date_and_object
 from .models import Analysis, AnalysisFunction, AnalysisCollection
 from .serializers import AnalysisSerializer
 from .forms import FunctionSelectForm
 from .utils import get_latest_analyses, mangle_sheet_name
+from .functions import CONTACT_MECHANICS_KWARGS_LIMITS, contact_mechanics
 from topobank.analysis.utils import request_analysis
 
 import logging
@@ -492,7 +494,7 @@ class PlotCardView(SimpleCardView):
                     try:
                         scalar_unit = scalar_dict['unit']
                         if scalar_unit == '1':
-                            scalar_unit =''  # we don't want to display '1' as unit
+                            scalar_unit = ''  # we don't want to display '1' as unit
                         special_values.append((analysis.topography, scalar_name,
                                                scalar_dict['value'], scalar_unit))
                     except (KeyError, IndexError):
@@ -734,9 +736,9 @@ class ContactMechanicsCardView(SimpleCardView):
             initial_calc_kwargs = unique_kwargs
         else:
             # default initial arguments for form if we don't have unique common arguments
-            initial_calc_kwargs = dict(substrate_str='nonperiodic', # because most topographies are non-periodic
-                                       hardness=None,
-                                       nsteps=10, pressures=None)
+            contact_mechanics_func = AnalysisFunction.objects.get(pyfunc=contact_mechanics.__name__)
+            initial_calc_kwargs = contact_mechanics_func.get_default_kwargs()
+            initial_calc_kwargs['substrate_str'] = 'nonperiodic'  # because most topographies are non-periodic
 
         context['initial_calc_kwargs'] = initial_calc_kwargs
 
@@ -747,6 +749,8 @@ class ContactMechanicsCardView(SimpleCardView):
                  <i>A</i> is the true contact area and <i>A0</i> the apparent contact area,
                  i.e. the size of the provided topography.""")
         ]
+
+        context['limits_calc_kwargs'] = CONTACT_MECHANICS_KWARGS_LIMITS
 
         return context
 
@@ -1034,6 +1038,49 @@ def contact_mechanics_data(request):
         return JsonResponse({}, status=403)
 
 
+def context_for_extra_tabs_if_single_item_selected(topographies, surfaces):
+    """Return contribution to context for opening extra tabs if a single topography/surface is selected.
+
+    Parameters
+    ----------
+    topographies: list of topographies
+        Use here the result of function `utils.selected_instances`.
+
+    surfaces: list of surfaces
+        Use here the result of function `utils.selected_instances`.
+
+    Returns
+    -------
+    Dict with maybe extra context for extra tabs.
+    Update an existing context with this result.
+
+    """
+    context = {}
+
+    if len(topographies) == 1 and len(surfaces) == 0:
+        # exactly one topography was selected -> show also tabs of topography
+        topo = topographies[0]
+        context['extra_tab_1_data'] = {
+            'title': f"Surface <b>{topo.surface.name}</b>",
+            'icon': "fa-diamond",
+            'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
+        }
+        context['extra_tab_2_data'] = {
+            'title': f"Topography <b>{topo.name}</b>",
+            'icon': "fa-file-o",
+            'href': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
+        }
+    elif len(surfaces) == 1 and all(t.surface == surfaces[0] for t in topographies):
+        # exactly one surface was selected -> show also tab of surface
+        surface = surfaces[0]
+        context['extra_tab_1_data'] = {
+            'title': f"Surface <b>{surface.name}</b>",
+            'icon': "fa-diamond",
+            'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
+        }
+    return context
+
+
 class AnalysisFunctionDetailView(DetailView):
     model = AnalysisFunction
     template_name = "analysis/analyses_detail.html"
@@ -1043,12 +1090,32 @@ class AnalysisFunctionDetailView(DetailView):
 
         function = self.object
 
-        topographies, surfaces = selected_instances(self.request)
+        topographies, surfaces, tags = selected_instances(self.request)
+        effective_topographies = instances_to_topographies(topographies, surfaces, tags)
+
+        # Do we have permission for all of these?
+        user = self.request.user
+        effective_topographies = [t for t in effective_topographies if user.has_perm('view_surface', t.surface)]
 
         card = dict(function=function,
-                    topography_ids_json=json.dumps([t.id for t in topographies]))
+                    topography_ids_json=json.dumps([t.id for t in effective_topographies]))
 
         context['card'] = card
+
+        #
+        # Open in extra tab
+        #
+        context['active_tab'] = 'extra-tab-4'
+        context['extra_tab_4_data'] = {
+            'title': f"{function.name}",
+            'icon': "fa-area-chart",
+            'href': self.request.path,
+        }
+        #
+        # Decide whether to open extra tabs for surface/topography details
+        #
+        context.update(context_for_extra_tabs_if_single_item_selected(topographies, surfaces))
+
         return context
 
 
@@ -1074,9 +1141,41 @@ class AnalysesListView(FormView):
 
             # as long as we have the current UI (before implementing GH #304)
             # we also set the collection's function and topographies as selection
+            # TODO is this still needed?
             topography_selection = instances_to_selection(topographies=topographies)
             self.request.session['selection'] = tuple(topography_selection)
             self.request.session['selected_functions'] = tuple(f.id for f in functions)
+
+        elif 'surface_id' in self.kwargs:
+            surface_id = self.kwargs['surface_id']
+            try:
+                surface = Surface.objects.get(id=surface_id)
+            except Surface.DoesNotExist:
+                raise PermissionDenied()
+
+            if not self.request.user.has_perm('view_surface', surface):
+                raise PermissionDenied()
+
+            #
+            # So we have an existing surface and are allowed to view it, so we select it
+            #
+            self.request.session['selection'] = ['surface-{}'.format(surface_id)]
+
+        elif 'topography_id' in self.kwargs:
+            topo_id = self.kwargs['topography_id']
+            try:
+                topo = Topography.objects.get(id=topo_id)
+            except Topography.DoesNotExist:
+                raise PermissionDenied()
+
+            if not self.request.user.has_perm('view_surface', topo.surface):
+                raise PermissionDenied()
+
+            #
+            # So we have an existing topography and are allowed to view it, so we select it
+            #
+            self.request.session['selection'] = ['topography-{}'.format(topo_id)]
+
 
         return dict(
             functions=AnalysesListView._selected_functions(self.request),
@@ -1108,30 +1207,26 @@ class AnalysesListView(FormView):
         context = super().get_context_data(**kwargs)
 
         selected_functions = self._selected_functions(self.request)
-        topographies, surfaces = selected_instances(self.request)
+        topographies, surfaces, tags = selected_instances(self.request)
+        effective_topographies = instances_to_topographies(topographies, surfaces, tags)
 
+        # Do we have permission for all of these?
+        user = self.request.user
+        effective_topographies = [t for t in effective_topographies if user.has_perm('view_surface', t.surface)]
+
+        # for displaying result card, we need a dict for each card,
+        # which then can be used to load the result data in the background
         cards = []
         for function in selected_functions:
             cards.append(dict(function=function,
-                              topography_ids_json=json.dumps([t.id for t in topographies])))
+                              topography_ids_json=json.dumps([t.id for t in effective_topographies])))
 
         context['cards'] = cards
 
-        basket_items = []
-        for s in surfaces:
-            unselect_url = reverse('manager:surface-unselect', kwargs=dict(pk=s.pk))
-            basket_items.append(dict(name=s.name,
-                                     type="surface",
-                                     unselect_url=unselect_url,
-                                     key=f"surface-{s.pk}"))
-        for t in topographies:
-            unselect_url = reverse('manager:topography-unselect', kwargs=dict(pk=t.pk))
-            basket_items.append(dict(name=t.name,
-                                     type="topography",
-                                     unselect_url=unselect_url,
-                                     key=f"topography-{t.pk}",
-                                     surface_key=f"surface-{t.surface.pk}"))
-        context['basket_items_json'] = json.dumps(basket_items)
+        #
+        # Decide whether to open extra tabs for surface/topography details
+        #
+        context.update(context_for_extra_tabs_if_single_item_selected(topographies, surfaces))
 
         return context
 
@@ -1252,8 +1347,6 @@ def download_plot_analyses_to_txt(request, analyses):
 
 def download_plot_analyses_to_xlsx(request, analyses):
     # TODO: We need a mechanism for embedding references to papers into output.
-    # TODO: pandas is a requirement that takes quite long when building docker images, do we really need it here?
-    import pandas as pd
 
     # Pack analysis results into a single text file.
     f = io.BytesIO()
@@ -1352,6 +1445,25 @@ def download_contact_mechanics_analyses_as_zip(request, analyses):
             zip_dir += "-{}".format(analysis.topography.id)
         zip_dirs.add(zip_dir)
 
+        #
+        # Add a csv file with plot data
+        #
+        analysis_result = analysis.result_obj
+
+        col_keys = ['mean_pressures', 'total_contact_areas', 'mean_gaps', 'converged', 'data_paths']
+        col_names = ["Normalized pressure p/E*", "Fractional contact area A/A0", "Normalized mean gap u/h_rms",
+                     "converged", "filename"]
+
+        col_dicts = {col_names[i]:analysis_result[k] for i,k in enumerate(col_keys)}
+        plot_df = pd.DataFrame(col_dicts)
+        plot_df['filename'] = plot_df['filename'].map(lambda fn: os.path.split(fn)[1])  # only simple filename
+
+        plot_filename_in_zip = os.path.join(zip_dir, 'plot.csv')
+        zf.writestr(plot_filename_in_zip, plot_df.to_csv())
+
+        #
+        # Add all files from storage
+        #
         prefix = analysis.storage_prefix
 
         directories, filenames = default_storage.listdir(prefix)
@@ -1378,8 +1490,24 @@ Contents of this ZIP archive
 This archive contains data from contact mechanics calculation.
 
 Each directory corresponds to one topography and is named after the topography.
-Inside you find classical NetCDF files, one for each calculation step.
-Each file corresponds to one external pressure. Inside you'll find the variables
+Inside you find two types of files:
+
+- a simple CSV file ('plot.csv')
+- a couple of classical netCDF files (Extension '.nc')
+
+The file 'plot.csv' contains a table with the data used in the plot,
+one line for each calculation step. It has the following columns:
+
+- Zero-based index column
+- Normalized pressure in units of p/E*
+- Fractional contact area in units of A/A0
+- Normalized mean gap in units of u/h_rms
+- A boolean flag (True/False) which indicates whether the calculation converged
+  within the given limit
+- Filename of the NetCDF file (order of filenames may be different than index)
+
+So each line also refers to one NetCDF file in the directory, it corresponds to
+one external pressure. Inside the NetCDF file you'll find the variables
 
 * `contact_points`: boolean array, true if point is in contact
 * `pressure`: floating-point array containing local pressure (in units of `E*`)

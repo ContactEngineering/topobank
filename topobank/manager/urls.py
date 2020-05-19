@@ -1,5 +1,4 @@
 from django.conf.urls import url
-from django.urls import path
 from django.contrib.auth.decorators import login_required
 from django.views.generic import TemplateView
 
@@ -50,18 +49,10 @@ urlpatterns = [
         view=login_required(views.CorruptedTopographyView.as_view()),
         name='topography-corrupted'
     ),
-    path('topography/<int:topography_id>/show-analyses/',
-         login_required(views.show_analyses_for_topography),
-         name='topography-show-analyses'
-    ),
     url(
         regex=r'surface/(?P<pk>\d+)/$',
         view=login_required(views.SurfaceDetailView.as_view()),
         name='surface-detail'
-    ),
-    path('surface/<int:surface_id>/show-analyses/',
-         login_required(views.show_analyses_for_surface),
-         name='surface-show-analyses'
     ),
     url(
         regex=r'surface/(?P<pk>\d+)/update/$',
@@ -99,14 +90,29 @@ urlpatterns = [
         name='surface-create'
     ),
     url(
-        regex=r'surface/$',
-        view=login_required(views.SurfaceSearchView.as_view()),
-        name='surface-list'
+        regex=r'tag/tree/$',
+        view=login_required(views.TagTreeView.as_view()),
+        name='tag-list'  # TODO rename
     ),
     url(
-        regex=r'surface/search/$',
-        view=login_required(views.SurfaceSearch.as_view()),
-        name='surface-search'
+       regex=r'tag/(?P<pk>\d+)/select/$',
+       view=login_required(views.select_tag),
+       name='tag-select'
+    ),
+    url(
+       regex=r'tag/(?P<pk>\d+)/unselect/$',
+       view=login_required(views.unselect_tag),
+       name='tag-unselect'
+    ),
+    url(
+        regex=r'select/$',
+        view=login_required(views.SelectView.as_view()),
+        name='select'
+    ),
+    url(
+        regex=r'surface/search/$',  # TODO check URL, rename?
+        view=login_required(views.SurfaceListView.as_view()),  # TODO Check view name, rename?
+        name='search'  # TODO rename?
     ),
     url(
         regex=r'access-denied/$',
@@ -117,10 +123,5 @@ urlpatterns = [
         regex=r'sharing/$',
         view=login_required(views.sharing_info),
         name='sharing-info'
-    ),
-    url(
-        regex=r'tags/$',
-        view=login_required(views.TagListView.as_view()),
-        name='tag-list'
     ),
 ]

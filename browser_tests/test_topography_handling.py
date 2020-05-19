@@ -111,7 +111,7 @@ def test_cancel_while_creating_topography(one_empty_surface_testuser_signed_in, 
     link = webdriver.find_element_by_id("submit-id-cancel")
     link.click()
 
-    assert webdriver.current_url.endswith(reverse('manager:surface-list'))
+    assert webdriver.current_url.endswith(reverse('manager:select'))
 
     #
     # Now cancel from step 2
@@ -133,7 +133,7 @@ def test_cancel_while_creating_topography(one_empty_surface_testuser_signed_in, 
     link = webdriver.find_element_by_id("submit-id-cancel")
     link.click()
 
-    assert webdriver.current_url.endswith(reverse('manager:surface-list'))
+    assert webdriver.current_url.endswith(reverse('manager:select'))
 
     #
     # Now cancel from step 3
@@ -167,7 +167,7 @@ def test_cancel_while_creating_topography(one_empty_surface_testuser_signed_in, 
     link = webdriver.find_element_by_id("submit-id-cancel")
     link.click()
 
-    assert webdriver.current_url.endswith(reverse('manager:surface-list'))
+    assert webdriver.current_url.endswith(reverse('manager:select'))
 
 
 

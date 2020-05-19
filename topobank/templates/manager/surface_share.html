@@ -2,26 +2,13 @@
 {% extends 'base.html' %}
 {% load fontawesome %}
 
-{% block breadcrumbs %}
-  <li class="breadcrumb-item">
-    <a href="{% url 'manager:surface-list' %}">Surfaces</a>
-  </li>
-  <li class="breadcrumb-item">
-    <a href="{% url 'manager:surface-detail' surface.pk %}">{{ surface.name|truncatechars:50 }}</a>
-  </li>
-  <li class="breadcrumb-item active" aria-current="page">Share</li>
-{% endblock breadcrumbs %}
 
 {% block content %}
 
-{% load crispy_forms_tags %}
+  {% load crispy_forms_tags %}
 
-<div class="card">
-  <h3 class="card-header">
-      {% fontawesome_icon 'share-alt' %}
-      Share surface <em>{{ surface.name }}</em>
-  </h3>
-  <div class="card-body">
+  {% include "tabs.html" %}
+  <div class="tab-content mt-2">
     {% if form.errors %}
       {% for field in form %}
           {% for error in field.errors %}
@@ -42,9 +29,9 @@
         {% crispy form form.helper %}
       </div>
     </div>
-  </div>
 
-</div>
+
+  </div>
 
 {% endblock content %}
 

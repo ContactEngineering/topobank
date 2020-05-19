@@ -1011,6 +1011,17 @@ If building the containers was successful, aks yourself these questions:
   or only for those which have no file format saved yet and run again without `--help`.
   You can also do a "dry-run" before, in order to see whether autodetection for any topography will fail.
 
+- Have some new arguments been added to an analysis function?
+
+  You can update all function arguments for all analysis by completing them
+  with new keyword arguments which have been added to the code. For this run
+
+  .. code:: bash
+
+     docker-compose -f production.yml run --rm django python manage.py save_default_function_kwargs --dry-run
+
+  first, check whether the result (counts) is you expected and run without `--dry-run`.
+
 
 Restart application
 ...................

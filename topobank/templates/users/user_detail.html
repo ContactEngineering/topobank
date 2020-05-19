@@ -4,11 +4,11 @@
 
 {% block title %}User: {{ object.username }}{% endblock %}
 
-{% block breadcrumbs %}
-  <li class="breadcrumb-item active" aria-current="page">User Profile</li>
-{% endblock breadcrumbs %}
 
 {% block content %}
+
+{% include "tabs.html" %}
+
 <div class="container">
 
   <div class="row">

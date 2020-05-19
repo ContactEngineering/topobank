@@ -2,35 +2,24 @@
 {% extends 'base.html' %}
 {% load fontawesome %}
 
-{% block breadcrumbs %}
-  <li class="breadcrumb-item">
-    <a href="{% url 'manager:surface-list' %}">Surfaces</a>
-  </li>
-  <li class="breadcrumb-item">
-    <a href="{% url 'manager:surface-detail' surface.id %}">{{ surface.name|truncatechars:50 }}</a>
-  </li>
-  <li class="breadcrumb-item active" aria-current="page">
-    Delete?
-  </li>
-{% endblock breadcrumbs %}
-
 {% block content %}
 
-<div class="card">
- <h3 class="card-header">
-   {% fontawesome_icon 'trash' %}
-   Are you sure?
- </h3>
- <div class="card-body">
-   <div class="alert alert-warning" role="alert">Do you really want to delete surface <em>{{ surface.name }}</em>
-    and <b>all related topographies</b>?
+  {% include "tabs.html" %}
+
+   <div class="tab-content p-2 extra-tab">
+     <h3>
+       {% fontawesome_icon 'trash' %}
+       Are you sure?
+     </h3>
+
+     <div class="alert alert-warning" role="alert">Do you really want to delete surface <em>{{ surface.name }}</em>
+      and <b>all related topographies</b>?
+     </div>
+     <form method="post">
+       {%  csrf_token %}
+       <button class="btn btn-danger" type="submit">Yes, delete</button>
+       <a href="{% url 'manager:surface-detail' surface.id %}" class="btn btn-default" type="button">Cancel</a>
+     </form>
    </div>
-   <form method="post">
-     {%  csrf_token %}
-     <button class="btn btn-danger" type="submit">Yes, delete</button>
-     <a href="{% url 'manager:surface-detail' surface.id %}" class="btn btn-default" type="button">Cancel</a>
-   </form>
- </div>
-</div>
 
 {% endblock content %}

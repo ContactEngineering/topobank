@@ -276,6 +276,8 @@ def test_show_analyses_with_different_arguments(client, two_topos, django_user_m
     assert str(dict(bins=10)) in unescaped
     assert str(dict(bins=20)) in unescaped
 
+
+@pytest.mark.skip("Test makes no sense, because it needs AJAX call to be executed.")
 @pytest.mark.django_db
 def test_show_multiple_analyses_for_two_functions(client, two_topos):
 
@@ -583,6 +585,30 @@ def test_analyis_download_as_xlsx_despite_slash_in_sheetname(client, two_topos, 
     print(xlsx.sheetnames)
 
     assert len(xlsx.worksheets) == 2*2 + 1
+
+
+@pytest.mark.django_db
+def test_download_analysis_results_without_permission(client, two_topos, ids_downloadable_analyses, django_user_model):
+
+    # two_topos belong to a user "testuser"
+    user_2 = django_user_model.objects.create_user(username="attacker")
+    client.force_login(user_2)
+
+    ids_str = ",".join(str(i) for i in ids_downloadable_analyses)
+    download_url = reverse('analysis:download', kwargs=dict(ids=ids_str, card_view_flavor='plot', file_format='txt'))
+
+    response = client.get(download_url)
+    assert response.status_code == 403  # Permission denied
+
+    # when user_2 has view permissions for one topography of both, it's still not okay to download
+    two_topos[0].surface.share(user_2)
+    response = client.get(download_url)
+    assert response.status_code == 403  # Permission denied
+
+    # when user_2 has view permissions for all related surfaces, it's okay to download
+    two_topos[1].surface.share(user_2)
+    response = client.get(download_url)
+    assert response.status_code == 200
 
 
 @pytest.mark.django_db

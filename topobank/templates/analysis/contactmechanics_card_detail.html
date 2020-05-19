@@ -129,7 +129,9 @@
                            data-content="This option determines how the elastic interactions are calculated.
                                    This affects edge effects that may show up in the results at large contact area.
                                    Calculations can assume that the surface repeats periodically or that it is pushing down on a nonperiodic,
-                                   infinitely expanded half-space. The latter option corresponds to mapping the surface topography on a flat punch."></i>
+                                   infinitely expanded half-space. The latter option corresponds to mapping the surface topography on a flat punch.
+                                   If not given, this value is automatically chosen as 'periodic' for periodic topographies,
+                                   else non-periodic."></i>
                       </div>
                     </div>
                   </div>
@@ -177,7 +179,10 @@
                         Number of steps
                       </div>
                     </div>
-                    <input id='nsteps-input' type="number" min="0" max="50" step="1" class="form-control"
+                    <input id='nsteps-input' type="number"
+                           min="{{ limits_calc_kwargs.nsteps.min }}"
+                           max="{{ limits_calc_kwargs.nsteps.max }}"
+                           step="1" class="form-control"
                            value="{{ initial_calc_kwargs.nsteps }}">
                     <div class="input-group-append ">
                       <div class="input-group-text">
@@ -205,7 +210,7 @@
                         {% endfor %}
                       {% endif %}
                     </select>
-                    <div class="input-group-append ">
+                    <div class="input-group-append  ">
                       <div class="input-group-text">
                         E<sup>*</sup>
                       </div>
@@ -214,7 +219,31 @@
                            tabindex="0" data-trigger="focus" role="button"
                            title="Manual step selection"
                            data-content="Enter positive pressure values for which you need results. You can also copy/paste
-                           a comma-separated list of values with a comma after every number. Use '.' as decimal separator."></i>
+                           a comma-separated list of values with a comma after every number. Use '.' as decimal separator.
+                           The maximum number of values is {{ limits_calc_kwargs.pressures.maxlen }}."></i>
+                      </div>
+                    </div>
+                  </div>
+
+                  {# Input of maximum number of iterations  #}
+                  <div class="input-group col-auto">
+                    {# Automatic #}
+                    <div class="input-group-prepend">
+                      <div class="input-group-text">
+                        Max. number of iterations
+                      </div>
+                    </div>
+                    <input id='maxiter-input' type="number"
+                           min="{{ limits_calc_kwargs.maxiter.min }}"
+                           max="{{ limits_calc_kwargs.maxiter.max }}"
+                           step="1" class="form-control"
+                           value="{{ initial_calc_kwargs.maxiter }}">
+                    <div class="input-group-append ">
+                      <div class="input-group-text">
+                        <i class="fa fa-info-circle" data-toggle="popover"
+                           tabindex="0" data-trigger="focus" role="button"
+                           title="Maximum number of iterations"
+                           data-content="Maximum number of iterations (<={{ limits_calc_kwargs.maxiter.max }})."></i>
                       </div>
                     </div>
                   </div>
@@ -435,7 +464,7 @@
       multiple: true,
       tags: true,
       allowClear: true,
-      maximumSelectionLength: 20,
+      maximumSelectionLength: {{ limits_calc_kwargs.pressures.maxlen }},
       language: {
         noResults: null  // do not show "no result" dropdown
       },
@@ -486,28 +515,47 @@
 
     $("#recalculate").click( function() {
 
-        var substrate_str = $('#substrate-select').val();
-        var hardness = null;
+        let substrate_str = $('#substrate-select').val();
+        let hardness = null;
 
-        var pressure_selection_mode = $("input[name='pressure-selection']:checked").val();
-        var nsteps = null;
-        var pressures = null;
+        let pressure_selection_mode = $("input[name='pressure-selection']:checked").val();
+        let nsteps = null;
+        let pressures = null;
+        let maxiter = parseInt($('#maxiter-input').val());
+
+        let form_ok = true;  // are all entered values within the allowed range?
 
         if (pressure_selection_mode === "automatic") {
           nsteps = parseInt($('#nsteps-input').val());
+          form_ok = form_ok && ((nsteps>={{ limits_calc_kwargs.nsteps.min }}) && (nsteps<={{ limits_calc_kwargs.nsteps.max }}))
         } else if (pressure_selection_mode === "manual") {
           pressures = $("#select-pressure-steps").val().map(parseFloat);
+          pressures = pressures.filter(function (p) { return (p!=null) && (p>0)});
+          let num_pressures = pressures.length;
+          form_ok = form_ok && (num_pressures>=1) && (num_pressures<={{ limits_calc_kwargs.pressures.maxlen }});
         }
 
         if ($('#hardness-checkbox').prop("checked") == true) {
          hardness = parseFloat($('#hardness-input').val());
         };
 
+        form_ok = form_ok && (maxiter>={{ limits_calc_kwargs.maxiter.min }}) && (maxiter<={{ limits_calc_kwargs.maxiter.max }});
+
+        if (!form_ok) {
+          let msg = "Please check your entries, some value seems to be invalid. Allowed limits:\n";
+          msg += "{{ limits_calc_kwargs.nsteps.min }}<=number of steps<={{ limits_calc_kwargs.nsteps.max }}\n";
+          msg += "1<=number of pressures<={{ limits_calc_kwargs.pressures.maxlen }} (if not given number of steps)\n";
+          msg += "{{ limits_calc_kwargs.maxiter.min }}<=max. number of iterations<={{ limits_calc_kwargs.maxiter.max }}\n";
+          alert(msg);
+          return;
+        }
+
+
         // debug_msg("Clicked button. substrate: "+substrate_str+" hardness: "+hardness);
         // debug_msg(" nsteps:"+nsteps+" pressures:"+pressures+" ");
 
-        var function_kwargs = { 'substrate_str': substrate_str, 'hardness': hardness,
-                                'nsteps': nsteps, 'pressures': pressures};
+        let function_kwargs = { 'substrate_str': substrate_str, 'hardness': hardness,
+                                'nsteps': nsteps, 'pressures': pressures, 'maxiter': maxiter};
 
          $.ajax({
           type: "POST",

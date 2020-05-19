@@ -10,7 +10,11 @@ from .utils import get_topography_reader
 
 from topobank.users.models import User
 
+import logging
+_log = logging.getLogger(__name__)
+
 MAX_LENGTH_DATAFILE_FORMAT = 15  # some more characters than currently needed, we may have sub formats in future
+
 
 def user_directory_path(instance, filename):
     # file will be uploaded to MEDIA_ROOT/user_<id>/<filename>
@@ -24,6 +28,7 @@ class TagModel(tm.TagTreeModel):
         force_lowercase = True
         # not needed yet
         # autocomplete_view = 'manager:autocomplete-tags'
+
 
 class Surface(models.Model):
     """Physical Surface.
@@ -71,7 +76,6 @@ class Surface(models.Model):
             result = with_user.has_perm('change_surface', self)
         return result
 
-
     def share(self, with_user, allow_change=False):
         """Share this surface with a given user.
 
@@ -91,7 +95,6 @@ class Surface(models.Model):
         for topo in self.topography_set.all():
             for af in auto_analysis_funcs:
                 request_analysis(with_user, af, topo)  # standard arguments
-
 
     def unshare(self, with_user):
         """Remove share on this surface for given user.
@@ -261,7 +264,11 @@ class Topography(models.Model):
         def submit_all(instance=self):
             for af in auto_analysis_funcs:
                 Analysis.objects.filter(function=af, topography=instance).delete()
-                submit_analysis(users, af, instance)
+                try:
+                    submit_analysis(users, af, instance)
+                except Exception as err:
+                    _log.error("Cannot submit analysis for function '%s' and topography %d. Reason: %s",
+                               af.name, instance.id, str(err))
 
         transaction.on_commit(lambda: submit_all(self))
 

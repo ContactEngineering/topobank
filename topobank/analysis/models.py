@@ -1,10 +1,24 @@
 from django.db import models
 
+import inspect
 import pickle
 
 from topobank.manager.models import Topography
 from topobank.users.models import User
 import topobank.analysis.functions as functions_module
+
+
+
+def _get_default_args(func):
+    # thanks to mgilson, his answer on SO:
+    # https://stackoverflow.com/questions/12627118/get-a-function-arguments-default-value#12627202
+
+    signature = inspect.signature(func)
+    return {
+        k: v.default
+        for k, v in signature.parameters.items()
+        if v.default is not inspect.Parameter.empty
+    }
 
 
 class Dependency(models.Model):
@@ -84,7 +98,7 @@ class Analysis(models.Model):
     # According to github #208, each user should be able to see analysis with parameters chosen by himself
     users = models.ManyToManyField(User)
 
-    kwargs = models.BinaryField() # for pickle
+    kwargs = models.BinaryField()  # for pickle
 
     task_id = models.CharField(max_length=155, unique=True, null=True)
     task_state = models.CharField(max_length=7,
@@ -142,6 +156,28 @@ class AnalysisFunction(models.Model):
         """Call appropriate python function.
         """
         return self.python_function(*args, **kwargs)
+
+
+    def get_default_kwargs(self, include_system_kwargs=False):
+        """
+
+        Parameters
+        ----------
+        include_system_kwargs: bool
+            If True, returns also keyword arguments which are needed for administration and UI
+            but have no scientific meaning.
+
+        Returns
+        -------
+        Dict with default kwargs.
+        """
+
+        dkw = _get_default_args(self.python_function)
+        if 'storage_prefix' in dkw:
+            del dkw['storage_prefix']
+        if 'progress_recorder' in dkw:
+            del dkw['progress_recorder']
+        return dkw
 
     @property
     def card_view_flavor(self):
