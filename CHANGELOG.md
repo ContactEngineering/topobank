@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-## 0.8.0 (not released yet)
+## 0.8.0 (2020-05-19)
 
 This release mainly implements a redesign of the user interface.
 
@@ -9,13 +9,19 @@ This release mainly implements a redesign of the user interface.
   now called "Select"
 - search field is placed in the navigation bar, search can be
   done from everywhere (#419)
-- search is done servers-side, result is shown page py page (#418, #380)
+- search is done servers-side, result is shown page by page (#418, #380)
 - tags can also be selected for analysis        
 - removed card in detail view of topography and surface (#422)
 - added simple CSV file with plot data in the ZIP archive
   when downloading data from contact mechanics calculations (#459)
 - maximum number of iterations for contact mechanics calculations 
   can be specified by the user (#460)
+- fixed that retriggering of analyses could result in different
+  default arguments (#457)
+- added management script to unify function arguments for exisiting
+  analyses (#468)
+- fixed different number of allowed steps for automatic and manual
+  step selection in contact mechanics calculations (#455)
 
 ## 0.7.6 (2020-04-06)
 
