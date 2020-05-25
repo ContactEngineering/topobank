@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 0.8.1 (not published yet)
+
+- updated markdown2 dependency because of security issue (#458)
+
 ## 0.8.0 (2020-05-19)
 
 This release mainly implements a redesign of the user interface.
