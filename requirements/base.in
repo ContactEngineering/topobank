@@ -107,7 +107,8 @@ git+http://git@github.com/mcrot/django-termsandconditions.git@optional_terms
 # TODO fork this into account of IMTEK/Simulation organisation if still needed (maybe we don't need optional terms)
 
 # markdown conversion for terms & conditions
-markdown2
+markdown2>=2.3.9
+# Version 2.3.8 has a security issue (CVE-2020-11888)
 
 # datepicker
 django-bootstrap-datepicker-plus
