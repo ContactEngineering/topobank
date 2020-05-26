@@ -93,18 +93,9 @@
           {% endif %}
         </div>
       </div>
-      <div class="row p-3">
-        <div class="col">
-            <a href="{% url 'analysis:list' %}"
-               class="btn btn-default btn-block btn-lg">
-              {% fontawesome_icon 'list' %} Back to analysis results
-            </a>
-        </div>
-      </div>
       {% block card_extra_widgets %}
 
       {% endblock card_extra_widgets %}
-
     </div>
 
   </div>

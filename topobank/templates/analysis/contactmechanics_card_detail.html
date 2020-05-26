@@ -89,17 +89,6 @@
           </div>
           {% endif %}
 
-          {# BUTTON "BACK TO ANALYSIS RESULTS" #}
-          <div class="row p-3">
-            <div class="col-8">
-
-              <a href="{% url 'analysis:list' %}"
-                 class="btn btn-default btn-block btn-lg">
-                {% fontawesome_icon 'list' %} Back to analysis results
-              </a>
-            </div>
-          </div>
-
           {# ELEMENTS FOR TRIGGERING A CALCULATION #}
           {% if not analyses_unready %}
           <div class="row p-1">
