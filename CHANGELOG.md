@@ -3,6 +3,8 @@
 ## 0.8.1 (not published yet)
 
 - updated markdown2 dependency because of security issue (#458)
+- removed "back" buttons not needed any more because of
+  tabbed interface (#473)
 
 ## 0.8.0 (2020-05-19)
 
