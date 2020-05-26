@@ -1061,12 +1061,12 @@ def context_for_extra_tabs_if_single_item_selected(topographies, surfaces):
         # exactly one topography was selected -> show also tabs of topography
         topo = topographies[0]
         context['extra_tab_1_data'] = {
-            'title': f"Surface <b>{topo.surface.name}</b>",
+            'title': f"{topo.surface.name}",
             'icon': "fa-diamond",
             'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
         }
         context['extra_tab_2_data'] = {
-            'title': f"Topography <b>{topo.name}</b>",
+            'title': f"{topo.name}",
             'icon': "fa-file-o",
             'href': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
         }
@@ -1074,7 +1074,7 @@ def context_for_extra_tabs_if_single_item_selected(topographies, surfaces):
         # exactly one surface was selected -> show also tab of surface
         surface = surfaces[0]
         context['extra_tab_1_data'] = {
-            'title': f"Surface <b>{surface.name}</b>",
+            'title': f"{surface.name}",
             'icon': "fa-diamond",
             'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
         }
