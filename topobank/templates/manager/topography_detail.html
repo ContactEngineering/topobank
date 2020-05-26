@@ -21,7 +21,7 @@
 
 {% block content %}
 
- {% get_obj_perms request.user for topography.surface as "surface_perms" %}
+  {% get_obj_perms request.user for topography.surface as "surface_perms" %}
 
   {% include "tabs.html" %}
 
