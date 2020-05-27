@@ -40,7 +40,7 @@
       </ul>
       {% endif %}
 
-      <div class="tab-content mt-3">
+      <div class="tab-content">
         <div class="tab-pane fade show active" id="plot-tab-{{ card_id }}" role="tabpanel">
           {% include 'analysis/analyses_alerts.html' %}
           {% if not analyses_unready and analyses_success %}
