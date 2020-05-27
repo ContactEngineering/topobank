@@ -607,6 +607,15 @@ class ContactMechanicsCardView(SimpleCardView):
         else:
 
             #
+            # Prepare helper variables
+            #
+            color_cycle = itertools.cycle(Category10[10])
+            topography_colors = OrderedDict()  # key: Topography instance
+            topography_names = []
+            js_code = ""
+            js_args = {}
+
+            #
             # Generate two plots in two tabs based on same data sources
             #
             sources = []
@@ -615,6 +624,7 @@ class ContactMechanicsCardView(SimpleCardView):
                 analysis_result = analysis.result_obj
 
                 data = dict(
+                    topography_name=(analysis.topography.name,)*len(analysis_result['mean_pressures']),
                     mean_pressure=analysis_result['mean_pressures'],
                     total_contact_area=analysis_result['total_contact_areas'],
                     mean_displacement=analysis_result['mean_displacements'],
@@ -630,6 +640,13 @@ class ContactMechanicsCardView(SimpleCardView):
                 sources.append(source)
                 labels.append(analysis.topography.name)
 
+                #
+                # find out colors for topographies
+                #
+                if analysis.topography not in topography_colors:
+                    topography_colors[analysis.topography] = next(color_cycle)
+                    topography_names.append(analysis.topography.name)
+
             load_axis_label = "Normalized pressure p/E*"
             area_axis_label = "Fractional contact area A/A0"
             disp_axis_label = "Normalized mean gap u/h_rms"
@@ -643,6 +660,7 @@ class ContactMechanicsCardView(SimpleCardView):
             # Configure tooltips
             #
             tooltips = [
+                ("topography", "@topography_name"),
                 (load_axis_label, "@mean_pressure"),
                 (area_axis_label, "@total_contact_area"),
                 (disp_axis_label, "@mean_gap"),
@@ -674,9 +692,6 @@ class ContactMechanicsCardView(SimpleCardView):
 
             load_plot.yaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
 
-            contact_area_legend_items = []
-            load_legend_items = []
-
             for source, label in zip(sources, labels):
                 curr_color = next(color_cycle)
                 r1 = contact_area_plot.circle('mean_pressure', 'total_contact_area',
@@ -692,9 +707,6 @@ class ContactMechanicsCardView(SimpleCardView):
                                       line_color=None,
                                       size=12)
 
-                contact_area_legend_items.append((label, [r1]))
-                load_legend_items.append((label, [r2]))
-
                 selected_circle = Circle(fill_alpha='fill_alpha', fill_color=curr_color,
                                          line_color="black", line_width=4)
                 nonselected_circle = Circle(fill_alpha='fill_alpha', fill_color=curr_color,
@@ -704,19 +716,51 @@ class ContactMechanicsCardView(SimpleCardView):
                     renderer.selection_glyph = selected_circle
                     renderer.nonselection_glyph = nonselected_circle
 
+                #
+                # Prepare JS code to toggle visibility
+                #
+                topography_idx = topography_names.index(label)
+
+                # prepare unique ids for this symbols (one for each plot)
+                glyph_id_area_plot = f"glyph_{topography_idx}_area_symbol"
+                glyph_id_load_plot = f"glyph_{topography_idx}_load_symbol"
+                js_args[glyph_id_area_plot] = r1  # mapping from Python to JS
+                js_args[glyph_id_load_plot] = r2  # mapping from Python to JS
+
+                # only indices of visible glyphs appear in "active" lists of both button groups
+                js_code += f"{glyph_id_area_plot}.visible = topography_btn_group.active.includes({topography_idx});"
+                js_code += f"{glyph_id_load_plot}.visible = topography_btn_group.active.includes({topography_idx});"
+
+
             _configure_plot(contact_area_plot)
             _configure_plot(load_plot)
 
             #
-            # Legend
+            # Adding widget for switching symbols on/off
             #
-            contact_area_legend = Legend(items=contact_area_legend_items)
-            contact_area_legend.click_policy = 'hide'
-            load_legend = Legend(items=load_legend_items)
-            load_legend.click_policy = 'hide'
+            topography_button_group = CheckboxGroup(
+                labels=topography_names,
+                css_classes=["topobank-topography-checkbox"],
+                visible=False,
+                active=list(range(len(topography_names))))  # all active
 
-            contact_area_plot.add_layout(contact_area_legend, "below")
-            load_plot.add_layout(load_legend, "below")
+            topography_btn_group_toggle_button = Toggle(label="Topographies")
+
+            # extend mapping of Python to JS objects
+            js_args['topography_btn_group'] = topography_button_group
+            js_args['topography_btn_group_toggle_btn'] = topography_btn_group_toggle_button
+
+            toggle_lines_callback = CustomJS(args=js_args, code=js_code)
+            toggle_topography_checkboxes = CustomJS(args=js_args, code="""
+                        topography_btn_group.visible = topography_btn_group_toggle_btn.active;
+                    """)
+
+            widgets = grid([
+                [topography_btn_group_toggle_button],
+                [topography_button_group]
+            ])
+            topography_button_group.js_on_click(toggle_lines_callback)
+            topography_btn_group_toggle_button.js_on_click(toggle_topography_checkboxes)
 
             #
             # Layout plot
@@ -725,7 +769,7 @@ class ContactMechanicsCardView(SimpleCardView):
             load_tab = Panel(child=load_plot, title="Load versus displacement")
 
             tabs = Tabs(tabs=[contact_area_tab, load_tab])
-            col = column(tabs, sizing_mode='scale_width')
+            col = column(tabs, widgets, sizing_mode='scale_width')
 
             plot_script, plot_div = components(col)
 
