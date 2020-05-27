@@ -9,6 +9,8 @@
   long tab titles (#470)
 - fixing overlapping pills in detail view for surfaces and
   topographies (#471)
+- in contact mechanics plot, replaced interactive legend by
+  a collapsed list of checkboxes increasing the plot area (#472)
 
 ## 0.8.0 (2020-05-19)
 
