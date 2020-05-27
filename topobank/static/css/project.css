@@ -1,4 +1,6 @@
-/* These styles are generated from project.scss. */
+/* These styles are currently not generated from project.scss.
+  TODO Use sass or remove sass files.
+*/
 
 .alert-debug {
   color: black;
