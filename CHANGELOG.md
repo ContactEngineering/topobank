@@ -6,7 +6,9 @@
 - removed "back" buttons not needed any more because of
   tabbed interface (#473)
 - simplified tab titles, fixing strange tab behavior for 
-  long tab titles (#470)  
+  long tab titles (#470)
+- fixing overlapping pills in detail view for surfaces and
+  topographies (#471)
 
 ## 0.8.0 (2020-05-19)
 
