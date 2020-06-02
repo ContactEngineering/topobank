@@ -178,10 +178,6 @@ td.ellipsis {
   /* border-bottom:none; */
 }
 
-.nav-item a.nav-link.extra-tab {
-  font-style: italic;
-}
-
 /** Animate search bar */
 #global-search {
   width: 120px;

@@ -88,12 +88,11 @@ class TermsView(TemplateView):
         else:
             context['active_terms'] = active_terms.order_by('optional')
 
-        context['active_tab'] = 'extra-tab-4'
-        context['extra_tab_4_data'] = {
+        context['extra_tabs'] = [{
             'icon': 'fa-legal',
             'title': "Terms and Conditions",
-            'href': self.request.path,
-        }
+            'active': True,
+        }]
 
         return context
 
@@ -105,12 +104,14 @@ class HelpView(TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data()
         context['reader_infos'] = get_reader_infos()
-        context['active_tab'] = 'extra-tab-4'
-        context['extra_tab_4_data'] = {
-            'icon': 'fa-question-circle',
-            'title': "Help",
-            'href': self.request.path,
-        }
+        context['extra_tabs'] = [
+            {
+                'icon': 'fa-question-circle',
+                'title': "Help",
+                'href': self.request.path,
+                'active': True,
+            }
+        ]
         return context
 
 
@@ -124,31 +125,32 @@ class GotoSelectView(RedirectView):
 # termsandconditions package in order to add context
 # for the tabbed interface
 #
-def context_for_terms(terms, request_path):
-    context = {}
-    context['active_tab'] = 'extra-tab-5'
-    context['extra_tab_4_data'] = {
-        'icon': 'fa-legal',
-        'title': "Terms and Conditions",
-        'href': reverse('terms'),
-    }
+def tabs_for_terms(terms, request_path):
     if len(terms) == 1:
-        tab5_title = unescape(f"{terms[0].name} {terms[0].version_number}")  # mimics '|safe' as in original template
+        tab_title = unescape(f"{terms[0].name} {terms[0].version_number}")  # mimics '|safe' as in original template
     else:
-        tab5_title = "Terms"  # should not happen in Topobank, but just to be safe
+        tab_title = "Terms"  # should not happen in Topobank, but just to be safe
 
-    context['extra_tab_5_data'] = {
-        'icon': 'fa-legal',
-        'title': tab5_title,
-        'href': request_path
-    }
-    return context
+    return [
+        {
+            'icon': 'fa-legal',
+            'title': "Terms and Conditions",
+            'href': reverse('terms'),
+            'active': False,
+        },
+        {
+            'icon': 'fa-legal',
+            'title': tab_title,
+            'href': request_path,
+            'active': True,
+        }
+    ]
 
 
 class TabbedTermsMixin:
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context.update(context_for_terms(self.get_terms(self.kwargs), self.request.path))
+        context['extra_tabs'] = tabs_for_terms(self.get_terms(self.kwargs), self.request.path)
         return context
 
 

@@ -16,46 +16,13 @@
         <i class="fa fa-fw fa-check-square-o"></i> Select
       </a>
     </li>
-    {% if extra_tab_1_data %}
-      <li class="nav-item">
-        <a class="nav-link extra-tab {% if active_tab == 'extra-tab-1' %}active{% endif %}" href="{{ extra_tab_1_data.href }}">
-          <i class="fa fa-fw {{ extra_tab_1_data.icon}}"></i> {{ extra_tab_1_data.title|truncatechars:50 }}
-        </a>
-      </li>
-      {% if extra_tab_2_data %}
-        <li class="nav-item">
-          <a class="nav-link extra-tab {% if active_tab == 'extra-tab-2' %}active{% endif %}" href="{{ extra_tab_2_data.href }}">
-            <i class="fa fa-fw {{ extra_tab_2_data.icon}}"></i> {{ extra_tab_2_data.title|truncatechars:50 }}
-          </a>
-        </li>
-        {% if extra_tab_3_data %}
-          <li class="nav-item">
-            <a class="nav-link extra-tab {% if active_tab == 'extra-tab-3' %}active{% endif %}" href="{{ extra_tab_3_data.href }}">
-              <i class="fa fa-fw {{ extra_tab_3_data.icon}}"></i> {{ extra_tab_3_data.title|truncatechars:50 }}
-            </a>
-          </li>
-        {% endif %}
-      {% endif %}
-    {% endif %}
-    <li class="nav-item">
-      <a class="nav-link {% if active_tab == 'analyze' %}active{% endif %}" href="{% url 'analysis:list' %}">
-        <i class="fa fa-fw fa-area-chart"></i> Analyze
-      </a>
-    </li>
   {% endif %}
-  {# extra tabs 4+5 can also be displayed, if not authenticated (used for terms+conditions) #}
-  {% if extra_tab_4_data %}
+  {% for tab in extra_tabs %}
     <li class="nav-item">
-      <a class="nav-link extra-tab {% if active_tab == 'extra-tab-4' %}active{% endif %}" href="{{ extra_tab_4_data.href }}">
-        <i class="fa fa-fw {{ extra_tab_4_data.icon}}"></i> {{ extra_tab_4_data.title|truncatechars:50 }}
+      <a class="nav-link {% if tab.active %}active{% endif %}" href="{% if tab.href %}{{ tab.href }}{% else %}{{ request.path }}{% endif %}">
+        <i class="fa fa-fw {{ tab.icon}}"></i> {{ tab.title|truncatechars:50 }}
       </a>
     </li>
-    {% if extra_tab_5_data %}
-    <li class="nav-item">
-      <a class="nav-link extra-tab {% if active_tab == 'extra-tab-5' %}active{% endif %}" href="{{ extra_tab_5_data.href }}">
-        <i class="fa fa-fw {{ extra_tab_5_data.icon}}"></i> {{ extra_tab_5_data.title|truncatechars:50 }}
-      </a>
-    </li>
-    {% endif %}
-  {% endif %}
+  {% endfor %}
+
 </ul>

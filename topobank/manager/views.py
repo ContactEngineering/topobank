@@ -469,23 +469,26 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
         #
         # Add context needed for tabs
         #
-        context['active_tab'] = 'extra-tab-3'
-        context['extra_tab_1_data'] = {
-            'title': f"{topo.surface.name}",
-            'icon': "fa-diamond",
-            'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
-        }
-        context['extra_tab_2_data'] = {
-            'title': f"{topo.name}",
-            'icon': "fa-file-o",
-            'href': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
-        }
-        context['extra_tab_3_data'] = {
-            'title': f"Edit Topography",
-            'icon': "fa-pencil",
-            'href': self.request.path,
-        }
-
+        context['extra_tabs'] = [
+            {
+                'title': f"{topo.surface.name}",
+                'icon': "fa-diamond",
+                'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
+                'active': False,
+            },
+            {
+                'title': f"{topo.name}",
+                'icon': "fa-file-o",
+                'href': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
+                'active': False,
+            },
+            {
+                'title': f"Edit Topography",
+                'icon': "fa-pencil",
+                'href': self.request.path,
+                'active': True
+            }
+        ]
         return context
 
 
@@ -668,17 +671,20 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
         #
         # Add context needed for tabs
         #
-        context['active_tab'] = 'extra-tab-2'
-        context['extra_tab_1_data'] = {
-            'title': f"{topo.surface.name}",
-            'icon': "fa-diamond",
-            'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
-        }
-        context['extra_tab_2_data'] = {
-            'title': f"{topo.name}",
-            'icon': "fa-file-o",
-            'href': self.request.path,
-        }
+        context['extra_tabs'] = [
+            {
+                'title': f"{topo.surface.name}",
+                'icon': "fa-diamond",
+                'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
+                'active': False,
+            },
+            {
+                'title': f"{topo.name}",
+                'icon': "fa-file-o",
+                'href': self.request.path,
+                'active': True,
+            }
+        ]
 
         return context
 
@@ -711,23 +717,26 @@ class TopographyDeleteView(TopographyUpdatePermissionMixin, DeleteView):
         context = super().get_context_data(**kwargs)
         topo = self.object
         surface = topo.surface
-        context['active_tab'] = 'extra-tab-3'
-        context['extra_tab_1_data'] = {
-            'title': f"{surface.name}",
-            'icon': "fa-diamond",
-            'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
-        }
-        context['extra_tab_2_data'] = {
-            'title': f"{topo.name}",
-            'icon': "fa-file-o",
-            'href': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
-        }
-        context['extra_tab_3_data'] = {
-            'title': f"Delete Topography?",
-            'icon': "fa-trash",
-            'href': self.request.path,
-        }
-
+        context['extra_tabs'] = [
+            {
+                'title': f"{topo.surface.name}",
+                'icon': "fa-diamond",
+                'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
+                'active': False,
+            },
+            {
+                'title': f"{topo.name}",
+                'icon': "fa-file-o",
+                'href': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
+                'active': False,
+            },
+            {
+                'title': f"Delete Topography?",
+                'icon': "fa-trash",
+                'href': self.request.path,
+                'active': True,
+            }
+        ]
         return context
 
 
@@ -948,12 +957,14 @@ class SurfaceDetailView(DetailView):
             'head': [''] + ACTIONS,
             'body': surface_perms_table
         }
-        context['active_tab'] = 'extra-tab-1'
-        context['extra_tab_1_data'] = {
-            'title': f"{self.object.name}",
-            'icon': "fa-diamond",
-            'href': self.request.path,
-        }
+        context['extra_tabs'] = [
+            {
+                'title': f"{self.object.name}",
+                'icon': "fa-diamond",
+                'href': self.request.path,
+                'active': True,
+            }
+        ]
 
         return context
 
@@ -992,17 +1003,20 @@ class SurfaceUpdateView(UpdateView):
         context = super().get_context_data(**kwargs)
         surface = self.object
 
-        context['active_tab'] = 'extra-tab-2'
-        context['extra_tab_1_data'] = {
-            'title': f"{surface.name}",
-            'icon': "fa-diamond",
-            'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
-        }
-        context['extra_tab_2_data'] = {
-            'title': f"Edit surface",
-            'icon': "fa-pencil",
-            'href': self.request.path,
-        }
+        context['extra_tabs'] = [
+            {
+                'title': f"{surface.name}",
+                'icon': "fa-diamond",
+                'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
+                'active': False,
+            },
+            {
+                'title': f"Edit surface",
+                'icon': "fa-pencil",
+                'href': self.request.path,
+                'active': True,
+            }
+        ]
 
         return context
 
@@ -1041,17 +1055,20 @@ class SurfaceDeleteView(DeleteView):
         #
         # Add context needed for tabs
         #
-        context['active_tab'] = 'extra-tab-2'
-        context['extra_tab_1_data'] = {
-            'title': f"{surface.name}",
-            'icon': "fa-diamond",
-            'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
-        }
-        context['extra_tab_2_data'] = {
-            'title': f"Delete Surface?",
-            'icon': "fa-trash",
-            'href': self.request.path,
-        }
+        context['extra_tabs'] = [
+            {
+                'title': f"{surface.name}",
+                'icon': "fa-diamond",
+                'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
+                'active': False,
+            },
+            {
+                'title': f"Delete Surface?",
+                'icon': "fa-trash",
+                'href': self.request.path,
+                'active': True,
+            }
+        ]
         return context
 
 
@@ -1110,17 +1127,20 @@ class SurfaceShareView(FormMixin, DetailView):
         context = super().get_context_data(**kwargs)
         surface = self.object
 
-        context['active_tab'] = 'extra-tab-2'
-        context['extra_tab_1_data'] = {
-            'title': f"{surface.name}",
-            'icon': "fa-diamond",
-            'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
-        }
-        context['extra_tab_2_data'] = {
-            'title': f"Share surface?",
-            'icon': "fa-share-alt",
-            'href': self.request.path,
-        }
+        context['extra_tabs'] = [
+            {
+                'title': f"{surface.name}",
+                'icon': "fa-diamond",
+                'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
+                'active': False,
+            },
+            {
+                'title': f"Share surface?",
+                'icon': "fa-share-alt",
+                'href': self.request.path,
+                'active': True,
+            }
+        ]
         context['surface'] = surface
 
         return context
