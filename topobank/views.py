@@ -1,6 +1,7 @@
 from django.views.generic import TemplateView, RedirectView
 from django.db.models import Q
 from django.shortcuts import reverse
+from html import unescape
 
 from guardian.compat import get_user_model as guardian_user_model
 from guardian.shortcuts import get_objects_for_user
@@ -8,6 +9,7 @@ from guardian.shortcuts import get_objects_for_user
 from allauth.socialaccount.providers.orcid.provider import OrcidProvider
 
 from termsandconditions.models import TermsAndConditions
+from termsandconditions.views import TermsView as OrigTermsView, AcceptTermsView
 
 from topobank.users.models import User
 from topobank.manager.models import Surface, Topography
@@ -61,6 +63,8 @@ class HomeView(TemplateView):
             context['surfaces_link'] = get_login_link('manager:select')
             context['analyses_link'] = get_login_link('analysis:list')
 
+        context['active_tab'] = 'home'
+
         return context
 
 class TermsView(TemplateView):
@@ -93,6 +97,7 @@ class TermsView(TemplateView):
 
         return context
 
+
 class HelpView(TemplateView):
 
     template_name = 'pages/help.html'
@@ -113,3 +118,43 @@ class GotoSelectView(RedirectView):
     pattern_name = 'manager:select'
     query_string = True
 
+
+#
+# The following two views are overwritten from
+# termsandconditions package in order to add context
+# for the tabbed interface
+#
+def context_for_terms(terms, request_path):
+    context = {}
+    context['active_tab'] = 'extra-tab-5'
+    context['extra_tab_4_data'] = {
+        'icon': 'fa-legal',
+        'title': "Terms and Conditions",
+        'href': reverse('terms'),
+    }
+    if len(terms) == 1:
+        tab5_title = unescape(f"{terms[0].name} {terms[0].version_number}")  # mimics '|safe' as in original template
+    else:
+        tab5_title = "Terms"  # should not happen in Topobank, but just to be safe
+
+    context['extra_tab_5_data'] = {
+        'icon': 'fa-legal',
+        'title': tab5_title,
+        'href': request_path
+    }
+    return context
+
+
+class TabbedTermsMixin:
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update(context_for_terms(self.get_terms(self.kwargs), self.request.path))
+        return context
+
+
+class TermsDetailView(TabbedTermsMixin, OrigTermsView):
+    pass
+
+
+class TermsAcceptView(TabbedTermsMixin, AcceptTermsView):
+    pass

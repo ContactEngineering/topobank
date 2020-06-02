@@ -759,7 +759,7 @@ class SelectView(TemplateView):
             'tag tree': reverse('manager:tag-list')
         }
         context['search_term'] = search_term
-
+        context['active_tab'] = 'select'
         # #
         # # Collect data for trees
         # #
@@ -948,7 +948,7 @@ class SurfaceDetailView(DetailView):
             'head': [''] + ACTIONS,
             'body': surface_perms_table
         }
-
+        context['active_tab'] = 'extra-tab-1'
         context['extra_tab_1_data'] = {
             'title': f"{self.object.name}",
             'icon': "fa-diamond",
@@ -1238,7 +1238,8 @@ def sharing_info(request):
 
     return render(request,
                   template_name='manager/sharing_info.html',
-                  context={'sharing_info_table': sharing_info_table})
+                  context={'sharing_info_table': sharing_info_table,
+                           'active_tab': 'shared'})
 
 
 def download_surface(request, surface_id):

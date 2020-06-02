@@ -1272,6 +1272,8 @@ class AnalysesListView(FormView):
         #
         context.update(context_for_extra_tabs_if_single_item_selected(topographies, surfaces))
 
+        context['active_tab'] = 'analyze'
+
         return context
 
 

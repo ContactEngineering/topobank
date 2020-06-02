@@ -7,66 +7,90 @@ from django.views.generic import TemplateView
 from django.views import defaults as default_views
 import notifications.urls
 
-from topobank.views import TermsView, HomeView, HelpView, GotoSelectView
+from topobank.views import TermsView, HomeView, HelpView, GotoSelectView, TermsDetailView, TermsAcceptView
 from topobank.users.views import TabbedEmailView
 
 urlpatterns = [
-    path("", HomeView.as_view(), name="home"),
-    path(
-        "about/",
-        TemplateView.as_view(template_name="pages/about.html"),
-        name="about",
-    ),
-    path(
-        "termsandconditions/",
-        TermsView.as_view(),
-        name="terms",
-    ),
-    path(
-        "help/",
-        HelpView.as_view(),
-        name="help",
-    ),
-    path(
-        "search/",
-        GotoSelectView.as_view(),
-        name="search",
-    ),
-    # Django Admin, use {% url 'admin:index' %}
-    path(settings.ADMIN_URL, admin.site.urls),
-    # User management
-    path(
-        "users/",
-        include("topobank.users.urls", namespace="users"),
-    ),
-    url("^accounts/email/$", TabbedEmailView.as_view(),
-        name='account_email'),  # same as allauth.accounts.email.EmailView, but with tab data
-    path("accounts/", include("allauth.urls")),
+                  path("", HomeView.as_view(), name="home"),
+                  path(
+                      "about/",
+                      TemplateView.as_view(template_name="pages/about.html"),
+                      name="about",
+                  ),
+                  path(
+                      "termsandconditions/",
+                      TermsView.as_view(),
+                      name="terms",
+                  ),
+                  path(
+                      "help/",
+                      HelpView.as_view(),
+                      name="help",
+                  ),
+                  path(
+                      "search/",
+                      GotoSelectView.as_view(),
+                      name="search",
+                  ),
+                  # Django Admin, use {% url 'admin:index' %}
+                  path(settings.ADMIN_URL, admin.site.urls),
+                  # User management
+                  path(
+                      "users/",
+                      include("topobank.users.urls", namespace="users"),
+                  ),
+                  url("^accounts/email/$", TabbedEmailView.as_view(),
+                      name='account_email'),  # same as allauth.accounts.email.EmailView, but with tab data
+                  path("accounts/", include("allauth.urls")),
 
-    # For interactive select boxes
-    url(r'^select2/', include('django_select2.urls')),
+                  # For interactive select boxes
+                  url(r'^select2/', include('django_select2.urls')),
 
-    # For asking for terms and conditions
-    url(r'^terms/', include('termsandconditions.urls')),
+                  #
+                  # For asking for terms and conditions
+                  #
 
-    # progress bar during file upload
-    url(r'^progressbarupload/', include('progressbarupload.urls')),
+                  # some url specs are overwritten here pointing to own views in order to plug in
+                  # some extra context for the tabbed interface
+                  # View Specific Active Terms
+                  url(r'^terms/view/(?P<slug>[a-zA-Z0-9_.-]+)/$', TermsDetailView.as_view(), name="tc_view_specific_page"),
 
-    # progress bar for celery tasks
-    url(r'^celery-progress/', include('celery_progress.urls')),
+                  # View Specific Version of Terms
+                  url(r'^terms/view/(?P<slug>[a-zA-Z0-9_.-]+)/(?P<version>[0-9.]+)/$', TermsDetailView.as_view(), name="tc_view_specific_version_page"),
 
-    # for notifications - see package djano-notifications
-    url('^inbox/notifications/', include(notifications.urls, namespace='notifications')),
-    # Your stuff: custom urls includes go here
-    path(
-        "manager/",
-        include("topobank.manager.urls", namespace="manager"),
-    ),
-    path(
-        "analysis/",
-        include("topobank.analysis.urls", namespace="analysis"),
-    ),
-] + static(
+                  # Print Specific Version of Terms
+                  url(r'^terms/print/(?P<slug>[a-zA-Z0-9_.-]+)/(?P<version>[0-9.]+)/$', TermsDetailView.as_view(template_name="termsandconditions/tc_print_terms.html"), name="tc_print_page"),
+
+                  # Accept Terms
+                  url(r'^terms/accept/$', TermsAcceptView.as_view(), name="tc_accept_page"),
+
+                  # Accept Specific Terms
+                  url(r'^terms/accept/(?P<slug>[a-zA-Z0-9_.-]+)$', TermsAcceptView.as_view(), name="tc_accept_specific_page"),
+
+                  # Accept Specific Terms Version
+                  url(r'^terms/accept/(?P<slug>[a-zA-Z0-9_.-]+)/(?P<version>[0-9\.]+)/$', TermsAcceptView.as_view(), name="tc_accept_specific_version_page"),
+
+                  # the defaults
+                  url(r'^terms/', include('termsandconditions.urls')),
+
+                  # progress bar during file upload
+                  url(r'^progressbarupload/', include('progressbarupload.urls')),
+
+                  # progress bar for celery tasks
+                  url(r'^celery-progress/', include('celery_progress.urls')),
+
+                  # for notifications - see package djano-notifications
+                  url('^inbox/notifications/', include(notifications.urls, namespace='notifications')),
+                  # Your stuff: custom urls includes go here
+                  path(
+                      "manager/",
+                      include("topobank.manager.urls", namespace="manager"),
+                  ),
+                  path(
+                      "analysis/",
+                      include("topobank.analysis.urls", namespace="analysis"),
+                  ),
+              ] + static(
     settings.MEDIA_URL, document_root=settings.MEDIA_ROOT
 )
 
