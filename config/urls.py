@@ -7,7 +7,7 @@ from django.views.generic import TemplateView
 from django.views import defaults as default_views
 import notifications.urls
 
-from topobank.views import TermsView, HomeView, HelpView, GotoSelectView, TermsDetailView, AcceptTermsView
+from topobank.views import TermsView, HomeView, HelpView, GotoSelectView, TermsDetailView, TermsAcceptView
 from topobank.users.views import TabbedEmailView
 
 urlpatterns = [
@@ -46,9 +46,10 @@ urlpatterns = [
                   # For interactive select boxes
                   url(r'^select2/', include('django_select2.urls')),
 
+                  #
                   # For asking for terms and conditions
+                  #
 
-                  url(r'^terms/', include('termsandconditions.urls')),
                   # some url specs are overwritten here pointing to own views in order to plug in
                   # some extra context for the tabbed interface
                   # View Specific Active Terms
@@ -61,15 +62,16 @@ urlpatterns = [
                   url(r'^terms/print/(?P<slug>[a-zA-Z0-9_.-]+)/(?P<version>[0-9.]+)/$', TermsDetailView.as_view(template_name="termsandconditions/tc_print_terms.html"), name="tc_print_page"),
 
                   # Accept Terms
-                  url(r'^terms/accept/$', AcceptTermsView.as_view(), name="tc_accept_page"),
+                  url(r'^terms/accept/$', TermsAcceptView.as_view(), name="tc_accept_page"),
 
                   # Accept Specific Terms
-                  url(r'^terms/accept/(?P<slug>[a-zA-Z0-9_.-]+)$', AcceptTermsView.as_view(), name="tc_accept_specific_page"),
+                  url(r'^terms/accept/(?P<slug>[a-zA-Z0-9_.-]+)$', TermsAcceptView.as_view(), name="tc_accept_specific_page"),
 
                   # Accept Specific Terms Version
-                  url(r'^terms/accept/(?P<slug>[a-zA-Z0-9_.-]+)/(?P<version>[0-9\.]+)/$', AcceptTermsView.as_view(), name="tc_accept_specific_version_page"),
+                  url(r'^terms/accept/(?P<slug>[a-zA-Z0-9_.-]+)/(?P<version>[0-9\.]+)/$', TermsAcceptView.as_view(), name="tc_accept_specific_version_page"),
 
-
+                  # the defaults
+                  url(r'^terms/', include('termsandconditions.urls')),
 
                   # progress bar during file upload
                   url(r'^progressbarupload/', include('progressbarupload.urls')),
