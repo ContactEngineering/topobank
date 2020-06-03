@@ -1106,13 +1106,13 @@ def extra_tabs_if_single_item_selected(topographies, surfaces):
         tabs.extend([
             {
                 'title': f"{topo.surface.name}",
-                'icon': "fa-diamond",
+                'icon': "diamond",
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
                 'active': False,
             },
             {
                 'title': f"{topo.name}",
-                'icon': "fa-file-o",
+                'icon': "file-o",
                 'href': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
                 'active': False,
             }
@@ -1123,7 +1123,7 @@ def extra_tabs_if_single_item_selected(topographies, surfaces):
         tabs.append(
             {
                 'title': f"{surface.name}",
-                'icon': "fa-diamond",
+                'icon': "diamond",
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
                 'active': False,
             }
@@ -1157,13 +1157,13 @@ class AnalysisFunctionDetailView(DetailView):
         tabs.extend([
             {
                 'title': f"Analyze",
-                'icon': "fa-area-chart",
+                'icon': "area-chart",
                 'href': reverse('analysis:list'),
                 'active': False,
             },
             {
                 'title': f"{function.name}",
-                'icon': "fa-area-chart",
+                'icon': "area-chart",
                 'href': self.request.path,
                 'active': True,
             }
@@ -1286,7 +1286,7 @@ class AnalysesListView(FormView):
         tabs.append(
             {
                 'title': f"Analyze",
-                'icon': "fa-area-chart",
+                'icon': "area-chart",
                 'href': self.request.path,
                 'active': True,
             }

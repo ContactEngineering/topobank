@@ -72,7 +72,7 @@ class TermsView(TemplateView):
     template_name = 'pages/termsconditions.html'
 
     def get_context_data(self, **kwargs):
-        context = super().get_context_data()
+        context = super().get_context_data(**kwargs)
 
         active_terms = TermsAndConditions.get_active_terms_list()
 
@@ -89,7 +89,8 @@ class TermsView(TemplateView):
             context['active_terms'] = active_terms.order_by('optional')
 
         context['extra_tabs'] = [{
-            'icon': 'fa-legal',
+            'login_required': False,
+            'icon': 'legal',
             'title': "Terms and Conditions",
             'active': True,
         }]
@@ -106,7 +107,7 @@ class HelpView(TemplateView):
         context['reader_infos'] = get_reader_infos()
         context['extra_tabs'] = [
             {
-                'icon': 'fa-question-circle',
+                'icon': 'question-circle',
                 'title': "Help",
                 'href': self.request.path,
                 'active': True,
@@ -133,13 +134,13 @@ def tabs_for_terms(terms, request_path):
 
     return [
         {
-            'icon': 'fa-legal',
+            'icon': 'legal',
             'title': "Terms and Conditions",
             'href': reverse('terms'),
             'active': False,
         },
         {
-            'icon': 'fa-legal',
+            'icon': 'legal',
             'title': tab_title,
             'href': request_path,
             'active': True,

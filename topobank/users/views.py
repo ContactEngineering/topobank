@@ -24,12 +24,14 @@ class UserDetailView(LoginRequiredMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['active_tab'] = 'extra-tab-4'
-        context['extra_tab_4_data'] = {
-            'title': f"User Profile",
-            'icon': "fa-user",
-            'href': self.request.path,
-        }
+        context['extra_tabs'] = [
+            {
+                'title': f"User Profile",
+                'icon': "user",
+                'href': self.request.path,
+                'active': True,
+            }
+        ]
         return context
 
 
@@ -58,33 +60,40 @@ class UserUpdateView(LoginRequiredMixin, UpdateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['active_tab'] = 'extra-tab-5'
-        context['extra_tab_4_data'] = {
-            'title': f"User Profile",
-            'icon': "fa-user",
-            'href': reverse('users:detail', kwargs=dict(username=self.request.user.username)),
-        }
-        context['extra_tab_5_data'] = {
-            'title': f"Update user",
-            'icon': "fa-edit",
-            'href': self.request.path,
-        }
+        context['extra_tabs'] = [
+            {
+                'title': f"User Profile",
+                'icon': "user",
+                'href': reverse('users:detail', kwargs=dict(username=self.request.user.username)),
+                'active': False,
+            },
+            {
+                'title': f"Update user",
+                'icon': "edit",
+                'href': self.request.path,
+                'active': True,
+            }
+        ]
         return context
+
 
 class TabbedEmailView(EmailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['active_tab'] = 'extra-tab-5'
-        context['extra_tab_4_data'] = {
-            'title': f"User Profile",
-            'icon': "fa-user",
-            'href': reverse('users:detail', kwargs=dict(username=self.request.user.username)),
-        }
-        context['extra_tab_5_data'] = {
-            'title': f"Edit E-mail Addresses",
-            'icon': "fa-edit",
-            'href': self.request.path,
-        }
+        context['extra_tabs'] = [
+            {
+                'title': f"User Profile",
+                'icon': "user",
+                'href': reverse('users:detail', kwargs=dict(username=self.request.user.username)),
+                'active': False
+            },
+            {
+                'title': f"Edit E-mail Addresses",
+                'icon': "edit",
+                'href': self.request.path,
+                'active': True
+            }
+        ]
         return context
 
 

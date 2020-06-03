@@ -295,17 +295,20 @@ class TopographyCreateWizard(SessionWizardView):
         #
         # Add context needed for tabs
         #
-        context['active_tab'] = 'extra-tab-2'
-        context['extra_tab_1_data'] = {
-            'title': f"{surface.name}",
-            'icon': "fa-diamond",
-            'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
-        }
-        context['extra_tab_2_data'] = {
-            'title': f"Add topography",
-            'icon': "fa-plus-square-o",
-            'href': self.request.path,
-        }
+        context['extra_tabs'] = [
+            {
+                'title': f"{surface.name}",
+                'icon': "diamond",
+                'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
+                'active': False,
+            },
+            {
+                'title': f"Add topography",
+                'icon': "plus-square-o",
+                'href': self.request.path,
+                'active': True,
+            }
+        ]
 
         return context
 
@@ -472,19 +475,19 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
         context['extra_tabs'] = [
             {
                 'title': f"{topo.surface.name}",
-                'icon': "fa-diamond",
+                'icon': "diamond",
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
                 'active': False,
             },
             {
                 'title': f"{topo.name}",
-                'icon': "fa-file-o",
+                'icon': "file-o",
                 'href': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
                 'active': False,
             },
             {
                 'title': f"Edit Topography",
-                'icon': "fa-pencil",
+                'icon': "pencil",
                 'href': self.request.path,
                 'active': True
             }
@@ -674,13 +677,13 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
         context['extra_tabs'] = [
             {
                 'title': f"{topo.surface.name}",
-                'icon': "fa-diamond",
+                'icon': "diamond",
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
                 'active': False,
             },
             {
                 'title': f"{topo.name}",
-                'icon': "fa-file-o",
+                'icon': "file-o",
                 'href': self.request.path,
                 'active': True,
             }
@@ -720,19 +723,19 @@ class TopographyDeleteView(TopographyUpdatePermissionMixin, DeleteView):
         context['extra_tabs'] = [
             {
                 'title': f"{topo.surface.name}",
-                'icon': "fa-diamond",
+                'icon': "diamond",
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
                 'active': False,
             },
             {
                 'title': f"{topo.name}",
-                'icon': "fa-file-o",
+                'icon': "file-o",
                 'href': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
                 'active': False,
             },
             {
                 'title': f"Delete Topography?",
-                'icon': "fa-trash",
+                'icon': "trash",
                 'href': self.request.path,
                 'active': True,
             }
@@ -876,11 +879,14 @@ class SurfaceCreateView(CreateView):
         context = super().get_context_data(**kwargs)
         context['active_tab'] = 'extra-tab-1'
 
-        context['extra_tab_1_data'] = {
-            'title': f"Create surface",
-            'icon': "fa-plus-square-o",
-            'href': self.request.path,
-        }
+        context['extra_tabs'] =[
+            {
+                'title': f"Create surface",
+                'icon': "plus-square-o",
+                'href': self.request.path,
+                'active': True
+            }
+        ]
         return context
 
 
@@ -960,7 +966,7 @@ class SurfaceDetailView(DetailView):
         context['extra_tabs'] = [
             {
                 'title': f"{self.object.name}",
-                'icon': "fa-diamond",
+                'icon': "diamond",
                 'href': self.request.path,
                 'active': True,
             }
@@ -1006,13 +1012,13 @@ class SurfaceUpdateView(UpdateView):
         context['extra_tabs'] = [
             {
                 'title': f"{surface.name}",
-                'icon': "fa-diamond",
+                'icon': "diamond",
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
                 'active': False,
             },
             {
                 'title': f"Edit surface",
-                'icon': "fa-pencil",
+                'icon': "pencil",
                 'href': self.request.path,
                 'active': True,
             }
@@ -1058,13 +1064,13 @@ class SurfaceDeleteView(DeleteView):
         context['extra_tabs'] = [
             {
                 'title': f"{surface.name}",
-                'icon': "fa-diamond",
+                'icon': "diamond",
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
                 'active': False,
             },
             {
                 'title': f"Delete Surface?",
-                'icon': "fa-trash",
+                'icon': "trash",
                 'href': self.request.path,
                 'active': True,
             }
@@ -1130,13 +1136,13 @@ class SurfaceShareView(FormMixin, DetailView):
         context['extra_tabs'] = [
             {
                 'title': f"{surface.name}",
-                'icon': "fa-diamond",
+                'icon': "diamond",
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
                 'active': False,
             },
             {
                 'title': f"Share surface?",
-                'icon': "fa-share-alt",
+                'icon': "share-alt",
                 'href': self.request.path,
                 'active': True,
             }

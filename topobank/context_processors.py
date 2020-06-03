@@ -1,7 +1,7 @@
 from django.contrib.staticfiles.templatetags.staticfiles import static
 from django.conf import settings
-from django.shortcuts import reverse
 import django
+
 import json
 import bokeh
 import celery
@@ -9,6 +9,7 @@ import celery
 import PyCo
 
 from topobank.manager.utils import current_selection_as_basket_items
+
 
 def versions_processor(request):
 
@@ -54,3 +55,4 @@ def basket_processor(request):
         return {}
 
     return dict(basket_items_json=json.dumps(current_selection_as_basket_items(request)))
+
