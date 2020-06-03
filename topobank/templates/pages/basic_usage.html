@@ -26,10 +26,17 @@ Thank you.
   to select one or more surface and/or topographies. You can see the topographies by clicking on the small triangle
    on the left-hand side of a surface's name. The selected items appear in the bar underneath the
   top navigation bar, which always shows the <em>current selection</em>.</li>
-  <li>Switch to the <b><i class="fa fa-fw fa-area-chart"></i>Analyze</b> tab.</li>
-  <li>Select one or more Analysis function by clicking on their checkboxes, e.g. choose <em>Height Distribution</em>
-  and <em>Power Spectrum</em>.</li>
-  <li>Press the button "Update results".</li>
+  <li>Next to the current selection a button appears:
+    <a class="btn btn-sm btn-outline-success" href="{% url 'analysis:list' %}">
+      <i class="fa fa-fw fa-area-chart"></i>Analyze
+    </a>
+    Press it in order to view analyses for the current selection.
+  </li>
+  <li>Another tab opens named <b><i class="fa fa-fw fa-area-chart"></i>Analyze</b>.
+  <li>Select one or more Analysis function by clicking on their checkboxes, e.g. choose
+  <i class="fa fa-check-square-o"></i><em>Height Distribution</em>
+  and <i class="fa fa-check-square-o"></i><em>Power Spectrum</em>.</li>
+  <li>Press the button <button class="btn btn-primary btn-sm">Update results</button>.</li>
   <li>For each analysis function a card is shown. You can use the toolbar at the plot to zoom/pan etc. or
   download the plot. Some analysis plots may provide additional feature's. They are accessible
   by pressing the "Open" button. Then a new tab opens showing only results for the related analysis function.</li>
@@ -42,10 +49,11 @@ If you want to analyze a single surface or topography, there are also alternativ
 
 <ol>
   <li>First visit the <b><i class="fa fa-fw fa-check-square-o"></i>Select</b> tab, and
-  find the topography you are interested in. Press the "Analyze" button.
+  find the surface you are interested in. Press the "Analyze" button on the right-hand side of the row.
   Then automatically, this surface is selected with all of its topographies and
-  the "Analyze" tab is loaded.</li>
-  <li>If you want to analyze a single topography, you can also enter the surface by pressing "Properties",
+  the "Analyze" tab is loaded. This also works for topographies.</li>
+  <li>If you want to analyze a single topography, there is also another way.
+  You can enter the surface by pressing "Properties",
   then in the bandwidth plot, press the bar with the corresponding topography, and when
   the detail page for the topography opens, press "Analyze this topography".
   The old selection is then replaced by this topography, and the  <b><i class="fa fa-fw fa-area-chart"></i>Analyze</b>
