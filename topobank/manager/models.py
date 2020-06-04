@@ -89,6 +89,7 @@ class Surface(models.Model):
         #
         # Request all standard analyses to be available for that user
         #
+        _log.info("After sharing surface %d with user %d, requesting all standard analyses..", self.id, with_user.id)
         from topobank.analysis.models import AnalysisFunction
         from topobank.analysis.utils import request_analysis
         auto_analysis_funcs = AnalysisFunction.objects.filter(automatic=True)

@@ -1108,8 +1108,12 @@ class SurfaceShareView(FormMixin, DetailView):
             for user in users:
                 _log.info("Sharing surface {} with user {} (allow change? {}).".format(
                     surface.pk, user.username, allow_change))
-                assign_perm('view_surface', user, self.object)
 
+                surface.share(user, allow_change=allow_change)
+
+                #
+                # Notify user about the shared surface
+                #
                 notification_message = f"{self.request.user} has shared surface '{surface.name}' with you"
                 notify.send(self.request.user, recipient=user,
                             verb="share",  # TODO Does verb follow activity stream defintions?
@@ -1119,7 +1123,6 @@ class SurfaceShareView(FormMixin, DetailView):
                             href=surface.get_absolute_url())
 
                 if allow_change:
-                    assign_perm('change_surface', user, surface)
                     notify.send(self.request.user, recipient=user, verb="allow change",
                                 target=surface, public=False,
                                 description=f"""
