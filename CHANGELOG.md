@@ -14,6 +14,8 @@
 - fixed missing tabs when displaying terms and conditions (#474)
 - tab "Analyze" is only shown if an "Analyze" button has been pressed,
   added "Analyze" button to basket (#481)
+- fixed wrong message in analyses view if no analyses available,
+  but some items have been selected (#485)
 
 ## 0.8.0 (2020-05-19)
 

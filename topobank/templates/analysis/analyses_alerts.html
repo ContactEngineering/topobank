@@ -75,9 +75,13 @@
 {% if not analyses_available %}
   <div class="alert alert-info">
       {% fontawesome_icon 'exclamation-circle' %}
+      {% if num_basket_items %}
+        You have chosen topographies, but no analyses are available yet.
+      {% else %}
       You haven't chosen any topographies yet. You can do this with the checkboxes on the
       <a class="alert-link" href="{% url 'manager:select' %}">
       <b><i class="fa fa-fw fa-check-square-o"></i>Select</b></a> tab.
+      {% endif %}
   </div>
 {% elif unique_kwargs is None%}
   <div class="alert alert-warning">
