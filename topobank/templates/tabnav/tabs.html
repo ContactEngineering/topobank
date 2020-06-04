@@ -6,4 +6,11 @@
       </a>
     </li>
   {% endfor %}
+  {% if error %}
+    <li class="nav-item">
+      <a class="nav-link active">
+        <i class="fa fa-fw fa-flash"></i> Error
+      </a>
+    </li>
+  {% endif %}
 </ul>

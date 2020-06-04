@@ -25,4 +25,10 @@ def tab_navigation(context):
                 tab.setdefault('icon', 'cog')  # just some icon that we see one is missing
                 tab.setdefault('title', '')
                 tabs.append(tab)
-    return dict(tabs=tabs)
+
+    local_context = dict(tabs=tabs)
+    if 'exception' in context:
+        # we want to show exceptions in an own tab
+        local_context['error'] = 'error'  # must be not empty for if in template
+
+    return local_context
