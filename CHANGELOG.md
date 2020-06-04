@@ -18,6 +18,9 @@
   but some items have been selected (#485)
 - if analyses are about to be shown which have not been triggered yet,
   these analyses are triggered automatically (#402)
+- when sharing a surface, it is assured that analyses for the standard arguments
+  of all automatic functions are available for the user the surface is
+  shared with (#388)  
 
 ## 0.8.0 (2020-05-19)
 
