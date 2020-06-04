@@ -121,7 +121,7 @@ Add remote repository by
 
 .. code:: bash
 
-   git remote add origin git@github.com:pastewka/TopoBank.git
+   git remote add origin git@github.com:ComputationalMechanics/TopoBank.git
 
 Use this repository as source for the source code.
 

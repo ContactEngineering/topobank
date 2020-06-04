@@ -31,7 +31,7 @@ German description of initialization of a development machine (to be translated 
 
 Im "develop"-Branch des "Topobank"-Projekts
 
- https://github.com/pastewka/TopoBank/tree/develop
+ https://github.com/ComputationalMechanics/TopoBank/tree/develop
 
 gibt es jetzt einen Start-Code mit dem man Topographien hochladen und sich dann eine Liste mit Thumbnails anschauen kann. Die Topographien kann man dann auch (eingeschränkt) ändern und wieder löschen.
 
@@ -41,7 +41,7 @@ Die virtuelle Umgebung und den Code bekommst Du z.B. so
 
 .. code:: bash
 
-    $ git clone -b develop git@github.com:pastewka/TopoBank.git topobank
+    $ git clone -b develop git@github.com:ComputationalMechanics/TopoBank.git topobank
     $ cd topobank
     $ python3 -m venv venv
     $ . ./venv/bin/activate
