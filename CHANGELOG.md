@@ -12,6 +12,8 @@
 - in contact mechanics plot, replaced interactive legend by
   a collapsed list of checkboxes increasing the plot area (#472)
 - fixed missing tabs when displaying terms and conditions (#474)
+- tab "Analyze" is only shown if an "Analyze" button has been pressed,
+  added "Analyze" button to basket (#481)
 
 ## 0.8.0 (2020-05-19)
 
