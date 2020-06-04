@@ -16,6 +16,8 @@
   added "Analyze" button to basket (#481)
 - fixed wrong message in analyses view if no analyses available,
   but some items have been selected (#485)
+- if analyses are about to be shown which have not been triggered yet,
+  these analyses are triggered automatically (#402)
 
 ## 0.8.0 (2020-05-19)
 
