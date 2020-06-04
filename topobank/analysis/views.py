@@ -191,6 +191,62 @@ class SimpleCardView(TemplateView):
         analyses_avail = analyses_avail.filter(topography__surface__in=readable_surfaces)
 
         #
+        # collect list of topographies for which no analyses exist
+        #
+        topographies_available_ids = [a.topography.id for a in analyses_avail]
+        topographies_missing = []
+        for tid in topography_ids:
+            if tid not in topographies_available_ids:
+                try:
+                    topo = Topography.objects.get(id=tid)
+                    topographies_missing.append(topo)
+                except Topography.DoesNotExist:
+                    # topography may be deleted in between
+                    pass
+
+        #
+        # collect all keyword arguments and check whether they are equal
+        #
+        unique_kwargs = None  # means: there are differences or no analyses available
+        for av in analyses_avail:
+            kwargs = pickle.loads(av.kwargs)
+            if unique_kwargs is None:
+                unique_kwargs = kwargs
+            elif kwargs != unique_kwargs:
+                unique_kwargs = None
+                break
+
+        function = AnalysisFunction.objects.get(id=function_id)
+
+        #
+        # automatically trigger analyses for missing topographies
+        #
+        kwargs_for_missing = unique_kwargs or {}
+        topographies_triggered = []
+        for topo in topographies_missing:
+            if request.user.has_perm('view_surface', topo.surface):
+                triggered_analysis = request_analysis(request.user, function, topo, **kwargs_for_missing)
+                topographies_triggered.append(topo)
+                topographies_available_ids.append(topo.id)
+                _log.info(f"Triggered analysis {triggered_analysis.id} for function {function.name} "+\
+                          f"and topography {topo.id}.")
+        topographies_missing = [ t for t in topographies_missing if t not in topographies_triggered]
+
+        # now all topographies which needed to be triggered, should have been triggered
+        # with common arguments if possible
+        # collect information about available analyses again
+        if len(topographies_triggered) > 0:
+
+            # if no analyses where available before, unique_kwargs is None
+            # which is interpreted as "differing arguments". This is wrong
+            # in that case
+            if len(analyses_avail) == 0:
+                unique_kwargs = kwargs_for_missing
+
+            analyses_avail = get_latest_analyses(request.user, function_id, topography_ids)\
+                  .filter(topography__surface__in=readable_surfaces)
+
+        #
         # Determine status code of request - do we need to trigger request again?
         #
         analyses_ready = analyses_avail.filter(task_state__in=['su', 'fa'])
@@ -205,26 +261,8 @@ class SimpleCardView(TemplateView):
         analyses_failure = analyses_ready.filter(task_state='fa')
 
         #
-        # collect list of topographies for which no analyses exist
+        # comprise context for analysis result card
         #
-        topographies_available_ids = [a.topography.id for a in analyses_avail]
-        topographies_missing = [Topography.objects.get(id=tid) for tid in topography_ids
-                                if tid not in topographies_available_ids]
-
-        #
-        # collect all keyword arguments and check whether they are equal
-        #
-        unique_kwargs = None  # means: there are differences
-        for av in analyses_avail:
-            kwargs = pickle.loads(av.kwargs)
-            if unique_kwargs is None:
-                unique_kwargs = kwargs
-            elif kwargs != unique_kwargs:
-                unique_kwargs = None
-                break
-
-        function = AnalysisFunction.objects.get(id=function_id)
-
         context.update(dict(
             card_id=card_id,
             title=function.name,
@@ -807,7 +845,7 @@ def _configure_plot(plot):
     plot.yaxis.major_label_text_font_size = "12pt"
 
 
-def submit_analyses_view(request):  # TODO use REST framework? Rename to request?
+def submit_analyses_view(request):
     """Requests analyses.
     :param request:
     :return: HTTPResponse
