@@ -1,5 +1,6 @@
 from django.contrib.staticfiles.templatetags.staticfiles import static
 from django.conf import settings
+from django.shortcuts import reverse
 import django
 
 import json
@@ -10,6 +11,7 @@ import PyCo
 
 from topobank.manager.utils import current_selection_as_basket_items
 
+UNSELECT_ALL_URL = reverse('manager:unselect-all')
 
 def versions_processor(request):
 
@@ -57,5 +59,6 @@ def basket_processor(request):
     basket_items = current_selection_as_basket_items(request)
 
     return dict(basket_items_json=json.dumps(basket_items),
-                num_basket_items=len(basket_items))
+                num_basket_items=len(basket_items),
+                unselect_all_url=UNSELECT_ALL_URL)
 

@@ -261,7 +261,8 @@ let search_results_vm = new Vue({
                 tree.findAll( function (node) {
                     return node.key == key;
                 }).forEach( function (node) {
-                    node.setSelected(selected);
+                    node.setSelected(selected, {noEvents: true});
+                    // we only want to set the checkbox here, we don't want to simulate the click
                 })
             }
 

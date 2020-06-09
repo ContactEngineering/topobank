@@ -110,7 +110,7 @@ urlpatterns = [
         name='select'
     ),
     url(
-       regex=r'unselect/$',
+       regex=r'unselect-all/$',
        view=login_required(views.unselect_all),
        name='unselect-all'
     ),
