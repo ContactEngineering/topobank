@@ -7,6 +7,7 @@
   tabbed interface (#473)
 - simplified tab titles, fixing strange tab behavior for 
   long tab titles (#470)
+- added ">>" to tab titles in order to visualize workflow (#484)  
 - fixing overlapping pills in detail view for surfaces and
   topographies (#471)
 - in contact mechanics plot, replaced interactive legend by
