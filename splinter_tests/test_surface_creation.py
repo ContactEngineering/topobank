@@ -1,4 +1,6 @@
+import pytest
 
+@pytest.mark.django_db
 def test_empty_surface(browser, user_alice_logged_in):
     #
     # navigate to surface list and create surface
