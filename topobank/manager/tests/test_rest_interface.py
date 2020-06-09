@@ -5,7 +5,7 @@ from rest_framework.test import APIRequestFactory
 
 from ..views import select_surface, unselect_surface, SurfaceListView, SurfaceSearchPaginator,\
     select_topography, unselect_topography, \
-    TagTreeView, select_tag, unselect_tag
+    TagTreeView, select_tag, unselect_tag, unselect_all
 from ..utils import selected_instances
 from .utils import SurfaceFactory, UserFactory, TopographyFactory, TagModelFactory, ordereddicts_to_dicts
 
@@ -855,3 +855,30 @@ def test_unselect_tag():
     assert request.session['selection'] == [f'tag-{tag2.pk}']
 
     assert selected_instances(request)[2] == [tag2]
+
+
+@pytest.mark.django_db
+def test_unselect_all():
+    user = UserFactory()
+
+    tag1 = TagModelFactory()
+
+    # we use the tags, so the user is allowed to select it
+    surface1 = SurfaceFactory(creator=user, tags=[tag1])
+    topo1 = TopographyFactory(surface=surface1)
+
+    factory = APIRequestFactory()
+    session = dict(selection=[f'tag-{tag1.pk}', f'surface-{surface1.pk}', f'topography-{topo1.pk}'])
+
+    #
+    # deselect all
+    #
+    request = factory.post(reverse('manager:unselect-all'))
+    request.user = user
+    request.session = session
+
+    response = unselect_all(request)
+
+    assert response.status_code == 200
+
+    assert request.session['selection'] == []

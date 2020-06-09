@@ -1617,3 +1617,15 @@ def unselect_tag(request, pk):
     """
     return set_tag_select_status(request, pk, False)
 
+
+@api_view(['POST'])
+def unselect_all(request):
+    """Removes all selections from session.
+
+    :param request: request
+    :return: empty list as JSON Response
+    """
+    request.session['selection'] = []
+    return Response([])
+
+
