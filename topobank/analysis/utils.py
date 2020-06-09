@@ -99,6 +99,31 @@ def request_analysis(user, analysis_func, topography, *other_args, **kwargs):
     return analysis
 
 
+def renew_analysis(analysis, use_default_kwargs=False):
+    """Delete existing analysis and recreate and submit with some arguments and users.
+
+    Parameters
+    ----------
+    analysis
+
+    Returns
+    -------
+    New analysis object.
+
+    """
+    users = analysis.users.all()
+    func = analysis.function
+    topography = analysis.topography
+    if use_default_kwargs:
+        pickled_pyfunc_kwargs = pickle.dumps(func.get_default_kwargs())
+    else:
+        pickled_pyfunc_kwargs = analysis.kwargs
+
+    _log.info("Renewing analysis %d for %d users, function %s, topography %d .. kwargs: %s",
+              analysis.id, len(users), func.name, topography.id, pickle.loads(pickled_pyfunc_kwargs))
+    analysis.delete()
+    return submit_analysis(users, func, topography, pickled_pyfunc_kwargs)
+
 
 def submit_analysis(users, analysis_func, topography, pickled_pyfunc_kwargs=None):
     """Create an analysis entry and submit a task to the task queue.
