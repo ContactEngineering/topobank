@@ -26,7 +26,10 @@ def tab_navigation(context):
                 tab.setdefault('title', '')
                 tabs.append(tab)
 
-    local_context = dict(tabs=tabs)
+    # calculate minimum number of tabs
+    min_num_tabs = len(context['fixed_tabs'])
+
+    local_context = dict(tabs=tabs, min_num_tabs=min_num_tabs)
     if 'exception' in context:
         # we want to show exceptions in an own tab
         local_context['error'] = 'error'  # must be not empty for if in template
