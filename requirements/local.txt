@@ -51,7 +51,7 @@ git+http://github.com/mcrot/django-tagulous.git
 git+http://git@github.com/mcrot/django-termsandconditions.git@optional_terms
 django-test-plus==1.3.1
 django-trackstats==0.5.0
-django==2.2.10
+django==2.2.13
 djangorestframework==3.10.2
 docutils==0.15.2
 entrypoints==0.3          # via flake8
@@ -139,4 +139,4 @@ xarray==0.12.3
 zipp==0.6.0
 
 # The following packages are considered to be unsafe in a requirements file:
-# setuptools==46.4.0        # via ipdb, ipython, sphinx
+# setuptools==47.1.1        # via ipdb, ipython, sphinx
