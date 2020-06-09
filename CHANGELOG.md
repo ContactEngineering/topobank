@@ -20,7 +20,9 @@
   these analyses are triggered automatically (#402)
 - when sharing a surface, it is assured that analyses for the standard arguments
   of all automatic functions are available for the user the surface is
-  shared with (#388)  
+  shared with (#388)
+- fixed bug in management command "trigger_analyses", now also replaces
+  exisiting analyses with other arguments than default arguments (#447)
 
 ## 0.8.0 (2020-05-19)
 
