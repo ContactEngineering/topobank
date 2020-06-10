@@ -2,7 +2,7 @@
 
 ## 0.8.1 (not published yet)
 
-- updated markdown2 dependency because of security issue (#458)
+- added button to basket which allows to deselect all items (#466)
 - removed "back" buttons not needed any more because of
   tabbed interface (#473)
 - simplified tab titles, fixing strange tab behavior for 
@@ -25,6 +25,7 @@
 - fixed bug in management command "trigger_analyses", now also replaces
   exisiting analyses with other arguments than default arguments (#447)
 - update to Django 2.2.13 because of security issues (#488)
+- updated markdown2 dependency because of security issue (#458)
 
 ## 0.8.0 (2020-05-19)
 
