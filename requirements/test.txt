@@ -89,7 +89,7 @@ pylibmc==1.6.1
 pyparsing==2.4.2
 pytest-base-url==1.4.1    # via pytest-selenium
 pytest-cov==2.8.1
-pytest-django==3.5.1
+pytest-django==3.9.0
 pytest-html==1.22.0       # via pytest-selenium
 pytest-metadata==1.8.0    # via pytest-html
 pytest-mock==1.10.4
