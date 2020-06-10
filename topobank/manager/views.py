@@ -1351,7 +1351,7 @@ class SurfaceSearchPaginator(PageNumberPagination):
             'page_urls': list(self.get_page_urls()),
             'current_page': self.page.number,
             'num_items_on_current_page': len(self.page.object_list),
-            'page_size': self.page_size,
+            'page_size': self.get_page_size(self.request),
             'page_results': data
         })
 
@@ -1363,7 +1363,6 @@ class SurfaceSearchPaginator(PageNumberPagination):
                 url = remove_query_param(base_url, self.page_query_param)
             else:
                 url = replace_query_param(base_url, self.page_query_param, page_no)
-            url = replace_query_param(url, self.page_size_query_param, self.page_size)
             urls.append(url)
         return urls
 

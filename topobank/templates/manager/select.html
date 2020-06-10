@@ -94,13 +94,13 @@
                   <label class="input-group-text" for="page-size-select">Page size</label>
                 </div>
                 <select class="custom-select" id="page-size-select" v-model="page_size" @change="load_page(1)">
-                  <option v-for="ps in [10,25,50,100]">[[ps]]</option>
+                  <option v-for="ps in [10,25,50,100]" v-bind:class="{selected: ps==page_size}">[[ps]]</option>
                 </select>
               </div>
             </li>
           </ul>
         </nav>
-        [[ page_urls ]]
+
         <div id="scrollParent">
           <table id="surface-tree" class="table table-condensed">
             <colgroup>
