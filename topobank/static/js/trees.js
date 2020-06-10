@@ -22,6 +22,7 @@ let search_results_vm = new Vue({
             num_items_on_current_page: null,
             prev_page_url: null,
             next_page_url: null,
+            page_size: null,
             base_search_urls: base_search_urls,
             search_term: search_term, // for filtering, comes from outside (search bar is on every page)
             category: null, // for filtering, will be set on page
@@ -92,6 +93,7 @@ let search_results_vm = new Vue({
                     vm.num_items_on_current_page = data.response.num_items_on_current_page;
                     vm.page_range = data.response.page_range;
                     vm.page_urls = data.response.page_urls;
+                    vm.page_size = data.response.page_size;
                     // assuming the Ajax response contains a list of child nodes:
                     // We replace the result
                     data.result = data.response.page_results;
@@ -244,7 +246,15 @@ let search_results_vm = new Vue({
 
                 if ( (page_no>=1) && (page_no<=this.page_range.length) ) {
                     const tree = this.get_tree();
-                    const page_url = this.page_urls[page_no-1];
+                    let page_url = new URL(this.page_urls[page_no-1]);
+
+                    // replace page_size parameter
+                    // ref: https://usefulangle.com/post/81/javascript-change-url-parameters
+                    let query_params = page_url.searchParams;
+                    query_params.set('page_size', this.page_size);
+                    page_url.search = query_params.toString();
+                    page_url = page_url.toString();
+
                     console.log("Loading page "+page_no+" from "+page_url+"..");
                     tree.setOption('source', {
                       url: page_url,

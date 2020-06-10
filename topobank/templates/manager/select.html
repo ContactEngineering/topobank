@@ -76,7 +76,7 @@
       </form>
 
       <div id="search-results">
-        <nav aria-label="Surfaces and Topographies for selection">
+        <nav aria-label="Pagination">
           <ul id="pagination" class="pagination">
             <li class="page-item" v-bind:class="{ disabled: current_page <= 1 }">
               <a class="page-link" v-on:click="load_page(current_page-1)">Previous</a>
@@ -87,9 +87,20 @@
             <li class="page-item" v-bind:class="{ disabled: current_page >=num_pages }" >
               <a class="page-link" v-on:click="load_page(current_page+1)">Next</a>
             </li>
+
+            <li class="ml-2">
+              <div class="input-group nav-item">
+                <div class="input-group-prepend">
+                  <label class="input-group-text" for="page-size-select">Page size</label>
+                </div>
+                <select class="custom-select" id="page-size-select" v-model="page_size" @change="load_page(1)">
+                  <option v-for="ps in [10,25,50,100]">[[ps]]</option>
+                </select>
+              </div>
+            </li>
           </ul>
         </nav>
-
+        [[ page_urls ]]
         <div id="scrollParent">
           <table id="surface-tree" class="table table-condensed">
             <colgroup>

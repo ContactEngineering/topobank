@@ -1336,8 +1336,10 @@ TopoBank: {}
 # Views for REST interface
 #######################################################################################
 class SurfaceSearchPaginator(PageNumberPagination):
-    page_size = 8
+    page_size = 10
     page_query_param = 'page'
+    page_size_query_param = 'page_size'
+    max_page_size = 100
 
     def get_paginated_response(self, data):
         return Response({
@@ -1361,6 +1363,7 @@ class SurfaceSearchPaginator(PageNumberPagination):
                 url = remove_query_param(base_url, self.page_query_param)
             else:
                 url = replace_query_param(base_url, self.page_query_param, page_no)
+            url = replace_query_param(url, self.page_size_query_param, self.page_size)
             urls.append(url)
         return urls
 
