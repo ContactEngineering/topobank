@@ -14,6 +14,7 @@
   topographies (#471)
 - in contact mechanics plot, replaced interactive legend by
   a collapsed list of checkboxes increasing the plot area (#472)
+- replaced loading indicator for tree on "Select" page (#461)  
 - fixed missing tabs when displaying terms and conditions (#474)
 - tab "Analyze" is only shown if an "Analyze" button has been pressed,
   added "Analyze" button to basket (#481)
