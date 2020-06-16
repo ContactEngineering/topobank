@@ -195,8 +195,8 @@ td.ellipsis {
 }
 
 /** More visible status node in fancytree while loading .. */
-tr.fancytree-statusnode-loading td {
-  font-size: xx-large;
+#tree-loading-indicator {
+  font-size: x-large;
 }
 
 /** larger font in basket elements */

@@ -38,7 +38,7 @@ let search_results_vm = new Vue({
                     element_kind: "top level tags",
                     hint: "Tags can be introduced or changed when editing meta data of surfaces and topographies.",
                }
-            },
+            }
         },
         mounted: function() {
             const vm = this;
@@ -202,6 +202,7 @@ let search_results_vm = new Vue({
                       // ...
                     },
                 }); // fancytree()
+                vm.set_loading_indicator();
         },   // mounted()
         computed: {
           search_url: function () {
@@ -240,6 +241,18 @@ let search_results_vm = new Vue({
                       url: this.search_url,
                       cache: false,
                 });
+                this.set_loading_indicator();
+            },
+            set_loading_indicator: function() {
+                // hack: replace loading indicator from fancytree by own indicator with spinner
+                let loading_node = $('tr.fancytree-statusnode-loading td');
+                if (loading_node) {
+                    loading_node.html(`
+                        <td id="tree-loading-indicator" role="status">
+                          <span id="tree-loading-spinner" class="spinner"></span>Please wait..
+                        </td>
+                    `);
+                }
             },
             load_page: function(page_no){
                 page_no = parseInt(page_no);
@@ -260,6 +273,7 @@ let search_results_vm = new Vue({
                       url: page_url,
                       cache: false,
                     });
+                    this.set_loading_indicator();
                 } else {
                     console.warn("Cannot load page "+page_no+", because the page number is invalid.")
                 }
