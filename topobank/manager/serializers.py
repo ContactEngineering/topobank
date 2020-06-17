@@ -213,37 +213,12 @@ class TagSerializer(serializers.ModelSerializer):
 
         result = []
 
+        #
+        # Assume that all surfaces and topographies given in the context are already filtered
+        #
         surfaces = self.context['surfaces'].filter(tags__pk=obj.pk)
         topographies = self.context['topographies'].filter(tags__pk=obj.pk)
         tags = [x for x in obj.children.all() if x in self.context['tags_for_user']]
-
-        #
-        # Get filter criteria
-        #
-        request = self.context['request']
-        search_term = get_search_term(request)
-        category = get_category(request)
-        sharing_status = get_sharing_status(request)
-
-        #
-        # Filter children
-        #
-        if search_term:
-            topographies = topographies.filter(Q(name__icontains=search_term)
-                                               | Q(description__icontains=search_term)
-                                               | Q(tags__name__icontains=search_term)).distinct()
-            surfaces = surfaces.filter(Q(name__icontains=search_term) |
-                                       Q(description__icontains=search_term) |
-                                       Q(tags__name__icontains=search_term) |
-                                       Q(topography__name__icontains=search_term) |
-                                       Q(topography__description__icontains=search_term) |
-                                       Q(topography__tags__name__icontains=search_term)).distinct()
-        if category:
-            surfaces = surfaces.filter(category=category)
-        if sharing_status == 'own':
-            surfaces = surfaces.filter(creator=request.user)
-        elif sharing_status == 'shared':
-            surfaces = surfaces.filter(~Q(creator=request.user))
 
         #
         # Serialize children and append to this tag

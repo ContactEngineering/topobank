@@ -42,9 +42,11 @@ from .models import Topography, Surface, TagModel
 from .serializers import SurfaceSerializer, TagSerializer
 from .utils import selected_instances, bandwidths_data, surfaces_for_user, \
     get_topography_reader, tags_for_user, get_reader_infos, get_search_term, \
-    mailto_link_for_reporting_an_error, current_selection_as_basket_items, filtered_surfaces_for_user
+    mailto_link_for_reporting_an_error, current_selection_as_basket_items, filtered_surfaces_for_user,\
+    filtered_tag_tree_instances, filtered_tags_with_children, filtered_topographies
 from ..usage_stats.utils import increase_statistics_by_date
 from ..users.models import User
+from .filters import SurfaceFilter
 
 MAX_NUM_POINTS_FOR_SYMBOLS_IN_LINE_SCAN_PLOT = 100
 CATEGORY_FILTER_CHOICES = ['all'] + [x[0] for x in Surface.CATEGORY_CHOICES]
@@ -1375,7 +1377,10 @@ class TagTreeView(ListAPIView):
     pagination_class = SurfaceSearchPaginator
 
     def get_queryset(self):
-        qs = tags_for_user(self.request.user).filter(parent=None)
+
+        surfaces = filtered_surfaces_for_user(self.request)
+        topographies = filtered_topographies(self.request, surfaces)
+        return tags_for_user(self.request.user, surfaces, topographies).filter(parent=None)
         # Only top level are collected, the children are added in the serializer.
         #
         # By doing this, always all top level tags are included in the
@@ -1383,7 +1388,14 @@ class TagTreeView(ListAPIView):
         # we have to filter also here for surfaces+topographies
         # (can this be done without calculating that twice?).
         # See also GH 465.
-        return qs.order_by('label')
+        # self._surfaces = filtered_surfaces_for_user(self.request)
+        # self._tags_with_children = filtered_tags_with_children(self.request, self._surfaces)
+        #
+        #
+        # self._tree_structure = filtered_tag_tree_instances(self.request)
+        #
+        # #return qs.order_by('label')
+        # return TagModel.objects.filter(id__in=[t.id for t, children in self._tree_structure])
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -1391,14 +1403,15 @@ class TagTreeView(ListAPIView):
         context['request'] = self.request
 
         surfaces = filtered_surfaces_for_user(self.request)
-
-        context['tags_for_user'] = tags_for_user(self.request.user, surfaces)
+        topographies = filtered_topographies(self.request, surfaces)
+        tags = tags_for_user(self.request.user, surfaces, topographies)
+        context['tags_for_user'] = tags
 
         #
         # also pass all surfaces and topographies the user has access to
         #
         context['surfaces'] = surfaces
-        context['topographies'] = Topography.objects.filter(surface__in=surfaces)
+        context['topographies'] = topographies
 
         return context
 
@@ -1409,9 +1422,10 @@ class SurfaceListView(ListAPIView):
     """
     serializer_class = SurfaceSerializer
     pagination_class = SurfaceSearchPaginator
+    filter_backends = [SurfaceFilter]
 
     def get_queryset(self):
-        return filtered_surfaces_for_user(self.request)
+        return surfaces_for_user(self.request.user)
 
     def get_serializer_context(self):
         context = super().get_serializer_context()

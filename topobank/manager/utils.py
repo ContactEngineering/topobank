@@ -99,15 +99,14 @@ def surfaces_for_user(user, perms=['view_surface']):
     from topobank.manager.models import Surface
     return get_objects_for_user(user, perms, klass=Surface, accept_global_perms=False)
 
-def filtered_surfaces_for_user(request, perms=['view_surface']):
+
+def filtered_surfaces_for_user(request):  # TODO remove _for_user
     """
 
     Parameters
     ----------
     request
         Request instance
-    perms
-        list of permission codenames, default is ['view_surface']
 
     Returns
     -------
@@ -148,30 +147,184 @@ def filtered_surfaces_for_user(request, perms=['view_surface']):
     return qs
 
 
-def tags_for_user(user, surfaces=None):
-    """Return set of tags which can be used for autocompletion when editing tags.
+def filtered_topographies(request, surfaces):
+    """Return topographies which match a request.
+
+    Parameters
+    ----------
+    request
+    surfaces
+        queryset with surfaces which already match
+
+    Returns
+    -------
+    queryset with matching topographies
+
+    """
+    from topobank.manager.models import Topography
+    topographies = Topography.objects.filter(surface__in=surfaces)
+    search_term = get_search_term(request)
+    if search_term:
+        topographies = topographies.filter(
+                Q(name__icontains=search_term) |
+                Q(description__icontains=search_term) |
+                Q(tags__name__icontains=search_term))
+    return topographies
+
+
+def tags_for_user(user, surfaces=None, topographies=None):
+    """Return set of tags which can be used for autocomplete when editing tags.
 
     A user should not see all tags ever used on the app, but only those
     which were chosen by herself or collaborators and corresponding parent tags.
 
     :param user: User instance
-    :param surfaces: surfaces visible for user, if None,
-                     will be computed; specify this to reuse previous calculation
+    :param surfaces: surfaces to use, if None,
+                     will be computed for given user; specify this to reuse previous calculation
+                     or to reduce number of surfaces based on a request
+    :param topographies: topographies to use, if None,
+                     will be computed from surfaces; specify this to reuse previous calculation
+                     or to reduce number of topographies based on a request
     :return: list of strings
     """
-    if surfaces is None:
-        surfaces = surfaces_for_user(user)
-
-    from .models import TagModel
+    from .models import TagModel, Topography
     from django.db.models import Q
 
-    tags = TagModel.objects.filter(Q(surface__in=surfaces) | Q(topography__surface__in=surfaces))
+    if surfaces is None:
+        surfaces = surfaces_for_user(user)
+    if topographies is None:
+        topographies = Topography.objects.filter(surface__in=surfaces)
+
+    tags = TagModel.objects.filter(Q(surface__in=surfaces) | Q(topography__in=topographies))
 
     # add parent tags not already included
     for t in tags:
         tags |= t.get_ancestors()
 
     return tags.distinct()
+
+
+def filtered_tag_tree_instances(request):
+    """Return tree structure with instances needed for tag tree.
+
+    Toplevel instances are tags which may have the following descendants:
+
+    - tags
+    - surfaces
+    - topographies
+
+    Sublevel tags may have again such descendents.
+    Sublevel surfaces may have topographies as descendants.
+    Topographies are always leaves.
+
+    If the current request has search parameters, the result will be
+    filtered.
+
+    Parameters
+    ----------
+    request
+
+    Returns
+    -------
+
+    List of tuples
+
+     (top level tag, children)
+
+    where children is a list of tuples
+
+     (tag/surface/topography, children)
+
+    For topographies, children is always None.
+
+    """
+    filtered_surfaces = filtered_surfaces_for_user(request)
+    all_tags = tags_for_user(request.user, filtered_surfaces)
+    top_level_tags = all_tags.filter(parent=None)
+
+    #
+    # Get filter criteria
+    #
+    search_term = get_search_term(request)
+
+    #
+    # find out topographies which match
+    #
+    from topobank.manager.models import Topography
+    filtered_topographies = Topography.objects.filter(surface__in=filtered_surfaces)
+    if search_term:
+        filtered_topographies = filtered_topographies.filter(Q(name__icontains=search_term)
+                                            | Q(description__icontains=search_term)
+                                            | Q(tags__name__icontains=search_term)).distinct()
+
+    def children_for_tag(tag):
+        surfaces_with_tag = filtered_surfaces.filter(tags__pk=tag.pk)
+        topographies_with_tag = filtered_topographies.filter(tags__pk=tag.pk)
+        children_tags = [t for t in tag.children.all() if t in all_tags]
+
+        #
+        # construct all children recursively
+        #
+
+        children = [(t, children_for_tag(t)) for t in children_tags]
+        children.extend([(s, [ (t,[]) for t in s.topography_set.all()]) for s in surfaces_with_tag])
+        children.extend([(t,[]) for t in topographies_with_tag])
+
+        return children
+
+    #
+    # Collect
+    #
+    result = [(t,children_for_tag(t)) for t in top_level_tags]
+
+    #
+    # filter out all toplevel tags without children
+    #
+    result = [(tag, children) for tag, children in result if len(children) > 0]
+
+    return result
+
+
+def filtered_tags_with_children(request, filtered_surfaces):
+    """Return tags which are relevant for tag tree.
+
+    Parameters
+    ----------
+    request
+
+    Returns
+    -------
+    dict with elements
+
+     key: tag
+     value: children as tuple (topographies, surfaces, tags)
+
+    """
+    all_tags = tags_for_user(request.user, filtered_surfaces)
+
+    #
+    # Get filter criteria
+    #
+    search_term = get_search_term(request)
+
+    #
+    # find out topographies which match
+    #
+    from topobank.manager.models import Topography
+    filtered_topographies = Topography.objects.filter(surface__in=filtered_surfaces)
+    if search_term:
+        filtered_topographies = filtered_topographies.filter(Q(name__icontains=search_term)
+                                            | Q(description__icontains=search_term)
+                                            | Q(tags__name__icontains=search_term)).distinct()
+
+    def children_for_tag(tag):
+        surfaces_with_tag = filtered_surfaces.filter(tags__pk=tag.pk)
+        topographies_with_tag = filtered_topographies.filter(tags__pk=tag.pk)
+        children_tags = [t for t in tag.children.all() if t in all_tags]
+
+        return (topographies_with_tag, surfaces_with_tag, children_tags)
+
+    return {tag: children_for_tag(tag) for tag in all_tags}
 
 
 def selection_from_session(session):
