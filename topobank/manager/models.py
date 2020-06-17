@@ -115,6 +115,7 @@ class Topography(models.Model):
 
     # TODO After upgrade to Django 2.2, use contraints: https://docs.djangoproject.com/en/2.2/ref/models/constraints/
     class Meta:
+        ordering = ['name']
         unique_together = (('surface', 'name'),)
 
     LENGTH_UNIT_CHOICES = [
