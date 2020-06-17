@@ -1382,19 +1382,8 @@ class TagTreeView(ListAPIView):
         return tags_for_user(self.request.user, surfaces, topographies).filter(parent=None)
         # Only top level are collected, the children are added in the serializer.
         #
-        # By doing this, always all top level tags are included in the
-        # result, also when a search term is given - otherwise
-        # we have to filter also here for surfaces+topographies
-        # (can this be done without calculating that twice?).
-        # See also GH 465.
-        # self._surfaces = filtered_surfaces(self.request)
-        # self._tags_with_children = filtered_tags_with_children(self.request, self._surfaces)
-        #
-        #
-        # self._tree_structure = filtered_tag_tree_instances(self.request)
-        #
-        # #return qs.order_by('label')
-        # return TagModel.objects.filter(id__in=[t.id for t, children in self._tree_structure])
+        # The filtered surfaces and topographies are calculated twice here,
+        # I'm not sure how to circumvent this.
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -1407,7 +1396,7 @@ class TagTreeView(ListAPIView):
         context['tags_for_user'] = tags
 
         #
-        # also pass all surfaces and topographies the user has access to
+        # also pass filtered surfaces and topographies the user has access to
         #
         context['surfaces'] = surfaces
         context['topographies'] = topographies
