@@ -17,6 +17,7 @@ Several improvements and fixes for the user interface.
 - in contact mechanics plot, replaced interactive legend by
   a collapsed list of checkboxes increasing the plot area (#472)
 - replaced loading indicator for tree on "Select" page (#461) 
+- fixing wrong mail configuration in production (#130,#292)
 - fixing overlapping pills in detail view for surfaces and
   topographies (#471)
 - fixed too many tags shown in tag tree when using filtering (#465)
