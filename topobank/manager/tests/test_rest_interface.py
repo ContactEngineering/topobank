@@ -788,7 +788,7 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
     }
 
     expected_dict_surface1 = {
-        'category': None,
+        'category': 'exp',
         'children': [expected_dict_topo1a, expected_dict_topo1b],
         'creator': user_url,
         'description': '',
@@ -916,7 +916,7 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
     assert resulted_dicts == expected_dicts
 
     #
-    # Now restrict result by query parameters
+    # Now restrict result by query parameters, search for "topo2a"
     #
     request = factory.get(reverse('manager:tag-list')+f"?search={topo2a.name}")
     request.user = user
@@ -986,6 +986,81 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
     ]
     resulted_dicts = ordereddicts_to_dicts(response.data['page_results'], sorted_by='title')
     assert resulted_dicts == expected_dicts
+
+    #
+    # Now restrict result by query parameters, search for category 'dum'
+    # -> no result, because surface 3 would match, but has no tag
+    #
+    request = factory.get(reverse('manager:tag-list')+"?category=dum")
+    request.user = user
+    request.session = session
+
+    #
+    # Create tag tree and compare with expectation
+    #
+    response = TagTreeView.as_view()(request)
+
+    assert response.status_code == 200
+
+    # no results expected
+    resulted_dicts = ordereddicts_to_dicts(response.data['page_results'], sorted_by='title')
+    assert resulted_dicts == []
+
+    #
+    # Now create another surface and share with this active user, than filter only for shared
+    #
+    user2 = UserFactory()
+    surface4 = SurfaceFactory(creator=user2)
+    surface4.tags = ['shared']
+    surface4.save()
+    surface4.share(user)
+
+    shared_pk = TagModel.objects.get(name='shared').pk
+    shared_prefix = f"/manager/tag/{shared_pk}/"
+    surface4_prefix = f"/manager/surface/{surface4.pk}/"
+
+    request = factory.get(reverse('manager:tag-list') + "?sharing_status=shared")
+    request.user = user
+    request.session = session
+
+    #
+    # Create tag tree and compare with expectation
+    #
+    response = TagTreeView.as_view()(request)
+
+    assert response.status_code == 200
+
+    expected_dicts = [
+        {
+            'title': 'shared',
+            'type': 'tag',
+            'pk': shared_pk,
+            'key': f"tag-{shared_pk}",
+            'folder': True,
+            'name': 'shared',
+            'selected': False,
+            'children': [
+                {
+                    'title': surface4.name,
+                    'type': 'surface',
+                    'pk': surface4.pk,
+                    'key': f"surface-{surface4.pk}",
+                    'folder': False,
+                    'name': surface4.name,
+                    'selected': False,
+                    'children': [],
+                    'urls': {
+                        'select': surface4_prefix + 'select/',
+                        'unselect': surface4_prefix + 'unselect/'
+                    }
+                },
+            ],
+            'urls': {
+                'select': shared_prefix + 'select/',
+                'unselect': shared_prefix + 'unselect/'
+            }
+        },
+    ]
 
 #
 # Tests for selection of tags
