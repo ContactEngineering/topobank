@@ -170,7 +170,7 @@ def filtered_topographies(request, surfaces):
                 Q(name__icontains=search_term) |
                 Q(description__icontains=search_term) |
                 Q(tags__name__icontains=search_term))
-    return topographies
+    return topographies.distinct()
 
 
 def tags_for_user(user, surfaces=None, topographies=None):

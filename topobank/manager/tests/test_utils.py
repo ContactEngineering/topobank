@@ -6,7 +6,8 @@ and other things in topobank.manager.utils
 import pytest
 from django.shortcuts import reverse
 
-from ..tests.utils import two_topos, TopographyFactory, SurfaceFactory, TagModelFactory, UserFactory
+from ..tests.utils import two_topos, TopographyFactory, SurfaceFactory, TagModelFactory, UserFactory, \
+    user_three_topographies_three_surfaces_three_tags
 from ..utils import selection_to_instances, instances_to_selection, tags_for_user, \
     instances_to_topographies, surfaces_for_user
 from ..models import Surface, Topography, TagModel
@@ -105,27 +106,6 @@ def test_tags_for_user(two_topos):
 
     assert set( t.name for t in tags) == {'a long tag with spaces', 'interesting', 'rare', 'rough',
                                           'projects/a', 'projects/b', 'projects/c', 'projects'}
-
-
-@pytest.fixture
-def user_three_topographies_three_surfaces_three_tags():
-
-    user = UserFactory()
-
-    tag1 = TagModelFactory()
-    tag2 = TagModelFactory()
-    tag3 = TagModelFactory()
-
-    surface1 = SurfaceFactory(creator=user, tags=[tag1])
-    topo1a = TopographyFactory(surface=surface1)
-    topo1b = TopographyFactory(surface=surface1, tags=[tag2, tag3])
-
-    surface2 = SurfaceFactory(creator=user, tags=[tag2])
-    topo2a = TopographyFactory(surface=surface2, tags=[tag1])
-
-    surface3 = SurfaceFactory(creator=user, tags=[tag3])  # empty
-
-    return user, (topo1a, topo1b, topo2a), (surface1, surface2, surface3), (tag1, tag2, tag3)
 
 
 @pytest.mark.django_db
