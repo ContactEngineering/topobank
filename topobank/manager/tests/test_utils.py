@@ -8,7 +8,7 @@ from django.shortcuts import reverse
 
 from ..tests.utils import two_topos, TopographyFactory, SurfaceFactory, TagModelFactory, UserFactory
 from ..utils import selection_to_instances, instances_to_selection, tags_for_user, \
-    instances_to_topographies, surfaces_for_user, filtered_tag_tree_instances
+    instances_to_topographies, surfaces_for_user
 from ..models import Surface, Topography, TagModel
 
 
@@ -188,80 +188,3 @@ def test_instances_to_topographies(user_three_topographies_three_surfaces_three_
 
     # also two tags can be given
     assert list(instances_to_topographies([], [], [tag2, tag3])) == [topo1b, topo2a]
-
-
-@pytest.mark.django_db
-def test_filtered_tag_tree_instances(user_three_topographies_three_surfaces_three_tags, rf):
-    #
-    # Define instances as local variables
-    #
-    user, (topo1a, topo1b, topo2a), (surface1, surface2, surface3), (tag1, tag2, tag3) \
-        = user_three_topographies_three_surfaces_three_tags
-
-
-    #
-    # First test request without search parameters
-    #
-    request = rf.get(reverse("manager:tag-list"))
-    request.user = user
-
-    tag_tree_instances = filtered_tag_tree_instances(request)
-
-    assert tag_tree_instances == [
-        (tag1, [
-            (surface1,[
-                (topo1a, []),
-                (topo1b, [])
-            ]),
-            (topo2a, [])
-        ]),
-        (tag2, [
-            (surface2, [
-                (topo2a, []),
-            ]),
-            (topo1b, []),
-        ]),
-        (tag3, [
-            (surface3, []),
-            (topo1b, []),
-        ]),
-    ]
-
-pytest.mark.django_db
-def test_filtered_tag_tree_instances(user_three_topographies_three_surfaces_three_tags, rf):
-    #
-    # Define instances as local variables
-    #
-    user, (topo1a, topo1b, topo2a), (surface1, surface2, surface3), (tag1, tag2, tag3) \
-        = user_three_topographies_three_surfaces_three_tags
-
-
-    #
-    # First test request without search parameters
-    #
-    request = rf.get(reverse("manager:tag-list"))
-    request.user = user
-
-    tag_tree_instances = filtered_tag_tree_instances(request)
-
-    assert tag_tree_instances == [
-        (tag1, [
-            (surface1,[
-                (topo1a, []),
-                (topo1b, [])
-            ]),
-            (topo2a, [])
-        ]),
-        (tag2, [
-            (surface2, [
-                (topo2a, []),
-            ]),
-            (topo1b, []),
-        ]),
-        (tag3, [
-            (surface3, []),
-            (topo1b, []),
-        ]),
-    ]
-
-

@@ -41,12 +41,11 @@ from .forms import TopographyForm, SurfaceForm, SurfaceShareForm
 from .models import Topography, Surface, TagModel
 from .serializers import SurfaceSerializer, TagSerializer
 from .utils import selected_instances, bandwidths_data, surfaces_for_user, \
-    get_topography_reader, tags_for_user, get_reader_infos, get_search_term, \
-    mailto_link_for_reporting_an_error, current_selection_as_basket_items, filtered_surfaces_for_user,\
-    filtered_tag_tree_instances, filtered_tags_with_children, filtered_topographies
+    get_topography_reader, tags_for_user, get_reader_infos, \
+    mailto_link_for_reporting_an_error, current_selection_as_basket_items, filtered_surfaces,\
+    filtered_topographies
 from ..usage_stats.utils import increase_statistics_by_date
 from ..users.models import User
-from .filters import SurfaceFilter
 
 MAX_NUM_POINTS_FOR_SYMBOLS_IN_LINE_SCAN_PLOT = 100
 CATEGORY_FILTER_CHOICES = ['all'] + [x[0] for x in Surface.CATEGORY_CHOICES]
@@ -1378,7 +1377,7 @@ class TagTreeView(ListAPIView):
 
     def get_queryset(self):
 
-        surfaces = filtered_surfaces_for_user(self.request)
+        surfaces = filtered_surfaces(self.request)
         topographies = filtered_topographies(self.request, surfaces)
         return tags_for_user(self.request.user, surfaces, topographies).filter(parent=None)
         # Only top level are collected, the children are added in the serializer.
@@ -1388,7 +1387,7 @@ class TagTreeView(ListAPIView):
         # we have to filter also here for surfaces+topographies
         # (can this be done without calculating that twice?).
         # See also GH 465.
-        # self._surfaces = filtered_surfaces_for_user(self.request)
+        # self._surfaces = filtered_surfaces(self.request)
         # self._tags_with_children = filtered_tags_with_children(self.request, self._surfaces)
         #
         #
@@ -1402,7 +1401,7 @@ class TagTreeView(ListAPIView):
         context['selected_instances'] = selected_instances(self.request)
         context['request'] = self.request
 
-        surfaces = filtered_surfaces_for_user(self.request)
+        surfaces = filtered_surfaces(self.request)
         topographies = filtered_topographies(self.request, surfaces)
         tags = tags_for_user(self.request.user, surfaces, topographies)
         context['tags_for_user'] = tags
@@ -1422,10 +1421,9 @@ class SurfaceListView(ListAPIView):
     """
     serializer_class = SurfaceSerializer
     pagination_class = SurfaceSearchPaginator
-    filter_backends = [SurfaceFilter]
 
     def get_queryset(self):
-        return surfaces_for_user(self.request.user)
+        return filtered_surfaces(self.request)
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -1538,7 +1536,7 @@ def set_topography_select_status(request, pk, select_status):
             # topography should be selected
             selection.add(topography_key)
         elif is_selected:
-                selection.remove(topography_key)
+            selection.remove(topography_key)
 
         request.session['selection'] = list(selection)
 
