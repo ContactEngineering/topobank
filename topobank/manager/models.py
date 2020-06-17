@@ -29,22 +29,6 @@ class TagModel(tm.TagTreeModel):
         # not needed yet
         # autocomplete_view = 'manager:autocomplete-tags'
 
-    # def children_for_tag_tree(self):
-    #     surfaces_with_tag = filtered_surfaces.filter(tags__pk=self.pk)
-    #     topographies_with_tag = filtered_topographies.filter(tags__pk=self.pk)
-    #     children_tags = [t for t in self.children.all() if t in all_tags]
-    #
-    #     #
-    #     # construct all children recursively
-    #     #
-    #
-    #     children = [(t, children_for_tag(t)) for t in children_tags]
-    #     children.extend([(s, [ (t,[]) for t in s.topography_set.all()]) for s in surfaces_with_tag])
-    #     children.extend([(t,[]) for t in topographies_with_tag])
-    #
-    #     return children
-
-
 
 class Surface(models.Model):
     """Physical Surface.
