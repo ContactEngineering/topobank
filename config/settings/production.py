@@ -114,19 +114,8 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_CONFIG = env.email_url(
     'DJANGO_EMAIL_URL', default='smtp://user@:password@localhost:25')
 # For SMTP+SSL use: smtp+ssl://
+vars().update(EMAIL_CONFIG)  # this sets all variables needed by Django
 
-
-# EMAIL_HOST = env.str("DJANGO_EMAIL_HOST")
-# EMAIL_PORT = env.int("DJANGO_EMAIL_PORT")
-# EMAIL_USER = env.str("DJANGO_EMAIL_USER")
-# EMAIL_PASSWORD = env("DJANGO_EMAIL_PASSWORD")
-# EMAIL_USE_SSL = env.bool("DJANGO_EMAIL_USE_SSL")
-# EMAIL_USE_TLS = env.bool("DJANGO_EMAIL_USE_TLS")
-# TODO probably better use  env.email_url() instead, see
-#      https://github.com/joke2k/django-environ#email-settings
-
-# TODO The following settings are likely to be replaced by a simple STMP configuration
-#      (if the RZ provides us an account)
 # Anymail (Mailgun, PostMark and others)
 # ------------------------------------------------------------------------------
 # https://anymail.readthedocs.io/en/stable/installation/#installing-anymail
