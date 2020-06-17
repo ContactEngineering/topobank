@@ -51,6 +51,7 @@ class TopographyFileReadingException(TopographyFileException):
 def get_reader_infos():
     reader_infos = []
     for reader_class in pyco_readers:
+        # noinspection PyBroadException
         try:
             # some reader classes have no description yet
             descr = reader_class.description()
