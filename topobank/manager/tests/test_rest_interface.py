@@ -154,9 +154,6 @@ def test_try_to_select_topography_but_not_allowed():
     assert response.status_code == 200
 
 
-
-
-
 @pytest.mark.django_db
 def test_try_to_select_tag_but_not_allowed():
     user1 = UserFactory()
@@ -255,6 +252,7 @@ def test_select_topography():
     response = select_topography(request, invalid_pk)
 
     assert response.status_code == 403
+
 
 @pytest.mark.django_db
 def test_unselect_topography():
@@ -509,6 +507,7 @@ def test_surface_search_with_request_factory():
     ]
 
     assert ordereddicts_to_dicts(response.data['page_results']) == expected_dicts
+
 
 @pytest.mark.django_db
 def test_tag_search_with_request_factory():
