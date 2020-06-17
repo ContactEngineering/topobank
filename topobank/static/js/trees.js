@@ -245,7 +245,7 @@ let search_results_vm = new Vue({
             },
             set_loading_indicator: function() {
                 // hack: replace loading indicator from fancytree by own indicator with spinner
-                let loading_node = $('tr.fancytree-statusnode-loading td');
+                let loading_node = $('tr.fancytree-statusnode-loading');
                 if (loading_node) {
                     loading_node.html(`
                         <td id="tree-loading-indicator" role="status">
