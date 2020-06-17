@@ -28,20 +28,18 @@ def testuser(django_user_model):
 
 
 def test_selection_to_instances(testuser, mock_topos):
-
     from topobank.manager.models import Topography, Surface, TagModel
 
     selection = ('topography-1', 'topography-2', 'surface-1', 'surface-3', 'tag-1', 'tag-2', 'tag-4')
     selection_to_instances(selection)
 
-    Topography.objects.filter.assert_called_with(id__in={1,2})
+    Topography.objects.filter.assert_called_with(id__in={1, 2})
     Surface.objects.filter.assert_called_with(id__in={1, 3})  # set instead of list
     TagModel.objects.filter.assert_called_with(id__in={1, 2, 4})  # set instead of list
 
 
 @pytest.mark.django_db
 def test_instances_to_selection(two_topos):
-
     topo1 = Topography.objects.get(name="Example 3 - ZSensor")
     topo2 = Topography.objects.get(name="Example 4 - Default")
 
@@ -63,10 +61,10 @@ def test_instances_to_selection(two_topos):
     #
     # Should be summarized to one surface if all topographies are given?
     #
-    #topo2.surface = topo1.surface
-    #topo2.save()
-    #s = instances_to_selection([topo1, topo2])
-    #assert s == [f'surface-{topo1.surface.id}']
+    # topo2.surface = topo1.surface
+    # topo2.save()
+    # s = instances_to_selection([topo1, topo2])
+    # assert s == [f'surface-{topo1.surface.id}']
 
     #
     # It should be possible to give surfaces
@@ -77,7 +75,6 @@ def test_instances_to_selection(two_topos):
 
 @pytest.mark.django_db
 def test_tags_for_user(two_topos):
-
     topo1 = Topography.objects.get(name="Example 3 - ZSensor")
     topo1.tags = ['rough', 'projects/a']
     topo1.save()
@@ -104,13 +101,12 @@ def test_tags_for_user(two_topos):
 
     tags = tags_for_user(user)
 
-    assert set( t.name for t in tags) == {'a long tag with spaces', 'interesting', 'rare', 'rough',
-                                          'projects/a', 'projects/b', 'projects/c', 'projects'}
+    assert set(t.name for t in tags) == {'a long tag with spaces', 'interesting', 'rare', 'rough',
+                                         'projects/a', 'projects/b', 'projects/c', 'projects'}
 
 
 @pytest.mark.django_db
 def test_surfaces_for_user(user_three_topographies_three_surfaces_three_tags):
-
     user1, (topo1a, topo1b, topo2a), (surface1, surface2, surface3), (tag1, tag2, tag3) \
         = user_three_topographies_three_surfaces_three_tags
 
@@ -121,14 +117,17 @@ def test_surfaces_for_user(user_three_topographies_three_surfaces_three_tags):
 
     surface4.share(user1)
 
-    assert list(surfaces_for_user(user1)) == [surface1, surface2, surface3, surface4]
-    assert sorted(surfaces_for_user(user2), key=lambda s: s.id) == sorted([surface4, surface5], key=lambda s: s.id)
+    def assert_same_surface_lists(l1, l2):
+        assert sorted(l1, key=lambda s: s.id) == sorted(l2, key=lambda s: s.id)
 
-    assert list(surfaces_for_user(user1, perms=['view_surface', 'change_surface'])) == [surface1, surface2, surface3]
+    assert_same_surface_lists(surfaces_for_user(user1), [surface1, surface2, surface3, surface4])
+    assert_same_surface_lists(surfaces_for_user(user2), [surface4, surface5])
+    assert_same_surface_lists(surfaces_for_user(user1, perms=['view_surface', 'change_surface']),
+                              [surface1, surface2, surface3])
 
     surface4.share(user1, allow_change=True)
-    assert list(surfaces_for_user(user1, perms=['view_surface', 'change_surface'])) == [surface1, surface2,
-                                                                                        surface3, surface4]
+    assert_same_surface_lists(surfaces_for_user(user1, perms=['view_surface', 'change_surface']),
+                              [surface1, surface2, surface3, surface4])
 
 
 @pytest.mark.django_db
@@ -146,13 +145,13 @@ def test_instances_to_topographies(user_three_topographies_three_surfaces_three_
     assert list(instances_to_topographies([], [surface3], [])) == []
 
     # only one surface given
-    assert list(instances_to_topographies([],[surface1],[])) == [topo1a, topo1b]
+    assert list(instances_to_topographies([], [surface1], [])) == [topo1a, topo1b]
 
     # only two surfaces given
-    assert list(instances_to_topographies([],[surface2, surface1],[])) == [topo1a, topo1b, topo2a]
+    assert list(instances_to_topographies([], [surface2, surface1], [])) == [topo1a, topo1b, topo2a]
 
     # an empty surface makes no difference here
-    assert list(instances_to_topographies([],[surface2, surface1, surface3],[])) == [topo1a, topo1b, topo2a]
+    assert list(instances_to_topographies([], [surface2, surface1, surface3], [])) == [topo1a, topo1b, topo2a]
 
     # an additional topography makes no difference
     assert list(instances_to_topographies([topo1a], [surface1], [])) == [topo1a, topo1b]
