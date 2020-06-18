@@ -5,7 +5,8 @@ from pathlib import Path
 import datetime
 import os.path
 
-from .utils import FIXTURE_DIR, SurfaceFactory, TopographyFactory, UserFactory, two_topos, one_line_scan
+from .utils import FIXTURE_DIR, SurfaceFactory, TopographyFactory, UserFactory, \
+    two_topos, one_line_scan, user_three_topographies_three_surfaces_three_tags
 from ..models import Topography, Surface, MAX_LENGTH_DATAFILE_FORMAT
 from ..forms import TopographyForm, TopographyWizardUnitsForm
 
@@ -1084,7 +1085,48 @@ def test_topography_form_field_is_periodic():
     assert form.fields['is_periodic'].disabled
 
 
+@pytest.mark.django_db
+def test_select_state(client, user_three_topographies_three_surfaces_three_tags):
+    """
+    There should be an internal state saved in each session which represents
+    the settings on the "Select" page. These settings comprise
 
+    - search_term
+    - category
+    - sharing_status
+    - page_size
+    - current page
+    - type of view ("tag tree" or "surface list")
 
+    similar to the selection.
 
+    Via AJAX calls or page requests, this state can change.
+    Then also the settings should change in the session such that
+    on the next request for the "Select" page, the same settings are chosen for
+    the user.
+    """
+    # unpack fixture data
+    user, (topo1a, topo1b, topo2a), (surface1, surface2, surface3), (tag1, tag2, tag3) = \
+        user_three_topographies_three_surfaces_three_tags
+
+    client.force_login(user)
+
+    response = client.get(reverse("manager:select"))
+    assert response.status_code == 200
+
+    assert_in_content(response, 'Previous')
+    assert_in_content(response, 'Next')
+    assert_in_content(response, 'Page size')
+    assert_in_content(response, 'All categories')
+
+    assert 'search_term' in response.context
+
+    select_tab_state = response.context['select_tab_state']
+
+    assert select_tab_state['search_term'] is None
+    assert select_tab_state['category'] == 'all'
+    assert select_tab_state['sharing_status'] == 'all'
+    assert select_tab_state['page_size'] == 10
+    assert select_tab_state['current_page'] == 1
+    assert select_tab_state['tree_mode'] == "surface list"
 

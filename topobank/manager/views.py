@@ -43,7 +43,7 @@ from .serializers import SurfaceSerializer, TagSerializer
 from .utils import selected_instances, bandwidths_data, surfaces_for_user, \
     get_topography_reader, tags_for_user, get_reader_infos, \
     mailto_link_for_reporting_an_error, current_selection_as_basket_items, filtered_surfaces,\
-    filtered_topographies
+    filtered_topographies, get_search_term, get_category, get_sharing_status
 from ..usage_stats.utils import increase_statistics_by_date
 from ..users.models import User
 
@@ -755,15 +755,15 @@ class SelectView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        search_term = self.request.GET.get('search')
-        category = self.request.GET.get('category')
-        sharing_status = self.request.GET.get('sharing_status')
+        search_term = get_search_term(self.request)
+        category = get_category(self.request)
+        sharing_status = get_sharing_status(self.request)
 
         if search_term:
             search_term = search_term.strip()
         if category and category not in CATEGORY_FILTER_CHOICES:
             raise PermissionDenied()
-        if sharing_status and sharing_status not in [ 'all', 'own', 'shared']:
+        if sharing_status and sharing_status not in ['all', 'own', 'shared']:
             raise PermissionDenied
 
         # key: tree mode
@@ -772,7 +772,7 @@ class SelectView(TemplateView):
             'tag tree': reverse('manager:tag-list')
         }
         context['search_term'] = search_term
-        context['active_tab'] = 'select'
+        context['active_tab'] = 'select'  # TODO still needed?
         # #
         # # Collect data for trees
         # #
