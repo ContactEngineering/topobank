@@ -772,89 +772,7 @@ class SelectView(TemplateView):
             'tag tree': reverse('manager:tag-list')
         }
         context['search_term'] = search_term
-        context['active_tab'] = 'select'  # TODO still needed?
-        # #
-        # # Collect data for trees
-        # #
-        # surfaces = surfaces_for_user(self.request.user)
-        #
-        # # Filter for category and status
-        # if category:
-        #     surfaces = surfaces.filter(category=category)
-        # if sharing_status == 'own':
-        #     surfaces = surfaces.filter(creator=self.request.user)
-        # elif sharing_status == 'shared':
-        #     surfaces = surfaces.filter(~Q(creator=self.request.user))
-        # topographies = Topography.objects.filter(surface__in=surfaces)
-        #
-        # # Filter for search term
-        # if search_term:
-        #     topographies = topographies.filter(
-        #         Q(name__icontains=search_term) | Q(description__icontains=search_term))  # TODO tags missing
-        #     surfaces = surfaces.filter(
-        #         Q(name__icontains=search_term) | Q(description__icontains=search_term))  # TODO tags missing
-        #
-        # # matching topographies should be accessible via their surface as well as all topographies
-        # # from matching surfaces
-        # # surfaces_for_surface_tree = surfaces.union(t.surface for t in topographies)
-        #
-        #
-        # tags = tags_for_user(self.request.user).filter(parent=None).order_by('label')  # only top level
-        # surfaces_without_tags = surfaces.filter(tags=None)
-        # topographies_without_tags = topographies.filter(tags=None)
-        #
-        #
-        #
-        #
-        # #
-        # # Prepare tree data for tree with surfaces at top level
-        # #
-        # serializer_context = dict(request=self.request,
-        #                           selected_instances=selected_instances(self.request))
-        #
-        # surface_serializer = SurfaceSerializer(context=serializer_context)
-        # surface_tree_data = [ surface_serializer.to_representation(s) for s in surfaces]
-        #
-        # context['surface_tree_data'] = json.dumps(surface_tree_data)
-        # # TODO append _json to name
-        #
-        # #
-        # # Prepare tree data for tree with tags at top level
-        # #
-        # topography_serializer = TopographySerializer(context=serializer_context)
-        #
-        # tag_serializer_context = serializer_context.copy()
-        # tag_serializer_context['surfaces'] = surfaces
-        # tag_serializer_context['topographies'] = topographies
-        # tag_serializer = TagSerializer(context=tag_serializer_context)
-        # serialized_tags = [ tag_serializer.to_representation(t) for t in tags ]
-        #
-        # serialized_surfaces_without_tags = [surface_serializer.to_representation(s)
-        #                                     for s in surfaces_without_tags]
-        #
-        # serialized_topographies_without_tags = [topography_serializer.to_representation(t)
-        #                                         for t in topographies_without_tags]
-        #
-        # serialized_tags.append(dict(
-        #     type='tag',
-        #     title='(untagged surfaces)',
-        #     pk=None,
-        #     name=None,
-        #     folder=True,
-        #     selected=False,
-        #     children=serialized_surfaces_without_tags
-        # ))
-        # serialized_tags.append(dict(
-        #     type='tag',
-        #     title='(untagged topographies)',
-        #     pk=None,
-        #     name=None,
-        #     folder=True,
-        #     selected=False,
-        #     children=serialized_topographies_without_tags
-        # ))
-        #
-        # context['tag_tree_data'] = json.dumps(serialized_tags)
+
         return context
 
 
@@ -878,7 +796,6 @@ class SurfaceCreateView(CreateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['active_tab'] = 'extra-tab-1'
 
         context['extra_tabs'] =[
             {
@@ -1268,8 +1185,7 @@ def sharing_info(request):
 
     return render(request,
                   template_name='manager/sharing_info.html',
-                  context={'sharing_info_table': sharing_info_table,
-                           'active_tab': 'shared'})
+                  context={'sharing_info_table': sharing_info_table})
 
 
 def download_surface(request, surface_id):

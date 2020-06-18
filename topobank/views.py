@@ -63,8 +63,6 @@ class HomeView(TemplateView):
             context['surfaces_link'] = get_login_link('manager:select')
             context['analyses_link'] = get_login_link('analysis:list')
 
-        context['active_tab'] = 'home'
-
         return context
 
 class TermsView(TemplateView):
