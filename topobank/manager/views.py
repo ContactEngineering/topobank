@@ -49,6 +49,21 @@ from ..users.models import User
 
 MAX_NUM_POINTS_FOR_SYMBOLS_IN_LINE_SCAN_PLOT = 100
 CATEGORY_FILTER_CHOICES = ['all'] + [x[0] for x in Surface.CATEGORY_CHOICES]
+SHARING_STATUS_FILTER_CHOICES = ['all', 'own', 'shared']
+TREE_MODE_CHOICES = ['surface list', 'tag tree']
+MAX_LEN_SEARCH_TERM = 200
+MAX_PAGE_SIZE = 100
+
+DEFAULT_SELECT_TAB_STATE = {
+                'search_term': '',  # empty string means: no search
+                'category': 'all',
+                'sharing_status': 'all',
+                'tree_mode': 'surface list',
+                'page_size': 10,
+                'current_page': 1,
+                # all these values are the default if no filter has been applied
+                # and the page is loaded the first time
+            }
 
 _log = logging.getLogger(__name__)
 
@@ -755,23 +770,44 @@ class SelectView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+
+        #
+        # The session needs a default for the state of the select tab
+        #
+        session = self.request.session
+        if 'select_tab_state' not in session:
+            session['select_tab_state'] = DEFAULT_SELECT_TAB_STATE
+        select_tab_state = session['select_tab_state']
+
         search_term = get_search_term(self.request)
         category = get_category(self.request)
         sharing_status = get_sharing_status(self.request)
 
         if search_term:
-            search_term = search_term.strip()
-        if category and category not in CATEGORY_FILTER_CHOICES:
-            raise PermissionDenied()
-        if sharing_status and sharing_status not in ['all', 'own', 'shared']:
-            raise PermissionDenied
+            # sth was given in request
+            if len(search_term) > MAX_LEN_SEARCH_TERM:
+                search_term = search_term[:MAX_LEN_SEARCH_TERM]
+            # overwrite state with query params
+            select_tab_state['search_term'] = search_term.strip()
+
+        if category:
+            if category not in CATEGORY_FILTER_CHOICES:
+                raise PermissionDenied()
+            select_tab_state['category'] = category
+
+        if sharing_status:
+            if sharing_status not in SHARING_STATUS_FILTER_CHOICES:
+                raise PermissionDenied
+            select_tab_state['sharing_status'] = sharing_status
 
         # key: tree mode
-        context['base_search_urls'] = {
+        context['base_urls'] = {  # TODO rename keys to short names of views
             'surface list': reverse('manager:search'),
-            'tag tree': reverse('manager:tag-list')
+            'tag tree': reverse('manager:tag-list'),
+            'save select tab state': reverse('manager:save-select-state'),
         }
-        context['search_term'] = search_term
+
+        context['select_tab_state'] = select_tab_state
 
         return context
 
@@ -1256,7 +1292,7 @@ class SurfaceSearchPaginator(PageNumberPagination):
     page_size = 10
     page_query_param = 'page'
     page_size_query_param = 'page_size'
-    max_page_size = 100
+    max_page_size = MAX_PAGE_SIZE
 
     def get_paginated_response(self, data):
         return Response({
@@ -1547,4 +1583,50 @@ def unselect_all(request):
     request.session['selection'] = []
     return Response([])
 
+
+@api_view(['POST'])
+def save_select_tab_state(request):
+    """Saves a new state of the select tab in session.
+
+    This is needed in order to have the same settings
+    on Select tab as the last time it was visited.
+
+    :param request: request
+    :return: empty list as JSON Response
+    """
+    try:
+        # ensure we have the correct types and keys
+        select_tab_state_types = dict(
+            search_term=str,
+            category=str,
+            sharing_status=str,
+            page_size=int,
+            current_page=int,
+            tree_mode=str,
+        )
+
+        select_tab_state = {k: select_tab_state_types[k](request.data.get(k))
+                            for k in select_tab_state_types.keys()}
+
+        # ensure we have valid values
+        if len(select_tab_state['search_term']) > MAX_LEN_SEARCH_TERM:
+            raise ValueError("Too long search term.")
+        if select_tab_state['category'] not in CATEGORY_FILTER_CHOICES:
+            raise ValueError("Unknown category value: {}".format(select_tab_state['category']))
+        if select_tab_state['sharing_status'] not in SHARING_STATUS_FILTER_CHOICES:
+            raise ValueError("Unknown sharing status value: {}".format(select_tab_state['sharing_status']))
+        if select_tab_state['tree_mode'] not in TREE_MODE_CHOICES:
+            raise ValueError("Unknown tree mode value: {}".format(select_tab_state['tree_mode']))
+        if select_tab_state['page_size'] > MAX_PAGE_SIZE:
+            raise ValueError("Too large page size: {}".format(select_tab_state['page_size']))
+        if select_tab_state['current_page'] > MAX_PAGE_SIZE:
+            raise ValueError("Too large current page: {}".format(select_tab_state['current page']))
+
+        request.session['select_tab_state'] = select_tab_state
+    except Exception as exc:
+        _log.error("Cannot set state '%s' for select tab. Reason: %s", request.data, str(exc))
+    else:
+        _log.debug("Successfully saved new state for select tab.")
+
+    return Response([])
 

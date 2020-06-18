@@ -23,14 +23,17 @@
   {# full text search in names, descriptions, tags #}
 
   <div class="tab-content mt-2">
+    <div>State: {{ select_tab_state }}</div>
     <div class="tab-pane active">
 
       <form>
         <div class="form-row">
 
-          {% if search_term %}
+          {% if select_tab_state.search_term %}
           <div class="form-group col-md-4">
-            <a class="btn btn-warning form-control" href="{% url 'manager:select' %}">Clear filter for <em>{{ search_term }}</em></a>
+            <a class="btn btn-warning form-control" href="{% url 'manager:select' %}">
+              Clear filter for <em>{{ select_tab_state.search_term }}</em>
+            </a>
           </div>
           {% else %}
           <div class="form-group col-md-4">
@@ -138,8 +141,8 @@
   <script src="https://unpkg.com/jquery.fancytree@2.33.0/dist/modules/jquery.fancytree.table.js"></script>
   <script src="https://unpkg.com/jquery.fancytree@2.33.0/dist/modules/jquery.fancytree.filter.js"></script>
 
-  {{ search_term | json_script:"search-term" }}
-  {{ base_search_urls | json_script:"base-search-urls" }}
+  {{ select_tab_state | json_script:"select-tab-state" }}
+  {{ base_urls | json_script:"base-urls" }}
 
   <script>
       function item_button_link_attributes(urls, urlname) {
@@ -175,8 +178,9 @@
           return result;
       }
 
-      const base_search_urls = JSON.parse(document.getElementById('base-search-urls').textContent);
-      const search_term = JSON.parse(document.getElementById('search-term').textContent);
+      const base_urls = JSON.parse(document.getElementById('base-urls').textContent);
+      const select_tab_state = JSON.parse(document.getElementById('select-tab-state').textContent);
+      const search_term = select_tab_state.search_term; // TODO check this can be removed
 
       $('#select-category-filter').change( function(){
         reload_tree();

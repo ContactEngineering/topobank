@@ -18,17 +18,17 @@ let search_results_vm = new Vue({
             num_pages: null,
             page_range: null,
             page_urls: null,
-            current_page: null,
+            current_page: select_tab_state.current_page,
             num_items_on_current_page: null,
             prev_page_url: null,
             next_page_url: null,
-            page_size: null,
-            base_search_urls: base_search_urls,
-            search_term: search_term, // for filtering, comes from outside (search bar is on every page)
-            category: null, // for filtering, will be set on page
-            sharing_status: null, // will be set on page
+            page_size: select_tab_state.page_size,
+            base_urls: base_urls,
+            search_term: select_tab_state.search_term, // for filtering, comes from outside (search bar is on every page)
+            category: select_tab_state.category, // for filtering, will be set on page
+            sharing_status: select_tab_state.sharing_status, // will be set on page
             tree_element: "#surface-tree",
-            tree_mode: "surface list",
+            tree_mode: select_tab_state.tree_mode,
             tree_mode_infos: {
                 "surface list": {
                     element_kind: "surfaces",
@@ -97,6 +97,10 @@ let search_results_vm = new Vue({
                     // assuming the Ajax response contains a list of child nodes:
                     // We replace the result
                     data.result = data.response.page_results;
+
+                    // save current state of widgets, search, page size etc. such that
+                    // these can be reloaded if the page is reloaded
+                    vm.save_select_tab_state();
                   },
                   select: function(event, data) {
                       const node = data.node;
@@ -206,7 +210,7 @@ let search_results_vm = new Vue({
         },   // mounted()
         computed: {
           search_url: function () {
-              let url = this.base_search_urls[this.tree_mode];
+              let url = this.base_urls[this.tree_mode];
               let query_strings = [];
 
               if ((this.search_term != null) && (this.search_term.length > 0)) {
@@ -288,8 +292,34 @@ let search_results_vm = new Vue({
                     node.setSelected(selected, {noEvents: true});
                     // we only want to set the checkbox here, we don't want to simulate the click
                 })
-            }
-
+            },
+            save_select_tab_state: function() {
+                // make AJAX call to set the current state of the select
+                // tab in session in order the same search term, page size and other parameters
+                // are still present on the next load of the select tab
+                let select_tab_state = {
+                    search_term: this.search_term,
+                    category: this.category,
+                    sharing_status: this.sharing_status,
+                    page_size: this.page_size,
+                    current_page: this.current_page,
+                    tree_mode: this.tree_mode
+                };
+                $.ajax({
+                   type: "POST",
+                   url: this.base_urls['save select tab state'],
+                   data: {
+                       select_tab_state: select_tab_state,
+                       csrfmiddlewaretoken: csrf_token
+                   },
+                   success: function (data, textStatus, xhr) {
+                       console.info("Saved current state of select tab.");
+                   },
+                   error: function (xhr, textStatus, errorThrown) {
+                       console.error("Could not save current state of select tab. Error: "+errorThrown);
+                   }
+                });
+            } // end of function set_select_tab_state
         }
       });  // Vue
 

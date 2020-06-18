@@ -1089,7 +1089,7 @@ def test_topography_form_field_is_periodic():
 def test_select_state(client, user_three_topographies_three_surfaces_three_tags):
     """
     There should be an internal state saved in each session which represents
-    the settings on the "Select" page. These settings comprise
+    the settings on the "Select" tab page. These settings comprise
 
     - search_term
     - category
@@ -1102,7 +1102,7 @@ def test_select_state(client, user_three_topographies_three_surfaces_three_tags)
 
     Via AJAX calls or page requests, this state can change.
     Then also the settings should change in the session such that
-    on the next request for the "Select" page, the same settings are chosen for
+    on the next request for the "Select" tab page, the same settings are chosen for
     the user.
     """
     # unpack fixture data
@@ -1119,14 +1119,34 @@ def test_select_state(client, user_three_topographies_three_surfaces_three_tags)
     assert_in_content(response, 'Page size')
     assert_in_content(response, 'All categories')
 
-    assert 'search_term' in response.context
-
     select_tab_state = response.context['select_tab_state']
 
-    assert select_tab_state['search_term'] is None
-    assert select_tab_state['category'] == 'all'
-    assert select_tab_state['sharing_status'] == 'all'
-    assert select_tab_state['page_size'] == 10
-    assert select_tab_state['current_page'] == 1
-    assert select_tab_state['tree_mode'] == "surface list"
+    expected_select_tab_state = dict(
+        search_term='',  # empty string means: no search
+        category='all',
+        sharing_status='all',
+        page_size=10,
+        current_page=1,
+        tree_mode='surface list',
+    )
 
+    assert select_tab_state == expected_select_tab_state
+
+    #
+    # Select other values via AJAX,
+    # this should be visible in the Select page's context
+    #
+    select_tab_state['category'] = 'exp'
+    select_tab_state['sharing_status'] = 'shared'
+
+    response = client.post(reverse("manager:save-select-state"),
+                           data=select_tab_state,
+                           HTTP_X_REQUESTED_WITH='XMLHttpRequest')  # we need an AJAX request)
+    assert response.status_code == 200
+
+    response = client.get(reverse("manager:select"))
+    assert response.status_code == 200
+    expected_select_tab_state = select_tab_state
+
+    select_tab_state = response.context['select_tab_state']
+    assert select_tab_state == expected_select_tab_state

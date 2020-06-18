@@ -110,6 +110,11 @@ urlpatterns = [
         name='select'
     ),
     url(
+        regex=r'select/save_state$',
+        view=login_required(views.save_select_tab_state),
+        name='save-select-state'
+    ),
+    url(
        regex=r'unselect-all/$',
        view=login_required(views.unselect_all),
        name='unselect-all'
