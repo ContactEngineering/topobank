@@ -10,6 +10,7 @@
  *
  * See https://vuejs.org/v2/examples/select2.html as example how to wrap 3rd party code into a component
  */
+
 let search_results_vm = new Vue({
         delimiters: ['[[', ']]'],
         el: '#search-results',
@@ -18,17 +19,18 @@ let search_results_vm = new Vue({
             num_pages: null,
             page_range: null,
             page_urls: null,
-            current_page: select_tab_state.current_page,
             num_items_on_current_page: null,
             prev_page_url: null,
             next_page_url: null,
-            page_size: select_tab_state.page_size,
             base_urls: base_urls,
-            search_term: select_tab_state.search_term, // for filtering, comes from outside (search bar is on every page)
-            category: select_tab_state.category, // for filtering, will be set on page
-            sharing_status: select_tab_state.sharing_status, // will be set on page
+            // select_tab_state: select_tab_state,
+            current_page: initial_select_tab_state.current_page,
+            page_size: initial_select_tab_state.page_size,
+            search_term: initial_select_tab_state.search_term, // for filtering, comes from outside (search bar is on every page)
+            category: initial_select_tab_state.category, // for filtering, will be set on page
+            sharing_status: initial_select_tab_state.sharing_status, // will be set on page
+            tree_mode: initial_select_tab_state.tree_mode,
             tree_element: "#surface-tree",
-            tree_mode: select_tab_state.tree_mode,
             tree_mode_infos: {
                 "surface list": {
                     element_kind: "surfaces",
@@ -38,7 +40,9 @@ let search_results_vm = new Vue({
                     element_kind: "top level tags",
                     hint: "Tags can be introduced or changed when editing meta data of surfaces and topographies.",
                }
-            }
+            },
+            category_filter_choices: category_filter_choices,
+            sharing_status_filter_choices: sharing_status_filter_choices,
         },
         mounted: function() {
             const vm = this;
@@ -81,7 +85,7 @@ let search_results_vm = new Vue({
                   checkbox: true,
                   selectMode: 2, // 'multi'
                   source: {
-                    url: this.search_url  // this is a computed property, see below
+                     url: this.search_url.toString()  // this is a computed property, see below
                   },
                   postProcess: function(event, data) {
                     console.log("PostProcess: ", data);
@@ -100,7 +104,7 @@ let search_results_vm = new Vue({
 
                     // save current state of widgets, search, page size etc. such that
                     // these can be reloaded if the page is reloaded
-                    vm.save_select_tab_state();
+                    // vm.save_select_tab_state();
                   },
                   select: function(event, data) {
                       const node = data.node;
@@ -210,42 +214,32 @@ let search_results_vm = new Vue({
         },   // mounted()
         computed: {
           search_url: function () {
-              let url = this.base_urls[this.tree_mode];
-              let query_strings = [];
+              // Returns URL object
 
-              if ((this.search_term != null) && (this.search_term.length > 0)) {
-                  query_strings.push("search="+this.search_term);
-              }
-              if ((this.category != null) && (this.category != 'all')) {
-                  query_strings.push("category="+this.category);
-              }
-              if (this.sharing_status != null && (this.sharing_status != 'all')) {
-                  query_strings.push("sharing_status="+this.sharing_status);
-              }
+              let url = new URL(this.base_urls[this.tree_mode]);
 
-              if (query_strings.length > 0) {
-                  url += "?"+query_strings.join('&');
-              }
-              url = encodeURI(url)
+              // replace page_size parameter
+              // ref: https://usefulangle.com/post/81/javascript-change-url-parameters
+              let query_params = url.searchParams;
+
+              // TODO use select_tab_state
+              query_params.set("search", this.search_term);  // empty string -> no search
+              query_params.set("category", this.category);
+              query_params.set("sharing_status", this.sharing_status);
+              query_params.set('page_size', this.page_size);
+              query_params.set('current_page', this.current_page);
+              // currently we do not need the tree mode here
+              url.search = query_params.toString();
+              // url = url.toString();
+
+              console.log("Requested search URL: "+url.toString());
+
               return url;
-          }
+            },
         },
         methods: {
             get_tree: function() {
               return $(this.tree_element).fancytree("getTree");
-            },
-            reload: function(tree_mode, search_term, category, sharing_status) {
-                const tree = this.get_tree();
-
-                this.tree_mode = tree_mode;
-                this.search_term = search_term;
-                this.category = category;
-                this.sharing_status = sharing_status;
-                tree.reload({
-                      url: this.search_url,
-                      cache: false,
-                });
-                this.set_loading_indicator();
             },
             set_loading_indicator: function() {
                 // hack: replace loading indicator from fancytree by own indicator with spinner
@@ -258,19 +252,37 @@ let search_results_vm = new Vue({
                     `);
                 }
             },
+            clear_search_term: function () {
+                console.log("Clearing search term.");
+                this.search_term = '';  // TODO use select_tab_state instead
+                this.reload();
+            },
+            reload: function() {
+                /*
+                    Reload means: the tree must be completely reloaded,
+                    starting with page 1.
+                 */
+                const tree = this.get_tree();
+
+                console.log("Called reload with arguments: "+[...arguments]);
+                //
+                // this.tree_mode = tree_mode;
+                // this.search_term = search_term;
+                // this.category = category;
+                // this.sharing_status = sharing_status;
+                // this.current_page = 1;
+
+                tree.setOption('source', {
+                      url: this.search_url.toString(),
+                      cache: false,
+                });
+            },
             load_page: function(page_no){
                 page_no = parseInt(page_no);
 
                 if ( (page_no>=1) && (page_no<=this.page_range.length) ) {
-                    const tree = this.get_tree();
-                    let page_url = new URL(this.page_urls[page_no-1]);
-
-                    // replace page_size parameter
-                    // ref: https://usefulangle.com/post/81/javascript-change-url-parameters
-                    let query_params = page_url.searchParams;
-                    query_params.set('page_size', this.page_size);
-                    page_url.search = query_params.toString();
-                    page_url = page_url.toString();
+                    let tree = this.get_tree();
+                    let page_url=new URL(this.page_urls[page_no-1]);
 
                     console.log("Loading page "+page_no+" from "+page_url+"..");
                     tree.setOption('source', {
@@ -293,7 +305,7 @@ let search_results_vm = new Vue({
                     // we only want to set the checkbox here, we don't want to simulate the click
                 })
             },
-            save_select_tab_state: function() {
+            /*save_select_tab_state: function() {
                 // make AJAX call to set the current state of the select
                 // tab in session in order the same search term, page size and other parameters
                 // are still present on the next load of the select tab
@@ -305,11 +317,17 @@ let search_results_vm = new Vue({
                     current_page: this.current_page,
                     tree_mode: this.tree_mode
                 };
+                console.log("Select tab state before AJAX send: ", select_tab_state);
                 $.ajax({
                    type: "POST",
                    url: this.base_urls['save select tab state'],
                    data: {
-                       select_tab_state: select_tab_state,
+                       search_term: this.search_term,
+                       category: this.category,
+                       sharing_status: this.sharing_status,
+                       page_size: this.page_size,
+                       current_page: this.current_page,
+                       tree_mode: this.tree_mode,
                        csrfmiddlewaretoken: csrf_token
                    },
                    success: function (data, textStatus, xhr) {
@@ -319,7 +337,7 @@ let search_results_vm = new Vue({
                        console.error("Could not save current state of select tab. Error: "+errorThrown);
                    }
                 });
-            } // end of function set_select_tab_state
+            } // end of function set_select_tab_state*/
         }
       });  // Vue
 

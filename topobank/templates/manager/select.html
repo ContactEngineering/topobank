@@ -23,62 +23,66 @@
   {# full text search in names, descriptions, tags #}
 
   <div class="tab-content mt-2">
-    <div>State: {{ select_tab_state }}</div>
+    <div>Select tab state: {{ select_tab_state }}</div>
     <div class="tab-pane active">
 
-      <form>
-        <div class="form-row">
-
-          {% if select_tab_state.search_term %}
-          <div class="form-group col-md-4">
-            <a class="btn btn-warning form-control" href="{% url 'manager:select' %}">
-              Clear filter for <em>{{ select_tab_state.search_term }}</em>
-            </a>
-          </div>
-          {% else %}
-          <div class="form-group col-md-4">
-            <button class="btn btn-outline-info form-control disabled" href="#">
-              Not filtered for search term
-            </button>
-          </div>
-          {% endif %}
-
-          <div class="form-group col-md-2">
-            <select class="form-control" id="select-category-filter">
-              <option value="all" selected>All categories</option>
-              <option value="exp">Experimental data only</option>
-              <option value="sim">Simulated data only</option>
-              <option value="dum">Dummy data only</option>
-            </select>
-          </div>
-
-          <div class="form-group col-md-2">
-            <select class="form-control" id="select-sharing-status-filter">
-              <option value="all" selected>Own and shared surfaces</option>
-              <option value="own">Only own surfaces</option>
-              <option value="shared">Only surfaces shared with you</option>
-            </select>
-          </div>
-
-
-          <div id="tree-selector" class="form-group btn-group btn-group-toggle col-md-2" data-toggle="buttons">
-            <label class="btn btn-success active">
-              <input type="radio" name="options" value="surface list" id="surface-list-radio-btn" autocomplete="off" checked>
-              {% fontawesome_icon 'diamond' %} Surface list
-            </label>
-            <label class="btn btn-default">
-                <input type="radio" name="options" value="tag tree" id="tag-tree-radio-btn" autocomplete="off">
-                {% fontawesome_icon 'tag' %}Tag tree
-            </label>
-          </div>
-
-          <div class="form-group col-md-2">
-            <a class="btn btn-primary form-control" href="{% url 'manager:surface-create' %}">Create Surface</a>
-          </div>
-        </div>
-      </form>
 
       <div id="search-results">
+        <form>
+          <div class="form-row">
+
+            {# Display button for search term #}
+            <div v-if="search_term" class="form-group col-md-4">
+              <button class="btn btn-warning form-control"
+                      @click="clear_search_term">
+                Clear filter for <em>[[ search_term ]]</em>
+              </button>
+            </div>
+            <div v-else class="form-group col-md-4">
+              <button class="btn btn-outline-info form-control disabled">
+                Not filtered for search term
+              </button>
+            </div>
+
+            {# Display select for category #}
+            <div class="form-group col-md-2">
+              <select class="form-control" v-model="category" @change="reload">
+                  <option v-for="(choice_label, choice_val) in category_filter_choices"
+                          v-bind:value="choice_val" v-bind:class="{selected: choice_val==category}">
+                    [[ choice_label ]]
+                  </option>
+              </select>
+            </div>
+
+            {# Display select for sgaring status #}
+            <div class="form-group col-md-2">
+              <select class="form-control" v-model="sharing_status" @change="reload">
+                  <option v-for="(choice_label, choice_val) in sharing_status_filter_choices"
+                          v-bind:value="choice_val" v-bind:class="{selected: choice_val==sharing_status}">
+                    [[ choice_label ]]
+                  </option>
+              </select>
+            </div>
+
+
+            <div id="tree-selector" class="form-group btn-group btn-group-toggle col-md-2" data-toggle="buttons">
+              <label class="btn btn-success active">
+                <input type="radio" name="options" value="surface list" id="surface-list-radio-btn" autocomplete="off"
+                       checked>
+                {% fontawesome_icon 'diamond' %} Surface list
+              </label>
+              <label class="btn btn-default">
+                <input type="radio" name="options" value="tag tree" id="tag-tree-radio-btn" autocomplete="off">
+                {% fontawesome_icon 'tag' %}Tag tree
+              </label>
+            </div>
+
+            <div class="form-group col-md-2">
+              <a class="btn btn-primary form-control" href="{% url 'manager:surface-create' %}">Create Surface</a>
+            </div>
+          </div>
+        </form>
+
         <nav aria-label="Pagination">
           <ul id="pagination" class="pagination">
             <li class="page-item" v-bind:class="{ disabled: current_page <= 1 }">
@@ -141,7 +145,10 @@
   <script src="https://unpkg.com/jquery.fancytree@2.33.0/dist/modules/jquery.fancytree.table.js"></script>
   <script src="https://unpkg.com/jquery.fancytree@2.33.0/dist/modules/jquery.fancytree.filter.js"></script>
 
-  {{ select_tab_state | json_script:"select-tab-state" }}
+  {# Some JSON code to define JS variables from Django context #}
+  {{ category_filter_choices | json_script:"category-filter-choices" }}
+  {{ sharing_status_filter_choices | json_script:"sharing-status-filter-choices" }}
+  {{ select_tab_state | json_script:"initial-select-tab-state" }}
   {{ base_urls | json_script:"base-urls" }}
 
   <script>
@@ -178,15 +185,18 @@
           return result;
       }
 
+      // Pass some data from Django context to Javascript
+      const category_filter_choices = JSON.parse(document.getElementById('category-filter-choices').textContent);
+      const sharing_status_filter_choices = JSON.parse(document.getElementById('sharing-status-filter-choices').textContent);
       const base_urls = JSON.parse(document.getElementById('base-urls').textContent);
-      const select_tab_state = JSON.parse(document.getElementById('select-tab-state').textContent);
-      const search_term = select_tab_state.search_term; // TODO check this can be removed
+      const initial_select_tab_state = JSON.parse(document.getElementById('initial-select-tab-state').textContent);
 
       $('#select-category-filter').change( function(){
         reload_tree();
       });
 
       $('#select-sharing-status-filter').change( function(){
+        console.log("Sharing status selector changed");
         reload_tree();
       });
 
@@ -211,7 +221,10 @@
         const category = $('#select-category-filter option:selected').val();
         const sharing_status = $('#select-sharing-status-filter option:selected').val();
         const tree_mode = $('#tree-selector :checked').val();
-        search_results_vm.reload(tree_mode, search_term, category, sharing_status);
+
+        console.warn("Reload via jquery disabled.");
+        // search_results_vm.reload(tree_mode, search_term, category, sharing_status);
+        // search term can only be changed on a new request of the full page
       }
 
       $(document).ready( function () {

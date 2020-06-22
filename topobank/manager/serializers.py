@@ -106,19 +106,21 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
         #
         request = self.context['request']
         search_term = get_search_term(request)
-        search_term_lower = search_term.lower() if search_term else None
+        search_term_given = len(search_term) > 0
+        search_term_lower = None if search_term is None else search_term.lower()
         topographies = obj.topography_set.all()
 
-        obj_match = (search_term is None) or (search_term_lower in obj.name.lower()) or \
+        obj_match = (not search_term_given) or (search_term_lower in obj.name.lower()) or \
                     (search_term_lower in obj.description.lower()) or \
                     (obj.tags.filter(name__icontains=search_term).count() > 0)
 
         # only filter topographies by search term if surface does not match search term
-        if search_term and not obj_match:
+        if search_term_given and not obj_match:
             topographies = topographies.filter(Q(name__icontains=search_term) |
                                                Q(description__icontains=search_term) |
                                                Q(tags__name__icontains=search_term)).distinct()
         return TopographySerializer(topographies, many=True, context=self.context).data
+        # TODO can filtered_topographies be used here instead?
 
     def get_urls(self, obj):
 

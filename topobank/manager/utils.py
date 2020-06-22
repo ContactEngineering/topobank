@@ -122,7 +122,7 @@ def filtered_surfaces(request):
     # Filter by category and sharing status
     #
     category = get_category(request)
-    if category:
+    if category != 'all':
         qs = qs.filter(category=category)
 
     sharing_status = get_sharing_status(request)
@@ -549,13 +549,13 @@ def bandwidths_data(topographies):
 
 
 def get_search_term(request):
-    return request.GET.get('search', default=None)
+    return request.GET.get('search', default='')
 
 
 def get_category(request):
-    return request.GET.get('category', default=None)
+    return request.GET.get('category', default='all')
 
 
 def get_sharing_status(request):
-    return request.GET.get('sharing_status', default=None)
+    return request.GET.get('sharing_status', default='all')
 
