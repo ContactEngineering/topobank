@@ -27,7 +27,7 @@ from django.views.generic.edit import FormMixin
 from django_tables2 import RequestConfig
 from formtools.wizard.views import SessionWizardView
 from guardian.decorators import permission_required_or_403
-from guardian.shortcuts import assign_perm, get_users_with_perms, get_objects_for_user
+from guardian.shortcuts import get_users_with_perms, get_objects_for_user
 from notifications.signals import notify
 from rest_framework.decorators import api_view
 from rest_framework.generics import ListAPIView
@@ -41,10 +41,9 @@ from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyW
 from .forms import TopographyForm, SurfaceForm, SurfaceShareForm
 from .models import Topography, Surface, TagModel
 from .serializers import SurfaceSerializer, TagSerializer
-from .utils import selected_instances, bandwidths_data, surfaces_for_user, \
-    get_topography_reader, tags_for_user, get_reader_infos, \
-    mailto_link_for_reporting_an_error, current_selection_as_basket_items, filtered_surfaces,\
-    filtered_topographies, get_search_term, get_category, get_sharing_status
+from .utils import selected_instances, bandwidths_data, get_topography_reader, tags_for_user, get_reader_infos, \
+    mailto_link_for_reporting_an_error, current_selection_as_basket_items, filtered_surfaces, \
+    filtered_topographies, get_search_term, get_category, get_sharing_status, MAX_LEN_SEARCH_TERM
 from ..usage_stats.utils import increase_statistics_by_date
 from ..users.models import User
 
@@ -60,7 +59,6 @@ SHARING_STATUS_FILTER_CHOICES = {
 }
 TREE_MODE_CHOICES = ['surface list', 'tag tree']
 
-MAX_LEN_SEARCH_TERM = 200
 MAX_PAGE_SIZE = 100
 DEFAULT_PAGE_SIZE = 10
 
@@ -787,18 +785,15 @@ class SelectView(TemplateView):
         session = self.request.session
         select_tab_state = session.get('select_tab_state', default=DEFAULT_SELECT_TAB_STATE)
 
-        search_term = get_search_term(self.request)
+
         category = get_category(self.request)
         sharing_status = get_sharing_status(self.request)
 
-        # sth was given in request
-        if len(search_term) > MAX_LEN_SEARCH_TERM:
-            search_term = search_term[:MAX_LEN_SEARCH_TERM]
-        # overwrite state with query params
-        select_tab_state['search_term'] = search_term.strip()
 
-        if category not in CATEGORY_FILTER_CHOICES.keys():
-            raise PermissionDenied()
+
+        select_tab_state['search_term'] = get_search_term(self.request)
+
+
         select_tab_state['category'] = category
 
         if sharing_status not in SHARING_STATUS_FILTER_CHOICES.keys():
@@ -1311,25 +1306,12 @@ class SurfaceSearchPaginator(PageNumberPagination):
         #
         session = self.request.session
         select_tab_state = session.get('select_tab_state', default=DEFAULT_SELECT_TAB_STATE)
+        # TODO is this needed?
 
-        search_term = get_search_term(self.request)
-        category = get_category(self.request)
-        sharing_status = get_sharing_status(self.request)
+        select_tab_state['search_term'] = get_search_term(self.request)
+        select_tab_state['category'] = get_category(self.request)
+        select_tab_state['sharing_status'] = get_sharing_status(self.request)
         page_size = self.get_page_size(self.request)
-
-        if len(search_term) > MAX_LEN_SEARCH_TERM: # TODO move this to get_search_term
-            search_term = search_term[:MAX_LEN_SEARCH_TERM]
-        # overwrite state with query params
-        select_tab_state['search_term'] = search_term.strip()
-
-        if category not in CATEGORY_FILTER_CHOICES.keys(): # TODO this also
-            raise PermissionDenied()
-        select_tab_state['category'] = category
-
-        if sharing_status not in SHARING_STATUS_FILTER_CHOICES.keys():
-            raise PermissionDenied
-        select_tab_state['sharing_status'] = sharing_status
-
         select_tab_state[self.page_size_query_param] = page_size
         _log.info("Select tab state set in paginator: %s", select_tab_state)
         session['select_tab_state'] = select_tab_state
@@ -1632,7 +1614,7 @@ def unselect_all(request):
 
 
 @api_view(['POST'])
-def save_select_tab_state(request):
+def save_select_tab_state(request):  # TODO needed?
     """Saves a new state of the select tab in session.
 
     This is needed in order to have the same settings

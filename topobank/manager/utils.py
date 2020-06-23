@@ -2,6 +2,7 @@ from django.shortcuts import reverse
 from guardian.shortcuts import get_objects_for_user
 from django.conf import settings
 from django.db.models import Q
+from django.core.exceptions import PermissionDenied
 import markdown2
 
 from PyCo.Topography import open_topography
@@ -10,12 +11,14 @@ from PyCo.Topography.IO import readers as pyco_readers
 import traceback
 import logging
 
+
+
 _log = logging.getLogger(__name__)
 
 DEFAULT_DATASOURCE_NAME = 'Default'
 UNIT_TO_METERS = {'Å': 1e-10, 'nm': 1e-9, 'µm': 1e-6, 'mm': 1e-3, 'm': 1.0,
                   'unknown': 1.0}
-
+MAX_LEN_SEARCH_TERM = 200
 SELECTION_SESSION_VARNAME = 'selection'
 
 
@@ -548,14 +551,67 @@ def bandwidths_data(topographies):
     return bandwidths_data
 
 
-def get_search_term(request):
-    return request.GET.get('search', default='')
+def get_search_term(request) -> str:
+    """Extract a search term from given request.
+
+    The search term is truncated at a maximum
+    size of MAX_LEN_SEARCH_TERM.
+
+    Parameters
+    ----------
+    request
+
+    Returns
+    -------
+    String with search term, an empty string if no term was given.
+
+    """
+    search_term = request.GET.get('search', default='')
+    search_term = search_term[:MAX_LEN_SEARCH_TERM]
+    return search_term.strip()
 
 
-def get_category(request):
-    return request.GET.get('category', default='all')
+def get_category(request) -> str:
+    """Extract a surface category from given request.
+
+    Parameters
+    ----------
+    request
+
+    Returns
+    -------
+    String with requested category.
+
+    Raises
+    ------
+    PermissionDenied() if an unknown category was given.
+    """
+    from .views import CATEGORY_FILTER_CHOICES
+    category = request.GET.get('category', default='all')
+    if category not in CATEGORY_FILTER_CHOICES.keys():
+        raise PermissionDenied()
+    return category
 
 
-def get_sharing_status(request):
-    return request.GET.get('sharing_status', default='all')
+def get_sharing_status(request) -> str:
+    """Extract a sharing status from given request.
+
+     Parameters
+     ----------
+     request
+
+     Returns
+     -------
+     String with requested sharing status.
+
+     Raises
+     ------
+     PermissionDenied() if an unknown sharing status was given.
+     """
+    from .views import SHARING_STATUS_FILTER_CHOICES
+    sharing_status = request.GET.get('sharing_status', default='all')
+    if sharing_status not in SHARING_STATUS_FILTER_CHOICES.keys():
+        raise PermissionDenied()
+    return sharing_status
+
 
