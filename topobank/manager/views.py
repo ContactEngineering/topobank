@@ -785,20 +785,13 @@ class SelectView(TemplateView):
         session = self.request.session
         select_tab_state = session.get('select_tab_state', default=DEFAULT_SELECT_TAB_STATE)
 
-
-        category = get_category(self.request)
-        sharing_status = get_sharing_status(self.request)
-
-
-
-        select_tab_state['search_term'] = get_search_term(self.request)
-
-
-        select_tab_state['category'] = category
-
-        if sharing_status not in SHARING_STATUS_FILTER_CHOICES.keys():
-            raise PermissionDenied
-        select_tab_state['sharing_status'] = sharing_status
+        # only overwrite search term in select tab state and only
+        # if given explicitly as request parameter
+        search_term = get_search_term(self.request)
+        if search_term:
+            select_tab_state['search_term'] = search_term
+            # otherwise keep search term from session variable 'select_tab_state'
+            session['select_tab_state'] = select_tab_state
 
         # key: tree mode
         context['base_urls'] = {  # TODO rename keys to short names of views
@@ -806,11 +799,7 @@ class SelectView(TemplateView):
             'tag tree': self.request.build_absolute_uri(reverse('manager:tag-list')),
             'save select tab state': reverse('manager:save-select-state'),
         }
-
-        session['select_tab_state'] = select_tab_state
-
         context['select_tab_state'] = select_tab_state
-
         context['category_filter_choices'] = CATEGORY_FILTER_CHOICES
         context['sharing_status_filter_choices'] = SHARING_STATUS_FILTER_CHOICES
 
@@ -1313,7 +1302,7 @@ class SurfaceSearchPaginator(PageNumberPagination):
         select_tab_state['sharing_status'] = get_sharing_status(self.request)
         page_size = self.get_page_size(self.request)
         select_tab_state[self.page_size_query_param] = page_size
-        _log.info("Select tab state set in paginator: %s", select_tab_state)
+        _log.info("Setting select tab state set in paginator: %s", select_tab_state)
         session['select_tab_state'] = select_tab_state
 
         # TODO Check what is needed in response, component knows already most
