@@ -118,6 +118,56 @@ def test_filter(browser, user_alice_logged_in, items_for_filtering):
     assert active_page_number(browser) == 1
     assert active_page_size(browser) == 10
 
+    assert browser.is_text_present('surface1')
+    assert browser.is_text_present('surface2')
+    assert browser.is_text_present('surface3')
 
+    # Now she clicks on category "exp"
+    # => only surface 1 should be shown
+    browser.select('category', 'exp')
+
+    assert browser.is_text_present("Showing 1 surfaces out of 1.")
+    assert browser.is_text_present("Not filtered for search term")
+    assert selected_category(browser) == 'exp'
+    assert selected_sharing_status(browser) == 'all'
+    assert selected_tree_mode(browser) == 'surface list'
+    assert active_page_number(browser) == 1
+    assert active_page_size(browser) == 10
+
+    assert browser.is_text_present('surface1')
+    assert not browser.is_text_present('surface2')
+    assert not browser.is_text_present('surface3')
+
+    # Now she clicks on category "sim"
+    # => only surface 3 should be shown
+    browser.select('category', 'sim')
+    assert browser.is_text_present("Showing 1 surfaces out of 1.")
+    assert selected_category(browser) == 'sim'
+
+    assert not browser.is_text_present('surface1')
+    assert not browser.is_text_present('surface2')
+    assert browser.is_text_present('surface3')
+
+    #
+    # Now change to 'sharing' tab and back
+    # => results should be the same
+    select_link = browser.find_link_by_partial_href('sharing')
+    select_link.click()
+    assert browser.is_text_present("Remove selected shares")
+
+    select_link = browser.find_link_by_partial_text('Select')
+    select_link.click()
+
+    assert browser.is_text_present("Showing 1 surfaces out of 1.")
+    assert browser.is_text_present("Not filtered for search term")
+    assert selected_category(browser) == 'sim'
+    assert selected_sharing_status(browser) == 'all'
+    assert selected_tree_mode(browser) == 'surface list'
+    assert active_page_number(browser) == 1
+    assert active_page_size(browser) == 10
+
+    assert not browser.is_text_present('surface1')
+    assert not browser.is_text_present('surface2')
+    assert browser.is_text_present('surface3')
 
 

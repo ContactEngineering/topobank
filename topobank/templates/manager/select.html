@@ -23,7 +23,7 @@
   {# full text search in names, descriptions, tags #}
 
   <div class="tab-content mt-2">
-    <div>Select tab state: {{ select_tab_state }}</div>
+    <!-- div>Select tab state: {{ select_tab_state }}</div -->
     <div class="tab-pane active">
 
 
@@ -46,9 +46,9 @@
 
             {# Display select for category #}
             <div class="form-group col-md-2">
-              <select class="form-control" v-model="category" @change="reload">
+              <select name="category" class="form-control" v-model="category" @change="reload">
                   <option v-for="(choice_label, choice_val) in category_filter_choices"
-                          v-bind:value="choice_val" v-bind:class="{selected: choice_val==category}">
+                          v-bind:value="choice_val" v-bind:selected="choice_val==category">
                     [[ choice_label ]]
                   </option>
               </select>
@@ -56,9 +56,9 @@
 
             {# Display select for sgaring status #}
             <div class="form-group col-md-2">
-              <select class="form-control" v-model="sharing_status" @change="reload">
+              <select name="sharing_status" class="form-control" v-model="sharing_status" @change="reload">
                   <option v-for="(choice_label, choice_val) in sharing_status_filter_choices"
-                          v-bind:value="choice_val" v-bind:class="{selected: choice_val==sharing_status}">
+                          v-bind:value="choice_val" v-bind:selected="choice_val==sharing_status">
                     [[ choice_label ]]
                   </option>
               </select>
@@ -67,12 +67,12 @@
 
             <div id="tree-selector" class="form-group btn-group btn-group-toggle col-md-2" data-toggle="buttons">
               <label class="btn btn-success active">
-                <input type="radio" name="options" value="surface list" id="surface-list-radio-btn" autocomplete="off"
+                <input type="radio" name="tree_mode" value="surface list" id="surface-list-radio-btn" autocomplete="off"
                        checked>
                 {% fontawesome_icon 'diamond' %} Surface list
               </label>
               <label class="btn btn-default">
-                <input type="radio" name="options" value="tag tree" id="tag-tree-radio-btn" autocomplete="off">
+                <input type="radio" name="tree_mode" value="tag tree" id="tag-tree-radio-btn" autocomplete="off">
                 {% fontawesome_icon 'tag' %}Tag tree
               </label>
             </div>
@@ -100,7 +100,7 @@
                 <div class="input-group-prepend">
                   <label class="input-group-text" for="page-size-select">Page size</label>
                 </div>
-                <select class="custom-select" id="page-size-select" v-model="page_size" @change="load_page(1)">
+                <select name="page_size" class="custom-select" id="page-size-select" v-model="page_size" @change="reload()">
                   <option v-for="ps in [10,25,50,100]" v-bind:class="{selected: ps==page_size}">[[ps]]</option>
                 </select>
               </div>
