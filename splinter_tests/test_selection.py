@@ -1,20 +1,20 @@
 import pytest
 
 from topobank.manager.tests.utils import SurfaceFactory, TopographyFactory, TagModelFactory
-from topobank.manager.models import Surface, Topography, TagModel
+
 
 @pytest.fixture(scope='function')
 def items_for_selection(db, user_alice):
 
-    tag1 = TagModelFactory()
-    tag2 = TagModelFactory()
+    tag1 = TagModelFactory(name="tag1")
+    tag2 = TagModelFactory(name="tag2")
 
-    surface1 = SurfaceFactory(creator=user_alice)
-    topo1a = TopographyFactory(surface=surface1)
-    topo1b = TopographyFactory(surface=surface1, tags=[tag1, tag2])
+    surface1 = SurfaceFactory(creator=user_alice, name='surface1')
+    topo1a = TopographyFactory(surface=surface1, name='topo1a')
+    topo1b = TopographyFactory(surface=surface1, tags=[tag1, tag2], name='topo1b')
 
-    surface2 = SurfaceFactory(creator=user_alice, tags=[tag1])
-    topo2a = TopographyFactory(surface=surface2)
+    surface2 = SurfaceFactory(creator=user_alice, tags=[tag1], name="surface2")
+    topo2a = TopographyFactory(surface=surface2, name='topo2a')
 
     return dict(
         tags=[tag1, tag2],
@@ -53,11 +53,13 @@ def test_deselect_all(browser, user_alice_logged_in, items_for_selection):
     select_link = browser.find_link_by_partial_text('Select')
     select_link.click()
 
-    cb = checkbox_for_item_by_name(browser, 'surface-0')
+    assert browser.is_text_present('surface1', wait_time=1)
+
+    cb = checkbox_for_item_by_name(browser, 'surface1')
     cb.check()
 
     # now we have a basket item
-    assert is_in_basket(browser, 'surface-0')
+    assert is_in_basket(browser, 'surface1')
 
     # pressing unselect
     browser.click_link_by_id('unselect-all')
@@ -65,7 +67,7 @@ def test_deselect_all(browser, user_alice_logged_in, items_for_selection):
     # time.sleep(1)
 
     # now the basket item is no longer there
-    assert not is_in_basket(browser, 'surface-0')
+    assert not is_in_basket(browser, 'surface1')
 
     browser.quit()
 

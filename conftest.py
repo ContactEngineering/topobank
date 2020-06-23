@@ -37,6 +37,13 @@ def user_alice(django_user_model):
 
 
 @pytest.fixture(scope='function')
+def user_bob(django_user_model):
+    username = 'bob'
+    user = django_user_model.objects.create_user(username=username, password=PASSWORD, name='Bob Marley')
+    return user
+
+
+@pytest.fixture(scope='function')
 def user_alice_logged_in(live_server, browser, user_alice, handle_usage_statistics):
     # passing "handle_usage_statistics" is important, otherwise
     # the following tests may fail in a strange way because of foreign key errors
