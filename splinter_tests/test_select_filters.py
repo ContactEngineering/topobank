@@ -1,6 +1,14 @@
 import pytest
+from selenium.webdriver.common.keys import Keys
 
 from topobank.manager.tests.utils import SurfaceFactory, TopographyFactory, TagModelFactory, UserFactory
+
+
+def search_for(browser, search_term):
+    browser.fill("search", search_term)
+    browser.type("search", Keys.RETURN)
+    # TODO wait for select tab is active
+
 
 
 def _selected_value(browser, select_css_selector):
@@ -64,8 +72,8 @@ def active_page_size(browser):
 @pytest.fixture(scope='function')
 def items_for_filtering(db, user_alice, user_bob):
 
-    tag1 = TagModelFactory()
-    tag2 = TagModelFactory()
+    tag1 = TagModelFactory(name='tag1')
+    tag2 = TagModelFactory(name='tag2')
 
     surface1 = SurfaceFactory(name='surface1', creator=user_alice, category='exp', description='apple')
     topo1a = TopographyFactory(name='topo1a', surface=surface1)
@@ -169,5 +177,76 @@ def test_filter(browser, user_alice_logged_in, items_for_filtering):
     assert not browser.is_text_present('surface1')
     assert not browser.is_text_present('surface2')
     assert browser.is_text_present('surface3')
+
+    # Now show only "own" surfaces. Since only surface 3 is shown
+    # and this is shared, no surfaces should be visible
+    browser.select('sharing_status', 'own')
+    assert browser.is_text_present("Showing 0 surfaces out of 0.")
+
+    # Showing again all categories, two surfaces should show up
+    browser.select('category', 'all')
+    assert browser.is_text_present("Showing 2 surfaces out of 2.")
+
+    assert browser.is_text_present('surface1')
+    assert browser.is_text_present('surface2')
+    assert not browser.is_text_present('surface3')
+
+    # # Now back to sharing page, then search for 'surface1'
+    # # => only one surface is left, rest of switches should be as before
+    # select_link = browser.find_link_by_partial_href('sharing')
+    # select_link.click()
+    # assert browser.is_text_present("Remove selected shares")
+    #
+    # browser.fill('search', 'surface1\n')
+    #
+    # assert browser.is_text_present("Showing 1 surfaces out of 1.")
+    # assert browser.is_text_present("Clear filter for issue")
+    # assert selected_category(browser) == 'all'
+    # assert selected_sharing_status(browser) == 'own'
+    # assert selected_tree_mode(browser) == 'surface list'
+    # assert active_page_number(browser) == 1
+    # assert active_page_size(browser) == 10
+
+
+@pytest.mark.django_db
+def test_search(browser, user_alice_logged_in, items_for_filtering):
+
+    # tag1, tag2 = items_for_filtering['tags']
+    # surface1, surface2, surface3 = items_for_filtering['surfaces']
+    # topo1a, topo1b, topo2a, topo3a = items_for_filtering['topographies']
+
+    search_for(browser, "surface2")
+
+    assert not browser.is_text_present('surface1')
+    assert browser.is_text_present('surface2')
+    assert not browser.is_text_present('surface3')
+
+    assert browser.is_text_present("Showing 1 surfaces out of 1.")
+    assert browser.is_text_present("Clear filter for")
+    assert selected_category(browser) == 'all'
+    assert selected_sharing_status(browser) == 'all'
+    assert selected_tree_mode(browser) == 'surface list'
+    assert active_page_number(browser) == 1
+    assert active_page_size(browser) == 10
+
+    #
+    # Change to tag tree
+    # => only tag1 should be present
+    # radio_btn = browser.find_by_id('tag-tree-radio-btn')
+    browser.find_by_css('label.btn')[1].click()  # TODO find safer option
+    # browser.choose('tree_mode', 'tag tree')
+
+    assert browser.is_text_present('tag1', wait_time=2)
+    assert not browser.is_text_present('tag2')
+    assert not browser.is_text_present('surface1')
+    assert not browser.is_text_present('surface3')
+
+    assert browser.is_text_present("Showing 1 top level tags out of 1.")
+    assert browser.is_text_present("Clear filter for")
+    assert selected_category(browser) == 'all'
+    assert selected_sharing_status(browser) == 'all'
+    assert selected_tree_mode(browser) == 'tag tree'
+    assert active_page_number(browser) == 1
+    assert active_page_size(browser) == 10
 
 
