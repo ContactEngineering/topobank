@@ -23,12 +23,11 @@ let search_results_vm = new Vue({
             prev_page_url: null,
             next_page_url: null,
             base_urls: base_urls,
-            // select_tab_state: select_tab_state,
             current_page: initial_select_tab_state.current_page,
             page_size: initial_select_tab_state.page_size,
-            search_term: initial_select_tab_state.search_term, // for filtering, comes from outside (search bar is on every page)
-            category: initial_select_tab_state.category, // for filtering, will be set on page
-            sharing_status: initial_select_tab_state.sharing_status, // will be set on page
+            search_term: initial_select_tab_state.search_term,
+            category: initial_select_tab_state.category,
+            sharing_status: initial_select_tab_state.sharing_status,
             tree_mode: initial_select_tab_state.tree_mode,
             tree_element: "#surface-tree",
             tree_mode_infos: {
@@ -222,13 +221,12 @@ let search_results_vm = new Vue({
               // ref: https://usefulangle.com/post/81/javascript-change-url-parameters
               let query_params = url.searchParams;
 
-              // TODO use select_tab_state
               query_params.set("search", this.search_term);  // empty string -> no search
               query_params.set("category", this.category);
               query_params.set("sharing_status", this.sharing_status);
               query_params.set('page_size', this.page_size);
               query_params.set('current_page', this.current_page);
-              // currently we do not need the tree mode here
+              query_params.set('tree_mode', this.tree_mode);
               url.search = query_params.toString();
               // url = url.toString();
 
@@ -253,8 +251,8 @@ let search_results_vm = new Vue({
                 }
             },
             clear_search_term: function () {
-                console.log("Clearing search term.");
-                this.search_term = '';  // TODO use select_tab_state instead
+                console.log("Clearing search term..");
+                this.search_term = '';
                 this.reload();
             },
             reload: function() {
@@ -264,7 +262,7 @@ let search_results_vm = new Vue({
                  */
                 const tree = this.get_tree();
 
-                console.log("Called reload with arguments: "+[...arguments]);
+                console.log("Reloading tree, tree mode: "+this.tree_mode);
                 //
                 // this.tree_mode = tree_mode;
                 // this.search_term = search_term;

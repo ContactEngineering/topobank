@@ -615,3 +615,27 @@ def get_sharing_status(request) -> str:
     return sharing_status
 
 
+def get_tree_mode(request) -> str:
+    """Extract tree_mode from given request.
+
+     Parameters
+     ----------
+     request
+
+     Returns
+     -------
+     String with requested tree mode.
+
+     Raises
+     ------
+     PermissionDenied() if an unknown sharing status was given.
+     """
+    from .views import TREE_MODE_CHOICES
+    tree_mode = request.GET.get('tree_mode', default='surface list')
+    if tree_mode not in TREE_MODE_CHOICES:
+        raise PermissionDenied()
+    return tree_mode
+
+
+
+

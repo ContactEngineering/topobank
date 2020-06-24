@@ -1,14 +1,7 @@
 import pytest
-from selenium.webdriver.common.keys import Keys
 
-from topobank.manager.tests.utils import SurfaceFactory, TopographyFactory, TagModelFactory, UserFactory
-
-
-def search_for(browser, search_term):
-    browser.fill("search", search_term)
-    browser.type("search", Keys.RETURN)
-    # TODO wait for select tab is active
-
+from splinter_tests.utils import search_for, clear_search_term
+from topobank.manager.tests.utils import SurfaceFactory, TopographyFactory, TagModelFactory
 
 
 def _selected_value(browser, select_css_selector):
@@ -47,6 +40,12 @@ def selected_tree_mode(browser):
     return checked_radio_button.value
 
 
+def is_text_present_in_result_table(browser, s):
+    tree_element = browser.find_by_id('surface-tree')
+    elems = tree_element.find_by_text(s)
+    return len(elems) > 0
+
+
 def active_page_number(browser):
     """Returns page number currently active.
 
@@ -67,6 +66,31 @@ def active_page_number(browser):
 
 def active_page_size(browser):
     return int(_selected_value(browser, "#page-size-select"))
+
+
+def select_tree_mode(browser, mode):
+    # radio_btn = browser.find_by_id('tag-tree-radio-btn')
+    assert browser.is_text_present('Surface list')
+    if mode == 'tag tree':
+        mode_btn = browser.find_by_css('label.btn')[1]  # TODO find safer option
+    else:
+        mode_btn = browser.find_by_css('label.btn')[0]
+    # browser.choose('tree_mode', 'tag tree')  # doesnt work because could not scrolled into view
+    mode_btn.click()
+    assert browser.is_text_present('top level tags')
+
+
+def goto_sharing_page(browser):
+    link = browser.find_link_by_partial_href('sharing')
+    link.click()
+    assert browser.is_text_present("Remove selected shares", wait_time=1)
+
+
+def goto_select_page(browser):
+    select_link = browser.find_link_by_partial_text('Select')
+    select_link.click()
+    assert browser.is_text_present("Showing")
+
 
 
 @pytest.fixture(scope='function')
@@ -98,15 +122,7 @@ def items_for_filtering(db, user_alice, user_bob):
 @pytest.mark.django_db
 def test_filter(browser, user_alice_logged_in, items_for_filtering):
 
-    tag1, tag2 = items_for_filtering['tags']
-    surface1, surface2, surface3 = items_for_filtering['surfaces']
-    topo1a, topo1b, topo2a, topo3a = items_for_filtering['topographies']
-
-    #
-    # navigate to select page
-    #
-    select_link = browser.find_link_by_partial_text('Select')
-    select_link.click()
+    goto_select_page(browser)
 
     # Alice should see three surfaces
     #
@@ -126,9 +142,9 @@ def test_filter(browser, user_alice_logged_in, items_for_filtering):
     assert active_page_number(browser) == 1
     assert active_page_size(browser) == 10
 
-    assert browser.is_text_present('surface1')
-    assert browser.is_text_present('surface2')
-    assert browser.is_text_present('surface3')
+    assert is_text_present_in_result_table(browser, "surface1")
+    assert is_text_present_in_result_table(browser, "surface2")
+    assert is_text_present_in_result_table(browser, "surface3")
 
     # Now she clicks on category "exp"
     # => only surface 1 should be shown
@@ -159,12 +175,8 @@ def test_filter(browser, user_alice_logged_in, items_for_filtering):
     #
     # Now change to 'sharing' tab and back
     # => results should be the same
-    select_link = browser.find_link_by_partial_href('sharing')
-    select_link.click()
-    assert browser.is_text_present("Remove selected shares")
-
-    select_link = browser.find_link_by_partial_text('Select')
-    select_link.click()
+    goto_sharing_page(browser)
+    goto_select_page(browser)
 
     assert browser.is_text_present("Showing 1 surfaces out of 1.")
     assert browser.is_text_present("Not filtered for search term")
@@ -217,9 +229,9 @@ def test_search(browser, user_alice_logged_in, items_for_filtering):
 
     search_for(browser, "surface2")
 
-    assert not browser.is_text_present('surface1')
-    assert browser.is_text_present('surface2')
-    assert not browser.is_text_present('surface3')
+    assert not is_text_present_in_result_table(browser, 'surface1')
+    assert is_text_present_in_result_table(browser, 'surface2')
+    assert not is_text_present_in_result_table(browser, 'surface3')
 
     assert browser.is_text_present("Showing 1 surfaces out of 1.")
     assert browser.is_text_present("Clear filter for")
@@ -229,24 +241,50 @@ def test_search(browser, user_alice_logged_in, items_for_filtering):
     assert active_page_number(browser) == 1
     assert active_page_size(browser) == 10
 
-    #
     # Change to tag tree
     # => only tag1 should be present
-    # radio_btn = browser.find_by_id('tag-tree-radio-btn')
-    browser.find_by_css('label.btn')[1].click()  # TODO find safer option
-    # browser.choose('tree_mode', 'tag tree')
+    select_tree_mode(browser, 'tag tree')
 
-    assert browser.is_text_present('tag1', wait_time=2)
-    assert not browser.is_text_present('tag2')
-    assert not browser.is_text_present('surface1')
-    assert not browser.is_text_present('surface3')
+    def check_results_for_tag_tree():
+        assert is_text_present_in_result_table(browser, 'tag1')
+        assert not is_text_present_in_result_table(browser, 'tag2')
 
-    assert browser.is_text_present("Showing 1 top level tags out of 1.")
-    assert browser.is_text_present("Clear filter for")
+        assert browser.is_text_present("Showing 1 top level tags out of 1.")
+        assert browser.is_text_present("Clear filter for")
+        assert selected_category(browser) == 'all'
+        assert selected_sharing_status(browser) == 'all'
+        assert selected_tree_mode(browser) == 'tag tree'
+        assert active_page_number(browser) == 1
+        assert active_page_size(browser) == 10
+
+    check_results_for_tag_tree()
+
+    #
+    # Switch to sharing page and back, search should still be present
+    #
+    goto_sharing_page(browser)
+    goto_select_page(browser)
+
+    check_results_for_tag_tree()
+
+    #
+    # Clear search term, should stay on tag tree
+    #
+    clear_search_term(browser)
+
+    assert browser.is_text_present("Showing 2 top level tags out of 2.", wait_time=1)
     assert selected_category(browser) == 'all'
     assert selected_sharing_status(browser) == 'all'
     assert selected_tree_mode(browser) == 'tag tree'
     assert active_page_number(browser) == 1
     assert active_page_size(browser) == 10
 
+    assert is_text_present_in_result_table(browser, 'tag1')
+    assert is_text_present_in_result_table(browser, 'tag2')
+
+    # checking for text in subtree only make sense after expanding all (does not work yet)
+    # browser.execute_script('search_results_vm.get_tree().expandAll()')
+    # assert not is_text_present_in_result_table(browser, 'surface1')
+    # assert is_text_present_in_result_table(browser, 'surface2')
+    # assert is_text_present_in_result_table(browser, 'surface3')
 

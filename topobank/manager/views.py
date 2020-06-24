@@ -43,7 +43,8 @@ from .models import Topography, Surface, TagModel
 from .serializers import SurfaceSerializer, TagSerializer
 from .utils import selected_instances, bandwidths_data, get_topography_reader, tags_for_user, get_reader_infos, \
     mailto_link_for_reporting_an_error, current_selection_as_basket_items, filtered_surfaces, \
-    filtered_topographies, get_search_term, get_category, get_sharing_status, MAX_LEN_SEARCH_TERM
+    filtered_topographies, get_search_term, get_category, get_sharing_status, get_tree_mode, \
+    MAX_LEN_SEARCH_TERM
 from ..usage_stats.utils import increase_statistics_by_date
 from ..users.models import User
 
@@ -787,17 +788,16 @@ class SelectView(TemplateView):
 
         # only overwrite search term in select tab state and only
         # if given explicitly as request parameter
+        # otherwise keep search term from session variable 'select_tab_state'
         search_term = get_search_term(self.request)
         if search_term:
             select_tab_state['search_term'] = search_term
-            # otherwise keep search term from session variable 'select_tab_state'
             session['select_tab_state'] = select_tab_state
 
         # key: tree mode
-        context['base_urls'] = {  # TODO rename keys to short names of views
+        context['base_urls'] = {
             'surface list': self.request.build_absolute_uri(reverse('manager:search')),
             'tag tree': self.request.build_absolute_uri(reverse('manager:tag-list')),
-            'save select tab state': reverse('manager:save-select-state'),
         }
         context['select_tab_state'] = select_tab_state
         context['category_filter_choices'] = CATEGORY_FILTER_CHOICES
@@ -1295,11 +1295,11 @@ class SurfaceSearchPaginator(PageNumberPagination):
         #
         session = self.request.session
         select_tab_state = session.get('select_tab_state', default=DEFAULT_SELECT_TAB_STATE)
-        # TODO is this needed?
 
         select_tab_state['search_term'] = get_search_term(self.request)
         select_tab_state['category'] = get_category(self.request)
         select_tab_state['sharing_status'] = get_sharing_status(self.request)
+        select_tab_state['tree_mode'] = get_tree_mode(self.request)
         page_size = self.get_page_size(self.request)
         select_tab_state[self.page_size_query_param] = page_size
         _log.info("Setting select tab state set in paginator: %s", select_tab_state)

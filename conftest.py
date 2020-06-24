@@ -67,10 +67,11 @@ def user_alice_logged_in(live_server, browser, user_alice, handle_usage_statisti
     #
     # Logging out
     #
-    #browser.find_by_id("userDropdown", wait_time=2).click()  # may cause problems..
-    #browser.find_by_text("Sign Out").first.click()
-    #browser.is_element_present_by_text("Ready to Leave?", wait_time=1)
-    #browser.find_by_text("Sign Out").last.click()
+    # important to have new session on next login
+    browser.find_by_id("userDropdown", wait_time=2).click()  # may cause problems..
+    browser.find_by_text("Sign Out").first.click()
+    browser.is_element_present_by_text("Ready to Leave?", wait_time=1)
+    browser.find_by_text("Sign Out").last.click()
 
     browser.quit()
 

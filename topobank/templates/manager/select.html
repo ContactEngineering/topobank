@@ -13,7 +13,6 @@
   <link href="https://unpkg.com/jquery.fancytree@2.33.0/dist/skin-awesome/ui.fancytree.min.css" rel="stylesheet"
         xmlns:vbind="http://www.w3.org/1999/xhtml" xmlns:vbind="http://www.w3.org/1999/xhtml"
         xmlns:v-bind="http://www.w3.org/1999/xhtml">
-
 {% endblock extra_css %}
 
 
@@ -23,7 +22,6 @@
   {# full text search in names, descriptions, tags #}
 
   <div class="tab-content mt-2">
-    <!-- div>Select tab state: {{ select_tab_state }}</div -->
     <div class="tab-pane active">
 
 
@@ -33,13 +31,14 @@
 
             {# Display button for search term #}
             <div v-if="search_term" class="form-group col-md-4">
-              <button class="btn btn-warning form-control"
+              <button class="btn btn-warning form-control" type="button"
+                      id="clear-search-term-btn"
                       @click="clear_search_term">
                 Clear filter for <em>[[ search_term ]]</em>
               </button>
             </div>
             <div v-else class="form-group col-md-4">
-              <button class="btn btn-outline-info form-control disabled">
+              <button class="btn btn-outline-info form-control disabled" type="button">
                 Not filtered for search term
               </button>
             </div>
@@ -65,15 +64,23 @@
             </div>
 
 
-            <div id="tree-selector" class="form-group btn-group btn-group-toggle col-md-2" data-toggle="buttons">
-              <label class="btn btn-success active">
-                <input type="radio" name="tree_mode" value="surface list" id="surface-list-radio-btn" autocomplete="off"
-                       checked>
-                {% fontawesome_icon 'diamond' %} Surface list
-              </label>
-              <label class="btn btn-default">
-                <input type="radio" name="tree_mode" value="tag tree" id="tag-tree-radio-btn" autocomplete="off">
-                {% fontawesome_icon 'tag' %}Tag tree
+            <div id="tree-selector" class="form-group btn-group btn-group-toggle col-md-2">  <!-- TODO form-group needed? -->
+
+              <label v-for="choice in
+                     [ { label: 'Surface list',
+                         value: 'surface list',
+                         icon: 'fa-diamond'},
+                       { label:'Tag tree',
+                         value: 'tag tree',
+                         icon: 'fa-tag'}]"
+                     class="btn"
+                     v-bind:class="{active: tree_mode==choice.value,
+                                    'btn-success': tree_mode==choice.value,
+                                    'btn-default': tree_mode!=choice.value}">
+                <input type="radio" class="btn-group-toggle" autocomplete="off"
+                       name="tree_mode"
+                       v-bind:value="choice.value" v-model="tree_mode"  @change="reload">
+                <span><i class="fa" v-bind:class="choice.icon"></i> [[ choice.label ]]</span>
               </label>
             </div>
 
@@ -190,42 +197,6 @@
       const sharing_status_filter_choices = JSON.parse(document.getElementById('sharing-status-filter-choices').textContent);
       const base_urls = JSON.parse(document.getElementById('base-urls').textContent);
       const initial_select_tab_state = JSON.parse(document.getElementById('initial-select-tab-state').textContent);
-
-      $('#select-category-filter').change( function(){
-        reload_tree();
-      });
-
-      $('#select-sharing-status-filter').change( function(){
-        console.log("Sharing status selector changed");
-        reload_tree();
-      });
-
-      $('#tree-selector :input').change( function() {
-        const surface_list_label = $('#surface-list-radio-btn').parent('label');
-        const tag_tree_label = $('#tag-tree-radio-btn').parent('label');
-
-        switch (this.value) {
-          case 'surface list':
-            surface_list_label.addClass('btn-success').removeClass('btn-default');
-            tag_tree_label.addClass('btn-default').removeClass('btn-success');
-            break;
-          case 'tag tree':
-            tag_tree_label.addClass('btn-success').removeClass('btn-default');
-            surface_list_label.addClass('btn-default').removeClass('btn-success');
-            break;
-        }
-        reload_tree();
-      });
-
-      function reload_tree() {
-        const category = $('#select-category-filter option:selected').val();
-        const sharing_status = $('#select-sharing-status-filter option:selected').val();
-        const tree_mode = $('#tree-selector :checked').val();
-
-        console.warn("Reload via jquery disabled.");
-        // search_results_vm.reload(tree_mode, search_term, category, sharing_status);
-        // search term can only be changed on a new request of the full page
-      }
 
       $(document).ready( function () {
         // Make sure, that a selected item, which is deselected in the basket
