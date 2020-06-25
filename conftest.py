@@ -60,8 +60,7 @@ def user_alice_logged_in(live_server, browser, user_alice, handle_usage_statisti
 
     browser.visit(live_server.url + "/accounts/login")  # we don't want to use ORCID here for testing
 
-    # make sure we are not logged in yet
-    assert browser.is_text_present("Sign in via ORCID")
+    assert browser.is_element_present_by_text('Sign In', wait_time=1)
 
     #
     # Logging in
