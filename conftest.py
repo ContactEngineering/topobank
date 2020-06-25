@@ -2,12 +2,17 @@
 # Common settings and fixtures used with pytest
 #
 import pytest
+from django.core.management import call_command
+import logging
 
 from trackstats.models import Domain, Metric
 
 from topobank.analysis.functions import register_all
 
+_log = logging.getLogger(__name__)
+
 PASSWORD = "secret"
+
 
 @pytest.fixture
 def handle_usage_statistics():
@@ -55,6 +60,9 @@ def user_alice_logged_in(live_server, browser, user_alice, handle_usage_statisti
 
     browser.visit(live_server.url + "/accounts/login")  # we don't want to use ORCID here for testing
 
+    # make sure we are not logged in yet
+    assert browser.is_text_present("Sign in via ORCID")
+
     #
     # Logging in
     #
@@ -62,18 +70,29 @@ def user_alice_logged_in(live_server, browser, user_alice, handle_usage_statisti
     browser.fill('password', PASSWORD)
     browser.find_by_text('Sign In').last.click()
 
-    yield user_alice
+    try:
+        yield browser, user_alice
+    finally:
+        #
+        # Logging out
+        #
+        # important to have new session on next login
+        browser.find_by_id("userDropdown", wait_time=5).click()  # may cause problems..
+        browser.find_by_text("Sign Out").first.click()
+        browser.is_element_present_by_text("Ready to Leave?", wait_time=1)
+        browser.find_by_text("Sign Out").last.click()
 
-    #
-    # Logging out
-    #
-    # important to have new session on next login
-    browser.find_by_id("userDropdown", wait_time=2).click()  # may cause problems..
-    browser.find_by_text("Sign Out").first.click()
-    browser.is_element_present_by_text("Ready to Leave?", wait_time=1)
-    browser.find_by_text("Sign Out").last.click()
+        browser.is_element_present_by_text('You have signed out.', wait_time=1)
+        browser.quit()
 
-    browser.quit()
+        # remove session variables for user alice such these do no
+        # affect subsequent tests
+        call_command('clearsessions')  # TODO is this effective?
+        _log.info("Cleared all sessions.")
+
+
+
+
 
 
 

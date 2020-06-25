@@ -1,5 +1,6 @@
 import pytest
 
+from splinter_tests.utils import checkbox_for_item_by_name, is_in_basket, goto_select_page
 from topobank.manager.tests.utils import SurfaceFactory, TopographyFactory, TagModelFactory
 
 
@@ -23,36 +24,15 @@ def items_for_selection(db, user_alice):
     )
 
 
-def checkbox_for_item_by_name(browser, name):
-    node_elems = browser.find_by_xpath(f'//td//span[text()="{name}"]/..')
-    checkbox = node_elems.find_by_css('span.fancytree-checkbox').first
-    return checkbox
-
-
-def select_item_by_name(browser, name):
-    checkbox = checkbox_for_item_by_name(browser, name)
-    checkbox.check()
-
-
-def is_in_basket(browser, name):
-    badges = browser.find_by_id('basket').find_by_css('span.badge')
-    # find_by_text does not work as expected and a nested second find_by_xpath not search from
-    # previously found node as expected, so this is a workaround
-
-    texts = [b.text for b in badges]
-
-    return name in texts
-
-
 @pytest.mark.django_db
-def test_deselect_all(browser, user_alice_logged_in, items_for_selection):
+def test_deselect_all(user_alice_logged_in, items_for_selection):
+
+    browser, user_alice = user_alice_logged_in
 
     #
     # navigate to select page and select sth.
     #
-    select_link = browser.find_link_by_partial_text('Select')
-    select_link.click()
-
+    goto_select_page(browser)
     assert browser.is_text_present('surface1', wait_time=1)
 
     cb = checkbox_for_item_by_name(browser, 'surface1')
@@ -69,21 +49,17 @@ def test_deselect_all(browser, user_alice_logged_in, items_for_selection):
     # now the basket item is no longer there
     assert not is_in_basket(browser, 'surface1')
 
-    browser.quit()
-
 
 @pytest.mark.django_db
-def test_select_page_size(browser, user_alice_logged_in):
+def test_select_page_size(user_alice_logged_in):
+
+    browser, user_alice = user_alice_logged_in
 
     # create a lot of surfaces
     for i in range(11):
-        SurfaceFactory(creator=user_alice_logged_in)
+        SurfaceFactory(creator=user_alice)
 
-    #
-    # navigate to select page
-    #
-    select_link = browser.find_link_by_partial_text('Select')
-    select_link.click()
+    goto_select_page(browser)
 
     #
     # pagination should have 2 pages
