@@ -274,6 +274,7 @@ let search_results_vm = new Vue({
                       url: this.search_url.toString(),
                       cache: false,
                 });
+                this.set_loading_indicator();
             },
             load_page: function(page_no){
                 page_no = parseInt(page_no);
