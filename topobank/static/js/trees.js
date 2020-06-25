@@ -225,7 +225,7 @@ let search_results_vm = new Vue({
               query_params.set("category", this.category);
               query_params.set("sharing_status", this.sharing_status);
               query_params.set('page_size', this.page_size);
-              query_params.set('current_page', this.current_page);
+              query_params.set('page', this.current_page);
               query_params.set('tree_mode', this.tree_mode);
               url.search = query_params.toString();
               // url = url.toString();
@@ -258,17 +258,11 @@ let search_results_vm = new Vue({
             reload: function() {
                 /*
                     Reload means: the tree must be completely reloaded,
-                    starting with page 1.
+                    with currently set state of the select tab.
                  */
                 const tree = this.get_tree();
 
-                console.log("Reloading tree, tree mode: "+this.tree_mode);
-                //
-                // this.tree_mode = tree_mode;
-                // this.search_term = search_term;
-                // this.category = category;
-                // this.sharing_status = sharing_status;
-                // this.current_page = 1;
+                console.log("Reloading tree, tree mode: "+this.tree_mode+" current page: "+this.current_page);
 
                 tree.setOption('source', {
                       url: this.search_url.toString(),

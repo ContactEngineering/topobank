@@ -1301,6 +1301,7 @@ class SurfaceSearchPaginator(PageNumberPagination):
         select_tab_state['tree_mode'] = get_tree_mode(self.request)
         page_size = self.get_page_size(self.request)
         select_tab_state[self.page_size_query_param] = page_size
+        select_tab_state['current_page'] = self.page.number
         _log.info("Setting select tab state set in paginator: %s", select_tab_state)
         session['select_tab_state'] = select_tab_state
 
