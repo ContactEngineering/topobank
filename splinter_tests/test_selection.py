@@ -101,7 +101,7 @@ def test_select_page_size(user_alice_logged_in):
     assert page_size_25_option.text == "25"
     page_size_25_option.click()
 
-    # now there is only one page
+    # now there is only one page and it should be page 1
     assert browser.is_text_present("Next", wait_time=1)
     assert browser.is_text_present("Showing 11 surfaces out of 11", wait_time=1)
 
@@ -113,6 +113,8 @@ def test_select_page_size(user_alice_logged_in):
     assert page_items[0].text == "Previous"
     assert page_items[1].text == "1"
     assert page_items[2].text == "Next"
+
+    assert active_page_number(browser) == 1
 
 
 @pytest.mark.django_db

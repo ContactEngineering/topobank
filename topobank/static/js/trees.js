@@ -258,10 +258,11 @@ let search_results_vm = new Vue({
             reload: function() {
                 /*
                     Reload means: the tree must be completely reloaded,
-                    with currently set state of the select tab.
+                    with currently set state of the select tab,
+                    except of the page number which should be 1.
                  */
                 const tree = this.get_tree();
-
+                this.current_page = 1;
                 console.log("Reloading tree, tree mode: "+this.tree_mode+" current page: "+this.current_page);
 
                 tree.setOption('source', {
