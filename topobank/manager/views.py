@@ -1310,11 +1310,7 @@ class SurfaceSearchPaginator(PageNumberPagination):
         _log.info("Setting select tab state set in paginator: %s", select_tab_state)
         session['select_tab_state'] = select_tab_state
 
-        # TODO Check what is needed in response, component knows already most
-
         return Response({
-            'next_page_url': self.get_next_link(),  # TODO remove?
-            'prev_page_url': self.get_previous_link(),
             'num_items': self.page.paginator.count,
             'num_pages': self.page.paginator.num_pages,
             'page_range': list(self.page.paginator.page_range),
@@ -1605,57 +1601,3 @@ def unselect_all(request):
     """
     request.session['selection'] = []
     return Response([])
-
-
-@api_view(['POST'])
-def save_select_tab_state(request):  # TODO needed?
-    """Saves a new state of the select tab in session.
-
-    This is needed in order to have the same settings
-    on Select tab as the last time it was visited.
-
-    :param request: request
-    :return: empty list as JSON Response
-    """
-    status = rest_framework.status.HTTP_200_OK
-
-    try:
-        # ensure we have the correct types and keys
-        select_tab_state_types = dict(
-            search_term=str,
-            category=str,
-            sharing_status=str,
-            page_size=int,
-            current_page=int,
-            tree_mode=str,
-        )
-
-        _log.info("Request.data: %s", request.data)
-
-        # each dict member is coming as a list?
-        select_tab_state = {k: select_tab_state_types[k](request.data.get(k))
-                            for k in select_tab_state_types.keys()}
-
-        # ensure we have valid values
-        if len(select_tab_state['search_term']) > MAX_LEN_SEARCH_TERM:
-            raise ValueError("Too long search term.")
-        if select_tab_state['category'] not in CATEGORY_FILTER_CHOICES.keys():
-            raise ValueError("Unknown category value: {}".format(select_tab_state['category']))
-        if select_tab_state['sharing_status'] not in SHARING_STATUS_FILTER_CHOICES.keys():
-            raise ValueError("Unknown sharing status value: {}".format(select_tab_state['sharing_status']))
-        if select_tab_state['tree_mode'] not in TREE_MODE_CHOICES:
-            raise ValueError("Unknown tree mode value: {}".format(select_tab_state['tree_mode']))
-        if select_tab_state['page_size'] > MAX_PAGE_SIZE:
-            raise ValueError("Too large page size: {}".format(select_tab_state['page_size']))
-        if select_tab_state['current_page'] > MAX_PAGE_SIZE:
-            raise ValueError("Too large current page: {}".format(select_tab_state['current page']))
-
-        request.session['select_tab_state'] = select_tab_state
-    except Exception as exc:
-        _log.error("Cannot set state '%s' for select tab. Reason: %s", request.data, str(exc))
-        status = rest_framework.status.HTTP_400_BAD_REQUEST
-    else:
-        _log.debug("Successfully saved new state for select tab.")
-
-    return Response([], status=status)
-
