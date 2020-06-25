@@ -792,7 +792,6 @@ class SelectView(TemplateView):
         search_term = get_search_term(self.request)
         if search_term:
             select_tab_state['search_term'] = search_term
-            session['select_tab_state'] = select_tab_state
 
         # key: tree mode
         context['base_urls'] = {
