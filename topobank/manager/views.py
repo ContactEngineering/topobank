@@ -1293,7 +1293,12 @@ class SurfaceSearchPaginator(PageNumberPagination):
         # Save information about requested data in session
         #
         session = self.request.session
-        select_tab_state = session.get('select_tab_state', default=DEFAULT_SELECT_TAB_STATE)
+
+        select_tab_state = session.get('select_tab_state', DEFAULT_SELECT_TAB_STATE)
+        # not using the keyword argument "default" here, because in some tests,
+        # the session is a simple dict and no real session dict. A simple
+        # dict's .get() has no keyword argument 'default', although it can be given
+        # as second parameter.
 
         select_tab_state['search_term'] = get_search_term(self.request)
         select_tab_state['category'] = get_category(self.request)
