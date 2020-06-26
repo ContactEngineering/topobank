@@ -40,6 +40,7 @@ let search_results_vm = new Vue({
             },
             category_filter_choices: category_filter_choices,
             sharing_status_filter_choices: sharing_status_filter_choices,
+            is_loading: false,
         },
         mounted: function() {
             const vm = this;
@@ -96,6 +97,7 @@ let search_results_vm = new Vue({
                     // assuming the Ajax response contains a list of child nodes:
                     // We replace the result
                     data.result = data.response.page_results;
+                    vm.is_loading = false;
                   },
                   select: function(event, data) {
                       const node = data.node;
@@ -240,6 +242,7 @@ let search_results_vm = new Vue({
                           <span id="tree-loading-spinner" class="spinner"></span>Please wait..
                         </td>
                     `);
+                    this.is_loading = true;
                 }
             },
             clear_search_term: function () {
