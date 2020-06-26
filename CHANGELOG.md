@@ -1,12 +1,13 @@
 # Changelog for *TopoBank*
 
-## 0.8.1 (not published yet)
+## 0.8.1 (2020-06-26)
 
 Several improvements and fixes for the user interface.
 
 - added button to basket which allows to deselect all items (#466)
 - added widget for changing page size of the result table
   on the "Select" page (#469)
+- saving state of filters and paging on Select tab in session (#494)  
 - removed "back" buttons not needed any more because of
   tabbed interface (#473)
 - simplified tab titles, fixing strange tab behavior for 
