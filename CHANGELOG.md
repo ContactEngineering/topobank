@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 0.8.2 (2020-06-26)
+
+- fix: added missing files for tab navigation 
+
 ## 0.8.1 (2020-06-26)
 
 Several improvements and fixes for the user interface.
