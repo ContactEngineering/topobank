@@ -27,27 +27,52 @@ from django.views.generic.edit import FormMixin
 from django_tables2 import RequestConfig
 from formtools.wizard.views import SessionWizardView
 from guardian.decorators import permission_required_or_403
-from guardian.shortcuts import assign_perm, get_users_with_perms, get_objects_for_user
+from guardian.shortcuts import get_users_with_perms, get_objects_for_user
 from notifications.signals import notify
 from rest_framework.decorators import api_view
 from rest_framework.generics import ListAPIView
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.utils.urls import remove_query_param, replace_query_param
+import rest_framework.status
 from trackstats.models import Metric, Period
 
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm
 from .forms import TopographyForm, SurfaceForm, SurfaceShareForm
 from .models import Topography, Surface, TagModel
 from .serializers import SurfaceSerializer, TagSerializer
-from .utils import selected_instances, bandwidths_data, surfaces_for_user, \
-    get_topography_reader, tags_for_user, get_reader_infos, get_search_term, \
-    mailto_link_for_reporting_an_error, current_selection_as_basket_items, filtered_surfaces_for_user
+from .utils import selected_instances, bandwidths_data, get_topography_reader, tags_for_user, get_reader_infos, \
+    mailto_link_for_reporting_an_error, current_selection_as_basket_items, filtered_surfaces, \
+    filtered_topographies, get_search_term, get_category, get_sharing_status, get_tree_mode, \
+    MAX_LEN_SEARCH_TERM
 from ..usage_stats.utils import increase_statistics_by_date
 from ..users.models import User
 
 MAX_NUM_POINTS_FOR_SYMBOLS_IN_LINE_SCAN_PLOT = 100
-CATEGORY_FILTER_CHOICES = ['all'] + [x[0] for x in Surface.CATEGORY_CHOICES]
+
+# create dicts with labels and option values for Select tab
+CATEGORY_FILTER_CHOICES = {'all':'All categories',
+                           **{cc[0]:cc[1]+" only" for cc in Surface.CATEGORY_CHOICES}}
+SHARING_STATUS_FILTER_CHOICES = {
+    'all': 'Own and shared surfaces',
+    'own': 'Only own surfaces',
+    'shared': 'Only surfaces shared with you',
+}
+TREE_MODE_CHOICES = ['surface list', 'tag tree']
+
+MAX_PAGE_SIZE = 100
+DEFAULT_PAGE_SIZE = 10
+
+DEFAULT_SELECT_TAB_STATE = {
+                'search_term': '',  # empty string means: no search
+                'category': 'all',
+                'sharing_status': 'all',
+                'tree_mode': 'surface list',
+                'page_size': 10,
+                'current_page': 1,
+                # all these values are the default if no filter has been applied
+                # and the page is loaded the first time
+            }
 
 _log = logging.getLogger(__name__)
 
@@ -295,17 +320,20 @@ class TopographyCreateWizard(SessionWizardView):
         #
         # Add context needed for tabs
         #
-        context['active_tab'] = 'extra-tab-2'
-        context['extra_tab_1_data'] = {
-            'title': f"Surface <b>{surface.name}</b>",
-            'icon': "fa-diamond",
-            'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
-        }
-        context['extra_tab_2_data'] = {
-            'title': f"Add topography to Surface <b>{surface.name}</b>",
-            'icon': "fa-plus-square-o",
-            'href': self.request.path,
-        }
+        context['extra_tabs'] = [
+            {
+                'title': f"{surface.name}",
+                'icon': "diamond",
+                'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
+                'active': False,
+            },
+            {
+                'title': f"Add topography",
+                'icon': "plus-square-o",
+                'href': self.request.path,
+                'active': True,
+            }
+        ]
 
         return context
 
@@ -469,23 +497,26 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
         #
         # Add context needed for tabs
         #
-        context['active_tab'] = 'extra-tab-3'
-        context['extra_tab_1_data'] = {
-            'title': f"Surface <b>{topo.surface.name}</b>",
-            'icon': "fa-diamond",
-            'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
-        }
-        context['extra_tab_2_data'] = {
-            'title': f"Topography <b>{topo.name}</b>",
-            'icon': "fa-file-o",
-            'href': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
-        }
-        context['extra_tab_3_data'] = {
-            'title': f"Edit Topography <b>{topo.name}</b>",
-            'icon': "fa-pencil",
-            'href': self.request.path,
-        }
-
+        context['extra_tabs'] = [
+            {
+                'title': f"{topo.surface.name}",
+                'icon': "diamond",
+                'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
+                'active': False,
+            },
+            {
+                'title': f"{topo.name}",
+                'icon': "file-o",
+                'href': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
+                'active': False,
+            },
+            {
+                'title': f"Edit Topography",
+                'icon': "pencil",
+                'href': self.request.path,
+                'active': True
+            }
+        ]
         return context
 
 
@@ -668,17 +699,20 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
         #
         # Add context needed for tabs
         #
-        context['active_tab'] = 'extra-tab-2'
-        context['extra_tab_1_data'] = {
-            'title': f"Surface <b>{topo.surface.name}</b>",
-            'icon': "fa-diamond",
-            'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
-        }
-        context['extra_tab_2_data'] = {
-            'title': f"Topography <b>{topo.name}</b>",
-            'icon': "fa-file-o",
-            'href': self.request.path,
-        }
+        context['extra_tabs'] = [
+            {
+                'title': f"{topo.surface.name}",
+                'icon': "diamond",
+                'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
+                'active': False,
+            },
+            {
+                'title': f"{topo.name}",
+                'icon': "file-o",
+                'href': self.request.path,
+                'active': True,
+            }
+        ]
 
         return context
 
@@ -711,23 +745,26 @@ class TopographyDeleteView(TopographyUpdatePermissionMixin, DeleteView):
         context = super().get_context_data(**kwargs)
         topo = self.object
         surface = topo.surface
-        context['active_tab'] = 'extra-tab-3'
-        context['extra_tab_1_data'] = {
-            'title': f"Surface <b>{surface.name}</b>",
-            'icon': "fa-diamond",
-            'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
-        }
-        context['extra_tab_2_data'] = {
-            'title': f"Topography <b>{topo.name}</b>",
-            'icon': "fa-file-o",
-            'href': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
-        }
-        context['extra_tab_3_data'] = {
-            'title': f"Delete Topography <b>{topo.name}</b>?",
-            'icon': "fa-trash",
-            'href': self.request.path,
-        }
-
+        context['extra_tabs'] = [
+            {
+                'title': f"{topo.surface.name}",
+                'icon': "diamond",
+                'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
+                'active': False,
+            },
+            {
+                'title': f"{topo.name}",
+                'icon': "file-o",
+                'href': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
+                'active': False,
+            },
+            {
+                'title': f"Delete Topography?",
+                'icon': "trash",
+                'href': self.request.path,
+                'active': True,
+            }
+        ]
         return context
 
 
@@ -742,106 +779,29 @@ class SelectView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        search_term = self.request.GET.get('search')
-        category = self.request.GET.get('category')
-        sharing_status = self.request.GET.get('sharing_status')
 
+        #
+        # The session needs a default for the state of the select tab
+        #
+        session = self.request.session
+        select_tab_state = session.get('select_tab_state', default=DEFAULT_SELECT_TAB_STATE)
+
+        # only overwrite search term in select tab state and only
+        # if given explicitly as request parameter
+        # otherwise keep search term from session variable 'select_tab_state'
+        search_term = get_search_term(self.request)
         if search_term:
-            search_term = search_term.strip()
-        if category and category not in CATEGORY_FILTER_CHOICES:
-            raise PermissionDenied()
-        if sharing_status and sharing_status not in [ 'all', 'own', 'shared']:
-            raise PermissionDenied
+            select_tab_state['search_term'] = search_term
 
         # key: tree mode
-        context['base_search_urls'] = {
-            'surface list': reverse('manager:search'),
-            'tag tree': reverse('manager:tag-list')
+        context['base_urls'] = {
+            'surface list': self.request.build_absolute_uri(reverse('manager:search')),
+            'tag tree': self.request.build_absolute_uri(reverse('manager:tag-list')),
         }
-        context['search_term'] = search_term
+        context['select_tab_state'] = select_tab_state
+        context['category_filter_choices'] = CATEGORY_FILTER_CHOICES
+        context['sharing_status_filter_choices'] = SHARING_STATUS_FILTER_CHOICES
 
-        # #
-        # # Collect data for trees
-        # #
-        # surfaces = surfaces_for_user(self.request.user)
-        #
-        # # Filter for category and status
-        # if category:
-        #     surfaces = surfaces.filter(category=category)
-        # if sharing_status == 'own':
-        #     surfaces = surfaces.filter(creator=self.request.user)
-        # elif sharing_status == 'shared':
-        #     surfaces = surfaces.filter(~Q(creator=self.request.user))
-        # topographies = Topography.objects.filter(surface__in=surfaces)
-        #
-        # # Filter for search term
-        # if search_term:
-        #     topographies = topographies.filter(
-        #         Q(name__icontains=search_term) | Q(description__icontains=search_term))  # TODO tags missing
-        #     surfaces = surfaces.filter(
-        #         Q(name__icontains=search_term) | Q(description__icontains=search_term))  # TODO tags missing
-        #
-        # # matching topographies should be accessible via their surface as well as all topographies
-        # # from matching surfaces
-        # # surfaces_for_surface_tree = surfaces.union(t.surface for t in topographies)
-        #
-        #
-        # tags = tags_for_user(self.request.user).filter(parent=None).order_by('label')  # only top level
-        # surfaces_without_tags = surfaces.filter(tags=None)
-        # topographies_without_tags = topographies.filter(tags=None)
-        #
-        #
-        #
-        #
-        # #
-        # # Prepare tree data for tree with surfaces at top level
-        # #
-        # serializer_context = dict(request=self.request,
-        #                           selected_instances=selected_instances(self.request))
-        #
-        # surface_serializer = SurfaceSerializer(context=serializer_context)
-        # surface_tree_data = [ surface_serializer.to_representation(s) for s in surfaces]
-        #
-        # context['surface_tree_data'] = json.dumps(surface_tree_data)
-        # # TODO append _json to name
-        #
-        # #
-        # # Prepare tree data for tree with tags at top level
-        # #
-        # topography_serializer = TopographySerializer(context=serializer_context)
-        #
-        # tag_serializer_context = serializer_context.copy()
-        # tag_serializer_context['surfaces'] = surfaces
-        # tag_serializer_context['topographies'] = topographies
-        # tag_serializer = TagSerializer(context=tag_serializer_context)
-        # serialized_tags = [ tag_serializer.to_representation(t) for t in tags ]
-        #
-        # serialized_surfaces_without_tags = [surface_serializer.to_representation(s)
-        #                                     for s in surfaces_without_tags]
-        #
-        # serialized_topographies_without_tags = [topography_serializer.to_representation(t)
-        #                                         for t in topographies_without_tags]
-        #
-        # serialized_tags.append(dict(
-        #     type='tag',
-        #     title='(untagged surfaces)',
-        #     pk=None,
-        #     name=None,
-        #     folder=True,
-        #     selected=False,
-        #     children=serialized_surfaces_without_tags
-        # ))
-        # serialized_tags.append(dict(
-        #     type='tag',
-        #     title='(untagged topographies)',
-        #     pk=None,
-        #     name=None,
-        #     folder=True,
-        #     selected=False,
-        #     children=serialized_topographies_without_tags
-        # ))
-        #
-        # context['tag_tree_data'] = json.dumps(serialized_tags)
         return context
 
 
@@ -865,13 +825,15 @@ class SurfaceCreateView(CreateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['active_tab'] = 'extra-tab-1'
 
-        context['extra_tab_1_data'] = {
-            'title': f"Create surface",
-            'icon': "fa-plus-square-o",
-            'href': self.request.path,
-        }
+        context['extra_tabs'] =[
+            {
+                'title': f"Create surface",
+                'icon': "plus-square-o",
+                'href': self.request.path,
+                'active': True
+            }
+        ]
         return context
 
 
@@ -948,12 +910,14 @@ class SurfaceDetailView(DetailView):
             'head': [''] + ACTIONS,
             'body': surface_perms_table
         }
-
-        context['extra_tab_1_data'] = {
-            'title': f"Surface <b>{self.object.name}</b>",
-            'icon': "fa-diamond",
-            'href': self.request.path,
-        }
+        context['extra_tabs'] = [
+            {
+                'title': f"{self.object.name}",
+                'icon': "diamond",
+                'href': self.request.path,
+                'active': True,
+            }
+        ]
 
         return context
 
@@ -992,17 +956,20 @@ class SurfaceUpdateView(UpdateView):
         context = super().get_context_data(**kwargs)
         surface = self.object
 
-        context['active_tab'] = 'extra-tab-2'
-        context['extra_tab_1_data'] = {
-            'title': f"Surface <b>{surface.name}</b>",
-            'icon': "fa-diamond",
-            'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
-        }
-        context['extra_tab_2_data'] = {
-            'title': f"Edit surface <b>{surface.name}</b>",
-            'icon': "fa-pencil",
-            'href': self.request.path,
-        }
+        context['extra_tabs'] = [
+            {
+                'title': f"{surface.name}",
+                'icon': "diamond",
+                'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
+                'active': False,
+            },
+            {
+                'title': f"Edit surface",
+                'icon': "pencil",
+                'href': self.request.path,
+                'active': True,
+            }
+        ]
 
         return context
 
@@ -1041,17 +1008,20 @@ class SurfaceDeleteView(DeleteView):
         #
         # Add context needed for tabs
         #
-        context['active_tab'] = 'extra-tab-2'
-        context['extra_tab_1_data'] = {
-            'title': f"Surface <b>{surface.name}</b>",
-            'icon': "fa-diamond",
-            'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
-        }
-        context['extra_tab_2_data'] = {
-            'title': f"Delete Surface <b>{surface.name}</b>?",
-            'icon': "fa-trash",
-            'href': self.request.path,
-        }
+        context['extra_tabs'] = [
+            {
+                'title': f"{surface.name}",
+                'icon': "diamond",
+                'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
+                'active': False,
+            },
+            {
+                'title': f"Delete Surface?",
+                'icon': "trash",
+                'href': self.request.path,
+                'active': True,
+            }
+        ]
         return context
 
 
@@ -1085,8 +1055,12 @@ class SurfaceShareView(FormMixin, DetailView):
             for user in users:
                 _log.info("Sharing surface {} with user {} (allow change? {}).".format(
                     surface.pk, user.username, allow_change))
-                assign_perm('view_surface', user, self.object)
 
+                surface.share(user, allow_change=allow_change)
+
+                #
+                # Notify user about the shared surface
+                #
                 notification_message = f"{self.request.user} has shared surface '{surface.name}' with you"
                 notify.send(self.request.user, recipient=user,
                             verb="share",  # TODO Does verb follow activity stream defintions?
@@ -1096,7 +1070,6 @@ class SurfaceShareView(FormMixin, DetailView):
                             href=surface.get_absolute_url())
 
                 if allow_change:
-                    assign_perm('change_surface', user, surface)
                     notify.send(self.request.user, recipient=user, verb="allow change",
                                 target=surface, public=False,
                                 description=f"""
@@ -1110,17 +1083,21 @@ class SurfaceShareView(FormMixin, DetailView):
         context = super().get_context_data(**kwargs)
         surface = self.object
 
-        context['active_tab'] = 'extra-tab-2'
-        context['extra_tab_1_data'] = {
-            'title': f"Surface <b>{surface.name}</b>",
-            'icon': "fa-diamond",
-            'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
-        }
-        context['extra_tab_2_data'] = {
-            'title': f"Share surface <b>{surface.name}</b>",
-            'icon': "fa-share-alt",
-            'href': self.request.path,
-        }
+        context['extra_tabs'] = [
+            {
+                'title': f"{surface.name}",
+                'icon': "diamond",
+                'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
+                'active': False,
+            },
+            {
+                'title': f"Share surface?",
+                'icon': "share-alt",
+                'href': self.request.path,
+                'active': True,
+            }
+        ]
+        context['surface'] = surface
 
         return context
 
@@ -1305,20 +1282,46 @@ TopoBank: {}
 # Views for REST interface
 #######################################################################################
 class SurfaceSearchPaginator(PageNumberPagination):
-    page_size = 8
+    page_size = DEFAULT_PAGE_SIZE
     page_query_param = 'page'
+    page_size_query_param = 'page_size'
+    max_page_size = MAX_PAGE_SIZE
 
     def get_paginated_response(self, data):
+
+        #
+        # Save information about requested data in session
+        #
+        session = self.request.session
+
+        select_tab_state = session.get('select_tab_state', DEFAULT_SELECT_TAB_STATE)
+        # not using the keyword argument "default" here, because in some tests,
+        # the session is a simple dict and no real session dict. A simple
+        # dict's .get() has no keyword argument 'default', although it can be given
+        # as second parameter.
+
+        select_tab_state['search_term'] = get_search_term(self.request)
+        select_tab_state['category'] = get_category(self.request)
+        select_tab_state['sharing_status'] = get_sharing_status(self.request)
+        select_tab_state['tree_mode'] = get_tree_mode(self.request)
+        page_size = self.get_page_size(self.request)
+        select_tab_state[self.page_size_query_param] = page_size
+        select_tab_state['current_page'] = self.page.number
+        _log.info("Setting select tab state set in paginator: %s", select_tab_state)
+        session['select_tab_state'] = select_tab_state
+
         return Response({
-            'next_page_url': self.get_next_link(),  # TODO remove?
-            'prev_page_url': self.get_previous_link(),
             'num_items': self.page.paginator.count,
             'num_pages': self.page.paginator.num_pages,
             'page_range': list(self.page.paginator.page_range),
             'page_urls': list(self.get_page_urls()),
             'current_page': self.page.number,
             'num_items_on_current_page': len(self.page.object_list),
-            'page_size': self.page_size,
+            'page_size': page_size,
+            'search_term': select_tab_state['search_term'],
+            'category': select_tab_state['category'],
+            'sharing_status': select_tab_state['sharing_status'],
+            'tree_mode': select_tab_state['tree_mode'],
             'page_results': data
         })
 
@@ -1330,6 +1333,8 @@ class SurfaceSearchPaginator(PageNumberPagination):
                 url = remove_query_param(base_url, self.page_query_param)
             else:
                 url = replace_query_param(base_url, self.page_query_param, page_no)
+            # always add page size, so requests for other pages have it
+            url = replace_query_param(url, self.page_size_query_param, self.get_page_size(self.request))
             urls.append(url)
         return urls
 
@@ -1342,30 +1347,30 @@ class TagTreeView(ListAPIView):
     pagination_class = SurfaceSearchPaginator
 
     def get_queryset(self):
-        qs = tags_for_user(self.request.user).filter(parent=None)
+
+        surfaces = filtered_surfaces(self.request)
+        topographies = filtered_topographies(self.request, surfaces)
+        return tags_for_user(self.request.user, surfaces, topographies).filter(parent=None)
         # Only top level are collected, the children are added in the serializer.
         #
-        # By doing this, always all top level tags are included in the
-        # result, also when a search term is given - otherwise
-        # we have to filter also here for surfaces+topographies
-        # (can this be done without calculating that twice?).
-        # See also GH 465.
-        return qs.order_by('label')
+        # The filtered surfaces and topographies are calculated twice here,
+        # I'm not sure how to circumvent this.
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
         context['selected_instances'] = selected_instances(self.request)
         context['request'] = self.request
 
-        surfaces = filtered_surfaces_for_user(self.request)
-
-        context['tags_for_user'] = tags_for_user(self.request.user, surfaces)
+        surfaces = filtered_surfaces(self.request)
+        topographies = filtered_topographies(self.request, surfaces)
+        tags = tags_for_user(self.request.user, surfaces, topographies)
+        context['tags_for_user'] = tags
 
         #
-        # also pass all surfaces and topographies the user has access to
+        # also pass filtered surfaces and topographies the user has access to
         #
         context['surfaces'] = surfaces
-        context['topographies'] = Topography.objects.filter(surface__in=surfaces)
+        context['topographies'] = topographies
 
         return context
 
@@ -1378,7 +1383,7 @@ class SurfaceListView(ListAPIView):
     pagination_class = SurfaceSearchPaginator
 
     def get_queryset(self):
-        return filtered_surfaces_for_user(self.request)
+        return filtered_surfaces(self.request)
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -1491,7 +1496,7 @@ def set_topography_select_status(request, pk, select_status):
             # topography should be selected
             selection.add(topography_key)
         elif is_selected:
-                selection.remove(topography_key)
+            selection.remove(topography_key)
 
         request.session['selection'] = list(selection)
 
@@ -1586,3 +1591,13 @@ def unselect_tag(request, pk):
     """
     return set_tag_select_status(request, pk, False)
 
+
+@api_view(['POST'])
+def unselect_all(request):
+    """Removes all selections from session.
+
+    :param request: request
+    :return: empty list as JSON Response
+    """
+    request.session['selection'] = []
+    return Response([])

@@ -46,6 +46,29 @@
                 this.keys = keys;
             },
 
+            unselect_all: function() {
+                const basket = this;
+                $.ajax({
+                       type: "POST",
+                       url: unselect_all_url,
+                       data: {
+                           csrfmiddlewaretoken: csrf_token
+                       },
+                       success: function (data, textStatus, xhr) {
+                           if (basket.unselect_handler) {
+                             console.log("keys to unselect: ", basket.keys)
+                             basket.keys.forEach(function (key) {
+                                basket.unselect_handler(key);
+                             })
+                           }
+                           basket.update(data);
+                       },
+                       error: function (xhr, textStatus, errorThrown) {
+                           console.error("Could not unselect: " + errorThrown + " " + xhr.status + " " + xhr.responseText);
+                       }
+                   });
+            },
+
             unselect: function (key) {
                 // First call unselect url for this element
                 // then the additional handler if needed

@@ -113,14 +113,5 @@ DATABASES = {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': '/dev/shm/topobank.sqlite3',
         # 'NAME': 'topobank.sqlite3',
-    },
-    'default-postgresql': {
-        'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': 'topobank_test',
-        'USER': 'topobank',
-        'PASSWORD': 'topobank',
-        'HOST': 'localhost',
-        # Empty for localhost through domain sockets or           '127.0.0.1' for localhost through TCP.
-        'PORT': '',  # Set to empty string for default.
     }
 }

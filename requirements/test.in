@@ -8,7 +8,7 @@ factory-boy
 django-coverage-plugin
 
 # pytest
-pytest-django
+pytest-django>=3.8.0
 pytest
 pytest-sugar
 pytest-mock

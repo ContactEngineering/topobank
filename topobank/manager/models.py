@@ -89,6 +89,7 @@ class Surface(models.Model):
         #
         # Request all standard analyses to be available for that user
         #
+        _log.info("After sharing surface %d with user %d, requesting all standard analyses..", self.id, with_user.id)
         from topobank.analysis.models import AnalysisFunction
         from topobank.analysis.utils import request_analysis
         auto_analysis_funcs = AnalysisFunction.objects.filter(automatic=True)
@@ -114,6 +115,7 @@ class Topography(models.Model):
 
     # TODO After upgrade to Django 2.2, use contraints: https://docs.djangoproject.com/en/2.2/ref/models/constraints/
     class Meta:
+        ordering = ['name']
         unique_together = (('surface', 'name'),)
 
     LENGTH_UNIT_CHOICES = [

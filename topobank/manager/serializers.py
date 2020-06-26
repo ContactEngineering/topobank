@@ -106,19 +106,21 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
         #
         request = self.context['request']
         search_term = get_search_term(request)
-        search_term_lower = search_term.lower() if search_term else None
+        search_term_given = len(search_term) > 0
+        search_term_lower = None if search_term is None else search_term.lower()
         topographies = obj.topography_set.all()
 
-        obj_match = (search_term is None) or (search_term_lower in obj.name.lower()) or \
+        obj_match = (not search_term_given) or (search_term_lower in obj.name.lower()) or \
                     (search_term_lower in obj.description.lower()) or \
                     (obj.tags.filter(name__icontains=search_term).count() > 0)
 
         # only filter topographies by search term if surface does not match search term
-        if search_term and not obj_match:
+        if search_term_given and not obj_match:
             topographies = topographies.filter(Q(name__icontains=search_term) |
                                                Q(description__icontains=search_term) |
                                                Q(tags__name__icontains=search_term)).distinct()
         return TopographySerializer(topographies, many=True, context=self.context).data
+        # TODO can filtered_topographies be used here instead?
 
     def get_urls(self, obj):
 
@@ -213,37 +215,12 @@ class TagSerializer(serializers.ModelSerializer):
 
         result = []
 
+        #
+        # Assume that all surfaces and topographies given in the context are already filtered
+        #
         surfaces = self.context['surfaces'].filter(tags__pk=obj.pk)
         topographies = self.context['topographies'].filter(tags__pk=obj.pk)
         tags = [x for x in obj.children.all() if x in self.context['tags_for_user']]
-
-        #
-        # Get filter criteria
-        #
-        request = self.context['request']
-        search_term = get_search_term(request)
-        category = get_category(request)
-        sharing_status = get_sharing_status(request)
-
-        #
-        # Filter children
-        #
-        if search_term:
-            topographies = topographies.filter(Q(name__icontains=search_term)
-                                               | Q(description__icontains=search_term)
-                                               | Q(tags__name__icontains=search_term)).distinct()
-            surfaces = surfaces.filter(Q(name__icontains=search_term) |
-                                       Q(description__icontains=search_term) |
-                                       Q(tags__name__icontains=search_term) |
-                                       Q(topography__name__icontains=search_term) |
-                                       Q(topography__description__icontains=search_term) |
-                                       Q(topography__tags__name__icontains=search_term)).distinct()
-        if category:
-            surfaces = surfaces.filter(category=category)
-        if sharing_status == 'own':
-            surfaces = surfaces.filter(creator=request.user)
-        elif sharing_status == 'shared':
-            surfaces = surfaces.filter(~Q(creator=request.user))
 
         #
         # Serialize children and append to this tag

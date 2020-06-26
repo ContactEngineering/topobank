@@ -6,7 +6,7 @@ import sys
 from topobank.manager.models import Topography, Surface
 from topobank.analysis.models import Analysis
 from topobank.analysis.models import AnalysisFunction
-from topobank.analysis.utils import submit_analysis
+from topobank.analysis.utils import submit_analysis, renew_analysis
 
 _log = logging.getLogger(__name__)
 
@@ -32,6 +32,16 @@ class Command(BaseCommand):
             action='store_true',
             dest='dry_run',
             help='Just parse arguments and print how much analyses would be triggered.',
+        )
+
+        parser.add_argument(
+            '-d',
+            '--default-kwargs',
+            action='store_true',
+            dest='default_kwargs',
+            help="""Always use default arguments instead of existing function arguments.
+            New analysis (not already existing) will be started with default arguments.
+            """,
         )
 
         parser.add_argument(
@@ -68,7 +78,6 @@ class Command(BaseCommand):
             pending_analyses = Analysis.objects.filter(task_state=Analysis.PENDING, function__in=analysis_funcs)
             self.stdout.write(self.style.SUCCESS(f"Found {len(pending_analyses)} pending analyses."))
             return set( (a.function, a.topography) for a in pending_analyses)
-
 
         if item[0] not in 'staf':
             self.stdout.write(self.style.WARNING(f"Cannot interpret first character of item '{item}'. Skipping."))
@@ -136,10 +145,24 @@ class Command(BaseCommand):
         #
         for func, topo in trigger_set:
             # collect users which are allowed to view analyses
-            users = get_users_with_perms(topo.surface)
-            if not dry_run:
-                submit_analysis(users, func, topo)
-            num_triggered += 1
+            users = set(get_users_with_perms(topo.surface))
+            matching_analyses = Analysis.objects.filter(topography=topo, function=func)
+
+            #
+            # Check whether analyses exist which match .. if exist, regenerate with same
+            # arguments.
+            for a in matching_analyses:
+                if not dry_run:
+                    a = renew_analysis(a, use_default_kwargs=options['default_kwargs'])
+                users.difference_update(set(a.users.all()))  # for some users we have already submitted an analysis
+                num_triggered += 1
+
+            # submit with standard arguments for rest of users with view permission
+            # which do not have this kind of analysis yet
+            if len(users) > 0:
+                if not dry_run:
+                    submit_analysis(users, func, topo)
+                num_triggered += 1
 
         if dry_run:
             self.stdout.write(self.style.SUCCESS(f"Would trigger {num_triggered} analyses, but this is a dry run."))

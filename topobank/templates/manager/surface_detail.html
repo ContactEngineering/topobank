@@ -11,15 +11,13 @@
 
   {% get_obj_perms request.user for surface as "surface_perms" %}
 
-  {% include "tabs.html" with active_tab="extra-tab-1" %}
-
   <div class="tab-content mt-2 extra-tab">
 
       <div class="row">
 
-        <div class="col-1 border-right">
+        <div class="col-12 col-sm-4 col-md-3 col-lg-2 border-right">
 
-          <ul class="nav nav-pills">
+          <ul class="nav nav-pills flex-column">
             <li class="nav-item">
               <a class="nav-link active" data-toggle="pill" href="#topographies" role="tab">Topographies</a>
             </li>
@@ -32,9 +30,7 @@
           </ul>
         </div>
 
-
-
-        <div class="col-8">
+        <div class="col-xs-12 col">
 
           <div class="tab-content mt-4">
 
@@ -93,7 +89,7 @@
 
         </div>
 
-        <div class="col-3">
+        <div class="col-sm-3 col-12">
 
           <div class="row p-3">
 
@@ -150,14 +146,6 @@
                   {% fontawesome_icon 'trash' %} Delete
                 </a>
               {% endif %}
-            </div>
-          </div>
-          <div class="row p-3">
-            <div class="col">
-                <a href="{% url 'manager:select' %}"
-                   class="btn btn-default btn-block btn-lg">
-                  {% fontawesome_icon 'check-square-o' %} Back to selection tab
-                </a>
             </div>
           </div>
         </div>

@@ -1,4 +1,6 @@
-/* These styles are generated from project.scss. */
+/* These styles are currently not generated from project.scss.
+  TODO Use sass or remove sass files.
+*/
 
 .alert-debug {
   color: black;
@@ -78,11 +80,6 @@ input.checkbox-color-design:checked+span:after {
 
 .shared-by-badge {
   font-size: small;
-}
-
-.surface-name-headline {
-  font-weight: bold;
-  font-size: larger;
 }
 
 .search-result-card:hover {
@@ -181,18 +178,6 @@ td.ellipsis {
   /* border-bottom:none; */
 }
 
-.nav-tabs .nav-link.extra-tab {
-  font-weight: bold;
-  font-style: italic;
-}
-
-.tab-content.extra-tab  {
-  border-top-right-radius: .5rem;
-  border-top-left-radius: .5rem;
-  border-bottom-right-radius: .5rem;
-  border-bottom-left-radius: .5rem;
-}
-
 /** Animate search bar */
 #global-search {
   width: 120px;
@@ -210,11 +195,12 @@ td.ellipsis {
 }
 
 /** More visible status node in fancytree while loading .. */
-tr.fancytree-statusnode-loading td {
-  font-size: xx-large;
+#tree-loading-indicator {
+  font-size: x-large;
 }
 
 /** larger font in basket elements */
 .basket-element {
   font-size: medium;
 }
+

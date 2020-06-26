@@ -110,6 +110,11 @@ urlpatterns = [
         name='select'
     ),
     url(
+       regex=r'unselect-all/$',
+       view=login_required(views.unselect_all),
+       name='unselect-all'
+    ),
+    url(
         regex=r'surface/search/$',  # TODO check URL, rename?
         view=login_required(views.SurfaceListView.as_view()),  # TODO Check view name, rename?
         name='search'  # TODO rename?

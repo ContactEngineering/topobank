@@ -93,6 +93,7 @@ LOCAL_APPS = [
     'topobank.manager.apps.ManagerAppConfig',
     'topobank.analysis.apps.AnalysisAppConfig',
     'topobank.usage_stats.apps.UsageStatsAppConfig',
+    'topobank.tabnav.apps.TabNavAppConfig',
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -216,6 +217,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'topobank.context_processors.versions_processor',
                 'topobank.context_processors.basket_processor',
+                'topobank.tabnav.context_processors.fixed_tabs_processor',
             ],
         },
     },

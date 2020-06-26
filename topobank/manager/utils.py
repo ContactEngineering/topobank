@@ -2,6 +2,7 @@ from django.shortcuts import reverse
 from guardian.shortcuts import get_objects_for_user
 from django.conf import settings
 from django.db.models import Q
+from django.core.exceptions import PermissionDenied
 import markdown2
 
 from PyCo.Topography import open_topography
@@ -10,12 +11,14 @@ from PyCo.Topography.IO import readers as pyco_readers
 import traceback
 import logging
 
+
+
 _log = logging.getLogger(__name__)
 
 DEFAULT_DATASOURCE_NAME = 'Default'
 UNIT_TO_METERS = {'Å': 1e-10, 'nm': 1e-9, 'µm': 1e-6, 'mm': 1e-3, 'm': 1.0,
                   'unknown': 1.0}
-
+MAX_LEN_SEARCH_TERM = 200
 SELECTION_SESSION_VARNAME = 'selection'
 
 
@@ -51,6 +54,7 @@ class TopographyFileReadingException(TopographyFileException):
 def get_reader_infos():
     reader_infos = []
     for reader_class in pyco_readers:
+        # noinspection PyBroadException
         try:
             # some reader classes have no description yet
             descr = reader_class.description()
@@ -99,15 +103,14 @@ def surfaces_for_user(user, perms=['view_surface']):
     from topobank.manager.models import Surface
     return get_objects_for_user(user, perms, klass=Surface, accept_global_perms=False)
 
-def filtered_surfaces_for_user(request, perms=['view_surface']):
+
+def filtered_surfaces(request):
     """
 
     Parameters
     ----------
     request
         Request instance
-    perms
-        list of permission codenames, default is ['view_surface']
 
     Returns
     -------
@@ -122,7 +125,7 @@ def filtered_surfaces_for_user(request, perms=['view_surface']):
     # Filter by category and sharing status
     #
     category = get_category(request)
-    if category:
+    if category != 'all':
         qs = qs.filter(category=category)
 
     sharing_status = get_sharing_status(request)
@@ -148,24 +151,55 @@ def filtered_surfaces_for_user(request, perms=['view_surface']):
     return qs
 
 
-def tags_for_user(user, surfaces=None):
-    """Return set of tags which can be used for autocompletion when editing tags.
+def filtered_topographies(request, surfaces):
+    """Return topographies which match a request.
+
+    Parameters
+    ----------
+    request
+    surfaces
+        queryset with surfaces which already match
+
+    Returns
+    -------
+    queryset with matching topographies
+
+    """
+    from topobank.manager.models import Topography
+    topographies = Topography.objects.filter(surface__in=surfaces)
+    search_term = get_search_term(request)
+    if search_term:
+        topographies = topographies.filter(
+                Q(name__icontains=search_term) |
+                Q(description__icontains=search_term) |
+                Q(tags__name__icontains=search_term))
+    return topographies.distinct()
+
+
+def tags_for_user(user, surfaces=None, topographies=None):
+    """Return set of tags which can be used for autocomplete when editing tags.
 
     A user should not see all tags ever used on the app, but only those
     which were chosen by herself or collaborators and corresponding parent tags.
 
     :param user: User instance
-    :param surfaces: surfaces visible for user, if None,
-                     will be computed; specify this to reuse previous calculation
+    :param surfaces: surfaces to use, if None,
+                     will be computed for given user; specify this to reuse previous calculation
+                     or to reduce number of surfaces based on a request
+    :param topographies: topographies to use, if None,
+                     will be computed from surfaces; specify this to reuse previous calculation
+                     or to reduce number of topographies based on a request
     :return: list of strings
     """
-    if surfaces is None:
-        surfaces = surfaces_for_user(user)
-
-    from .models import TagModel
+    from .models import TagModel, Topography
     from django.db.models import Q
 
-    tags = TagModel.objects.filter(Q(surface__in=surfaces) | Q(topography__surface__in=surfaces))
+    if surfaces is None:
+        surfaces = surfaces_for_user(user)
+    if topographies is None:
+        topographies = Topography.objects.filter(surface__in=surfaces)
+
+    tags = TagModel.objects.filter(Q(surface__in=surfaces) | Q(topography__in=topographies))
 
     # add parent tags not already included
     for t in tags:
@@ -517,14 +551,91 @@ def bandwidths_data(topographies):
     return bandwidths_data
 
 
-def get_search_term(request):
-    return request.GET.get('search', default=None)
+def get_search_term(request) -> str:
+    """Extract a search term from given request.
+
+    The search term is truncated at a maximum
+    size of MAX_LEN_SEARCH_TERM.
+
+    Parameters
+    ----------
+    request
+
+    Returns
+    -------
+    String with search term, an empty string if no term was given.
+
+    """
+    search_term = request.GET.get('search', default='')
+    search_term = search_term[:MAX_LEN_SEARCH_TERM]
+    return search_term.strip()
 
 
-def get_category(request):
-    return request.GET.get('category', default=None)
+def get_category(request) -> str:
+    """Extract a surface category from given request.
+
+    Parameters
+    ----------
+    request
+
+    Returns
+    -------
+    String with requested category.
+
+    Raises
+    ------
+    PermissionDenied() if an unknown category was given.
+    """
+    from .views import CATEGORY_FILTER_CHOICES
+    category = request.GET.get('category', default='all')
+    if category not in CATEGORY_FILTER_CHOICES.keys():
+        raise PermissionDenied()
+    return category
 
 
-def get_sharing_status(request):
-    return request.GET.get('sharing_status', default=None)
+def get_sharing_status(request) -> str:
+    """Extract a sharing status from given request.
+
+     Parameters
+     ----------
+     request
+
+     Returns
+     -------
+     String with requested sharing status.
+
+     Raises
+     ------
+     PermissionDenied() if an unknown sharing status was given.
+     """
+    from .views import SHARING_STATUS_FILTER_CHOICES
+    sharing_status = request.GET.get('sharing_status', default='all')
+    if sharing_status not in SHARING_STATUS_FILTER_CHOICES.keys():
+        raise PermissionDenied()
+    return sharing_status
+
+
+def get_tree_mode(request) -> str:
+    """Extract tree_mode from given request.
+
+     Parameters
+     ----------
+     request
+
+     Returns
+     -------
+     String with requested tree mode.
+
+     Raises
+     ------
+     PermissionDenied() if an unknown sharing status was given.
+     """
+    from .views import TREE_MODE_CHOICES
+    tree_mode = request.GET.get('tree_mode', default='surface list')
+    if tree_mode not in TREE_MODE_CHOICES:
+        raise PermissionDenied()
+    return tree_mode
+
+
+
 

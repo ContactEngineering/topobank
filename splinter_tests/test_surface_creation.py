@@ -1,11 +1,19 @@
+import pytest
 
-def test_empty_surface(browser, user_alice_logged_in):
+
+@pytest.mark.django_db
+def test_empty_surface(user_alice_logged_in):
+
+    browser, user_alice = user_alice_logged_in
+
     #
     # navigate to surface list and create surface
     #
-    surfaces_link = browser.find_link_by_partial_text('Surfaces')
-    surfaces_link.click()
-    create_link = browser.find_link_by_partial_text('Add Surface')
+    browser.find_link_by_partial_text('Select').first.click()
+
+    assert browser.is_text_present('Create Surface', wait_time=2)
+
+    create_link = browser.find_link_by_partial_text('Create Surface').first
     create_link.click()
 
     browser.fill('name', 'My first empty surface')
@@ -19,22 +27,15 @@ def test_empty_surface(browser, user_alice_logged_in):
     #
     # Navigate back to surface list
     #
-    surfaces_link = browser.find_link_by_partial_text('Surfaces')
-    surfaces_link.click()
+    select_link = browser.find_link_by_partial_text('Select').first
+    select_link.click()
+    assert browser.is_text_present('Create Surface', wait_time=2)
 
     #
     # Select new surface
     #
-    browser.find_option_by_text('My first empty surface').first.click()
+    browser.find_link_by_partial_text('Properties').first.click()
 
-    save_link = browser.find_by_id('submit-id-save')
-    save_link.click()
-
-    #
-    # Now the link "Open" should be visible
-    # and we should be on the detail page for the surface
-    #
-    browser.find_link_by_partial_text('Open').first.click()
-
-    assert "My first empty surface" in browser.html
+    assert browser.is_text_present("Permissions", wait_time=2)
+    assert browser.is_text_present("My first empty surface")
 

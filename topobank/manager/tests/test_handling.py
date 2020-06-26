@@ -5,7 +5,8 @@ from pathlib import Path
 import datetime
 import os.path
 
-from .utils import FIXTURE_DIR, SurfaceFactory, TopographyFactory, UserFactory, two_topos, one_line_scan
+from .utils import FIXTURE_DIR, SurfaceFactory, TopographyFactory, UserFactory, \
+    two_topos, one_line_scan, user_three_topographies_three_surfaces_three_tags
 from ..models import Topography, Surface, MAX_LENGTH_DATAFILE_FORMAT
 from ..forms import TopographyForm, TopographyWizardUnitsForm
 
@@ -1082,9 +1083,4 @@ def test_topography_form_field_is_periodic():
 
     form = TopographyForm(initial=data, has_size_y=True, allow_periodic=False, autocomplete_tags=[])
     assert form.fields['is_periodic'].disabled
-
-
-
-
-
 

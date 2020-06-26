@@ -1,5 +1,40 @@
 # Changelog for *TopoBank*
 
+## 0.8.1 (2020-06-26)
+
+Several improvements and fixes for the user interface.
+
+- added button to basket which allows to deselect all items (#466)
+- added widget for changing page size of the result table
+  on the "Select" page (#469)
+- saving state of filters and paging on Select tab in session (#494)  
+- removed "back" buttons not needed any more because of
+  tabbed interface (#473)
+- simplified tab titles, fixing strange tab behavior for 
+  long tab titles (#470)
+- added ">>" to tab titles in order to visualize workflow (#484)  
+- tab "Analyze" is only shown if an "Analyze" button has been pressed,
+  added "Analyze" button to basket (#481)
+- in contact mechanics plot, replaced interactive legend by
+  a collapsed list of checkboxes increasing the plot area (#472)
+- replaced loading indicator for tree on "Select" page (#461) 
+- fixing wrong mail configuration in production (#130,#292)
+- fixing overlapping pills in detail view for surfaces and
+  topographies (#471)
+- fixed too many tags shown in tag tree when using filtering (#465)
+- fixed missing tabs when displaying terms and conditions (#474)
+- fixed wrong message in analyses view if no analyses available,
+  but some items have been selected (#485)
+- if analyses are about to be shown which have not been triggered yet,
+  these analyses are triggered automatically (#402)
+- when sharing a surface, it is assured that analyses for the standard arguments
+  of all automatic functions are available for the user the surface is
+  shared with (#388)
+- fixed bug in management command "trigger_analyses", now also replaces
+  existing analyses with other arguments than default arguments (#447)
+- update to Django 2.2.13 because of security issues (#488)
+- updated markdown2 dependency because of security issue (#458)
+
 ## 0.8.0 (2020-05-19)
 
 This release mainly implements a redesign of the user interface.

@@ -40,7 +40,7 @@ django-tables2==2.1.0
 git+http://github.com/mcrot/django-tagulous.git
 git+http://git@github.com/mcrot/django-termsandconditions.git@optional_terms
 django-trackstats==0.5.0
-django==2.2.10
+django==2.2.13
 djangorestframework==3.10.2
 docutils==0.15.2          # via botocore
 et-xmlfile==1.0.1         # via openpyxl
@@ -55,7 +55,7 @@ jinja2==2.10.1            # via bokeh, coreschema
 jmespath==0.9.4           # via boto3, botocore
 jsonfield==2.0.2          # via django-notifications-hq
 kombu==4.6.4              # via celery
-markdown2==2.3.8
+markdown2==2.3.9
 markupsafe==1.1.1         # via jinja2
 more-itertools==7.2.0     # via zipp
 git+https://gitlab.com/muspectre/muspectre.git@654a508babf97564c3e3144ca11686431fe45c39#egg=mufft

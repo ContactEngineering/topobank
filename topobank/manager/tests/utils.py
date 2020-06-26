@@ -157,3 +157,23 @@ def topography_with_broken_pyco_topography():
 
     return topo
 
+
+@pytest.fixture
+def user_three_topographies_three_surfaces_three_tags():
+
+    user = UserFactory()
+
+    tag1 = TagModelFactory()
+    tag2 = TagModelFactory()
+    tag3 = TagModelFactory()
+
+    surface1 = SurfaceFactory(creator=user, tags=[tag1])
+    topo1a = TopographyFactory(surface=surface1)
+    topo1b = TopographyFactory(surface=surface1, tags=[tag2, tag3])
+
+    surface2 = SurfaceFactory(creator=user, tags=[tag2])
+    topo2a = TopographyFactory(surface=surface2, tags=[tag1])
+
+    surface3 = SurfaceFactory(creator=user, tags=[tag3])  # empty
+
+    return user, (topo1a, topo1b, topo2a), (surface1, surface2, surface3), (tag1, tag2, tag3)

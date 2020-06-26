@@ -1,0 +1,29 @@
+digraph G {
+  initial [shape=box, label="fixed tabs"]; /* initial represents the initial set of fixed tabs: home, sharing, select */
+  help [label="Help"];
+  terms_and_conditions [label="Terms & Conditions"];
+  terms_details [label="Details of terms"];
+  surface_details [label="Surface details"];
+  topography_details [label="Topography details"];
+  edit_topography [label="Edit"];
+  edit_surface [label="Edit"];
+  confirm_delete_surface [label="Confirm delete?"];
+  confirm_delete_topography [label="Confirm delete?"];
+  analyze [label="Analyses overview"];
+  analyze_details [label="Analysis results for function"]
+  share_surface [label="Share surface"];
+
+  initial -> help [label="'Help' in menu"];
+  initial -> terms_and_conditions [label="'Terms' in menu"];
+  terms_and_conditions -> terms_details;
+  initial -> surface_details [label="'Properties' button"];
+  surface_details -> edit_surface;
+  surface_details -> confirm_delete_surface;
+  surface_details -> share_surface;
+  surface_details -> topography_details [label="click on bandwidth plot"];
+  topography_details -> edit_topography;
+  topography_details -> confirm_delete_topography;
+  initial -> analyze -> analyze_details;
+  surface_details -> analyze [label="'Analyze' button"];
+  topography_details -> analyze [label="'Analyze' button"];
+}

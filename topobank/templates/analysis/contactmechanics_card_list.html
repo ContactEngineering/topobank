@@ -31,18 +31,18 @@
       <h5>{{ title }}</h5>
     </div>
     <div class="card-body">
+      {% if analyses_failure %}
       <ul class="nav nav-tabs">
-        {% if analyses_failure %}
         <li class="nav-item" style="list-style-type: none;">
           <a class="nav-link active" data-toggle="tab" href="#plot-tab-{{ card_id }}">Plot</a>
         </li>
         <li class="nav-item" style="list-style-type: none;">
           <a class="nav-link" data-toggle="tab" href="#warnings-tab-{{ card_id }}">Warnings</a>
         </li>
-        {% endif %}
       </ul>
+      {% endif %}
 
-      <div class="tab-content mt-3">
+      <div class="tab-content">
         <div class="tab-pane fade show active" id="plot-tab-{{ card_id }}" role="tabpanel">
           {% include 'analysis/analyses_alerts.html' %}
           {% if not analyses_unready and analyses_success %}

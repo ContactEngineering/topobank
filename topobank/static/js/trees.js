@@ -10,6 +10,7 @@
  *
  * See https://vuejs.org/v2/examples/select2.html as example how to wrap 3rd party code into a component
  */
+
 let search_results_vm = new Vue({
         delimiters: ['[[', ']]'],
         el: '#search-results',
@@ -18,16 +19,15 @@ let search_results_vm = new Vue({
             num_pages: null,
             page_range: null,
             page_urls: null,
-            current_page: null,
             num_items_on_current_page: null,
-            prev_page_url: null,
-            next_page_url: null,
-            base_search_urls: base_search_urls,
-            search_term: search_term, // for filtering, comes from outside (search bar is on every page)
-            category: null, // for filtering, will be set on page
-            sharing_status: null, // will be set on page
+            base_urls: base_urls,
+            current_page: initial_select_tab_state.current_page,
+            page_size: initial_select_tab_state.page_size,
+            search_term: initial_select_tab_state.search_term,
+            category: initial_select_tab_state.category,
+            sharing_status: initial_select_tab_state.sharing_status,
+            tree_mode: initial_select_tab_state.tree_mode,
             tree_element: "#surface-tree",
-            tree_mode: "surface list",
             tree_mode_infos: {
                 "surface list": {
                     element_kind: "surfaces",
@@ -38,6 +38,9 @@ let search_results_vm = new Vue({
                     hint: "Tags can be introduced or changed when editing meta data of surfaces and topographies.",
                }
             },
+            category_filter_choices: category_filter_choices,
+            sharing_status_filter_choices: sharing_status_filter_choices,
+            is_loading: false,
         },
         mounted: function() {
             const vm = this;
@@ -80,21 +83,21 @@ let search_results_vm = new Vue({
                   checkbox: true,
                   selectMode: 2, // 'multi'
                   source: {
-                    url: this.search_url  // this is a computed property, see below
+                     url: this.search_url.toString()  // this is a computed property, see below
                   },
                   postProcess: function(event, data) {
                     console.log("PostProcess: ", data);
                     vm.num_pages = data.response.num_pages;
                     vm.num_items = data.response.num_items;
-                    vm.next_page_url = data.response.next_page_url;
-                    vm.prev_page_url = data.response.prev_page_url;
                     vm.current_page = data.response.current_page;
                     vm.num_items_on_current_page = data.response.num_items_on_current_page;
                     vm.page_range = data.response.page_range;
                     vm.page_urls = data.response.page_urls;
+                    vm.page_size = data.response.page_size;
                     // assuming the Ajax response contains a list of child nodes:
                     // We replace the result
                     data.result = data.response.page_results;
+                    vm.is_loading = false;
                   },
                   select: function(event, data) {
                       const node = data.node;
@@ -200,56 +203,82 @@ let search_results_vm = new Vue({
                       // ...
                     },
                 }); // fancytree()
+                vm.set_loading_indicator();
         },   // mounted()
         computed: {
           search_url: function () {
-              let url = this.base_search_urls[this.tree_mode];
-              let query_strings = [];
+              // Returns URL object
 
-              if ((this.search_term != null) && (this.search_term.length > 0)) {
-                  query_strings.push("search="+this.search_term);
-              }
-              if ((this.category != null) && (this.category != 'all')) {
-                  query_strings.push("category="+this.category);
-              }
-              if (this.sharing_status != null && (this.sharing_status != 'all')) {
-                  query_strings.push("sharing_status="+this.sharing_status);
-              }
+              let url = new URL(this.base_urls[this.tree_mode]);
 
-              if (query_strings.length > 0) {
-                  url += "?"+query_strings.join('&');
-              }
-              url = encodeURI(url)
+              // replace page_size parameter
+              // ref: https://usefulangle.com/post/81/javascript-change-url-parameters
+              let query_params = url.searchParams;
+
+              query_params.set("search", this.search_term);  // empty string -> no search
+              query_params.set("category", this.category);
+              query_params.set("sharing_status", this.sharing_status);
+              query_params.set('page_size', this.page_size);
+              query_params.set('page', this.current_page);
+              query_params.set('tree_mode', this.tree_mode);
+              url.search = query_params.toString();
+              // url = url.toString();
+
+              console.log("Requested search URL: "+url.toString());
+
               return url;
-          }
+            },
         },
         methods: {
             get_tree: function() {
               return $(this.tree_element).fancytree("getTree");
             },
-            reload: function(tree_mode, search_term, category, sharing_status) {
+            set_loading_indicator: function() {
+                // hack: replace loading indicator from fancytree by own indicator with spinner
+                let loading_node = $('tr.fancytree-statusnode-loading');
+                if (loading_node) {
+                    loading_node.html(`
+                        <td id="tree-loading-indicator" role="status">
+                          <span id="tree-loading-spinner" class="spinner"></span>Please wait..
+                        </td>
+                    `);
+                    this.is_loading = true;
+                }
+            },
+            clear_search_term: function () {
+                console.log("Clearing search term..");
+                this.search_term = '';
+                this.reload();
+            },
+            reload: function() {
+                /*
+                    Reload means: the tree must be completely reloaded,
+                    with currently set state of the select tab,
+                    except of the page number which should be 1.
+                 */
                 const tree = this.get_tree();
+                this.current_page = 1;
+                console.log("Reloading tree, tree mode: "+this.tree_mode+" current page: "+this.current_page);
 
-                this.tree_mode = tree_mode;
-                this.search_term = search_term;
-                this.category = category;
-                this.sharing_status = sharing_status;
-                tree.reload({
-                      url: this.search_url,
+                tree.setOption('source', {
+                      url: this.search_url.toString(),
                       cache: false,
                 });
+                this.set_loading_indicator();
             },
             load_page: function(page_no){
                 page_no = parseInt(page_no);
 
                 if ( (page_no>=1) && (page_no<=this.page_range.length) ) {
-                    const tree = this.get_tree();
-                    const page_url = this.page_urls[page_no-1];
+                    let tree = this.get_tree();
+                    let page_url=new URL(this.page_urls[page_no-1]);
+
                     console.log("Loading page "+page_no+" from "+page_url+"..");
                     tree.setOption('source', {
                       url: page_url,
                       cache: false,
                     });
+                    this.set_loading_indicator();
                 } else {
                     console.warn("Cannot load page "+page_no+", because the page number is invalid.")
                 }
@@ -261,10 +290,10 @@ let search_results_vm = new Vue({
                 tree.findAll( function (node) {
                     return node.key == key;
                 }).forEach( function (node) {
-                    node.setSelected(selected);
+                    node.setSelected(selected, {noEvents: true});
+                    // we only want to set the checkbox here, we don't want to simulate the click
                 })
             }
-
         }
       });  // Vue
 

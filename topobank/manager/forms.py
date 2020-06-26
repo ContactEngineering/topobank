@@ -47,6 +47,7 @@ class TopographyFileUploadForm(forms.ModelForm):
 
     helper.layout = Layout(
         Div(
+            HTML('You are about to add a topography to surface <em>{{ surface.name }}</em>.'),
             Field('datafile'),
             Field('datafile_format', type='hidden'),  # in order to have data later in wizard's done() method
             Field('surface', type='hidden')  # in order to have data later in wizard's done() method
@@ -559,6 +560,7 @@ class SurfaceShareForm(forms.Form):
 
     helper.layout = Layout(
         Div(
+            HTML("Would you like to share the surface <em>{{ surface.name }}</em> with other users?"),
             Field('users', css_class='col-7'),
             Field('allow_change'),
             FormActions(

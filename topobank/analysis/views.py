@@ -191,6 +191,62 @@ class SimpleCardView(TemplateView):
         analyses_avail = analyses_avail.filter(topography__surface__in=readable_surfaces)
 
         #
+        # collect list of topographies for which no analyses exist
+        #
+        topographies_available_ids = [a.topography.id for a in analyses_avail]
+        topographies_missing = []
+        for tid in topography_ids:
+            if tid not in topographies_available_ids:
+                try:
+                    topo = Topography.objects.get(id=tid)
+                    topographies_missing.append(topo)
+                except Topography.DoesNotExist:
+                    # topography may be deleted in between
+                    pass
+
+        #
+        # collect all keyword arguments and check whether they are equal
+        #
+        unique_kwargs = None  # means: there are differences or no analyses available
+        for av in analyses_avail:
+            kwargs = pickle.loads(av.kwargs)
+            if unique_kwargs is None:
+                unique_kwargs = kwargs
+            elif kwargs != unique_kwargs:
+                unique_kwargs = None
+                break
+
+        function = AnalysisFunction.objects.get(id=function_id)
+
+        #
+        # automatically trigger analyses for missing topographies
+        #
+        kwargs_for_missing = unique_kwargs or {}
+        topographies_triggered = []
+        for topo in topographies_missing:
+            if request.user.has_perm('view_surface', topo.surface):
+                triggered_analysis = request_analysis(request.user, function, topo, **kwargs_for_missing)
+                topographies_triggered.append(topo)
+                topographies_available_ids.append(topo.id)
+                _log.info(f"Triggered analysis {triggered_analysis.id} for function {function.name} "+\
+                          f"and topography {topo.id}.")
+        topographies_missing = [ t for t in topographies_missing if t not in topographies_triggered]
+
+        # now all topographies which needed to be triggered, should have been triggered
+        # with common arguments if possible
+        # collect information about available analyses again
+        if len(topographies_triggered) > 0:
+
+            # if no analyses where available before, unique_kwargs is None
+            # which is interpreted as "differing arguments". This is wrong
+            # in that case
+            if len(analyses_avail) == 0:
+                unique_kwargs = kwargs_for_missing
+
+            analyses_avail = get_latest_analyses(request.user, function_id, topography_ids)\
+                  .filter(topography__surface__in=readable_surfaces)
+
+        #
         # Determine status code of request - do we need to trigger request again?
         #
         analyses_ready = analyses_avail.filter(task_state__in=['su', 'fa'])
@@ -205,26 +261,8 @@ class SimpleCardView(TemplateView):
         analyses_failure = analyses_ready.filter(task_state='fa')
 
         #
-        # collect list of topographies for which no analyses exist
+        # comprise context for analysis result card
         #
-        topographies_available_ids = [a.topography.id for a in analyses_avail]
-        topographies_missing = [Topography.objects.get(id=tid) for tid in topography_ids
-                                if tid not in topographies_available_ids]
-
-        #
-        # collect all keyword arguments and check whether they are equal
-        #
-        unique_kwargs = None  # means: there are differences
-        for av in analyses_avail:
-            kwargs = pickle.loads(av.kwargs)
-            if unique_kwargs is None:
-                unique_kwargs = kwargs
-            elif kwargs != unique_kwargs:
-                unique_kwargs = None
-                break
-
-        function = AnalysisFunction.objects.get(id=function_id)
-
         context.update(dict(
             card_id=card_id,
             title=function.name,
@@ -607,6 +645,15 @@ class ContactMechanicsCardView(SimpleCardView):
         else:
 
             #
+            # Prepare helper variables
+            #
+            color_cycle = itertools.cycle(Category10[10])
+            topography_colors = OrderedDict()  # key: Topography instance
+            topography_names = []
+            js_code = ""
+            js_args = {}
+
+            #
             # Generate two plots in two tabs based on same data sources
             #
             sources = []
@@ -615,6 +662,7 @@ class ContactMechanicsCardView(SimpleCardView):
                 analysis_result = analysis.result_obj
 
                 data = dict(
+                    topography_name=(analysis.topography.name,)*len(analysis_result['mean_pressures']),
                     mean_pressure=analysis_result['mean_pressures'],
                     total_contact_area=analysis_result['total_contact_areas'],
                     mean_displacement=analysis_result['mean_displacements'],
@@ -630,6 +678,13 @@ class ContactMechanicsCardView(SimpleCardView):
                 sources.append(source)
                 labels.append(analysis.topography.name)
 
+                #
+                # find out colors for topographies
+                #
+                if analysis.topography not in topography_colors:
+                    topography_colors[analysis.topography] = next(color_cycle)
+                    topography_names.append(analysis.topography.name)
+
             load_axis_label = "Normalized pressure p/E*"
             area_axis_label = "Fractional contact area A/A0"
             disp_axis_label = "Normalized mean gap u/h_rms"
@@ -643,6 +698,7 @@ class ContactMechanicsCardView(SimpleCardView):
             # Configure tooltips
             #
             tooltips = [
+                ("topography", "@topography_name"),
                 (load_axis_label, "@mean_pressure"),
                 (area_axis_label, "@total_contact_area"),
                 (disp_axis_label, "@mean_gap"),
@@ -674,9 +730,6 @@ class ContactMechanicsCardView(SimpleCardView):
 
             load_plot.yaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
 
-            contact_area_legend_items = []
-            load_legend_items = []
-
             for source, label in zip(sources, labels):
                 curr_color = next(color_cycle)
                 r1 = contact_area_plot.circle('mean_pressure', 'total_contact_area',
@@ -692,9 +745,6 @@ class ContactMechanicsCardView(SimpleCardView):
                                       line_color=None,
                                       size=12)
 
-                contact_area_legend_items.append((label, [r1]))
-                load_legend_items.append((label, [r2]))
-
                 selected_circle = Circle(fill_alpha='fill_alpha', fill_color=curr_color,
                                          line_color="black", line_width=4)
                 nonselected_circle = Circle(fill_alpha='fill_alpha', fill_color=curr_color,
@@ -704,19 +754,51 @@ class ContactMechanicsCardView(SimpleCardView):
                     renderer.selection_glyph = selected_circle
                     renderer.nonselection_glyph = nonselected_circle
 
+                #
+                # Prepare JS code to toggle visibility
+                #
+                topography_idx = topography_names.index(label)
+
+                # prepare unique ids for this symbols (one for each plot)
+                glyph_id_area_plot = f"glyph_{topography_idx}_area_symbol"
+                glyph_id_load_plot = f"glyph_{topography_idx}_load_symbol"
+                js_args[glyph_id_area_plot] = r1  # mapping from Python to JS
+                js_args[glyph_id_load_plot] = r2  # mapping from Python to JS
+
+                # only indices of visible glyphs appear in "active" lists of both button groups
+                js_code += f"{glyph_id_area_plot}.visible = topography_btn_group.active.includes({topography_idx});"
+                js_code += f"{glyph_id_load_plot}.visible = topography_btn_group.active.includes({topography_idx});"
+
+
             _configure_plot(contact_area_plot)
             _configure_plot(load_plot)
 
             #
-            # Legend
+            # Adding widget for switching symbols on/off
             #
-            contact_area_legend = Legend(items=contact_area_legend_items)
-            contact_area_legend.click_policy = 'hide'
-            load_legend = Legend(items=load_legend_items)
-            load_legend.click_policy = 'hide'
+            topography_button_group = CheckboxGroup(
+                labels=topography_names,
+                css_classes=["topobank-topography-checkbox"],
+                visible=False,
+                active=list(range(len(topography_names))))  # all active
 
-            contact_area_plot.add_layout(contact_area_legend, "below")
-            load_plot.add_layout(load_legend, "below")
+            topography_btn_group_toggle_button = Toggle(label="Topographies")
+
+            # extend mapping of Python to JS objects
+            js_args['topography_btn_group'] = topography_button_group
+            js_args['topography_btn_group_toggle_btn'] = topography_btn_group_toggle_button
+
+            toggle_lines_callback = CustomJS(args=js_args, code=js_code)
+            toggle_topography_checkboxes = CustomJS(args=js_args, code="""
+                        topography_btn_group.visible = topography_btn_group_toggle_btn.active;
+                    """)
+
+            widgets = grid([
+                [topography_btn_group_toggle_button],
+                [topography_button_group]
+            ])
+            topography_button_group.js_on_click(toggle_lines_callback)
+            topography_btn_group_toggle_button.js_on_click(toggle_topography_checkboxes)
 
             #
             # Layout plot
@@ -725,7 +807,7 @@ class ContactMechanicsCardView(SimpleCardView):
             load_tab = Panel(child=load_plot, title="Load versus displacement")
 
             tabs = Tabs(tabs=[contact_area_tab, load_tab])
-            col = column(tabs, sizing_mode='scale_width')
+            col = column(tabs, widgets, sizing_mode='scale_width')
 
             plot_script, plot_div = components(col)
 
@@ -763,7 +845,7 @@ def _configure_plot(plot):
     plot.yaxis.major_label_text_font_size = "12pt"
 
 
-def submit_analyses_view(request):  # TODO use REST framework? Rename to request?
+def submit_analyses_view(request):
     """Requests analyses.
     :param request:
     :return: HTTPResponse
@@ -1038,7 +1120,7 @@ def contact_mechanics_data(request):
         return JsonResponse({}, status=403)
 
 
-def context_for_extra_tabs_if_single_item_selected(topographies, surfaces):
+def extra_tabs_if_single_item_selected(topographies, surfaces):
     """Return contribution to context for opening extra tabs if a single topography/surface is selected.
 
     Parameters
@@ -1051,34 +1133,40 @@ def context_for_extra_tabs_if_single_item_selected(topographies, surfaces):
 
     Returns
     -------
-    Dict with maybe extra context for extra tabs.
-    Update an existing context with this result.
+    Sequence of dicts, each dict corresponds to an extra tab.
 
     """
-    context = {}
+    tabs = []
 
     if len(topographies) == 1 and len(surfaces) == 0:
         # exactly one topography was selected -> show also tabs of topography
         topo = topographies[0]
-        context['extra_tab_1_data'] = {
-            'title': f"Surface <b>{topo.surface.name}</b>",
-            'icon': "fa-diamond",
-            'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
-        }
-        context['extra_tab_2_data'] = {
-            'title': f"Topography <b>{topo.name}</b>",
-            'icon': "fa-file-o",
-            'href': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
-        }
+        tabs.extend([
+            {
+                'title': f"{topo.surface.name}",
+                'icon': "diamond",
+                'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
+                'active': False,
+            },
+            {
+                'title': f"{topo.name}",
+                'icon': "file-o",
+                'href': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
+                'active': False,
+            }
+        ])
     elif len(surfaces) == 1 and all(t.surface == surfaces[0] for t in topographies):
         # exactly one surface was selected -> show also tab of surface
         surface = surfaces[0]
-        context['extra_tab_1_data'] = {
-            'title': f"Surface <b>{surface.name}</b>",
-            'icon': "fa-diamond",
-            'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
-        }
-    return context
+        tabs.append(
+            {
+                'title': f"{surface.name}",
+                'icon': "diamond",
+                'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
+                'active': False,
+            }
+        )
+    return tabs
 
 
 class AnalysisFunctionDetailView(DetailView):
@@ -1102,19 +1190,23 @@ class AnalysisFunctionDetailView(DetailView):
 
         context['card'] = card
 
-        #
-        # Open in extra tab
-        #
-        context['active_tab'] = 'extra-tab-4'
-        context['extra_tab_4_data'] = {
-            'title': f"{function.name}",
-            'icon': "fa-area-chart",
-            'href': self.request.path,
-        }
-        #
         # Decide whether to open extra tabs for surface/topography details
-        #
-        context.update(context_for_extra_tabs_if_single_item_selected(topographies, surfaces))
+        tabs = extra_tabs_if_single_item_selected(topographies, surfaces)
+        tabs.extend([
+            {
+                'title': f"Analyze",
+                'icon': "area-chart",
+                'href': reverse('analysis:list'),
+                'active': False,
+            },
+            {
+                'title': f"{function.name}",
+                'icon': "area-chart",
+                'href': self.request.path,
+                'active': True,
+            }
+        ])
+        context['extra_tabs'] = tabs
 
         return context
 
@@ -1226,7 +1318,18 @@ class AnalysesListView(FormView):
         #
         # Decide whether to open extra tabs for surface/topography details
         #
-        context.update(context_for_extra_tabs_if_single_item_selected(topographies, surfaces))
+
+        # Decide whether to open extra tabs for surface/topography details
+        tabs = extra_tabs_if_single_item_selected(topographies, surfaces)
+        tabs.append(
+            {
+                'title': f"Analyze",
+                'icon': "area-chart",
+                'href': self.request.path,
+                'active': True,
+            }
+        )
+        context['extra_tabs'] = tabs
 
         return context
 
