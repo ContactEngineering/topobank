@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 0.8.3 (2020-06-26)
+
+- fix: added missing migration for ordering of topographies 
+
 ## 0.8.2 (2020-06-26)
 
 - fix: added missing files for tab navigation 
