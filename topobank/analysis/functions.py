@@ -1,7 +1,7 @@
 """
 Functions which can be chosen for analysis of topographies.
 
-The first argument is always a PyCo Topography!
+The first argument is always a SurfaceTopography.Topography!
 """
 
 import numpy as np
@@ -12,12 +12,9 @@ from django.core.files.storage import default_storage
 from django.core.files import File
 import xarray as xr
 
-from PyCo.Topography import Topography
+from SurfaceTopography import Topography, PlasticTopography
 
-from PyCo.SolidMechanics import PeriodicFFTElasticHalfSpace, FreeFFTElasticHalfSpace
-from PyCo.ContactMechanics import HardWall
-from PyCo.System.Factory import make_system
-from PyCo.Topography import PlasticTopography
+from ContactMechanics import PeriodicFFTElasticHalfSpace, FreeFFTElasticHalfSpace, make_system
 
 CONTACT_MECHANICS_KWARGS_LIMITS = {
             'nsteps': dict(min=1, max=50),
@@ -215,7 +212,7 @@ def float_to_unicode(f, digits=3):
 def _reasonable_bins_argument(topography):
     """Returns a reasonable 'bins' argument for np.histogram for given topography's heights.
 
-    :param topography: Line scan or topography from PyCo
+    :param topography: Line scan or topography from SurfaceTopography module
     :return: argument for 'bins' argument of np.histogram
     """
     if topography.is_uniform:
@@ -364,8 +361,6 @@ def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, st
 
     if topography.dim == 2:
         dh_dx, dh_dy = topography.derivative(n=1)
-        # dh_dx, dh_dy = np.gradient(topography.heights(), *tuple(topography.pixel_size))
-        # not okay for Lars, see GH 83 of PyCo:  https://github.com/pastewka/PyCo/issues/83
 
         #
         # Results for x direction
@@ -631,7 +626,7 @@ def _next_contact_step(system, history=None, pentol=None, maxiter=None):
 
     Parameters
     ----------
-    system : PyCo.System.SystemBase object
+    system : ContactMechanics.Systems.SystemBase
         The contact mechanical system.
     history : tuple
         History returned by past calls to next_step
@@ -719,7 +714,7 @@ def _contact_at_given_load(system, external_force, history=None, pentol=None, ma
 
     Parameters
     ----------
-    system : PyCo.System.SystemBase object
+    system : ContactMechanics.Systems.SystemBase
         The contact mechanical system.
     external_force : float
         The force pushing the surfaces together.
@@ -851,8 +846,7 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
     substrate = half_space_factory[substrate_str](topography.nb_grid_pts, 1.0, topography.physical_sizes,
                                                   **half_space_kwargs)
 
-    interaction = HardWall()
-    system = make_system(substrate, interaction, topography)
+    system = make_system(substrate, topography)
 
     # Heuristics for the possible tolerance on penetration.
     # This is necessary because numbers can vary greatly

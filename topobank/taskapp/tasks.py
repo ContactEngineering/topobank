@@ -9,7 +9,7 @@ from celery_progress.backend import ProgressRecorder
 
 from notifications.signals import notify
 
-from PyCo.System.Systems import IncompatibleFormulationError
+from ContactMechanics.Systems import IncompatibleFormulationError
 
 from .celery import app
 from .utils import get_package_version_instance
@@ -20,9 +20,8 @@ from topobank.users.models import User
 from topobank.analysis.functions import IncompatibleTopographyException
 from topobank.usage_stats.utils import increase_statistics_by_date, increase_statistics_by_date_and_object
 
-
-
 EXCEPTION_CLASSES_FOR_INCOMPATIBILITIES = (IncompatibleTopographyException, IncompatibleFormulationError)
+
 
 def current_configuration():
     """Determine current configuration (package versions) and create appropriate database entries.

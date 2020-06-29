@@ -40,8 +40,8 @@ from guardian.shortcuts import get_objects_for_user
 
 from trackstats.models import Metric
 
-import PyCo
-from PyCo.Tools.ContactAreaAnalysis import patch_areas, assign_patch_numbers
+from ContactMechanics.Tools.ContactAreaAnalysis import patch_areas, assign_patch_numbers
+import SurfaceTopography, ContactMechanics, muFFT, NuMPI
 
 from ..manager.models import Topography, Surface
 from ..manager.utils import selected_instances, instances_to_selection, current_selection_as_basket_items, instances_to_topographies
@@ -1420,7 +1420,7 @@ def download_plot_analyses_to_txt(request, analyses):
                 '# End time of analysis task: {}\n'.format(analysis.end_time) +
                 '# Duration of analysis task: {}\n'.format(analysis.duration()))
         if analysis.configuration is None:
-            f.write('# Versions of dependencies (like PyCo) are unknown for this analysis.\n')
+            f.write('# Versions of dependencies (like "SurfaceTopography") are unknown for this analysis.\n')
             f.write('# Please recalculate in order to have version information here.')
         else:
             versions_used = analysis.configuration.versions.order_by('dependency__import_name')
@@ -1586,8 +1586,8 @@ def download_contact_mechanics_analyses_as_zip(request, analyses):
     #
     # Add a Readme file
     #
-    zf.writestr("README.txt", \
-                """
+    zf.writestr("README.txt",\
+                f"""
 Contents of this ZIP archive
 ============================
 This archive contains data from contact mechanics calculation.
@@ -1657,9 +1657,12 @@ Have look in the official Matlab documentation for more information.
 Version information
 ===================
 
-PyCo:     {}
-TopoBank: {}
-    """.format(PyCo.__version__, settings.TOPOBANK_VERSION))
+SurfaceTopography: {SurfaceTopography.__version__}
+ContactMechanics:  {ContactMechanics.__version__}
+muFFT:             {muFFT.version.description()}
+NuMPI:             {NuMPI.__version__}
+TopoBank:          {settings.TOPOBANK_VERSION}
+    """)
 
     zf.close()
 

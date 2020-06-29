@@ -425,7 +425,10 @@ PROGRESSBARUPLOAD_INCLUDE_JQUERY = False
 #
 # list of tuples of form (import_name, expression_returning_version_string)
 TRACKED_DEPENDENCIES = [
-    ('PyCo', 'PyCo.__version__'),
+    ('SurfaceTopography', 'SurfaceTopography.__version__'),
+    ('ContactMechanics', 'ContactMechanics.__version__'),
+    ('NuMPI', 'NuMPI.__version__'),
+    ('muFFT', 'muFFT.version.description()'),
     ('topobank', 'topobank.__version__'),
     ('numpy', 'numpy.version.full_version')
 ]

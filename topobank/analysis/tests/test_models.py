@@ -7,6 +7,7 @@ from ..models import Analysis, AnalysisFunction
 from topobank.manager.models import Topography
 from topobank.manager.tests.utils import two_topos
 
+
 @pytest.mark.django_db
 def test_analysis_times(two_topos):
 
@@ -86,7 +87,10 @@ def test_default_function_kwargs():
 def test_current_configuration(settings):
 
     settings.TRACKED_DEPENDENCIES = [
-        ('PyCo', 'PyCo.__version__'),
+        ('SurfaceTopography', 'SurfaceTopography.__version__'),
+        ('ContactMechanics', 'ContactMechanics.__version__'),
+        ('NuMPI', 'NuMPI.__version__'),
+        ('muFFT', 'muFFT.version.description()'),
         ('topobank', 'topobank.__version__'),
         ('numpy', 'numpy.version.full_version')
     ]
@@ -98,23 +102,33 @@ def test_current_configuration(settings):
     versions = config.versions.order_by(Lower('dependency__import_name'))
     # Lower: Just to have a defined order independent from database used
 
-    assert len(versions) == 3
+    assert len(versions) == 6
 
-    v0, v1, v2 = versions
+    v0, v1, v2, v3, v4, v5 = versions
 
     import numpy
     assert v0.dependency.import_name == 'numpy'
     assert v0.number_as_string() == numpy.version.full_version
 
-    import PyCo
-    assert v1.dependency.import_name == 'PyCo'
-    assert PyCo.__version__.startswith(v1.number_as_string())
-    # startswith: in development there are often additional characters
-    #             in versio number, e.g. 0.51.0+0.g2c488bd.dirty
+    import ContactMechanics
+    assert v1.dependency.import_name == 'ContactMechanics'
+    assert v1.number_as_string() == ContactMechanics.__version__
+
+    import SurfaceTopography
+    assert v2.dependency.import_name == 'SurfaceTopography'
+    assert v2.number_as_string() == SurfaceTopography.__version__
+
+    import NuMPI
+    assert v3.dependency.import_name == 'NuMPI'
+    assert v3.number_as_string() == NuMPI.__version__
+
+    import muFFT
+    assert v4.dependency.import_name == 'muFFT'
+    assert v4.number_as_string() == muFFT.version.description()
 
     import topobank
-    assert v2.dependency.import_name == 'topobank'
-    assert v2.number_as_string() == topobank.__version__
+    assert v5.dependency.import_name == 'topobank'
+    assert v5.number_as_string() == topobank.__version__
 
 
 

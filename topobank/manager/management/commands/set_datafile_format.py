@@ -2,7 +2,7 @@ from django.core.management.base import BaseCommand
 import logging
 
 from topobank.manager.models import Topography
-from PyCo.Topography.IO import detect_format, CannotDetectFileFormat
+from SurfaceTopography.IO import detect_format, CannotDetectFileFormat
 
 _log = logging.getLogger(__name__)
 
@@ -33,9 +33,7 @@ class Command(BaseCommand):
             help='Just traverse topographies but actually do not save format into database.',
         )
 
-
     def handle(self, *args, **options):
-
 
         format_counts = { None: 0 }
         num_cannot_openend = 0  # number of files which cannot be openend

@@ -5,8 +5,8 @@ from django.db.models import Q
 from django.core.exceptions import PermissionDenied
 import markdown2
 
-from PyCo.Topography import open_topography
-from PyCo.Topography.IO import readers as pyco_readers
+from SurfaceTopography import open_topography
+from SurfaceTopography.IO import readers as surface_topography_readers
 
 import traceback
 import logging
@@ -53,7 +53,7 @@ class TopographyFileReadingException(TopographyFileException):
 
 def get_reader_infos():
     reader_infos = []
-    for reader_class in pyco_readers:
+    for reader_class in surface_topography_readers:
         # noinspection PyBroadException
         try:
             # some reader classes have no description yet
@@ -460,7 +460,7 @@ def _bandwidths_data_entry(topo):
     err_message = None
 
     try:
-        pyco_topo = topo.topography()
+        st_topo = topo.topography()  # st_: from SurfaceTopography
     except Exception:
         err_message = "Topography '{}' (id: {}) cannot be loaded unexpectedly.".format(
             topo.name, topo.id)
@@ -480,7 +480,7 @@ def _bandwidths_data_entry(topo):
         }
 
     try:
-        unit = pyco_topo.info['unit']
+        unit = st_topo.info['unit']
     except KeyError:
         unit = None
 
@@ -497,7 +497,7 @@ def _bandwidths_data_entry(topo):
 
     if err_message is None:
 
-        lower_bound, upper_bound = pyco_topo.bandwidth()
+        lower_bound, upper_bound = st_topo.bandwidth()
         # Workaround for https://github.com/pastewka/PyCo/issues/55
         if isinstance(upper_bound, tuple):
             upper_bound = upper_bound[0]

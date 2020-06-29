@@ -524,14 +524,14 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
     model = Topography
     context_object_name = 'topography'
 
-    def get_1D_plot(self, pyco_topo, topo):
+    def get_1D_plot(self, st_topo, topo):
         """Calculate 1D line plot of topography (line scan).
 
-        :param pyco_topo: PyCo Topography instance
+        :param st_topo: SurfaceTopography.Topography instance
         :param topo: TopoBank Topography instance
         :return: bokeh plot
         """
-        x, y = pyco_topo.positions_and_heights()
+        x, y = st_topo.positions_and_heights()
 
         x_range = DataRange1d(bounds='auto')
         y_range = DataRange1d(bounds='auto')
@@ -575,16 +575,16 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
 
         return plot
 
-    def get_2D_plot(self, pyco_topo, topo):
+    def get_2D_plot(self, st_topo, topo):
         """Calculate 2D image plot of topography.
 
-        :param pyco_topo: PyCo Topography instance
+        :param st_topo: SurfaceTopography.Topography instance
         :param topo: TopoBank Topography instance
         :return: bokeh plot
         """
-        heights = pyco_topo.heights()
+        heights = st_topo.heights()
 
-        topo_size = pyco_topo.physical_sizes
+        topo_size = st_topo.physical_sizes
         # x_range = DataRange1d(start=0, end=topo_size[0], bounds='auto')
         # y_range = DataRange1d(start=0, end=topo_size[1], bounds='auto')
         x_range = DataRange1d(start=0, end=topo_size[0], bounds='auto', range_padding=5)
@@ -653,7 +653,7 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
         plotted = False
 
         try:
-            pyco_topo = topo.topography()
+            st_topo = topo.topography()
             loaded = True
         except Exception as exc:
             err_message = "Topography '{}' (id: {}) cannot be loaded unexpectedly.".format(topo.name, topo.id)
@@ -666,14 +666,14 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
             errors.append(dict(message=err_message, link=link))
 
         if loaded:
-            if pyco_topo.dim == 1:
-                plot = self.get_1D_plot(pyco_topo, topo)
+            if st_topo.dim == 1:
+                plot = self.get_1D_plot(st_topo, topo)
                 plotted = True
-            elif pyco_topo.dim == 2:
-                plot = self.get_2D_plot(pyco_topo, topo)
+            elif st_topo.dim == 2:
+                plot = self.get_2D_plot(st_topo, topo)
                 plotted = True
             else:
-                err_message = f"Don't know how to display topographies with {pyco_topo.dim} dimensions."
+                err_message = f"Don't know how to display topographies with {st_topo.dim} dimensions."
                 link = mailto_link_for_reporting_an_error(f"Invalid dimensions for topography (id: {topo.id})",
                                                           "Image plot for topography",
                                                           err_message,

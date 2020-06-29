@@ -2,7 +2,7 @@ import numpy as np
 import math
 import pytest
 
-from PyCo.Topography import Topography, NonuniformLineScan
+from SurfaceTopography import Topography, NonuniformLineScan
 
 from topobank.analysis.functions import (
     IncompatibleTopographyException,

@@ -12,8 +12,9 @@ from bootstrap_datepicker_plus import DatePickerInput
 
 import logging
 
-from PyCo.Topography.IO.Reader import CannotDetectFileFormat, CorruptFile, UnknownFileFormatGiven, ReadFileError
-import PyCo.Topography.IO
+from SurfaceTopography.IO.Reader import CannotDetectFileFormat, CorruptFile, UnknownFileFormatGiven, ReadFileError
+# from PyCo.Topography.IO.Reader import CannotDetectFileFormat, CorruptFile, UnknownFileFormatGiven, ReadFileError
+from SurfaceTopography.IO import detect_format as surface_topography_detect_format
 
 from topobank.manager.utils import get_topography_reader
 from .models import Topography, Surface, MAX_LENGTH_DATAFILE_FORMAT
@@ -61,7 +62,6 @@ class TopographyFileUploadForm(forms.ModelForm):
         ASTERISK_HELP_HTML
     )
 
-
     def clean(self):
         cleaned_data = super().clean()
 
@@ -76,7 +76,7 @@ class TopographyFileUploadForm(forms.ModelForm):
         try:
             if hasattr(datafile, 'seek'):
                 datafile.seek(0)  # rewind
-            datafile_format =  PyCo.Topography.IO.detect_format(datafile)
+            datafile_format = surface_topography_detect_format(datafile)
             # absolute import is used here because of making detect_format in a test
             # TODO replace detect_format with reader.format, when available in PyCo
         except CannotDetectFileFormat as exc:

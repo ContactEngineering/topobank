@@ -10,7 +10,7 @@ import tempfile, openpyxl
 
 from django.urls import reverse
 
-import PyCo
+import SurfaceTopography, ContactMechanics, muFFT, NuMPI
 
 from ..models import Analysis, AnalysisFunction
 from topobank.manager.tests.utils import two_topos  # needed for fixture, see arguments below
@@ -388,8 +388,9 @@ def ids_downloadable_analyses(two_topos):
 
     return ids
 
+
 @pytest.mark.django_db
-def test_analyis_download_as_txt(client, two_topos, ids_downloadable_analyses, settings):
+def test_analysis_download_as_txt(client, two_topos, ids_downloadable_analyses, settings):
 
     username = 'testuser'
     password = 'abcd$1234'
@@ -408,8 +409,12 @@ def test_analyis_download_as_txt(client, two_topos, ids_downloadable_analyses, s
     assert "Test Function" in txt # function name should be in there
 
     # check whether version numbers are in there
-    assert PyCo.__version__.split('+')[0] in txt
+    assert SurfaceTopography.__version__.split('+')[0] in txt
+    assert ContactMechanics.__version__ in txt
+    assert NumPi.__version__ in txt
+    assert muFFT.version.description() in txt
     assert settings.TOPOBANK_VERSION in txt
+
 
     # check whether creator of topography is listed
     topo1, topo2 = two_topos
@@ -455,9 +460,10 @@ def test_analyis_download_as_txt(client, two_topos, ids_downloadable_analyses, s
 
     assert arr == pytest.approx(expected_arr)
 
+
 @pytest.mark.parametrize("same_names", [ False, True])
 @pytest.mark.django_db
-def test_analyis_download_as_xlsx(client, two_topos, ids_downloadable_analyses, same_names, settings):
+def test_analysis_download_as_xlsx(client, two_topos, ids_downloadable_analyses, same_names, settings):
 
     topos = Topography.objects.all()
     assert len(topos) == 2
@@ -544,8 +550,15 @@ def test_analyis_download_as_xlsx(client, two_topos, ids_downloadable_analyses, 
     ws = xlsx.get_sheet_by_name("INFORMATION")
 
     vals = list(ws.values)
-    assert ("Version of 'PyCo'", PyCo.__version__.split('+')[0]) in vals
-    assert ("Version of 'topobank'", settings.TOPOBANK_VERSION) in vals
+
+    def assert_version_in_vals(modname, version):
+        assert (f"Version of '{modname}'", version) in vals
+
+    assert_version_in_vals('SurfaceTopography', SurfaceTopography.__version__.split('+')[0])
+    assert_version_in_vals('ContactMechanics', ContactMechanics.__version__)
+    assert_version_in_vals('NuMPI', ContactMechanics.__version__)
+    assert_version_in_vals('muFFT', muFFT.version.description())
+    assert_version_in_vals('topobank', settings.TOPOBANK_VERSION)
 
     # topography names should also be included, as well as the creator
     for t in topos:
@@ -554,7 +567,8 @@ def test_analyis_download_as_xlsx(client, two_topos, ids_downloadable_analyses, 
 
 
 @pytest.mark.django_db
-def test_analyis_download_as_xlsx_despite_slash_in_sheetname(client, two_topos, ids_downloadable_analyses, django_user_model):
+def test_analysis_download_as_xlsx_despite_slash_in_sheetname(client, two_topos, ids_downloadable_analyses,
+                                                              django_user_model):
 
     topos = Topography.objects.all()
     assert len(topos) == 2

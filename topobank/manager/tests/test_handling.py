@@ -292,10 +292,11 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
     assert t.datafile_format == exp_datafile_format
 
     #
-    # Also check some properties of the PyCo Topography
+    # Also check some properties of the SurfaceTopography.Topography
     #
-    pyco_t = t.topography()
-    assert pyco_t.physical_sizes == exp_physical_sizes
+    st_topo = t.topography()
+    assert st_topo.physical_sizes == exp_physical_sizes
+
 
 @pytest.mark.django_db
 def test_upload_topography_and_name_like_an_exisiting_for_same_surface(client):
@@ -388,13 +389,13 @@ def test_trying_upload_of_topography_file_with_unkown_format(client, django_user
 @pytest.mark.django_db
 def test_trying_upload_of_topography_file_with_too_long_format_name(client, django_user_model, mocker):
 
-    import PyCo.Topography.IO
+    import SurfaceTopography.IO
 
-    m = mocker.patch('PyCo.Topography.IO.detect_format')
+    m = mocker.patch('SurfaceTopography.IO.detect_format')
     m.return_value='a'*(MAX_LENGTH_DATAFILE_FORMAT+1)
     # this special detect_format function returns a format which is too long
     # this should result in an error message
-    assert PyCo.Topography.IO.detect_format("does_not_matter_what_we_pass_here") == 'a'*(MAX_LENGTH_DATAFILE_FORMAT+1)
+    assert SurfaceTopography.IO.detect_format("does_not_matter_what_we_pass_here") == 'a'*(MAX_LENGTH_DATAFILE_FORMAT+1)
 
     input_file_path = Path(FIXTURE_DIR + '/example3.di')
 
