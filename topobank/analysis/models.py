@@ -8,7 +8,6 @@ from topobank.users.models import User
 import topobank.analysis.functions as functions_module
 
 
-
 def _get_default_args(func):
     # thanks to mgilson, his answer on SO:
     # https://stackoverflow.com/questions/12627118/get-a-function-arguments-default-value#12627202
@@ -29,6 +28,7 @@ class Dependency(models.Model):
 
     def __str__(self):
         return self.import_name
+
 
 class Version(models.Model):
     """
@@ -58,7 +58,6 @@ class Version(models.Model):
 
     def __str__(self):
         return f"{self.dependency} {self.number_as_string()}"
-
 
 
 class Configuration(models.Model):
@@ -158,7 +157,6 @@ class AnalysisFunction(models.Model):
         """
         return self.python_function(*args, **kwargs)
 
-
     def get_default_kwargs(self, include_system_kwargs=False):
         """
 
@@ -184,6 +182,7 @@ class AnalysisFunction(models.Model):
     def card_view_flavor(self):
         return self.python_function.card_view_flavor
 
+
 class AnalysisCollection(models.Model):
     name = models.CharField(max_length=160)
     owner = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -195,6 +194,3 @@ class AnalysisCollection(models.Model):
     # We have a manytomany field, because an analysis could be part of multiple collections.
     # This happens e.g. if the user presses "recalculate" several times and
     # one analysis becomes part in each of these requests.
-
-
-
