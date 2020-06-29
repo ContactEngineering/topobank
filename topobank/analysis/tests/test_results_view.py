@@ -411,7 +411,7 @@ def test_analysis_download_as_txt(client, two_topos, ids_downloadable_analyses, 
     # check whether version numbers are in there
     assert SurfaceTopography.__version__.split('+')[0] in txt
     assert ContactMechanics.__version__ in txt
-    assert NumPi.__version__ in txt
+    assert NuMPI.__version__ in txt
     assert muFFT.version.description() in txt
     assert settings.TOPOBANK_VERSION in txt
 
@@ -556,7 +556,7 @@ def test_analysis_download_as_xlsx(client, two_topos, ids_downloadable_analyses,
 
     assert_version_in_vals('SurfaceTopography', SurfaceTopography.__version__.split('+')[0])
     assert_version_in_vals('ContactMechanics', ContactMechanics.__version__)
-    assert_version_in_vals('NuMPI', ContactMechanics.__version__)
+    assert_version_in_vals('NuMPI', NuMPI.__version__)
     assert_version_in_vals('muFFT', muFFT.version.description())
     assert_version_in_vals('topobank', settings.TOPOBANK_VERSION)
 

@@ -106,25 +106,26 @@ def test_current_configuration(settings):
 
     v0, v1, v2, v3, v4, v5 = versions
 
-    import numpy
-    assert v0.dependency.import_name == 'numpy'
-    assert v0.number_as_string() == numpy.version.full_version
 
     import ContactMechanics
-    assert v1.dependency.import_name == 'ContactMechanics'
-    assert v1.number_as_string() == ContactMechanics.__version__
-
-    import SurfaceTopography
-    assert v2.dependency.import_name == 'SurfaceTopography'
-    assert v2.number_as_string() == SurfaceTopography.__version__
-
-    import NuMPI
-    assert v3.dependency.import_name == 'NuMPI'
-    assert v3.number_as_string() == NuMPI.__version__
+    assert v0.dependency.import_name == 'ContactMechanics'
+    assert v0.number_as_string() == ContactMechanics.__version__
 
     import muFFT
-    assert v4.dependency.import_name == 'muFFT'
-    assert v4.number_as_string() == muFFT.version.description()
+    assert v1.dependency.import_name == 'muFFT'
+    assert v1.number_as_string() == muFFT.version.description()
+
+    import NuMPI
+    assert v2.dependency.import_name == 'NuMPI'
+    assert v2.number_as_string() == NuMPI.__version__
+
+    import numpy
+    assert v3.dependency.import_name == 'numpy'
+    assert v3.number_as_string() == numpy.version.full_version
+
+    import SurfaceTopography
+    assert v4.dependency.import_name == 'SurfaceTopography'
+    assert v4.number_as_string() == SurfaceTopography.__version__
 
     import topobank
     assert v5.dependency.import_name == 'topobank'

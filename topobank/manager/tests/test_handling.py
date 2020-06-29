@@ -13,6 +13,7 @@ from ..forms import TopographyForm, TopographyWizardUnitsForm
 from topobank.utils import assert_in_content, \
     assert_redirects, assert_no_form_errors, assert_form_error
 
+import SurfaceTopography.IO  # for mocking
 
 #######################################################################
 # Selections
@@ -348,10 +349,12 @@ def test_upload_topography_and_name_like_an_exisiting_for_same_surface(client):
     assert response.status_code == 200
     assert_form_error(response, "A topography with same name 'TOPO' already exists for same surface", 'name')
 
-@pytest.mark.django_db
-def test_trying_upload_of_topography_file_with_unkown_format(client, django_user_model):
 
-    input_file_path = Path(FIXTURE_DIR + '/../views.py') # this is nonsense and cannot be interpreted
+@pytest.mark.skip("Skipped, waiting for clarification of https://github.com/ComputationalMechanics/SurfaceTopography/issues/14")
+@pytest.mark.django_db
+def test_trying_upload_of_topography_file_with_unknown_format(client, django_user_model):
+
+    input_file_path = Path(FIXTURE_DIR+"/../../static/js/project.js")  # this is nonsense
 
     username = 'testuser'
     password = 'abcd$1234'
@@ -362,11 +365,11 @@ def test_trying_upload_of_topography_file_with_unkown_format(client, django_user
 
     # first create a surface
     response = client.post(reverse('manager:surface-create'),
-                               data={
-                                'name': 'surface1',
-                                'creator': user.id,
-                                'category': 'dum',
-                               }, follow=True)
+                           data={
+                            'name': 'surface1',
+                            'creator': user.id,
+                            'category': 'dum',
+                           }, follow=True)
     assert response.status_code == 200
 
     surface = Surface.objects.get(name='surface1')
@@ -386,16 +389,19 @@ def test_trying_upload_of_topography_file_with_unkown_format(client, django_user
     assert response.status_code == 200
     assert_form_error(response, 'Cannot determine file format')
 
+
 @pytest.mark.django_db
 def test_trying_upload_of_topography_file_with_too_long_format_name(client, django_user_model, mocker):
 
     import SurfaceTopography.IO
 
-    m = mocker.patch('SurfaceTopography.IO.detect_format')
-    m.return_value='a'*(MAX_LENGTH_DATAFILE_FORMAT+1)
+    too_long_datafile_format = 'a'*(MAX_LENGTH_DATAFILE_FORMAT+1)
+
+    m = mocker.patch('SurfaceTopography.IO.DIReader.format')
+    m.return_value = too_long_datafile_format
     # this special detect_format function returns a format which is too long
     # this should result in an error message
-    assert SurfaceTopography.IO.detect_format("does_not_matter_what_we_pass_here") == 'a'*(MAX_LENGTH_DATAFILE_FORMAT+1)
+    assert SurfaceTopography.IO.DIReader.format() == too_long_datafile_format
 
     input_file_path = Path(FIXTURE_DIR + '/example3.di')
 
