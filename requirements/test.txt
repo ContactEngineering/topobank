@@ -87,6 +87,7 @@ py==1.8.0                 # via pytest
 pycodestyle==2.5.0        # via flake8
 pycparser==2.19
 pyflakes==2.1.1           # via flake8
+pygments==2.6.1
 pylibmc==1.6.1
 pyparsing==2.4.2
 pytest-base-url==1.4.1    # via pytest-selenium
