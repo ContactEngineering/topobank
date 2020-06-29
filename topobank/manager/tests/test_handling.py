@@ -46,7 +46,7 @@ def test_empty_surface_selection(client):
 #######################################################################
 
 #
-# Different formats are handled by PyCo
+# Different formats are handled by SurfaceTopography
 # and should be tested there in general, but
 # we add some tests for formats which had problems because
 # of the topobank code

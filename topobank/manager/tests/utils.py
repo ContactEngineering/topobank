@@ -151,7 +151,7 @@ def topography_loaded_from_broken_file():
     topo = TopographyFactory()
 
     from django.core.files.base import ContentFile
-    new_content = ContentFile('\x00')  # some nonsense which cannot be interpreted by PyCo
+    new_content = ContentFile('\x00')  # some nonsense which cannot be interpreted by module "SurfaceTopography"
     fname = topo.datafile.name
     topo.datafile.save(fname, new_content)
 

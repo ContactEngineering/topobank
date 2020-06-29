@@ -69,7 +69,7 @@ def get_reader_infos():
 
 
 def get_topography_reader(filefield, format=None):
-    """Returns PyCo.Topography.IO.ReaderBase object.
+    """Returns SurfaceTopography.IO.ReaderBase object.
 
     Parameters
     ----------
@@ -84,7 +84,7 @@ def get_topography_reader(filefield, format=None):
     -------
         Instance of a `ReaderBase` subclass according to the format.
     """
-    # Workaround such that PyCo recognizes this a binary stream
+    # Workaround such that SurfaceTopography module recognizes this a binary stream
     if not hasattr(filefield, 'mode'):
         filefield.mode = 'rb'
     if hasattr(filefield.file, 'seek'):

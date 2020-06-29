@@ -21,7 +21,7 @@ def _get_default_args(func):
 
 
 class Dependency(models.Model):
-    """A dependency of analysis results, e.g. "PyCo", "topobank"
+    """A dependency of analysis results, e.g. "SurfaceTopography", "topobank"
     """
     # this is used with "import":
     import_name = models.CharField(max_length=30, unique=True)
@@ -64,8 +64,6 @@ class Configuration(models.Model):
     """For keeping track which versions were used for an analysis.
     """
     valid_since = models.DateTimeField(auto_now_add=True)
-    # pyco_version = models.CharField(max_length=20, help_text="PyCo version.")
-
     versions = models.ManyToManyField(Version)
 
     def __str__(self):

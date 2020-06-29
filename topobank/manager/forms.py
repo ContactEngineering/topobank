@@ -13,8 +13,6 @@ from bootstrap_datepicker_plus import DatePickerInput
 import logging
 
 from SurfaceTopography.IO.Reader import CannotDetectFileFormat, CorruptFile, UnknownFileFormatGiven, ReadFileError
-# from PyCo.Topography.IO.Reader import CannotDetectFileFormat, CorruptFile, UnknownFileFormatGiven, ReadFileError
-from SurfaceTopography.IO import detect_format as surface_topography_detect_format
 
 from topobank.manager.utils import get_topography_reader
 from .models import Topography, Surface, MAX_LENGTH_DATAFILE_FORMAT

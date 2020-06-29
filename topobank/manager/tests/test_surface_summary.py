@@ -32,7 +32,7 @@ def two_topos_mock(mocker):
     ]
 
     # for bandwidths_data():
-    #   needed from PyCo's Topography: pixel_size, size
+    #   needed from SurfaceTopography.Topography: pixel_size, size
     #   needed from TopoBank's Topography: name, pk
 
     topos = [Topography(name='topoB', pk=2), Topography(name='topoA', pk=1)]
@@ -70,7 +70,7 @@ def test_bandwidth_error_message_in_dict_when_problems_while_loading(topography_
     #
     # Theoretically loading of a topography can fail during
     # creation of the bandwidth plot, although it worked before.
-    # This can happen e.g. because of an update of the PyCo lib
+    # This can happen e.g. because of an update of the SurfaceTopography package
     # which may introduce new errors.
     # In this case the bandwidths_data function should return entries with errors.
     #
@@ -101,7 +101,7 @@ def test_bandwidth_error_message_in_UI_when_problems_while_loading(client, topog
     #
     # Theoretically loading of a topography can fail during
     # creation of the bandwidth plot, although it worked before.
-    # This can happen e.g. because of an update of the PyCo lib
+    # This can happen e.g. because of an update of the SurfaceTopography package
     # which may introduce new errors.
     # In this case the user should see an error message in the UI.
     #

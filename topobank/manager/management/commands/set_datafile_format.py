@@ -47,7 +47,7 @@ class Command(BaseCommand):
             if topo.datafile_format is None:
                 try:
                     datafile = topo.datafile
-                    # Workaround such that PyCo recognizes this a binary stream
+                    # Workaround such that module "SurfaceTopography" recognizes this a binary stream
                     if not hasattr(datafile, 'mode'):
                         datafile.mode = 'rb'
                     datafile_format = detect_format(datafile)

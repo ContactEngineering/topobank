@@ -191,7 +191,7 @@ class Topography(models.Model):
         return f"topography-{self.id}-channel-{self.data_source}"
 
     def topography(self):
-        """Return a PyCo Topography/Line Scan instance.
+        """Return a SurfaceTopography.Topography/UniformLineScan/NonuniformLineScan instance.
 
         This instance is guaranteed to
 
@@ -224,14 +224,14 @@ class Topography(models.Model):
                 # Adjust height scale to value chosen by user
                 topography_kwargs['height_scale_factor'] = self.height_scale
 
-                # from PyCo docstring:
+                # from SurfaceTopography.read_topography's docstring:
                 #
                 # height_scale_factor : float
                 #    Override height scale factor found in the data file.
                 #
                 # So default is to use the factor from the file.
 
-            # Eventually get PyCo topography using the given keywords
+            # Eventually get topography from module "SurfaceTopography" using the given keywords
             topo = toporeader.topography(**topography_kwargs)
             topo = topo.detrend(detrend_mode=self.detrend_mode, info=dict(unit=self.unit))
 
