@@ -61,7 +61,7 @@ def get_reader_infos():
         except Exception:
             descr = "*description not yet available*"
 
-        descr = markdown2.markdown(descr)
+        descr = markdown2.markdown(descr, extras=['fenced-code-blocks'])
 
         reader_infos.append((reader_class.name(), reader_class.format(), descr))
 
