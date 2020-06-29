@@ -3,13 +3,12 @@ FROM continuumio/miniconda3
 #FROM python:3.7-alpine
 
 ENV PYTHONUNBUFFERED 1
-ARG PYCO_VERSION=0.56.0
 
 #
 # System dependencies for Python + Django
 #
 RUN apt-get update \
-  && apt-get install --yes libfftw3-3 libfftw3-dev gcc g++ gettext \
+  && apt-get install --yes libfftw3-3 libfftw3-dev libopenblas-dev gcc g++ gettext \
   # Pillow requirements
   && apt-get install --yes libjpeg-dev zlib1g-dev libfreetype6-dev \
      liblcms2-dev libtiff-dev tk-dev tcl-dev librabbitmq-dev \
@@ -21,19 +20,6 @@ RUN apt-get update \
 
 # clean up image
 RUN apt-get -qy autoremove
-
-#
-# Installation of PyCo + dependencies
-#
-# Copy PyCo source code into container, uncompress
-COPY PyCo-${PYCO_VERSION}.tar.gz .
-RUN tar xfvz PyCo-${PYCO_VERSION}.tar.gz
-
-# install PyCo
-WORKDIR PyCo-${PYCO_VERSION}
-
-# workaround for typo in requiremnts.txt
-RUN sed -i "s/#egg=muff$/#egg=mufft/g" requirements.txt
 
 RUN pip install wheel
 RUN pip install -r requirements.txt

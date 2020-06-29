@@ -64,14 +64,10 @@ celery-progress
 #
 # Contact Mechanics
 #
-# http://github.com/pastewka/PyCo/archive/0.30.0.tar.gz
-# git+https://github.com/pastewka/PyCo/releases/tag/0.30.0
-#git+ssh://git@github.com/pastewka/PyCo.git@0.30.0#egg=PyCo
-#-e git+http://git@github.com/pastewka/PyCo.git@0.30.0#egg=PyCo
-#git+http://git@github.com/scipy/scipy/releases/download/v1.2.1/scipy-1.2.1-cp37-cp37m-manylinux1_x86_64.whl
-# PyCo==0.51.1
-#### As long as we can't install PyCo by pip, install manually (for development)
-#### of copy the .tar.gz file to source root directory for use with Docker. Also see Dockerfile(s).
+NuMPqI>=0.1.2
+muFFT>=0.9.3
+SurfaceTopography>=0.90.0
+ContactMechanics>=0.90.0
 
 # plotting
 bokeh
@@ -114,4 +110,4 @@ markdown2>=2.3.9
 django-bootstrap-datepicker-plus
 
 # fix muspectre version because of a bug/incompatibility in later versions
-git+https://gitlab.com/muspectre/muspectre.git@654a508babf97564c3e3144ca11686431fe45c39#egg=mufft
+# git+https://gitlab.com/muspectre/muspectre.git@654a508babf97564c3e3144ca11686431fe45c39#egg=mufft

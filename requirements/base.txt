@@ -19,6 +19,7 @@ certifi==2019.6.16        # via requests
 cffi==1.12.3              # via argon2-cffi
 cftime==1.0.3.4           # via netcdf4
 chardet==3.0.4            # via requests
+contactmechanics==0.90.0
 coreapi==2.3.3
 coreschema==0.0.4         # via coreapi
 defusedxml==0.6.0         # via python3-openid
@@ -58,9 +59,10 @@ kombu==4.6.4              # via celery
 markdown2==2.3.9
 markupsafe==1.1.1         # via jinja2
 more-itertools==7.2.0     # via zipp
-git+https://gitlab.com/muspectre/muspectre.git@654a508babf97564c3e3144ca11686431fe45c39#egg=mufft
+mufft==0.9.3
 netcdf4==1.5.1.2
-numpy==1.17.1             # via bokeh, cftime, h5py, netcdf4, pandas, xarray
+numpi==0.1.2
+numpy==1.17.1             # via bokeh, cftime, contactmechanics, h5py, mufft, netcdf4, numpi, pandas, scipy, surfacetopography, xarray
 oauthlib==3.1.0           # via requests-oauthlib
 openpyxl==2.6.3
 packaging==19.1           # via bokeh
@@ -78,8 +80,10 @@ pyyaml==5.1.2             # via bokeh, django-fontawesome
 requests-oauthlib==1.2.0  # via django-allauth
 requests==2.22.0          # via coreapi, django-allauth, requests-oauthlib
 s3transfer==0.2.1         # via boto3
+scipy==1.5.0              # via numpi
 six==1.12.0               # via argon2-cffi, bokeh, django-appconf, h5py, packaging, python-dateutil
 sqlparse==0.3.0           # via django
+surfacetopography==0.90.0
 text-unidecode==1.2       # via python-slugify
 tornado==5.1.1            # via bokeh, celery-flower
 uritemplate==3.0.0        # via coreapi
