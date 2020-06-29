@@ -8,6 +8,7 @@ ENV PYTHONUNBUFFERED 1
 # System dependencies for Python + Django
 #
 RUN apt-get update \
+  && apt-get install --yes apt-utils \
   && apt-get install --yes libfftw3-3 libfftw3-dev libopenblas-dev libpq-dev gcc g++ gettext \
   # Pillow requirements
   && apt-get install --yes libjpeg-dev zlib1g-dev libfreetype6-dev liblcms2-dev libtiff-dev tk-dev tcl-dev librabbitmq-dev
@@ -24,14 +25,6 @@ RUN addgroup django \
 # celeryworker should not run as root, refuses to work
 #
 # TODO use --disabled-login ??
-
-
-# install additional PyCo dependencies
-RUN pip install wheel
-RUN pip install -r requirements.txt
-
-# install PyCo itself
-RUN pip install .
 
 #
 # Install requirements for TopoBank

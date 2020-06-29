@@ -8,6 +8,7 @@ ENV PYTHONUNBUFFERED 1
 # System dependencies for Python + Django
 #
 RUN apt-get update \
+  && apt-get install --yes apt-utils \
   && apt-get install --yes libfftw3-3 libfftw3-dev libopenblas-dev gcc g++ gettext \
   # Pillow requirements
   && apt-get install --yes libjpeg-dev zlib1g-dev libfreetype6-dev \
@@ -20,10 +21,6 @@ RUN apt-get update \
 
 # clean up image
 RUN apt-get -qy autoremove
-
-RUN pip install wheel
-RUN pip install -r requirements.txt
-RUN pip install .
 
 #
 # Install requirements for TopoBank
