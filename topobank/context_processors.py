@@ -7,23 +7,33 @@ import json
 import bokeh
 import celery
 
-import PyCo
+import SurfaceTopography, ContactMechanics, NuMPI, muFFT
 
 from topobank.manager.utils import current_selection_as_basket_items
 
 UNSELECT_ALL_URL = reverse('manager:unselect-all')
 
+
 def versions_processor(request):
 
     # key 'links': dicts with keys display_name:url
-
     versions = [
         dict(module='TopoBank',
              version=settings.TOPOBANK_VERSION,
-             links={'Changelog': static('other/CHANGELOG.md')}), # needs 'manage.py collectstatic' before!
-        dict(module='PyCo',
-             version=PyCo.__version__,
-             links={}),
+             links={'Website':'https://github.com/ComputationalMechanics/TopoBank',
+                    'Changelog': static('other/CHANGELOG.md')}), # needs 'manage.py collectstatic' before!
+        dict(module='SurfaceTopography',
+             version=SurfaceTopography.__version__,
+             links={'Website': 'https://github.com/ComputationalMechanics/SurfaceTopography'}),
+        dict(module='ContactMechanics',
+             version=ContactMechanics.__version__,
+             links={'Website': 'https://github.com/ComputationalMechanics/ContactMechanics'}),
+        dict(module='NuMPI',
+             version=NuMPI.__version__,
+             links={'Website': 'https://github.com/IMTEK-Simulation/NuMPI'}),
+        dict(module='muFFT',
+             version=muFFT.version.description(),
+             links={'Website': 'https://gitlab.com/muspectre/muspectre'}),
         dict(module='Django',
              version=django.__version__,
              links={'Website': 'https://www.djangoproject.com/'}),

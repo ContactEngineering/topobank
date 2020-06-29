@@ -257,6 +257,7 @@
                     <td>
                       {% for name,href in v.links.items %}
                         <a href="{{ href }}">{{ name }}</a>
+                        {% if not forloop.last %},{% endif %}
                       {% endfor %}
                     </td>
                   </tr>
