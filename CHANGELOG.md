@@ -1,5 +1,10 @@
 # Changelog for *TopoBank*
 
+## 0.9.0 (not published yet)
+
+- adjusted dependencies to new repositories
+  resulting from splitting of PyCo package (#475)
+
 ## 0.8.3 (2020-06-26)
 
 - fix: added missing migration for ordering of topographies 
