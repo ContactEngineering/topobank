@@ -47,8 +47,9 @@ docutils==0.15.2          # via botocore
 et-xmlfile==1.0.1         # via openpyxl
 future==0.17.1
 h5netcdf==0.7.4
-h5py==2.9.0               # via h5netcdf
+h5py==2.9.0               # via h5netcdf, surfacetopography
 idna==2.8                 # via requests
+igor==0.3                 # via surfacetopography
 importlib-metadata==0.20  # via kombu
 itypes==1.1.0             # via coreapi
 jdcal==1.4.1              # via openpyxl
@@ -84,7 +85,7 @@ s3transfer==0.2.1         # via boto3
 scipy==1.5.0              # via numpi
 six==1.12.0               # via argon2-cffi, bokeh, django-appconf, h5py, packaging, python-dateutil
 sqlparse==0.3.0           # via django
-surfacetopography==0.90.0
+surfacetopography==0.91.0
 text-unidecode==1.2       # via python-slugify
 tornado==5.1.1            # via bokeh, celery-flower
 uritemplate==3.0.0        # via coreapi

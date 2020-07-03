@@ -52,6 +52,7 @@ gunicorn[gevent]==20.0.4
 h5netcdf==0.7.4
 h5py==2.9.0
 idna==2.8
+igor==0.3
 importlib-metadata==0.20
 itypes==1.1.0
 jdcal==1.4.1
@@ -89,7 +90,7 @@ s3transfer==0.2.1
 scipy==1.5.0
 six==1.12.0
 sqlparse==0.3.0
-surfacetopography==0.90.0
+surfacetopography==0.91.0
 text-unidecode==1.2
 tornado==5.1.1
 uritemplate==3.0.0
@@ -100,4 +101,4 @@ xarray==0.12.3
 zipp==0.6.0
 
 # The following packages are considered to be unsafe in a requirements file:
-# setuptools==47.3.1        # via gunicorn
+# setuptools==47.3.2        # via gunicorn
