@@ -29,6 +29,7 @@ def test_analysis_times(two_topos):
 
     assert analysis.get_kwargs_display() == str({'bins':2, 'mode': 'test'})
 
+
 # @pytest.mark.skip("Cannot run startup code which modifies the database so far.")
 @pytest.mark.django_db
 def test_autoload_analysis_functions():

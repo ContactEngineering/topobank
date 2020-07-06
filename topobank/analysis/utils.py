@@ -179,7 +179,6 @@ def submit_analysis(users, analysis_func, topography, pickled_pyfunc_kwargs=None
     return analysis
 
 
-
 def get_latest_analyses(user, function_id, topography_ids):
     """Get latest analyses for given function and topographies and user.
 

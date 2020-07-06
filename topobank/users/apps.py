@@ -9,9 +9,6 @@ class UsersAppConfig(AppConfig):
             Users system checks
             Users signal registration
         """
-        try:
-            import users.signals  # noqa F401
-        except ImportError:
-            pass
+        import topobank.users.signals
 
 

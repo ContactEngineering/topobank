@@ -1,0 +1,15 @@
+language: python
+cache: pip
+env:
+  - USE_DOCKER=no DJANGO_SETTINGS_MODULE=config.settings.test
+python:
+  - 3.7
+install:
+  - sudo apt-get install libfftw3-dev libopenblas-dev
+  - pip install -q -r requirements/test.txt
+script:
+  - pytest -v -v -v
+notifications:
+  email:
+    - roettger@tf.uni-freiburg.de
+    - lars.pastewka@imtek.uni-freiburg.de
