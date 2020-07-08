@@ -3,12 +3,13 @@ from django.shortcuts import reverse
 from django.core.cache import cache
 from django.db import transaction
 
-from guardian.shortcuts import assign_perm, remove_perm
+from guardian.shortcuts import assign_perm, remove_perm, get_users_with_perms
 import tagulous.models as tm
 
 from .utils import get_topography_reader
 
 from topobank.users.models import User
+from topobank.users.utils import get_default_group
 
 import logging
 _log = logging.getLogger(__name__)
@@ -115,18 +116,18 @@ class Surface(models.Model):
         Afterwards, everyone can read the surface (also anonymous users)
         but nobody can change or delete the surface anymore.
         """
-
         #
-        # Unshare surface, if shared
+        # Remove edit, share and delete permission from everyone
         #
-
-        #
-        # Remove edit and delete permission from everyone
-        #
+        users = get_users_with_perms(self)
+        for u in users:
+            for perm in ['share_surface', 'change_surface', 'delete_surface']:
+                remove_perm(perm, u, self)
 
         #
         # Add read permission for everyone
         #
+        assign_perm('view_surface', get_default_group(), self)
 
         #
         # Set published flag

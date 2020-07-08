@@ -1,5 +1,5 @@
-
 from allauth.account.signals import user_signed_up, user_logged_in
+from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.contrib.staticfiles.storage import staticfiles_storage
 from django.core.files import File
@@ -13,6 +13,14 @@ import os.path
 import yaml
 
 from topobank.manager.models import Surface, Topography
+from .models import User
+from .utils import get_default_group
+
+
+@receiver(post_save, sender=User)
+def add_to_default_group(sender, instance, created, **kwargs):
+    if created:
+        instance.groups.add(get_default_group())
 
 
 @receiver(user_signed_up)

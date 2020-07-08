@@ -10,6 +10,7 @@ from guardian.shortcuts import get_objects_for_user
 
 import os
 
+DEFAULT_GROUP_NAME = 'all'
 
 class ORCIDException(Exception):
     pass
