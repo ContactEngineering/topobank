@@ -42,7 +42,10 @@ The user interface for version 0.9.0 should be extended by these elements:
 - Before publishing the user is asked if he's really sure, or if he want to cancel and double-check.
 - Besides the "sharing tab", every user has also a "published" tab (icon: "bullhorn") which lists the
   data sets published by this user, similar as in the sharing tab
-- When looking at the properties of a shared surface, there is no "Edit" or "Delete" button for everyone
+- Properties: When looking at the properties of a shared surface, there is no "Edit" or "Delete" button for everyone
+- Properties: There is a badge showing "published" for the owner and "published by ..." for anyone else
+- Properties: The permissions also lists "Everyone" with "read" access, it is the only line here.
+  Also link to "published" tab if published items are listed.
 - On the "Select" tab, the published surfaces are listed as well; there is another filter option
   "Only published surfaces". The filter option "Only surfaces shared with me" may be changed to
   "Only surface shared with me explicitly"
