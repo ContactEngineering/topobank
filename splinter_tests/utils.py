@@ -89,6 +89,11 @@ def select_tree_mode(browser, mode):
     assert browser.is_text_present('top level tags', wait_time=1)
 
 
+def goto_publications_page(browser):
+    link = browser.find_link_by_partial_href('publications')
+    link.click()
+
+
 def goto_sharing_page(browser):
     link = browser.find_link_by_partial_href('sharing')
     link.click()
