@@ -1,6 +1,9 @@
 Publishing Data
 ===============
 
+Publishing is a non-reversible action which gives all users of the application
+read access to a surface.
+
 Comparison with Sharing
 -----------------------
 
@@ -51,6 +54,7 @@ The user interface for version 0.9.0 should be extended by these elements:
   "Only surface shared with me explicitly"
 - When downloading a published surface, a license file should be included.
 - When downloading analysis of a published surface, a license file should be included.
+- The help page should explain sharing and publishing.
 
 
 Implementation in Backend
@@ -61,8 +65,13 @@ Every user is member of the group "all". When publishing, the group "all" is gra
 Additionally, the surface gets a "published" flag in the database.
 
 
+Outlook
+-------
 
+An anonymous user should also be able to view a published surface without log in.
 
+Later this could be extended by automatically registering a DOI with this surface.
+Then the URL for this DOI should point into this application.
 
 
 
