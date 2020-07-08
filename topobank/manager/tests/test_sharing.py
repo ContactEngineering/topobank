@@ -68,6 +68,7 @@ def test_individual_read_access_permissions(client, django_user_model):
 
     client.logout()
 
+
 @pytest.mark.django_db
 def test_list_surface_permissions(client):
 
@@ -178,6 +179,7 @@ def test_appearance_buttons_based_on_permissions(client):
     assert_in_content(response, topo_update_url)
     assert_in_content(response, topo_delete_url)
 
+
 def _parse_html_table(table):
     """Return list of lists with cell texts.
 
@@ -200,6 +202,7 @@ def _parse_html_table(table):
 
     return data
 
+
 @pytest.mark.django_db
 def test_link_for_sharing_info(client):
     password = "secret"
@@ -210,6 +213,7 @@ def test_link_for_sharing_info(client):
 
     assert response.status_code == 200
     assert_in_content(response, reverse('manager:sharing-info'))
+
 
 @pytest.mark.django_db
 def test_sharing_info_table(client):
@@ -399,6 +403,7 @@ def test_sharing_info_table(client):
     assert Notification.objects.filter(unread=True, recipient=user3, verb='unshare').count() == 1
     assert Notification.objects.filter(unread=True, recipient=user2, verb='allow change').count() == 1
 
+
 @pytest.mark.django_db
 def test_share_surface_through_UI(client):
 
@@ -447,6 +452,7 @@ def test_share_surface_through_UI(client):
     assert Notification.objects.filter(recipient=user2, verb='allow change',
                                        description__contains=surface.name).count() == 1
 
+
 @pytest.mark.django_db
 def test_notification_when_deleting_shared_stuff(client):
 
@@ -480,6 +486,7 @@ def test_notification_when_deleting_shared_stuff(client):
     assert Notification.objects.filter(recipient=user2, verb='delete',
                                        description__contains=surface.name).count() == 1
     client.logout()
+
 
 @pytest.mark.django_db
 def test_notification_when_editing_shared_stuff(client):
