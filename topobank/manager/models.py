@@ -46,6 +46,7 @@ class Surface(models.Model):
     description = models.TextField(blank=True)
     category = models.TextField(choices=CATEGORY_CHOICES, null=True, blank=False) #  TODO change in character field
     tags = tm.TagField(to=TagModel)
+    is_published = models.BooleanField(default=False)
 
     class Meta:
         ordering = ['name']
@@ -107,6 +108,31 @@ class Surface(models.Model):
         for perm in ['view_surface', 'change_surface']:
             if with_user.has_perm(perm, self):
                 remove_perm(perm, with_user, self)
+
+    def publish(self):
+        """Publish surface.
+
+        Afterwards, everyone can read the surface (also anonymous users)
+        but nobody can change or delete the surface anymore.
+        """
+
+        #
+        # Unshare surface, if shared
+        #
+
+        #
+        # Remove edit and delete permission from everyone
+        #
+
+        #
+        # Add read permission for everyone
+        #
+
+        #
+        # Set published flag
+        #
+        self.is_published = True
+        self.save()
 
 
 class Topography(models.Model):
