@@ -30,6 +30,7 @@ def test_management_command_for_default_group():
     assert user.groups.count() == 1
     assert user.groups.first() == default_group
 
+
 @pytest.mark.django_db
 def test_default_group_helper():
     assert get_default_group().name == DEFAULT_GROUP_NAME
