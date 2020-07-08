@@ -570,6 +570,8 @@ That is, as root copy this contents to `vim /etc/supervisor/conf.d/topobank.conf
 
 Make sure, topobank completely stopped.
 
+.. TODO Here some documentation about calling some management commands are missing. See "Updating the application"!
+
 Reread the supervisor configuration and start:
 
 .. code:: bash
@@ -1021,6 +1023,19 @@ If building the containers was successful, aks yourself these questions:
      docker-compose -f production.yml run --rm django python manage.py save_default_function_kwargs --dry-run
 
   first, check whether the result (counts) is you expected and run without `--dry-run`.
+
+- Did you have a default group for the users before? This is introduced in version 0.9.0, so
+  when upgrading to this version, you need to call
+
+   .. code:: bash
+
+     docker-compose -f production.yml run --rm django python manage.py ensure_default_group
+
+  once for your database.
+
+  Afterwards all exisiting users will be member of the default group (currently: 'all').
+  This is needed for publishing.
+
 
 
 Restart application
