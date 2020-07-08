@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% load fontawesome %}
+{% load render_table from django_tables2 %}
+
+
+{% block content %}
+ <div class="tab-content mt-4">
+   <div class="tab-pane active">
+     <h1>Surfaces published by you</h1>
+     <div class="mt-4">
+      {% render_table publication_table %}
+     </div>
+   </div>
+ </div>
+{% endblock content %}
+

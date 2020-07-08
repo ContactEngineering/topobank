@@ -129,4 +129,9 @@ urlpatterns = [
         view=login_required(views.sharing_info),
         name='sharing-info'
     ),
+    url(
+        regex=r'publications/$',
+        view=login_required(views.PublicationListView.as_view()),
+        name='publications'
+    ),
 ]

@@ -3,7 +3,7 @@ from django.shortcuts import reverse
 HOME_URL = reverse('home')
 SELECT_URL = reverse('manager:select')
 SHARING_INFO_URL = reverse('manager:sharing-info')
-
+PUBLICATIONS_URL = reverse('manager:publications')
 
 def fixed_tabs_processor(request):
     """Adds fixed tabs.
@@ -34,6 +34,13 @@ def fixed_tabs_processor(request):
             'icon': 'home',
             'href': HOME_URL,
             'active': request.path == HOME_URL,
+        },
+        {
+            'login_required': True,
+            'title': '',  # no text
+            'icon': 'bullhorn',
+            'href': PUBLICATIONS_URL,
+            'active': request.path == PUBLICATIONS_URL,
         },
         {
             'login_required': True,

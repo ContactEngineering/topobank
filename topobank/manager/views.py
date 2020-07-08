@@ -22,7 +22,7 @@ from django.http import HttpResponse, Http404
 from django.shortcuts import redirect, render
 from django.urls import reverse, reverse_lazy
 from django.utils.decorators import method_decorator
-from django.views.generic import DetailView, UpdateView, CreateView, DeleteView, TemplateView
+from django.views.generic import DetailView, UpdateView, CreateView, DeleteView, TemplateView, ListView
 from django.views.generic.edit import FormMixin
 from django_tables2 import RequestConfig
 from formtools.wizard.views import SessionWizardView
@@ -1100,6 +1100,45 @@ class SurfaceShareView(FormMixin, DetailView):
         context['surface'] = surface
 
         return context
+
+
+class PublicationsTable(tables.Table):
+    surface = tables.Column(linkify=True, verbose_name='Name')
+    num_topographies = tables.Column(verbose_name='# Topographies')
+
+    def render_surface(self, value):
+        return value.name
+
+    class Meta:
+        orderable = True
+
+
+class PublicationListView(ListView):
+    template_name = "manager/publication_list.html"
+
+    def get_queryset(self):
+        return Surface.objects.filter(creator=self.request.user)  # TODO filter by published
+
+    def get_context_data(self, *args, object_list=None, **kwargs):
+        context = super().get_context_data(*args, object_list=object_list, **kwargs)
+
+        #
+        # Create table cells
+        #
+        data = [
+            {
+                'surface': surface,
+                'num_topographies': surface.num_topographies,
+            } for surface in self.object_list
+        ]
+
+        context['publication_table'] = PublicationsTable(
+                                          data=data,
+                                          empty_text="You haven't published any surfaces yet.",
+                                          request=self.request)
+
+        return context
+
 
 
 class SharingInfoTable(tables.Table):
