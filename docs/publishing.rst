@@ -40,10 +40,8 @@ The user interface for version 0.9.0 should be extended by these elements:
 - The "Publish" tab should ask the user for a license: CC0, CC BY, CC BY-SA
   The user must choose a license.
 - Before publishing the user is asked if he's really sure, or if he want to cancel and double-check.
-- Besides the "sharing tab", every user has also a "published" tab (icon: "bullhorn") which lists the published
-  datasets, these are links like in the sharing tab
-- OR: the published datasets are listed in the sharing tab, but without checkbox (nothing can be changed)
-  and with "published" flag
+- Besides the "sharing tab", every user has also a "published" tab (icon: "bullhorn") which lists the
+  data sets published by this user, similar as in the sharing tab
 - When looking at the properties of a shared surface, there is no "Edit" or "Delete" button for everyone
 - On the "Select" tab, the published surfaces are listed as well; there is another filter option
   "Only published surfaces". The filter option "Only surfaces shared with me" may be changed to
