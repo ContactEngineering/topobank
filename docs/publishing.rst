@@ -68,10 +68,28 @@ Additionally, the surface gets a "published" flag in the database.
 Outlook
 -------
 
+More ideas:
+
+There is a permanent URL with slug for published surfaces, e.g.
+"https://contact.engineering/publications/contact-challenge". This could redirect
+to the internal property page.
+
 An anonymous user should also be able to view a published surface without log in.
 
 Later this could be extended by automatically registering a DOI with this surface.
 Then the URL for this DOI should point into this application.
+
+Notes about DOIs
+----------------
+
+Publication could make use of DOIs and/or probably directly at the ORCID account, see
+
+http://support.orcid.org/knowledgebase/articles/116739-register-a-member-api-client-application
+
+ORCID has a *public API*, which can be used to authenticate researches and to get some public records, and a *member API* which could be used to update the ORCID record of a researcher automatically: https://support.orcid.org/hc/en-us/articles/360006972533-What-s-the-difference-between-the-Public-and-Member-APIs-
+
+[Zenodo](https://zenodo.org/) has a [REST API](http://developers.zenodo.org/) and could be an option which allows us to easily publish datasets with a DOI. There are already many useful metadata fields. Also our software could be published there, so we could publish analysis results along with the code. Zenodo is financed by the European Commission and open for everybody doing research worldwide.
+
 
 
 
