@@ -55,6 +55,7 @@ The user interface for version 0.9.0 should be extended by these elements:
 - When downloading a published surface, a license file should be included.
 - When downloading analysis of a published surface, a license file should be included.
 - The help page should explain sharing and publishing.
+- After publishing, all users should get a notification about the published surface.
 
 
 Implementation in Backend
@@ -71,8 +72,8 @@ Outlook
 More ideas:
 
 There is a permanent URL with slug for published surfaces, e.g.
-"https://contact.engineering/publications/contact-challenge". This could redirect
-to the internal property page.
+"https://contact.engineering/publications/contact-challenge" or using a UUID.
+This could redirect to the internal property page.
 
 An anonymous user should also be able to view a published surface without log in.
 
