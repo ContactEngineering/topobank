@@ -1117,7 +1117,7 @@ class PublicationListView(ListView):
     template_name = "manager/publication_list.html"
 
     def get_queryset(self):
-        return Surface.objects.filter(creator=self.request.user)  # TODO filter by published
+        return Surface.objects.filter(creator=self.request.user, is_published=True)
 
     def get_context_data(self, *args, object_list=None, **kwargs):
         context = super().get_context_data(*args, object_list=object_list, **kwargs)

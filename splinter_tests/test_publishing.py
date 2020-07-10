@@ -1,7 +1,7 @@
 import pytest
 
 from topobank.manager.tests.utils import SurfaceFactory, TopographyFactory
-from splinter_tests.utils import goto_select_page, goto_publications_page
+from splinter_tests.utils import goto_select_page, goto_publications_page, press_properties_for_item_by_name
 
 
 @pytest.mark.django_db
@@ -28,10 +28,7 @@ def test_publishing(user_alice_logged_in, user_bob, handle_usage_statistics):
     # Alice opens properties for the surface
     #
     goto_select_page(browser)
-    surface_link = browser.links.find_by_partial_text(surface_name)
-    surface_link.click()
-
-    browser.is_text_present("Analyze this surface")
+    press_properties_for_item_by_name(browser, surface_name)
 
     #
     # Alice presses "Publish" button. The extra "Publish surface ..." tab opens.
@@ -44,6 +41,7 @@ def test_publishing(user_alice_logged_in, user_bob, handle_usage_statistics):
     # There are three licenses for selection. Alice chooses the "CC BY-SA"
     # license
     #
+    assert False
 
     #
     # Alice presses Publish. A new tab opens which asks again whether she's really sure:

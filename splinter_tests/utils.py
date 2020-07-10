@@ -112,6 +112,18 @@ def checkbox_for_item_by_name(browser, name):
     return checkbox
 
 
+def row_for_item_by_name(browser, name):
+    item_row = browser.find_by_xpath(f'//td//span[text()="{name}"]/../../..').first
+    return item_row
+
+
+def press_properties_for_item_by_name(browser, name):
+    item_row = row_for_item_by_name(browser, name)
+    props_link = item_row.find_by_css("a").first
+    props_link.click()
+    assert browser.is_text_present("Analyze this surface", wait_time=1)
+
+
 def select_item_by_name(browser, name):
     checkbox = checkbox_for_item_by_name(browser, name)
     checkbox.check()
