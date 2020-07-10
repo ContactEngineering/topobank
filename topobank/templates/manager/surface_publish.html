@@ -1,0 +1,74 @@
+
+{% extends 'base.html' %}
+{% load fontawesome %}
+
+
+{% block content %}
+
+  {% load crispy_forms_tags %}
+
+  <div class="tab-content mt-2">
+
+    <h1>Publishing your surface <em>{{ surface.name }}</em>?</h1>
+
+    <h3>General information</h3>
+    <p>By publishing, you are sharing your data with everyone. All users will be notified
+    about this publication along with a link.</p>
+
+    <p>
+      The state of the data related to this surface will be irreversibly changed as follows:
+      <ul>
+        <li>The surface and all topographies will be <b>visible by everyone</b>,
+          registered or anonymous users, now and in future.</li>
+        <li>The related data (raw data, descriptions, ..) <b>will be downloadable by everyone</b>.</li>
+        <li>Every user can perform analyses on your data.</li>
+        <li>You <b>cannot change</b> any properties of the surface any more.</li>
+        <li>You <b>cannot add new topographies</b> to this surface any more.</li>
+        <li>You cannot <b>delete this surface</b> any more.</li>
+        <li>You cannot withdraw this publication any more.</li>
+      </ul>
+
+      It will still be possible to perform analyses on this surface with varying parameters.
+    </p>
+
+    <h3>Consider the alternative: Sharing</h3>
+    <p>If you only want to share the surface with a few users for <em>collaboration</em>,
+    please consider <a href="{% url 'manager:surface-share' surface.id %}">sharing this surface</a> instead.</p>
+    <p>Difference:
+      <ul>
+        <li>The surface and all related topographies are only visible for selected users.</li>
+        <li>You can still remove the share or even the surface later.</li>
+        <li>You can still change things. You also allow other users to do so, if you want.</li>
+      </ul>
+    </p>
+
+    <h3>Choose a license</h3>
+
+    Please decide which license should be assigned to your data.
+
+    {% if form.errors %}
+      {% for field in form %}
+          {% for error in field.errors %}
+              <div class="alert alert-danger">
+                  <strong>Field {{ field.name }}: {{ error|escape }}</strong>
+              </div>
+          {% endfor %}
+      {% endfor %}
+      {% for error in form.non_field_errors %}
+          <div class="alert alert-danger">
+              <strong>{{ error|escape }}</strong>
+          </div>
+      {% endfor %}
+    {% endif %}
+
+    <div class="container">
+      <div class="row">
+        {% crispy form form.helper %}
+      </div>
+    </div>
+
+
+  </div>
+
+{% endblock content %}
+
