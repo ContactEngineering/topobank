@@ -63,3 +63,5 @@ class Command(BaseCommand):
 
         if options['dry_run']:
             self.stdout.write(self.style.WARNING("This was a dry run, nothing has been changed."))
+        else:
+            self.stdout.write(self.style.SUCCESS("Done."))
