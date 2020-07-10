@@ -140,6 +140,13 @@
                 </a>
               {% endif %}
 
+              {% if "publish_surface" in surface_perms %}
+                <a href="{% url 'manager:surface-publish' surface.id %}"
+                   class="btn btn-outline-success btn-block btn-lg">
+                  {% fontawesome_icon 'bullhorn' %} Publish
+                </a>
+              {% endif %}
+
               {% if "delete_surface" in surface_perms %}
                 <a href="{% url 'manager:surface-delete' surface.id %}"
                    class="btn btn-outline-danger btn-block btn-lg">

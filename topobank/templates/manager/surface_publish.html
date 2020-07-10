@@ -1,7 +1,5 @@
-
 {% extends 'base.html' %}
 {% load fontawesome %}
-
 
 {% block content %}
 
@@ -9,42 +7,44 @@
 
   <div class="tab-content mt-2">
 
-    <h1>Publishing your surface <em>{{ surface.name }}</em>?</h1>
+    <div class="alert alert-primary">
+      <h2 class="alert-heading">You are about to publish your surface <em>{{ surface.name }}</em></h2>
+      <p>By publishing, this surface becomes immutable and you are permanently
+         sharing your data with everyone. All users will be notified
+         about this publication along with a link.</p>
+    </div>
+    <div class="alert alert-warning">
+      <h2 class="alert-heading">Implications of publishing</h2>
+      <p>
+        <ul>
+          <li>The surface and all topographies will be <b>visible by everyone</b>,
+            registered or anonymous users, now and in future.</li>
+          <li>The related data (raw data, descriptions, ..) <b>will be downloadable by everyone</b>.</li>
+          <li>Every user can perform analyses on your data.</li>
+          <li>You <b>cannot change</b> any properties (description, tags, ..) of the surface any more.</li>
+          <li>You <b>cannot add new topographies</b> to this surface any more.</li>
+          <li>You <b>cannot delete this surface</b> any more.</li>
+          <li>You <b>cannot withdraw this publication</b>.</li>
+          <li>You choose a license for your data - the <b>choice of the license is irrevocable</b>.</li>
+        </ul>
+        It will still be possible to perform analyses on this surface with varying parameters.
+      </p>
 
-    <h3>General information</h3>
-    <p>By publishing, you are sharing your data with everyone. All users will be notified
-    about this publication along with a link.</p>
+    </div>
 
-    <p>
-      The state of the data related to this surface will be irreversibly changed as follows:
-      <ul>
-        <li>The surface and all topographies will be <b>visible by everyone</b>,
-          registered or anonymous users, now and in future.</li>
-        <li>The related data (raw data, descriptions, ..) <b>will be downloadable by everyone</b>.</li>
-        <li>Every user can perform analyses on your data.</li>
-        <li>You <b>cannot change</b> any properties of the surface any more.</li>
-        <li>You <b>cannot add new topographies</b> to this surface any more.</li>
-        <li>You cannot <b>delete this surface</b> any more.</li>
-        <li>You cannot withdraw this publication any more.</li>
-      </ul>
-
-      It will still be possible to perform analyses on this surface with varying parameters.
-    </p>
-
-    <h3>Consider the alternative: Sharing</h3>
-    <p>If you only want to share the surface with a few users for <em>collaboration</em>,
-    please consider <a href="{% url 'manager:surface-share' surface.id %}">sharing this surface</a> instead.</p>
-    <p>Difference:
-      <ul>
-        <li>The surface and all related topographies are only visible for selected users.</li>
-        <li>You can still remove the share or even the surface later.</li>
-        <li>You can still change things. You also allow other users to do so, if you want.</li>
-      </ul>
-    </p>
-
-    <h3>Choose a license</h3>
-
-    Please decide which license should be assigned to your data.
+    <div class="alert alert-secondary">
+      <h2 class="alert-heading">Consider the alternative: Sharing</h2>
+      <p>If you only want to share the surface with a few users for <b>collaboration</b>,
+      please consider <a href="{% url 'manager:surface-share' surface.id %}">sharing this surface</a> instead.</p>
+      <p>Unlike publishing this means:
+        <ul>
+      <li>The surface and all related topographies are only visible for <b>selected users</b>, not for everyone.</li>
+          <li>You can still remove the share or even the surface later on.</li>
+          <li>You can still edit the surface and its topographies. You also allow other users to do so, if you want.</li>
+        </ul>
+      </p>
+      This is no possible any more, if you publish the surface.
+    </div>
 
     {% if form.errors %}
       {% for field in form %}
@@ -61,13 +61,12 @@
       {% endfor %}
     {% endif %}
 
-    <div class="container">
-      <div class="row">
+    <div class="alert alert-primary">
+      <h2 class="alert-heading">Publication form</h2>
+      <p>
         {% crispy form form.helper %}
-      </div>
+      </p>
     </div>
-
-
   </div>
 
 {% endblock content %}
