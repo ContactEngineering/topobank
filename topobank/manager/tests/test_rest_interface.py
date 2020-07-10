@@ -423,6 +423,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                      'download': surface1_prefix + 'download/',
                      'select': surface1_prefix + 'select/',
                      'share': surface1_prefix + 'share/',
+                     'publish': surface1_prefix + 'publish/',
                      'analyze': surface1_analyze,
                      'unselect': surface1_prefix + 'unselect/',
                      'update': surface1_prefix + 'update/'}
@@ -483,6 +484,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                      'download': surface2_prefix + 'download/',
                      'select': surface2_prefix + 'select/',
                      'share': surface2_prefix + 'share/',
+                     'publish': surface2_prefix + 'publish/',
                      'analyze': surface2_analyze,
                      'unselect': surface2_prefix + 'unselect/',
                      'update': surface2_prefix + 'update/'}
@@ -507,6 +509,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                      # 'download': surface3_prefix + 'download/', # this should be missing, because no topographies yet
                      'select': surface3_prefix + 'select/',
                      'share': surface3_prefix + 'share/',
+                     'publish': surface3_prefix + 'publish/',
                      # 'analyze': surface3_prefix + 'show-analyses/', # this should be missing
                      'unselect': surface3_prefix + 'unselect/',
                      'update': surface3_prefix + 'update/'}
@@ -568,6 +571,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                      'download': surface2_prefix + 'download/',
                      'select': surface2_prefix + 'select/',
                      'share': surface2_prefix + 'share/',
+                     'publish': surface2_prefix + 'publish/',
                      'analyze': surface2_analyze,
                      'unselect': surface2_prefix + 'unselect/',
                      'update': surface2_prefix + 'update/'}
@@ -648,6 +652,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                      'download': surface1_prefix + 'download/',
                      'select': surface1_prefix + 'select/',
                      'share': surface1_prefix + 'share/',
+                     'publish': surface1_prefix + 'publish/',
                      'analyze': surface1_analyze,
                      'unselect': surface1_prefix + 'unselect/',
                      'update': surface1_prefix + 'update/'}
@@ -807,6 +812,7 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
                  'download': surface1_prefix + 'download/',
                  'select': surface1_prefix + 'select/',
                  'share': surface1_prefix + 'share/',
+                 'publish': surface1_prefix + 'publish/',
                  'analyze': surface1_analyze,
                  'unselect': surface1_prefix + 'unselect/',
                  'update': surface1_prefix + 'update/'}

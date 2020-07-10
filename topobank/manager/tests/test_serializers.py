@@ -96,6 +96,7 @@ def test_surface_serializer(rf):
                  'download': surface1_prefix + 'download/',
                  'select': surface1_prefix + 'select/',
                  'share': surface1_prefix + 'share/',
+                 'publish': surface1_prefix + 'publish/',
                  'analyze': surface1_analyze,
                  'unselect': surface1_prefix + 'unselect/',
                  'update': surface1_prefix + 'update/'}
