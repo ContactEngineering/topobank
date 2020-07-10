@@ -1036,6 +1036,19 @@ If building the containers was successful, aks yourself these questions:
   Afterwards all exisiting users will be member of the default group (currently: 'all').
   This is needed for publishing.
 
+- Are there any new permissions introduced for surfaces. You should fix the permissions
+  for existing surfaces with
+
+  .. code:: bash
+
+     docker-compose -f production.yml run --rm django python manage.py fix_permissions --dry-run
+
+  once for your database. Check the results: Will those permissions be set which you expect?
+  If it's okay, run again without the option `--dry-run`.
+
+  Afterwards all existing users will have all permissions for the surfaces they created
+  unless they are already published. When already published, it is assured the correct
+  rights have been applied. This is needed for publishing.
 
 
 Restart application
