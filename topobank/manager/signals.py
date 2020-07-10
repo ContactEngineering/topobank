@@ -18,7 +18,7 @@ def grant_permissions_to_owner(sender, instance, created, **kwargs):
         #
         # Grant all permissions for this surface to its creator
         #
-        for perm in ['view_surface', 'change_surface', 'delete_surface', 'share_surface']:
+        for perm in ['view_surface', 'change_surface', 'delete_surface', 'share_surface', 'publish_surface']:
             assign_perm(perm, instance.creator, instance)
 
         # This should be only done when creating a surface,

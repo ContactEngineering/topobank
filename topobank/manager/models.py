@@ -45,7 +45,7 @@ class Surface(models.Model):
     name = models.CharField(max_length=80)
     creator = models.ForeignKey(User, on_delete=models.CASCADE)
     description = models.TextField(blank=True)
-    category = models.TextField(choices=CATEGORY_CHOICES, null=True, blank=False) #  TODO change in character field
+    category = models.TextField(choices=CATEGORY_CHOICES, null=True, blank=False)  # TODO change in character field
     tags = tm.TagField(to=TagModel)
     is_published = models.BooleanField(default=False)
 
@@ -53,6 +53,7 @@ class Surface(models.Model):
         ordering = ['name']
         permissions = (
             ('share_surface', 'Can share surface'),
+            ('publish_surface', 'Can publish surface'),
         )
 
     def __str__(self):
@@ -121,7 +122,7 @@ class Surface(models.Model):
         #
         users = get_users_with_perms(self)
         for u in users:
-            for perm in ['share_surface', 'change_surface', 'delete_surface']:
+            for perm in ['publish_surface', 'share_surface', 'change_surface', 'delete_surface']:
                 remove_perm(perm, u, self)
 
         #
