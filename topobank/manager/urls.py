@@ -70,6 +70,11 @@ urlpatterns = [
        name='surface-share'
     ),
     url(
+       regex=r'surface/(?P<pk>\d+)/publish/$',
+       view=login_required(views.SurfacePublishView.as_view()),
+       name='surface-publish'
+    ),
+    url(
        regex=r'surface/(?P<pk>\d+)/select/$',
        view=login_required(views.select_surface),
        name='surface-select'

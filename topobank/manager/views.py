@@ -34,19 +34,18 @@ from rest_framework.generics import ListAPIView
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.utils.urls import remove_query_param, replace_query_param
-import rest_framework.status
 from trackstats.models import Metric, Period
 
-from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm
-from .forms import TopographyForm, SurfaceForm, SurfaceShareForm
+from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm, DEFAULT_LICENSE
+from .forms import TopographyForm, SurfaceForm, SurfaceShareForm, SurfacePublishForm
 from .models import Topography, Surface, TagModel
 from .serializers import SurfaceSerializer, TagSerializer
 from .utils import selected_instances, bandwidths_data, get_topography_reader, tags_for_user, get_reader_infos, \
     mailto_link_for_reporting_an_error, current_selection_as_basket_items, filtered_surfaces, \
-    filtered_topographies, get_search_term, get_category, get_sharing_status, get_tree_mode, \
-    MAX_LEN_SEARCH_TERM
+    filtered_topographies, get_search_term, get_category, get_sharing_status, get_tree_mode
 from ..usage_stats.utils import increase_statistics_by_date
 from ..users.models import User
+from ..users.utils import get_default_group
 
 MAX_NUM_POINTS_FOR_SYMBOLS_IN_LINE_SCAN_PLOT = 100
 
@@ -104,6 +103,9 @@ surface_share_permission_required = method_decorator(
     permission_required_or_403('manager.share_surface', ('manager.Surface', 'pk', 'pk'))
 )
 
+surface_publish_permission_required = method_decorator(
+    permission_required_or_403('manager.publish_surface', ('manager.Surface', 'pk', 'pk'))
+)
 
 class TopographyPermissionMixin(UserPassesTestMixin):
     redirect_field_name = None
@@ -1140,6 +1142,70 @@ class PublicationListView(ListView):
         return context
 
 
+class SurfacePublishView(FormMixin, DetailView):
+    model = Surface
+    context_object_name = 'surface'
+    template_name = "manager/surface_publish.html"
+    form_class = SurfacePublishForm
+
+    @surface_publish_permission_required
+    def dispatch(self, request, *args, **kwargs):
+        return super().dispatch(request, *args, *kwargs)
+
+    def get_success_url(self):
+        return reverse('manager:publications')
+
+    def post(self, request, *args, **kwargs):
+        form = self.get_form()
+        if form.is_valid():
+            return self.form_valid(form)
+        else:
+            return self.form_invalid(form)
+
+    def get_initial(self):
+        initial = super().get_initial()
+        initial['license'] = settings.CC_LICENSE_URLS[DEFAULT_LICENSE]
+        return initial
+
+    def form_valid(self, form):
+
+        if 'save' in self.request.POST:
+            surface = self.get_object()
+            surface.publish()
+            #
+            # Notify all users about the published surface
+            #
+            notification_message = f"{self.request.user} has published the surface '{surface.name}'."
+            notify.send(self.request.user, recipient=get_default_group(),
+                        verb="publish",
+                        target=surface,
+                        public=False,
+                        description=notification_message,
+                        href=surface.get_absolute_url())
+
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        surface = self.object
+
+        context['extra_tabs'] = [
+            {
+                'title': f"{surface.name}",
+                'icon': "diamond",
+                'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
+                'active': False,
+            },
+            {
+                'title': f"Publish surface?",
+                'icon': "bullhorn",
+                'href': self.request.path,
+                'active': True,
+            }
+        ]
+        context['surface'] = surface
+
+        return context
 
 class SharingInfoTable(tables.Table):
     surface = tables.Column(linkify=True)

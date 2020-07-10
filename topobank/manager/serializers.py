@@ -152,6 +152,10 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
             urls.update({
                 'share': reverse('manager:surface-share', kwargs=dict(pk=obj.pk)),
             })
+        if 'publish_surface' in perms:
+            urls.update({
+                'publish': reverse('manager:surface-publish', kwargs=dict(pk=obj.pk)),
+            })
 
         return urls
 

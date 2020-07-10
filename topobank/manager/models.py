@@ -42,6 +42,15 @@ class Surface(models.Model):
         ('dum', 'Dummy data')
     ]
 
+    LICENSE_CHOICES = [
+        ('cc0-1.0', 'CC0 (Public Domain Dedication)'),
+        # https://creativecommons.org/publicdomain/zero/1.0/
+        ('ccby-4.0', 'CC BY 4.0'),
+        # https://creativecommons.org/licenses/by/4.0/
+        ('ccbysa-4.0', 'CC BY-SA 4.0'),
+        # https://creativecommons.org/licenses/by-sa/4.0/
+    ]
+
     name = models.CharField(max_length=80)
     creator = models.ForeignKey(User, on_delete=models.CASCADE)
     description = models.TextField(blank=True)
