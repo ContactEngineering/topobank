@@ -99,7 +99,11 @@
                   <span class="badge badge-info surface-category-headline">
                   {{ surface.get_category_display|default_if_none:"category not defined yet" }}
                   </span>
-                {% render_shared_by_badge request surface %}
+                {% if surface.is_published %}
+                  {% render_published_by_badge request surface %}
+                {% else %}
+                  {% render_shared_by_badge request surface %}
+                {% endif %}
               </div>
               <div>
                 {% for tag in surface.tags.all %}
@@ -140,7 +144,7 @@
                 </a>
               {% endif %}
 
-              {% if "publish_surface" in surface_perms %}
+              {% if not surface.is_published and "publish_surface" in surface_perms %}
                 <a href="{% url 'manager:surface-publish' surface.id %}"
                    class="btn btn-outline-success btn-block btn-lg">
                   {% fontawesome_icon 'bullhorn' %} Publish

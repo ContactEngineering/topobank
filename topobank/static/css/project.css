@@ -78,7 +78,7 @@ input.checkbox-color-design:checked+span:after {
   font-size: small;
 }
 
-.shared-by-badge {
+.shared-by-badge, .published-by-badge {
   font-size: small;
 }
 

@@ -46,27 +46,48 @@
       This is no possible any more, if you publish the surface.
     </div>
 
-    {% if form.errors %}
-      {% for field in form %}
-          {% for error in field.errors %}
-              <div class="alert alert-danger">
-                  <strong>Field {{ field.name }}: {{ error|escape }}</strong>
-              </div>
-          {% endfor %}
-      {% endfor %}
-      {% for error in form.non_field_errors %}
-          <div class="alert alert-danger">
-              <strong>{{ error|escape }}</strong>
+    {% if surface.topography_set.count == 0 %}
+      <div class="alert alert-error">
+        <h2 class="alert-heading">This surface has no topographies yet</h2>
+        <div class="row">
+          <div class="col">
+            <p>
+              If you'd like to publish this surface, please add at least one topography to it.
+              You can do this by pressing the button on the right or on the previous tab.
+            </p>
           </div>
-      {% endfor %}
-    {% endif %}
+          <div class="col">
+            <a class="btn btn-default alert-link"
+               href="{% url 'manager:topography-create' surface.id %}">
+              {% fontawesome_icon 'plus-square-o' %} Add topography
+            </a>
+          </div>
+        </div>
 
-    <div class="alert alert-primary">
-      <h2 class="alert-heading">Publication form</h2>
-      <p>
-        {% crispy form form.helper %}
-      </p>
-    </div>
+      </div>
+    {% else %}
+      {% if form.errors %}
+        {% for field in form %}
+            {% for error in field.errors %}
+                <div class="alert alert-danger">
+                    <strong>Field {{ field.name }}: {{ error|escape }}</strong>
+                </div>
+            {% endfor %}
+        {% endfor %}
+        {% for error in form.non_field_errors %}
+            <div class="alert alert-danger">
+                <strong>{{ error|escape }}</strong>
+            </div>
+        {% endfor %}
+      {% endif %}
+
+      <div class="alert alert-primary">
+        <h2 class="alert-heading">Publication form</h2>
+        <p>
+          {% crispy form form.helper %}
+        </p>
+      </div>
+    {% endif %}
   </div>
 
 {% endblock content %}

@@ -8,9 +8,11 @@ from io import BytesIO
 import django_tables2 as tables
 import numpy as np
 import yaml
+
 from bokeh.embed import components
 from bokeh.models import DataRange1d, LinearColorMapper, ColorBar
 from bokeh.plotting import figure
+
 from django.conf import settings
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.core.exceptions import PermissionDenied
@@ -22,9 +24,11 @@ from django.http import HttpResponse, Http404
 from django.shortcuts import redirect, render
 from django.urls import reverse, reverse_lazy
 from django.utils.decorators import method_decorator
-from django.views.generic import DetailView, UpdateView, CreateView, DeleteView, TemplateView, ListView
+from django.utils.safestring import mark_safe
+from django.views.generic import DetailView, UpdateView, CreateView, DeleteView, TemplateView, ListView, FormView
 from django.views.generic.edit import FormMixin
 from django_tables2 import RequestConfig
+
 from formtools.wizard.views import SessionWizardView
 from guardian.decorators import permission_required_or_403
 from guardian.shortcuts import get_users_with_perms, get_objects_for_user
@@ -1107,9 +1111,19 @@ class SurfaceShareView(FormMixin, DetailView):
 class PublicationsTable(tables.Table):
     surface = tables.Column(linkify=True, verbose_name='Name')
     num_topographies = tables.Column(verbose_name='# Topographies')
+    license = tables.Column(verbose_name="License")
+    publication_datetime = tables.Column(verbose_name="Publication Date")
 
     def render_surface(self, value):
         return value.name
+
+    def render_publication_datetime(self, value):
+        return value.date()
+
+    def render_license(self, value, record):
+        return mark_safe(f"""
+        <a href="{settings.CC_LICENSE_URLS[value][0]}" target="_blank">{record['surface'].get_license_display()}</a>
+        """)
 
     class Meta:
         orderable = True
@@ -1119,10 +1133,10 @@ class PublicationListView(ListView):
     template_name = "manager/publication_list.html"
 
     def get_queryset(self):
-        return Surface.objects.filter(creator=self.request.user, is_published=True)
+        return Surface.published.filter(creator=self.request.user)
 
-    def get_context_data(self, *args, object_list=None, **kwargs):
-        context = super().get_context_data(*args, object_list=object_list, **kwargs)
+    def get_context_data(self, *args, **kwargs):
+        context = super().get_context_data(*args, **kwargs)
 
         #
         # Create table cells
@@ -1130,8 +1144,10 @@ class PublicationListView(ListView):
         data = [
             {
                 'surface': surface,
-                'num_topographies': surface.num_topographies,
-            } for surface in self.object_list
+                'num_topographies': surface.num_topographies(),
+                'license': surface.license,
+                'publication_datetime': surface.publication_datetime,
+            } for surface in self.get_queryset()
         ]
 
         context['publication_table'] = PublicationsTable(
@@ -1142,9 +1158,7 @@ class PublicationListView(ListView):
         return context
 
 
-class SurfacePublishView(FormMixin, DetailView):
-    model = Surface
-    context_object_name = 'surface'
+class SurfacePublishView(FormView):
     template_name = "manager/surface_publish.html"
     form_class = SurfacePublishForm
 
@@ -1152,15 +1166,12 @@ class SurfacePublishView(FormMixin, DetailView):
     def dispatch(self, request, *args, **kwargs):
         return super().dispatch(request, *args, *kwargs)
 
+    def _get_surface(self):
+        surface_pk = self.kwargs['pk']
+        return Surface.objects.get(pk=surface_pk)
+
     def get_success_url(self):
         return reverse('manager:publications')
-
-    def post(self, request, *args, **kwargs):
-        form = self.get_form()
-        if form.is_valid():
-            return self.form_valid(form)
-        else:
-            return self.form_invalid(form)
 
     def get_initial(self):
         initial = super().get_initial()
@@ -1169,25 +1180,27 @@ class SurfacePublishView(FormMixin, DetailView):
 
     def form_valid(self, form):
 
-        if 'save' in self.request.POST:
-            surface = self.get_object()
-            surface.publish()
-            #
-            # Notify all users about the published surface
-            #
-            notification_message = f"{self.request.user} has published the surface '{surface.name}'."
-            notify.send(self.request.user, recipient=get_default_group(),
-                        verb="publish",
-                        target=surface,
-                        public=False,
-                        description=notification_message,
-                        href=surface.get_absolute_url())
+        license = self.request.POST.get('license')
+
+        surface = self._get_surface()
+        surface.publish(license)
+        #
+        # Notify all users about the published surface
+        #
+        notification_message = f"{self.request.user} has published the surface '{surface.name}'."
+        notify.send(self.request.user, recipient=get_default_group(),
+                    verb="publish",
+                    target=surface,
+                    public=False,
+                    description=notification_message,
+                    href=surface.get_absolute_url())
 
         return super().form_valid(form)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        surface = self.object
+
+        surface = self._get_surface()
 
         context['extra_tabs'] = [
             {
@@ -1206,6 +1219,7 @@ class SurfacePublishView(FormMixin, DetailView):
         context['surface'] = surface
 
         return context
+
 
 class SharingInfoTable(tables.Table):
     surface = tables.Column(linkify=True)

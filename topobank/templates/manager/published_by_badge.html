@@ -1,0 +1,12 @@
+{% load user_tags %}
+<span title="Click for user profile">
+  <a href="{% url 'users:detail' surface.creator.username %}">
+    <span class="badge badge-success published-by-badge">
+      {% if is_creator %}
+        published by you
+      {% else %}
+        published by {{ surface.creator.name }}
+      {% endif %}
+    </span>
+  </a>
+</span>

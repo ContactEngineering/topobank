@@ -43,7 +43,7 @@ class Command(BaseCommand):
                     # there should be no individual rights for published surfaces
                     # publish again to ensure that
                     if not options['dry_run']:
-                        surface.publish()
+                        surface.publish(surface.license)
                     fixed_published_surfaces.add(surface)
             else:
                 for perm in ALL_PERMISSIONS:

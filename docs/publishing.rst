@@ -56,6 +56,7 @@ The user interface for version 0.9.0 should be extended by these elements:
 - When downloading analysis of a published surface, a license file should be included.
 - The help page should explain sharing and publishing.
 - After publishing, all users should get a notification about the published surface.
+- For publishing, the surface must have at least one topography.
 
 
 Implementation in Backend

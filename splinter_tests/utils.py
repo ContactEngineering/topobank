@@ -121,7 +121,8 @@ def press_properties_for_item_by_name(browser, name):
     item_row = row_for_item_by_name(browser, name)
     props_link = item_row.find_by_css("a").first
     props_link.click()
-    assert browser.is_text_present("Analyze this surface", wait_time=1)
+    assert name in active_tab_title(browser)
+    assert browser.is_text_present("Edit meta data", wait_time=1)
 
 
 def select_item_by_name(browser, name):
@@ -137,3 +138,8 @@ def is_in_basket(browser, name):
     texts = [b.text for b in badges]
 
     return name in texts
+
+
+def active_tab_title(browser):
+    active_tab = browser.find_by_css("a.nav-link.active").first
+    return active_tab.text

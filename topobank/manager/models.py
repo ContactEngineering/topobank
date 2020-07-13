@@ -32,6 +32,11 @@ class TagModel(tm.TagTreeModel):
         # autocomplete_view = 'manager:autocomplete-tags'
 
 
+class PublishedSurfaceManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().exclude(license__exact='')
+
+
 class Surface(models.Model):
     """Physical Surface.
 
@@ -59,6 +64,9 @@ class Surface(models.Model):
     tags = tm.TagField(to=TagModel)
     license = models.CharField(max_length=12, choices=LICENSE_CHOICES, blank=False, default='')
     publication_datetime = models.DateTimeField(null=True)
+
+    objects = models.Manager()
+    published = PublishedSurfaceManager()
 
     class Meta:
         ordering = ['name']
