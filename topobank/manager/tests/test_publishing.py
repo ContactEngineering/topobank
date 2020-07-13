@@ -9,7 +9,7 @@ from .utils import SurfaceFactory, UserFactory
 def test_published_field():
     surface = SurfaceFactory()
     assert not surface.is_published
-    surface.publish()
+    surface.publish('cc0')
     assert surface.is_published
 
 
@@ -26,7 +26,7 @@ def test_permissions_for_published():
     assert get_perms(user2, surface) == []
 
     # after publishing, both users are only allowed viewing
-    surface.publish()
+    surface.publish('cc0')
 
     assert get_perms(user1, surface) == ['view_surface']
     assert get_perms(user2, surface) == ['view_surface']

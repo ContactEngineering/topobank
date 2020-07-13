@@ -1,5 +1,6 @@
 from django.db import models
 from django.shortcuts import reverse
+from django.utils import timezone
 from django.core.cache import cache
 from django.db import transaction
 
@@ -56,7 +57,8 @@ class Surface(models.Model):
     description = models.TextField(blank=True)
     category = models.TextField(choices=CATEGORY_CHOICES, null=True, blank=False)  # TODO change in character field
     tags = tm.TagField(to=TagModel)
-    is_published = models.BooleanField(default=False)
+    license = models.CharField(max_length=12, choices=LICENSE_CHOICES, blank=False, default='')
+    publication_datetime = models.DateTimeField(null=True)
 
     class Meta:
         ordering = ['name']
@@ -120,8 +122,14 @@ class Surface(models.Model):
             if with_user.has_perm(perm, self):
                 remove_perm(perm, with_user, self)
 
-    def publish(self):
+    def publish(self, license):
         """Publish surface.
+
+        Parameters
+        ----------
+
+        license: str
+            One of the keys of LICENSE_CHOICES
 
         Afterwards, everyone can read the surface (also anonymous users)
         but nobody can change or delete the surface anymore.
@@ -140,10 +148,15 @@ class Surface(models.Model):
         assign_perm('view_surface', get_default_group(), self)
 
         #
-        # Set published flag
+        # Set publication properties
         #
-        self.is_published = True
+        self.license = license
+        self.publication_datetime = timezone.now()
         self.save()
+
+    @property
+    def is_published(self):
+        return self.publication_datetime is not None
 
 
 class Topography(models.Model):
