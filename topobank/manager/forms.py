@@ -498,6 +498,7 @@ class SurfaceForm(forms.ModelForm):
         ASTERISK_HELP_HTML
     )
 
+
 class MultipleUserSelectWidget(ModelSelect2MultipleWidget):
     model = User
     search_fields = ['name']
@@ -569,9 +570,9 @@ class SurfacePublishForm(forms.Form):
     helper.form_method = 'POST'
 
     ready = forms.BooleanField(widget=forms.CheckboxInput, required=True,
-                                label="No more modifications are required regarding the surface and all its metadata.",
-                                help_text="""Please check tags, the description, and also all topographies with
-                                their metadata (description, tags, raw files, physical sizes, ..).""")
+                               label="No more modifications are required regarding the surface and all its metadata.",
+                               help_text="""Please check tags, the description, and also all topographies with
+                               their metadata (description, tags, raw files, physical sizes, ..).""")
 
     license = forms.ChoiceField(widget=forms.RadioSelect, choices=Surface.LICENSE_CHOICES,
                                 required=True)
@@ -584,11 +585,11 @@ class SurfacePublishForm(forms.Form):
         Div(
             FormActions(
                 Fieldset('Please choose a license',
-                    Field('license', template="manager/license_radioselect.html")
+                         Field('license', template="manager/license_radioselect.html")
                 ),
                 Fieldset('Final checks',
-                    Field('ready'),
-                    Field('agreed'),
+                         Field('ready'),
+                         Field('agreed'),
                 ),
                 Submit('save', 'Yes, publish this surface', css_class='btn-success'),
                 HTML("""
