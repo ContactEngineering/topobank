@@ -1,16 +1,16 @@
 dist: bionic
 language: python
 cache: pip
-addons:
-  chrome: stable
+#addons:
+#  chrome: stable
 env:
   - USE_DOCKER=no DJANGO_SETTINGS_MODULE=config.settings.test
 python:
   - 3.7
-before_install:
-  - google-chrome-stable --headless --disable-gpu --remote-debugging-port=9222 http://localhost &
+#before_install:
+#  - google-chrome-stable --headless --disable-gpu --remote-debugging-port=9222 http://localhost &
 install:
-  - sudo apt-get install libfftw3-dev libopenblas-dev
+  - sudo apt-get install libfftw3-dev libopenblas-dev chromium-chromedriver
   - pip install -q -r requirements/test.txt
 script:
   - pytest -v --splinter-webdriver=chrome --splinter-headless=true
