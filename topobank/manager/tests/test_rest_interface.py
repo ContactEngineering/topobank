@@ -297,6 +297,7 @@ def test_unselect_topography():
     assert selected_instances(request)[0] == []
     assert selected_instances(request)[1] == [surface1, surface2]
 
+
 @pytest.fixture
 def user_three_surfaces_four_topographies():
     #
