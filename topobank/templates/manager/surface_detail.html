@@ -64,22 +64,33 @@
                 {% endfor %}
                 </thead>
                 <tbody>
-                {% for row in permission_table.body %}
+                {% if surface.is_published %}
                   <tr>
-                    {% for cell_content, cell_title in row %}
-                      <td>
-                        {% if forloop.first %}
-                          <span title="Click to view profile">{% fontawesome_icon 'user' %}
-                        <a href="{{ cell_title }}">{{ cell_content }}</a>
-                        {# a bit of a hack: cell_title is used to pass a link here #}
-                        </span>
-                        {% else %}
-                          {% render_boolean cell_content cell_title %}
-                        {% endif %}
-                      </td>
-                    {% endfor %}
+                    <td>
+                      <span>{% fontawesome_icon 'group' %} Everyone</span>
+                    </td>
+                    <td>{% render_boolean True "Everyone can view this surface" %}</td>
+                    <td>{% render_boolean False "No can view this surface" %}</td>
                   </tr>
-                {% endfor %}
+                {% else %}
+                  {% for row in permission_table.body %}
+                    <tr>
+                      {% for cell_content, cell_title in row %}
+                        <td>
+                          {% if forloop.first %}
+                            <span title="Click to view profile">{% fontawesome_icon 'user' %}
+                              <a href="{{ cell_title }}">{{ cell_content }}</a>
+                              {# a bit of a hack: cell_title is used to pass a link here #}
+                            </span>
+                          {% else %}
+                            {% render_boolean cell_content cell_title %}
+                          {% endif %}
+                        </td>
+                      {% endfor %}
+                    </tr>
+                  {% endfor %}
+                {% endif %}
+
                 </tbody>
               </table>
 
