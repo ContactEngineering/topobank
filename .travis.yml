@@ -8,7 +8,7 @@ install:
   - sudo apt-get install libfftw3-dev libopenblas-dev
   - pip install -q -r requirements/test.txt
 script:
-  - pytest -v -v -v
+  - pytest -v --splinter-webdriver=chrome --splinter-headless=true
 notifications:
   email:
     - roettger@tf.uni-freiburg.de
