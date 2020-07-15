@@ -18,7 +18,7 @@ def assert_only_permissions_everyone(browser):
     press_permissions(browser)
     # We have only string "Everyone" in the table
     permission_table = browser.find_by_id("permissions")
-    assert permission_table.find_by_css("td").text == "Everyone"
+    assert permission_table.find_by_css("table td").text == "Everyone"
 
 
 @pytest.mark.django_db
