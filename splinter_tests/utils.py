@@ -55,6 +55,12 @@ def is_text_present_in_result_table(browser, s):
     return len(elems) > 0
 
 
+def num_items_in_result_table(browser):
+    tree_element = browser.find_by_id('surface-tree')
+    rows = tree_element.find_by_css('tr')
+    return len(rows) - 1  # substract 1 for header row
+
+
 def active_page_number(browser):
     """Returns page number currently active.
 
@@ -75,6 +81,22 @@ def active_page_number(browser):
 
 def active_page_size(browser):
     return int(_selected_value(browser, "#page-size-select"))
+
+
+def select_category(browser, category):
+    assert 'Select' in active_tab_title(browser)
+    browser.choose('category', category)
+    assert selected_category(browser) == category  # needed, it may be not implemented yet
+    # skip loading time
+    assert browser.is_element_not_present_by_text("Please wait", wait_time=1)
+
+
+def select_sharing_status(browser, sharing_status):
+    assert 'Select' in active_tab_title(browser)
+    browser.choose('sharing_status', sharing_status)
+    assert selected_sharing_status(browser) == sharing_status  # needed, it may be not implemented yet
+    # skip loading time
+    assert browser.is_element_not_present_by_text("Please wait", wait_time=1)
 
 
 def select_tree_mode(browser, mode):
@@ -122,7 +144,6 @@ def press_properties_for_item_by_name(browser, name):
     props_link = item_row.find_by_css("a").first
     props_link.click()
     assert name in active_tab_title(browser)
-    assert browser.is_text_present("Edit meta data", wait_time=1)
 
 
 def select_item_by_name(browser, name):

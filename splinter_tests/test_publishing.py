@@ -1,7 +1,8 @@
 import pytest
 
 from topobank.manager.tests.utils import SurfaceFactory, TopographyFactory
-from splinter_tests.utils import goto_select_page, goto_publications_page, press_properties_for_item_by_name
+from splinter_tests.utils import goto_select_page, goto_publications_page, \
+    select_sharing_status, press_properties_for_item_by_name, num_items_in_result_table
 
 
 def press_yes_publish(browser):
@@ -112,18 +113,33 @@ def test_see_published_by_others(user_alice_logged_in, user_bob, handle_usage_st
     browser, user_alice = user_alice_logged_in
 
     #
-    # User Bob publishes a surface
+    # Alice has a surface, which is not published
     #
-    surface = SurfaceFactory(creator=user_bob)
+    SurfaceFactory(creator=user_alice, name="Alice's Surface")
+
+    #
+    # User Bob publishes a surface (here in the background)
+    #
+    surface_name = "Bob has published this"
+    surface = SurfaceFactory(creator=user_bob, name=surface_name)
     TopographyFactory(surface=surface)
     surface.publish('cc0')
 
     # Alice filters for published surfaces - enters
     # "Select" tab and chooses "Only published surfaces"
     #
+    goto_select_page(browser)
 
-    # Bobs surface is visible. She opens the properties and sees
+    assert num_items_in_result_table(browser) == 2  # both surfaces are visible by default
+
+    select_sharing_status(browser, 'published')
+    assert num_items_in_result_table(browser) == 1  # only published is visible
+
+    # Bobs surface is visible as only surface.
+    # Alice opens the properties and sees
     # the "published by Bob" badge.
+    press_properties_for_item_by_name(browser, surface_name)
+    browser.is_text_present('published by Bob Marley')
 
     # She opens the permissions and sees that Everyone has read permissions
     # and nothing else.
@@ -132,6 +148,6 @@ def test_see_published_by_others(user_alice_logged_in, user_bob, handle_usage_st
 
     assert not browser.is_text_present(user_alice.name)  # we don't want to list all names here
     assert not browser.is_text_present(user_bob.name)  # we don't want to list all names here
-    assert not browser.is_text_present("Everyone")
+    assert browser.is_text_present("Everyone")
 
 
