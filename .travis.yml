@@ -1,8 +1,8 @@
 dist: bionic
 language: python
 cache: pip
-#addons:
-#  chrome: stable
+addons:
+  chrome: stable
 env:
   - USE_DOCKER=no DJANGO_SETTINGS_MODULE=config.settings.test
 python:
@@ -12,8 +12,9 @@ python:
 install:
   - sudo apt-get install libfftw3-dev libopenblas-dev chromium-chromedriver
   - pip install -q -r requirements/test.txt
+  - pip install selenium
 script:
-  - pytest -v --splinter-webdriver=chrome --splinter-headless=true --splinter-webdriver-executable=/usr/lib/chromium-browser/chromedriver
+  - pytest -v --splinter-webdriver=chrome --splinter-headless=true --splinter-webdriver-executable=/opt/google/chrome/chrome
 notifications:
   email:
     - roettger@tf.uni-freiburg.de
