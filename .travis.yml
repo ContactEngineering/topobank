@@ -1,5 +1,7 @@
 language: python
 cache: pip
+addons:
+  chrome: stable
 env:
   - USE_DOCKER=no DJANGO_SETTINGS_MODULE=config.settings.test
 python:
