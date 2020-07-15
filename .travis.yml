@@ -1,4 +1,6 @@
 dist: bionic
+services:
+  - xvfb
 language: python
 cache: pip
 addons:
@@ -10,12 +12,14 @@ python:
 #before_install:
 #  - google-chrome-stable --headless --disable-gpu --remote-debugging-port=9222 http://localhost &
 install:
-  - sudo apt-get install libfftw3-dev libopenblas-dev chromium-chromedriver
+  # - sudo apt-get install libfftw3-dev libopenblas-dev chromium-chromedriver
+  - sudo apt-get install libfftw3-dev libopenblas-dev
   - pip install -q -r requirements/test.txt
   - pip install selenium
 script:
-  - pytest -v --splinter-webdriver=chrome --splinter-headless=true --splinter-webdriver-executable=/opt/google/chrome/chrome
+  # - pytest -v --splinter-webdriver=chrome --splinter-headless=true --splinter-webdriver-executable=/opt/google/chrome/chrome
+  - pytest -v --splinter-headless=true
 notifications:
   email:
     - roettger@tf.uni-freiburg.de
-    - lars.pastewka@imtek.uni-freiburg.de
+    # - lars.pastewka@imtek.uni-freiburg.de
