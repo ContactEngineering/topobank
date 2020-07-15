@@ -570,7 +570,7 @@ class SurfacePublishForm(forms.Form):
     helper.form_method = 'POST'
 
     ready = forms.BooleanField(widget=forms.CheckboxInput, required=True,
-                               label="No more modifications are required regarding the surface and all its metadata.",
+                               label="No more modifications are allowed regarding the surface and all its metadata.",
                                help_text="""Please check tags, the description, and also all topographies with
                                their metadata (description, tags, raw files, physical sizes, ..).""")
 
