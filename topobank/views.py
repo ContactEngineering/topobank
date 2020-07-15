@@ -16,6 +16,7 @@ from topobank.manager.models import Surface, Topography
 from topobank.analysis.models import Analysis
 from topobank.manager.utils import get_reader_infos
 
+
 class HomeView(TemplateView):
 
     template_name = 'pages/home.html'
@@ -64,6 +65,7 @@ class HomeView(TemplateView):
             context['analyses_link'] = get_login_link('analysis:list')
 
         return context
+
 
 class TermsView(TemplateView):
 
