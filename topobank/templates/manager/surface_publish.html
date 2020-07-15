@@ -34,7 +34,7 @@
 
     <div class="alert alert-secondary">
       <h2 class="alert-heading">Consider the alternative: Sharing</h2>
-      <p>If you only want to share the surface with a few users for <b>collaboration</b>,
+      <p>If you want to share this surface with a few users for <b>collaboration</b>,
       please consider <a href="{% url 'manager:surface-share' surface.id %}">sharing this surface</a> instead.</p>
       <p>Unlike publishing this means:
         <ul>
@@ -43,7 +43,7 @@
           <li>You can still edit the surface and its topographies. You also allow other users to do so, if you want.</li>
         </ul>
       </p>
-      This is no possible any more, if you publish the surface.
+      This is no longer possible if you publish this surface.
     </div>
 
     {% if surface.topography_set.count == 0 %}
