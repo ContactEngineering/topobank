@@ -168,7 +168,9 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
 
     def get_sharing_status(self, obj):
         user = self.context['request'].user
-        if user == obj.creator:
+        if hasattr(obj, 'is_published') and obj.is_published:
+            return 'published'
+        elif user == obj.creator:
             return "own"
         else:
             return "shared"

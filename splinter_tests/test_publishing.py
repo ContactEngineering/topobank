@@ -14,6 +14,13 @@ def press_permissions(browser):
     browser.links.find_by_partial_text("Permissions").first.click()
 
 
+def assert_only_permissions_everyone(browser):
+    press_permissions(browser)
+    # We have only string "Everyone" in the table
+    permission_table = browser.find_by_id("permissions")
+    assert permission_table.find_by_css("td").text == "Everyone"
+
+
 @pytest.mark.django_db
 def test_publishing_form(user_alice_logged_in, user_bob, handle_usage_statistics):
 
@@ -101,11 +108,7 @@ def test_publishing_form(user_alice_logged_in, user_bob, handle_usage_statistics
     # She opens the permissions and sees that Everyone has read permissions
     # and nothing else.
     # The individual names are NOT listed.
-    press_permissions(browser)
-
-    assert not browser.is_text_present(user_bob.name)  # we don't want to list all names here
-    assert browser.is_text_present("Everyone")
-
+    assert_only_permissions_everyone(browser)
 
 @pytest.mark.django_db
 def test_see_published_by_others(user_alice_logged_in, user_bob, handle_usage_statistics):
@@ -144,10 +147,9 @@ def test_see_published_by_others(user_alice_logged_in, user_bob, handle_usage_st
     # She opens the permissions and sees that Everyone has read permissions
     # and nothing else.
     # The individual names are NOT listed.
-    press_permissions(browser)
+    assert_only_permissions_everyone(browser)
 
-    assert not browser.is_text_present(user_alice.name)  # we don't want to list all names here
-    assert not browser.is_text_present(user_bob.name)  # we don't want to list all names here
-    assert browser.is_text_present("Everyone")
+
+
 
 

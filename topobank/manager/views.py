@@ -57,9 +57,10 @@ MAX_NUM_POINTS_FOR_SYMBOLS_IN_LINE_SCAN_PLOT = 100
 CATEGORY_FILTER_CHOICES = {'all':'All categories',
                            **{cc[0]:cc[1]+" only" for cc in Surface.CATEGORY_CHOICES}}
 SHARING_STATUS_FILTER_CHOICES = {
-    'all': 'Own and shared surfaces',
+    'all': 'All accessible surfaces',
     'own': 'Only own surfaces',
     'shared': 'Only surfaces shared with you',
+    'published': 'Only surfaces published by anyone',
 }
 TREE_MODE_CHOICES = ['surface list', 'tag tree']
 

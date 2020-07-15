@@ -82,21 +82,37 @@ def active_page_number(browser):
 def active_page_size(browser):
     return int(_selected_value(browser, "#page-size-select"))
 
+#
+# def select_category(browser, category):
+#     assert 'Select' in active_tab_title(browser)
+#     browser.choose('category', category)
+#     assert selected_category(browser) == category  # needed, it may be not implemented yet
+#     # skip loading time
+#     assert browser.is_element_not_present_by_text("Please wait", wait_time=1)
 
-def select_category(browser, category):
+
+def click_select_option(browser, name, value):
+    option = browser.find_option_by_value(value)  # does not work on directly on "select" element
+    option.click()
+    # check whether it is activated
+    select = browser.find_by_name(name).first
+    assert select.value == value
+
+
+def select_filter_by_name_and_value(browser, name, value):
     assert 'Select' in active_tab_title(browser)
-    browser.choose('category', category)
-    assert selected_category(browser) == category  # needed, it may be not implemented yet
+    # browser.choose(name, value)  # does not work
+    click_select_option(browser, name, value)
     # skip loading time
     assert browser.is_element_not_present_by_text("Please wait", wait_time=1)
+
+
+def select_category(browser, category):
+    select_filter_by_name_and_value(browser, 'category', category)
 
 
 def select_sharing_status(browser, sharing_status):
-    assert 'Select' in active_tab_title(browser)
-    browser.choose('sharing_status', sharing_status)
-    assert selected_sharing_status(browser) == sharing_status  # needed, it may be not implemented yet
-    # skip loading time
-    assert browser.is_element_not_present_by_text("Please wait", wait_time=1)
+    select_filter_by_name_and_value(browser, 'sharing_status', sharing_status)
 
 
 def select_tree_mode(browser, mode):
