@@ -1185,16 +1185,6 @@ class SurfacePublishView(FormView):
 
         surface = self._get_surface()
         surface.publish(license)
-        #
-        # Notify all users about the published surface
-        #
-        notification_message = f"{self.request.user} has published the surface '{surface.name}'."
-        notify.send(self.request.user, recipient=get_default_group(),
-                    verb="publish",
-                    target=surface,
-                    public=False,
-                    description=notification_message,
-                    href=surface.get_absolute_url())
 
         return super().form_valid(form)
 
