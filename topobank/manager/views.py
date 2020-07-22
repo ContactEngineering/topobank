@@ -50,6 +50,7 @@ from .utils import selected_instances, bandwidths_data, get_topography_reader, t
 from ..usage_stats.utils import increase_statistics_by_date
 from ..users.models import User
 from ..users.utils import get_default_group
+from ..publication.models import Publication
 
 MAX_NUM_POINTS_FOR_SYMBOLS_IN_LINE_SCAN_PLOT = 100
 
@@ -1110,20 +1111,21 @@ class SurfaceShareView(FormMixin, DetailView):
 
 
 class PublicationsTable(tables.Table):
-    surface = tables.Column(linkify=True, verbose_name='Name')
+    surface = tables.Column(linkify=True, verbose_name='Surface')
     num_topographies = tables.Column(verbose_name='# Topographies')
     license = tables.Column(verbose_name="License")
-    publication_datetime = tables.Column(verbose_name="Publication Date")
+    datetime = tables.Column(verbose_name="Publication Date")
+    version = tables.Column(verbose_name="Version")
 
     def render_surface(self, value):
         return value.name
 
-    def render_publication_datetime(self, value):
+    def render_datetime(self, value):
         return value.date()
 
     def render_license(self, value, record):
         return mark_safe(f"""
-        <a href="{settings.CC_LICENSE_URLS[value][0]}" target="_blank">{record['surface'].get_license_display()}</a>
+        <a href="{settings.CC_LICENSE_URLS[value][0]}" target="_blank">{record['publication'].get_license_display()}</a>
         """)
 
     class Meta:
@@ -1134,7 +1136,7 @@ class PublicationListView(ListView):
     template_name = "manager/publication_list.html"
 
     def get_queryset(self):
-        return Surface.published.filter(creator=self.request.user)
+        return Publication.objects.filter(publisher=self.request.user)  # TODO move to publication app?
 
     def get_context_data(self, *args, **kwargs):
         context = super().get_context_data(*args, **kwargs)
@@ -1144,11 +1146,13 @@ class PublicationListView(ListView):
         #
         data = [
             {
-                'surface': surface,
-                'num_topographies': surface.num_topographies(),
-                'license': surface.license,
-                'publication_datetime': surface.publication_datetime,
-            } for surface in self.get_queryset()
+                'publication': pub,
+                'surface': pub.surface,
+                'num_topographies': pub.surface.num_topographies(),
+                'license': pub.license,
+                'datetime': pub.datetime,
+                'version': pub.version
+            } for pub in self.get_queryset()
         ]
 
         context['publication_table'] = PublicationsTable(
@@ -1266,6 +1270,7 @@ def sharing_info(request):
 
             if request.user not in [share_with, surface.creator]:
                 # we don't allow to change shares if the request user is not involved
+                _log.warning(f"Changing share on surface {surface.id} not allowed for user {request.user}.")
                 continue
 
             if unshare:

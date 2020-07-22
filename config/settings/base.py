@@ -94,6 +94,7 @@ LOCAL_APPS = [
     'topobank.analysis.apps.AnalysisAppConfig',
     'topobank.usage_stats.apps.UsageStatsAppConfig',
     'topobank.tabnav.apps.TabNavAppConfig',
+    'topobank.publication.apps.PublicationAppConfig',
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

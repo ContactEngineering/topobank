@@ -55,26 +55,55 @@ The user interface for version 0.9.0 should be extended by these elements:
 - When downloading a published surface, a license file should be included.
 - When downloading analysis of a published surface, a license file should be included.
 - The help page should explain sharing and publishing.
-- After publishing, all users should get a notification about the published surface.
 - For publishing, the surface must have at least one topography.
 
+
+Duplicate and Versioning
+------------------------
+
+Internally, in order to publish a surface, it is automatically internally copied
+from the original surface, with all metadata, data files, topography meta data.
+The standard analysis function are then triggered for this new surface.
+
+The original surface is kept unchanged.
+For the new surface the only permissions are that everyone can view it.
+No user can change or delete it. It has a pointer to the original surface.
+
+Whenever the new surface is published, it is a new version of the original surface.
+These published versions build a linear chain.
+The chain links have version numbers 1,2,3,..
+
+Permanent URL
+-------------
+
+There is a permanent URL for the published surfaces, in the form
+```
+    https://contact.engineering/go/<UIID>
+```
+This redirects to the property page of the surface.
+
+Each specific version of a surface gets an new URL.
 
 Implementation in Backend
 -------------------------
 
-Every user is member of the group "all". When publishing, the group "all" is granted
-"read" access. At the same time, "edit" and "delete" permissions are removed for all users.
-Additionally, the surface gets a "published" flag in the database.
+Every user is member of the group "all". When a surface is published, it is copied
+with all topographies, topography files and metadata from surface and topographies.
+The group "all" is granted "read" access for this copy. No other permissions are added
+especially no edit or delete permissions. The original surface is kept like it is.
+It can still be shared, changed or deleted.
 
+Additionally, an entry in a "publication list" is created for the copy.
+That entry has a pointer to the surface and also has the version number,
+a timestamp, a UUID for the URL and a publisher.
+Later this list can also serve for other permanent URLs.
+
+All surfaces get a pointer to an *original surface* which is NULL by default.
+For the copy after publication, it points to the original surface.
+Like this, all versions for a surface (published or "current") can be accessed.
 
 Outlook
 -------
-
-More ideas:
-
-There is a permanent URL with slug for published surfaces, e.g.
-"https://contact.engineering/publications/contact-challenge" or using a UUID.
-This could redirect to the internal property page.
 
 An anonymous user should also be able to view a published surface without log in.
 
@@ -84,13 +113,11 @@ Then the URL for this DOI should point into this application.
 Notes about DOIs
 ----------------
 
-Publication could make use of DOIs and/or probably directly at the ORCID account, see
-
-http://support.orcid.org/knowledgebase/articles/116739-register-a-member-api-client-application
-
-ORCID has a *public API*, which can be used to authenticate researches and to get some public records, and a *member API* which could be used to update the ORCID record of a researcher automatically: https://support.orcid.org/hc/en-us/articles/360006972533-What-s-the-difference-between-the-Public-and-Member-APIs-
-
-[Zenodo](https://zenodo.org/) has a [REST API](http://developers.zenodo.org/) and could be an option which allows us to easily publish datasets with a DOI. There are already many useful metadata fields. Also our software could be published there, so we could publish analysis results along with the code. Zenodo is financed by the European Commission and open for everybody doing research worldwide.
+[Zenodo](https://zenodo.org/) has a [REST API](http://developers.zenodo.org/) and could be an option
+which allows us to easily publish datasets with a DOI.
+There are already many useful metadata fields.
+Also our software could be published there, so we could publish analysis results along with the code.
+Zenodo is financed by the European Commission and open for everybody doing research worldwide.
 
 
 

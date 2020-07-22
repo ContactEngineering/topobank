@@ -1,8 +1,9 @@
 from django.db import models
 from django.shortcuts import reverse
-from django.utils import timezone
 from django.core.cache import cache
 from django.db import transaction
+from django.core.files.storage import default_storage
+from django.core.files import File
 
 from guardian.shortcuts import assign_perm, remove_perm, get_users_with_perms
 import tagulous.models as tm
@@ -10,6 +11,7 @@ import tagulous.models as tm
 from .utils import get_topography_reader
 
 from topobank.users.models import User
+from topobank.publication.models import Publication
 from topobank.users.utils import get_default_group
 
 import logging
@@ -23,6 +25,10 @@ def user_directory_path(instance, filename):
     return 'topographies/user_{0}/{1}'.format(instance.surface.creator.id, filename)
 
 
+class AlreadyPublishedException(Exception):
+    pass
+
+
 class TagModel(tm.TagTreeModel):
     """This is the common tag model for surfaces and topographies.
     """
@@ -34,7 +40,7 @@ class TagModel(tm.TagTreeModel):
 
 class PublishedSurfaceManager(models.Manager):
     def get_queryset(self):
-        return super().get_queryset().exclude(license__exact='')
+        return super().get_queryset().exclude(publication__isnull=True)
 
 
 class Surface(models.Model):
@@ -62,8 +68,6 @@ class Surface(models.Model):
     description = models.TextField(blank=True)
     category = models.TextField(choices=CATEGORY_CHOICES, null=True, blank=False)  # TODO change in character field
     tags = tm.TagField(to=TagModel)
-    license = models.CharField(max_length=12, choices=LICENSE_CHOICES, blank=False, default='')
-    publication_datetime = models.DateTimeField(null=True)
 
     objects = models.Manager()
     published = PublishedSurfaceManager()
@@ -130,41 +134,95 @@ class Surface(models.Model):
             if with_user.has_perm(perm, self):
                 remove_perm(perm, with_user, self)
 
+    def deepcopy(self):
+        """Creates a copy of this surface with all topographies and meta data.
+
+        The database entries for this surface and all related
+        topographies are copied, therefore all meta data.
+        All files will be copied.
+
+        The automated analyses will be triggered for this new surface.
+
+        Returns
+        -------
+        The copy of the surface.
+
+        """
+        # Copy of the surface entry
+        # (see https://docs.djangoproject.com/en/2.2/topics/db/queries/#copying-model-instances)
+
+        copy = Surface.objects.get(pk=self.pk)
+        copy.pk = None
+        copy.tags = self.tags.get_tag_list()
+        copy.save()
+
+        for topo in self.topography_set.all():
+            new_topo = topo.deepcopy(copy)
+            # we pass the surface here because there is a contraint that (surface_id + topography name)
+            # must be unique, i.e. a surface should never have two topographies of the same name,
+            # so we can't set the new surface as the second step
+            new_topo.renew_analyses()
+
+        _log.info("Created deepcopy of surface %s -> surface %s", self.pk, copy.pk)
+        return copy
+
     def publish(self, license):
         """Publish surface.
 
+        An immutable copy is created along with a publication entry.
+        The latter is returned.
+
         Parameters
         ----------
-
         license: str
             One of the keys of LICENSE_CHOICES
 
-        Afterwards, everyone can read the surface (also anonymous users)
-        but nobody can change or delete the surface anymore.
+        Returns
+        -------
+        Publication
         """
+        if self.is_published:
+            raise AlreadyPublishedException()
+
+        #
+        # Create a copy of this surface
+        #
+        copy = self.deepcopy()
+
         #
         # Remove edit, share and delete permission from everyone
         #
         users = get_users_with_perms(self)
         for u in users:
             for perm in ['publish_surface', 'share_surface', 'change_surface', 'delete_surface']:
-                remove_perm(perm, u, self)
+                remove_perm(perm, u, copy)
 
         #
         # Add read permission for everyone
         #
-        assign_perm('view_surface', get_default_group(), self)
+        assign_perm('view_surface', get_default_group(), copy)
 
         #
-        # Set publication properties
+        # Create publication
         #
-        self.license = license
-        self.publication_datetime = timezone.now()
-        self.save()
+        latest_publication = Publication.objects.filter(original_surface=self).order_by('version').last()
+        if latest_publication:
+            version = latest_publication.version + 1
+        else:
+            version = 1
+
+        pub = Publication.objects.create(surface=copy, original_surface=self,
+                                         license=license, version=version, publisher=self.creator)
+
+        _log.info(f"Published surface {self.name} (id: {self.id}) "+\
+                  f"with license {license}, version {version}")
+        _log.info(f"URL of publication: {pub.get_absolute_url()}")
+
+        return pub
 
     @property
     def is_published(self):
-        return self.publication_datetime is not None
+        return hasattr(self, 'publication')  # checks whether the related object surface.publication exists
 
 
 class Topography(models.Model):
@@ -207,7 +265,8 @@ class Topography(models.Model):
     # Fields related to raw data
     #
     datafile = models.FileField(max_length=250, upload_to=user_directory_path)  # currently upload_to not used in forms
-    datafile_format = models.CharField(max_length=MAX_LENGTH_DATAFILE_FORMAT, null=True, default=None, blank=True)
+    datafile_format = models.CharField(max_length=MAX_LENGTH_DATAFILE_FORMAT,
+                                       null=True, default=None, blank=True)
     data_source = models.IntegerField()
     # Django documentation discourages the use of null=True on a CharField. I'll use it here
     # nevertheless, because I need this values as argument to a function where None has
@@ -343,4 +402,29 @@ class Topography(models.Model):
                 'height_scale': self.height_scale,
                 'size': (self.size_x, self.size_y)}
 
+    def deepcopy(self, to_surface):
+        """Creates a copy of this topography with all data files copied.
+
+        Parameters
+        ----------
+        to_surface: Surface
+            target surface
+
+        Returns
+        -------
+        The copied topography.
+
+        """
+
+        copy = Topography.objects.get(pk=self.pk)
+        copy.pk = None
+        copy.surface = to_surface
+
+        with self.datafile.open(mode='rb') as datafile:
+            copy.datafile = default_storage.save(self.datafile.name, File(datafile))
+
+        copy.tags = self.tags.get_tag_list()
+        copy.save()
+
+        return copy
 

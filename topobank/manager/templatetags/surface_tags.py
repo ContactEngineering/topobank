@@ -29,7 +29,7 @@ def render_published_by_badge(request, surface):
     """
     return {
         'surface': surface,
-        'is_creator': request.user == surface.creator
+        'is_publisher': request.user == surface.publication.publisher
     }
 
 
