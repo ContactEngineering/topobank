@@ -183,6 +183,12 @@ let search_results_vm = new Vue({
                           $tdList
                               .eq(1)
                               .html(version_html);
+
+                          // Also add badge for "published" to first column
+                          if (node.data.version.toString().length > 0) {
+                              published_html = "<span class='badge badge-info mr-1'>published</span>";
+                              $tdList.eq(0).find('.fancytree-title').after(published_html);
+                          }
                       }
 
                       // Set column with description
