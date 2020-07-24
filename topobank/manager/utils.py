@@ -134,7 +134,7 @@ def filtered_surfaces(request):
     elif sharing_status == 'shared':
         qs = qs.filter(~Q(creator=user))
     elif sharing_status == 'published':
-        qs = qs.exclude(license__exact='')
+        qs = qs.exclude(publication__isnull=True)
 
     #
     # Filter by search term
