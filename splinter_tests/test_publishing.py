@@ -2,7 +2,8 @@ import pytest
 
 from topobank.manager.tests.utils import SurfaceFactory, TopographyFactory
 from splinter_tests.utils import goto_select_page, goto_publications_page, \
-    select_sharing_status, press_properties_for_item_by_name, num_items_in_result_table
+    select_sharing_status, press_properties_for_item_by_name, num_items_in_result_table,\
+    data_of_item_by_name
 
 
 def press_yes_publish(browser):
@@ -110,6 +111,7 @@ def test_publishing_form(user_alice_logged_in, user_bob, handle_usage_statistics
     # The individual names are NOT listed.
     assert_only_permissions_everyone(browser)
 
+
 @pytest.mark.django_db
 def test_see_published_by_others(user_alice_logged_in, user_bob, handle_usage_statistics):
 
@@ -124,7 +126,8 @@ def test_see_published_by_others(user_alice_logged_in, user_bob, handle_usage_st
     # User Bob publishes a surface (here in the background)
     #
     surface_name = "Bob has published this"
-    surface = SurfaceFactory(creator=user_bob, name=surface_name)
+    surface_description = "Valuable results."
+    surface = SurfaceFactory(creator=user_bob, name=surface_name, description=surface_description)
     TopographyFactory(surface=surface)
     surface.publish('cc0')
 
@@ -139,6 +142,11 @@ def test_see_published_by_others(user_alice_logged_in, user_bob, handle_usage_st
     assert num_items_in_result_table(browser) == 1  # only published is visible
 
     # Bobs surface is visible as only surface.
+    # The version number is "1".
+    data = data_of_item_by_name(browser, surface_name)
+    assert data['description'] == surface_description
+    assert data['version'] == "1"
+
     # Alice opens the properties and sees
     # the "published by Bob" badge.
     press_properties_for_item_by_name(browser, surface_name)

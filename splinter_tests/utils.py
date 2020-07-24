@@ -162,6 +162,31 @@ def press_properties_for_item_by_name(browser, name):
     assert name in active_tab_title(browser)
 
 
+def data_of_item_by_name(browser, name):
+    """Returns dict with data from select table's row.
+
+    Parameters
+    ----------
+    browser
+        Splinter webdriver
+    name
+        Name of the item in result table on select tab, e.g. name of a surface
+
+    Returns
+    -------
+        dict
+
+        { "version": <str, version of item or empty string>,
+          "description": <str>
+        }
+    """
+    item_row = row_for_item_by_name(browser, name)
+    item_row_texts = [td.text for td in item_row.find_by_css('td')]
+    assert len(item_row_texts) == 4, "Not enough elements in item row"
+    return dict(version=item_row_texts[2],
+                description=item_row_texts[3])
+
+
 def select_item_by_name(browser, name):
     checkbox = checkbox_for_item_by_name(browser, name)
     checkbox.check()
