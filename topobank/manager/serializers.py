@@ -28,6 +28,7 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
     folder = serializers.BooleanField(default=False)
     tags = serializers.SerializerMethodField()
     type = serializers.CharField(default='topography')
+    version = serializers.CharField(default='')
 
     def get_urls(self, obj):
         """Return only those urls which are usable for the user
@@ -75,7 +76,7 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Topography
         fields = ['pk', 'type', 'name', 'creator', 'description', 'tags',
-                  'urls', 'selected', 'key', 'surface_key', 'title', 'folder']
+                  'urls', 'selected', 'key', 'surface_key', 'title', 'folder', 'version']
 
 
 class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
@@ -97,6 +98,7 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
     sharing_status = serializers.SerializerMethodField()
     tags = serializers.SerializerMethodField()
     type = serializers.CharField(default='surface')
+    version = serializers.SerializerMethodField()
 
     def get_children(self, obj):
         #
@@ -175,13 +177,16 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
         else:
             return "shared"
 
-    def get_tags(self, obj):  # TODO prove if own method needed
+    def get_tags(self, obj):
         return [t.name for t in obj.tags.all()]
+
+    def get_version(self, obj):
+        return obj.publication.version if obj.is_published else ''
 
     class Meta:
         model = Surface
         fields = ['pk', 'type', 'name', 'creator', 'description', 'category', 'tags', 'children',
-                  'sharing_status', 'urls', 'selected', 'key', 'title', 'folder']
+                  'sharing_status', 'urls', 'selected', 'key', 'title', 'folder', 'version']
 
 
 class TagSerializer(serializers.ModelSerializer):
@@ -193,10 +198,12 @@ class TagSerializer(serializers.ModelSerializer):
     key = serializers.SerializerMethodField()
     selected = serializers.SerializerMethodField()
     type = serializers.CharField(default='tag')
+    version = serializers.CharField(default='')
 
     class Meta:
         model = TagModel
-        fields = ['pk', 'key', 'type', 'title', 'name', 'children', 'folder', 'urls', 'selected']
+        fields = ['pk', 'key', 'type', 'title', 'name', 'children',
+                  'folder', 'urls', 'selected', 'version']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

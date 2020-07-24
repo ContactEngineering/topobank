@@ -145,6 +145,10 @@ tr.fancytree-active span.fancytree-title, tr.fancytree-active div.description-co
    color: white;
 }
 
+div.version-column {
+  text-align: center;
+}
+
 /**
   Settings for task table
 */

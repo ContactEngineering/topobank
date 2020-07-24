@@ -4,6 +4,7 @@ from django.shortcuts import reverse
 from ..serializers import TopographySerializer, SurfaceSerializer
 from .utils import SurfaceFactory, TopographyFactory, UserFactory, ordereddicts_to_dicts
 
+
 @pytest.mark.django_db
 def test_surface_serializer(rf):
     user = UserFactory()
@@ -54,6 +55,7 @@ def test_surface_serializer(rf):
              'tags': [],
              'title': topo1a.name,
              'type': 'topography',
+             'version': '',
              'urls': {'delete': topo1a_prefix + 'delete/',
                       'detail': topo1a_prefix,
                       'select': topo1a_prefix + 'select/',
@@ -71,6 +73,7 @@ def test_surface_serializer(rf):
              'tags': [],
              'title': topo1b.name,
              'type': 'topography',
+             'version': '',
              'urls': {'delete': topo1b_prefix + 'delete/',
                       'detail': topo1b_prefix,
                       'select': topo1b_prefix + 'select/',
@@ -90,6 +93,7 @@ def test_surface_serializer(rf):
         'tags': ['bike', 'train/tgv'],
         'title': surface1.name,
         'type': 'surface',
+        'version': '',
         'urls': {'add_topography': surface1_prefix + 'new-topography/',
                  'delete': surface1_prefix + 'delete/',
                  'detail': surface1_prefix,
