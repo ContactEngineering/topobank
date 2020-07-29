@@ -1,9 +1,11 @@
 import pytest
 import datetime
 
+from django.shortcuts import reverse
 from guardian.shortcuts import get_perms
 
 from .utils import SurfaceFactory, UserFactory, TopographyFactory, TagModelFactory
+from topobank.utils import assert_in_content, assert_redirects, assert_not_in_content
 
 
 @pytest.mark.django_db
@@ -19,6 +21,7 @@ def test_publication_version():
 
     assert publication_v1.original_surface == publication_v2.original_surface
     assert publication_v1.surface != publication_v2.surface
+
 
 @pytest.mark.django_db
 def test_publication_fields():
@@ -111,7 +114,53 @@ def test_surface_deepcopy():
         assert t1.datafile_format == t2.datafile_format
 
 
+@pytest.mark.django_db
+def test_switch_versions_on_properties_tab(client):
 
+    user = UserFactory()
+    surface = SurfaceFactory(creator=user)
+    topo1 = TopographyFactory(surface=surface)
+    topo2 = TopographyFactory(surface=surface)
+
+    #
+    # First: The surface is not published yet
+    #
+    client.force_login(user)
+
+    response = client.get(reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)))
+
+    assert response.status_code == 200
+    assert_not_in_content(response, 'Version 1')
+    assert_not_in_content(response, 'Version 2')
+
+    #
+    # Now publish the first time
+    #
+    publication = surface.publish('cc0')
+    assert publication.version == 1
+    assert publication.license == 'cc0'
+    assert publication.original_surface == surface
+    pub_date_1 = publication.datetime.date()
+
+    response = client.get(reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)))
+
+    assert response.status_code == 200
+    assert_in_content(response, 'Version 1 ({})'.format(pub_date_1))
+    assert_not_in_content(response, 'Version 2')
+
+    #
+    # Publish again
+    #
+    publication = surface.publish('cc0')
+    assert publication.version == 2
+    assert publication.original_surface == surface
+    pub_date_2 = publication.datetime.date()
+
+    response = client.get(reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)))
+
+    assert response.status_code == 200
+    assert_in_content(response, 'Version 1 ({})'.format(pub_date_1))
+    assert_in_content(response, 'Version 2 ({})'.format(pub_date_2))
 
 
 

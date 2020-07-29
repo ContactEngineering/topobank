@@ -1143,7 +1143,7 @@ def extra_tabs_if_single_item_selected(topographies, surfaces):
         topo = topographies[0]
         tabs.extend([
             {
-                'title': f"{topo.surface.name}",
+                'title': f"{topo.surface.label}",
                 'icon': "diamond",
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
                 'active': False,
@@ -1160,7 +1160,7 @@ def extra_tabs_if_single_item_selected(topographies, surfaces):
         surface = surfaces[0]
         tabs.append(
             {
-                'title': f"{surface.name}",
+                'title': f"{surface.label}",
                 'icon': "diamond",
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
                 'active': False,

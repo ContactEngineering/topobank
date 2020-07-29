@@ -100,12 +100,36 @@
 
         </div>
 
+
+
         <div class="col-sm-3 col-12">
 
           <div class="row p-3">
-
             <div class="col">
-
+              {# Dropdown for versioning #}
+              <div class="btn-group">
+                <button type="button" id="versions-btn"
+                        class="btn btn-info dropdown-toggle
+                        {% if versioned_surfaces|length == 1 %}disabled{% endif %}"
+                        data-toggle="dropdown" aria-haspopup="true"
+                        aria-expanded="false">
+                  {{ this_version_label }}
+                </button>
+                <div class="dropdown-menu" id="versions-dropdown">
+                  {% for version_label, version_surface in versioned_surfaces.items %}
+                    <a class="dropdown-item{% if version_surface == surface %} disabled{% endif %}"
+                       href="{{ version_surface.get_absolute_url }}">
+                      {{ version_label }}
+                    </a>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="row p-3">
+            <div class="col">
+              <div class="card">
+                <div class="card-body">
               <div>
                   <span class="badge badge-secondary surface-category-headline">
                   {{ surface.get_category_display|default_if_none:"category not defined yet" }}
@@ -121,7 +145,8 @@
                   <span class="badge badge-success">{{ tag.name }}</span>
                 {% endfor %}
               </div>
-
+              </div>
+              </div>
             </div>
           </div>
           <div class="row p-3">

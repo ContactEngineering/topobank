@@ -80,7 +80,14 @@ class Surface(models.Model):
         )
 
     def __str__(self):
-        return self.name
+        s = self.name
+        if self.is_published:
+            s += f" (version {self.publication.version})"
+        return s
+
+    @property
+    def label(self):
+        return str(self)
 
     def get_absolute_url(self):
         return reverse('manager:surface-detail', kwargs=dict(pk=self.pk))

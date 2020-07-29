@@ -352,11 +352,11 @@ def instances_to_basket_items(topographies, surfaces, tags):
     -------
     List of items in the basket. Each is a dict with keys
 
-     name, type, unselect_url, key
+     label, type, unselect_url, key
 
     Example with one selected surface:
 
-     [ {'name': "Test Surface",
+     [ {'label': "Test Surface",
         'type': "surface",
         'unselect_url': ".../manager/surface/13/unselect",
         'key': "surface-13"}
@@ -366,20 +366,20 @@ def instances_to_basket_items(topographies, surfaces, tags):
     basket_items = []
     for s in surfaces:
         unselect_url = reverse('manager:surface-unselect', kwargs=dict(pk=s.pk))
-        basket_items.append(dict(name=s.name,
+        basket_items.append(dict(label=str(s),
                                  type="surface",
                                  unselect_url=unselect_url,
                                  key=f"surface-{s.pk}"))
     for topo in topographies:
         unselect_url = reverse('manager:topography-unselect', kwargs=dict(pk=topo.pk))
-        basket_items.append(dict(name=topo.name,
+        basket_items.append(dict(label=topo.name,
                                  type="topography",
                                  unselect_url=unselect_url,
                                  key=f"topography-{topo.pk}",
                                  surface_key=f"surface-{topo.surface.pk}"))
     for tag in tags:
         unselect_url = reverse('manager:tag-unselect', kwargs=dict(pk=tag.pk))
-        basket_items.append(dict(name=tag.name,
+        basket_items.append(dict(label=tag.name,
                                  type="tag",
                                  unselect_url=unselect_url,
                                  key=f"tag-{tag.pk}"))
@@ -398,11 +398,11 @@ def current_selection_as_basket_items(request):
     -------
     List of items in the basket. Each is a dict with keys
 
-     name, type, unselect_url, key
+     label, type, unselect_url, key
 
     Example with one selected surface:
 
-     [ {'name': "Test Surface",
+     [ {'label': "Test Surface",
         'type': "surface",
         'unselect_url': ".../manager/surface/13/unselect",
         'key': "surface-13"}

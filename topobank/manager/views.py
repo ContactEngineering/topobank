@@ -330,7 +330,7 @@ class TopographyCreateWizard(SessionWizardView):
         #
         context['extra_tabs'] = [
             {
-                'title': f"{surface.name}",
+                'title': f"{surface}",
                 'icon': "diamond",
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
                 'active': False,
@@ -507,7 +507,7 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
         #
         context['extra_tabs'] = [
             {
-                'title': f"{topo.surface.name}",
+                'title': f"{topo.surface.label}",
                 'icon': "diamond",
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
                 'active': False,
@@ -709,7 +709,7 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
         #
         context['extra_tabs'] = [
             {
-                'title': f"{topo.surface.name}",
+                'title': f"{topo.surface.label}",
                 'icon': "diamond",
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
                 'active': False,
@@ -755,7 +755,7 @@ class TopographyDeleteView(TopographyUpdatePermissionMixin, DeleteView):
         surface = topo.surface
         context['extra_tabs'] = [
             {
-                'title': f"{topo.surface.name}",
+                'title': f"{topo.surface.label}",
                 'icon': "diamond",
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
                 'active': False,
@@ -856,10 +856,11 @@ class SurfaceDetailView(DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
+        surface = self.object
         #
         # bandwidth data
         #
-        bw_data = bandwidths_data(self.object.topography_set.all())
+        bw_data = bandwidths_data(surface.topography_set.all())
 
         # filter out all entries with errors and display error messages
         bw_data_with_errors = [x for x in bw_data if x['error_message'] is not None]
@@ -874,7 +875,7 @@ class SurfaceDetailView(DetailView):
         ACTIONS = ['view', 'change', 'delete', 'share']  # defines the order of permissions in table
 
         # surface_perms = get_users_with_perms(self.object, attach_perms=True, only_with_perms_in=potential_perms)
-        surface_perms = get_users_with_perms(self.object, attach_perms=True)
+        surface_perms = get_users_with_perms(surface, attach_perms=True)
         # is now a dict of the form
         #  <User: joe>: ['view_surface'], <User: dan>: ['view_surface', 'change_surface']}
         surface_users = sorted(surface_perms.keys(), key=lambda u: u.name if u else '')
@@ -918,14 +919,43 @@ class SurfaceDetailView(DetailView):
             'head': [''] + ACTIONS,
             'body': surface_perms_table
         }
+
+        #
+        # Build tab information
+        #
         context['extra_tabs'] = [
             {
-                'title': f"{self.object.name}",
+                'title': str(surface),
                 'icon': "diamond",
                 'href': self.request.path,
                 'active': True,
             }
         ]
+
+        #
+        # Build urls for version selection in dropdown
+        #
+        def version_label_from_publication(pub):
+            return f'Version {pub.version} ({pub.datetime.date()})' if pub else 'Work in progress'
+
+        if surface.is_published:
+            original_surface = surface.publication.original_surface
+            context['this_version_label'] = version_label_from_publication(surface.publication)
+        else:
+            original_surface = surface
+            context['this_version_label'] = version_label_from_publication(None)
+
+        publications = Publication.objects.filter(original_surface=original_surface).order_by('version')
+        versioned_surfaces = {}
+
+        if self.request.user.has_perm('view_surface', original_surface):
+            # Only add link to original surface if user is allowed to view
+            versioned_surfaces[version_label_from_publication(None)] = original_surface
+
+        for pub in publications:
+            version_label = version_label_from_publication(pub)
+            versioned_surfaces[version_label] = pub.surface
+        context['versioned_surfaces'] = versioned_surfaces
 
         return context
 
@@ -966,7 +996,7 @@ class SurfaceUpdateView(UpdateView):
 
         context['extra_tabs'] = [
             {
-                'title': f"{surface.name}",
+                'title': f"{surface.label}",
                 'icon': "diamond",
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
                 'active': False,
@@ -1018,7 +1048,7 @@ class SurfaceDeleteView(DeleteView):
         #
         context['extra_tabs'] = [
             {
-                'title': f"{surface.name}",
+                'title': f"{surface.label}",
                 'icon': "diamond",
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
                 'active': False,
@@ -1093,7 +1123,7 @@ class SurfaceShareView(FormMixin, DetailView):
 
         context['extra_tabs'] = [
             {
-                'title': f"{surface.name}",
+                'title': f"{surface.label}",
                 'icon': "diamond",
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
                 'active': False,
@@ -1199,7 +1229,7 @@ class SurfacePublishView(FormView):
 
         context['extra_tabs'] = [
             {
-                'title': f"{surface.name}",
+                'title': f"{surface.label}",
                 'icon': "diamond",
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
                 'active': False,
