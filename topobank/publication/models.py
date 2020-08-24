@@ -1,8 +1,6 @@
 from django.db import models
 from django.urls import reverse
 
-import uuid
-
 
 class Publication(models.Model):
 
@@ -15,7 +13,6 @@ class Publication(models.Model):
         # https://creativecommons.org/licenses/by-sa/4.0/
     ]
 
-    uuid = models.UUIDField(default=uuid.uuid4, unique=True)
     short_url = models.CharField(max_length=10, unique=True, null=True)
     surface = models.OneToOneField("manager.Surface", on_delete=models.PROTECT, related_name='publication')
     original_surface = models.ForeignKey("manager.Surface", on_delete=models.SET_NULL,
