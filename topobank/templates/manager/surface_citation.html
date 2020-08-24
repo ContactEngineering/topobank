@@ -1,0 +1,5 @@
+{% load fullurl %}
+
+{% with surface.publication as pub %}
+  {{ pub.publisher.name }}. ({{ pub.datetime.year }}). {{ surface.name }} (Version {{ pub.version }}) [Website]. Retrieved from {% fullurl 'publication:go' pub.short_url %}
+{% endwith %}

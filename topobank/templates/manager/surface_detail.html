@@ -27,6 +27,11 @@
             <li class="nav-item">
               <a class="nav-link" data-toggle="pill" href="#permissions" role="tab">Permissions</a>
             </li>
+            {% if surface.is_published %}
+            <li class="nav-item">
+              <a class="nav-link" data-toggle="pill" href="#howtocite" role="tab">How to cite</a>
+            </li>
+            {% endif %}
           </ul>
         </div>
 
@@ -95,7 +100,11 @@
               </table>
 
             </div>
-
+            {% if surface.is_published %}
+              <div class="tab-pane fade" id="howtocite">
+                {% include "manager/surface_citation.html" %}
+              </div>
+            {% endif %}
           </div>
 
         </div>

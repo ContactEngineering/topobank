@@ -41,6 +41,7 @@ django-extensions==2.2.1
 django-filter==2.2.0
 django-fontawesome==1.0
 django-formtools==2.2
+django-fullurl==1.1
 django-guardian==2.0.0
 django-model-utils==3.2.0
 django-notifications-hq==1.5.0
@@ -145,4 +146,4 @@ xarray==0.12.3
 zipp==0.6.0
 
 # The following packages are considered to be unsafe in a requirements file:
-# setuptools==49.2.0        # via ipdb, ipython, sphinx
+# setuptools==49.6.0        # via ipdb, ipython, sphinx
