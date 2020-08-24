@@ -5,7 +5,7 @@ from . import views
 app_name = "publication"
 urlpatterns = [
     path(
-        '<uuid:ref>/',
+        '<str:short_url>/',
         view=views.go,
         name='go'
     ),

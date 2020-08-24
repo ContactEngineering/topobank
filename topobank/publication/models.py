@@ -16,6 +16,7 @@ class Publication(models.Model):
     ]
 
     uuid = models.UUIDField(default=uuid.uuid4, unique=True)
+    short_url = models.CharField(max_length=10, unique=True, null=True)
     surface = models.OneToOneField("manager.Surface", on_delete=models.PROTECT, related_name='publication')
     original_surface = models.ForeignKey("manager.Surface", on_delete=models.SET_NULL,
                                          null=True, related_name='derived_publications')
@@ -25,5 +26,5 @@ class Publication(models.Model):
     license = models.CharField(max_length=12, choices=LICENSE_CHOICES, blank=False, default='')
 
     def get_absolute_url(self):
-        return reverse('publication:go', args=[self.uuid])
+        return reverse('publication:go', args=[self.short_url])
 

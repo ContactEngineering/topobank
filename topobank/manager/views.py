@@ -1141,14 +1141,14 @@ class SurfaceShareView(FormMixin, DetailView):
 
 
 class PublicationsTable(tables.Table):
-    surface = tables.Column(linkify=True, verbose_name='Surface')
+    publication = tables.Column(linkify=True, verbose_name='Surface')
     num_topographies = tables.Column(verbose_name='# Topographies')
     license = tables.Column(verbose_name="License")
     datetime = tables.Column(verbose_name="Publication Date")
     version = tables.Column(verbose_name="Version")
 
-    def render_surface(self, value):
-        return value.name
+    def render_publication(self, value):
+        return value.surface.name
 
     def render_datetime(self, value):
         return value.date()
