@@ -8,6 +8,7 @@ from io import BytesIO
 import django_tables2 as tables
 import numpy as np
 import yaml
+import textwrap
 
 from bokeh.embed import components
 from bokeh.models import DataRange1d, LinearColorMapper, ColorBar
@@ -1401,20 +1402,34 @@ def download_surface(request, surface_id):
         #
         # Add a Readme file
         #
-        zf.writestr("README.txt", \
-                    """
-Contents of this ZIP archive
-============================
-This archive contains a surface: A collection of individual topography measurements.
+        readme_txt = """
+            Contents of this ZIP archive
+            ============================
+            This archive contains a surface: A collection of individual topography measurements.
 
-The meta data for the surface and the individual topographies can be found in the
-auxiliary file 'meta.yml'. It is formatted as a [YAML](https://yaml.org/) file.
+            The meta data for the surface and the individual topographies can be found in the
+            auxiliary file 'meta.yml'. It is formatted as a [YAML](https://yaml.org/) file.
 
-Version information
-===================
+            Version information
+            ===================
 
-TopoBank: {}
-""".format(settings.TOPOBANK_VERSION))
+            TopoBank: {}
+            """.format(settings.TOPOBANK_VERSION)
+        if surface.is_published:
+            pub = surface.publication
+            license_txt = pub.get_license_display()
+            license_links = settings.CC_LICENSE_URLS[pub.license]
+            readme_txt += """
+            License information
+            ===================
+
+            This surface has been published and the data is licensed under "{}".
+            For details about this license see
+            - {} (description) and
+            - {} (legal code).
+            """.format(license_txt, license_links[0], license_links[1])
+
+        zf.writestr("README.txt", textwrap.dedent(readme_txt))
 
     # Prepare response object.
     response = HttpResponse(bytes.getvalue(),

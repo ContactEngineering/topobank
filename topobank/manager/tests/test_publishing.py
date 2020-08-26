@@ -1,5 +1,6 @@
 import pytest
 import datetime
+import zipfile
 
 from django.shortcuts import reverse
 from guardian.shortcuts import get_perms
@@ -163,6 +164,25 @@ def test_switch_versions_on_properties_tab(client):
     assert_in_content(response, 'Version 2 ({})'.format(pub_date_2))
 
 
+@pytest.mark.django_db
+def test_license_in_surface_download(client):
+    import io
+    user1 = UserFactory()
+    user2 = UserFactory()
+    surface = SurfaceFactory(creator=user1)
+    TopographyFactory(surface=surface)
+    publication = surface.publish('cc0-1.0')
+    client.force_login(user2)
+
+    response = client.get(reverse('manager:surface-download', kwargs=dict(surface_id=publication.surface.id)))
+    assert response.status_code == 200
+    assert response['Content-Disposition'] == 'attachment; filename="surface.zip"'
+    downloaded_file = io.BytesIO(response.content)
+    with zipfile.ZipFile(downloaded_file) as z:
+        with z.open('README.txt') as readme_file:
+            readme_bytes = readme_file.read()
+            readme_txt = readme_bytes.decode('utf-8')
+            assert publication.get_license_display() in readme_txt
 
 
 
