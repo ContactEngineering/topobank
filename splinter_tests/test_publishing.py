@@ -264,8 +264,46 @@ def test_switch_between_wip_and_version(user_alice_logged_in, handle_usage_stati
     assert browser.is_text_present("Edit meta data")
 
 
+@pytest.mark.django_db
+def test_how_to_cite(user_alice_logged_in, handle_usage_statistics):
 
+    browser, user_alice = user_alice_logged_in
 
+    #
+    # Alice has a surface and publishes it
+    #
+    surface_name = "Diamond Structure"
+    surface = SurfaceFactory(creator=user_alice, name=surface_name)
+    topo = TopographyFactory(surface=surface)
+    publication = surface.publish('cc0')
 
+    # Alice filters for published surfaces - enters
+    # "Select" tab and chooses "Only published surfaces"
+    #
+    base_url = browser.url
+    goto_select_page(browser)
 
+    assert num_items_in_result_table(browser) == 2  # both surfaces are visible by default
 
+    select_sharing_status(browser, 'published')
+    assert num_items_in_result_table(browser) == 1  # only published is visible
+
+    data = data_of_item_by_name(browser, surface_name)
+    assert data['version'] == "1"
+
+    # Alice opens the properties and sees
+    # the "published by yo" badge.
+    press_properties_for_item_by_name(browser, surface_name)
+    assert browser.is_text_present('published by you')
+
+    #
+    # Alice sees "How to cite" tab an chooses it
+    #
+    assert browser.is_text_present("How to cite")
+    browser.links.find_by_partial_text("How to cite").click()
+
+    # Now the page shows a text form of a citation
+    exp_pub_url = base_url.rstrip('/')+publication.get_absolute_url()
+    exp_citation = f"{user_alice.name}. ({publication.datetime.year}). contact.engineering. {surface_name} (Version 1). "+\
+        f"Retrieved from {exp_pub_url}"
+    assert browser.is_text_present(exp_citation)

@@ -1,5 +1,16 @@
 {% load fullurl %}
+{# Need 'publication_url' in context #}
 
-{% with surface.publication as pub %}
-  {{ pub.publisher.name }}. ({{ pub.datetime.year }}). {{ surface.name }} (Version {{ pub.version }}) [Website]. Retrieved from {% fullurl 'publication:go' pub.short_url %}
-{% endwith %}
+<div class="card">
+  <div class="card-header">
+    Text form with link
+  </div>
+  <div class="card-body">
+    {% with surface.publication as pub %}
+      {{ pub.publisher.name }}. ({{ pub.datetime.year }}). contact.engineering.
+      <em>{{ surface.name }} (Version {{ pub.version }})</em>.
+      Retrieved from <a href="{{ publication_url }}">{{ publication_url }}</a>
+    {% endwith %}
+  </div>
+</div>
+
