@@ -75,13 +75,13 @@ def test_prevent_topography_access_by_other_user(client, django_user_model, mock
     input_file_path = Path(FIXTURE_DIR+'/example3.di')
 
     # prevent signals when creating topography
-    with mocker.patch('django.db.models.signals.pre_save.send'):
-        with mocker.patch('django.db.models.signals.post_save.send'):
-            topography = Topography.objects.create(name="topo", surface=surface, measurement_date='2018-01-01',
-                                                   data_source=0,
-                                                   size_x=1, size_y=1,
-                                                   resolution_x=1, resolution_y=1,
-                                                   datafile=str(input_file_path))
+    mocker.patch('django.db.models.signals.pre_save.send')
+    mocker.patch('django.db.models.signals.post_save.send')
+    topography = Topography.objects.create(name="topo", surface=surface, measurement_date='2018-01-01',
+                                           data_source=0,
+                                           size_x=1, size_y=1,
+                                           resolution_x=1, resolution_y=1,
+                                           datafile=str(input_file_path))
     topography_id = topography.id
 
     #
