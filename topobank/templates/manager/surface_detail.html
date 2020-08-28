@@ -109,13 +109,11 @@
 
         </div>
 
-
-
+        {# Sidebar with buttons and information #}
         <div class="col-sm-3 col-12">
-
+          {# Dropdown for choosing a version #}
           <div class="row p-3">
             <div class="col">
-              {# Dropdown for versioning #}
               <div class="btn-group">
                 <button type="button" id="versions-btn"
                         class="btn btn-info dropdown-toggle
@@ -135,29 +133,31 @@
               </div>
             </div>
           </div>
+          {# Badges and tags in a card #}
           <div class="row p-3">
             <div class="col">
               <div class="card">
                 <div class="card-body">
-              <div>
-                  <span class="badge badge-secondary surface-category-headline">
-                  {{ surface.get_category_display|default_if_none:"category not defined yet" }}
-                  </span>
-                {% if surface.is_published %}
-                  {% render_published_by_badge request surface %}
-                {% else %}
-                  {% render_shared_by_badge request surface %}
-                {% endif %}
-              </div>
-              <div>
-                {% for tag in surface.tags.all %}
-                  <span class="badge badge-success">{{ tag.name }}</span>
-                {% endfor %}
-              </div>
-              </div>
+                  <div>
+                    <span class="badge badge-secondary surface-category-headline">
+                      {{ surface.get_category_display|default_if_none:"category not defined yet" }}
+                    </span>
+                    {% if surface.is_published %}
+                      {% render_published_by_badge request surface %}
+                    {% else %}
+                      {% render_shared_by_badge request surface %}
+                    {% endif %}
+                  </div>
+                  <div>
+                    {% for tag in surface.tags.all %}
+                      <span class="badge badge-success">{{ tag.name }}</span>
+                    {% endfor %}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
+          {# Buttons #}
           <div class="row p-3">
             <div class="col">
 

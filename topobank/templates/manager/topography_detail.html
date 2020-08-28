@@ -112,47 +112,46 @@
         </div>
 
         <div class="col-sm-3 col-12">
-
-          <div class="row p-3 pull-right">
-            <ul class="nav nav-pills">
-              <li>
-                <div class="btn-group">
-                  <a href="{% url 'manager:topography-detail' topography_next %}"
-                     class="btn btn-default {% if topography_next == topography.id %} disabled {% endif %}"
-                     data-toggle="tooltip" title="previous topography of related surface">
-                    {% fontawesome_icon 'chevron-left' %}
-                  </a>
-                  <a href="{% url 'manager:topography-detail' topography_prev %}"
-                     class="btn btn-default {% if topography_prev == topography.id %} disabled {% endif %}"
-                     data-toggle="tooltip" title="next topography of related surface">
-                    {% fontawesome_icon 'chevron-right' %}
-                  </a>
+          {# Buttons for switching between topographies #}
+          <div class="row p-3">
+            <div class="col">
+              <ul class="nav nav-pills pull-right">
+                <li>
+                  <div class="btn-group">
+                    <a href="{% url 'manager:topography-detail' topography_next %}"
+                       class="btn btn-default {% if topography_next == topography.id %} disabled {% endif %}"
+                       data-toggle="tooltip" title="previous topography of related surface">
+                      {% fontawesome_icon 'chevron-left' %}
+                    </a>
+                    <a href="{% url 'manager:topography-detail' topography_prev %}"
+                       class="btn btn-default {% if topography_prev == topography.id %} disabled {% endif %}"
+                       data-toggle="tooltip" title="next topography of related surface">
+                      {% fontawesome_icon 'chevron-right' %}
+                    </a>
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </div>
+          {# Badges and tags in a card #}
+          <div class="row p-3">
+            <div class="col">
+              <div class="card">
+                <div class="card-body">
+                  {% render_uploaded_by_badge request topography %}
+                  {% for tag in topography.tags.all %}
+                    <span class="badge badge-success">{{ tag.name }}</span>
+                  {% endfor %}
                 </div>
-              </li>
-            </ul>
-          </div>
-          <div class="row p-3">
-            <div class="col">
-              {% render_uploaded_by_badge request topography %}
+              </div>
             </div>
           </div>
-          <div class="row p-3">
-            <div class="col">
-              {% for tag in topography.tags.all %}
-                  <span class="badge badge-success">{{ tag.name }}</span>
-              {% endfor %}
-            </div>
-          </div>
-
+          {# Buttons #}
           <div class="row p-3">
             <div class="col">
               <a href="{% url 'analysis:topography' topography.id %}" class="btn btn-default btn-block btn-lg">
                   {% fontawesome_icon 'area-chart' %} Analyze this topography
               </a>
-            </div>
-          </div>
-          <div class="row p-3">
-            <div class="col">
               {% if "change_surface" in surface_perms %}
                 <a href="{% url 'manager:topography-update' topography.id %}"
                    class="btn btn-default btn-block btn-lg">
