@@ -3,13 +3,15 @@ FROM continuumio/miniconda3
 #FROM python:3.7-alpine
 
 ENV PYTHONUNBUFFERED 1
+ENV CFLAGS "-I/usr/include/eigen3/"
+# This is a workaround for https://gitlab.com/muspectre/muspectre/-/issues/144
 
 #
 # System dependencies for Python + Django
 #
 RUN apt-get update \
   && apt-get install --yes apt-utils \
-  && apt-get install --yes libfftw3-3 libfftw3-dev libopenblas-dev gcc g++ gettext \
+  && apt-get install --yes libfftw3-3 libfftw3-dev libopenblas-dev libeigen3-dev gcc g++ gettext \
   # Pillow requirements
   && apt-get install --yes libjpeg-dev zlib1g-dev libfreetype6-dev \
      liblcms2-dev libtiff-dev tk-dev tcl-dev librabbitmq-dev \
