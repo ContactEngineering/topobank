@@ -1036,7 +1036,7 @@ If building the containers was successful, aks yourself these questions:
   Afterwards all exisiting users will be member of the default group (currently: 'all').
   This is needed for publishing.
 
-- Are there any new permissions introduced for surfaces. You should fix the permissions
+- Are there any new permissions introduced for surfaces? You should fix the permissions
   for existing surfaces with
 
   .. code:: bash
