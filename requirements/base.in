@@ -56,7 +56,7 @@ pylibmc
 # librabbitmq>=2.0
 # problems while compiling librabbitmq
 celery-flower
-# tornado
+tornado>=4.2.0,<6.0.0
 
 # progress bars for celery tasks, served by Django
 celery-progress
@@ -70,7 +70,7 @@ SurfaceTopography>=0.91.0
 ContactMechanics>=0.90.0
 
 # plotting
-bokeh
+bokeh<2.0  # Upgrade is available, maybe needs some work
 # link to CSS+JS in HTML files must must this version!
 
 # pandas is currently needed for downloading xlsx files from analyses
