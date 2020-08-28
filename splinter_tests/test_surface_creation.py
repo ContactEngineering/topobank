@@ -18,8 +18,12 @@ def test_empty_surface(user_alice_logged_in):
 
     browser.fill('name', 'My first empty surface')
 
-    dummy_data_option = browser.find_by_id('id_id_category_0_3')
-    dummy_data_option.click()
+    dummy_data_option = browser.find_by_id('id_category_3').first
+    browser.execute_script("arguments[0].click();", dummy_data_option._element)
+    # This kind of click is a workaround (see https://stackoverflow.com/a/48667924/10608001)
+    # because for some reason, the found option is not visible and cannot be clicked.
+    # Maybe because it is at the border of the browser window, when the window
+    # is not maximized.
 
     save_link = browser.find_by_id('submit-id-save')
     save_link.click()
