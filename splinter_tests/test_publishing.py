@@ -84,7 +84,9 @@ def test_publishing_form(user_alice_logged_in, user_bob, handle_usage_statistics
     #
     # Alice checks one checkbox, the other is still needed
     #
-    browser.find_by_id('id_ready').first.click()
+    ready_cb = browser.find_by_id('id_ready').first
+    browser.execute_script("arguments[0].click();", ready_cb._element)  # workaround, because element not visible
+    # browser.find_by_id('id_ready').first.click()
 
     press_yes_publish(browser)
     assert len(browser.find_by_name("save")) > 0
@@ -92,7 +94,9 @@ def test_publishing_form(user_alice_logged_in, user_bob, handle_usage_statistics
     # Alice checks the second and tries again to publish.
     # The extra tab is closed and Alice is taken
     # to the list of published surfaces.
-    browser.find_by_id('id_agreed').first.click()
+    agreed_cb = browser.find_by_id('id_agreed').first
+    browser.execute_script("arguments[0].click();", agreed_cb._element)  # workaround, because element not visible
+    # browser.find_by_id('id_agreed').first.click()
 
     press_yes_publish(browser)
     assert len(browser.find_by_name("save")) == 0
