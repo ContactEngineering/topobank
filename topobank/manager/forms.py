@@ -570,8 +570,7 @@ class SurfacePublishForm(forms.Form):
     helper.form_method = 'POST'
 
     ready = forms.BooleanField(widget=forms.CheckboxInput, required=True,
-                               label="""For the publication, no more modifications are needed
-                                regarding the surface and all its metadata.""",
+                               label="""I attest that the Topography data and its metadata is complete.""",
                                help_text="""Please check tags, the description, and also all topographies with
                                their metadata (description, tags, raw files, physical sizes, ..).""")
 
