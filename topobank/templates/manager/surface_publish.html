@@ -9,11 +9,11 @@
 
     <div class="alert alert-primary">
       <h2 class="alert-heading">You are about to publish your surface <em>{{ surface.name }}</em></h2>
-      <p>By publishing, this surface becomes immutable and you are permanently
-         sharing your data with everyone. All users will be notified
-         about this publication along with a link.</p>
+      <p>By publishing, you create an immutable copy of this surface as a snapshot with all its data.</p>
+      <p>This snapshot has a version number and a unique URL for citations and it is visible
+         and usable for everyone.</p>
     </div>
-    <div class="alert alert-warning">
+    <div class="alert alert-success">
       <h2 class="alert-heading">Implications of publishing</h2>
       <p>
         <ul>
@@ -21,29 +21,28 @@
             registered or anonymous users, now and in future.</li>
           <li>The related data (raw data, descriptions, ..) <b>will be downloadable by everyone</b>.</li>
           <li>Every user can perform analyses on your data.</li>
-          <li>You <b>can no longer change</b> any properties (description, tags, ..) of the surface.</li>
-          <li>You <b>can no longer add new topographies</b> to this surface.</li>
-          <li>You <b>can no longer delete this surface</b>.</li>
-          <li>You <b>can no longer withdraw this publication</b>.</li>
-          <li>You choose a license for your data - the <b>choice of the license is irrevocable</b>.</li>
+          <li>You choose a license for your data - the choice of the license is irrevocable.</li>
         </ul>
-        It will still be possible to perform analyses on this surface with varying parameters.
       </p>
-
+      <p>
+      This is great if you want to <b>make your data public under a permanent URL</b>, e.g. in order
+      to reference your data in a citation.
+      </p>
+      <p>
+      Since a copy is made, you can still work on your
+      original data as before the publication.
+      You may also publish another version of this surface later.
+      </p>
     </div>
 
     <div class="alert alert-secondary">
       <h2 class="alert-heading">Alternative to publication: Sharing</h2>
       <p>If you want to share this surface with a few users for <b>collaboration</b>,
       please consider <a href="{% url 'manager:surface-share' surface.id %}">sharing this surface</a> instead.</p>
-      <p>Unlike publishing this means:
-        <ul>
-      <li>The surface and all related topographies are only visible for <b>selected users</b>, not for everyone.</li>
-          <li>You retain the ability to disable sharing and/or delete the surface in future.</li>
-          <li>You can still edit the surface and its topographies. You also allow other users to do so, if you want.</li>
-        </ul>
+      <p>Unlike publishing this means, that the surface and all related topographies
+        are only visible for <b>selected users</b>, not for everyone.
+        No snapshot is created.
       </p>
-      This is no longer possible if you publish this surface.
     </div>
 
     {% if surface.topography_set.count == 0 %}
