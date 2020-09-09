@@ -110,6 +110,7 @@ class HelpView(TemplateView):
                 'title': "Help",
                 'href': self.request.path,
                 'active': True,
+                'login_required': False,
             }
         ]
         return context
@@ -137,12 +138,14 @@ def tabs_for_terms(terms, request_path):
             'title': "Terms and Conditions",
             'href': reverse('terms'),
             'active': False,
+            'login_required': False,
         },
         {
             'icon': 'legal',
             'title': tab_title,
             'href': request_path,
             'active': True,
+            'login_required': False,
         }
     ]
 
