@@ -9,7 +9,7 @@
     {% with surface.publication as pub %}
       {{ pub.publisher.name }}. ({{ pub.datetime.year }}). contact.engineering.
       <em>{{ surface.name }} (Version {{ pub.version }})</em>.
-      Retrieved from <a href="{{ publication_url }}">{{ publication_url }}</a>
+      <a href="{{ publication_url }}">{{ publication_url }}</a>
     {% endwith %}
   </div>
 </div>
