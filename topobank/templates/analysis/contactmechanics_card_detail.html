@@ -243,7 +243,8 @@
 
           <div class="row p-1">
             <div class="col-8">
-              <button id="recalculate" class="btn btn-primary btn-block btn-lg">
+              <button id="recalculate" title="Please login for this feature"
+                      class="btn btn-primary btn-block btn-lg {{ request.user.is_anonymous |yesno:'disabled,' }}">
                 {% fontawesome_icon 'repeat' %} Recalculate
               </button>
             </div>
