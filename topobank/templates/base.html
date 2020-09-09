@@ -69,9 +69,7 @@
 
       <ul class="navbar-nav ml-auto">
         {% if not request.user.is_anonymous %}
-
           <li class="nav-item dropdown no-arrow">
-
             <a class="nav-link dropdown-toggle" href="#" id="notificationsDropdown" role="button" data-toggle="dropdown"
                aria-haspopup="true" aria-expanded="false">
               {% live_notify_badge badge_class="badge badge-info badge-pill live_notify_badge" %}
@@ -81,7 +79,12 @@
             <div class="dropdown-menu dropdown-menu-right live_notify_list" aria-labelledby="notificationsDropdown">
             </div>
           </li>
-
+        {% else %} {# user is anonymous #}
+          <li class="nav-item">
+            <a class="btn btn-info" href="{% provider_login_url 'orcid' method="oauth2" %}">
+                  Sign in via ORCID for more functionality.
+            </a>
+          </li>
         {% endif %} {# if user is not anonymous #}
 
         <li class="nav-item dropdown no-arrow">
@@ -151,7 +154,6 @@
       <div id="content-wrapper">
 
         <div class="container-fluid mt-1">
-
           {# Places Messages #}
           {% if messages %}
             {% for message in messages %}
