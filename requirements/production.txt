@@ -62,7 +62,7 @@ jsonfield==3.1.0          # via -r ./base.txt, django-notifications-hq
 kombu==4.6.11             # via -r ./base.txt, celery
 markdown2==2.3.9          # via -r ./base.txt
 markupsafe==1.1.1         # via -r ./base.txt, jinja2
-mufft==0.10.0             # via -r ./base.txt, contactmechanics, surfacetopography
+mufft==0.11.1             # via -r ./base.txt, contactmechanics, surfacetopography
 netcdf4==1.5.4            # via -r ./base.txt, surfacetopography
 numpi==0.1.2              # via -r ./base.txt, contactmechanics, surfacetopography
 numpy==1.19.1             # via -r ./base.txt, bokeh, cftime, contactmechanics, h5py, mufft, netcdf4, numpi, pandas, scipy, surfacetopography, xarray

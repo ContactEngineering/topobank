@@ -65,7 +65,7 @@ celery-progress
 # Contact Mechanics
 #
 NuMPI>=0.1.2
-muFFT>=0.9.3
+muFFT>=0.11.1
 SurfaceTopography>=0.91.0
 ContactMechanics>=0.90.0
 
