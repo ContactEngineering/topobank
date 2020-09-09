@@ -858,6 +858,9 @@ def submit_analyses_view(request):
     request_method = request.POST
     user = request.user
 
+    if user.is_anonymous:
+        raise PermissionDenied()
+
     # args_dict = request_method
     try:
         function_id = int(request_method.get('function_id'))

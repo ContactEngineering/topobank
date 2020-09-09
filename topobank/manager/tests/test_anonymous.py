@@ -1,5 +1,6 @@
 import pytest
 from django.shortcuts import reverse
+from django.core.exceptions import PermissionDenied
 
 from ..utils import selection_from_session, selection_to_instances
 from .utils import UserFactory, SurfaceFactory, TopographyFactory
@@ -123,6 +124,25 @@ def test_download_analyses_without_permission(client):
                                               card_view_flavor='simple',
                                               file_format='txt')))
     assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_submit_analyses_without_permission(rf):
+    #
+    # This test uses a request factory instead of a client
+    # therefore the middleware is not used and we have to
+    # set guardian's anonymous user manually.
+    # Using the request factory is more lightweight
+    # and probably should be used more in tests for Topobank.
+    #
+    request = rf.post(reverse('analysis:card-submit'),
+                      HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+    from guardian.utils import get_anonymous_user
+    request.user = get_anonymous_user()
+    from topobank.analysis.views import submit_analyses_view
+
+    with pytest.raises(PermissionDenied):
+        submit_analyses_view(request)
 
 
 
