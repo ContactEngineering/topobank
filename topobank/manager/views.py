@@ -32,7 +32,7 @@ from django_tables2 import RequestConfig
 
 from formtools.wizard.views import SessionWizardView
 from guardian.decorators import permission_required_or_403
-from guardian.shortcuts import get_users_with_perms, get_objects_for_user
+from guardian.shortcuts import get_users_with_perms, get_objects_for_user, get_anonymous_user
 from notifications.signals import notify
 from rest_framework.decorators import api_view
 from rest_framework.generics import ListAPIView
@@ -114,6 +114,7 @@ surface_publish_permission_required = method_decorator(
     permission_required_or_403('manager.publish_surface', ('manager.Surface', 'pk', 'pk'))
 )
 
+
 class TopographyPermissionMixin(UserPassesTestMixin):
     redirect_field_name = None
 
@@ -125,7 +126,9 @@ class TopographyPermissionMixin(UserPassesTestMixin):
             topo = Topography.objects.get(pk=self.kwargs['pk'])
         except Topography.DoesNotExist:
             raise Http404()
-        return all(self.request.user.has_perm(perm, topo.surface) for perm in perms)
+
+        return all(self.request.user.has_perm(perm, topo.surface)
+                   for perm in perms)
 
     def test_func(self):
         return NotImplementedError()
@@ -714,12 +717,14 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
                 'icon': "diamond",
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
                 'active': False,
+                'login_required': False,
             },
             {
                 'title': f"{topo.name}",
                 'icon': "file-o",
                 'href': self.request.path,
                 'active': True,
+                'login_required': False,
             }
         ]
 
@@ -809,7 +814,14 @@ class SelectView(TemplateView):
         }
         context['select_tab_state'] = select_tab_state
         context['category_filter_choices'] = CATEGORY_FILTER_CHOICES
-        context['sharing_status_filter_choices'] = SHARING_STATUS_FILTER_CHOICES
+
+        if self.request.user.is_anonymous:
+            # Anonymous user have only one choice
+            context['sharing_status_filter_choices'] = {
+                'published': SHARING_STATUS_FILTER_CHOICES['published']
+            }
+        else:
+            context['sharing_status_filter_choices'] = SHARING_STATUS_FILTER_CHOICES
 
         return context
 
@@ -930,6 +942,7 @@ class SurfaceDetailView(DetailView):
                 'icon': "diamond",
                 'href': self.request.path,
                 'active': True,
+                'login_required': False,
             }
         ]
 
@@ -1375,16 +1388,12 @@ def download_surface(request, surface_id):
     #
     # Check permissions and collect analyses
     #
-    user = request.user
-    if not user.is_authenticated:
-        raise PermissionDenied()
-
     try:
         surface = Surface.objects.get(id=surface_id)
     except Surface.DoesNotExist:
         raise PermissionDenied()
 
-    if not user.has_perm('view_surface', surface):
+    if not request.user.has_perm('view_surface', surface):
         raise PermissionDenied()
 
     topographies = Topography.objects.filter(surface=surface_id)
@@ -1582,8 +1591,7 @@ def set_surface_select_status(request, pk, select_status):
     try:
         pk = int(pk)
         surface = Surface.objects.get(pk=pk)
-        user = request.user
-        assert user.has_perm('view_surface', surface)
+        assert request.user.has_perm('view_surface', surface)
     except (ValueError, Surface.DoesNotExist, AssertionError):
         raise PermissionDenied()  # This should be shown independent of whether the surface exists
 
@@ -1643,8 +1651,7 @@ def set_topography_select_status(request, pk, select_status):
     try:
         pk = int(pk)
         topo = Topography.objects.get(pk=pk)
-        user = request.user
-        assert user.has_perm('view_surface', topo.surface)
+        assert request.user.has_perm('view_surface', topo.surface)
     except (ValueError, Topography.DoesNotExist, AssertionError):
         raise PermissionDenied()  # This should be shown independent of whether the surface exists
 

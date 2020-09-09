@@ -31,7 +31,6 @@ def test_initial_surface(client, django_user_model, handle_usage_statistics, moc
     password = "test$1234"
     name = 'New User'
 
-
     response = client.post(reverse('account_signup'), {
                    'email': email,
                    'password1': password,

@@ -8,12 +8,12 @@ def test_tab_navigation_tag(rf):
 
     class User:
 
-        def __init__(self, authenticated):
-            self._authenticated = authenticated
+        def __init__(self, anonymous):
+            self._anonymous = anonymous
 
         @property
-        def is_authenticated(self):
-            return self._authenticated
+        def is_anonymous(self):
+            return self._anonymous
 
     request.user = User(True)
 
@@ -40,10 +40,10 @@ def test_tab_navigation_tag(rf):
     ]
 
     #
-    # If the user is not authenticated, the tab should be missing,
+    # If the user is anonymous, the tab should be missing,
     # because the default is that login is required
     #
-    request.user = User(False)
+    request.user = User(True)
     tag_context = tab_navigation(context)
 
     assert tag_context['tabs'] == []

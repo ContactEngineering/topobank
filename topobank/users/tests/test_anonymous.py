@@ -17,9 +17,11 @@ def test_terms_conditions_as_anonymous(client):
                                       text="some text", date_active=timezone.now())
 
     response = client.get(reverse('terms'))
-
     assert_in_content(response, "Test of T&amp;C")
+
+    response = client.get(reverse('tc_accept_specific_page', kwargs=dict(slug='test-terms')))
     assert_in_content(response, "some text")
+
 
 @pytest.mark.django_db
 def test_no_intermediate_login_page_when_not_logged_in_and_pressing_surfaces(client):

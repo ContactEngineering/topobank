@@ -23,21 +23,8 @@ class HomeView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data()
-
-        if self.request.user.is_authenticated:
-            user = self.request.user
-            surfaces = Surface.objects.filter(creator=user)
-            topographies = Topography.objects.filter(surface__in=surfaces)
-            analyses = Analysis.objects.filter(topography__in=topographies)
-            context['num_surfaces'] = surfaces.count()
-            context['num_topographies'] = topographies.count()
-            context['num_analyses'] = analyses.count()
-            # count surfaces you can view, but you are not creator
-            context['num_shared_surfaces'] = get_objects_for_user(user, 'view_surface', klass=Surface)\
-                                                .filter(~Q(creator=user)).count()
-            context['surfaces_link'] = reverse('manager:select')
-            context['analyses_link'] = reverse('analysis:list')
-        else:
+        user = self.request.user
+        if user.is_anonymous:
             anon = guardian_user_model().get_anonymous()
             context['num_users'] = User.objects.filter(Q(is_active=True) & ~Q(pk=anon.pk)).count()
             context['num_surfaces'] = Surface.objects.filter().count()
@@ -63,6 +50,18 @@ class HomeView(TemplateView):
 
             context['surfaces_link'] = get_login_link('manager:select')
             context['analyses_link'] = get_login_link('analysis:list')
+        else:
+            surfaces = Surface.objects.filter(creator=user)
+            topographies = Topography.objects.filter(surface__in=surfaces)
+            analyses = Analysis.objects.filter(topography__in=topographies)
+            context['num_surfaces'] = surfaces.count()
+            context['num_topographies'] = topographies.count()
+            context['num_analyses'] = analyses.count()
+            # count surfaces you can view, but you are not creator
+            context['num_shared_surfaces'] = get_objects_for_user(user, 'view_surface', klass=Surface) \
+                .filter(~Q(creator=user)).count()
+            context['surfaces_link'] = reverse('manager:select')
+            context['analyses_link'] = reverse('analysis:list')
 
         return context
 
@@ -76,7 +75,7 @@ class TermsView(TemplateView):
 
         active_terms = TermsAndConditions.get_active_terms_list()
 
-        if self.request.user.is_authenticated:
+        if not self.request.user.is_anonymous:
             context['agreed_terms'] = TermsAndConditions.objects.filter(
                     userterms__date_accepted__isnull=False,
                     userterms__user=self.request.user).order_by('optional')

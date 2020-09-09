@@ -62,10 +62,6 @@ def basket_processor(request):
     which encodes all selected topographies and surfaces such they can be
     displayed on top of each page. See also base.html.
     """
-
-    if not request.user.is_authenticated:
-        return {}
-
     basket_items = current_selection_as_basket_items(request)
 
     return dict(basket_items_json=json.dumps(basket_items),

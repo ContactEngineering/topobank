@@ -53,7 +53,6 @@
 
       <div class="collapse navbar-collapse" id="navbar_supported_content">
 
-      {% if request.user.is_authenticated %}
       {# Search Bar #}
       <div class="col-4">
       <form class="form-inline" action="{% url 'search' %}" method="get">
@@ -67,10 +66,9 @@
         </div>
       </form>
       </div>
-      {% endif %}
 
       <ul class="navbar-nav ml-auto">
-        {% if request.user.is_authenticated %}
+        {% if not request.user.is_anonymous %}
 
           <li class="nav-item dropdown no-arrow">
 
@@ -84,7 +82,7 @@
             </div>
           </li>
 
-        {% endif %} {# if user is authenticated #}
+        {% endif %} {# if user is not anonymous #}
 
         <li class="nav-item dropdown no-arrow">
           <a class="nav-link dropdown-toggle" href="#" id="helpDropdown" role="button" data-toggle="dropdown"
@@ -105,12 +103,12 @@
           <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-toggle="dropdown"
              aria-haspopup="true" aria-expanded="false">
             <i class="fa fa-user-circle fa-fw" aria-hidden="true"></i>
-            {% if request.user.is_authenticated %}
+            {% if not request.user.is_anonymous %}
               {{ request.user.name }}
             {% endif %}
           </a>
           <div class="dropdown-menu dropdown-menu-right user-dropdown" aria-labelledby="userDropdown">
-            {% if request.user.is_authenticated %}
+            {% if not request.user.is_anonymous %}
             <a class="dropdown-item" href="{% url 'users:detail' request.user.username %}"><i class="fa fa-user fa-fw"></i> User Profile</a>
             <!-- a class="dropdown-item" href="#"><i class="fa fa-cog fa-fw"></i> Settings<a> -->
             <div class="dropdown-divider"></div>
@@ -130,27 +128,24 @@
 
     {# Display "basket" with all selected items in session #}
 
-    {% if request.user.is_authenticated %}
-      {# display selected items in session #}
-      <div id="basket-container" class="container-fluid bg-light border-top border-bottom py-2">
-        <div id="basket">
-          <div v-if="keys.length">
-            <basket-element v-for="key in keys" v-bind:elem="get_element(key)" v-bind:key="key"></basket-element>
-            <a class="btn btn-sm btn-outline-success" href="{% url 'analysis:list' %}">
-              <i class="fa fa-fw fa-area-chart"></i>Analyze
-            </a>
-            <button class="btn btn-sm btn-outline-secondary pull-right" v-on:click="unselect_all" id="unselect-all">
-              <i class="fa fa-times"></i>
-            </button>
-          </div>
-          <div class="m-1" v-else>No items selected yet. In order to select, please use the checkboxes on the
-            <b><i class="fa fa-fw fa-check-square-o"></i>Select</b> tab.
-          </div>
+
+    {# display selected items in session #}
+    <div id="basket-container" class="container-fluid bg-light border-top border-bottom py-2">
+      <div id="basket">
+        <div v-if="keys.length">
+          <basket-element v-for="key in keys" v-bind:elem="get_element(key)" v-bind:key="key"></basket-element>
+          <a class="btn btn-sm btn-outline-success" href="{% url 'analysis:list' %}">
+            <i class="fa fa-fw fa-area-chart"></i>Analyze
+          </a>
+          <button class="btn btn-sm btn-outline-secondary pull-right" v-on:click="unselect_all" id="unselect-all">
+            <i class="fa fa-times"></i>
+          </button>
+        </div>
+        <div class="m-1" v-else>No items selected yet. In order to select, please use the checkboxes on the
+          <b><i class="fa fa-fw fa-check-square-o"></i>Select</b> tab.
         </div>
       </div>
-    {% endif %}
-
-
+    </div>
 
     <div id="wrapper">
       <div id="content-wrapper">

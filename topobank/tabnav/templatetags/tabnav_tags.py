@@ -4,9 +4,10 @@ register = template.Library()
 
 TABS_CONTEXT_KEYS = ['fixed_tabs', 'extra_tabs']
 
+
 @register.inclusion_tag('tabnav/tabs.html', takes_context=True)
 def tab_navigation(context):
-    user_authenticated = context['request'].user.is_authenticated
+    is_anonymous = context['request'].user.is_anonymous
     request_path = context['request'].path
     tabs = []
     for k in TABS_CONTEXT_KEYS:
@@ -17,7 +18,7 @@ def tab_navigation(context):
 
                 # if user is not authenticated and login is required for
                 # this tab, the tab can be excluded
-                if tab['login_required'] and not user_authenticated:
+                if tab['login_required'] and is_anonymous:
                     continue  # tab is skipped
 
                 tab.setdefault('href', request_path)

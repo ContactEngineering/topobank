@@ -19,7 +19,7 @@ def fixed_tabs_processor(request):
     Each tab is a dict with the following form:
 
     {
-        'login_required': True,  # boolean, if True, tab is only shown to authenticated users
+        'login_required': True,  # boolean, if True, tab is only shown to logged-in users
         'title': 'Tab title shown on the tab',
         'icon': 'edit'  # a fontawesome icon name,
         'href': ''  # A URL pointing to the view for the tab
@@ -50,7 +50,7 @@ def fixed_tabs_processor(request):
             'active': request.path == SHARING_INFO_URL,
         },
         {
-            'login_required': True,
+            'login_required': False,
             'title': 'Select',  # no text
             'icon': 'check-square-o',
             'href': SELECT_URL,

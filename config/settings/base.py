@@ -158,10 +158,13 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    # Enable the following if you want to check T&C by middleware
+    # this must be called before anonymous user replacement, otherwise anonymous users will
+    # always be asked to accept terms and conditons
+    'termsandconditions.middleware.TermsAndConditionsRedirectMiddleware',
+    'topobank.middleware.anonymous_user_middleware',  # we need guardian's kind of anonymous user for API calls
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    # Enable the following if you want to check T&C by middleware
-    'termsandconditions.middleware.TermsAndConditionsRedirectMiddleware',
 ]
 
 # STATIC

@@ -36,7 +36,7 @@ import pandas as pd
 
 from pint import UnitRegistry, UndefinedUnitError
 
-from guardian.shortcuts import get_objects_for_user
+from guardian.shortcuts import get_objects_for_user, get_anonymous_user
 
 from trackstats.models import Metric
 
@@ -172,6 +172,8 @@ class SimpleCardView(TemplateView):
 
         request = self.request
         request_method = request.GET
+        user = request.user
+
         try:
             function_id = int(request_method.get('function_id'))
             card_id = request_method.get('card_id')
@@ -182,12 +184,12 @@ class SimpleCardView(TemplateView):
         #
         # Get all relevant analysis objects for this function and topography ids
         #
-        analyses_avail = get_latest_analyses(request.user, function_id, topography_ids)
+        analyses_avail = get_latest_analyses(user, function_id, topography_ids)
 
         #
         # Filter for analyses where the user has read permission for the related surface
         #
-        readable_surfaces = get_objects_for_user(request.user, ['view_surface'], klass=Surface)
+        readable_surfaces = get_objects_for_user(user, ['view_surface'], klass=Surface)
         analyses_avail = analyses_avail.filter(topography__surface__in=readable_surfaces)
 
         #
@@ -224,8 +226,8 @@ class SimpleCardView(TemplateView):
         kwargs_for_missing = unique_kwargs or {}
         topographies_triggered = []
         for topo in topographies_missing:
-            if request.user.has_perm('view_surface', topo.surface):
-                triggered_analysis = request_analysis(request.user, function, topo, **kwargs_for_missing)
+            if user.has_perm('view_surface', topo.surface):
+                triggered_analysis = request_analysis(user, function, topo, **kwargs_for_missing)
                 topographies_triggered.append(topo)
                 topographies_available_ids.append(topo.id)
                 _log.info(f"Triggered analysis {triggered_analysis.id} for function {function.name} "+\
@@ -243,7 +245,7 @@ class SimpleCardView(TemplateView):
             if len(analyses_avail) == 0:
                 unique_kwargs = kwargs_for_missing
 
-            analyses_avail = get_latest_analyses(request.user, function_id, topography_ids)\
+            analyses_avail = get_latest_analyses(user, function_id, topography_ids)\
                   .filter(topography__surface__in=readable_surfaces)
 
         #
@@ -854,6 +856,7 @@ def submit_analyses_view(request):
         raise Http404
 
     request_method = request.POST
+    user = request.user
 
     # args_dict = request_method
     try:
@@ -872,12 +875,12 @@ def submit_analyses_view(request):
 
     allowed = True
     for topo in topographies:
-        allowed &= request.user.has_perm('view_surface', topo.surface)
+        allowed &= user.has_perm('view_surface', topo.surface)
         if not allowed:
             break
 
     if allowed:
-        analyses = [request_analysis(request.user, function, topo, **function_kwargs) for topo in topographies]
+        analyses = [request_analysis(user, function, topo, **function_kwargs) for topo in topographies]
 
         status = 200
 
@@ -886,7 +889,7 @@ def submit_analyses_view(request):
         #
         collection = AnalysisCollection.objects.create(name=f"{function.name} for {len(topographies)} topographies.",
                                                        combined_task_state=Analysis.PENDING,
-                                                       owner=request.user)
+                                                       owner=user)
         collection.analyses.set(analyses)
         #
         # Each finished analysis checks whether related collections are finished, see "topobank.taskapp.tasks"
@@ -992,6 +995,7 @@ def contact_mechanics_data(request):
         raise Http404
 
     request_method = request.POST
+    user = request.user
 
     try:
         analysis_id = int(request_method.get('analysis_id'))
@@ -1006,7 +1010,7 @@ def contact_mechanics_data(request):
 
     unit = analysis.topography.unit
 
-    if request.user.has_perm('view_surface', analysis.topography.surface):
+    if user.has_perm('view_surface', analysis.topography.surface):
 
         #
         # Try to get results from cache
@@ -1147,12 +1151,14 @@ def extra_tabs_if_single_item_selected(topographies, surfaces):
                 'icon': "diamond",
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
                 'active': False,
+                'login_required': False,
             },
             {
                 'title': f"{topo.name}",
                 'icon': "file-o",
                 'href': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
                 'active': False,
+                'login_required': False,
             }
         ])
     elif len(surfaces) == 1 and all(t.surface == surfaces[0] for t in topographies):
@@ -1164,6 +1170,7 @@ def extra_tabs_if_single_item_selected(topographies, surfaces):
                 'icon': "diamond",
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
                 'active': False,
+                'login_required': False,
             }
         )
     return tabs
@@ -1198,12 +1205,14 @@ class AnalysisFunctionDetailView(DetailView):
                 'icon': "area-chart",
                 'href': reverse('analysis:list'),
                 'active': False,
+                'login_required': False,
             },
             {
                 'title': f"{function.name}",
                 'icon': "area-chart",
                 'href': self.request.path,
                 'active': True,
+                'login_required': False,
             }
         ])
         context['extra_tabs'] = tabs
@@ -1218,6 +1227,8 @@ class AnalysesListView(FormView):
 
     def get_initial(self):
 
+        user = self.request.user
+
         if 'collection_id' in self.kwargs:
             collection_id = self.kwargs['collection_id']
             try:
@@ -1225,7 +1236,7 @@ class AnalysesListView(FormView):
             except AnalysisCollection.DoesNotExist:
                 raise Http404("Collection does not exist")
 
-            if collection.owner != self.request.user:
+            if collection.owner != user:
                 raise PermissionDenied()
 
             functions = set(a.function for a in collection.analyses.all())
@@ -1245,7 +1256,7 @@ class AnalysesListView(FormView):
             except Surface.DoesNotExist:
                 raise PermissionDenied()
 
-            if not self.request.user.has_perm('view_surface', surface):
+            if not user.has_perm('view_surface', surface):
                 raise PermissionDenied()
 
             #
@@ -1260,7 +1271,7 @@ class AnalysesListView(FormView):
             except Topography.DoesNotExist:
                 raise PermissionDenied()
 
-            if not self.request.user.has_perm('view_surface', topo.surface):
+            if not user.has_perm('view_surface', topo.surface):
                 raise PermissionDenied()
 
             #
@@ -1274,8 +1285,6 @@ class AnalysesListView(FormView):
         )
 
     def post(self, request, *args, **kwargs):  # TODO is this really needed?
-        if not request.user.is_authenticated:
-            return HttpResponseForbidden()
         form = self.get_form()
         if form.is_valid():
             return self.form_valid(form)
@@ -1327,6 +1336,7 @@ class AnalysesListView(FormView):
                 'icon': "area-chart",
                 'href': self.request.path,
                 'active': True,
+                'login_required': False,
             }
         )
         context['extra_tabs'] = tabs
