@@ -144,6 +144,11 @@ class TopographyUpdatePermissionMixin(TopographyPermissionMixin):
         return self.has_surface_permissions(['view_surface', 'change_surface'])
 
 
+class ORCIDUserRequiredMixin(UserPassesTestMixin):
+    def test_func(self):
+        return not self.request.user.is_anonymous
+
+
 #
 # Using a wizard because we need intermediate calculations
 #
@@ -157,7 +162,7 @@ class TopographyUpdatePermissionMixin(TopographyPermissionMixin):
 #
 #  https://sixfeetup.com/blog/making-your-django-templates-ajax-y
 #
-class TopographyCreateWizard(SessionWizardView):
+class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
     form_list = [TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm]
     template_name = 'manager/topography_wizard.html'
     file_storage = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT, 'topographies/wizard'))
@@ -826,7 +831,7 @@ class SelectView(TemplateView):
         return context
 
 
-class SurfaceCreateView(CreateView):
+class SurfaceCreateView(ORCIDUserRequiredMixin, CreateView):
     model = Surface
     form_class = SurfaceForm
 
@@ -1295,6 +1300,10 @@ class SharingInfoTable(tables.Table):
 
 
 def sharing_info(request):
+
+    if request.user.is_anonymous:
+        raise PermissionDenied()
+
     #
     # Handle POST request if any
     #

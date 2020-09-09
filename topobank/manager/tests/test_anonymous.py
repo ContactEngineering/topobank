@@ -3,6 +3,7 @@ from django.shortcuts import reverse
 
 from ..utils import selection_from_session, selection_to_instances
 from .utils import UserFactory, SurfaceFactory, TopographyFactory
+from topobank.analysis.tests.utils import AnalysisFactory
 from topobank.utils import assert_in_content, assert_not_in_content
 
 #
@@ -108,4 +109,20 @@ def test_anonymous_user_cannot_change(client):
 
     response = client.post(reverse('manager:surface-share', kwargs=dict(pk=surface.pk)))
     assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_download_analyses_without_permission(client):
+    bob = UserFactory()
+    surface = SurfaceFactory(creator=bob)
+    topo = TopographyFactory(surface=surface)
+    analysis = AnalysisFactory(topography=topo)
+
+    response = client.get(reverse('analysis:download',
+                                  kwargs=dict(ids=f"{analysis.id}",
+                                              card_view_flavor='simple',
+                                              file_format='txt')))
+    assert response.status_code == 403
+
+
 
