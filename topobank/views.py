@@ -30,26 +30,6 @@ class HomeView(TemplateView):
             context['num_surfaces'] = Surface.objects.filter().count()
             context['num_topographies'] = Topography.objects.filter().count()
             context['num_analyses'] = Analysis.objects.filter().count()
-
-            # The following is a workaround in order to skip the intermediate
-            # login page when clicking on 'surfaces' when not logged in.
-            # There is an GH issue to solve this in allauth,
-            # but it's unlikely that we can use it in foreseeable future:
-            #  https://github.com/pennersr/django-allauth/issues/345
-            #
-            # This is only implemented specifically for ORCID so far.
-            # One could look for the actually used providers,
-            # but this can be done later if there are any others
-
-            provider = OrcidProvider(self.request)
-
-            def get_login_link(next_url_name):
-                return provider.get_login_url(self.request,
-                                              method='oauth2',
-                                              next=reverse(next_url_name))
-
-            context['surfaces_link'] = get_login_link('manager:select')
-            context['analyses_link'] = get_login_link('analysis:list')
         else:
             surfaces = Surface.objects.filter(creator=user)
             topographies = Topography.objects.filter(surface__in=surfaces)
