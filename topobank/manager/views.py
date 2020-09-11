@@ -912,10 +912,10 @@ class SurfaceDetailView(DetailView):
 
             if is_request_user:
                 user_display_name = "You"
-                auxilliary = "have"
+                auxiliary = "have"
             else:
                 user_display_name = user.name
-                auxilliary = "has"
+                auxiliary = "has"
 
             # the current user is represented as None, can be displayed in a special way in template ("You")
             row = [(user_display_name, user.get_absolute_url())]  # cell title is used for passing a link here
@@ -924,7 +924,7 @@ class SurfaceDetailView(DetailView):
                 perm = a + '_surface'
                 has_perm = perm in surface_perms[user]
 
-                cell_title = "{} {}".format(user_display_name, auxilliary)
+                cell_title = "{} {}".format(user_display_name, auxiliary)
                 if not has_perm:
                     cell_title += "n't"
                 cell_title += " the permission to {} this surface".format(a)
