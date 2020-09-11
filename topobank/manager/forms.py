@@ -569,17 +569,17 @@ class SurfacePublishForm(forms.Form):
     helper = FormHelper()
     helper.form_method = 'POST'
 
-    ready = forms.BooleanField(widget=forms.CheckboxInput, required=True,
-                               label="""I attest that the Topography data and its metadata is complete.""",
-                               help_text="""Please check tags, the description, and also all topographies with
-                               their metadata (description, tags, raw files, physical sizes, ..).""")
-
     license = forms.ChoiceField(widget=forms.RadioSelect, choices=Surface.LICENSE_CHOICES,
                                 required=True)
 
     agreed = forms.BooleanField(widget=forms.CheckboxInput, required=True,
                                 label="I understand the implications of publishing this surface and I agree.",
                                 help_text="""Please read the implications of publishing listed above and check.""")
+
+    copyright_hold = forms.BooleanField(widget=forms.CheckboxInput, required=True,
+                                label="I hold copyright of this data or have been authorized by the copyright holders.",
+                                help_text="""Please make sure you're not publishing data """
+                                        """from others without their authorization.""")
 
     helper.layout = Layout(
         Div(
@@ -588,8 +588,8 @@ class SurfacePublishForm(forms.Form):
                          Field('license', template="manager/license_radioselect.html")
                 ),
                 Fieldset('Final checks',
-                         Field('ready'),
                          Field('agreed'),
+                         Field('copyright_hold'),
                 ),
                 Submit('save', 'Yes, publish this surface', css_class='btn-success'),
                 HTML("""
