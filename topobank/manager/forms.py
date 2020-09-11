@@ -534,7 +534,7 @@ class SurfaceShareForm(forms.Form):
     users = ModelMultipleChoiceField(
         required=True,
         queryset=User.objects,
-        widget=MultipleUserSelectWidget,
+        widget=MultipleUserSelectWidget(attrs={'data-minimum-input-length': SHARING_MIN_LETTERS_FOR_USER_DISPLAY}),
         label="Users to share with",
         help_text="""<b>Type at least {} characters to start a search.</b>
           Select one or multiple users you want to give access to this surface.
