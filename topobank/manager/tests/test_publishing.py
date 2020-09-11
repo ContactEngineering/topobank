@@ -185,6 +185,62 @@ def test_license_in_surface_download(client):
             assert publication.get_license_display() in readme_txt
 
 
+@pytest.mark.django_db
+def test_dont_show_published_surfaces_on_sharing_info(client):
+    alice = UserFactory()
+    bob = UserFactory()
+    surface1 = SurfaceFactory(creator=alice, name="Shared Surface")
+    surface1.share(bob)
+    surface2 = SurfaceFactory(creator=alice, name="Published Surface")
+    surface2.publish('cc0-1.0')
+
+    #
+    # Login as Bob, surface 1 should be listed on sharing info page
+    # and same for alice
+    #
+    for user in [alice, bob]:
+        client.force_login(user)
+
+        response = client.get(reverse('manager:sharing-info'))
+        assert_in_content(response, "Shared Surface")
+        assert_not_in_content(response, "Published Surface")
+
+        client.logout()
+
+
+@pytest.mark.django_db
+def test_dont_show_published_surfaces_when_shared_filter_used(client):
+
+    alice = UserFactory()
+    bob = UserFactory()
+    surface1 = SurfaceFactory(creator=alice, name="Shared Surface")
+    surface1.share(bob)
+    surface2 = SurfaceFactory(creator=alice, name="Published Surface")
+    surface2.publish('cc0-1.0')
+
+    client.force_login(bob)
+
+    response = client.get(reverse('manager:search')+'?sharing_status=shared')  # means "shared with you"
+    assert_in_content(response, "Shared Surface")
+    assert_not_in_content(response, "Published Surface")
+
+    response = client.get(reverse('manager:search')+'?sharing_status=published')  # means "published by anyone"
+    assert_not_in_content(response, "Shared Surface")
+    assert_in_content(response, "Published Surface")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

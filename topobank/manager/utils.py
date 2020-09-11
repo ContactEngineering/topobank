@@ -132,7 +132,7 @@ def filtered_surfaces(request):
     if sharing_status == 'own':
         qs = qs.filter(creator=user)
     elif sharing_status == 'shared':
-        qs = qs.filter(~Q(creator=user))
+        qs = qs.filter(~Q(creator=user)).exclude(publication__isnull=False)  # exclude published and own surfaces
     elif sharing_status == 'published':
         qs = qs.exclude(publication__isnull=True)
 

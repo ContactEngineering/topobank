@@ -1341,7 +1341,8 @@ def sharing_info(request):
     #
     # Collect information to display
     #
-    surfaces = get_objects_for_user(request.user, 'view_surface', klass=Surface)
+    # Get all surfaces, which are visible, but exclude the published surfaces
+    surfaces = get_objects_for_user(request.user, 'view_surface', klass=Surface).filter(publication=None)
 
     tmp = []
     for s in surfaces:
