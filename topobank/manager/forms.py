@@ -509,7 +509,7 @@ class MultipleUserSelectWidget(ModelSelect2MultipleWidget):
         #
         # Type at least a number of letters before first results are shown
         #
-        if len(term)<SurfaceShareForm.SHARING_MIN_LETTERS_FOR_USER_DISPLAY:
+        if len(term) < SurfaceShareForm.SHARING_MIN_LETTERS_FOR_USER_DISPLAY:
             return queryset.none()
 
         #
