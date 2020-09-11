@@ -343,12 +343,14 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
                 'icon': "diamond",
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
                 'active': False,
+                'tooltip': f"Properties of surface '{surface.label}'"
             },
             {
                 'title': f"Add topography",
                 'icon': "plus-square-o",
                 'href': self.request.path,
                 'active': True,
+                'tooltip': f"Adding a topography to surface '{surface.label}'"
             }
         ]
 
@@ -520,18 +522,21 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
                 'icon': "diamond",
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
                 'active': False,
+                'tooltip': f"Properties of surface '{topo.surface.label}'"
             },
             {
                 'title': f"{topo.name}",
                 'icon': "file-o",
                 'href': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
                 'active': False,
+                'tooltip': f"Properties of topography '{topo.name}'"
             },
             {
                 'title': f"Edit Topography",
                 'icon': "pencil",
                 'href': self.request.path,
-                'active': True
+                'active': True,
+                'tooltip': f"Editing topography '{topo.name}'"
             }
         ]
         return context
@@ -723,6 +728,7 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
                 'active': False,
                 'login_required': False,
+                'tooltip': f"Properties of surface '{topo.surface.label}'"
             },
             {
                 'title': f"{topo.name}",
@@ -730,6 +736,7 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
                 'href': self.request.path,
                 'active': True,
                 'login_required': False,
+                'tooltip': f"Properties of topography '{topo.name}'"
             }
         ]
 
@@ -770,18 +777,21 @@ class TopographyDeleteView(TopographyUpdatePermissionMixin, DeleteView):
                 'icon': "diamond",
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
                 'active': False,
+                'tooltip': f"Properties of surface '{topo.surface.label}'"
             },
             {
                 'title': f"{topo.name}",
                 'icon': "file-o",
                 'href': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
                 'active': False,
+                'tooltip': f"Properties of topography '{topo.name}'"
             },
             {
                 'title': f"Delete Topography?",
                 'icon': "trash",
                 'href': self.request.path,
                 'active': True,
+                'tooltip': f"Conforming deletion of topography '{topo.name}'"
             }
         ]
         return context
@@ -857,7 +867,8 @@ class SurfaceCreateView(ORCIDUserRequiredMixin, CreateView):
                 'title': f"Create surface",
                 'icon': "plus-square-o",
                 'href': self.request.path,
-                'active': True
+                'active': True,
+                'tooltip': "Creating a new surface"
             }
         ]
         return context
@@ -943,11 +954,12 @@ class SurfaceDetailView(DetailView):
         #
         context['extra_tabs'] = [
             {
-                'title': str(surface),
+                'title': surface.label,
                 'icon': "diamond",
                 'href': self.request.path,
                 'active': True,
                 'login_required': False,
+                'tooltip': f"Properties of surface '{surface.label}'"
             }
         ]
 
@@ -1034,12 +1046,14 @@ class SurfaceUpdateView(UpdateView):
                 'icon': "diamond",
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
                 'active': False,
+                'tooltip': f"Properties of surface '{surface.label}'"
             },
             {
                 'title': f"Edit surface",
                 'icon': "pencil",
                 'href': self.request.path,
                 'active': True,
+                'tooltip': f"Editing surface '{surface.label}'"
             }
         ]
 
@@ -1086,12 +1100,14 @@ class SurfaceDeleteView(DeleteView):
                 'icon': "diamond",
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
                 'active': False,
+                'tooltip': f"Properties of surface '{surface.label}'"
             },
             {
                 'title': f"Delete Surface?",
                 'icon': "trash",
                 'href': self.request.path,
                 'active': True,
+                'tooltip': f"Conforming deletion of surface '{surface.label}'"
             }
         ]
         return context
@@ -1161,12 +1177,14 @@ class SurfaceShareView(FormMixin, DetailView):
                 'icon': "diamond",
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
                 'active': False,
+                'tooltip': f"Properties of surface '{surface.label}'"
             },
             {
                 'title': f"Share surface?",
                 'icon': "share-alt",
                 'href': self.request.path,
                 'active': True,
+                'tooltip': f"Sharing surface '{surface.label}'"
             }
         ]
         context['surface'] = surface
@@ -1266,12 +1284,14 @@ class SurfacePublishView(FormView):
                 'icon': "diamond",
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
                 'active': False,
+                'tooltip': f"Properties of surface '{surface.label}'"
             },
             {
                 'title': f"Publish surface?",
                 'icon': "bullhorn",
                 'href': self.request.path,
                 'active': True,
+                'tooltip': f"Publishing surface '{surface.label}'"
             }
         ]
         context['surface'] = surface

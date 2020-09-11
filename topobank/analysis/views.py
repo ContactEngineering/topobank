@@ -1155,6 +1155,7 @@ def extra_tabs_if_single_item_selected(topographies, surfaces):
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
                 'active': False,
                 'login_required': False,
+                'tooltip': f"Properties of surface '{topo.surface.label}'",
             },
             {
                 'title': f"{topo.name}",
@@ -1162,6 +1163,7 @@ def extra_tabs_if_single_item_selected(topographies, surfaces):
                 'href': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
                 'active': False,
                 'login_required': False,
+                'tooltip': f"Properties of topography '{topo.name}'",
             }
         ])
     elif len(surfaces) == 1 and all(t.surface == surfaces[0] for t in topographies):
@@ -1174,6 +1176,7 @@ def extra_tabs_if_single_item_selected(topographies, surfaces):
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
                 'active': False,
                 'login_required': False,
+                'tooltip': f"Properties of surface '{surface.label}'",
             }
         )
     return tabs
@@ -1209,6 +1212,7 @@ class AnalysisFunctionDetailView(DetailView):
                 'href': reverse('analysis:list'),
                 'active': False,
                 'login_required': False,
+                'tooltip': "Results for selected analysis functions",
             },
             {
                 'title': f"{function.name}",
@@ -1216,6 +1220,7 @@ class AnalysisFunctionDetailView(DetailView):
                 'href': self.request.path,
                 'active': True,
                 'login_required': False,
+                'tooltip': f"Results for analysis '{function.name}'",
             }
         ])
         context['extra_tabs'] = tabs
@@ -1340,6 +1345,7 @@ class AnalysesListView(FormView):
                 'href': self.request.path,
                 'active': True,
                 'login_required': False,
+                'tooltip': "Results for selected analysis functions",
             }
         )
         context['extra_tabs'] = tabs
