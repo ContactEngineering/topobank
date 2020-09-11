@@ -2,6 +2,9 @@
 
 ## 0.9.0 (not published yet)
 
+- users can publish their surfaces (#317)
+- anonymous session are allowed, users can browse published
+  surfaces and analyses without being signed in (#164)
 - adjusted dependencies to new repositories
   resulting from splitting of PyCo package (#475)
 
