@@ -55,7 +55,7 @@ class Surface(models.Model):
     ]
 
     LICENSE_CHOICES = [
-        ('cc0-1.0', 'CC0 (Public Domain Dedication)'),
+        ('cc0-1.0', 'CC0 1.0 (Public Domain Dedication)'),
         # https://creativecommons.org/publicdomain/zero/1.0/
         ('ccby-4.0', 'CC BY 4.0'),
         # https://creativecommons.org/licenses/by/4.0/
