@@ -83,10 +83,16 @@
                 <span><i class="fa" v-bind:class="choice.icon"></i> [[ choice.label ]]</span>
               </label>
             </div>
-
-            <div class="form-group col-md-2">
-              <a class="btn btn-primary form-control" href="{% url 'manager:surface-create' %}">Create Surface</a>
-            </div>
+            {% if request.user.is_anonymous %}
+              <div class="form-group col-md-2">
+                <button class="btn btn-primary form-control disabled"
+                        title="Please sign-in to use this feature">Create Surface</button>
+              </div>
+            {% else %}
+              <div class="form-group col-md-2" title="Create a surface for uploading data">
+                <a class="btn btn-primary form-control" href="{% url 'manager:surface-create' %}">Create Surface</a>
+              </div>
+            {% endif %}
           </div>
         </form>
 
