@@ -309,5 +309,5 @@ def test_how_to_cite(user_alice_logged_in, handle_usage_statistics):
     # Now the page shows a text form of a citation
     exp_pub_url = base_url.rstrip('/')+publication.get_absolute_url()
     exp_citation = f"{user_alice.name}. ({publication.datetime.year}). contact.engineering. {surface_name} (Version 1). "+\
-        f"Retrieved from {exp_pub_url}"
+        f"{exp_pub_url}"
     assert browser.is_text_present(exp_citation)
