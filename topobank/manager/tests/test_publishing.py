@@ -165,6 +165,42 @@ def test_switch_versions_on_properties_tab(client):
 
 
 @pytest.mark.django_db
+def test_notification_saying_new_version_exists(client):
+
+    user = UserFactory()
+    surface = SurfaceFactory(creator=user)
+    topo1 = TopographyFactory(surface=surface)
+    topo2 = TopographyFactory(surface=surface)
+
+    client.force_login(user)
+
+    #
+    # Now publish two times
+    #
+    pub1 = surface.publish('cc0')
+    pub2 = surface.publish('cc0')
+
+    #
+    # When showing page for "Work in Progress" surface, there should be a hint there are publications
+    #
+    response = client.get(reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)))
+    assert_in_content(response, "Published versions available")
+
+    #
+    # When showing page for first publication, there should be a hint there's a newer version
+    #
+    response = client.get(reverse('manager:surface-detail', kwargs=dict(pk=pub1.surface.pk)))
+    assert_in_content(response, "Newer version available")
+
+    #
+    # When showing page for second publication, there shouldn't be such a notice
+    #
+    response = client.get(reverse('manager:surface-detail', kwargs=dict(pk=pub2.surface.pk)))
+    assert_not_in_content(response, "Newer version available")
+
+
+
+@pytest.mark.django_db
 def test_license_in_surface_download(client):
     import io
     user1 = UserFactory()

@@ -966,16 +966,30 @@ class SurfaceDetailView(DetailView):
             context['this_version_label'] = version_label_from_publication(None)
 
         publications = Publication.objects.filter(original_surface=original_surface).order_by('version')
-        versioned_surfaces = {}
+        version_dropdown_items = []
 
         if self.request.user.has_perm('view_surface', original_surface):
             # Only add link to original surface if user is allowed to view
-            versioned_surfaces[version_label_from_publication(None)] = original_surface
+            version_dropdown_items.append({
+                'label': version_label_from_publication(None),
+                'surface': original_surface,
+            })
 
         for pub in publications:
-            version_label = version_label_from_publication(pub)
-            versioned_surfaces[version_label] = pub.surface
-        context['versioned_surfaces'] = versioned_surfaces
+            version_dropdown_items.append({
+                'label': version_label_from_publication(pub),
+                'surface': pub.surface,
+            })
+        context['version_dropdown_items'] = version_dropdown_items
+
+        version_badge_text = ''
+        if surface.is_published:
+            if context['this_version_label'] != version_dropdown_items[-1]['label']:
+                version_badge_text += 'Newer version available'
+        elif len(publications) > 0:
+            version_badge_text += 'Published versions available'
+
+        context['version_badge_text'] = version_badge_text
 
         return context
 
