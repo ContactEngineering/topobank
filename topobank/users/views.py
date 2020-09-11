@@ -30,6 +30,7 @@ class UserDetailView(LoginRequiredMixin, DetailView):
                 'icon': "user",
                 'href': self.request.path,
                 'active': True,
+                'login_required': False,
             }
         ]
         return context
