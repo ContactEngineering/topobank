@@ -5,6 +5,7 @@
 - users can publish their surfaces (#317, #510)
 - anonymous session are allowed, users can browse published
   surfaces and analyses without being signed in (#164)
+- added tooltip to tab headers (#512)
 - adjusted dependencies to new repositories
   resulting from splitting of PyCo package (#475)
 
