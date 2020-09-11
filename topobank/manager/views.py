@@ -56,8 +56,8 @@ from ..publication.models import Publication
 MAX_NUM_POINTS_FOR_SYMBOLS_IN_LINE_SCAN_PLOT = 100
 
 # create dicts with labels and option values for Select tab
-CATEGORY_FILTER_CHOICES = {'all':'All categories',
-                           **{cc[0]:cc[1]+" only" for cc in Surface.CATEGORY_CHOICES}}
+CATEGORY_FILTER_CHOICES = {'all': 'All categories',
+                           **{cc[0]: cc[1] + " only" for cc in Surface.CATEGORY_CHOICES}}
 SHARING_STATUS_FILTER_CHOICES = {
     'all': 'All accessible surfaces',
     'own': 'Only own surfaces',
@@ -70,15 +70,15 @@ MAX_PAGE_SIZE = 100
 DEFAULT_PAGE_SIZE = 10
 
 DEFAULT_SELECT_TAB_STATE = {
-                'search_term': '',  # empty string means: no search
-                'category': 'all',
-                'sharing_status': 'all',
-                'tree_mode': 'surface list',
-                'page_size': 10,
-                'current_page': 1,
-                # all these values are the default if no filter has been applied
-                # and the page is loaded the first time
-            }
+    'search_term': '',  # empty string means: no search
+    'category': 'all',
+    'sharing_status': 'all',
+    'tree_mode': 'surface list',
+    'page_size': 10,
+    'current_page': 1,
+    # all these values are the default if no filter has been applied
+    # and the page is loaded the first time
+}
 
 _log = logging.getLogger(__name__)
 
@@ -852,7 +852,7 @@ class SurfaceCreateView(ORCIDUserRequiredMixin, CreateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        context['extra_tabs'] =[
+        context['extra_tabs'] = [
             {
                 'title': f"Create surface",
                 'icon': "plus-square-o",
@@ -1206,9 +1206,9 @@ class PublicationListView(ListView):
         ]
 
         context['publication_table'] = PublicationsTable(
-                                          data=data,
-                                          empty_text="You haven't published any surfaces yet.",
-                                          request=self.request)
+            data=data,
+            empty_text="You haven't published any surfaces yet.",
+            request=self.request)
 
         return context
 
@@ -1234,7 +1234,6 @@ class SurfacePublishView(FormView):
         return initial
 
     def form_valid(self, form):
-
         license = self.request.POST.get('license')
 
         surface = self._get_surface()
@@ -1300,7 +1299,6 @@ class SharingInfoTable(tables.Table):
 
 
 def sharing_info(request):
-
     if request.user.is_anonymous:
         raise PermissionDenied()
 
@@ -1527,7 +1525,6 @@ class TagTreeView(ListAPIView):
     pagination_class = SurfaceSearchPaginator
 
     def get_queryset(self):
-
         surfaces = filtered_surfaces(self.request)
         topographies = filtered_topographies(self.request, surfaces)
         return tags_for_user(self.request.user, surfaces, topographies).filter(parent=None)
