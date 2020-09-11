@@ -40,8 +40,6 @@ class HomeView(TemplateView):
             # count surfaces you can view, but you are not creator
             context['num_shared_surfaces'] = get_objects_for_user(user, 'view_surface', klass=Surface) \
                 .filter(~Q(creator=user)).count()
-            context['surfaces_link'] = reverse('manager:select')
-            context['analyses_link'] = reverse('analysis:list')
 
         return context
 
