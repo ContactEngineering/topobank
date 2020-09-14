@@ -190,6 +190,7 @@ def test_show_only_last_analysis(client, two_topos, django_user_model, handle_us
     assert b"2018-01-01 12:00:00" not in response.content
     assert b"2018-01-03 12:00:00" not in response.content
 
+
 @pytest.mark.django_db
 def test_show_analyses_with_different_arguments(client, two_topos, django_user_model, handle_usage_statistics):
 
@@ -342,6 +343,7 @@ def test_show_multiple_analyses_for_two_functions(client, two_topos):
 
     assert_in_content(response, "Example 3 - ZSensor")
     assert_in_content(response, "Example 4 - Default")
+
 
 @pytest.fixture
 def ids_downloadable_analyses(two_topos):
@@ -623,6 +625,37 @@ def test_download_analysis_results_without_permission(client, two_topos, ids_dow
     two_topos[1].surface.share(user_2)
     response = client.get(download_url)
     assert response.status_code == 200
+
+
+@pytest.mark.django_db
+def test_publication_link_in_txt_download(client):
+    surface1 = SurfaceFactory()
+    topo1 = TopographyFactory(surface=surface1)
+    surface2 = SurfaceFactory()
+    topo2 = TopographyFactory(surface=surface2)
+    pub1 = surface1.publish('cc0-1.0')
+    pub2 = surface2.publish('cc0-1.0')
+    pub_topo1 = pub1.surface.topography_set.first()
+    pub_topo2 = pub2.surface.topography_set.first()
+
+    func = AnalysisFunctionFactory()
+    analysis1 = AnalysisFactory(topography=pub_topo1, function=func)
+    analysis2 = AnalysisFactory(topography=pub_topo2, function=func)
+    #
+    # Now two publications are involved in these analyses
+    #
+    download_url = reverse('analysis:download', kwargs=dict(ids=f"{analysis1.id},{analysis2.id}",
+                                                            card_view_flavor='plot',
+                                                            file_format='txt'))
+    user = UserFactory(username='testuser')
+    client.force_login(user)
+    response = client.get(download_url)
+    assert response.status_code == 200
+
+    txt = response.content.decode()
+
+    assert pub1.get_absolute_url() in txt
+    assert pub2.get_absolute_url() in txt
 
 
 @pytest.mark.django_db

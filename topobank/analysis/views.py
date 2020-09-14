@@ -1418,6 +1418,14 @@ def download_plot_analyses_to_txt(request, analyses):
     # TODO: It would probably be useful to use the (some?) template engine for this.
     # TODO: We need a mechanism for embedding references to papers into output.
 
+    # Collect publication links, if any
+    publication_urls = set()
+    for a in analyses:
+        if a.topography.surface.is_published:
+            pub = a.topography.surface.publication
+            pub_url = request.build_absolute_uri(pub.get_absolute_url())
+            publication_urls.add(pub_url)
+
     # Pack analysis results into a single text file.
     f = io.StringIO()
     for i, analysis in enumerate(analyses):
@@ -1427,6 +1435,12 @@ def download_plot_analyses_to_txt(request, analyses):
 
             f.write('# IF YOU USE THIS DATA IN A PUBLICATION, PLEASE CITE XXX.\n' +
                     '\n')
+            if len(publication_urls) > 0:
+                f.write('#\n')
+                f.write('# For these analyses, published data was used. Please visit these URLs for details:\n')
+                for pub_url in publication_urls:
+                    f.write(f'# - {pub_url}\n')
+                f.write('#\n')
 
         topography = analysis.topography
         topo_creator = topography.creator
