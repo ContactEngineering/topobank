@@ -36,7 +36,7 @@ class NewPublicationTooFastException(Exception):
         self._latest_pub = latest_publication
 
     def __str__(self):
-        return f"Latest publication is from {self._latest_pub.datetime}, which is too old enough."
+        return f"Latest publication is from {self._latest_pub.datetime}, which is not old enough."
 
 
 class TagModel(tm.TagTreeModel):
