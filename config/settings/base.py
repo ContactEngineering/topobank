@@ -459,8 +459,9 @@ TAGULOUS_AUTOCOMPLETE_JS = (
 CONTACT_EMAIL_ADDRESS = "topobank@imtek.uni-freiburg.de"
 
 #
-# Links for Creative Commons licenses
+# Publication settings
 #
+MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS = 120  # set to None to disable check
 CC_LICENSE_INFOS = {  # each element refers to two links: (description URL, full license text URL)
     'cc0-1.0': {
         'description_url': 'https://creativecommons.org/publicdomain/zero/1.0/',

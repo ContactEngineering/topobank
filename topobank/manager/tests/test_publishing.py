@@ -8,10 +8,13 @@ from guardian.shortcuts import get_perms
 
 from .utils import SurfaceFactory, UserFactory, TopographyFactory, TagModelFactory
 from topobank.utils import assert_in_content, assert_redirects, assert_not_in_content
-
+from topobank.manager.models import NewPublicationTooFastException
 
 @pytest.mark.django_db
-def test_publication_version():
+def test_publication_version(settings):
+
+    settings.MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS = None  # disable
+
     surface = SurfaceFactory()
     publication_v1 = surface.publish('cc0')
 
@@ -117,7 +120,9 @@ def test_surface_deepcopy():
 
 
 @pytest.mark.django_db
-def test_switch_versions_on_properties_tab(client):
+def test_switch_versions_on_properties_tab(client, settings):
+
+    settings.MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS = None
 
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
@@ -166,7 +171,9 @@ def test_switch_versions_on_properties_tab(client):
 
 
 @pytest.mark.django_db
-def test_notification_saying_new_version_exists(client):
+def test_notification_saying_new_version_exists(client, settings):
+
+    settings.MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS = None
 
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
@@ -273,10 +280,19 @@ def test_dont_show_published_surfaces_when_shared_filter_used(client):
     assert_in_content(response, "Published Surface")
 
 
+@pytest.mark.django_db
+def test_limit_publication_frequency():
+    """
+    If the publication link is clicked several
+    times in a fast sequence, there should be only
+    one publication.
+    """
+    alice = UserFactory()
+    surface = SurfaceFactory(creator=alice)
 
-
-
-
+    surface.publish('cc0-1.0')
+    with pytest.raises(NewPublicationTooFastException):
+        surface.publish('cc0-1.0')
 
 
 

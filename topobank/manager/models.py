@@ -1,5 +1,6 @@
 from django.db import models
 from django.shortcuts import reverse
+from django.utils import timezone
 from django.conf import settings
 from django.core.cache import cache
 from django.db import transaction
@@ -28,6 +29,14 @@ def user_directory_path(instance, filename):
 
 class AlreadyPublishedException(Exception):
     pass
+
+
+class NewPublicationTooFastException(Exception):
+    def __init__(self, latest_publication):
+        self._latest_pub = latest_publication
+
+    def __str__(self):
+        return f"Latest publication is from {self._latest_pub.datetime}, which is too old enough."
 
 
 class TagModel(tm.TagTreeModel):
@@ -185,6 +194,17 @@ class Surface(models.Model):
         if self.is_published:
             raise AlreadyPublishedException()
 
+        latest_publication = Publication.objects.filter(original_surface=self).order_by('version').last()
+        #
+        # We limit the publication rate
+        #
+        min_seconds = settings.MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS
+        if latest_publication and (min_seconds is not None):
+            delta_since_last_pub = latest_publication.datetime-timezone.now()
+            if delta_since_last_pub.total_seconds() < min_seconds:
+                raise NewPublicationTooFastException(latest_publication)
+
+
         #
         # Create a copy of this surface
         #
@@ -206,7 +226,7 @@ class Surface(models.Model):
         #
         # Create publication
         #
-        latest_publication = Publication.objects.filter(original_surface=self).order_by('version').last()
+
         if latest_publication:
             version = latest_publication.version + 1
         else:
