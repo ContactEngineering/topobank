@@ -109,6 +109,7 @@ _unicode_map = {
 
 _analysis_funcs = [] # is used in register_all
 
+
 def register_all():
     """Registers all analysis functions in the database.
 
@@ -123,6 +124,7 @@ def register_all():
                                                   pyfunc=rf['pyfunc'],
                                                   automatic=rf['automatic'])
     return len(_analysis_funcs)
+
 
 def analysis_function(card_view_flavor="simple", name=None, automatic=False):
     """Decorator for marking a function as analysis function for a topography.
@@ -168,6 +170,7 @@ def analysis_function(card_view_flavor="simple", name=None, automatic=False):
         return func
     return register_decorator
 
+
 def unicode_superscript(s):
     """
     Convert a string into the unicode superscript equivalent.
@@ -209,6 +212,7 @@ def float_to_unicode(f, digits=3):
     else:
         return ('{{:.{}g}}×10{{}}'.format(digits)).format(m, unicode_superscript(str(e3)))
 
+
 def _reasonable_bins_argument(topography):
     """Returns a reasonable 'bins' argument for np.histogram for given topography's heights.
 
@@ -221,6 +225,7 @@ def _reasonable_bins_argument(topography):
         return int(np.sqrt(np.prod(len(topography.positions()))) + 1.0) # TODO discuss whether auto or this
         # return 'auto'
 
+
 def test_function(topography):
     return { 'name': 'Test result for test function called for topography {}.'.format(topography),
              'xunit': 'm',
@@ -229,6 +234,7 @@ def test_function(topography):
              'ylabel': 'y',
              'series': []}
 test_function.card_view_flavor = 'simple'
+
 
 class IncompatibleTopographyException(Exception):
     """Raise this exception in case a function cannot handle a topography.
@@ -252,6 +258,7 @@ class IncompatibleTopographyException(Exception):
 #             raise ValueError("This error is intended and happens with probability 1/{}.".format(F))
 #         progress_recorder.set_progress(i+1, n)
 #     return dict(message="done", physical_sizes=topography.physical_sizes, n=n)
+
 
 @analysis_function(card_view_flavor='plot', automatic=True)
 def height_distribution(topography, bins=None, wfac=5, progress_recorder=None, storage_prefix=None):
@@ -297,6 +304,7 @@ def height_distribution(topography, bins=None, wfac=5, progress_recorder=None, s
                  )
         ]
     )
+
 
 def _moments_histogram_gaussian(arr, bins, wfac, quantity, label, unit, gaussian=True):
     """Return moments, histogram and gaussian for an array.
@@ -411,6 +419,7 @@ def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, st
 
     return result
 
+
 @analysis_function(card_view_flavor='plot', automatic=True)
 def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None, storage_prefix=None):
     if bins is None:
@@ -463,6 +472,7 @@ def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None
                  )
         ]
     )
+
 
 @analysis_function(card_view_flavor='plot', automatic=True)
 def power_spectrum(topography, window=None, tip_radius=None, progress_recorder=None, storage_prefix=None):
@@ -520,6 +530,7 @@ def power_spectrum(topography, window=None, tip_radius=None, progress_recorder=N
         ]
 
     return result
+
 
 @analysis_function(card_view_flavor='plot', automatic=True)
 def autocorrelation(topography, progress_recorder=None, storage_prefix=None):
@@ -624,6 +635,7 @@ def variable_bandwidth(topography, progress_recorder=None, storage_prefix=None):
         ]
     )
 
+
 def _next_contact_step(system, history=None, pentol=None, maxiter=None):
     """
     Run a full contact calculation. Try to guess displacement such that areas
@@ -713,6 +725,7 @@ def _next_contact_step(system, history=None, pentol=None, maxiter=None):
            mean_displacement, mean_load, total_contact_area, \
            (mean_displacements, mean_gaps, mean_pressures, total_contact_areas, converged)
 
+
 def _contact_at_given_load(system, external_force, history=None, pentol=None, maxiter=None):
     """
     Run a full contact calculation at a given external load.
@@ -783,6 +796,7 @@ def _contact_at_given_load(system, external_force, history=None, pentol=None, ma
     return displacement_xy, gap_xy, pressure_xy, contacting_points_xy, \
            opt.offset, mean_load, total_contact_area, \
            (mean_displacements, mean_gaps, mean_pressures, total_contact_areas, converged)
+
 
 @analysis_function(card_view_flavor='contact mechanics', automatic=True)
 def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
