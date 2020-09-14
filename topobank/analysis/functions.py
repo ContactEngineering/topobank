@@ -222,7 +222,12 @@ def _reasonable_bins_argument(topography):
         # return 'auto'
 
 def test_function(topography):
-    return { 'name': 'Test result for test function called for topography {}.'.format(topography)}
+    return { 'name': 'Test result for test function called for topography {}.'.format(topography),
+             'xunit': 'm',
+             'yunit': 'm',
+             'xlabel': 'x',
+             'ylabel': 'y',
+             'series': []}
 test_function.card_view_flavor = 'simple'
 
 class IncompatibleTopographyException(Exception):
