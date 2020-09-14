@@ -1,5 +1,6 @@
 from django.db import models
 from django.shortcuts import reverse
+from django.conf import settings
 from django.core.cache import cache
 from django.db import transaction
 from django.core.files.storage import default_storage
@@ -54,14 +55,7 @@ class Surface(models.Model):
         ('dum', 'Dummy data')
     ]
 
-    LICENSE_CHOICES = [
-        ('cc0-1.0', 'CC0 1.0 (Public Domain Dedication)'),
-        # https://creativecommons.org/publicdomain/zero/1.0/
-        ('ccby-4.0', 'CC BY 4.0'),
-        # https://creativecommons.org/licenses/by/4.0/
-        ('ccbysa-4.0', 'CC BY-SA 4.0'),
-        # https://creativecommons.org/licenses/by-sa/4.0/
-    ]
+    LICENSE_CHOICES = [ (k, settings.CC_LICENSE_INFOS[k]['option_name']) for k in ['cc0-1.0', 'ccby-4.0', 'ccbysa-4.0']]
 
     name = models.CharField(max_length=80)
     creator = models.ForeignKey(User, on_delete=models.CASCADE)

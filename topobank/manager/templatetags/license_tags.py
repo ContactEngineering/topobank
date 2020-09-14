@@ -8,9 +8,6 @@ register = template.Library()
 def render_license_urls(license_choice):
     """Returns a HMTL snippet which can be inserted for the license links.
     """
-    license_urls = settings.CC_LICENSE_URLS[license_choice]
+    license_info = settings.CC_LICENSE_INFOS[license_choice]
 
-    return {
-        'description_url': license_urls[0],
-        'legal_code_url': license_urls[1],
-    }
+    return license_info

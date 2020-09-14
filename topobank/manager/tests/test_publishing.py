@@ -2,6 +2,7 @@ import pytest
 import datetime
 import zipfile
 
+from django.conf import settings
 from django.shortcuts import reverse
 from guardian.shortcuts import get_perms
 
@@ -199,15 +200,15 @@ def test_notification_saying_new_version_exists(client):
     assert_not_in_content(response, "Newer version available")
 
 
-
+@pytest.mark.parametrize("license", settings.CC_LICENSE_INFOS.keys())
 @pytest.mark.django_db
-def test_license_in_surface_download(client):
+def test_license_in_surface_download(client, license):
     import io
     user1 = UserFactory()
     user2 = UserFactory()
     surface = SurfaceFactory(creator=user1)
     TopographyFactory(surface=surface)
-    publication = surface.publish('cc0-1.0')
+    publication = surface.publish(license)
     client.force_login(user2)
 
     response = client.get(reverse('manager:surface-download', kwargs=dict(surface_id=publication.surface.id)))
@@ -219,6 +220,13 @@ def test_license_in_surface_download(client):
             readme_bytes = readme_file.read()
             readme_txt = readme_bytes.decode('utf-8')
             assert publication.get_license_display() in readme_txt
+
+        # There should be also a file "LICENSE.txt"
+        with z.open('LICENSE.txt') as license_file:
+            license_bytes = license_file.read()
+            license_txt = license_bytes.decode('utf-8')
+            # title of license should be in the text
+            assert settings.CC_LICENSE_INFOS[license]['title'] in license_txt
 
 
 @pytest.mark.django_db

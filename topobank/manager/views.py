@@ -29,6 +29,7 @@ from django.utils.safestring import mark_safe
 from django.views.generic import DetailView, UpdateView, CreateView, DeleteView, TemplateView, ListView, FormView
 from django.views.generic.edit import FormMixin
 from django_tables2 import RequestConfig
+from django.contrib.staticfiles.storage import staticfiles_storage
 
 from formtools.wizard.views import SessionWizardView
 from guardian.decorators import permission_required_or_403
@@ -1207,7 +1208,8 @@ class PublicationsTable(tables.Table):
 
     def render_license(self, value, record):
         return mark_safe(f"""
-        <a href="{settings.CC_LICENSE_URLS[value][0]}" target="_blank">{record['publication'].get_license_display()}</a>
+        <a href="{settings.CC_LICENSE_INFOS[value]['description_url']}" target="_blank">
+                {record['publication'].get_license_display()}</a>
         """)
 
     class Meta:
@@ -1259,11 +1261,6 @@ class SurfacePublishView(FormView):
 
     def get_success_url(self):
         return reverse('manager:publications')
-
-    def get_initial(self):
-        initial = super().get_initial()
-        initial['license'] = settings.CC_LICENSE_URLS[DEFAULT_LICENSE]
-        return initial
 
     def form_valid(self, form):
         license = self.request.POST.get('license')
@@ -1468,8 +1465,11 @@ def download_surface(request, surface_id):
             """.format(settings.TOPOBANK_VERSION)
         if surface.is_published:
             pub = surface.publication
+            #
+            # Add license information to README file
+            #
             license_txt = pub.get_license_display()
-            license_links = settings.CC_LICENSE_URLS[pub.license]
+            license_info = settings.CC_LICENSE_INFOS[pub.license]
             readme_txt += """
             License information
             ===================
@@ -1477,8 +1477,13 @@ def download_surface(request, surface_id):
             This surface has been published and the data is licensed under "{}".
             For details about this license see
             - {} (description) and
-            - {} (legal code).
-            """.format(license_txt, license_links[0], license_links[1])
+            - {} (legal code), or
+            - file "LICENSE.txt" (legal code).
+            """.format(license_txt, license_info['description_url'], license_info['legal_code_url'])
+            #
+            # Also add license file
+            #
+            zf.write(staticfiles_storage.path(f"other/{pub.license}-legalcode.txt"), arcname="LICENSE.txt")
 
         zf.writestr("README.txt", textwrap.dedent(readme_txt))
 

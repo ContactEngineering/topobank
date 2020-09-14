@@ -461,11 +461,23 @@ CONTACT_EMAIL_ADDRESS = "topobank@imtek.uni-freiburg.de"
 #
 # Links for Creative Commons licenses
 #
-CC_LICENSE_URLS = {  # each element refers to two links: (description URL, full license text URL)
-    'cc0-1.0': ('https://creativecommons.org/publicdomain/zero/1.0/',
-                'https://creativecommons.org/publicdomain/zero/1.0/legalcode'),
-    'ccby-4.0': ('https://creativecommons.org/licenses/by/4.0/',
-                 'https://creativecommons.org/licenses/by/4.0/legalcode'),
-    'ccbysa-4.0': ('https://creativecommons.org/licenses/by-sa/4.0/',
-                   'https://creativecommons.org/licenses/by-sa/4.0/legalcode'),
+CC_LICENSE_INFOS = {  # each element refers to two links: (description URL, full license text URL)
+    'cc0-1.0': {
+        'description_url': 'https://creativecommons.org/publicdomain/zero/1.0/',
+        'legal_code_url': 'https://creativecommons.org/publicdomain/zero/1.0/legalcode',
+        'title': 'CC0 1.0 Universal',
+        'option_name': 'CC0 1.0 (Public Domain Dedication)'
+    },
+    'ccby-4.0': {
+        'description_url': 'https://creativecommons.org/licenses/by/4.0/',
+        'legal_code_url': 'https://creativecommons.org/licenses/by/4.0/legalcode',
+        'title': 'Creative Commons Attribution 4.0 International Public License',
+        'option_name': 'CC BY 4.0'
+    },
+    'ccbysa-4.0': {
+        'description_url': 'https://creativecommons.org/licenses/by-sa/4.0/',
+        'legal_code_url': 'https://creativecommons.org/licenses/by-sa/4.0/legalcode',
+        'title': 'Creative Commons Attribution-ShareAlike 4.0 International Public License',
+        'option_name': 'CC BY-SA 4.0'
+    }
 }
