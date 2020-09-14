@@ -1507,6 +1507,8 @@ def download_plot_analyses_to_xlsx(request, analyses):
 
     for i, analysis in enumerate(analyses):
 
+        pub = analysis.topography.surface.publication if analysis.topography.surface.is_published else None
+
         if i == 0:
             properties = ["Function"]
             values = [str(analysis.function)]
@@ -1514,9 +1516,11 @@ def download_plot_analyses_to_xlsx(request, analyses):
         properties += ['Topography', 'Creator',
                        'Further arguments of analysis function', 'Start time of analysis task',
                        'End time of analysis task', 'Duration of analysis task']
+
         values += [str(analysis.topography.name), str(analysis.topography.creator),
                    analysis.get_kwargs_display(), str(analysis.start_time),
                    str(analysis.end_time), str(analysis.duration())]
+
         if analysis.configuration is None:
             properties.append("Versions of dependencies")
             values.append("Unknown. Please recalculate this analysis in order to have version information here.")
@@ -1526,6 +1530,12 @@ def download_plot_analyses_to_xlsx(request, analyses):
             for version in versions_used:
                 properties.append(f"Version of '{version.dependency.import_name}'")
                 values.append(f"{version.number_as_string()}")
+
+        if pub:
+            # If the surface of the topography was published, the URL is inserted
+            properties.append("Publication URL (surface data)")
+            values.append(request.build_absolute_uri(pub.get_absolute_url()))
+
         # We want an empty line on the properties sheet in order to distinguish the topographies
         properties.append("")
         values.append("")

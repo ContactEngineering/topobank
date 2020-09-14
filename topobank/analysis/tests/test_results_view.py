@@ -627,12 +627,12 @@ def test_download_analysis_results_without_permission(client, two_topos, ids_dow
     assert response.status_code == 200
 
 
-@pytest.mark.django_db
-def test_publication_link_in_txt_download(client):
+@pytest.fixture
+def two_analyses_two_publications():
     surface1 = SurfaceFactory()
-    topo1 = TopographyFactory(surface=surface1)
+    TopographyFactory(surface=surface1)
     surface2 = SurfaceFactory()
-    topo2 = TopographyFactory(surface=surface2)
+    TopographyFactory(surface=surface2)
     pub1 = surface1.publish('cc0-1.0')
     pub2 = surface2.publish('cc0-1.0')
     pub_topo1 = pub1.surface.topography_set.first()
@@ -641,6 +641,15 @@ def test_publication_link_in_txt_download(client):
     func = AnalysisFunctionFactory()
     analysis1 = AnalysisFactory(topography=pub_topo1, function=func)
     analysis2 = AnalysisFactory(topography=pub_topo2, function=func)
+
+    return analysis1, analysis2, pub1, pub2
+
+
+@pytest.mark.django_db
+def test_publication_link_in_txt_download(client, two_analyses_two_publications):
+
+    (analysis1, analysis2, pub1, pub2) = two_analyses_two_publications
+
     #
     # Now two publications are involved in these analyses
     #
@@ -656,6 +665,34 @@ def test_publication_link_in_txt_download(client):
 
     assert pub1.get_absolute_url() in txt
     assert pub2.get_absolute_url() in txt
+
+
+@pytest.mark.django_db
+def test_publication_link_in_xlsx_download(client, two_analyses_two_publications):
+    (analysis1, analysis2, pub1, pub2) = two_analyses_two_publications
+
+    #
+    # Now two publications are involved in these analyses
+    #
+    download_url = reverse('analysis:download', kwargs=dict(ids=f"{analysis1.id},{analysis2.id}",
+                                                            card_view_flavor='plot',
+                                                            file_format='xlsx'))
+    user = UserFactory(username='testuser')
+    client.force_login(user)
+    response = client.get(download_url)
+    assert response.status_code == 200
+
+    tmp = tempfile.NamedTemporaryFile(suffix='.xlsx')  # will be deleted automatically
+    tmp.write(response.content)
+    tmp.seek(0)
+
+    xlsx = openpyxl.load_workbook(tmp.name)
+
+    sheet = xlsx['INFORMATION']
+    col_B = sheet['B']
+    col_B_values = [str(c.value) for c in col_B]
+    assert any(pub1.get_absolute_url() in v for v in col_B_values)
+    assert any(pub2.get_absolute_url() in v for v in col_B_values)
 
 
 @pytest.mark.django_db
