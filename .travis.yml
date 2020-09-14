@@ -15,6 +15,7 @@ install:
   # - sudo apt-get install libfftw3-dev libopenblas-dev chromium-chromedriver
   - sudo apt-get install libfftw3-dev libopenblas-dev
   - pip install -q -r requirements/test.txt
+  - python manage.py collectstatic
   # - pip install selenium
 script:
   # - pytest -v --splinter-webdriver=chrome --splinter-headless=true --splinter-webdriver-executable=/opt/google/chrome/chrome
