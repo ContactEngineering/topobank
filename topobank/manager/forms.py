@@ -4,7 +4,7 @@ from django_select2.forms import ModelSelect2MultipleWidget
 
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Submit, Layout, Field, HTML, Div, Fieldset
-from crispy_forms.bootstrap import FormActions
+from crispy_forms.bootstrap import FormActions, FieldWithButtons, StrictButton
 
 from tagulous.forms import TagField
 
@@ -584,6 +584,14 @@ class SurfacePublishForm(forms.Form):
     helper.layout = Layout(
         Div(
             FormActions(
+                Fieldset("Please enter the authors' names",
+                         FieldWithButtons('author_0',
+                                          StrictButton('Insert your name',
+                                                       css_class='',
+                                                       css_id='insert_user_into_author_0'),
+                                          css_class="author-list-new"),
+                         FieldWithButtons('author_1', StrictButton('Insert your name')),
+                ),
                 Fieldset('Please choose a license',
                          Field('license', template="manager/license_radioselect.html")
                 ),
@@ -601,5 +609,33 @@ class SurfacePublishForm(forms.Form):
             ASTERISK_HELP_HTML
         )
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['author_0'] = forms.CharField(required=True, label="1. Author",
+                                                  help_text="""Use one line per author, enter parts in
+                                                  natural order with commas, e.g. 'Sarah Miller'.
+                                                  Place an additional authors in the last empty field.""")
+        # add extra blank field
+        self.fields['author_1'] = forms.CharField(required=False, label="2. Author")
+
+    def clean(self):
+        authors = set()
+        i = 0
+        field_name = f'author_{i}'
+        while self.cleaned_data.get(field_name):
+            author = self.cleaned_data[field_name]
+            if author in authors:
+                raise forms.ValidationError(f"Author '{author}' is already in the list.")
+            else:
+                authors.add(author)
+            i += 1
+            field_name = f'author_{i}'
+        self.cleaned_data['authors'] = ", ".join(authors)
+
+    def get_author_fields(self):
+        for field_name in self.fields:
+            if field_name.startswith('author_'):
+                yield self[field_name]
 
 

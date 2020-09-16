@@ -91,3 +91,34 @@
 
 {% endblock content %}
 
+{% block javascript %}
+  <script>
+  $('.author-list-new').on('input', function() {
+    let $this = $(this);
+    let $clone = $this.clone();
+    let name = $clone.attr('name');
+    let n = parseInt(name.split('_')[1]) + 1;
+    name = 'author_' + n;
+
+    $clone.val('');
+    $clone.attr('name', name);
+    $clone.attr('id', 'author_'+n.toString());
+    $clone.removeAttr('required');  // only the first name should be required
+    $clone.appendTo($this.parent());
+    $this.removeClass('author-list-new');
+    $this.off('input', arguments.callee);
+    $clone.on('input', arguments.callee);  // bind this handler to the new input field
+
+    /** Add handlers to fade out empty inputs */
+    $('form').find("input[name^=author_]:not(.author-list-new)")
+    .on("blur", function() {
+        console.log("on blur");
+        var value = $(this).val().trim();
+        if (value === "") {
+            $(this).hide();
+        }
+    });
+  });
+  </script>
+{% endblock javascript %}
+

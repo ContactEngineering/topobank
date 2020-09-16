@@ -1259,6 +1259,11 @@ class SurfacePublishView(FormView):
         surface_pk = self.kwargs['pk']
         return Surface.objects.get(pk=surface_pk)
 
+    def get_initial(self):
+        initial = super().get_initial()
+        initial['author_0'] = self.request.user.name
+        return initial
+
     def get_success_url(self):
         return reverse('manager:publications')
 
