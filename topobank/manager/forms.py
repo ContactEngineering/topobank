@@ -591,7 +591,9 @@ class SurfacePublishForm(forms.Form):
                          Field('agreed'),
                          Field('copyright_hold'),
                 ),
-                Submit('save', 'Yes, publish this surface', css_class='btn-success'),
+                Submit('save', 'Yes, publish this surface', css_class='btn-success',
+                       onclick="this.disabled=true; this.value='Please wait..'; this.form.submit();"),
+                       # this prevents multiple submissions by clicking several times fast
                 HTML("""
                 <a href="{% url 'manager:surface-detail' surface.pk %}" class="btn btn-default" id="cancel-btn">Cancel</a>
                 """),

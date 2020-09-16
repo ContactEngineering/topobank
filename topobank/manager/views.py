@@ -44,7 +44,7 @@ from trackstats.models import Metric, Period
 
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm, DEFAULT_LICENSE
 from .forms import TopographyForm, SurfaceForm, SurfaceShareForm, SurfacePublishForm
-from .models import Topography, Surface, TagModel
+from .models import Topography, Surface, TagModel, NewPublicationTooFastException
 from .serializers import SurfaceSerializer, TagSerializer
 from .utils import selected_instances, bandwidths_data, get_topography_reader, tags_for_user, get_reader_infos, \
     mailto_link_for_reporting_an_error, current_selection_as_basket_items, filtered_surfaces, \
@@ -1266,7 +1266,10 @@ class SurfacePublishView(FormView):
         license = self.request.POST.get('license')
 
         surface = self._get_surface()
-        surface.publish(license)
+        try:
+            surface.publish(license)
+        except NewPublicationTooFastException as exc:
+            return redirect("manager:surface-publication-rate-too-high", pk=surface.pk)
 
         return super().form_valid(form)
 
@@ -1293,6 +1296,34 @@ class SurfacePublishView(FormView):
         ]
         context['surface'] = surface
 
+        return context
+
+
+class PublicationRateTooHighView(TemplateView):
+    template_name = "manager/publication_rate_too_high.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['min_seconds'] = settings.MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS
+
+        surface_pk = self.kwargs['pk']
+        surface = Surface.objects.get(pk=surface_pk)
+
+        context['extra_tabs'] = [
+            {
+                'title': f"{surface.label}",
+                'icon': "diamond",
+                'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
+                'active': False,
+                'tooltip': f"Properties of surface '{surface.label}'"
+            },
+            {
+                'title': f"Publication rate too high",
+                'icon': "flash",
+                'href': self.request.path,
+                'active': True,
+            }
+        ]
         return context
 
 

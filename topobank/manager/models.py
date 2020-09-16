@@ -16,6 +16,7 @@ from topobank.users.models import User
 from topobank.publication.models import Publication
 from topobank.users.utils import get_default_group
 
+import math
 import logging
 _log = logging.getLogger(__name__)
 
@@ -32,11 +33,14 @@ class AlreadyPublishedException(Exception):
 
 
 class NewPublicationTooFastException(Exception):
-    def __init__(self, latest_publication):
+    def __init__(self, latest_publication, wait_seconds):
         self._latest_pub = latest_publication
+        self._wait_seconds = wait_seconds
 
     def __str__(self):
-        return f"Latest publication is from {self._latest_pub.datetime}, which is not old enough."
+        s = f"Latest publication for this surface is from {self._latest_pub.datetime}. "
+        s += f"Please wait {self._wait_seconds} more seconds before publishing again."
+        return s
 
 
 class TagModel(tm.TagTreeModel):
@@ -200,9 +204,10 @@ class Surface(models.Model):
         #
         min_seconds = settings.MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS
         if latest_publication and (min_seconds is not None):
-            delta_since_last_pub = latest_publication.datetime-timezone.now()
-            if delta_since_last_pub.total_seconds() < min_seconds:
-                raise NewPublicationTooFastException(latest_publication)
+            delta_since_last_pub = timezone.now()-latest_publication.datetime
+            delta_secs = delta_since_last_pub.total_seconds()
+            if delta_secs < min_seconds:
+                raise NewPublicationTooFastException(latest_publication, math.ceil(min_seconds-delta_secs))
 
 
         #
