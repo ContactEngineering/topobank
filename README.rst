@@ -66,4 +66,4 @@ and to the result backend.
 Funding
 -------
 
-Development of this project is funded by the `European Research Council <https://erc.europa.eu>`_ with `Starting Grant 757343 <https://cordis.europa.eu/project/id/757343>`_.
+Development of this project is funded by the `European Research Council <https://erc.europa.eu>`_ within `Starting Grant 757343 <https://cordis.europa.eu/project/id/757343>`_.
