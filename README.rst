@@ -63,8 +63,7 @@ Please note: For Celery's import magic to work, it is important *where* the cele
 There is a bash script :code:`start-celery.sh` which also sets some environment variables needed in order to connect to the message broker
 and to the result backend.
 
+Funding
+-------
 
-
-
-
-
+Development of this project is funded by the `European Research Council <https://erc.europa.eu>`_ with `Starting Grant 757343 <https://cordis.europa.eu/project/id/757343>`_.
