@@ -1,4 +1,4 @@
-from django.forms import forms, ModelMultipleChoiceField
+from django.forms import forms, ModelMultipleChoiceField, formset_factory
 from django import forms
 from django_select2.forms import ModelSelect2MultipleWidget
 
@@ -563,7 +563,7 @@ class SurfaceShareForm(forms.Form):
     )
 
 
-class SurfacePublishForm(forms.Form):
+class SurfacePublishForm2(forms.Form):
     """Form for publishing surfaces."""
 
     helper = FormHelper()
@@ -585,12 +585,21 @@ class SurfacePublishForm(forms.Form):
         Div(
             FormActions(
                 Fieldset("Please enter the authors' names",
-                         FieldWithButtons('author_0',
-                                          StrictButton('Insert your name',
-                                                       css_class='',
-                                                       css_id='insert_user_into_author_0'),
-                                          css_class="author-list-new"),
-                         FieldWithButtons('author_1', StrictButton('Insert your name')),
+                         HTML(
+                             """<small class='form-text text-muted'>
+                               Use one line per author, enter parts in
+                               natural order with commas, e.g. 'Sarah Miller'.
+                               Place an additional authors in the last empty field.
+                             </small>"""
+                         ),
+                         Field('author_0'),
+                ),
+                HTML(
+                  """<small class='form-text text-muted'>
+                    Use one line per author, enter parts in
+                    natural order with commas, e.g. 'Sarah Miller'.
+                    Place an additional authors in the last empty field.
+                  </small>"""
                 ),
                 Fieldset('Please choose a license',
                          Field('license', template="manager/license_radioselect.html")
@@ -612,12 +621,45 @@ class SurfacePublishForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['author_0'] = forms.CharField(required=True, label="1. Author",
-                                                  help_text="""Use one line per author, enter parts in
-                                                  natural order with commas, e.g. 'Sarah Miller'.
-                                                  Place an additional authors in the last empty field.""")
+        self.fields['author_1'] = forms.CharField(required=True, label="1. Author")
         # add extra blank field
-        self.fields['author_1'] = forms.CharField(required=False, label="2. Author")
+        self.fields['author_2'] = forms.CharField(required=False, label="2. Author")
+
+    def clean(self):
+        authors = set()
+        i = 1
+        field_name = f'author_{i}'
+        while self.cleaned_data.get(field_name):
+            author = self.cleaned_data[field_name]
+            if author in authors:
+                raise forms.ValidationError(f"Author '{author}' is already in the list.")
+            else:
+                authors.add(author)
+            i += 1
+            field_name = f'author_{i}'
+        self.cleaned_data['authors'] = ", ".join(authors)
+
+    def get_author_fields(self):
+        for field_name in self.fields:
+            if field_name.startswith('author_'):
+                yield self[field_name]
+
+
+class SurfacePublishForm(forms.Form):
+    """Form for publishing surfaces."""
+    license = forms.ChoiceField(widget=forms.RadioSelect, choices=Surface.LICENSE_CHOICES,
+                                required=True)
+    agreed = forms.BooleanField(widget=forms.CheckboxInput, required=True,
+                                label="I understand the implications of publishing this surface and I agree.",
+                                help_text="""Please read the implications of publishing listed above and check.""")
+    copyright_hold = forms.BooleanField(widget=forms.CheckboxInput, required=True,
+                                label="I hold copyright of this data or have been authorized by the copyright holders.",
+                                help_text="""Please make sure you're not publishing data """
+                                        """from others without their authorization.""")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['author_0'] = forms.CharField(required=True, label="1. Author")
 
     def clean(self):
         authors = set()
@@ -637,5 +679,3 @@ class SurfacePublishForm(forms.Form):
         for field_name in self.fields:
             if field_name.startswith('author_'):
                 yield self[field_name]
-
-

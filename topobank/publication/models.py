@@ -22,6 +22,8 @@ class Publication(models.Model):
     datetime = models.DateTimeField(auto_now_add=True)
     license = models.CharField(max_length=12, choices=LICENSE_CHOICES, blank=False, default='')
 
+    authors = models.TextField
+
     def get_absolute_url(self):
         return reverse('publication:go', args=[self.short_url])
 
