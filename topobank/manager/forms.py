@@ -16,6 +16,7 @@ from SurfaceTopography.IO.Reader import CannotDetectFileFormat, CorruptFile, Unk
 
 from topobank.manager.utils import get_topography_reader
 from .models import Topography, Surface, MAX_LENGTH_DATAFILE_FORMAT
+from ..publication.models import MAX_LEN_AUTHORS_FIELD
 
 from topobank.users.models import User
 
@@ -655,27 +656,65 @@ class SurfacePublishForm(forms.Form):
     copyright_hold = forms.BooleanField(widget=forms.CheckboxInput, required=True,
                                 label="I hold copyright of this data or have been authorized by the copyright holders.",
                                 help_text="""Please make sure you're not publishing data """
-                                        """from others without their authorization.""")
+                                          """from others without their authorization.""")
+
+    helper = FormHelper()
+    helper.form_method = 'POST'
+    helper.attrs = { "on_submit": "on_submit()"}  # call JS function for disabling button
+    # this prevents multiple submissions by clicking several times fast
+
+    helper.layout = Layout(
+        Div(
+            FormActions(
+                Fieldset('Please enter the authors',
+                         Field('authors', template="manager/multi_author_field.html"),
+                         ),
+                Fieldset('Please choose a license',
+                         Field('license', template="manager/license_radioselect.html"),
+                         ),
+                Fieldset('Final checks',
+                         Field('agreed'),
+                         Field('copyright_hold'),
+                         ),
+                Submit('save', 'Yes, publish this surface', css_class='btn-success'),
+                HTML("""
+                    <a href="{% url 'manager:surface-detail' surface.pk %}" class="btn btn-default" id="cancel-btn">Cancel</a>
+                    """),
+            ),
+            ASTERISK_HELP_HTML
+        )
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['author_0'] = forms.CharField(required=True, label="1. Author")
+        self.fields['authors'] = forms.CharField(max_length=MAX_LEN_AUTHORS_FIELD, required=False)
+        # Validation is done in method clean_authors()
 
-    def clean(self):
+    def clean_authors(self):
         authors = set()
+
         i = 0
         field_name = f'author_{i}'
         while self.cleaned_data.get(field_name):
-            author = self.cleaned_data[field_name]
+            author = self.cleaned_data[field_name].strip()
             if author in authors:
                 raise forms.ValidationError(f"Author '{author}' is already in the list.")
-            else:
+            elif len(author) > 0:
                 authors.add(author)
             i += 1
             field_name = f'author_{i}'
-        self.cleaned_data['authors'] = ", ".join(authors)
 
-    def get_author_fields(self):
-        for field_name in self.fields:
-            if field_name.startswith('author_'):
-                yield self[field_name]
+        if len(authors) == 0:
+            raise forms.ValidationError("At least one author must be given.")
+
+        authors_string = ", ".join(authors)
+        if len(authors_string) > MAX_LEN_AUTHORS_FIELD:
+            msg = """Represenation of authors is too long, at maximum {} characters are allowed.
+                    """.format(MAX_LEN_AUTHORS_FIELD)
+            raise forms.ValidationError(msg)
+
+        return authors_string
+
+
+

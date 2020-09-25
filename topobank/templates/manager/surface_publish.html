@@ -1,9 +1,10 @@
 {% extends 'base.html' %}
 {% load fontawesome %}
+{% load license_tags %}
+{% load crispy_forms_tags %}
 
 {% block content %}
 
-  {% load crispy_forms_tags %}
 
   <div class="tab-content mt-2">
 
@@ -85,146 +86,8 @@
 
       <div class="alert alert-primary">
         <h2 class="alert-heading">Publication form</h2>
-        <form method="post" onsubmit="on_submit()">
-          {% csrf_token %}
-          <div class="form-group">
-            <div class="">
-              <fieldset>
-                <legend>Please enter the authors' names</legend>
-
-                <div id="authors">
-                  <div v-for="(item, index) in items" class="my-2">
-                    <label v-bind:for="'author_input_'+index"
-                           v-bind:class="{requiredField:index==0}">
-                      [[ index+1 ]]. Author
-                      <span v-if="index == 0" class="asteriskField">*</span>
-                    </label>
-                    <div class="form-row" >
-                      <div class="input-group col-6">
-                        <input type="text"
-                               v-bind:id="'author_input_'+index"
-                               v-bind:name="'author_'+index"
-                               v-bind:required="index==0"
-                               class="form-control"
-                               v-on:keypress="filter_key($event)"
-                               v-model="item.name">
-                        <div class="input-group-append">
-                          <button class="btn btn-secondary"
-                                  type="button"
-                                  v-bind:class="{ disabled: items.length==1 }"
-                                  @click="delete_author_line(index)">{% fontawesome_icon 'trash' %}</button>
-                          <button class="btn btn-secondary"
-                                  type="button"
-                                  v-bind:class="{ disabled: index==0 }"
-                                  @click="move_author_up(index)">{% fontawesome_icon 'arrow-up' %}</button>
-                          <button class="btn btn-secondary"
-                                  type="button"
-                                  v-bind:class="{ disabled: index==items.length-1 }"
-                                  @click="move_author_down(index)">{% fontawesome_icon 'arrow-down' %}</button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <small class='form-text text-muted'>
-                  Use one line per author, enter each name in
-                  natural order <b>without commas</b>, e.g. 'Sarah Miller'.
-                  Press plus button if you need more author fields.
-                  </small>
-                  <p class='form-text text-muted mt-2'>
-                    Authors will be saved and listed like this: <b>[[ get_full_authors_string ]]</b>
-                  </p>
-                  <div class="form-row">
-                    <div class="input-group col-2 my-1">
-                      <button class="btn btn-secondary"
-                            type="button"
-                            v-on:click="add_author_line">
-                        {% fontawesome_icon 'plus' %} One more author
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-              </fieldset>
-
-              <fieldset>
-                <legend>Please choose a license</legend>
-                <div class="">
-                  {# Following: 3 DIVs for licenses #}
-                  {% include "manager/license_radioselect.html" %}
-                </div>
-              </fieldset>
-              <fieldset>
-                <legend>Final checks</legend>
-                <div class="form-group">
-                  <div id="div_id_agreed" class="custom-control custom-checkbox">
-                    <input type="checkbox" name="agreed" class="checkboxinput custom-control-input" required
-                           id="id_agreed">
-                    <label for="id_agreed" class="custom-control-label requiredField">
-                      I understand the implications of publishing this surface and I agree.
-                      <span class="asteriskField">*</span>
-                    </label>
-                    <small id="hint_id_agreed" class="form-text text-muted">
-                      Please read the implications of publishing listed above and check.
-                    </small></div>
-                </div>
-                <div class="form-group">
-                  <div id="div_id_copyright_hold" class="custom-control custom-checkbox">
-                    <input type="checkbox" name="copyright_hold" class="checkboxinput custom-control-input" required
-                           id="id_copyright_hold">
-                    <label for="id_copyright_hold" class="custom-control-label requiredField">
-                      I hold copyright of this data or have been authorized by the copyright holders.
-                      <span class="asteriskField">*</span>
-                    </label>
-                    <small id="hint_id_copyright_hold" class="form-text text-muted">
-                      Please make sure you're not publishing data from others without their authorization.
-                    </small>
-                  </div>
-                </div>
-              </fieldset>
-              <input type="submit" name="save" value="Yes, publish this surface"
-                     class="btn btn-primary btn-success"
-                     id="submit-id-save"/>
-              <a href="{% url 'manager:surface-detail' surface.pk %}" class="btn btn-default" id="cancel-btn">Cancel</a>
-            </div>
-            {# first div in form group #}
-          </div> {# div class='form-group' #}
-          <p>Fields marked with an asterisk (*) are mandatory.</p>
-        </form>
+        {% crispy form form.helper %}
       </div> {# with headline "Publication form" #}
-
-
-
-      {# --------------------------------------------------------------------------- #}
-
-{##}
-{#      <div class="alert alert-primary">#}
-{#        <h2 class="alert-heading">Publication form</h2>#}
-{#        <p>#}
-{#          {% crispy form form.helper %}#}
-{#        </p>#}
-{#        <p>#}
-          {# ----------------------- other approach -------------- #}
-{#          {{ authors_formset.management_form | crispy }}#}
-{#          <div id="form_set">#}
-{#              {% for form in authors_formset.forms %}#}
-{#                {{form.non_field_errors}}#}
-{#              {{form.errors}}#}
-{#                  <table class='no_error'>#}
-{#                      {{ form|crispy }}#}
-{#                  </table>#}
-{#              {% endfor %}#}
-{#          </div>#}
-{#          <input type="button" value="Add More" id="add_more">#}
-{#          <div id="empty_form" style="display:none">#}
-{#              <table class='no_error'>#}
-{#                  {{ authors_formset.empty_form|crispy }}#}
-{#              </table>#}
-{#          </div>#}
-{#        </p>#}
-{#      </div>#}
-
-
-
     {% endif %}
   </div>
 
@@ -250,12 +113,14 @@
  * Component representing all author inputs
  */
  let user_name = JSON.parse(document.getElementById('user-name').textContent);
+ let max_len_authors_field = {{ max_len_authors_field }};
  let authors = new Vue({
    delimiters: ['[[', ']]'],
    el: '#authors',
    data () {
      return {
-       items: [{ name: user_name}],  // array with author items, default name is name of user
+       items: [{ name: user_name }],  // array with author items, default name is name of user
+       max_len_authors_field: max_len_authors_field,
      };
    },
    computed: {
@@ -268,7 +133,7 @@
               s += ", " + item.name;
            }
          })
-         return s;
+         return s.substring(0, max_len_authors_field);
        }
      }
    },

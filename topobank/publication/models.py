@@ -1,6 +1,8 @@
 from django.db import models
 from django.urls import reverse
 
+MAX_LEN_AUTHORS_FIELD = 512
+
 
 class Publication(models.Model):
 
@@ -22,8 +24,10 @@ class Publication(models.Model):
     datetime = models.DateTimeField(auto_now_add=True)
     license = models.CharField(max_length=12, choices=LICENSE_CHOICES, blank=False, default='')
 
-    authors = models.TextField
+    authors = models.CharField(max_length=MAX_LEN_AUTHORS_FIELD)
 
     def get_absolute_url(self):
         return reverse('publication:go', args=[self.short_url])
+
+
 

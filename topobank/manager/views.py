@@ -52,7 +52,7 @@ from .utils import selected_instances, bandwidths_data, get_topography_reader, t
 from ..usage_stats.utils import increase_statistics_by_date
 from ..users.models import User
 from ..users.utils import get_default_group
-from ..publication.models import Publication
+from ..publication.models import Publication, MAX_LEN_AUTHORS_FIELD
 
 MAX_NUM_POINTS_FOR_SYMBOLS_IN_LINE_SCAN_PLOT = 100
 
@@ -1196,6 +1196,7 @@ class SurfaceShareView(FormMixin, DetailView):
 class PublicationsTable(tables.Table):
     publication = tables.Column(linkify=True, verbose_name='Surface')
     num_topographies = tables.Column(verbose_name='# Topographies')
+    authors = tables.Column(verbose_name="Authors")
     license = tables.Column(verbose_name="License")
     datetime = tables.Column(verbose_name="Publication Date")
     version = tables.Column(verbose_name="Version")
@@ -1233,6 +1234,7 @@ class PublicationListView(ListView):
                 'publication': pub,
                 'surface': pub.surface,
                 'num_topographies': pub.surface.num_topographies(),
+                'authors': pub.authors,
                 'license': pub.license,
                 'datetime': pub.datetime,
                 'version': pub.version
@@ -1269,12 +1271,13 @@ class SurfacePublishView(FormView):
 
     def form_valid(self, form):
         license = self.request.POST.get('license')
-
+        authors = self.request.POST.get('authors')
         surface = self._get_surface()
         try:
-            surface.publish(license)
+            surface.publish(license, authors)
         except NewPublicationTooFastException as exc:
-            return redirect("manager:surface-publication-rate-too-high", pk=surface.pk)
+            return redirect("manager:surface-publication-rate-too-high",
+                            pk=surface.pk)
 
         return super().form_valid(form)
 
@@ -1300,7 +1303,7 @@ class SurfacePublishView(FormView):
             }
         ]
         context['surface'] = surface
-
+        context['max_len_authors_field'] = MAX_LEN_AUTHORS_FIELD
         return context
 
 

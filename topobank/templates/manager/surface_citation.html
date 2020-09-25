@@ -7,7 +7,7 @@
   </div>
   <div class="card-body">
     {% with surface.publication as pub %}
-      {{ pub.publisher.name }}. ({{ pub.datetime.year }}). contact.engineering.
+      {{ pub.authors }}. ({{ pub.datetime.year }}). contact.engineering.
       <em>{{ surface.name }} (Version {{ pub.version }})</em>.
       <a href="{{ publication_url }}">{{ publication_url }}</a>
     {% endwith %}
