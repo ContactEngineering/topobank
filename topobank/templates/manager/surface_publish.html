@@ -112,6 +112,14 @@
                                   type="button"
                                   v-bind:class="{ disabled: items.length==1 }"
                                   @click="delete_author_line(index)">{% fontawesome_icon 'trash' %}</button>
+                          <button class="btn btn-secondary"
+                                  type="button"
+                                  v-bind:class="{ disabled: index==0 }"
+                                  @click="move_author_up(index)">{% fontawesome_icon 'arrow-up' %}</button>
+                          <button class="btn btn-secondary"
+                                  type="button"
+                                  v-bind:class="{ disabled: index==items.length-1 }"
+                                  @click="move_author_down(index)">{% fontawesome_icon 'arrow-down' %}</button>
                         </div>
                       </div>
                     </div>
@@ -269,10 +277,24 @@
      },
      delete_author_line: function(index) {
        // Keep at least one line
-       console.log("deleting item with index "+index+"...");
-       console.log("number of items: "+this.items.length);
-       if (this.items.length > 0) {
+       if (this.items.length > 1) {
           this.items.splice(index, 1);
+       }
+     },
+     move_author_up: function(index) {
+       if (index > 0) {
+         // swap with item before
+         let tmp = this.items[index];
+         this.items.splice(index, 1, this.items[index-1]);
+         this.items.splice(index-1, 1, tmp);
+       }
+     },
+     move_author_down: function(index) {
+       if (index < this.items.length-1) {
+         // swap with item after
+         let tmp = this.items[index];
+         this.items.splice(index, 1, this.items[index+1]);  // we need to use array methods here!
+         this.items.splice(index+1, 1, tmp);
        }
      },
      update_item: function (author_input) {
