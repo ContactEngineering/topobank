@@ -106,6 +106,7 @@
                                v-bind:name="'author_'+index"
                                v-bind:required="index==0"
                                class="form-control"
+                               v-on:keypress="filter_key($event)"
                                v-model="item.name">
                         <div class="input-group-append">
                           <button class="btn btn-secondary"
@@ -126,11 +127,11 @@
                   </div>
                   <small class='form-text text-muted'>
                   Use one line per author, enter each name in
-                  natural order without commas, e.g. 'Sarah Miller'.
+                  natural order <b>without commas</b>, e.g. 'Sarah Miller'.
                   Press plus button if you need more author fields.
                   </small>
                   <p class='form-text text-muted mt-2'>
-                    Authors will be listed like this: <b>[[ get_full_authors_string ]]</b>
+                    Authors will be saved and listed like this: <b>[[ get_full_authors_string ]]</b>
                   </p>
                   <div class="form-row">
                     <div class="input-group col-2 my-1">
@@ -300,6 +301,13 @@
      update_item: function (author_input) {
        let found_item = this.items.find(el => el.id == author_input.id)
        found_item.name = author_input.name;
+     },
+     filter_key: function (event) {
+       let invalid_keys = [',', ';', '\t', '\n']
+       console.log("event: "+event+" key: "+event.key );
+       if (invalid_keys.includes(event.key)) {
+         return event.preventDefault();
+       }
      }
    }
  });
