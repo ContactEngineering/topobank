@@ -281,12 +281,14 @@ def test_dont_show_published_surfaces_when_shared_filter_used(client):
 
 
 @pytest.mark.django_db
-def test_limit_publication_frequency():
+def test_limit_publication_frequency(settings):
     """
     If the publication link is clicked several
     times in a fast sequence, there should be only
     one publication.
     """
+    settings.MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS = 10000  # to be sure this must fail here
+
     alice = UserFactory()
     surface = SurfaceFactory(creator=alice)
 
