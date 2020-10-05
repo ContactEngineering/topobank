@@ -67,7 +67,12 @@
       </div>
     {% else %}
 
-      {# --------------------- Classic Django Form with Vuejs ---------------------- #}
+      {# --------------------- Django Form via Crispy Forms together with Vuejs ---------------------- #}
+
+      <div class="alert alert-primary">
+        <h2 class="alert-heading">Publication form</h2>
+        {% crispy form form.helper %}
+      </div> {# with headline "Publication form" #}
 
       {% if form.errors %}
         {% for field in form %}
@@ -84,10 +89,6 @@
         {% endfor %}
       {% endif %}
 
-      <div class="alert alert-primary">
-        <h2 class="alert-heading">Publication form</h2>
-        {% crispy form form.helper %}
-      </div> {# with headline "Publication form" #}
     {% endif %}
   </div>
 
@@ -96,8 +97,21 @@
 {% block javascript %}
 
   {{ user.name | json_script:"user-name" }}
+  {{ form.cleaned_data | json_script:"form-cleaned-data" }}
+  {{ form.is_bound | json_script:"form-is-bound" }}
 
   <script>
+
+  // prevent using enter to submit the form
+  $(document).ready(function() {
+    $(window).keydown(function(event){
+      if(event.keyCode == 13) {
+        event.preventDefault();
+        return false;
+      }
+    });
+  });
+
 
   function on_submit() {
     /*
@@ -113,13 +127,27 @@
  * Component representing all author inputs
  */
  let user_name = JSON.parse(document.getElementById('user-name').textContent);
+ let form_cleaned_data = JSON.parse(document.getElementById('form-cleaned-data').textContent);
+ let form_is_bound = JSON.parse(document.getElementById('form-is-bound').textContent);
  let max_len_authors_field = {{ max_len_authors_field }};
  let authors = new Vue({
    delimiters: ['[[', ']]'],
    el: '#authors',
    data () {
+     let items = [];
+
+     if (form_is_bound) {
+       // collect author names if given in cleaned_data, this is needed
+       // in case the form is reloaded because of errors
+       for (k = 0; k < form_cleaned_data.num_author_fields; k++) {
+         let key = `author_${k}`;
+         items.push({ name: form_cleaned_data[key]});
+       }
+     } else { // fresh form
+       items = [ { name: user_name } ];
+     }
      return {
-       items: [{ name: user_name }],  // array with author items, default name is name of user
+       items: items,  // array with author items
        max_len_authors_field: max_len_authors_field,
      };
    },
@@ -135,6 +163,9 @@
          })
          return s.substring(0, max_len_authors_field);
        }
+     },
+     num_authors: function() {
+       return this.items.length;
      }
    },
    methods: {

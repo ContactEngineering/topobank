@@ -2,16 +2,16 @@
 {% load l10n %}
 {% load license_tags %}
 
-<div class="{% if inline_class %}form-check{% endif %}{% if field_class %} {{ field_class }}{% endif %}"{% if flat_attrs %} {{ flat_attrs|safe }}{% endif %}>
+<div class="{% if field_class %} {{ field_class }}{% endif %}"{% if flat_attrs %} {{ flat_attrs|safe }}{% endif %}>
     {% include 'bootstrap4/layout/field_errors_block.html' %}
 
     {% for choice in field.field.choices %}
-      {% if not inline_class %}<div class="form-check">{% endif %}
-        <label for="id_{{ field.id_for_label }}_{{ forloop.counter }}" class="form-check-{% if inline_class %}{{ inline_class }}{% else %}label{% endif %}">
-            <input type="radio" class="form-check-input"{% if choice.0|stringformat:"s" == field.value|default_if_none:""|stringformat:"s" %} checked="checked"{% endif %} name="{{ field.html_name }}" id="id_{{ field.id_for_label }}_{{ forloop.counter }}" value="{{ choice.0|unlocalize }}" {{ field.field.widget.attrs|flatatt }}>
-            {{ choice.1|unlocalize }} {% render_license_urls choice.0 %}
-        </label>
-      {% if not inline_class %}</div>{% endif %}
+      <div class="custom-control custom-radio">
+        <input type="radio" class="custom-control-input"{% if choice.0|stringformat:"s" == field.value|default_if_none:""|stringformat:"s" %} checked="checked"{% endif %} name="{{ field.html_name }}" id="id_{{ field.id_for_label }}_{{ forloop.counter }}" value="{{ choice.0|unlocalize }}" {{ field.field.widget.attrs|flatatt }}>
+
+        <label for="id_{{ field.id_for_label }}_{{ forloop.counter }}"
+               class="custom-control-label">{{ choice.1|unlocalize }} {% render_license_urls choice.0 %}</label>
+      </div>
     {% endfor %}
 
     {% include 'bootstrap4/layout/help_text.html' %}

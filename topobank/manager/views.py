@@ -1264,14 +1264,26 @@ class SurfacePublishView(FormView):
     def get_initial(self):
         initial = super().get_initial()
         initial['author_0'] = self.request.user.name
+        initial['num_author_fields'] = 1
         return initial
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        if self.request.method == 'POST':
+            # The field 'num_author_fields' may have been increased by
+            # Javascript (Vuejs) on the client in order to add new authors.
+            # This should be sent to the form in order to know
+            # how many fields the form should have and how many author names
+            # should be combined. So this is passed here:
+            kwargs['num_author_fields'] = int(self.request.POST.get('num_author_fields'))
+        return kwargs
 
     def get_success_url(self):
         return reverse('manager:publications')
 
     def form_valid(self, form):
-        license = self.request.POST.get('license')
-        authors = self.request.POST.get('authors')
+        license = form.cleaned_data.get('license')
+        authors = form.cleaned_data.get('authors')
         surface = self._get_surface()
         try:
             surface.publish(license, authors)

@@ -1,10 +1,10 @@
-from django.forms import forms, ModelMultipleChoiceField, formset_factory
+from django.forms import forms, ModelMultipleChoiceField
 from django import forms
 from django_select2.forms import ModelSelect2MultipleWidget
 
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Submit, Layout, Field, HTML, Div, Fieldset
-from crispy_forms.bootstrap import FormActions, FieldWithButtons, StrictButton
+from crispy_forms.bootstrap import FormActions
 
 from tagulous.forms import TagField
 
@@ -564,88 +564,6 @@ class SurfaceShareForm(forms.Form):
     )
 
 
-class SurfacePublishForm2(forms.Form):
-    """Form for publishing surfaces."""
-
-    helper = FormHelper()
-    helper.form_method = 'POST'
-
-    license = forms.ChoiceField(widget=forms.RadioSelect, choices=Surface.LICENSE_CHOICES,
-                                required=True)
-
-    agreed = forms.BooleanField(widget=forms.CheckboxInput, required=True,
-                                label="I understand the implications of publishing this surface and I agree.",
-                                help_text="""Please read the implications of publishing listed above and check.""")
-
-    copyright_hold = forms.BooleanField(widget=forms.CheckboxInput, required=True,
-                                label="I hold copyright of this data or have been authorized by the copyright holders.",
-                                help_text="""Please make sure you're not publishing data """
-                                        """from others without their authorization.""")
-
-    helper.layout = Layout(
-        Div(
-            FormActions(
-                Fieldset("Please enter the authors' names",
-                         HTML(
-                             """<small class='form-text text-muted'>
-                               Use one line per author, enter parts in
-                               natural order with commas, e.g. 'Sarah Miller'.
-                               Place an additional authors in the last empty field.
-                             </small>"""
-                         ),
-                         Field('author_0'),
-                ),
-                HTML(
-                  """<small class='form-text text-muted'>
-                    Use one line per author, enter parts in
-                    natural order with commas, e.g. 'Sarah Miller'.
-                    Place an additional authors in the last empty field.
-                  </small>"""
-                ),
-                Fieldset('Please choose a license',
-                         Field('license', template="manager/license_radioselect.html")
-                ),
-                Fieldset('Final checks',
-                         Field('agreed'),
-                         Field('copyright_hold'),
-                ),
-                Submit('save', 'Yes, publish this surface', css_class='btn-success',
-                       onclick="this.disabled=true; this.value='Please wait..'; this.form.submit();"),
-                       # this prevents multiple submissions by clicking several times fast
-                HTML("""
-                <a href="{% url 'manager:surface-detail' surface.pk %}" class="btn btn-default" id="cancel-btn">Cancel</a>
-                """),
-            ),
-            ASTERISK_HELP_HTML
-        )
-    )
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['author_1'] = forms.CharField(required=True, label="1. Author")
-        # add extra blank field
-        self.fields['author_2'] = forms.CharField(required=False, label="2. Author")
-
-    def clean(self):
-        authors = set()
-        i = 1
-        field_name = f'author_{i}'
-        while self.cleaned_data.get(field_name):
-            author = self.cleaned_data[field_name]
-            if author in authors:
-                raise forms.ValidationError(f"Author '{author}' is already in the list.")
-            else:
-                authors.add(author)
-            i += 1
-            field_name = f'author_{i}'
-        self.cleaned_data['authors'] = ", ".join(authors)
-
-    def get_author_fields(self):
-        for field_name in self.fields:
-            if field_name.startswith('author_'):
-                yield self[field_name]
-
-
 class SurfacePublishForm(forms.Form):
     """Form for publishing surfaces."""
     license = forms.ChoiceField(widget=forms.RadioSelect, choices=Surface.LICENSE_CHOICES,
@@ -658,8 +576,12 @@ class SurfacePublishForm(forms.Form):
                                 help_text="""Please make sure you're not publishing data """
                                           """from others without their authorization.""")
 
+    authors = forms.CharField(max_length=MAX_LEN_AUTHORS_FIELD, required=False)  # we be filled in clean() method
+    num_author_fields = forms.IntegerField(required=True)
+
     helper = FormHelper()
     helper.form_method = 'POST'
+    error_text_inline = False
     helper.attrs = { "on_submit": "on_submit()"}  # call JS function for disabling button
     # this prevents multiple submissions by clicking several times fast
 
@@ -686,24 +608,26 @@ class SurfacePublishForm(forms.Form):
     )
 
     def __init__(self, *args, **kwargs):
+        num_author_fields = kwargs.pop('num_author_fields', 1)
         super().__init__(*args, **kwargs)
-        self.fields['author_0'] = forms.CharField(required=True, label="1. Author")
-        self.fields['authors'] = forms.CharField(max_length=MAX_LEN_AUTHORS_FIELD, required=False)
-        # Validation is done in method clean_authors()
 
-    def clean_authors(self):
-        authors = set()
+        for i in range(num_author_fields):
+            self.fields[f'author_{i}'] = forms.CharField(required=False, label=f"{i+1}. Author")
 
-        i = 0
-        field_name = f'author_{i}'
-        while self.cleaned_data.get(field_name):
-            author = self.cleaned_data[field_name].strip()
-            if author in authors:
-                raise forms.ValidationError(f"Author '{author}' is already in the list.")
-            elif len(author) > 0:
-                authors.add(author)
-            i += 1
+    def clean(self):
+        cleaned_data = super().clean()
+
+        authors = []
+
+        for i in range(self.cleaned_data.get('num_author_fields')):
             field_name = f'author_{i}'
+            author = self.cleaned_data.get(field_name)
+            if author:
+                author = author.strip()
+                if author in authors:
+                    raise forms.ValidationError(f"Author '{author}' is already in the list.")
+                elif len(author) > 0:
+                    authors.append(author)
 
         if len(authors) == 0:
             raise forms.ValidationError("At least one author must be given.")
@@ -711,10 +635,12 @@ class SurfacePublishForm(forms.Form):
         authors_string = ", ".join(authors)
         if len(authors_string) > MAX_LEN_AUTHORS_FIELD:
             msg = """Represenation of authors is too long, at maximum {} characters are allowed.
-                    """.format(MAX_LEN_AUTHORS_FIELD)
+                  """.format(MAX_LEN_AUTHORS_FIELD)
             raise forms.ValidationError(msg)
 
-        return authors_string
+        cleaned_data['authors'] = authors_string
+
+        return cleaned_data
 
 
 

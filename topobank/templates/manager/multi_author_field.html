@@ -52,6 +52,8 @@
             v-on:click="add_author_line">
         {% fontawesome_icon 'plus' %} One more author
       </button>
+      <input type="hidden" name="num_author_fields" v-bind:value="num_authors">
+      <input type="hidden" name="authors">
     </div>
   </div>
 </div>
