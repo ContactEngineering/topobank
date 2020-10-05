@@ -4,7 +4,7 @@ from django.shortcuts import reverse
 
 from topobank.manager.tests.utils import SurfaceFactory, TopographyFactory
 from splinter_tests.utils import goto_select_page, goto_publications_page, \
-    select_sharing_status, press_properties_for_item_by_name, num_items_in_result_table,\
+    select_sharing_status, press_properties_for_item_by_name, num_items_in_result_table, \
     data_of_item_by_name
 
 
@@ -24,9 +24,13 @@ def assert_only_permissions_everyone(browser):
     assert permission_table.find_by_tag("td").text == "Everyone"  # does not work in Chrome
 
 
-@pytest.mark.django_db
-def test_publishing_form(user_alice_logged_in, user_bob, handle_usage_statistics):
+def select_radio_btn(browser, radio_id):
+    radio_btn = browser.find_by_id(radio_id).first
+    browser.execute_script("arguments[0].click();", radio_btn._element)
 
+
+@pytest.mark.django_db
+def test_publishing_form(user_alice_logged_in, handle_usage_statistics):
     browser, user_alice = user_alice_logged_in
 
     #
@@ -42,7 +46,6 @@ def test_publishing_form(user_alice_logged_in, user_bob, handle_usage_statistics
     #
     goto_publications_page(browser)
     assert browser.is_text_present("You haven't published any surfaces yet.")
-
 
     #
     # Alice opens properties for the surface
@@ -72,8 +75,9 @@ def test_publishing_form(user_alice_logged_in, user_bob, handle_usage_statistics
     # There are three licenses for selection. Alice chooses the "CC BY-SA"
     # license
     #
-    browser.choose('license', 'ccbysa-4.0')
-
+    # browser.choose('license', 'ccbysa-4.0')  # this only works with standard HTML radio btn
+    # radio_btn = browser
+    select_radio_btn(browser, 'id_id_license_0_2')  # 'ccbysa-4.0'
     #
     # Alice presses Publish. She didn't check the checkboxes, we are still on page
     #
@@ -84,9 +88,7 @@ def test_publishing_form(user_alice_logged_in, user_bob, handle_usage_statistics
     #
     # Alice checks one checkbox, the other is still needed
     #
-    ready_cb = browser.find_by_id('id_ready').first
-    browser.execute_script("arguments[0].click();", ready_cb._element)  # workaround, because element not visible
-    # browser.find_by_id('id_ready').first.click()
+    select_radio_btn(browser, 'id_copyright_hold')
 
     press_yes_publish(browser)
     assert len(browser.find_by_name("save")) > 0
@@ -94,17 +96,16 @@ def test_publishing_form(user_alice_logged_in, user_bob, handle_usage_statistics
     # Alice checks the second and tries again to publish.
     # The extra tab is closed and Alice is taken
     # to the list of published surfaces.
-    agreed_cb = browser.find_by_id('id_agreed').first
-    browser.execute_script("arguments[0].click();", agreed_cb._element)  # workaround, because element not visible
-    # browser.find_by_id('id_agreed').first.click()
+    select_radio_btn(browser, 'id_agreed')
 
     press_yes_publish(browser)
     assert len(browser.find_by_name("save")) == 0
     assert browser.is_text_present("Surfaces published by you", wait_time=1)
 
-    # Here the published surface is listed.
+    # Here the published surface is listed. Also the author names are listed, here just Alice' name.
     # Alice presses the link and enters the property page for the surface.
     assert browser.is_text_present(surface_name)
+    assert browser.is_text_present(user_alice.name)
     browser.find_by_css('td').find_by_text(surface_name).click()
 
     #
@@ -119,8 +120,65 @@ def test_publishing_form(user_alice_logged_in, user_bob, handle_usage_statistics
 
 
 @pytest.mark.django_db
-def test_see_published_by_others(user_alice_logged_in, user_bob, handle_usage_statistics):
+def test_publishing_form_multiple_authors(user_alice_logged_in, handle_usage_statistics):
+    """Test that multiple authors can be entered.
+    """
+    browser, user_alice = user_alice_logged_in
 
+    #
+    # Generate surface with topography for Alice.
+    #
+    surface_name = "First published surface"
+
+    surface = SurfaceFactory(creator=user_alice, name=surface_name)
+    TopographyFactory(surface=surface)
+
+    #
+    # Alice opens properties for the surface
+    #
+    goto_select_page(browser)
+    press_properties_for_item_by_name(browser, surface_name)
+
+    #
+    # Alice presses "Publish" button. The extra "Publish surface ..." tab opens.
+    #
+    assert browser.is_text_present("Publish")
+    publish_btn = browser.links.find_by_partial_text("Publish")
+    publish_btn.click()
+
+    #
+    # Alice presses "One more author" button, adds one author
+    #
+    assert browser.is_text_present('One more author', wait_time=1)
+    one_more_author_btn = browser.find_by_id('one_more_author_btn')
+    one_more_author_btn.click()
+
+    assert browser.is_text_present("2. Author")
+    browser.fill('author_1', "Queen of Hearts")
+
+    #
+    # Alice chooses the "CC BY-SA" license
+    #
+    select_radio_btn(browser, 'id_id_license_0_2')  # 'ccbysa-4.0'
+
+    #
+    # Alice checks the checkboxes
+    #
+    select_radio_btn(browser, 'id_copyright_hold')
+    select_radio_btn(browser, 'id_agreed')
+
+    press_yes_publish(browser)
+    assert len(browser.find_by_name("save")) == 0
+    assert browser.is_text_present("Surfaces published by you", wait_time=1)
+
+    # Here the published surface is listed. And both author names.
+    assert browser.is_text_present(surface_name)
+    assert browser.is_text_present(user_alice.name)
+    assert browser.is_text_present("Queen of Hearts")
+
+
+@pytest.mark.django_db
+def test_see_published_by_others(user_alice_logged_in, user_bob, handle_usage_statistics):
     browser, user_alice = user_alice_logged_in
 
     #
@@ -204,7 +262,6 @@ def test_see_published_by_others(user_alice_logged_in, user_bob, handle_usage_st
 
 @pytest.mark.django_db
 def test_switch_between_wip_and_version(user_alice_logged_in, handle_usage_statistics):
-
     browser, user_alice = user_alice_logged_in
 
     #
@@ -270,7 +327,6 @@ def test_switch_between_wip_and_version(user_alice_logged_in, handle_usage_stati
 
 @pytest.mark.django_db
 def test_how_to_cite(user_alice_logged_in, handle_usage_statistics):
-
     browser, user_alice = user_alice_logged_in
 
     #
@@ -307,7 +363,7 @@ def test_how_to_cite(user_alice_logged_in, handle_usage_statistics):
     browser.links.find_by_partial_text("How to cite").click()
 
     # Now the page shows a text form of a citation
-    exp_pub_url = base_url.rstrip('/')+publication.get_absolute_url()
-    exp_citation = f"{user_alice.name}. ({publication.datetime.year}). contact.engineering. {surface_name} (Version 1). "+\
-        f"{exp_pub_url}"
+    exp_pub_url = base_url.rstrip('/') + publication.get_absolute_url()
+    exp_citation = f"{user_alice.name}. ({publication.datetime.year}). contact.engineering. {surface_name} (Version 1). " + \
+                   f"{exp_pub_url}"
     assert browser.is_text_present(exp_citation)
