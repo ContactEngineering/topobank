@@ -636,7 +636,7 @@ class SurfacePublishForm(forms.Form):
 
         authors_string = ", ".join(authors)
         if len(authors_string) > MAX_LEN_AUTHORS_FIELD:
-            msg = """Represenation of authors is too long, at maximum %(max_len)s characters are allowed."""
+            msg = """Representation of authors is too long, at maximum %(max_len)s characters are allowed."""
             raise forms.ValidationError(msg, code='authors_too_long',
                                         params=dict(max_len=MAX_LEN_AUTHORS_FIELD))
 

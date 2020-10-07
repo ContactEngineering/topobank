@@ -8,6 +8,7 @@ from guardian.shortcuts import get_perms
 
 from .utils import SurfaceFactory, UserFactory, TopographyFactory, TagModelFactory
 from ..forms import SurfacePublishForm
+from topobank.publication.models import MAX_LEN_AUTHORS_FIELD
 from topobank.utils import assert_in_content, assert_redirects, assert_not_in_content
 from topobank.manager.models import NewPublicationTooFastException
 
@@ -337,6 +338,25 @@ def test_publishing_unique_author_names():
     form = SurfacePublishForm(data=form_data, num_author_fields=3)
     assert not form.is_valid()
     assert form.errors['__all__'] == ["Author 'Alice' is already in the list."]
+
+
+def test_publishing_too_long_authors_given():
+    # exceed maximum length with 10 authors
+    form_data = {
+        'num_author_fields': 10,
+        'license': 'cc0-1.0',
+        'agreed': True,
+        'copyright_hold': True,
+    }
+    len_per_author = int(MAX_LEN_AUTHORS_FIELD / 10) + 1
+    for k in range(10):
+        author = 'x'*len_per_author + str(k)  # k to make it unique
+        form_data[f'author_{k}'] = author
+    # total length should be too much
+    form = SurfacePublishForm(data=form_data, num_author_fields=10)
+    assert not form.is_valid()
+    assert form.errors['__all__'] == ["Representation of authors is too long, "
+                                      f"at maximum {MAX_LEN_AUTHORS_FIELD} characters are allowed."]
 
 
 def test_publishing_wrong_license():
