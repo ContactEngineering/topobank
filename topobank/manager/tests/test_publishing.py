@@ -7,8 +7,10 @@ from django.shortcuts import reverse
 from guardian.shortcuts import get_perms
 
 from .utils import SurfaceFactory, UserFactory, TopographyFactory, TagModelFactory
+from ..forms import SurfacePublishForm
 from topobank.utils import assert_in_content, assert_redirects, assert_not_in_content
 from topobank.manager.models import NewPublicationTooFastException
+
 
 @pytest.mark.django_db
 def test_publication_version(settings):
@@ -29,15 +31,20 @@ def test_publication_version(settings):
 
 
 @pytest.mark.django_db
-def test_publication_fields():
-    surface = SurfaceFactory()
-    publication = surface.publish('cc0')
+@pytest.mark.parametrize(['given_authors', 'exp_authors'],
+                         [(None, 'Tom'),
+                          ('Alice, Bob, Charly, Tom', 'Alice, Bob, Charly, Tom')])
+def test_publication_fields(given_authors, exp_authors):
+    user = UserFactory(name="Tom")
+    surface = SurfaceFactory(creator=user)
+    publication = surface.publish('cc0', given_authors)
 
     assert publication.license == 'cc0'
     assert publication.original_surface == surface
     assert publication.surface != publication.original_surface
     assert publication.publisher == surface.creator
     assert publication.version == 1
+    assert publication.authors == exp_authors
 
 
 @pytest.mark.django_db
@@ -296,6 +303,54 @@ def test_limit_publication_frequency(settings):
     with pytest.raises(NewPublicationTooFastException):
         surface.publish('cc0-1.0')
 
+
+def test_publishing_form_multiple_author_fields_included():
+    form = SurfacePublishForm(num_author_fields=3)
+    # we want to have three author fields
+    for i in range(3):
+        field_name = f"author_{i}"
+        assert field_name in form.fields
+
+
+def test_publishing_no_authors_given():
+    form_data = {
+        'num_author_fields': 0,
+        'license': 'cc0-1.0',
+        'agreed': True,
+        'copyright_hold': True,
+    }
+    form = SurfacePublishForm(data=form_data)
+    assert not form.is_valid()
+    assert form.errors['__all__'] == ["At least one author must be given."]
+
+
+def test_publishing_unique_author_names():
+    form_data = {
+        'author_0': "Alice",
+        'author_1': "Bob",
+        'author_2': "Alice",
+        'num_author_fields': 3,
+        'license': 'cc0-1.0',
+        'agreed': True,
+        'copyright_hold': True,
+    }
+    form = SurfacePublishForm(data=form_data, num_author_fields=3)
+    assert not form.is_valid()
+    assert form.errors['__all__'] == ["Author 'Alice' is already in the list."]
+
+
+def test_publishing_wrong_license():
+    form_data = {
+        'author_0': "Alice",
+        'num_author_fields': 1,
+        'agreed': True,
+        'copyright_hold': True,
+        'license': 'fantasy',
+    }
+    form = SurfacePublishForm(data=form_data)
+    assert not form.is_valid()
+
+    assert form.errors['license'] == ['Select a valid choice. fantasy is not one of the available choices.']
 
 
 

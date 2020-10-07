@@ -625,7 +625,9 @@ class SurfacePublishForm(forms.Form):
             if author:
                 author = author.strip()
                 if author in authors:
-                    raise forms.ValidationError(f"Author '{author}' is already in the list.")
+                    raise forms.ValidationError("Author '%(author)s' is already in the list.",
+                                                code='duplicate_author',
+                                                params={'author': author})
                 elif len(author) > 0:
                     authors.append(author)
 
@@ -634,9 +636,9 @@ class SurfacePublishForm(forms.Form):
 
         authors_string = ", ".join(authors)
         if len(authors_string) > MAX_LEN_AUTHORS_FIELD:
-            msg = """Represenation of authors is too long, at maximum {} characters are allowed.
-                  """.format(MAX_LEN_AUTHORS_FIELD)
-            raise forms.ValidationError(msg)
+            msg = """Represenation of authors is too long, at maximum %(max_len)s characters are allowed."""
+            raise forms.ValidationError(msg, code='authors_too_long',
+                                        params=dict(max_len=MAX_LEN_AUTHORS_FIELD))
 
         cleaned_data['authors'] = authors_string
 
