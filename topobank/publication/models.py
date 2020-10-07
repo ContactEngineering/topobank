@@ -39,6 +39,9 @@ class Publication(models.Model):
     def get_absolute_url(self):
         return reverse('publication:go', args=[self.short_url])
 
+    def get_full_url(self, request):
+        return request.build_absolute_uri(self.get_absolute_url())
+
     def get_citation(self, flavor, request):
         if flavor not in CITATION_FORMAT_FLAVORS:
             raise UnknownCitationFormat(flavor)
@@ -48,6 +51,8 @@ class Publication(models.Model):
     def _get_citation_as_ris(self, request):
         # see http://refdb.sourceforge.net/manual-0.9.6/sect1-ris-format.html
         # or  https://en.wikipedia.org/wiki/RIS_(file_format)
+        # or  https://web.archive.org/web/20120526103719/http://refman.com/support/risformat_intro.asp
+        #     https://web.archive.org/web/20120717122530/http://refman.com/support/direct%20export.zip
         s = ""
 
         def add(key, value):
@@ -64,7 +69,12 @@ class Publication(models.Model):
         # Publication Year
         add('PY', format(self.datetime, '%Y/%m/%d/'))
         # URL
-        add('UR', request.build_absolute_uri(self.get_absolute_url()))
+        add('UR', self.get_full_url(request))
+        # Name of Database
+        add('DB', 'contact.engineering')
+
+        # Notes
+        add('N1', self.surface.description)
 
         # add keywords
         add('KW', 'surface')
@@ -77,4 +87,19 @@ class Publication(models.Model):
 
         return s.strip()
 
+    def _get_citation_as_bibtex(self, request):
 
+        s = """
+        @misc{{
+            author = "{author}",
+            year   = {year},
+            note   = {note},
+            howpublished = \\url{{{publication_url}}},
+        }}
+        """.format(author=self.authors.replace(', ', ' and '),
+                   year=self.datetime.year,
+                   note=self.surface.description,
+                   publication_url=self.get_full_url(request),
+                   )
+
+        return s.strip()
