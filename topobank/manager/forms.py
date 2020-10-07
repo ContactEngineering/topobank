@@ -582,7 +582,7 @@ class SurfacePublishForm(forms.Form):
     helper = FormHelper()
     helper.form_method = 'POST'
     error_text_inline = False
-    helper.attrs = { "on_submit": "on_submit()"}  # call JS function for disabling button
+    helper.attrs = { "onsubmit": "on_submit()"}  # call JS function for disabling button
     # this prevents multiple submissions by clicking several times fast
 
     helper.layout = Layout(
