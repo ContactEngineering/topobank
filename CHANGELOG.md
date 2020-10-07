@@ -2,7 +2,7 @@
 
 ## 0.9.0 (not published yet)
 
-- users can publish their surfaces (#317, #510)
+- users can publish their surfaces (#317, #510, #517)
 - anonymous session are allowed, users can browse published
   surfaces and analyses without being signed in (#164)
 - added tooltip to tab headers (#512)
