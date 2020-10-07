@@ -15,6 +15,7 @@ def press_yes_publish(browser):
 
 def press_permissions(browser):
     browser.links.find_by_partial_text("Permissions").first.click()
+    assert browser.is_text_present("Users having permissions regarding this surface.", wait_time=1)
 
 
 def assert_only_permissions_everyone(browser):
