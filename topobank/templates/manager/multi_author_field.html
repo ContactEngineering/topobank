@@ -45,6 +45,10 @@
           class="alert alert-danger">Maximum length reached
           ([[ max_len_authors_field ]] characters in total for author list)
   </div>
+  <div v-if="has_duplicate"
+          class="alert alert-danger">
+    Duplicate names, names should be unique
+  </div>
   <div class="form-row">
     <div class="input-group col-2 my-1">
       <button class="btn btn-secondary"

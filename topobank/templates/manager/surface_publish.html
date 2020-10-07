@@ -164,6 +164,11 @@
          return s.substring(0, max_len_authors_field);
        }
      },
+     has_duplicate: function() {
+       let names = this.items.map( item => item.name ).filter( item => item.length > 0 );
+       let name_set = new Set(names);
+       return name_set.size < names.length;
+     },
      num_authors: function() {
        return this.items.length;
      }
