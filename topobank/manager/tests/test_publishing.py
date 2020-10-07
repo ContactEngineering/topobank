@@ -19,12 +19,12 @@ def test_publication_version(settings):
     settings.MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS = None  # disable
 
     surface = SurfaceFactory()
-    publication_v1 = surface.publish('cc0')
+    publication_v1 = surface.publish('cc0', 'Bob')
 
     assert publication_v1.version == 1
 
     surface.name = "new name"
-    publication_v2 = surface.publish('cc0')
+    publication_v2 = surface.publish('cc0', 'Bob')
     assert publication_v2.version == 2
 
     assert publication_v1.original_surface == publication_v2.original_surface
@@ -32,27 +32,25 @@ def test_publication_version(settings):
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(['given_authors', 'exp_authors'],
-                         [(None, 'Tom'),
-                          ('Alice, Bob, Charly, Tom', 'Alice, Bob, Charly, Tom')])
-def test_publication_fields(given_authors, exp_authors):
+def test_publication_fields():
     user = UserFactory(name="Tom")
     surface = SurfaceFactory(creator=user)
-    publication = surface.publish('cc0', given_authors)
+    authors = 'Alice, Bob, Charly, Tom'
+    publication = surface.publish('cc0', authors)
 
     assert publication.license == 'cc0'
     assert publication.original_surface == surface
     assert publication.surface != publication.original_surface
     assert publication.publisher == surface.creator
     assert publication.version == 1
-    assert publication.authors == exp_authors
+    assert publication.authors == authors
 
 
 @pytest.mark.django_db
 def test_published_field():
     surface = SurfaceFactory()
     assert not surface.is_published
-    publication = surface.publish('cc0')
+    publication = surface.publish('cc0', 'Alice')
     assert not publication.original_surface.is_published
     assert publication.surface.is_published
 
@@ -70,7 +68,7 @@ def test_permissions_for_published():
     assert get_perms(user2, surface) == []
 
     # for the published surface, both users are only allowed viewing
-    publication = surface.publish('cc0')
+    publication = surface.publish('cc0', 'Alice')
 
     assert get_perms(user1, publication.surface) == ['view_surface']
     assert get_perms(user2, publication.surface) == ['view_surface']
@@ -151,7 +149,7 @@ def test_switch_versions_on_properties_tab(client, settings):
     #
     # Now publish the first time
     #
-    publication = surface.publish('cc0')
+    publication = surface.publish('cc0', 'Alice')
     assert publication.version == 1
     assert publication.license == 'cc0'
     assert publication.original_surface == surface
@@ -166,7 +164,7 @@ def test_switch_versions_on_properties_tab(client, settings):
     #
     # Publish again
     #
-    publication = surface.publish('cc0')
+    publication = surface.publish('cc0', 'Alice')
     assert publication.version == 2
     assert publication.original_surface == surface
     pub_date_2 = publication.datetime.date()
@@ -193,8 +191,8 @@ def test_notification_saying_new_version_exists(client, settings):
     #
     # Now publish two times
     #
-    pub1 = surface.publish('cc0')
-    pub2 = surface.publish('cc0')
+    pub1 = surface.publish('cc0', 'Alice')
+    pub2 = surface.publish('cc0', 'Alice')
 
     #
     # When showing page for "Work in Progress" surface, there should be a hint there are publications
@@ -223,7 +221,7 @@ def test_license_in_surface_download(client, license):
     user2 = UserFactory()
     surface = SurfaceFactory(creator=user1)
     TopographyFactory(surface=surface)
-    publication = surface.publish(license)
+    publication = surface.publish(license, 'Alice')
     client.force_login(user2)
 
     response = client.get(reverse('manager:surface-download', kwargs=dict(surface_id=publication.surface.id)))
@@ -251,7 +249,7 @@ def test_dont_show_published_surfaces_on_sharing_info(client):
     surface1 = SurfaceFactory(creator=alice, name="Shared Surface")
     surface1.share(bob)
     surface2 = SurfaceFactory(creator=alice, name="Published Surface")
-    surface2.publish('cc0-1.0')
+    surface2.publish('cc0-1.0', 'Alice')
 
     #
     # Login as Bob, surface 1 should be listed on sharing info page
@@ -275,7 +273,7 @@ def test_dont_show_published_surfaces_when_shared_filter_used(client):
     surface1 = SurfaceFactory(creator=alice, name="Shared Surface")
     surface1.share(bob)
     surface2 = SurfaceFactory(creator=alice, name="Published Surface")
-    surface2.publish('cc0-1.0')
+    surface2.publish('cc0-1.0', 'Alice')
 
     client.force_login(bob)
 
@@ -300,9 +298,9 @@ def test_limit_publication_frequency(settings):
     alice = UserFactory()
     surface = SurfaceFactory(creator=alice)
 
-    surface.publish('cc0-1.0')
+    surface.publish('cc0-1.0', 'Alice')
     with pytest.raises(NewPublicationTooFastException):
-        surface.publish('cc0-1.0')
+        surface.publish('cc0-1.0', 'Alice, Bob')
 
 
 def test_publishing_form_multiple_author_fields_included():

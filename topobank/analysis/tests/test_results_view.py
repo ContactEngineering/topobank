@@ -633,8 +633,8 @@ def two_analyses_two_publications():
     TopographyFactory(surface=surface1)
     surface2 = SurfaceFactory()
     TopographyFactory(surface=surface2)
-    pub1 = surface1.publish('cc0-1.0')
-    pub2 = surface2.publish('cc0-1.0')
+    pub1 = surface1.publish('cc0-1.0', surface1.creator.name)
+    pub2 = surface2.publish('cc0-1.0', surface1.creator.name+", "+surface2.creator.name)
     pub_topo1 = pub1.surface.topography_set.first()
     pub_topo2 = pub2.surface.topography_set.first()
 

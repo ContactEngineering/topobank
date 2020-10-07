@@ -31,7 +31,7 @@ def test_anonymous_user_can_see_published(client):
     surface_name = "Diamond Structure"
     surface = SurfaceFactory(creator=bob, name=surface_name)
     topo = TopographyFactory(surface=surface)
-    pub = surface.publish('cc0-1.0')
+    pub = surface.publish('cc0-1.0', bob.name)
 
     # no one is logged in now, assuming the select tab sends a search request
     response = client.get(reverse('manager:search'))
@@ -46,7 +46,7 @@ def test_anonymous_user_can_select_published(client):
     surface_name = "Diamond Structure"
     surface = SurfaceFactory(creator=bob, name=surface_name)
     topo = TopographyFactory(surface=surface)
-    pub = surface.publish('cc0-1.0')
+    pub = surface.publish('cc0-1.0', bob.name)
     published_surface = pub.surface
     published_topo = published_surface.topography_set.first()
 

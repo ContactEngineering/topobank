@@ -180,7 +180,7 @@ class Surface(models.Model):
         _log.info("Created deepcopy of surface %s -> surface %s", self.pk, copy.pk)
         return copy
 
-    def publish(self, license, authors=None):
+    def publish(self, license, authors):
         """Publish surface.
 
         An immutable copy is created along with a publication entry.
@@ -192,7 +192,6 @@ class Surface(models.Model):
             One of the keys of LICENSE_CHOICES
         authors: str
             Comma-separated string of author names;
-            if None, the current name of the surface's creator is taken
 
         Returns
         -------
@@ -240,12 +239,12 @@ class Surface(models.Model):
             version = 1
 
         pub = Publication.objects.create(surface=copy, original_surface=self,
-                                         authors=authors if authors else self.creator.name,
+                                         authors=authors,
                                          license=license,
                                          version=version, publisher=self.creator)
 
         _log.info(f"Published surface {self.name} (id: {self.id}) "+\
-                  f"with license {license}, version {version}")
+                  f"with license {license}, version {version}, authors '{authors}'")
         _log.info(f"URL of publication: {pub.get_absolute_url()}")
 
         return pub
