@@ -3,6 +3,16 @@ from django.urls import reverse
 
 MAX_LEN_AUTHORS_FIELD = 512
 
+CITATION_FORMAT_FLAVORS = ['ris', 'bibtex']
+
+
+class UnknownCitationFormat(Exception):
+    def __init__(self, flavor):
+        self._flavor = flavor
+
+    def __str__(self):
+        return f"Unknown citation format flavor '{self._flavor}'."
+
 
 class Publication(models.Model):
 
@@ -29,5 +39,42 @@ class Publication(models.Model):
     def get_absolute_url(self):
         return reverse('publication:go', args=[self.short_url])
 
+    def get_citation(self, flavor, request):
+        if flavor not in CITATION_FORMAT_FLAVORS:
+            raise UnknownCitationFormat(flavor)
+        method_name = '_get_citation_as_'+flavor
+        return getattr(self, method_name)(request)
+
+    def _get_citation_as_ris(self, request):
+        # see http://refdb.sourceforge.net/manual-0.9.6/sect1-ris-format.html
+        # or  https://en.wikipedia.org/wiki/RIS_(file_format)
+        s = ""
+
+        def add(key, value):
+            nonlocal s
+            s += f"{key}  - {value}\n"
+
+        # Electronic citation / Website
+        add('TY', 'ELEC')
+        # Title
+        add('TI', f"{self.surface.name} (Version {self.version})")
+        # Authors
+        for author in self.authors.split(','):
+            add('AU', author.strip())
+        # Publication Year
+        add('PY', format(self.datetime, '%Y/%m/%d/'))
+        # URL
+        add('UR', request.build_absolute_uri(self.get_absolute_url()))
+
+        # add keywords
+        add('KW', 'surface')
+        add('KW', 'topography')
+        for t in self.surface.tags.all():
+            add('KW', t)
+
+        # End of record, must be empty and last tag
+        add('ER', '')
+
+        return s.strip()
 
 

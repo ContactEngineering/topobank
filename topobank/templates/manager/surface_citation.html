@@ -1,5 +1,6 @@
 {% load fullurl %}
 {# Need 'publication_url' in context #}
+{% load citation_tags %}
 
 <div class="card">
   <div class="card-header">
@@ -14,3 +15,11 @@
   </div>
 </div>
 
+<div class="card mt-2">
+  <div class="card-header">
+    RIS format
+  </div>
+  <div class="card-body">
+    <pre><code>{% citation surface.publication 'ris' request %}</code></pre>
+  </div>
+</div>
