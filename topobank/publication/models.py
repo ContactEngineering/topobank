@@ -51,11 +51,9 @@ class Publication(models.Model):
         return getattr(self, method_name)(request)
 
     def _get_citation_as_html(self, request):
-        s = """
-        {authors}. ({year}). contact.engineering.
-        <em>{surface.name} (Version {version})</em>.
-        <a href="{publication_url}">{publication_url}</a>
-        """.format(
+        s = '{authors}. ({year}). contact.engineering. <em>{surface.name} (Version {version})</em>.'
+        s += ' <a href="{publication_url}">{publication_url}</a>'
+        s = s.format(
             authors=self.authors,
             year=self.datetime.year,
             version=self.version,
