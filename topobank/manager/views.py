@@ -1009,6 +1009,7 @@ class SurfaceDetailView(DetailView):
             ('Text form with link', 'html', False),  # title, flavor, use <pre><code>...</code></pre>
             ('RIS format', 'ris', True),
             ('BibTeX format', 'bibtex', True),
+            ('BibLaTeX format', 'biblatex', True),
         ]
 
         return context

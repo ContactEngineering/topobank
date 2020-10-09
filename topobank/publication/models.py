@@ -1,10 +1,11 @@
 from django.db import models
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.safestring import mark_safe
 
 MAX_LEN_AUTHORS_FIELD = 512
 
-CITATION_FORMAT_FLAVORS = ['html', 'ris', 'bibtex']
+CITATION_FORMAT_FLAVORS = ['html', 'ris', 'bibtex', 'biblatex']
 DEFAULT_KEYWORDS = ['surface', 'topography']
 
 class UnknownCitationFormat(Exception):
@@ -112,7 +113,7 @@ class Publication(models.Model):
 
         s = """
         @misc{{
-            {shortname}
+            {shortname},
             title  = {{{title}}},
             author = {{{author}}},
             year   = {{{year}}},
@@ -125,6 +126,42 @@ class Publication(models.Model):
                    year=self.datetime.year,
                    note=self.surface.description,
                    publication_url=self.get_full_url(request),
+                   keywords=keywords,
+                   shortname=shortname,
+        )
+
+        return s.strip()
+
+    def _get_citation_as_biblatex(self, request):
+
+        shortname = f"{self.surface.name}_v{self.version}".lower().replace(' ','_')
+        keywords = ",".join(DEFAULT_KEYWORDS)
+        if self.surface.tags.count()>0:
+            keywords += ","+",".join(t.name for t in self.surface.tags.all())
+
+        s = """
+        @online{{
+            {shortname},
+            title  = {{{title}}},
+            version = {{{version}}}
+            author = {{{author}}},
+            year   = {{{year}}},
+            month  = {{{month}}},
+            date   = {{{date}}},
+            note   = {{{note}}},
+            keywords = {{{keywords}}}
+            url = {{{url}}},
+            urldate = {{{urldate}}}
+        }}
+        """.format(title=self.surface.name,
+                   version=self.version,
+                   author=self.authors.replace(', ', ' and '),
+                   year=self.datetime.year,
+                   month=self.datetime.month,
+                   date=format(self.datetime, "%Y-%m-%d"),
+                   note=self.surface.description,
+                   url=self.get_full_url(request),
+                   urldate=format(timezone.now(), "%Y-%m-%d"),
                    keywords=keywords,
                    shortname=shortname,
         )
