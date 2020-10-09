@@ -2,6 +2,7 @@
 {% load fontawesome %}
 {% load surface_tags %}
 {% load guardian_tags %}
+{% load static %}
 
 {% block content-title %}Details for Surface <i>{{ surface.name }}</i>
 {% endblock content-title %}
@@ -224,8 +225,14 @@
       // Create surface summary plot
       //
       surface_summary_plot($("div#bandwidths"), {{ bandwidths_data_without_errors|safe }});
+
+      // Activate clipboard buttons
+      let clipboard = new ClipboardJS('.clipboard-btn');
     })
   </script>
+
+  {# Load JS code to copy citation into clipboard #}
+  <script src="{% static 'vendor/clipboard/clipboard.min.js' %}"></script>
 
 {% endblock javascript %}
 

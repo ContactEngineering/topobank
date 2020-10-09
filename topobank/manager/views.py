@@ -1004,6 +1004,13 @@ class SurfaceDetailView(DetailView):
 
         context['version_badge_text'] = version_badge_text
 
+        # add formats to show citations for
+        context['citation_flavors'] = [
+            ('Text form with link', 'html', False),  # title, flavor, use <pre><code>...</code></pre>
+            ('RIS format', 'ris', True),
+            ('BibTeX format', 'bibtex', True),
+        ]
+
         return context
 
 

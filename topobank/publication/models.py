@@ -1,10 +1,11 @@
 from django.db import models
 from django.urls import reverse
+from django.utils.safestring import mark_safe
 
 MAX_LEN_AUTHORS_FIELD = 512
 
-CITATION_FORMAT_FLAVORS = ['ris', 'bibtex']
-
+CITATION_FORMAT_FLAVORS = ['html', 'ris', 'bibtex']
+DEFAULT_KEYWORDS = ['surface', 'topography']
 
 class UnknownCitationFormat(Exception):
     def __init__(self, flavor):
@@ -48,6 +49,20 @@ class Publication(models.Model):
         method_name = '_get_citation_as_'+flavor
         return getattr(self, method_name)(request)
 
+    def _get_citation_as_html(self, request):
+        s = """
+        {authors}. ({year}). contact.engineering.
+        <em>{surface.name} (Version {version})</em>.
+        <a href="{publication_url}">{publication_url}</a>
+        """.format(
+            authors=self.authors,
+            year=self.datetime.year,
+            version=self.version,
+            surface=self.surface,
+            publication_url=self.get_full_url(request),
+        )
+        return mark_safe(s)
+
     def _get_citation_as_ris(self, request):
         # see http://refdb.sourceforge.net/manual-0.9.6/sect1-ris-format.html
         # or  https://en.wikipedia.org/wiki/RIS_(file_format)
@@ -76,11 +91,11 @@ class Publication(models.Model):
         # Notes
         add('N1', self.surface.description)
 
-        # add keywords
-        add('KW', 'surface')
-        add('KW', 'topography')
+        # add keywords, defaults ones and tags
+        for kw in DEFAULT_KEYWORDS:
+            add('KW', kw)
         for t in self.surface.tags.all():
-            add('KW', t)
+            add('KW', t.name)
 
         # End of record, must be empty and last tag
         add('ER', '')
@@ -89,19 +104,29 @@ class Publication(models.Model):
 
     def _get_citation_as_bibtex(self, request):
 
+        title = f"{self.surface.name} (Version {self.version})"
+        shortname = f"{self.surface.name}_v{self.version}".lower().replace(' ','_')
+        keywords = ",".join(DEFAULT_KEYWORDS)
+        if self.surface.tags.count()>0:
+            keywords += ","+",".join(t.name for t in self.surface.tags.all())
+
         s = """
         @misc{{
-            title  = "{title}",
-            author = "{author}",
-            year   = {year},
-            note   = {note},
-            howpublished = \\url{{{publication_url}}},
+            {shortname}
+            title  = {{{title}}},
+            author = {{{author}}},
+            year   = {{{year}}},
+            note   = {{{note}}},
+            keywords = {{{keywords}}}
+            howpublished = {{{publication_url}}},
         }}
-        """.format(title=f"{self.surface.name} (Version {self.version})",
+        """.format(title=title,
                    author=self.authors.replace(', ', ' and '),
                    year=self.datetime.year,
                    note=self.surface.description,
                    publication_url=self.get_full_url(request),
-                   )
+                   keywords=keywords,
+                   shortname=shortname,
+        )
 
         return s.strip()

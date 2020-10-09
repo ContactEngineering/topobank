@@ -1,34 +1,28 @@
 {% load fullurl %}
 {# Need 'publication_url' in context #}
 {% load citation_tags %}
+{% load fontawesome %}
 
-<div class="card">
-  <div class="card-header">
-    Text form with link
-  </div>
-  <div class="card-body">
-    {% with surface.publication as pub %}
-      {{ pub.authors }}. ({{ pub.datetime.year }}). contact.engineering.
-      <em>{{ surface.name }} (Version {{ pub.version }})</em>.
-      <a href="{{ publication_url }}">{{ publication_url }}</a>
-    {% endwith %}
-  </div>
-</div>
+<div id="accordion">
 
-<div class="card mt-2">
-  <div class="card-header">
-    RIS format
+  {% for flavor_title, flavor, use_code in citation_flavors %}
+  <div class="card mt-2">
+    <div class="card-header">
+      <a class="card-link {% if not forloop.first %}collapsed{% endif %}" data-toggle="collapse" href="#card-body-{{ flavor }}">
+        <h3 class="float-left">{{ flavor_title}}</h3>
+      </a>
+    </div>
+    <div id="card-body-{{ flavor }}" class="collapse {% if forloop.first %}show{% endif %}" data-parent="#accordion">
+      <button class="btn btn-secondary clipboard-btn float-right"
+              data-clipboard-target="#citation-{{ flavor }}-format"
+              title="Copy to clipboard">
+        {% fontawesome_icon 'clipboard' %}
+      </button>
+      <div id="citation-{{ flavor }}-format" class="card-body">
+        {% if use_code %}<pre><code>{% endif %}{% citation surface.publication flavor request %}{% if use_code %}</code></pre>{% endif %}
+      </div>
+    </div>
   </div>
-  <div class="card-body">
-    <pre><code>{% citation surface.publication 'ris' request %}</code></pre>
-  </div>
-</div>
+  {% endfor %}
 
-<div class="card mt-2">
-  <div class="card-header">
-    BibTeX format
-  </div>
-  <div class="card-body">
-    <pre><code>{% citation surface.publication 'bibtex' request %}</code></pre>
-  </div>
 </div>
