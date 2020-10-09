@@ -91,12 +91,14 @@ class Publication(models.Model):
 
         s = """
         @misc{{
+            title  = "{title}",
             author = "{author}",
             year   = {year},
             note   = {note},
             howpublished = \\url{{{publication_url}}},
         }}
-        """.format(author=self.authors.replace(', ', ' and '),
+        """.format(title=f"{self.surface.name} (Version {self.version})",
+                   author=self.authors.replace(', ', ' and '),
                    year=self.datetime.year,
                    note=self.surface.description,
                    publication_url=self.get_full_url(request),
