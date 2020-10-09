@@ -14,9 +14,11 @@
     </div>
     <div id="card-body-{{ flavor }}" class="collapse {% if forloop.first %}show{% endif %}" data-parent="#accordion">
       <button class="btn btn-secondary clipboard-btn float-right"
+              type="button"
+              aria-label="Copy to clipboard"
               data-clipboard-target="#citation-{{ flavor }}-format"
               title="Copy to clipboard">
-        {% fontawesome_icon 'clipboard' %}
+        {% fontawesome_icon 'clipboard' %} Copy
       </button>
       <div id="citation-{{ flavor }}-format" class="card-body">
         {% if use_code %}<pre><code>{% endif %}{% citation surface.publication flavor request %}{% if use_code %}</code></pre>{% endif %}
