@@ -141,7 +141,7 @@ class Publication(models.Model):
         @online{{
             {shortname},
             title  = {{{title}}},
-            version = {{{version}}}
+            version = {{{version}}},
             author = {{{author}}},
             year   = {{{year}}},
             month  = {{{month}}},
