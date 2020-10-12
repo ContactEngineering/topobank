@@ -39,8 +39,6 @@ def test_empty_surface_selection(client):
     assert client.session['selection'] == [f'surface-{surface.pk}']
 
 
-
-
 #######################################################################
 # Topographies
 #######################################################################
@@ -160,6 +158,101 @@ def test_upload_topography_di(client):
     assert 256 == t.resolution_y
     assert t.creator == user
     assert t.datafile_format == 'di'
+
+
+@pytest.mark.django_db
+def test_upload_topography_npy(client):
+    user = UserFactory()
+    surface = SurfaceFactory(creator=user)
+
+    client.force_login(user)
+
+    #
+    # open first step of wizard: file upload
+    #
+    input_file_path = Path(FIXTURE_DIR + '/example-2d.npy')  # maybe use package 'pytest-datafiles' here instead
+    with open(str(input_file_path), mode='rb') as fp:
+
+        response = client.post(reverse('manager:topography-create',
+                                       kwargs=dict(surface_id=surface.id)),
+                               data={
+                                'topography_create_wizard-current_step': 'upload',
+                                'upload-datafile': fp,
+                                'upload-datafile_format': '',
+                                'upload-surface': surface.id,
+                               }, follow=True)
+
+    assert response.status_code == 200
+    assert_no_form_errors(response)
+
+    #
+    # check contents of second page
+    #
+    assert False, "Check following steps in test"
+
+    # now we should be on the page with second step
+    assert_in_content(response, "Step 2 of 3")
+
+    # we should have two datasources as options, "ZSensor" and "Height"
+    assert_in_content(response, '<option value="0">Default</option>')
+
+    assert response.context['form'].initial['name'] == 'example-2d.npy'
+
+    #
+    # Send data for second page
+    #
+    response = client.post(reverse('manager:topography-create',
+                                   kwargs=dict(surface_id=surface.id)),
+                           data={
+                            'topography_create_wizard-current_step': 'metadata',
+                            'metadata-name': 'topo1',
+                            'metadata-measurement_date': '2018-06-21',
+                            'metadata-data_source': 0,
+                            'metadata-description': description,
+                           })
+
+    assert response.status_code == 200
+    assert_no_form_errors(response)
+
+    assert_in_content(response, "Step 3 of 3")
+
+    #
+    # Send data for third page
+    #
+    response = client.post(reverse('manager:topography-create',
+                                   kwargs=dict(surface_id=surface.id)),
+                           data={
+                               'topography_create_wizard-current_step': 'units',
+                               'units-size_x': '1',
+                               'units-size_y': '1',
+                               'units-unit': 'nm',
+                               'units-height_scale': 1,
+                               'units-detrend_mode': 'height',
+                               'units-resolution_x': 2,
+                               'units-resolution_y': 2,
+                           }, follow=True)
+
+    assert response.status_code == 200
+    # assert reverse('manager:topography-detail', kwargs=dict(pk=1)) == response.url
+    # export_reponse_as_html(response)
+
+    assert 'form' not in response.context, "Errors:" + str(response.context['form'].errors)
+
+    surface = Surface.objects.get(name='surface1')
+    topos = surface.topography_set.all()
+
+    assert len(topos) == 1
+
+    t = topos[0]
+
+    assert t.measurement_date == datetime.date(2018,6,21)
+    assert t.description == description
+    assert "example-2d" in t.datafile.name
+    assert 2 == t.resolution_x
+    assert 2 == t.resolution_y
+    assert t.creator == user
+    assert t.datafile_format == 'npy'
+
 
 @pytest.mark.parametrize(("input_filename", "exp_datafile_format",
                           "exp_resolution_x", "exp_resolution_y",
