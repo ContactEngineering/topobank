@@ -38,7 +38,6 @@
                     keys.push(item.key);
                     elements[item.key] = item;
                 });
-                console.log(elements);
                 keys.sort((key_a, key_b) => elements[key_a].label.toLowerCase() > elements[key_b].label.toLowerCase());
                 // we want always the same order, independent from traversal order
 
