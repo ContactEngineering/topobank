@@ -54,8 +54,6 @@ from ..users.models import User
 from ..users.utils import get_default_group
 from ..publication.models import Publication, MAX_LEN_AUTHORS_FIELD
 
-MAX_NUM_POINTS_FOR_SYMBOLS_IN_LINE_SCAN_PLOT = 100
-
 # create dicts with labels and option values for Select tab
 CATEGORY_FILTER_CHOICES = {'all': 'All categories',
                            **{cc[0]: cc[1] + " only" for cc in Surface.CATEGORY_CHOICES}}

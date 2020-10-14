@@ -10,6 +10,11 @@ from django.core.files import File
 from guardian.shortcuts import assign_perm, remove_perm, get_users_with_perms
 import tagulous.models as tm
 
+import numpy as np
+
+from bokeh.models import DataRange1d, LinearColorMapper, ColorBar
+from bokeh.plotting import figure
+
 from .utils import get_topography_reader
 
 from topobank.users.models import User
@@ -21,6 +26,7 @@ import logging
 _log = logging.getLogger(__name__)
 
 MAX_LENGTH_DATAFILE_FORMAT = 15  # some more characters than currently needed, we may have sub formats in future
+MAX_NUM_POINTS_FOR_SYMBOLS_IN_LINE_SCAN_PLOT = 100
 
 
 def user_directory_path(instance, filename):
@@ -41,6 +47,10 @@ class NewPublicationTooFastException(Exception):
         s = f"Latest publication for this surface is from {self._latest_pub.datetime}. "
         s += f"Please wait {self._wait_seconds} more seconds before publishing again."
         return s
+
+
+class CannotPlotException(Exception):
+    pass
 
 
 class TagModel(tm.TagTreeModel):
@@ -456,4 +466,136 @@ class Topography(models.Model):
         copy.save()
 
         return copy
+
+    def get_plot(self):
+        try:
+            st_topo = self.topography()  # SurfaceTopography instance (=st)
+        except Exception as exc:
+            pass
+
+        if st_topo.dim == 1:
+            return self._get_1D_plot(st_topo)
+        elif st_topo.dim ==2:
+            return self._get_2D_plot(st_topo)
+        else:
+            raise CannotPlotException("Can only plot 1D or 2D topograpies, this has {} dimensions.".format(
+                st_topo.dim
+            ))
+
+
+    def _get_1D_plot(self, st_topo):
+        """Calculate 1D line plot of topography (line scan).
+
+        :param st_topo: SurfaceTopography.Topography instance
+        :return: bokeh plot
+        """
+        x, y = st_topo.positions_and_heights()
+
+        x_range = DataRange1d(bounds='auto')
+        y_range = DataRange1d(bounds='auto')
+
+        TOOLTIPS = """
+            <style>
+                .bk-tooltip>div:not(:first-child) {{display:none;}}
+                td.tooltip-varname {{ text-align:right; font-weight: bold}}
+            </style>
+
+            <table>
+              <tr>
+                <td class="tooltip-varname">x</td>
+                <td>:</td>
+                <td>@x {}</td>
+              </tr>
+              <tr>
+                <td class="tooltip-varname">height</td>
+                <td>:</td>
+                <td >@y {}</td>
+              </tr>
+            </table>
+        """.format(self.unit, self.unit)
+
+        plot = figure(x_range=x_range, y_range=y_range,
+                      x_axis_label=f'x ({self.unit})',
+                      y_axis_label=f'height ({self.unit})',
+                      toolbar_location="above",
+                      tooltips=TOOLTIPS)
+
+        show_symbols = y.shape[0] <= MAX_NUM_POINTS_FOR_SYMBOLS_IN_LINE_SCAN_PLOT
+
+        plot.line(x, y)
+        if show_symbols:
+            plot.circle(x, y)
+
+        plot.xaxis.axis_label_text_font_style = "normal"
+        plot.yaxis.axis_label_text_font_style = "normal"
+
+        plot.toolbar.logo = None
+
+        return plot
+
+    def _get_2D_plot(self, st_topo):
+        """Calculate 2D image plot of topography.
+
+        :param st_topo: SurfaceTopography.Topography instance
+        :return: bokeh plot
+        """
+        heights = st_topo.heights()
+
+        topo_size = st_topo.physical_sizes
+        # x_range = DataRange1d(start=0, end=topo_size[0], bounds='auto')
+        # y_range = DataRange1d(start=0, end=topo_size[1], bounds='auto')
+        x_range = DataRange1d(start=0, end=topo_size[0], bounds='auto', range_padding=5)
+        y_range = DataRange1d(start=topo_size[1], end=0, flipped=True, range_padding=5)
+
+        color_mapper = LinearColorMapper(palette="Viridis256", low=heights.min(), high=heights.max())
+
+        TOOLTIPS = [
+            ("x", "$x " + self.unit),
+            ("y", "$y " + self.unit),
+            ("height", "@image " + self.unit),
+        ]
+
+        colorbar_width = 50
+
+        aspect_ratio = topo_size[0] / topo_size[1]
+        frame_height = 500
+        frame_width = int(frame_height * aspect_ratio)
+
+        if frame_width > 1200:  # rule of thumb, scale down if too wide
+            frame_width = 1200
+            frame_height = int(frame_width / aspect_ratio)
+
+        plot = figure(x_range=x_range,
+                      y_range=y_range,
+                      frame_width=frame_width,
+                      frame_height=frame_height,
+                      # sizing_mode='scale_both',
+                      # aspect_ratio=aspect_ratio,
+                      match_aspect=True,
+                      x_axis_label=f'x ({self.unit})',
+                      y_axis_label=f'y ({self.unit})',
+                      toolbar_location="above",
+                      # tools=[PanTool(),BoxZoomTool(match_aspect=True), "save", "reset"],
+                      tooltips=TOOLTIPS)
+
+        plot.xaxis.axis_label_text_font_style = "normal"
+        plot.yaxis.axis_label_text_font_style = "normal"
+
+        # we need to rotate the height data in order to be compatible with image in Gwyddion
+        plot.image([np.rot90(heights)], x=0, y=topo_size[1],
+                   dw=topo_size[0], dh=topo_size[1], color_mapper=color_mapper)
+        # the anchor point of (0,topo_size[1]) is needed because the y range is flipped
+        # in order to have the origin in upper left like in Gwyddion
+
+        plot.toolbar.logo = None
+
+        colorbar = ColorBar(color_mapper=color_mapper,
+                            label_standoff=12,
+                            location=(0, 0),
+                            width=colorbar_width,
+                            title=f"height ({self.unit})")
+
+        plot.add_layout(colorbar, 'right')
+
+        return plot
 
