@@ -8,6 +8,8 @@
 - added tooltip to tab headers (#512)
 - adjusted dependencies to new repositories
   resulting from splitting of PyCo package (#475)
+- removed plottable dependency, using now bokeh for 
+  bandwidth plot (#238) 
 
 ## 0.8.3 (2020-06-26)
 
