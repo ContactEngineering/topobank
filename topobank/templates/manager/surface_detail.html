@@ -69,10 +69,13 @@
                 <div class="carousel-inner">
                   {% for topo in surface.topography_set.all %}
                   <div class="carousel-item {% if forloop.first %}active{% endif %}">
-                    <img class="d-block w-100" src="{% static 'images/favicons/favicon.ico' %}" alt="{{ topo.name }}">
+                    <a href="{% url 'manager:topography-detail' topo.id %}">
+                      <img class="d-block w-100" height="400" src="{% static 'images/favicons/favicon.ico' %}" alt="{{ topo.name }}">
+                    </a>
                     <div class="carousel-caption d-none d-md-block">
-                    <h5>{{ topo.name }}</h5>
-                    <p>{{ topo.description }}</p>
+                      <h5>{{ topo.name }}</h5>
+                      <p>{{ topo.description }}</p>
+                    </div>
                   </div>
                   {% endfor %}
                 </div>
@@ -282,6 +285,10 @@
     $().ready(function () {
       // Activate clipboard buttons
       let clipboard = new ClipboardJS('.clipboard-btn');
+      // Active carousel with topographies
+      $('.carousel').carousel({
+        interval: 5000
+      });
     })
   </script>
 
