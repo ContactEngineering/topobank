@@ -12,11 +12,10 @@ import traceback
 import logging
 
 
-
 _log = logging.getLogger(__name__)
 
 DEFAULT_DATASOURCE_NAME = 'Default'
-UNIT_TO_METERS = {'Å': 1e-10, 'nm': 1e-9, 'µm': 1e-6, 'mm': 1e-3, 'm': 1.0,
+UNIT_TO_METERS = {'Å': 1e-10, 'nm': 1e-9, 'µm': 1e-6, 'mm': 1e-3, 'm': 1.0, 'km': 1000.0,
                   'unknown': 1.0}
 MAX_LEN_SEARCH_TERM = 200
 SELECTION_SESSION_VARNAME = 'selection'
@@ -534,7 +533,7 @@ def bandwidths_data(topographies):
     'link': link to topography details
     'error_message': None or a string with an error message if calculation failed
 
-    The list is sorted by the lower bound with larger lower bound first.
+    The list is sorted by the lower bound with smaller lower bound first.
 
     The idea is to be able to display error messages and the links
     also on javascript level which gets this data.
@@ -548,7 +547,7 @@ def bandwidths_data(topographies):
         lb = entry['lower_bound']
         return float('inf') if lb is None else lb
 
-    bandwidths_data.sort(key=lambda entry: weight(entry), reverse=True)
+    bandwidths_data.sort(key=lambda entry: weight(entry))
 
     return bandwidths_data
 
