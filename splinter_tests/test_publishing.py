@@ -179,8 +179,11 @@ def test_publishing_form_multiple_authors(user_alice_logged_in, handle_usage_sta
 
 
 @pytest.mark.django_db
-def test_see_published_by_others(user_alice_logged_in, user_bob, handle_usage_statistics):
+def test_see_published_by_others(user_alice_logged_in, user_bob, handle_usage_statistics, settings):
     browser, user_alice = user_alice_logged_in
+
+    # switch off checks for too fast publication
+    settings.MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS = None
 
     #
     # Alice has a surface, which is not published

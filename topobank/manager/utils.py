@@ -545,7 +545,7 @@ def bandwidths_data(topographies):
     #
     def weight(entry):
         lb = entry['lower_bound']
-        return float('inf') if lb is None else lb
+        return float('-inf') if lb is None else lb  # so errors appear first
 
     bandwidths_data.sort(key=lambda entry: weight(entry))
 

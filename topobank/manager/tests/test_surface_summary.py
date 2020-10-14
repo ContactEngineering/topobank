@@ -43,10 +43,10 @@ def test_bandwiths_data(two_topos_mock):
 
     bd = bandwidths_data(two_topos_mock)
 
-    # expected bandwidth data - larger lower bounds should be listed first
+    # expected bandwidth data - smaller lower bounds should be listed first
     exp_bd = [
-        dict(upper_bound=1e-4, lower_bound=5e-6, name='topoA', link='linkA/'),
         dict(upper_bound=6e-7, lower_bound=6e-9, name='topoB', link='linkB/'),
+        dict(upper_bound=1e-4, lower_bound=5e-6, name='topoA', link='linkA/'),
     ]
 
     for i in range(len(exp_bd)):
@@ -90,7 +90,7 @@ def test_bandwidth_error_message_in_dict_when_problems_while_loading(topography_
     assert bd1['lower_bound'] is None
     assert bd1['upper_bound'] is None
 
-    # second one should be okay (no errors)
+    # first one should be okay (no errors)
     assert bd2['name'] == topo2.name
     assert bd2['error_message'] is None  # No error
     assert bd2['lower_bound'] is not None
