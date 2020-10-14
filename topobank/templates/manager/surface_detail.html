@@ -254,11 +254,6 @@
 
   <script>
     $().ready(function () {
-      //
-      // Create surface summary plot
-      //
-      surface_summary_plot($("div#bandwidths-plot"), {{ bandwidths_data_without_errors|safe }});
-
       // Activate clipboard buttons
       let clipboard = new ClipboardJS('.clipboard-btn');
     })
