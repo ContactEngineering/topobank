@@ -22,10 +22,13 @@ cffi==1.14.2              # via -r ./base.txt, argon2-cffi
 cftime==1.2.1             # via -r ./base.txt, netcdf4
 chardet==3.0.4            # via -r ./base.txt, requests
 click==7.1.2              # via pip-tools
+colorama==0.4.4           # via -r ./base.txt, crayons
+configparser==5.0.1       # via -r ./base.txt, webdriver-manager
 contactmechanics==0.90.1  # via -r ./base.txt
 coreapi==2.3.3            # via -r ./base.txt
 coreschema==0.0.4         # via -r ./base.txt, coreapi
 coverage==5.2.1           # via -r local.in, django-coverage-plugin
+crayons==0.4.0            # via -r ./base.txt, webdriver-manager
 decorator==4.4.2          # via ipython, traitlets
 defusedxml==0.6.0         # via -r ./base.txt, python3-openid
 django-allauth==0.42.0    # via -r ./base.txt
@@ -91,6 +94,7 @@ packaging==20.4           # via -r ./base.txt, bokeh, pint, pytest, pytest-sugar
 pandas==1.1.1             # via -r ./base.txt, xarray
 parso==0.7.1              # via jedi
 pexpect==4.8.0            # via ipython
+phantomjs==1.3.0          # via -r ./base.txt
 pickleshare==0.7.5        # via ipython
 pillow==7.2.0             # via -r ./base.txt, bokeh
 pint==0.15                # via -r ./base.txt
@@ -115,9 +119,10 @@ python3-openid==3.2.0     # via -r ./base.txt, django-allauth
 pytz==2020.1              # via -r ./base.txt, babel, celery, celery-flower, django, django-notifications-hq, django-trackstats, pandas
 pyyaml==5.3.1             # via -r ./base.txt, bokeh, django-fontawesome
 requests-oauthlib==1.3.0  # via -r ./base.txt, django-allauth
-requests==2.24.0          # via -r ./base.txt, coreapi, django-allauth, requests-oauthlib, sphinx
+requests==2.24.0          # via -r ./base.txt, coreapi, django-allauth, requests-oauthlib, sphinx, webdriver-manager
 s3transfer==0.3.3         # via -r ./base.txt, boto3
 scipy==1.5.2              # via -r ./base.txt, numpi
+selenium==3.141.0         # via -r ./base.txt
 short-url==1.2.2          # via -r ./base.txt
 six==1.15.0               # via -r ./base.txt, argon2-cffi, bokeh, django-coverage-plugin, h5py, packaging, pip-tools, python-dateutil, traitlets
 snowballstemmer==2.0.0    # via sphinx
@@ -130,7 +135,7 @@ sphinxcontrib-jsmath==1.0.1  # via sphinx
 sphinxcontrib-qthelp==1.0.3  # via sphinx
 sphinxcontrib-serializinghtml==1.1.4  # via sphinx
 sqlparse==0.3.1           # via -r ./base.txt, django, django-debug-toolbar
-surfacetopography==0.91.0  # via -r ./base.txt, contactmechanics
+surfacetopography==0.91.4  # via -r ./base.txt, contactmechanics
 swapper==1.1.2.post1      # via -r ./base.txt, django-notifications-hq
 termcolor==1.1.0          # via pytest-sugar
 text-unidecode==1.3       # via -r ./base.txt, faker, python-slugify
@@ -138,9 +143,10 @@ toml==0.10.1              # via pytest
 tornado==5.1.1            # via -r ./base.txt, bokeh, celery-flower
 traitlets==4.3.3          # via ipython
 uritemplate==3.0.1        # via -r ./base.txt, coreapi
-urllib3==1.25.10          # via -r ./base.txt, botocore, requests
+urllib3==1.25.10          # via -r ./base.txt, botocore, requests, selenium
 vine==1.3.0               # via -r ./base.txt, amqp, celery
 wcwidth==0.2.5            # via prompt-toolkit
+webdriver-manager==3.2.2  # via -r ./base.txt
 werkzeug==1.0.1           # via -r local.in
 whitenoise==5.2.0         # via -r ./base.txt
 xarray==0.16.0            # via -r ./base.txt

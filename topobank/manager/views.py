@@ -545,124 +545,6 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
     model = Topography
     context_object_name = 'topography'
 
-    def get_1D_plot(self, st_topo, topo):
-        """Calculate 1D line plot of topography (line scan).
-
-        :param st_topo: SurfaceTopography.Topography instance
-        :param topo: TopoBank Topography instance
-        :return: bokeh plot
-        """
-        x, y = st_topo.positions_and_heights()
-
-        x_range = DataRange1d(bounds='auto')
-        y_range = DataRange1d(bounds='auto')
-
-        TOOLTIPS = """
-            <style>
-                .bk-tooltip>div:not(:first-child) {{display:none;}}
-                td.tooltip-varname {{ text-align:right; font-weight: bold}}
-            </style>
-
-            <table>
-              <tr>
-                <td class="tooltip-varname">x</td>
-                <td>:</td>
-                <td>@x {}</td>
-              </tr>
-              <tr>
-                <td class="tooltip-varname">height</td>
-                <td>:</td>
-                <td >@y {}</td>
-              </tr>
-            </table>
-        """.format(topo.unit, topo.unit)
-
-        plot = figure(x_range=x_range, y_range=y_range,
-                      x_axis_label=f'x ({topo.unit})',
-                      y_axis_label=f'height ({topo.unit})',
-                      toolbar_location="above",
-                      tooltips=TOOLTIPS)
-
-        show_symbols = y.shape[0] <= MAX_NUM_POINTS_FOR_SYMBOLS_IN_LINE_SCAN_PLOT
-
-        plot.line(x, y)
-        if show_symbols:
-            plot.circle(x, y)
-
-        plot.xaxis.axis_label_text_font_style = "normal"
-        plot.yaxis.axis_label_text_font_style = "normal"
-
-        plot.toolbar.logo = None
-
-        return plot
-
-    def get_2D_plot(self, st_topo, topo):
-        """Calculate 2D image plot of topography.
-
-        :param st_topo: SurfaceTopography.Topography instance
-        :param topo: TopoBank Topography instance
-        :return: bokeh plot
-        """
-        heights = st_topo.heights()
-
-        topo_size = st_topo.physical_sizes
-        # x_range = DataRange1d(start=0, end=topo_size[0], bounds='auto')
-        # y_range = DataRange1d(start=0, end=topo_size[1], bounds='auto')
-        x_range = DataRange1d(start=0, end=topo_size[0], bounds='auto', range_padding=5)
-        y_range = DataRange1d(start=topo_size[1], end=0, flipped=True, range_padding=5)
-
-        color_mapper = LinearColorMapper(palette="Viridis256", low=heights.min(), high=heights.max())
-
-        TOOLTIPS = [
-            ("x", "$x " + topo.unit),
-            ("y", "$y " + topo.unit),
-            ("height", "@image " + topo.unit),
-        ]
-
-        colorbar_width = 50
-
-        aspect_ratio = topo_size[0] / topo_size[1]
-        frame_height = 500
-        frame_width = int(frame_height * aspect_ratio)
-
-        if frame_width > 1200:  # rule of thumb, scale down if too wide
-            frame_width = 1200
-            frame_height = int(frame_width / aspect_ratio)
-
-        plot = figure(x_range=x_range,
-                      y_range=y_range,
-                      frame_width=frame_width,
-                      frame_height=frame_height,
-                      # sizing_mode='scale_both',
-                      # aspect_ratio=aspect_ratio,
-                      match_aspect=True,
-                      x_axis_label=f'x ({topo.unit})',
-                      y_axis_label=f'y ({topo.unit})',
-                      toolbar_location="above",
-                      # tools=[PanTool(),BoxZoomTool(match_aspect=True), "save", "reset"],
-                      tooltips=TOOLTIPS)
-
-        plot.xaxis.axis_label_text_font_style = "normal"
-        plot.yaxis.axis_label_text_font_style = "normal"
-
-        # we need to rotate the height data in order to be compatible with image in Gwyddion
-        plot.image([np.rot90(heights)], x=0, y=topo_size[1],
-                   dw=topo_size[0], dh=topo_size[1], color_mapper=color_mapper)
-        # the anchor point of (0,topo_size[1]) is needed because the y range is flipped
-        # in order to have the origin in upper left like in Gwyddion
-
-        plot.toolbar.logo = None
-
-        colorbar = ColorBar(color_mapper=color_mapper,
-                            label_standoff=12,
-                            location=(0, 0),
-                            width=colorbar_width,
-                            title=f"height ({topo.unit})")
-
-        plot.add_layout(colorbar, 'right')
-
-        return plot
-
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
@@ -670,41 +552,26 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
 
         errors = []  # list of dicts with keys 'message' and 'link'
 
-        loaded = False
         plotted = False
 
+        # noinspection PyBroadException
         try:
-            st_topo = topo.topography()
-            loaded = True
+            plot = topo.get_plot()
+            plotted = True
         except Exception as exc:
-            err_message = "Topography '{}' (id: {}) cannot be loaded unexpectedly.".format(topo.name, topo.id)
+            err_message = "Topography '{}' (id: {}) cannot be plotted.".format(topo.name, topo.id)
             _log.error(err_message)
-            link = mailto_link_for_reporting_an_error(f"Failure loading topography (id: {topo.id})",
-                                                      "Image plot for topography",
+            link = mailto_link_for_reporting_an_error(f"Failure plotting topography (id: {topo.id})",
+                                                      "Showing topography details",
                                                       err_message,
                                                       traceback.format_exc())
 
             errors.append(dict(message=err_message, link=link))
 
-        if loaded:
-            if st_topo.dim == 1:
-                plot = self.get_1D_plot(st_topo, topo)
-                plotted = True
-            elif st_topo.dim == 2:
-                plot = self.get_2D_plot(st_topo, topo)
-                plotted = True
-            else:
-                err_message = f"Don't know how to display topographies with {st_topo.dim} dimensions."
-                link = mailto_link_for_reporting_an_error(f"Invalid dimensions for topography (id: {topo.id})",
-                                                          "Image plot for topography",
-                                                          err_message,
-                                                          traceback.format_exc())
-                errors.append(dict(message=err_message, link=link))
-
-            if plotted:
-                script, div = components(plot)
-                context['image_plot_script'] = script
-                context['image_plot_div'] = div
+        if plotted:
+            script, div = components(plot)
+            context['image_plot_script'] = script
+            context['image_plot_div'] = div
 
         context['errors'] = errors
 

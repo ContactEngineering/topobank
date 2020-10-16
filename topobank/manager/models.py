@@ -334,6 +334,11 @@ class Topography(models.Model):
     is_periodic = models.BooleanField(default=False)
 
     #
+    # Other fields
+    #
+    thumbnail = models.ImageField(null=True, upload_to=user_directory_path)
+
+    #
     # Methods
     #
     def __str__(self):
@@ -471,19 +476,18 @@ class Topography(models.Model):
         try:
             st_topo = self.topography()  # SurfaceTopography instance (=st)
         except Exception as exc:
-            pass
+            raise CannotPlotException("Can't load topography.") from exc
 
         if st_topo.dim == 1:
-            return self._get_1D_plot(st_topo)
+            return self._get_1d_plot(st_topo)
         elif st_topo.dim ==2:
-            return self._get_2D_plot(st_topo)
+            return self._get_2d_plot(st_topo)
         else:
             raise CannotPlotException("Can only plot 1D or 2D topograpies, this has {} dimensions.".format(
                 st_topo.dim
             ))
 
-
-    def _get_1D_plot(self, st_topo):
+    def _get_1d_plot(self, st_topo):
         """Calculate 1D line plot of topography (line scan).
 
         :param st_topo: SurfaceTopography.Topography instance
@@ -533,7 +537,7 @@ class Topography(models.Model):
 
         return plot
 
-    def _get_2D_plot(self, st_topo):
+    def _get_2d_plot(self, st_topo):
         """Calculate 2D image plot of topography.
 
         :param st_topo: SurfaceTopography.Topography instance

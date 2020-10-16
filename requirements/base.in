@@ -64,14 +64,17 @@ celery-progress
 #
 # Contact Mechanics
 #
-NuMPI>=0.1.2
 muFFT>=0.11.1
-SurfaceTopography>=0.91.0
+SurfaceTopography>=0.91.4
 ContactMechanics>=0.90.0
 
 # plotting
 bokeh<2.0  # Upgrade is available, maybe needs some work
 # link to CSS+JS in HTML files must must this version!
+# for exporting bokeh plots programmatically (thumbnails), we need a webdriver
+selenium
+phantomjs
+webdriver_manager
 
 # pandas is currently needed for downloading xlsx files from analyses
 pandas
@@ -118,3 +121,5 @@ django-bootstrap-datepicker-plus
 # for publication URLs
 short_url
 django-fullurl
+
+
