@@ -490,12 +490,12 @@ class PlotCardView(SimpleCardView):
 
                 # hover_name = "{} for '{}'".format(series_name, topography_name)
 
-                line_glyph = plot.line('x', 'y', source=source, legend=legend_entry,
+                line_glyph = plot.line('x', 'y', source=source, legend_label=legend_entry,
                                        line_color=curr_color,
                                        line_dash=curr_dash, name=topography_name)
                 if show_symbols:
                     symbol_glyph = plot.scatter('x', 'y', source=source,
-                                                legend=legend_entry,
+                                                legend_label=legend_entry,
                                                 marker='circle',
                                                 size=10,
                                                 line_color=curr_color,
