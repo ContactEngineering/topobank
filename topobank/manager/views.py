@@ -415,6 +415,7 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
             #
             return redirect('manager:topography-corrupted', surface_id=surface.id)
 
+        topo.renew_thumbnail()
         topo.renew_analyses()
 
         #
@@ -477,7 +478,10 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
         significant_fields_with_changes = set(form.changed_data).intersection(significant_fields)
         if len(significant_fields_with_changes) > 0:
             _log.info(f"During edit of topography {topo.id} significant fields changed: " + \
-                      f"{significant_fields_with_changes}. Renewing analyses...")
+                      f"{significant_fields_with_changes}.")
+            _log.info("Renewing thumbnail...")
+            topo.renew_thumbnail()
+            _log.info("Renewing analyses...")
             topo.renew_analyses()
             notification_msg += f"\nBecause significant fields have changed, all analyses are recalculated now."
 

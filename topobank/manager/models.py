@@ -6,14 +6,20 @@ from django.core.cache import cache
 from django.db import transaction
 from django.core.files.storage import default_storage
 from django.core.files import File
+from django.core.files.base import ContentFile
 
 from guardian.shortcuts import assign_perm, remove_perm, get_users_with_perms
 import tagulous.models as tm
 
 import numpy as np
+import math
+import logging
+import io
+from PIL import Image
 
 from bokeh.models import DataRange1d, LinearColorMapper, ColorBar
 from bokeh.plotting import figure
+from bokeh.io.export import get_screenshot_as_png
 
 from .utils import get_topography_reader
 
@@ -21,8 +27,6 @@ from topobank.users.models import User
 from topobank.publication.models import Publication
 from topobank.users.utils import get_default_group
 
-import math
-import logging
 _log = logging.getLogger(__name__)
 
 MAX_LENGTH_DATAFILE_FORMAT = 15  # some more characters than currently needed, we may have sub formats in future
@@ -472,22 +476,33 @@ class Topography(models.Model):
 
         return copy
 
-    def get_plot(self):
+    def get_plot(self, thumbnail=False):
+        """Return bokeh plot.
+
+        Parameters
+        ----------
+        thumbnail
+            boolean, if True, return a reduced plot suitable for a thumbnail
+
+        Returns
+        -------
+
+        """
         try:
             st_topo = self.topography()  # SurfaceTopography instance (=st)
         except Exception as exc:
             raise CannotPlotException("Can't load topography.") from exc
 
         if st_topo.dim == 1:
-            return self._get_1d_plot(st_topo)
+            return self._get_1d_plot(st_topo, reduced=thumbnail)
         elif st_topo.dim ==2:
-            return self._get_2d_plot(st_topo)
+            return self._get_2d_plot(st_topo, reduced=thumbnail)
         else:
             raise CannotPlotException("Can only plot 1D or 2D topograpies, this has {} dimensions.".format(
                 st_topo.dim
             ))
 
-    def _get_1d_plot(self, st_topo):
+    def _get_1d_plot(self, st_topo, reduced=False):
         """Calculate 1D line plot of topography (line scan).
 
         :param st_topo: SurfaceTopography.Topography instance
@@ -518,26 +533,41 @@ class Topography(models.Model):
             </table>
         """.format(self.unit, self.unit)
 
+        if reduced:
+            toolbar_location = None
+        else:
+            toolbar_location = 'above'
+
         plot = figure(x_range=x_range, y_range=y_range,
                       x_axis_label=f'x ({self.unit})',
                       y_axis_label=f'height ({self.unit})',
-                      toolbar_location="above",
-                      tooltips=TOOLTIPS)
+                      tooltips=TOOLTIPS,
+                      toolbar_location=toolbar_location)
 
         show_symbols = y.shape[0] <= MAX_NUM_POINTS_FOR_SYMBOLS_IN_LINE_SCAN_PLOT
 
-        plot.line(x, y)
+        if reduced:
+            line_kwargs = dict(line_width=3)
+        else:
+            line_kwargs = dict()
+
+        plot.line(x, y, **line_kwargs)
         if show_symbols:
             plot.circle(x, y)
 
-        plot.xaxis.axis_label_text_font_style = "normal"
-        plot.yaxis.axis_label_text_font_style = "normal"
+        if reduced:
+            plot.xaxis.visible = False
+            plot.yaxis.visible = False
+            plot.grid.visible = False
+        else:
+            plot.xaxis.axis_label_text_font_style = "normal"
+            plot.yaxis.axis_label_text_font_style = "normal"
 
         plot.toolbar.logo = None
 
         return plot
 
-    def _get_2d_plot(self, st_topo):
+    def _get_2d_plot(self, st_topo, reduced=False):
         """Calculate 2D image plot of topography.
 
         :param st_topo: SurfaceTopography.Topography instance
@@ -558,7 +588,6 @@ class Topography(models.Model):
             ("y", "$y " + self.unit),
             ("height", "@image " + self.unit),
         ]
-
         colorbar_width = 50
 
         aspect_ratio = topo_size[0] / topo_size[1]
@@ -569,6 +598,11 @@ class Topography(models.Model):
             frame_width = 1200
             frame_height = int(frame_width / aspect_ratio)
 
+        if reduced:
+            toolbar_location = None
+        else:
+            toolbar_location = 'above'
+
         plot = figure(x_range=x_range,
                       y_range=y_range,
                       frame_width=frame_width,
@@ -578,12 +612,16 @@ class Topography(models.Model):
                       match_aspect=True,
                       x_axis_label=f'x ({self.unit})',
                       y_axis_label=f'y ({self.unit})',
-                      toolbar_location="above",
                       # tools=[PanTool(),BoxZoomTool(match_aspect=True), "save", "reset"],
-                      tooltips=TOOLTIPS)
+                      tooltips=TOOLTIPS,
+                      toolbar_location=toolbar_location)
 
-        plot.xaxis.axis_label_text_font_style = "normal"
-        plot.yaxis.axis_label_text_font_style = "normal"
+        if reduced:
+            plot.xaxis.visible = None
+            plot.yaxis.visible = None
+        else:
+            plot.xaxis.axis_label_text_font_style = "normal"
+            plot.yaxis.axis_label_text_font_style = "normal"
 
         # we need to rotate the height data in order to be compatible with image in Gwyddion
         plot.image([np.rot90(heights)], x=0, y=topo_size[1],
@@ -593,13 +631,45 @@ class Topography(models.Model):
 
         plot.toolbar.logo = None
 
-        colorbar = ColorBar(color_mapper=color_mapper,
-                            label_standoff=12,
-                            location=(0, 0),
-                            width=colorbar_width,
-                            title=f"height ({self.unit})")
+        if not reduced:
+            colorbar = ColorBar(color_mapper=color_mapper,
+                                label_standoff=12,
+                                location=(0, 0),
+                                width=colorbar_width,
+                                title=f"height ({self.unit})")
 
-        plot.add_layout(colorbar, 'right')
+            plot.add_layout(colorbar, 'right')
 
         return plot
+
+    def renew_thumbnail(self):
+        """Renew thumbnail field.
+
+        Returns
+        -------
+        None
+
+        """
+        plot = self.get_plot(thumbnail=True)
+        #
+        # Create a plot and save a thumbnail image in in-memory file
+        #
+        # image = get_screenshot_as_png(plot, height=100, width=100, driver=None)
+        # TODO use svg instead? Saved as binary file?
+
+        image = get_screenshot_as_png(plot)
+
+        thumbnail_height = 200
+        thumbnail_width = int(image.size[0] * thumbnail_height/image.size[1])
+        image.thumbnail((thumbnail_width, thumbnail_height))
+        image_file = io.BytesIO()
+        image.save(image_file, 'PNG')
+
+        #
+        # Save the contents of in-memory file in Django image field
+        #
+        self.thumbnail.save(
+            f'thumbnail_topography_{self.id}.png',
+            ContentFile(image_file.getvalue()),
+        )
 

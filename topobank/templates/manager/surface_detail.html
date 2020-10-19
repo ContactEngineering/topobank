@@ -59,7 +59,26 @@
                   <b>{% fontawesome_icon 'plus-square-o' %} Add topography</b> button.
                 </div>
               {% endif %}
-              <div id="topography_carousel" class="carousel slide" data-ride="carousel">
+              <h2>Variant 1: Tiles</h2>
+              <div id="photos">
+                {% for topo in surface.topography_set.all %}
+                    <a href="{% url 'manager:topography-detail' topo.id %}">
+                      {% if topo.thumbnail %}
+                        <img class="img-thumbnail img-fluid"
+                             height="{{ topo.thumbnail.height }}"
+                             width="{{ topo.thumbnail.width }}"
+                             title="{{ topo.name }}"
+                             src="{{ topo.thumbnail.url }}" alt="Topography '{{ topo.name }}'">
+                      {% else %}
+                        Thumbnail missing
+                      {% endif %}
+                    </a>
+                {% endfor %}
+              </div>
+
+              <h2>Variant 2: Carousel</h2>
+              <div id="topography_carousel" class="carousel slide" data-ride="carousel"
+                   data-interval="3000">
                 <ol class="carousel-indicators">
                   {% for topo in surface.topography_set.all %}
                   <li data-target="#topography_carousel" data-slide-to="{{ forloop.counter0 }}"
@@ -70,7 +89,14 @@
                   {% for topo in surface.topography_set.all %}
                   <div class="carousel-item {% if forloop.first %}active{% endif %}">
                     <a href="{% url 'manager:topography-detail' topo.id %}">
-                      <img class="d-block w-100" height="400" src="{% static 'images/favicons/favicon.ico' %}" alt="{{ topo.name }}">
+                      {% if topo.thumbnail %}
+                        <img class="d-block img-thumbnail img-fluid"
+                             height="{{ topo.thumbnail.height }}"
+                             width="{{ topo.thumbnail.width }}"
+                             src="{{ topo.thumbnail.url }}" alt="Topography '{{ topo.name }}'">
+                      {% else %}
+                        Thumbnail missing
+                      {% endif %}
                     </a>
                     <div class="carousel-caption d-none d-md-block">
                       <h5>{{ topo.name }}</h5>
@@ -285,10 +311,6 @@
     $().ready(function () {
       // Activate clipboard buttons
       let clipboard = new ClipboardJS('.clipboard-btn');
-      // Active carousel with topographies
-      $('.carousel').carousel({
-        interval: 5000
-      });
     })
   </script>
 
