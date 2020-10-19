@@ -56,8 +56,8 @@ def create_thumbnail(sender, instance, **kwargs):
     # webdriver =
     #from selenium import webdriver
     #from webdriver_manager.firefox import GeckoDriverManager
-
     #geckodriver = webdriver.Firefox(executable_path=GeckoDriverManager().install())
+    # Should use chromedriver by default since bokeh 2.0.0
     image = get_screenshot_as_png(plot, height=100, width=100, driver=None)
     img_io = io.StringIO()
     image.save(img_io, format='JPEG')
