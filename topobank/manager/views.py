@@ -802,7 +802,7 @@ class SurfaceDetailView(DetailView):
             labels = LabelSet(x='center', y="y", text='name', level='annotation',
                               text_align="center",
                               text_color="white",
-                              x_offset=5, y_offset=0, source=bw_source, render_mode='canvas')
+                              x_offset=5, y_offset=0, source=bw_source)
             plot.add_layout(labels)
 
             centers = plot.circle(x="center", y="y", source=bw_source, level="annotation")

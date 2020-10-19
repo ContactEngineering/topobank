@@ -8,7 +8,7 @@ amqp==2.6.1               # via kombu
 argon2-cffi==20.1.0       # via -r base.in
 babel==2.8.0              # via celery-flower
 billiard==3.6.3.0         # via celery
-bokeh==1.4.0              # via -r base.in
+bokeh==2.2.2              # via -r base.in
 boto3==1.14.48            # via -r base.in
 botocore==1.17.48         # via boto3, s3transfer
 celery-flower==1.0.1      # via -r base.in
@@ -70,7 +70,6 @@ oauthlib==3.1.0           # via requests-oauthlib
 openpyxl==3.0.5           # via -r base.in
 packaging==20.4           # via bokeh, pint
 pandas==1.1.1             # via -r base.in, xarray
-phantomjs==1.3.0          # via -r base.in
 pillow==7.2.0             # via -r base.in, bokeh
 pint==0.15                # via -r base.in
 pycparser==2.20           # via cffi
@@ -88,12 +87,13 @@ s3transfer==0.3.3         # via boto3
 scipy==1.5.2              # via numpi
 selenium==3.141.0         # via -r base.in
 short-url==1.2.2          # via -r base.in
-six==1.15.0               # via argon2-cffi, bokeh, h5py, packaging, python-dateutil
+six==1.15.0               # via argon2-cffi, h5py, packaging, python-dateutil
 sqlparse==0.3.1           # via django
 surfacetopography==0.91.4  # via -r base.in, contactmechanics
 swapper==1.1.2.post1      # via django-notifications-hq
 text-unidecode==1.3       # via python-slugify
 tornado==5.1.1            # via -r base.in, bokeh, celery-flower
+typing-extensions==3.7.4.3  # via bokeh
 uritemplate==3.0.1        # via coreapi
 urllib3==1.25.10          # via botocore, requests, selenium
 vine==1.3.0               # via amqp, celery
