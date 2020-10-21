@@ -4,22 +4,25 @@
 #
 #    pip-compile --output-file=test.txt test.in
 #
-amqp==2.6.1               # via -r base.txt, kombu
+amqp==5.0.1               # via -r base.txt, kombu
 argon2-cffi==20.1.0       # via -r base.txt
 attrs==20.1.0             # via pytest
 babel==2.8.0              # via -r base.txt, celery-flower
 beautifulsoup4==4.9.1     # via -r test.in
 billiard==3.6.3.0         # via -r base.txt, celery
 bokeh==2.2.2              # via -r base.txt
-boto3==1.14.48            # via -r base.txt
-botocore==1.17.48         # via -r base.txt, boto3, s3transfer
+boto3==1.16.1             # via -r base.txt
+botocore==1.19.1          # via -r base.txt, boto3, s3transfer
 celery-flower==1.0.1      # via -r base.txt
-celery-progress==0.0.10   # via -r base.txt
-celery==4.4.7             # via -r base.txt, celery-flower
+celery-progress==0.0.14   # via -r base.txt
+celery==5.0.1             # via -r base.txt, celery-flower
 certifi==2020.6.20        # via -r base.txt, requests
-cffi==1.14.2              # via -r base.txt, argon2-cffi
+cffi==1.14.3              # via -r base.txt, argon2-cffi, cryptography
 cftime==1.2.1             # via -r base.txt, netcdf4
 chardet==3.0.4            # via -r base.txt, requests
+click-didyoumean==0.0.3   # via -r base.txt, celery
+click-repl==0.1.6         # via -r base.txt, celery
+click==7.1.2              # via -r base.txt, celery, click-didyoumean, click-repl
 colorama==0.4.4           # via -r base.txt, crayons
 configparser==5.0.1       # via -r base.txt, webdriver-manager
 contactmechanics==0.90.1  # via -r base.txt
@@ -27,15 +30,16 @@ coreapi==2.3.3            # via -r base.txt
 coreschema==0.0.4         # via -r base.txt, coreapi
 coverage==5.2.1           # via -r test.in, django-coverage-plugin, pytest-cov
 crayons==0.4.0            # via -r base.txt, webdriver-manager
+cryptography==3.1.1       # via -r base.txt, pyjwt
 cssselect==1.1.0          # via splinter
 defusedxml==0.6.0         # via -r base.txt, python3-openid
-django-allauth==0.42.0    # via -r base.txt
+django-allauth==0.43.0    # via -r base.txt
 django-appconf==1.0.4     # via -r base.txt, django-select2
 django-bootstrap-datepicker-plus==3.0.5  # via -r base.txt
 django-coverage-plugin==1.8.0  # via -r test.in
 django-crispy-forms==1.9.2  # via -r base.txt
 django-environ==0.4.5     # via -r base.txt
-django-filter==2.3.0      # via -r base.txt
+django-filter==2.4.0      # via -r base.txt
 django-fontawesome==1.0   # via -r base.txt
 django-formtools==2.2     # via -r base.txt
 django-fullurl==1.1       # via -r base.txt
@@ -44,15 +48,14 @@ django-model-utils==4.0.0  # via -r base.txt, django-notifications-hq
 django-notifications-hq==1.6.0  # via -r base.txt
 git+http://github.com/IMTEK-Simulation/django-progressbarupload.git  # via -r base.txt
 django-select2==7.4.2     # via -r base.txt
-django-storages==1.9.1    # via -r base.txt
-django-tables2==2.3.1     # via -r base.txt
+django-storages==1.10.1   # via -r base.txt
+django-tables2==2.3.2     # via -r base.txt
 git+http://github.com/mcrot/django-tagulous.git  # via -r base.txt
 git+http://git@github.com/mcrot/django-termsandconditions.git@optional_terms  # via -r base.txt
 django-test-plus==1.4.0   # via -r test.in
 django-trackstats==0.5.0  # via -r base.txt
 django==2.2.13            # via -r base.txt, django-allauth, django-appconf, django-bootstrap-datepicker-plus, django-filter, django-formtools, django-fullurl, django-guardian, django-model-utils, django-notifications-hq, django-select2, django-storages, django-tables2, django-termsandconditions, django-trackstats, djangorestframework, jsonfield, splinter
-djangorestframework==3.11.1  # via -r base.txt
-docutils==0.15.2          # via -r base.txt, botocore
+djangorestframework==3.12.1  # via -r base.txt
 et-xmlfile==1.0.1         # via -r base.txt, openpyxl
 factory-boy==3.0.1        # via -r test.in
 faker==4.1.2              # via factory-boy
@@ -63,35 +66,37 @@ h5netcdf==0.8.1           # via -r base.txt
 h5py==2.10.0              # via -r base.txt, h5netcdf, surfacetopography
 idna==2.10                # via -r base.txt, requests
 igor==0.3                 # via -r base.txt, surfacetopography
-importlib-metadata==1.7.0  # via -r base.txt, flake8, kombu, pint, pluggy, pytest
+importlib-metadata==2.0.0  # via -r base.txt, flake8, kombu, pint, pluggy, pytest
 iniconfig==1.0.1          # via pytest
 itypes==1.2.0             # via -r base.txt, coreapi
 jdcal==1.4.1              # via -r base.txt, openpyxl
 jinja2==2.11.2            # via -r base.txt, bokeh, coreschema
 jmespath==0.10.0          # via -r base.txt, boto3, botocore
 jsonfield==3.1.0          # via -r base.txt, django-notifications-hq
-kombu==4.6.11             # via -r base.txt, celery
+kombu==5.0.2              # via -r base.txt, celery
 lxml==4.5.2               # via splinter
-markdown2==2.3.9          # via -r base.txt
+markdown2==2.3.10         # via -r base.txt
 markupsafe==1.1.1         # via -r base.txt, jinja2
 mccabe==0.6.1             # via flake8
 more-itertools==8.4.0     # via pytest
 mufft==0.11.1             # via -r base.txt, contactmechanics, surfacetopography
 netcdf4==1.5.4            # via -r base.txt, surfacetopography
-numpi==0.1.2              # via -r base.txt, contactmechanics, surfacetopography
-numpy==1.19.1             # via -r base.txt, bokeh, cftime, contactmechanics, h5py, mufft, netcdf4, numpi, pandas, scipy, surfacetopography, xarray
+numpi==0.1.4              # via -r base.txt, contactmechanics, surfacetopography
+numpy==1.19.2             # via -r base.txt, bokeh, cftime, contactmechanics, h5py, mufft, netcdf4, numpi, pandas, scipy, surfacetopography, xarray
 oauthlib==3.1.0           # via -r base.txt, requests-oauthlib
 openpyxl==3.0.5           # via -r base.txt
 packaging==20.4           # via -r base.txt, bokeh, pint, pytest, pytest-sugar
-pandas==1.1.1             # via -r base.txt, xarray
-pillow==7.2.0             # via -r base.txt, bokeh
-pint==0.15                # via -r base.txt
+pandas==1.1.3             # via -r base.txt, xarray
+pillow==8.0.0             # via -r base.txt, bokeh
+pint==0.16.1              # via -r base.txt
 pluggy==0.13.1            # via pytest
+prompt-toolkit==3.0.8     # via -r base.txt, click-repl
 py==1.9.0                 # via pytest
 pycodestyle==2.6.0        # via flake8
 pycparser==2.20           # via -r base.txt, cffi
 pyflakes==2.2.0           # via flake8
-pygments==2.6.1           # via -r base.txt
+pygments==2.7.1           # via -r base.txt
+pyjwt[crypto]==1.7.1      # via -r base.txt, django-allauth
 pylibmc==1.6.1            # via -r base.txt
 pyparsing==2.4.7          # via -r base.txt, packaging
 pytest-base-url==1.4.2    # via pytest-selenium
@@ -113,14 +118,14 @@ pyyaml==5.3.1             # via -r base.txt, bokeh, django-fontawesome
 requests-oauthlib==1.3.0  # via -r base.txt, django-allauth
 requests==2.24.0          # via -r base.txt, coreapi, django-allauth, pytest-base-url, pytest-selenium, requests-oauthlib, webdriver-manager
 s3transfer==0.3.3         # via -r base.txt, boto3
-scipy==1.5.2              # via -r base.txt, numpi
+scipy==1.5.3              # via -r base.txt, numpi
 selenium==3.141.0         # via -r base.txt, -r test.in, pytest-selenium, pytest-splinter, splinter
 short-url==1.2.2          # via -r base.txt
-six==1.15.0               # via -r base.txt, argon2-cffi, django-coverage-plugin, freezegun, h5py, packaging, python-dateutil, splinter, tenacity
+six==1.15.0               # via -r base.txt, argon2-cffi, click-repl, cryptography, django-coverage-plugin, freezegun, h5py, packaging, python-dateutil, splinter, tenacity
 soupsieve==2.0.1          # via beautifulsoup4
 splinter[django]==0.14.0  # via -r test.in, pytest-splinter
-sqlparse==0.3.1           # via -r base.txt, django
-surfacetopography==0.91.4  # via -r base.txt, contactmechanics
+sqlparse==0.4.1           # via -r base.txt, django
+surfacetopography==0.91.5  # via -r base.txt, contactmechanics
 swapper==1.1.2.post1      # via -r base.txt, django-notifications-hq
 tenacity==6.2.0           # via pytest-selenium
 termcolor==1.1.0          # via pytest-sugar
@@ -129,12 +134,13 @@ toml==0.10.1              # via pytest
 tornado==5.1.1            # via -r base.txt, bokeh, celery-flower
 typing-extensions==3.7.4.3  # via -r base.txt, bokeh
 uritemplate==3.0.1        # via -r base.txt, coreapi
-urllib3==1.25.10          # via -r base.txt, botocore, pytest-splinter, requests, selenium
-vine==1.3.0               # via -r base.txt, amqp, celery
+urllib3==1.25.11          # via -r base.txt, botocore, pytest-splinter, requests, selenium
+vine==5.0.0               # via -r base.txt, amqp, celery
+wcwidth==0.2.5            # via -r base.txt, prompt-toolkit
 webdriver-manager==3.2.2  # via -r base.txt
 whitenoise==5.2.0         # via -r base.txt
-xarray==0.16.0            # via -r base.txt
-zipp==3.1.0               # via -r base.txt, importlib-metadata
+xarray==0.16.1            # via -r base.txt
+zipp==3.3.1               # via -r base.txt, importlib-metadata
 
 # The following packages are considered to be unsafe in a requirements file:
 # setuptools
