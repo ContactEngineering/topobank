@@ -44,7 +44,8 @@ from trackstats.models import Metric, Period
 
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm, DEFAULT_LICENSE
 from .forms import TopographyForm, SurfaceForm, SurfaceShareForm, SurfacePublishForm
-from .models import Topography, Surface, TagModel, NewPublicationTooFastException
+from .models import Topography, Surface, TagModel, \
+    NewPublicationTooFastException, LoadTopographyException, PlotTopographyException
 from .serializers import SurfaceSerializer, TagSerializer
 from .utils import selected_instances, bandwidths_data, get_topography_reader, tags_for_user, get_reader_infos, \
     mailto_link_for_reporting_an_error, current_selection_as_basket_items, filtered_surfaces, \
@@ -578,11 +579,20 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
 
         plotted = False
 
-        # noinspection PyBroadException
         try:
             plot = topo.get_plot()
             plotted = True
-        except Exception as exc:
+        except LoadTopographyException as exc:
+            err_message = "Topography '{}' (id: {}) cannot be loaded unexpectedly.".format(
+                topo.name, topo.id)
+            _log.error(err_message)
+            link = mailto_link_for_reporting_an_error(f"Failure loading topography (id: {topo.id})",
+                                                      "Showing topography details",
+                                                      err_message,
+                                                      traceback.format_exc())
+
+            errors.append(dict(message=err_message, link=link))
+        except PlotTopographyException as exc:
             err_message = "Topography '{}' (id: {}) cannot be plotted.".format(topo.name, topo.id)
             _log.error(err_message)
             link = mailto_link_for_reporting_an_error(f"Failure plotting topography (id: {topo.id})",

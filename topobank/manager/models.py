@@ -53,7 +53,11 @@ class NewPublicationTooFastException(Exception):
         return s
 
 
-class CannotPlotException(Exception):
+class LoadTopographyException(Exception):
+    pass
+
+
+class PlotTopographyException(Exception):
     pass
 
 
@@ -498,14 +502,20 @@ class Topography(models.Model):
         try:
             st_topo = self.topography()  # SurfaceTopography instance (=st)
         except Exception as exc:
-            raise CannotPlotException("Can't load topography.") from exc
+            raise LoadTopographyException("Can't load topography.") from exc
 
         if st_topo.dim == 1:
-            return self._get_1d_plot(st_topo, reduced=thumbnail)
+            try:
+                return self._get_1d_plot(st_topo, reduced=thumbnail)
+            except Exception as exc:
+                raise PlotTopographyException("Error generating 1D plot for topography.") from exc
         elif st_topo.dim ==2:
-            return self._get_2d_plot(st_topo, reduced=thumbnail)
+            try:
+                return self._get_2d_plot(st_topo, reduced=thumbnail)
+            except Exception as exc:
+                raise PlotTopographyException("Error generating 2D plot for topography.") from exc
         else:
-            raise CannotPlotException("Can only plot 1D or 2D topograpies, this has {} dimensions.".format(
+            raise PlotTopographyException("Can only plot 1D or 2D topograpies, this has {} dimensions.".format(
                 st_topo.dim
             ))
 
