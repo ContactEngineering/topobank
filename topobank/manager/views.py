@@ -439,7 +439,27 @@ class CorruptedTopographyView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['surface'] = Surface.objects.get(id=kwargs['surface_id'])
+        surface = Surface.objects.get(id=kwargs['surface_id'])
+        context['surface'] = surface
+        #
+        # Add context needed for tabs
+        #
+        context['extra_tabs'] = [
+            {
+                'title': f"{surface}",
+                'icon': "diamond",
+                'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
+                'active': False,
+                'tooltip': f"Properties of surface '{surface.label}'"
+            },
+            {
+                'title': f"Corrupted File",
+                'icon': "flash",
+                'href': self.request.path,
+                'active': True,
+                'tooltip': f"Failure while uploading a new file"
+            }
+        ]
         return context
 
 

@@ -378,8 +378,15 @@ class Topography(models.Model):
 
             # Set size if physical size was not given in datafile
             # (see also  TopographyCreateWizard.get_form_initial)
-            # Physical size is always a tuple.
-            if self.size_editable: # TODO: could be removed in favor of "channel_dict['physical_sizes'] is None"
+            # Physical size is always a tuple or None.
+            channel_dict = toporeader.channels[self.data_source]
+            channel_physical_sizes = channel_dict.physical_sizes
+            physical_sizes_is_None = channel_physical_sizes is None \
+                                     or (channel_physical_sizes == (None,)) \
+                                     or (channel_physical_sizes == (None,None))
+            # workaround, see GH 299 in Pyco
+
+            if physical_sizes_is_None:
                 if self.size_y is None:
                     topography_kwargs['physical_sizes'] = self.size_x,
                 else:
