@@ -676,7 +676,7 @@ class Topography(models.Model):
 
         image = get_screenshot_as_png(plot)
 
-        thumbnail_height = 200
+        thumbnail_height = 400
         thumbnail_width = int(image.size[0] * thumbnail_height/image.size[1])
         image.thumbnail((thumbnail_width, thumbnail_height))
         image_file = io.BytesIO()
