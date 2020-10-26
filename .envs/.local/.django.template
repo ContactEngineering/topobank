@@ -9,6 +9,12 @@ DJANGO_SETTINGS_MODULE=config.settings.local
 # settings seem to be local implicitly, but let's be explicit here
 DJANGO_DEBUG=yes
 
+# Generating topography thumbnails with Firefox
+# ------------------------------------------------------------------------------
+# firefox binary, not the script!
+FIREFOX_BINARY_PATH=/opt/conda/bin/FirefoxApp/firefox
+GECKODRIVER_PATH=/opt/conda/bin/geckodriver
+
 # Celery
 # ------------------------------------------------------------------------------
 CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//

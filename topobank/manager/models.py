@@ -15,13 +15,12 @@ import numpy as np
 import math
 import logging
 import io
-from PIL import Image
 
 from bokeh.models import DataRange1d, LinearColorMapper, ColorBar
 from bokeh.plotting import figure
 from bokeh.io.export import get_screenshot_as_png
 
-from .utils import get_topography_reader
+from .utils import get_topography_reader, get_firefox_webdriver
 
 from topobank.users.models import User
 from topobank.publication.models import Publication
@@ -659,8 +658,15 @@ class Topography(models.Model):
 
         return plot
 
-    def renew_thumbnail(self):
+    def renew_thumbnail(self, driver=None):
         """Renew thumbnail field.
+
+        Parameters
+        ----------
+        driver
+            selenium webdriver instance, if not given
+            a firefox instance is created using
+            `utils.get_firefox_webdriver()`
 
         Returns
         -------
@@ -671,10 +677,11 @@ class Topography(models.Model):
         #
         # Create a plot and save a thumbnail image in in-memory file
         #
-        # image = get_screenshot_as_png(plot, height=100, width=100, driver=None)
-        # TODO use svg instead? Saved as binary file?
+        generate_driver = not driver
+        if generate_driver:
+            driver = get_firefox_webdriver()
 
-        image = get_screenshot_as_png(plot)
+        image = get_screenshot_as_png(plot, driver=driver)
 
         thumbnail_height = 400
         thumbnail_width = int(image.size[0] * thumbnail_height/image.size[1])
@@ -689,4 +696,8 @@ class Topography(models.Model):
             f'thumbnail_topography_{self.id}.png',
             ContentFile(image_file.getvalue()),
         )
+
+        if generate_driver:
+            driver.close()  # important to free memory
+
 

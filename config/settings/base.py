@@ -482,3 +482,9 @@ CC_LICENSE_INFOS = {  # each element refers to two links: (description URL, full
         'option_name': 'CC BY-SA 4.0'
     }
 }
+
+#
+# Settings for exporting plots as thumbnails
+#
+FIREFOX_BINARY_PATH = env.path('FIREFOX_BINARY_PATH')
+GECKODRIVER_PATH = env.path('GECKODRIVER_PATH')

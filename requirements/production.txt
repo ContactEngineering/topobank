@@ -8,7 +8,7 @@ amqp==5.0.1               # via -r ./base.txt, kombu
 argon2-cffi==20.1.0       # via -r ./base.txt
 babel==2.8.0              # via -r ./base.txt, celery-flower
 billiard==3.6.3.0         # via -r ./base.txt, celery
-bokeh==2.2.2              # via -r ./base.txt
+bokeh==2.2.3              # via -r ./base.txt
 boto3==1.16.1             # via -r ./base.txt
 botocore==1.19.1          # via -r ./base.txt, boto3, s3transfer
 celery-flower==1.0.1      # via -r ./base.txt
@@ -21,12 +21,9 @@ chardet==3.0.4            # via -r ./base.txt, requests
 click-didyoumean==0.0.3   # via -r ./base.txt, celery
 click-repl==0.1.6         # via -r ./base.txt, celery
 click==7.1.2              # via -r ./base.txt, celery, click-didyoumean, click-repl
-colorama==0.4.4           # via -r ./base.txt, crayons
-configparser==5.0.1       # via -r ./base.txt, webdriver-manager
 contactmechanics==0.90.1  # via -r ./base.txt
 coreapi==2.3.3            # via -r ./base.txt
 coreschema==0.0.4         # via -r ./base.txt, coreapi
-crayons==0.4.0            # via -r ./base.txt, webdriver-manager
 cryptography==3.1.1       # via -r ./base.txt, pyjwt
 defusedxml==0.6.0         # via -r ./base.txt, python3-openid
 django-allauth==0.43.0    # via -r ./base.txt
@@ -92,7 +89,7 @@ python3-openid==3.2.0     # via -r ./base.txt, django-allauth
 pytz==2020.1              # via -r ./base.txt, babel, celery, celery-flower, django, django-notifications-hq, django-trackstats, pandas
 pyyaml==5.3.1             # via -r ./base.txt, bokeh, django-fontawesome
 requests-oauthlib==1.3.0  # via -r ./base.txt, django-allauth
-requests==2.24.0          # via -r ./base.txt, coreapi, django-allauth, requests-oauthlib, webdriver-manager
+requests==2.24.0          # via -r ./base.txt, coreapi, django-allauth, requests-oauthlib
 s3transfer==0.3.3         # via -r ./base.txt, boto3
 scipy==1.5.3              # via -r ./base.txt, numpi
 selenium==3.141.0         # via -r ./base.txt
@@ -108,7 +105,6 @@ uritemplate==3.0.1        # via -r ./base.txt, coreapi
 urllib3==1.25.11          # via -r ./base.txt, botocore, requests, selenium
 vine==5.0.0               # via -r ./base.txt, amqp, celery
 wcwidth==0.2.5            # via -r ./base.txt, prompt-toolkit
-webdriver-manager==3.2.2  # via -r ./base.txt
 whitenoise==5.2.0         # via -r ./base.txt
 xarray==0.16.1            # via -r ./base.txt
 zipp==3.3.1               # via -r ./base.txt, importlib-metadata

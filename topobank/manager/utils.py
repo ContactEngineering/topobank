@@ -4,6 +4,11 @@ from django.conf import settings
 from django.db.models import Q
 from django.core.exceptions import PermissionDenied
 import markdown2
+from os.path import devnull
+
+from selenium import webdriver
+from selenium.webdriver.remote.webdriver import WebDriver
+from selenium.webdriver.firefox.firefox_binary import FirefoxBinary
 
 from SurfaceTopography import open_topography
 from SurfaceTopography.IO import readers as surface_topography_readers
@@ -637,6 +642,20 @@ def get_tree_mode(request) -> str:
         raise PermissionDenied()
     return tree_mode
 
+
+def get_firefox_webdriver() -> WebDriver:
+
+    binary = FirefoxBinary(str(settings.FIREFOX_BINARY_PATH))
+
+    options = webdriver.firefox.options.Options()
+    options.add_argument("--headless")
+
+    return webdriver.Firefox(
+        options=options,
+        firefox_binary=binary,
+        executable_path=str(settings.GECKODRIVER_PATH),
+        service_log_path=devnull,
+    )
 
 
 

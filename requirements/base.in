@@ -69,11 +69,10 @@ SurfaceTopography>=0.91.5
 ContactMechanics>=0.90.1
 
 # plotting
-bokeh==2.2.2
+bokeh==2.2.3
 # link to CSS+JS in HTML files must must this version!
 # for exporting bokeh plots programmatically (thumbnails), we need a webdriver
 selenium
-webdriver_manager
 
 # pandas is currently needed for downloading xlsx files from analyses
 pandas

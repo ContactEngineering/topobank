@@ -20,9 +20,16 @@ RUN apt-get update \
   && apt-get install --yes curl
   # && apt-get install --yes mpicc libfftw3-mpi-dev
   # && apt-get install --yes clang-5 libfftw3-dev
+  # Requirement needed for exporting bokeh plots
 
 # clean up image
 RUN apt-get -qy autoremove
+
+#
+# Extra requirements for exporting plots in bokeh
+#
+RUN apt-get install --yes libgtk-3-0 libdbus-glib-1-2
+RUN conda install -c conda-forge firefox geckodriver
 
 #
 # Install requirements for TopoBank

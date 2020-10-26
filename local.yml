@@ -10,6 +10,7 @@ services:
     build:
       context: .
       dockerfile: ./compose/local/django/Dockerfile
+    shm_size: '2gb'
     image: topobank_local_django
     depends_on:
       - postgres
