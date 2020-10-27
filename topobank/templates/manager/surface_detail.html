@@ -65,14 +65,13 @@
                     <a href="{% url 'manager:topography-detail' topo.id %}">
                       {% if topo.thumbnail %}
                         <img class="d-block img-thumbnail"
-                             src="{{ topo.thumbnail.url }}" alt="Topography '{{ topo.name }}'">
+                             src="{% url 'manager:topography-thumbnail' topo.id %}" alt="Topography '{{ topo.name }}'">
                       {% else %}
                         Sorry, thumbnail is missing
                       {% endif %}
                     </a>
-                    <div class="carousel-caption d-none d-md-block bg-dark">
-                      <h5>{{ topo.name }}</h5>
-                      <p>{{ topo.description }}</p>
+                    <div class="carousel-caption d-none d-md-block bg-dark mb-4">
+                      <large>{{ topo.name }}</large>
                     </div>
                   </div>
                   {% endfor %}

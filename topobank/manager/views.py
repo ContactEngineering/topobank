@@ -1826,3 +1826,37 @@ def unselect_all(request):
     """
     request.session['selection'] = []
     return Response([])
+
+
+def thumbnail(request, pk):
+    """Returns image data for a topography thumbail
+
+    Parameters
+    ----------
+    request
+
+    Returns
+    -------
+    HTML Response with image data
+    """
+    try:
+        pk = int(pk)
+    except ValueError:
+        raise Http404()
+
+    try:
+        topo = Topography.objects.get(pk=pk)
+    except Topography.DoesNotExist:
+        raise Http404()
+
+    if not request.user.has_perm('view_surface', topo.surface):
+        raise PermissionDenied()
+
+    # okay, we have a valid topography and the user is allowed to see it
+
+    image = topo.thumbnail
+    response = HttpResponse(content_type="image/png")
+    response.write(image.file.read())
+    return response
+
+

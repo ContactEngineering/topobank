@@ -40,6 +40,11 @@ urlpatterns = [
         name='topography-unselect'
     ),
     url(
+        regex=r'topography/(?P<pk>\d+)/thumbnail/$',
+        view=login_required(views.thumbnail),
+        name='topography-thumbnail'
+    ),
+    url(
         regex=r'surface/(?P<surface_id>\d+)/new-topography/$',
         view=login_required(views.TopographyCreateWizard.as_view(WIZARD_FORMS)),
         name='topography-create'
