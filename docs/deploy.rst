@@ -779,7 +779,7 @@ Then, after starting the containers, the backup is done automatically.
 Restoring database from a backup
 --------------------------------
 
-The generell idea is
+The general idea is
 
 - stop the application
 - copy a dump file from the S3 bucket to a local directory
@@ -1070,6 +1070,19 @@ Without supervisor, call:
 
 Test whether the new application works. See also above link if you want to scale the application,
 e.g. having more processes handling the web requests or celery workers.
+
+Generating thumbails
+....................
+
+If you need to recompute the topography thumbnails, e.g. if you haven't done this before
+or if the code for the thumbnails have changed, you can do this after starting the application stack.
+Use the following management command:
+
+.. code:: bash
+
+     docker-compose -f production.yml run --rm django python manage.py renew_thumbnails
+
+
 
 Look into the database
 ----------------------
