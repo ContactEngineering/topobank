@@ -30,6 +30,11 @@ def select_radio_btn(browser, radio_id):
     browser.execute_script("arguments[0].click();", radio_btn._element)
 
 
+def press_insert_me_btn(browser, index=0):
+    insert_me_btn = browser.find_by_css('.insert-me-btn')[index]
+    insert_me_btn.click()
+
+
 @pytest.mark.django_db
 def test_publishing_form(user_alice_logged_in, handle_usage_statistics):
     browser, user_alice = user_alice_logged_in
@@ -87,7 +92,7 @@ def test_publishing_form(user_alice_logged_in, handle_usage_statistics):
     assert len(browser.find_by_name("save")) > 0
 
     #
-    # Alice checks one checkbox, the other is still needed
+    # Alice checks one checkbox, the other is still needed and the authors
     #
     select_radio_btn(browser, 'id_copyright_hold')
 
@@ -95,10 +100,16 @@ def test_publishing_form(user_alice_logged_in, handle_usage_statistics):
     assert len(browser.find_by_name("save")) > 0
 
     # Alice checks the second and tries again to publish.
+    select_radio_btn(browser, 'id_agreed')
+    assert len(browser.find_by_name("save")) > 0
+
+    # Still now publishing: She hasn't entered an author yet.
+    # She decides to enter herself as author by pressing the "user" button
+    press_insert_me_btn(browser)
+
+    # Now she tries again
     # The extra tab is closed and Alice is taken
     # to the list of published surfaces.
-    select_radio_btn(browser, 'id_agreed')
-
     press_yes_publish(browser)
     assert len(browser.find_by_name("save")) == 0
     assert browser.is_text_present("Surfaces published by you", wait_time=1)
@@ -146,6 +157,11 @@ def test_publishing_form_multiple_authors(user_alice_logged_in, handle_usage_sta
     assert browser.is_text_present("Publish")
     publish_btn = browser.links.find_by_partial_text("Publish")
     publish_btn.click()
+
+    #
+    # Alice adds herself as first author
+    #
+    press_insert_me_btn(browser)
 
     #
     # Alice presses "One more author" button, adds one author

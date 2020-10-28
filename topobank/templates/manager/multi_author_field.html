@@ -18,14 +18,22 @@
                v-model="item.name">
         <div class="input-group-append">
           <button class="btn btn-secondary"
+                  title="Delete this author"
                   type="button"
                   v-bind:class="{ disabled: items.length==1 }"
                   @click="delete_author_line(index)">{% fontawesome_icon 'trash' %}</button>
+          <button class="btn btn-secondary insert-me-btn"
+                  title="Insert your name as author"
+                  type="button"
+                  v-bind:class="{ }"
+                  @click="insert_user_as_author(index)">{% fontawesome_icon 'user' %}</button>
           <button class="btn btn-secondary"
+                  title="Move this author up"
                   type="button"
                   v-bind:class="{ disabled: index==0 }"
                   @click="move_author_up(index)">{% fontawesome_icon 'arrow-up' %}</button>
           <button class="btn btn-secondary"
+                  title="Move this author down"
                   type="button"
                   v-bind:class="{ disabled: index==items.length-1 }"
                   @click="move_author_down(index)">{% fontawesome_icon 'arrow-down' %}</button>
@@ -36,7 +44,7 @@
   <small class='form-text text-muted'>
   Use one line per author, enter each name in
   natural order <b>without commas</b>, e.g. 'Sarah Miller'.
-  Press plus button if you need more author fields.
+  Press plus button below if you need more author fields.
   </small>
   <p class='form-text text-muted mt-2'>
     Authors will be saved and listed like this: <b>[[ get_full_authors_string ]]</b>

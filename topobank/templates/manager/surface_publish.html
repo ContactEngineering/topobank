@@ -143,7 +143,7 @@
          items.push({ name: form_cleaned_data[key]});
        }
      } else { // fresh form
-       items = [ { name: user_name } ];
+       items = [ { name: '' } ];
      }
      return {
        items: items,  // array with author items
@@ -181,6 +181,12 @@
        if (this.items.length > 1) {
           this.items.splice(index, 1);
        }
+     },
+     insert_user_as_author: function(index) {
+       console.log("before:", this.items);
+       console.log("insert user as author", index, user_name);
+       this.items.splice(index, 1, {name: user_name});  // do not use simple assignment here because of vuejs
+       console.log("after:", this.items);
      },
      move_author_up: function(index) {
        if (index > 0) {
