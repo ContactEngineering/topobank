@@ -10,7 +10,7 @@ env:
     - USE_DOCKER=no
     - DJANGO_SETTINGS_MODULE=config.settings.test
     - FIREFOX_BINARY_PATH=/usr/lib/firefox/firefox
-    - GECKODRIVER=/usr/bin/geckodriver
+    - GECKODRIVER_PATH=/usr/bin/geckodriver
 python:
   - 3.7
 #before_install:
