@@ -3,10 +3,14 @@ dist: bionic
 #  - xvfb
 language: python
 cache: pip
-#addons:
-#  firefox: latest
+addons:
+  firefox: latest
 env:
-  - USE_DOCKER=no DJANGO_SETTINGS_MODULE=config.settings.test
+  global:
+    - USE_DOCKER=no
+    - DJANGO_SETTINGS_MODULE=config.settings.test
+    - FIREFOX_BINARY_PATH=/usr/lib/firefox/firefox
+    - GECKODRIVER=/usr/bin/geckodriver
 python:
   - 3.7
 #before_install:
