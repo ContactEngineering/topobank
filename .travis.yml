@@ -5,6 +5,9 @@ language: python
 cache: pip
 addons:
   firefox: latest
+  apt:
+    packages:
+      - firefox-geckodriver
 env:
   global:
     - USE_DOCKER=no
