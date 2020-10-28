@@ -28,7 +28,7 @@ contactmechanics==0.90.1  # via -r ./base.txt
 coreapi==2.3.3            # via -r ./base.txt
 coreschema==0.0.4         # via -r ./base.txt, coreapi
 coverage==5.2.1           # via -r local.in, django-coverage-plugin
-cryptography==3.1.1       # via -r ./base.txt, pyjwt
+cryptography==3.2.1       # via -r ./base.txt, pyjwt
 decorator==4.4.2          # via ipython, traitlets
 defusedxml==0.6.0         # via -r ./base.txt, python3-openid
 django-allauth==0.43.0    # via -r ./base.txt

@@ -24,7 +24,7 @@ click==7.1.2              # via celery, click-didyoumean, click-repl
 contactmechanics==0.90.1  # via -r base.in
 coreapi==2.3.3            # via -r base.in
 coreschema==0.0.4         # via coreapi
-cryptography==3.1.1       # via pyjwt
+cryptography==3.2.1       # via -r base.in, pyjwt
 defusedxml==0.6.0         # via python3-openid
 django-allauth==0.43.0    # via -r base.in
 django-appconf==1.0.4     # via django-select2

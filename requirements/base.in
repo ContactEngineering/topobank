@@ -13,6 +13,9 @@ django-allauth  # https://github.com/pennersr/django-allauth
 django-crispy-forms  # https://github.com/django-crispy-forms/django-crispy-forms
 django-tables2 # https://github.com/jieter/django-tables2
 
+# Update a dependency of pyjwt to a more secure version
+cryptography>=3.2.1
+
 # Django REST Framework
 djangorestframework  # https://github.com/encode/django-rest-framework
 coreapi  # https://github.com/core-api/python-client
