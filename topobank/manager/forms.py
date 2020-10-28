@@ -582,29 +582,32 @@ class SurfacePublishForm(forms.Form):
     helper = FormHelper()
     helper.form_method = 'POST'
     error_text_inline = False
-    helper.attrs = { "onsubmit": "on_submit()"}  # call JS function for disabling button
+    helper.attrs = {"onsubmit": "on_submit()"}  # call JS function for disabling button
     # this prevents multiple submissions by clicking several times fast
 
     helper.layout = Layout(
         Div(
+            HTML('<h2 class="alert-heading">Please enter the authors</h2>'),
+            Field('authors', template="manager/multi_author_field.html"),
+            css_class="alert alert-primary"
+        ),
+        Div(
+            HTML('<h2 class="alert-heading">Please choose a license</h2>'),
+            Field('license', template="manager/license_radioselect.html"),
+            css_class="alert alert-primary"
+        ),
+        Div(
+            HTML('<h2 class="alert-heading">Final checks</h2>'),
+            Field('agreed'),
+            Field('copyright_hold'),
             FormActions(
-                Fieldset('Please enter the authors',
-                         Field('authors', template="manager/multi_author_field.html"),
-                         ),
-                Fieldset('Please choose a license',
-                         Field('license', template="manager/license_radioselect.html"),
-                         ),
-                Fieldset('Final checks',
-                         Field('agreed'),
-                         Field('copyright_hold'),
-                         ),
                 Submit('save', 'Yes, publish this surface', css_class='btn-success'),
                 HTML("""
-                    <a href="{% url 'manager:surface-detail' surface.pk %}" class="btn btn-default" id="cancel-btn">Cancel</a>
-                    """),
+                      <a href="{% url 'manager:surface-detail' surface.pk %}" class="btn btn-default" id="cancel-btn">Cancel</a>
+                      """),
             ),
-            ASTERISK_HELP_HTML
-        )
+            ASTERISK_HELP_HTML,
+            css_class="alert alert-primary"),
     )
 
     def __init__(self, *args, **kwargs):

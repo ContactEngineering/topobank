@@ -69,10 +69,7 @@
 
       {# --------------------- Django Form via Crispy Forms together with Vuejs ---------------------- #}
 
-      <div class="alert alert-primary">
-        <h2 class="alert-heading">Publication form</h2>
-        {% crispy form form.helper %}
-      </div> {# with headline "Publication form" #}
+      {% crispy form form.helper %}
 
       {% if form.errors %}
         {% for field in form %}
