@@ -958,7 +958,7 @@ class SurfaceDetailView(DetailView):
 
         # add formats to show citations for
         context['citation_flavors'] = [
-            ('Text form with link', 'html', False),  # title, flavor, use <pre><code>...</code></pre>
+            ('Text format with link', 'html', False),  # title, flavor, use <pre><code>...</code></pre>
             ('RIS format', 'ris', True),
             ('BibTeX format', 'bibtex', True),
             ('BibLaTeX format', 'biblatex', True),

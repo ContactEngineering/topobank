@@ -366,7 +366,7 @@ def test_how_to_cite(user_alice_logged_in, handle_usage_statistics):
     assert browser.is_text_present("How to cite")
     browser.links.find_by_partial_text("How to cite").click()
 
-    # Now the page shows a text form of a citation
+    # Now the page shows a citation in text format
     exp_pub_url = base_url.rstrip('/') + publication.get_absolute_url()
     exp_citation = f"Famous Scientist. ({publication.datetime.year}). contact.engineering. {surface_name} (Version 1). " + \
                    f"{exp_pub_url}"
