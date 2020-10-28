@@ -24,16 +24,20 @@ def versions_processor(request):
                     'Changelog': static('other/CHANGELOG.md')}), # needs 'manage.py collectstatic' before!
         dict(module='SurfaceTopography',
              version=SurfaceTopography.__version__,
-             links={'Website': 'https://github.com/ComputationalMechanics/SurfaceTopography'}),
+             links={'Website': 'https://github.com/ComputationalMechanics/SurfaceTopography',
+                    'Changelog': f'https://github.com/ComputationalMechanics/SurfaceTopography/blob/{SurfaceTopography.__version__}/SurfaceTopography/ChangeLog.md'}),
         dict(module='ContactMechanics',
              version=ContactMechanics.__version__,
-             links={'Website': 'https://github.com/ComputationalMechanics/ContactMechanics'}),
+             links={'Website': 'https://github.com/ComputationalMechanics/ContactMechanics',#
+                    'Changelog': f'https://github.com/ComputationalMechanics/ContactMechanics/blob/{ContactMechanics.__version__}/ContactMechanics/ChangeLog.md'}),
         dict(module='NuMPI',
              version=NuMPI.__version__,
-             links={'Website': 'https://github.com/IMTEK-Simulation/NuMPI'}),
+             links={'Website': 'https://github.com/IMTEK-Simulation/NuMPI',
+                    'Changelog': f'https://github.com/IMTEK-Simulation/NuMPI/blob/{NuMPI.__version__}/ChangeLog.md'}),
         dict(module='muFFT',
              version=muFFT.version.description(),
-             links={'Website': 'https://gitlab.com/muspectre/muspectre'}),
+             links={'Website': 'https://gitlab.com/muspectre/muspectre',
+                    'Changelog': f'https://gitlab.com/muspectre/muspectre/-/blob/{muFFT.version.description()}/CHANGELOG.md'}),
         dict(module='Django',
              version=django.__version__,
              links={'Website': 'https://www.djangoproject.com/'}),
@@ -43,7 +47,6 @@ def versions_processor(request):
         dict(module='Bokeh',
              version=bokeh.__version__,
              links={'Website': 'https://bokeh.pydata.org/en/latest/'}),
-
     ]
 
     return dict(versions=versions, contact_email_address=settings.CONTACT_EMAIL_ADDRESS)
