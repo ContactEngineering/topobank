@@ -45,40 +45,10 @@ def set_creator_if_needed(sender, instance, **kwargs):
         instance.creator = instance.surface.creator
 
 
-# @receiver(pre_save, sender=Topography)
-# def create_thumbnail(sender, instance, **kwargs):
-#     plot = instance.get_plot()
-#     # plot.output_backend = 'svg'
-#     # export_svgs(plot, filename='thumbnail.svg')
-#     # webdriver =
-#     #from selenium import webdriver
-#     #from webdriver_manager.firefox import GeckoDriverManager
-#     #geckodriver = webdriver.Firefox(executable_path=GeckoDriverManager().install())
-#     # Should use chromedriver by default since bokeh 2.0.0
-#     image = get_screenshot_as_png(plot, height=100, width=100, driver=None)
-#     img_io = io.StringIO()
-#     image.save(img_io, format='JPEG')
-#     instance.thumbnail = ContentFile(img_io.getvalue(), 'thumbnail.jpeg')
-
 @receiver(post_save, sender=Topography)
 def invalidate_cached_topography(sender, instance, **kwargs):
     cache.delete(instance.cache_key())
 
-
-# @receiver(pre_save, sender=Topography)
-# def create_thumbnail(sender, instance, **kwargs):
-#     plot = instance.get_plot()
-#     # plot.output_backend = 'svg'
-#     # export_svgs(plot, filename='thumbnail.svg')
-#     # webdriver =
-#     #from selenium import webdriver
-#     #from webdriver_manager.firefox import GeckoDriverManager
-#
-#     #geckodriver = webdriver.Firefox(executable_path=GeckoDriverManager().install())
-#     image = get_screenshot_as_png(plot, height=100, width=100, driver=None)
-#     img_io = io.StringIO()
-#     image.save(img_io, format='JPEG')
-#     instance.thumbnail = ContentFile(img_io.getvalue(), 'thumbnail.jpeg')
 
 def _remove_notifications(instance):
     ct = ContentType.objects.get_for_model(instance)
