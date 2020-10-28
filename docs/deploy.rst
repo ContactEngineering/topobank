@@ -369,6 +369,12 @@ Configures Python part: Django and Celery. You can use this as template:
     DJANGO_ADMIN_URL=<put here some random string>
     DJANGO_ALLOWED_HOSTS=contact.engineering
 
+    # Generating topography thumbnails with Firefox
+    # ------------------------------------------------------------------------------
+    # firefox binary, not the script!
+    FIREFOX_BINARY_PATH=/opt/conda/bin/FirefoxApp/firefox
+    GECKODRIVER_PATH=/opt/conda/bin/geckodriver
+
     # Security
     # ------------------------------------------------------------------------------
     # TIP: better off using DNS, however, redirect is OK too
@@ -1081,6 +1087,19 @@ Use the following management command:
 .. code:: bash
 
      docker-compose -f production.yml run --rm django python manage.py renew_thumbnails
+
+Note that in order to generate thumbnails, the following environment variables must be set correctly:
+
+.. list-table::
+    :widths: 25 75
+    :header-rows: 1
+
+    * - Environment Variable
+      - Comment
+    * - `FIREFOX_BINARY_PATH`
+      - absolute path to the firefox **binary**, not the script which is mostly first in `PATH`
+    * - `GECKODRIVER_PATH`
+      - absolute path to the geckodriver binary
 
 
 
