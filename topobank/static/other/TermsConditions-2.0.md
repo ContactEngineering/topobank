@@ -221,11 +221,9 @@ available through Contact.engineering.
 
 ## Limitation of Liability
 
-**CHECK COMMENT HERE**
-
 <ol>
 <li>Contact.engineering will not be liable to You for lost profits, outages, financial
-losses, economic benefits??? or loss of data or damage caused by
+losses, loss of economic benefits or loss of data or damage caused by
     <ol type="a">
     <li>the use or disclosure of user-generated Content;</li>
     <li>the use, suspension of use or the termination of use of the Service;</li>
@@ -339,28 +337,29 @@ user-friendly, more effective and more secure. You may, at any time, delete the 
 in the security settings of Your browser. You may configure Your browser settings to
 generally object to the use of cookies.
 
-### Categories of Data
+## Categories of Data
 
 We collect the following categories of personal data directly from You when You register
 and verify Your identity.
+
 - Master data
-  * Personal OpenResearcher and ContributorID (ORCID iD )
-  * First and last name
+  - Personal OpenResearcher and ContributorID (ORCID iD )
+  - First and last name
 - Contact details
-  * E-mail address
+  - E-mail address
 - Content data
-  * Research data, photos, video
+  - Research data, photos, video
 - Usage data
-  * Time and date of Your visit
-  * Website used for access (Referrer URL)
+  - Time and date of Your visit
+  - Website used for access (Referrer URL)
 - Metadata / Communication Data
-  * IP address of Device
-  * Name and URL of the accessed file
-  * Browser used and, if applicable, the operating system 
+  - IP address of Device
+  - Name and URL of the accessed file
+  - Browser used and, if applicable, the operating system 
     of Your computer and the name of Your access provider
-  * Name of Your Internet service provider
+  - Name of Your Internet service provider
   
-### Legal Basis of Data Processing
+## Legal Basis of Data Processing
 - Art. 6(1)(b) and (e) and Art. 6(3) of the GDPR
 
   This data are collected and processed for the purpose of performing the license
@@ -375,7 +374,7 @@ and verify Your identity.
   Processing is necessary for the purposes of the legitimate interests pursued by the
   controller or by a third party (meta data, communication data, usage data).
   
-### Data Security
+## Data Security
 
 We have adopted comprehensive technical and organizational measures to protect Your
 personal data against unauthorized access, abuse, loss and other external interference.
@@ -385,7 +384,7 @@ state of the art.
 All data processed in connection with the Service are stored on the servers of the
 University of Freiburg’s data center.
 
-### Storage Duration or Criteria for Determining the Duration of Storage
+## Storage Duration or Criteria for Determining the Duration of Storage
 
 The above-mentioned data will be processed for as long as this is necessary to facilitate
 the use of the Contact.engineering Service or to fulfill Our obligations or the statutory
@@ -393,7 +392,7 @@ obligations.
 
 As a rule, account data are stored securely until the deletion of the user's account and
 then deleted within 3 months from the time that he/she closes his/her Account. Data that
-the user has explicitly published under a CC license will be retained after deletion of the
+the user has explicitly published will be retained after deletion of the
 user's Account.
 
 Where data are recorded for the purpose of the delivery of the Website, this is the case
@@ -403,13 +402,13 @@ As a rule, the IP address and hardware information of a Device are usually store
 server’s access and error log for a period of seven days so that any errors may be
 analyzed.
 
-### Recipient Categories
+## Recipient Categories
 
 Internal recipients are those employees who require the data so that they can perform
 their tasks. Should We be required by law to disclose data, additional recipients will be
 added.
 
-### Your Rights as a Data Subject
+## Your Rights as a Data Subject
 
 1. You have the right to obtain information from the University of Freiburg at any
 time about the personal data that We have stored about You and to request the
@@ -431,7 +430,7 @@ Stuttgart, e-mail <a href="mailto:poststelle@lfdi.bwl.de">poststelle@lfdi.bwl.de
 5. If You wish to exercise any legal rights against the University of Freiburg, please
 contact <a href="mailto:datenschutz@uni-freiburg.de">datenschutz@uni-freiburg.de</a>.
 
-### Information About the Right to Object Pursuant to Article 21(1) of the GDPR
+## Information About the Right to Object Pursuant to Article 21(1) of the GDPR
 
 Where processing is based on Art. 6(1)(e) of the GDPR (performance of data processing
 carried out in the public interest), You are entitled to object, at any time, to the
@@ -490,7 +489,6 @@ please stop using the website and the Service.
 If you have any questions about these Terms and Conditions, You can contact us:
 
 By email: <a href="mailto:topobank@imtek.uni-freiburg.de">topobank@imtek.uni-freiburg.de</a>
-
 
 
 
