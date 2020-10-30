@@ -735,6 +735,7 @@ class SelectView(TemplateView):
             context['sharing_status_filter_choices'] = {
                 'published': SHARING_STATUS_FILTER_CHOICES['published']
             }
+            select_tab_state['sharing_status'] = 'published'  # this only choice should be selected
         else:
             context['sharing_status_filter_choices'] = SHARING_STATUS_FILTER_CHOICES
 
