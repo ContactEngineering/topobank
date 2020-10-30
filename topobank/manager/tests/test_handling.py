@@ -50,7 +50,7 @@ def test_empty_surface_selection(client):
 # of the topobank code
 #
 @pytest.mark.django_db
-def test_upload_topography_di(client):
+def test_upload_topography_di(client, handle_usage_statistics):
 
     input_file_path = Path(FIXTURE_DIR + '/example3.di')  # maybe use package 'pytest-datafiles' here instead
     description = "test description"
@@ -255,7 +255,8 @@ def test_upload_topography_npy(client):
 def test_upload_topography_txt(client, django_user_model, input_filename,
                                exp_datafile_format,
                                exp_resolution_x, exp_resolution_y,
-                               physical_sizes_to_be_set, exp_physical_sizes):
+                               physical_sizes_to_be_set, exp_physical_sizes,
+                               handle_usage_statistics):
 
     input_file_path = Path(input_filename)
     expected_toponame = input_file_path.name
@@ -617,7 +618,7 @@ def test_trying_upload_of_corrupted_topography_file(client, django_user_model):
 
 
 @pytest.mark.django_db
-def test_topography_list(client, two_topos, django_user_model):
+def test_topography_list(client, two_topos, django_user_model, handle_usage_statistics):
 
     username = 'testuser'
     password = 'abcd$1234'
@@ -654,7 +655,7 @@ def topo_example4():
 
 
 @pytest.mark.django_db
-def test_edit_topography(client, two_topos, django_user_model, topo_example3):
+def test_edit_topography(client, two_topos, django_user_model, topo_example3, handle_usage_statistics):
 
     new_name = "This is a better name"
     new_measurement_date = "2018-07-01"
@@ -732,7 +733,7 @@ def test_edit_topography(client, two_topos, django_user_model, topo_example3):
 
 
 @pytest.mark.django_db
-def test_edit_line_scan(client, one_line_scan, django_user_model):
+def test_edit_line_scan(client, one_line_scan, django_user_model, handle_usage_statistics):
 
     new_name = "This is a better name"
     new_measurement_date = "2018-07-01"
@@ -1037,7 +1038,7 @@ def test_only_positive_size_values_on_edit(client, django_user_model):
 #######################################################################
 
 @pytest.mark.django_db
-def test_create_surface(client, django_user_model):
+def test_create_surface(client, django_user_model, handle_usage_statistics):
 
     description = "My description. hasdhahdlahdla"
     name = "Surface 1 kjfhakfhökadsökdf"

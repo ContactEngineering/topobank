@@ -12,6 +12,8 @@
 - removed plottable dependency, using now bokeh for bandwidth 
   plot (#238) 
 - added terms and conditions version 2.0 (#491)
+- added anonymous counts for publication and surface
+  views and downloads (#511) 
 
 ## 0.8.3 (2020-06-26)
 

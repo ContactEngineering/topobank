@@ -4,6 +4,7 @@ from django.db import transaction
 from django.db.models import F
 from trackstats.models import StatisticByDate, StatisticByDateAndObject, Period
 
+
 def register_metrics():
     """Registers all metrics used with package 'trackstats'.
 
@@ -29,6 +30,26 @@ def register_metrics():
         domain=Domain.objects.VIEWS,
         ref='analyses_results_view_count',
         name='Number of views for Analyses results'
+    )
+    Metric.objects.SURFACE_VIEW_COUNT = Metric.objects.register(
+        domain=Domain.objects.VIEWS,
+        ref='surface_view_count',
+        name='Number of views for surfaces'
+    )
+    Metric.objects.PUBLICATION_VIEW_COUNT = Metric.objects.register(
+        domain=Domain.objects.VIEWS,
+        ref='publication_view_count',
+        name='Number of requests for publication URLs'
+    )
+
+    Domain.objects.DOWNLOADS = Domain.objects.register(
+        ref='downloads',
+        name='Downloads'
+    )
+    Metric.objects.SURFACE_DOWNLOAD_COUNT = Metric.objects.register(
+        domain=Domain.objects.DOWNLOADS,
+        ref='surface_download_count',
+        name='Number of downloads of surfaces'
     )
 
     Domain.objects.USERS = Domain.objects.register(
@@ -117,6 +138,7 @@ def increase_statistics_by_date(metric, period=Period.DAY, increment=1):
             metric=metric,
             value=increment,
             period=period)
+
 
 @transaction.atomic
 def increase_statistics_by_date_and_object(metric, obj, period=Period.DAY, increment=1):

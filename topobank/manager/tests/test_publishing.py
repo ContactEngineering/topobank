@@ -126,7 +126,7 @@ def test_surface_deepcopy():
 
 
 @pytest.mark.django_db
-def test_switch_versions_on_properties_tab(client, settings):
+def test_switch_versions_on_properties_tab(client, settings, handle_usage_statistics):
 
     settings.MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS = None
 
@@ -177,7 +177,7 @@ def test_switch_versions_on_properties_tab(client, settings):
 
 
 @pytest.mark.django_db
-def test_notification_saying_new_version_exists(client, settings):
+def test_notification_saying_new_version_exists(client, settings, handle_usage_statistics):
 
     settings.MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS = None
 
@@ -215,7 +215,7 @@ def test_notification_saying_new_version_exists(client, settings):
 
 @pytest.mark.parametrize("license", settings.CC_LICENSE_INFOS.keys())
 @pytest.mark.django_db
-def test_license_in_surface_download(client, license):
+def test_license_in_surface_download(client, license, handle_usage_statistics):
     import io
     user1 = UserFactory()
     user2 = UserFactory()

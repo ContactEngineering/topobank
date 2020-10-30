@@ -50,7 +50,7 @@ from .serializers import SurfaceSerializer, TagSerializer
 from .utils import selected_instances, bandwidths_data, get_topography_reader, tags_for_user, get_reader_infos, \
     mailto_link_for_reporting_an_error, current_selection_as_basket_items, filtered_surfaces, \
     filtered_topographies, get_search_term, get_category, get_sharing_status, get_tree_mode
-from ..usage_stats.utils import increase_statistics_by_date
+from ..usage_stats.utils import increase_statistics_by_date, increase_statistics_by_date_and_object
 from ..users.models import User
 from ..users.utils import get_default_group
 from ..publication.models import Publication, MAX_LEN_AUTHORS_FIELD
@@ -787,6 +787,12 @@ class SurfaceDetailView(DetailView):
 
         surface = self.object
         #
+        # Count this event for statistics
+        #
+        increase_statistics_by_date_and_object(Metric.objects.SURFACE_VIEW_COUNT,
+                                               period=Period.DAY, obj=surface)
+
+        #
         # bandwidth data
         #
         bw_data = bandwidths_data(surface.topography_set.all())
@@ -1502,6 +1508,9 @@ def download_surface(request, surface_id):
     response = HttpResponse(bytes.getvalue(),
                             content_type='application/x-zip-compressed')
     response['Content-Disposition'] = 'attachment; filename="{}"'.format('surface.zip')
+
+    increase_statistics_by_date_and_object(Metric.objects.SURFACE_DOWNLOAD_COUNT,
+                                           period=Period.DAY, obj=surface)
 
     return response
 

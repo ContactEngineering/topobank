@@ -97,7 +97,8 @@ def test_bandwidth_error_message_in_dict_when_problems_while_loading(topography_
     assert bd2['upper_bound'] is not None
 
 @pytest.mark.django_db
-def test_bandwidth_error_message_in_UI_when_problems_while_loading(client, topography_loaded_from_broken_file):
+def test_bandwidth_error_message_in_UI_when_problems_while_loading(client, topography_loaded_from_broken_file,
+                                                                   handle_usage_statistics):
     #
     # Theoretically loading of a topography can fail during
     # creation of the bandwidth plot, although it worked before.

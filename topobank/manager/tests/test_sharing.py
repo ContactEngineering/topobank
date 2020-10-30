@@ -9,7 +9,7 @@ from .utils import FIXTURE_DIR, SurfaceFactory, TopographyFactory, UserFactory
 from topobank.utils import assert_in_content, assert_not_in_content, assert_no_form_errors
 
 
-def test_individual_read_access_permissions(client, django_user_model):
+def test_individual_read_access_permissions(client, django_user_model, handle_usage_statistics):
 
     #
     # create database objects
@@ -70,7 +70,7 @@ def test_individual_read_access_permissions(client, django_user_model):
 
 
 @pytest.mark.django_db
-def test_list_surface_permissions(client):
+def test_list_surface_permissions(client, handle_usage_statistics):
 
     #
     # create database objects
@@ -115,7 +115,7 @@ def test_list_surface_permissions(client):
 
 
 @pytest.mark.django_db
-def test_appearance_buttons_based_on_permissions(client):
+def test_appearance_buttons_based_on_permissions(client, handle_usage_statistics):
 
     password = "secret"
 
@@ -405,7 +405,7 @@ def test_sharing_info_table(client):
 
 
 @pytest.mark.django_db
-def test_share_surface_through_UI(client):
+def test_share_surface_through_UI(client, handle_usage_statistics):
 
     user1 = UserFactory()
     user2 = UserFactory()
