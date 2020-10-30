@@ -7,6 +7,7 @@ from topobank.manager.tests.utils import TopographyFactory
 
 from ..utils import increase_statistics_by_date, increase_statistics_by_date_and_object
 
+
 @pytest.mark.django_db
 def test_increase_statistics_by_date(handle_usage_statistics):
 
