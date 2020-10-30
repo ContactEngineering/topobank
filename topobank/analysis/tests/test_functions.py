@@ -14,6 +14,7 @@ from topobank.analysis.functions import (
 # Tests for line scans
 ###############################################################################
 
+
 def test_height_distribution_simple_line_scan():
 
     x = np.array((1,2,3))
@@ -444,6 +445,7 @@ def test_contact_mechanics_incompatible_topography():
     with pytest.raises(IncompatibleTopographyException):
         contact_mechanics(t)
 
+
 def test_contact_mechanics_whether_given_pressures_in_result():
 
     y = np.arange(10).reshape((1, -1))
@@ -456,7 +458,7 @@ def test_contact_mechanics_whether_given_pressures_in_result():
 
     class ProgressRecorder:
         def set_progress(self, a, nsteps):
-            pass # dummy
+            pass  # dummy
 
     given_pressures = [2e-3, 1e-2]
 
@@ -464,3 +466,31 @@ def test_contact_mechanics_whether_given_pressures_in_result():
                                progress_recorder=ProgressRecorder())
 
     np.testing.assert_almost_equal(result['mean_pressures'], given_pressures)
+
+
+@pytest.mark.parametrize('periodic', [True, False])
+def test_contact_mechanics_effective_kwargs_in_result(periodic):
+
+    y = np.arange(10).reshape((1, -1))
+    x = np.arange(5).reshape((-1, 1))
+
+    arr = -2 * y + 0 * x  # only slope in y direction
+
+    info = dict(unit='nm')
+    t = Topography(arr, (10, 5), info=info, periodic=periodic).detrend('center')
+
+    class ProgressRecorder:
+        def set_progress(self, a, nsteps):
+            pass  # dummy
+
+    result = contact_mechanics(t, nsteps=10, storage_prefix='test/',
+                               progress_recorder=ProgressRecorder())
+
+    exp_effective_kwargs = dict(
+        substrate_str=('' if periodic else 'non')+'periodic',
+        nsteps=10,
+        pressures=None,
+        hardness=None,
+        maxiter=100,
+    )
+    assert result['effective_kwargs'] == exp_effective_kwargs

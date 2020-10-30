@@ -166,8 +166,8 @@ def analysis_function(card_view_flavor="simple", name=None, automatic=False):
         #    # another recorder updated by a celery task
 
         func.card_view_flavor = card_view_flavor  # will be used when choosing the right view on request
-
         return func
+
     return register_decorator
 
 
@@ -943,5 +943,12 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
         mean_gaps=mean_gap[sort_order]/rms_height,
         converged=converged[sort_order],
         data_paths=data_paths[sort_order],
+        effective_kwargs = dict(
+            substrate_str=substrate_str,
+            hardness=hardness,
+            nsteps=nsteps,
+            pressures=pressures,
+            maxiter=maxiter,
+        )
     )
 
