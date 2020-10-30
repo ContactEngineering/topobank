@@ -4,7 +4,7 @@
 #
 #    pip-compile --output-file=production.txt production.in
 #
-amqp==5.0.1               # via -r ./base.txt, kombu
+amqp==2.6.1               # via -r ./base.txt, kombu
 argon2-cffi==20.1.0       # via -r ./base.txt
 babel==2.8.0              # via -r ./base.txt, celery-flower
 billiard==3.6.3.0         # via -r ./base.txt, celery
@@ -13,14 +13,11 @@ boto3==1.16.1             # via -r ./base.txt
 botocore==1.19.1          # via -r ./base.txt, boto3, s3transfer
 celery-flower==1.0.1      # via -r ./base.txt
 celery-progress==0.0.14   # via -r ./base.txt
-celery==5.0.1             # via -r ./base.txt, celery-flower
+celery==4.4.7             # via -r ./base.txt, celery-flower
 certifi==2020.6.20        # via -r ./base.txt, requests
 cffi==1.14.3              # via -r ./base.txt, argon2-cffi, cryptography
 cftime==1.2.1             # via -r ./base.txt, netcdf4
 chardet==3.0.4            # via -r ./base.txt, requests
-click-didyoumean==0.0.3   # via -r ./base.txt, celery
-click-repl==0.1.6         # via -r ./base.txt, celery
-click==7.1.2              # via -r ./base.txt, celery, click-didyoumean, click-repl
 contactmechanics==0.90.1  # via -r ./base.txt
 coreapi==2.3.3            # via -r ./base.txt
 coreschema==0.0.4         # via -r ./base.txt, coreapi
@@ -62,7 +59,7 @@ jdcal==1.4.1              # via -r ./base.txt, openpyxl
 jinja2==2.11.2            # via -r ./base.txt, bokeh, coreschema
 jmespath==0.10.0          # via -r ./base.txt, boto3, botocore
 jsonfield==3.1.0          # via -r ./base.txt, django-notifications-hq
-kombu==5.0.2              # via -r ./base.txt, celery
+kombu==4.6.11             # via -r ./base.txt, celery
 markdown2==2.3.10         # via -r ./base.txt
 markupsafe==1.1.1         # via -r ./base.txt, jinja2
 mufft==0.11.1             # via -r ./base.txt, contactmechanics, surfacetopography
@@ -75,7 +72,6 @@ packaging==20.4           # via -r ./base.txt, bokeh, pint
 pandas==1.1.3             # via -r ./base.txt, xarray
 pillow==8.0.0             # via -r ./base.txt, bokeh
 pint==0.16.1              # via -r ./base.txt
-prompt-toolkit==3.0.8     # via -r ./base.txt, click-repl
 psycopg2-binary==2.8.5    # via -r production.in
 pycparser==2.20           # via -r ./base.txt, cffi
 pygments==2.7.1           # via -r ./base.txt
@@ -94,7 +90,7 @@ s3transfer==0.3.3         # via -r ./base.txt, boto3
 scipy==1.5.3              # via -r ./base.txt, numpi
 selenium==3.141.0         # via -r ./base.txt
 short-url==1.2.2          # via -r ./base.txt
-six==1.15.0               # via -r ./base.txt, argon2-cffi, click-repl, cryptography, h5py, packaging, python-dateutil, python-memcached
+six==1.15.0               # via -r ./base.txt, argon2-cffi, cryptography, h5py, packaging, python-dateutil, python-memcached
 sqlparse==0.4.1           # via -r ./base.txt, django
 surfacetopography==0.91.5  # via -r ./base.txt, contactmechanics
 swapper==1.1.2.post1      # via -r ./base.txt, django-notifications-hq
@@ -103,8 +99,7 @@ tornado==5.1.1            # via -r ./base.txt, bokeh, celery-flower
 typing-extensions==3.7.4.3  # via -r ./base.txt, bokeh
 uritemplate==3.0.1        # via -r ./base.txt, coreapi
 urllib3==1.25.11          # via -r ./base.txt, botocore, requests, selenium
-vine==5.0.0               # via -r ./base.txt, amqp, celery
-wcwidth==0.2.5            # via -r ./base.txt, prompt-toolkit
+vine==1.3.0               # via -r ./base.txt, amqp, celery
 whitenoise==5.2.0         # via -r ./base.txt
 xarray==0.16.1            # via -r ./base.txt
 zipp==3.3.1               # via -r ./base.txt, importlib-metadata

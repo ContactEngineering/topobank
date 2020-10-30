@@ -53,7 +53,7 @@ django-guardian
 
 # Celery
 # django-kombu # is this still needed? See https://pypi.org/project/django-kombu/
-celery
+celery<5.0
 # pylibmc is also used for memcached in production
 pylibmc
 # librabbitmq>=2.0
