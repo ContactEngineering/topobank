@@ -91,6 +91,8 @@ def perform_analysis(self, analysis_id):
         analysis.task_state = task_state
         analysis.result = pickle.dumps(result)  # can also be an exception in case of errors!
         analysis.end_time = timezone.now()  # with timezone
+        if 'effective_kwargs' in result:
+            analysis.kwargs = pickle.dumps(result['effective_kwargs'])
         analysis.save()
 
     #
