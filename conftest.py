@@ -8,6 +8,7 @@ import logging
 from trackstats.models import Domain, Metric
 
 from topobank.analysis.functions import register_all
+from topobank.manager.tests.utils import UserFactory
 
 _log = logging.getLogger(__name__)
 
@@ -35,17 +36,13 @@ def handle_usage_statistics():
 
 
 @pytest.fixture(scope='function')
-def user_alice(django_user_model):
-    username = 'alice'
-    user = django_user_model.objects.create_user(username=username, password=PASSWORD, name='Alice Wonderland')
-    return user
+def user_alice():
+    return UserFactory(username='alice', password=PASSWORD, name='Alice Wonderland')
 
 
 @pytest.fixture(scope='function')
-def user_bob(django_user_model):
-    username = 'bob'
-    user = django_user_model.objects.create_user(username=username, password=PASSWORD, name='Bob Marley')
-    return user
+def user_bob():
+    return UserFactory(username='bob', password=PASSWORD, name='Bob Marley')
 
 
 @pytest.fixture(scope='function')

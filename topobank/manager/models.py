@@ -258,7 +258,9 @@ class Surface(models.Model):
         pub = Publication.objects.create(surface=copy, original_surface=self,
                                          authors=authors,
                                          license=license,
-                                         version=version, publisher=self.creator)
+                                         version=version,
+                                         publisher=self.creator,
+                                         publisher_orcid_id=self.creator.orcid_id)
 
         _log.info(f"Published surface {self.name} (id: {self.id}) "+\
                   f"with license {license}, version {version}, authors '{authors}'")

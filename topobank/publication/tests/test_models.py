@@ -26,6 +26,11 @@ def example_pub():
 
 
 @pytest.mark.django_db
+def test_publication_orcid_id(example_pub):
+    assert example_pub.publisher_orcid_id == example_pub.surface.creator.orcid_id
+
+
+@pytest.mark.django_db
 def test_citation_html(rf, example_pub):
 
     request = rf.get(example_pub.get_absolute_url())

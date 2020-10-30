@@ -32,6 +32,7 @@ class Publication(models.Model):
     original_surface = models.ForeignKey("manager.Surface", on_delete=models.SET_NULL,
                                          null=True, related_name='derived_publications')
     publisher = models.ForeignKey("users.User", on_delete=models.PROTECT)
+    publisher_orcid_id = models.CharField(max_length=19, default='')  # 16 digits including 3 dashes
     version = models.PositiveIntegerField(default=1)
     datetime = models.DateTimeField(auto_now_add=True)
     license = models.CharField(max_length=12, choices=LICENSE_CHOICES, blank=False, default='')

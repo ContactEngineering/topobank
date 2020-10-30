@@ -2,7 +2,7 @@
 
 ## 0.9.0 (not published yet)
 
-- users can publish their surfaces (#317, #510, #517)
+- users can publish their surfaces (#317, #510, #517, #525)
 - anonymous session are allowed, users can browse published
   surfaces and analyses without being signed in (#164)
 - added thumbnail gallery for topographies in a surface (#514)  
