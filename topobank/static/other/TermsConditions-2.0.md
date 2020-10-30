@@ -390,10 +390,11 @@ The above-mentioned data will be processed for as long as this is necessary to f
 the use of the Contact.engineering Service or to fulfill Our obligations or the statutory
 obligations.
 
-As a rule, account data are stored securely until the deletion of the user's account and
-then deleted within 3 months from the time that he/she closes his/her Account. Data that
-the user has explicitly published will be retained after deletion of the user's Account, 
-together with ORCID iD of the user.
+As a rule, account data are stored securely until the deletion of the user's Account and
+then deleted within 3 months from the time that he/she closes his/her Account. 
+After the deletion of a user’s Account, data that this user has published using 
+Our application will be retained together with the ORCID iD for the purposes of dealing
+with any legal issues or violations of good scientific practice.
 
 Where data are recorded for the purpose of the delivery of the Website, this is the case
 when the respective session is ended.
