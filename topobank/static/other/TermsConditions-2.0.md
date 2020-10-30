@@ -392,8 +392,8 @@ obligations.
 
 As a rule, account data are stored securely until the deletion of the user's account and
 then deleted within 3 months from the time that he/she closes his/her Account. Data that
-the user has explicitly published will be retained after deletion of the
-user's Account.
+the user has explicitly published will be retained after deletion of the user's Account, 
+together with ORCID iD of the user.
 
 Where data are recorded for the purpose of the delivery of the Website, this is the case
 when the respective session is ended.
