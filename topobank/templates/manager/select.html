@@ -53,7 +53,7 @@
               </select>
             </div>
 
-            {# Display select for sgaring status #}
+            {# Display select for sharing status #}
             <div class="form-group col-md-2">
               <select name="sharing_status" class="form-control" v-model="sharing_status" @change="reload">
                   <option v-for="(choice_label, choice_val) in sharing_status_filter_choices"
