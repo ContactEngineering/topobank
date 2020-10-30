@@ -13,7 +13,9 @@
   plot (#238) 
 - added terms and conditions version 2.0 (#491)
 - added anonymous counts for publication and surface
-  views and downloads (#511) 
+  views and downloads (#511)
+- Fixing display of applied boundary conditions for contact
+  mechanics calculation (#519). Recalculation needed.   
 
 ## 0.8.3 (2020-06-26)
 
