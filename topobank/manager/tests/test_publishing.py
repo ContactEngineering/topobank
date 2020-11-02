@@ -371,6 +371,23 @@ def test_publishing_wrong_license():
     assert form.errors['license'] == ['Select a valid choice. fantasy is not one of the available choices.']
 
 
+def test_author_is_safe():
+    malicious_author = "<script>alert('hi')</script>"
+
+    form_data = {
+        'author_0': malicious_author,
+        'num_author_fields': 1,
+        'license': 'cc0-1.0',
+        'agreed': True,
+        'copyright_hold': True,
+    }
+    form = SurfacePublishForm(data=form_data, num_author_fields=1)
+    assert form.is_valid()
+
+    cleaned = form.clean()
+    exp_authors = "&lt;script&gt;alert(&#39;hi&#39;)&lt;/script&gt;"
+    assert cleaned['authors'] == exp_authors
+
 
 
 
