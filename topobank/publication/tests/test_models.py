@@ -2,6 +2,8 @@ import pytest
 import datetime
 from freezegun import freeze_time
 
+from django.shortcuts import reverse
+
 from topobank.manager.tests.utils import SurfaceFactory, UserFactory
 
 
@@ -115,3 +117,9 @@ def test_citation_biblatex(rf, example_pub):
         result_biblatex = example_pub.get_citation('biblatex', request).strip()
 
     assert exp_biblatex == result_biblatex
+
+
+@pytest.mark.django_db
+def test_redirection_invalid_publication_link(client):
+    response = client.get(reverse('publication:go', kwargs=dict(short_url='THISISNONSENSE')))
+    assert response.status_code == 404
