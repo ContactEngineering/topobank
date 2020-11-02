@@ -15,7 +15,8 @@
 - added anonymous counts for publication and surface
   views and downloads (#511)
 - Fixing display of applied boundary conditions for contact
-  mechanics calculation (#519). Recalculation needed.   
+  mechanics calculation (#519). Recalculation needed.
+- Removed banner that this is a beta release (#531)  
 
 ## 0.8.3 (2020-06-26)
 
