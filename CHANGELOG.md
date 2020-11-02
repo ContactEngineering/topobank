@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-## 0.9.0 (not published yet)
+## 0.9.0 (2020-11-02)
 
 - users can publish their surfaces (#317, #510, #517, #525)
 - anonymous session are allowed, users can browse published
