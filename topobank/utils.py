@@ -7,6 +7,7 @@ from django.test import SimpleTestCase
 
 DEFAULT_DEBUG_HTML_FILENAME = '/tmp/response.html'
 
+
 def export_reponse_as_html(response, fname=DEFAULT_DEBUG_HTML_FILENAME):
     """
     Helper function which can be used for debugging.
@@ -18,6 +19,7 @@ def export_reponse_as_html(response, fname=DEFAULT_DEBUG_HTML_FILENAME):
 
     f.write(response.content.decode('utf-8').replace('\\n','\n'))
     f.close()
+
 
 def assert_in_content(response, x):
     """Check whether x is in the content of given response"""
@@ -34,6 +36,7 @@ def assert_in_content(response, x):
 
     assert in_content, f"Cannot find '{representation}' in this content:\n{response.content}.\n\n"+\
         f"See file://{DEFAULT_DEBUG_HTML_FILENAME} in order to view the output."
+
 
 def assert_not_in_content(response, x):
     """Check whether x is NOT in the content of given response"""
@@ -97,6 +100,7 @@ def assert_form_error(response, error_msg_fragment, field_name=None):
     assert any((error_msg_fragment in err) for err in errors), \
         f"Form has errors as expected, but no error contains the given error message fragment '{error_msg_fragment}'."+\
         f" Instead: {errors}"
+
 
 # abbreviation for use with pytest
 assert_redirects = SimpleTestCase().assertRedirects
