@@ -1230,7 +1230,7 @@ class SurfacePublishView(FormView):
 
     def get_initial(self):
         initial = super().get_initial()
-        initial['author_0'] = self.request.user.name
+        initial['author_0'] = ''
         initial['num_author_fields'] = 1
         return initial
 

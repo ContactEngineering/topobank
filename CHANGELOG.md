@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 0.9.2 (2020-11-02)
+
+- fixed XSS issue
+
 ## 0.9.1 (2020-11-02)
 
 - fixed missing dependencies for plotting in production

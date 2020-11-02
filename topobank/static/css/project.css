@@ -221,7 +221,7 @@ td.ellipsis {
 
 /** improve readability of terms document */
 section[title="Terms and Conditions"] div.toc-container, #tc-terms-html {
-  width: 50%;
+  width: 65%;
   -moz-osx-font-smoothing: grayscale;
   -webkit-font-smoothing: antialiased !important;
   -moz-font-smoothing: antialiased !important;

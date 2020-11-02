@@ -1,6 +1,7 @@
 from django.forms import forms, ModelMultipleChoiceField
 from django import forms
 from django_select2.forms import ModelSelect2MultipleWidget
+from django.utils.html import escape as escape_html
 
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Submit, Layout, Field, HTML, Div, Fieldset
@@ -643,7 +644,7 @@ class SurfacePublishForm(forms.Form):
             raise forms.ValidationError(msg, code='authors_too_long',
                                         params=dict(max_len=MAX_LEN_AUTHORS_FIELD))
 
-        cleaned_data['authors'] = authors_string
+        cleaned_data['authors'] = escape_html(authors_string)  # prevent XSS attacks
 
         return cleaned_data
 
