@@ -74,6 +74,11 @@ class PublishedSurfaceManager(models.Manager):
         return super().get_queryset().exclude(publication__isnull=True)
 
 
+class UnpublishedSurfaceManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(publication__isnull=True)
+
+
 class Surface(models.Model):
     """Physical Surface.
 
@@ -95,6 +100,7 @@ class Surface(models.Model):
 
     objects = models.Manager()
     published = PublishedSurfaceManager()
+    unpublished = UnpublishedSurfaceManager()
 
     class Meta:
         ordering = ['name']

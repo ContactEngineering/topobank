@@ -59,7 +59,7 @@ def test_welcome_page_statistics(client, test_instances, with_publication):
     assert_in_content(response, '<div class="welcome-page-statistics">2</div> surfaces in database')
     assert_in_content(response, '<div class="welcome-page-statistics">1</div> individual topographies')
     assert_in_content(response, '<div class="welcome-page-statistics">1</div> computed analyses')
-    assert_in_content(response, '<div class="welcome-page-statistics">0</div> surfaces with you')
+    assert_in_content(response, '<div class="welcome-page-statistics">0</div> surfaces of other users')
 
     client.logout()
 
@@ -72,7 +72,11 @@ def test_welcome_page_statistics(client, test_instances, with_publication):
     assert_in_content(response, '<div class="welcome-page-statistics">0</div> surfaces in database')
     assert_in_content(response, '<div class="welcome-page-statistics">0</div> individual topographies')
     assert_in_content(response, '<div class="welcome-page-statistics">0</div> computed analyses')
-    assert_in_content(response, '<div class="welcome-page-statistics">1</div> surfaces with you')
+    if with_publication:
+        num_access = 2
+    else:
+        num_access = 1
+    assert_in_content(response, f'<div class="welcome-page-statistics">{num_access}</div> surfaces of other users')
 
     client.logout()
 

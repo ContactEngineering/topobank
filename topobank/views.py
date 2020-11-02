@@ -12,9 +12,9 @@ from termsandconditions.models import TermsAndConditions
 from termsandconditions.views import TermsView as OrigTermsView, AcceptTermsView
 
 from topobank.users.models import User
-from topobank.manager.models import Surface, Topography
-from topobank.analysis.models import Analysis
+from topobank.manager.models import Surface
 from topobank.manager.utils import get_reader_infos
+from topobank.usage_stats.utils import current_statistics
 
 
 class HomeView(TemplateView):
@@ -27,19 +27,18 @@ class HomeView(TemplateView):
         if user.is_anonymous:
             anon = guardian_user_model().get_anonymous()
             context['num_users'] = User.objects.filter(Q(is_active=True) & ~Q(pk=anon.pk)).count()
-            context['num_surfaces'] = Surface.objects.filter().count()
-            context['num_topographies'] = Topography.objects.filter().count()
-            context['num_analyses'] = Analysis.objects.filter().count()
+
+            current_stats = current_statistics()
         else:
-            surfaces = Surface.objects.filter(creator=user)
-            topographies = Topography.objects.filter(surface__in=surfaces)
-            analyses = Analysis.objects.filter(topography__in=topographies)
-            context['num_surfaces'] = surfaces.count()
-            context['num_topographies'] = topographies.count()
-            context['num_analyses'] = analyses.count()
+            current_stats = current_statistics(user)
+
             # count surfaces you can view, but you are not creator
             context['num_shared_surfaces'] = get_objects_for_user(user, 'view_surface', klass=Surface) \
                 .filter(~Q(creator=user)).count()
+
+        context['num_surfaces'] = current_stats['num_surfaces_excluding_publications']
+        context['num_topographies'] = current_stats['num_topographies_excluding_publications']
+        context['num_analyses'] = current_stats['num_analyses_excluding_publications']
 
         return context
 

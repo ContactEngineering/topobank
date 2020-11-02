@@ -18,7 +18,9 @@ from topobank.analysis.models import Analysis, Configuration, AnalysisCollection
 from topobank.manager.models import Topography, Surface
 from topobank.users.models import User
 from topobank.analysis.functions import IncompatibleTopographyException
-from topobank.usage_stats.utils import increase_statistics_by_date, increase_statistics_by_date_and_object
+from topobank.usage_stats.utils import increase_statistics_by_date, increase_statistics_by_date_and_object,\
+                                        current_statistics
+
 
 EXCEPTION_CLASSES_FOR_INCOMPATIBILITIES = (IncompatibleTopographyException, IncompatibleFormulationError)
 
@@ -191,18 +193,22 @@ def save_landing_page_statistics():
     #
     # Number of surfaces, topographies, analyses
     #
+    # Publications should not increase these numbers
+    #
+    current_stats = current_statistics()
+
     StatisticByDate.objects.record(
         metric=Metric.objects.SURFACE_COUNT,
-        value=Surface.objects.filter().count(),
+        value=current_stats['num_surfaces_excluding_publications'],
         period=Period.DAY
     )
     StatisticByDate.objects.record(
         metric=Metric.objects.TOPOGRAPHY_COUNT,
-        value=Topography.objects.filter().count(),
+        value=current_stats['num_topographies_excluding_publications'],
         period=Period.DAY
     )
     StatisticByDate.objects.record(
         metric=Metric.objects.ANALYSIS_COUNT,
-        value=Analysis.objects.filter().count(),
+        value=current_stats['num_analyses_excluding_publications'],
         period=Period.DAY
     )

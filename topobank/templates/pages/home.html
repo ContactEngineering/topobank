@@ -90,15 +90,15 @@
 
               {% if not is_anonymous %}
               <div class="{% column_div_class is_anonymous %}">
-                <a href="{% url 'manager:sharing-info' %}" class="card-link">
+                <a href="{% url 'manager:select' %}" class="card-link">
                   <div class="card text-white bg-success o-hidden h-100">
                     <div class="card-body">
                       <div class="card-body-icon">
                         <i class="fa fa-fw fa-share-alt"></i>
                       </div>
                       <div class="mr-2">
-                        Other users shared
-                        <div class="welcome-page-statistics">{{ num_shared_surfaces }}</div> surfaces with you.
+                        You have access to
+                        <div class="welcome-page-statistics">{{ num_shared_surfaces }}</div> surfaces of other users.
                       </div>
                     </div>
                   </div>
@@ -144,6 +144,7 @@
             <h2>Sharing</h2>
              <p><em>Surfaces</em> can be <em>shared</em> with others for collaboration. You decide whether your
                collaborators can modify them or not.</p>
+             <p>Surfaces can also be <em>published</em> to make them citable and accessible for everyone.</p>
           <p><a class="btn btn-secondary" href="{% url 'manager:sharing-info' %}" role="button">Show sharing info &raquo;</a></p>
           </div>
           {% else %}

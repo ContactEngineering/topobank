@@ -4,6 +4,9 @@ from django.db import transaction
 from django.db.models import F
 from trackstats.models import StatisticByDate, StatisticByDateAndObject, Period
 
+from topobank.manager.models import Surface, Topography
+from topobank.analysis.models import Analysis
+
 
 def register_metrics():
     """Registers all metrics used with package 'trackstats'.
@@ -191,3 +194,37 @@ def increase_statistics_by_date_and_object(metric, obj, period=Period.DAY, incre
             object=obj,
             value=increment,
             period=period)
+
+
+def current_statistics(user=None):
+    """Return some statistics about managed data.
+
+    These values are calculated from current counts
+    of database objects.
+
+    Parameters
+    ----------
+        user: User instance
+            If given, the statistics is only related to the surfaces of a given user
+            (as creator)
+
+    Returns
+    -------
+        dict with keys
+
+        - num_surfaces_excluding_publications
+        - num_topographies_excluding_publications
+        - num_analyses_excluding_publications
+    """
+    if user:
+        unpublished_surfaces = Surface.unpublished.filter(creator=user)
+    else:
+        unpublished_surfaces = Surface.unpublished.all()
+    unpublished_topographies = Topography.objects.filter(surface__in=unpublished_surfaces)
+    unpublished_analyses = Analysis.objects.filter(topography__in=unpublished_topographies)
+
+    return dict(
+        num_surfaces_excluding_publications=unpublished_surfaces.count(),
+        num_topographies_excluding_publications=unpublished_topographies.count(),
+        num_analyses_excluding_publications=unpublished_analyses.count(),
+    )
