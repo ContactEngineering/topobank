@@ -10,6 +10,12 @@ DJANGO_SECRET_KEY=<replace with your own secret key, a very long random string>
 DJANGO_ADMIN_URL=<replace with a long random url>
 DJANGO_ALLOWED_HOSTS=contact.engineering
 
+# Generating topography thumbnails with Firefox
+# ------------------------------------------------------------------------------
+# firefox binary, not the script!
+FIREFOX_BINARY_PATH=/opt/conda/bin/FirefoxApp/firefox
+GECKODRIVER_PATH=/opt/conda/bin/geckodriver
+
 # Security
 # ------------------------------------------------------------------------------
 # TIP: better off using DNS, however, redirect is OK too
