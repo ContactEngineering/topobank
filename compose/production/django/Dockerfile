@@ -17,6 +17,12 @@ RUN apt-get update \
 RUN apt-get -qy autoremove
 
 #
+# Extra requirements for exporting plots in bokeh
+#
+RUN apt-get install --yes libgtk-3-0 libdbus-glib-1-2
+RUN conda install -c conda-forge firefox geckodriver
+
+#
 # Create user and group
 #
 RUN addgroup django \
