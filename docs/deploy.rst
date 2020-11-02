@@ -1086,7 +1086,7 @@ Use the following management command:
 
 .. code:: bash
 
-     docker-compose -f production.yml run --rm django python manage.py renew_thumbnails
+     docker-compose -f production.yml run --rm django python manage.py create_thumbnails
 
 Note that in order to generate thumbnails, the following environment variables must be set correctly:
 

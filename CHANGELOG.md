@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 0.9.1 (2020-11-02)
+
+- fixed missing dependencies for plotting in production
+
 ## 0.9.0 (2020-11-02)
 
 - users can publish their surfaces (#317, #510, #517, #525)
