@@ -40,6 +40,11 @@ urlpatterns = [
         name='topography-unselect'
     ),
     url(
+        regex=r'topography/(?P<pk>\d+)/thumbnail/$',
+        view=login_required(views.thumbnail),
+        name='topography-thumbnail'
+    ),
+    url(
         regex=r'surface/(?P<surface_id>\d+)/new-topography/$',
         view=login_required(views.TopographyCreateWizard.as_view(WIZARD_FORMS)),
         name='topography-create'
@@ -68,6 +73,16 @@ urlpatterns = [
        regex=r'surface/(?P<pk>\d+)/share/$',
        view=login_required(views.SurfaceShareView.as_view()),
        name='surface-share'
+    ),
+    url(
+       regex=r'surface/(?P<pk>\d+)/publish/$',
+       view=login_required(views.SurfacePublishView.as_view()),
+       name='surface-publish'
+    ),
+    url(
+        regex=r'surface/(?P<pk>\d+)/publication-rate-too-high/$',
+        view=login_required(views.PublicationRateTooHighView.as_view()),
+        name='surface-publication-rate-too-high'
     ),
     url(
        regex=r'surface/(?P<pk>\d+)/select/$',
@@ -128,5 +143,10 @@ urlpatterns = [
         regex=r'sharing/$',
         view=login_required(views.sharing_info),
         name='sharing-info'
+    ),
+    url(
+        regex=r'publications/$',
+        view=login_required(views.PublicationListView.as_view()),
+        name='publications'
     ),
 ]

@@ -9,12 +9,6 @@
 {% endblock content-title %}
 
 {% block extra_css %}
-<link href="https://cdn.bokeh.org/bokeh/release/bokeh-1.3.4.min.css"
-      rel="stylesheet" type="text/css">
-<link href="https://cdn.bokeh.org/bokeh/release/bokeh-widgets-1.3.4.min.css"
-      rel="stylesheet" type="text/css">
-<link href="https://cdn.bokeh.org/bokeh/release/bokeh-tables-1.3.4.min.css"
-      rel="stylesheet" type="text/css">
 {{ form.media.css }}
 {% endblock extra_css %}
 
@@ -44,9 +38,9 @@
 
 {% block javascript %}
   <!-- ----------- for bokeh plot ----- -->
-  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-1.3.4.min.js"></script>
-  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-widgets-1.3.4.min.js"></script>
-  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-tables-1.3.4.min.js"></script>
+  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-2.2.3.min.js"></script>
+  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-widgets-2.2.3.min.js"></script>
+  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-tables-2.2.3.min.js"></script>
 
   <!-- for task progress bar -->
   <script src="{% static 'celery_progress/celery_progress.js' %}"></script>

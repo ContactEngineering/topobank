@@ -4,6 +4,10 @@ from django.db import transaction
 from django.db.models import F
 from trackstats.models import StatisticByDate, StatisticByDateAndObject, Period
 
+from topobank.manager.models import Surface, Topography
+from topobank.analysis.models import Analysis
+
+
 def register_metrics():
     """Registers all metrics used with package 'trackstats'.
 
@@ -29,6 +33,26 @@ def register_metrics():
         domain=Domain.objects.VIEWS,
         ref='analyses_results_view_count',
         name='Number of views for Analyses results'
+    )
+    Metric.objects.SURFACE_VIEW_COUNT = Metric.objects.register(
+        domain=Domain.objects.VIEWS,
+        ref='surface_view_count',
+        name='Number of views for surfaces'
+    )
+    Metric.objects.PUBLICATION_VIEW_COUNT = Metric.objects.register(
+        domain=Domain.objects.VIEWS,
+        ref='publication_view_count',
+        name='Number of requests for publication URLs'
+    )
+
+    Domain.objects.DOWNLOADS = Domain.objects.register(
+        ref='downloads',
+        name='Downloads'
+    )
+    Metric.objects.SURFACE_DOWNLOAD_COUNT = Metric.objects.register(
+        domain=Domain.objects.DOWNLOADS,
+        ref='surface_download_count',
+        name='Number of downloads of surfaces'
     )
 
     Domain.objects.USERS = Domain.objects.register(
@@ -58,7 +82,7 @@ def register_metrics():
     Metric.objects.USER_COUNT = Metric.objects.register(
         domain=Domain.objects.OBJECTS,
         ref='total_number_users',
-        name='Total number of registerd users'
+        name='Total number of registered users'
     )
     Metric.objects.SURFACE_COUNT = Metric.objects.register(
         domain=Domain.objects.OBJECTS,
@@ -118,6 +142,7 @@ def increase_statistics_by_date(metric, period=Period.DAY, increment=1):
             value=increment,
             period=period)
 
+
 @transaction.atomic
 def increase_statistics_by_date_and_object(metric, obj, period=Period.DAY, increment=1):
     """Increase statistics by date in database using the current date.
@@ -169,3 +194,37 @@ def increase_statistics_by_date_and_object(metric, obj, period=Period.DAY, incre
             object=obj,
             value=increment,
             period=period)
+
+
+def current_statistics(user=None):
+    """Return some statistics about managed data.
+
+    These values are calculated from current counts
+    of database objects.
+
+    Parameters
+    ----------
+        user: User instance
+            If given, the statistics is only related to the surfaces of a given user
+            (as creator)
+
+    Returns
+    -------
+        dict with keys
+
+        - num_surfaces_excluding_publications
+        - num_topographies_excluding_publications
+        - num_analyses_excluding_publications
+    """
+    if user:
+        unpublished_surfaces = Surface.unpublished.filter(creator=user)
+    else:
+        unpublished_surfaces = Surface.unpublished.all()
+    unpublished_topographies = Topography.objects.filter(surface__in=unpublished_surfaces)
+    unpublished_analyses = Analysis.objects.filter(topography__in=unpublished_topographies)
+
+    return dict(
+        num_surfaces_excluding_publications=unpublished_surfaces.count(),
+        num_topographies_excluding_publications=unpublished_topographies.count(),
+        num_analyses_excluding_publications=unpublished_analyses.count(),
+    )

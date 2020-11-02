@@ -87,6 +87,10 @@ urlpatterns = [
                       include("topobank.manager.urls", namespace="manager"),
                   ),
                   path(
+                      "go/",  # shorter than 'publication'
+                      include("topobank.publication.urls", namespace="publication"),
+                  ),
+                  path(
                       "analysis/",
                       include("topobank.analysis.urls", namespace="analysis"),
                   ),

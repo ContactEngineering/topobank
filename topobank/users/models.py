@@ -6,10 +6,11 @@ from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from allauth.socialaccount.models import SocialAccount
 from guardian.mixins import GuardianUserMixin
-from guardian.shortcuts import get_objects_for_user
+from guardian.shortcuts import get_objects_for_user, get_anonymous_user
 
 import os
 
+DEFAULT_GROUP_NAME = 'all'
 
 class ORCIDException(Exception):
     pass
@@ -78,6 +79,14 @@ class User(GuardianUserMixin, AbstractUser):
             if o.creator == self:  # this surface is shared by this user
                 return True
         return False  # nothing shared
+
+    @property
+    def is_anonymous(self):
+        return self.id == get_anonymous_user().id  # TODO could be optimized by only requesting once
+
+    # @property
+    # def is_authenticated(self):  # needed in "termsandconditions" to distinguish from real user
+    #     return not self.is_anonymous
 
     class Meta:
         permissions = (

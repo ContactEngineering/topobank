@@ -369,6 +369,12 @@ Configures Python part: Django and Celery. You can use this as template:
     DJANGO_ADMIN_URL=<put here some random string>
     DJANGO_ALLOWED_HOSTS=contact.engineering
 
+    # Generating topography thumbnails with Firefox
+    # ------------------------------------------------------------------------------
+    # firefox binary, not the script!
+    FIREFOX_BINARY_PATH=/opt/conda/bin/FirefoxApp/firefox
+    GECKODRIVER_PATH=/opt/conda/bin/geckodriver
+
     # Security
     # ------------------------------------------------------------------------------
     # TIP: better off using DNS, however, redirect is OK too
@@ -569,6 +575,8 @@ That is, as root copy this contents to `vim /etc/supervisor/conf.d/topobank.conf
 (including `user` option!)
 
 Make sure, topobank completely stopped.
+
+.. TODO Here some documentation about calling some management commands are missing. See "Updating the application"!
 
 Reread the supervisor configuration and start:
 
@@ -777,7 +785,7 @@ Then, after starting the containers, the backup is done automatically.
 Restoring database from a backup
 --------------------------------
 
-The generell idea is
+The general idea is
 
 - stop the application
 - copy a dump file from the S3 bucket to a local directory
@@ -1022,6 +1030,32 @@ If building the containers was successful, aks yourself these questions:
 
   first, check whether the result (counts) is you expected and run without `--dry-run`.
 
+- Did you have a default group for the users before? This is introduced in version 0.9.0, so
+  when upgrading to this version, you need to call
+
+   .. code:: bash
+
+     docker-compose -f production.yml run --rm django python manage.py ensure_default_group
+
+  once for your database.
+
+  Afterwards all exisiting users will be member of the default group (currently: 'all').
+  This is needed for publishing.
+
+- Are there any new permissions introduced for surfaces? You should fix the permissions
+  for existing surfaces with
+
+  .. code:: bash
+
+     docker-compose -f production.yml run --rm django python manage.py fix_permissions --dry-run
+
+  once for your database. Check the results: Will those permissions be set which you expect?
+  If it's okay, run again without the option `--dry-run`.
+
+  Afterwards all existing users will have all permissions for the surfaces they created
+  unless they are already published. When already published, it is assured the correct
+  rights have been applied. This is needed for publishing.
+
 
 Restart application
 ...................
@@ -1042,6 +1076,32 @@ Without supervisor, call:
 
 Test whether the new application works. See also above link if you want to scale the application,
 e.g. having more processes handling the web requests or celery workers.
+
+Generating thumbails
+....................
+
+If you need to recompute the topography thumbnails, e.g. if you haven't done this before
+or if the code for the thumbnails have changed, you can do this after starting the application stack.
+Use the following management command:
+
+.. code:: bash
+
+     docker-compose -f production.yml run --rm django python manage.py renew_thumbnails
+
+Note that in order to generate thumbnails, the following environment variables must be set correctly:
+
+.. list-table::
+    :widths: 25 75
+    :header-rows: 1
+
+    * - Environment Variable
+      - Comment
+    * - `FIREFOX_BINARY_PATH`
+      - absolute path to the firefox **binary**, not the script which is mostly first in `PATH`
+    * - `GECKODRIVER_PATH`
+      - absolute path to the geckodriver binary
+
+
 
 Look into the database
 ----------------------

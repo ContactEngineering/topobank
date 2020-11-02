@@ -10,7 +10,7 @@ import tempfile, openpyxl
 
 from django.urls import reverse
 
-import PyCo
+import SurfaceTopography, ContactMechanics, muFFT, NuMPI
 
 from ..models import Analysis, AnalysisFunction
 from topobank.manager.tests.utils import two_topos  # needed for fixture, see arguments below
@@ -190,6 +190,7 @@ def test_show_only_last_analysis(client, two_topos, django_user_model, handle_us
     assert b"2018-01-01 12:00:00" not in response.content
     assert b"2018-01-03 12:00:00" not in response.content
 
+
 @pytest.mark.django_db
 def test_show_analyses_with_different_arguments(client, two_topos, django_user_model, handle_usage_statistics):
 
@@ -343,6 +344,7 @@ def test_show_multiple_analyses_for_two_functions(client, two_topos):
     assert_in_content(response, "Example 3 - ZSensor")
     assert_in_content(response, "Example 4 - Default")
 
+
 @pytest.fixture
 def ids_downloadable_analyses(two_topos):
 
@@ -388,8 +390,9 @@ def ids_downloadable_analyses(two_topos):
 
     return ids
 
+
 @pytest.mark.django_db
-def test_analyis_download_as_txt(client, two_topos, ids_downloadable_analyses, settings):
+def test_analysis_download_as_txt(client, two_topos, ids_downloadable_analyses, settings):
 
     username = 'testuser'
     password = 'abcd$1234'
@@ -408,8 +411,12 @@ def test_analyis_download_as_txt(client, two_topos, ids_downloadable_analyses, s
     assert "Test Function" in txt # function name should be in there
 
     # check whether version numbers are in there
-    assert PyCo.__version__.split('+')[0] in txt
+    assert SurfaceTopography.__version__.split('+')[0] in txt
+    assert ContactMechanics.__version__ in txt
+    assert NuMPI.__version__ in txt
+    assert muFFT.version.description() in txt
     assert settings.TOPOBANK_VERSION in txt
+
 
     # check whether creator of topography is listed
     topo1, topo2 = two_topos
@@ -455,9 +462,10 @@ def test_analyis_download_as_txt(client, two_topos, ids_downloadable_analyses, s
 
     assert arr == pytest.approx(expected_arr)
 
+
 @pytest.mark.parametrize("same_names", [ False, True])
 @pytest.mark.django_db
-def test_analyis_download_as_xlsx(client, two_topos, ids_downloadable_analyses, same_names, settings):
+def test_analysis_download_as_xlsx(client, two_topos, ids_downloadable_analyses, same_names, settings):
 
     topos = Topography.objects.all()
     assert len(topos) == 2
@@ -544,8 +552,15 @@ def test_analyis_download_as_xlsx(client, two_topos, ids_downloadable_analyses, 
     ws = xlsx.get_sheet_by_name("INFORMATION")
 
     vals = list(ws.values)
-    assert ("Version of 'PyCo'", PyCo.__version__.split('+')[0]) in vals
-    assert ("Version of 'topobank'", settings.TOPOBANK_VERSION) in vals
+
+    def assert_version_in_vals(modname, version):
+        assert (f"Version of '{modname}'", version) in vals
+
+    assert_version_in_vals('SurfaceTopography', SurfaceTopography.__version__.split('+')[0])
+    assert_version_in_vals('ContactMechanics', ContactMechanics.__version__)
+    assert_version_in_vals('NuMPI', NuMPI.__version__)
+    assert_version_in_vals('muFFT', muFFT.version.description())
+    assert_version_in_vals('topobank', settings.TOPOBANK_VERSION)
 
     # topography names should also be included, as well as the creator
     for t in topos:
@@ -554,7 +569,8 @@ def test_analyis_download_as_xlsx(client, two_topos, ids_downloadable_analyses, 
 
 
 @pytest.mark.django_db
-def test_analyis_download_as_xlsx_despite_slash_in_sheetname(client, two_topos, ids_downloadable_analyses, django_user_model):
+def test_analysis_download_as_xlsx_despite_slash_in_sheetname(client, two_topos, ids_downloadable_analyses,
+                                                              django_user_model):
 
     topos = Topography.objects.all()
     assert len(topos) == 2
@@ -609,6 +625,74 @@ def test_download_analysis_results_without_permission(client, two_topos, ids_dow
     two_topos[1].surface.share(user_2)
     response = client.get(download_url)
     assert response.status_code == 200
+
+
+@pytest.fixture
+def two_analyses_two_publications():
+    surface1 = SurfaceFactory()
+    TopographyFactory(surface=surface1)
+    surface2 = SurfaceFactory()
+    TopographyFactory(surface=surface2)
+    pub1 = surface1.publish('cc0-1.0', surface1.creator.name)
+    pub2 = surface2.publish('cc0-1.0', surface1.creator.name+", "+surface2.creator.name)
+    pub_topo1 = pub1.surface.topography_set.first()
+    pub_topo2 = pub2.surface.topography_set.first()
+
+    func = AnalysisFunctionFactory()
+    analysis1 = AnalysisFactory(topography=pub_topo1, function=func)
+    analysis2 = AnalysisFactory(topography=pub_topo2, function=func)
+
+    return analysis1, analysis2, pub1, pub2
+
+
+@pytest.mark.django_db
+def test_publication_link_in_txt_download(client, two_analyses_two_publications):
+
+    (analysis1, analysis2, pub1, pub2) = two_analyses_two_publications
+
+    #
+    # Now two publications are involved in these analyses
+    #
+    download_url = reverse('analysis:download', kwargs=dict(ids=f"{analysis1.id},{analysis2.id}",
+                                                            card_view_flavor='plot',
+                                                            file_format='txt'))
+    user = UserFactory(username='testuser')
+    client.force_login(user)
+    response = client.get(download_url)
+    assert response.status_code == 200
+
+    txt = response.content.decode()
+
+    assert pub1.get_absolute_url() in txt
+    assert pub2.get_absolute_url() in txt
+
+
+@pytest.mark.django_db
+def test_publication_link_in_xlsx_download(client, two_analyses_two_publications):
+    (analysis1, analysis2, pub1, pub2) = two_analyses_two_publications
+
+    #
+    # Now two publications are involved in these analyses
+    #
+    download_url = reverse('analysis:download', kwargs=dict(ids=f"{analysis1.id},{analysis2.id}",
+                                                            card_view_flavor='plot',
+                                                            file_format='xlsx'))
+    user = UserFactory(username='testuser')
+    client.force_login(user)
+    response = client.get(download_url)
+    assert response.status_code == 200
+
+    tmp = tempfile.NamedTemporaryFile(suffix='.xlsx')  # will be deleted automatically
+    tmp.write(response.content)
+    tmp.seek(0)
+
+    xlsx = openpyxl.load_workbook(tmp.name)
+
+    sheet = xlsx['INFORMATION']
+    col_B = sheet['B']
+    col_B_values = [str(c.value) for c in col_B]
+    assert any(pub1.get_absolute_url() in v for v in col_B_values)
+    assert any(pub2.get_absolute_url() in v for v in col_B_values)
 
 
 @pytest.mark.django_db

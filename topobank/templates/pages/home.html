@@ -8,11 +8,6 @@
   <div class="tab-content mt-2">
     <div class="tab-pane active">
 
-      <div class="alert alert-warning">
-        This is a beta release. All uploaded data is permament, but the user interface may undergo changes.
-        If you would like to report any comments, issues, or suggestions,
-        please <a href="mailto:{{ contact_email_address }}">drop us an email</a>.
-      </div>
       <div class="jumbotron">
         <div class="container">
           <h1 class="display-4">Welcome to <b>contact.&#8203;engineering</b></h1>
@@ -24,9 +19,9 @@
           </p>
           {#  <p><a class="btn btn-primary btn-lg" href="#" role="button">Learn more &raquo;</a></p> #}
           <div class="row">
-            {% with request.user.is_authenticated as is_authenticated %}
-              {% if not is_authenticated %}
-              <div class="{% column_div_class is_authenticated %}">
+            {% with request.user.is_anonymous as is_anonymous %}
+              {% if is_anonymous %}
+              <div class="{% column_div_class is_anonymous %}">
                 <div class="card text-white bg-secondary o-hidden h-100">
                   <div class="card-body">
                     <div class="card-body-icon">
@@ -40,15 +35,15 @@
               </div>
               {% endif %}
 
-              <div class="{% column_div_class is_authenticated %}">
-                <a href="{{ surfaces_link}}" class="card-link">
+              <div class="{% column_div_class is_anonymous %}">
+                <a href="{% url 'manager:select' %}" class="card-link">
                   <div class="card text-white bg-primary o-hidden h-100">
                     <div class="card-body">
                       <div class="card-body-icon">
                         <i class="fa fa-fw fa-diamond"></i>
                       </div>
                       <div class="mr-2">
-                      {% if is_authenticated %}You have{% endif %}
+                      {% if not is_anonymous %}You have{% endif %}
                         <div class="welcome-page-statistics">{{ num_surfaces }}</div> surfaces in database.
                       </div>
                     </div>
@@ -56,15 +51,15 @@
                 </a>
               </div>
 
-              <div class="{% column_div_class is_authenticated %}">
-                <a href="{{ surfaces_link }}" class="card-link">
+              <div class="{% column_div_class is_anonymous %}">
+                <a href="{% url 'manager:select' %}" class="card-link">
                   <div class="card text-white bg-danger o-hidden h-100">
                     <div class="card-body">
                       <div class="card-body-icon">
                         <i class="fa fa-fw fa-edit"></i>
                       </div>
                       <div class="mr-2">
-                      {% if is_authenticated %}You have{% endif %}
+                      {% if not is_anonymous %}You have{% endif %}
                         <div class="welcome-page-statistics">{{ num_topographies }}</div> individual topographies.
                       </div>
                     </div>
@@ -72,15 +67,15 @@
                 </a>
               </div>
 
-              <div class="{% column_div_class is_authenticated %}">
-                <a href="{{ analyses_link }}" class="card-link">
+              <div class="{% column_div_class is_anonymous %}">
+                <a href="{% url 'manager:select' %}" class="card-link">
                   <div class="card text-white bg-warning o-hidden h-100">
                     <div class="card-body">
                       <div class="card-body-icon">
                         <i class="fa fa-fw fa-area-chart"></i>
                       </div>
                       <div class="mr-2">
-                      {% if is_authenticated %}You have{% endif %}
+                      {% if not is_anonymous %}You have{% endif %}
                         <div class="welcome-page-statistics">{{ num_analyses }}</div> computed analyses.
                       </div>
                     </div>
@@ -88,17 +83,17 @@
                 </a>
               </div>
 
-              {% if is_authenticated %}
-              <div class="{% column_div_class is_authenticated %}">
-                <a href="{% url 'manager:sharing-info' %}" class="card-link">
+              {% if not is_anonymous %}
+              <div class="{% column_div_class is_anonymous %}">
+                <a href="{% url 'manager:select' %}" class="card-link">
                   <div class="card text-white bg-success o-hidden h-100">
                     <div class="card-body">
                       <div class="card-body-icon">
                         <i class="fa fa-fw fa-share-alt"></i>
                       </div>
                       <div class="mr-2">
-                        Other users shared
-                        <div class="welcome-page-statistics">{{ num_shared_surfaces }}</div> surfaces with you.
+                        You have access to
+                        <div class="welcome-page-statistics">{{ num_shared_surfaces }}</div> surfaces of other users.
                       </div>
                     </div>
                   </div>
@@ -115,7 +110,7 @@
       <div class="container">
         <!-- Example row of columns -->
         <div class="row">
-          {% if request.user.is_authenticated %}
+          {% if not request.user.is_anonymous %}
           <div class="col-md-3">
             <h2>Surfaces</h2>
             <p>A <em>surface</em> represents the real-life surface you are measuring, together with its descriptive
@@ -144,6 +139,7 @@
             <h2>Sharing</h2>
              <p><em>Surfaces</em> can be <em>shared</em> with others for collaboration. You decide whether your
                collaborators can modify them or not.</p>
+             <p>Surfaces can also be <em>published</em> to make them citable and accessible for everyone.</p>
           <p><a class="btn btn-secondary" href="{% url 'manager:sharing-info' %}" role="button">Show sharing info &raquo;</a></p>
           </div>
           {% else %}

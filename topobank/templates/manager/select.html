@@ -53,7 +53,7 @@
               </select>
             </div>
 
-            {# Display select for sgaring status #}
+            {# Display select for sharing status #}
             <div class="form-group col-md-2">
               <select name="sharing_status" class="form-control" v-model="sharing_status" @change="reload">
                   <option v-for="(choice_label, choice_val) in sharing_status_filter_choices"
@@ -83,10 +83,16 @@
                 <span><i class="fa" v-bind:class="choice.icon"></i> [[ choice.label ]]</span>
               </label>
             </div>
-
-            <div class="form-group col-md-2">
-              <a class="btn btn-primary form-control" href="{% url 'manager:surface-create' %}">Create Surface</a>
-            </div>
+            {% if request.user.is_anonymous %}
+              <div class="form-group col-md-2">
+                <button class="btn btn-primary form-control disabled"
+                        title="Please sign-in to use this feature">Create Surface</button>
+              </div>
+            {% else %}
+              <div class="form-group col-md-2" title="Create a surface for uploading data">
+                <a class="btn btn-primary form-control" href="{% url 'manager:surface-create' %}">Create Surface</a>
+              </div>
+            {% endif %}
           </div>
         </form>
 
@@ -119,12 +125,14 @@
           <table id="surface-tree" class="table table-condensed">
             <colgroup>
               <col width="40%"></col>
-              <col width="45%"></col>
+              <col width="5%"></col>
+              <col width="40%"></col>
               <col width="15%"></col>
             </colgroup>
             <thead>
             <tr>
               <th scope="col">Name</th>
+              <th scope="col">Version</th>
               <th scope="col">Description</th>
               <th scope="col">Actions</th>
             </tr>

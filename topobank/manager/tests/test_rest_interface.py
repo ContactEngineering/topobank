@@ -297,6 +297,7 @@ def test_unselect_topography():
     assert selected_instances(request)[0] == []
     assert selected_instances(request)[1] == [surface1, surface2]
 
+
 @pytest.fixture
 def user_three_surfaces_four_topographies():
     #
@@ -381,6 +382,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                  'tags': [],
                  'title': topo1a.name,
                  'type': 'topography',
+                 'version': '',
                  'urls': {'delete': topo1a_prefix + 'delete/',
                           'detail': topo1a_prefix,
                           'select': topo1a_prefix + 'select/',
@@ -398,6 +400,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                  'tags': [],
                  'title': topo1b.name,
                  'type': 'topography',
+                 'version': '',
                  'urls': {'delete': topo1b_prefix + 'delete/',
                           'detail': topo1b_prefix,
                           'select': topo1b_prefix + 'select/',
@@ -417,12 +420,14 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
             'tags': ['bike', 'train/tgv'],
             'title': surface1.name,
             'type': 'surface',
+            'version': '',
             'urls': {'add_topography': surface1_prefix + 'new-topography/',
                      'delete': surface1_prefix + 'delete/',
                      'detail': surface1_prefix,
                      'download': surface1_prefix + 'download/',
                      'select': surface1_prefix + 'select/',
                      'share': surface1_prefix + 'share/',
+                     'publish': surface1_prefix + 'publish/',
                      'analyze': surface1_analyze,
                      'unselect': surface1_prefix + 'unselect/',
                      'update': surface1_prefix + 'update/'}
@@ -441,6 +446,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                  'tags': ['bike', 'train/ice'],
                  'title': topo2a.name,
                  'type': 'topography',
+                 'version': '',
                  'urls': {'delete': topo2a_prefix + 'delete/',
                           'detail': topo2a_prefix,
                           'select': topo2a_prefix + 'select/',
@@ -458,6 +464,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                  'tags': [],
                  'title': topo2b.name,
                  'type': 'topography',
+                 'version': '',
                  'urls': {'delete': topo2b_prefix + 'delete/',
                           'detail': topo2b_prefix,
                           'select': topo2b_prefix + 'select/',
@@ -477,12 +484,14 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
             'tags': [],
             'title': surface2.name,
             'type': 'surface',
+            'version': '',
             'urls': {'add_topography': surface2_prefix + 'new-topography/',
                      'delete': surface2_prefix + 'delete/',
                      'detail': surface2_prefix,
                      'download': surface2_prefix + 'download/',
                      'select': surface2_prefix + 'select/',
                      'share': surface2_prefix + 'share/',
+                     'publish': surface2_prefix + 'publish/',
                      'analyze': surface2_analyze,
                      'unselect': surface2_prefix + 'unselect/',
                      'update': surface2_prefix + 'update/'}
@@ -501,12 +510,14 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
             'tags': [],
             'title': surface3.name,
             'type': 'surface',
+            'version': '',
             'urls': {'add_topography': surface3_prefix + 'new-topography/',
                      'delete': surface3_prefix + 'delete/',
                      'detail': surface3_prefix,
                      # 'download': surface3_prefix + 'download/', # this should be missing, because no topographies yet
                      'select': surface3_prefix + 'select/',
                      'share': surface3_prefix + 'share/',
+                     'publish': surface3_prefix + 'publish/',
                      # 'analyze': surface3_prefix + 'show-analyses/', # this should be missing
                      'unselect': surface3_prefix + 'unselect/',
                      'update': surface3_prefix + 'update/'}
@@ -544,6 +555,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                  'tags': ['bike', 'train/ice'],
                  'title': topo2a.name,
                  'type': 'topography',
+                 'version': '',
                  'urls': {'delete': topo2a_prefix + 'delete/',
                           'detail': topo2a_prefix,
                           'select': topo2a_prefix + 'select/',
@@ -562,12 +574,14 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
             'tags': [],
             'title': surface2.name,
             'type': 'surface',
+            'version': '',
             'urls': {'add_topography': surface2_prefix + 'new-topography/',
                      'delete': surface2_prefix + 'delete/',
                      'detail': surface2_prefix,
                      'download': surface2_prefix + 'download/',
                      'select': surface2_prefix + 'select/',
                      'share': surface2_prefix + 'share/',
+                     'publish': surface2_prefix + 'publish/',
                      'analyze': surface2_analyze,
                      'unselect': surface2_prefix + 'unselect/',
                      'update': surface2_prefix + 'update/'}
@@ -606,6 +620,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                  'tags': [],
                  'title': topo1a.name,
                  'type': 'topography',
+                 'version': '',
                  'urls': {'delete': topo1a_prefix + 'delete/',
                           'detail': topo1a_prefix,
                           'select': topo1a_prefix + 'select/',
@@ -623,6 +638,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                  'tags': [],
                  'title': topo1b.name,
                  'type': 'topography',
+                 'version': '',
                  'urls': {'delete': topo1b_prefix + 'delete/',
                           'detail': topo1b_prefix,
                           'select': topo1b_prefix + 'select/',
@@ -642,12 +658,14 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
             'tags': ['bike', 'train/tgv'],
             'title': surface1.name,
             'type': 'surface',
+            'version': '',
             'urls': {'add_topography': surface1_prefix + 'new-topography/',
                      'delete': surface1_prefix + 'delete/',
                      'detail': surface1_prefix,
                      'download': surface1_prefix + 'download/',
                      'select': surface1_prefix + 'select/',
                      'share': surface1_prefix + 'share/',
+                     'publish': surface1_prefix + 'publish/',
                      'analyze': surface1_analyze,
                      'unselect': surface1_prefix + 'unselect/',
                      'update': surface1_prefix + 'update/'}
@@ -720,6 +738,7 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
         'tags': [],
         'title': topo1a.name,
         'type': 'topography',
+        'version': '',
         'urls': {'delete': topo1a_prefix + 'delete/',
                  'detail': topo1a_prefix,
                  'select': topo1a_prefix + 'select/',
@@ -739,6 +758,7 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
         'tags': [],
         'title': topo1b.name,
         'type': 'topography',
+        'version': '',
         'urls': {'delete': topo1b_prefix + 'delete/',
                  'detail': topo1b_prefix,
                  'select': topo1b_prefix + 'select/',
@@ -759,6 +779,7 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
         'tags': ['bike', 'train/ice'],
         'title': topo2a.name,
         'type': 'topography',
+        'version': '',
         'urls': {'delete': topo2a_prefix + 'delete/',
                  'detail': topo2a_prefix,
                  'select': topo2a_prefix + 'select/',
@@ -779,6 +800,7 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
         'tags': ['train/ice/restaurant'],
         'title': topo2b.name,
         'type': 'topography',
+        'version': '',
         'urls': {'delete': topo2b_prefix + 'delete/',
                  'detail': topo2b_prefix,
                  'select': topo2b_prefix + 'select/',
@@ -801,12 +823,14 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
         'tags': ['bike', 'train/tgv'],
         'title': surface1.name,
         'type': 'surface',
+        'version': '',
         'urls': {'add_topography': surface1_prefix + 'new-topography/',
                  'delete': surface1_prefix + 'delete/',
                  'detail': surface1_prefix,
                  'download': surface1_prefix + 'download/',
                  'select': surface1_prefix + 'select/',
                  'share': surface1_prefix + 'share/',
+                 'publish': surface1_prefix + 'publish/',
                  'analyze': surface1_analyze,
                  'unselect': surface1_prefix + 'unselect/',
                  'update': surface1_prefix + 'update/'}
@@ -828,6 +852,7 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
         {
             'title': 'bike',
             'type': 'tag',
+            'version': '',
             'pk': bike_pk,
             'key': f'tag-{bike_pk}',
             'folder': True,
@@ -846,6 +871,7 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
         {
             'title': 'train',
             'type': 'tag',
+            'version': '',
             'pk': train_pk,
             'key': f"tag-{train_pk}",
             'folder': True,
@@ -855,6 +881,7 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
                 {
                     'title': 'ice',
                     'type': 'tag',
+                    'version': '',
                     'pk': train_ice_pk,
                     'key': f"tag-{train_ice_pk}",
                     'folder': True,
@@ -866,6 +893,7 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
                         {
                             'title': 'restaurant',
                             'type': 'tag',
+                            'version': '',
                             'pk': train_ice_restaurant_pk,
                             'key': f"tag-{train_ice_restaurant_pk}",
                             'folder': True,
@@ -889,6 +917,7 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
                 {
                     'title': 'tgv',
                     'type': 'tag',
+                    'version': '',
                     'pk': train_tgv_pk,
                     'key': f"tag-{train_tgv_pk}",
                     'folder': True,
@@ -935,6 +964,7 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
         {
             'title': 'bike',
             'type': 'tag',
+            'version': '',
             'pk': bike_pk,
             'key': f'tag-{bike_pk}',
             'folder': True,
@@ -952,6 +982,7 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
         {
             'title': 'train',
             'type': 'tag',
+            'version': '',
             'pk': train_pk,
             'key': f"tag-{train_pk}",
             'folder': True,
@@ -961,6 +992,7 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
                 {
                     'title': 'ice',
                     'type': 'tag',
+                    'version': '',
                     'pk': train_ice_pk,
                     'key': f"tag-{train_ice_pk}",
                     'folder': True,
@@ -1034,6 +1066,7 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
         {
             'title': 'shared',
             'type': 'tag',
+            'version': '',
             'pk': shared_pk,
             'key': f"tag-{shared_pk}",
             'folder': True,
@@ -1043,6 +1076,7 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
                 {
                     'title': surface4.name,
                     'type': 'surface',
+                    'version': '',
                     'pk': surface4.pk,
                     'key': f"surface-{surface4.pk}",
                     'folder': False,

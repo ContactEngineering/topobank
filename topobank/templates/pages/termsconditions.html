@@ -8,7 +8,7 @@
   <div class="tab-content p-2">
     <div class="tab-pane active">
 
-    {% if request.user.is_authenticated %}
+    {% if not request.user.is_anonymous %}
       {% if agreed_terms|length > 0 %}
       <div class="card">
         <div class="card-header"><h2>You have accepted the following terms and conditions</h2></div>

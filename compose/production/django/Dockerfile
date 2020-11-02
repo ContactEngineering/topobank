@@ -1,17 +1,15 @@
-
-
 FROM continuumio/miniconda3
 # FROM ubuntu:18.04
 #FROM python:3.7-alpine
 
 ENV PYTHONUNBUFFERED 1
-ARG PYCO_VERSION=0.56.0
 
 #
 # System dependencies for Python + Django
 #
 RUN apt-get update \
-  && apt-get install --yes libfftw3-3 libfftw3-dev libpq-dev gcc g++ gettext \
+  && apt-get install --yes apt-utils \
+  && apt-get install --yes libfftw3-3 libfftw3-dev libopenblas-dev libpq-dev gcc g++ gettext \
   # Pillow requirements
   && apt-get install --yes libjpeg-dev zlib1g-dev libfreetype6-dev liblcms2-dev libtiff-dev tk-dev tcl-dev librabbitmq-dev
 
@@ -27,21 +25,6 @@ RUN addgroup django \
 # celeryworker should not run as root, refuses to work
 #
 # TODO use --disabled-login ??
-
-#
-# Installation of PyCo + dependencies
-#
-# Copy PyCo source code into container, uncompress
-COPY PyCo-${PYCO_VERSION}.tar.gz .
-RUN tar xfvz PyCo-${PYCO_VERSION}.tar.gz
-WORKDIR PyCo-${PYCO_VERSION}
-
-# install additional PyCo dependencies
-RUN pip install wheel
-RUN pip install -r requirements.txt
-
-# install PyCo itself
-RUN pip install .
 
 #
 # Install requirements for TopoBank

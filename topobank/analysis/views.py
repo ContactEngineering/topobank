@@ -36,12 +36,12 @@ import pandas as pd
 
 from pint import UnitRegistry, UndefinedUnitError
 
-from guardian.shortcuts import get_objects_for_user
+from guardian.shortcuts import get_objects_for_user, get_anonymous_user
 
 from trackstats.models import Metric
 
-import PyCo
-from PyCo.Tools.ContactAreaAnalysis import patch_areas, assign_patch_numbers
+from ContactMechanics.Tools.ContactAreaAnalysis import patch_areas, assign_patch_numbers
+import SurfaceTopography, ContactMechanics, muFFT, NuMPI
 
 from ..manager.models import Topography, Surface
 from ..manager.utils import selected_instances, instances_to_selection, current_selection_as_basket_items, instances_to_topographies
@@ -172,6 +172,8 @@ class SimpleCardView(TemplateView):
 
         request = self.request
         request_method = request.GET
+        user = request.user
+
         try:
             function_id = int(request_method.get('function_id'))
             card_id = request_method.get('card_id')
@@ -182,12 +184,12 @@ class SimpleCardView(TemplateView):
         #
         # Get all relevant analysis objects for this function and topography ids
         #
-        analyses_avail = get_latest_analyses(request.user, function_id, topography_ids)
+        analyses_avail = get_latest_analyses(user, function_id, topography_ids)
 
         #
         # Filter for analyses where the user has read permission for the related surface
         #
-        readable_surfaces = get_objects_for_user(request.user, ['view_surface'], klass=Surface)
+        readable_surfaces = get_objects_for_user(user, ['view_surface'], klass=Surface)
         analyses_avail = analyses_avail.filter(topography__surface__in=readable_surfaces)
 
         #
@@ -224,8 +226,8 @@ class SimpleCardView(TemplateView):
         kwargs_for_missing = unique_kwargs or {}
         topographies_triggered = []
         for topo in topographies_missing:
-            if request.user.has_perm('view_surface', topo.surface):
-                triggered_analysis = request_analysis(request.user, function, topo, **kwargs_for_missing)
+            if user.has_perm('view_surface', topo.surface):
+                triggered_analysis = request_analysis(user, function, topo, **kwargs_for_missing)
                 topographies_triggered.append(topo)
                 topographies_available_ids.append(topo.id)
                 _log.info(f"Triggered analysis {triggered_analysis.id} for function {function.name} "+\
@@ -243,7 +245,7 @@ class SimpleCardView(TemplateView):
             if len(analyses_avail) == 0:
                 unique_kwargs = kwargs_for_missing
 
-            analyses_avail = get_latest_analyses(request.user, function_id, topography_ids)\
+            analyses_avail = get_latest_analyses(user, function_id, topography_ids)\
                   .filter(topography__surface__in=readable_surfaces)
 
         #
@@ -488,12 +490,12 @@ class PlotCardView(SimpleCardView):
 
                 # hover_name = "{} for '{}'".format(series_name, topography_name)
 
-                line_glyph = plot.line('x', 'y', source=source, legend=legend_entry,
+                line_glyph = plot.line('x', 'y', source=source, legend_label=legend_entry,
                                        line_color=curr_color,
                                        line_dash=curr_dash, name=topography_name)
                 if show_symbols:
                     symbol_glyph = plot.scatter('x', 'y', source=source,
-                                                legend=legend_entry,
+                                                legend_label=legend_entry,
                                                 marker='circle',
                                                 size=10,
                                                 line_color=curr_color,
@@ -854,6 +856,10 @@ def submit_analyses_view(request):
         raise Http404
 
     request_method = request.POST
+    user = request.user
+
+    if user.is_anonymous:
+        raise PermissionDenied()
 
     # args_dict = request_method
     try:
@@ -872,12 +878,12 @@ def submit_analyses_view(request):
 
     allowed = True
     for topo in topographies:
-        allowed &= request.user.has_perm('view_surface', topo.surface)
+        allowed &= user.has_perm('view_surface', topo.surface)
         if not allowed:
             break
 
     if allowed:
-        analyses = [request_analysis(request.user, function, topo, **function_kwargs) for topo in topographies]
+        analyses = [request_analysis(user, function, topo, **function_kwargs) for topo in topographies]
 
         status = 200
 
@@ -886,7 +892,7 @@ def submit_analyses_view(request):
         #
         collection = AnalysisCollection.objects.create(name=f"{function.name} for {len(topographies)} topographies.",
                                                        combined_task_state=Analysis.PENDING,
-                                                       owner=request.user)
+                                                       owner=user)
         collection.analyses.set(analyses)
         #
         # Each finished analysis checks whether related collections are finished, see "topobank.taskapp.tasks"
@@ -992,6 +998,7 @@ def contact_mechanics_data(request):
         raise Http404
 
     request_method = request.POST
+    user = request.user
 
     try:
         analysis_id = int(request_method.get('analysis_id'))
@@ -1006,7 +1013,7 @@ def contact_mechanics_data(request):
 
     unit = analysis.topography.unit
 
-    if request.user.has_perm('view_surface', analysis.topography.surface):
+    if user.has_perm('view_surface', analysis.topography.surface):
 
         #
         # Try to get results from cache
@@ -1143,16 +1150,20 @@ def extra_tabs_if_single_item_selected(topographies, surfaces):
         topo = topographies[0]
         tabs.extend([
             {
-                'title': f"{topo.surface.name}",
+                'title': f"{topo.surface.label}",
                 'icon': "diamond",
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
                 'active': False,
+                'login_required': False,
+                'tooltip': f"Properties of surface '{topo.surface.label}'",
             },
             {
                 'title': f"{topo.name}",
                 'icon': "file-o",
                 'href': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
                 'active': False,
+                'login_required': False,
+                'tooltip': f"Properties of topography '{topo.name}'",
             }
         ])
     elif len(surfaces) == 1 and all(t.surface == surfaces[0] for t in topographies):
@@ -1160,10 +1171,12 @@ def extra_tabs_if_single_item_selected(topographies, surfaces):
         surface = surfaces[0]
         tabs.append(
             {
-                'title': f"{surface.name}",
+                'title': f"{surface.label}",
                 'icon': "diamond",
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
                 'active': False,
+                'login_required': False,
+                'tooltip': f"Properties of surface '{surface.label}'",
             }
         )
     return tabs
@@ -1198,12 +1211,16 @@ class AnalysisFunctionDetailView(DetailView):
                 'icon': "area-chart",
                 'href': reverse('analysis:list'),
                 'active': False,
+                'login_required': False,
+                'tooltip': "Results for selected analysis functions",
             },
             {
                 'title': f"{function.name}",
                 'icon': "area-chart",
                 'href': self.request.path,
                 'active': True,
+                'login_required': False,
+                'tooltip': f"Results for analysis '{function.name}'",
             }
         ])
         context['extra_tabs'] = tabs
@@ -1218,6 +1235,8 @@ class AnalysesListView(FormView):
 
     def get_initial(self):
 
+        user = self.request.user
+
         if 'collection_id' in self.kwargs:
             collection_id = self.kwargs['collection_id']
             try:
@@ -1225,7 +1244,7 @@ class AnalysesListView(FormView):
             except AnalysisCollection.DoesNotExist:
                 raise Http404("Collection does not exist")
 
-            if collection.owner != self.request.user:
+            if collection.owner != user:
                 raise PermissionDenied()
 
             functions = set(a.function for a in collection.analyses.all())
@@ -1245,7 +1264,7 @@ class AnalysesListView(FormView):
             except Surface.DoesNotExist:
                 raise PermissionDenied()
 
-            if not self.request.user.has_perm('view_surface', surface):
+            if not user.has_perm('view_surface', surface):
                 raise PermissionDenied()
 
             #
@@ -1260,7 +1279,7 @@ class AnalysesListView(FormView):
             except Topography.DoesNotExist:
                 raise PermissionDenied()
 
-            if not self.request.user.has_perm('view_surface', topo.surface):
+            if not user.has_perm('view_surface', topo.surface):
                 raise PermissionDenied()
 
             #
@@ -1274,8 +1293,6 @@ class AnalysesListView(FormView):
         )
 
     def post(self, request, *args, **kwargs):  # TODO is this really needed?
-        if not request.user.is_authenticated:
-            return HttpResponseForbidden()
         form = self.get_form()
         if form.is_valid():
             return self.form_valid(form)
@@ -1327,6 +1344,8 @@ class AnalysesListView(FormView):
                 'icon': "area-chart",
                 'href': self.request.path,
                 'active': True,
+                'login_required': False,
+                'tooltip': "Results for selected analysis functions",
             }
         )
         context['extra_tabs'] = tabs
@@ -1399,6 +1418,14 @@ def download_plot_analyses_to_txt(request, analyses):
     # TODO: It would probably be useful to use the (some?) template engine for this.
     # TODO: We need a mechanism for embedding references to papers into output.
 
+    # Collect publication links, if any
+    publication_urls = set()
+    for a in analyses:
+        if a.topography.surface.is_published:
+            pub = a.topography.surface.publication
+            pub_url = request.build_absolute_uri(pub.get_absolute_url())
+            publication_urls.add(pub_url)
+
     # Pack analysis results into a single text file.
     f = io.StringIO()
     for i, analysis in enumerate(analyses):
@@ -1408,6 +1435,12 @@ def download_plot_analyses_to_txt(request, analyses):
 
             f.write('# IF YOU USE THIS DATA IN A PUBLICATION, PLEASE CITE XXX.\n' +
                     '\n')
+            if len(publication_urls) > 0:
+                f.write('#\n')
+                f.write('# For these analyses, published data was used. Please visit these URLs for details:\n')
+                for pub_url in publication_urls:
+                    f.write(f'# - {pub_url}\n')
+                f.write('#\n')
 
         topography = analysis.topography
         topo_creator = topography.creator
@@ -1420,7 +1453,7 @@ def download_plot_analyses_to_txt(request, analyses):
                 '# End time of analysis task: {}\n'.format(analysis.end_time) +
                 '# Duration of analysis task: {}\n'.format(analysis.duration()))
         if analysis.configuration is None:
-            f.write('# Versions of dependencies (like PyCo) are unknown for this analysis.\n')
+            f.write('# Versions of dependencies (like "SurfaceTopography") are unknown for this analysis.\n')
             f.write('# Please recalculate in order to have version information here.')
         else:
             versions_used = analysis.configuration.versions.order_by('dependency__import_name')
@@ -1474,6 +1507,8 @@ def download_plot_analyses_to_xlsx(request, analyses):
 
     for i, analysis in enumerate(analyses):
 
+        pub = analysis.topography.surface.publication if analysis.topography.surface.is_published else None
+
         if i == 0:
             properties = ["Function"]
             values = [str(analysis.function)]
@@ -1481,9 +1516,11 @@ def download_plot_analyses_to_xlsx(request, analyses):
         properties += ['Topography', 'Creator',
                        'Further arguments of analysis function', 'Start time of analysis task',
                        'End time of analysis task', 'Duration of analysis task']
+
         values += [str(analysis.topography.name), str(analysis.topography.creator),
                    analysis.get_kwargs_display(), str(analysis.start_time),
                    str(analysis.end_time), str(analysis.duration())]
+
         if analysis.configuration is None:
             properties.append("Versions of dependencies")
             values.append("Unknown. Please recalculate this analysis in order to have version information here.")
@@ -1493,6 +1530,12 @@ def download_plot_analyses_to_xlsx(request, analyses):
             for version in versions_used:
                 properties.append(f"Version of '{version.dependency.import_name}'")
                 values.append(f"{version.number_as_string()}")
+
+        if pub:
+            # If the surface of the topography was published, the URL is inserted
+            properties.append("Publication URL (surface data)")
+            values.append(request.build_absolute_uri(pub.get_absolute_url()))
+
         # We want an empty line on the properties sheet in order to distinguish the topographies
         properties.append("")
         values.append("")
@@ -1586,8 +1629,8 @@ def download_contact_mechanics_analyses_as_zip(request, analyses):
     #
     # Add a Readme file
     #
-    zf.writestr("README.txt", \
-                """
+    zf.writestr("README.txt",\
+                f"""
 Contents of this ZIP archive
 ============================
 This archive contains data from contact mechanics calculation.
@@ -1657,9 +1700,12 @@ Have look in the official Matlab documentation for more information.
 Version information
 ===================
 
-PyCo:     {}
-TopoBank: {}
-    """.format(PyCo.__version__, settings.TOPOBANK_VERSION))
+SurfaceTopography: {SurfaceTopography.__version__}
+ContactMechanics:  {ContactMechanics.__version__}
+muFFT:             {muFFT.version.description()}
+NuMPI:             {NuMPI.__version__}
+TopoBank:          {settings.TOPOBANK_VERSION}
+    """)
 
     zf.close()
 

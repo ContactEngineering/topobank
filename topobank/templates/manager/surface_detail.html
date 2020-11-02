@@ -2,10 +2,10 @@
 {% load fontawesome %}
 {% load surface_tags %}
 {% load guardian_tags %}
+{% load static %}
 
 {% block content-title %}Details for Surface <i>{{ surface.name }}</i>
 {% endblock content-title %}
-
 
 {% block content %}
 
@@ -22,19 +22,81 @@
               <a class="nav-link active" data-toggle="pill" href="#topographies" role="tab">Topographies</a>
             </li>
             <li class="nav-item">
+              <a class="nav-link" data-toggle="pill" href="#bandwidths" role="tab">Bandwidths</a>
+            </li>
+            <li class="nav-item">
               <a class="nav-link" data-toggle="pill" href="#description" role="tab">Description</a>
             </li>
             <li class="nav-item">
               <a class="nav-link" data-toggle="pill" href="#permissions" role="tab">Permissions</a>
             </li>
+            {% if surface.is_published %}
+            <li class="nav-item">
+              <a class="nav-link" data-toggle="pill" href="#howtocite" role="tab">How to cite</a>
+            </li>
+            {% endif %}
           </ul>
         </div>
 
-        <div class="col-xs-12 col">
+        <div class="col-12 col-sm-5 col-md-6 col-lg-7">
 
           <div class="tab-content mt-4">
 
-            <div class="tab-pane fade show active" id="topographies">
+            <div class="tab-pane fade active show" id="topographies">
+              {% if surface.num_topographies == 0 %}
+                <div class="alert alert-info">
+                  This surface has no topographies yet.
+                  You can add topographies by pressing the
+                  <b>{% fontawesome_icon 'plus-square-o' %} Add topography</b> button.
+                </div>
+              {% endif %}
+
+              <div id="topography_carousel" class="carousel slide" data-ride="carousel"
+                   data-interval="3000">
+                <ol class="carousel-indicators">
+                  {% for topo in surface.topography_set.all %}
+                  <li data-target="#topography_carousel" data-slide-to="{{ forloop.counter0 }}"
+                      {% if forloop.first %}class="active"{% endif %}></li>
+                  {% endfor %}
+                </ol>
+                <div class="carousel-inner bg-dark">
+                  {% for topo in surface.topography_set.all %}
+                  <div class="carousel-item {% if forloop.first %}active{% endif %} pt-3">
+                    <a href="{% url 'manager:topography-detail' topo.id %}">
+                      {% if topo.thumbnail %}
+                        <img class="d-block img-thumbnail"
+                             src="{% url 'manager:topography-thumbnail' topo.id %}" alt="Topography '{{ topo.name }}'">
+                      {% else %}
+                        Sorry, thumbnail is missing
+                      {% endif %}
+                    </a>
+                    <div class="carousel-caption d-none d-md-block bg-dark mb-4">
+                      <large>{{ topo.name }}</large>
+                    </div>
+                  </div>
+                  {% endfor %}
+                </div>
+                <a class="carousel-control-prev" href="#topography_carousel" role="button" data-slide="prev">
+                  <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                  <span class="sr-only">Previous</span>
+                </a>
+                <a class="carousel-control-next" href="#topography_carousel" role="button" data-slide="next">
+                  <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                  <span class="sr-only">Next</span>
+                </a>
+              </div>
+
+            </div>
+
+
+            <div class="tab-pane fade" id="bandwidths">
+              {% if surface.num_topographies == 0 %}
+                <div class="alert alert-info">
+                  This surface has no topographies yet.
+                  You can add topographies by pressing the
+                  <b>{% fontawesome_icon 'plus-square-o' %} Add topography</b> button.
+                </div>
+              {% endif %}
               {% for bw_err in bandwidths_data_with_errors %}
                 <div class="alert alert-error">
                   {{ bw_err.error_message }}
@@ -42,10 +104,10 @@
                   to send us an e-mail about this issue. Sorry for the inconvenience.
                 </div>
               {% endfor %}
-              <div id="bandwidths" class="surface-summary-plot">
-              </div>
-              <caption>Click on a bar in order to open the topography.</caption>
+              {{ plot_div | safe }}
+              <caption>Click on a bar in order to open the corresponding topography.</caption>
             </div>
+
 
             <div class="tab-pane fade" id="description">
               {{ surface.description|default:"(no description)" }}
@@ -64,51 +126,98 @@
                 {% endfor %}
                 </thead>
                 <tbody>
-                {% for row in permission_table.body %}
+                {% if surface.is_published %}
                   <tr>
-                    {% for cell_content, cell_title in row %}
-                      <td>
-                        {% if forloop.first %}
-                          <span title="Click to view profile">{% fontawesome_icon 'user' %}
-                        <a href="{{ cell_title }}">{{ cell_content }}</a>
-                        {# a bit of a hack: cell_title is used to pass a link here #}
-                        </span>
-                        {% else %}
-                          {% render_boolean cell_content cell_title %}
-                        {% endif %}
-                      </td>
-                    {% endfor %}
+                    <td>
+                      <span>{% fontawesome_icon 'group' %} Everyone</span>
+                    </td>
+                    <td>{% render_boolean True "Everyone can view this surface" %}</td>
+                    <td>{% render_boolean False "No can view this surface" %}</td>
                   </tr>
-                {% endfor %}
+                {% else %}
+                  {% for row in permission_table.body %}
+                    <tr>
+                      {% for cell_content, cell_title in row %}
+                        <td>
+                          {% if forloop.first %}
+                            <span title="Click to view profile">{% fontawesome_icon 'user' %}
+                              <a href="{{ cell_title }}">{{ cell_content }}</a>
+                              {# a bit of a hack: cell_title is used to pass a link here #}
+                            </span>
+                          {% else %}
+                            {% render_boolean cell_content cell_title %}
+                          {% endif %}
+                        </td>
+                      {% endfor %}
+                    </tr>
+                  {% endfor %}
+                {% endif %}
+
                 </tbody>
               </table>
 
             </div>
-
+            {% if surface.is_published %}
+              <div class="tab-pane fade" id="howtocite">
+                {% include "manager/surface_citation.html" %}
+              </div>
+            {% endif %}
           </div>
 
         </div>
 
-        <div class="col-sm-3 col-12">
-
+        {# Sidebar with buttons and information #}
+        <div class="col-12 col-sm-3 col-md-3 col-lg-3">
+          {# Dropdown for choosing a version #}
           <div class="row p-3">
-
             <div class="col">
-
-              <div>
-                  <span class="badge badge-info surface-category-headline">
-                  {{ surface.get_category_display|default_if_none:"category not defined yet" }}
-                  </span>
-                {% render_shared_by_badge request surface %}
+              <div class="btn-group">
+                <button type="button" id="versions-btn"
+                        class="btn btn-info dropdown-toggle
+                        {% if version_dropdown_items|length == 1 %}disabled{% endif %}"
+                        data-toggle="dropdown" aria-haspopup="true"
+                        aria-expanded="false">
+                  {{ this_version_label }}
+                  {% if version_badge_text %}
+                    <span class="badge badge-warning">{{ version_badge_text }}</span>
+                  {% endif %}
+                </button>
+                <div class="dropdown-menu" id="versions-dropdown">
+                  {% for version_item in version_dropdown_items %}
+                    <a class="dropdown-item{% if version_item.surface == surface %} disabled{% endif %}"
+                       href="{{ version_item.surface.get_absolute_url }}">
+                      {{ version_item.label }}
+                    </a>
+                  {% endfor %}
+                </div>
               </div>
-              <div>
-                {% for tag in surface.tags.all %}
-                  <span class="badge badge-success">{{ tag.name }}</span>
-                {% endfor %}
-              </div>
-
             </div>
           </div>
+          {# Badges and tags in a card #}
+          <div class="row p-3">
+            <div class="col">
+              <div class="card">
+                <div class="card-body">
+                  <div>
+                    <span class="badge badge-secondary surface-category-headline">
+                      {{ surface.get_category_display|default_if_none:"category not defined yet" }}
+                    </span>
+                    {% if surface.is_published %}
+                      {% render_published_by_badge request surface %}
+                    {% else %}
+                      {% render_shared_by_badge request surface %}
+                    {% endif %}
+                  </div>
+                  <div>
+                    {% for tag in surface.tags.all %}
+                      <span class="badge badge-success">{{ tag.name }}</span>
+                    {% endfor %}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          {# Buttons #}
           <div class="row p-3">
             <div class="col">
 
@@ -140,6 +249,13 @@
                 </a>
               {% endif %}
 
+              {% if not surface.is_published and "publish_surface" in surface_perms %}
+                <a href="{% url 'manager:surface-publish' surface.id %}"
+                   class="btn btn-outline-success btn-block btn-lg">
+                  {% fontawesome_icon 'bullhorn' %} Publish
+                </a>
+              {% endif %}
+
               {% if "delete_surface" in surface_perms %}
                 <a href="{% url 'manager:surface-delete' surface.id %}"
                    class="btn btn-outline-danger btn-block btn-lg">
@@ -159,15 +275,23 @@
 {% endblock content %}
 
 {% block javascript %}
+   <!-- ----------- for bokeh plot ----- -->
+  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-2.2.3.min.js"></script>
+  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-widgets-2.2.3.min.js"></script>
+  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-tables-2.2.3.min.js"></script>
+
   <script>
     $().ready(function () {
-      //
-      // Create surface summary plot
-      //
-      surface_summary_plot($("div#bandwidths"), {{ bandwidths_data_without_errors|safe }});
+      // Activate clipboard buttons
+      let clipboard = new ClipboardJS('.clipboard-btn');
     })
   </script>
 
+  {# Insert the script code needed for the plot #}
+  {{ plot_script | safe }}
+
+  {# Load JS code to copy citation into clipboard #}
+  <script src="{% static 'vendor/clipboard/clipboard.min.js' %}"></script>
 {% endblock javascript %}
 
 

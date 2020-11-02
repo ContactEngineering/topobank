@@ -16,12 +16,12 @@
     <meta name="description" content="">
     <meta name="author" content="">
 
-    <title>TopoBank - Topography Storage and Analysis</title>
+    <title>contact.engineering - Topography Storage and Analysis</title>
+
+    <link rel="icon" type="image/x-icon" href="{% static 'images/favicons/favicon.ico' %}"/>
 
     <!-- Bootstrap Core CSS -->
     <link href="{% static 'vendor/bootstrap/css/bootstrap.min.css' %}" rel="stylesheet">
-
-    <link href="{% static 'vendor/plottable/css/plottable.css' %}" rel="stylesheet">
 
     <!-- CSS from sb-admin-2-bs4 template -->
     <link href="{% static 'css/sb-admin-2.css' %}" rel="stylesheet"> <!-- TODO check what is really needed here -->
@@ -53,7 +53,6 @@
 
       <div class="collapse navbar-collapse" id="navbar_supported_content">
 
-      {% if request.user.is_authenticated %}
       {# Search Bar #}
       <div class="col-4">
       <form class="form-inline" action="{% url 'search' %}" method="get">
@@ -67,13 +66,10 @@
         </div>
       </form>
       </div>
-      {% endif %}
 
       <ul class="navbar-nav ml-auto">
-        {% if request.user.is_authenticated %}
-
+        {% if not request.user.is_anonymous %}
           <li class="nav-item dropdown no-arrow">
-
             <a class="nav-link dropdown-toggle" href="#" id="notificationsDropdown" role="button" data-toggle="dropdown"
                aria-haspopup="true" aria-expanded="false">
               {% live_notify_badge badge_class="badge badge-info badge-pill live_notify_badge" %}
@@ -83,8 +79,13 @@
             <div class="dropdown-menu dropdown-menu-right live_notify_list" aria-labelledby="notificationsDropdown">
             </div>
           </li>
-
-        {% endif %} {# if user is authenticated #}
+        {% else %} {# user is anonymous #}
+          <li class="nav-item">
+            <a class="btn btn-info" href="{% provider_login_url 'orcid' method="oauth2" %}">
+                  Sign in via ORCID for more functionality.
+            </a>
+          </li>
+        {% endif %} {# if user is not anonymous #}
 
         <li class="nav-item dropdown no-arrow">
           <a class="nav-link dropdown-toggle" href="#" id="helpDropdown" role="button" data-toggle="dropdown"
@@ -105,12 +106,12 @@
           <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-toggle="dropdown"
              aria-haspopup="true" aria-expanded="false">
             <i class="fa fa-user-circle fa-fw" aria-hidden="true"></i>
-            {% if request.user.is_authenticated %}
+            {% if not request.user.is_anonymous %}
               {{ request.user.name }}
             {% endif %}
           </a>
           <div class="dropdown-menu dropdown-menu-right user-dropdown" aria-labelledby="userDropdown">
-            {% if request.user.is_authenticated %}
+            {% if not request.user.is_anonymous %}
             <a class="dropdown-item" href="{% url 'users:detail' request.user.username %}"><i class="fa fa-user fa-fw"></i> User Profile</a>
             <!-- a class="dropdown-item" href="#"><i class="fa fa-cog fa-fw"></i> Settings<a> -->
             <div class="dropdown-divider"></div>
@@ -130,33 +131,29 @@
 
     {# Display "basket" with all selected items in session #}
 
-    {% if request.user.is_authenticated %}
-      {# display selected items in session #}
-      <div id="basket-container" class="container-fluid bg-light border-top border-bottom py-2">
-        <div id="basket">
-          <div v-if="keys.length">
-            <basket-element v-for="key in keys" v-bind:elem="get_element(key)" v-bind:key="key"></basket-element>
-            <a class="btn btn-sm btn-outline-success" href="{% url 'analysis:list' %}">
-              <i class="fa fa-fw fa-area-chart"></i>Analyze
-            </a>
-            <button class="btn btn-sm btn-outline-secondary pull-right" v-on:click="unselect_all" id="unselect-all">
-              <i class="fa fa-times"></i>
-            </button>
-          </div>
-          <div class="m-1" v-else>No items selected yet. In order to select, please use the checkboxes on the
-            <b><i class="fa fa-fw fa-check-square-o"></i>Select</b> tab.
-          </div>
+
+    {# display selected items in session #}
+    <div id="basket-container" class="container-fluid bg-light border-top border-bottom py-2">
+      <div id="basket">
+        <div v-if="keys.length">
+          <basket-element v-for="key in keys" v-bind:elem="get_element(key)" v-bind:key="key"></basket-element>
+          <a class="btn btn-sm btn-outline-success" href="{% url 'analysis:list' %}">
+            <i class="fa fa-fw fa-area-chart"></i>Analyze
+          </a>
+          <button class="btn btn-sm btn-outline-secondary pull-right" v-on:click="unselect_all" id="unselect-all">
+            <i class="fa fa-times"></i>
+          </button>
+        </div>
+        <div class="m-1" v-else>No items selected yet. In order to select, please use the checkboxes on the
+          <b><i class="fa fa-fw fa-check-square-o"></i>Select</b> tab.
         </div>
       </div>
-    {% endif %}
-
-
+    </div>
 
     <div id="wrapper">
       <div id="content-wrapper">
 
         <div class="container-fluid mt-1">
-
           {# Places Messages #}
           {% if messages %}
             {% for message in messages %}
@@ -257,6 +254,7 @@
                     <td>
                       {% for name,href in v.links.items %}
                         <a href="{{ href }}">{{ name }}</a>
+                        {% if not forloop.last %},{% endif %}
                       {% endfor %}
                     </td>
                   </tr>
@@ -318,9 +316,8 @@
     <!-- Unit conversion --->
     <script src="{% static 'vendor/convert-units/convert-units.js' %}"></script>
 
-    <!-- D3 and Plottable -->
+    <!-- D3  -->
     <script src="https://d3js.org/d3.v5.min.js"></script>
-    <script src="{% static 'vendor/plottable/js/plottable.js' %}"></script>
 
     <!-- show new notifications immediately -->
     <script src="{% static 'notifications/notify.js' %}" type="text/javascript"></script>

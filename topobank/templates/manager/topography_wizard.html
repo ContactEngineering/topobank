@@ -1,8 +1,16 @@
 {% extends "base.html" %}
+{% load static %}
 {% load i18n %}
 {% load fontawesome %}
 {% load crispy_forms_tags %}
 {% load progress_bar %}
+
+{% block extra_css %}
+  {# a stylesheet for syntax highlighting in the file format descriptions #}
+  <link href="{% static 'css/pygments-default.css' %}" rel="stylesheet">
+  {# generated using https://github.com/richleland/pygments-css by replacing .highlight with .codehilite #}
+  {# as suggested here: https://github.com/trentm/python-markdown2/wiki/fenced-code-blocks #}
+{% endblock extra_css %}
 
 {% block content %}
 

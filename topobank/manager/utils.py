@@ -4,19 +4,23 @@ from django.conf import settings
 from django.db.models import Q
 from django.core.exceptions import PermissionDenied
 import markdown2
+from os.path import devnull
 
-from PyCo.Topography import open_topography
-from PyCo.Topography.IO import readers as pyco_readers
+from selenium import webdriver
+from selenium.webdriver.remote.webdriver import WebDriver
+from selenium.webdriver.firefox.firefox_binary import FirefoxBinary
+
+from SurfaceTopography import open_topography
+from SurfaceTopography.IO import readers as surface_topography_readers
 
 import traceback
 import logging
 
 
-
 _log = logging.getLogger(__name__)
 
 DEFAULT_DATASOURCE_NAME = 'Default'
-UNIT_TO_METERS = {'Å': 1e-10, 'nm': 1e-9, 'µm': 1e-6, 'mm': 1e-3, 'm': 1.0,
+UNIT_TO_METERS = {'Å': 1e-10, 'nm': 1e-9, 'µm': 1e-6, 'mm': 1e-3, 'm': 1.0, 'km': 1000.0,
                   'unknown': 1.0}
 MAX_LEN_SEARCH_TERM = 200
 SELECTION_SESSION_VARNAME = 'selection'
@@ -53,7 +57,7 @@ class TopographyFileReadingException(TopographyFileException):
 
 def get_reader_infos():
     reader_infos = []
-    for reader_class in pyco_readers:
+    for reader_class in surface_topography_readers:
         # noinspection PyBroadException
         try:
             # some reader classes have no description yet
@@ -61,7 +65,7 @@ def get_reader_infos():
         except Exception:
             descr = "*description not yet available*"
 
-        descr = markdown2.markdown(descr)
+        descr = markdown2.markdown(descr, extras=['fenced-code-blocks'])
 
         reader_infos.append((reader_class.name(), reader_class.format(), descr))
 
@@ -69,7 +73,7 @@ def get_reader_infos():
 
 
 def get_topography_reader(filefield, format=None):
-    """Returns PyCo.Topography.IO.ReaderBase object.
+    """Returns SurfaceTopography.IO.ReaderBase object.
 
     Parameters
     ----------
@@ -84,7 +88,7 @@ def get_topography_reader(filefield, format=None):
     -------
         Instance of a `ReaderBase` subclass according to the format.
     """
-    # Workaround such that PyCo recognizes this a binary stream
+    # Workaround such that SurfaceTopography module recognizes this a binary stream
     if not hasattr(filefield, 'mode'):
         filefield.mode = 'rb'
     if hasattr(filefield.file, 'seek'):
@@ -132,7 +136,9 @@ def filtered_surfaces(request):
     if sharing_status == 'own':
         qs = qs.filter(creator=user)
     elif sharing_status == 'shared':
-        qs = qs.filter(~Q(creator=user))
+        qs = qs.filter(~Q(creator=user)).exclude(publication__isnull=False)  # exclude published and own surfaces
+    elif sharing_status == 'published':
+        qs = qs.exclude(publication__isnull=True)
 
     #
     # Filter by search term
@@ -350,11 +356,11 @@ def instances_to_basket_items(topographies, surfaces, tags):
     -------
     List of items in the basket. Each is a dict with keys
 
-     name, type, unselect_url, key
+     label, type, unselect_url, key
 
     Example with one selected surface:
 
-     [ {'name': "Test Surface",
+     [ {'label': "Test Surface",
         'type': "surface",
         'unselect_url': ".../manager/surface/13/unselect",
         'key': "surface-13"}
@@ -364,20 +370,20 @@ def instances_to_basket_items(topographies, surfaces, tags):
     basket_items = []
     for s in surfaces:
         unselect_url = reverse('manager:surface-unselect', kwargs=dict(pk=s.pk))
-        basket_items.append(dict(name=s.name,
+        basket_items.append(dict(label=str(s),
                                  type="surface",
                                  unselect_url=unselect_url,
                                  key=f"surface-{s.pk}"))
     for topo in topographies:
         unselect_url = reverse('manager:topography-unselect', kwargs=dict(pk=topo.pk))
-        basket_items.append(dict(name=topo.name,
+        basket_items.append(dict(label=topo.name,
                                  type="topography",
                                  unselect_url=unselect_url,
                                  key=f"topography-{topo.pk}",
                                  surface_key=f"surface-{topo.surface.pk}"))
     for tag in tags:
         unselect_url = reverse('manager:tag-unselect', kwargs=dict(pk=tag.pk))
-        basket_items.append(dict(name=tag.name,
+        basket_items.append(dict(label=tag.name,
                                  type="tag",
                                  unselect_url=unselect_url,
                                  key=f"tag-{tag.pk}"))
@@ -396,11 +402,11 @@ def current_selection_as_basket_items(request):
     -------
     List of items in the basket. Each is a dict with keys
 
-     name, type, unselect_url, key
+     label, type, unselect_url, key
 
     Example with one selected surface:
 
-     [ {'name': "Test Surface",
+     [ {'label': "Test Surface",
         'type': "surface",
         'unselect_url': ".../manager/surface/13/unselect",
         'key': "surface-13"}
@@ -460,7 +466,7 @@ def _bandwidths_data_entry(topo):
     err_message = None
 
     try:
-        pyco_topo = topo.topography()
+        st_topo = topo.topography()  # st_: from SurfaceTopography
     except Exception:
         err_message = "Topography '{}' (id: {}) cannot be loaded unexpectedly.".format(
             topo.name, topo.id)
@@ -480,7 +486,7 @@ def _bandwidths_data_entry(topo):
         }
 
     try:
-        unit = pyco_topo.info['unit']
+        unit = st_topo.info['unit']
     except KeyError:
         unit = None
 
@@ -497,7 +503,7 @@ def _bandwidths_data_entry(topo):
 
     if err_message is None:
 
-        lower_bound, upper_bound = pyco_topo.bandwidth()
+        lower_bound, upper_bound = st_topo.bandwidth()
         # Workaround for https://github.com/pastewka/PyCo/issues/55
         if isinstance(upper_bound, tuple):
             upper_bound = upper_bound[0]
@@ -532,7 +538,7 @@ def bandwidths_data(topographies):
     'link': link to topography details
     'error_message': None or a string with an error message if calculation failed
 
-    The list is sorted by the lower bound with larger lower bound first.
+    The list is sorted by the lower bound with smaller lower bound first.
 
     The idea is to be able to display error messages and the links
     also on javascript level which gets this data.
@@ -544,9 +550,9 @@ def bandwidths_data(topographies):
     #
     def weight(entry):
         lb = entry['lower_bound']
-        return float('inf') if lb is None else lb
+        return float('-inf') if lb is None else lb  # so errors appear first
 
-    bandwidths_data.sort(key=lambda entry: weight(entry), reverse=True)
+    bandwidths_data.sort(key=lambda entry: weight(entry))
 
     return bandwidths_data
 
@@ -637,5 +643,16 @@ def get_tree_mode(request) -> str:
     return tree_mode
 
 
+def get_firefox_webdriver() -> WebDriver:
 
+    binary = FirefoxBinary(str(settings.FIREFOX_BINARY_PATH))
 
+    options = webdriver.firefox.options.Options()
+    options.add_argument("--headless")
+
+    return webdriver.Firefox(
+        options=options,
+        firefox_binary=binary,
+        executable_path=str(settings.GECKODRIVER_PATH),
+        service_log_path=devnull,
+    )

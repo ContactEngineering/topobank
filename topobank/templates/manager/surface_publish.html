@@ -1,0 +1,224 @@
+{% extends 'base.html' %}
+{% load fontawesome %}
+{% load license_tags %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+
+
+  <div class="tab-content mt-2">
+
+    <div class="alert alert-primary">
+      <h2 class="alert-heading">You are about to publish your surface <em>{{ surface.name }}</em></h2>
+      <p>By publishing, you create an immutable copy of this surface as a snapshot with all its data.</p>
+      <p>This snapshot has a version number and a unique URL for citations and it is visible
+         and usable for everyone.</p>
+    </div>
+    <div class="alert alert-success">
+      <h2 class="alert-heading">Implications of publishing</h2>
+      <ul>
+        <li>The surface and all topographies will be <b>visible by everyone</b>,
+          registered or anonymous users, now and in future.</li>
+        <li>The related data (raw data, descriptions, ..) <b>will be downloadable by everyone</b>.</li>
+        <li>Every user can perform analyses on your data.</li>
+        <li>You choose a license for your data - the choice of the license is irrevocable.</li>
+        <li>If you have assigned tags to the surface or its topographies, these tags are also
+        part of the publication.</li>
+        <li>Your ORCID iD will saved along with your publication.</li>
+      </ul>
+      <p>
+      This is great if you want to <b>make your data public under a permanent URL</b>, e.g. in order
+      to reference your data in a citation.
+      </p>
+      <p>
+      Since a copy is made, you can still work on your
+      original data as before the publication.
+      You may also publish an updated version of this surface later.
+      </p>
+    </div>
+
+    <div class="alert alert-secondary">
+      <h2 class="alert-heading">Alternative to publication: Sharing</h2>
+      <p>If you want to share this surface with a few users for <b>collaboration</b>,
+      please consider <a href="{% url 'manager:surface-share' surface.id %}">sharing this surface</a> instead.</p>
+      <p>Unlike publishing this means, that the surface and all related topographies
+        are only visible for <b>selected users</b>, not for everyone.
+        No snapshot is created.
+      </p>
+    </div>
+
+    {% if surface.topography_set.count == 0 %}
+      <div class="alert alert-error">
+        <h2 class="alert-heading">This surface has no topographies yet</h2>
+        <div class="row">
+          <div class="col">
+            <p>
+              If you'd like to publish this surface, please add at least one topography to it.
+              You can do this by pressing the button on the right or on the previous tab.
+            </p>
+          </div>
+          <div class="col">
+            <a class="btn btn-default alert-link"
+               href="{% url 'manager:topography-create' surface.id %}">
+              {% fontawesome_icon 'plus-square-o' %} Add topography
+            </a>
+          </div>
+        </div>
+
+      </div>
+    {% else %}
+
+      {# --------------------- Django Form via Crispy Forms together with Vuejs ---------------------- #}
+
+      {% crispy form form.helper %}
+
+      {% if form.errors %}
+        {% for field in form %}
+            {% for error in field.errors %}
+                <div class="alert alert-danger">
+                    <strong>Field {{ field.name }}: {{ error|escape }}</strong>
+                </div>
+            {% endfor %}
+        {% endfor %}
+        {% for error in form.non_field_errors %}
+            <div class="alert alert-danger">
+                <strong>{{ error|escape }}</strong>
+            </div>
+        {% endfor %}
+      {% endif %}
+
+    {% endif %}
+  </div>
+
+{% endblock content %}
+
+{% block javascript %}
+
+  {{ user.name | json_script:"user-name" }}
+  {{ form.cleaned_data | json_script:"form-cleaned-data" }}
+  {{ form.is_bound | json_script:"form-is-bound" }}
+
+  <script>
+
+  // prevent using enter to submit the form
+  $(document).ready(function() {
+    $(window).keydown(function(event){
+      if(event.keyCode == 13) {
+        event.preventDefault();
+        return false;
+      }
+    });
+  });
+
+
+  function on_submit() {
+    /*
+     * Disabling the submit button in order to prevent
+     * multiple clicks
+     */
+    let save_btn = $('#submit-id-save');
+    let cancel_btn = $('#cancel-btn');
+    cancel_btn.hide();
+    save_btn.attr("disabled", true);
+    save_btn.val("Please wait..");
+  }
+
+ /**
+ * Component representing all author inputs
+ */
+ let user_name = JSON.parse(document.getElementById('user-name').textContent);
+ let form_cleaned_data = JSON.parse(document.getElementById('form-cleaned-data').textContent);
+ let form_is_bound = JSON.parse(document.getElementById('form-is-bound').textContent);
+ let max_len_authors_field = {{ max_len_authors_field }};
+ let authors = new Vue({
+   delimiters: ['[[', ']]'],
+   el: '#authors',
+   data () {
+     let items = [];
+
+     if (form_is_bound) {
+       // collect author names if given in cleaned_data, this is needed
+       // in case the form is reloaded because of errors
+       for (k = 0; k < form_cleaned_data.num_author_fields; k++) {
+         let key = `author_${k}`;
+         items.push({ name: form_cleaned_data[key]});
+       }
+     } else { // fresh form
+       items = [ { name: '' } ];
+     }
+     return {
+       items: items,  // array with author items
+       max_len_authors_field: max_len_authors_field,
+     };
+   },
+   computed: {
+     get_full_authors_string: function () {
+       let s = "";
+       if (this.items.length > 0) {
+         s += this.items[0].name;
+         this.items.slice(1).forEach( function(item) {
+           if (item.name) {
+              s += ", " + item.name;
+           }
+         })
+         return s.substring(0, max_len_authors_field);
+       }
+     },
+     has_duplicate: function() {
+       let names = this.items.map( item => item.name ).filter( item => item.length > 0 );
+       let name_set = new Set(names);
+       return name_set.size < names.length;
+     },
+     num_authors: function() {
+       return this.items.length;
+     }
+   },
+   methods: {
+     add_author_line: function () {
+       this.items.push({name: ''});  // Add empty line
+     },
+     delete_author_line: function(index) {
+       // Keep at least one line
+       if (this.items.length > 1) {
+          this.items.splice(index, 1);
+       }
+     },
+     insert_user_as_author: function(index) {
+       console.log("before:", this.items);
+       console.log("insert user as author", index, user_name);
+       this.items.splice(index, 1, {name: user_name});  // do not use simple assignment here because of vuejs
+       console.log("after:", this.items);
+     },
+     move_author_up: function(index) {
+       if (index > 0) {
+         // swap with item before
+         let tmp = this.items[index];
+         this.items.splice(index, 1, this.items[index-1]);
+         this.items.splice(index-1, 1, tmp);
+       }
+     },
+     move_author_down: function(index) {
+       if (index < this.items.length-1) {
+         // swap with item after
+         let tmp = this.items[index];
+         this.items.splice(index, 1, this.items[index+1]);  // we need to use array methods here!
+         this.items.splice(index+1, 1, tmp);
+       }
+     },
+     update_item: function (author_input) {
+       let found_item = this.items.find(el => el.id == author_input.id)
+       found_item.name = author_input.name;
+     },
+     filter_key: function (event) {
+       let invalid_keys = [',', ';', '\t', '\n']
+       console.log("event: "+event+" key: "+event.key );
+       if (invalid_keys.includes(event.key)) {
+         return event.preventDefault();
+       }
+     }
+   }
+ });
+
+  </script>
+{% endblock javascript %}
+

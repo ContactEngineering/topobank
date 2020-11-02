@@ -249,3 +249,10 @@ The following services are started:
 - mailhog: local mail server+client with web interface on port 8025
 
 See local.yml for details and which ports are available to the host.
+
+
+Preparing browser tests
+-----------------------
+
+For the browser tests with "splinter", you need a recent release of the geckodriver in your path (for testing with
+Firefox). Get it here: https://github.com/mozilla/geckodriver/releases

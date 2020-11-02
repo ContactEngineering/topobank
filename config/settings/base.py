@@ -86,6 +86,7 @@ THIRD_PARTY_APPS = [
     'django_filters',
     'tagulous',
     'trackstats',
+    'fullurl',
 ]
 LOCAL_APPS = [
     'topobank.users.apps.UsersAppConfig',
@@ -94,6 +95,7 @@ LOCAL_APPS = [
     'topobank.analysis.apps.AnalysisAppConfig',
     'topobank.usage_stats.apps.UsageStatsAppConfig',
     'topobank.tabnav.apps.TabNavAppConfig',
+    'topobank.publication.apps.PublicationAppConfig',
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -156,10 +158,13 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    # Enable the following if you want to check T&C by middleware
+    # this must be called before anonymous user replacement, otherwise anonymous users will
+    # always be asked to accept terms and conditons
+    'termsandconditions.middleware.TermsAndConditionsRedirectMiddleware',
+    'topobank.middleware.anonymous_user_middleware',  # we need guardian's kind of anonymous user for API calls
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    # Enable the following if you want to check T&C by middleware
-    'termsandconditions.middleware.TermsAndConditionsRedirectMiddleware',
 ]
 
 # STATIC
@@ -425,7 +430,10 @@ PROGRESSBARUPLOAD_INCLUDE_JQUERY = False
 #
 # list of tuples of form (import_name, expression_returning_version_string)
 TRACKED_DEPENDENCIES = [
-    ('PyCo', 'PyCo.__version__'),
+    ('SurfaceTopography', 'SurfaceTopography.__version__'),
+    ('ContactMechanics', 'ContactMechanics.__version__'),
+    ('NuMPI', 'NuMPI.__version__'),
+    ('muFFT', 'muFFT.version.description()'),
     ('topobank', 'topobank.__version__'),
     ('numpy', 'numpy.version.full_version')
 ]
@@ -449,3 +457,34 @@ TAGULOUS_AUTOCOMPLETE_JS = (
 # E-Mail address to contact us
 #
 CONTACT_EMAIL_ADDRESS = "topobank@imtek.uni-freiburg.de"
+
+#
+# Publication settings
+#
+MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS = 600  # set to None to disable check
+CC_LICENSE_INFOS = {  # each element refers to two links: (description URL, full license text URL)
+    'cc0-1.0': {
+        'description_url': 'https://creativecommons.org/publicdomain/zero/1.0/',
+        'legal_code_url': 'https://creativecommons.org/publicdomain/zero/1.0/legalcode',
+        'title': 'CC0 1.0 Universal',
+        'option_name': 'CC0 1.0 (Public Domain Dedication)'
+    },
+    'ccby-4.0': {
+        'description_url': 'https://creativecommons.org/licenses/by/4.0/',
+        'legal_code_url': 'https://creativecommons.org/licenses/by/4.0/legalcode',
+        'title': 'Creative Commons Attribution 4.0 International Public License',
+        'option_name': 'CC BY 4.0'
+    },
+    'ccbysa-4.0': {
+        'description_url': 'https://creativecommons.org/licenses/by-sa/4.0/',
+        'legal_code_url': 'https://creativecommons.org/licenses/by-sa/4.0/legalcode',
+        'title': 'Creative Commons Attribution-ShareAlike 4.0 International Public License',
+        'option_name': 'CC BY-SA 4.0'
+    }
+}
+
+#
+# Settings for exporting plots as thumbnails
+#
+FIREFOX_BINARY_PATH = env.path('FIREFOX_BINARY_PATH')
+GECKODRIVER_PATH = env.path('GECKODRIVER_PATH')

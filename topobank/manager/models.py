@@ -1,24 +1,63 @@
 from django.db import models
 from django.shortcuts import reverse
+from django.utils import timezone
+from django.conf import settings
 from django.core.cache import cache
 from django.db import transaction
+from django.core.files.storage import default_storage
+from django.core.files import File
+from django.core.files.base import ContentFile
 
-from guardian.shortcuts import assign_perm, remove_perm
+from guardian.shortcuts import assign_perm, remove_perm, get_users_with_perms
 import tagulous.models as tm
 
-from .utils import get_topography_reader
+import numpy as np
+import math
+import logging
+import io
+
+from bokeh.models import DataRange1d, LinearColorMapper, ColorBar
+from bokeh.plotting import figure
+from bokeh.io.export import get_screenshot_as_png
+
+from .utils import get_topography_reader, get_firefox_webdriver
 
 from topobank.users.models import User
+from topobank.publication.models import Publication
+from topobank.users.utils import get_default_group
 
-import logging
 _log = logging.getLogger(__name__)
 
 MAX_LENGTH_DATAFILE_FORMAT = 15  # some more characters than currently needed, we may have sub formats in future
+MAX_NUM_POINTS_FOR_SYMBOLS_IN_LINE_SCAN_PLOT = 100
 
 
 def user_directory_path(instance, filename):
     # file will be uploaded to MEDIA_ROOT/user_<id>/<filename>
     return 'topographies/user_{0}/{1}'.format(instance.surface.creator.id, filename)
+
+
+class AlreadyPublishedException(Exception):
+    pass
+
+
+class NewPublicationTooFastException(Exception):
+    def __init__(self, latest_publication, wait_seconds):
+        self._latest_pub = latest_publication
+        self._wait_seconds = wait_seconds
+
+    def __str__(self):
+        s = f"Latest publication for this surface is from {self._latest_pub.datetime}. "
+        s += f"Please wait {self._wait_seconds} more seconds before publishing again."
+        return s
+
+
+class LoadTopographyException(Exception):
+    pass
+
+
+class PlotTopographyException(Exception):
+    pass
 
 
 class TagModel(tm.TagTreeModel):
@@ -28,6 +67,16 @@ class TagModel(tm.TagTreeModel):
         force_lowercase = True
         # not needed yet
         # autocomplete_view = 'manager:autocomplete-tags'
+
+
+class PublishedSurfaceManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().exclude(publication__isnull=True)
+
+
+class UnpublishedSurfaceManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(publication__isnull=True)
 
 
 class Surface(models.Model):
@@ -41,20 +90,34 @@ class Surface(models.Model):
         ('dum', 'Dummy data')
     ]
 
+    LICENSE_CHOICES = [ (k, settings.CC_LICENSE_INFOS[k]['option_name']) for k in ['cc0-1.0', 'ccby-4.0', 'ccbysa-4.0']]
+
     name = models.CharField(max_length=80)
     creator = models.ForeignKey(User, on_delete=models.CASCADE)
     description = models.TextField(blank=True)
-    category = models.TextField(choices=CATEGORY_CHOICES, null=True, blank=False) #  TODO change in character field
+    category = models.TextField(choices=CATEGORY_CHOICES, null=True, blank=False)  # TODO change in character field
     tags = tm.TagField(to=TagModel)
+
+    objects = models.Manager()
+    published = PublishedSurfaceManager()
+    unpublished = UnpublishedSurfaceManager()
 
     class Meta:
         ordering = ['name']
         permissions = (
             ('share_surface', 'Can share surface'),
+            ('publish_surface', 'Can publish surface'),
         )
 
     def __str__(self):
-        return self.name
+        s = self.name
+        if self.is_published:
+            s += f" (version {self.publication.version})"
+        return s
+
+    @property
+    def label(self):
+        return str(self)
 
     def get_absolute_url(self):
         return reverse('manager:surface-detail', kwargs=dict(pk=self.pk))
@@ -108,6 +171,113 @@ class Surface(models.Model):
             if with_user.has_perm(perm, self):
                 remove_perm(perm, with_user, self)
 
+    def deepcopy(self):
+        """Creates a copy of this surface with all topographies and meta data.
+
+        The database entries for this surface and all related
+        topographies are copied, therefore all meta data.
+        All files will be copied.
+
+        The automated analyses will be triggered for this new surface.
+
+        Returns
+        -------
+        The copy of the surface.
+
+        """
+        # Copy of the surface entry
+        # (see https://docs.djangoproject.com/en/2.2/topics/db/queries/#copying-model-instances)
+
+        copy = Surface.objects.get(pk=self.pk)
+        copy.pk = None
+        copy.tags = self.tags.get_tag_list()
+        copy.save()
+
+        for topo in self.topography_set.all():
+            new_topo = topo.deepcopy(copy)
+            # we pass the surface here because there is a contraint that (surface_id + topography name)
+            # must be unique, i.e. a surface should never have two topographies of the same name,
+            # so we can't set the new surface as the second step
+            new_topo.renew_analyses()
+
+        _log.info("Created deepcopy of surface %s -> surface %s", self.pk, copy.pk)
+        return copy
+
+    def publish(self, license, authors):
+        """Publish surface.
+
+        An immutable copy is created along with a publication entry.
+        The latter is returned.
+
+        Parameters
+        ----------
+        license: str
+            One of the keys of LICENSE_CHOICES
+        authors: str
+            Comma-separated string of author names;
+
+        Returns
+        -------
+        Publication
+        """
+        if self.is_published:
+            raise AlreadyPublishedException()
+
+        latest_publication = Publication.objects.filter(original_surface=self).order_by('version').last()
+        #
+        # We limit the publication rate
+        #
+        min_seconds = settings.MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS
+        if latest_publication and (min_seconds is not None):
+            delta_since_last_pub = timezone.now()-latest_publication.datetime
+            delta_secs = delta_since_last_pub.total_seconds()
+            if delta_secs < min_seconds:
+                raise NewPublicationTooFastException(latest_publication, math.ceil(min_seconds-delta_secs))
+
+
+        #
+        # Create a copy of this surface
+        #
+        copy = self.deepcopy()
+
+        #
+        # Remove edit, share and delete permission from everyone
+        #
+        users = get_users_with_perms(self)
+        for u in users:
+            for perm in ['publish_surface', 'share_surface', 'change_surface', 'delete_surface']:
+                remove_perm(perm, u, copy)
+
+        #
+        # Add read permission for everyone
+        #
+        assign_perm('view_surface', get_default_group(), copy)
+
+        #
+        # Create publication
+        #
+        if latest_publication:
+            version = latest_publication.version + 1
+        else:
+            version = 1
+
+        pub = Publication.objects.create(surface=copy, original_surface=self,
+                                         authors=authors,
+                                         license=license,
+                                         version=version,
+                                         publisher=self.creator,
+                                         publisher_orcid_id=self.creator.orcid_id)
+
+        _log.info(f"Published surface {self.name} (id: {self.id}) "+\
+                  f"with license {license}, version {version}, authors '{authors}'")
+        _log.info(f"URL of publication: {pub.get_absolute_url()}")
+
+        return pub
+
+    @property
+    def is_published(self):
+        return hasattr(self, 'publication')  # checks whether the related object surface.publication exists
+
 
 class Topography(models.Model):
     """Topography Measurement of a Surface.
@@ -149,7 +319,8 @@ class Topography(models.Model):
     # Fields related to raw data
     #
     datafile = models.FileField(max_length=250, upload_to=user_directory_path)  # currently upload_to not used in forms
-    datafile_format = models.CharField(max_length=MAX_LENGTH_DATAFILE_FORMAT, null=True, default=None, blank=True)
+    datafile_format = models.CharField(max_length=MAX_LENGTH_DATAFILE_FORMAT,
+                                       null=True, default=None, blank=True)
     data_source = models.IntegerField()
     # Django documentation discourages the use of null=True on a CharField. I'll use it here
     # nevertheless, because I need this values as argument to a function where None has
@@ -178,6 +349,11 @@ class Topography(models.Model):
     is_periodic = models.BooleanField(default=False)
 
     #
+    # Other fields
+    #
+    thumbnail = models.ImageField(null=True, upload_to=user_directory_path)
+
+    #
     # Methods
     #
     def __str__(self):
@@ -191,7 +367,7 @@ class Topography(models.Model):
         return f"topography-{self.id}-channel-{self.data_source}"
 
     def topography(self):
-        """Return a PyCo Topography/Line Scan instance.
+        """Return a SurfaceTopography.Topography/UniformLineScan/NonuniformLineScan instance.
 
         This instance is guaranteed to
 
@@ -213,8 +389,15 @@ class Topography(models.Model):
 
             # Set size if physical size was not given in datafile
             # (see also  TopographyCreateWizard.get_form_initial)
-            # Physical size is always a tuple.
-            if self.size_editable: # TODO: could be removed in favor of "channel_dict['physical_sizes'] is None"
+            # Physical size is always a tuple or None.
+            channel_dict = toporeader.channels[self.data_source]
+            channel_physical_sizes = channel_dict.physical_sizes
+            physical_sizes_is_None = channel_physical_sizes is None \
+                                     or (channel_physical_sizes == (None,)) \
+                                     or (channel_physical_sizes == (None,None))
+            # workaround, see GH 299 in Pyco
+
+            if physical_sizes_is_None:
                 if self.size_y is None:
                     topography_kwargs['physical_sizes'] = self.size_x,
                 else:
@@ -224,14 +407,14 @@ class Topography(models.Model):
                 # Adjust height scale to value chosen by user
                 topography_kwargs['height_scale_factor'] = self.height_scale
 
-                # from PyCo docstring:
+                # from SurfaceTopography.read_topography's docstring:
                 #
                 # height_scale_factor : float
                 #    Override height scale factor found in the data file.
                 #
                 # So default is to use the factor from the file.
 
-            # Eventually get PyCo topography using the given keywords
+            # Eventually get topography from module "SurfaceTopography" using the given keywords
             topo = toporeader.topography(**topography_kwargs)
             topo = topo.detrend(detrend_mode=self.detrend_mode, info=dict(unit=self.unit))
 
@@ -284,5 +467,245 @@ class Topography(models.Model):
                 'unit': self.unit,
                 'height_scale': self.height_scale,
                 'size': (self.size_x, self.size_y)}
+
+    def deepcopy(self, to_surface):
+        """Creates a copy of this topography with all data files copied.
+
+        Parameters
+        ----------
+        to_surface: Surface
+            target surface
+
+        Returns
+        -------
+        The copied topography.
+
+        """
+
+        copy = Topography.objects.get(pk=self.pk)
+        copy.pk = None
+        copy.surface = to_surface
+
+        with self.datafile.open(mode='rb') as datafile:
+            copy.datafile = default_storage.save(self.datafile.name, File(datafile))
+
+        copy.tags = self.tags.get_tag_list()
+        copy.save()
+
+        return copy
+
+    def get_plot(self, thumbnail=False):
+        """Return bokeh plot.
+
+        Parameters
+        ----------
+        thumbnail
+            boolean, if True, return a reduced plot suitable for a thumbnail
+
+        Returns
+        -------
+
+        """
+        try:
+            st_topo = self.topography()  # SurfaceTopography instance (=st)
+        except Exception as exc:
+            raise LoadTopographyException("Can't load topography.") from exc
+
+        if st_topo.dim == 1:
+            try:
+                return self._get_1d_plot(st_topo, reduced=thumbnail)
+            except Exception as exc:
+                raise PlotTopographyException("Error generating 1D plot for topography.") from exc
+        elif st_topo.dim ==2:
+            try:
+                return self._get_2d_plot(st_topo, reduced=thumbnail)
+            except Exception as exc:
+                raise PlotTopographyException("Error generating 2D plot for topography.") from exc
+        else:
+            raise PlotTopographyException("Can only plot 1D or 2D topograpies, this has {} dimensions.".format(
+                st_topo.dim
+            ))
+
+    def _get_1d_plot(self, st_topo, reduced=False):
+        """Calculate 1D line plot of topography (line scan).
+
+        :param st_topo: SurfaceTopography.Topography instance
+        :return: bokeh plot
+        """
+        x, y = st_topo.positions_and_heights()
+
+        x_range = DataRange1d(bounds='auto')
+        y_range = DataRange1d(bounds='auto')
+
+        TOOLTIPS = """
+            <style>
+                .bk-tooltip>div:not(:first-child) {{display:none;}}
+                td.tooltip-varname {{ text-align:right; font-weight: bold}}
+            </style>
+
+            <table>
+              <tr>
+                <td class="tooltip-varname">x</td>
+                <td>:</td>
+                <td>@x {}</td>
+              </tr>
+              <tr>
+                <td class="tooltip-varname">height</td>
+                <td>:</td>
+                <td >@y {}</td>
+              </tr>
+            </table>
+        """.format(self.unit, self.unit)
+
+        if reduced:
+            toolbar_location = None
+        else:
+            toolbar_location = 'above'
+
+        plot = figure(x_range=x_range, y_range=y_range,
+                      x_axis_label=f'x ({self.unit})',
+                      y_axis_label=f'height ({self.unit})',
+                      tooltips=TOOLTIPS,
+                      toolbar_location=toolbar_location)
+
+        show_symbols = y.shape[0] <= MAX_NUM_POINTS_FOR_SYMBOLS_IN_LINE_SCAN_PLOT
+
+        if reduced:
+            line_kwargs = dict(line_width=3)
+        else:
+            line_kwargs = dict()
+
+        plot.line(x, y, **line_kwargs)
+        if show_symbols:
+            plot.circle(x, y)
+
+        if reduced:
+            plot.xaxis.visible = False
+            plot.yaxis.visible = False
+            plot.grid.visible = False
+        else:
+            plot.xaxis.axis_label_text_font_style = "normal"
+            plot.yaxis.axis_label_text_font_style = "normal"
+
+        plot.toolbar.logo = None
+
+        return plot
+
+    def _get_2d_plot(self, st_topo, reduced=False):
+        """Calculate 2D image plot of topography.
+
+        :param st_topo: SurfaceTopography.Topography instance
+        :return: bokeh plot
+        """
+        heights = st_topo.heights()
+
+        topo_size = st_topo.physical_sizes
+        # x_range = DataRange1d(start=0, end=topo_size[0], bounds='auto')
+        # y_range = DataRange1d(start=0, end=topo_size[1], bounds='auto')
+        x_range = DataRange1d(start=0, end=topo_size[0], bounds='auto', range_padding=5)
+        y_range = DataRange1d(start=topo_size[1], end=0, flipped=True, range_padding=5)
+
+        color_mapper = LinearColorMapper(palette="Viridis256", low=heights.min(), high=heights.max())
+
+        TOOLTIPS = [
+            ("x", "$x " + self.unit),
+            ("y", "$y " + self.unit),
+            ("height", "@image " + self.unit),
+        ]
+        colorbar_width = 50
+
+        aspect_ratio = topo_size[0] / topo_size[1]
+        frame_height = 500
+        frame_width = int(frame_height * aspect_ratio)
+
+        if frame_width > 1200:  # rule of thumb, scale down if too wide
+            frame_width = 1200
+            frame_height = int(frame_width / aspect_ratio)
+
+        if reduced:
+            toolbar_location = None
+        else:
+            toolbar_location = 'above'
+
+        plot = figure(x_range=x_range,
+                      y_range=y_range,
+                      frame_width=frame_width,
+                      frame_height=frame_height,
+                      # sizing_mode='scale_both',
+                      # aspect_ratio=aspect_ratio,
+                      match_aspect=True,
+                      x_axis_label=f'x ({self.unit})',
+                      y_axis_label=f'y ({self.unit})',
+                      # tools=[PanTool(),BoxZoomTool(match_aspect=True), "save", "reset"],
+                      tooltips=TOOLTIPS,
+                      toolbar_location=toolbar_location)
+
+        if reduced:
+            plot.xaxis.visible = None
+            plot.yaxis.visible = None
+        else:
+            plot.xaxis.axis_label_text_font_style = "normal"
+            plot.yaxis.axis_label_text_font_style = "normal"
+
+        # we need to rotate the height data in order to be compatible with image in Gwyddion
+        plot.image([np.rot90(heights)], x=0, y=topo_size[1],
+                   dw=topo_size[0], dh=topo_size[1], color_mapper=color_mapper)
+        # the anchor point of (0,topo_size[1]) is needed because the y range is flipped
+        # in order to have the origin in upper left like in Gwyddion
+
+        plot.toolbar.logo = None
+
+        if not reduced:
+            colorbar = ColorBar(color_mapper=color_mapper,
+                                label_standoff=12,
+                                location=(0, 0),
+                                width=colorbar_width,
+                                title=f"height ({self.unit})")
+
+            plot.add_layout(colorbar, 'right')
+
+        return plot
+
+    def renew_thumbnail(self, driver=None):
+        """Renew thumbnail field.
+
+        Parameters
+        ----------
+        driver
+            selenium webdriver instance, if not given
+            a firefox instance is created using
+            `utils.get_firefox_webdriver()`
+
+        Returns
+        -------
+        None
+
+        """
+        plot = self.get_plot(thumbnail=True)
+        #
+        # Create a plot and save a thumbnail image in in-memory file
+        #
+        generate_driver = not driver
+        if generate_driver:
+            driver = get_firefox_webdriver()
+
+        image = get_screenshot_as_png(plot, driver=driver)
+
+        thumbnail_height = 400
+        thumbnail_width = int(image.size[0] * thumbnail_height/image.size[1])
+        image.thumbnail((thumbnail_width, thumbnail_height))
+        image_file = io.BytesIO()
+        image.save(image_file, 'PNG')
+
+        #
+        # Save the contents of in-memory file in Django image field
+        #
+        self.thumbnail.save(
+            f'thumbnail_topography_{self.id}.png',
+            ContentFile(image_file.getvalue()),
+        )
+
+        if generate_driver:
+            driver.close()  # important to free memory
 
 

@@ -45,6 +45,7 @@ nosetests.xml
 coverage.xml
 *.cover
 .hypothesis/
+splinter_tests.*/
 
 # Translations
 *.mo
@@ -344,9 +345,6 @@ topobank.db
 .envs/.production/.django
 .envs/.production/.postgres
 orcid.yaml
-
-# This is the source code for PyCo which we need to build docker containers
-PyCo-*.tar.gz
 
 # temporary files from soffice
 .~lock.*#

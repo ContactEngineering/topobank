@@ -3,8 +3,7 @@
   "version": "0.1.0",
   "dependencies": {
     "d3": "^5.7.0",
-    "plottable": "^3.8.6",
-    "sass": "^1.14.2"
+      "sass": "^1.14.2"
   },
   "devDependencies": {
     "browser-sync": "^2.26.3",

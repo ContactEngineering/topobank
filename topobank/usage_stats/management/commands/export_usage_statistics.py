@@ -86,7 +86,7 @@ def _statisticByDate2dataframe(metric_ref, column_heading=None):
     return df
 
 
-def _statisticByDateAndObject2dataframe(metric_ref, content_type):
+def _statisticByDateAndObject2dataframe(metric_ref, content_type, attr_name='name'):
     """
 
     Parameters
@@ -95,8 +95,11 @@ def _statisticByDateAndObject2dataframe(metric_ref, content_type):
         Reference string for metrics.
 
     content_type: ContentType instance
-        Objects of the given type needs to have a field 'name' which is unique.
+        Objects of the given type needs to have a attribute named 'attr_name'
         This is used as column name for the resulting dataframe.
+
+    attr_name: str
+        Name of the attribute to display
 
     Returns
     -------
@@ -116,13 +119,17 @@ def _statisticByDateAndObject2dataframe(metric_ref, content_type):
 
         # values.append(l['date'])
         obj = content_type.get_object_for_this_type(id=l['object_id'])
-        obj_name = obj.name
+        obj_name = getattr(obj, attr_name)
 
         values.append({'date': l['date'], obj_name: l['value']})
 
-    df = pd.DataFrame.from_records(values, index='date').groupby('date').sum()
-    df.fillna(0, inplace=True)
-    return df
+    if values:
+        df = pd.DataFrame.from_records(values, index='date').groupby('date').sum()
+        df.fillna(0, inplace=True)
+        return df
+    else:
+        _log.warning("No usable values for statistics for metric '%s'.", metric_ref)
+        return _empty_date_dataframe()
 
 
 class Command(BaseCommand):
@@ -159,9 +166,18 @@ class Command(BaseCommand):
         #
         # Compile results for statistics for objects
         #
-        ct = ContentType.objects.get(model='analysisfunction')
-        result_views_by_date_function_df = _statisticByDateAndObject2dataframe('analyses_results_view_count', ct)
-        analysis_cpu_seconds_by_date_function_df = _statisticByDateAndObject2dataframe('total_analysis_cpu_ms', ct)/1000
+        ct_af = ContentType.objects.get(model='analysisfunction')
+        result_views_by_date_function_df = _statisticByDateAndObject2dataframe('analyses_results_view_count', ct_af)
+        analysis_cpu_seconds_by_date_function_df = _statisticByDateAndObject2dataframe('total_analysis_cpu_ms', ct_af)/1000
+
+        ct_pub = ContentType.objects.get(model='publication')
+        publication_views_by_date_function_df = _statisticByDateAndObject2dataframe('publication_view_count', ct_pub,
+                                                                                    'short_url')
+
+        ct_surf = ContentType.objects.get(model='surface')
+        surface_views_by_date_function_df = _statisticByDateAndObject2dataframe('surface_view_count', ct_surf, 'id')
+        surface_downloads_by_date_function_df = _statisticByDateAndObject2dataframe('surface_download_count',
+                                                                                    ct_surf, 'id')
 
         #
         # Write all dataframes to Excel file
@@ -170,9 +186,11 @@ class Command(BaseCommand):
             statistics_by_date_df.to_excel(writer, sheet_name='statistics by date')
             result_views_by_date_function_df.to_excel(writer, sheet_name='analysis views by date+function')
             analysis_cpu_seconds_by_date_function_df.to_excel(writer, sheet_name='cpu seconds by date+function')
+            publication_views_by_date_function_df.to_excel(writer, sheet_name='publication req. by date+url')
+            surface_views_by_date_function_df.to_excel(writer, sheet_name='surface views by date+id')
+            surface_downloads_by_date_function_df.to_excel(writer, sheet_name='surface downloads by date+id')
             for sheetname, sheet in writer.sheets.items():
                 _adjust_columns_widths(sheet)
-
 
         self.stdout.write(self.style.SUCCESS(f"Written user statistics to file '{EXPORT_FILE_NAME}'."))
         _log.info("Done.")

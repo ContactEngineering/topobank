@@ -1,5 +1,23 @@
 # Changelog for *TopoBank*
 
+## 0.9.0 (2020-11-02)
+
+- users can publish their surfaces (#317, #510, #517, #525)
+- anonymous session are allowed, users can browse published
+  surfaces and analyses without being signed in (#164)
+- added thumbnail gallery for topographies in a surface (#514)  
+- added tooltip to tab headers (#512)
+- adjusted dependencies to new repositories
+  resulting from splitting of PyCo package (#475)
+- removed plottable dependency, using now bokeh for bandwidth 
+  plot (#238) 
+- added terms and conditions version 2.0 (#491)
+- added anonymous counts for publication and surface
+  views and downloads (#511)
+- Fixing display of applied boundary conditions for contact
+  mechanics calculation (#519). Recalculation needed.
+- Removed banner that this is a beta release (#531)  
+
 ## 0.8.3 (2020-06-26)
 
 - fix: added missing migration for ordering of topographies 
@@ -26,7 +44,7 @@ Several improvements and fixes for the user interface.
 - in contact mechanics plot, replaced interactive legend by
   a collapsed list of checkboxes increasing the plot area (#472)
 - replaced loading indicator for tree on "Select" page (#461) 
-- fixing wrong mail configuration in production (#130,#292)
+- fixing wrong mail configuration in production (#130, #292)
 - fixing overlapping pills in detail view for surfaces and
   topographies (#471)
 - fixed too many tags shown in tag tree when using filtering (#465)

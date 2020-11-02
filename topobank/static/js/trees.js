@@ -177,11 +177,25 @@ let search_results_vm = new Vue({
                           $tdList.eq(0).find('.fancytree-title').after(tag_html);
                       }
 
+                      // Set column with version
+                      if (node.data.version !== undefined) {
+                          const version_html = `<div class='version-column'>${node.data.version}</div>`
+                          $tdList
+                              .eq(1)
+                              .html(version_html);
+
+                          // Also add badge for "published" to first column
+                          if (node.data.version.toString().length > 0) {
+                              published_html = "<span class='badge badge-info mr-1'>published</span>";
+                              $tdList.eq(0).find('.fancytree-title').after(published_html);
+                          }
+                      }
+
                       // Set column with description
                       if (node.data.description !== undefined) {
                           const description_html = `<div class='description-column'>${node.data.description}</div>`
                           $tdList
-                              .eq(1)
+                              .eq(2)
                               .html(description_html);
                       }
 
@@ -194,7 +208,7 @@ let search_results_vm = new Vue({
                             </div>
                           `;
                           $tdList
-                              .eq(2)
+                              .eq(3)
                               .html(actions_html);
                       }
 

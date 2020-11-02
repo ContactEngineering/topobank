@@ -8,6 +8,7 @@ from topobank.analysis.models import AnalysisFunction
 from topobank.manager.models import Topography
 from topobank.manager.tests.utils import two_topos
 
+
 @pytest.mark.django_db
 def test_perform_analysis(mocker, two_topos, settings):
 
@@ -21,9 +22,8 @@ def test_perform_analysis(mocker, two_topos, settings):
     m = mocker.patch('topobank.analysis.models.AnalysisFunction.python_function', new_callable=mocker.PropertyMock)
     m.return_value = my_func
 
-
-    af = AnalysisFunction.objects.first() # doesn't matter
-    topo = Topography.objects.first() # doesn't matter
+    af = AnalysisFunction.objects.first()  # doesn't matter
+    topo = Topography.objects.first()  # doesn't matter
 
     func_kwargs = dict(a=1,
                        b=2,
@@ -36,7 +36,7 @@ def test_perform_analysis(mocker, two_topos, settings):
                                 kwargs=pickle.dumps(func_kwargs))
     analysis.save()
 
-    settings.CELERY_TASK_ALWAYS_EAGER = True # perform tasks locally
+    settings.CELERY_TASK_ALWAYS_EAGER = True  # perform tasks locally
 
     # with mocker.patch('django.conf.settings.CELERY_ALWAYS_EAGER', True, create=True):
     perform_analysis(analysis.id)
@@ -54,10 +54,10 @@ def test_perform_analysis(mocker, two_topos, settings):
     assert analysis.configuration == first_config
 
     #
-    # No let's change the version of PyCo
+    # No let's change the version of SurfaceTopography
     #
     settings.TRACKED_DEPENDENCIES = [
-        ('PyCo', '"0.5.1"'),
+        ('SurfaceTopography', '"0.89.1"'),      # this version does not exist, so should be unknown here
         ('topobank', 'topobank.__version__'),
         ('numpy', 'numpy.version.full_version')
     ]
@@ -77,11 +77,11 @@ def test_perform_analysis(mocker, two_topos, settings):
     assert analysis2.configuration is not None
     assert analysis2.configuration != first_config
 
-    new_pyco_version = analysis2.configuration.versions.get(dependency__import_name='PyCo')
+    new_st_version = analysis2.configuration.versions.get(dependency__import_name='SurfaceTopography')
 
-    assert new_pyco_version.major == 0
-    assert new_pyco_version.minor == 5
-    assert new_pyco_version.micro == 1
+    assert new_st_version.major == 0
+    assert new_st_version.minor == 89
+    assert new_st_version.micro == 1
 
     # other versions stay the same
     numpy_version = analysis2.configuration.versions.get(dependency__import_name='numpy')

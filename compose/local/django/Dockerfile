@@ -3,13 +3,15 @@ FROM continuumio/miniconda3
 #FROM python:3.7-alpine
 
 ENV PYTHONUNBUFFERED 1
-ARG PYCO_VERSION=0.56.0
+ENV CFLAGS "-I/usr/include/eigen3/"
+# This is a workaround for https://gitlab.com/muspectre/muspectre/-/issues/144
 
 #
 # System dependencies for Python + Django
 #
 RUN apt-get update \
-  && apt-get install --yes libfftw3-3 libfftw3-dev gcc g++ gettext \
+  && apt-get install --yes apt-utils \
+  && apt-get install --yes libfftw3-3 libfftw3-dev libopenblas-dev libeigen3-dev gcc g++ gettext \
   # Pillow requirements
   && apt-get install --yes libjpeg-dev zlib1g-dev libfreetype6-dev \
      liblcms2-dev libtiff-dev tk-dev tcl-dev librabbitmq-dev \
@@ -18,26 +20,16 @@ RUN apt-get update \
   && apt-get install --yes curl
   # && apt-get install --yes mpicc libfftw3-mpi-dev
   # && apt-get install --yes clang-5 libfftw3-dev
+  # Requirement needed for exporting bokeh plots
 
 # clean up image
 RUN apt-get -qy autoremove
 
 #
-# Installation of PyCo + dependencies
+# Extra requirements for exporting plots in bokeh
 #
-# Copy PyCo source code into container, uncompress
-COPY PyCo-${PYCO_VERSION}.tar.gz .
-RUN tar xfvz PyCo-${PYCO_VERSION}.tar.gz
-
-# install PyCo
-WORKDIR PyCo-${PYCO_VERSION}
-
-# workaround for typo in requiremnts.txt
-RUN sed -i "s/#egg=muff$/#egg=mufft/g" requirements.txt
-
-RUN pip install wheel
-RUN pip install -r requirements.txt
-RUN pip install .
+RUN apt-get install --yes libgtk-3-0 libdbus-glib-1-2
+RUN conda install -c conda-forge firefox geckodriver
 
 #
 # Install requirements for TopoBank

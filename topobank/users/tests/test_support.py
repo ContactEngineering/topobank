@@ -11,12 +11,15 @@ from topobank.analysis.models import AnalysisFunction, Analysis
 
 
 @pytest.mark.django_db
-def test_initial_surface(live_server, client, django_user_model, handle_usage_statistics):
+def test_initial_surface(client, django_user_model, handle_usage_statistics, mocker):
 
-    import topobank.users.signals  # in order to have signals activated
+    import django.db.transaction
+    mocker.patch.object(django.db.transaction, 'on_commit', lambda t: t())
+    mocker.patch('topobank.taskapp.tasks.perform_analysis.delay')  # we don't want to calculate anything
+    # we just skip the waiting for a commit, not needed for this test: Just execute the given function
+    # -> like this we need no transaction=True for this test which makes Travis just wait and the tests fail
 
-    # Make sure, we have automated analysis functions
-    call_command('register_analysis_functions')
+    call_command("register_analysis_functions")
 
     # we read from static files, they should be up-to-date
     call_command('collectstatic', '--noinput')
@@ -29,17 +32,16 @@ def test_initial_surface(live_server, client, django_user_model, handle_usage_st
     name = 'New User'
 
     response = client.post(reverse('account_signup'), {
-                    'email': email,
-                    'password1': password,
-                    'password2': password,
-                    'name': name,
+                   'email': email,
+                   'password1': password,
+                   'password2': password,
+                   'name': name,
     })
-
     assert 'form' not in response.context, "Errors in form: {}".format(response.context['form'].errors)
 
     assert response.status_code == 302  # redirect
 
-    user = django_user_model.objects.get(email=email)
+    user = django_user_model.objects.get(name=name)
 
     # user is already authenticated
     assert user.is_authenticated
@@ -65,11 +67,12 @@ def test_initial_surface(live_server, client, django_user_model, handle_usage_st
     #
     for topo in topos:
         assert topo.size_x == topo.size_y  # so far all examples are like this, want to ensure here that size_y is set
-        pyco_topo = topo.topography()
-        assert pyco_topo.info['unit'] == 'µm'
-        assert pyco_topo.physical_sizes == (topo.size_x, topo.size_y)
+        st_topo = topo.topography()
+        assert st_topo.info['unit'] == 'µm'
+        assert st_topo.physical_sizes == (topo.size_x, topo.size_y)
 
         assert topo.height_scale_editable
+
     #
     # For all these topographies, all analyses for all automated analysis functions
     # should have been triggered
@@ -83,9 +86,6 @@ def test_initial_surface(live_server, client, django_user_model, handle_usage_st
     #
     assert Notification.objects.filter(unread=True, recipient=user, verb='create',
                                        description__contains="An example surface has been created for you").count() == 1
-
-
-
 
 
 

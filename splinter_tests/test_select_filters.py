@@ -135,7 +135,6 @@ def test_filter(user_alice_logged_in, items_for_filtering):
     # assert active_page_size(browser) == 10
 
 
-
 # @pytest.mark.django_db
 # This test is working, but skipped for now, because somehow
 # the search for "surface2" is kept in session and transferred to

@@ -9,7 +9,7 @@ from celery_progress.backend import ProgressRecorder
 
 from notifications.signals import notify
 
-from PyCo.System.Systems import IncompatibleFormulationError
+from ContactMechanics.Systems import IncompatibleFormulationError
 
 from .celery import app
 from .utils import get_package_version_instance
@@ -18,11 +18,12 @@ from topobank.analysis.models import Analysis, Configuration, AnalysisCollection
 from topobank.manager.models import Topography, Surface
 from topobank.users.models import User
 from topobank.analysis.functions import IncompatibleTopographyException
-from topobank.usage_stats.utils import increase_statistics_by_date, increase_statistics_by_date_and_object
-
+from topobank.usage_stats.utils import increase_statistics_by_date, increase_statistics_by_date_and_object,\
+                                        current_statistics
 
 
 EXCEPTION_CLASSES_FOR_INCOMPATIBILITIES = (IncompatibleTopographyException, IncompatibleFormulationError)
+
 
 def current_configuration():
     """Determine current configuration (package versions) and create appropriate database entries.
@@ -92,6 +93,8 @@ def perform_analysis(self, analysis_id):
         analysis.task_state = task_state
         analysis.result = pickle.dumps(result)  # can also be an exception in case of errors!
         analysis.end_time = timezone.now()  # with timezone
+        if 'effective_kwargs' in result:
+            analysis.kwargs = pickle.dumps(result['effective_kwargs'])
         analysis.save()
 
     #
@@ -190,18 +193,22 @@ def save_landing_page_statistics():
     #
     # Number of surfaces, topographies, analyses
     #
+    # Publications should not increase these numbers
+    #
+    current_stats = current_statistics()
+
     StatisticByDate.objects.record(
         metric=Metric.objects.SURFACE_COUNT,
-        value=Surface.objects.filter().count(),
+        value=current_stats['num_surfaces_excluding_publications'],
         period=Period.DAY
     )
     StatisticByDate.objects.record(
         metric=Metric.objects.TOPOGRAPHY_COUNT,
-        value=Topography.objects.filter().count(),
+        value=current_stats['num_topographies_excluding_publications'],
         period=Period.DAY
     )
     StatisticByDate.objects.record(
         metric=Metric.objects.ANALYSIS_COUNT,
-        value=Analysis.objects.filter().count(),
+        value=current_stats['num_analyses_excluding_publications'],
         period=Period.DAY
     )

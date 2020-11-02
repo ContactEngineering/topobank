@@ -8,9 +8,12 @@ from io import BytesIO
 import django_tables2 as tables
 import numpy as np
 import yaml
+import textwrap
+
 from bokeh.embed import components
-from bokeh.models import DataRange1d, LinearColorMapper, ColorBar
-from bokeh.plotting import figure
+from bokeh.models import DataRange1d, LinearColorMapper, ColorBar, LabelSet, FuncTickFormatter, TapTool, OpenURL
+from bokeh.plotting import figure, ColumnDataSource
+
 from django.conf import settings
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.core.exceptions import PermissionDenied
@@ -22,41 +25,44 @@ from django.http import HttpResponse, Http404
 from django.shortcuts import redirect, render
 from django.urls import reverse, reverse_lazy
 from django.utils.decorators import method_decorator
-from django.views.generic import DetailView, UpdateView, CreateView, DeleteView, TemplateView
+from django.utils.safestring import mark_safe
+from django.views.generic import DetailView, UpdateView, CreateView, DeleteView, TemplateView, ListView, FormView
 from django.views.generic.edit import FormMixin
 from django_tables2 import RequestConfig
+from django.contrib.staticfiles.storage import staticfiles_storage
+
 from formtools.wizard.views import SessionWizardView
 from guardian.decorators import permission_required_or_403
-from guardian.shortcuts import get_users_with_perms, get_objects_for_user
+from guardian.shortcuts import get_users_with_perms, get_objects_for_user, get_anonymous_user
 from notifications.signals import notify
 from rest_framework.decorators import api_view
 from rest_framework.generics import ListAPIView
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.utils.urls import remove_query_param, replace_query_param
-import rest_framework.status
 from trackstats.models import Metric, Period
 
-from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm
-from .forms import TopographyForm, SurfaceForm, SurfaceShareForm
-from .models import Topography, Surface, TagModel
+from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm, DEFAULT_LICENSE
+from .forms import TopographyForm, SurfaceForm, SurfaceShareForm, SurfacePublishForm
+from .models import Topography, Surface, TagModel, \
+    NewPublicationTooFastException, LoadTopographyException, PlotTopographyException
 from .serializers import SurfaceSerializer, TagSerializer
 from .utils import selected_instances, bandwidths_data, get_topography_reader, tags_for_user, get_reader_infos, \
     mailto_link_for_reporting_an_error, current_selection_as_basket_items, filtered_surfaces, \
-    filtered_topographies, get_search_term, get_category, get_sharing_status, get_tree_mode, \
-    MAX_LEN_SEARCH_TERM
-from ..usage_stats.utils import increase_statistics_by_date
+    filtered_topographies, get_search_term, get_category, get_sharing_status, get_tree_mode
+from ..usage_stats.utils import increase_statistics_by_date, increase_statistics_by_date_and_object
 from ..users.models import User
-
-MAX_NUM_POINTS_FOR_SYMBOLS_IN_LINE_SCAN_PLOT = 100
+from ..users.utils import get_default_group
+from ..publication.models import Publication, MAX_LEN_AUTHORS_FIELD
 
 # create dicts with labels and option values for Select tab
-CATEGORY_FILTER_CHOICES = {'all':'All categories',
-                           **{cc[0]:cc[1]+" only" for cc in Surface.CATEGORY_CHOICES}}
+CATEGORY_FILTER_CHOICES = {'all': 'All categories',
+                           **{cc[0]: cc[1] + " only" for cc in Surface.CATEGORY_CHOICES}}
 SHARING_STATUS_FILTER_CHOICES = {
-    'all': 'Own and shared surfaces',
+    'all': 'All accessible surfaces',
     'own': 'Only own surfaces',
     'shared': 'Only surfaces shared with you',
+    'published': 'Only surfaces published by anyone',
 }
 TREE_MODE_CHOICES = ['surface list', 'tag tree']
 
@@ -64,15 +70,15 @@ MAX_PAGE_SIZE = 100
 DEFAULT_PAGE_SIZE = 10
 
 DEFAULT_SELECT_TAB_STATE = {
-                'search_term': '',  # empty string means: no search
-                'category': 'all',
-                'sharing_status': 'all',
-                'tree_mode': 'surface list',
-                'page_size': 10,
-                'current_page': 1,
-                # all these values are the default if no filter has been applied
-                # and the page is loaded the first time
-            }
+    'search_term': '',  # empty string means: no search
+    'category': 'all',
+    'sharing_status': 'all',
+    'tree_mode': 'surface list',
+    'page_size': 10,
+    'current_page': 1,
+    # all these values are the default if no filter has been applied
+    # and the page is loaded the first time
+}
 
 _log = logging.getLogger(__name__)
 
@@ -104,6 +110,10 @@ surface_share_permission_required = method_decorator(
     permission_required_or_403('manager.share_surface', ('manager.Surface', 'pk', 'pk'))
 )
 
+surface_publish_permission_required = method_decorator(
+    permission_required_or_403('manager.publish_surface', ('manager.Surface', 'pk', 'pk'))
+)
+
 
 class TopographyPermissionMixin(UserPassesTestMixin):
     redirect_field_name = None
@@ -116,7 +126,9 @@ class TopographyPermissionMixin(UserPassesTestMixin):
             topo = Topography.objects.get(pk=self.kwargs['pk'])
         except Topography.DoesNotExist:
             raise Http404()
-        return all(self.request.user.has_perm(perm, topo.surface) for perm in perms)
+
+        return all(self.request.user.has_perm(perm, topo.surface)
+                   for perm in perms)
 
     def test_func(self):
         return NotImplementedError()
@@ -132,6 +144,11 @@ class TopographyUpdatePermissionMixin(TopographyPermissionMixin):
         return self.has_surface_permissions(['view_surface', 'change_surface'])
 
 
+class ORCIDUserRequiredMixin(UserPassesTestMixin):
+    def test_func(self):
+        return not self.request.user.is_anonymous
+
+
 #
 # Using a wizard because we need intermediate calculations
 #
@@ -145,7 +162,7 @@ class TopographyUpdatePermissionMixin(TopographyPermissionMixin):
 #
 #  https://sixfeetup.com/blog/making-your-django-templates-ajax-y
 #
-class TopographyCreateWizard(SessionWizardView):
+class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
     form_list = [TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm]
     template_name = 'manager/topography_wizard.html'
     file_storage = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT, 'topographies/wizard'))
@@ -322,16 +339,18 @@ class TopographyCreateWizard(SessionWizardView):
         #
         context['extra_tabs'] = [
             {
-                'title': f"{surface.name}",
+                'title': f"{surface}",
                 'icon': "diamond",
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
                 'active': False,
+                'tooltip': f"Properties of surface '{surface.label}'"
             },
             {
                 'title': f"Add topography",
                 'icon': "plus-square-o",
                 'href': self.request.path,
                 'active': True,
+                'tooltip': f"Adding a topography to surface '{surface.label}'"
             }
         ]
 
@@ -397,6 +416,7 @@ class TopographyCreateWizard(SessionWizardView):
             #
             return redirect('manager:topography-corrupted', surface_id=surface.id)
 
+        topo.renew_thumbnail()
         topo.renew_analyses()
 
         #
@@ -420,7 +440,27 @@ class CorruptedTopographyView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['surface'] = Surface.objects.get(id=kwargs['surface_id'])
+        surface = Surface.objects.get(id=kwargs['surface_id'])
+        context['surface'] = surface
+        #
+        # Add context needed for tabs
+        #
+        context['extra_tabs'] = [
+            {
+                'title': f"{surface}",
+                'icon': "diamond",
+                'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
+                'active': False,
+                'tooltip': f"Properties of surface '{surface.label}'"
+            },
+            {
+                'title': f"Corrupted File",
+                'icon': "flash",
+                'href': self.request.path,
+                'active': True,
+                'tooltip': f"Failure while uploading a new file"
+            }
+        ]
         return context
 
 
@@ -459,7 +499,10 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
         significant_fields_with_changes = set(form.changed_data).intersection(significant_fields)
         if len(significant_fields_with_changes) > 0:
             _log.info(f"During edit of topography {topo.id} significant fields changed: " + \
-                      f"{significant_fields_with_changes}. Renewing analyses...")
+                      f"{significant_fields_with_changes}.")
+            _log.info("Renewing thumbnail...")
+            topo.renew_thumbnail()
+            _log.info("Renewing analyses...")
             topo.renew_analyses()
             notification_msg += f"\nBecause significant fields have changed, all analyses are recalculated now."
 
@@ -499,22 +542,25 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
         #
         context['extra_tabs'] = [
             {
-                'title': f"{topo.surface.name}",
+                'title': f"{topo.surface.label}",
                 'icon': "diamond",
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
                 'active': False,
+                'tooltip': f"Properties of surface '{topo.surface.label}'"
             },
             {
                 'title': f"{topo.name}",
                 'icon': "file-o",
                 'href': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
                 'active': False,
+                'tooltip': f"Properties of topography '{topo.name}'"
             },
             {
                 'title': f"Edit Topography",
                 'icon': "pencil",
                 'href': self.request.path,
-                'active': True
+                'active': True,
+                'tooltip': f"Editing topography '{topo.name}'"
             }
         ]
         return context
@@ -524,124 +570,6 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
     model = Topography
     context_object_name = 'topography'
 
-    def get_1D_plot(self, pyco_topo, topo):
-        """Calculate 1D line plot of topography (line scan).
-
-        :param pyco_topo: PyCo Topography instance
-        :param topo: TopoBank Topography instance
-        :return: bokeh plot
-        """
-        x, y = pyco_topo.positions_and_heights()
-
-        x_range = DataRange1d(bounds='auto')
-        y_range = DataRange1d(bounds='auto')
-
-        TOOLTIPS = """
-            <style>
-                .bk-tooltip>div:not(:first-child) {{display:none;}}
-                td.tooltip-varname {{ text-align:right; font-weight: bold}}
-            </style>
-
-            <table>
-              <tr>
-                <td class="tooltip-varname">x</td>
-                <td>:</td>
-                <td>@x {}</td>
-              </tr>
-              <tr>
-                <td class="tooltip-varname">height</td>
-                <td>:</td>
-                <td >@y {}</td>
-              </tr>
-            </table>
-        """.format(topo.unit, topo.unit)
-
-        plot = figure(x_range=x_range, y_range=y_range,
-                      x_axis_label=f'x ({topo.unit})',
-                      y_axis_label=f'height ({topo.unit})',
-                      toolbar_location="above",
-                      tooltips=TOOLTIPS)
-
-        show_symbols = y.shape[0] <= MAX_NUM_POINTS_FOR_SYMBOLS_IN_LINE_SCAN_PLOT
-
-        plot.line(x, y)
-        if show_symbols:
-            plot.circle(x, y)
-
-        plot.xaxis.axis_label_text_font_style = "normal"
-        plot.yaxis.axis_label_text_font_style = "normal"
-
-        plot.toolbar.logo = None
-
-        return plot
-
-    def get_2D_plot(self, pyco_topo, topo):
-        """Calculate 2D image plot of topography.
-
-        :param pyco_topo: PyCo Topography instance
-        :param topo: TopoBank Topography instance
-        :return: bokeh plot
-        """
-        heights = pyco_topo.heights()
-
-        topo_size = pyco_topo.physical_sizes
-        # x_range = DataRange1d(start=0, end=topo_size[0], bounds='auto')
-        # y_range = DataRange1d(start=0, end=topo_size[1], bounds='auto')
-        x_range = DataRange1d(start=0, end=topo_size[0], bounds='auto', range_padding=5)
-        y_range = DataRange1d(start=topo_size[1], end=0, flipped=True, range_padding=5)
-
-        color_mapper = LinearColorMapper(palette="Viridis256", low=heights.min(), high=heights.max())
-
-        TOOLTIPS = [
-            ("x", "$x " + topo.unit),
-            ("y", "$y " + topo.unit),
-            ("height", "@image " + topo.unit),
-        ]
-
-        colorbar_width = 50
-
-        aspect_ratio = topo_size[0] / topo_size[1]
-        frame_height = 500
-        frame_width = int(frame_height * aspect_ratio)
-
-        if frame_width > 1200:  # rule of thumb, scale down if too wide
-            frame_width = 1200
-            frame_height = int(frame_width / aspect_ratio)
-
-        plot = figure(x_range=x_range,
-                      y_range=y_range,
-                      frame_width=frame_width,
-                      frame_height=frame_height,
-                      # sizing_mode='scale_both',
-                      # aspect_ratio=aspect_ratio,
-                      match_aspect=True,
-                      x_axis_label=f'x ({topo.unit})',
-                      y_axis_label=f'y ({topo.unit})',
-                      toolbar_location="above",
-                      # tools=[PanTool(),BoxZoomTool(match_aspect=True), "save", "reset"],
-                      tooltips=TOOLTIPS)
-
-        plot.xaxis.axis_label_text_font_style = "normal"
-        plot.yaxis.axis_label_text_font_style = "normal"
-
-        # we need to rotate the height data in order to be compatible with image in Gwyddion
-        plot.image([np.rot90(heights)], x=0, y=topo_size[1],
-                   dw=topo_size[0], dh=topo_size[1], color_mapper=color_mapper)
-        # the anchor point of (0,topo_size[1]) is needed because the y range is flipped
-        # in order to have the origin in upper left like in Gwyddion
-
-        plot.toolbar.logo = None
-
-        colorbar = ColorBar(color_mapper=color_mapper,
-                            label_standoff=12,
-                            location=(0, 0),
-                            width=colorbar_width,
-                            title=f"height ({topo.unit})")
-
-        plot.add_layout(colorbar, 'right')
-
-        return plot
-
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
@@ -649,41 +577,35 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
 
         errors = []  # list of dicts with keys 'message' and 'link'
 
-        loaded = False
         plotted = False
 
         try:
-            pyco_topo = topo.topography()
-            loaded = True
-        except Exception as exc:
-            err_message = "Topography '{}' (id: {}) cannot be loaded unexpectedly.".format(topo.name, topo.id)
+            plot = topo.get_plot()
+            plotted = True
+        except LoadTopographyException as exc:
+            err_message = "Topography '{}' (id: {}) cannot be loaded unexpectedly.".format(
+                topo.name, topo.id)
             _log.error(err_message)
             link = mailto_link_for_reporting_an_error(f"Failure loading topography (id: {topo.id})",
-                                                      "Image plot for topography",
+                                                      "Showing topography details",
+                                                      err_message,
+                                                      traceback.format_exc())
+
+            errors.append(dict(message=err_message, link=link))
+        except PlotTopographyException as exc:
+            err_message = "Topography '{}' (id: {}) cannot be plotted.".format(topo.name, topo.id)
+            _log.error(err_message)
+            link = mailto_link_for_reporting_an_error(f"Failure plotting topography (id: {topo.id})",
+                                                      "Showing topography details",
                                                       err_message,
                                                       traceback.format_exc())
 
             errors.append(dict(message=err_message, link=link))
 
-        if loaded:
-            if pyco_topo.dim == 1:
-                plot = self.get_1D_plot(pyco_topo, topo)
-                plotted = True
-            elif pyco_topo.dim == 2:
-                plot = self.get_2D_plot(pyco_topo, topo)
-                plotted = True
-            else:
-                err_message = f"Don't know how to display topographies with {pyco_topo.dim} dimensions."
-                link = mailto_link_for_reporting_an_error(f"Invalid dimensions for topography (id: {topo.id})",
-                                                          "Image plot for topography",
-                                                          err_message,
-                                                          traceback.format_exc())
-                errors.append(dict(message=err_message, link=link))
-
-            if plotted:
-                script, div = components(plot)
-                context['image_plot_script'] = script
-                context['image_plot_div'] = div
+        if plotted:
+            script, div = components(plot)
+            context['image_plot_script'] = script
+            context['image_plot_div'] = div
 
         context['errors'] = errors
 
@@ -701,16 +623,20 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
         #
         context['extra_tabs'] = [
             {
-                'title': f"{topo.surface.name}",
+                'title': f"{topo.surface.label}",
                 'icon': "diamond",
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
                 'active': False,
+                'login_required': False,
+                'tooltip': f"Properties of surface '{topo.surface.label}'"
             },
             {
                 'title': f"{topo.name}",
                 'icon': "file-o",
                 'href': self.request.path,
                 'active': True,
+                'login_required': False,
+                'tooltip': f"Properties of topography '{topo.name}'"
             }
         ]
 
@@ -747,22 +673,25 @@ class TopographyDeleteView(TopographyUpdatePermissionMixin, DeleteView):
         surface = topo.surface
         context['extra_tabs'] = [
             {
-                'title': f"{topo.surface.name}",
+                'title': f"{topo.surface.label}",
                 'icon': "diamond",
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
                 'active': False,
+                'tooltip': f"Properties of surface '{topo.surface.label}'"
             },
             {
                 'title': f"{topo.name}",
                 'icon': "file-o",
                 'href': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
                 'active': False,
+                'tooltip': f"Properties of topography '{topo.name}'"
             },
             {
                 'title': f"Delete Topography?",
                 'icon': "trash",
                 'href': self.request.path,
                 'active': True,
+                'tooltip': f"Conforming deletion of topography '{topo.name}'"
             }
         ]
         return context
@@ -800,12 +729,20 @@ class SelectView(TemplateView):
         }
         context['select_tab_state'] = select_tab_state
         context['category_filter_choices'] = CATEGORY_FILTER_CHOICES
-        context['sharing_status_filter_choices'] = SHARING_STATUS_FILTER_CHOICES
+
+        if self.request.user.is_anonymous:
+            # Anonymous user have only one choice
+            context['sharing_status_filter_choices'] = {
+                'published': SHARING_STATUS_FILTER_CHOICES['published']
+            }
+            select_tab_state['sharing_status'] = 'published'  # this only choice should be selected
+        else:
+            context['sharing_status_filter_choices'] = SHARING_STATUS_FILTER_CHOICES
 
         return context
 
 
-class SurfaceCreateView(CreateView):
+class SurfaceCreateView(ORCIDUserRequiredMixin, CreateView):
     model = Surface
     form_class = SurfaceForm
 
@@ -826,12 +763,13 @@ class SurfaceCreateView(CreateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        context['extra_tabs'] =[
+        context['extra_tabs'] = [
             {
                 'title': f"Create surface",
                 'icon': "plus-square-o",
                 'href': self.request.path,
-                'active': True
+                'active': True,
+                'tooltip': "Creating a new surface"
             }
         ]
         return context
@@ -848,10 +786,17 @@ class SurfaceDetailView(DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
+        surface = self.object
+        #
+        # Count this event for statistics
+        #
+        increase_statistics_by_date_and_object(Metric.objects.SURFACE_VIEW_COUNT,
+                                               period=Period.DAY, obj=surface)
+
         #
         # bandwidth data
         #
-        bw_data = bandwidths_data(self.object.topography_set.all())
+        bw_data = bandwidths_data(surface.topography_set.all())
 
         # filter out all entries with errors and display error messages
         bw_data_with_errors = [x for x in bw_data if x['error_message'] is not None]
@@ -861,12 +806,65 @@ class SurfaceDetailView(DetailView):
         context['bandwidths_data_with_errors'] = bw_data_with_errors
 
         #
+        # Plot bandwidths with bokeh
+        #
+        # bw_source =
+
+        if len(bw_data_without_errors) > 0:
+
+            bw_left = [bw['lower_bound'] for bw in bw_data_without_errors]
+            bw_right = [bw['upper_bound'] for bw in bw_data_without_errors]
+            bw_center = np.exp((np.log(bw_left)+np.log(bw_right))/2)  # we want to center on log scale
+            bw_names = [bw['name'] for bw in bw_data_without_errors]
+            bw_links = [bw['link'] for bw in bw_data_without_errors]
+            bw_y = range(0, len(bw_data_without_errors))
+
+            _log.info("label centers: "+",".join(str(x) for x in bw_center))
+
+            bw_source = ColumnDataSource(dict(y=bw_y, left=bw_left, right=bw_right, center=bw_center,
+                                              name=bw_names, link=bw_links))
+
+            x_range = (min(bw_left), max(bw_right))
+
+            plot = figure(x_range=x_range,
+                          x_axis_label="Bandwidth",
+                          x_axis_type="log",
+                          sizing_mode='stretch_width',
+                          tools="tap",
+                          toolbar_location=None)
+            hbar_renderer = plot.hbar(y="y", left="left", right="right", height=0.95,
+                                      name='bandwidths', source=bw_source)
+            hbar_renderer.nonselection_glyph = None  # makes glyph invariant on selection
+            plot.yaxis.visible = False
+            plot.grid.visible = False
+            plot.outline_line_color = None
+            plot.xaxis.formatter = FuncTickFormatter(code="return siSuffixMeters(2)(tick)")
+
+            labels = LabelSet(x='center', y="y", text='name', level='annotation',
+                              text_align="center",
+                              text_color="white",
+                              x_offset=5, y_offset=0, source=bw_source)
+            plot.add_layout(labels)
+
+            centers = plot.circle(x="center", y="y", source=bw_source, level="annotation")
+            plot.add_layout(centers)
+
+            # make clicking a bar going opening a new page
+            taptool = plot.select(type=TapTool)
+            taptool.callback = OpenURL(url="@link", same_tab=True)
+
+            # include plot into response
+            bw_plot_script, bw_plot_div = components(plot)
+            context['plot_script'] = bw_plot_script
+            context['plot_div'] = bw_plot_div
+
+        #
         # permission data
         #
         ACTIONS = ['view', 'change', 'delete', 'share']  # defines the order of permissions in table
 
         # surface_perms = get_users_with_perms(self.object, attach_perms=True, only_with_perms_in=potential_perms)
-        surface_perms = get_users_with_perms(self.object, attach_perms=True)
+        surface_perms = get_users_with_perms(surface, attach_perms=True)
         # is now a dict of the form
         #  <User: joe>: ['view_surface'], <User: dan>: ['view_surface', 'change_surface']}
         surface_users = sorted(surface_perms.keys(), key=lambda u: u.name if u else '')
@@ -885,10 +883,10 @@ class SurfaceDetailView(DetailView):
 
             if is_request_user:
                 user_display_name = "You"
-                auxilliary = "have"
+                auxiliary = "have"
             else:
                 user_display_name = user.name
-                auxilliary = "has"
+                auxiliary = "has"
 
             # the current user is represented as None, can be displayed in a special way in template ("You")
             row = [(user_display_name, user.get_absolute_url())]  # cell title is used for passing a link here
@@ -897,7 +895,7 @@ class SurfaceDetailView(DetailView):
                 perm = a + '_surface'
                 has_perm = perm in surface_perms[user]
 
-                cell_title = "{} {}".format(user_display_name, auxilliary)
+                cell_title = "{} {}".format(user_display_name, auxiliary)
                 if not has_perm:
                     cell_title += "n't"
                 cell_title += " the permission to {} this surface".format(a)
@@ -910,13 +908,67 @@ class SurfaceDetailView(DetailView):
             'head': [''] + ACTIONS,
             'body': surface_perms_table
         }
+
+        #
+        # Build tab information
+        #
         context['extra_tabs'] = [
             {
-                'title': f"{self.object.name}",
+                'title': surface.label,
                 'icon': "diamond",
                 'href': self.request.path,
                 'active': True,
+                'login_required': False,
+                'tooltip': f"Properties of surface '{surface.label}'"
             }
+        ]
+
+        #
+        # Build urls for version selection in dropdown
+        #
+        def version_label_from_publication(pub):
+            return f'Version {pub.version} ({pub.datetime.date()})' if pub else 'Work in progress'
+
+        if surface.is_published:
+            original_surface = surface.publication.original_surface
+            context['this_version_label'] = version_label_from_publication(surface.publication)
+            context['publication_url'] = self.request.build_absolute_uri(surface.publication.get_absolute_url())
+        else:
+            original_surface = surface
+            context['this_version_label'] = version_label_from_publication(None)
+
+        publications = Publication.objects.filter(original_surface=original_surface).order_by('version')
+        version_dropdown_items = []
+
+        if self.request.user.has_perm('view_surface', original_surface):
+            # Only add link to original surface if user is allowed to view
+            version_dropdown_items.append({
+                'label': version_label_from_publication(None),
+                'surface': original_surface,
+            })
+
+        for pub in publications:
+            version_dropdown_items.append({
+                'label': version_label_from_publication(pub),
+                'surface': pub.surface,
+            })
+        context['version_dropdown_items'] = version_dropdown_items
+
+        version_badge_text = ''
+        if surface.is_published:
+            if context['this_version_label'] != version_dropdown_items[-1]['label']:
+                version_badge_text += 'Newer version available'
+        elif len(publications) > 0:
+            version_badge_text += 'Published versions available'
+
+        context['version_badge_text'] = version_badge_text
+
+        # add formats to show citations for
+        context['citation_flavors'] = [
+            ('Text format with link', 'html', False),  # title, flavor, use <pre><code>...</code></pre>
+            ('RIS format', 'ris', True),
+            ('BibTeX format', 'bibtex', True),
+            ('BibLaTeX format', 'biblatex', True),
         ]
 
         return context
@@ -958,16 +1010,18 @@ class SurfaceUpdateView(UpdateView):
 
         context['extra_tabs'] = [
             {
-                'title': f"{surface.name}",
+                'title': f"{surface.label}",
                 'icon': "diamond",
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
                 'active': False,
+                'tooltip': f"Properties of surface '{surface.label}'"
             },
             {
                 'title': f"Edit surface",
                 'icon': "pencil",
                 'href': self.request.path,
                 'active': True,
+                'tooltip': f"Editing surface '{surface.label}'"
             }
         ]
 
@@ -1010,16 +1064,18 @@ class SurfaceDeleteView(DeleteView):
         #
         context['extra_tabs'] = [
             {
-                'title': f"{surface.name}",
+                'title': f"{surface.label}",
                 'icon': "diamond",
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
                 'active': False,
+                'tooltip': f"Properties of surface '{surface.label}'"
             },
             {
                 'title': f"Delete Surface?",
                 'icon': "trash",
                 'href': self.request.path,
                 'active': True,
+                'tooltip': f"Conforming deletion of surface '{surface.label}'"
             }
         ]
         return context
@@ -1085,20 +1141,176 @@ class SurfaceShareView(FormMixin, DetailView):
 
         context['extra_tabs'] = [
             {
-                'title': f"{surface.name}",
+                'title': f"{surface.label}",
                 'icon': "diamond",
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
                 'active': False,
+                'tooltip': f"Properties of surface '{surface.label}'"
             },
             {
                 'title': f"Share surface?",
                 'icon': "share-alt",
                 'href': self.request.path,
                 'active': True,
+                'tooltip': f"Sharing surface '{surface.label}'"
             }
         ]
         context['surface'] = surface
 
+        return context
+
+
+class PublicationsTable(tables.Table):
+    publication = tables.Column(linkify=True, verbose_name='Surface')
+    num_topographies = tables.Column(verbose_name='# Topographies')
+    authors = tables.Column(verbose_name="Authors")
+    license = tables.Column(verbose_name="License")
+    datetime = tables.Column(verbose_name="Publication Date")
+    version = tables.Column(verbose_name="Version")
+
+    def render_publication(self, value):
+        return value.surface.name
+
+    def render_datetime(self, value):
+        return value.date()
+
+    def render_license(self, value, record):
+        return mark_safe(f"""
+        <a href="{settings.CC_LICENSE_INFOS[value]['description_url']}" target="_blank">
+                {record['publication'].get_license_display()}</a>
+        """)
+
+    class Meta:
+        orderable = True
+
+
+class PublicationListView(ListView):
+    template_name = "manager/publication_list.html"
+
+    def get_queryset(self):
+        return Publication.objects.filter(publisher=self.request.user)  # TODO move to publication app?
+
+    def get_context_data(self, *args, **kwargs):
+        context = super().get_context_data(*args, **kwargs)
+
+        #
+        # Create table cells
+        #
+        data = [
+            {
+                'publication': pub,
+                'surface': pub.surface,
+                'num_topographies': pub.surface.num_topographies(),
+                'authors': pub.authors,
+                'license': pub.license,
+                'datetime': pub.datetime,
+                'version': pub.version
+            } for pub in self.get_queryset()
+        ]
+
+        context['publication_table'] = PublicationsTable(
+            data=data,
+            empty_text="You haven't published any surfaces yet.",
+            request=self.request)
+
+        return context
+
+
+class SurfacePublishView(FormView):
+    template_name = "manager/surface_publish.html"
+    form_class = SurfacePublishForm
+
+    @surface_publish_permission_required
+    def dispatch(self, request, *args, **kwargs):
+        return super().dispatch(request, *args, *kwargs)
+
+    def _get_surface(self):
+        surface_pk = self.kwargs['pk']
+        return Surface.objects.get(pk=surface_pk)
+
+    def get_initial(self):
+        initial = super().get_initial()
+        initial['author_0'] = self.request.user.name
+        initial['num_author_fields'] = 1
+        return initial
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        if self.request.method == 'POST':
+            # The field 'num_author_fields' may have been increased by
+            # Javascript (Vuejs) on the client in order to add new authors.
+            # This should be sent to the form in order to know
+            # how many fields the form should have and how many author names
+            # should be combined. So this is passed here:
+            kwargs['num_author_fields'] = int(self.request.POST.get('num_author_fields'))
+        return kwargs
+
+    def get_success_url(self):
+        return reverse('manager:publications')
+
+    def form_valid(self, form):
+        license = form.cleaned_data.get('license')
+        authors = form.cleaned_data.get('authors')
+        surface = self._get_surface()
+        try:
+            surface.publish(license, authors)
+        except NewPublicationTooFastException as exc:
+            return redirect("manager:surface-publication-rate-too-high",
+                            pk=surface.pk)
+
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        surface = self._get_surface()
+
+        context['extra_tabs'] = [
+            {
+                'title': f"{surface.label}",
+                'icon': "diamond",
+                'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
+                'active': False,
+                'tooltip': f"Properties of surface '{surface.label}'"
+            },
+            {
+                'title': f"Publish surface?",
+                'icon': "bullhorn",
+                'href': self.request.path,
+                'active': True,
+                'tooltip': f"Publishing surface '{surface.label}'"
+            }
+        ]
+        context['surface'] = surface
+        context['max_len_authors_field'] = MAX_LEN_AUTHORS_FIELD
+        return context
+
+
+class PublicationRateTooHighView(TemplateView):
+    template_name = "manager/publication_rate_too_high.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['min_seconds'] = settings.MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS
+
+        surface_pk = self.kwargs['pk']
+        surface = Surface.objects.get(pk=surface_pk)
+
+        context['extra_tabs'] = [
+            {
+                'title': f"{surface.label}",
+                'icon': "diamond",
+                'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
+                'active': False,
+                'tooltip': f"Properties of surface '{surface.label}'"
+            },
+            {
+                'title': f"Publication rate too high",
+                'icon': "flash",
+                'href': self.request.path,
+                'active': True,
+            }
+        ]
         return context
 
 
@@ -1136,6 +1348,9 @@ class SharingInfoTable(tables.Table):
 
 
 def sharing_info(request):
+    if request.user.is_anonymous:
+        raise PermissionDenied()
+
     #
     # Handle POST request if any
     #
@@ -1156,6 +1371,7 @@ def sharing_info(request):
 
             if request.user not in [share_with, surface.creator]:
                 # we don't allow to change shares if the request user is not involved
+                _log.warning(f"Changing share on surface {surface.id} not allowed for user {request.user}.")
                 continue
 
             if unshare:
@@ -1172,7 +1388,8 @@ def sharing_info(request):
     #
     # Collect information to display
     #
-    surfaces = get_objects_for_user(request.user, 'view_surface', klass=Surface)
+    # Get all surfaces, which are visible, but exclude the published surfaces
+    surfaces = get_objects_for_user(request.user, 'view_surface', klass=Surface).filter(publication=None)
 
     tmp = []
     for s in surfaces:
@@ -1228,16 +1445,12 @@ def download_surface(request, surface_id):
     #
     # Check permissions and collect analyses
     #
-    user = request.user
-    if not user.is_authenticated:
-        raise PermissionDenied()
-
     try:
         surface = Surface.objects.get(id=surface_id)
     except Surface.DoesNotExist:
         raise PermissionDenied()
 
-    if not user.has_perm('view_surface', surface):
+    if not request.user.has_perm('view_surface', surface):
         raise PermissionDenied()
 
     topographies = Topography.objects.filter(surface=surface_id)
@@ -1255,25 +1468,50 @@ def download_surface(request, surface_id):
         #
         # Add a Readme file
         #
-        zf.writestr("README.txt", \
-                    """
-Contents of this ZIP archive
-============================
-This archive contains a surface: A collection of individual topography measurements.
+        readme_txt = """
+            Contents of this ZIP archive
+            ============================
+            This archive contains a surface: A collection of individual topography measurements.
 
-The meta data for the surface and the individual topographies can be found in the
-auxiliary file 'meta.yml'. It is formatted as a [YAML](https://yaml.org/) file.
+            The meta data for the surface and the individual topographies can be found in the
+            auxiliary file 'meta.yml'. It is formatted as a [YAML](https://yaml.org/) file.
 
-Version information
-===================
+            Version information
+            ===================
 
-TopoBank: {}
-""".format(settings.TOPOBANK_VERSION))
+            TopoBank: {}
+            """.format(settings.TOPOBANK_VERSION)
+        if surface.is_published:
+            pub = surface.publication
+            #
+            # Add license information to README file
+            #
+            license_txt = pub.get_license_display()
+            license_info = settings.CC_LICENSE_INFOS[pub.license]
+            readme_txt += """
+            License information
+            ===================
+
+            This surface has been published and the data is licensed under "{}".
+            For details about this license see
+            - {} (description) and
+            - {} (legal code), or
+            - file "LICENSE.txt" (legal code).
+            """.format(license_txt, license_info['description_url'], license_info['legal_code_url'])
+            #
+            # Also add license file
+            #
+            zf.write(staticfiles_storage.path(f"other/{pub.license}-legalcode.txt"), arcname="LICENSE.txt")
+
+        zf.writestr("README.txt", textwrap.dedent(readme_txt))
 
     # Prepare response object.
     response = HttpResponse(bytes.getvalue(),
                             content_type='application/x-zip-compressed')
     response['Content-Disposition'] = 'attachment; filename="{}"'.format('surface.zip')
+
+    increase_statistics_by_date_and_object(Metric.objects.SURFACE_DOWNLOAD_COUNT,
+                                           period=Period.DAY, obj=surface)
 
     return response
 
@@ -1347,7 +1585,6 @@ class TagTreeView(ListAPIView):
     pagination_class = SurfaceSearchPaginator
 
     def get_queryset(self):
-
         surfaces = filtered_surfaces(self.request)
         topographies = filtered_topographies(self.request, surfaces)
         return tags_for_user(self.request.user, surfaces, topographies).filter(parent=None)
@@ -1421,8 +1658,7 @@ def set_surface_select_status(request, pk, select_status):
     try:
         pk = int(pk)
         surface = Surface.objects.get(pk=pk)
-        user = request.user
-        assert user.has_perm('view_surface', surface)
+        assert request.user.has_perm('view_surface', surface)
     except (ValueError, Surface.DoesNotExist, AssertionError):
         raise PermissionDenied()  # This should be shown independent of whether the surface exists
 
@@ -1482,8 +1718,7 @@ def set_topography_select_status(request, pk, select_status):
     try:
         pk = int(pk)
         topo = Topography.objects.get(pk=pk)
-        user = request.user
-        assert user.has_perm('view_surface', topo.surface)
+        assert request.user.has_perm('view_surface', topo.surface)
     except (ValueError, Topography.DoesNotExist, AssertionError):
         raise PermissionDenied()  # This should be shown independent of whether the surface exists
 
@@ -1601,3 +1836,37 @@ def unselect_all(request):
     """
     request.session['selection'] = []
     return Response([])
+
+
+def thumbnail(request, pk):
+    """Returns image data for a topography thumbail
+
+    Parameters
+    ----------
+    request
+
+    Returns
+    -------
+    HTML Response with image data
+    """
+    try:
+        pk = int(pk)
+    except ValueError:
+        raise Http404()
+
+    try:
+        topo = Topography.objects.get(pk=pk)
+    except Topography.DoesNotExist:
+        raise Http404()
+
+    if not request.user.has_perm('view_surface', topo.surface):
+        raise PermissionDenied()
+
+    # okay, we have a valid topography and the user is allowed to see it
+
+    image = topo.thumbnail
+    response = HttpResponse(content_type="image/png")
+    response.write(image.file.read())
+    return response
+
+

@@ -38,8 +38,7 @@
                     keys.push(item.key);
                     elements[item.key] = item;
                 });
-
-                keys.sort((key_a, key_b) => elements[key_a].name.toLowerCase() > elements[key_b].name.toLowerCase());
+                keys.sort((key_a, key_b) => elements[key_a].label.toLowerCase() > elements[key_b].label.toLowerCase());
                 // we want always the same order, independent from traversal order
 
                 this.elements = elements;
@@ -108,17 +107,17 @@ Vue.component('basket-element', {
     template: `
            <span v-if="elem.type=='surface'" class="badge badge-pill badge-primary mr-1 basket-element">
                 <span class="fa fa-diamond"></span>
-                [[ elem.name ]]
+                [[ elem.label ]]
                 <span class="fa fa-close" v-on:click="handle_close"></span>
            </span>
            <span v-else-if="elem.type=='tag'" class="badge badge-pill badge-info mr-1 basket-element">
                 <span class="fa fa-tag"></span>
-                [[ elem.name ]]
+                [[ elem.label ]]
                 <span class="fa fa-close" v-on:click="handle_close"></span>
            </span>
            <span v-else class="badge badge-pill badge-secondary mr-1 basket-element">
                 <span class="fa fa-file"></span>
-                [[ elem.name ]]
+                [[ elem.label ]]
                 <span class="fa fa-close" v-on:click="handle_close"></span>
            </span>
          `,

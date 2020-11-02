@@ -1,6 +1,6 @@
 <ul class="nav nav-tabs">
   {% for tab in tabs %}
-    <li class="nav-item">
+    <li class="nav-item" title="{{ tab.tooltip }}">
       <a class="nav-link {% if tab.active %}active{% endif %}" href="{% if tab.href %}{{ tab.href }}{% else %}{{ request.path }}{% endif %}">
         <i class="fa fa-fw fa-{{ tab.icon}}"></i> {{ tab.title|truncatechars:50 }}
         {% if not forloop.last and forloop.counter >= min_num_tabs %}

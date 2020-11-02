@@ -12,11 +12,11 @@ from bootstrap_datepicker_plus import DatePickerInput
 
 import logging
 
-from PyCo.Topography.IO.Reader import CannotDetectFileFormat, CorruptFile, UnknownFileFormatGiven, ReadFileError
-import PyCo.Topography.IO
+from SurfaceTopography.IO.Reader import CannotDetectFileFormat, CorruptFile, UnknownFileFormatGiven, ReadFileError
 
 from topobank.manager.utils import get_topography_reader
 from .models import Topography, Surface, MAX_LENGTH_DATAFILE_FORMAT
+from ..publication.models import MAX_LEN_AUTHORS_FIELD
 
 from topobank.users.models import User
 
@@ -27,10 +27,12 @@ MEASUREMENT_DATE_HELP_TEXT = 'Valid format: "YYYY-mm-dd"'
 ASTERISK_HELP_HTML = HTML("<p>Fields marked with an asterisk (*) are mandatory.</p>")
 TAGS_HELP_TEXT = "You can choose existing tags or create new tags on-the-fly. "+\
                  "Use '/' character to build hierarchies, e.g. 'fruit/apple'."
+DEFAULT_LICENSE = 'ccbysa-4.0'
 
 ################################################################
 # Topography Forms
 ################################################################
+
 
 class TopographyFileUploadForm(forms.ModelForm):
 
@@ -61,7 +63,6 @@ class TopographyFileUploadForm(forms.ModelForm):
         ASTERISK_HELP_HTML
     )
 
-
     def clean(self):
         cleaned_data = super().clean()
 
@@ -71,31 +72,11 @@ class TopographyFileUploadForm(forms.ModelForm):
             raise forms.ValidationError("Cannot proceed without given a data file.", code='invalid_topography_file')
 
         #
-        # Format detection
-        #
-        try:
-            if hasattr(datafile, 'seek'):
-                datafile.seek(0)  # rewind
-            datafile_format =  PyCo.Topography.IO.detect_format(datafile)
-            # absolute import is used here because of making detect_format in a test
-            # TODO replace detect_format with reader.format, when available in PyCo
-        except CannotDetectFileFormat as exc:
-            msg = f"Cannot determine file format of file '{datafile.name}'."
-            msg += "Please try another file or contact us."
-            raise forms.ValidationError(msg, code='invalid_topography_file')
-
-        if len(datafile_format) > MAX_LENGTH_DATAFILE_FORMAT:
-            raise forms.ValidationError("Too long name for datafile format: '%(fmt)s'. At maximum %(maxlen)d characters allowed.",
-                                        params=dict(fmt=datafile_format, maxlen=MAX_LENGTH_DATAFILE_FORMAT),
-                                        code='too_long_datafile_format')
-
-        cleaned_data['datafile_format'] = datafile_format
-
-        #
         # Check whether file can be loaded and has all necessary meta data
         #
         try:
-            toporeader = get_topography_reader(datafile, format=datafile_format)
+            toporeader = get_topography_reader(datafile)
+            datafile_format = toporeader.format()
         except UnknownFileFormatGiven as exc:
             msg = f"The format of the given file '{datafile.name}' is unkown. "
             msg += "Please try another file or contact us."
@@ -116,6 +97,13 @@ class TopographyFileUploadForm(forms.ModelForm):
             msg += " Please try another file or contact us."
             _log.info(msg+" Exception: "+str(exc))
             raise forms.ValidationError(msg, code='invalid_topography_file')
+
+        if len(datafile_format) > MAX_LENGTH_DATAFILE_FORMAT:
+            raise forms.ValidationError("Too long name for datafile format: '%(fmt)s'. At maximum %(maxlen)d characters allowed.",
+                                        params=dict(fmt=datafile_format, maxlen=MAX_LENGTH_DATAFILE_FORMAT),
+                                        code='too_long_datafile_format')
+
+        cleaned_data['datafile_format'] = datafile_format
 
         if len(toporeader.channels) == 0:
             raise forms.ValidationError("No topographies found in file.", code='empty_topography_file')
@@ -205,7 +193,6 @@ class TopographyMetaDataForm(forms.ModelForm):
         ASTERISK_HELP_HTML
     )
 
-
     def clean_name(self):
         name = self.cleaned_data['name']
 
@@ -214,6 +201,7 @@ class TopographyMetaDataForm(forms.ModelForm):
             raise forms.ValidationError(msg, code='duplicate_topography_name_for_same_surface')
 
         return name
+
 
 def make_is_periodic_field():
     """Generate a boolean field which can be used for "is_periodic" field in several forms.
@@ -511,6 +499,7 @@ class SurfaceForm(forms.ModelForm):
         ASTERISK_HELP_HTML
     )
 
+
 class MultipleUserSelectWidget(ModelSelect2MultipleWidget):
     model = User
     search_fields = ['name']
@@ -521,7 +510,7 @@ class MultipleUserSelectWidget(ModelSelect2MultipleWidget):
         #
         # Type at least a number of letters before first results are shown
         #
-        if len(term)<SurfaceShareForm.SHARING_MIN_LETTERS_FOR_USER_DISPLAY:
+        if len(term) < SurfaceShareForm.SHARING_MIN_LETTERS_FOR_USER_DISPLAY:
             return queryset.none()
 
         #
@@ -531,6 +520,7 @@ class MultipleUserSelectWidget(ModelSelect2MultipleWidget):
             .exclude(username='AnonymousUser')\
             .exclude(id=request.user.id)\
             .order_by('name')
+
 
 class SurfaceShareForm(forms.Form):
     """Form for sharing surfaces.
@@ -545,7 +535,7 @@ class SurfaceShareForm(forms.Form):
     users = ModelMultipleChoiceField(
         required=True,
         queryset=User.objects,
-        widget=MultipleUserSelectWidget,
+        widget=MultipleUserSelectWidget(attrs={'data-minimum-input-length': SHARING_MIN_LETTERS_FOR_USER_DISPLAY}),
         label="Users to share with",
         help_text="""<b>Type at least {} characters to start a search.</b>
           Select one or multiple users you want to give access to this surface.
@@ -572,3 +562,90 @@ class SurfaceShareForm(forms.Form):
             ASTERISK_HELP_HTML
         )
     )
+
+
+class SurfacePublishForm(forms.Form):
+    """Form for publishing surfaces."""
+    license = forms.ChoiceField(widget=forms.RadioSelect, choices=Surface.LICENSE_CHOICES,
+                                required=True)
+    agreed = forms.BooleanField(widget=forms.CheckboxInput, required=True,
+                                label="I understand the implications of publishing this surface and I agree.",
+                                help_text="""Please read the implications of publishing listed above and check.""")
+    copyright_hold = forms.BooleanField(widget=forms.CheckboxInput, required=True,
+                                label="I hold copyright of this data or have been authorized by the copyright holders.",
+                                help_text="""Please make sure you're not publishing data """
+                                          """from others without their authorization.""")
+
+    authors = forms.CharField(max_length=MAX_LEN_AUTHORS_FIELD, required=False)  # we be filled in clean() method
+    num_author_fields = forms.IntegerField(required=True)
+
+    helper = FormHelper()
+    helper.form_method = 'POST'
+    error_text_inline = False
+    helper.attrs = {"onsubmit": "on_submit()"}  # call JS function for disabling button
+    # this prevents multiple submissions by clicking several times fast
+
+    helper.layout = Layout(
+        Div(
+            HTML('<h2 class="alert-heading">Please enter the authors</h2>'),
+            Field('authors', template="manager/multi_author_field.html"),
+            css_class="alert alert-primary"
+        ),
+        Div(
+            HTML('<h2 class="alert-heading">Please choose a license</h2>'),
+            Field('license', template="manager/license_radioselect.html"),
+            css_class="alert alert-primary"
+        ),
+        Div(
+            HTML('<h2 class="alert-heading">Final checks</h2>'),
+            Field('agreed'),
+            Field('copyright_hold'),
+            FormActions(
+                Submit('save', 'Yes, publish this surface', css_class='btn-success'),
+                HTML("""
+                      <a href="{% url 'manager:surface-detail' surface.pk %}" class="btn btn-default" id="cancel-btn">Cancel</a>
+                      """),
+            ),
+            ASTERISK_HELP_HTML,
+            css_class="alert alert-primary"),
+    )
+
+    def __init__(self, *args, **kwargs):
+        num_author_fields = kwargs.pop('num_author_fields', 1)
+        super().__init__(*args, **kwargs)
+
+        for i in range(num_author_fields):
+            self.fields[f'author_{i}'] = forms.CharField(required=False, label=f"{i+1}. Author")
+
+    def clean(self):
+        cleaned_data = super().clean()
+
+        authors = []
+
+        for i in range(self.cleaned_data.get('num_author_fields')):
+            field_name = f'author_{i}'
+            author = self.cleaned_data.get(field_name)
+            if author:
+                author = author.strip()
+                if author in authors:
+                    raise forms.ValidationError("Author '%(author)s' is already in the list.",
+                                                code='duplicate_author',
+                                                params={'author': author})
+                elif len(author) > 0:
+                    authors.append(author)
+
+        if len(authors) == 0:
+            raise forms.ValidationError("At least one author must be given.")
+
+        authors_string = ", ".join(authors)
+        if len(authors_string) > MAX_LEN_AUTHORS_FIELD:
+            msg = """Representation of authors is too long, at maximum %(max_len)s characters are allowed."""
+            raise forms.ValidationError(msg, code='authors_too_long',
+                                        params=dict(max_len=MAX_LEN_AUTHORS_FIELD))
+
+        cleaned_data['authors'] = authors_string
+
+        return cleaned_data
+
+
+

@@ -1,7 +1,7 @@
 """
 Functions which can be chosen for analysis of topographies.
 
-The first argument is always a PyCo Topography!
+The first argument is always a SurfaceTopography.Topography!
 """
 
 import numpy as np
@@ -12,12 +12,9 @@ from django.core.files.storage import default_storage
 from django.core.files import File
 import xarray as xr
 
-from PyCo.Topography import Topography
+from SurfaceTopography import Topography, PlasticTopography
 
-from PyCo.SolidMechanics import PeriodicFFTElasticHalfSpace, FreeFFTElasticHalfSpace
-from PyCo.ContactMechanics import HardWall
-from PyCo.System.Factory import make_system
-from PyCo.Topography import PlasticTopography
+from ContactMechanics import PeriodicFFTElasticHalfSpace, FreeFFTElasticHalfSpace, make_system
 
 CONTACT_MECHANICS_KWARGS_LIMITS = {
             'nsteps': dict(min=1, max=50),
@@ -112,6 +109,7 @@ _unicode_map = {
 
 _analysis_funcs = [] # is used in register_all
 
+
 def register_all():
     """Registers all analysis functions in the database.
 
@@ -126,6 +124,7 @@ def register_all():
                                                   pyfunc=rf['pyfunc'],
                                                   automatic=rf['automatic'])
     return len(_analysis_funcs)
+
 
 def analysis_function(card_view_flavor="simple", name=None, automatic=False):
     """Decorator for marking a function as analysis function for a topography.
@@ -167,9 +166,10 @@ def analysis_function(card_view_flavor="simple", name=None, automatic=False):
         #    # another recorder updated by a celery task
 
         func.card_view_flavor = card_view_flavor  # will be used when choosing the right view on request
-
         return func
+
     return register_decorator
+
 
 def unicode_superscript(s):
     """
@@ -212,10 +212,11 @@ def float_to_unicode(f, digits=3):
     else:
         return ('{{:.{}g}}×10{{}}'.format(digits)).format(m, unicode_superscript(str(e3)))
 
+
 def _reasonable_bins_argument(topography):
     """Returns a reasonable 'bins' argument for np.histogram for given topography's heights.
 
-    :param topography: Line scan or topography from PyCo
+    :param topography: Line scan or topography from SurfaceTopography module
     :return: argument for 'bins' argument of np.histogram
     """
     if topography.is_uniform:
@@ -224,9 +225,16 @@ def _reasonable_bins_argument(topography):
         return int(np.sqrt(np.prod(len(topography.positions()))) + 1.0) # TODO discuss whether auto or this
         # return 'auto'
 
+
 def test_function(topography):
-    return { 'name': 'Test result for test function called for topography {}.'.format(topography)}
+    return { 'name': 'Test result for test function called for topography {}.'.format(topography),
+             'xunit': 'm',
+             'yunit': 'm',
+             'xlabel': 'x',
+             'ylabel': 'y',
+             'series': []}
 test_function.card_view_flavor = 'simple'
+
 
 class IncompatibleTopographyException(Exception):
     """Raise this exception in case a function cannot handle a topography.
@@ -250,6 +258,7 @@ class IncompatibleTopographyException(Exception):
 #             raise ValueError("This error is intended and happens with probability 1/{}.".format(F))
 #         progress_recorder.set_progress(i+1, n)
 #     return dict(message="done", physical_sizes=topography.physical_sizes, n=n)
+
 
 @analysis_function(card_view_flavor='plot', automatic=True)
 def height_distribution(topography, bins=None, wfac=5, progress_recorder=None, storage_prefix=None):
@@ -295,6 +304,7 @@ def height_distribution(topography, bins=None, wfac=5, progress_recorder=None, s
                  )
         ]
     )
+
 
 def _moments_histogram_gaussian(arr, bins, wfac, quantity, label, unit, gaussian=True):
     """Return moments, histogram and gaussian for an array.
@@ -364,8 +374,6 @@ def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, st
 
     if topography.dim == 2:
         dh_dx, dh_dy = topography.derivative(n=1)
-        # dh_dx, dh_dy = np.gradient(topography.heights(), *tuple(topography.pixel_size))
-        # not okay for Lars, see GH 83 of PyCo:  https://github.com/pastewka/PyCo/issues/83
 
         #
         # Results for x direction
@@ -410,6 +418,7 @@ def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, st
         raise ValueError("This analysis function can only handle 1D or 2D topographies.")
 
     return result
+
 
 @analysis_function(card_view_flavor='plot', automatic=True)
 def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None, storage_prefix=None):
@@ -463,6 +472,7 @@ def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None
                  )
         ]
     )
+
 
 @analysis_function(card_view_flavor='plot', automatic=True)
 def power_spectrum(topography, window=None, tip_radius=None, progress_recorder=None, storage_prefix=None):
@@ -520,6 +530,7 @@ def power_spectrum(topography, window=None, tip_radius=None, progress_recorder=N
         ]
 
     return result
+
 
 @analysis_function(card_view_flavor='plot', automatic=True)
 def autocorrelation(topography, progress_recorder=None, storage_prefix=None):
@@ -624,6 +635,7 @@ def variable_bandwidth(topography, progress_recorder=None, storage_prefix=None):
         ]
     )
 
+
 def _next_contact_step(system, history=None, pentol=None, maxiter=None):
     """
     Run a full contact calculation. Try to guess displacement such that areas
@@ -631,7 +643,7 @@ def _next_contact_step(system, history=None, pentol=None, maxiter=None):
 
     Parameters
     ----------
-    system : PyCo.System.SystemBase object
+    system : ContactMechanics.Systems.SystemBase
         The contact mechanical system.
     history : tuple
         History returned by past calls to next_step
@@ -713,13 +725,14 @@ def _next_contact_step(system, history=None, pentol=None, maxiter=None):
            mean_displacement, mean_load, total_contact_area, \
            (mean_displacements, mean_gaps, mean_pressures, total_contact_areas, converged)
 
+
 def _contact_at_given_load(system, external_force, history=None, pentol=None, maxiter=None):
     """
     Run a full contact calculation at a given external load.
 
     Parameters
     ----------
-    system : PyCo.System.SystemBase object
+    system : ContactMechanics.Systems.SystemBase
         The contact mechanical system.
     external_force : float
         The force pushing the surfaces together.
@@ -783,6 +796,7 @@ def _contact_at_given_load(system, external_force, history=None, pentol=None, ma
     return displacement_xy, gap_xy, pressure_xy, contacting_points_xy, \
            opt.offset, mean_load, total_contact_area, \
            (mean_displacements, mean_gaps, mean_pressures, total_contact_areas, converged)
+
 
 @analysis_function(card_view_flavor='contact mechanics', automatic=True)
 def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
@@ -851,8 +865,7 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
     substrate = half_space_factory[substrate_str](topography.nb_grid_pts, 1.0, topography.physical_sizes,
                                                   **half_space_kwargs)
 
-    interaction = HardWall()
-    system = make_system(substrate, interaction, topography)
+    system = make_system(substrate, topography)
 
     # Heuristics for the possible tolerance on penetration.
     # This is necessary because numbers can vary greatly
@@ -930,5 +943,12 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
         mean_gaps=mean_gap[sort_order]/rms_height,
         converged=converged[sort_order],
         data_paths=data_paths[sort_order],
+        effective_kwargs = dict(
+            substrate_str=substrate_str,
+            hardness=hardness,
+            nsteps=nsteps,
+            pressures=pressures,
+            maxiter=maxiter,
+        )
     )
 

@@ -243,9 +243,17 @@
 
           <div class="row p-1">
             <div class="col-8">
-              <button id="recalculate" class="btn btn-primary btn-block btn-lg">
+              {% if request.user.is_anonymous %}
+                <button title="Please login for this feature"
+                      class="btn btn-primary btn-block btn-lg disabled }}" disabled>
                 {% fontawesome_icon 'repeat' %} Recalculate
               </button>
+              {% else %}
+                <button id="recalculate" title="Trigger calculation with given arguments"
+                      class="btn btn-primary btn-block btn-lg">
+                    {% fontawesome_icon 'repeat' %} Recalculate
+                </button>
+              {% endif %}
             </div>
           </div>
           {% endif %}
