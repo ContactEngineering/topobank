@@ -1,4 +1,5 @@
 from django.shortcuts import reverse
+from django.core.files.uploadedfile import SimpleUploadedFile
 
 import pytest
 from pathlib import Path
@@ -8,7 +9,7 @@ import os.path
 from .utils import FIXTURE_DIR, SurfaceFactory, TopographyFactory, UserFactory, \
     two_topos, one_line_scan, user_three_topographies_three_surfaces_three_tags
 from ..models import Topography, Surface, MAX_LENGTH_DATAFILE_FORMAT
-from ..forms import TopographyForm, TopographyWizardUnitsForm
+from ..forms import TopographyForm, TopographyWizardUnitsForm, SurfaceForm
 
 from topobank.utils import assert_in_content, \
     assert_redirects, assert_no_form_errors, assert_form_error
@@ -809,6 +810,7 @@ def test_edit_line_scan(client, one_line_scan, django_user_model, handle_usage_s
     response = client.get(reverse('manager:surface-detail', kwargs=dict(pk=t.surface.pk)))
     assert bytes(new_name, 'utf-8') in response.content
 
+
 @pytest.mark.django_db
 def test_edit_topography_only_detrend_center_when_periodic(client, django_user_model):
 
@@ -900,6 +902,74 @@ def test_edit_topography_only_detrend_center_when_periodic(client, django_user_m
     # this asserts that the clean() method of form has the correct reference
 
     assert_form_error(response, "When enabling periodicity only detrend mode", "detrend_mode")
+
+
+@pytest.mark.django_db
+def test_surface_description_is_safe():
+
+    user = UserFactory()
+    surface = SurfaceFactory(creator=user)
+
+    malicious_description = "<script>alert('hi')</script>"
+
+    form_data={
+        'name': surface.name,
+        'creator': user.id,
+        'description': malicious_description,
+        'category': 'exp',
+    }
+    form_kwargs = {
+        'autocomplete_tags': [],
+    }
+
+    form = SurfaceForm(data=form_data, **form_kwargs)
+    assert form.is_valid(), form.errors
+
+    cleaned = form.clean()
+    exp_description = "&lt;script&gt;alert(&#39;hi&#39;)&lt;/script&gt;"
+    assert cleaned['description'] == exp_description
+
+
+@pytest.mark.django_db
+def test_topography_description_is_safe():
+    user = UserFactory()
+    surface = SurfaceFactory(creator=user)
+    topography = TopographyFactory(surface=surface, size_x=1, size_y=1, tags=[])
+
+    malicious_description = "<script>alert('hi')</script>"
+
+    form_data = {
+        'surface': surface.pk,
+        'data_source': 0,
+        'name': 'nice name',
+        'measurement_date': topography.measurement_date,
+        'description': malicious_description,
+        'size_x': 1,
+        'size_y': 1,
+        'unit': 'nm',
+        'height_scale': topography.height_scale,
+        'detrend_mode': topography.detrend_mode,
+        'tags': [],
+        'size_editable': False,
+        'unit_editable': False,
+        'height_scale_editable': False,
+    }
+    form_kwargs = {
+        'has_size_y': topography.size_y is not None,
+        'autocomplete_tags': [],
+        'allow_periodic': False,
+    }
+
+    form_files = {
+        'datafile': SimpleUploadedFile('test.txt', b'Some content')
+    }
+
+    form = TopographyForm(data=form_data, files=form_files, initial=form_data, **form_kwargs)
+    assert form.is_valid(), form.errors
+
+    cleaned = form.clean()
+    exp_description = "&lt;script&gt;alert(&#39;hi&#39;)&lt;/script&gt;"
+    assert cleaned['description'] == exp_description
 
 
 @pytest.mark.django_db
