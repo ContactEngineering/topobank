@@ -459,6 +459,9 @@ class TopographyForm(TopographyUnitsForm):
     def clean_size_y(self):
         return self._clean_size_element('y')
 
+    def clean_description(self):
+        return escape_html(self.cleaned_data['description'])
+
 
 class SurfaceForm(forms.ModelForm):
     """Form for creating or updating surfaces.
@@ -500,6 +503,9 @@ class SurfaceForm(forms.ModelForm):
             ),
         ASTERISK_HELP_HTML
     )
+
+    def clean_description(self):
+        return escape_html(self.cleaned_data['description'])
 
 
 class MultipleUserSelectWidget(ModelSelect2MultipleWidget):
