@@ -220,6 +220,7 @@ def make_is_periodic_field():
                                     Additionally, the default calculation type for contact mechanics
                                     will be set to 'periodic'. """)
 
+
 class TopographyUnitsForm(forms.ModelForm):
     """
     This is a base class used to avoid code duplication.
