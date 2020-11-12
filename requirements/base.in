@@ -64,6 +64,9 @@ tornado>=4.2.0,<6.0.0
 # progress bars for celery tasks, served by Django
 celery-progress
 
+# Sanitize user inputs (removing malicious content)
+bleach
+
 #
 # Contact Mechanics
 #

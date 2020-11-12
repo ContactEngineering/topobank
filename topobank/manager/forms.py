@@ -1,7 +1,7 @@
 from django.forms import forms, ModelMultipleChoiceField
 from django import forms
 from django_select2.forms import ModelSelect2MultipleWidget
-from django.utils.html import escape as escape_html
+import bleach  # using bleach instead of django.utils.html.escape because it allows more (e.g. for markdown)
 
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Submit, Layout, Field, HTML, Div, Fieldset
@@ -460,7 +460,14 @@ class TopographyForm(TopographyUnitsForm):
         return self._clean_size_element('y')
 
     def clean_description(self):
-        return escape_html(self.cleaned_data['description'])
+        return bleach.clean(self.cleaned_data['description'])
+
+    def clean_name(self):
+        return bleach.clean(self.cleaned_data['name'])
+
+    def clean_tags(self):
+        tags = [ bleach.clean(t) for t in self.cleaned_data['tags']]
+        return tags
 
 
 class SurfaceForm(forms.ModelForm):
@@ -505,7 +512,14 @@ class SurfaceForm(forms.ModelForm):
     )
 
     def clean_description(self):
-        return escape_html(self.cleaned_data['description'])
+        return bleach.clean(self.cleaned_data['description'])
+
+    def clean_name(self):
+        return bleach.clean(self.cleaned_data['name'])
+
+    def clean_tags(self):
+        tags = [ bleach.clean(t) for t in self.cleaned_data['tags']]
+        return tags
 
 
 class MultipleUserSelectWidget(ModelSelect2MultipleWidget):
@@ -651,7 +665,7 @@ class SurfacePublishForm(forms.Form):
             raise forms.ValidationError(msg, code='authors_too_long',
                                         params=dict(max_len=MAX_LEN_AUTHORS_FIELD))
 
-        cleaned_data['authors'] = escape_html(authors_string)  # prevent XSS attacks
+        cleaned_data['authors'] = bleach.clean(authors_string)  # prevent XSS attacks
 
         return cleaned_data
 
