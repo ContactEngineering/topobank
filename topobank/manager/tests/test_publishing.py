@@ -74,6 +74,9 @@ def test_permissions_for_published():
     assert get_perms(user2, publication.surface) == ['view_surface']
 
     # the permissions for the original surface has not been changed
+    assert set(get_perms(user1, surface)) == set(['view_surface', 'delete_surface', 'change_surface',
+                                                  'share_surface', 'publish_surface'])
+    assert get_perms(user2, surface) == []
 
 
 @pytest.mark.django_db

@@ -203,6 +203,21 @@ class Surface(models.Model):
         _log.info("Created deepcopy of surface %s -> surface %s", self.pk, copy.pk)
         return copy
 
+    def set_publication_permissions(self):
+        """Sets all permissions as needed for publication.
+
+        - removes edit, share and delete permission from everyone
+        - add read permission for everyone
+        """
+        # Remove edit, share and delete permission from everyone
+        users = get_users_with_perms(self)
+        for u in users:
+            for perm in ['publish_surface', 'share_surface', 'change_surface', 'delete_surface']:
+                remove_perm(perm, u, self)
+
+        # Add read permission for everyone
+        assign_perm('view_surface', get_default_group(), self)
+
     def publish(self, license, authors):
         """Publish surface.
 
@@ -240,18 +255,7 @@ class Surface(models.Model):
         #
         copy = self.deepcopy()
 
-        #
-        # Remove edit, share and delete permission from everyone
-        #
-        users = get_users_with_perms(self)
-        for u in users:
-            for perm in ['publish_surface', 'share_surface', 'change_surface', 'delete_surface']:
-                remove_perm(perm, u, copy)
-
-        #
-        # Add read permission for everyone
-        #
-        assign_perm('view_surface', get_default_group(), copy)
+        copy.set_publication_permissions()
 
         #
         # Create publication
