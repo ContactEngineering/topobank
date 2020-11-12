@@ -40,10 +40,9 @@ class Command(BaseCommand):
             creator = surface.creator
             if surface.is_published:
                 if any(creator.has_perm(p, surface) for p in ALL_PERMISSIONS):
-                    # there should be no individual rights for published surfaces
-                    # publish again to ensure that
                     if not options['dry_run']:
-                        surface.publish(surface.license)
+                        # there should be no individual rights for published surfaces
+                        surface.set_publication_permissions()
                     fixed_published_surfaces.add(surface)
             else:
                 for perm in ALL_PERMISSIONS:

@@ -1,7 +1,7 @@
 from django.forms import forms, ModelMultipleChoiceField
 from django import forms
 from django_select2.forms import ModelSelect2MultipleWidget
-from django.utils.html import escape as escape_html
+import bleach  # using bleach instead of django.utils.html.escape because it allows more (e.g. for markdown)
 
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Submit, Layout, Field, HTML, Div, Fieldset
@@ -33,6 +33,26 @@ DEFAULT_LICENSE = 'ccbysa-4.0'
 ################################################################
 # Topography Forms
 ################################################################
+
+class CleanVulnerableFieldsMixin:
+    """Use this Mixin in order to prevent XSS attacks.
+
+    The following fields are cleaned for malicious code:
+
+    - description
+    - name
+    - tags
+    """
+
+    def clean_description(self):
+        return bleach.clean(self.cleaned_data['description'])
+
+    def clean_name(self):
+        return bleach.clean(self.cleaned_data['name'])
+
+    def clean_tags(self):
+        tags = [ bleach.clean(t) for t in self.cleaned_data['tags']]
+        return tags
 
 
 class TopographyFileUploadForm(forms.ModelForm):
@@ -148,7 +168,7 @@ class TopographyFileUploadForm(forms.ModelForm):
 
 
 
-class TopographyMetaDataForm(forms.ModelForm):
+class TopographyMetaDataForm(CleanVulnerableFieldsMixin, forms.ModelForm):
 
     class Meta:
         model = Topography
@@ -195,7 +215,7 @@ class TopographyMetaDataForm(forms.ModelForm):
     )
 
     def clean_name(self):
-        name = self.cleaned_data['name']
+        name = super().clean_name()
 
         if Topography.objects.filter(name=name, surface=self._surface).exists():
             msg = f"A topography with same name '{name}' already exists for same surface"
@@ -219,6 +239,7 @@ def make_is_periodic_field():
                                     substracting the mean height.
                                     Additionally, the default calculation type for contact mechanics
                                     will be set to 'periodic'. """)
+
 
 class TopographyUnitsForm(forms.ModelForm):
     """
@@ -378,7 +399,7 @@ class TopographyWizardUnitsForm(TopographyUnitsForm):
         return self._clean_size_element('y')
 
 
-class TopographyForm(TopographyUnitsForm):
+class TopographyForm(CleanVulnerableFieldsMixin, TopographyUnitsForm):
     """
     This form is used for editing 1D and 2D topographies.
     """
@@ -459,7 +480,7 @@ class TopographyForm(TopographyUnitsForm):
         return self._clean_size_element('y')
 
 
-class SurfaceForm(forms.ModelForm):
+class SurfaceForm(CleanVulnerableFieldsMixin, forms.ModelForm):
     """Form for creating or updating surfaces.
     """
 
@@ -644,7 +665,7 @@ class SurfacePublishForm(forms.Form):
             raise forms.ValidationError(msg, code='authors_too_long',
                                         params=dict(max_len=MAX_LEN_AUTHORS_FIELD))
 
-        cleaned_data['authors'] = escape_html(authors_string)  # prevent XSS attacks
+        cleaned_data['authors'] = bleach.clean(authors_string)  # prevent XSS attacks
 
         return cleaned_data
 

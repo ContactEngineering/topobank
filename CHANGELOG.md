@@ -1,5 +1,11 @@
 # Changelog for *TopoBank*
 
+## 0.9.3 (2020-11-12)
+
+- fixed XSS issues
+- fixed issue with "fix_permissions" management command
+  (#551)
+
 ## 0.9.2 (2020-11-02)
 
 - fixed XSS issue

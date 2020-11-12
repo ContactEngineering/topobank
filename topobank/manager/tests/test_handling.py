@@ -1,4 +1,5 @@
 from django.shortcuts import reverse
+from django.core.files.uploadedfile import SimpleUploadedFile
 
 import pytest
 from pathlib import Path
@@ -8,7 +9,7 @@ import os.path
 from .utils import FIXTURE_DIR, SurfaceFactory, TopographyFactory, UserFactory, \
     two_topos, one_line_scan, user_three_topographies_three_surfaces_three_tags
 from ..models import Topography, Surface, MAX_LENGTH_DATAFILE_FORMAT
-from ..forms import TopographyForm, TopographyWizardUnitsForm
+from ..forms import TopographyForm, TopographyWizardUnitsForm, SurfaceForm
 
 from topobank.utils import assert_in_content, \
     assert_redirects, assert_no_form_errors, assert_form_error
@@ -808,6 +809,7 @@ def test_edit_line_scan(client, one_line_scan, django_user_model, handle_usage_s
     #
     response = client.get(reverse('manager:surface-detail', kwargs=dict(pk=t.surface.pk)))
     assert bytes(new_name, 'utf-8') in response.content
+
 
 @pytest.mark.django_db
 def test_edit_topography_only_detrend_center_when_periodic(client, django_user_model):

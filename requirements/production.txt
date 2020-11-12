@@ -8,6 +8,7 @@ amqp==2.6.1               # via -r ./base.txt, kombu
 argon2-cffi==20.1.0       # via -r ./base.txt
 babel==2.8.0              # via -r ./base.txt, celery-flower
 billiard==3.6.3.0         # via -r ./base.txt, celery
+bleach==3.2.1             # via -r ./base.txt
 bokeh==2.2.3              # via -r ./base.txt
 boto3==1.16.1             # via -r ./base.txt
 botocore==1.19.1          # via -r ./base.txt, boto3, s3transfer
@@ -68,7 +69,7 @@ numpi==0.1.4              # via -r ./base.txt, contactmechanics, surfacetopograp
 numpy==1.19.2             # via -r ./base.txt, bokeh, cftime, contactmechanics, h5py, mufft, netcdf4, numpi, pandas, scipy, surfacetopography, xarray
 oauthlib==3.1.0           # via -r ./base.txt, requests-oauthlib
 openpyxl==3.0.5           # via -r ./base.txt
-packaging==20.4           # via -r ./base.txt, bokeh, pint
+packaging==20.4           # via -r ./base.txt, bleach, bokeh, pint
 pandas==1.1.3             # via -r ./base.txt, xarray
 pillow==8.0.0             # via -r ./base.txt, bokeh
 pint==0.16.1              # via -r ./base.txt
@@ -90,7 +91,7 @@ s3transfer==0.3.3         # via -r ./base.txt, boto3
 scipy==1.5.3              # via -r ./base.txt, numpi
 selenium==3.141.0         # via -r ./base.txt
 short-url==1.2.2          # via -r ./base.txt
-six==1.15.0               # via -r ./base.txt, argon2-cffi, cryptography, h5py, packaging, python-dateutil, python-memcached
+six==1.15.0               # via -r ./base.txt, argon2-cffi, bleach, cryptography, h5py, packaging, python-dateutil, python-memcached
 sqlparse==0.4.1           # via -r ./base.txt, django
 surfacetopography==0.91.5  # via -r ./base.txt, contactmechanics
 swapper==1.1.2.post1      # via -r ./base.txt, django-notifications-hq
@@ -100,6 +101,7 @@ typing-extensions==3.7.4.3  # via -r ./base.txt, bokeh
 uritemplate==3.0.1        # via -r ./base.txt, coreapi
 urllib3==1.25.11          # via -r ./base.txt, botocore, requests, selenium
 vine==1.3.0               # via -r ./base.txt, amqp, celery
+webencodings==0.5.1       # via -r ./base.txt, bleach
 whitenoise==5.2.0         # via -r ./base.txt
 xarray==0.16.1            # via -r ./base.txt
 zipp==3.3.1               # via -r ./base.txt, importlib-metadata
