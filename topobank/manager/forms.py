@@ -34,6 +34,26 @@ DEFAULT_LICENSE = 'ccbysa-4.0'
 # Topography Forms
 ################################################################
 
+class CleanVulnerableFieldsMixin:
+    """Use this Mixin in order to prevent XSS attacks.
+
+    The following fields are cleaned for malicious code:
+
+    - description
+    - name
+    - tags
+    """
+
+    def clean_description(self):
+        return bleach.clean(self.cleaned_data['description'])
+
+    def clean_name(self):
+        return bleach.clean(self.cleaned_data['name'])
+
+    def clean_tags(self):
+        tags = [ bleach.clean(t) for t in self.cleaned_data['tags']]
+        return tags
+
 
 class TopographyFileUploadForm(forms.ModelForm):
 
@@ -148,7 +168,7 @@ class TopographyFileUploadForm(forms.ModelForm):
 
 
 
-class TopographyMetaDataForm(forms.ModelForm):
+class TopographyMetaDataForm(CleanVulnerableFieldsMixin, forms.ModelForm):
 
     class Meta:
         model = Topography
@@ -195,7 +215,7 @@ class TopographyMetaDataForm(forms.ModelForm):
     )
 
     def clean_name(self):
-        name = self.cleaned_data['name']
+        name = super().clean_name()
 
         if Topography.objects.filter(name=name, surface=self._surface).exists():
             msg = f"A topography with same name '{name}' already exists for same surface"
@@ -379,7 +399,7 @@ class TopographyWizardUnitsForm(TopographyUnitsForm):
         return self._clean_size_element('y')
 
 
-class TopographyForm(TopographyUnitsForm):
+class TopographyForm(CleanVulnerableFieldsMixin, TopographyUnitsForm):
     """
     This form is used for editing 1D and 2D topographies.
     """
@@ -459,18 +479,8 @@ class TopographyForm(TopographyUnitsForm):
     def clean_size_y(self):
         return self._clean_size_element('y')
 
-    def clean_description(self):
-        return bleach.clean(self.cleaned_data['description'])
 
-    def clean_name(self):
-        return bleach.clean(self.cleaned_data['name'])
-
-    def clean_tags(self):
-        tags = [ bleach.clean(t) for t in self.cleaned_data['tags']]
-        return tags
-
-
-class SurfaceForm(forms.ModelForm):
+class SurfaceForm(CleanVulnerableFieldsMixin, forms.ModelForm):
     """Form for creating or updating surfaces.
     """
 
@@ -510,16 +520,6 @@ class SurfaceForm(forms.ModelForm):
             ),
         ASTERISK_HELP_HTML
     )
-
-    def clean_description(self):
-        return bleach.clean(self.cleaned_data['description'])
-
-    def clean_name(self):
-        return bleach.clean(self.cleaned_data['name'])
-
-    def clean_tags(self):
-        tags = [ bleach.clean(t) for t in self.cleaned_data['tags']]
-        return tags
 
 
 class MultipleUserSelectWidget(ModelSelect2MultipleWidget):

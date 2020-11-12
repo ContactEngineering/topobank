@@ -2,7 +2,7 @@ import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 
 from .utils import UserFactory, TopographyFactory, SurfaceFactory
-from ..forms import SurfaceForm, TopographyForm, SurfacePublishForm
+from ..forms import SurfaceForm, TopographyForm, SurfacePublishForm, TopographyMetaDataForm
 
 MALICIOUS_TEXT = "<script>alert('hi')</script>"
 BLEACHED_MALICIOUS_TEXT = "&lt;script&gt;alert('hi')&lt;/script&gt;"
@@ -33,7 +33,7 @@ def test_surface_description_is_safe():
 
 
 @pytest.mark.django_db
-def test_topography_description_is_safe():
+def test_topography_description_is_safe_on_update():
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
     topography = TopographyFactory(surface=surface, size_x=1, size_y=1, tags=[])
@@ -75,6 +75,39 @@ def test_topography_description_is_safe():
 
 
 @pytest.mark.django_db
+def test_topography_description_is_safe_on_creation():
+    user = UserFactory()
+    surface = SurfaceFactory(creator=user)
+    topography = TopographyFactory(surface=surface, size_x=1, size_y=1, tags=[])
+
+    form_initial = {
+        'data_source': 0,
+        'name': 'nice name',
+        'measurement_date': topography.measurement_date,
+        'description': 'this is harmless',
+        'tags': [],
+    }
+    form_kwargs = {
+        'surface': surface.id,
+        'autocomplete_tags': [],
+        'data_source_choices': [ (0,'Default') ],
+    }
+
+    form_data = form_initial.copy()
+    form_data['description'] = MALICIOUS_TEXT
+
+    form_files = {
+        'datafile': SimpleUploadedFile('test.txt', b'Some content')
+    }
+
+    form = TopographyMetaDataForm(data=form_data, files=form_files, initial=form_initial, **form_kwargs)
+    assert form.is_valid(), form.errors
+
+    cleaned = form.clean()
+    assert cleaned['description'] == BLEACHED_MALICIOUS_TEXT
+
+
+@pytest.mark.django_db
 def test_surface_tag_is_safe():
 
     user = UserFactory()
@@ -99,7 +132,7 @@ def test_surface_tag_is_safe():
 
 
 @pytest.mark.django_db
-def test_topography_tag_is_safe():
+def test_topography_tag_is_safe_on_update():
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
     topography = TopographyFactory(surface=surface, size_x=1, size_y=1, tags=[])
@@ -141,6 +174,39 @@ def test_topography_tag_is_safe():
 
 
 @pytest.mark.django_db
+def test_topography_tag_is_safe_on_creation():
+    user = UserFactory()
+    surface = SurfaceFactory(creator=user)
+    topography = TopographyFactory(surface=surface, size_x=1, size_y=1, tags=[])
+
+    form_initial = {
+        'data_source': 0,
+        'name': 'nice name',
+        'measurement_date': topography.measurement_date,
+        'description': 'this is harmless',
+        'tags': [],
+    }
+    form_kwargs = {
+        'surface': surface.id,
+        'autocomplete_tags': [],
+        'data_source_choices': [(0, 'Default')],
+    }
+
+    form_data = form_initial.copy()
+    form_data['tags'] = MALICIOUS_TEXT + "," + MALICIOUS_TEXT + "2"
+
+    form_files = {
+        'datafile': SimpleUploadedFile('test.txt', b'Some content')
+    }
+
+    form = TopographyMetaDataForm(data=form_data, files=form_files, initial=form_initial, **form_kwargs)
+    assert form.is_valid(), form.errors
+
+    cleaned = form.clean()
+    assert set(cleaned['tags']) == set([BLEACHED_MALICIOUS_TEXT, BLEACHED_MALICIOUS_TEXT + "2"])
+
+
+@pytest.mark.django_db
 def test_surface_name_is_safe():
     user = UserFactory()
 
@@ -162,7 +228,7 @@ def test_surface_name_is_safe():
 
 
 @pytest.mark.django_db
-def test_topography_name_is_safe():
+def test_topography_name_is_safe_on_update():
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
     topography = TopographyFactory(surface=surface, size_x=1, size_y=1, tags=[])
@@ -197,6 +263,38 @@ def test_topography_name_is_safe():
     }
 
     form = TopographyForm(data=form_data, files=form_files, initial=form_initial, **form_kwargs)
+    assert form.is_valid(), form.errors
+
+    cleaned = form.clean()
+    assert cleaned['name'] == BLEACHED_MALICIOUS_TEXT
+
+
+@pytest.mark.django_db
+def test_topography_name_is_safe_on_creation():
+    user = UserFactory()
+    surface = SurfaceFactory(creator=user)
+    topography = TopographyFactory(surface=surface, size_x=1, size_y=1, tags=[])
+
+    form_initial = {
+        'data_source': 0,
+        'name': 'nice name',
+        'measurement_date': topography.measurement_date,
+        'description': 'this is harmless',
+        'tags': [],
+    }
+    form_kwargs = {
+        'surface': surface.id,
+        'autocomplete_tags': [],
+        'data_source_choices': [(0, 'Default')],
+    }
+    form_data = form_initial.copy()
+    form_data['name'] = MALICIOUS_TEXT
+
+    form_files = {
+        'datafile': SimpleUploadedFile('test.txt', b'Some content')
+    }
+
+    form = TopographyMetaDataForm(data=form_data, files=form_files, initial=form_initial, **form_kwargs)
     assert form.is_valid(), form.errors
 
     cleaned = form.clean()
