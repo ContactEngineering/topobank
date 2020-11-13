@@ -11,6 +11,7 @@ from .utils import SurfaceFactory, UserFactory, TopographyFactory, TagModelFacto
 
 from topobank.manager.models import TagModel
 
+
 @pytest.mark.django_db
 def test_select_surface():
     user = UserFactory()
@@ -110,6 +111,7 @@ def test_unselect_surface():
     assert request.session['selection'] == [f'surface-{surface2.pk}']
 
     assert selected_instances(request)[1] == [surface2]
+
 
 @pytest.mark.django_db
 def test_try_to_select_surface_but_not_allowed():
@@ -1095,6 +1097,7 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
             }
         },
     ]
+
 
 #
 # Tests for selection of tags
