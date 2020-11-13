@@ -5,7 +5,7 @@ from rest_framework.test import APIRequestFactory
 
 from ..views import select_surface, unselect_surface, SurfaceListView, SurfaceSearchPaginator,\
     select_topography, unselect_topography, \
-    TagTreeView, select_tag, unselect_tag, unselect_all
+    TagTreeView, select_tag, unselect_tag, unselect_all, DEFAULT_SELECT_TAB_STATE
 from ..utils import selected_instances
 from .utils import SurfaceFactory, UserFactory, TopographyFactory, TagModelFactory, ordereddicts_to_dicts
 
@@ -1201,3 +1201,26 @@ def test_unselect_all():
     assert response.status_code == 200
 
     assert request.session['selection'] == []
+
+
+@pytest.mark.django_db
+def test_select_tab_state_should_be_default_after_login(client):
+
+    # first request the site anonymously .. select tab state is set to that of
+    # an anonymous user
+    response = client.get(reverse('manager:select'))
+
+    # Then login as authenticated user
+    user = UserFactory()
+    client.force_login(user)
+    response = client.get(reverse('manager:select'))
+    assert client.session['select_tab_state'] == DEFAULT_SELECT_TAB_STATE
+
+
+
+
+
+
+
+
+
