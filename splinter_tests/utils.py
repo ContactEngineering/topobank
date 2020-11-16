@@ -155,7 +155,7 @@ def row_for_item_by_name(browser, name):
     return item_row
 
 
-def press_properties_for_item_by_name(browser, name):
+def press_view_for_item_by_name(browser, name):
     item_row = row_for_item_by_name(browser, name)
     props_link = item_row.find_by_css("a").first
     props_link.click()

@@ -4,7 +4,7 @@ from django.shortcuts import reverse
 
 from topobank.manager.tests.utils import SurfaceFactory, TopographyFactory
 from splinter_tests.utils import goto_select_page, goto_publications_page, \
-    select_sharing_status, press_properties_for_item_by_name, num_items_in_result_table, \
+    select_sharing_status, press_view_for_item_by_name, num_items_in_result_table, \
     data_of_item_by_name
 
 
@@ -57,7 +57,7 @@ def test_publishing_form(user_alice_logged_in, handle_usage_statistics):
     # Alice opens properties for the surface
     #
     goto_select_page(browser)
-    press_properties_for_item_by_name(browser, surface_name)
+    press_view_for_item_by_name(browser, surface_name)
 
     #
     # Alice presses "Publish" button. The extra "Publish surface ..." tab opens.
@@ -149,7 +149,7 @@ def test_publishing_form_multiple_authors(user_alice_logged_in, handle_usage_sta
     # Alice opens properties for the surface
     #
     goto_select_page(browser)
-    press_properties_for_item_by_name(browser, surface_name)
+    press_view_for_item_by_name(browser, surface_name)
 
     #
     # Alice presses "Publish" button. The extra "Publish surface ..." tab opens.
@@ -233,7 +233,7 @@ def test_see_published_by_others(user_alice_logged_in, user_bob, handle_usage_st
 
     # Alice opens the properties and sees
     # the "published by Bob" badge.
-    press_properties_for_item_by_name(browser, surface_name)
+    press_view_for_item_by_name(browser, surface_name)
     assert browser.is_text_present('published by Bob Marley')
 
     # She opens the permissions and sees that Everyone has read permissions
@@ -295,7 +295,7 @@ def test_switch_between_wip_and_version(user_alice_logged_in, handle_usage_stati
     # When browsing to the surface, the current surface is shown as "Work in progress"
     #
     goto_select_page(browser)
-    press_properties_for_item_by_name(browser, surface.name)
+    press_view_for_item_by_name(browser, surface.name)
 
     assert browser.is_text_present("Work in progress")
     assert not browser.is_text_present("Version 1")
@@ -373,7 +373,7 @@ def test_how_to_cite(user_alice_logged_in, handle_usage_statistics):
 
     # Alice opens the properties and sees
     # the "published by yo" badge.
-    press_properties_for_item_by_name(browser, surface_name)
+    press_view_for_item_by_name(browser, surface_name)
     assert browser.is_text_present('published by you')
 
     #
