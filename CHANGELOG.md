@@ -3,6 +3,7 @@
 ## 0.9.4 (not published yet)
 
 - fixed wrong select tab state in session (#532)
+- renamed button "Properties" to "View" (#537)
 
 ## 0.9.3 (2020-11-12)
 
