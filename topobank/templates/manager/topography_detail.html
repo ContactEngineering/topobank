@@ -44,10 +44,6 @@
                   <td>{{ topography.measurement_date }}</td>
                 </tr>
                 <tr>
-                  <th scope="row">Name of Data File</th>
-                  <td>{{ topography.datafile.name }}</td>
-                </tr>
-                <tr>
                   <th scope="row">Data File Format</th>
                   <td>{{ topography.datafile_format|default_if_none:'(not saved yet - autodetection on every use)' }}</td>
                 </tr>
