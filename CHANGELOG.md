@@ -4,6 +4,9 @@
 
 - fixed wrong select tab state in session (#532)
 - renamed button "Properties" to "View" (#537)
+- on select tab, only showing first line of 
+  descriptions on load, rest expandable by 
+  button press (#540) 
 
 ## 0.9.3 (2020-11-12)
 
