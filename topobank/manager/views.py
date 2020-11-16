@@ -713,7 +713,8 @@ class SelectView(TemplateView):
         # The session needs a default for the state of the select tab
         #
         session = self.request.session
-        select_tab_state = session.get('select_tab_state', default=DEFAULT_SELECT_TAB_STATE)
+        select_tab_state = session.get('select_tab_state',
+                                       default=DEFAULT_SELECT_TAB_STATE.copy())
 
         # only overwrite search term in select tab state and only
         # if given explicitly as request parameter
@@ -727,8 +728,8 @@ class SelectView(TemplateView):
             'surface list': self.request.build_absolute_uri(reverse('manager:search')),
             'tag tree': self.request.build_absolute_uri(reverse('manager:tag-list')),
         }
-        context['select_tab_state'] = select_tab_state
-        context['category_filter_choices'] = CATEGORY_FILTER_CHOICES
+
+        context['category_filter_choices'] = CATEGORY_FILTER_CHOICES.copy()
 
         if self.request.user.is_anonymous:
             # Anonymous user have only one choice
@@ -737,7 +738,11 @@ class SelectView(TemplateView):
             }
             select_tab_state['sharing_status'] = 'published'  # this only choice should be selected
         else:
-            context['sharing_status_filter_choices'] = SHARING_STATUS_FILTER_CHOICES
+            context['sharing_status_filter_choices'] = SHARING_STATUS_FILTER_CHOICES.copy()
+
+        context['select_tab_state'] = select_tab_state.copy()
+
+        session['select_tab_state'] = select_tab_state
 
         return context
 
@@ -1532,7 +1537,7 @@ class SurfaceSearchPaginator(PageNumberPagination):
         #
         session = self.request.session
 
-        select_tab_state = session.get('select_tab_state', DEFAULT_SELECT_TAB_STATE)
+        select_tab_state = session.get('select_tab_state', DEFAULT_SELECT_TAB_STATE.copy())
         # not using the keyword argument "default" here, because in some tests,
         # the session is a simple dict and no real session dict. A simple
         # dict's .get() has no keyword argument 'default', although it can be given

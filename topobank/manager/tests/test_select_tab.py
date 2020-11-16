@@ -1214,7 +1214,7 @@ def test_select_tab_state_should_be_default_after_login(client):
     user = UserFactory()
     client.force_login(user)
     response = client.get(reverse('manager:select'))
-    assert client.session['select_tab_state'] == DEFAULT_SELECT_TAB_STATE
+    assert response.context['select_tab_state'] == DEFAULT_SELECT_TAB_STATE
 
 
 
