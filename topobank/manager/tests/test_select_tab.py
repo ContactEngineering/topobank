@@ -7,7 +7,9 @@ from ..views import select_surface, unselect_surface, SurfaceListView, SurfaceSe
     select_topography, unselect_topography, \
     TagTreeView, select_tag, unselect_tag, unselect_all, DEFAULT_SELECT_TAB_STATE
 from ..utils import selected_instances
-from .utils import SurfaceFactory, UserFactory, TopographyFactory, TagModelFactory, ordereddicts_to_dicts
+from .utils import SurfaceFactory, UserFactory, TopographyFactory, \
+    TagModelFactory, ordereddicts_to_dicts
+from topobank.utils import assert_no_form_errors
 
 from topobank.manager.models import TagModel
 
@@ -1209,11 +1211,23 @@ def test_select_tab_state_should_be_default_after_login(client):
     # first request the site anonymously .. select tab state is set to that of
     # an anonymous user
     response = client.get(reverse('manager:select'))
+    assert response.context['select_tab_state']['sharing_status'] == 'published'
 
     # Then login as authenticated user
-    user = UserFactory()
-    client.force_login(user)
+    password = "abcd"
+    user = UserFactory(password=password)
+
+    # we use a real request in order to trigger the signal
+    response = client.post(reverse('account_login'), {
+        'password': password,
+        'login': user.username,
+    })
+
+    assert response.status_code == 302
+    assert_no_form_errors(response)
+
     response = client.get(reverse('manager:select'))
+
     assert response.context['select_tab_state'] == DEFAULT_SELECT_TAB_STATE
 
 
