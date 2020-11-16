@@ -79,7 +79,9 @@ let search_results_vm = new Vue({
                   titlesTabbable: false,
                   tabindex: -1,
                   focusOnSelect: false,
-                  scrollParent: $("#scrollParent"),
+                  scrollParent: window,
+                  autoScroll: true,
+                  scrollOfs: {top: 200, bottom: 50},
                   checkbox: true,
                   selectMode: 2, // 'multi'
                   source: {
