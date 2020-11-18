@@ -8,7 +8,10 @@
   descriptions on load, rest expandable by 
   button press (#540)
 - autoscroll in select tab which moves selected 
-  row into view (#544)     
+  row into view (#544)
+- improved bandwidth plot, removed labels
+  and added info box on hover with name and 
+  thumbnail of the corresponding topography (#535)     
 
 ## 0.9.3 (2020-11-12)
 
