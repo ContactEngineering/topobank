@@ -807,13 +807,11 @@ class SurfaceDetailView(DetailView):
         bw_data_with_errors = [x for x in bw_data if x['error_message'] is not None]
         bw_data_without_errors = [x for x in bw_data if x['error_message'] is None]
 
-        # context['bandwidths_data_without_errors'] = json.dumps(bw_data_without_errors)
         context['bandwidths_data_with_errors'] = bw_data_with_errors
 
         #
         # Plot bandwidths with bokeh
         #
-        # bw_source =
 
         if len(bw_data_without_errors) > 0:
 
@@ -827,8 +825,6 @@ class SurfaceDetailView(DetailView):
                                   for bw in bw_data_without_errors]
             bw_y = range(0, len(bw_data_without_errors))
 
-            # _log.info("label centers: "+",".join(str(x) for x in bw_center))
-
             bw_source = ColumnDataSource(dict(y=bw_y, left=bw_left, right=bw_right, center=bw_center,
                                               name=bw_names,
                                               topography_link=bw_topography_links,
@@ -836,9 +832,6 @@ class SurfaceDetailView(DetailView):
 
             x_range = (min(bw_left), max(bw_right))
 
-            #TOOL_TIPS = [
-            #    ("name", "@name")
-            #]
             TOOL_TIPS = """
             <div class="bandwidth-hover-box">
                 <img src="@thumbnail_link" height="80" width="80" alt="@thumbnail">
@@ -862,15 +855,6 @@ class SurfaceDetailView(DetailView):
             plot.grid.visible = False
             plot.outline_line_color = None
             plot.xaxis.formatter = FuncTickFormatter(code="return siSuffixMeters(2)(tick)")
-
-            #labels = LabelSet(x='center', y="y", text='name', level='annotation',
-            #                  text_align="center",
-            #                  text_color="white",
-            #                  x_offset=5, y_offset=0, source=bw_source)
-            #plot.add_layout(labels)
-
-            #centers = plot.circle(x="center", y="y", source=bw_source, level="annotation")
-            #plot.add_layout(centers)
 
             # make clicking a bar going opening a new page
             taptool = plot.select(type=TapTool)
