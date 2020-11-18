@@ -1168,7 +1168,7 @@ class SurfaceShareView(FormMixin, DetailView):
 
 
 class PublicationsTable(tables.Table):
-    publication = tables.Column(linkify=True, verbose_name='Surface')
+    publication = tables.Column(linkify=True, verbose_name='Surface', order_by='surface__name')
     num_topographies = tables.Column(verbose_name='# Topographies')
     authors = tables.Column(verbose_name="Authors")
     license = tables.Column(verbose_name="License")
