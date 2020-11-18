@@ -807,7 +807,7 @@ class SurfaceDetailView(DetailView):
         bw_data_with_errors = [x for x in bw_data if x['error_message'] is not None]
         bw_data_without_errors = [x for x in bw_data if x['error_message'] is None]
 
-        context['bandwidths_data_without_errors'] = json.dumps(bw_data_without_errors)
+        # context['bandwidths_data_without_errors'] = json.dumps(bw_data_without_errors)
         context['bandwidths_data_with_errors'] = bw_data_with_errors
 
         #
@@ -820,20 +820,33 @@ class SurfaceDetailView(DetailView):
             bw_left = [bw['lower_bound'] for bw in bw_data_without_errors]
             bw_right = [bw['upper_bound'] for bw in bw_data_without_errors]
             bw_center = np.exp((np.log(bw_left)+np.log(bw_right))/2)  # we want to center on log scale
-            bw_names = [bw['name'] for bw in bw_data_without_errors]
-            bw_links = [bw['link'] for bw in bw_data_without_errors]
+            bw_names = [bw['topography'].name for bw in bw_data_without_errors]
+            bw_topography_links = [bw['link'] for bw in bw_data_without_errors]
+            bw_thumbnail_links = [reverse('manager:topography-thumbnail',
+                                          kwargs=dict(pk=bw['topography'].pk))
+                                  for bw in bw_data_without_errors]
             bw_y = range(0, len(bw_data_without_errors))
 
             # _log.info("label centers: "+",".join(str(x) for x in bw_center))
 
             bw_source = ColumnDataSource(dict(y=bw_y, left=bw_left, right=bw_right, center=bw_center,
-                                              name=bw_names, link=bw_links))
+                                              name=bw_names,
+                                              topography_link=bw_topography_links,
+                                              thumbnail_link=bw_thumbnail_links))
 
             x_range = (min(bw_left), max(bw_right))
 
-            TOOL_TIPS = [
-                ("name", "@name")
-            ]
+            #TOOL_TIPS = [
+            #    ("name", "@name")
+            #]
+            TOOL_TIPS = """
+            <div class="bandwidth-hover-box">
+                <img src="@thumbnail_link" height="80" width="80" alt="@thumbnail">
+                </img>
+                <span>@name</span>
+
+            </div>
+            """
 
             plot = figure(x_range=x_range,
                           x_axis_label="Bandwidth",
@@ -861,7 +874,7 @@ class SurfaceDetailView(DetailView):
 
             # make clicking a bar going opening a new page
             taptool = plot.select(type=TapTool)
-            taptool.callback = OpenURL(url="@link", same_tab=True)
+            taptool.callback = OpenURL(url="@topography_link", same_tab=True)
 
             # include plot into response
             bw_plot_script, bw_plot_div = components(plot)

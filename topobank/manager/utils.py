@@ -480,7 +480,7 @@ def _bandwidths_data_entry(topo):
         return {
                 'lower_bound': None,
                 'upper_bound': None,
-                'name': topo.name,
+                'topography': topo,
                 'link': link,
                 'error_message': err_message
         }
@@ -518,7 +518,7 @@ def _bandwidths_data_entry(topo):
     return {
             'lower_bound': lower_bound_meters,
             'upper_bound': upper_bound_meters,
-            'name': topo.name,
+            'topography': topo,
             'link': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
             'error_message': err_message
     }
@@ -534,7 +534,7 @@ def bandwidths_data(topographies):
 
     'upper_bound': upper bound in meters (or None if there is an error)
     'lower_bound': lower bound in meters (or None if there is an error)
-    'name': name of topography
+    'topo': topography instance
     'link': link to topography details
     'error_message': None or a string with an error message if calculation failed
 
