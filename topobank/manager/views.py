@@ -824,19 +824,24 @@ class SurfaceDetailView(DetailView):
             bw_links = [bw['link'] for bw in bw_data_without_errors]
             bw_y = range(0, len(bw_data_without_errors))
 
-            _log.info("label centers: "+",".join(str(x) for x in bw_center))
+            # _log.info("label centers: "+",".join(str(x) for x in bw_center))
 
             bw_source = ColumnDataSource(dict(y=bw_y, left=bw_left, right=bw_right, center=bw_center,
                                               name=bw_names, link=bw_links))
 
             x_range = (min(bw_left), max(bw_right))
 
+            TOOL_TIPS = [
+                ("name", "@name")
+            ]
+
             plot = figure(x_range=x_range,
                           x_axis_label="Bandwidth",
                           x_axis_type="log",
                           sizing_mode='stretch_width',
-                          tools="tap",
-                          toolbar_location=None)
+                          tools=["tap", "hover"],
+                          toolbar_location=None,
+                          tooltips=TOOL_TIPS)
             hbar_renderer = plot.hbar(y="y", left="left", right="right", height=0.95,
                                       name='bandwidths', source=bw_source)
             hbar_renderer.nonselection_glyph = None  # makes glyph invariant on selection
@@ -845,14 +850,14 @@ class SurfaceDetailView(DetailView):
             plot.outline_line_color = None
             plot.xaxis.formatter = FuncTickFormatter(code="return siSuffixMeters(2)(tick)")
 
-            labels = LabelSet(x='center', y="y", text='name', level='annotation',
-                              text_align="center",
-                              text_color="white",
-                              x_offset=5, y_offset=0, source=bw_source)
-            plot.add_layout(labels)
+            #labels = LabelSet(x='center', y="y", text='name', level='annotation',
+            #                  text_align="center",
+            #                  text_color="white",
+            #                  x_offset=5, y_offset=0, source=bw_source)
+            #plot.add_layout(labels)
 
-            centers = plot.circle(x="center", y="y", source=bw_source, level="annotation")
-            plot.add_layout(centers)
+            #centers = plot.circle(x="center", y="y", source=bw_source, level="annotation")
+            #plot.add_layout(centers)
 
             # make clicking a bar going opening a new page
             taptool = plot.select(type=TapTool)
