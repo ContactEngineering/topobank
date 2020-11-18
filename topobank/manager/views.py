@@ -834,7 +834,7 @@ class SurfaceDetailView(DetailView):
 
             TOOL_TIPS = """
             <div class="bandwidth-hover-box">
-                <img src="@thumbnail_link" height="80" width="80" alt="@thumbnail">
+                <img src="@thumbnail_link" height="80" width="80" alt="Thumbnail is missing, sorry">
                 </img>
                 <span>@name</span>
 
