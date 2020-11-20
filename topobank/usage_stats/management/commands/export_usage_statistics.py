@@ -1,6 +1,8 @@
 from django.core.management.base import BaseCommand
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ObjectDoesNotExist
+from django.core.mail import EmailMessage
+from django.conf import settings
 
 from trackstats.models import Metric, StatisticByDate, StatisticByDateAndObject
 from topobank.usage_stats.utils import register_metrics
@@ -139,6 +141,10 @@ def _statisticByDateAndObject2dataframe(metric_ref, content_type, attr_name='nam
 class Command(BaseCommand):
     help = "Exports a file with usage statistics."
 
+    def add_arguments(self, parser):
+        parser.add_argument('-s', '--send-email', nargs='+', type=str,
+                            help="Send statistics as mail attachment to given address.")
+
     def handle(self, *args, **options):
 
         register_metrics()
@@ -197,4 +203,41 @@ class Command(BaseCommand):
                 _adjust_columns_widths(sheet)
 
         self.stdout.write(self.style.SUCCESS(f"Written user statistics to file '{EXPORT_FILE_NAME}'."))
+
+        if options['send_email']:
+            recipients = options['send_email']
+            self.stdout.write(self.style.NOTICE(f"Trying to send file '{EXPORT_FILE_NAME}' to {recipients}.."))
+
+            import textwrap
+
+            email_body = textwrap.dedent("""
+            Hi,
+
+            As attachment you'll find a spreadsheet with current usage statistics for
+            the website 'contact.engineering'.
+
+            This mail was automatically generated.
+
+            Take care!
+            """)
+
+            email = EmailMessage(
+                'Usage statistics about contact.engineering',
+                email_body,
+                settings.CONTACT_EMAIL_ADDRESS,
+                recipients,
+                reply_to=[settings.CONTACT_EMAIL_ADDRESS],
+                attachments=[
+                    (EXPORT_FILE_NAME, open(EXPORT_FILE_NAME, mode='rb' ).read(), 'application/vnd.ms-excel')
+                ]
+            )
+
+            # email.attach(EXPORT_FILE_NAME)
+
+            try:
+                email.send()
+                self.stdout.write(self.style.SUCCESS(f"Mail was sent successfully."))
+            except Exception as exc:
+                self.stdout.write(self.style.ERROR(f"Could not send statistics to {recipients}. Reason: {exc}"))
+
         _log.info("Done.")
