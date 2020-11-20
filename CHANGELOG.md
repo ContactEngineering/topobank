@@ -13,7 +13,7 @@
   and added info box on hover with name and 
   thumbnail of the corresponding topography (#535)
 - fixed ordering by surface name on publication tab
-
+- enabled custom sorting of sharing info table (#300)
 
 ## 0.9.3 (2020-11-12)
 
