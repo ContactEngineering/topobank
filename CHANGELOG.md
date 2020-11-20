@@ -11,7 +11,9 @@
   row into view (#544)
 - improved bandwidth plot, removed labels
   and added info box on hover with name and 
-  thumbnail of the corresponding topography (#535)     
+  thumbnail of the corresponding topography (#535)
+- fixed ordering by surface name on publication tab
+
 
 ## 0.9.3 (2020-11-12)
 
