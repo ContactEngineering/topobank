@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand
 from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ObjectDoesNotExist
 
 from trackstats.models import Metric, StatisticByDate, StatisticByDateAndObject
 from topobank.usage_stats.utils import register_metrics
@@ -117,11 +118,14 @@ def _statisticByDateAndObject2dataframe(metric_ref, content_type, attr_name='nam
     values = []
     for l in statistics.values():
 
-        # values.append(l['date'])
-        obj = content_type.get_object_for_this_type(id=l['object_id'])
-        obj_name = getattr(obj, attr_name)
-
-        values.append({'date': l['date'], obj_name: l['value']})
+        # _log.info("Getting statistics value for %s..", l)
+        try:
+            obj = content_type.get_object_for_this_type(id=l['object_id'])
+            obj_name = getattr(obj, attr_name)
+            values.append({'date': l['date'], obj_name: l['value']})
+        except ObjectDoesNotExist:
+            _log.warning("Cannot find object with id %s, content_type '%s', but it is listed in statistics. Ignoring.",
+                         l['object_id'], content_type)
 
     if values:
         df = pd.DataFrame.from_records(values, index='date').groupby('date').sum()
