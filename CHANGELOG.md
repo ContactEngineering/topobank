@@ -12,8 +12,10 @@
 - improved bandwidth plot, removed labels
   and added info box on hover with name and 
   thumbnail of the corresponding topography (#535)
-- fixed ordering by surface name on publication tab
 - enabled custom sorting of sharing info table (#300)
+- usage statistics can be sent by email (#550)  
+- fixed ordering by surface name on publication tab
+
 
 ## 0.9.3 (2020-11-12)
 
