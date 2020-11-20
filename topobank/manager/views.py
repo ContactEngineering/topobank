@@ -1327,7 +1327,7 @@ class SharingInfoTable(tables.Table):
     num_topographies = tables.Column(verbose_name='# Topographies')
     created_by = tables.Column(linkify=lambda **kwargs: kwargs['record']['created_by'].get_absolute_url(),
                                accessor='created_by__name')
-    created_by = tables.Column(linkify=lambda **kwargs: kwargs['record']['shared_with'].get_absolute_url(),
+    shared_with = tables.Column(linkify=lambda **kwargs: kwargs['record']['shared_with'].get_absolute_url(),
                                accessor='shared_with__name')
     allow_change = tables.BooleanColumn()
     selected = tables.CheckBoxColumn(attrs={
@@ -1345,13 +1345,13 @@ class SharingInfoTable(tables.Table):
     # def render_created_by(self, value):
     #     return self._render_user(value)
 
-    # def render_shared_with(self, value):
-    #     return self._render_user(value)
+    #def render_shared_with(self, value):
+    #    return self._render_user(value)
 
-    def _render_user(self, user):
-        if self._request.user == user:
-            return "You"
-        return user.name
+    #def _render_user(self, user):
+    #    if self._request.user == user:
+    #        return "You"
+    #    return user.name
 
     class Meta:
         orderable = True
