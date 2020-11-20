@@ -1351,7 +1351,7 @@ class SharingInfoTable(tables.Table):
         return user.name
 
     class Meta:
-        orderable = False  # ordering does not work with custom columns
+        orderable = True
 
 
 def sharing_info(request):
@@ -1408,9 +1408,11 @@ def sharing_info(request):
             # Leave out these shares:
             #
             # - share of a user with himself as creator (trivial)
+            # - ignore user if anonymous
             # - shares where the request user is not involved
             #
-            if (u != s.creator) and ((u == request.user) or (s.creator == request.user)):
+            if (u != s.creator) and (not u.is_anonymous) and \
+                ((u == request.user) or (s.creator == request.user)):
                 allow_change = ('change_surface' in surface_perms[u])
                 tmp.append((s, u, allow_change))
 
@@ -1420,7 +1422,7 @@ def sharing_info(request):
     data = [
         {
             'surface': surface,
-            'num_topographies': surface.num_topographies,
+            'num_topographies': surface.num_topographies(),
             'created_by': surface.creator,
             'shared_with': shared_with,
             'allow_change': allow_change,
@@ -1434,7 +1436,9 @@ def sharing_info(request):
     sharing_info_table = SharingInfoTable(data=data,
                                           empty_text="No surfaces shared by or with you.",
                                           request=request)
+
     RequestConfig(request).configure(sharing_info_table)
+    # sharing_info_table.order_by('num_topographies')
 
     return render(request,
                   template_name='manager/sharing_info.html',
