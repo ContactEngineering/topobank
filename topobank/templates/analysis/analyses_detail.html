@@ -9,7 +9,8 @@
 {% endblock content-title %}
 
 {% block extra_css %}
-{{ form.media.css }}
+  {{ form.media.css }}
+  <link href="https://cdn.datatables.net/1.10.22/css/jquery.dataTables.min.css" rel="stylesheet">
 {% endblock extra_css %}
 
 {% block content %}
@@ -44,6 +45,9 @@
 
   <!-- for task progress bar -->
   <script src="{% static 'celery_progress/celery_progress.js' %}"></script>
+
+  <!-- for datatables -->
+  <script src="https://cdn.datatables.net/1.10.22/js/jquery.dataTables.min.js"></script>
 
   <!-- Trigger fetching analysis results -->
   <script>

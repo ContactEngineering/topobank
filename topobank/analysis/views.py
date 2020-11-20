@@ -20,6 +20,8 @@ from django.core.cache import cache  # default cache
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import reverse
 
+import django_tables2 as tables
+
 from bokeh.layouts import row, column, grid
 from bokeh.models import ColumnDataSource, CustomJS, TapTool, Circle, HoverTool
 from bokeh.palettes import Category10
@@ -60,7 +62,7 @@ _log = logging.getLogger(__name__)
 SMALLEST_ABSOLUT_NUMBER_IN_LOGPLOTS = 1e-100
 MAX_NUM_POINTS_FOR_SYMBOLS = 50
 
-CARD_VIEW_FLAVORS = ['simple', 'plot', 'power spectrum', 'contact mechanics']
+CARD_VIEW_FLAVORS = ['simple', 'plot', 'power spectrum', 'contact mechanics', 'rms table']
 
 
 def card_view_class(card_view_flavor):
@@ -837,6 +839,66 @@ class ContactMechanicsCardView(SimpleCardView):
         context['limits_calc_kwargs'] = CONTACT_MECHANICS_KWARGS_LIMITS
 
         return context
+
+
+class RMSTable(tables.Table):
+    topography = tables.Column(linkify=lambda **kwargs: kwargs['record']['topography'].get_absolute_url(),
+                               accessor='topography__name')
+    quantity = tables.Column()
+    direction = tables.Column()
+    value = tables.Column()
+    unit = tables.Column()
+
+
+class RmsTableCardView(SimpleCardView):
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        analyses_success = context['analyses_success']
+
+        data = []
+        for analysis in analyses_success:
+            analysis_result = analysis.result_obj
+
+            for d in analysis_result:
+                # convert float32 to float
+                d['value'] = d['value'].astype(float)
+                if not d['direction']:
+                    d['direction'] = ''
+                # put topography in every line
+                d.update(dict(topography=analysis.topography.name))  # TODO provide link and name here
+
+
+            data.extend(analysis_result)
+
+        #
+        # find out all existing keys keeping order
+        #
+        all_keys = []
+        for d in data:
+            for k in d.keys():
+                if k not in all_keys:
+                    all_keys.append(k)
+
+        #
+        # make sure every dict has all keys
+        #
+        for k in all_keys:
+            for d in data:
+                d.setdefault(k)
+
+        #
+        # create table
+        #
+        #table = RMSTable(data=data, empty_text="No RMS values calculated.", request=self.request)
+
+        context.update(dict(
+            table_data=data
+        ))
+
+        return context
+
 
 
 def _configure_plot(plot):
