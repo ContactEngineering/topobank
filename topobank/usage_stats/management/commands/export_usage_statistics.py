@@ -152,6 +152,8 @@ class Command(BaseCommand):
         #
         # Compile results with single value for a date
         #
+        # Elements: (metric_ref, factor, column_heading or None for default)
+        #
         single_value_metrics = [
             ('login_count', 1, None),
             ('search_view_count', 1, None),
@@ -172,6 +174,7 @@ class Command(BaseCommand):
                                              on='date', how='outer')
 
         statistics_by_date_df.fillna(0, inplace=True)
+        statistics_by_date_df.sort_index(inplace=True)  # we want to have it sorted by date
 
         #
         # Compile results for statistics for objects
