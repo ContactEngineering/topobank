@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-## 0.9.4 (not published yet)
+## 0.9.4 (2020-11-23)
 
 - added new analysis function "RMS Values" (#445)
 - autoscroll in select tab which moves selected 
