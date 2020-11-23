@@ -49,8 +49,10 @@
   <!-- for datatables -->
   <script src="https://cdn.datatables.net/1.10.22/js/jquery.dataTables.min.js"></script>
 
-  <!-- Trigger fetching analysis results -->
   <script>
+    const result_view_mode = 'detail';
+
+    <!-- Trigger fetching analysis results -->
     // for the card submit ajax call to insert result card
     $(document).ready(function () {
       submit_analyses_card_ajax("{% url 'analysis:card' %}", "card", "detail",

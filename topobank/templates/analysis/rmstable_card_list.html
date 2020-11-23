@@ -1,7 +1,6 @@
-{# Needs some keys in context. See AJAX view "TableCardView" #}
+{# Needs some keys in context. See AJAX view "RmsTableCardView" #}
 {% load analysis_tags %}
 {% load fontawesome %}
-{% load django_tables2 %}
 
 <div class="card search-result-card">
     <div class="card-header">
@@ -16,8 +15,8 @@
         </button>
         <div class="dropdown-menu dropdown-menu-right">
           {% if analyses_success %}
-          <a class="dropdown-item" href="{% url 'analysis:download' analyses_success|analyses_results_ids_list_str 'table' 'txt' %}">Download as TXT</a>
-          <a class="dropdown-item" href="{% url 'analysis:download' analyses_success|analyses_results_ids_list_str 'table' 'xlsx' %}">Download as XLSX</a>
+          <a class="dropdown-item" href="{% url 'analysis:download' analyses_success|analyses_results_ids_list_str 'rms table' 'txt' %}">Download as TXT</a>
+          <a class="dropdown-item" href="{% url 'analysis:download' analyses_success|analyses_results_ids_list_str 'rms table' 'xlsx' %}">Download as XLSX</a>
           {% endif %}
           {% if not analyses_unready %}
             <div class="dropdown-divider"></div>
@@ -33,7 +32,7 @@
       {% if analyses_failure %}
       <ul class="nav nav-tabs">
         <li class="nav-item" style="list-style-type: none;">
-          <a class="nav-link active" data-toggle="tab" href="#plot-tab-{{ card_id }}">Table</a>
+          <a class="nav-link active" data-toggle="tab" href="#table-tab-{{ card_id }}">Table</a>
         </li>
         <li class="nav-item" style="list-style-type: none;">
           <a class="nav-link" data-toggle="tab" href="#warnings-tab-{{ card_id }}">Warnings</a>
@@ -42,10 +41,10 @@
       {% endif %}
 
       <div class="tab-content">
-        <div class="tab-pane fade show active" id="plot-tab-{{ card_id }}" role="tabpanel">
+        <div class="tab-pane fade show active" id="table-tab-{{ card_id }}" role="tabpanel">
           {% include 'analysis/analyses_alerts.html' %}
           {% if not analyses_unready and analyses_success %}
-           <table id="datatable"></table>
+            {% include 'analysis/rmstable_card_datatables.html' %}
           {% endif %}
         </div>
         {% include 'analysis/analyses_warnings_tab_pane.html' %}
@@ -55,13 +54,4 @@
 
 {% include 'analysis/task_info_modal.html' %}
 
-{{ table_data | json_script:"table-data" }}
-
-<script>
-  $(document).ready(function () {
-    $('#datatable').DataTable({
-      data: JSON.parse(document.getElementById('table-data').textContent)
-    })
-  })
-</script>
 

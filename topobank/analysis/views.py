@@ -867,7 +867,9 @@ class RmsTableCardView(SimpleCardView):
                 if not d['direction']:
                     d['direction'] = ''
                 # put topography in every line
-                d.update(dict(topography=analysis.topography.name))  # TODO provide link and name here
+                topo = analysis.topography
+                d.update(dict(topography_name=topo.name,
+                              topography_url=topo.get_absolute_url()))
 
 
             data.extend(analysis_result)
@@ -1393,10 +1395,6 @@ class AnalysesListView(FormView):
                               topography_ids_json=json.dumps([t.id for t in effective_topographies])))
 
         context['cards'] = cards
-
-        #
-        # Decide whether to open extra tabs for surface/topography details
-        #
 
         # Decide whether to open extra tabs for surface/topography details
         tabs = extra_tabs_if_single_item_selected(topographies, surfaces)

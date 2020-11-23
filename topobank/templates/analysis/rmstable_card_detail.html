@@ -1,1 +1,73 @@
-rmstable_card_list.html
+{# Needs some keys in context. See AJAX view "PlotCardView" #}
+{% extends 'analysis/simple_card_detail.html' %}
+{% load analysis_tags %}
+{% load fontawesome %}
+
+{% block card_header %}
+  <div class="card-title">
+   <h3>{{ title }}</h3>
+  </div>
+{% endblock card_header %}
+
+{% block card_body %}
+
+  <div class="row">
+
+    <div class="col-9">
+      {% if analyses_failure %}{#  we only need the navigation if there is anything else than a table #}
+      <ul class="nav nav-tabs">
+
+        <li class="nav-item">
+          <a class="nav-link active" href="#table" data-toggle="tab" role="tab">Table</a>
+        </li>
+        <li class="nav-item">
+          {# Use href with card_id because the included HTML uses this too #}
+          <a class="nav-link" href="#warnings-tab-{{ card_id }}" data-toggle="tab" role="tab">Warnings</a>
+        </li>
+      </ul>
+      {% endif %}
+
+      <div class="tab-content mt-3">
+
+        <div class="tab-pane show active" id="table" role="tabpanel" aria-labelledby="card-tab">
+          {% include 'analysis/analyses_alerts.html' %}
+          {% if analyses_success %}
+             {% include 'analysis/rmstable_card_datatables.html' %}
+          {% endif %}
+        </div>
+        {% include 'analysis/analyses_warnings_tab_pane.html' %}
+      </div>
+    </div>
+
+    <div class="col-3">
+
+      <div class="row p-3">
+        <div class="col">
+        </div>
+      </div>
+      <div class="row p-3">
+        <div class="col">
+          <!-- button area -->
+          {% if analyses_available %}
+            {% if analyses_success %}
+              <a class="btn btn-default btn-block btn-lg"
+                 href="{% url 'analysis:download' analyses_success|analyses_results_ids_list_str 'rms table' 'txt' %}">
+                {% fontawesome_icon 'download' %} Download as TXT</a>
+              <a class="btn btn-default btn-block btn-lg"
+                 href="{% url 'analysis:download' analyses_success|analyses_results_ids_list_str 'rms table' 'xlsx' %}">
+                {% fontawesome_icon 'download' %} Download as XLSX</a>
+            {% endif %}
+            {% if not analyses_unready %}
+              <a class="btn btn-default btn-block btn-lg" href="#" data-toggle="modal"
+                 data-target="#statusesModal-{{ card_id }}">{% fontawesome_icon 'tasks' %} Task information</a>
+            {% endif %}
+          {% endif %}
+        </div>
+      </div>
+      {% block card_extra_widgets %}
+
+      {% endblock card_extra_widgets %}
+    </div>
+
+  </div>
+{% endblock card_body %}
