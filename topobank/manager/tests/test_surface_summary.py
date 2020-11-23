@@ -39,21 +39,25 @@ def two_topos_mock(mocker):
 
     return topos
 
-def test_bandwiths_data(two_topos_mock):
+
+def test_bandwidths_data(two_topos_mock):
 
     bd = bandwidths_data(two_topos_mock)
 
+    topoB, topoA = two_topos_mock
+
     # expected bandwidth data - smaller lower bounds should be listed first
     exp_bd = [
-        dict(upper_bound=6e-7, lower_bound=6e-9, name='topoB', link='linkB/'),
-        dict(upper_bound=1e-4, lower_bound=5e-6, name='topoA', link='linkA/'),
+        dict(upper_bound=6e-7, lower_bound=6e-9, topography=topoB, link='linkB/'),
+        dict(upper_bound=1e-4, lower_bound=5e-6, topography=topoA, link='linkA/'),
     ]
 
     for i in range(len(exp_bd)):
         for field in ['upper_bound', 'lower_bound']:
             assert exp_bd[i][field] == approx(bd[i][field])
-        for field in ['name', 'link']:
+        for field in ['topography', 'link']:
             assert exp_bd[i][field] == bd[i][field]
+
 
 @pytest.mark.django_db
 def test_bandwidth_with_angstrom():
@@ -83,7 +87,7 @@ def test_bandwidth_error_message_in_dict_when_problems_while_loading(topography_
     bd1, bd2 = bd
 
     # first one should indicate that there is an error
-    assert bd1['name'] == topo1.name
+    assert bd1['topography'] == topo1
     assert bd1['error_message'] == f"Topography '{topo1.name}' (id: {topo1.id}) cannot be loaded unexpectedly."
     assert 'Failure loading' in bd1['link']
     assert "id: {}".format(topo1.id) in bd1['link']
@@ -91,10 +95,11 @@ def test_bandwidth_error_message_in_dict_when_problems_while_loading(topography_
     assert bd1['upper_bound'] is None
 
     # first one should be okay (no errors)
-    assert bd2['name'] == topo2.name
+    assert bd2['topography'] == topo2
     assert bd2['error_message'] is None  # No error
     assert bd2['lower_bound'] is not None
     assert bd2['upper_bound'] is not None
+
 
 @pytest.mark.django_db
 def test_bandwidth_error_message_in_UI_when_problems_while_loading(client, topography_loaded_from_broken_file,

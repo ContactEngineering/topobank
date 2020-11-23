@@ -952,3 +952,80 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
         )
     )
 
+
+@analysis_function(card_view_flavor='rms table', automatic=True, name="RMS Values")
+def rms_values(topography, progress_recorder=None, storage_prefix=None):
+    """Just calculate RMS values for given topography.
+
+    Parameters
+    ----------
+    topography
+    progress_recorder
+    storage_prefix
+
+    Returns
+    -------
+    list of dicts where each dict has keys
+
+     quantity
+     direction
+     value
+     unit
+    """
+
+    try:
+        unit = topography.info['unit']
+        inverse_unit = '{}⁻¹'.format(unit)
+    except:
+        unit = None
+        inverse_unit = None
+
+    def rms_slope_from_der(der):
+        der = der.flatten()
+        return np.sqrt(((der**2).mean()))
+
+    result = [
+        {
+            'quantity': 'RMS Height',
+            'direction': None,
+            'value': topography.rms_height(),
+            'unit': unit,
+        },
+        {
+            'quantity': 'RMS Curvature',
+            'direction': None,
+            'value': topography.rms_curvature(),
+            'unit': inverse_unit,
+        },
+    ]
+
+    if topography.dim == 2:
+        dh_dx, dh_dy = topography.derivative(n=1)
+        result.extend([
+            {
+                'quantity': 'RMS Slope',
+                'direction': 'x',
+                'value': rms_slope_from_der(dh_dx),
+                'unit': 1,
+            },
+            {
+                'quantity': 'RMS Slope',
+                'direction': 'y',
+                'value': rms_slope_from_der(dh_dy),
+                'unit': 1,
+            }
+        ])
+    elif topography.dim == 1:
+        dh_dx = topography.derivative(n=1)
+        result.extend([
+            {
+                'quantity': 'RMS Slope',
+                'direction': 'x',
+                'value': rms_slope_from_der(dh_dx),
+                'unit': 1,
+            }
+        ])
+    else:
+        raise ValueError("This analysis function can only handle 1D or 2D topographies.")
+
+    return result

@@ -463,6 +463,63 @@ def test_analysis_download_as_txt(client, two_topos, ids_downloadable_analyses, 
     assert arr == pytest.approx(expected_arr)
 
 
+@pytest.mark.parametrize('file_format', ['txt', 'xlsx'])
+@pytest.mark.django_db
+def test_rms_table_download_as_txt(client, two_topos, file_format):
+    # This is only a simple test which checks whether the file can be downloaded
+    t1, t2 = two_topos
+
+    func = AnalysisFunction.objects.get(name='RMS Values')
+
+    import pickle
+    pickled_kwargs = pickle.dumps({})
+
+    ana1 = AnalysisFactory.create(topography=t1, function=func, kwargs=pickled_kwargs)
+    ana2 = AnalysisFactory.create(topography=t1, function=func, kwargs=pickled_kwargs)
+
+    username = 'testuser'
+    password = 'abcd$1234'
+
+    assert client.login(username=username, password=password)
+
+    ids_downloadable_analyses = [ana1.id, ana2.id]
+
+    ids_str = ",".join(str(i) for i in ids_downloadable_analyses)
+    download_url = reverse('analysis:download', kwargs=dict(ids=ids_str, card_view_flavor='rms table',
+                                                            file_format=file_format))
+
+    response = client.get(download_url)
+
+    if file_format == 'txt':
+        txt = response.content.decode()
+
+        assert "RMS Values" in txt  # function name should be in there
+        assert "RMS Height" in txt
+        assert "RMS Slope" in txt
+        assert "RMS Curvature" in txt
+    else:
+        # Resulting workbook should have two sheets
+        tmp = tempfile.NamedTemporaryFile(suffix='.xlsx')  # will be deleted automatically
+        tmp.write(response.content)
+        tmp.seek(0)
+
+        xlsx = openpyxl.load_workbook(tmp.name)
+
+        print(xlsx.sheetnames)
+
+        assert len(xlsx.worksheets) == 2
+
+        ws = xlsx.get_sheet_by_name("RMS values")
+
+        all_values_list = list(np.array(list(ws.values)).flatten())
+
+        assert 'RMS Height' in all_values_list
+        assert 'RMS Slope' in all_values_list
+        assert 'RMS Curvature' in all_values_list
+
+        xlsx.get_sheet_by_name("INFORMATION")
+
+
 @pytest.mark.parametrize("same_names", [ False, True])
 @pytest.mark.django_db
 def test_analysis_download_as_xlsx(client, two_topos, ids_downloadable_analyses, same_names, settings):

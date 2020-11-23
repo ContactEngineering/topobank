@@ -15,7 +15,7 @@
   <script src="https://unpkg.com/vue@latest"></script>
   <script src="https://unpkg.com/vue-select@latest"></script>
   <link rel="stylesheet" href="https://unpkg.com/vue-select@latest/dist/vue-select.css">
-
+  <link type="text/css" href="{% static 'vendor/datatables/datatables.min.css' %}" rel="stylesheet">
 {% endblock extra_css %}
 
 
@@ -55,8 +55,6 @@
 
     </div>
   </div>
-
-
 {% endblock content %}
 
 {% block javascript %}
@@ -68,10 +66,14 @@
   <!-- for task progress bar -->
   <script src="{% static 'celery_progress/celery_progress.js' %}"></script>
 
-  <!-- Trigger fetching analysis results -->
+  <!-- for datatables -->
+  <script src="{% static 'vendor/datatables/datatables.min.js' %}"></script>
+
   <script>
+    const result_view_mode = 'list';
 
     $(document).ready(function () {
+      <!-- Trigger fetching analysis results -->
       // for each card submit ajax call to insert result card
       {% url 'analysis:card' as card_url %}
       {% for card in cards %}

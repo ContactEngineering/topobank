@@ -1,5 +1,8 @@
 from django.core.management.base import BaseCommand
 from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ObjectDoesNotExist
+from django.core.mail import EmailMessage
+from django.conf import settings
 
 from trackstats.models import Metric, StatisticByDate, StatisticByDateAndObject
 from topobank.usage_stats.utils import register_metrics
@@ -117,11 +120,14 @@ def _statisticByDateAndObject2dataframe(metric_ref, content_type, attr_name='nam
     values = []
     for l in statistics.values():
 
-        # values.append(l['date'])
-        obj = content_type.get_object_for_this_type(id=l['object_id'])
-        obj_name = getattr(obj, attr_name)
-
-        values.append({'date': l['date'], obj_name: l['value']})
+        # _log.info("Getting statistics value for %s..", l)
+        try:
+            obj = content_type.get_object_for_this_type(id=l['object_id'])
+            obj_name = getattr(obj, attr_name)
+            values.append({'date': l['date'], obj_name: l['value']})
+        except ObjectDoesNotExist:
+            _log.warning("Cannot find object with id %s, content_type '%s', but it is listed in statistics. Ignoring.",
+                         l['object_id'], content_type)
 
     if values:
         df = pd.DataFrame.from_records(values, index='date').groupby('date').sum()
@@ -135,12 +141,18 @@ def _statisticByDateAndObject2dataframe(metric_ref, content_type, attr_name='nam
 class Command(BaseCommand):
     help = "Exports a file with usage statistics."
 
+    def add_arguments(self, parser):
+        parser.add_argument('-s', '--send-email', nargs='+', type=str,
+                            help="Send statistics as mail attachment to given address.")
+
     def handle(self, *args, **options):
 
         register_metrics()
 
         #
         # Compile results with single value for a date
+        #
+        # Elements: (metric_ref, factor, column_heading or None for default)
         #
         single_value_metrics = [
             ('login_count', 1, None),
@@ -162,6 +174,7 @@ class Command(BaseCommand):
                                              on='date', how='outer')
 
         statistics_by_date_df.fillna(0, inplace=True)
+        statistics_by_date_df.sort_index(inplace=True)  # we want to have it sorted by date
 
         #
         # Compile results for statistics for objects
@@ -193,4 +206,41 @@ class Command(BaseCommand):
                 _adjust_columns_widths(sheet)
 
         self.stdout.write(self.style.SUCCESS(f"Written user statistics to file '{EXPORT_FILE_NAME}'."))
+
+        if options['send_email']:
+            recipients = options['send_email']
+            self.stdout.write(self.style.NOTICE(f"Trying to send file '{EXPORT_FILE_NAME}' to {recipients}.."))
+
+            import textwrap
+
+            email_body = textwrap.dedent("""
+            Hi,
+
+            As attachment you'll find a spreadsheet with current usage statistics for
+            the website 'contact.engineering'.
+
+            This mail was automatically generated.
+
+            Take care!
+            """)
+
+            email = EmailMessage(
+                'Usage statistics about contact.engineering',
+                email_body,
+                settings.CONTACT_EMAIL_ADDRESS,
+                recipients,
+                reply_to=[settings.CONTACT_EMAIL_ADDRESS],
+                attachments=[
+                    (EXPORT_FILE_NAME, open(EXPORT_FILE_NAME, mode='rb' ).read(), 'application/vnd.ms-excel')
+                ]
+            )
+
+            # email.attach(EXPORT_FILE_NAME)
+
+            try:
+                email.send()
+                self.stdout.write(self.style.SUCCESS(f"Mail was sent successfully."))
+            except Exception as exc:
+                self.stdout.write(self.style.ERROR(f"Could not send statistics to {recipients}. Reason: {exc}"))
+
         _log.info("Done.")

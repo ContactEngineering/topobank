@@ -46,7 +46,7 @@ def test_welcome_page_statistics(client, test_instances, with_publication):
     response = client.get(reverse('home'))
 
     assert_in_content(response, '<div class="welcome-page-statistics">2</div> registered users')
-    assert_in_content(response, '<div class="welcome-page-statistics">2</div> surfaces in database')
+    assert_in_content(response, '<div class="welcome-page-statistics">2</div> surfaces in the database')
     assert_in_content(response, '<div class="welcome-page-statistics">1</div> individual topographies')
     assert_in_content(response, '<div class="welcome-page-statistics">1</div> computed analyses')
 
@@ -56,7 +56,7 @@ def test_welcome_page_statistics(client, test_instances, with_publication):
     client.force_login(user_1)
     response = client.get(reverse('home'))
 
-    assert_in_content(response, '<div class="welcome-page-statistics">2</div> surfaces in database')
+    assert_in_content(response, '<div class="welcome-page-statistics">2</div> surfaces in the database')
     assert_in_content(response, '<div class="welcome-page-statistics">1</div> individual topographies')
     assert_in_content(response, '<div class="welcome-page-statistics">1</div> computed analyses')
     assert_in_content(response, '<div class="welcome-page-statistics">0</div> surfaces of other users')
@@ -69,7 +69,7 @@ def test_welcome_page_statistics(client, test_instances, with_publication):
     client.force_login(user_2)
     response = client.get(reverse('home'))
 
-    assert_in_content(response, '<div class="welcome-page-statistics">0</div> surfaces in database')
+    assert_in_content(response, '<div class="welcome-page-statistics">0</div> surfaces in the database')
     assert_in_content(response, '<div class="welcome-page-statistics">0</div> individual topographies')
     assert_in_content(response, '<div class="welcome-page-statistics">0</div> computed analyses')
     if with_publication:

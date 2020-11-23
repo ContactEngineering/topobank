@@ -713,7 +713,8 @@ class SelectView(TemplateView):
         # The session needs a default for the state of the select tab
         #
         session = self.request.session
-        select_tab_state = session.get('select_tab_state', default=DEFAULT_SELECT_TAB_STATE)
+        select_tab_state = session.get('select_tab_state',
+                                       default=DEFAULT_SELECT_TAB_STATE.copy())
 
         # only overwrite search term in select tab state and only
         # if given explicitly as request parameter
@@ -727,8 +728,8 @@ class SelectView(TemplateView):
             'surface list': self.request.build_absolute_uri(reverse('manager:search')),
             'tag tree': self.request.build_absolute_uri(reverse('manager:tag-list')),
         }
-        context['select_tab_state'] = select_tab_state
-        context['category_filter_choices'] = CATEGORY_FILTER_CHOICES
+
+        context['category_filter_choices'] = CATEGORY_FILTER_CHOICES.copy()
 
         if self.request.user.is_anonymous:
             # Anonymous user have only one choice
@@ -737,7 +738,11 @@ class SelectView(TemplateView):
             }
             select_tab_state['sharing_status'] = 'published'  # this only choice should be selected
         else:
-            context['sharing_status_filter_choices'] = SHARING_STATUS_FILTER_CHOICES
+            context['sharing_status_filter_choices'] = SHARING_STATUS_FILTER_CHOICES.copy()
+
+        context['select_tab_state'] = select_tab_state.copy()
+
+        session['select_tab_state'] = select_tab_state
 
         return context
 
@@ -802,36 +807,47 @@ class SurfaceDetailView(DetailView):
         bw_data_with_errors = [x for x in bw_data if x['error_message'] is not None]
         bw_data_without_errors = [x for x in bw_data if x['error_message'] is None]
 
-        context['bandwidths_data_without_errors'] = json.dumps(bw_data_without_errors)
         context['bandwidths_data_with_errors'] = bw_data_with_errors
 
         #
         # Plot bandwidths with bokeh
         #
-        # bw_source =
 
         if len(bw_data_without_errors) > 0:
 
             bw_left = [bw['lower_bound'] for bw in bw_data_without_errors]
             bw_right = [bw['upper_bound'] for bw in bw_data_without_errors]
             bw_center = np.exp((np.log(bw_left)+np.log(bw_right))/2)  # we want to center on log scale
-            bw_names = [bw['name'] for bw in bw_data_without_errors]
-            bw_links = [bw['link'] for bw in bw_data_without_errors]
+            bw_names = [bw['topography'].name for bw in bw_data_without_errors]
+            bw_topography_links = [bw['link'] for bw in bw_data_without_errors]
+            bw_thumbnail_links = [reverse('manager:topography-thumbnail',
+                                          kwargs=dict(pk=bw['topography'].pk))
+                                  for bw in bw_data_without_errors]
             bw_y = range(0, len(bw_data_without_errors))
 
-            _log.info("label centers: "+",".join(str(x) for x in bw_center))
-
             bw_source = ColumnDataSource(dict(y=bw_y, left=bw_left, right=bw_right, center=bw_center,
-                                              name=bw_names, link=bw_links))
+                                              name=bw_names,
+                                              topography_link=bw_topography_links,
+                                              thumbnail_link=bw_thumbnail_links))
 
             x_range = (min(bw_left), max(bw_right))
+
+            TOOL_TIPS = """
+            <div class="bandwidth-hover-box">
+                <img src="@thumbnail_link" height="80" width="80" alt="Thumbnail is missing, sorry">
+                </img>
+                <span>@name</span>
+
+            </div>
+            """
 
             plot = figure(x_range=x_range,
                           x_axis_label="Bandwidth",
                           x_axis_type="log",
                           sizing_mode='stretch_width',
-                          tools="tap",
-                          toolbar_location=None)
+                          tools=["tap", "hover"],
+                          toolbar_location=None,
+                          tooltips=TOOL_TIPS)
             hbar_renderer = plot.hbar(y="y", left="left", right="right", height=0.95,
                                       name='bandwidths', source=bw_source)
             hbar_renderer.nonselection_glyph = None  # makes glyph invariant on selection
@@ -840,18 +856,9 @@ class SurfaceDetailView(DetailView):
             plot.outline_line_color = None
             plot.xaxis.formatter = FuncTickFormatter(code="return siSuffixMeters(2)(tick)")
 
-            labels = LabelSet(x='center', y="y", text='name', level='annotation',
-                              text_align="center",
-                              text_color="white",
-                              x_offset=5, y_offset=0, source=bw_source)
-            plot.add_layout(labels)
-
-            centers = plot.circle(x="center", y="y", source=bw_source, level="annotation")
-            plot.add_layout(centers)
-
             # make clicking a bar going opening a new page
             taptool = plot.select(type=TapTool)
-            taptool.callback = OpenURL(url="@link", same_tab=True)
+            taptool.callback = OpenURL(url="@topography_link", same_tab=True)
 
             # include plot into response
             bw_plot_script, bw_plot_div = components(plot)
@@ -1161,7 +1168,7 @@ class SurfaceShareView(FormMixin, DetailView):
 
 
 class PublicationsTable(tables.Table):
-    publication = tables.Column(linkify=True, verbose_name='Surface')
+    publication = tables.Column(linkify=True, verbose_name='Surface', order_by='surface__name')
     num_topographies = tables.Column(verbose_name='# Topographies')
     authors = tables.Column(verbose_name="Authors")
     license = tables.Column(verbose_name="License")
@@ -1315,10 +1322,13 @@ class PublicationRateTooHighView(TemplateView):
 
 
 class SharingInfoTable(tables.Table):
-    surface = tables.Column(linkify=True)
+    surface = tables.Column(linkify=lambda **kwargs: kwargs['record']['surface'].get_absolute_url(),
+                            accessor='surface__name')
     num_topographies = tables.Column(verbose_name='# Topographies')
-    created_by = tables.Column(linkify=True)
-    shared_with = tables.Column(linkify=True)
+    created_by = tables.Column(linkify=lambda **kwargs: kwargs['record']['created_by'].get_absolute_url(),
+                               accessor='created_by__name')
+    shared_with = tables.Column(linkify=lambda **kwargs: kwargs['record']['shared_with'].get_absolute_url(),
+                               accessor='shared_with__name')
     allow_change = tables.BooleanColumn()
     selected = tables.CheckBoxColumn(attrs={
         'th__input': {'class': 'select-all-checkbox'},
@@ -1329,22 +1339,22 @@ class SharingInfoTable(tables.Table):
         self._request = kwargs['request']
         super().__init__(*args, **kwargs)
 
-    def render_surface(self, value):
-        return value.name
+    # def render_surface(self, value):
+    #     return value.label
 
-    def render_created_by(self, value):
-        return self._render_user(value)
+    # def render_created_by(self, value):
+    #     return self._render_user(value)
 
-    def render_shared_with(self, value):
-        return self._render_user(value)
+    #def render_shared_with(self, value):
+    #    return self._render_user(value)
 
-    def _render_user(self, user):
-        if self._request.user == user:
-            return "You"
-        return user.name
+    #def _render_user(self, user):
+    #    if self._request.user == user:
+    #        return "You"
+    #    return user.name
 
     class Meta:
-        orderable = False  # ordering does not work with custom columns
+        orderable = True
 
 
 def sharing_info(request):
@@ -1401,9 +1411,11 @@ def sharing_info(request):
             # Leave out these shares:
             #
             # - share of a user with himself as creator (trivial)
+            # - ignore user if anonymous
             # - shares where the request user is not involved
             #
-            if (u != s.creator) and ((u == request.user) or (s.creator == request.user)):
+            if (u != s.creator) and (not u.is_anonymous) and \
+                ((u == request.user) or (s.creator == request.user)):
                 allow_change = ('change_surface' in surface_perms[u])
                 tmp.append((s, u, allow_change))
 
@@ -1413,7 +1425,7 @@ def sharing_info(request):
     data = [
         {
             'surface': surface,
-            'num_topographies': surface.num_topographies,
+            'num_topographies': surface.num_topographies(),
             'created_by': surface.creator,
             'shared_with': shared_with,
             'allow_change': allow_change,
@@ -1427,7 +1439,9 @@ def sharing_info(request):
     sharing_info_table = SharingInfoTable(data=data,
                                           empty_text="No surfaces shared by or with you.",
                                           request=request)
+
     RequestConfig(request).configure(sharing_info_table)
+    # sharing_info_table.order_by('num_topographies')
 
     return render(request,
                   template_name='manager/sharing_info.html',
@@ -1532,7 +1546,7 @@ class SurfaceSearchPaginator(PageNumberPagination):
         #
         session = self.request.session
 
-        select_tab_state = session.get('select_tab_state', DEFAULT_SELECT_TAB_STATE)
+        select_tab_state = session.get('select_tab_state', DEFAULT_SELECT_TAB_STATE.copy())
         # not using the keyword argument "default" here, because in some tests,
         # the session is a simple dict and no real session dict. A simple
         # dict's .get() has no keyword argument 'default', although it can be given

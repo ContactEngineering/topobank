@@ -9,7 +9,8 @@
 {% endblock content-title %}
 
 {% block extra_css %}
-{{ form.media.css }}
+  {{ form.media.css }}
+  <link type="text/css" href="{% static 'vendor/datatables/datatables.min.css' %}" rel="stylesheet">
 {% endblock extra_css %}
 
 {% block content %}
@@ -45,8 +46,13 @@
   <!-- for task progress bar -->
   <script src="{% static 'celery_progress/celery_progress.js' %}"></script>
 
-  <!-- Trigger fetching analysis results -->
+  <!-- for datatables -->
+  <script src="{% static 'vendor/datatables/datatables.min.js' %}"></script>
+
   <script>
+    const result_view_mode = 'detail';
+
+    <!-- Trigger fetching analysis results -->
     // for the card submit ajax call to insert result card
     $(document).ready(function () {
       submit_analyses_card_ajax("{% url 'analysis:card' %}", "card", "detail",

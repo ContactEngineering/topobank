@@ -1,24 +1,20 @@
-import io
 import pickle
 import json
 import numpy as np
 import itertools
 from collections import OrderedDict
-from io import BytesIO
-import zipfile
-import os.path
 
-from django.http import HttpResponse, HttpResponseForbidden, Http404, JsonResponse, HttpResponseBadRequest
+from django.http import HttpResponse, Http404, JsonResponse
 from django.views.generic import DetailView, FormView, TemplateView
 from django.urls import reverse_lazy
 from django.db.models import Q
-from django.conf import settings
 from django import template
-from rest_framework.generics import RetrieveAPIView
 from django.core.files.storage import default_storage
 from django.core.cache import cache  # default cache
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import reverse
+
+import django_tables2 as tables
 
 from bokeh.layouts import row, column, grid
 from bokeh.models import ColumnDataSource, CustomJS, TapTool, Circle, HoverTool
@@ -32,7 +28,6 @@ from bokeh.models.widgets.markups import Paragraph
 from bokeh.models import Legend, LinearColorMapper, ColorBar, CategoricalColorMapper
 
 import xarray as xr
-import pandas as pd
 
 from pint import UnitRegistry, UndefinedUnitError
 
@@ -41,15 +36,13 @@ from guardian.shortcuts import get_objects_for_user, get_anonymous_user
 from trackstats.models import Metric
 
 from ContactMechanics.Tools.ContactAreaAnalysis import patch_areas, assign_patch_numbers
-import SurfaceTopography, ContactMechanics, muFFT, NuMPI
 
 from ..manager.models import Topography, Surface
 from ..manager.utils import selected_instances, instances_to_selection, current_selection_as_basket_items, instances_to_topographies
 from ..usage_stats.utils import increase_statistics_by_date_and_object
 from .models import Analysis, AnalysisFunction, AnalysisCollection
-from .serializers import AnalysisSerializer
 from .forms import FunctionSelectForm
-from .utils import get_latest_analyses, mangle_sheet_name
+from .utils import get_latest_analyses
 from .functions import CONTACT_MECHANICS_KWARGS_LIMITS, contact_mechanics
 from topobank.analysis.utils import request_analysis
 
@@ -60,7 +53,7 @@ _log = logging.getLogger(__name__)
 SMALLEST_ABSOLUT_NUMBER_IN_LOGPLOTS = 1e-100
 MAX_NUM_POINTS_FOR_SYMBOLS = 50
 
-CARD_VIEW_FLAVORS = ['simple', 'plot', 'power spectrum', 'contact mechanics']
+CARD_VIEW_FLAVORS = ['simple', 'plot', 'power spectrum', 'contact mechanics', 'rms table']
 
 
 def card_view_class(card_view_flavor):
@@ -839,6 +832,68 @@ class ContactMechanicsCardView(SimpleCardView):
         return context
 
 
+class RMSTable(tables.Table):
+    topography = tables.Column(linkify=lambda **kwargs: kwargs['record']['topography'].get_absolute_url(),
+                               accessor='topography__name')
+    quantity = tables.Column()
+    direction = tables.Column()
+    value = tables.Column()
+    unit = tables.Column()
+
+
+class RmsTableCardView(SimpleCardView):
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        analyses_success = context['analyses_success']
+
+        data = []
+        for analysis in analyses_success:
+            analysis_result = analysis.result_obj
+
+            for d in analysis_result:
+                # convert float32 to float
+                d['value'] = d['value'].astype(float)
+                if not d['direction']:
+                    d['direction'] = ''
+                # put topography in every line
+                topo = analysis.topography
+                d.update(dict(topography_name=topo.name,
+                              topography_url=topo.get_absolute_url()))
+
+
+            data.extend(analysis_result)
+
+        #
+        # find out all existing keys keeping order
+        #
+        all_keys = []
+        for d in data:
+            for k in d.keys():
+                if k not in all_keys:
+                    all_keys.append(k)
+
+        #
+        # make sure every dict has all keys
+        #
+        for k in all_keys:
+            for d in data:
+                d.setdefault(k)
+
+        #
+        # create table
+        #
+        #table = RMSTable(data=data, empty_text="No RMS values calculated.", request=self.request)
+
+        context.update(dict(
+            table_data=data
+        ))
+
+        return context
+
+
+
 def _configure_plot(plot):
     plot.toolbar.logo = None
     plot.xaxis.axis_label_text_font_style = "normal"
@@ -1332,10 +1387,6 @@ class AnalysesListView(FormView):
 
         context['cards'] = cards
 
-        #
-        # Decide whether to open extra tabs for surface/topography details
-        #
-
         # Decide whether to open extra tabs for surface/topography details
         tabs = extra_tabs_if_single_item_selected(topographies, surfaces)
         tabs.append(
@@ -1353,365 +1404,3 @@ class AnalysesListView(FormView):
         return context
 
 
-#######################################################################
-# Download views
-#######################################################################
-
-
-def download_analyses(request, ids, card_view_flavor, file_format):
-    """Returns a file comprised from analyses results.
-
-    :param request:
-    :param ids: comma separated string with analyses ids
-    :param card_view_flavor: card view flavor, see CARD_VIEW_FLAVORS
-    :param file_format: requested file format
-    :return:
-    """
-
-    #
-    # Check permissions and collect analyses
-    #
-    user = request.user
-    if not user.is_authenticated:
-        return HttpResponseForbidden()
-
-    analyses_ids = [int(i) for i in ids.split(',')]
-
-    analyses = []
-
-    for aid in analyses_ids:
-        analysis = Analysis.objects.get(id=aid)
-
-        #
-        # Check whether user has view permission for requested analysis
-        #
-        if not user.has_perm("view_surface", analysis.topography.surface):
-            return HttpResponseForbidden()
-
-        analyses.append(analysis)
-
-    #
-    # Check flavor and format argument
-    #
-    card_view_flavor = card_view_flavor.replace('_', ' ')  # may be given with underscore in URL
-    if not card_view_flavor in CARD_VIEW_FLAVORS:
-        return HttpResponseBadRequest("Unknown card view flavor '{}'.".format(card_view_flavor))
-
-    download_response_functions = {
-        ('plot', 'xlsx'): download_plot_analyses_to_xlsx,
-        ('plot', 'txt'): download_plot_analyses_to_txt,
-        ('contact mechanics', 'zip'): download_contact_mechanics_analyses_as_zip,
-    }
-
-    #
-    # Dispatch
-    #
-    key = (card_view_flavor, file_format)
-    if key not in download_response_functions:
-        return HttpResponseBadRequest(
-            "Cannot provide a download for card view flavor {} in file format ".format(card_view_flavor))
-
-    return download_response_functions[key](request, analyses)
-
-
-def download_plot_analyses_to_txt(request, analyses):
-    # TODO: It would probably be useful to use the (some?) template engine for this.
-    # TODO: We need a mechanism for embedding references to papers into output.
-
-    # Collect publication links, if any
-    publication_urls = set()
-    for a in analyses:
-        if a.topography.surface.is_published:
-            pub = a.topography.surface.publication
-            pub_url = request.build_absolute_uri(pub.get_absolute_url())
-            publication_urls.add(pub_url)
-
-    # Pack analysis results into a single text file.
-    f = io.StringIO()
-    for i, analysis in enumerate(analyses):
-        if i == 0:
-            f.write('# {}\n'.format(analysis.function) +
-                    '# {}\n'.format('=' * len(str(analysis.function))))
-
-            f.write('# IF YOU USE THIS DATA IN A PUBLICATION, PLEASE CITE XXX.\n' +
-                    '\n')
-            if len(publication_urls) > 0:
-                f.write('#\n')
-                f.write('# For these analyses, published data was used. Please visit these URLs for details:\n')
-                for pub_url in publication_urls:
-                    f.write(f'# - {pub_url}\n')
-                f.write('#\n')
-
-        topography = analysis.topography
-        topo_creator = topography.creator
-
-        f.write('# Topography: {}\n'.format(topography.name) +
-                '# {}\n'.format('=' * (len('Topography: ') + len(str(topography.name)))) +
-                '# Creator: {}\n'.format(topo_creator) +
-                '# Further arguments of analysis function: {}\n'.format(analysis.get_kwargs_display()) +
-                '# Start time of analysis task: {}\n'.format(analysis.start_time) +
-                '# End time of analysis task: {}\n'.format(analysis.end_time) +
-                '# Duration of analysis task: {}\n'.format(analysis.duration()))
-        if analysis.configuration is None:
-            f.write('# Versions of dependencies (like "SurfaceTopography") are unknown for this analysis.\n')
-            f.write('# Please recalculate in order to have version information here.')
-        else:
-            versions_used = analysis.configuration.versions.order_by('dependency__import_name')
-
-            for version in versions_used:
-                f.write(f"# Version of '{version.dependency.import_name}': {version.number_as_string()}\n")
-        f.write('\n')
-
-        result = pickle.loads(analysis.result)
-        xunit_str = '' if result['xunit'] is None else ' ({})'.format(result['xunit'])
-        yunit_str = '' if result['yunit'] is None else ' ({})'.format(result['yunit'])
-        header = 'Columns: {}{}, {}{}'.format(result['xlabel'], xunit_str, result['ylabel'], yunit_str)
-
-        for series in result['series']:
-            np.savetxt(f, np.transpose([series['x'], series['y']]),
-                       header='{}\n{}\n{}'.format(series['name'], '-' * len(series['name']), header))
-            f.write('\n')
-
-    # Prepare response object.
-    response = HttpResponse(f.getvalue(), content_type='application/text')
-    response['Content-Disposition'] = 'attachment; filename="{}"'.format('{}.txt'.format(analysis.function.pyfunc))
-
-    # Close file and return response.
-    f.close()
-    return response
-
-
-def download_plot_analyses_to_xlsx(request, analyses):
-    # TODO: We need a mechanism for embedding references to papers into output.
-
-    # Pack analysis results into a single text file.
-    f = io.BytesIO()
-    excel = pd.ExcelWriter(f)
-
-    # Analyze topography names and store a distinct name
-    # which can be used in sheet names if topography names are not unique
-    topography_names_in_sheet_names = [a.topography.name for a in analyses]
-
-    for tn in set(topography_names_in_sheet_names):  # iterate over distinct names
-
-        # replace name with a unique one using a counter
-        indices = [i for i, a in enumerate(analyses) if a.topography.name == tn]
-
-        if len(indices) > 1:  # only rename if not unique
-            for k, idx in enumerate(indices):
-                topography_names_in_sheet_names[idx] += f" ({k + 1})"
-
-    # Global properties and values.
-    properties = []
-    values = []
-
-    for i, analysis in enumerate(analyses):
-
-        pub = analysis.topography.surface.publication if analysis.topography.surface.is_published else None
-
-        if i == 0:
-            properties = ["Function"]
-            values = [str(analysis.function)]
-
-        properties += ['Topography', 'Creator',
-                       'Further arguments of analysis function', 'Start time of analysis task',
-                       'End time of analysis task', 'Duration of analysis task']
-
-        values += [str(analysis.topography.name), str(analysis.topography.creator),
-                   analysis.get_kwargs_display(), str(analysis.start_time),
-                   str(analysis.end_time), str(analysis.duration())]
-
-        if analysis.configuration is None:
-            properties.append("Versions of dependencies")
-            values.append("Unknown. Please recalculate this analysis in order to have version information here.")
-        else:
-            versions_used = analysis.configuration.versions.order_by('dependency__import_name')
-
-            for version in versions_used:
-                properties.append(f"Version of '{version.dependency.import_name}'")
-                values.append(f"{version.number_as_string()}")
-
-        if pub:
-            # If the surface of the topography was published, the URL is inserted
-            properties.append("Publication URL (surface data)")
-            values.append(request.build_absolute_uri(pub.get_absolute_url()))
-
-        # We want an empty line on the properties sheet in order to distinguish the topographies
-        properties.append("")
-        values.append("")
-
-        result = pickle.loads(analysis.result)
-        column1 = '{} ({})'.format(result['xlabel'], result['xunit'])
-        column2 = '{} ({})'.format(result['ylabel'], result['yunit'])
-
-        # determine name of topography in sheet name
-
-        for series in result['series']:
-            df = pd.DataFrame({column1: series['x'], column2: series['y']})
-
-            sheet_name = '{} - {}'.format(topography_names_in_sheet_names[i],
-                                          series['name']).replace('/', ' div ')
-            df.to_excel(excel, sheet_name=mangle_sheet_name(sheet_name))
-    df = pd.DataFrame({'Property': properties, 'Value': values})
-    df.to_excel(excel, sheet_name='INFORMATION', index=False)
-    excel.close()
-
-    # Prepare response object.
-    response = HttpResponse(f.getvalue(),
-                            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    response['Content-Disposition'] = 'attachment; filename="{}"'.format('{}.xlsx'.format(analysis.function.pyfunc))
-
-    # Close file and return response.
-    f.close()
-    return response
-
-
-def download_contact_mechanics_analyses_as_zip(request, analyses):
-    """Provides a ZIP file with contact mechanics data.
-
-    :param request: HTTPRequest
-    :param analyses: sequence of Analysis instances
-    :return: HTTP Response with file download
-    """
-
-    bytes = BytesIO()
-
-    zf = zipfile.ZipFile(bytes, mode='w')
-
-    #
-    # Add directories and files for all analyses
-    #
-    zip_dirs = set()
-
-    for analysis in analyses:
-
-        zip_dir = analysis.topography.name
-        if zip_dir in zip_dirs:
-            # make directory unique
-            zip_dir += "-{}".format(analysis.topography.id)
-        zip_dirs.add(zip_dir)
-
-        #
-        # Add a csv file with plot data
-        #
-        analysis_result = analysis.result_obj
-
-        col_keys = ['mean_pressures', 'total_contact_areas', 'mean_gaps', 'converged', 'data_paths']
-        col_names = ["Normalized pressure p/E*", "Fractional contact area A/A0", "Normalized mean gap u/h_rms",
-                     "converged", "filename"]
-
-        col_dicts = {col_names[i]:analysis_result[k] for i,k in enumerate(col_keys)}
-        plot_df = pd.DataFrame(col_dicts)
-        plot_df['filename'] = plot_df['filename'].map(lambda fn: os.path.split(fn)[1])  # only simple filename
-
-        plot_filename_in_zip = os.path.join(zip_dir, 'plot.csv')
-        zf.writestr(plot_filename_in_zip, plot_df.to_csv())
-
-        #
-        # Add all files from storage
-        #
-        prefix = analysis.storage_prefix
-
-        directories, filenames = default_storage.listdir(prefix)
-
-        for file_no, fname in enumerate(filenames):
-
-            input_file = default_storage.open(prefix + fname)
-
-            filename_in_zip = os.path.join(zip_dir, fname)
-
-            try:
-                zf.writestr(filename_in_zip, input_file.read())
-            except Exception as exc:
-                zf.writestr("errors-{}.txt".format(file_no),
-                            "Cannot save file {} in ZIP, reason: {}".format(filename_in_zip, str(exc)))
-
-    #
-    # Add a Readme file
-    #
-    zf.writestr("README.txt",\
-                f"""
-Contents of this ZIP archive
-============================
-This archive contains data from contact mechanics calculation.
-
-Each directory corresponds to one topography and is named after the topography.
-Inside you find two types of files:
-
-- a simple CSV file ('plot.csv')
-- a couple of classical netCDF files (Extension '.nc')
-
-The file 'plot.csv' contains a table with the data used in the plot,
-one line for each calculation step. It has the following columns:
-
-- Zero-based index column
-- Normalized pressure in units of p/E*
-- Fractional contact area in units of A/A0
-- Normalized mean gap in units of u/h_rms
-- A boolean flag (True/False) which indicates whether the calculation converged
-  within the given limit
-- Filename of the NetCDF file (order of filenames may be different than index)
-
-So each line also refers to one NetCDF file in the directory, it corresponds to
-one external pressure. Inside the NetCDF file you'll find the variables
-
-* `contact_points`: boolean array, true if point is in contact
-* `pressure`: floating-point array containing local pressure (in units of `E*`)
-* `gap`: floating-point array containing the local gap
-* `displacement`: floating-point array containing the local displacements
-
-as well as the attributes
-
-* `mean_pressure`: mean pressure (in units of `E*`)
-* `total_contact_area`: total contact area (fractional)
-
-In order to read the data, you can use a netCDF library.
-Here are some examples:
-
-Accessing the NetCDF files
-==========================
-
-### Python
-
-Given the package [`netcdf4-python`](http://netcdf4-python.googlecode.com/) is installed:
-
-```
-import netCDF4
-ds = netCDF4.Dataset("result-step-0.nc")
-print(ds)
-pressure = ds['pressure'][:]
-mean_pressure = ds.mean_pressure
-```
-
-Another convenient package you can use is [`xarray`](xarray.pydata.org/).
-
-### Matlab
-
-In order to read the pressure map in Matlab, use
-
-```
-ncid = netcdf.open("result-step-0.nc",'NC_NOWRITE');
-varid = netcdf.inqVarID(ncid,"pressure");
-pressure = netcdf.getVar(ncid,varid);
-```
-
-Have look in the official Matlab documentation for more information.
-
-Version information
-===================
-
-SurfaceTopography: {SurfaceTopography.__version__}
-ContactMechanics:  {ContactMechanics.__version__}
-muFFT:             {muFFT.version.description()}
-NuMPI:             {NuMPI.__version__}
-TopoBank:          {settings.TOPOBANK_VERSION}
-    """)
-
-    zf.close()
-
-    # Prepare response object.
-    response = HttpResponse(bytes.getvalue(),
-                            content_type='application/x-zip-compressed')
-    response['Content-Disposition'] = 'attachment; filename="{}"'.format('contact_mechanics.zip')
-
-    return response

@@ -79,14 +79,16 @@ let search_results_vm = new Vue({
                   titlesTabbable: false,
                   tabindex: -1,
                   focusOnSelect: false,
-                  scrollParent: $("#scrollParent"),
+                  scrollParent: window,
+                  autoScroll: true,
+                  scrollOfs: {top: 200, bottom: 50},
                   checkbox: true,
                   selectMode: 2, // 'multi'
                   source: {
                      url: this.search_url.toString()  // this is a computed property, see below
                   },
                   postProcess: function(event, data) {
-                    console.log("PostProcess: ", data);
+                    // console.log("PostProcess: ", data);
                     vm.num_pages = data.response.num_pages;
                     vm.num_items = data.response.num_items;
                     vm.current_page = data.response.current_page;
@@ -193,10 +195,43 @@ let search_results_vm = new Vue({
 
                       // Set column with description
                       if (node.data.description !== undefined) {
-                          const description_html = `<div class='description-column'>${node.data.description}</div>`
+                          const descr = node.data.description;
+                          const descr_id = "description-"+node.key;
+                          const btn_id = descr_id+"-btn";
+                          let first_nl_index = descr.indexOf("\n");  // -1 if no found
+
+                          // console.log("Key: "+node.key+" ID: "+descr_id);
+                          let description_html = "<div class='description-column'>";
+                          if (first_nl_index === -1) {
+                              description_html += descr;
+                          } else {
+                              description_html += `
+                                   <div>
+                                        ${descr.substring(0, first_nl_index)}
+                                        <button id="${btn_id}" href="#${descr_id}"
+                                         class="btn btn-sm btn-default"
+                                         data-toggle="collapse" data-target="#${descr_id}"
+                                         data-text-collapsed="more" data-text-expanded="less">more</button>
+                                   </div>
+                                   <div id="${descr_id}" class="collapse">
+                                        ${descr.substring(first_nl_index)}
+                                   </div>
+                              `;
+                          }
+
+                          description_html += "</div>";
                           $tdList
                               .eq(2)
                               .html(description_html);
+
+                          $('#'+btn_id).on("click", function() {
+                             var el = $(this);
+                             if (el.text() === el.data("text-expanded")) {
+                                 el.text(el.data("text-collapsed"));
+                             } else {
+                                 el.text(el.data("text-expanded"));
+                             }
+                          });
                       }
 
 

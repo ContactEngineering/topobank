@@ -5,11 +5,14 @@ from rest_framework.test import APIRequestFactory
 
 from ..views import select_surface, unselect_surface, SurfaceListView, SurfaceSearchPaginator,\
     select_topography, unselect_topography, \
-    TagTreeView, select_tag, unselect_tag, unselect_all
+    TagTreeView, select_tag, unselect_tag, unselect_all, DEFAULT_SELECT_TAB_STATE
 from ..utils import selected_instances
-from .utils import SurfaceFactory, UserFactory, TopographyFactory, TagModelFactory, ordereddicts_to_dicts
+from .utils import SurfaceFactory, UserFactory, TopographyFactory, \
+    TagModelFactory, ordereddicts_to_dicts
+from topobank.utils import assert_no_form_errors
 
 from topobank.manager.models import TagModel
+
 
 @pytest.mark.django_db
 def test_select_surface():
@@ -110,6 +113,7 @@ def test_unselect_surface():
     assert request.session['selection'] == [f'surface-{surface2.pk}']
 
     assert selected_instances(request)[1] == [surface2]
+
 
 @pytest.mark.django_db
 def test_try_to_select_surface_but_not_allowed():
@@ -1096,6 +1100,7 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
         },
     ]
 
+
 #
 # Tests for selection of tags
 #
@@ -1198,3 +1203,38 @@ def test_unselect_all():
     assert response.status_code == 200
 
     assert request.session['selection'] == []
+
+
+@pytest.mark.django_db
+def test_select_tab_state_should_be_default_after_login(client):
+
+    # first request the site anonymously .. select tab state is set to that of
+    # an anonymous user
+    response = client.get(reverse('manager:select'))
+    assert response.context['select_tab_state']['sharing_status'] == 'published'
+
+    # Then login as authenticated user
+    password = "abcd"
+    user = UserFactory(password=password)
+
+    # we use a real request in order to trigger the signal
+    response = client.post(reverse('account_login'), {
+        'password': password,
+        'login': user.username,
+    })
+
+    assert response.status_code == 302
+    assert_no_form_errors(response)
+
+    response = client.get(reverse('manager:select'))
+
+    assert response.context['select_tab_state'] == DEFAULT_SELECT_TAB_STATE
+
+
+
+
+
+
+
+
+

@@ -38,7 +38,7 @@ def test_empty_surface(user_alice_logged_in):
     #
     # Select new surface
     #
-    browser.find_link_by_partial_text('Properties').first.click()
+    browser.find_link_by_partial_text('View').first.click()
 
     assert browser.is_text_present("Permissions", wait_time=2)
     assert browser.is_text_present("My first empty surface")

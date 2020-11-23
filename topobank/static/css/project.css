@@ -228,3 +228,19 @@ section[title="Terms and Conditions"] div.toc-container, #tc-terms-html {
   text-rendering: optimizelegibility !important;
   letter-spacing: .03em;
 }
+
+/** improve bandwidth plot */
+.bandwidth-hover-box {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.bandwidth-hover-box img {
+  float: right;
+  margin: 0px 15px 0px 0px;
+}
+
+.bandwidth-hover-box span {
+  font-size: large;
+}
