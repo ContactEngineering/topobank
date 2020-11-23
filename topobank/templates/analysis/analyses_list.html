@@ -15,7 +15,7 @@
   <script src="https://unpkg.com/vue@latest"></script>
   <script src="https://unpkg.com/vue-select@latest"></script>
   <link rel="stylesheet" href="https://unpkg.com/vue-select@latest/dist/vue-select.css">
-  <link href="https://cdn.datatables.net/1.10.22/css/jquery.dataTables.min.css" rel="stylesheet">
+  <link type="text/css" href="{% static 'vendor/datatables/datatables.min.css' %}" rel="stylesheet">
 {% endblock extra_css %}
 
 
@@ -67,8 +67,7 @@
   <script src="{% static 'celery_progress/celery_progress.js' %}"></script>
 
   <!-- for datatables -->
-  <script src="https://cdn.datatables.net/1.10.22/js/jquery.dataTables.min.js"></script>
-
+  <script src="{% static 'vendor/datatables/datatables.min.js' %}"></script>
 
   <script>
     const result_view_mode = 'list';
