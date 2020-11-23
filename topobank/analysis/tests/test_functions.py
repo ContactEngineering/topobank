@@ -8,7 +8,7 @@ from topobank.analysis.functions import (
     IncompatibleTopographyException,
     height_distribution, slope_distribution, curvature_distribution,
     power_spectrum, autocorrelation, variable_bandwidth,
-    contact_mechanics)
+    contact_mechanics, rms_values)
 
 ###############################################################################
 # Tests for line scans
@@ -192,23 +192,26 @@ def test_variable_bandwidth_simple_nonuniform_linescan():
 ###############################################################################
 
 
-def test_height_distribution_simple_2d_topography():
-
+@pytest.fixture
+def simple_2d_topography():
     unit = 'nm'
     info = dict(unit=unit)
 
     y = np.arange(10).reshape((1, -1))
     x = np.arange(5).reshape((-1, 1))
 
-    arr = -2*y+0*x # only slope in y direction
+    arr = -2 * y + 0 * x  # only slope in y direction
 
-    t = Topography(arr, (10,5), info=info).detrend('center')
+    t = Topography(arr, (10, 5), info=info).detrend('center')
 
-    # resulting heights follow this function: h(x,y)=-4y+9
+    return t
 
-    # bins = [-10., -8., -6., -4., -2.,  0.,  2.,  4.,  6.,  8., 10.]
 
-    result = height_distribution(t, bins=10)
+def test_height_distribution_simple_2d_topography(simple_2d_topography):
+
+    exp_unit = simple_2d_topography.info['unit']
+
+    result = height_distribution(simple_2d_topography, bins=10)
 
     assert sorted(result.keys()) == sorted(['name', 'scalars', 'xlabel', 'ylabel', 'xunit', 'yunit', 'series'])
 
@@ -216,13 +219,13 @@ def test_height_distribution_simple_2d_topography():
 
     assert pytest.approx(result['scalars']['Mean Height']['value']) == 0.
     assert pytest.approx(result['scalars']['RMS Height']['value']) == np.sqrt(33)
-    assert result['scalars']['Mean Height']['unit'] == unit
-    assert result['scalars']['RMS Height']['unit'] == unit
+    assert result['scalars']['Mean Height']['unit'] == exp_unit
+    assert result['scalars']['RMS Height']['unit'] == exp_unit
 
     assert result['xlabel'] == 'Height'
     assert result['ylabel'] == 'Probability'
-    assert result['xunit'] == unit
-    assert result['yunit'] == '{}⁻¹'.format(unit)
+    assert result['xunit'] == exp_unit
+    assert result['yunit'] == '{}⁻¹'.format(exp_unit)
 
     assert len(result['series']) == 2
 
@@ -239,18 +242,11 @@ def test_height_distribution_simple_2d_topography():
     # proposal: use a well tested function instead of own formula
 
 
-def test_slope_distribution_simple_2d_topography():
-
-    y = np.arange(10).reshape((1, -1))
-    x = np.arange(5).reshape((-1, 1))
-
-    arr = -2*y+0*x # only slope in y direction
-
-    t = Topography(arr, (10,5)).detrend('center')
+def test_slope_distribution_simple_2d_topography(simple_2d_topography):
 
     # resulting heights follow this function: h(x,y)=-4y+9
 
-    result = slope_distribution(t, bins=3)
+    result = slope_distribution(simple_2d_topography, bins=3)
 
     assert sorted(result.keys()) == sorted(['name', 'scalars', 'xlabel', 'ylabel', 'xunit', 'yunit', 'series'])
 
@@ -293,21 +289,12 @@ def test_slope_distribution_simple_2d_topography():
     # proposal: use a well tested function instead of own formula
 
 
-def test_curvature_distribution_simple_2d_topography():
+def test_curvature_distribution_simple_2d_topography(simple_2d_topography):
 
-    unit = 'nm'
-    info = dict(unit=unit)
-
-    y = np.arange(10).reshape((1, -1))
-    x = np.arange(5).reshape((-1, 1))
-
-    arr = -2*y+0*x # only slope in y direction
-
-    t = Topography(arr, (10,5), info=info).detrend('center')
-
+    unit = simple_2d_topography.info['unit']
     # resulting heights follow this function: h(x,y)=-4y+9
 
-    result = curvature_distribution(t, bins=3)
+    result = curvature_distribution(simple_2d_topography, bins=3)
 
     assert sorted(result.keys()) == sorted(['name', 'scalars', 'xlabel', 'ylabel', 'xunit', 'yunit', 'series'])
 
@@ -361,20 +348,12 @@ def test_curvature_distribution_simple_2d_topography_periodic():
     assert result['scalars']['Mean Curvature']['unit'] == '{}⁻¹'.format(unit)
 
 
-def test_power_spectrum_simple_2d_topography():
+def test_power_spectrum_simple_2d_topography(simple_2d_topography):
 
-    unit = 'nm'
-    info = dict(unit=unit)
-
-    y = np.arange(10).reshape((1, -1))
-    x = np.arange(5).reshape((-1, 1))
-
-    arr = -2 * y + 0 * x  # only slope in y direction
-    t = Topography(arr, (10, 5), info=info).detrend('center')
+    unit = simple_2d_topography.info['unit']
 
     # resulting heights follow this function: h(x,y)=-4y+9
-
-    result = power_spectrum(t)
+    result = power_spectrum(simple_2d_topography)
 
     assert sorted(result.keys()) == sorted(['name', 'xlabel', 'ylabel', 'xunit', 'yunit', 'xscale', 'yscale', 'series'])
 
@@ -396,18 +375,11 @@ def test_power_spectrum_simple_2d_topography():
     # TODO Also check values here as integration test?
 
 
-def test_autocorrelation_simple_2d_topography():
-    y = np.arange(10).reshape((1, -1))
-    x = np.arange(5).reshape((-1, 1))
-
-    arr = -2 * y + 0 * x  # only slope in y direction
-    info = dict(unit='nm')
-
-    t = Topography(arr, (10, 5), info=info).detrend('center')
+def test_autocorrelation_simple_2d_topography(simple_2d_topography):
 
     # resulting heights follow this function: h(x,y)=-4y+9
 
-    result = autocorrelation(t)
+    result = autocorrelation(simple_2d_topography)
 
     assert sorted(result.keys()) == sorted(['name', 'xlabel', 'ylabel', 'xscale', 'yscale', 'xunit', 'yunit', 'series'])
 
@@ -416,18 +388,11 @@ def test_autocorrelation_simple_2d_topography():
     # TODO Check result values for autocorrelation
 
 
-def test_variable_bandwidth_simple_2d_topography():
-    y = np.arange(10).reshape((1, -1))
-    x = np.arange(5).reshape((-1, 1))
-
-    arr = -2 * y + 0 * x  # only slope in y direction
-
-    info = dict(unit='nm')
-    t = Topography(arr, (10, 5), info=info).detrend('center')
+def test_variable_bandwidth_simple_2d_topography(simple_2d_topography):
 
     # resulting heights follow this function: h(x,y)=-4y+9
 
-    result = variable_bandwidth(t)
+    result = variable_bandwidth(simple_2d_topography)
 
     assert sorted(result.keys()) == sorted(['name', 'xlabel', 'ylabel', 'xscale', 'yscale', 'xunit', 'yunit', 'series'])
 
@@ -446,15 +411,7 @@ def test_contact_mechanics_incompatible_topography():
         contact_mechanics(t)
 
 
-def test_contact_mechanics_whether_given_pressures_in_result():
-
-    y = np.arange(10).reshape((1, -1))
-    x = np.arange(5).reshape((-1, 1))
-
-    arr = -2 * y + 0 * x  # only slope in y direction
-
-    info = dict(unit='nm')
-    t = Topography(arr, (10, 5), info=info).detrend('center')
+def test_contact_mechanics_whether_given_pressures_in_result(simple_2d_topography):
 
     class ProgressRecorder:
         def set_progress(self, a, nsteps):
@@ -462,7 +419,8 @@ def test_contact_mechanics_whether_given_pressures_in_result():
 
     given_pressures = [2e-3, 1e-2]
 
-    result = contact_mechanics(t, nsteps=None, pressures=given_pressures, storage_prefix='test/',
+    result = contact_mechanics(simple_2d_topography,
+                               nsteps=None, pressures=given_pressures, storage_prefix='test/',
                                progress_recorder=ProgressRecorder())
 
     np.testing.assert_almost_equal(result['mean_pressures'], given_pressures)
@@ -494,3 +452,38 @@ def test_contact_mechanics_effective_kwargs_in_result(periodic):
         maxiter=100,
     )
     assert result['effective_kwargs'] == exp_effective_kwargs
+
+
+def test_rms_values(simple_2d_topography):
+
+    t = simple_2d_topography
+    unit = t.info['unit']
+    inverse_unit = '{}⁻¹'.format(unit)
+    result = rms_values(simple_2d_topography)
+
+    assert result == [
+        {
+            'quantity': 'RMS Height',
+            'direction': None,
+            'value': np.sqrt(33),
+            'unit': unit,
+        },
+        {
+            'quantity': 'RMS Curvature',
+            'direction': None,
+            'value': 0,
+            'unit': inverse_unit,
+        },
+        {
+            'quantity': 'RMS Slope',
+            'direction': 'x',
+            'value': 0,
+            'unit': 1,
+        },
+        {
+            'quantity': 'RMS Slope',
+            'direction': 'y',
+            'value': 4,
+            'unit': 1,
+        }
+    ]
