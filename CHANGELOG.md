@@ -2,11 +2,7 @@
 
 ## 0.9.4 (not published yet)
 
-- fixed wrong select tab state in session (#532)
-- renamed button "Properties" to "View" (#537)
-- on select tab, only showing first line of 
-  descriptions on load, rest expandable by 
-  button press (#540)
+- added new analysis function "RMS Values" (#445)
 - autoscroll in select tab which moves selected 
   row into view (#544)
 - improved bandwidth plot, removed labels
@@ -14,8 +10,12 @@
   thumbnail of the corresponding topography (#535)
 - enabled custom sorting of sharing info table (#300)
 - usage statistics can be sent by email (#550)  
+- fixed wrong select tab state in session (#532)
+- renamed button "Properties" to "View" (#537)
+- on select tab, only showing first line of 
+  descriptions on load, rest expandable by 
+  button press (#540)
 - fixed ordering by surface name on publication tab
-
 
 ## 0.9.3 (2020-11-12)
 
