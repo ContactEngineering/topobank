@@ -1,0 +1,33 @@
+<table id="datatable"></table>
+
+{{ table_data | json_script:"table-data" }}
+
+<script>
+  $(document).ready(function () {
+    $('#datatable').DataTable({
+      data: JSON.parse(document.getElementById('table-data').textContent),
+      columnDefs: [
+       // Indicate that first column contains HTML
+       // to have HTML tags removed for sorting/filtering
+       { targets: 0, type: 'html'}
+      ],
+      columns: [
+        {
+          title: 'Topography',
+          render: function (data, type, row) {
+            let name = row.topography_name;
+            let name_to_use = (type === 'display' && result_view_mode === 'list' && name.length > 10)
+                              ? name.substr( 0, 10 ) +'…' : name;
+            // use truncated name with ellipsis in order to make column smaller (only for view mode 'list')
+            return `<a target="_blank" title="${name}" href="${row.topography_url}">${name_to_use}</a>`;
+          }
+        },
+        {data: 'quantity', title: 'Quantity'},
+        {data: 'direction', title: 'Direction'},
+        {data: 'value', title: 'Value'},
+        {data: 'unit', title: 'Unit'},
+      ],
+      responsive: true
+    })
+  })
+</script>
