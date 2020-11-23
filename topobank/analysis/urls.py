@@ -3,6 +3,7 @@ from django.urls import path
 from django.contrib.auth.decorators import login_required
 
 from . import views
+from . import downloads
 
 app_name = "analysis"
 urlpatterns = [
@@ -28,7 +29,7 @@ urlpatterns = [
     ),
     url(
         regex=r'download/(?P<ids>[\d,]+)/(?P<card_view_flavor>[\w\s]+)/(?P<file_format>\w+)$',
-        view=login_required(views.download_analyses),
+        view=login_required(downloads.download_analyses),
         name='download'
     ),
     url(
