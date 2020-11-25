@@ -14,31 +14,27 @@
   <div class="tab-content mt-2 extra-tab">
 
       <div class="row">
+        <div class="col-12 col-sm-9 col-md-9 col-lg-9">
 
-        <div class="col-12 col-sm-4 col-md-3 col-lg-2 border-right">
-
-          <ul class="nav nav-pills flex-column">
-            <li class="nav-item">
-              <a class="nav-link active" data-toggle="pill" href="#topographies" role="tab">Topographies</a>
+          <ul role="tablist" class="nav nav-tabs w-100 lined-tabs flex-column flex-sm-row text-center bg-light">
+            <li class="nav-item flex-sm-fill">
+              <a class="nav-link active text-uppercase" data-toggle="pill" href="#topographies" role="tab">Topographies</a>
             </li>
-            <li class="nav-item">
-              <a class="nav-link" data-toggle="pill" href="#bandwidths" role="tab">Bandwidths</a>
+            <li class="nav-item flex-sm-fill">
+              <a class="nav-link text-uppercase" data-toggle="tab" href="#bandwidths" role="tab">Bandwidths</a>
             </li>
-            <li class="nav-item">
-              <a class="nav-link" data-toggle="pill" href="#description" role="tab">Description</a>
+            <li class="nav-item flex-sm-fill">
+              <a class="nav-link text-uppercase" data-toggle="tab" href="#description" role="tab">Description</a>
             </li>
-            <li class="nav-item">
-              <a class="nav-link" data-toggle="pill" href="#permissions" role="tab">Permissions</a>
+            <li class="nav-item flex-sm-fill">
+              <a class="nav-link text-uppercase" data-toggle="tab" href="#permissions" role="tab">Permissions</a>
             </li>
             {% if surface.is_published %}
-            <li class="nav-item">
-              <a class="nav-link" data-toggle="pill" href="#howtocite" role="tab">How to cite</a>
+            <li class="nav-item flex-sm-fill">
+              <a class="nav-link text-uppercase" data-toggle="tab" href="#howtocite" role="tab">How to cite</a>
             </li>
             {% endif %}
           </ul>
-        </div>
-
-        <div class="col-12 col-sm-5 col-md-6 col-lg-7">
 
           <div class="tab-content mt-4">
 
