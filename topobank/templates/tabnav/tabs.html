@@ -1,4 +1,4 @@
-<ul class="nav nav-tabs">
+<ul role="tablist" class="nav nav-tabs lined-tabs flex-column flex-sm-row bg-light w-100">
   {% for tab in tabs %}
     <li class="nav-item" title="{{ tab.tooltip }}">
       <a class="nav-link {% if tab.active %}active{% endif %}" href="{% if tab.href %}{{ tab.href }}{% else %}{{ request.path }}{% endif %}">

@@ -244,3 +244,61 @@ section[title="Terms and Conditions"] div.toc-container, #tc-terms-html {
 .bandwidth-hover-box span {
   font-size: large;
 }
+
+/** vertical navigation */
+/* Add indicator arrow for the active tab */
+
+.nav-pills-custom .nav-link {
+    color: #aaa;
+    background: #f8f9fa;
+    position: relative;
+    border: 1px solid #dee2e6;
+}
+
+.nav-pills-custom .nav-link.active {
+    color: #007bff;
+    background: #d0d0d0;
+}
+
+@media (min-width: 992px) {
+    .nav-pills-custom .nav-link::before {
+        content: '';
+        display: block;
+        border-top: 8px solid transparent;
+        border-left: 10px solid #dee2e6;
+        border-bottom: 8px solid transparent;
+        position: absolute;
+        top: 50%;
+        right: -10px;
+        transform: translateY(-50%);
+        opacity: 0;
+    }
+}
+
+.nav-pills-custom .nav-link.active::before {
+    opacity: 1;
+}
+
+/*.tab-content-vertical-tabs {*/
+/*  border: 1px solid #6c757d;*/
+/*}*/
+
+
+
+/* lined tabs */
+
+.lined-tabs .nav-link {
+  border: none;
+  border-bottom: 3px solid transparent;
+}
+
+.lined-tabs .nav-link:hover {
+  border: none;
+  border-bottom: 3px solid transparent;
+}
+
+.lined-tabs .nav-link.active {
+  background: none;
+  color: #555;
+  border-color: #2b90d9;
+}

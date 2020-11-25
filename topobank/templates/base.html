@@ -150,6 +150,8 @@
       </div>
     </div>
 
+    {% tab_navigation %}
+
     <div id="wrapper">
       <div id="content-wrapper">
 
@@ -160,9 +162,6 @@
               <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">{{ message }}</div>
             {% endfor %}
           {% endif %}
-
-
-          {% tab_navigation %}
 
           {# Insert actual content, see other templates #}
           {% block content %}
