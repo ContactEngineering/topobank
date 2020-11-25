@@ -85,7 +85,8 @@ let search_results_vm = new Vue({
                   checkbox: true,
                   selectMode: 2, // 'multi'
                   source: {
-                     url: this.search_url.toString()  // this is a computed property, see below
+                     url: this.search_url.toString(),  // this is a computed property, see below
+                     cache: false
                   },
                   postProcess: function(event, data) {
                     // console.log("PostProcess: ", data);
