@@ -999,7 +999,15 @@ If building the containers was successful, aks yourself these questions:
 
   See here for reference: https://cookiecutter-django.readthedocs.io/en/latest/deployment-with-docker.html?highlight=migrate
 
+- Are there new analysis functions? IF yes, do
+
+  .. code:: bash
+
+     docker-compose -f production.yml run --rm django python manage.py register_analysis_functions
+
 - Is there any need to change sth. in the S3 storage?
+
+  Prepare the S3 storage as needed.
 
 - Is there a change to the file format strings?
 
