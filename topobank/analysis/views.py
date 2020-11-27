@@ -1,6 +1,7 @@
 import pickle
 import json
 import numpy as np
+import math
 import itertools
 from collections import OrderedDict
 
@@ -853,8 +854,14 @@ class RmsTableCardView(SimpleCardView):
             analysis_result = analysis.result_obj
 
             for d in analysis_result:
-                # convert float32 to float
-                d['value'] = d['value'].astype(float)
+                if math.isnan(d['value']):
+                    d['value'] = None  # will be interpreted as null in JS, replace there with NaN!
+                    # It's not easy to pass NaN as JSON:
+                    # https://stackoverflow.com/questions/15228651/how-to-parse-json-string-containing-nan-in-node-js
+                else:
+                    # convert float32 to float
+                    d['value'] = d['value'].astype(float)
+
                 if not d['direction']:
                     d['direction'] = ''
                 # put topography in every line
