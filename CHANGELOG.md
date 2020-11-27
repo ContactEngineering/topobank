@@ -3,7 +3,7 @@
 ## 0.9.5 (not published yet)
 
 - fix for RMS table in case of NaN values 
-
+- added dummy thumbnail if thumbnail is missing
 
 ## 0.9.4 (2020-11-23)
 
