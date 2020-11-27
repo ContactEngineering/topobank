@@ -1,5 +1,10 @@
 # Changelog for *TopoBank*
 
+## 0.9.5 (not published yet)
+
+- fix for RMS table in case of NaN values 
+
+
 ## 0.9.4 (2020-11-23)
 
 - added new analysis function "RMS Values" (#445)
