@@ -2,6 +2,9 @@
 
 ## 0.9.5 (not published yet)
 
+- new layout: menu bar instead of tabs, 
+  selection bar below menu bar, nicer vertical pills (#532)
+- added counter for total requests (#562)
 - fix for RMS table in case of NaN values 
 - added dummy thumbnail if thumbnail is missing
 
