@@ -19,20 +19,20 @@
 
           <div class="nav nav-pills nav-pills-custom flex-column" aria-orientation="vertical">
 
-              <a class="nav-link mb-3 p-3 active" data-toggle="pill" href="#topographies" role="tab" aria-selected="true">
+              <a class="nav-link mb-3 p-3 shadow active" data-toggle="pill" href="#topographies" role="tab" aria-selected="true">
                 Topographies
               </a>
-              <a class="nav-link mb-3 p-3" data-toggle="pill" href="#bandwidths" role="tab" aria-selected="false">
+              <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#bandwidths" role="tab" aria-selected="false">
                 Bandwidths
               </a>
-              <a class="nav-link mb-3 p-3" data-toggle="pill" href="#description" role="tab" aria-selected="false">
+              <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#description" role="tab" aria-selected="false">
                 Description
               </a>
-              <a class="nav-link mb-3 p-3" data-toggle="pill" href="#permissions" role="tab" aria-selected="false">
+              <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#permissions" role="tab" aria-selected="false">
                 Permissions
               </a>
             {% if surface.is_published %}
-              <a class="nav-link mb-3 p-3" data-toggle="pill" href="#howtocite" role="tab" aria-selected="false">
+              <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#howtocite" role="tab" aria-selected="false">
                 How to cite
               </a>
             {% endif %}
@@ -68,7 +68,7 @@
                         <img class="d-block img-thumbnail"
                              src="{% url 'manager:topography-thumbnail' topo.id %}" alt="Topography '{{ topo.name }}'">
                       {% else %}
-                        Sorry, thumbnail is missing
+                        <img class="d-block img-thumbnail" src="{% static 'images/thumbnail-unavailable.jpg' %}">
                       {% endif %}
                     </a>
                     <div class="carousel-caption d-none d-md-block bg-dark mb-4">
@@ -198,7 +198,7 @@
           {# Badges and tags in a card #}
           <div class="row p-3">
             <div class="col">
-              <div class="card">
+              <div class="card shadow">
                 <div class="card-body">
                   <div>
                     <span class="badge badge-secondary surface-category-headline">

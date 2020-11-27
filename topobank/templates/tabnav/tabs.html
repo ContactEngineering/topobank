@@ -1,4 +1,4 @@
-<ul role="tablist" class="nav nav-tabs lined-tabs flex-column flex-sm-row bg-light w-100">
+<ul role="tablist" class="nav nav-tabs lined-tabs flex-column flex-sm-row bg-light w-100 shadow">
   {% for tab in tabs %}
     <li class="nav-item" title="{{ tab.tooltip }}">
       <a class="nav-link {% if tab.active %}active{% endif %}" href="{% if tab.href %}{{ tab.href }}{% else %}{{ request.path }}{% endif %}">
@@ -18,3 +18,24 @@
     </li>
   {% endif %}
 </ul>
+
+{% if active_tab.show_basket %}
+    {# display selected items in session #}
+    <div id="basket-container" class="container-fluid bg-light shadow border-bottom py-2">
+      <div id="basket">
+        <div v-if="keys.length">
+          <basket-element v-for="key in keys" v-bind:elem="get_element(key)" v-bind:key="key"></basket-element>
+          <a class="btn btn-sm btn-outline-success" href="{% url 'analysis:list' %}">
+            <i class="fa fa-fw fa-area-chart"></i>Analyze
+          </a>
+          <button class="btn btn-sm btn-outline-secondary pull-right" v-on:click="unselect_all" id="unselect-all">
+            <i class="fa fa-times"></i> Clear selection
+          </button>
+        </div>
+        <div class="m-1" v-else>No items selected yet. In order to select, please use the checkboxes on the
+          <a class="text-dark" href="{% url 'manager:select' %}"><i class="fa fa-fw fa-check-square-o"></i>Select</a> tab.
+        </div>
+      </div>
+    </div>
+{% endif %}
+

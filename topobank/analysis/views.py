@@ -1283,6 +1283,7 @@ class AnalysisFunctionDetailView(DetailView):
                 'active': True,
                 'login_required': False,
                 'tooltip': f"Results for analysis '{function.name}'",
+                'show_basket': True,
             }
         ])
         context['extra_tabs'] = tabs
@@ -1404,6 +1405,7 @@ class AnalysesListView(FormView):
                 'active': True,
                 'login_required': False,
                 'tooltip': "Results for selected analysis functions",
+                'show_basket': True,
             }
         )
         context['extra_tabs'] = tabs

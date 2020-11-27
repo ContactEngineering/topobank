@@ -246,30 +246,28 @@ section[title="Terms and Conditions"] div.toc-container, #tc-terms-html {
 }
 
 /** vertical navigation */
-/* Add indicator arrow for the active tab */
-
 .nav-pills-custom .nav-link {
-    color: #aaa;
-    background: #f8f9fa;
+    background: #f8f9fa;  /* bootstrap's 'secondary' */
     position: relative;
-    border: 1px solid #dee2e6;
+    border: 1px solid #fbfcfd;
 }
 
 .nav-pills-custom .nav-link.active {
-    color: #007bff;
-    background: #d0d0d0;
+    background: #2b90d9;  /* bootstrap's 'primary' */
+    border: 1px solid #2b90d9;
 }
 
+/* Add indicator arrow for the active tab */
 @media (min-width: 992px) {
     .nav-pills-custom .nav-link::before {
         content: '';
         display: block;
         border-top: 8px solid transparent;
-        border-left: 10px solid #dee2e6;
+        border-left: 10px solid #2b90d9;
         border-bottom: 8px solid transparent;
         position: absolute;
         top: 50%;
-        right: -10px;
+        right: -8px;
         transform: translateY(-50%);
         opacity: 0;
     }
@@ -278,12 +276,6 @@ section[title="Terms and Conditions"] div.toc-container, #tc-terms-html {
 .nav-pills-custom .nav-link.active::before {
     opacity: 1;
 }
-
-/*.tab-content-vertical-tabs {*/
-/*  border: 1px solid #6c757d;*/
-/*}*/
-
-
 
 /* lined tabs */
 
