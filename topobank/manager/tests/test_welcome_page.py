@@ -32,7 +32,7 @@ def test_instances():
 
 @pytest.mark.django_db
 @pytest.mark.parametrize('with_publication', [False, True])
-def test_welcome_page_statistics(client, test_instances, with_publication):
+def test_welcome_page_statistics(client, test_instances, with_publication, handle_usage_statistics):
 
     (user_1, user_2), (surface_1, surface_2), (topography_1,) = test_instances
     surface_2.share(user_2)

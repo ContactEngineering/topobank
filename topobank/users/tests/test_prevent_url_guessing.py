@@ -6,7 +6,7 @@ from .test_utils import are_collaborating, SurfaceFactory
 
 
 @pytest.mark.django_db
-def test_sharing_profile(client, django_user_model):
+def test_sharing_profile(client, django_user_model, handle_usage_statistics):
 
     user1 = django_user_model.objects.create_user(username='testuser1', password="abcd$1234")
     user2 = django_user_model.objects.create_user(username='testuser2', password="abcd$5678")

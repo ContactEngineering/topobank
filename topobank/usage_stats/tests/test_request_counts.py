@@ -5,6 +5,7 @@ from django.shortcuts import reverse
 
 from trackstats.models import Metric, Period
 
+@pytest.mark.skip
 @pytest.mark.django_db
 def test_total_request_counts(client, mocker, handle_usage_statistics):
 

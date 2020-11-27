@@ -269,7 +269,7 @@ def test_dont_show_published_surfaces_on_sharing_info(client):
 
 
 @pytest.mark.django_db
-def test_dont_show_published_surfaces_when_shared_filter_used(client):
+def test_dont_show_published_surfaces_when_shared_filter_used(client, handle_usage_statistics):
 
     alice = UserFactory()
     bob = UserFactory()

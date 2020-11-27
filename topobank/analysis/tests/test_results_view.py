@@ -465,7 +465,7 @@ def test_analysis_download_as_txt(client, two_topos, ids_downloadable_analyses, 
 
 @pytest.mark.parametrize('file_format', ['txt', 'xlsx'])
 @pytest.mark.django_db
-def test_rms_table_download_as_txt(client, two_topos, file_format):
+def test_rms_table_download_as_txt(client, two_topos, file_format, handle_usage_statistics):
     # This is only a simple test which checks whether the file can be downloaded
     t1, t2 = two_topos
 
@@ -522,7 +522,7 @@ def test_rms_table_download_as_txt(client, two_topos, file_format):
 
 @pytest.mark.parametrize("same_names", [ False, True])
 @pytest.mark.django_db
-def test_analysis_download_as_xlsx(client, two_topos, ids_downloadable_analyses, same_names, settings):
+def test_analysis_download_as_xlsx(client, two_topos, ids_downloadable_analyses, same_names, settings, handle_usage_statistics):
 
     topos = Topography.objects.all()
     assert len(topos) == 2
@@ -627,7 +627,7 @@ def test_analysis_download_as_xlsx(client, two_topos, ids_downloadable_analyses,
 
 @pytest.mark.django_db
 def test_analysis_download_as_xlsx_despite_slash_in_sheetname(client, two_topos, ids_downloadable_analyses,
-                                                              django_user_model):
+                                                              django_user_model, handle_usage_statistics):
 
     topos = Topography.objects.all()
     assert len(topos) == 2
@@ -661,7 +661,8 @@ def test_analysis_download_as_xlsx_despite_slash_in_sheetname(client, two_topos,
 
 
 @pytest.mark.django_db
-def test_download_analysis_results_without_permission(client, two_topos, ids_downloadable_analyses, django_user_model):
+def test_download_analysis_results_without_permission(client, two_topos, ids_downloadable_analyses, django_user_model,
+                                                      handle_usage_statistics):
 
     # two_topos belong to a user "testuser"
     user_2 = django_user_model.objects.create_user(username="attacker")
@@ -703,7 +704,7 @@ def two_analyses_two_publications():
 
 
 @pytest.mark.django_db
-def test_publication_link_in_txt_download(client, two_analyses_two_publications):
+def test_publication_link_in_txt_download(client, two_analyses_two_publications, handle_usage_statistics):
 
     (analysis1, analysis2, pub1, pub2) = two_analyses_two_publications
 
@@ -725,7 +726,7 @@ def test_publication_link_in_txt_download(client, two_analyses_two_publications)
 
 
 @pytest.mark.django_db
-def test_publication_link_in_xlsx_download(client, two_analyses_two_publications):
+def test_publication_link_in_xlsx_download(client, two_analyses_two_publications, handle_usage_statistics):
     (analysis1, analysis2, pub1, pub2) = two_analyses_two_publications
 
     #
