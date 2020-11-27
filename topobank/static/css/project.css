@@ -244,23 +244,3 @@ section[title="Terms and Conditions"] div.toc-container, #tc-terms-html {
 .bandwidth-hover-box span {
   font-size: large;
 }
-
-/** second level navigation bar */
-
-/* lined tabs */
-
-.lined-tabs .nav-link {
-  border: none;
-  border-bottom: 3px solid transparent;
-}
-
-.lined-tabs .nav-link:hover {
-  border: none;
-  border-bottom: 3px solid transparent;
-}
-
-.lined-tabs .nav-link.active {
-  background: none;
-  color: #555;
-  border-color: #2b90d9;
-}
