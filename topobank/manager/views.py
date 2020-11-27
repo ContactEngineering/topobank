@@ -1880,7 +1880,14 @@ def thumbnail(request, pk):
 
     image = topo.thumbnail
     response = HttpResponse(content_type="image/png")
-    response.write(image.file.read())
+    try:
+        response.write(image.file.read())
+    except Exception as exc:
+        _log.warning("Cannot load thumbnail for topography %d. Reason: %s", topo.id, exc)
+        # return some default image so the client gets sth in any case
+        with staticfiles_storage.open('images/thumbnail_unavailable.png', mode='rb') as img_file:
+            response.write(img_file.read())
+
     return response
 
 
