@@ -10,11 +10,10 @@ class FunctionSelectForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['functions'].label = "" # we set our own label in larger font
+        self.fields['functions'].label = False
 
     functions = ModelMultipleChoiceField(queryset=AnalysisFunction.objects.all(),
                                          widget=CheckboxSelectMultiple,
-                                         label="Functions",
                                          help_text="Select one or multiple analysis functions.")
 
     helper = FormHelper()
@@ -22,12 +21,11 @@ class FunctionSelectForm(forms.Form):
 
     helper.layout = Layout(
         Div(
-            HTML('<h5>Functions</h5>'),
             InlineCheckboxes('functions'),
-            HTML('<hr/>'),
             FormActions(
                 Submit('save', 'Update results', css_class='btn btn-primary'),
             ),
+            HTML('<hr/>'),
         )
     )
 

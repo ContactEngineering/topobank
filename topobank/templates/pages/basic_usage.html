@@ -9,7 +9,8 @@ Thank you.
 <h2>Uploading new data</h2>
 
 <ol>
-  <li>Visit the <b><i class="fa fa-fw fa-check-square-o"></i>Select</b> tab.</li>
+  <li>Visit the
+    <a href="{% url 'manager:select' %}"><i class="fa fa-fw fa-check-square-o"></i>Select</a> tab.</li>
   <li>If you want to add a topography to an existing surface, press its "View" button.
   Otherwise press the "Create surface" button and fill out the form, press "Save".</li>
   <li>The detail page for the surface opens. Press "Add topography" and follow the dialogue.</li>
@@ -22,8 +23,8 @@ Thank you.
 
 <h3>Comparing analysis results from multiple surfaces/topographies</h3>
 <ol>
-  <li>First visit the <b><i class="fa fa-fw fa-check-square-o"></i>Select</b> tab, and use the checkboxes
-  to select one or more surface and/or topographies. You can see the topographies by clicking on the small triangle
+  <li>First visit <a href="{% url 'manager:select' %}"><i class="fa fa-fw fa-check-square-o"></i>Select</a>,
+  and use the checkboxes to select one or more surface and/or topographies. You can see the topographies by clicking on the small triangle
    on the left-hand side of a surface's name. The selected items appear in the bar underneath the
   top navigation bar, which always shows the <em>current selection</em>.</li>
   <li>Next to the current selection a button appears:
@@ -48,7 +49,7 @@ Thank you.
 If you want to analyze a single surface or topography, there are also alternative ways:
 
 <ol>
-  <li>First visit the <b><i class="fa fa-fw fa-check-square-o"></i>Select</b> tab, and
+  <li>First visit the <a href="{% url 'manager:select' %}"><i class="fa fa-fw fa-check-square-o"></i>Select</a> tab, and
   find the surface you are interested in. Press the "Analyze" button on the right-hand side of the row.
   Then automatically, this surface is selected with all of its topographies and
   the "Analyze" tab is loaded. This also works for topographies.</li>
