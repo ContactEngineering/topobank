@@ -43,7 +43,7 @@ from ..manager.utils import selected_instances, instances_to_selection, current_
 from ..usage_stats.utils import increase_statistics_by_date_and_object
 from .models import Analysis, AnalysisFunction, AnalysisCollection
 from .forms import FunctionSelectForm
-from .utils import get_latest_analyses
+from .utils import get_latest_analyses, round_to_significant_digits
 from .functions import CONTACT_MECHANICS_KWARGS_LIMITS, contact_mechanics
 from topobank.analysis.utils import request_analysis
 
@@ -53,6 +53,7 @@ _log = logging.getLogger(__name__)
 
 SMALLEST_ABSOLUT_NUMBER_IN_LOGPLOTS = 1e-100
 MAX_NUM_POINTS_FOR_SYMBOLS = 50
+NUM_SIGNIFICANT_DIGITS_RMS_VALUES = 5
 
 CARD_VIEW_FLAVORS = ['simple', 'plot', 'power spectrum', 'contact mechanics', 'rms table']
 
@@ -859,8 +860,8 @@ class RmsTableCardView(SimpleCardView):
                     # It's not easy to pass NaN as JSON:
                     # https://stackoverflow.com/questions/15228651/how-to-parse-json-string-containing-nan-in-node-js
                 else:
-                    # convert float32 to float
-                    d['value'] = d['value'].astype(float)
+                    # convert float32 to float, round to fixed number of significant digits
+                    d['value'] = round_to_significant_digits(d['value'].astype(float), NUM_SIGNIFICANT_DIGITS_RMS_VALUES)
 
                 if not d['direction']:
                     d['direction'] = ''

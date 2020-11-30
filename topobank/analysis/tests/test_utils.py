@@ -140,7 +140,12 @@ def test_mangle_sheet_name():
     (2.71143412237, 2, 2.7),
     (2.71143412237, 3, 2.71),
     (2.71143412237, 10, 2.7114341224),
-    (-3.45, 2, -3.5)
+    (-3.45, 2, -3.5),
+    (0,5,0),
+    (float('nan'), 5, float('nan'))
 ])
 def test_round_to_significant_digits(x, num_sig_digits, rounded):
-    assert math.isclose(round_to_significant_digits(x, num_sig_digits), rounded, abs_tol=1e-20)
+    if math.isnan(x):
+        assert math.isnan(round_to_significant_digits(x, num_sig_digits))
+    else:
+        assert math.isclose(round_to_significant_digits(x, num_sig_digits), rounded, abs_tol=1e-20)

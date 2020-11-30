@@ -12,6 +12,7 @@ from django.urls import reverse
 
 import SurfaceTopography, ContactMechanics, muFFT, NuMPI
 
+from ..views import RmsTableCardView, NUM_SIGNIFICANT_DIGITS_RMS_VALUES
 from ..models import Analysis, AnalysisFunction
 from topobank.manager.tests.utils import two_topos  # needed for fixture, see arguments below
 from topobank.manager.models import Topography, Surface
@@ -550,17 +551,15 @@ def test_rms_values_rounded(rf, mocker):
         {
             'quantity': 'RMS Slope',
             'direction': 'y',
-            'value': np.float32(4),
+            'value': np.float32('nan'),
             'unit': 1,
         }
     ]
 
-    from ..views import RmsTableCardView
-
     topo = TopographyFactory(size_x=1, size_y=1)
 
     func = AnalysisFunction.objects.get(name='RMS Values')
-    analysis = AnalysisFactory(topography=topo, function=func)
+    AnalysisFactory(topography=topo, function=func)
 
     request = rf.get(reverse('analysis:card'), data={
             'function_id': func.id,
@@ -577,10 +576,11 @@ def test_rms_values_rounded(rf, mocker):
 
     response.render()
     # we want rounding to 5 digits
+    assert NUM_SIGNIFICANT_DIGITS_RMS_VALUES == 5
     assert b"1.2346" in response.content
-
-
-
+    assert b"0.9" in response.content
+    assert b"-1.5679" in response.content
+    assert b"NaN" in response.content
 
 
 @pytest.mark.parametrize("same_names", [ False, True])
