@@ -963,6 +963,7 @@ def test_delete_topography(client, two_topos, django_user_model, topo_example3, 
     # topography file should also be deleted
     assert not os.path.exists(topo_datafile_path)
 
+
 @pytest.mark.skip("Cannot be implemented up to now, because don't know how to reuse datafile")
 @pytest.mark.django_db
 def test_delete_topography_with_its_datafile_used_by_others(client, two_topos, django_user_model):
