@@ -125,3 +125,6 @@ django-bootstrap-datepicker-plus
 # for publication URLs
 short_url
 django-fullurl
+
+# some contraints due to security concers
+lxml>=4.6.1

@@ -58,6 +58,7 @@ jinja2==2.11.2            # via bokeh, coreschema
 jmespath==0.10.0          # via boto3, botocore
 jsonfield==3.1.0          # via django-notifications-hq
 kombu==4.6.11             # via celery
+lxml==4.6.2               # via -r base.in
 markdown2==2.3.10         # via -r base.in
 markupsafe==1.1.1         # via jinja2
 mufft==0.11.1             # via -r base.in, contactmechanics, surfacetopography
