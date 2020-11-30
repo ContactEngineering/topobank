@@ -19,6 +19,7 @@ from topobank.manager.tests.utils import SurfaceFactory, UserFactory, Topography
 from .utils import AnalysisFactory, AnalysisFunctionFactory
 from topobank.utils import assert_in_content, assert_not_in_content
 from topobank.taskapp.tasks import current_configuration
+from topobank.analysis.tests.test_functions import simple_2d_topography
 
 
 def selection_from_instances(instances):
@@ -518,6 +519,68 @@ def test_rms_table_download_as_txt(client, two_topos, file_format, handle_usage_
         assert 'RMS Curvature' in all_values_list
 
         xlsx.get_sheet_by_name("INFORMATION")
+
+
+@pytest.mark.django_db
+def test_rms_values_rounded(rf, mocker):
+
+    from django.core.management import call_command
+    call_command('register_analysis_functions')
+
+    m = mocker.patch('topobank.analysis.functions.rms_values')
+    m.return_value = [  # some fake values for rounding
+        {
+            'quantity': 'RMS Height',
+            'direction': None,
+            'value': np.float32(1.2345678),
+            'unit': 'm',
+        },
+        {
+            'quantity': 'RMS Curvature',
+            'direction': None,
+            'value': np.float32(0.9),
+            'unit': '1/m',
+        },
+        {
+            'quantity': 'RMS Slope',
+            'direction': 'x',
+            'value': np.float32(-1.56789),
+            'unit': 1,
+        },
+        {
+            'quantity': 'RMS Slope',
+            'direction': 'y',
+            'value': np.float32(4),
+            'unit': 1,
+        }
+    ]
+
+    from ..views import RmsTableCardView
+
+    topo = TopographyFactory(size_x=1, size_y=1)
+
+    func = AnalysisFunction.objects.get(name='RMS Values')
+    analysis = AnalysisFactory(topography=topo, function=func)
+
+    request = rf.get(reverse('analysis:card'), data={
+            'function_id': func.id,
+            'card_id': 'card',
+            'template_flavor': 'list',
+            'topography_ids[]': [topo.id],
+    }, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+    request.user = topo.surface.creator
+    request.session = {}
+
+    rms_table_card_view = RmsTableCardView.as_view()
+    response = rms_table_card_view(request)
+    assert response.status_code == 200
+
+    response.render()
+    # we want rounding to 5 digits
+    assert b"1.2346" in response.content
+
+
+
 
 
 @pytest.mark.parametrize("same_names", [ False, True])
