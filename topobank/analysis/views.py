@@ -901,7 +901,6 @@ class RmsTableCardView(SimpleCardView):
         return context
 
 
-
 def _configure_plot(plot):
     plot.toolbar.logo = None
     plot.xaxis.axis_label_text_font_style = "normal"
