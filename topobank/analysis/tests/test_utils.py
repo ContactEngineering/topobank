@@ -6,9 +6,10 @@ import datetime
 from topobank.analysis.models import Analysis, AnalysisFunction
 from topobank.analysis.utils import mangle_sheet_name, request_analysis, round_to_significant_digits
 from topobank.manager.models import Topography
-from topobank.manager.tests.utils import two_topos # or fixture
+from topobank.manager.tests.utils import two_topos  # or fixture
 
 from ..utils import get_latest_analyses
+
 
 @pytest.mark.django_db
 def test_request_analysis(two_topos, django_user_model):
@@ -123,7 +124,6 @@ def test_latest_analyses(two_topos, django_user_model):
 
 
 def test_mangle_sheet_name():
-
     # Not sure, what the real restrictions are. An error message
     # states that e.g. ":" should not be the first or last character,
     # but actually it is also not allowed in the middle?!
