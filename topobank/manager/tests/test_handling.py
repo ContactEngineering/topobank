@@ -434,7 +434,6 @@ def test_upload_topography_and_name_like_an_exisiting_for_same_surface(client):
     assert_form_error(response, "A topography with same name 'TOPO' already exists for same surface", 'name')
 
 
-@pytest.mark.skip("Skipped, waiting for clarification of https://github.com/ComputationalMechanics/SurfaceTopography/issues/14")
 @pytest.mark.django_db
 def test_trying_upload_of_topography_file_with_unknown_format(client, django_user_model):
 
