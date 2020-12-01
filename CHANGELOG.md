@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-## 0.9.5 (not published yet)
+## 0.9.5 (2020-12-01)
 
 - new layout: menu bar instead of tabs, 
   selection bar below menu bar, nicer vertical pills (#532)
