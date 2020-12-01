@@ -7,6 +7,8 @@
 - added counter for total requests (#562)
 - fix for RMS table in case of NaN values 
 - added dummy thumbnail if thumbnail is missing
+- fixed possibly wrong versions in contact mechanics 
+  download (#555) 
 
 ## 0.9.4 (2020-11-23)
 
