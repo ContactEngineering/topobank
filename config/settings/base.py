@@ -165,6 +165,7 @@ MIDDLEWARE = [
     'topobank.middleware.anonymous_user_middleware',  # we need guardian's kind of anonymous user for API calls
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'topobank.usage_stats.middleware.count_request_middleware',
 ]
 
 # STATIC
@@ -328,9 +329,9 @@ ACCOUNT_LOGOUT_ON_GET = True  # True: disable intermediate page
 # An alternative is maybe "django-bower" which could be used
 # to resolve all external javascript dependencies and install them
 # locally in a defined way
-SELECT2_JS = '/static/vendor/select2/js/select2.js'
-SELECT2_CSS = '/static/vendor/select2/css/select2.css'
-SELECT2_I18N_PATH = '/static/vendor/select2/js/i18n'
+SELECT2_JS = '/static/tagulous/lib/select2-4/js/select2.min.js'
+SELECT2_CSS = '/static/tagulous/lib/select2-4/css/select2.min.css'
+SELECT2_I18N_PATH = '/static/tagulous/lib/select2-4/js/i18n'
 # The default for all these are pointers to Cloudflare CDN
 
 #
@@ -447,11 +448,13 @@ DJANGO_NOTIFICATIONS_CONFIG = {'USE_JSONFIELD': True}
 #
 # Settings for django-tagulous (tagging)
 #
-TAGULOUS_AUTOCOMPLETE_JS = (
-    'tagulous/lib/select2-3/select2.min.js',
-    'tagulous/tagulous.js',
-    'tagulous/adaptor/select2-3.js'
-)
+
+SERIALIZATION_MODULES = {
+    'xml':    'tagulous.serializers.xml_serializer',
+    'json':   'tagulous.serializers.json',
+    'python': 'tagulous.serializers.python',
+    'yaml':   'tagulous.serializers.pyyaml',
+}
 
 #
 # E-Mail address to contact us

@@ -11,36 +11,37 @@
 
   {% get_obj_perms request.user for surface as "surface_perms" %}
 
-  <div class="tab-content mt-2 extra-tab">
+  <div class="tab-content pt-2 extra-tab">
 
       <div class="row">
 
-        <div class="col-12 col-sm-4 col-md-3 col-lg-2 border-right">
+        <div class="col-12 col-sm-4 col-md-3 col-lg-2">
 
-          <ul class="nav nav-pills flex-column">
-            <li class="nav-item">
-              <a class="nav-link active" data-toggle="pill" href="#topographies" role="tab">Topographies</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" data-toggle="pill" href="#bandwidths" role="tab">Bandwidths</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" data-toggle="pill" href="#description" role="tab">Description</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" data-toggle="pill" href="#permissions" role="tab">Permissions</a>
-            </li>
+          <div class="nav nav-pills nav-pills-custom flex-column" aria-orientation="vertical">
+
+              <a class="nav-link mb-3 p-3 shadow active" data-toggle="pill" href="#topographies" role="tab" aria-selected="true">
+                Topographies
+              </a>
+              <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#bandwidths" role="tab" aria-selected="false">
+                Bandwidths
+              </a>
+              <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#description" role="tab" aria-selected="false">
+                Description
+              </a>
+              <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#permissions" role="tab" aria-selected="false">
+                Permissions
+              </a>
             {% if surface.is_published %}
-            <li class="nav-item">
-              <a class="nav-link" data-toggle="pill" href="#howtocite" role="tab">How to cite</a>
-            </li>
+              <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#howtocite" role="tab" aria-selected="false">
+                How to cite
+              </a>
             {% endif %}
-          </ul>
+          </div>
         </div>
 
         <div class="col-12 col-sm-5 col-md-6 col-lg-7">
 
-          <div class="tab-content mt-4">
+          <div class="tab-content rounded tab-content-vertical-tabs">
 
             <div class="tab-pane fade active show" id="topographies">
               {% if surface.num_topographies == 0 %}
@@ -67,7 +68,7 @@
                         <img class="d-block img-thumbnail"
                              src="{% url 'manager:topography-thumbnail' topo.id %}" alt="Topography '{{ topo.name }}'">
                       {% else %}
-                        Sorry, thumbnail is missing
+                        <img class="d-block img-thumbnail" src="{% static 'images/thumbnail-unavailable.jpg' %}">
                       {% endif %}
                     </a>
                     <div class="carousel-caption d-none d-md-block bg-dark mb-4">
@@ -110,11 +111,11 @@
             </div>
 
 
-            <div class="tab-pane fade" id="description">
+            <div class="tab-pane p-2 fade" id="description">
               {{ surface.description|default:"(no description)" }}
             </div>
 
-            <div class="tab-pane fade" id="permissions">
+            <div class="tab-pane p-2 fade" id="permissions">
 
               <table class="table table-responsive">
                 <caption>Users having permissions regarding this surface.
@@ -197,7 +198,7 @@
           {# Badges and tags in a card #}
           <div class="row p-3">
             <div class="col">
-              <div class="card">
+              <div class="card shadow">
                 <div class="card-body">
                   <div>
                     <span class="badge badge-secondary surface-category-headline">

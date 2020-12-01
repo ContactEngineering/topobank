@@ -4,8 +4,22 @@
 
 <script>
   $(document).ready(function () {
+    console.log("Load RMS values from JSON..");
+    let table_data = JSON.parse(document.getElementById('table-data').textContent);
+
+    /** replace null in value with NaN
+     * This is needed because we cannot pass NaN through JSON without
+     * extra libraries, so it is passed as null (workaround) */
+    table_data = table_data.map( x => {
+         if (x['value'] === null) {
+           console.log("replaced null");
+           x['value'] = NaN;
+         }
+         return x
+    });
+
     $('#datatable').DataTable({
-      data: JSON.parse(document.getElementById('table-data').textContent),
+      data: table_data,
       columnDefs: [
        // Indicate that first column contains HTML
        // to have HTML tags removed for sorting/filtering

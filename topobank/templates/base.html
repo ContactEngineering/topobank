@@ -26,7 +26,7 @@
     <!-- CSS from sb-admin-2-bs4 template -->
     <link href="{% static 'css/sb-admin-2.css' %}" rel="stylesheet"> <!-- TODO check what is really needed here -->
 
-    <link href="{% static 'vendor/select2/css/select2.css' %}" rel="stylesheet">
+    <link href="{% static 'tagulous/lib/select2-4/css/select2.min.css' %}" rel="stylesheet">
 
     {% fontawesome_stylesheet %}
     <!-- This file stores project-specific CSS -->
@@ -129,26 +129,7 @@
 
     </nav>
 
-    {# Display "basket" with all selected items in session #}
-
-
-    {# display selected items in session #}
-    <div id="basket-container" class="container-fluid bg-light border-top border-bottom py-2">
-      <div id="basket">
-        <div v-if="keys.length">
-          <basket-element v-for="key in keys" v-bind:elem="get_element(key)" v-bind:key="key"></basket-element>
-          <a class="btn btn-sm btn-outline-success" href="{% url 'analysis:list' %}">
-            <i class="fa fa-fw fa-area-chart"></i>Analyze
-          </a>
-          <button class="btn btn-sm btn-outline-secondary pull-right" v-on:click="unselect_all" id="unselect-all">
-            <i class="fa fa-times"></i>
-          </button>
-        </div>
-        <div class="m-1" v-else>No items selected yet. In order to select, please use the checkboxes on the
-          <b><i class="fa fa-fw fa-check-square-o"></i>Select</b> tab.
-        </div>
-      </div>
-    </div>
+    {% tab_navigation %}
 
     <div id="wrapper">
       <div id="content-wrapper">
@@ -160,9 +141,6 @@
               <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">{{ message }}</div>
             {% endfor %}
           {% endif %}
-
-
-          {% tab_navigation %}
 
           {# Insert actual content, see other templates #}
           {% block content %}
@@ -410,11 +388,6 @@
     {% if debug %}
     {# During development we use a vue online, so vuejs is not in production mode #}
     <script src="https://cdn.jsdelivr.net/npm/vue@2.6.11/dist/vue.js"></script>
-    <!--
-    <script src="https://unpkg.com/vue@latest"></script>
-    <script src="https://unpkg.com/vue-select@latest"></script>
-    <link rel="stylesheet" href="https://unpkg.com/vue-select@latest/dist/vue-select.css">
-    -->
     {% else %}
     {# In production, we use a minified version of vuejs TODO make local #}
     <script src="https://cdn.jsdelivr.net/npm/vue@2.6.11/dist/vue.min.js"></script>
@@ -423,11 +396,11 @@
     <script>
       // Some globals on each page
       var event_hub = new Vue(); // used to register event handlers and to pass events
-      var basket = make_basket({{ basket_items_json|safe }});
       var csrf_token = '{{ csrf_token }}';  // useful when doing AJAX calls from JS files
+      // only create basket if target element exists
+      var basket = $('#basket').length ? make_basket({{ basket_items_json|safe }}) : null;
       var unselect_all_url = '{{ unselect_all_url|safe }}';
     </script>
-
 
     <!-- Custom scripts for all pages -->
     <script src="{% static 'js/project.js' %}"></script>

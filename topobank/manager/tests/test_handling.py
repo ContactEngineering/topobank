@@ -21,7 +21,7 @@ import SurfaceTopography.IO  # for mocking
 #######################################################################
 
 @pytest.mark.django_db
-def test_empty_surface_selection(client):
+def test_empty_surface_selection(client, handle_usage_statistics):
 
     #
     # database objects
@@ -434,7 +434,6 @@ def test_upload_topography_and_name_like_an_exisiting_for_same_surface(client):
     assert_form_error(response, "A topography with same name 'TOPO' already exists for same surface", 'name')
 
 
-@pytest.mark.skip("Skipped, waiting for clarification of https://github.com/ComputationalMechanics/SurfaceTopography/issues/14")
 @pytest.mark.django_db
 def test_trying_upload_of_topography_file_with_unknown_format(client, django_user_model):
 
@@ -475,7 +474,8 @@ def test_trying_upload_of_topography_file_with_unknown_format(client, django_use
 
 
 @pytest.mark.django_db
-def test_trying_upload_of_topography_file_with_too_long_format_name(client, django_user_model, mocker):
+def test_trying_upload_of_topography_file_with_too_long_format_name(client, django_user_model, mocker,
+                                                                    handle_usage_statistics):
 
     import SurfaceTopography.IO
 
@@ -905,7 +905,7 @@ def test_edit_topography_only_detrend_center_when_periodic(client, django_user_m
 
 
 @pytest.mark.django_db
-def test_topography_detail(client, two_topos, django_user_model, topo_example4):
+def test_topography_detail(client, two_topos, django_user_model, topo_example4, handle_usage_statistics):
 
     username = 'testuser'
     password = 'abcd$1234'
@@ -933,7 +933,7 @@ def test_topography_detail(client, two_topos, django_user_model, topo_example4):
     assert_in_content(response, "112.80791 µm x 27.73965 µm")
 
 @pytest.mark.django_db
-def test_delete_topography(client, two_topos, django_user_model, topo_example3):
+def test_delete_topography(client, two_topos, django_user_model, topo_example3, handle_usage_statistics):
 
     username = 'testuser'
     password = 'abcd$1234'
@@ -961,6 +961,7 @@ def test_delete_topography(client, two_topos, django_user_model, topo_example3):
 
     # topography file should also be deleted
     assert not os.path.exists(topo_datafile_path)
+
 
 @pytest.mark.skip("Cannot be implemented up to now, because don't know how to reuse datafile")
 @pytest.mark.django_db
@@ -998,7 +999,7 @@ def test_delete_topography_with_its_datafile_used_by_others(client, two_topos, d
     # topography file should **not** have been deleted, because still used by topo2
     assert os.path.exists(topo_datafile_path)
 
-def test_only_positive_size_values_on_edit(client, django_user_model):
+def test_only_positive_size_values_on_edit(client, django_user_model, handle_usage_statistics):
 
     #
     # prepare database
@@ -1115,7 +1116,7 @@ def test_edit_surface(client, django_user_model):
     assert new_category == surface.category
 
 @pytest.mark.django_db
-def test_delete_surface(client, django_user_model):
+def test_delete_surface(client, django_user_model, handle_usage_statistics):
 
     surface_id = 1
     username = 'testuser'

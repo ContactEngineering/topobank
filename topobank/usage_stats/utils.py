@@ -20,6 +20,16 @@ def register_metrics():
 
     from trackstats.models import Domain, Metric
 
+    Domain.objects.REQUESTS = Domain.objects.register(
+        ref='requests',
+        name='Requests'
+    )
+    Metric.objects.TOTAL_REQUEST_COUNT = Metric.objects.register(
+        domain=Domain.objects.REQUESTS,
+        ref='total_request_count',
+        name='Total number of requests of any kind'
+    )
+
     Domain.objects.VIEWS = Domain.objects.register(
         ref='views',
         name='Views'

@@ -1559,7 +1559,7 @@ class SurfaceSearchPaginator(PageNumberPagination):
         page_size = self.get_page_size(self.request)
         select_tab_state[self.page_size_query_param] = page_size
         select_tab_state['current_page'] = self.page.number
-        _log.info("Setting select tab state set in paginator: %s", select_tab_state)
+        _log.debug("Setting select tab state set in paginator: %s", select_tab_state)
         session['select_tab_state'] = select_tab_state
 
         return Response({
@@ -1880,7 +1880,14 @@ def thumbnail(request, pk):
 
     image = topo.thumbnail
     response = HttpResponse(content_type="image/png")
-    response.write(image.file.read())
+    try:
+        response.write(image.file.read())
+    except Exception as exc:
+        _log.warning("Cannot load thumbnail for topography %d. Reason: %s", topo.id, exc)
+        # return some default image so the client gets sth in any case
+        with staticfiles_storage.open('images/thumbnail_unavailable.png', mode='rb') as img_file:
+            response.write(img_file.read())
+
     return response
 
 

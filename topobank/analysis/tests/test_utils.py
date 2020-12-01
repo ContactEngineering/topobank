@@ -1,13 +1,15 @@
 import pytest
 import pickle
+import math
 import datetime
 
 from topobank.analysis.models import Analysis, AnalysisFunction
-from topobank.analysis.utils import mangle_sheet_name, request_analysis
+from topobank.analysis.utils import mangle_sheet_name, request_analysis, round_to_significant_digits
 from topobank.manager.models import Topography
-from topobank.manager.tests.utils import two_topos # or fixture
+from topobank.manager.tests.utils import two_topos  # or fixture
 
 from ..utils import get_latest_analyses
+
 
 @pytest.mark.django_db
 def test_request_analysis(two_topos, django_user_model):
@@ -120,8 +122,8 @@ def test_latest_analyses(two_topos, django_user_model):
     assert at1.start_time == tz.localize(datetime.datetime(2018, 1, 2, 12))
     assert at2.start_time == tz.localize(datetime.datetime(2018, 1, 5, 12))
 
-def test_mangle_sheet_name():
 
+def test_mangle_sheet_name():
     # Not sure, what the real restrictions are. An error message
     # states that e.g. ":" should not be the first or last character,
     # but actually it is also not allowed in the middle?!
@@ -131,3 +133,19 @@ def test_mangle_sheet_name():
     assert mangle_sheet_name("Right?") == "Right"
     assert mangle_sheet_name("*") == ""
 
+
+@pytest.mark.parametrize(['x', 'num_sig_digits', 'rounded'], [
+    (49.9999999999999, 1, 50),
+    (2.71143412237, 1, 3),
+    (2.71143412237, 2, 2.7),
+    (2.71143412237, 3, 2.71),
+    (2.71143412237, 10, 2.7114341224),
+    (-3.45, 2, -3.5),
+    (0,5,0),
+    (float('nan'), 5, float('nan'))
+])
+def test_round_to_significant_digits(x, num_sig_digits, rounded):
+    if math.isnan(x):
+        assert math.isnan(round_to_significant_digits(x, num_sig_digits))
+    else:
+        assert math.isclose(round_to_significant_digits(x, num_sig_digits), rounded, abs_tol=1e-20)

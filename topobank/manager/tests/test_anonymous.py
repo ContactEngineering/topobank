@@ -23,7 +23,7 @@ def test_anonymous_user_only_published_as_default(client):
 
 
 @pytest.mark.django_db
-def test_anonymous_user_can_see_published(client):
+def test_anonymous_user_can_see_published(client, handle_usage_statistics):
     #
     # publish a surface
     #
@@ -41,7 +41,7 @@ def test_anonymous_user_can_see_published(client):
 
 
 @pytest.mark.django_db
-def test_anonymous_user_can_select_published(client):
+def test_anonymous_user_can_select_published(client, handle_usage_statistics):
     bob = UserFactory(name="Bob")
     surface_name = "Diamond Structure"
     surface = SurfaceFactory(creator=bob, name=surface_name)
@@ -74,7 +74,7 @@ def test_anonymous_user_can_select_published(client):
 
 
 @pytest.mark.django_db
-def test_anonymous_user_cannot_change(client):
+def test_anonymous_user_cannot_change(client, handle_usage_statistics):
 
     bob = UserFactory(name="Bob")
     surface_name = "Diamond Structure"
@@ -113,7 +113,7 @@ def test_anonymous_user_cannot_change(client):
 
 
 @pytest.mark.django_db
-def test_download_analyses_without_permission(client):
+def test_download_analyses_without_permission(client, handle_usage_statistics):
     bob = UserFactory()
     surface = SurfaceFactory(creator=bob)
     topo = TopographyFactory(surface=surface)
@@ -127,7 +127,7 @@ def test_download_analyses_without_permission(client):
 
 
 @pytest.mark.django_db
-def test_submit_analyses_without_permission(rf):
+def test_submit_analyses_without_permission(rf, handle_usage_statistics):
     #
     # This test uses a request factory instead of a client
     # therefore the middleware is not used and we have to

@@ -35,6 +35,7 @@ def fixed_tabs_processor(request):
             'href': HOME_URL,
             'active': request.path == HOME_URL,
             'tooltip': "Welcome to contact.engineering",
+            'show_basket': False,
         },
         {
             'login_required': True,
@@ -43,6 +44,7 @@ def fixed_tabs_processor(request):
             'href': PUBLICATIONS_URL,
             'active': request.path == PUBLICATIONS_URL,
             'tooltip': "Surfaces published by you",
+            'show_basket': False,
         },
         {
             'login_required': True,
@@ -51,14 +53,16 @@ def fixed_tabs_processor(request):
             'href': SHARING_INFO_URL,
             'active': request.path == SHARING_INFO_URL,
             'tooltip': "Surfaces shared with you or by you",
+            'show_basket': False,
         },
         {
             'login_required': False,
-            'title': 'Select',  # no text
+            'title': 'Select',
             'icon': 'check-square-o',
             'href': SELECT_URL,
             'active': request.path == SELECT_URL,
             'tooltip': "Select surfaces and topographies for analysis or create new surfaces",
+            'show_basket': True,
         },
     ]
     return dict(fixed_tabs=tabs)

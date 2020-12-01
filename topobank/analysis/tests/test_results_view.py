@@ -12,6 +12,7 @@ from django.urls import reverse
 
 import SurfaceTopography, ContactMechanics, muFFT, NuMPI
 
+from ..views import RmsTableCardView, NUM_SIGNIFICANT_DIGITS_RMS_VALUES
 from ..models import Analysis, AnalysisFunction
 from topobank.manager.tests.utils import two_topos  # needed for fixture, see arguments below
 from topobank.manager.models import Topography, Surface
@@ -19,6 +20,7 @@ from topobank.manager.tests.utils import SurfaceFactory, UserFactory, Topography
 from .utils import AnalysisFactory, AnalysisFunctionFactory
 from topobank.utils import assert_in_content, assert_not_in_content
 from topobank.taskapp.tasks import current_configuration
+from topobank.analysis.tests.test_functions import simple_2d_topography
 
 
 def selection_from_instances(instances):
@@ -465,7 +467,7 @@ def test_analysis_download_as_txt(client, two_topos, ids_downloadable_analyses, 
 
 @pytest.mark.parametrize('file_format', ['txt', 'xlsx'])
 @pytest.mark.django_db
-def test_rms_table_download_as_txt(client, two_topos, file_format):
+def test_rms_table_download_as_txt(client, two_topos, file_format, handle_usage_statistics):
     # This is only a simple test which checks whether the file can be downloaded
     t1, t2 = two_topos
 
@@ -520,9 +522,70 @@ def test_rms_table_download_as_txt(client, two_topos, file_format):
         xlsx.get_sheet_by_name("INFORMATION")
 
 
+@pytest.mark.django_db
+def test_rms_values_rounded(rf, mocker):
+
+    from django.core.management import call_command
+    call_command('register_analysis_functions')
+
+    m = mocker.patch('topobank.analysis.functions.rms_values')
+    m.return_value = [  # some fake values for rounding
+        {
+            'quantity': 'RMS Height',
+            'direction': None,
+            'value': np.float32(1.2345678),
+            'unit': 'm',
+        },
+        {
+            'quantity': 'RMS Curvature',
+            'direction': None,
+            'value': np.float32(0.9),
+            'unit': '1/m',
+        },
+        {
+            'quantity': 'RMS Slope',
+            'direction': 'x',
+            'value': np.float32(-1.56789),
+            'unit': 1,
+        },
+        {
+            'quantity': 'RMS Slope',
+            'direction': 'y',
+            'value': np.float32('nan'),
+            'unit': 1,
+        }
+    ]
+
+    topo = TopographyFactory(size_x=1, size_y=1)
+
+    func = AnalysisFunction.objects.get(name='RMS Values')
+    AnalysisFactory(topography=topo, function=func)
+
+    request = rf.get(reverse('analysis:card'), data={
+            'function_id': func.id,
+            'card_id': 'card',
+            'template_flavor': 'list',
+            'topography_ids[]': [topo.id],
+    }, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+    request.user = topo.surface.creator
+    request.session = {}
+
+    rms_table_card_view = RmsTableCardView.as_view()
+    response = rms_table_card_view(request)
+    assert response.status_code == 200
+
+    response.render()
+    # we want rounding to 5 digits
+    assert NUM_SIGNIFICANT_DIGITS_RMS_VALUES == 5
+    assert b"1.2346" in response.content
+    assert b"0.9" in response.content
+    assert b"-1.5679" in response.content
+    assert b"NaN" in response.content
+
+
 @pytest.mark.parametrize("same_names", [ False, True])
 @pytest.mark.django_db
-def test_analysis_download_as_xlsx(client, two_topos, ids_downloadable_analyses, same_names, settings):
+def test_analysis_download_as_xlsx(client, two_topos, ids_downloadable_analyses, same_names, settings, handle_usage_statistics):
 
     topos = Topography.objects.all()
     assert len(topos) == 2
@@ -627,7 +690,7 @@ def test_analysis_download_as_xlsx(client, two_topos, ids_downloadable_analyses,
 
 @pytest.mark.django_db
 def test_analysis_download_as_xlsx_despite_slash_in_sheetname(client, two_topos, ids_downloadable_analyses,
-                                                              django_user_model):
+                                                              django_user_model, handle_usage_statistics):
 
     topos = Topography.objects.all()
     assert len(topos) == 2
@@ -661,7 +724,8 @@ def test_analysis_download_as_xlsx_despite_slash_in_sheetname(client, two_topos,
 
 
 @pytest.mark.django_db
-def test_download_analysis_results_without_permission(client, two_topos, ids_downloadable_analyses, django_user_model):
+def test_download_analysis_results_without_permission(client, two_topos, ids_downloadable_analyses, django_user_model,
+                                                      handle_usage_statistics):
 
     # two_topos belong to a user "testuser"
     user_2 = django_user_model.objects.create_user(username="attacker")
@@ -703,7 +767,7 @@ def two_analyses_two_publications():
 
 
 @pytest.mark.django_db
-def test_publication_link_in_txt_download(client, two_analyses_two_publications):
+def test_publication_link_in_txt_download(client, two_analyses_two_publications, handle_usage_statistics):
 
     (analysis1, analysis2, pub1, pub2) = two_analyses_two_publications
 
@@ -725,7 +789,7 @@ def test_publication_link_in_txt_download(client, two_analyses_two_publications)
 
 
 @pytest.mark.django_db
-def test_publication_link_in_xlsx_download(client, two_analyses_two_publications):
+def test_publication_link_in_xlsx_download(client, two_analyses_two_publications, handle_usage_statistics):
     (analysis1, analysis2, pub1, pub2) = two_analyses_two_publications
 
     #

@@ -1,5 +1,16 @@
 # Changelog for *TopoBank*
 
+## 0.9.5 (2020-12-01)
+
+- new layout: menu bar instead of tabs, 
+  selection bar below menu bar, nicer vertical pills (#532)
+- added counter for total requests (#562)
+- fix for RMS table in case of NaN values 
+- added dummy thumbnail if thumbnail is missing
+- fixed possibly wrong versions in contact mechanics 
+  download (#555)
+- switched back to usage of original django-tagulous (#549) 
+
 ## 0.9.4 (2020-11-23)
 
 - added new analysis function "RMS Values" (#445)

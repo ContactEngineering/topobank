@@ -9,7 +9,7 @@ from ..models import Surface, Topography
 from topobank.utils import assert_in_content, assert_redirects
 
 @pytest.mark.django_db
-def test_prevent_surface_access_by_other_user(client, django_user_model):
+def test_prevent_surface_access_by_other_user(client, django_user_model, handle_usage_statistics):
 
     surface_id = 1
     username1 = 'testuser1'
@@ -52,7 +52,7 @@ def test_prevent_surface_access_by_other_user(client, django_user_model):
     assert response.status_code == 403
 
 @pytest.mark.django_db
-def test_prevent_topography_access_by_other_user(client, django_user_model, mocker):
+def test_prevent_topography_access_by_other_user(client, django_user_model, mocker, handle_usage_statistics):
 
     surface_id = 1
     username1 = 'testuser1'
@@ -106,7 +106,7 @@ def test_prevent_topography_access_by_other_user(client, django_user_model, mock
 
 
 @pytest.mark.django_db
-def test_pagenotfound__if_surface_does_not_exist(client, django_user_model):
+def test_pagenotfound__if_surface_does_not_exist(client, django_user_model, handle_usage_statistics):
 
     username = 'testuser1'
     password = 'abcd$1234'
@@ -120,7 +120,7 @@ def test_pagenotfound__if_surface_does_not_exist(client, django_user_model):
 
 
 @pytest.mark.django_db
-def test_pagenotfound_if_topography_does_not_exist(client, django_user_model):
+def test_pagenotfound_if_topography_does_not_exist(client, django_user_model, handle_usage_statistics):
     username = 'testuser1'
     password = 'abcd$1234'
 

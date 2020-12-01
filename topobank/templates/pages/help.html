@@ -4,23 +4,23 @@
 
 {% block content %}
 
-  <div class="tab-content p-2">
+  <div class="tab-content mt-2 extra-tab">
     <div class="tab-pane active">
 
       <div class="row">
-        <div class="col-1 border-right">
+        <div class="col-2">
 
-          <ul class="nav nav-pills">
-            <li class="nav-item">
-              <a class="nav-link active" data-toggle="pill" href="#basic_usage" role="tab">Basic Usage</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" data-toggle="pill" href="#file_formats" role="tab">File Formats</a>
-            </li>
-          </ul>
+          <div class="nav nav-pills nav-pills-custom flex-column" role="tablist" aria-orientation="vertical">
+            <a class="nav-link mb-3 p-3 shadow active" data-toggle="pill" href="#basic_usage" role="tab" aria-selected="true">
+              Basic Usage
+            </a>
+            <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#file_formats" role="tab" aria-selected="false">
+              File Formats
+            </a>
+          </div>
         </div>
 
-        <div class="col-11">
+        <div class="col-10">
           <div class="tab-content mt-4">
             <div class="tab-pane fade show active" id="basic_usage">
             {% include "pages/basic_usage.html" %}

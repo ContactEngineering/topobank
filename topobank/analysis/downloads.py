@@ -1,6 +1,5 @@
 from django.http import HttpResponse, HttpResponseForbidden, HttpResponseBadRequest
 from django.core.files.storage import default_storage
-from django.conf import settings
 
 import pandas as pd
 import io
@@ -8,9 +7,7 @@ import pickle
 import numpy as np
 import zipfile
 import os.path
-
-import SurfaceTopography, ContactMechanics, muFFT, NuMPI  # for version information
-# TODO use those from analysis, see issue https://github.com/ComputationalMechanics/TopoBank/issues/555
+import textwrap
 
 from .models import Analysis
 from .views import CARD_VIEW_FLAVORS
@@ -159,27 +156,43 @@ def _publications_urls(request, analyses):
     return publication_urls
 
 
-def _analysis_header_for_txt_file(analysis):
+def _analysis_header_for_txt_file(analysis, as_comment=True):
+    """
+
+    Parameters
+    ----------
+    analysis
+        Analysis instance
+    as_comment
+        boolean, if True, add '# ' in front of each line
+
+    Returns
+    -------
+    str
+    """
 
     topography = analysis.topography
     topo_creator = topography.creator
 
-    s = '# Topography: {}\n'.format(topography.name) +\
-        '# {}\n'.format('=' * (len('Topography: ') + len(str(topography.name)))) +\
-        '# Creator: {}\n'.format(topo_creator) +\
-        '# Further arguments of analysis function: {}\n'.format(analysis.get_kwargs_display()) +\
-        '# Start time of analysis task: {}\n'.format(analysis.start_time) +\
-        '# End time of analysis task: {}\n'.format(analysis.end_time) +\
-        '# Duration of analysis task: {}\n'.format(analysis.duration())
+    s = 'Topography: {}\n'.format(topography.name) +\
+        '{}\n'.format('=' * (len('Topography: ') + len(str(topography.name)))) +\
+        'Creator: {}\n'.format(topo_creator) +\
+        'Further arguments of analysis function: {}\n'.format(analysis.get_kwargs_display()) +\
+        'Start time of analysis task: {}\n'.format(analysis.start_time) +\
+        'End time of analysis task: {}\n'.format(analysis.end_time) +\
+        'Duration of analysis task: {}\n'.format(analysis.duration())
     if analysis.configuration is None:
-        s += '# Versions of dependencies (like "SurfaceTopography") are unknown for this analysis.\n'
-        s += '# Please recalculate in order to have version information here.\n'
+        s += 'Versions of dependencies (like "SurfaceTopography") are unknown for this analysis.\n'
+        s += 'Please recalculate in order to have version information here.\n'
     else:
         versions_used = analysis.configuration.versions.order_by('dependency__import_name')
 
         for version in versions_used:
-            s += f"# Version of '{version.dependency.import_name}': {version.number_as_string()}\n"
-    s += '#\n'
+            s += f"Version of '{version.dependency.import_name}': {version.number_as_string()}\n"
+    s += '\n'
+
+    if as_comment:
+        s = textwrap.indent(s, '# ', predicate=lambda s: True)  # prepend to all lines, also empty
 
     return s
 
@@ -464,6 +477,13 @@ def download_contact_mechanics_analyses_as_zip(request, analyses):
                 zf.writestr("errors-{}.txt".format(file_no),
                             "Cannot save file {} in ZIP, reason: {}".format(filename_in_zip, str(exc)))
 
+        #
+        # Add a file with version information
+        #
+        zf.writestr(os.path.join(zip_dir, 'info.txt'),
+                    _analysis_header_for_txt_file(analysis))
+
+
     #
     # Add a Readme file
     #
@@ -538,11 +558,10 @@ Have look in the official Matlab documentation for more information.
 Version information
 ===================
 
-SurfaceTopography: {SurfaceTopography.__version__}
-ContactMechanics:  {ContactMechanics.__version__}
-muFFT:             {muFFT.version.description()}
-NuMPI:             {NuMPI.__version__}
-TopoBank:          {settings.TOPOBANK_VERSION}
+For version information of the packages used, please look into the files named
+'info.txt' in the subdirectories for each topography. The versions of the packages
+used for analysis may differ among topographies, because they may have been
+calculated at different times.
     """)
 
     zf.close()

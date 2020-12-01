@@ -216,7 +216,7 @@ def test_link_for_sharing_info(client):
 
 
 @pytest.mark.django_db
-def test_sharing_info_table(client):
+def test_sharing_info_table(client, handle_usage_statistics):
     password = "secret"
 
     user1 = UserFactory(password=password)
@@ -489,7 +489,7 @@ def test_notification_when_deleting_shared_stuff(client):
 
 
 @pytest.mark.django_db
-def test_notification_when_editing_shared_stuff(client):
+def test_notification_when_editing_shared_stuff(client, handle_usage_statistics):
 
     user1 = UserFactory()
     user2 = UserFactory()
@@ -550,7 +550,7 @@ def test_notification_when_editing_shared_stuff(client):
 
 
 @pytest.mark.django_db
-def test_upload_topography_for_shared_surface(client):
+def test_upload_topography_for_shared_surface(client, handle_usage_statistics):
 
     input_file_path = Path(FIXTURE_DIR+'/example3.di')
     description = "test description"

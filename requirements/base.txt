@@ -40,10 +40,10 @@ git+http://github.com/IMTEK-Simulation/django-progressbarupload.git  # via -r ba
 django-select2==7.4.2     # via -r base.in
 django-storages==1.10.1   # via -r base.in
 django-tables2==2.3.2     # via -r base.in
-git+http://github.com/mcrot/django-tagulous.git  # via -r base.in
+django-tagulous==1.0.0    # via -r base.in
 git+http://git@github.com/mcrot/django-termsandconditions.git@optional_terms  # via -r base.in
 django-trackstats==0.5.0  # via -r base.in
-django==2.2.13            # via -r base.in, django-allauth, django-appconf, django-bootstrap-datepicker-plus, django-filter, django-formtools, django-fullurl, django-guardian, django-model-utils, django-notifications-hq, django-select2, django-storages, django-tables2, django-termsandconditions, django-trackstats, djangorestframework, jsonfield
+django==2.2.13            # via -r base.in, django-allauth, django-appconf, django-bootstrap-datepicker-plus, django-filter, django-formtools, django-fullurl, django-guardian, django-model-utils, django-notifications-hq, django-select2, django-storages, django-tables2, django-tagulous, django-termsandconditions, django-trackstats, djangorestframework, jsonfield
 djangorestframework==3.12.1  # via -r base.in
 et-xmlfile==1.0.1         # via openpyxl
 future==0.18.2            # via django-termsandconditions
@@ -58,6 +58,7 @@ jinja2==2.11.2            # via bokeh, coreschema
 jmespath==0.10.0          # via boto3, botocore
 jsonfield==3.1.0          # via django-notifications-hq
 kombu==4.6.11             # via celery
+lxml==4.6.2               # via -r base.in
 markdown2==2.3.10         # via -r base.in
 markupsafe==1.1.1         # via jinja2
 mufft==0.11.1             # via -r base.in, contactmechanics, surfacetopography

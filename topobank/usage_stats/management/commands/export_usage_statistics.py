@@ -156,6 +156,7 @@ class Command(BaseCommand):
         #
         single_value_metrics = [
             ('login_count', 1, None),
+            ('total_request_count', 1, None),
             ('search_view_count', 1, None),
             ('total_analysis_cpu_ms', .001, 'Total analysis CPU time in seconds'),
             ('total_number_users', 1, None),

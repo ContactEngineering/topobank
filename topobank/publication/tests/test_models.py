@@ -120,6 +120,6 @@ def test_citation_biblatex(rf, example_pub):
 
 
 @pytest.mark.django_db
-def test_redirection_invalid_publication_link(client):
+def test_redirection_invalid_publication_link(client, handle_usage_statistics):
     response = client.get(reverse('publication:go', kwargs=dict(short_url='THISISNONSENSE')))
     assert response.status_code == 404
