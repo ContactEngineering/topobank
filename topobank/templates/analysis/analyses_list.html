@@ -10,11 +10,6 @@
 
 {% block extra_css %}
   {{ form.media.css }}
-
-   {# TODO move script tag to end? #}
-  <script src="https://unpkg.com/vue@latest"></script>
-  <script src="https://unpkg.com/vue-select@latest"></script>
-  <link rel="stylesheet" href="https://unpkg.com/vue-select@latest/dist/vue-select.css">
   <link type="text/css" href="{% static 'vendor/datatables/datatables.min.css' %}" rel="stylesheet">
 {% endblock extra_css %}
 
