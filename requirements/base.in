@@ -33,10 +33,7 @@ git+http://github.com/IMTEK-Simulation/django-progressbarupload.git
 django-filter
 
 # tagging support
-# django-tagulous
-# The original version has a bug #81 I want to have fixed. There is
-# a PR (#82) and as long it is not integrated, I use my own version:
-git+http://github.com/mcrot/django-tagulous.git
+django-tagulous
 
 # statistics
 # django-statsy  # cannot be used currently because of fixed version in requirements

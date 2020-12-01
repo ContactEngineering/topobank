@@ -448,11 +448,18 @@ DJANGO_NOTIFICATIONS_CONFIG = {'USE_JSONFIELD': True}
 #
 # Settings for django-tagulous (tagging)
 #
-TAGULOUS_AUTOCOMPLETE_JS = (
-    'tagulous/lib/select2-3/select2.min.js',
-    'tagulous/tagulous.js',
-    'tagulous/adaptor/select2-3.js'
-)
+#TAGULOUS_AUTOCOMPLETE_JS = (
+#    'tagulous/lib/select2-3/select2.min.js',
+#    'tagulous/tagulous.js',
+#    'tagulous/adaptor/select2-3.js'
+#)
+
+SERIALIZATION_MODULES = {
+    'xml':    'tagulous.serializers.xml_serializer',
+    'json':   'tagulous.serializers.json',
+    'python': 'tagulous.serializers.python',
+    'yaml':   'tagulous.serializers.pyyaml',
+}
 
 #
 # E-Mail address to contact us

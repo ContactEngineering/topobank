@@ -26,7 +26,7 @@
     <!-- CSS from sb-admin-2-bs4 template -->
     <link href="{% static 'css/sb-admin-2.css' %}" rel="stylesheet"> <!-- TODO check what is really needed here -->
 
-    <link href="{% static 'vendor/select2/css/select2.css' %}" rel="stylesheet">
+    <link href="{% static 'tagulous/lib/select2-4/css/select2.min.css' %}" rel="stylesheet">
 
     {% fontawesome_stylesheet %}
     <!-- This file stores project-specific CSS -->
@@ -401,11 +401,11 @@
     <script>
       // Some globals on each page
       var event_hub = new Vue(); // used to register event handlers and to pass events
-      var basket = make_basket({{ basket_items_json|safe }});
       var csrf_token = '{{ csrf_token }}';  // useful when doing AJAX calls from JS files
+      // only create basket if target element exists
+      var basket = $('#basket').length ? make_basket({{ basket_items_json|safe }}) : null;
       var unselect_all_url = '{{ unselect_all_url|safe }}';
     </script>
-
 
     <!-- Custom scripts for all pages -->
     <script src="{% static 'js/project.js' %}"></script>
