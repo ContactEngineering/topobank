@@ -8,7 +8,8 @@
 - fix for RMS table in case of NaN values 
 - added dummy thumbnail if thumbnail is missing
 - fixed possibly wrong versions in contact mechanics 
-  download (#555) 
+  download (#555)
+- switched back to usage of original django-tagulous (#549) 
 
 ## 0.9.4 (2020-11-23)
 
