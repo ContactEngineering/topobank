@@ -1559,7 +1559,7 @@ class SurfaceSearchPaginator(PageNumberPagination):
         page_size = self.get_page_size(self.request)
         select_tab_state[self.page_size_query_param] = page_size
         select_tab_state['current_page'] = self.page.number
-        _log.info("Setting select tab state set in paginator: %s", select_tab_state)
+        _log.debug("Setting select tab state set in paginator: %s", select_tab_state)
         session['select_tab_state'] = select_tab_state
 
         return Response({
