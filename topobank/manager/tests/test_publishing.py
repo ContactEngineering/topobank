@@ -8,6 +8,7 @@ from guardian.shortcuts import get_perms
 
 from .utils import SurfaceFactory, UserFactory, TopographyFactory, TagModelFactory
 from ..forms import SurfacePublishForm
+from ..views import SurfaceDetailView
 from topobank.publication.models import MAX_LEN_AUTHORS_FIELD
 from topobank.utils import assert_in_content, assert_redirects, assert_not_in_content
 from topobank.manager.models import NewPublicationTooFastException
@@ -374,7 +375,20 @@ def test_publishing_wrong_license():
     assert form.errors['license'] == ['Select a valid choice. fantasy is not one of the available choices.']
 
 
+@pytest.mark.django_db
+def test_show_license_when_viewing_published_surface(rf):
 
+    surface = SurfaceFactory()
+    surface.publish('cc0-1.0', 'Mike Publisher')
+
+    request = rf.get(reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)))
+    request.user = surface.creator
+    request.session = {}
+
+    response = SurfaceDetailView.as_view()(request, pk=surface.pk)
+    response.render()
+
+    assert_in_content(response, 'cc0-1.0')
 
 
 
