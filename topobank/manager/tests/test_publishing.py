@@ -376,19 +376,25 @@ def test_publishing_wrong_license():
 
 
 @pytest.mark.django_db
-def test_show_license_when_viewing_published_surface(rf):
+def test_show_license_when_viewing_published_surface(rf, settings):
+
+    license = 'cc0-1.0'
 
     surface = SurfaceFactory()
-    surface.publish('cc0-1.0', 'Mike Publisher')
+    pub = surface.publish(license, 'Mike Publisher')
 
-    request = rf.get(reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)))
+    request = rf.get(reverse('manager:surface-detail', kwargs=dict(pk=pub.surface.pk)))
     request.user = surface.creator
     request.session = {}
 
-    response = SurfaceDetailView.as_view()(request, pk=surface.pk)
+    response = SurfaceDetailView.as_view()(request, pk=pub.surface.pk)
     response.render()
 
-    assert_in_content(response, 'cc0-1.0')
+    license_info = settings.CC_LICENSE_INFOS[license]
+
+    assert_in_content(response, license_info['title'])
+    assert_in_content(response, license_info['description_url'])
+    assert_in_content(response, license_info['legal_code_url'])
 
 
 

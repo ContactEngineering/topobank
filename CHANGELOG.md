@@ -2,6 +2,8 @@
 
 ## 0.9.6 (not published yet)
 
+- added display of license when viewing a published 
+  surface (#566) 
 - fixed load error in some cases when searching (#543)
 
 ## 0.9.5 (2020-12-01)

@@ -944,6 +944,7 @@ class SurfaceDetailView(DetailView):
             original_surface = surface.publication.original_surface
             context['this_version_label'] = version_label_from_publication(surface.publication)
             context['publication_url'] = self.request.build_absolute_uri(surface.publication.get_absolute_url())
+            context['license_info'] = settings.CC_LICENSE_INFOS[surface.publication.license]
         else:
             original_surface = surface
             context['this_version_label'] = version_label_from_publication(None)
