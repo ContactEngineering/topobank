@@ -20,12 +20,12 @@ def test_publication_version(settings):
     settings.MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS = None  # disable
 
     surface = SurfaceFactory()
-    publication_v1 = surface.publish('cc0', 'Bob')
+    publication_v1 = surface.publish('cc0-1.0', 'Bob')
 
     assert publication_v1.version == 1
 
     surface.name = "new name"
-    publication_v2 = surface.publish('cc0', 'Bob')
+    publication_v2 = surface.publish('cc0-1.0', 'Bob')
     assert publication_v2.version == 2
 
     assert publication_v1.original_surface == publication_v2.original_surface
@@ -37,9 +37,9 @@ def test_publication_fields():
     user = UserFactory(name="Tom")
     surface = SurfaceFactory(creator=user)
     authors = 'Alice, Bob, Charly, Tom'
-    publication = surface.publish('cc0', authors)
+    publication = surface.publish('cc0-1.0', authors)
 
-    assert publication.license == 'cc0'
+    assert publication.license == 'cc0-1.0'
     assert publication.original_surface == surface
     assert publication.surface != publication.original_surface
     assert publication.publisher == surface.creator
@@ -51,7 +51,7 @@ def test_publication_fields():
 def test_published_field():
     surface = SurfaceFactory()
     assert not surface.is_published
-    publication = surface.publish('cc0', 'Alice')
+    publication = surface.publish('cc0-1.0', 'Alice')
     assert not publication.original_surface.is_published
     assert publication.surface.is_published
 
@@ -69,7 +69,7 @@ def test_permissions_for_published():
     assert get_perms(user2, surface) == []
 
     # for the published surface, both users are only allowed viewing
-    publication = surface.publish('cc0', 'Alice')
+    publication = surface.publish('cc0-1.0', 'Alice')
 
     assert get_perms(user1, publication.surface) == ['view_surface']
     assert get_perms(user2, publication.surface) == ['view_surface']
@@ -153,9 +153,9 @@ def test_switch_versions_on_properties_tab(client, settings, handle_usage_statis
     #
     # Now publish the first time
     #
-    publication = surface.publish('cc0', 'Alice')
+    publication = surface.publish('cc0-1.0', 'Alice')
     assert publication.version == 1
-    assert publication.license == 'cc0'
+    assert publication.license == 'cc0-1.0'
     assert publication.original_surface == surface
     pub_date_1 = publication.datetime.date()
 
@@ -168,7 +168,7 @@ def test_switch_versions_on_properties_tab(client, settings, handle_usage_statis
     #
     # Publish again
     #
-    publication = surface.publish('cc0', 'Alice')
+    publication = surface.publish('cc0-1.0', 'Alice')
     assert publication.version == 2
     assert publication.original_surface == surface
     pub_date_2 = publication.datetime.date()
@@ -195,8 +195,8 @@ def test_notification_saying_new_version_exists(client, settings, handle_usage_s
     #
     # Now publish two times
     #
-    pub1 = surface.publish('cc0', 'Alice')
-    pub2 = surface.publish('cc0', 'Alice')
+    pub1 = surface.publish('cc0-1.0', 'Alice')
+    pub2 = surface.publish('cc0-1.0', 'Alice')
 
     #
     # When showing page for "Work in Progress" surface, there should be a hint there are publications
