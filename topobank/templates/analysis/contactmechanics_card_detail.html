@@ -554,7 +554,9 @@
         let function_kwargs = { 'substrate_str': substrate_str, 'hardness': hardness,
                                 'nsteps': nsteps, 'pressures': pressures, 'maxiter': maxiter};
 
-         $.ajax({
+        $(this).attr("disabled", true);
+        $(this).html("Please wait..");
+        $.ajax({
           type: "POST",
           url: "{% url 'analysis:card-submit' %}",
           timeout: 0,
@@ -564,23 +566,23 @@
             function_kwargs_json: JSON.stringify(function_kwargs),
             csrfmiddlewaretoken: "{{csrf_token}}"
           },
-          success : function(data, textStatus, xhr) {
+          success: function (data, textStatus, xhr) {
             // debug_msg("Job submission successful. Status: "+xhr.status+" textStatus: "+textStatus);
-            if (xhr.status==200) {
+            if (xhr.status == 200) {
               console.log("Triggering reload of card");
-              submit_analyses_card_ajax("{% url 'analysis:card' %}", "card", "detail", {{ function.id }},{{ topography_ids_requested_json|safe }}, 0);
+              submit_analyses_card_ajax("{% url 'analysis:card' %}", "card", "detail", {{ function.id }}, {{ topography_ids_requested_json|safe }}, 0);
               // debug_msg("Triggered card reload. Status: "+xhr.status+" textStatus: "+textStatus);
             } else {
               console.log("Submitting analyses failed");
               var div = $('#contact_area_vs_load'); // show the error in a prominent way
-              $(div).html("Triggering calculation failed, status: "+xhr.status+" response:"+xhr.responseText);
+              $(div).html("Triggering calculation failed, status: " + xhr.status + " response:" + xhr.responseText);
               $(div).addClass("alert alert-danger");
             }
           },
-          error: function(xhr, textStatus, errorThrown) {
-            console.log("AJAX error when submitting jobs: errorThrown: "+errorThrown+" status: " +xhr.status+" responseText: "+xhr.responseText);
+          error: function (xhr, textStatus, errorThrown) {
+            console.log("AJAX error when submitting jobs: errorThrown: " + errorThrown + " status: " + xhr.status + " responseText: " + xhr.responseText);
             var div = $('#contact_area_vs_load'); // show the error in a prominent way
-            $(div).html("Please report this error: "+errorThrown+xhr.status+xhr.responseText);
+            $(div).html("Please report this error: " + errorThrown + xhr.status + xhr.responseText);
             $(div).addClass("alert alert-danger");
           }
         });
