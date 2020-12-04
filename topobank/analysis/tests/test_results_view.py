@@ -77,7 +77,7 @@ def test_analysis_times(client, two_topos, django_user_model):
     analysis.users.add(user)
     analysis.save()
 
-    response = client.get(reverse("analysis:card"),
+    response = client.post(reverse("analysis:card"),
                            data={
                                'topography_ids[]': [topo.id],
                                'function_id': af.id,
@@ -172,15 +172,15 @@ def test_show_only_last_analysis(client, two_topos, django_user_model, handle_us
     # Check response, for both topographies only the
     # latest results should be shown
     #
-    response = client.get(reverse("analysis:card"),
+    response = client.post(reverse("analysis:card"),
                            data={
                                'topography_ids[]': [topo1.id, topo2.id],
                                'function_id': af.id,
-                               'card_idx': 1,
+                               'card_id': 1,
                                'template_flavor': 'list'
                            },
-                          HTTP_X_REQUESTED_WITH='XMLHttpRequest',
-                          follow=True)
+                           HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+                           follow=True)
 
     assert response.status_code == 200
 
@@ -255,7 +255,7 @@ def test_show_analyses_with_different_arguments(client, two_topos, django_user_m
     #
     # Check response, all three analyses should be shown
     #
-    response = client.get(reverse("analysis:card"),
+    response = client.post(reverse("analysis:card"),
                            data={
                                'topography_ids[]': [topo1.id],
                                'function_id': af.id,
@@ -561,7 +561,7 @@ def test_rms_values_rounded(rf, mocker):
     func = AnalysisFunction.objects.get(name='RMS Values')
     AnalysisFactory(topography=topo, function=func)
 
-    request = rf.get(reverse('analysis:card'), data={
+    request = rf.post(reverse('analysis:card'), data={
             'function_id': func.id,
             'card_id': 'card',
             'template_flavor': 'list',
@@ -864,15 +864,15 @@ def test_view_shared_analysis_results(client, handle_usage_statistics):
     #
     assert client.login(username=user1.username, password=password)
 
-    response = client.get(reverse("analysis:card"),
-                          data={
-                              'topography_ids[]': [topo1a.id, topo1b.id, topo2a.id],
-                              'function_id': func1.id,
-                              'card_idx': 1,
-                              'template_flavor': 'list'
-                          },
-                          HTTP_X_REQUESTED_WITH='XMLHttpRequest',
-                          follow=True)
+    response = client.post(reverse("analysis:card"),
+                           data={
+                               'topography_ids[]': [topo1a.id, topo1b.id, topo2a.id],
+                               'function_id': func1.id,
+                               'card_id': 1,
+                               'template_flavor': 'list'
+                           },
+                           HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+                           follow=True)
 
     assert response.status_code == 200
 
@@ -888,15 +888,15 @@ def test_view_shared_analysis_results(client, handle_usage_statistics):
     #
     assert client.login(username=user2.username, password=password)
 
-    response = client.get(reverse("analysis:card"),
-                          data={
-                              'topography_ids[]': [topo1a.id, topo1b.id, topo2a.id],
-                              'function_id': func1.id,
-                              'card_idx': 1,
-                              'template_flavor': 'list'
-                          },
-                          HTTP_X_REQUESTED_WITH='XMLHttpRequest',
-                          follow=True)
+    response = client.post(reverse("analysis:card"),
+                           data={
+                               'topography_ids[]': [topo1a.id, topo1b.id, topo2a.id],
+                               'function_id': func1.id,
+                               'card_id': 1,
+                               'template_flavor': 'list'
+                           },
+                           HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+                           follow=True)
 
     assert response.status_code == 200
 

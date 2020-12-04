@@ -9,6 +9,8 @@
   if an analysis has been finished, but the corresponding
   topography was already deleted in meanwhile - analysis
   is deleted then (#500)
+- fixed error when too many topographies were 
+  selected (#330)   
 
 ## 0.9.5 (2020-12-01)
 

@@ -78,7 +78,7 @@ def switch_card_view(request):
     it return the response instead.
 
     The request must have a "function_id" in its
-    GET parameters.
+    POST parameters.
 
     :param request:
     :return: HTTPResponse
@@ -87,9 +87,9 @@ def switch_card_view(request):
         return Http404
 
     try:
-        function_id = int(request.GET.get('function_id'))
+        function_id = int(request.POST.get('function_id'))
     except (KeyError, ValueError, TypeError):
-        return HttpResponse("Error in GET arguments")
+        return HttpResponse("Error in POST arguments")
 
     function = AnalysisFunction.objects.get(id=function_id)
 
@@ -121,12 +121,12 @@ class SimpleCardView(TemplateView):
         Uses request parameter 'template_flavor'.
         """
         try:
-            template_flavor = self.request.GET.get('template_flavor')
+            template_flavor = self.request.POST.get('template_flavor')
         except (KeyError, ValueError):
-            raise ValueError("Cannot read 'template_flavor' from GET arguments.")
+            raise ValueError("Cannot read 'template_flavor' from POST arguments.")
 
         if template_flavor is None:
-            raise ValueError("Missing 'template_flavor' in GET arguments.")
+            raise ValueError("Missing 'template_flavor' in POST arguments.")
 
         template_name = self._template_name(self.__class__.__name__, template_flavor)
 
@@ -145,7 +145,7 @@ class SimpleCardView(TemplateView):
     def get_context_data(self, **kwargs):
         """
 
-        Gets function ids and topography ids from GET parameters.
+        Gets function ids and topography ids from POST parameters.
 
 
         :return: dict to be used in analysis card templates' context
@@ -166,7 +166,7 @@ class SimpleCardView(TemplateView):
         context = super().get_context_data(**kwargs)
 
         request = self.request
-        request_method = request.GET
+        request_method = request.POST
         user = request.user
 
         try:
@@ -174,7 +174,7 @@ class SimpleCardView(TemplateView):
             card_id = request_method.get('card_id')
             topography_ids = [int(tid) for tid in request_method.getlist('topography_ids[]')]
         except (KeyError, ValueError):
-            return HttpResponse("Error in GET arguments")
+            return HttpResponse("Error in POST arguments")
 
         #
         # Get all relevant analysis objects for this function and topography ids
@@ -276,7 +276,7 @@ class SimpleCardView(TemplateView):
 
         return context
 
-    def get(self, request, *args, **kwargs):
+    def post(self, request, *args, **kwargs):
         """
         Returns status code
 
@@ -582,7 +582,7 @@ class PlotCardView(SimpleCardView):
         # add code for setting styles of widgetbox elements
         # js_code += """
         # style_checkbox_labels({});
-        # """.format(card_idx)
+        # """.format(card_id)
 
         toggle_lines_callback = CustomJS(args=js_args, code=js_code)
         toggle_topography_checkboxes = CustomJS(args=js_args, code="""
@@ -1369,7 +1369,7 @@ class AnalysesListView(FormView):
 
     @staticmethod
     def _selected_functions(request):
-        """Returns selected functions as saved in session or, if given, in GET parameters.
+        """Returns selected functions as saved in session or, if given, in POST parameters.
         """
         function_ids = request.session.get('selected_functions', [])
         functions = AnalysisFunction.objects.filter(id__in=function_ids)

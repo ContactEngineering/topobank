@@ -22,7 +22,7 @@ def test_counts_analyses_views(client, mocker, handle_usage_statistics):
     # the views the user sees, load that URL via ajax which is not executed
     # during this test - so we must imitate the AJAX call here
     def send_card_request():
-        response = client.get(reverse('analysis:card'), data={
+        response = client.post(reverse('analysis:card'), data={
             'function_id': function.id,
             'card_id': 'card',
             'template_flavor': 'list',

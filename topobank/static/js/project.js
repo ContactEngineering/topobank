@@ -119,14 +119,15 @@ function submit_analyses_card_ajax(card_url, card_element_id, template_flavor, f
       $(jquery_indicator_selector).text('Please wait'+dots);
 
       $.ajax({
-        type: "GET",
+        type: "POST",
         url: card_url,
         timeout: 0,
         data: {
            card_id: card_element_id,
            template_flavor: template_flavor,
            function_id: function_id,
-           topography_ids: topography_ids
+           topography_ids: topography_ids,
+           csrfmiddlewaretoken: csrf_token
         },
         success : function(data, textStatus, xhr) {
 
