@@ -709,19 +709,22 @@ class SelectView(TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        #
-        # The session needs a default for the state of the select tab
-        #
         session = self.request.session
-        select_tab_state = session.get('select_tab_state',
-                                       default=DEFAULT_SELECT_TAB_STATE.copy())
 
-        # only overwrite search term in select tab state and only
-        # if given explicitly as request parameter
-        # otherwise keep search term from session variable 'select_tab_state'
         search_term = get_search_term(self.request)
         if search_term:
+            # When searching, we want the default select tab state except for
+            # the search term, which is taken from thr request parameters.
+            # If not using the default select tab state, this can result
+            # in "Load Error!" on the page (#543) because e.g. page 2
+            # is not available in the result.
+            select_tab_state = DEFAULT_SELECT_TAB_STATE.copy()
             select_tab_state['search_term'] = search_term
+        else:
+            # .. otherwise keep search term from session variable 'select_tab_state'
+            #    and all other state settings
+            select_tab_state = session.get('select_tab_state',
+                                           default=DEFAULT_SELECT_TAB_STATE.copy())
 
         # key: tree mode
         context['base_urls'] = {
@@ -742,6 +745,7 @@ class SelectView(TemplateView):
 
         context['select_tab_state'] = select_tab_state.copy()
 
+        # The session needs a default for the state of the select tab
         session['select_tab_state'] = select_tab_state
 
         return context

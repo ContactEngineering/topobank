@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 0.9.6 (not published yet)
+
+- fixed load error in some cases when searching (#543)
+
 ## 0.9.5 (2020-12-01)
 
 - new layout: menu bar instead of tabs, 

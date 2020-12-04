@@ -1231,6 +1231,26 @@ def test_select_tab_state_should_be_default_after_login(client):
     assert response.context['select_tab_state'] == DEFAULT_SELECT_TAB_STATE
 
 
+@pytest.mark.django_db
+def test_select_tab_state_should_be_default_after_search(client, handle_usage_statistics):
+
+    state_before_search = DEFAULT_SELECT_TAB_STATE.copy()
+    state_before_search['current_page'] = 2
+
+    user = UserFactory()
+    client.force_login(user)
+    client.session['select_tab_state'] = state_before_search
+
+    response = client.get(reverse('search'), data={'search': 'what I want to find'}, follow=True)
+
+    exp_state_after_search = DEFAULT_SELECT_TAB_STATE.copy()
+    exp_state_after_search['search_term'] = 'what I want to find'
+
+    assert exp_state_after_search['current_page'] == 1
+
+    assert response.context['select_tab_state'] == exp_state_after_search
+
+
 
 
 
