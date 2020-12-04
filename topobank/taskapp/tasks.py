@@ -104,7 +104,7 @@ def perform_analysis(self, analysis_id):
     analysis.save()
 
     def save_result(result, task_state):
-        _log.warn("Saving analysis result..")
+        _log.debug("Saving analysis result..")
         analysis.task_state = task_state
         analysis.result = pickle.dumps(result)  # can also be an exception in case of errors!
         analysis.end_time = timezone.now()  # with timezone
