@@ -5,6 +5,10 @@
 - added display of license when viewing a published 
   surface (#566) 
 - fixed load error in some cases when searching (#543)
+- fixed database error (foreign key violation) in logs 
+  if an analysis has been finished, but the corresponding
+  topography was already deleted in meanwhile - analysis
+  is deleted then (#500)
 
 ## 0.9.5 (2020-12-01)
 
