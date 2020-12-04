@@ -219,9 +219,10 @@ def test_link_for_sharing_info(client):
 def test_sharing_info_table(client, handle_usage_statistics):
     password = "secret"
 
-    user1 = UserFactory(password=password)
-    user2 = UserFactory(password=password)
-    user3 = UserFactory(password=password)
+    # adding users with defined order when ordered by name
+    user1 = UserFactory(name='A', password=password)
+    user2 = UserFactory(name='B', password=password)
+    user3 = UserFactory(name='C', password=password)
 
     surface1 = SurfaceFactory(creator=user1)
     surface2 = SurfaceFactory(creator=user2)
@@ -262,7 +263,6 @@ def test_sharing_info_table(client, handle_usage_statistics):
     ]
 
     client.logout()
-
 
     #
     # Test for user 2

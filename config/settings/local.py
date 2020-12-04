@@ -137,6 +137,11 @@ LOGGING = {
             'level': 'DEBUG',
             'handlers': ['console'],
             'propagate': True
-        }
+        },
+        'topobank.taskapp.tasks': {
+            'level': 'INFO',
+            'handlers': ['console'],
+            'propagate': True
+        },
     }
 }

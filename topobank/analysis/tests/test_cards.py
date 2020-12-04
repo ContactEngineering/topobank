@@ -34,7 +34,7 @@ def test_card_templates_simple(client, mocker, handle_usage_statistics):
     assert func1.python_function(1) == { 'name': 'Some result for 1'}
     assert func1.card_view_flavor == 'simple'
 
-    response = client.get(reverse('analysis:card'), data={
+    response = client.post(reverse('analysis:card'), data={
         'function_id': func1.id,
         'card_id': 'card',
         'template_flavor': 'list',
@@ -43,7 +43,7 @@ def test_card_templates_simple(client, mocker, handle_usage_statistics):
 
     assert response.template_name == [ 'analysis/simple_card_list.html']
 
-    response = client.get(reverse('analysis:card'), data={
+    response = client.post(reverse('analysis:card'), data={
         'function_id': func1.id,
         'card_id': 'card',
         'template_flavor': 'detail',
@@ -79,7 +79,7 @@ def test_card_templates_for_power_spectrum(client, mocker, handle_usage_statisti
     assert func1.python_function(1) == {'name': 'Some result for 1'}
     assert func1.card_view_flavor == 'power spectrum'
 
-    response = client.get(reverse('analysis:card'), data={
+    response = client.post(reverse('analysis:card'), data={
         'function_id': func1.id,
         'card_id': 'card',
         'template_flavor': 'list',
@@ -90,7 +90,7 @@ def test_card_templates_for_power_spectrum(client, mocker, handle_usage_statisti
     # hasn't got an own template with "list" flavor
     assert response.template_name == ['analysis/plot_card_list.html']
 
-    response = client.get(reverse('analysis:card'), data={
+    response = client.post(reverse('analysis:card'), data={
         'function_id': func1.id,
         'card_id': 'card',
         'template_flavor': 'detail',

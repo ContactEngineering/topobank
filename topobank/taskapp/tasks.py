@@ -1,11 +1,16 @@
 import pickle
 import traceback
+import logging
 
 from django.utils import timezone
+from django.db.utils import IntegrityError
 from django.conf import settings
 from django.shortcuts import reverse
 
 from celery_progress.backend import ProgressRecorder
+from celery.signals import after_setup_task_logger
+from celery.app.log import TaskFormatter
+from celery.utils.log import get_task_logger
 
 from notifications.signals import notify
 
@@ -23,6 +28,15 @@ from topobank.usage_stats.utils import increase_statistics_by_date, increase_sta
 
 
 EXCEPTION_CLASSES_FOR_INCOMPATIBILITIES = (IncompatibleTopographyException, IncompatibleFormulationError)
+
+_log = get_task_logger(__name__)
+
+@after_setup_task_logger.connect
+def setup_task_logger(logger, *args, **kwargs):
+    fmt = '%(asctime)s - %(task_id)s - %(task_name)s - %(name)s - %(levelname)s - %(message)s'
+    for handler in logger.handlers:
+        handler.setFormatter(TaskFormatter(fmt))
+
 
 
 def current_configuration():
@@ -90,23 +104,34 @@ def perform_analysis(self, analysis_id):
     analysis.save()
 
     def save_result(result, task_state):
+        _log.debug("Saving analysis result..")
         analysis.task_state = task_state
         analysis.result = pickle.dumps(result)  # can also be an exception in case of errors!
         analysis.end_time = timezone.now()  # with timezone
         if 'effective_kwargs' in result:
             analysis.kwargs = pickle.dumps(result['effective_kwargs'])
         analysis.save()
+        _log.debug("Done saving result.")
 
     #
     # actually perform analysis
     #
     try:
         kwargs = pickle.loads(analysis.kwargs)
+        _log.debug("Loading topography %s..", analysis.topography_id)
         topography = Topography.objects.get(id=analysis.topography_id).topography()
         kwargs['progress_recorder'] = progress_recorder
         kwargs['storage_prefix'] = analysis.storage_prefix
+        _log.debug("Evaluating analysis function '%s' on topography %s ..",
+                   analysis.function.name, analysis.topography_id)
         result = analysis.function.eval(topography, **kwargs)
         save_result(result, Analysis.SUCCESS)
+    except (Topography.DoesNotExist, IntegrityError):
+        _log.warning("Topography %s for analysis %s doesn't exist any more, so that analysis will be deleted..",
+                    analysis.topography_id, analysis.id)
+        analysis.delete()
+        # we want a real exception here so celery's flower can show the task as failure
+        raise
     except Exception as exc:
         is_incompatible = isinstance(exc, EXCEPTION_CLASSES_FOR_INCOMPATIBILITIES)
         save_result(dict(message=str(exc),
@@ -116,24 +141,33 @@ def perform_analysis(self, analysis_id):
         # we want a real exception here so celery's flower can show the task as failure
         raise
     finally:
-        #
-        # Check whether sth. is to be done because this analysis is part of a collection
-        #
-        for coll in analysis.analysiscollection_set.all():
-            check_analysis_collection.delay(coll.id)
 
-        #
-        # Add up number of seconds for CPU time
-        #
-        from trackstats.models import Metric
-        analysis = Analysis.objects.get(id=analysis_id)
-        td = analysis.end_time-analysis.start_time
-        increase_statistics_by_date(metric=Metric.objects.TOTAL_ANALYSIS_CPU_MS,
-                                    increment=1000*td.total_seconds())
-        increase_statistics_by_date_and_object(
-                                    metric=Metric.objects.TOTAL_ANALYSIS_CPU_MS,
-                                    obj=analysis.function,
-                                    increment=1000 * td.total_seconds())
+        # first check whether analysis is still there
+        try:
+            analysis = Analysis.objects.get(id=analysis_id)
+
+            #
+            # Check whether sth. is to be done because this analysis is part of a collection
+            #
+            for coll in analysis.analysiscollection_set.all():
+                check_analysis_collection.delay(coll.id)
+
+            #
+            # Add up number of seconds for CPU time
+            #
+            from trackstats.models import Metric
+
+            td = analysis.end_time-analysis.start_time
+            increase_statistics_by_date(metric=Metric.objects.TOTAL_ANALYSIS_CPU_MS,
+                                        increment=1000*td.total_seconds())
+            increase_statistics_by_date_and_object(
+                                        metric=Metric.objects.TOTAL_ANALYSIS_CPU_MS,
+                                        obj=analysis.function,
+                                        increment=1000 * td.total_seconds())
+
+        except Analysis.DoesNotExist:
+            # Analysis was deleted, e.g. because topography was missing
+            pass
 
 
 @app.task
