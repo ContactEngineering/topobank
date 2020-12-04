@@ -1,16 +1,18 @@
 # Changelog for *TopoBank*
 
-## 0.9.6 (not published yet)
+## 0.9.6 (2020-12-04)
 
 - added display of license when viewing a published 
-  surface (#566) 
+  surface (#566)
+- added "Please wait" label on "Recalculate" button
+  in contact mechanics when pressed
 - fixed load error in some cases when searching (#543)
 - fixed database error (foreign key violation) in logs 
   if an analysis has been finished, but the corresponding
   topography was already deleted in meanwhile - analysis
   is deleted then (#500)
 - fixed error when too many topographies were 
-  selected (#330)   
+  selected (#330)
 
 ## 0.9.5 (2020-12-01)
 
