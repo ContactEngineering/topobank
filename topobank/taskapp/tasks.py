@@ -127,8 +127,8 @@ def perform_analysis(self, analysis_id):
         result = analysis.function.eval(topography, **kwargs)
         save_result(result, Analysis.SUCCESS)
     except (Topography.DoesNotExist, IntegrityError):
-        _log.warn("Topography %s for analysis %s doesn't exist any more, so that analysis will be deleted..",
-                  analysis.topography_id, analysis.id)
+        _log.warning("Topography %s for analysis %s doesn't exist any more, so that analysis will be deleted..",
+                    analysis.topography_id, analysis.id)
         analysis.delete()
         # we want a real exception here so celery's flower can show the task as failure
         raise
