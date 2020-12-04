@@ -1360,6 +1360,7 @@ class SharingInfoTable(tables.Table):
 
     class Meta:
         orderable = True
+        order_by = ('surface', 'shared_with')
 
 
 def sharing_info(request):
