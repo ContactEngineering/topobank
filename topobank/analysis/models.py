@@ -1,9 +1,10 @@
 from django.db import models
+from django.db.models import CheckConstraint, Q
 
 import inspect
 import pickle
 
-from topobank.manager.models import Topography
+from topobank.manager.models import Topography, Surface
 from topobank.users.models import User
 import topobank.analysis.functions as functions_module
 
@@ -89,8 +90,10 @@ class Analysis(models.Model):
 
     function = models.ForeignKey('AnalysisFunction', on_delete=models.CASCADE)
 
-    topography = models.ForeignKey(Topography,
+    topography = models.ForeignKey(Topography, null=True,
                                    on_delete=models.CASCADE)
+    surface = models.ForeignKey(Surface, null=True,
+                                on_delete=models.CASCADE)
 
     # According to github #208, each user should be able to see analysis with parameters chosen by himself
     users = models.ManyToManyField(User)
@@ -133,6 +136,23 @@ class Analysis(models.Model):
     @property
     def storage_prefix(self):
         return "analyses/{}/".format(self.id)
+
+    @property
+    def subject(self):
+        if self.topography:
+            return self.topography
+        else:
+            # This does only work with the constraint that
+            # only one field of topography and surface is
+            # allowed to be NULL
+            return self.surface
+
+    class Meta:
+        # exactly one field of topography + surface must be NULL
+        constraints = [CheckConstraint(name='unique_subject',
+                                       check=(Q(topography__isnull=True) & Q(surface__isnull=False)) | \
+                                             (Q(topography__isnull=False) & Q(surface__isnull=True)))]
+
 
 
 class AnalysisFunction(models.Model):
