@@ -22,7 +22,7 @@ class AnalysisFunctionFactory(factory.django.DjangoModelFactory):
 
 
 def _analysis_result(analysis):
-    result = analysis.function.python_function(analysis.topography.topography(), **pickle.loads(analysis.kwargs))
+    result = analysis.function.python_function(analysis.topography, **pickle.loads(analysis.kwargs))
     return pickle.dumps(result)
 
 

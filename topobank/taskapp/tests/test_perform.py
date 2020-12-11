@@ -14,7 +14,7 @@ def test_perform_analysis(mocker, two_topos, settings):
 
     def my_func(topography, a, b, bins=15, window='hann', progress_recorder=None, storage_prefix=None):
         return {
-            'topotype': type(topography),
+            'topotype': type(topography.topography()),
             'x': (a+b)*bins,
             's': window
         }

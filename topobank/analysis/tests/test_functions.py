@@ -1,6 +1,7 @@
 import numpy as np
 import math
 import pytest
+from dataclasses import dataclass
 
 from SurfaceTopography import Topography, NonuniformLineScan
 
@@ -9,6 +10,23 @@ from topobank.analysis.functions import (
     height_distribution, slope_distribution, curvature_distribution,
     power_spectrum, autocorrelation, variable_bandwidth,
     contact_mechanics, rms_values)
+
+
+###############################################################################
+# Helpers
+###############################################################################
+
+@dataclass(frozen=True)
+class FakeTopographyModel:
+    """This model is used to create a Topography for being passed to analysis functions.
+    """
+    t: Topography
+
+    def topography(self):
+        """Return low level topography.
+        """
+        return self.t
+
 
 ###############################################################################
 # Tests for line scans
@@ -24,7 +42,9 @@ def test_height_distribution_simple_line_scan():
 
     t = NonuniformLineScan(x,y,info=info).detrend(detrend_mode='center')
 
-    result = height_distribution(t)
+    topography = FakeTopographyModel(t)
+
+    result = height_distribution(topography)
 
     assert list(result.keys()) == ['name', 'scalars', 'xlabel', 'ylabel', 'xunit', 'yunit', 'series']
 
@@ -57,7 +77,9 @@ def test_slope_distribution_simple_line_scan():
 
     t = NonuniformLineScan(x, y).detrend(detrend_mode='center')
 
-    result = slope_distribution(t, bins=3)
+    topography = FakeTopographyModel(t)
+
+    result = slope_distribution(topography, bins=3)
 
     assert sorted(result.keys()) == sorted(['name', 'scalars', 'xlabel', 'ylabel', 'xunit', 'yunit', 'series'])
 
@@ -91,9 +113,10 @@ def test_curvature_distribution_simple_line_scan():
     y = -2*x**2 # constant curvature
 
     t = NonuniformLineScan(x, y, info=dict(unit=unit)).detrend(detrend_mode='center')
+    topography = FakeTopographyModel(t)
 
     bins = np.array((-4.75,-4.25,-3.75,-3.25)) # special for this test in order to know results
-    result = curvature_distribution(t, bins=bins)
+    result = curvature_distribution(topography, bins=bins)
 
     assert sorted(result.keys()) == sorted(['name', 'scalars', 'xlabel', 'ylabel', 'xunit', 'yunit', 'series'])
 
@@ -132,8 +155,9 @@ def test_power_spectrum_simple_nonuniform_linescan():
     y = -2*x**2 # constant curvature
 
     t = NonuniformLineScan(x, y, info=dict(unit=unit)).detrend(detrend_mode='center')
+    topography = FakeTopographyModel(t)
 
-    result = power_spectrum(t)
+    result = power_spectrum(topography)
 
     assert sorted(result.keys()) == sorted(['name', 'xlabel', 'ylabel', 'xunit', 'yunit', 'xscale', 'yscale', 'series'])
 
@@ -161,8 +185,9 @@ def test_autocorrelation_simple_nonuniform_topography():
     info = dict(unit='nm')
 
     t = NonuniformLineScan(x, h, info=info).detrend('center')
+    topography = FakeTopographyModel(t)
 
-    result = autocorrelation(t)
+    result = autocorrelation(topography)
 
     assert sorted(result.keys()) == sorted(['name', 'xlabel', 'ylabel', 'xscale', 'yscale', 'xunit', 'yunit', 'series'])
 
@@ -178,8 +203,9 @@ def test_variable_bandwidth_simple_nonuniform_linescan():
     info = dict(unit='nm')
 
     t = NonuniformLineScan(x, h, info=info).detrend('center')
+    topography = FakeTopographyModel(t)
 
-    result = variable_bandwidth(t)
+    result = variable_bandwidth(topography)
 
     assert sorted(result.keys()) == sorted(['name', 'xlabel', 'ylabel', 'xscale', 'yscale', 'xunit', 'yunit', 'series'])
 
@@ -210,8 +236,8 @@ def simple_2d_topography():
 def test_height_distribution_simple_2d_topography(simple_2d_topography):
 
     exp_unit = simple_2d_topography.info['unit']
-
-    result = height_distribution(simple_2d_topography, bins=10)
+    topography = FakeTopographyModel(simple_2d_topography)
+    result = height_distribution(topography, bins=10)
 
     assert sorted(result.keys()) == sorted(['name', 'scalars', 'xlabel', 'ylabel', 'xunit', 'yunit', 'series'])
 
@@ -245,8 +271,8 @@ def test_height_distribution_simple_2d_topography(simple_2d_topography):
 def test_slope_distribution_simple_2d_topography(simple_2d_topography):
 
     # resulting heights follow this function: h(x,y)=-4y+9
-
-    result = slope_distribution(simple_2d_topography, bins=3)
+    topography = FakeTopographyModel(simple_2d_topography)
+    result = slope_distribution(topography, bins=3)
 
     assert sorted(result.keys()) == sorted(['name', 'scalars', 'xlabel', 'ylabel', 'xunit', 'yunit', 'series'])
 
@@ -294,7 +320,8 @@ def test_curvature_distribution_simple_2d_topography(simple_2d_topography):
     unit = simple_2d_topography.info['unit']
     # resulting heights follow this function: h(x,y)=-4y+9
 
-    result = curvature_distribution(simple_2d_topography, bins=3)
+    topography = FakeTopographyModel(simple_2d_topography)
+    result = curvature_distribution(topography, bins=3)
 
     assert sorted(result.keys()) == sorted(['name', 'scalars', 'xlabel', 'ylabel', 'xunit', 'yunit', 'series'])
 
@@ -335,10 +362,10 @@ def test_curvature_distribution_simple_2d_topography_periodic():
     arr = np.sin(y/2/np.pi) # only slope in y direction, second derivative is -sin
 
     t = Topography(arr, (100,100), periodic=True, info=info).detrend('center')
-
     # resulting heights follow this function: h(x,y)=-4y+9
 
-    result = curvature_distribution(t, bins=3)
+    topography = FakeTopographyModel(t)
+    result = curvature_distribution(topography, bins=3)
 
     assert sorted(result.keys()) == sorted(['name', 'scalars', 'xlabel', 'ylabel', 'xunit', 'yunit', 'series'])
 
@@ -351,9 +378,10 @@ def test_curvature_distribution_simple_2d_topography_periodic():
 def test_power_spectrum_simple_2d_topography(simple_2d_topography):
 
     unit = simple_2d_topography.info['unit']
-
     # resulting heights follow this function: h(x,y)=-4y+9
-    result = power_spectrum(simple_2d_topography)
+
+    topography = FakeTopographyModel(simple_2d_topography)
+    result = power_spectrum(topography)
 
     assert sorted(result.keys()) == sorted(['name', 'xlabel', 'ylabel', 'xunit', 'yunit', 'xscale', 'yscale', 'series'])
 
@@ -378,8 +406,8 @@ def test_power_spectrum_simple_2d_topography(simple_2d_topography):
 def test_autocorrelation_simple_2d_topography(simple_2d_topography):
 
     # resulting heights follow this function: h(x,y)=-4y+9
-
-    result = autocorrelation(simple_2d_topography)
+    topography = FakeTopographyModel(simple_2d_topography)
+    result = autocorrelation(topography)
 
     assert sorted(result.keys()) == sorted(['name', 'xlabel', 'ylabel', 'xscale', 'yscale', 'xunit', 'yunit', 'series'])
 
@@ -390,9 +418,8 @@ def test_autocorrelation_simple_2d_topography(simple_2d_topography):
 
 def test_variable_bandwidth_simple_2d_topography(simple_2d_topography):
 
-    # resulting heights follow this function: h(x,y)=-4y+9
-
-    result = variable_bandwidth(simple_2d_topography)
+    topography = FakeTopographyModel(simple_2d_topography)
+    result = variable_bandwidth(topography)
 
     assert sorted(result.keys()) == sorted(['name', 'xlabel', 'ylabel', 'xscale', 'yscale', 'xunit', 'yunit', 'series'])
 
@@ -406,9 +433,10 @@ def test_contact_mechanics_incompatible_topography():
     arr = 2*x
     info = dict(unit='nm')
     t = NonuniformLineScan(x,arr, info=info).detrend("center")
+    topography = FakeTopographyModel(t)
 
     with pytest.raises(IncompatibleTopographyException):
-        contact_mechanics(t)
+        contact_mechanics(topography)
 
 
 def test_contact_mechanics_whether_given_pressures_in_result(simple_2d_topography):
@@ -418,8 +446,8 @@ def test_contact_mechanics_whether_given_pressures_in_result(simple_2d_topograph
             pass  # dummy
 
     given_pressures = [2e-3, 1e-2]
-
-    result = contact_mechanics(simple_2d_topography,
+    topography = FakeTopographyModel(simple_2d_topography)
+    result = contact_mechanics(topography,
                                nsteps=None, pressures=given_pressures, storage_prefix='test/',
                                progress_recorder=ProgressRecorder())
 
@@ -441,7 +469,8 @@ def test_contact_mechanics_effective_kwargs_in_result(periodic):
         def set_progress(self, a, nsteps):
             pass  # dummy
 
-    result = contact_mechanics(t, nsteps=10, storage_prefix='test/',
+    topography = FakeTopographyModel(t)
+    result = contact_mechanics(topography, nsteps=10, storage_prefix='test/',
                                progress_recorder=ProgressRecorder())
 
     exp_effective_kwargs = dict(
@@ -456,10 +485,11 @@ def test_contact_mechanics_effective_kwargs_in_result(periodic):
 
 def test_rms_values(simple_2d_topography):
 
-    t = simple_2d_topography
-    unit = t.info['unit']
+
+    unit = simple_2d_topography.info['unit']
     inverse_unit = '{}⁻¹'.format(unit)
-    result = rms_values(simple_2d_topography)
+    topography = FakeTopographyModel(simple_2d_topography)
+    result = rms_values(topography)
 
     assert result == [
         {

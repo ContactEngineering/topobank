@@ -1,7 +1,7 @@
 """
 Functions which can be chosen for analysis of topographies.
 
-The first argument is always a SurfaceTopography.Topography!
+The first argument is a Topography or Surface instance (model).
 """
 
 import numpy as np
@@ -249,6 +249,7 @@ class IncompatibleTopographyException(Exception):
 #
 # @analysis_function(card_view_flavor='simple', automatic=True)
 # def long_running_task(topography, progress_recorder=None, storage_prefix=None):
+#     topography = topography.topography()
 #     import time, random
 #     n = 10 + random.randint(1,10)
 #     F = 30
@@ -262,6 +263,9 @@ class IncompatibleTopographyException(Exception):
 
 @analysis_function(card_view_flavor='plot', automatic=True)
 def height_distribution(topography, bins=None, wfac=5, progress_recorder=None, storage_prefix=None):
+
+    # Get low level topography from SurfaceTopography model
+    topography = topography.topography()
 
     if bins is None:
         bins = _reasonable_bins_argument(topography)
@@ -358,6 +362,9 @@ def _moments_histogram_gaussian(arr, bins, wfac, quantity, label, unit, gaussian
 @analysis_function(card_view_flavor='plot', automatic=True)
 def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, storage_prefix=None):
 
+    # Get low level topography from SurfaceTopography model
+    topography = topography.topography()
+
     if bins is None:
         bins = _reasonable_bins_argument(topography)
 
@@ -422,6 +429,10 @@ def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, st
 
 @analysis_function(card_view_flavor='plot', automatic=True)
 def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None, storage_prefix=None):
+
+    # Get low level topography from SurfaceTopography model
+    topography = topography.topography()
+
     if bins is None:
         bins = _reasonable_bins_argument(topography)
 
@@ -476,6 +487,10 @@ def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None
 
 @analysis_function(card_view_flavor='plot', automatic=True)
 def power_spectrum(topography, window=None, tip_radius=None, progress_recorder=None, storage_prefix=None):
+
+    # Get low level topography from SurfaceTopography model
+    topography = topography.topography()
+
     if window == 'None':
         window = None
 
@@ -534,6 +549,9 @@ def power_spectrum(topography, window=None, tip_radius=None, progress_recorder=N
 
 @analysis_function(card_view_flavor='plot', automatic=True)
 def autocorrelation(topography, progress_recorder=None, storage_prefix=None):
+
+    # Get low level topography from SurfaceTopography model
+    topography = topography.topography()
 
     if topography.dim == 2:
         sx, sy = topography.physical_sizes
@@ -614,6 +632,9 @@ def autocorrelation(topography, progress_recorder=None, storage_prefix=None):
 
 @analysis_function(card_view_flavor='plot', automatic=True)
 def variable_bandwidth(topography, progress_recorder=None, storage_prefix=None):
+
+    # Get low level topography from SurfaceTopography model
+    topography = topography.topography()
 
     magnifications, bandwidths, rms_heights = topography.variable_bandwidth()
 
@@ -815,6 +836,9 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
     :return:
     """
 
+    # Get low level topography from SurfaceTopography model
+    topography = topography.topography()
+
     if topography.dim == 1:
         raise IncompatibleTopographyException("Contact mechanics not implemented for line scans.")
 
@@ -959,9 +983,9 @@ def rms_values(topography, progress_recorder=None, storage_prefix=None):
 
     Parameters
     ----------
-    topography
-    progress_recorder
-    storage_prefix
+    topography: topobank.manager.models.Topography
+    progress_recorder: celery_progress.backend.ProgressRecorder or None
+    storage_prefix: str or None
 
     Returns
     -------
@@ -972,6 +996,9 @@ def rms_values(topography, progress_recorder=None, storage_prefix=None):
      value
      unit
     """
+
+    # Get low level topography from SurfaceTopography model
+    topography = topography.topography()
 
     try:
         unit = topography.info['unit']
