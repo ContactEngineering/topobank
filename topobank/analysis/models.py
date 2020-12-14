@@ -154,7 +154,6 @@ class Analysis(models.Model):
                                              (Q(topography__isnull=False) & Q(surface__isnull=True)))]
 
 
-
 class AnalysisFunction(models.Model):
     name = models.CharField(max_length=80, help_text="A human-readable name.", unique=True)
     pyfunc = models.CharField(max_length=256,
