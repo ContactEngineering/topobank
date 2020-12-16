@@ -174,20 +174,13 @@ class AnalysisFunction(models.Model):
         """
         return self.python_function(*args, **kwargs)
 
-    def get_default_kwargs(self, include_system_kwargs=False):
+    def get_default_kwargs(self):
+        """Return default keyword arguments as dict.
+
+        Administrative arguments like
+        'storage_prefix' and 'progress_recorder'
+        which are common to all functions, are excluded.
         """
-
-        Parameters
-        ----------
-        include_system_kwargs: bool
-            If True, returns also keyword arguments which are needed for administration and UI
-            but have no scientific meaning.
-
-        Returns
-        -------
-        Dict with default kwargs.
-        """
-
         dkw = _get_default_args(self.python_function)
         if 'storage_prefix' in dkw:
             del dkw['storage_prefix']
