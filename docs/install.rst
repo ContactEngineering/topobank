@@ -52,18 +52,10 @@ Dann Abhängigkeiten installieren:
 
     $ pip install -r requirements/local.txt
     $ pip install -r requirements/test.txt    # um tests laufen zu lassen
-    $ pip install matplotlib          # fehlt noch in requirements
 
 (Bei mir unter Ubuntu war hier noch "sudo apt-get install python3-tk" nötig)
 
-PyCo installieren in virtual environment, z.B.
-
-.. code:: bash
-
-     # cd ../PyCo; pip install -r requirements.txt; pip install .
-     # ... oder wo auch immer Pyco bei Dir ist
-
-Datenbank (momentan noch SQLite) initialisieren mit
+Datenbank initialisieren mit
 
 .. code:: bash
 
