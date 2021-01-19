@@ -5,7 +5,41 @@ from django.db.models.functions import Lower
 
 from ..models import Analysis, AnalysisFunction
 from topobank.manager.models import Topography
-from topobank.manager.tests.utils import two_topos
+from topobank.manager.tests.utils import two_topos  # needed for fixture
+from .utils import AnalysisFunctionFactory, AnalysisFunctionImplementationFactory, TopographyFactory
+from ..registry import ImplementationMissingException
+
+
+@pytest.mark.django_db
+def test_exception_implementation_missing():
+    pass
+
+
+@pytest.mark.django_db
+def test_analysis_function_implementation():
+    impl = AnalysisFunctionImplementationFactory()
+    from ..functions import topography_analysis_function_for_tests
+
+    assert impl.python_function() == topography_analysis_function_for_tests
+    assert impl.get_default_kwargs() == dict(a=1, b="foo")
+
+    t = TopographyFactory()
+    result = impl.eval(t, a=2, b="bar")
+    assert result['comment'] == f"a is 2 and b is bar"
+
+
+@pytest.mark.django_db
+def test_analysis_function():
+    func = AnalysisFunctionFactory()
+    impl = AnalysisFunctionImplementationFactory(function=func)
+    from ..functions import topography_analysis_function_for_tests
+
+    assert func.python_function(Topography) == topography_analysis_function_for_tests
+    assert func.get_default_kwargs(Topography) == dict(a=1, b="foo")
+
+    t = TopographyFactory()
+    result = func.eval(t, a=2, b="bar")
+    assert result['comment'] == f"a is 2 and b is bar"
 
 
 @pytest.mark.django_db
@@ -27,7 +61,7 @@ def test_analysis_times(two_topos):
     assert analysis.end_time == datetime.datetime(2018, 1, 1, 13)
     assert analysis.duration() == datetime.timedelta(0, 3600)
 
-    assert analysis.get_kwargs_display() == str({'bins':2, 'mode': 'test'})
+    assert analysis.get_kwargs_display() == str({'bins': 2, 'mode': 'test'})
 
 
 # @pytest.mark.skip("Cannot run startup code which modifies the database so far.")
@@ -42,20 +76,20 @@ def test_autoload_analysis_functions():
     funcs = AnalysisFunction.objects.all().order_by('name')
 
     expected_funcs = sorted([
-        dict(pyfunc='height_distribution', automatic=True, name='Height Distribution',),
-        dict(pyfunc='slope_distribution', automatic=True, name='Slope Distribution'),
-        dict(pyfunc='curvature_distribution', automatic=True, name='Curvature Distribution'),
-        dict(pyfunc='power_spectrum', automatic=True, name='Power Spectrum'),
-        dict(pyfunc='autocorrelation', automatic=True, name='Autocorrelation'),
-        dict(pyfunc='variable_bandwidth', automatic=True, name='Variable Bandwidth'),
-        dict(pyfunc='contact_mechanics', automatic=True, name='Contact Mechanics'),
-        dict(pyfunc='rms_values', automatic=True, name='RMS Values'),
+        dict(name='Height Distribution',),
+        dict(name='Slope Distribution'),
+        dict(name='Curvature Distribution'),
+        dict(name='Power Spectrum'),
+        dict(name='Autocorrelation'),
+        dict(name='Variable Bandwidth'),
+        dict(name='Contact Mechanics'),
+        dict(name='RMS Values'),
     ], key=itemgetter('name'))
 
-    assert len(expected_funcs) == len(funcs)
+    assert len(expected_funcs) == len(funcs), f"Wrong number of registered functions: {funcs}"
 
     for f, exp_f in zip(funcs, expected_funcs):
-        for k in ['pyfunc', 'automatic', 'name']:
+        for k in ['name']:
             assert getattr(f, k) == exp_f[k]
 
     #
@@ -66,23 +100,24 @@ def test_autoload_analysis_functions():
     funcs = AnalysisFunction.objects.all()
     assert len(expected_funcs) == len(funcs)
 
+
 @pytest.mark.django_db
 def test_default_function_kwargs():
     from django.core.management import call_command
 
     call_command('register_analysis_functions')
 
-    func = AnalysisFunction.objects.get(pyfunc='contact_mechanics')
+    func = AnalysisFunction.objects.get(name='Contact Mechanics')
 
     expected_kwargs = dict(
-        substrate_str = None,
-        hardness = None,
-        nsteps = 10,
-        pressures = None,
-        maxiter = 100,
+        substrate_str=None,
+        hardness=None,
+        nsteps=10,
+        pressures=None,
+        maxiter=100,
     )
 
-    assert func.get_default_kwargs() == expected_kwargs
+    assert func.get_default_kwargs(Topography) == expected_kwargs
 
 
 @pytest.mark.django_db

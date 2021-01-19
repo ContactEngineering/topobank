@@ -1,216 +1,43 @@
 """
-Functions which can be chosen for analysis of topographies.
+Implementations of analysis functions for topographies and surfaces.
 
-The first argument is a Topography or Surface instance (model).
+The first argument is either a Topography or Surface instance (model).
 """
+from django.core.files.storage import default_storage
+from django.core.files import File
+from django.conf import settings
 
+import xarray as xr
 import numpy as np
 import tempfile
 
-# These imports are needed for storage
-from django.core.files.storage import default_storage
-from django.core.files import File
-import xarray as xr
-
 from SurfaceTopography import Topography, PlasticTopography
-
 from ContactMechanics import PeriodicFFTElasticHalfSpace, FreeFFTElasticHalfSpace, make_system
 
-CONTACT_MECHANICS_KWARGS_LIMITS = {
-            'nsteps': dict(min=1, max=50),
-            'maxiter': dict(min=1, max=1000),
-            'pressures': dict(maxlen=50),
-}
-
-# TODO: _unicode_map and super and subscript functions should be moved to some support module.
-
-_unicode_map = {
-    # superscript subscript
-    '0': ('\u2070', '\u2080'),
-    '1': ('\u00B9', '\u2081'),
-    '2': ('\u00B2', '\u2082'),
-    '3': ('\u00B3', '\u2083'),
-    '4': ('\u2074', '\u2084'),
-    '5': ('\u2075', '\u2085'),
-    '6': ('\u2076', '\u2086'),
-    '7': ('\u2077', '\u2087'),
-    '8': ('\u2078', '\u2088'),
-    '9': ('\u2079', '\u2089'),
-    'a': ('\u1d43', '\u2090'),
-    'b': ('\u1d47', '?'),
-    'c': ('\u1d9c', '?'),
-    'd': ('\u1d48', '?'),
-    'e': ('\u1d49', '\u2091'),
-    'f': ('\u1da0', '?'),
-    'g': ('\u1d4d', '?'),
-    'h': ('\u02b0', '\u2095'),
-    'i': ('\u2071', '\u1d62'),
-    'j': ('\u02b2', '\u2c7c'),
-    'k': ('\u1d4f', '\u2096'),
-    'l': ('\u02e1', '\u2097'),
-    'm': ('\u1d50', '\u2098'),
-    'n': ('\u207f', '\u2099'),
-    'o': ('\u1d52', '\u2092'),
-    'p': ('\u1d56', '\u209a'),
-    'q': ('?', '?'),
-    'r': ('\u02b3', '\u1d63'),
-    's': ('\u02e2', '\u209b'),
-    't': ('\u1d57', '\u209c'),
-    'u': ('\u1d58', '\u1d64'),
-    'v': ('\u1d5b', '\u1d65'),
-    'w': ('\u02b7', '?'),
-    'x': ('\u02e3', '\u2093'),
-    'y': ('\u02b8', '?'),
-    'z': ('?', '?'),
-    'A': ('\u1d2c', '?'),
-    'B': ('\u1d2e', '?'),
-    'C': ('?', '?'),
-    'D': ('\u1d30', '?'),
-    'E': ('\u1d31', '?'),
-    'F': ('?', '?'),
-    'G': ('\u1d33', '?'),
-    'H': ('\u1d34', '?'),
-    'I': ('\u1d35', '?'),
-    'J': ('\u1d36', '?'),
-    'K': ('\u1d37', '?'),
-    'L': ('\u1d38', '?'),
-    'M': ('\u1d39', '?'),
-    'N': ('\u1d3a', '?'),
-    'O': ('\u1d3c', '?'),
-    'P': ('\u1d3e', '?'),
-    'Q': ('?', '?'),
-    'R': ('\u1d3f', '?'),
-    'S': ('?', '?'),
-    'T': ('\u1d40', '?'),
-    'U': ('\u1d41', '?'),
-    'V': ('\u2c7d', '?'),
-    'W': ('\u1d42', '?'),
-    'X': ('?', '?'),
-    'Y': ('?', '?'),
-    'Z': ('?', '?'),
-    '+': ('\u207A', '\u208A'),
-    '-': ('\u207B', '\u208B'),
-    '=': ('\u207C', '\u208C'),
-    '(': ('\u207D', '\u208D'),
-    ')': ('\u207E', '\u208E'),
-    ':alpha': ('\u1d45', '?'),
-    ':beta': ('\u1d5d', '\u1d66'),
-    ':gamma': ('\u1d5e', '\u1d67'),
-    ':delta': ('\u1d5f', '?'),
-    ':epsilon': ('\u1d4b', '?'),
-    ':theta': ('\u1dbf', '?'),
-    ':iota': ('\u1da5', '?'),
-    ':pho': ('?', '\u1d68'),
-    ':phi': ('\u1db2', '?'),
-    ':psi': ('\u1d60', '\u1d69'),
-    ':chi': ('\u1d61', '\u1d6a'),
-    ':coffee': ('\u2615', '\u2615')
-}
-
-_analysis_funcs = [] # is used in register_all
+import topobank.manager.models  # will be used to evaluate model classes
+from .registry import AnalysisFunctionRegistry
 
 
-def register_all():
-    """Registers all analysis functions in the database.
-
-    Use @analysis_function decorator to mark analysis functions
-    in the code.
-
-    :returns: number of registered analysis functions
-    """
-    from .models import AnalysisFunction
-    for rf in _analysis_funcs:
-        AnalysisFunction.objects.update_or_create(name=rf['name'],
-                                                  pyfunc=rf['pyfunc'],
-                                                  automatic=rf['automatic'])
-    return len(_analysis_funcs)
-
-
-def analysis_function(card_view_flavor="simple", name=None, automatic=False):
-    """Decorator for marking a function as analysis function for a topography.
+def register_implementation(card_view_flavor="simple", name=None):
+    """Decorator for marking a function as implementation for an analysis function.
 
     :param card_view_flavor: defines how results for this function are displayed, see views.CARD_VIEW_FLAVORS
     :param name: human-readable name, default is to create this from function name
-    :param automatic: choose True, if you want to calculate this for every new topography
 
-    See views.py for possible view classes. The should be descendants of the class
-    "SimpleCardView".
+    Only card_view_flavor can be used which are defined in the
+    AnalysisFunction model. Additionally See views.py for possible view classes.
+    They should be descendants of the class "SimpleCardView".
     """
     def register_decorator(func):
         """
         :param func: function to be registered, first arg must be a Topography
         :return: decorated function
         """
-
-        if name is None:
-            name_ = func.__name__.replace('_', ' ').title()
-        else:
-            name_ = name
-
-        # the following data is used in "register_all" to create database objects for the function
-        _analysis_funcs.append(dict(
-            name = name_,
-            pyfunc = func.__name__,
-            automatic = automatic
-        ))
-
-        # TODO: Can a default argument be automated without writing it?
-        # Add progress_recorder argument with default value, if not defined:
-        # sig = signature(func)
-        #if 'progress_recorder' not in sig.parameters:
-        #    func = lambda *args, **kw: func(*args, progress_recorder=ConsoleProgressRecorder(), **kw)
-        #    # the console progress recorder will work in tests and when calling the function
-        #    # outside of an celery context
-        #    #
-        #    # When used in a celery context, this argument will be overwritten with
-        #    # another recorder updated by a celery task
-
-        func.card_view_flavor = card_view_flavor  # will be used when choosing the right view on request
+        registry = AnalysisFunctionRegistry()  # singleton
+        registry.add_implementation(name, card_view_flavor, func)
         return func
 
     return register_decorator
-
-
-def unicode_superscript(s):
-    """
-    Convert a string into the unicode superscript equivalent.
-
-    :param s: Input string
-    :return: String with superscript numerals
-    """
-    return ''.join(_unicode_map[c][0] if c in _unicode_map else c for c in s)
-
-
-def unicode_subscript(s):
-    """
-    Convert numerals inside a string into the unicode subscript equivalent.
-
-    :param s: Input string
-    :return: String with superscript numerals
-    """
-    return ''.join(_unicode_map[c][1] if c in _unicode_map else c for c in s)
-
-
-def float_to_unicode(f, digits=3):
-    """
-    Convert a floating point number into a human-readable unicode representation.
-    Examples are: 1.2×10³, 120.43, 120×10⁻³. Exponents will be multiples of three.
-
-    :param f: Floating-point number for conversion.
-    :param digits: Number of significant digits.
-    :return: Human-readable unicode string.
-    """
-    e = int(np.floor(np.log10(f)))
-    m = f / 10 ** e
-
-    e3 = (e // 3) * 3
-    m *= 10 ** (e - e3)
-
-    if e3 == 0:
-        return ('{{:.{}g}}'.format(digits)).format(m)
-
-    else:
-        return ('{{:.{}g}}×10{{}}'.format(digits)).format(m, unicode_superscript(str(e3)))
 
 
 def _reasonable_bins_argument(topography):
@@ -226,16 +53,6 @@ def _reasonable_bins_argument(topography):
         # return 'auto'
 
 
-def test_function(topography):
-    return { 'name': 'Test result for test function called for topography {}.'.format(topography),
-             'xunit': 'm',
-             'yunit': 'm',
-             'xlabel': 'x',
-             'ylabel': 'y',
-             'series': []}
-test_function.card_view_flavor = 'simple'
-
-
 class IncompatibleTopographyException(Exception):
     """Raise this exception in case a function cannot handle a topography.
 
@@ -247,7 +64,7 @@ class IncompatibleTopographyException(Exception):
 #
 # Use this during development if you need a long running task with failures
 #
-# @analysis_function(card_view_flavor='simple', automatic=True)
+# @analysis_function(card_view_flavor='simple')
 # def long_running_task(topography, progress_recorder=None, storage_prefix=None):
 #     topography = topography.topography()
 #     import time, random
@@ -261,7 +78,7 @@ class IncompatibleTopographyException(Exception):
 #     return dict(message="done", physical_sizes=topography.physical_sizes, n=n)
 
 
-@analysis_function(card_view_flavor='plot', automatic=True)
+@register_implementation(name="Height Distribution", card_view_flavor='plot')
 def height_distribution(topography, bins=None, wfac=5, progress_recorder=None, storage_prefix=None):
 
     # Get low level topography from SurfaceTopography model
@@ -359,7 +176,7 @@ def _moments_histogram_gaussian(arr, bins, wfac, quantity, label, unit, gaussian
     return scalars, series
 
 
-@analysis_function(card_view_flavor='plot', automatic=True)
+@register_implementation(name="Slope Distribution", card_view_flavor='plot')
 def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, storage_prefix=None):
 
     # Get low level topography from SurfaceTopography model
@@ -427,7 +244,7 @@ def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, st
     return result
 
 
-@analysis_function(card_view_flavor='plot', automatic=True)
+@register_implementation(name="Curvature Distribution", card_view_flavor='plot')
 def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None, storage_prefix=None):
 
     # Get low level topography from SurfaceTopography model
@@ -485,7 +302,7 @@ def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None
     )
 
 
-@analysis_function(card_view_flavor='plot', automatic=True)
+@register_implementation(name="Power Spectrum", card_view_flavor='plot')
 def power_spectrum(topography, window=None, tip_radius=None, progress_recorder=None, storage_prefix=None):
 
     # Get low level topography from SurfaceTopography model
@@ -547,7 +364,7 @@ def power_spectrum(topography, window=None, tip_radius=None, progress_recorder=N
     return result
 
 
-@analysis_function(card_view_flavor='plot', automatic=True)
+@register_implementation(name="Autocorrelation", card_view_flavor='plot')
 def autocorrelation(topography, progress_recorder=None, storage_prefix=None):
 
     # Get low level topography from SurfaceTopography model
@@ -630,7 +447,7 @@ def autocorrelation(topography, progress_recorder=None, storage_prefix=None):
         series=series)
 
 
-@analysis_function(card_view_flavor='plot', automatic=True)
+@register_implementation(name="Variable Bandwidth", card_view_flavor='plot')
 def variable_bandwidth(topography, progress_recorder=None, storage_prefix=None):
 
     # Get low level topography from SurfaceTopography model
@@ -819,7 +636,7 @@ def _contact_at_given_load(system, external_force, history=None, pentol=None, ma
            (mean_displacements, mean_gaps, mean_pressures, total_contact_areas, converged)
 
 
-@analysis_function(card_view_flavor='contact mechanics', automatic=True)
+@register_implementation(name="Contact Mechanics", card_view_flavor='contact mechanics')
 def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
                       pressures=None, maxiter=100, progress_recorder=None, storage_prefix=None):
     """
@@ -857,15 +674,16 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
     if (nsteps is not None) and (pressures is not None):
         raise ValueError("Both 'nsteps' and 'pressures' are given. One must be None.")
 
+    kwargs_limits = settings.CONTACT_MECHANICS_KWARGS_LIMITS
     #
     # Check some limits for number of pressures, maxiter, and nsteps
     # (same should be used in HTML page and checked by JS)
     #
-    if (nsteps) and ((nsteps<CONTACT_MECHANICS_KWARGS_LIMITS['nsteps']['min']) or (nsteps>CONTACT_MECHANICS_KWARGS_LIMITS['nsteps']['max'])):
+    if nsteps and ((nsteps < kwargs_limits['nsteps']['min']) or (nsteps > kwargs_limits['nsteps']['max'])):
         raise ValueError(f"Invalid value for 'nsteps': {nsteps}")
-    if (pressures) and ((len(pressures)<1) or (len(pressures)>CONTACT_MECHANICS_KWARGS_LIMITS['pressures']['maxlen'])):
+    if pressures and ((len(pressures) < 1) or (len(pressures) > kwargs_limits['pressures']['maxlen'])):
         raise ValueError(f"Invalid number of pressures given: {len(pressures)}")
-    if (maxiter<CONTACT_MECHANICS_KWARGS_LIMITS['maxiter']['min']) or (maxiter>CONTACT_MECHANICS_KWARGS_LIMITS['maxiter']['max']):
+    if (maxiter<kwargs_limits['maxiter']['min']) or (maxiter > kwargs_limits['maxiter']['max']):
         raise ValueError(f"Invalid value for 'maxiter': {maxiter}")
 
     # Conversion of force units
@@ -977,7 +795,7 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
     )
 
 
-@analysis_function(card_view_flavor='rms table', automatic=True, name="RMS Values")
+@register_implementation(name="RMS Values", card_view_flavor='rms table')
 def rms_values(topography, progress_recorder=None, storage_prefix=None):
     """Just calculate RMS values for given topography.
 
@@ -1056,3 +874,47 @@ def rms_values(topography, progress_recorder=None, storage_prefix=None):
         raise ValueError("This analysis function can only handle 1D or 2D topographies.")
 
     return result
+
+
+@register_implementation(name="RMS Values", card_view_flavor='rms table')
+def rms_values_for_surface(surface, extra_arg=1, progress_recorder=None, storage_prefix=None):
+    """Just calculate RMS values for given surface.
+
+    Parameters
+    ----------
+    surface: topobank.manager.models.Surface
+    progress_recorder: celery_progress.backend.ProgressRecorder or None
+    storage_prefix: str or None
+
+    Returns
+    -------
+    list of dicts where each dict has keys
+
+     quantity
+     direction
+     value
+     unit
+    """
+    # TODO add real results
+    result = []
+    result.append({
+        'quantity': 'RMS Height',
+        'direction': None,
+        'value': -1,  # to be defined
+        'unit': 'km',  # to be defined
+    })
+
+    return result
+
+
+def topography_analysis_function_for_tests(topography, a=1, b="foo"):
+    """This function can be registered for tests."""
+    return {'name': 'Test result for test function called for topography {}.'.format(topography),
+            'xunit': 'm',
+            'yunit': 'm',
+            'xlabel': 'x',
+            'ylabel': 'y',
+            'series': [],
+            'comment': f"a is {a} and b is {b}"}
+
+

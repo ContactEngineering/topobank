@@ -3,11 +3,14 @@ import factory
 import logging
 import pickle
 import datetime
+from factory.helpers import post_generation
 
-from ..models import Analysis, AnalysisFunction
+from ..models import Analysis, AnalysisFunction, AnalysisFunctionImplementation
 from topobank.manager.tests.utils import TopographyFactory
+from topobank.manager.models import Topography
 
 _log = logging.getLogger(__name__)
+
 
 #
 # Define factories for creating test objects
@@ -16,14 +19,35 @@ class AnalysisFunctionFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = AnalysisFunction
 
-    name = factory.Sequence(lambda n: "heights-after-scale-by-{}".format(n))
-    automatic = True
-    pyfunc = "test_function" # this function exists in topobank.analysis.functions
+    name = factory.Sequence(lambda n: "Test Function no. {}".format(n))
+    card_view_flavor = 'simple'
+
+
+class AnalysisFunctionImplementationFactory(factory.django.DjangoModelFactory):
+
+    function = factory.SubFactory(AnalysisFunctionFactory)
+    subject_type = Topography
+    pyfunc = 'topography_analysis_function_for_tests'
+
+    class Meta:
+        model = AnalysisFunctionImplementation
+    #
+    #
+    # @post_generation
+    # def card_view_flavor(self, create, extracted, **kwargs):
+    #     from ..functions import AnalysisFunctionRegistry
+    #     reg = AnalysisFunctionRegistry()
+    #     reg.add_implementation(self.name, extracted, topography_analysis_function_for_tests)
 
 
 def _analysis_result(analysis):
-    result = analysis.function.python_function(analysis.topography, **pickle.loads(analysis.kwargs))
+    func = analysis.function.python_function(type(analysis.topography))
+    result = func(analysis.topography, **pickle.loads(analysis.kwargs))
     return pickle.dumps(result)
+
+
+def _analysis_default_kwargs(analysis):
+    return analysis.function.get_default_kwargs(analysis.topography)
 
 
 class AnalysisFactory(factory.django.DjangoModelFactory):
@@ -52,4 +76,5 @@ class AnalysisFactory(factory.django.DjangoModelFactory):
             # a list of users was passed in, add those users
             for user in extracted:
                 self.users.add(user)
+
 

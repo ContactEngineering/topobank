@@ -12,9 +12,9 @@ def test_grouping_by_function(surface_1_with_topographies_testuser_logged_in, we
     #
     # Create two analysis functions for selection
     #
-    height_func = AnalysisFunction.objects.create(pyfunc="height_distribution", automatic=False, name="Height Distribution")
+    height_func = AnalysisFunction.objects.create(name="Height Distribution")
     height_func.save()
-    slope_func = AnalysisFunction.objects.create(pyfunc="slope_distribution", automatic=False, name="Slope Distribution")
+    slope_func = AnalysisFunction.objects.create(name="Slope Distribution")
     slope_func.save()
 
     funcs = [height_func, slope_func]

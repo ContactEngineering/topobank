@@ -8,21 +8,22 @@ from topobank.analysis.utils import request_analysis, submit_analysis
 from topobank.analysis.tests.utils import AnalysisFactory
 from topobank.manager.tests.utils import TopographyFactory, UserFactory
 
+
 @pytest.mark.django_db
 def test_request_analysis(mocker):
-    "Make sure analysis objects were created with correct parameters"
+    """Make sure analysis objects were created with correct parameters"""
 
     user = UserFactory()
 
     m = mocker.patch('topobank.analysis.models.AnalysisFunction.python_function', new_callable=mocker.PropertyMock)
-    m.return_value = lambda topography, a, b, bins=15, window='hann': None # defining default parameters here
+    m.return_value = lambda topography, a, b, bins=15, window='hann': None  # defining default parameters here
 
-    af = AnalysisFunction(name='somefunc', pyfunc='height_distribution')
-    af.save() # needed otherwise analysis cannot be saved later (why?)
+    af = AnalysisFunction(name='somefunc')
+    af.save()  # needed otherwise analysis cannot be saved later (why?)
 
-    #mocker.patch('topobank.analysis.models.Analysis.objects.create')
-    #mocker.patch('django.db.models.QuerySet.delete') # we don't need to test with delete here
-    mocker.patch('topobank.taskapp.tasks.perform_analysis.delay') # we don't want to calculate anything
+    # mocker.patch('topobank.analysis.models.Analysis.objects.create')
+    # mocker.patch('django.db.models.QuerySet.delete') # we don't need to test with delete here
+    mocker.patch('topobank.taskapp.tasks.perform_analysis.delay')  # we don't want to calculate anything
 
     topo = TopographyFactory()
 
@@ -72,7 +73,7 @@ def test_unmark_other_analyses_during_request_analysis(mocker):
     m = mocker.patch('topobank.analysis.models.AnalysisFunction.python_function', new_callable=mocker.PropertyMock)
     m.return_value = lambda topography, a, b, bins=15, window='hann': None
 
-    af = AnalysisFunction(name='somefunc', pyfunc='height_distribution')
+    af = AnalysisFunction(name='somefunc')
     af.save()
 
     topo = TopographyFactory()

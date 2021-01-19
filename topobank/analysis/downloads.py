@@ -247,7 +247,8 @@ def download_plot_analyses_to_txt(request, analyses):
 
     # Prepare response object.
     response = HttpResponse(f.getvalue(), content_type='application/text')
-    response['Content-Disposition'] = 'attachment; filename="{}"'.format('{}.txt'.format(analysis.function.pyfunc))
+    filename = '{}.txt'.format(analysis.function.name).replace(' ', '_')
+    response['Content-Disposition'] = 'attachment; filename="{}"'.format(filename)
 
     # Close file and return response.
     f.close()
@@ -306,7 +307,8 @@ def download_plot_analyses_to_xlsx(request, analyses):
     # Prepare response object.
     response = HttpResponse(f.getvalue(),
                             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    response['Content-Disposition'] = 'attachment; filename="{}"'.format('{}.xlsx'.format(analysis.function.pyfunc))
+    filename = '{}.xlsx'.format(analysis.function.name).replace(' ', '_')
+    response['Content-Disposition'] = 'attachment; filename="{}"'.format(filename)
 
     # Close file and return response.
     f.close()
@@ -369,7 +371,8 @@ def download_rms_table_analyses_to_txt(request, analyses):
 
     # Prepare response object.
     response = HttpResponse(f.getvalue(), content_type='application/text')
-    response['Content-Disposition'] = 'attachment; filename="{}"'.format('{}.txt'.format(analysis.function.pyfunc))
+    filename = '{}.txt'.format(analysis.function.name.replace(' ', '_'))
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
 
     # Close file and return response.
     f.close()

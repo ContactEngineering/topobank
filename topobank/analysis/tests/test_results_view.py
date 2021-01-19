@@ -2,25 +2,26 @@
 Test for results view.
 """
 
-import pytest
 import datetime
+import openpyxl
 import pickle
-import numpy as np
-import tempfile, openpyxl
+import tempfile
 
+import ContactMechanics
+import NuMPI
+import SurfaceTopography
+import muFFT
+import numpy as np
+import pytest
 from django.urls import reverse
 
-import SurfaceTopography, ContactMechanics, muFFT, NuMPI
-
-from ..views import RmsTableCardView, NUM_SIGNIFICANT_DIGITS_RMS_VALUES
-from ..models import Analysis, AnalysisFunction
-from topobank.manager.tests.utils import two_topos  # needed for fixture, see arguments below
 from topobank.manager.models import Topography, Surface
-from topobank.manager.tests.utils import SurfaceFactory, UserFactory, TopographyFactory
-from .utils import AnalysisFactory, AnalysisFunctionFactory
-from topobank.utils import assert_in_content, assert_not_in_content
+from topobank.manager.tests.utils import SurfaceFactory, UserFactory, TopographyFactory, two_topos
 from topobank.taskapp.tasks import current_configuration
-from topobank.analysis.tests.test_functions import simple_2d_topography
+from topobank.utils import assert_in_content, assert_not_in_content
+from .utils import AnalysisFactory, AnalysisFunctionFactory, AnalysisFunctionImplementationFactory
+from ..models import Analysis, AnalysisFunction
+from ..views import RmsTableCardView, NUM_SIGNIFICANT_DIGITS_RMS_VALUES
 
 
 def selection_from_instances(instances):
@@ -353,10 +354,12 @@ def ids_downloadable_analyses(two_topos):
     config = current_configuration()
 
     #
-    # create two analyses with resuls
+    # create two analyses with results
     #
     topos = [Topography.objects.get(name="Example 3 - ZSensor"), Topography.objects.get(name="Example 4 - Default")]
-    function = AnalysisFunction.objects.create(name="Test Function", pyfunc='dummy', automatic=False)
+    # function = AnalysisFunction.objects.create(name="Test Function")
+    function = AnalysisFunctionFactory()
+    AnalysisFunctionImplementationFactory(function=function)
 
     v = np.arange(5)
     ids = []
@@ -410,7 +413,7 @@ def test_analysis_download_as_txt(client, two_topos, ids_downloadable_analyses, 
 
     txt = response.content.decode()
 
-    assert "Test Function" in txt # function name should be in there
+    assert "Test Function" in txt  # function name should be in there
 
     # check whether version numbers are in there
     assert SurfaceTopography.__version__.split('+')[0] in txt
@@ -760,6 +763,7 @@ def two_analyses_two_publications():
     pub_topo2 = pub2.surface.topography_set.first()
 
     func = AnalysisFunctionFactory()
+    AnalysisFunctionImplementationFactory(function=func)
     analysis1 = AnalysisFactory(topography=pub_topo1, function=func)
     analysis2 = AnalysisFactory(topography=pub_topo2, function=func)
 
@@ -832,7 +836,8 @@ def test_view_shared_analysis_results(client, handle_usage_statistics):
 
     # create topographies + functions + analyses
     func1 = AnalysisFunctionFactory()
-    #func2 = AnalysisFunctionFactory()
+    impl1 = AnalysisFunctionImplementationFactory(function=func1)
+    # func2 = AnalysisFunctionFactory()
 
     # Two topographies for surface1
     topo1a = TopographyFactory(surface=surface1, name='topo1a')
@@ -856,6 +861,10 @@ def test_view_shared_analysis_results(client, handle_usage_statistics):
     # analysis2a_2 = AnalysisFactory(topography=topo2a, function=func2,
     #                                start_time=datetime.datetime(2019, 1, 1, 17))
 
+    # Function should have three analyses, all successful (the default when using the factory)
+    assert func1.analysis_set.count() == 3
+    assert all(a.task_state == 'su' for a in func1.analysis_set.all())
+
     # user2 shares surfaces, so user 1 should see surface1+surface2
     surface2.share(user1)
 
@@ -873,6 +882,10 @@ def test_view_shared_analysis_results(client, handle_usage_statistics):
                            },
                            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
                            follow=True)
+
+    # Function should still have three analyses, all successful (the default when using the factory)
+    assert func1.analysis_set.count() == 3
+    assert all(a.task_state == 'su' for a in func1.analysis_set.all())
 
     assert response.status_code == 200
 

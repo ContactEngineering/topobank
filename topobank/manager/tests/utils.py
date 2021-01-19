@@ -12,8 +12,7 @@ import factory
 
 from ..models import Topography, Surface, TagModel
 from topobank.users.tests.factories import UserFactory
-from topobank.users.models import User
-from topobank.analysis.functions import register_all
+# from topobank.users.models import User
 
 
 FIXTURE_DIR = os.path.join(

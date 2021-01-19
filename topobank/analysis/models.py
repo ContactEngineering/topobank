@@ -1,24 +1,12 @@
 from django.db import models
-from django.db.models import CheckConstraint, Q
+from django.db.models import CheckConstraint, Q, UniqueConstraint
 
 import inspect
 import pickle
 
 from topobank.manager.models import Topography, Surface
 from topobank.users.models import User
-import topobank.analysis.functions as functions_module
-
-
-def _get_default_args(func):
-    # thanks to mgilson, his answer on SO:
-    # https://stackoverflow.com/questions/12627118/get-a-function-arguments-default-value#12627202
-
-    signature = inspect.signature(func)
-    return {
-        k: v.default
-        for k, v in signature.parameters.items()
-        if v.default is not inspect.Parameter.empty
-    }
+from .registry import ImplementationMissingException
 
 
 class Dependency(models.Model):
@@ -155,24 +143,123 @@ class Analysis(models.Model):
 
 
 class AnalysisFunction(models.Model):
+    """Represents an analysis function from a user perspective.
+
+    Examples:
+        - name: 'Height distribution', card_view_flavor='plot'
+        - name: 'Contact Mechanics', card_view_flavor='contact mechanics'
+
+    These functions are referenced by the analyses. Each function "knows"
+    how to find the appropriate implementation for given arguments.
+    """
+    SIMPLE = 'simple'
+    PLOT = 'plot'
+    POWER_SPECTRUM = 'power spectrum'
+    CONTACT_MECHANICS = 'contact mechanics'
+    RMS_TABLE = 'rms table'
+    CARD_VIEW_FLAVOR_CHOICES = [
+        (SIMPLE, 'Simple display of the results as raw data structure'),
+        (PLOT, 'Display results in a plot with multiple datasets'),
+        (POWER_SPECTRUM, 'Display results in a plot suitable for power spectrum'),
+        (CONTACT_MECHANICS, 'Display suitable for contact mechanics including special widgets'),
+        (RMS_TABLE, 'Display a table with RMS values.')
+    ]
+
     name = models.CharField(max_length=80, help_text="A human-readable name.", unique=True)
-    pyfunc = models.CharField(max_length=256,
-                              help_text="Name of Python function in {}".format(functions_module.__name__))
-    # this reference to python function may change in future
-    automatic  = models.BooleanField(default=False,
-                                     help_text="If set, this analysis is automatically triggered for new topographies.")
+    card_view_flavor = models.CharField(max_length=50, default=SIMPLE, choices=CARD_VIEW_FLAVOR_CHOICES)
 
     def __str__(self):
         return self.name
 
-    @property
-    def python_function(self):
-        return getattr(functions_module, self.pyfunc)
+    def _implementation(self, subject_type):
 
-    def eval(self, *args, **kwargs):
+        try:
+            impl = self.implementations.get(subject_type=str(subject_type))
+        except AnalysisFunctionImplementation.DoesNotExist as exc:
+            raise ImplementationMissingException(self.name, subject_type)
+        return impl
+
+    def python_function(self, subject_type):
+        """Return function for given first argument type.
+
+        Parameters
+        ----------
+        subject_type: type
+            Type of first argument of analysis function, e.g.
+            `topobank.manager.models.Topography` or `topobank.manager.models.Surface`.
+
+        Returns
+        -------
+        Python function, where first argument must be the given type.
+        """
+        return self._implementation(subject_type).python_function()
+
+    def get_default_kwargs(self, subject_type):
+        """Return default keyword arguments as dict.
+
+        Administrative arguments like
+        'storage_prefix' and 'progress_recorder'
+        which are common to all functions, are excluded.
+
+        Parameters
+        ----------
+        subject_type: type
+            Type of first argument of analysis function, e.g.
+            `topobank.manager.models.Topography` or `topobank.manager.models.Surface`.
+
+        Returns
+        -------
+
+        dict
+        """
+        return self._implementation(subject_type).get_default_kwargs()
+
+    def eval(self, subject, *args, **kwargs):
         """Call appropriate python function.
         """
-        return self.python_function(*args, **kwargs)
+        subject_type = type(subject)
+        return self._implementation(subject_type).eval(subject, *args, **kwargs)
+
+
+class AnalysisFunctionImplementation(models.Model):
+    """Represents an implementation of an analysis function depending on subject."""
+
+    SUBJECT_TYPE_TOPOGRAPHY = 't'
+    SUBJECT_TYPE_SURFACE = 's'
+
+    SUBJECT_TYPE_CHOICES = [
+        (SUBJECT_TYPE_TOPOGRAPHY, 'topography'),
+        (SUBJECT_TYPE_SURFACE, 'surface'),
+    ]
+
+    function = models.ForeignKey(AnalysisFunction, related_name='implementations', on_delete=models.CASCADE)
+    subject_type = models.CharField(max_length=1, choices=SUBJECT_TYPE_CHOICES)
+    pyfunc = models.CharField(max_length=256)  # name of Python function in functions module
+
+    class Meta:
+        constraints = [
+            UniqueConstraint(fields=['function', 'subject_type'], name='distinct_implementation')
+        ]
+
+    def python_function(self):
+        """Return reference to corresponding Python function."""
+        import topobank.analysis.functions as functions_module
+        try:
+            return getattr(functions_module, self.pyfunc)
+        except AttributeError as exc:
+            raise ValueError(f"Cannot resolve reference to python function '{self.pyfunc}'.")
+
+    @staticmethod
+    def _get_default_args(func):
+        # thanks to mgilson, his answer on SO:
+        # https://stackoverflow.com/questions/12627118/get-a-function-arguments-default-value#12627202
+
+        signature = inspect.signature(func)
+        return {
+            k: v.default
+            for k, v in signature.parameters.items()
+            if v.default is not inspect.Parameter.empty
+        }
 
     def get_default_kwargs(self):
         """Return default keyword arguments as dict.
@@ -181,19 +268,20 @@ class AnalysisFunction(models.Model):
         'storage_prefix' and 'progress_recorder'
         which are common to all functions, are excluded.
         """
-        dkw = _get_default_args(self.python_function)
+        dkw = self._get_default_args(self.python_function())
         if 'storage_prefix' in dkw:
             del dkw['storage_prefix']
         if 'progress_recorder' in dkw:
             del dkw['progress_recorder']
         return dkw
 
-    @property
-    def card_view_flavor(self):
-        return self.python_function.card_view_flavor
+    def eval(self, subject, *args, **kwargs):
+        """Evaluate implementation on given subject with given arguments."""
+        return self.python_function()(subject, *args, **kwargs)
 
 
 class AnalysisCollection(models.Model):
+    """A collection of analyses which belong togehter for some reason."""
     name = models.CharField(max_length=160)
     owner = models.ForeignKey(User, on_delete=models.CASCADE)
     # notfiy = models.BooleanField(default=False)
@@ -204,3 +292,6 @@ class AnalysisCollection(models.Model):
     # We have a manytomany field, because an analysis could be part of multiple collections.
     # This happens e.g. if the user presses "recalculate" several times and
     # one analysis becomes part in each of these requests.
+
+
+CARD_VIEW_FLAVORS = [cv for cv, _ in AnalysisFunction.CARD_VIEW_FLAVOR_CHOICES]

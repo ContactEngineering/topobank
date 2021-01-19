@@ -39,12 +39,11 @@ from trackstats.models import Metric
 from ContactMechanics.Tools.ContactAreaAnalysis import patch_areas, assign_patch_numbers
 
 from ..manager.models import Topography, Surface
-from ..manager.utils import selected_instances, instances_to_selection, current_selection_as_basket_items, instances_to_topographies
+from ..manager.utils import selected_instances, instances_to_selection, instances_to_topographies
 from ..usage_stats.utils import increase_statistics_by_date_and_object
-from .models import Analysis, AnalysisFunction, AnalysisCollection
+from .models import Analysis, AnalysisFunction, AnalysisCollection, CARD_VIEW_FLAVORS
 from .forms import FunctionSelectForm
 from .utils import get_latest_analyses, round_to_significant_digits
-from .functions import CONTACT_MECHANICS_KWARGS_LIMITS, contact_mechanics
 from topobank.analysis.utils import request_analysis
 
 import logging
@@ -55,10 +54,19 @@ SMALLEST_ABSOLUT_NUMBER_IN_LOGPLOTS = 1e-100
 MAX_NUM_POINTS_FOR_SYMBOLS = 50
 NUM_SIGNIFICANT_DIGITS_RMS_VALUES = 5
 
-CARD_VIEW_FLAVORS = ['simple', 'plot', 'power spectrum', 'contact mechanics', 'rms table']
-
 
 def card_view_class(card_view_flavor):
+    """Return class for given card view flavor.
+
+    Parameters
+    ----------
+    card_view_flavor: str
+        Defined in model AnalysisFunction.
+
+    Returns
+    -------
+    class
+    """
     if card_view_flavor not in CARD_VIEW_FLAVORS:
         raise ValueError("Unknown card view flavor '{}'. Known values are: {}".format(card_view_flavor,
                                                                                       CARD_VIEW_FLAVORS))
@@ -133,7 +141,7 @@ class SimpleCardView(TemplateView):
         #
         # If template does not exist, return template from parent class
         #
-        # MAYBE later: go down the hierachy and take first template found
+        # MAYBE later: go down the hierarchy and take first template found
         try:
             template.loader.get_template(template_name)
         except template.TemplateDoesNotExist:
@@ -225,9 +233,9 @@ class SimpleCardView(TemplateView):
                 triggered_analysis = request_analysis(user, function, topo, **kwargs_for_missing)
                 topographies_triggered.append(topo)
                 topographies_available_ids.append(topo.id)
-                _log.info(f"Triggered analysis {triggered_analysis.id} for function {function.name} "+\
+                _log.info(f"Triggered analysis {triggered_analysis.id} for function {function.name} " + \
                           f"and topography {topo.id}.")
-        topographies_missing = [ t for t in topographies_missing if t not in topographies_triggered]
+        topographies_missing = [t for t in topographies_missing if t not in topographies_triggered]
 
         # now all topographies which needed to be triggered, should have been triggered
         # with common arguments if possible
@@ -240,8 +248,8 @@ class SimpleCardView(TemplateView):
             if len(analyses_avail) == 0:
                 unique_kwargs = kwargs_for_missing
 
-            analyses_avail = get_latest_analyses(user, function_id, topography_ids)\
-                  .filter(topography__surface__in=readable_surfaces)
+            analyses_avail = get_latest_analyses(user, function_id, topography_ids) \
+                .filter(topography__surface__in=readable_surfaces)
 
         #
         # Determine status code of request - do we need to trigger request again?
@@ -659,7 +667,7 @@ class ContactMechanicsCardView(SimpleCardView):
                 analysis_result = analysis.result_obj
 
                 data = dict(
-                    topography_name=(analysis.topography.name,)*len(analysis_result['mean_pressures']),
+                    topography_name=(analysis.topography.name,) * len(analysis_result['mean_pressures']),
                     mean_pressure=analysis_result['mean_pressures'],
                     total_contact_area=analysis_result['total_contact_areas'],
                     mean_displacement=analysis_result['mean_displacements'],
@@ -766,7 +774,6 @@ class ContactMechanicsCardView(SimpleCardView):
                 js_code += f"{glyph_id_area_plot}.visible = topography_btn_group.active.includes({topography_idx});"
                 js_code += f"{glyph_id_load_plot}.visible = topography_btn_group.active.includes({topography_idx});"
 
-
             _configure_plot(contact_area_plot)
             _configure_plot(load_plot)
 
@@ -815,7 +822,7 @@ class ContactMechanicsCardView(SimpleCardView):
             initial_calc_kwargs = unique_kwargs
         else:
             # default initial arguments for form if we don't have unique common arguments
-            contact_mechanics_func = AnalysisFunction.objects.get(pyfunc=contact_mechanics.__name__)
+            contact_mechanics_func = AnalysisFunction.objects.get(name="Contact Mechanics")
             initial_calc_kwargs = contact_mechanics_func.get_default_kwargs()
             initial_calc_kwargs['substrate_str'] = 'nonperiodic'  # because most topographies are non-periodic
 
@@ -861,7 +868,8 @@ class RmsTableCardView(SimpleCardView):
                     # https://stackoverflow.com/questions/15228651/how-to-parse-json-string-containing-nan-in-node-js
                 else:
                     # convert float32 to float, round to fixed number of significant digits
-                    d['value'] = round_to_significant_digits(d['value'].astype(float), NUM_SIGNIFICANT_DIGITS_RMS_VALUES)
+                    d['value'] = round_to_significant_digits(d['value'].astype(float),
+                                                             NUM_SIGNIFICANT_DIGITS_RMS_VALUES)
 
                 if not d['direction']:
                     d['direction'] = ''
@@ -869,7 +877,6 @@ class RmsTableCardView(SimpleCardView):
                 topo = analysis.topography
                 d.update(dict(topography_name=topo.name,
                               topography_url=topo.get_absolute_url()))
-
 
             data.extend(analysis_result)
 
@@ -892,7 +899,7 @@ class RmsTableCardView(SimpleCardView):
         #
         # create table
         #
-        #table = RMSTable(data=data, empty_text="No RMS values calculated.", request=self.request)
+        # table = RMSTable(data=data, empty_text="No RMS values calculated.", request=self.request)
 
         context.update(dict(
             table_data=data
@@ -1350,7 +1357,6 @@ class AnalysesListView(FormView):
             #
             self.request.session['selection'] = ['topography-{}'.format(topo_id)]
 
-
         return dict(
             functions=AnalysesListView._selected_functions(self.request),
         )
@@ -1411,5 +1417,3 @@ class AnalysesListView(FormView):
         context['extra_tabs'] = tabs
 
         return context
-
-

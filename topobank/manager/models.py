@@ -155,9 +155,9 @@ class Surface(models.Model):
         _log.info("After sharing surface %d with user %d, requesting all standard analyses..", self.id, with_user.id)
         from topobank.analysis.models import AnalysisFunction
         from topobank.analysis.utils import request_analysis
-        auto_analysis_funcs = AnalysisFunction.objects.filter(automatic=True)
+        analysis_funcs = AnalysisFunction.objects.all()
         for topo in self.topography_set.all():
-            for af in auto_analysis_funcs:
+            for af in analysis_funcs:
                 request_analysis(with_user, af, topo)  # standard arguments
 
     def unshare(self, with_user):
@@ -445,16 +445,16 @@ class Topography(models.Model):
         from topobank.analysis.models import AnalysisFunction, Analysis
         from guardian.shortcuts import get_users_with_perms
 
-        auto_analysis_funcs = AnalysisFunction.objects.filter(automatic=True)
+        analysis_funcs = AnalysisFunction.objects.all()
 
         # collect users which are allowed to view analyses
         users = get_users_with_perms(self.surface)
 
         def submit_all(instance=self):
-            for af in auto_analysis_funcs:
+            for af in analysis_funcs:
                 Analysis.objects.filter(function=af, topography=instance).delete()
                 try:
-                    submit_analysis(users, af, instance)
+                    submit_analysis(users, af, topography=instance)
                 except Exception as err:
                     _log.error("Cannot submit analysis for function '%s' and topography %d. Reason: %s",
                                af.name, instance.id, str(err))

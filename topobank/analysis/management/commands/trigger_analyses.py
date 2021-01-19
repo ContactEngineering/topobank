@@ -125,10 +125,10 @@ class Command(BaseCommand):
         #
         # collect analyses to trigger
         #
-        auto_analysis_funcs = AnalysisFunction.objects.filter(automatic=True)
+        analysis_funcs = AnalysisFunction.objects.filter()
 
         if options['list_funcs']:
-            for af in auto_analysis_funcs:
+            for af in analysis_funcs:
                self.stdout.write(self.style.SUCCESS(f"Id {af.id}: {af.name} (python: {af.pyfunc}, automatic: {af.automatic})"))
             sys.exit(0)
 
@@ -138,7 +138,7 @@ class Command(BaseCommand):
 
         trigger_set = set()
         for item in options['item']:
-            trigger_set.update(self.parse_item(item, auto_analysis_funcs))
+            trigger_set.update(self.parse_item(item, analysis_funcs))
 
         #
         # Trigger analyses

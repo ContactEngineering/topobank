@@ -77,7 +77,7 @@ def test_initial_surface(client, django_user_model, handle_usage_statistics, moc
     # For all these topographies, all analyses for all automated analysis functions
     # should have been triggered
     #
-    for af in AnalysisFunction.objects.filter(automatic=True):
+    for af in AnalysisFunction.objects.all():
         analyses = Analysis.objects.filter(topography__surface_id=surface.id, function=af)
         assert analyses.count() == len(topos)
 

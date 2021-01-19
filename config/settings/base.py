@@ -491,3 +491,12 @@ CC_LICENSE_INFOS = {  # each element refers to two links: (description URL, full
 #
 FIREFOX_BINARY_PATH = env.path('FIREFOX_BINARY_PATH')
 GECKODRIVER_PATH = env.path('GECKODRIVER_PATH')
+
+#
+# Analysis-specific settings
+#
+CONTACT_MECHANICS_KWARGS_LIMITS = {
+            'nsteps': dict(min=1, max=50),
+            'maxiter': dict(min=1, max=1000),
+            'pressures': dict(maxlen=50),
+}
