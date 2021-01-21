@@ -128,6 +128,12 @@ your local computer. Here an example for Ubuntu:
 
 .. code:: bash
 
+    sudo apt install rabbitmq-server
+
+Then the configure:
+
+.. code:: bash
+
     sudo rabbitmqctl add_user roettger secert7$
     sudo rabbitmqctl add_vhost topobank
     sudo rabbitmqctl set_permissions -p topobank roettger ".*" ".*" ".*"
@@ -135,6 +141,12 @@ your local computer. Here an example for Ubuntu:
 In production choose another user name, e.g. "django" or topobank
 
 .. todo:: Probably running in a docker container is much easier, to be tested.
+
+Setup of Memcached on local machine
+-----------------------------------
+
+
+
 
 Preparing fixtures with test databases
 --------------------------------------
