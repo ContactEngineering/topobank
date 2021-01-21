@@ -116,20 +116,22 @@ def renew_analysis(analysis, use_default_kwargs=False):
     func = analysis.function
     topography = analysis.topography
     surface = analysis.surface
-    if use_default_kwargs:
-        if topography is None:
-            first_arg_type = type(surface)
-        else:
-            first_arg_type = type(topography)
+    if topography is None:
+        subject = surface
+    else:
+        subject = topography
+    subject_type = type(subject)
 
-        pickled_pyfunc_kwargs = pickle.dumps(func.get_default_kwargs(first_arg_type=first_arg_type))
+    if use_default_kwargs:
+        pickled_pyfunc_kwargs = pickle.dumps(func.get_default_kwargs(subject_type=subject_type))
     else:
         pickled_pyfunc_kwargs = analysis.kwargs
 
-    _log.info("Renewing analysis %d for %d users, function %s, topography %d .. kwargs: %s",
-              analysis.id, len(users), func.name, topography.id, pickle.loads(pickled_pyfunc_kwargs))
+    _log.info("Renewing analysis %d for %d users, function %s, subject type %s, subject id %d .. kwargs: %s",
+              analysis.id, len(users), func.name, subject_type, subject.id, pickle.loads(pickled_pyfunc_kwargs))
     analysis.delete()
-    return submit_analysis(users, func, topography=topography, pickled_pyfunc_kwargs=pickled_pyfunc_kwargs)
+    return submit_analysis(users, func, topography=topography, surface=surface,
+                           pickled_pyfunc_kwargs=pickled_pyfunc_kwargs)
 
 
 def submit_analysis(users, analysis_func, topography=None, surface=None, pickled_pyfunc_kwargs=None):
@@ -150,12 +152,12 @@ def submit_analysis(users, analysis_func, topography=None, surface=None, pickled
     #
     if pickled_pyfunc_kwargs is None:
         if topography is None:
-            first_arg_type = type(surface)
+            subject_type = type(surface)
         else:
-            first_arg_type = type(topography)
+            subject_type = type(topography)
 
         # Instead of an empty dict, we explicitly store the current default arguments of the analysis function
-        pickled_pyfunc_kwargs = pickle.dumps(analysis_func.get_default_kwargs(first_arg_type=first_arg_type))
+        pickled_pyfunc_kwargs = pickle.dumps(analysis_func.get_default_kwargs(subject_type=subject_type))
 
     analysis = Analysis.objects.create(
         topography=topography,

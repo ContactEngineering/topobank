@@ -12,14 +12,15 @@ from topobank.manager.tests.utils import two_topos
 @pytest.mark.django_db
 def test_perform_analysis(mocker, two_topos, settings):
 
-    def my_func(topography, a, b, bins=15, window='hann', progress_recorder=None, storage_prefix=None):
+    def my_func(topography, a=0, b=1, bins=15, window='hann', progress_recorder=None, storage_prefix=None):
         return {
             'topotype': type(topography.topography()),
             'x': (a+b)*bins,
             's': window
         }
 
-    m = mocker.patch('topobank.analysis.models.AnalysisFunction.python_function', new_callable=mocker.PropertyMock)
+    m = mocker.patch('topobank.analysis.models.AnalysisFunctionImplementation.python_function',
+                     new_callable=mocker.PropertyMock)
     m.return_value = my_func
 
     af = AnalysisFunction.objects.first()  # doesn't matter

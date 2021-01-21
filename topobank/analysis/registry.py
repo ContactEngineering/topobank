@@ -52,7 +52,7 @@ class ImplementationMissingException(AnalysisFunctionException):
         self._subject_type = subject_type
 
     def __str__(self):
-        return f"Implementation for analysis function '{self._name}' with first argument '{self._subject_type}' " +\
+        return f"Implementation for analysis function '{self._name}' for subject type '{self._subject_type}' " +\
                " not found."
 
 
@@ -192,8 +192,8 @@ class AnalysisFunctionRegistry(metaclass=Singleton):
         )
 
         for name, card_view_flavor in self._card_view_flavors.items():
-            func, created = AnalysisFunction.objects.update_or_create(name=name,
-                                                                      card_view_flavor=card_view_flavor)
+            func, created = AnalysisFunction.objects.update_or_create(defaults=dict(card_view_flavor=card_view_flavor),
+                                                                      name=name)
             if created:
                 counts['funcs_created'] += 1
             else:
@@ -203,9 +203,11 @@ class AnalysisFunctionRegistry(metaclass=Singleton):
             function = AnalysisFunction.objects.get(name=name)
             pyfunc_obj = self._implementations[(name, subject_type)]
             pyfunc_name = pyfunc_obj.__name__
-            impl, created = AnalysisFunctionImplementation.objects.update_or_create(function=function,
-                                                                                    subject_type=str(subject_type),
-                                                                                    pyfunc=pyfunc_name)
+            impl, created = AnalysisFunctionImplementation.objects.update_or_create(
+                defaults=dict(pyfunc=pyfunc_name),
+                function=function,
+                subject_type=subject_type.__name__.lower()[0],
+            )
             if created:
                 counts['implementations_created'] += 1
             else:

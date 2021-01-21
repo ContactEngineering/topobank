@@ -26,18 +26,11 @@ class AnalysisFunctionFactory(factory.django.DjangoModelFactory):
 class AnalysisFunctionImplementationFactory(factory.django.DjangoModelFactory):
 
     function = factory.SubFactory(AnalysisFunctionFactory)
-    subject_type = Topography
+    subject_type = AnalysisFunctionImplementation.SUBJECT_TYPE_TOPOGRAPHY
     pyfunc = 'topography_analysis_function_for_tests'
 
     class Meta:
         model = AnalysisFunctionImplementation
-    #
-    #
-    # @post_generation
-    # def card_view_flavor(self, create, extracted, **kwargs):
-    #     from ..functions import AnalysisFunctionRegistry
-    #     reg = AnalysisFunctionRegistry()
-    #     reg.add_implementation(self.name, extracted, topography_analysis_function_for_tests)
 
 
 def _analysis_result(analysis):

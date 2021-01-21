@@ -1,5 +1,10 @@
+"""
+Models related to analyses.
+"""
 from django.db import models
 from django.db.models import CheckConstraint, Q, UniqueConstraint
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
 
 import inspect
 import pickle
@@ -142,6 +147,16 @@ class Analysis(models.Model):
                                              (Q(topography__isnull=False) & Q(surface__isnull=True)))]
 
 
+# class AnalysisSubject(models.Model):
+#     """Subject of an analysis, e.g. a surface or topography"""
+#     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+#     object_id = models.PositiveIntegerField()
+#     content_object = GenericForeignKey('content_type', 'object_id')
+#
+#     def __str__(self):
+#         return f"{self.content_type.name}(id={self.object_id})"
+
+
 class AnalysisFunction(models.Model):
     """Represents an analysis function from a user perspective.
 
@@ -172,9 +187,21 @@ class AnalysisFunction(models.Model):
         return self.name
 
     def _implementation(self, subject_type):
+        """Return implementation for given subject type.
 
+        Parameters
+        ----------
+        subject_type: type
+            Type of first argument of analysis function, e.g.
+            `topobank.manager.models.Topography` or `topobank.manager.models.Surface`.
+
+        Returns
+        -------
+        AnalysisFunctionImplementation instance
+        """
         try:
-            impl = self.implementations.get(subject_type=str(subject_type))
+            st = subject_type.__name__.lower()[0]  # TODO use generic content types, intermediate solution
+            impl = self.implementations.get(subject_type=st)
         except AnalysisFunctionImplementation.DoesNotExist as exc:
             raise ImplementationMissingException(self.name, subject_type)
         return impl
@@ -214,11 +241,14 @@ class AnalysisFunction(models.Model):
         """
         return self._implementation(subject_type).get_default_kwargs()
 
-    def eval(self, subject, *args, **kwargs):
+    def eval(self, subject, **kwargs):
         """Call appropriate python function.
+
+        First argument is the subject of the analysis (topography or surface),
+        all other arguments are keyword arguments.
         """
         subject_type = type(subject)
-        return self._implementation(subject_type).eval(subject, *args, **kwargs)
+        return self._implementation(subject_type).eval(subject, **kwargs)
 
 
 class AnalysisFunctionImplementation(models.Model):
@@ -233,7 +263,7 @@ class AnalysisFunctionImplementation(models.Model):
     ]
 
     function = models.ForeignKey(AnalysisFunction, related_name='implementations', on_delete=models.CASCADE)
-    subject_type = models.CharField(max_length=1, choices=SUBJECT_TYPE_CHOICES)
+    subject_type = models.CharField(max_length=1, choices=SUBJECT_TYPE_CHOICES)  # TODO use generic content types, intermediate solution
     pyfunc = models.CharField(max_length=256)  # name of Python function in functions module
 
     class Meta:
@@ -275,9 +305,10 @@ class AnalysisFunctionImplementation(models.Model):
             del dkw['progress_recorder']
         return dkw
 
-    def eval(self, subject, *args, **kwargs):
+    def eval(self, subject, **kwargs):
         """Evaluate implementation on given subject with given arguments."""
-        return self.python_function()(subject, *args, **kwargs)
+        pyfunc = self.python_function()
+        return pyfunc(subject, **kwargs)
 
 
 class AnalysisCollection(models.Model):
