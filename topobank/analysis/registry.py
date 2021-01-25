@@ -4,7 +4,7 @@ Registry for collection analysis functions.
 import inspect
 from ..utils import Singleton
 
-import topobank.manager.models  # needed for eval
+from django.contrib.contenttypes.models import ContentType
 
 
 class AnalysisFunctionException(Exception):
@@ -122,11 +122,10 @@ class AnalysisFunctionRegistry(metaclass=Singleton):
         # Find out name of first argument
         func_spec = inspect.getfullargspec(func)
         first_arg_name = func_spec.args[0]
-        first_arg_model_name = 'topobank.manager.models.'+first_arg_name.title()
         try:
-            subject_type = eval(first_arg_model_name)
+            subject_type = ContentType.objects.get_by_natural_key('manager', first_arg_name)
         except AttributeError as exc:
-            err_msg = f'No model with name "{first_arg_model_name}" found. ' + \
+            err_msg = f'No model for name "{first_arg_name}" found. ' + \
                     'Did you mean "topography" or "surface"?'
             raise ValueError(err_msg) from exc
 
@@ -204,9 +203,9 @@ class AnalysisFunctionRegistry(metaclass=Singleton):
             pyfunc_obj = self._implementations[(name, subject_type)]
             pyfunc_name = pyfunc_obj.__name__
             impl, created = AnalysisFunctionImplementation.objects.update_or_create(
-                defaults=dict(pyfunc=pyfunc_name),
+                defaults=dict(code_ref=pyfunc_name),
                 function=function,
-                subject_type=subject_type.__name__.lower()[0],
+                subject_type=subject_type,
             )
             if created:
                 counts['implementations_created'] += 1

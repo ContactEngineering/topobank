@@ -1,6 +1,7 @@
 from django.db.models import OuterRef, Subquery
 from django.db import transaction
 from django.db.models import Q
+from django.contrib.contenttypes.models import ContentType
 import inspect
 import pickle
 import math
@@ -11,11 +12,11 @@ from topobank.analysis.models import Analysis
 _log = logging.getLogger(__name__)
 
 
-def request_analysis(user, analysis_func, topography, *other_args, **kwargs):
+def request_analysis(user, analysis_func, subject, *other_args, **kwargs):
     """Request an analysis for a given user.
 
     :param user: User instance, user who want to see this analysis
-    :param topography: Topography instance which will be used to extract first argument to analysis function
+    :param subject: instance which will be used as first argument to analysis function
     :param analysis_func: AnalysisFunc instance
     :param other_args: other positional arguments for analysis_func
     :param kwargs: keyword arguments for analysis func
@@ -33,18 +34,19 @@ def request_analysis(user, analysis_func, topography, *other_args, **kwargs):
     #
     # Build function signature with current arguments
     #
-    pyfunc = analysis_func.python_function(type(topography))  # TODO implement for all argument types
+    subject_type = ContentType.objects.get_for_model(subject)
+    pyfunc = analysis_func.python_function(subject_type)
 
     sig = inspect.signature(pyfunc)
 
-    bound_sig = sig.bind(topography, *other_args, **kwargs)
+    bound_sig = sig.bind(subject, *other_args, **kwargs)
     bound_sig.apply_defaults()
 
     pyfunc_kwargs = dict(bound_sig.arguments)
 
     # topography will always be second positional argument
     # and has an extra column, do not safe reference
-    del pyfunc_kwargs['topography']
+    del pyfunc_kwargs['subject']
 
     # progress recorder should also not be saved:
     if 'progress_recorder' in pyfunc_kwargs:
@@ -59,14 +61,15 @@ def request_analysis(user, analysis_func, topography, *other_args, **kwargs):
     #
     pickled_pyfunc_kwargs = pickle.dumps(pyfunc_kwargs)
     analysis = Analysis.objects.filter(\
-        Q(topography=topography)
+        Q(subject_type=subject_type)
+        & Q(subject_id=subject.id)
         & Q(function=analysis_func)
-        & Q(kwargs=pickled_pyfunc_kwargs)).order_by('start_time').last() # will be None if not found
+        & Q(kwargs=pickled_pyfunc_kwargs)).order_by('start_time').last()  # will be None if not found
     # what if pickle protocol changes? -> No match, old must be sorted out later
     # See also GH 426.
 
     if analysis is None:
-        analysis = submit_analysis(users=[user], analysis_func=analysis_func, topography=topography,
+        analysis = submit_analysis(users=[user], analysis_func=analysis_func, subject=subject,
                                    pickled_pyfunc_kwargs=pickled_pyfunc_kwargs)
         _log.info("Submitted new analysis..")
     elif user not in analysis.users.all():
@@ -79,7 +82,8 @@ def request_analysis(user, analysis_func, topography, *other_args, **kwargs):
     # Retrigger an analysis if there was a failure, maybe sth has been fixed in the meantime
     #
     if analysis.task_state == 'fa':
-        new_analysis = submit_analysis(users=analysis.users.all(), analysis_func=analysis_func, topography=topography,
+        new_analysis = submit_analysis(users=analysis.users.all(),
+                                       analysis_func=analysis_func, subject=subject,
                                        pickled_pyfunc_kwargs=pickled_pyfunc_kwargs)
         _log.info("Submitted analysis %d again because of failure..", analysis.id)
         analysis.delete()
@@ -89,9 +93,10 @@ def request_analysis(user, analysis_func, topography, *other_args, **kwargs):
     # Remove user from other analyses with same topography and function
     #
     other_analyses_with_same_user = Analysis.objects.filter(
-        ~Q(id=analysis.id) \
-        & Q(topography=topography) \
-        & Q(function=analysis_func) \
+        ~Q(id=analysis.id)
+        & Q(subject_type=subject_type)
+        & Q(subject_id=subject.id)
+        & Q(function=analysis_func)
         & Q(users__in=[user]))
     for a in other_analyses_with_same_user:
         a.users.remove(user)
@@ -115,12 +120,7 @@ def renew_analysis(analysis, use_default_kwargs=False):
     users = analysis.users.all()
     func = analysis.function
     topography = analysis.topography
-    surface = analysis.surface
-    if topography is None:
-        subject = surface
-    else:
-        subject = topography
-    subject_type = type(subject)
+    subject_type = ContentType.objects.get_for_model(analysis.subject)
 
     if use_default_kwargs:
         pickled_pyfunc_kwargs = pickle.dumps(func.get_default_kwargs(subject_type=subject_type))
@@ -128,40 +128,35 @@ def renew_analysis(analysis, use_default_kwargs=False):
         pickled_pyfunc_kwargs = analysis.kwargs
 
     _log.info("Renewing analysis %d for %d users, function %s, subject type %s, subject id %d .. kwargs: %s",
-              analysis.id, len(users), func.name, subject_type, subject.id, pickle.loads(pickled_pyfunc_kwargs))
+              analysis.id, len(users), func.name, subject_type, analysis.subject.id,
+              pickle.loads(pickled_pyfunc_kwargs))
     analysis.delete()
-    return submit_analysis(users, func, topography=topography, surface=surface,
+    return submit_analysis(users, func, subject=analysis.subject,
                            pickled_pyfunc_kwargs=pickled_pyfunc_kwargs)
 
 
-def submit_analysis(users, analysis_func, topography=None, surface=None, pickled_pyfunc_kwargs=None):
+def submit_analysis(users, analysis_func, subject, pickled_pyfunc_kwargs=None):
     """Create an analysis entry and submit a task to the task queue.
 
     :param users: sequence of User instances; users which should see the analysis
-    :param topography: Topography instance which will be used to extract first argument to analysis function (or None)
-    :param surface: Surface instance which will be used to extract first argument to analysis function (or None)
+    :param subject: instance which will be subject of the analysis (first argument of analysis function)
     :param analysis_func: AnalysisFunc instance
     :param pickled_pyfunc_kwargs: pickled kwargs for function which should be saved to database
     :returns: Analysis object
 
-    You must specify exactly one of the keyword arguments 'topography' or 'surface'.
-    The other one must be None.
+    Typical instances as subjects are topographies or surfaces.
     """
+    subject_type = ContentType.objects.get_for_model(subject)
+
     #
     # create entry in Analysis table
     #
     if pickled_pyfunc_kwargs is None:
-        if topography is None:
-            subject_type = type(surface)
-        else:
-            subject_type = type(topography)
-
         # Instead of an empty dict, we explicitly store the current default arguments of the analysis function
         pickled_pyfunc_kwargs = pickle.dumps(analysis_func.get_default_kwargs(subject_type=subject_type))
 
     analysis = Analysis.objects.create(
-        topography=topography,
-        surface=surface,
+        subject=subject,
         function=analysis_func,
         task_state=Analysis.PENDING,
         kwargs=pickled_pyfunc_kwargs)
@@ -174,8 +169,8 @@ def submit_analysis(users, analysis_func, topography=None, surface=None, pickled
     #
     Analysis.objects.filter(
         ~Q(id=analysis.id)
-        & Q(topography=topography)
-        & Q(surface=surface)
+        & Q(subject_type=subject_type)
+        & Q(subject_id=subject.id)
         & Q(function=analysis_func)
         & Q(kwargs=pickled_pyfunc_kwargs)
         & Q(task_state__in=[Analysis.FAILURE, Analysis.SUCCESS])).delete()

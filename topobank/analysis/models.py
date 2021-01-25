@@ -66,6 +66,11 @@ class Configuration(models.Model):
 
 
 class Analysis(models.Model):
+    """Concrete Analysis with state, function reference, arguments, and results.
+
+    Additionally it saves the configuration which was present when
+    executing the analysis, i.e. versions of the main libraries needed.
+    """
 
     PENDING = 'pe'
     STARTED = 'st'
@@ -83,10 +88,12 @@ class Analysis(models.Model):
 
     function = models.ForeignKey('AnalysisFunction', on_delete=models.CASCADE)
 
-    topography = models.ForeignKey(Topography, null=True,
-                                   on_delete=models.CASCADE)
-    surface = models.ForeignKey(Surface, null=True,
-                                on_delete=models.CASCADE)
+    topography = models.ForeignKey(Topography, on_delete=models.CASCADE)
+
+    # Definition of the subject
+    subject_type = models.ForeignKey(ContentType, null=True, on_delete=models.CASCADE)
+    subject_id = models.PositiveIntegerField(null=True)
+    subject = GenericForeignKey('subject_type', 'subject_id')
 
     # According to github #208, each user should be able to see analysis with parameters chosen by himself
     users = models.ManyToManyField(User)
@@ -130,32 +137,6 @@ class Analysis(models.Model):
     def storage_prefix(self):
         return "analyses/{}/".format(self.id)
 
-    @property
-    def subject(self):
-        if self.topography:
-            return self.topography
-        else:
-            # This does only work with the constraint that
-            # only one field of topography and surface is
-            # allowed to be NULL
-            return self.surface
-
-    class Meta:
-        # exactly one field of topography + surface must be NULL
-        constraints = [CheckConstraint(name='unique_subject',
-                                       check=(Q(topography__isnull=True) & Q(surface__isnull=False)) | \
-                                             (Q(topography__isnull=False) & Q(surface__isnull=True)))]
-
-
-# class AnalysisSubject(models.Model):
-#     """Subject of an analysis, e.g. a surface or topography"""
-#     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
-#     object_id = models.PositiveIntegerField()
-#     content_object = GenericForeignKey('content_type', 'object_id')
-#
-#     def __str__(self):
-#         return f"{self.content_type.name}(id={self.object_id})"
-
 
 class AnalysisFunction(models.Model):
     """Represents an analysis function from a user perspective.
@@ -191,17 +172,15 @@ class AnalysisFunction(models.Model):
 
         Parameters
         ----------
-        subject_type: type
-            Type of first argument of analysis function, e.g.
-            `topobank.manager.models.Topography` or `topobank.manager.models.Surface`.
+        subject_type: ContentType
+            Type of first argument of analysis function
 
         Returns
         -------
         AnalysisFunctionImplementation instance
         """
         try:
-            st = subject_type.__name__.lower()[0]  # TODO use generic content types, intermediate solution
-            impl = self.implementations.get(subject_type=st)
+            impl = self.implementations.get(subject_type=subject_type)
         except AnalysisFunctionImplementation.DoesNotExist as exc:
             raise ImplementationMissingException(self.name, subject_type)
         return impl
@@ -253,18 +232,10 @@ class AnalysisFunction(models.Model):
 
 class AnalysisFunctionImplementation(models.Model):
     """Represents an implementation of an analysis function depending on subject."""
-
-    SUBJECT_TYPE_TOPOGRAPHY = 't'
-    SUBJECT_TYPE_SURFACE = 's'
-
-    SUBJECT_TYPE_CHOICES = [
-        (SUBJECT_TYPE_TOPOGRAPHY, 'topography'),
-        (SUBJECT_TYPE_SURFACE, 'surface'),
-    ]
-
     function = models.ForeignKey(AnalysisFunction, related_name='implementations', on_delete=models.CASCADE)
-    subject_type = models.CharField(max_length=1, choices=SUBJECT_TYPE_CHOICES)  # TODO use generic content types, intermediate solution
-    pyfunc = models.CharField(max_length=256)  # name of Python function in functions module
+    subject_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    code_ref = models.CharField(max_length=256,
+                                help_text="name of Python function in 'topobank.analysis.functions' module")
 
     class Meta:
         constraints = [
@@ -275,9 +246,9 @@ class AnalysisFunctionImplementation(models.Model):
         """Return reference to corresponding Python function."""
         import topobank.analysis.functions as functions_module
         try:
-            return getattr(functions_module, self.pyfunc)
+            return getattr(functions_module, self.code_ref)
         except AttributeError as exc:
-            raise ValueError(f"Cannot resolve reference to python function '{self.pyfunc}'.")
+            raise ValueError(f"Cannot resolve reference to python function '{self.code_ref}'.")
 
     @staticmethod
     def _get_default_args(func):
@@ -312,10 +283,9 @@ class AnalysisFunctionImplementation(models.Model):
 
 
 class AnalysisCollection(models.Model):
-    """A collection of analyses which belong togehter for some reason."""
+    """A collection of analyses which belong together for some reason."""
     name = models.CharField(max_length=160)
     owner = models.ForeignKey(User, on_delete=models.CASCADE)
-    # notfiy = models.BooleanField(default=False)
     analyses = models.ManyToManyField(Analysis)
     combined_task_state = models.CharField(max_length=7,
                                            choices=Analysis.TASK_STATE_CHOICES)

@@ -1,8 +1,9 @@
-
+from django.contrib.contenttypes.models import ContentType
 import factory
 import logging
 import pickle
 import datetime
+import pytest
 from factory.helpers import post_generation
 
 from ..models import Analysis, AnalysisFunction, AnalysisFunctionImplementation
@@ -26,9 +27,10 @@ class AnalysisFunctionFactory(factory.django.DjangoModelFactory):
 class AnalysisFunctionImplementationFactory(factory.django.DjangoModelFactory):
 
     function = factory.SubFactory(AnalysisFunctionFactory)
-    subject_type = AnalysisFunctionImplementation.SUBJECT_TYPE_TOPOGRAPHY
-    pyfunc = 'topography_analysis_function_for_tests'
+    subject_type = factory.LazyAttribute(lambda x: ContentType.objects.get_for_model(Topography))
+    code_ref = 'topography_analysis_function_for_tests'
 
+    # noinspection PyMissingOrEmptyDocstring
     class Meta:
         model = AnalysisFunctionImplementation
 
