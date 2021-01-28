@@ -2,6 +2,7 @@ import pytest
 from operator import itemgetter
 import datetime
 from django.db.models.functions import Lower
+from django.contrib.contenttypes.models import ContentType
 
 from ..models import Analysis, AnalysisFunction
 from topobank.manager.models import Topography
@@ -34,8 +35,9 @@ def test_analysis_function():
     impl = AnalysisFunctionImplementationFactory(function=func)
     from ..functions import topography_analysis_function_for_tests
 
-    assert func.python_function(Topography) == topography_analysis_function_for_tests
-    assert func.get_default_kwargs(Topography) == dict(a=1, b="foo")
+    ct = ContentType.objects.get_for_model(Topography)
+    assert func.python_function(ct) == topography_analysis_function_for_tests
+    assert func.get_default_kwargs(ct) == dict(a=1, b="foo")
 
     t = TopographyFactory()
     result = func.eval(t, a=2, b="bar")
@@ -116,8 +118,8 @@ def test_default_function_kwargs():
         pressures=None,
         maxiter=100,
     )
-
-    assert func.get_default_kwargs(Topography) == expected_kwargs
+    ct = ContentType.objects.get_for_model(Topography)
+    assert func.get_default_kwargs(ct) == expected_kwargs
 
 
 @pytest.mark.django_db

@@ -22,7 +22,7 @@ def test_request_analysis(two_topos, django_user_model):
 
     user = django_user_model.objects.create(name='testuser')
 
-    analysis = request_analysis(user=user, topography=topo1, analysis_func=af)
+    analysis = request_analysis(user=user, subject=topo1, analysis_func=af)
 
     assert analysis.topography == topo1
     assert analysis.function == af

@@ -44,9 +44,9 @@ def request_analysis(user, analysis_func, subject, *other_args, **kwargs):
 
     pyfunc_kwargs = dict(bound_sig.arguments)
 
-    # topography will always be second positional argument
+    # subject will always be second positional argument
     # and has an extra column, do not safe reference
-    del pyfunc_kwargs['subject']
+    del pyfunc_kwargs[subject_type.model]  # will delete 'topography' or 'surface' or whatever the subject name is
 
     # progress recorder should also not be saved:
     if 'progress_recorder' in pyfunc_kwargs:
@@ -156,6 +156,7 @@ def submit_analysis(users, analysis_func, subject, pickled_pyfunc_kwargs=None):
         pickled_pyfunc_kwargs = pickle.dumps(analysis_func.get_default_kwargs(subject_type=subject_type))
 
     analysis = Analysis.objects.create(
+        topography=subject,  # TODO: remove when column topography is removed
         subject=subject,
         function=analysis_func,
         task_state=Analysis.PENDING,
@@ -164,8 +165,8 @@ def submit_analysis(users, analysis_func, subject, pickled_pyfunc_kwargs=None):
     analysis.users.set(users)
 
     #
-    # delete all completed old analyses for same function and topography and arguments
-    # There should be only one analysis per function, topography and arguments
+    # delete all completed old analyses for same function and subject and arguments
+    # There should be only one analysis per function, subject and arguments
     #
     Analysis.objects.filter(
         ~Q(id=analysis.id)

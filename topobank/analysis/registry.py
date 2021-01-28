@@ -35,13 +35,13 @@ class NoImplementationException(AnalysisFunctionException):
 class ImplementationAlreadyDefinedException(AnalysisFunctionException):
     """An implementation of an analysis function was already defined."""
 
-    def __init__(self, name, subject_type):
+    def __init__(self, name, subject_type_name):
         self._name = name
-        self._subject_type = subject_type
+        self._subject_type_name = subject_type_name
 
     def __str__(self):
-        return f"An implementation for analysis function '{self._name}' with first argument " +\
-               f"'{self._subject_type}' was already defined."
+        return f"An implementation for analysis function '{self._name}' with subject type " +\
+               f"'{self._subject_type_name}' was already defined."
 
 
 class ImplementationMissingException(AnalysisFunctionException):
@@ -91,8 +91,9 @@ class AnalysisFunctionRegistry(metaclass=Singleton):
     """
     def __init__(self):
         self._implementations = {}
-        # key: (name, subject_type)
-        #      where name: Function name in GUI, subject_type: Topography or Surface (type)
+        # key: (name, subject_type_name)
+        #      where name: Function name in GUI,
+        #      subject_type_name: "Topography" or "Surface" (type)
         # value: reference to implementation of analysis function
 
         self._card_view_flavors = {}
@@ -121,19 +122,21 @@ class AnalysisFunctionRegistry(metaclass=Singleton):
         """
         # Find out name of first argument
         func_spec = inspect.getfullargspec(func)
-        first_arg_name = func_spec.args[0]
-        try:
-            subject_type = ContentType.objects.get_by_natural_key('manager', first_arg_name)
-        except AttributeError as exc:
-            err_msg = f'No model for name "{first_arg_name}" found. ' + \
-                    'Did you mean "topography" or "surface"?'
-            raise ValueError(err_msg) from exc
+        subject_type_name = func_spec.args[0]
+        # try:
+        #     subject_type = ContentType.objects.get_by_natural_key('manager', first_arg_name)
+        # except AttributeError as exc:
+        #     err_msg = f'No model for name "{first_arg_name}" found. ' + \
+        #             'Did you mean "topography" or "surface"?'
+        #     raise ValueError(err_msg) from exc
 
-        key = (name, subject_type)
+        key = (name, subject_type_name)
+        # We are using the subject_type_name here because otherwise we have problems
+        # during test setup if we use Contenttypes here (not fully ready?)
 
         # Each implementation should only defined once
         if key in self._implementations:
-            raise ImplementationAlreadyDefinedException(name, subject_type)
+            raise ImplementationAlreadyDefinedException(name, subject_type_name)
 
         # The card view flavor must be valid
         from topobank.analysis.models import CARD_VIEW_FLAVORS
@@ -149,21 +152,21 @@ class AnalysisFunctionRegistry(metaclass=Singleton):
         self._card_view_flavors[name] = card_view_flavor
 
     def get_implementation(self, name, subject_type):
-        """Return Python function for given analysis function and first argument type.
+        """Return Python function for given analysis function and subject type.
 
         Parameters
         ----------
         name: str
             Name of analysis function.
-        subject_type: type
-            Either Topography or Surface
+        subject_type: ContentType
+            ContentType of subject (first argument of implementing function)
 
         Returns
         -------
-        Python function, first argument must be of type `subject_type`.
+        Python function, first argument can accept given subject_type
         """
         try:
-            return self._implementations[(name, subject_type)]
+            return self._implementations[(name, subject_type.model)]
         except KeyError as exc:
             raise ImplementationMissingException(name, subject_type)
 
@@ -198,9 +201,10 @@ class AnalysisFunctionRegistry(metaclass=Singleton):
             else:
                 counts['funcs_updated'] += 1
 
-        for name, subject_type in self._implementations:
+        for name, subject_type_name in self._implementations:
             function = AnalysisFunction.objects.get(name=name)
-            pyfunc_obj = self._implementations[(name, subject_type)]
+            subject_type = ContentType.objects.get_by_natural_key('manager', subject_type_name)
+            pyfunc_obj = self._implementations[(name, subject_type_name)]
             pyfunc_name = pyfunc_obj.__name__
             impl, created = AnalysisFunctionImplementation.objects.update_or_create(
                 defaults=dict(code_ref=pyfunc_name),

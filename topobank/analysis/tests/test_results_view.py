@@ -19,7 +19,8 @@ from topobank.manager.models import Topography, Surface
 from topobank.manager.tests.utils import SurfaceFactory, UserFactory, TopographyFactory, two_topos
 from topobank.taskapp.tasks import current_configuration
 from topobank.utils import assert_in_content, assert_not_in_content
-from .utils import AnalysisFactory, AnalysisFunctionFactory, AnalysisFunctionImplementationFactory
+from .utils import AnalysisFunctionFactory, AnalysisFunctionImplementationFactory, TopographyAnalysisFactory
+
 from ..models import Analysis, AnalysisFunction
 from ..views import RmsTableCardView, NUM_SIGNIFICANT_DIGITS_RMS_VALUES
 
@@ -479,8 +480,8 @@ def test_rms_table_download_as_txt(client, two_topos, file_format, handle_usage_
     import pickle
     pickled_kwargs = pickle.dumps({})
 
-    ana1 = AnalysisFactory.create(topography=t1, function=func, kwargs=pickled_kwargs)
-    ana2 = AnalysisFactory.create(topography=t1, function=func, kwargs=pickled_kwargs)
+    ana1 = TopographyAnalysisFactory.create(subject=t1, function=func, kwargs=pickled_kwargs)
+    ana2 = TopographyAnalysisFactory.create(subject=t1, function=func, kwargs=pickled_kwargs)
 
     username = 'testuser'
     password = 'abcd$1234'
@@ -847,19 +848,12 @@ def test_view_shared_analysis_results(client, handle_usage_statistics):
     topo2a = TopographyFactory(surface=surface2, name='topo2a')
 
     # analyses, differentiate by start time
-    analysis1a_1 = AnalysisFactory(topography=topo1a, function=func1,
-                                   start_time=datetime.datetime(2019, 1, 1, 12))
-    analysis1b_1 = AnalysisFactory(topography=topo1b, function=func1,
-                                   start_time=datetime.datetime(2019, 1, 1, 13))
-    analysis2a_1 = AnalysisFactory(topography=topo2a, function=func1,
-                                   start_time=datetime.datetime(2019, 1, 1, 14))
-
-    # analysis1a_2 = AnalysisFactory(topography=topo1a, function=func2,
-    #                                start_time=datetime.datetime(2019, 1, 1, 15))
-    # analysis1b_2 = AnalysisFactory(topography=topo1b, function=func2,
-    #                                start_time=datetime.datetime(2019, 1, 1, 16))
-    # analysis2a_2 = AnalysisFactory(topography=topo2a, function=func2,
-    #                                start_time=datetime.datetime(2019, 1, 1, 17))
+    analysis1a_1 = TopographyAnalysisFactory(subject=topo1a, function=func1,
+                                             start_time=datetime.datetime(2019, 1, 1, 12))
+    analysis1b_1 = TopographyAnalysisFactory(subject=topo1b, function=func1,
+                                             start_time=datetime.datetime(2019, 1, 1, 13))
+    analysis2a_1 = TopographyAnalysisFactory(subject=topo2a, function=func1,
+                                             start_time=datetime.datetime(2019, 1, 1, 14))
 
     # Function should have three analyses, all successful (the default when using the factory)
     assert func1.analysis_set.count() == 3

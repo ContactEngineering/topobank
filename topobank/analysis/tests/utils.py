@@ -3,12 +3,10 @@ import factory
 import logging
 import pickle
 import datetime
-import pytest
-from factory.helpers import post_generation
 
 from ..models import Analysis, AnalysisFunction, AnalysisFunctionImplementation
-from topobank.manager.tests.utils import TopographyFactory
-from topobank.manager.models import Topography
+from topobank.manager.tests.utils import TopographyFactory, SurfaceFactory
+from topobank.manager.models import Topography, Surface
 
 _log = logging.getLogger(__name__)
 
@@ -36,30 +34,45 @@ class AnalysisFunctionImplementationFactory(factory.django.DjangoModelFactory):
 
 
 def _analysis_result(analysis):
-    func = analysis.function.python_function(type(analysis.topography))
-    result = func(analysis.topography, **pickle.loads(analysis.kwargs))
+    func = analysis.function.python_function(ContentType.objects.get_for_model(analysis.subject))
+    result = func(analysis.subject, **pickle.loads(analysis.kwargs))
     return pickle.dumps(result)
 
 
-def _analysis_default_kwargs(analysis):
-    return analysis.function.get_default_kwargs(analysis.topography)
+def _analysis_pickled_default_kwargs(analysis):
+    subject_type = ContentType.objects.get_for_model(analysis.subject)
+    return pickle.dumps(analysis.function.get_default_kwargs(subject_type))
 
 
 class AnalysisFactory(factory.django.DjangoModelFactory):
+    """Abstract factory class for generating Analysis.
 
+    For real analyses for Topographies or Surfaces use the
+    child classes.
+    """
+
+    # noinspection PyMissingOrEmptyDocstring
     class Meta:
-        model = Analysis
+        # model = Analysis
+        abstract = True
+        exclude = ['subject']
+        # See https://factoryboy.readthedocs.io/en/stable/recipes.html#django-models-with-genericforeignkeys
 
     id = factory.Sequence(lambda n: n)
     function = factory.SubFactory(AnalysisFunctionFactory)
-    topography = factory.SubFactory(TopographyFactory)
+    topography = factory.SubFactory(TopographyFactory)  # TODO Remove when column topography is removed
+    subject = factory.SubFactory(TopographyFactory)  # Does this work with a generic subject?
 
-    kwargs = pickle.dumps({})
+    subject_id = factory.SelfAttribute('subject.id')
+    subject_type = factory.LazyAttribute(
+            lambda o: ContentType.objects.get_for_model(o.subject))
+
+    kwargs = factory.LazyAttribute(_analysis_pickled_default_kwargs)
     result = factory.LazyAttribute(_analysis_result)
 
     task_state = Analysis.SUCCESS
 
-    start_time = factory.LazyFunction(lambda: datetime.datetime.now()-datetime.timedelta(0,1))
+    start_time = factory.LazyFunction(lambda: datetime.datetime.now()-datetime.timedelta(0, 1))
     end_time = factory.LazyFunction(datetime.datetime.now)
 
     @factory.post_generation
@@ -73,3 +86,19 @@ class AnalysisFactory(factory.django.DjangoModelFactory):
                 self.users.add(user)
 
 
+class TopographyAnalysisFactory(AnalysisFactory):
+    """Create an analysis for a topography."""
+    subject = factory.SubFactory(TopographyFactory)
+
+    # noinspection PyMissingOrEmptyDocstring
+    class Meta:
+        model = Analysis
+
+
+class SurfaceAnalysisFactory(AnalysisFactory):
+    """Create an analysis for a surface."""
+    subject = factory.SubFactory(SurfaceFactory)
+
+    # noinspection PyMissingOrEmptyDocstring
+    class Meta:
+        model = Surface

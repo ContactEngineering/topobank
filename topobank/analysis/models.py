@@ -190,9 +190,8 @@ class AnalysisFunction(models.Model):
 
         Parameters
         ----------
-        subject_type: type
-            Type of first argument of analysis function, e.g.
-            `topobank.manager.models.Topography` or `topobank.manager.models.Surface`.
+        subject_type: ContentType
+            Type of first argument of analysis function
 
         Returns
         -------
@@ -209,9 +208,8 @@ class AnalysisFunction(models.Model):
 
         Parameters
         ----------
-        subject_type: type
-            Type of first argument of analysis function, e.g.
-            `topobank.manager.models.Topography` or `topobank.manager.models.Surface`.
+        subject_type: ContentType
+            Type of first argument of analysis function
 
         Returns
         -------
@@ -226,7 +224,7 @@ class AnalysisFunction(models.Model):
         First argument is the subject of the analysis (topography or surface),
         all other arguments are keyword arguments.
         """
-        subject_type = type(subject)
+        subject_type = ContentType.objects.get_for_model(subject)
         return self._implementation(subject_type).eval(subject, **kwargs)
 
 

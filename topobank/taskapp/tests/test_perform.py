@@ -7,6 +7,7 @@ from topobank.analysis.models import Analysis
 from topobank.analysis.models import AnalysisFunction
 from topobank.manager.models import Topography
 from topobank.manager.tests.utils import two_topos
+from topobank.analysis.tests.utils import TopographyAnalysisFactory
 
 
 @pytest.mark.django_db
@@ -31,8 +32,8 @@ def test_perform_analysis(mocker, two_topos, settings):
                        bins=10,
                        window="hamming")
 
-    analysis = Analysis.objects.create(
-                                topography=topo,
+    analysis = TopographyAnalysisFactory.create(
+                                subject=topo,
                                 function=af,
                                 kwargs=pickle.dumps(func_kwargs))
     analysis.save()
@@ -64,8 +65,8 @@ def test_perform_analysis(mocker, two_topos, settings):
     ]
 
     topo2 = Topography.objects.last()
-    analysis2 = Analysis.objects.create(
-        topography=topo2,
+    analysis2 = TopographyAnalysisFactory.create(
+        subject=topo2,
         function=af,
         kwargs=pickle.dumps(func_kwargs))
 

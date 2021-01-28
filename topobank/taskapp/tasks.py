@@ -31,12 +31,12 @@ EXCEPTION_CLASSES_FOR_INCOMPATIBILITIES = (IncompatibleTopographyException, Inco
 
 _log = get_task_logger(__name__)
 
+
 @after_setup_task_logger.connect
 def setup_task_logger(logger, *args, **kwargs):
     fmt = '%(asctime)s - %(task_id)s - %(task_name)s - %(name)s - %(levelname)s - %(message)s'
     for handler in logger.handlers:
         handler.setFormatter(TaskFormatter(fmt))
-
 
 
 def current_configuration():
