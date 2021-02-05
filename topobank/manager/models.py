@@ -7,6 +7,8 @@ from django.db import transaction
 from django.core.files.storage import default_storage
 from django.core.files import File
 from django.core.files.base import ContentFile
+from django.contrib.contenttypes.fields import GenericRelation
+from django.contrib.contenttypes.models import ContentType
 
 from guardian.shortcuts import assign_perm, remove_perm, get_users_with_perms
 import tagulous.models as tm
@@ -15,6 +17,7 @@ import numpy as np
 import math
 import logging
 import io
+import abc
 
 from bokeh.models import DataRange1d, LinearColorMapper, ColorBar
 from bokeh.plotting import figure
@@ -25,6 +28,7 @@ from .utils import get_topography_reader, get_firefox_webdriver
 from topobank.users.models import User
 from topobank.publication.models import Publication
 from topobank.users.utils import get_default_group
+from topobank.analysis.models import Analysis
 
 _log = logging.getLogger(__name__)
 
@@ -70,16 +74,42 @@ class TagModel(tm.TagTreeModel):
 
 
 class PublishedSurfaceManager(models.Manager):
+    """Manager which works on published surfaces."""
     def get_queryset(self):
         return super().get_queryset().exclude(publication__isnull=True)
 
 
 class UnpublishedSurfaceManager(models.Manager):
+    """Manager which works on unpublished surfaces."""
     def get_queryset(self):
         return super().get_queryset().filter(publication__isnull=True)
 
 
-class Surface(models.Model):
+class SubjectMixin:
+    """Extra methods common to all instances which can be subject to an analysis.
+    """
+    # This is needed for objects to be able to serve as subjects
+    #     for analysis, because some template code uses this.
+    # Probably this could be made faster by caching the result.
+    # Not sure whether this should be done at compile time.
+    @classmethod
+    def get_content_type(cls):
+        """Returns ContentType for own class."""
+        return ContentType.objects.get_for_model(cls)
+
+    def is_shared(self, with_user, allow_change=False):
+        """Returns True, if this subject is shared with a given user.
+
+        Always returns True if user is the creator of the related surface.
+
+        :param with_user: User to test
+        :param allow_change: If True, only return True if surface can be changed by given user
+        :return: True or False
+        """
+        raise NotImplementedError()
+
+
+class Surface(models.Model, SubjectMixin):
     """Physical Surface.
 
     There can be many topographies (measurements) for one surface.
@@ -90,13 +120,16 @@ class Surface(models.Model):
         ('dum', 'Dummy data')
     ]
 
-    LICENSE_CHOICES = [ (k, settings.CC_LICENSE_INFOS[k]['option_name']) for k in ['cc0-1.0', 'ccby-4.0', 'ccbysa-4.0']]
+    LICENSE_CHOICES = [(k, settings.CC_LICENSE_INFOS[k]['option_name']) for k in ['cc0-1.0', 'ccby-4.0', 'ccbysa-4.0']]
 
     name = models.CharField(max_length=80)
     creator = models.ForeignKey(User, on_delete=models.CASCADE)
     description = models.TextField(blank=True)
     category = models.TextField(choices=CATEGORY_CHOICES, null=True, blank=False)  # TODO change in character field
     tags = tm.TagField(to=TagModel)
+    analyses = GenericRelation(Analysis, related_query_name='surface',
+                               content_type_field='subject_type',
+                               object_id_field='subject_id')
 
     objects = models.Manager()
     published = PublishedSurfaceManager()
@@ -283,7 +316,7 @@ class Surface(models.Model):
         return hasattr(self, 'publication')  # checks whether the related object surface.publication exists
 
 
-class Topography(models.Model):
+class Topography(models.Model, SubjectMixin):
     """Topography Measurement of a Surface.
     """
 
@@ -318,6 +351,9 @@ class Topography(models.Model):
     measurement_date = models.DateField()
     description = models.TextField(blank=True)
     tags = tm.TagField(to=TagModel)
+    analyses = GenericRelation(Analysis, related_query_name='topography',
+                               content_type_field='subject_type',
+                               object_id_field='subject_id')
 
     #
     # Fields related to raw data
@@ -369,6 +405,16 @@ class Topography(models.Model):
 
     def cache_key(self):
         return f"topography-{self.id}-channel-{self.data_source}"
+
+    def is_shared(self, with_user, allow_change=False):
+        """Returns True, if this topography is shared with a given user.
+
+        Always returns True if user is the creator of the surface.
+        :param with_user: User to test
+        :param allow_change: If True, only return True if surface can be changed by given user
+        :return: True or False
+        """
+        return self.surface.is_shared(with_user, allow_change=allow_change)
 
     def topography(self):
         """Return a SurfaceTopography.Topography/UniformLineScan/NonuniformLineScan instance.

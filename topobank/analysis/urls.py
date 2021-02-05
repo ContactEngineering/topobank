@@ -8,7 +8,7 @@ from . import downloads
 app_name = "analysis"
 urlpatterns = [
     url(
-        regex=r'list/$',
+        regex=r'list/$',  # TODO change to 'function', also rename name
         view=login_required(views.AnalysesListView.as_view()),
         name='list'
     ),

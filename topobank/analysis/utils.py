@@ -119,7 +119,7 @@ def renew_analysis(analysis, use_default_kwargs=False):
     """
     users = analysis.users.all()
     func = analysis.function
-    topography = analysis.topography
+
     subject_type = ContentType.objects.get_for_model(analysis.subject)
 
     if use_default_kwargs:
@@ -156,7 +156,6 @@ def submit_analysis(users, analysis_func, subject, pickled_pyfunc_kwargs=None):
         pickled_pyfunc_kwargs = pickle.dumps(analysis_func.get_default_kwargs(subject_type=subject_type))
 
     analysis = Analysis.objects.create(
-        topography=subject,  # TODO: remove when column topography is removed
         subject=subject,
         function=analysis_func,
         task_state=Analysis.PENDING,
@@ -196,37 +195,55 @@ def submit_analysis(users, analysis_func, subject, pickled_pyfunc_kwargs=None):
     return analysis
 
 
-def get_latest_analyses(user, function_id, topography_ids):
+def get_latest_analyses(user, func, subjects):
     """Get latest analyses for given function and topographies and user.
 
     :param user: user which views the analyses
-    :param function_id: id of AnalysisFunction instance
-    :param topography_ids: iterable of ids of Topography instances
-
+    :param func: AnalysisFunction instance
+    :param subjects: iterable of analysis subjects
     :return: Queryset of analyses
 
     The returned queryset is comprised of only the latest analyses,
-    so for each topography id there should be at most one result.
+    so for each subject there should be at most one result.
     Only analyses for the given function are returned.
     """
 
-    sq_analyses = Analysis.objects \
-                .filter(topography_id__in=topography_ids,
-                        function_id=function_id,
-                        users__in=[user]) \
-                .filter(topography=OuterRef('topography'), function=OuterRef('function'),
-                        kwargs=OuterRef('kwargs')) \
-                .order_by('-start_time')
+    analyses = Analysis.objects.none()
 
-    # Use this subquery for finding only latest analyses for each (topography, kwargs) group
-    analyses = Analysis.objects \
-        .filter(pk=Subquery(sq_analyses.values('pk')[:1])) \
-        .order_by('topography__name')
+    # slow implementation with multiple queries, optimize later
+    for subject in subjects:
+
+        ct = ContentType.objects.get_for_model(subject)
+
+        tmp = Analysis.objects.filter(
+            users__in=[user], function=func,
+            subject_type_id=ct.id, subject_id=subject.id
+        ).order_by('-start_time').first()
+        if tmp:
+            analyses |= Analysis.objects.filter(pk=tmp.pk)  # inefficient
+
+    #Analysis.objects.filter(users__in=[user], function=func, subject_type=ct, subject_id=topo.id).order_by(
+    #    '-start_time').first()
+
+    #
+    # sq_analyses = Analysis.objects \
+    #             .filter(subject_id__in=subjects_ids,
+    #                     function_id=function_id,
+    #                     users__in=[user]) \
+    #             .filter(topography=OuterRef('topography'), function=OuterRef('function'),
+    #                     kwargs=OuterRef('kwargs')) \
+    #             .order_by('-start_time')
+    #
+    # # Use this subquery for finding only latest analyses for each (topography, kwargs) group
+    # analyses = Analysis.objects \
+    #     .filter(pk=Subquery(sq_analyses.values('pk')[:1])) \
+    #     .order_by('topography__name')
 
     # thanks to minkwe for the contribution at https://gist.github.com/ryanpitts/1304725
     # maybe be better solved with PostGreSQL and Window functions
 
     return analyses
+
 
 def mangle_sheet_name(s: str) -> str:
     """Return a string suitable for a sheet name in Excel/Libre Office.

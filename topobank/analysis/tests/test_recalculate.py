@@ -25,7 +25,7 @@ def test_recalculate(client):
         # trigger "recalculate" for two topographies
         response = client.post(reverse('analysis:card-submit'), {
             'function_id': func.id,
-            'topography_ids[]': [topo1.id, topo2.id],
+            'subjects_ids[]': {topo1.get_content_type().id: [topo1.id, topo2.id]},
             'function_kwargs_json': '{}'
         }, HTTP_X_REQUESTED_WITH='XMLHttpRequest') # we need an AJAX request
         assert response.status_code == 200

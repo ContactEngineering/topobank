@@ -1,10 +1,13 @@
 import pickle
 import json
+from typing import Optional, Dict, Any
+
 import numpy as np
 import math
 import itertools
 from collections import OrderedDict
 
+from django.contrib.contenttypes.models import ContentType
 from django.http import HttpResponse, Http404, JsonResponse
 from django.views.generic import DetailView, FormView, TemplateView
 from django.urls import reverse_lazy
@@ -14,6 +17,7 @@ from django.core.files.storage import default_storage
 from django.core.cache import cache  # default cache
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import reverse
+from django.conf import settings
 
 import django_tables2 as tables
 
@@ -39,12 +43,12 @@ from trackstats.models import Metric
 from ContactMechanics.Tools.ContactAreaAnalysis import patch_areas, assign_patch_numbers
 
 from ..manager.models import Topography, Surface
-from ..manager.utils import selected_instances, instances_to_selection, instances_to_topographies
+from ..manager.utils import selected_instances, instances_to_selection, instances_to_topographies, \
+    selection_to_subjects_json, subjects_from_json, subjects_to_json
 from ..usage_stats.utils import increase_statistics_by_date_and_object
-from .models import Analysis, AnalysisFunction, AnalysisCollection, CARD_VIEW_FLAVORS
+from .models import Analysis, AnalysisFunction, AnalysisCollection, CARD_VIEW_FLAVORS, ImplementationMissingException
 from .forms import FunctionSelectForm
-from .utils import get_latest_analyses, round_to_significant_digits
-from topobank.analysis.utils import request_analysis
+from .utils import get_latest_analyses, round_to_significant_digits, request_analysis
 
 import logging
 
@@ -151,10 +155,7 @@ class SimpleCardView(TemplateView):
         return [template_name]
 
     def get_context_data(self, **kwargs):
-        """
-
-        Gets function ids and topography ids from POST parameters.
-
+        """Gets function ids and subject ids from POST parameters.
 
         :return: dict to be used in analysis card templates' context
 
@@ -168,8 +169,9 @@ class SimpleCardView(TemplateView):
           analyses_success: queryset of successfully finished analyses (result is useable, can be displayed)
           analyses_failure: queryset of analyses finished with failures (result has traceback, can't be displayed)
           analyses_unready: queryset of analyses which are still running
-          topographies_missing: list of topographies for which there is no Analysis object yet
-          topography_ids_requested_json: json representation of list with all requested topography ids
+          subjects_missing: list of subjects for which there is no Analysis object yet
+          subjects_requested_json: json representation of list with all requested subjects as 2-tuple
+                                   (subject_type.id, subject.id)
         """
         context = super().get_context_data(**kwargs)
 
@@ -180,67 +182,94 @@ class SimpleCardView(TemplateView):
         try:
             function_id = int(request_method.get('function_id'))
             card_id = request_method.get('card_id')
-            topography_ids = [int(tid) for tid in request_method.getlist('topography_ids[]')]
-        except (KeyError, ValueError):
-            return HttpResponse("Error in POST arguments")
+            subjects_ids_json = request_method.get('subjects_ids_json')
+        except Exception as exc:
+            _log.error("Cannot decode POST arguments from analysis card request. Details: %s", exc)
+            raise
+
+        function = AnalysisFunction.objects.get(id=function_id)
+
+        # Calculate subjects for the analyses, filtered for those which have an implementation
+        subjects_requested = subjects_from_json(subjects_ids_json, function=function)
+
+        # The following is needed for re-triggering analyses, now filtered
+        # in order to trigger only for subjects which have an implementation
+        subjects_ids_json = subjects_to_json(subjects_requested)
 
         #
-        # Get all relevant analysis objects for this function and topography ids
+        # Get all relevant analysis objects for this function and these subjects
         #
-        analyses_avail = get_latest_analyses(user, function_id, topography_ids)
+
+        analyses_avail = get_latest_analyses(user, function, subjects_requested)
 
         #
         # Filter for analyses where the user has read permission for the related surface
         #
         readable_surfaces = get_objects_for_user(user, ['view_surface'], klass=Surface)
-        analyses_avail = analyses_avail.filter(topography__surface__in=readable_surfaces)
+        analyses_avail = analyses_avail.filter(Q(topography__surface__in=readable_surfaces)) | \
+                         analyses_avail.filter(Q(surface__in=readable_surfaces))
 
         #
-        # collect list of topographies for which no analyses exist
+        # collect list of subjects for which an analysis instance is missing
         #
-        topographies_available_ids = [a.topography.id for a in analyses_avail]
-        topographies_missing = []
-        for tid in topography_ids:
-            if tid not in topographies_available_ids:
-                try:
-                    topo = Topography.objects.get(id=tid)
-                    topographies_missing.append(topo)
-                except Topography.DoesNotExist:
-                    # topography may be deleted in between
-                    pass
+        subjects_available = [a.subject for a in analyses_avail]
+        subjects_missing = [s for s in subjects_requested if s not in subjects_available]
 
         #
         # collect all keyword arguments and check whether they are equal
         #
-        unique_kwargs = None  # means: there are differences or no analyses available
+        unique_kwargs: Dict[ContentType, Optional[Any]] = {}  # key: ContentType, value: dict or None
+        # - if a contenttype is missing as key, this means:
+        #   There are no analyses available for this contenttype
+        # - if a contenttype exists, but value is None, this means:
+        #   There arguments of the analyses for this contenttype are not unique
+
         for av in analyses_avail:
             kwargs = pickle.loads(av.kwargs)
-            if unique_kwargs is None:
-                unique_kwargs = kwargs
-            elif kwargs != unique_kwargs:
-                unique_kwargs = None
-                break
+
+            if av.subject_type not in unique_kwargs:
+                unique_kwargs[av.subject_type] = kwargs
+            elif unique_kwargs[av.subject_type] is not None:  # was unique so far
+                if kwargs != unique_kwargs[av.subject_type]:
+                    unique_kwargs[av.subject_type] = None
+                    # Found differing arguments for this subject_type
+                    # We need to continue in the loop, because of the other subject types
 
         function = AnalysisFunction.objects.get(id=function_id)
 
         #
-        # automatically trigger analyses for missing topographies
+        # automatically trigger analyses for missing subjects (topographies or surfaces)
         #
-        kwargs_for_missing = unique_kwargs or {}
-        topographies_triggered = []
-        for topo in topographies_missing:
-            if user.has_perm('view_surface', topo.surface):
-                triggered_analysis = request_analysis(user, function, topo, **kwargs_for_missing)
-                topographies_triggered.append(topo)
-                topographies_available_ids.append(topo.id)
-                _log.info(f"Triggered analysis {triggered_analysis.id} for function {function.name} " + \
-                          f"and topography {topo.id}.")
-        topographies_missing = [t for t in topographies_missing if t not in topographies_triggered]
+        # Save keyword arguments which should be used for missing analyses,
+        # sorted by subject type
+        kwargs_for_missing = {}
+        for st in function.get_implementation_types():
+            try:
+                kw = unique_kwargs[st]
+            except KeyError:
+                kw = function.get_default_kwargs(st)
+            kwargs_for_missing[st] = kw
 
-        # now all topographies which needed to be triggered, should have been triggered
+        # For every possible implemented subject type the following is done:
+        # We use the common unique keyword arguments if there are any; if not
+        # the default arguments for the implementation is used
+
+        subjects_triggered = []
+        for subject in subjects_missing:
+            if subject.is_shared(user):
+                ct = ContentType.objects.get_for_model(subject)
+                analysis_kwargs = kwargs_for_missing[ct]
+                triggered_analysis = request_analysis(user, function, subject, **analysis_kwargs)
+                subjects_triggered.append(subject)
+                # topographies_available_ids.append(topo.id)
+                _log.info(f"Triggered analysis {triggered_analysis.id} for function {function.name} " + \
+                          f"and subject '{subject}'.")
+        subjects_missing = [s for s in subjects_missing if s not in subjects_triggered]
+
+        # now all subjects which needed to be triggered, should have been triggered
         # with common arguments if possible
         # collect information about available analyses again
-        if len(topographies_triggered) > 0:
+        if len(subjects_triggered) > 0:
 
             # if no analyses where available before, unique_kwargs is None
             # which is interpreted as "differing arguments". This is wrong
@@ -248,8 +277,9 @@ class SimpleCardView(TemplateView):
             if len(analyses_avail) == 0:
                 unique_kwargs = kwargs_for_missing
 
-            analyses_avail = get_latest_analyses(user, function_id, topography_ids) \
-                .filter(topography__surface__in=readable_surfaces)
+            analyses_avail = get_latest_analyses(user, function_id, subjects_requested) \
+                .filter(Q(topography__surface__in=readable_surfaces) |
+                        Q(surface__in=readable_surfaces))
 
         #
         # Determine status code of request - do we need to trigger request again?
@@ -277,8 +307,8 @@ class SimpleCardView(TemplateView):
             analyses_success=analyses_success,  # ..the ones which were successful and can be displayed
             analyses_failure=analyses_failure,  # ..the ones which have failures and can't be displayed
             analyses_unready=analyses_unready,  # ..the ones which are still running
-            topographies_missing=topographies_missing,  # topographies for which there is no Analysis object yet
-            topography_ids_requested_json=json.dumps(topography_ids),  # can be used to retrigger analyses
+            subjects_missing=subjects_missing,  # subjects for which there is no Analysis object yet
+            subjects_ids_json=subjects_ids_json,  # can be used to re-trigger analyses
             extra_warnings=[],  # use list of dicts of form {'alert_class': 'alert-info', 'message': 'your message'}
         ))
 
@@ -389,8 +419,8 @@ class PlotCardView(SimpleCardView):
         # symbol_cycle = itertools.cycle(['circle', 'triangle', 'diamond', 'square', 'asterisk'])
         # TODO remove code for toggling symbols if not needed
 
-        topography_colors = OrderedDict()  # key: Topography instance
-        topography_names = []
+        subject_colors = OrderedDict()  # key: subject instance, value: color
+        subject_names = []
 
         series_dashes = OrderedDict()  # key: series name
         series_names = []
@@ -404,18 +434,19 @@ class PlotCardView(SimpleCardView):
         js_code = ""
         js_args = {}
 
-        special_values = []  # elements: (topography, quantity name, value, unit string)
+        special_values = []  # elements: tuple(subject, quantity name, value, unit string)
 
         for analysis in analyses_success:
 
-            topography_name = analysis.topography.name
+            subject = analysis.subject
+            subject_name = subject.name
 
             #
-            # find out colors for topographies
+            # find out colors for subject
             #
-            if analysis.topography not in topography_colors:
-                topography_colors[analysis.topography] = next(color_cycle)
-                topography_names.append(analysis.topography.name)
+            if subject not in subject_colors:
+                subject_colors[subject] = next(color_cycle)
+                subject_names.append(subject_name)
 
             if analysis.task_state == analysis.FAILURE:
                 continue  # should not happen if only called with successful analyses
@@ -485,9 +516,9 @@ class PlotCardView(SimpleCardView):
                 #
                 show_symbols = np.count_nonzero(~mask) <= MAX_NUM_POINTS_FOR_SYMBOLS
 
-                legend_entry = topography_name + ": " + series_name
+                legend_entry = subject_name + ": " + series_name
 
-                curr_color = topography_colors[analysis.topography]
+                curr_color = subject_colors[subject]
                 curr_dash = series_dashes[series_name]
                 # curr_symbol = series_symbols[series_name]
 
@@ -495,7 +526,7 @@ class PlotCardView(SimpleCardView):
 
                 line_glyph = plot.line('x', 'y', source=source, legend_label=legend_entry,
                                        line_color=curr_color,
-                                       line_dash=curr_dash, name=topography_name)
+                                       line_dash=curr_dash, name=subject_name)
                 if show_symbols:
                     symbol_glyph = plot.scatter('x', 'y', source=source,
                                                 legend_label=legend_entry,
@@ -504,30 +535,31 @@ class PlotCardView(SimpleCardView):
                                                 line_color=curr_color,
                                                 line_dash=curr_dash,
                                                 fill_color=curr_color,
-                                                name=topography_name)
+                                                name=subject_name)
 
                 #
                 # Prepare JS code to toggle visibility
                 #
                 series_idx = series_names.index(series_name)
-                topography_idx = topography_names.index(topography_name)
+                subject_idx = subject_names.index(subject_name)  # TODO be careful, may not be unique
 
                 # prepare unique id for this line
-                glyph_id = f"glyph_{topography_idx}_{series_idx}_line"
+                glyph_id = f"glyph_{subject_idx}_{series_idx}_line"
                 js_args[glyph_id] = line_glyph  # mapping from Python to JS
 
                 # only indices of visible glyphs appear in "active" lists of both button groups
                 js_code += f"{glyph_id}.visible = series_btn_group.active.includes({series_idx}) " \
-                           + f"&& topography_btn_group.active.includes({topography_idx});"
+                           + f"&& topography_btn_group.active.includes({subject_idx});"
+                # TODO rename topopgraphy_btn_group
 
                 if show_symbols:
                     # prepare unique id for this symbols
-                    glyph_id = f"glyph_{topography_idx}_{series_idx}_symbol"
+                    glyph_id = f"glyph_{subject_idx}_{series_idx}_symbol"
                     js_args[glyph_id] = symbol_glyph  # mapping from Python to JS
 
                     # only indices of visible glyphs appear in "active" lists of both button groups
                     js_code += f"{glyph_id}.visible = series_btn_group.active.includes({series_idx}) " \
-                               + f"&& topography_btn_group.active.includes({topography_idx});"
+                               + f"&& topography_btn_group.active.includes({subject_idx});"
 
             #
             # Collect special values to be shown in the result card
@@ -538,11 +570,11 @@ class PlotCardView(SimpleCardView):
                         scalar_unit = scalar_dict['unit']
                         if scalar_unit == '1':
                             scalar_unit = ''  # we don't want to display '1' as unit
-                        special_values.append((analysis.topography, scalar_name,
+                        special_values.append((subject, scalar_name,
                                                scalar_dict['value'], scalar_unit))
                     except (KeyError, IndexError):
                         _log.warning("Cannot display scalar '%s' given as '%s'. Skipping.", scalar_name, scalar_dict)
-                        special_values.append((analysis.topography, scalar_name, str(scalar_dict), ''))
+                        special_values.append((subject, scalar_name, str(scalar_dict), ''))
 
         #
         # Final configuration of the plot
@@ -564,19 +596,18 @@ class PlotCardView(SimpleCardView):
         #
         # Adding widgets for switching lines on/off
         #
-        topo_names = list(t.name for t in topography_colors.keys())
-
         series_button_group = CheckboxGroup(
             labels=series_names,
             css_classes=["topobank-series-checkbox"],
             visible=False,
             active=list(range(len(series_names))))  # all active
 
+        subject_names_for_btn_group = list(s.name for s in subject_colors.keys())
         topography_button_group = CheckboxGroup(
-            labels=topo_names,
+            labels=subject_names_for_btn_group,
             css_classes=["topobank-topography-checkbox"],
             visible=False,
-            active=list(range(len(topo_names))))  # all active
+            active=list(range(len(subject_names_for_btn_group))))  # all active
 
         topography_btn_group_toggle_button = Toggle(label="Topographies")
         series_btn_group_toggle_button = Toggle(label="Data Series")
@@ -622,7 +653,7 @@ class PlotCardView(SimpleCardView):
             plot_script=script,
             plot_div=div,
             special_values=special_values,
-            topography_colors=json.dumps(list(topography_colors.values())),
+            topography_colors=json.dumps(list(subject_colors.values())),
             series_dashes=json.dumps(list(series_dashes.values()))))
 
         return context
@@ -667,7 +698,7 @@ class ContactMechanicsCardView(SimpleCardView):
                 analysis_result = analysis.result_obj
 
                 data = dict(
-                    topography_name=(analysis.topography.name,) * len(analysis_result['mean_pressures']),
+                    topography_name=(analysis.subject.name,) * len(analysis_result['mean_pressures']),
                     mean_pressure=analysis_result['mean_pressures'],
                     total_contact_area=analysis_result['total_contact_areas'],
                     mean_displacement=analysis_result['mean_displacements'],
@@ -681,14 +712,14 @@ class ContactMechanicsCardView(SimpleCardView):
                 source = ColumnDataSource(data, name="analysis-{}".format(analysis.id))
 
                 sources.append(source)
-                labels.append(analysis.topography.name)
+                labels.append(analysis.subject.name)
 
                 #
                 # find out colors for topographies
                 #
-                if analysis.topography not in topography_colors:
-                    topography_colors[analysis.topography] = next(color_cycle)
-                    topography_names.append(analysis.topography.name)
+                if analysis.subject not in topography_colors:
+                    topography_colors[analysis.subject] = next(color_cycle)
+                    topography_names.append(analysis.subject.name)
 
             load_axis_label = "Normalized pressure p/E*"
             area_axis_label = "Fractional contact area A/A0"
@@ -817,7 +848,13 @@ class ContactMechanicsCardView(SimpleCardView):
 
             context.update(plot_script=plot_script, plot_div=plot_div)
 
-        unique_kwargs = context['unique_kwargs']
+        #
+        # Calculate initial values for the parameter form on the page
+        # We only handle topographies here so far, so we only take into account
+        # parameters for topography analyses
+        #
+        topography_ct = ContentType.objects.get_for_model(Topography)
+        unique_kwargs = context['unique_kwargs'][topography_ct]
         if unique_kwargs:
             initial_calc_kwargs = unique_kwargs
         else:
@@ -836,7 +873,7 @@ class ContactMechanicsCardView(SimpleCardView):
                  i.e. the size of the provided topography.""")
         ]
 
-        context['limits_calc_kwargs'] = CONTACT_MECHANICS_KWARGS_LIMITS
+        context['limits_calc_kwargs'] = settings.CONTACT_MECHANICS_KWARGS_LIMITS
 
         return context
 
@@ -874,7 +911,7 @@ class RmsTableCardView(SimpleCardView):
                 if not d['direction']:
                     d['direction'] = ''
                 # put topography in every line
-                topo = analysis.topography
+                topo = analysis.subject
                 d.update(dict(topography_name=topo.name,
                               topography_url=topo.get_absolute_url()))
 
@@ -933,33 +970,33 @@ def submit_analyses_view(request):
     # args_dict = request_method
     try:
         function_id = int(request_method.get('function_id'))
-        topography_ids = [int(tid) for tid in request_method.getlist('topography_ids[]')]
+        subjects_ids_json = request_method.get('subjects_ids_json')
         function_kwargs_json = request_method.get('function_kwargs_json')
-    except (KeyError, ValueError, TypeError):
+        function_kwargs = json.loads(function_kwargs_json)
+        subjects = subjects_from_json(subjects_ids_json)
+    except (KeyError, ValueError, TypeError, json.JSONDecodeError):
         return JsonResponse({'error': 'error in request data'}, status=400)
 
     #
     # Interpret given arguments
     #
     function = AnalysisFunction.objects.get(id=function_id)
-    topographies = Topography.objects.filter(id__in=topography_ids)
-    function_kwargs = json.loads(function_kwargs_json)
 
     allowed = True
-    for topo in topographies:
-        allowed &= user.has_perm('view_surface', topo.surface)
+    for subject in subjects:
+        allowed &= subject.is_shared(user)
         if not allowed:
             break
 
     if allowed:
-        analyses = [request_analysis(user, function, topo, **function_kwargs) for topo in topographies]
+        analyses = [request_analysis(user, function, subject, **function_kwargs) for subject in subjects]
 
         status = 200
 
         #
         # create a collection of analyses such that points to all analyses
         #
-        collection = AnalysisCollection.objects.create(name=f"{function.name} for {len(topographies)} topographies.",
+        collection = AnalysisCollection.objects.create(name=f"{function.name} for {len(subjects)} subjects.",
                                                        combined_task_state=Analysis.PENDING,
                                                        owner=user)
         collection.analyses.set(analyses)
@@ -1080,9 +1117,9 @@ def contact_mechanics_data(request):
     #
     analysis = Analysis.objects.get(id=analysis_id)
 
-    unit = analysis.topography.unit
+    unit = analysis.subject.unit
 
-    if user.has_perm('view_surface', analysis.topography.surface):
+    if user.has_perm('view_surface', analysis.related_surface):
 
         #
         # Try to get results from cache
@@ -1125,7 +1162,7 @@ def contact_mechanics_data(request):
             # Common figure parameters
             #
 
-            topo = analysis.topography
+            topo = analysis.subject
             aspect_ratio = topo.size_x / topo.size_y
             frame_height = 500
             frame_width = int(frame_height * aspect_ratio)
@@ -1252,6 +1289,8 @@ def extra_tabs_if_single_item_selected(topographies, surfaces):
 
 
 class AnalysisFunctionDetailView(DetailView):
+    """Show analyses for a given analysis function.
+    """
     model = AnalysisFunction
     template_name = "analysis/analyses_detail.html"
 
@@ -1260,20 +1299,15 @@ class AnalysisFunctionDetailView(DetailView):
 
         function = self.object
 
-        topographies, surfaces, tags = selected_instances(self.request)
-        effective_topographies = instances_to_topographies(topographies, surfaces, tags)
-
-        # Do we have permission for all of these?
-        user = self.request.user
-        effective_topographies = [t for t in effective_topographies if user.has_perm('view_surface', t.surface)]
+        effective_topographies, effective_surfaces, subjects_ids_json = selection_to_subjects_json(self.request)
 
         card = dict(function=function,
-                    topography_ids_json=json.dumps([t.id for t in effective_topographies]))
+                    subjects_ids_json=subjects_ids_json)
 
         context['card'] = card
 
         # Decide whether to open extra tabs for surface/topography details
-        tabs = extra_tabs_if_single_item_selected(topographies, surfaces)
+        tabs = extra_tabs_if_single_item_selected(effective_topographies, effective_surfaces)
         tabs.extend([
             {
                 'title': f"Analyze",
@@ -1299,6 +1333,8 @@ class AnalysisFunctionDetailView(DetailView):
 
 
 class AnalysesListView(FormView):
+    """View showing analyses from multiple functions.
+    """
     form_class = FunctionSelectForm
     success_url = reverse_lazy('analysis:list')
     template_name = "analysis/analyses_list.html"
@@ -1318,7 +1354,7 @@ class AnalysesListView(FormView):
                 raise PermissionDenied()
 
             functions = set(a.function for a in collection.analyses.all())
-            topographies = set(a.topography for a in collection.analyses.all())
+            topographies = set(a.subject for a in collection.analyses.all())
 
             # as long as we have the current UI (before implementing GH #304)
             # we also set the collection's function and topographies as selection
@@ -1385,24 +1421,20 @@ class AnalysesListView(FormView):
         context = super().get_context_data(**kwargs)
 
         selected_functions = self._selected_functions(self.request)
-        topographies, surfaces, tags = selected_instances(self.request)
-        effective_topographies = instances_to_topographies(topographies, surfaces, tags)
 
-        # Do we have permission for all of these?
-        user = self.request.user
-        effective_topographies = [t for t in effective_topographies if user.has_perm('view_surface', t.surface)]
+        effective_topographies, effective_surfaces, subjects_ids_json = selection_to_subjects_json(self.request)
 
         # for displaying result card, we need a dict for each card,
         # which then can be used to load the result data in the background
         cards = []
         for function in selected_functions:
             cards.append(dict(function=function,
-                              topography_ids_json=json.dumps([t.id for t in effective_topographies])))
+                              subjects_ids_json=subjects_ids_json))
 
         context['cards'] = cards
 
         # Decide whether to open extra tabs for surface/topography details
-        tabs = extra_tabs_if_single_item_selected(topographies, surfaces)
+        tabs = extra_tabs_if_single_item_selected(effective_topographies, effective_surfaces)
         tabs.append(
             {
                 'title': f"Analyze",

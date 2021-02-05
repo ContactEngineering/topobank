@@ -6,6 +6,7 @@ import datetime
 import openpyxl
 import pickle
 import tempfile
+import json
 
 import ContactMechanics
 import NuMPI
@@ -16,6 +17,7 @@ import pytest
 from django.urls import reverse
 
 from topobank.manager.models import Topography, Surface
+from topobank.manager.utils import subjects_to_json
 from topobank.manager.tests.utils import SurfaceFactory, UserFactory, TopographyFactory, two_topos
 from topobank.taskapp.tasks import current_configuration
 from topobank.utils import assert_in_content, assert_not_in_content
@@ -34,6 +36,7 @@ def selection_from_instances(instances):
 
     return x
 
+
 def test_selection_from_instances(mocker):
     mocker.patch('topobank.manager.models.Topography')
     mocker.patch('topobank.manager.models.Surface')
@@ -45,7 +48,7 @@ def test_selection_from_instances(mocker):
                  Topography(id=3, name="T3"),
                  ]
 
-    expected = [ 'surface-1', 'surface-2', 'topography-1', 'topography-2', 'topography-3']
+    expected = ['surface-1', 'surface-2', 'topography-1', 'topography-2', 'topography-3']
 
     assert expected == selection_from_instances(instances)
 
@@ -67,13 +70,12 @@ def test_analysis_times(client, two_topos, django_user_model):
                                    'series': [],
                                    })
 
-    analysis = Analysis.objects.create(
-        topography=topo,
+    analysis = TopographyAnalysisFactory.create(
+        subject=topo,
         function=af,
         task_state=Analysis.SUCCESS,
-        kwargs=pickle.dumps({}),
         start_time=datetime.datetime(2018, 1, 1, 12),
-        end_time=datetime.datetime(2018, 1, 1, 13, 1, 1), # duration: 1 hour, 1 minute, 1 sec
+        end_time=datetime.datetime(2018, 1, 1, 13, 1, 1),  # duration: 1 hour, 1 minute, 1 sec
         result=pickled_result,
     )
     analysis.users.add(user)
@@ -81,7 +83,7 @@ def test_analysis_times(client, two_topos, django_user_model):
 
     response = client.post(reverse("analysis:card"),
                            data={
-                               'topography_ids[]': [topo.id],
+                               'subjects_ids': subjects_to_json([topo]),
                                'function_id': af.id,
                                'card_id': "card-1",
                                'template_flavor': 'list',
@@ -91,8 +93,8 @@ def test_analysis_times(client, two_topos, django_user_model):
 
     assert response.status_code == 200
 
-    assert_in_content(response, "2018-01-01 12:00:00") # start_time
-    assert_in_content(response, "1:01:01") # duration
+    assert_in_content(response, "2018-01-01 12:00:00")  # start_time
+    assert_in_content(response, "1:01:01")  # duration
 
 
 @pytest.mark.django_db
@@ -117,8 +119,8 @@ def test_show_only_last_analysis(client, two_topos, django_user_model, handle_us
     #
     # Topography 1
     #
-    analysis = Analysis.objects.create(
-        topography=topo1,
+    analysis = TopographyAnalysisFactory.create(
+        subject=topo1,
         function=af,
         task_state=Analysis.SUCCESS,
         kwargs=pickle.dumps({}),
@@ -130,8 +132,8 @@ def test_show_only_last_analysis(client, two_topos, django_user_model, handle_us
     analysis.save()
 
     # save a second only, which has a later start time
-    analysis = Analysis.objects.create(
-        topography=topo1,
+    analysis = TopographyAnalysisFactory.create(
+        subject=topo1,
         function=af,
         task_state=Analysis.SUCCESS,
         kwargs=pickle.dumps({}),
@@ -145,8 +147,8 @@ def test_show_only_last_analysis(client, two_topos, django_user_model, handle_us
     #
     # Topography 2
     #
-    analysis = Analysis.objects.create(
-        topography=topo2,
+    analysis = TopographyAnalysisFactory.create(
+        subject=topo2,
         function=af,
         task_state=Analysis.SUCCESS,
         kwargs=pickle.dumps({}),
@@ -158,8 +160,8 @@ def test_show_only_last_analysis(client, two_topos, django_user_model, handle_us
     analysis.save()
 
     # save a second only, which has a later start time
-    analysis = Analysis.objects.create(
-        topography=topo2,
+    analysis = TopographyAnalysisFactory.create(
+        subject=topo2,
         function=af,
         task_state=Analysis.SUCCESS,
         kwargs=pickle.dumps({}),
@@ -176,7 +178,7 @@ def test_show_only_last_analysis(client, two_topos, django_user_model, handle_us
     #
     response = client.post(reverse("analysis:card"),
                            data={
-                               'topography_ids[]': [topo1.id, topo2.id],
+                               'subjects_ids': subjects_to_json([topo1, topo2]),
                                'function_id': af.id,
                                'card_id': 1,
                                'template_flavor': 'list'
@@ -185,8 +187,6 @@ def test_show_only_last_analysis(client, two_topos, django_user_model, handle_us
                            follow=True)
 
     assert response.status_code == 200
-
-    # export_reponse_as_html(response)
 
     assert b"2018-01-02 12:00:00" in response.content
     assert b"2018-01-04 12:00:00" in response.content
@@ -197,7 +197,6 @@ def test_show_only_last_analysis(client, two_topos, django_user_model, handle_us
 
 @pytest.mark.django_db
 def test_show_analyses_with_different_arguments(client, two_topos, django_user_model, handle_usage_statistics):
-
 
     user = django_user_model.objects.get(username='testuser')
     client.force_login(user)
@@ -216,8 +215,8 @@ def test_show_analyses_with_different_arguments(client, two_topos, django_user_m
     #
     # Create analyses for same function and topography but with different arguments
     #
-    analysis = Analysis.objects.create(
-        topography=topo1,
+    analysis = TopographyAnalysisFactory.create(
+        subject=topo1,
         function=af,
         task_state=Analysis.SUCCESS,
         kwargs=pickle.dumps({'bins':10}),
@@ -229,11 +228,11 @@ def test_show_analyses_with_different_arguments(client, two_topos, django_user_m
     analysis.save()
 
     # save a second only, which has a later start time
-    analysis = Analysis.objects.create(
-        topography=topo1,
+    analysis = TopographyAnalysisFactory.create(
+        subject=topo1,
         function=af,
         task_state=Analysis.SUCCESS,
-        kwargs=pickle.dumps({'bins':20}),
+        kwargs=pickle.dumps({'bins': 20}),
         start_time=datetime.datetime(2018, 1, 2, 12),
         end_time=datetime.datetime(2018, 1, 2, 13, 1, 1),
         result=pickled_result,
@@ -242,8 +241,8 @@ def test_show_analyses_with_different_arguments(client, two_topos, django_user_m
     analysis.save()
 
     # save a second only, which has a later start time
-    analysis = Analysis.objects.create(
-        topography=topo1,
+    analysis = TopographyAnalysisFactory.create(
+        subject=topo1,
         function=af,
         task_state=Analysis.SUCCESS,
         kwargs=pickle.dumps({'bins': 30}),
@@ -259,7 +258,7 @@ def test_show_analyses_with_different_arguments(client, two_topos, django_user_m
     #
     response = client.post(reverse("analysis:card"),
                            data={
-                               'topography_ids[]': [topo1.id],
+                               'subjects_ids': subjects_to_json([topo1]),
                                'function_id': af.id,
                                'card_id': "card-1",
                                'template_flavor': 'list'
@@ -306,8 +305,8 @@ def test_show_multiple_analyses_for_two_functions(client, two_topos):
     for af in [af1, af2]:
         for topo in [topo1, topo2]:
             counter += 1
-            analysis = Analysis.objects.create(
-                topography=topo,
+            analysis = TopographyAnalysisFactory.create(
+                subject=topo,
                 function=af,
                 task_state=Analysis.SUCCESS,
                 kwargs=pickle.dumps({'bins':10}),
@@ -387,11 +386,12 @@ def ids_downloadable_analyses(two_topos):
                      )
             ])
 
-        analysis = Analysis.objects.create(topography=topos[k],
-                                           function=function,
-                                           result=pickle.dumps(result),
-                                           kwargs=pickle.dumps({}),
-                                           configuration=config)
+        analysis = TopographyAnalysisFactory.create(
+            subject=topos[k],
+            function=function,
+            result=pickle.dumps(result),
+            kwargs=pickle.dumps({}),
+            configuration=config)
         ids.append(analysis.id)
 
     return ids
@@ -563,13 +563,13 @@ def test_rms_values_rounded(rf, mocker):
     topo = TopographyFactory(size_x=1, size_y=1)
 
     func = AnalysisFunction.objects.get(name='RMS Values')
-    AnalysisFactory(topography=topo, function=func)
+    TopographyAnalysisFactory(subject=topo, function=func)
 
     request = rf.post(reverse('analysis:card'), data={
             'function_id': func.id,
             'card_id': 'card',
             'template_flavor': 'list',
-            'topography_ids[]': [topo.id],
+            'subjects_ids': subjects_to_json([topo]),
     }, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
     request.user = topo.surface.creator
     request.session = {}
@@ -618,7 +618,7 @@ def test_analysis_download_as_xlsx(client, two_topos, ids_downloadable_analyses,
 
     response = client.get(download_url)
 
-    tmp = tempfile.NamedTemporaryFile(suffix='.xlsx') # will be deleted automatically
+    tmp = tempfile.NamedTemporaryFile(suffix='.xlsx')  # will be deleted automatically
     tmp.write(response.content)
     tmp.seek(0)
 
@@ -686,9 +686,9 @@ def test_analysis_download_as_xlsx(client, two_topos, ids_downloadable_analyses,
     assert_version_in_vals('muFFT', muFFT.version.description())
     assert_version_in_vals('topobank', settings.TOPOBANK_VERSION)
 
-    # topography names should also be included, as well as the creator
+    # subject names should also be included, as well as the creator
     for t in topos:
-        assert ('Topography', t.name) in vals
+        assert ('Subject', t.name) in vals
         assert ('Creator', str(t.creator)) in vals
 
 
@@ -765,8 +765,8 @@ def two_analyses_two_publications():
 
     func = AnalysisFunctionFactory()
     AnalysisFunctionImplementationFactory(function=func)
-    analysis1 = AnalysisFactory(topography=pub_topo1, function=func)
-    analysis2 = AnalysisFactory(topography=pub_topo2, function=func)
+    analysis1 = TopographyAnalysisFactory(subject=pub_topo1, function=func)
+    analysis2 = TopographyAnalysisFactory(subject=pub_topo2, function=func)
 
     return analysis1, analysis2, pub1, pub2
 
@@ -869,7 +869,7 @@ def test_view_shared_analysis_results(client, handle_usage_statistics):
 
     response = client.post(reverse("analysis:card"),
                            data={
-                               'topography_ids[]': [topo1a.id, topo1b.id, topo2a.id],
+                               'subjects_ids': subjects_to_json([topo1a, topo1b, topo2a]),
                                'function_id': func1.id,
                                'card_id': 1,
                                'template_flavor': 'list'
@@ -897,7 +897,7 @@ def test_view_shared_analysis_results(client, handle_usage_statistics):
 
     response = client.post(reverse("analysis:card"),
                            data={
-                               'topography_ids[]': [topo1a.id, topo1b.id, topo2a.id],
+                               'subjects_ids': subjects_to_json([topo1a, topo1b, topo2a]),
                                'function_id': func1.id,
                                'card_id': 1,
                                'template_flavor': 'list'

@@ -9,14 +9,14 @@
     {% for af in analyses_failure %}
         {% if af.result_obj.is_incompatible %}
           <div class="alert alert-info" role="alert">
-            Topography
-            <a class="alert-link" href="{% url 'manager:topography-detail' af.topography.id %}">{{ af.topography.name }}</a>
+            Subject
+            <a class="alert-link" href="{{ af.subject.get_absolute_url }}">{{ af.subject.name }}</a>
             is incompatible with this kind of analysis: {{ af.result_obj.message }}
           </div>
         {% else %}
           <div class="alert alert-error" role="alert">
-            <p>Analysis failed for topography
-               <a class="alert-link" href="{% url 'manager:topography-detail' af.topography.id %}">{{ af.topography.name }}</a>.
+            <p>Analysis failed for subject
+               <a class="alert-link" href="{{ af.subject.get_absolute_url }}">{{ af.subject.name }}</a>.
               Traceback:</p>
             <pre>{{ af.result_obj.traceback }}</pre>
             Please send us an e-mail about this issue by using this

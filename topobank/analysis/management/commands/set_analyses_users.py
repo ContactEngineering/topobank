@@ -31,7 +31,7 @@ class Command(BaseCommand):
             #
             if a.users.count() == 0:
                 num_dangling_analyses += 1
-                analysis_users = get_users_with_perms(a.topography.surface)
+                analysis_users = get_users_with_perms(a.related_surface)
 
                 _log.info("Setting users for analysis '{}': {}".format(a, analysis_users))
 

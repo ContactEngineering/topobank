@@ -45,7 +45,7 @@ def download_analyses(request, ids, card_view_flavor, file_format):
         #
         # Check whether user has view permission for requested analysis
         #
-        if not user.has_perm("view_surface", analysis.topography.surface):
+        if not analysis.is_visible_for_user(user):
             return HttpResponseForbidden()
 
         analyses.append(analysis)
@@ -54,7 +54,7 @@ def download_analyses(request, ids, card_view_flavor, file_format):
     # Check flavor and format argument
     #
     card_view_flavor = card_view_flavor.replace('_', ' ')  # may be given with underscore in URL
-    if not card_view_flavor in CARD_VIEW_FLAVORS:
+    if card_view_flavor not in CARD_VIEW_FLAVORS:
         return HttpResponseBadRequest("Unknown card view flavor '{}'.".format(card_view_flavor))
 
     download_response_functions = {
@@ -95,17 +95,20 @@ def _analyses_meta_data_dataframe(analyses, request):
     values = []
     for i, analysis in enumerate(analyses):
 
-        pub = analysis.topography.surface.publication if analysis.topography.surface.is_published else None
+        surface = analysis.related_surface
+        pub = surface.publication if surface.is_published else None
 
         if i == 0:
             properties = ["Function"]
             values = [str(analysis.function)]
 
-        properties += ['Topography', 'Creator',
+        properties += ['Subject Type', 'Subject Name',
+                       'Creator',
                        'Further arguments of analysis function', 'Start time of analysis task',
                        'End time of analysis task', 'Duration of analysis task']
 
-        values += [str(analysis.topography.name), str(analysis.topography.creator),
+        values += [str(analysis.subject.get_content_type().model), str(analysis.subject.name),
+                   str(analysis.subject.creator),
                    analysis.get_kwargs_display(), str(analysis.start_time),
                    str(analysis.end_time), str(analysis.duration())]
 
@@ -149,8 +152,9 @@ def _publications_urls(request, analyses):
     # Collect publication links, if any
     publication_urls = set()
     for a in analyses:
-        if a.topography.surface.is_published:
-            pub = a.topography.surface.publication
+        surface = a.related_surface
+        if surface.is_published:
+            pub = surface.publication
             pub_url = request.build_absolute_uri(pub.get_absolute_url())
             publication_urls.add(pub_url)
     return publication_urls
@@ -171,16 +175,18 @@ def _analysis_header_for_txt_file(analysis, as_comment=True):
     str
     """
 
-    topography = analysis.topography
-    topo_creator = topography.creator
+    subject = analysis.subject
+    subject_creator = subject.creator
+    subject_type_str = analysis.subject_type.model.title()
+    headline = f"{subject_type_str}: {subject.name}"
 
-    s = 'Topography: {}\n'.format(topography.name) +\
-        '{}\n'.format('=' * (len('Topography: ') + len(str(topography.name)))) +\
-        'Creator: {}\n'.format(topo_creator) +\
-        'Further arguments of analysis function: {}\n'.format(analysis.get_kwargs_display()) +\
-        'Start time of analysis task: {}\n'.format(analysis.start_time) +\
-        'End time of analysis task: {}\n'.format(analysis.end_time) +\
-        'Duration of analysis task: {}\n'.format(analysis.duration())
+    s = f'{headline}\n' +\
+        '='*len(headline) + '\n' +\
+        f'Creator: {subject_creator}\n' +\
+        f'Further arguments of analysis function: {analysis.get_kwargs_display()}\n' +\
+        f'Start time of analysis task: {analysis.start_time}\n' +\
+        f'End time of analysis task: {analysis.end_time}\n' +\
+        f'Duration of analysis task: {analysis.duration()}\n'
     if analysis.configuration is None:
         s += 'Versions of dependencies (like "SurfaceTopography") are unknown for this analysis.\n'
         s += 'Please recalculate in order to have version information here.\n'
@@ -275,18 +281,18 @@ def download_plot_analyses_to_xlsx(request, analyses):
     f = io.BytesIO()
     excel = pd.ExcelWriter(f)
 
-    # Analyze topography names and store a distinct name
-    # which can be used in sheet names if topography names are not unique
-    topography_names_in_sheet_names = [a.topography.name for a in analyses]
+    # Analyze subject names and store a distinct name
+    # which can be used in sheet names if subject names are not unique
+    subject_names_in_sheet_names = [a.subject.name for a in analyses]
 
-    for tn in set(topography_names_in_sheet_names):  # iterate over distinct names
+    for sn in set(subject_names_in_sheet_names):  # iterate over distinct names
 
         # replace name with a unique one using a counter
-        indices = [i for i, a in enumerate(analyses) if a.topography.name == tn]
+        indices = [i for i, a in enumerate(analyses) if a.subject.name == sn]
 
         if len(indices) > 1:  # only rename if not unique
             for k, idx in enumerate(indices):
-                topography_names_in_sheet_names[idx] += f" ({k + 1})"
+                subject_names_in_sheet_names[idx] += f" ({k + 1})"
 
     for i, analysis in enumerate(analyses):
         result = pickle.loads(analysis.result)
@@ -297,7 +303,7 @@ def download_plot_analyses_to_xlsx(request, analyses):
         for series in result['series']:
             df = pd.DataFrame({column1: series['x'], column2: series['y']})
 
-            sheet_name = '{} - {}'.format(topography_names_in_sheet_names[i],
+            sheet_name = '{} - {}'.format(subject_names_in_sheet_names[i],
                                           series['name']).replace('/', ' div ')
             df.to_excel(excel, sheet_name=mangle_sheet_name(sheet_name))
     df = _analyses_meta_data_dataframe(analyses, request)
@@ -318,6 +324,9 @@ def download_plot_analyses_to_xlsx(request, analyses):
 def download_rms_table_analyses_to_txt(request, analyses):
     """Download RMS table data for given analyses as CSV file.
 
+       RMS-Tables only make sense for analyses where subject is a topography (so far).
+       All other analyses (e.g. for surfaces) will be ignored here.
+
         Parameters
         ----------
         request
@@ -331,6 +340,9 @@ def download_rms_table_analyses_to_txt(request, analyses):
     """
     # TODO: It would probably be useful to use the (some?) template engine for this.
     # TODO: We need a mechanism for embedding references to papers into output.
+
+    # Only use analyses which are related to a specific topography
+    analyses = [a for a in analyses if a.is_topography_related]
 
     # Collect publication links, if any
     publication_urls = _publications_urls(request, analyses)
@@ -355,7 +367,7 @@ def download_rms_table_analyses_to_txt(request, analyses):
         f.write(_analysis_header_for_txt_file(analysis))
 
         result = pickle.loads(analysis.result)
-        topography = analysis.topography
+        topography = analysis.subject
         for row in result:
             data.append([topography.surface.name,
                          topography.name,
@@ -365,7 +377,7 @@ def download_rms_table_analyses_to_txt(request, analyses):
                          row['unit']])
 
     f.write('# Table of RMS Values\n')
-    df = pd.DataFrame(data, columns=['surface','topography', 'quantity', 'direction', 'value', 'unit'])
+    df = pd.DataFrame(data, columns=['surface', 'topography', 'quantity', 'direction', 'value', 'unit'])
     df.to_csv(f, index=False)
     f.write('\n')
 
@@ -382,6 +394,9 @@ def download_rms_table_analyses_to_txt(request, analyses):
 def download_rms_table_analyses_to_xlsx(request, analyses):
     """Download RMS table data for given analyses as XLSX file.
 
+       Only analyses for topographies will be used here.
+       All others (e.g. for surfaces) will be ignored.
+
         Parameters
         ----------
         request
@@ -392,13 +407,15 @@ def download_rms_table_analyses_to_xlsx(request, analyses):
         Returns
         -------
         HTTPResponse
-        """
+    """
+    analyses = [a for a in analyses if a.is_topography_related]
+
     f = io.BytesIO()
     excel = pd.ExcelWriter(f)
 
     data = []
     for analysis in analyses:
-        topo = analysis.topography
+        topo = analysis.subject
         for row in pickle.loads(analysis.result):
             row['surface'] = topo.surface.name
             row['topography'] = topo.name

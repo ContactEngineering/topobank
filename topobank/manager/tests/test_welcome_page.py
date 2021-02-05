@@ -26,7 +26,7 @@ def test_instances():
     ]
 
     impl = AnalysisFunctionImplementationFactory()
-    AnalysisFactory(function=impl.function, topography=topographies[0])
+    AnalysisFactory(function=impl.function, subject=topographies[0])
 
     return users, surfaces, topographies
 

@@ -3,6 +3,7 @@ import factory
 import logging
 import pickle
 import datetime
+import json
 
 from ..models import Analysis, AnalysisFunction, AnalysisFunctionImplementation
 from topobank.manager.tests.utils import TopographyFactory, SurfaceFactory
@@ -60,7 +61,7 @@ class AnalysisFactory(factory.django.DjangoModelFactory):
 
     id = factory.Sequence(lambda n: n)
     function = factory.SubFactory(AnalysisFunctionFactory)
-    topography = factory.SubFactory(TopographyFactory)  # TODO Remove when column topography is removed
+    # topography = factory.SubFactory(TopographyFactory)  # TODO Remove when column topography is removed
     subject = factory.SubFactory(TopographyFactory)  # Does this work with a generic subject?
 
     subject_id = factory.SelfAttribute('subject.id')
@@ -78,7 +79,8 @@ class AnalysisFactory(factory.django.DjangoModelFactory):
     @factory.post_generation
     def users(self, create, extracted, **kwargs):
         if create:
-            self.users.set([self.topography.surface.creator])
+            surface = self.related_surface
+            self.users.set([surface.creator])
 
         if extracted:
             # a list of users was passed in, add those users
@@ -102,3 +104,5 @@ class SurfaceAnalysisFactory(AnalysisFactory):
     # noinspection PyMissingOrEmptyDocstring
     class Meta:
         model = Surface
+
+

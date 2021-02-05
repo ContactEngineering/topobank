@@ -9,7 +9,6 @@ from django.contrib.contenttypes.models import ContentType
 import inspect
 import pickle
 
-from topobank.manager.models import Topography, Surface
 from topobank.users.models import User
 from .registry import ImplementationMissingException
 
@@ -88,8 +87,6 @@ class Analysis(models.Model):
 
     function = models.ForeignKey('AnalysisFunction', on_delete=models.CASCADE)
 
-    topography = models.ForeignKey(Topography, on_delete=models.CASCADE)
-
     # Definition of the subject
     subject_type = models.ForeignKey(ContentType, null=True, on_delete=models.CASCADE)
     subject_id = models.PositiveIntegerField(null=True)
@@ -131,11 +128,46 @@ class Analysis(models.Model):
 
     @property
     def result_obj(self):
+        """Return unpickled result object or None if there is no yet."""
         return pickle.loads(self.result) if self.result else None
 
     @property
     def storage_prefix(self):
+        """Return prefix used for storage.
+
+        Looks like a relative path to a directory.
+        If storage is on filesystem, the prefix should correspond
+        to a real directory.
+        """
         return "analyses/{}/".format(self.id)
+
+    @property
+    def related_surface(self):
+        """Returns surface instance related to this analysis."""
+        subject = self.subject
+        if hasattr(subject, 'surface'):
+            surface = subject.surface
+        else:
+            surface = subject
+        return surface
+
+    def is_visible_for_user(self, user):
+        """Returns True if given user should be able to see this analysis."""
+        return user.has_perm("view_surface", self.related_surface)
+
+    @property
+    def is_topography_related(self):
+        """Returns True, if analysis is related to a specific topography, else False.
+        """
+        topography_ct = ContentType.objects.get_by_natural_key('manager', 'topography')
+        return topography_ct == self.subject_type
+
+    @property
+    def is_surface_related(self):
+        """Returns True, if analysis is related to a specific surface, else False.
+        """
+        surface_ct = ContentType.objects.get_by_natural_key('manager', 'surface')
+        return surface_ct == self.subject_type
 
 
 class AnalysisFunction(models.Model):
@@ -196,8 +228,26 @@ class AnalysisFunction(models.Model):
         Returns
         -------
         Python function, where first argument must be the given type.
+
+        Raises
+        ------
+        ImplementationMissingException
+            if implementation for given subject type does not exist
         """
         return self._implementation(subject_type).python_function()
+
+    def get_implementation_types(self):
+        """Return list of content types for which this function is implemented.
+        """
+        return [impl.subject_type for impl in self.implementations.all()]
+
+    def is_implemented_for_type(self, subject_type):
+        """Returns True if function is implemented for given content type, else False"""
+        try:
+            self.python_function(subject_type)
+        except ImplementationMissingException:
+            return False
+        return True
 
     def get_default_kwargs(self, subject_type):
         """Return default keyword arguments as dict.

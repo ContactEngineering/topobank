@@ -7,7 +7,8 @@ from django.contrib.contenttypes.models import ContentType
 from ..models import Analysis, AnalysisFunction
 from topobank.manager.models import Topography
 from topobank.manager.tests.utils import two_topos  # needed for fixture
-from .utils import AnalysisFunctionFactory, AnalysisFunctionImplementationFactory, TopographyFactory
+from .utils import AnalysisFunctionFactory, AnalysisFunctionImplementationFactory, TopographyFactory, \
+    TopographyAnalysisFactory
 from ..registry import ImplementationMissingException
 
 
@@ -49,21 +50,21 @@ def test_analysis_times(two_topos):
 
     import pickle
 
-    analysis = Analysis.objects.create(
-            topography=Topography.objects.first(),
+    analysis = TopographyAnalysisFactory.create(
+            subject=Topography.objects.first(),
             function=AnalysisFunction.objects.first(),
             task_state=Analysis.SUCCESS,
-            kwargs=pickle.dumps({'bins':2, 'mode': 'test'}),
-            start_time=datetime.datetime(2018,1,1,12),
-            end_time=datetime.datetime(2018,1,1,13),
-        )
+            kwargs=pickle.dumps({'bins': 2, 'wfac': 4}),
+            start_time=datetime.datetime(2018, 1, 1, 12),
+            end_time=datetime.datetime(2018, 1,  1, 13),
+    )
     analysis.save()
 
-    assert analysis.start_time == datetime.datetime(2018,1,1,12)
+    assert analysis.start_time == datetime.datetime(2018, 1, 1, 12)
     assert analysis.end_time == datetime.datetime(2018, 1, 1, 13)
     assert analysis.duration() == datetime.timedelta(0, 3600)
 
-    assert analysis.get_kwargs_display() == str({'bins': 2, 'mode': 'test'})
+    assert analysis.get_kwargs_display() == str({'bins': 2, 'wfac': 4})
 
 
 # @pytest.mark.skip("Cannot run startup code which modifies the database so far.")

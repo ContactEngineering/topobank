@@ -123,7 +123,7 @@ def perform_analysis(self, analysis_id):
         kwargs['progress_recorder'] = progress_recorder
         kwargs['storage_prefix'] = analysis.storage_prefix
         _log.debug("Evaluating analysis function '%s' on subject '%s' ..",
-                   analysis.function.name, analysis.subject)
+                   analysis.function.name, subject)
         result = analysis.function.eval(subject, **kwargs)
         save_result(result, Analysis.SUCCESS)
     except (Topography.DoesNotExist, Surface.DoesNotExist, IntegrityError) as exc:
