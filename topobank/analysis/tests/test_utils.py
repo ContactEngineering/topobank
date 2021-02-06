@@ -132,7 +132,7 @@ def test_latest_analyses(two_topos, django_user_model):
 def test_latest_analyses_if_no_analyses():
     user = UserFactory()
     function = AnalysisFunctionFactory()
-    assert get_latest_analyses(user, function, []) == Analysis.objects.none()
+    assert get_latest_analyses(user, function, []).count() == 0
 
 
 def test_mangle_sheet_name():

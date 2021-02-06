@@ -144,6 +144,9 @@ def submit_analysis(users, analysis_func, subject, pickled_pyfunc_kwargs=None):
     :param pickled_pyfunc_kwargs: pickled kwargs for function which should be saved to database
     :returns: Analysis object
 
+    If None is given for 'pickled_pyfunc_kwargs', the default arguments for the given analysis function are used.
+    The default arguments are the ones used in the function implementation (python function).
+
     Typical instances as subjects are topographies or surfaces.
     """
     subject_type = ContentType.objects.get_for_model(subject)

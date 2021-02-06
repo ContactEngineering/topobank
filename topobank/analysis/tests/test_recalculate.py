@@ -6,6 +6,7 @@ from django.db import transaction
 from topobank.manager.tests.utils import SurfaceFactory, TopographyFactory, UserFactory
 from topobank.analysis.tests.utils import AnalysisFunctionFactory, AnalysisFunctionImplementationFactory
 from topobank.analysis.models import Analysis, AnalysisCollection
+from topobank.manager.utils import subjects_to_json
 
 
 @pytest.mark.django_db
@@ -25,9 +26,9 @@ def test_recalculate(client):
         # trigger "recalculate" for two topographies
         response = client.post(reverse('analysis:card-submit'), {
             'function_id': func.id,
-            'subjects_ids[]': {topo1.get_content_type().id: [topo1.id, topo2.id]},
+            'subjects_ids_json': subjects_to_json([topo1, topo2]),
             'function_kwargs_json': '{}'
-        }, HTTP_X_REQUESTED_WITH='XMLHttpRequest') # we need an AJAX request
+        }, HTTP_X_REQUESTED_WITH='XMLHttpRequest')  # we need an AJAX request
         assert response.status_code == 200
 
     #

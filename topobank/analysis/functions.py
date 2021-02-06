@@ -900,7 +900,7 @@ def rms_values_for_surface(surface, extra_arg=1, progress_recorder=None, storage
     result.append({
         'quantity': 'RMS Height',
         'direction': None,
-        'value': -1,  # to be defined
+        'value': np.float32(-1.0),  # to be defined
         'unit': 'km',  # to be defined
     })
 

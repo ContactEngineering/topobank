@@ -5,7 +5,8 @@ from topobank.analysis.models import Analysis
 from topobank.analysis.models import AnalysisFunction
 from topobank.analysis.utils import request_analysis, submit_analysis
 
-from topobank.analysis.tests.utils import AnalysisFactory
+from topobank.analysis.tests.utils import AnalysisFunctionImplementationFactory, AnalysisFunctionFactory, \
+    TopographyAnalysisFactory
 from topobank.manager.tests.utils import TopographyFactory, UserFactory
 
 
@@ -15,11 +16,12 @@ def test_request_analysis(mocker):
 
     user = UserFactory()
 
-    m = mocker.patch('topobank.analysis.models.AnalysisFunction.python_function', new_callable=mocker.PropertyMock)
-    m.return_value = lambda topography, a, b, bins=15, window='hann': None  # defining default parameters here
+    af = AnalysisFunctionFactory.create(name="somefunc")
+    afimpl = AnalysisFunctionImplementationFactory.create(function=af)
 
-    af = AnalysisFunction(name='somefunc')
-    af.save()  # needed otherwise analysis cannot be saved later (why?)
+    m = mocker.patch('topobank.analysis.models.AnalysisFunctionImplementation.python_function',
+                     new_callable=mocker.PropertyMock)
+    m.return_value = lambda: lambda topography, a, b, bins=15, window='hann': None  # defining default parameters here
 
     # mocker.patch('topobank.analysis.models.Analysis.objects.create')
     # mocker.patch('django.db.models.QuerySet.delete') # we don't need to test with delete here
@@ -33,15 +35,13 @@ def test_request_analysis(mocker):
         assert expected_kwargs == kwargs
         assert user in analysis.users.all() # make sure the user has been set
 
-
-    # mocker.patch('django.db.models.QuerySet.filter')  # we don't need to filter here and analysis has no id
     # test case 1
     analysis = request_analysis(user, af, topo, a=1, b=2)
     assert_correct_args(analysis,
                         dict(a=1,
                              b=2,
                              bins=15,
-                             window='hann')) # check default parameters in database
+                             window='hann'))  # check default parameters in database
 
 
     # test case 2
@@ -70,16 +70,17 @@ def test_unmark_other_analyses_during_request_analysis(mocker):
     """
     user = UserFactory()
 
-    m = mocker.patch('topobank.analysis.models.AnalysisFunction.python_function', new_callable=mocker.PropertyMock)
-    m.return_value = lambda topography, a, b, bins=15, window='hann': None
+    m = mocker.patch('topobank.analysis.models.AnalysisFunctionImplementation.python_function',
+                     new_callable=mocker.PropertyMock)
+    m.return_value = lambda: lambda topography, a, b, bins=15, window='hann': None
 
-    af = AnalysisFunction(name='somefunc')
-    af.save()
+    af = AnalysisFunctionFactory(name="somefunc")
+    afim = AnalysisFunctionImplementationFactory(function=af)
 
     topo = TopographyFactory()
 
-    a1 = AnalysisFactory(topography=topo, function=af, kwargs=pickle.dumps(dict(a=9, b=19)), users=[])
-    a2 = AnalysisFactory(topography=topo, function=af, kwargs=pickle.dumps(dict(a=29, b=39)), users=[user])
+    a1 = TopographyAnalysisFactory(subject=topo, function=af, kwargs=pickle.dumps(dict(a=9, b=19)), users=[])
+    a2 = TopographyAnalysisFactory(subject=topo, function=af, kwargs=pickle.dumps(dict(a=29, b=39)), users=[user])
 
     a3 = request_analysis(user, af, topo, a=1, b=2)
 

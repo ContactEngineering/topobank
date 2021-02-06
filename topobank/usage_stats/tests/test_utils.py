@@ -4,9 +4,8 @@ import datetime
 from freezegun import freeze_time
 
 from topobank.manager.tests.utils import TopographyFactory, SurfaceFactory, UserFactory
-from topobank.analysis.tests.utils import AnalysisFactory, AnalysisFunctionFactory, \
-    AnalysisFunctionImplementationFactory
-from topobank.analysis.models import AnalysisFunctionImplementation
+from topobank.analysis.tests.utils import AnalysisFunctionFactory, \
+    AnalysisFunctionImplementationFactory, TopographyAnalysisFactory
 
 from ..utils import increase_statistics_by_date, increase_statistics_by_date_and_object, current_statistics
 
@@ -112,11 +111,10 @@ def stats_instances(db):
     topo_1Ba = TopographyFactory(surface=surf_1B)
     topo_2Aa = TopographyFactory(surface=surf_2A)
     func = AnalysisFunctionFactory()
-    AnalysisFunctionImplementationFactory(function=func,
-                                          subject_type=AnalysisFunctionImplementation.SUBJECT_TYPE_TOPOGRAPHY)
-    AnalysisFactory(topography=topo_1Aa)
-    AnalysisFactory(topography=topo_1Ab)
-    AnalysisFactory(topography=topo_2Aa)
+    AnalysisFunctionImplementationFactory(function=func)
+    TopographyAnalysisFactory(subject=topo_1Aa, function=func)
+    TopographyAnalysisFactory(subject=topo_1Ab, function=func)
+    TopographyAnalysisFactory(subject=topo_2Aa, function=func)
 
     return user_1, user_2, surf_1A
 

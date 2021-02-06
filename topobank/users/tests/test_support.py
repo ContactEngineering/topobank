@@ -74,7 +74,7 @@ def test_initial_surface(client, django_user_model, handle_usage_statistics, moc
         assert topo.height_scale_editable
 
     #
-    # For all these topographies, all analyses for all automated analysis functions
+    # For all these topographies, all analyses for all analysis functions
     # should have been triggered
     #
     for af in AnalysisFunction.objects.all():

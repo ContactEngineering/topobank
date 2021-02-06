@@ -2,7 +2,7 @@ import pytest
 from django.shortcuts import reverse
 
 from topobank.manager.tests.utils import SurfaceFactory, TopographyFactory, UserFactory
-from topobank.analysis.tests.utils import AnalysisFactory, AnalysisFunctionImplementationFactory
+from topobank.analysis.tests.utils import AnalysisFunctionImplementationFactory, TopographyAnalysisFactory
 
 from topobank.utils import assert_in_content
 
@@ -26,7 +26,7 @@ def test_instances():
     ]
 
     impl = AnalysisFunctionImplementationFactory()
-    AnalysisFactory(function=impl.function, subject=topographies[0])
+    TopographyAnalysisFactory(function=impl.function, subject=topographies[0])
 
     return users, surfaces, topographies
 

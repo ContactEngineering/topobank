@@ -35,7 +35,7 @@ def test_card_templates_simple(client, mocker, handle_usage_statistics):
         'function_id': func1.id,
         'card_id': 'card',
         'template_flavor': 'list',
-        'subjects_ids': subjects_to_json([topo1]),
+        'subjects_ids_json': subjects_to_json([topo1]),
     }, HTTP_X_REQUESTED_WITH='XMLHttpRequest')  # we need an AJAX request
 
     assert response.template_name == ['analysis/plot_card_list.html']
@@ -44,7 +44,7 @@ def test_card_templates_simple(client, mocker, handle_usage_statistics):
         'function_id': func1.id,
         'card_id': 'card',
         'template_flavor': 'detail',
-        'subjects_ids': subjects_to_json([topo1]),
+        'subjects_ids_json': subjects_to_json([topo1]),
     }, HTTP_X_REQUESTED_WITH='XMLHttpRequest')  # we need an AJAX request
 
     assert response.template_name == ['analysis/powerspectrum_card_detail.html']
@@ -66,7 +66,7 @@ def test_card_templates_for_power_spectrum(client, mocker, handle_usage_statisti
         'function_id': func1.id,
         'card_id': 'card',
         'template_flavor': 'list',
-        'subjects_ids': subjects_to_json([topo1]),
+        'subjects_ids_json': subjects_to_json([topo1]),
     }, HTTP_X_REQUESTED_WITH='XMLHttpRequest')  # we need an AJAX request
 
     # we get the inherited "plot" template with "list" flavor, because power spectrum
@@ -77,7 +77,7 @@ def test_card_templates_for_power_spectrum(client, mocker, handle_usage_statisti
         'function_id': func1.id,
         'card_id': 'card',
         'template_flavor': 'detail',
-        'subjects_ids': subjects_to_json([topo1]),
+        'subjects_ids_json': subjects_to_json([topo1]),
     }, HTTP_X_REQUESTED_WITH='XMLHttpRequest')  # we need an AJAX request
 
     # for the power spectrum detail card there should be an own template

@@ -16,6 +16,7 @@ _log = logging.getLogger(__name__)
 # Define factories for creating test objects
 #
 class AnalysisFunctionFactory(factory.django.DjangoModelFactory):
+    # noinspection PyMissingOrEmptyDocstring
     class Meta:
         model = AnalysisFunction
 
@@ -61,7 +62,6 @@ class AnalysisFactory(factory.django.DjangoModelFactory):
 
     id = factory.Sequence(lambda n: n)
     function = factory.SubFactory(AnalysisFunctionFactory)
-    # topography = factory.SubFactory(TopographyFactory)  # TODO Remove when column topography is removed
     subject = factory.SubFactory(TopographyFactory)  # Does this work with a generic subject?
 
     subject_id = factory.SelfAttribute('subject.id')

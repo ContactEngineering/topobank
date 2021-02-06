@@ -4,7 +4,8 @@ from django.core.exceptions import PermissionDenied
 
 from ..utils import selection_from_session, selection_to_instances
 from .utils import UserFactory, SurfaceFactory, TopographyFactory
-from topobank.analysis.tests.utils import TopographyAnalysisFactory
+from topobank.analysis.tests.utils import TopographyAnalysisFactory, \
+    AnalysisFunctionFactory, AnalysisFunctionImplementationFactory
 from topobank.utils import assert_in_content, assert_not_in_content
 
 #
@@ -117,7 +118,9 @@ def test_download_analyses_without_permission(client, handle_usage_statistics):
     bob = UserFactory()
     surface = SurfaceFactory(creator=bob)
     topo = TopographyFactory(surface=surface)
-    analysis = TopographyAnalysisFactory(subject=topo)
+    function = AnalysisFunctionFactory()
+    impl = AnalysisFunctionImplementationFactory(function=function)
+    analysis = TopographyAnalysisFactory(subject=topo, function=function)
 
     response = client.get(reverse('analysis:download',
                                   kwargs=dict(ids=f"{analysis.id}",

@@ -497,13 +497,15 @@ class Topography(models.Model, SubjectMixin):
         users = get_users_with_perms(self.surface)
 
         def submit_all(instance=self):
+            """Trigger analyses for this topography for all available analyses functions."""
+            instance.analyses.all().delete()
             for af in analysis_funcs:
-                Analysis.objects.filter(function=af, topography=instance).delete()
-                try:
-                    submit_analysis(users, af, topography=instance)
-                except Exception as err:
-                    _log.error("Cannot submit analysis for function '%s' and topography %d. Reason: %s",
-                               af.name, instance.id, str(err))
+                if af.is_implemented_for_type(instance.get_content_type()):
+                    try:
+                        submit_analysis(users, af, subject=instance)
+                    except Exception as err:
+                        _log.error("Cannot submit analysis for function '%s' and topography %d. Reason: %s",
+                                   af.name, instance.id, str(err))
 
         transaction.on_commit(lambda: submit_all(self))
 
