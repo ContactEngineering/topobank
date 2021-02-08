@@ -21,7 +21,8 @@ from topobank.manager.utils import subjects_to_json
 from topobank.manager.tests.utils import SurfaceFactory, UserFactory, TopographyFactory, two_topos
 from topobank.taskapp.tasks import current_configuration
 from topobank.utils import assert_in_content, assert_not_in_content
-from .utils import AnalysisFunctionFactory, AnalysisFunctionImplementationFactory, TopographyAnalysisFactory
+from .utils import AnalysisFunctionFactory, AnalysisFunctionImplementationFactory, \
+    TopographyAnalysisFactory, SurfaceAnalysisFactory
 
 from ..models import Analysis, AnalysisFunction
 from ..views import RmsTableCardView, NUM_SIGNIFICANT_DIGITS_RMS_VALUES
@@ -280,6 +281,73 @@ def test_show_analyses_with_different_arguments(client, two_topos, django_user_m
 
     assert str(dict(bins=10)) in unescaped
     assert str(dict(bins=20)) in unescaped
+
+
+@pytest.mark.django_db
+def test_warnings_for_different_arguments(client, handle_usage_statistics):
+
+    user = UserFactory()
+    surf1 = SurfaceFactory(creator=user)
+    surf2 = SurfaceFactory(creator=user)
+    topo1a = TopographyFactory(surface=surf1)
+    topo1b = TopographyFactory(surface=surf1)
+    topo2a = TopographyFactory(surface=surf2)
+
+    func = AnalysisFunctionFactory()
+    topo_impl = AnalysisFunctionImplementationFactory(function=func,
+                                                      subject_type=topo1a.get_content_type(),
+                                                      code_ref='topography_analysis_function_for_tests')
+    surf_impl = AnalysisFunctionImplementationFactory(function=func,
+                                                      subject_type=surf1.get_content_type(),
+                                                      code_ref='surface_analysis_function_for_tests')
+
+    #
+    # Generate analyses for topographies with differing arguments
+    #
+    kwargs_1a = pickle.dumps(dict(a=1, b=2))
+    kwargs_1b = pickle.dumps(dict(a=1, b=3))  # differing from kwargs_1a!
+    ana1a = TopographyAnalysisFactory(subject=topo1a, function=func, kwargs=kwargs_1a)
+    ana1b = TopographyAnalysisFactory(subject=topo1b, function=func, kwargs=kwargs_1b)
+    ana2a = TopographyAnalysisFactory(subject=topo2a, function=func)  # default arguments
+
+    #
+    # Generate analyses for surfaces with differing arguments
+    #
+    kwargs_1 = pickle.dumps(dict(a=1, c=2))
+    kwargs_2 = pickle.dumps(dict(a=1, c=3))  # differing from kwargs_1a!
+    ana1 = SurfaceAnalysisFactory(subject=surf1, function=func, kwargs=kwargs_1)
+    ana2 = SurfaceAnalysisFactory(subject=surf2, function=func, kwargs=kwargs_2)
+
+    client.force_login(user)
+
+    #
+    # request card, there should be warnings, one for topographies and one for surfaces
+    #
+    response = client.post(reverse("analysis:card"),
+                           data={
+                               'subjects_ids_json': subjects_to_json([topo1a, topo1b, topo2a, surf1, surf2]),
+                               'function_id': func.id,
+                               'card_id': "card-1",
+                               'template_flavor': 'list'
+                           },
+                           HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+                           follow=True)
+
+    assert response.status_code == 200
+
+    assert_in_content(response,
+                      "Arguments for this analysis function differ among chosen subjects of type 'topography'")
+    assert_in_content(response,
+                      "Arguments for this analysis function differ among chosen subjects of type 'surface'")
+
+    # arguments should be visible in output
+    #
+    # import html.parser
+    # unescaped = html.unescape(response.content.decode())
+    #
+    # assert str(dict(bins=10)) in unescaped
+    # assert str(dict(bins=20)) in unescaped
+
 
 
 @pytest.mark.skip("Test makes no sense, because it needs AJAX call to be executed.")

@@ -1,6 +1,5 @@
 {% load fontawesome %}
 
-
 {% if analyses_unready %}
   {# If there are still unfinished analyses, show progress bars for all analyses involved in this card  #}
 
@@ -78,18 +77,22 @@
       {% if num_basket_items %}
         You have chosen subjects for analyses, but no analyses are available yet.
       {% else %}
-      You haven't chosen anything to analyze yet. You can do this with the checkboxes on the
-      <a class="alert-link" href="{% url 'manager:select' %}">
-      <b><i class="fa fa-fw fa-check-square-o"></i>Select</b></a> tab.
+        You haven't chosen anything to analyze yet. You can do this with the checkboxes on the
+        <a class="alert-link" href="{% url 'manager:select' %}">
+        <b><i class="fa fa-fw fa-check-square-o"></i>Select</b></a> tab.
       {% endif %}
   </div>
-{% elif unique_kwargs is None %}
-  <div class="alert alert-warning">
-      {% fontawesome_icon 'exclamation-circle' %}
-      Arguments for this analysis differ among chosen topographies.
-      See <a href="#" data-toggle="modal" data-target="#statusesModal-{{ card_id }}">task information</a> for details.
-      You may trigger a recalculation with common arguments.
-  </div>
+{% else %}
+  {% for subject_type, unique_kwargs_for_type in unique_kwargs.items %}
+    {% if unique_kwargs_for_type is None %}
+      <div class="alert alert-warning">
+          {% fontawesome_icon 'exclamation-circle' %}
+          Arguments for this analysis function differ among chosen subjects of type '{{ subject_type }}'.
+          See <a href="#" data-toggle="modal" data-target="#statusesModal-{{ card_id }}">task information</a> for details.
+          You may trigger a recalculation with common arguments.
+      </div>
+    {% endif %}
+  {% endfor %}
 {% endif %}
 
 {% for ms in subjects_missing %}
@@ -117,11 +120,9 @@
           success : function(data, textStatus, xhr) {
             // debug_msg("Job submission successful. Status: "+xhr.status+" textStatus: "+textStatus);
             if (xhr.status==200) {
-              $(div).html("Triggered for topography '{{ ms.name }}'. Reload page for results.");
+              $(div).html("Triggered for subject '{{ ms.name }}' ({{ ms.get_content_type.model }}). Reload page for results.");
               $(div).removeClass("alert-warning");
               $(div).addClass("alert-success");
-              // submit_analyses_card_ajax("{% url 'analysis:card' %}", "{{ card.id }}", "detail", {{ function.id }},{{ topography_ids_requested_json|safe }}, 0);
-              // debug_msg("Triggered card reload. Status: "+xhr.status+" textStatus: "+textStatus);
             } else {
               console.log("Submitting analyses failed");
               $(div).html("Triggering calculation failed, status: "+xhr.status+" response:"+xhr.responseText);

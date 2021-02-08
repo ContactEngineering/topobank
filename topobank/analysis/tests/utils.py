@@ -60,7 +60,6 @@ class AnalysisFactory(factory.django.DjangoModelFactory):
         exclude = ['subject']
         # See https://factoryboy.readthedocs.io/en/stable/recipes.html#django-models-with-genericforeignkeys
 
-    id = factory.Sequence(lambda n: n)
     function = factory.SubFactory(AnalysisFunctionFactory)
     subject = factory.SubFactory(TopographyFactory)  # Does this work with a generic subject?
 
@@ -103,6 +102,6 @@ class SurfaceAnalysisFactory(AnalysisFactory):
 
     # noinspection PyMissingOrEmptyDocstring
     class Meta:
-        model = Surface
+        model = Analysis
 
 

@@ -918,3 +918,13 @@ def topography_analysis_function_for_tests(topography, a=1, b="foo"):
             'comment': f"a is {a} and b is {b}"}
 
 
+def surface_analysis_function_for_tests(surface, a=1, c="bar"):
+    """This function can be registered for tests."""
+    return {'name': 'Test result for test function called for surface {}.'.format(surface),
+            'xunit': 'm',
+            'yunit': 'm',
+            'xlabel': 'x',
+            'ylabel': 'y',
+            'series': [],
+            'comment': f"a is {a} and c is {c}"}
+
