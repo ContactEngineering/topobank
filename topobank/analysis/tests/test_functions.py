@@ -2,6 +2,7 @@ import numpy as np
 import math
 import pytest
 from dataclasses import dataclass
+from numpy.testing import assert_allclose
 
 from SurfaceTopography import Topography, NonuniformLineScan
 
@@ -9,11 +10,11 @@ from topobank.analysis.functions import (
     IncompatibleTopographyException,
     height_distribution, slope_distribution, curvature_distribution,
     power_spectrum, autocorrelation, variable_bandwidth,
-    contact_mechanics, rms_values)
+    contact_mechanics, rms_values, average_series_list)
 
 
 ###############################################################################
-# Helpers
+# Helpers for doing tests
 ###############################################################################
 
 @dataclass(frozen=True)
@@ -485,7 +486,6 @@ def test_contact_mechanics_effective_kwargs_in_result(periodic):
 
 def test_rms_values(simple_2d_topography):
 
-
     unit = simple_2d_topography.info['unit']
     inverse_unit = '{}⁻¹'.format(unit)
     topography = FakeTopographyModel(simple_2d_topography)
@@ -517,3 +517,37 @@ def test_rms_values(simple_2d_topography):
             'unit': 1,
         }
     ]
+
+###############################################################################
+# Testing analysis functions for surfaces
+###############################################################################
+
+
+def test_average_series_list():
+    """Testing the helper function 'average_series_list'"""
+    series_list = [
+        {
+            'name': 'quantity',  # taken from y=x
+            'x': np.array([1, 2, 3, 5, 6, 7]),
+            'y': np.array([1, 2, 3, 5, 6, 7]),
+        },
+        {
+            'name': 'quantity',  # taken from y=2*x
+            'x': np.array([0, 1.5, 2.5, 5]),
+            'y': np.array([0, 3, 5, 10]),
+        }
+    ]
+
+    exp_average_series = {
+        'name': 'quantity',
+        'x': np.linspace(0, 7, 15),  # 0, 0.5, ..., 6.5, 7
+        'y': np.array([0, 1, 1.5, 9/4, 3, 15/4, 9/2, 21/4, 6, 27/4, 30/4, 5.5, 6, 6.5, 7]),
+        'std_err_y': np.array([0, 0, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 0, 0, 0, 0])
+    }
+
+    result = average_series_list(series_list, num_points=15)
+
+    assert result['name'] == exp_average_series['name']
+    assert_allclose(result['x'], exp_average_series['x'])
+    assert_allclose(result['y'], exp_average_series['y'])
+
