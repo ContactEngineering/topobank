@@ -10,8 +10,10 @@ from topobank.analysis.functions import (
     IncompatibleTopographyException,
     height_distribution, slope_distribution, curvature_distribution,
     power_spectrum, autocorrelation, variable_bandwidth,
-    contact_mechanics, rms_values, average_series_list)
+    contact_mechanics, rms_values,
+    average_series_list, power_spectrum_for_surface)
 
+from topobank.manager.tests.utils import SurfaceFactory, TopographyFactory
 
 ###############################################################################
 # Helpers for doing tests
@@ -70,6 +72,7 @@ def test_height_distribution_simple_line_scan():
 
     # not testing gauss values yet since number of points is unknown
     # proposal: use a well tested function instead of own formula
+
 
 def test_slope_distribution_simple_line_scan():
 
@@ -523,8 +526,8 @@ def test_rms_values(simple_2d_topography):
 ###############################################################################
 
 
-def test_average_series_list():
-    """Testing the helper function 'average_series_list'"""
+def test_average_series_list_linear_scale():
+    """Testing the helper function 'average_series_list' for linear scale."""
     series_list = [
         {
             'name': 'quantity',  # taken from y=x
@@ -550,4 +553,110 @@ def test_average_series_list():
     assert result['name'] == exp_average_series['name']
     assert_allclose(result['x'], exp_average_series['x'])
     assert_allclose(result['y'], exp_average_series['y'])
+
+
+def test_average_series_list_loglog_scale():
+    """Testing the helper function 'average_series_list' for loglog scale."""
+    series_list = [
+        {
+            'name': 'quantity',  # taken from y=x
+            'x': np.exp([1, 2, 3, 5, 6, 7]),
+            'y': np.exp([1, 2, 3, 5, 6, 7]),
+        },
+        {
+            'name': 'quantity',  # taken from y=2*x
+            'x': np.exp([0, 1.5, 2.5, 5]),
+            'y': np.exp([0, 3, 5, 10]),
+        }
+    ]
+
+    exp_average_series = {
+        'name': 'quantity',
+        'x': np.exp(np.linspace(0, 7, 15)),  # 0, 0.5, ..., 6.5, 7
+        'y': np.exp([0, 1, 1.5, 9/4, 3, 15/4, 9/2, 21/4, 6, 27/4, 30/4, 5.5, 6, 6.5, 7]),
+        'std_err_y': np.exp([0, 0, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 0, 0, 0, 0])
+    }
+
+    result = average_series_list(series_list, num_points=15, xscale='log', yscale='log')
+
+    assert result['name'] == exp_average_series['name']
+    assert_allclose(result['x'], exp_average_series['x'])
+    assert_allclose(result['y'], exp_average_series['y'])
+    assert_allclose(result['std_err_y'], exp_average_series['std_err_y'])
+
+
+@pytest.mark.django_db
+def test_psd_for_surface(mocker):
+    """Testing PSD for an artificial surface."""
+
+    # PSD results for individual topographies are mocked up
+    topo1_result = dict(
+        name='Power-spectral density (PSD)',
+        xlabel='Wavevector',
+        ylabel='PSD',
+        xunit='µm⁻¹',
+        yunit='µm³',
+        xscale='log',
+        yscale='log',
+        series=[
+            {
+                'name': 'PSD',  # taken from y=x
+                'x': np.exp([0.9, 2, 3, 5, 6, 7]),
+                'y': np.exp([0.9, 2, 3, 5, 6, 7]),
+                # using here 0.9 instead of 1 so we can clearly
+                # interpolate at 1.0, otherwise with (1,1) there is no
+                # interpolation at 1.0 due to numerical errors (exp->log..)
+            },
+        ]
+    )
+    topo2_result = dict(
+        name='Power-spectral density (PSD)',
+        xlabel='Wavevector',
+        ylabel='PSD',
+        xunit='nm⁻¹',  # nm instead of µm
+        yunit='nm³',
+        xscale='log',
+        yscale='log',
+        series=[
+            {
+                'name': 'PSD',  # taken from y=2*x
+                'x': 1e-3*np.exp([0, 1.5, 2.5, 5.0]),   # small numbers because of xunit=nm⁻¹ compared to xunit=µm⁻¹
+                'y': 1e9*np.exp([0, 3, 5, 10]),  # very small numbers because nm³->µm³
+            }  # the numbers are scaled here in order to match the units of first topography + reuse known results
+        ]
+    )
+
+    power_spectrum_mock = mocker.patch('topobank.analysis.functions.power_spectrum',
+                                       side_effect=[topo1_result, topo2_result])
+
+    surf = SurfaceFactory()
+    topo1 = TopographyFactory(surface=surf)  # we just need 2 topographies
+    topo2 = TopographyFactory(surface=surf)
+
+    result = power_spectrum_for_surface(surf, num_points=15)
+
+    exp_result = {
+        'name': 'Power-spectral density (PSD)',
+        'xlabel': 'Wavevector',
+        'ylabel': 'PSD',
+        'xunit': 'µm⁻¹',
+        'yunit': 'µm³',
+        'xscale': 'log',
+        'yscale': 'log',
+        'series': [
+            {
+                'x': np.exp(np.linspace(0, 7, 15)),  # 0.5, ..., 6.5, 7 in plot
+                'y': np.exp([0, 1, 1.5, 9 / 4, 3, 15 / 4, 9 / 2, 21 / 4, 6, 27 / 4, 30 / 4, 5.5, 6, 6.5, 7]),
+                'std_err_y': np.exp([0, 0, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 0, 0, 0, 0])
+            }
+        ]
+    }
+
+    for k in ['name', 'xunit', 'yunit', 'xlabel', 'ylabel', 'xscale', 'yscale']:
+        assert exp_result[k] == result[k]
+
+    assert_allclose(exp_result['series'][0]['x'], result['series'][0]['x'])
+    assert_allclose(exp_result['series'][0]['y'], result['series'][0]['y'])
+    assert_allclose(exp_result['series'][0]['std_err_y'], result['series'][0]['std_err_y'])
+
 
