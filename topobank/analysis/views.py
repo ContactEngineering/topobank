@@ -435,6 +435,7 @@ class PlotCardView(SimpleCardView):
         js_args = {}
 
         special_values = []  # elements: tuple(subject, quantity name, value, unit string)
+        subjects = []
 
         for analysis in analyses_success:
 
@@ -442,12 +443,18 @@ class PlotCardView(SimpleCardView):
             subject_display_name = f"{subject.name} ({subject.get_content_type().model})"
 
             #
-            # find out colors for subject
+            # find out colors for subject and define an index
             #
-            if subject not in subject_colors:
+            if subject not in subjects:
+                subjects.append(subject)
                 subject_colors[subject] = next(color_cycle)
                 subject_display_names.append(subject_display_name)
 
+            subject_idx = subjects.index(subject)  # unique identifier within the plot
+
+            #
+            # handle task state
+            #
             if analysis.task_state == analysis.FAILURE:
                 continue  # should not happen if only called with successful analyses
             elif analysis.task_state == analysis.SUCCESS:
@@ -566,7 +573,6 @@ class PlotCardView(SimpleCardView):
                 # Prepare JS code to toggle visibility
                 #
                 series_idx = series_names.index(series_name)
-                subject_idx = subject_display_names.index(subject_display_name)  # TODO be careful, may not be unique
 
                 # prepare unique id for this line
                 glyph_id = f"glyph_{subject_idx}_{series_idx}_line"
