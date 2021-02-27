@@ -541,7 +541,7 @@ def test_average_series_list_linear_scale():
         }
     ]
 
-    exp_average_series = {
+    expected_average_series = {
         'name': 'quantity',
         'x': np.linspace(0, 7, 15),  # 0, 0.5, ..., 6.5, 7
         'y': np.array([0, 1, 1.5, 9/4, 3, 15/4, 9/2, 21/4, 6, 27/4, 30/4, 5.5, 6, 6.5, 7]),
@@ -550,9 +550,10 @@ def test_average_series_list_linear_scale():
 
     result = average_series_list(series_list, num_points=15)
 
-    assert result['name'] == exp_average_series['name']
-    assert_allclose(result['x'], exp_average_series['x'])
-    assert_allclose(result['y'], exp_average_series['y'])
+    assert result['name'] == expected_average_series['name']
+    assert_allclose(result['x'], expected_average_series['x'])
+    assert_allclose(result['y'], expected_average_series['y'])
+    assert_allclose(result['std_err_y'], expected_average_series['std_err_y'])
 
 
 def test_average_series_list_loglog_scale():
@@ -570,7 +571,7 @@ def test_average_series_list_loglog_scale():
         }
     ]
 
-    exp_average_series = {
+    expected_average_series = {
         'name': 'quantity',
         'x': np.exp(np.linspace(0, 7, 15)),  # 0, 0.5, ..., 6.5, 7
         'y': np.exp([0, 1, 1.5, 9/4, 3, 15/4, 9/2, 21/4, 6, 27/4, 30/4, 5.5, 6, 6.5, 7]),
@@ -579,10 +580,10 @@ def test_average_series_list_loglog_scale():
 
     result = average_series_list(series_list, num_points=15, xscale='log', yscale='log')
 
-    assert result['name'] == exp_average_series['name']
-    assert_allclose(result['x'], exp_average_series['x'])
-    assert_allclose(result['y'], exp_average_series['y'])
-    assert_allclose(result['std_err_y'], exp_average_series['std_err_y'])
+    assert result['name'] == expected_average_series['name']
+    assert_allclose(result['x'], expected_average_series['x'])
+    assert_allclose(result['y'], expected_average_series['y'])
+    assert_allclose(result['std_err_y'], expected_average_series['std_err_y'])
 
 
 @pytest.mark.django_db
@@ -635,7 +636,7 @@ def test_psd_for_surface(mocker):
 
     result = power_spectrum_for_surface(surf, num_points=15)
 
-    exp_result = {
+    expected_result = {
         'name': 'Power-spectral density (PSD)',
         'xlabel': 'Wavevector',
         'ylabel': 'PSD',
@@ -653,10 +654,10 @@ def test_psd_for_surface(mocker):
     }
 
     for k in ['name', 'xunit', 'yunit', 'xlabel', 'ylabel', 'xscale', 'yscale']:
-        assert exp_result[k] == result[k]
+        assert expected_result[k] == result[k]
 
-    assert_allclose(exp_result['series'][0]['x'], result['series'][0]['x'])
-    assert_allclose(exp_result['series'][0]['y'], result['series'][0]['y'])
-    assert_allclose(exp_result['series'][0]['std_err_y'], result['series'][0]['std_err_y'])
+    assert_allclose(expected_result['series'][0]['x'], result['series'][0]['x'])
+    assert_allclose(expected_result['series'][0]['y'], result['series'][0]['y'])
+    assert_allclose(expected_result['series'][0]['std_err_y'], result['series'][0]['std_err_y'])
 
 
