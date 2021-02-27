@@ -22,7 +22,7 @@ from django.conf import settings
 import django_tables2 as tables
 
 from bokeh.layouts import row, column, grid
-from bokeh.models import ColumnDataSource, CustomJS, TapTool, Circle, HoverTool
+from bokeh.models import ColumnDataSource, CustomJS, TapTool, Circle, HoverTool, Band
 from bokeh.palettes import Category10
 from bokeh.models.formatters import FuncTickFormatter
 from bokeh.models.ranges import DataRange1d
@@ -405,7 +405,7 @@ class PlotCardView(SimpleCardView):
         # Configure hover tool
         #
         plot.hover.tooltips = [
-            ("topography", "$name"),
+            ("subject name", "$name"),
             ("series", "@series"),
             (x_axis_label, "@x"),
             (y_axis_label, "@y"),
@@ -420,7 +420,7 @@ class PlotCardView(SimpleCardView):
         # TODO remove code for toggling symbols if not needed
 
         subject_colors = OrderedDict()  # key: subject instance, value: color
-        subject_names = []
+        subject_display_names = []
 
         series_dashes = OrderedDict()  # key: series name
         series_names = []
@@ -439,14 +439,14 @@ class PlotCardView(SimpleCardView):
         for analysis in analyses_success:
 
             subject = analysis.subject
-            subject_name = subject.name
+            subject_display_name = f"{subject.name} ({subject.get_content_type().model})"
 
             #
             # find out colors for subject
             #
             if subject not in subject_colors:
                 subject_colors[subject] = next(color_cycle)
-                subject_names.append(subject_name)
+                subject_display_names.append(subject_display_name)
 
             if analysis.task_state == analysis.FAILURE:
                 continue  # should not happen if only called with successful analyses
@@ -496,12 +496,27 @@ class PlotCardView(SimpleCardView):
 
                 series_name = s['name']
 
-                source = ColumnDataSource(data=dict(x=analysis_xscale * xarr[~mask],
-                                                    y=analysis_yscale * yarr[~mask],
-                                                    series=(series_name,) * len(xarr)))
+                source_data = dict(x=analysis_xscale * xarr[~mask],
+                                   y=analysis_yscale * yarr[~mask],
+                                   series=(series_name,) * len(xarr))
+                if 'std_err_y' in s.keys():
+                    std_err_yarr = analysis_yscale * np.array(s['std_err_y'])[~mask]
+                    if get_axis_type('yscale') == 'log':
+                        source_data['upper'] = source_data['y'] * std_err_yarr
+                        source_data['lower'] = source_data['y'] / std_err_yarr
+                        # We need * and / here because of the log axis:
+                        # log(y*std_err_y) = log(y) + log(stderr_y)
+                        # log(y/std_err_y) = log(y) - log(stderr_y)
+                        #
+                        # The average and the error have been calculated on a log/log scale
+                    else:
+                        source_data['upper'] = source_data['y'] + std_err_yarr
+                        source_data['lower'] = source_data['y'] - std_err_yarr
+
+                source = ColumnDataSource(data=source_data)
                 # it's a little dirty to add the same value for series for every point
                 # but I don't know to a have a second field next to "name", which
-                # is used for the topography here
+                # is used for the subject here
 
                 #
                 # find out dashes for data series
@@ -516,17 +531,16 @@ class PlotCardView(SimpleCardView):
                 #
                 show_symbols = np.count_nonzero(~mask) <= MAX_NUM_POINTS_FOR_SYMBOLS
 
-                legend_entry = subject_name + ": " + series_name
+                legend_entry = subject_display_name + ": " + series_name
 
                 curr_color = subject_colors[subject]
                 curr_dash = series_dashes[series_name]
                 # curr_symbol = series_symbols[series_name]
 
                 # hover_name = "{} for '{}'".format(series_name, topography_name)
-
                 line_glyph = plot.line('x', 'y', source=source, legend_label=legend_entry,
                                        line_color=curr_color,
-                                       line_dash=curr_dash, name=subject_name)
+                                       line_dash=curr_dash, name=subject_display_name)
                 if show_symbols:
                     symbol_glyph = plot.scatter('x', 'y', source=source,
                                                 legend_label=legend_entry,
@@ -535,13 +549,24 @@ class PlotCardView(SimpleCardView):
                                                 line_color=curr_color,
                                                 line_dash=curr_dash,
                                                 fill_color=curr_color,
-                                                name=subject_name)
+                                                name=subject_display_name)
+
+                #
+                # If an stderr is given in the data, show area within a "band"
+                #
+                if 'std_err_y' in s.keys():
+                    band = Band(base='x', lower='lower', upper='upper', source=source,
+                                line_color=curr_color, line_dash=curr_dash, fill_color=curr_color,
+                                level='overlay', fill_alpha=0.5,
+                                name=subject_display_name,
+                                upper_units='data', lower_units='data')
+                    plot.add_layout(band)
 
                 #
                 # Prepare JS code to toggle visibility
                 #
                 series_idx = series_names.index(series_name)
-                subject_idx = subject_names.index(subject_name)  # TODO be careful, may not be unique
+                subject_idx = subject_display_names.index(subject_display_name)  # TODO be careful, may not be unique
 
                 # prepare unique id for this line
                 glyph_id = f"glyph_{subject_idx}_{series_idx}_line"
@@ -549,8 +574,7 @@ class PlotCardView(SimpleCardView):
 
                 # only indices of visible glyphs appear in "active" lists of both button groups
                 js_code += f"{glyph_id}.visible = series_btn_group.active.includes({series_idx}) " \
-                           + f"&& topography_btn_group.active.includes({subject_idx});"
-                # TODO rename topopgraphy_btn_group
+                           + f"&& subject_btn_group.active.includes({subject_idx});"
 
                 if show_symbols:
                     # prepare unique id for this symbols
@@ -559,7 +583,7 @@ class PlotCardView(SimpleCardView):
 
                     # only indices of visible glyphs appear in "active" lists of both button groups
                     js_code += f"{glyph_id}.visible = series_btn_group.active.includes({series_idx}) " \
-                               + f"&& topography_btn_group.active.includes({subject_idx});"
+                               + f"&& subject_btn_group.active.includes({subject_idx});"
 
             #
             # Collect special values to be shown in the result card
@@ -603,19 +627,19 @@ class PlotCardView(SimpleCardView):
             active=list(range(len(series_names))))  # all active
 
         subject_names_for_btn_group = list(s.name for s in subject_colors.keys())
-        topography_button_group = CheckboxGroup(
+        subject_btn_group = CheckboxGroup(
             labels=subject_names_for_btn_group,
             css_classes=["topobank-topography-checkbox"],
             visible=False,
             active=list(range(len(subject_names_for_btn_group))))  # all active
 
-        topography_btn_group_toggle_button = Toggle(label="Topographies")
+        subject_btn_group_toggle_button = Toggle(label="Topographies / Surfaces")
         series_btn_group_toggle_button = Toggle(label="Data Series")
 
         # extend mapping of Python to JS objects
         js_args['series_btn_group'] = series_button_group
-        js_args['topography_btn_group'] = topography_button_group
-        js_args['topography_btn_group_toggle_btn'] = topography_btn_group_toggle_button
+        js_args['subject_btn_group'] = subject_btn_group
+        js_args['subject_btn_group_toggle_btn'] = subject_btn_group_toggle_button
         js_args['series_btn_group_toggle_btn'] = series_btn_group_toggle_button
 
         # add code for setting styles of widgetbox elements
@@ -625,7 +649,7 @@ class PlotCardView(SimpleCardView):
 
         toggle_lines_callback = CustomJS(args=js_args, code=js_code)
         toggle_topography_checkboxes = CustomJS(args=js_args, code="""
-            topography_btn_group.visible = topography_btn_group_toggle_btn.active;
+            subject_btn_group.visible = subject_btn_group_toggle_btn.active;
         """)
         toggle_series_checkboxes = CustomJS(args=js_args, code="""
             series_btn_group.visible = series_btn_group_toggle_btn.active;
@@ -636,13 +660,13 @@ class PlotCardView(SimpleCardView):
         #
 
         widgets = grid([
-            [topography_btn_group_toggle_button, series_btn_group_toggle_button],
-            [topography_button_group, series_button_group]
+            [subject_btn_group_toggle_button, series_btn_group_toggle_button],
+            [subject_btn_group, series_button_group],
         ])
 
         series_button_group.js_on_click(toggle_lines_callback)
-        topography_button_group.js_on_click(toggle_lines_callback)
-        topography_btn_group_toggle_button.js_on_click(toggle_topography_checkboxes)
+        subject_btn_group.js_on_click(toggle_lines_callback)
+        subject_btn_group_toggle_button.js_on_click(toggle_topography_checkboxes)
         series_btn_group_toggle_button.js_on_click(toggle_series_checkboxes)
         #
         # Convert plot and widgets to HTML, add meta data for template
