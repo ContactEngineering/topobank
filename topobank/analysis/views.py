@@ -502,11 +502,11 @@ class PlotCardView(SimpleCardView):
                     mask |= np.isclose(yarr, 0, atol=SMALLEST_ABSOLUT_NUMBER_IN_LOGPLOTS)
 
                 series_name = s['name']
-
+                series_has_std_err = 'std_err_y' in s.keys()
                 source_data = dict(x=analysis_xscale * xarr[~mask],
                                    y=analysis_yscale * yarr[~mask],
                                    series=(series_name,) * len(xarr))
-                if 'std_err_y' in s.keys():
+                if series_has_std_err:
                     std_err_yarr = analysis_yscale * np.array(s['std_err_y'])[~mask]
                     if get_axis_type('yscale') == 'log':
                         source_data['upper'] = source_data['y'] * std_err_yarr
@@ -561,7 +561,7 @@ class PlotCardView(SimpleCardView):
                 #
                 # If an stderr is given in the data, show area within a "band"
                 #
-                if 'std_err_y' in s.keys():
+                if series_has_std_err:
                     band = Band(base='x', lower='lower', upper='upper', source=source,
                                 line_color=curr_color, line_dash=curr_dash, fill_color=curr_color,
                                 level='overlay', fill_alpha=0.5,
@@ -581,6 +581,13 @@ class PlotCardView(SimpleCardView):
                 # only indices of visible glyphs appear in "active" lists of both button groups
                 js_code += f"{glyph_id}.visible = series_btn_group.active.includes({series_idx}) " \
                            + f"&& subject_btn_group.active.includes({subject_idx});"
+
+                if series_has_std_err:
+                    # also toggle band with errors
+                    glyph_id = f"glyph_{subject_idx}_{series_idx}_band"
+                    js_args[glyph_id] = band  # mapping from Python to JS
+                    js_code += f"{glyph_id}.visible = series_btn_group.active.includes({series_idx}) " \
+                               + f"&& subject_btn_group.active.includes({subject_idx});"
 
                 if show_symbols:
                     # prepare unique id for this symbols
