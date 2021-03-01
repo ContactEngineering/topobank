@@ -17,9 +17,10 @@ RUN apt-get update \
      liblcms2-dev libtiff-dev tk-dev tcl-dev librabbitmq-dev \
   # Requirements in order to built libmufft
   # (curl is used to download pybind11 and Eigen3)
-  && apt-get install --yes curl
+  && apt-get install --yes curl \
   # && apt-get install --yes mpicc libfftw3-mpi-dev
   # && apt-get install --yes clang-5 libfftw3-dev
+  && apt-get install --yes libmemcached-dev
   # Requirement needed for exporting bokeh plots
 
 # clean up image
