@@ -14,7 +14,7 @@ django-crispy-forms  # https://github.com/django-crispy-forms/django-crispy-form
 django-tables2 # https://github.com/jieter/django-tables2
 
 # Update a dependency of pyjwt to a more secure version
-cryptography>=3.2.1
+cryptography>=3.3.2
 
 # Django REST Framework
 djangorestframework  # https://github.com/encode/django-rest-framework
@@ -62,7 +62,7 @@ tornado>=4.2.0,<6.0.0
 celery-progress
 
 # Sanitize user inputs (removing malicious content)
-bleach
+bleach>=3.3.0
 
 #
 # Contact Mechanics

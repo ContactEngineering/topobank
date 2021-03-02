@@ -4,103 +4,286 @@
 #
 #    pip-compile --output-file=base.txt base.in
 #
-amqp==2.6.1               # via kombu
-argon2-cffi==20.1.0       # via -r base.in
-babel==2.8.0              # via celery-flower
-billiard==3.6.3.0         # via celery
-bleach==3.2.1             # via -r base.in
-bokeh==2.2.3              # via -r base.in
-boto3==1.16.1             # via -r base.in
-botocore==1.19.1          # via boto3, s3transfer
-celery-flower==1.0.1      # via -r base.in
-celery-progress==0.0.14   # via -r base.in
-celery==4.4.7             # via -r base.in, celery-flower
-certifi==2020.6.20        # via requests
-cffi==1.14.3              # via argon2-cffi, cryptography
-cftime==1.2.1             # via netcdf4
-chardet==3.0.4            # via requests
-contactmechanics==0.90.1  # via -r base.in
-coreapi==2.3.3            # via -r base.in
-coreschema==0.0.4         # via coreapi
-cryptography==3.2.1       # via -r base.in, pyjwt
-defusedxml==0.6.0         # via python3-openid
-django-allauth==0.43.0    # via -r base.in
-django-appconf==1.0.4     # via django-select2
-django-bootstrap-datepicker-plus==3.0.5  # via -r base.in
-django-crispy-forms==1.9.2  # via -r base.in
-django-environ==0.4.5     # via -r base.in
-django-filter==2.4.0      # via -r base.in
-django-fontawesome==1.0   # via -r base.in
-django-formtools==2.2     # via -r base.in
-django-fullurl==1.1       # via -r base.in
-django-guardian==2.3.0    # via -r base.in
-django-model-utils==4.0.0  # via -r base.in, django-notifications-hq
-django-notifications-hq==1.6.0  # via -r base.in
-git+http://github.com/IMTEK-Simulation/django-progressbarupload.git  # via -r base.in
-django-select2==7.4.2     # via -r base.in
-django-storages==1.10.1   # via -r base.in
-django-tables2==2.3.2     # via -r base.in
-django-tagulous==1.0.0    # via -r base.in
-git+http://git@github.com/mcrot/django-termsandconditions.git@optional_terms  # via -r base.in
-django-trackstats==0.5.0  # via -r base.in
-django==2.2.13            # via -r base.in, django-allauth, django-appconf, django-bootstrap-datepicker-plus, django-filter, django-formtools, django-fullurl, django-guardian, django-model-utils, django-notifications-hq, django-select2, django-storages, django-tables2, django-tagulous, django-termsandconditions, django-trackstats, djangorestframework, jsonfield
-djangorestframework==3.12.1  # via -r base.in
-et-xmlfile==1.0.1         # via openpyxl
-future==0.18.2            # via django-termsandconditions
-h5netcdf==0.8.1           # via -r base.in
-h5py==2.10.0              # via h5netcdf, surfacetopography
-idna==2.10                # via requests
-igor==0.3                 # via surfacetopography
-importlib-metadata==2.0.0  # via kombu, pint
-itypes==1.2.0             # via coreapi
-jdcal==1.4.1              # via openpyxl
-jinja2==2.11.2            # via bokeh, coreschema
-jmespath==0.10.0          # via boto3, botocore
-jsonfield==3.1.0          # via django-notifications-hq
-kombu==4.6.11             # via celery
-lxml==4.6.2               # via -r base.in
-markdown2==2.3.10         # via -r base.in
-markupsafe==1.1.1         # via jinja2
-mufft==0.11.1             # via -r base.in, contactmechanics, surfacetopography
-netcdf4==1.5.4            # via -r base.in, surfacetopography
-numpi==0.1.4              # via contactmechanics, surfacetopography
-numpy==1.19.2             # via bokeh, cftime, contactmechanics, h5py, mufft, netcdf4, numpi, pandas, scipy, surfacetopography, xarray
-oauthlib==3.1.0           # via requests-oauthlib
-openpyxl==3.0.5           # via -r base.in
-packaging==20.4           # via bleach, bokeh, pint
-pandas==1.1.3             # via -r base.in, xarray
-pillow==8.0.0             # via -r base.in, bokeh
-pint==0.16.1              # via -r base.in
-pycparser==2.20           # via cffi
-pygments==2.7.1           # via -r base.in
-pyjwt[crypto]==1.7.1      # via django-allauth
-pylibmc==1.6.1            # via -r base.in
-pyparsing==2.4.7          # via packaging
-python-dateutil==2.8.1    # via bokeh, botocore, pandas
-python-slugify==4.0.1     # via -r base.in
-python3-openid==3.2.0     # via django-allauth
-pytz==2020.1              # via -r base.in, babel, celery, celery-flower, django, django-notifications-hq, django-trackstats, pandas
-pyyaml==5.3.1             # via bokeh, django-fontawesome
-requests-oauthlib==1.3.0  # via django-allauth
-requests==2.24.0          # via coreapi, django-allauth, requests-oauthlib
-s3transfer==0.3.3         # via boto3
-scipy==1.5.3              # via numpi
-selenium==3.141.0         # via -r base.in
-short-url==1.2.2          # via -r base.in
-six==1.15.0               # via argon2-cffi, bleach, cryptography, h5py, packaging, python-dateutil
-sqlparse==0.4.1           # via django
-surfacetopography==0.91.5  # via -r base.in, contactmechanics
-swapper==1.1.2.post1      # via django-notifications-hq
-text-unidecode==1.3       # via python-slugify
-tornado==5.1.1            # via -r base.in, bokeh, celery-flower
-typing-extensions==3.7.4.3  # via bokeh
-uritemplate==3.0.1        # via coreapi
-urllib3==1.25.11          # via botocore, requests, selenium
-vine==1.3.0               # via amqp, celery
-webencodings==0.5.1       # via bleach
-whitenoise==5.2.0         # via -r base.in
-xarray==0.16.1            # via -r base.in
-zipp==3.3.1               # via importlib-metadata
+amqp==2.6.1
+    # via kombu
+argon2-cffi==20.1.0
+    # via -r base.in
+babel==2.8.0
+    # via celery-flower
+billiard==3.6.3.0
+    # via celery
+bleach==3.3.0
+    # via -r base.in
+bokeh==2.2.3
+    # via -r base.in
+boto3==1.16.1
+    # via -r base.in
+botocore==1.19.1
+    # via
+    #   boto3
+    #   s3transfer
+celery-flower==1.0.1
+    # via -r base.in
+celery-progress==0.0.14
+    # via -r base.in
+celery==4.4.7
+    # via
+    #   -r base.in
+    #   celery-flower
+certifi==2020.6.20
+    # via requests
+cffi==1.14.3
+    # via
+    #   argon2-cffi
+    #   cryptography
+cftime==1.2.1
+    # via netcdf4
+chardet==3.0.4
+    # via requests
+contactmechanics==0.90.1
+    # via -r base.in
+coreapi==2.3.3
+    # via -r base.in
+coreschema==0.0.4
+    # via coreapi
+cryptography==3.4.6
+    # via
+    #   -r base.in
+    #   pyjwt
+defusedxml==0.6.0
+    # via python3-openid
+django-allauth==0.43.0
+    # via -r base.in
+django-appconf==1.0.4
+    # via django-select2
+django-bootstrap-datepicker-plus==3.0.5
+    # via -r base.in
+django-crispy-forms==1.9.2
+    # via -r base.in
+django-environ==0.4.5
+    # via -r base.in
+django-filter==2.4.0
+    # via -r base.in
+django-fontawesome==1.0
+    # via -r base.in
+django-formtools==2.2
+    # via -r base.in
+django-fullurl==1.1
+    # via -r base.in
+django-guardian==2.3.0
+    # via -r base.in
+django-model-utils==4.0.0
+    # via
+    #   -r base.in
+    #   django-notifications-hq
+django-notifications-hq==1.6.0
+    # via -r base.in
+git+http://github.com/IMTEK-Simulation/django-progressbarupload.git
+    # via -r base.in
+django-select2==7.4.2
+    # via -r base.in
+django-storages==1.10.1
+    # via -r base.in
+django-tables2==2.3.2
+    # via -r base.in
+django-tagulous==1.0.0
+    # via -r base.in
+git+http://git@github.com/mcrot/django-termsandconditions.git@optional_terms
+    # via -r base.in
+django-trackstats==0.5.0
+    # via -r base.in
+django==2.2.13
+    # via
+    #   -r base.in
+    #   django-allauth
+    #   django-appconf
+    #   django-bootstrap-datepicker-plus
+    #   django-filter
+    #   django-formtools
+    #   django-fullurl
+    #   django-guardian
+    #   django-model-utils
+    #   django-notifications-hq
+    #   django-select2
+    #   django-storages
+    #   django-tables2
+    #   django-tagulous
+    #   django-termsandconditions
+    #   django-trackstats
+    #   djangorestframework
+    #   jsonfield
+djangorestframework==3.12.1
+    # via -r base.in
+et-xmlfile==1.0.1
+    # via openpyxl
+future==0.18.2
+    # via django-termsandconditions
+h5netcdf==0.8.1
+    # via -r base.in
+h5py==2.10.0
+    # via
+    #   h5netcdf
+    #   surfacetopography
+idna==2.10
+    # via requests
+igor==0.3
+    # via surfacetopography
+itypes==1.2.0
+    # via coreapi
+jdcal==1.4.1
+    # via openpyxl
+jinja2==2.11.2
+    # via
+    #   bokeh
+    #   coreschema
+jmespath==0.10.0
+    # via
+    #   boto3
+    #   botocore
+jsonfield==3.1.0
+    # via django-notifications-hq
+kombu==4.6.11
+    # via celery
+lxml==4.6.2
+    # via -r base.in
+markdown2==2.3.10
+    # via -r base.in
+markupsafe==1.1.1
+    # via jinja2
+mufft==0.11.1
+    # via
+    #   -r base.in
+    #   contactmechanics
+    #   surfacetopography
+netcdf4==1.5.4
+    # via
+    #   -r base.in
+    #   surfacetopography
+numpi==0.1.4
+    # via
+    #   contactmechanics
+    #   surfacetopography
+numpy==1.19.2
+    # via
+    #   bokeh
+    #   cftime
+    #   contactmechanics
+    #   h5py
+    #   mufft
+    #   netcdf4
+    #   numpi
+    #   pandas
+    #   scipy
+    #   surfacetopography
+    #   xarray
+oauthlib==3.1.0
+    # via requests-oauthlib
+openpyxl==3.0.5
+    # via -r base.in
+packaging==20.4
+    # via
+    #   bleach
+    #   bokeh
+    #   pint
+pandas==1.1.3
+    # via
+    #   -r base.in
+    #   xarray
+pillow==8.0.0
+    # via
+    #   -r base.in
+    #   bokeh
+pint==0.16.1
+    # via -r base.in
+pycparser==2.20
+    # via cffi
+pygments==2.7.1
+    # via -r base.in
+pyjwt[crypto]==1.7.1
+    # via django-allauth
+pylibmc==1.6.1
+    # via -r base.in
+pyparsing==2.4.7
+    # via packaging
+python-dateutil==2.8.1
+    # via
+    #   bokeh
+    #   botocore
+    #   pandas
+python-slugify==4.0.1
+    # via -r base.in
+python3-openid==3.2.0
+    # via django-allauth
+pytz==2020.1
+    # via
+    #   -r base.in
+    #   babel
+    #   celery
+    #   celery-flower
+    #   django
+    #   django-notifications-hq
+    #   django-trackstats
+    #   pandas
+pyyaml==5.3.1
+    # via
+    #   bokeh
+    #   django-fontawesome
+requests-oauthlib==1.3.0
+    # via django-allauth
+requests==2.24.0
+    # via
+    #   coreapi
+    #   django-allauth
+    #   requests-oauthlib
+s3transfer==0.3.3
+    # via boto3
+scipy==1.5.3
+    # via numpi
+selenium==3.141.0
+    # via -r base.in
+short-url==1.2.2
+    # via -r base.in
+six==1.15.0
+    # via
+    #   argon2-cffi
+    #   bleach
+    #   h5py
+    #   packaging
+    #   python-dateutil
+sqlparse==0.4.1
+    # via django
+surfacetopography==0.91.5
+    # via
+    #   -r base.in
+    #   contactmechanics
+swapper==1.1.2.post1
+    # via django-notifications-hq
+text-unidecode==1.3
+    # via python-slugify
+tornado==5.1.1
+    # via
+    #   -r base.in
+    #   bokeh
+    #   celery-flower
+typing-extensions==3.7.4.3
+    # via bokeh
+uritemplate==3.0.1
+    # via coreapi
+urllib3==1.25.11
+    # via
+    #   botocore
+    #   requests
+    #   selenium
+vine==1.3.0
+    # via
+    #   amqp
+    #   celery
+webencodings==0.5.1
+    # via bleach
+whitenoise==5.2.0
+    # via -r base.in
+xarray==0.16.1
+    # via -r base.in
 
 # The following packages are considered to be unsafe in a requirements file:
 # setuptools
