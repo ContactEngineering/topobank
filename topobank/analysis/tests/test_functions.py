@@ -526,7 +526,25 @@ def test_rms_values(simple_2d_topography):
 ###############################################################################
 
 
-def test_average_series_list_linear_scale():
+def _expected(xscale):
+    """Returns tuple with expected (x,y,std_err_y)"""
+    if xscale == 'log':
+        expected_x = np.geomspace(0.1, 7, 15)
+    else:
+        expected_x = np.linspace(0.1, 7, 15)
+
+    expected_y = np.piecewise(expected_x,
+                              [expected_x < 1, (expected_x >= 1) & (expected_x <= 5), expected_x > 5],
+                              [lambda x:2*x, lambda x: 3*x/2, lambda x:x])
+    expected_std_err_y = np.piecewise(
+        expected_x,
+        [expected_x < 1, (expected_x >= 1) & (expected_x <= 5), expected_x > 5],
+        [0, lambda x: np.abs(x) / 2, 0])
+    return expected_x, expected_y, expected_std_err_y
+
+
+@pytest.mark.parametrize('xscale', ['linear', 'log'])
+def test_average_series_list_linear_scale(xscale):
     """Testing the helper function 'average_series_list' for linear scale."""
     series_list = [
         {
@@ -536,49 +554,21 @@ def test_average_series_list_linear_scale():
         },
         {
             'name': 'quantity',  # taken from y=2*x
-            'x': np.array([0, 1.5, 2.5, 5]),
-            'y': np.array([0, 3, 5, 10]),
+            'x': np.array([0.1, 1.5, 2.5, 5]),
+            'y': np.array([0.2, 3, 5, 10]),
         }
     ]
 
-    expected_average_series = {
-        'name': 'quantity',
-        'x': np.linspace(0, 7, 15),  # 0, 0.5, ..., 6.5, 7
-        'y': np.array([0, 1, 1.5, 9/4, 3, 15/4, 9/2, 21/4, 6, 27/4, 30/4, 5.5, 6, 6.5, 7]),
-        'std_err_y': np.array([0, 0, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 0, 0, 0, 0])
-    }
-
-    result = average_series_list(series_list, num_points=15)
-
-    assert result['name'] == expected_average_series['name']
-    assert_allclose(result['x'], expected_average_series['x'])
-    assert_allclose(result['y'], expected_average_series['y'])
-    assert_allclose(result['std_err_y'], expected_average_series['std_err_y'])
-
-
-def test_average_series_list_loglog_scale():
-    """Testing the helper function 'average_series_list' for loglog scale."""
-    series_list = [
-        {
-            'name': 'quantity',  # taken from y=x
-            'x': np.exp([1, 2, 3, 5, 6, 7]),
-            'y': np.exp([1, 2, 3, 5, 6, 7]),
-        },
-        {
-            'name': 'quantity',  # taken from y=2*x
-            'x': np.exp([0, 1.5, 2.5, 5]),
-            'y': np.exp([0, 3, 5, 10]),
-        }
-    ]
+    expected_x, expected_y, expected_std_err_y = _expected(xscale)
 
     expected_average_series = {
         'name': 'quantity',
-        'x': np.exp(np.linspace(0, 7, 15)),  # 0, 0.5, ..., 6.5, 7
-        'y': np.exp([0, 1, 1.5, 9/4, 3, 15/4, 9/2, 21/4, 6, 27/4, 30/4, 5.5, 6, 6.5, 7]),
-        'std_err_y': np.exp([0, 0, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 0, 0, 0, 0])
+        'x': expected_x,
+        'y': expected_y,
+        'std_err_y': expected_std_err_y
     }
 
-    result = average_series_list(series_list, num_points=15, xscale='log', yscale='log')
+    result = average_series_list(series_list, num_points=15, xscale=xscale)
 
     assert result['name'] == expected_average_series['name']
     assert_allclose(result['x'], expected_average_series['x'])
@@ -602,8 +592,8 @@ def test_psd_for_surface(mocker):
         series=[
             {
                 'name': 'PSD',  # taken from y=x
-                'x': np.exp([0.9, 2, 3, 5, 6, 7]),
-                'y': np.exp([0.9, 2, 3, 5, 6, 7]),
+                'x': np.array([1, 2, 3, 5, 6, 7]),
+                'y': np.array([1, 2, 3, 5, 6, 7]),
                 # using here 0.9 instead of 1 so we can clearly
                 # interpolate at 1.0, otherwise with (1,1) there is no
                 # interpolation at 1.0 due to numerical errors (exp->log..)
@@ -621,8 +611,8 @@ def test_psd_for_surface(mocker):
         series=[
             {
                 'name': 'PSD',  # taken from y=2*x
-                'x': 1e-3*np.exp([0, 1.5, 2.5, 5.0]),   # small numbers because of xunit=nm⁻¹ compared to xunit=µm⁻¹
-                'y': 1e9*np.exp([0, 3, 5, 10]),  # very small numbers because nm³->µm³
+                'x': 1e-3*np.array([0.1, 1.5, 2.5, 5.0]),   # small numbers because of xunit=nm⁻¹ compared to xunit=µm⁻¹
+                'y': 1e9*np.array([0.2, 3, 5, 10]),  # very small numbers because nm³->µm³
             }  # the numbers are scaled here in order to match the units of first topography + reuse known results
         ]
     )
@@ -636,6 +626,8 @@ def test_psd_for_surface(mocker):
 
     result = power_spectrum_for_surface(surf, num_points=15)
 
+    expected_x, expected_y, expected_std_err_y = _expected('log')
+
     expected_result = {
         'name': 'Power-spectral density (PSD)',
         'xlabel': 'Wavevector',
@@ -646,9 +638,9 @@ def test_psd_for_surface(mocker):
         'yscale': 'log',
         'series': [
             {
-                'x': np.exp(np.linspace(0, 7, 15)),  # 0.5, ..., 6.5, 7 in plot
-                'y': np.exp([0, 1, 1.5, 9 / 4, 3, 15 / 4, 9 / 2, 21 / 4, 6, 27 / 4, 30 / 4, 5.5, 6, 6.5, 7]),
-                'std_err_y': np.exp([0, 0, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 0, 0, 0, 0])
+                'x': expected_x,
+                'y': expected_y,
+                'std_err_y': expected_std_err_y
             }
         ]
     }
