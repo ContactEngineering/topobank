@@ -440,6 +440,8 @@ class PlotCardView(SimpleCardView):
         for analysis in analyses_success:
 
             subject = analysis.subject
+            is_surface_analysis = isinstance(subject, Surface)
+
             subject_display_name = f"{subject.name} ({subject.get_content_type().model})"
 
             #
@@ -545,9 +547,12 @@ class PlotCardView(SimpleCardView):
                 # curr_symbol = series_symbols[series_name]
 
                 # hover_name = "{} for '{}'".format(series_name, topography_name)
+                line_width = 3 if is_surface_analysis else 1
                 line_glyph = plot.line('x', 'y', source=source, legend_label=legend_entry,
                                        line_color=curr_color,
-                                       line_dash=curr_dash, name=subject_display_name)
+                                       line_dash=curr_dash,
+                                       line_width=line_width,
+                                       name=subject_display_name)
                 if show_symbols:
                     symbol_glyph = plot.scatter('x', 'y', source=source,
                                                 legend_label=legend_entry,
