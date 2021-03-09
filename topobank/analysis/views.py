@@ -615,7 +615,7 @@ class PlotCardView(SimpleCardView):
         subject_names_for_btn_group = list(s.name for s in subject_colors.keys())
         subject_btn_group = CheckboxGroup(
             labels=subject_names_for_btn_group,
-            css_classes=["topobank-topography-checkbox"],
+            css_classes=["topobank-subject-checkbox"],
             visible=False,
             active=list(range(len(subject_names_for_btn_group))))  # all active
 
@@ -823,7 +823,7 @@ class ContactMechanicsCardView(SimpleCardView):
             #
             topography_button_group = CheckboxGroup(
                 labels=topography_names,
-                css_classes=["topobank-topography-checkbox"],
+                css_classes=["topobank-subject-checkbox"],
                 visible=False,
                 active=list(range(len(topography_names))))  # all active
 
