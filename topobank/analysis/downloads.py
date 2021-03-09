@@ -246,8 +246,17 @@ def download_plot_analyses_to_txt(request, analyses):
         yunit_str = '' if result['yunit'] is None else ' ({})'.format(result['yunit'])
         header = 'Columns: {}{}, {}{}'.format(result['xlabel'], xunit_str, result['ylabel'], yunit_str)
 
+        std_err_y_in_series = any('std_err_y' in s.keys() for s in result['series'])
+        if std_err_y_in_series:
+            header += ', standard error of average {}{}'.format(result['ylabel'], yunit_str)
+
         for series in result['series']:
-            np.savetxt(f, np.transpose([series['x'], series['y']]),
+            series_data = [series['x'], series['y']]
+            try:
+                series_data.append(series['std_err_y'])
+            except KeyError:
+                pass
+            np.savetxt(f, np.transpose(series_data),
                        header='{}\n{}\n{}'.format(series['name'], '-' * len(series['name']), header))
             f.write('\n')
 
@@ -298,10 +307,15 @@ def download_plot_analyses_to_xlsx(request, analyses):
         result = pickle.loads(analysis.result)
         column1 = '{} ({})'.format(result['xlabel'], result['xunit'])
         column2 = '{} ({})'.format(result['ylabel'], result['yunit'])
+        column3 = 'standard error of {} ({})'.format(result['ylabel'], result['yunit'])
 
-        # determine name of topography in sheet name
         for series in result['series']:
-            df = pd.DataFrame({column1: series['x'], column2: series['y']})
+            df_columns_dict = {column1: series['x'], column2: series['y']}
+            try:
+                df_columns_dict[column3] = series['std_err_y']
+            except KeyError:
+                pass
+            df = pd.DataFrame(df_columns_dict)
 
             sheet_name = '{} - {}'.format(subject_names_in_sheet_names[i],
                                           series['name']).replace('/', ' div ')
