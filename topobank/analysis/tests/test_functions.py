@@ -539,7 +539,7 @@ def _expected(xscale):
     expected_std_err_y = np.piecewise(
         expected_x,
         [expected_x < 1, (expected_x >= 1) & (expected_x <= 5), expected_x > 5],
-        [0, lambda x: np.abs(x) / 2, 0])
+        [np.nan, lambda x: np.abs(x) / 2, np.nan])
     return expected_x, expected_y, expected_std_err_y
 
 
@@ -574,6 +574,7 @@ def test_average_series_list_linear_scale(xscale):
     assert_allclose(result['x'], expected_average_series['x'])
     assert_allclose(result['y'], expected_average_series['y'])
     assert_allclose(result['std_err_y'], expected_average_series['std_err_y'])
+    assert_allclose(result['std_err_y'].data, expected_average_series['std_err_y'])  # should be same also without mask
 
 
 @pytest.mark.django_db

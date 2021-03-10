@@ -253,7 +253,7 @@ def download_plot_analyses_to_txt(request, analyses):
         for series in result['series']:
             series_data = [series['x'], series['y']]
             try:
-                series_data.append(series['std_err_y'])
+                series_data.append(series['std_err_y'].filled(np.nan))
             except KeyError:
                 pass
             np.savetxt(f, np.transpose(series_data),

@@ -57,6 +57,7 @@ _log = logging.getLogger(__name__)
 SMALLEST_ABSOLUT_NUMBER_IN_LOGPLOTS = 1e-100
 MAX_NUM_POINTS_FOR_SYMBOLS = 50
 NUM_SIGNIFICANT_DIGITS_RMS_VALUES = 5
+LINEWIDTH_FOR_SURFACE_AVERAGE = 4
 
 
 def card_view_class(card_view_flavor):
@@ -533,7 +534,7 @@ class PlotCardView(SimpleCardView):
                 # curr_symbol = series_symbols[series_name]
 
                 # hover_name = "{} for '{}'".format(series_name, topography_name)
-                line_width = 3 if is_surface_analysis else 1
+                line_width = LINEWIDTH_FOR_SURFACE_AVERAGE if is_surface_analysis else 1
                 line_glyph = plot.line('x', 'y', source=source, legend_label=legend_entry,
                                        line_color=curr_color,
                                        line_dash=curr_dash,
