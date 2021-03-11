@@ -29,6 +29,7 @@ from topobank.users.models import User
 from topobank.publication.models import Publication
 from topobank.users.utils import get_default_group
 from topobank.analysis.models import Analysis
+from topobank.analysis.utils import renew_analyses_for_subject
 
 _log = logging.getLogger(__name__)
 
@@ -228,10 +229,10 @@ class Surface(models.Model, SubjectMixin):
 
         for topo in self.topography_set.all():
             new_topo = topo.deepcopy(copy)
-            # we pass the surface here because there is a contraint that (surface_id + topography name)
+            # we pass the surface here because there is a constraint that (surface_id + topography name)
             # must be unique, i.e. a surface should never have two topographies of the same name,
             # so we can't set the new surface as the second step
-            new_topo.renew_analyses()
+        copy.renew_analyses()
 
         _log.info("Created deepcopy of surface %s -> surface %s", self.pk, copy.pk)
         return copy
@@ -313,7 +314,24 @@ class Surface(models.Model, SubjectMixin):
 
     @property
     def is_published(self):
+        """Returns True, if a publication for this surface exists.
+        """
         return hasattr(self, 'publication')  # checks whether the related object surface.publication exists
+
+    def renew_analyses(self, include_topographies=True):
+        """Renew analyses related to this surface.
+
+        This includes analyses
+        - with any of its topographies as subject  (if also_topographies=True)
+        - with this surfaces as subject
+        This is done in that order.
+        """
+        if include_topographies:
+            _log.info("Regenerating analyses of topographies of surface %d..", self.pk)
+            for topo in self.topography_set.all():
+                topo.renew_analyses()
+        _log.info("Regenerating analyses directly related to surface %d..", self.pk)
+        renew_analyses_for_subject(self)
 
 
 class Topography(models.Model, SubjectMixin):
@@ -474,40 +492,8 @@ class Topography(models.Model, SubjectMixin):
         return topo
 
     def renew_analyses(self):
-        """Submit all automatic analysis for this topography.
-
-        Before make sure to delete all analyses for same topography,
-        they all can be wrong if this topography changed.
-
-        TODO Maybe also renew all already existing analyses with different parameters?
-
-        Implementation Note:
-
-        This method cannot be easily used in a post_save signal,
-        because the pre_delete signal deletes the datafile and
-        this also then triggers "renew_analyses".
-        """
-        from topobank.analysis.utils import submit_analysis
-        from topobank.analysis.models import AnalysisFunction, Analysis
-        from guardian.shortcuts import get_users_with_perms
-
-        analysis_funcs = AnalysisFunction.objects.all()
-
-        # collect users which are allowed to view analyses
-        users = get_users_with_perms(self.surface)
-
-        def submit_all(instance=self):
-            """Trigger analyses for this topography for all available analyses functions."""
-            instance.analyses.all().delete()
-            for af in analysis_funcs:
-                if af.is_implemented_for_type(instance.get_content_type()):
-                    try:
-                        submit_analysis(users, af, subject=instance)
-                    except Exception as err:
-                        _log.error("Cannot submit analysis for function '%s' and topography %d. Reason: %s",
-                                   af.name, instance.id, str(err))
-
-        transaction.on_commit(lambda: submit_all(self))
+        """Submit all analysis for this topography."""
+        renew_analyses_for_subject(self)
 
     def to_dict(self):
         """Create dictionary for export of metadata to json or yaml"""

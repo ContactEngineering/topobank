@@ -2,12 +2,14 @@ from django.db.models import OuterRef, Subquery
 from django.db import transaction
 from django.db.models import Q
 from django.contrib.contenttypes.models import ContentType
+from guardian.shortcuts import get_users_with_perms
+
 import inspect
 import pickle
 import math
 import logging
 
-from topobank.analysis.models import Analysis
+from topobank.analysis.models import Analysis, AnalysisFunction
 
 _log = logging.getLogger(__name__)
 
@@ -105,12 +107,53 @@ def request_analysis(user, analysis_func, subject, *other_args, **kwargs):
     return analysis
 
 
+def renew_analyses_for_subject(subject):
+    """Renew all analyses for the given subject.
+
+    At first all existing analyses for the given subject
+    will be deleted. Only analyses for the default parameters
+    will be automatically generated at the moment.
+
+    Implementation Note:
+
+    This method cannot be easily used in a post_save signal,
+    because the pre_delete signal deletes the datafile and
+    this also then triggers "renew_analyses".
+    """
+    from topobank.manager.models import Surface
+
+    analysis_funcs = AnalysisFunction.objects.all()
+
+    # collect users which are allowed to view analyses
+    related_surface = subject if isinstance(subject, Surface) else subject.surface
+    users = get_users_with_perms(related_surface)
+
+    def submit_all(subj=subject):
+        """Trigger analyses for this subject for all available analyses functions."""
+        _log.info("Deleting all analyses for %s %d..", subj.get_content_type().name, subj.id)
+        subj.analyses.all().delete()
+        _log.info("Triggering analyses for %s %d and all analysis functions..", subj.get_content_type().name, subj.id)
+        for af in analysis_funcs:
+            if af.is_implemented_for_type(subj.get_content_type()):
+                try:
+                    submit_analysis(users, af, subject=subj)
+                except Exception as err:
+                    _log.error("Cannot submit analysis for function '%s' and subject '%s' (%s, %d). Reason: %s",
+                               af.name, subj, subj.get_content_type().name, subj.id, str(err))
+
+    transaction.on_commit(lambda: submit_all(subject))
+
+
 def renew_analysis(analysis, use_default_kwargs=False):
     """Delete existing analysis and recreate and submit with some arguments and users.
 
     Parameters
     ----------
-    analysis
+    analysis: Analysis
+        Analysis instance to be renewed.
+    use_default_kwargs: boolean
+        If True, use default arguments of the corresponding analysis function implementation.
+        If False (default), use the keyword arguments of the given analysis.
 
     Returns
     -------
