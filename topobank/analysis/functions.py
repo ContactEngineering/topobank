@@ -963,12 +963,12 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
         dataset = xr.Dataset({'pressure': pressure_xy,
                               'contacting_points': contacting_points_xy,
                               'gap': gap_xy,
-                              'displacement': displacement_xy}) # one dataset per analysis step: smallest unit to retrieve
+                              'displacement': displacement_xy})  # one dataset per analysis step: smallest unit to retrieve
         dataset.attrs['mean_pressure'] = mean_pressure
         dataset.attrs['total_contact_area'] = total_contact_area
         dataset.attrs['type'] = substrate_str
         if hardness:
-            dataset.attrs['hardness'] = hardness # TODO how to save hardness=None? Not possible in netCDF
+            dataset.attrs['hardness'] = hardness  # TODO how to save hardness=None? Not possible in netCDF
 
         with tempfile.NamedTemporaryFile(prefix='analysis-') as tmpfile:
             dataset.to_netcdf(tmpfile.name, format=netcdf_format)
