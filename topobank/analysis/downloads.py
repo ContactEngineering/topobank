@@ -249,6 +249,9 @@ def download_plot_analyses_to_txt(request, analyses):
         std_err_y_in_series = any('std_err_y' in s.keys() for s in result['series'])
         if std_err_y_in_series:
             header += ', standard error of average {}{}'.format(result['ylabel'], yunit_str)
+            f.writelines([
+                '# The value "nan" for the standard error of an average indicates that no error\n',
+                '# could be computed because the average contains only a single data point.\n\n'])
 
         for series in result['series']:
             series_data = [series['x'], series['y']]
@@ -303,16 +306,32 @@ def download_plot_analyses_to_xlsx(request, analyses):
             for k, idx in enumerate(indices):
                 subject_names_in_sheet_names[idx] += f" ({k + 1})"
 
+    def comment_on_average(y, std_err_y_masked):
+        """Calculate a comment.
+
+        Parameters:
+            y: float
+            std_err_y_masked: boolean
+        """
+        if np.isnan(y):
+            return 'average could not be computed'
+        elif std_err_y_masked:
+            return 'no error could be computed because the average contains only a single data point'
+        return ''
+
     for i, analysis in enumerate(analyses):
         result = pickle.loads(analysis.result)
         column1 = '{} ({})'.format(result['xlabel'], result['xunit'])
         column2 = '{} ({})'.format(result['ylabel'], result['yunit'])
         column3 = 'standard error of {} ({})'.format(result['ylabel'], result['yunit'])
+        column4 = 'comment'
 
         for series in result['series']:
             df_columns_dict = {column1: series['x'], column2: series['y']}
             try:
                 df_columns_dict[column3] = series['std_err_y']
+                df_columns_dict[column4] = [comment_on_average(y, masked)
+                                            for y, masked in zip(series['y'], series['std_err_y'].mask)]
             except KeyError:
                 pass
             df = pd.DataFrame(df_columns_dict)
