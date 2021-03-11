@@ -1091,37 +1091,6 @@ def rms_values(topography, progress_recorder=None, storage_prefix=None):
     return result
 
 
-@register_implementation(name="RMS Values", card_view_flavor='rms table')
-def rms_values_for_surface(surface, extra_arg=1, progress_recorder=None, storage_prefix=None):
-    """Just calculate RMS values for given surface.
-
-    Parameters
-    ----------
-    surface: topobank.manager.models.Surface
-    progress_recorder: celery_progress.backend.ProgressRecorder or None
-    storage_prefix: str or None
-
-    Returns
-    -------
-    list of dicts where each dict has keys
-
-     quantity
-     direction
-     value
-     unit
-    """
-    # TODO add real results
-    result = []
-    result.append({
-        'quantity': 'RMS Height',
-        'direction': None,
-        'value': np.float32(-1.0),  # to be defined
-        'unit': 'km',  # to be defined
-    })
-
-    return result
-
-
 def topography_analysis_function_for_tests(topography, a=1, b="foo"):
     """This function can be registered for tests."""
     return {'name': 'Test result for test function called for topography {}.'.format(topography),
