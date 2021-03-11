@@ -472,6 +472,8 @@ def power_spectrum_for_surface(surface, window=None, tip_radius=None, num_points
     xunit = None
     yunit = None
 
+    nsteps = num_topographies + 1  # averaging counted as extra step
+
     #
     # We have to process each series name individually, so we first collect the series
     # for each series name. Each series is also scaled, in order to use common units.
@@ -500,6 +502,7 @@ def power_spectrum_for_surface(surface, window=None, tip_radius=None, num_points
                 'y': s['y'] * yunit_factor,
             }
             topo_result_series[series_name].append(scaled_series)
+        progress_recorder.set_progress(topo_idx + 1, nsteps)
 
     result = dict(
         name='Power-spectral density (PSD)',
@@ -514,6 +517,7 @@ def power_spectrum_for_surface(surface, window=None, tip_radius=None, num_points
 
     for series_list in topo_result_series.values():
         result['series'].append(average_series_list(series_list, num_points=num_points, xscale='log'))
+    progress_recorder.set_progress(nsteps, nsteps)
 
     return result
 
