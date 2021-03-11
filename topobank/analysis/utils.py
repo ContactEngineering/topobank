@@ -30,7 +30,7 @@ def request_analysis(user, analysis_func, subject, *other_args, **kwargs):
 
     The analysis will be marked such that the "users" field points to
     the given user and that there is no other analysis for same function
-    and topography that points to that user.
+    and subject that points to that user.
     """
 
     #

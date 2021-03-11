@@ -33,8 +33,11 @@ def register_implementation(card_view_flavor="simple", name=None):
     """
     def register_decorator(func):
         """
-        :param func: function to be registered, first arg must be a Topography
+        :param func: function to be registered, first arg must be a "topography" or "surface"
         :return: decorated function
+
+        Depending on the name of the first argument, you get either a Topography
+        or a Surface instance.
         """
         registry = AnalysisFunctionRegistry()  # singleton
         registry.add_implementation(name, card_view_flavor, func)
