@@ -191,6 +191,7 @@ class AnalysisFunctionRegistry(metaclass=Singleton):
             funcs_created=0,
             implementations_updated=0,
             implementations_created=0,
+            implementations_deleted=0,
         )
 
         for name, card_view_flavor in self._card_view_flavors.items():
@@ -215,6 +216,14 @@ class AnalysisFunctionRegistry(metaclass=Singleton):
                 counts['implementations_created'] += 1
             else:
                 counts['implementations_updated'] += 1
+
+        # If there is any implementation in the database which
+        # has no representative in the code, delete it:
+        for impl in AnalysisFunctionImplementation.objects.all():
+            key = (impl.function.name, impl.subject_type.name)
+            if key not in self._implementations:
+                impl.delete()
+                counts['implementations_deleted'] += 1
 
         return counts
 
