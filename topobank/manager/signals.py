@@ -41,6 +41,12 @@ def remove_files(sender, instance, **kwargs):
         _log.warning("Cannot delete data file '%s', reason: %s", instance.datafile.name, str(exc))
 
 
+@receiver(post_delete, sender=Topography)
+def renew_surface_analyses(sender, instance, **kwargs):
+    """All surface analyses have to be renewed if a topography is deleted."""
+    instance.surface.renew_analyses(include_topographies=False)
+
+
 @receiver(pre_save, sender=Topography)
 def set_creator_if_needed(sender, instance, **kwargs):
     if instance.creator is None:
