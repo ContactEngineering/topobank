@@ -11,13 +11,15 @@ from topobank.analysis.functions import (
     height_distribution, slope_distribution, curvature_distribution,
     power_spectrum, autocorrelation, variable_bandwidth,
     contact_mechanics, rms_values,
-    average_series_list, power_spectrum_for_surface)
+    average_series_list,
+    power_spectrum_for_surface, autocorrelation_for_surface, variable_bandwidth_for_surface)
 
 from topobank.manager.tests.utils import SurfaceFactory, TopographyFactory
 
 ###############################################################################
 # Helpers for doing tests
 ###############################################################################
+
 
 @dataclass(frozen=True)
 class FakeTopographyModel:
@@ -559,6 +561,12 @@ def test_average_series_list_linear_scale(xscale):
         }
     ]
 
+    # if case of xscale == 'log', add some negative values
+    # in order to see whether they will be filtered out:
+    if xscale == 'log':
+        for dim in ['x', 'y']:
+            series_list[0][dim] = np.concatenate([(-1,), series_list[0][dim]])
+
     expected_x, expected_y, expected_std_err_y = _expected(xscale)
 
     expected_average_series = {
@@ -574,7 +582,6 @@ def test_average_series_list_linear_scale(xscale):
     assert_allclose(result['x'], expected_average_series['x'])
     assert_allclose(result['y'], expected_average_series['y'])
     assert_allclose(result['std_err_y'], expected_average_series['std_err_y'])
-    assert_allclose(result['std_err_y'].data, expected_average_series['std_err_y'])  # should be same also without mask
 
 
 @pytest.mark.django_db
@@ -592,7 +599,7 @@ def test_psd_for_surface(mocker):
         yscale='log',
         series=[
             {
-                'name': 'PSD',  # taken from y=x
+                'name': '1D',  # taken from y=x
                 'x': np.array([1, 2, 3, 5, 6, 7]),
                 'y': np.array([1, 2, 3, 5, 6, 7]),
                 # using here 0.9 instead of 1 so we can clearly
@@ -611,7 +618,7 @@ def test_psd_for_surface(mocker):
         yscale='log',
         series=[
             {
-                'name': 'PSD',  # taken from y=2*x
+                'name': '1D',  # taken from y=2*x
                 'x': 1e-3*np.array([0.1, 1.5, 2.5, 5.0]),   # small numbers because of xunit=nm⁻¹ compared to xunit=µm⁻¹
                 'y': 1e9*np.array([0.2, 3, 5, 10]),  # very small numbers because nm³->µm³
             }  # the numbers are scaled here in order to match the units of first topography + reuse known results
@@ -639,6 +646,7 @@ def test_psd_for_surface(mocker):
         'yscale': 'log',
         'series': [
             {
+                'name': '1D',
                 'x': expected_x,
                 'y': expected_y,
                 'std_err_y': expected_std_err_y
@@ -649,8 +657,165 @@ def test_psd_for_surface(mocker):
     for k in ['name', 'xunit', 'yunit', 'xlabel', 'ylabel', 'xscale', 'yscale']:
         assert expected_result[k] == result[k]
 
+    assert expected_result['series'][0]['name'] == result['series'][0]['name']
     assert_allclose(expected_result['series'][0]['x'], result['series'][0]['x'])
     assert_allclose(expected_result['series'][0]['y'], result['series'][0]['y'])
     assert_allclose(expected_result['series'][0]['std_err_y'], result['series'][0]['std_err_y'])
 
 
+@pytest.mark.django_db
+def test_autocorrelation_for_surface(mocker):
+    """Testing autocorrelation for an artificial surface."""
+
+    # ACF results for individual topographies are mocked up
+    topo1_result = dict(
+        name='Height-difference autocorrelation function (ACF)',
+        xlabel='Distance',
+        ylabel='ACF',
+        xunit='µm',
+        yunit='µm²',
+        xscale='log',
+        yscale='log',
+        series=[
+            {
+                'name': '1D',  # taken from y=x
+                'x': np.array([1, 2, 3, 5, 6, 7]),
+                'y': np.array([1, 2, 3, 5, 6, 7]),
+                # using here 0.9 instead of 1 so we can clearly
+                # interpolate at 1.0, otherwise with (1,1) there is no
+                # interpolation at 1.0 due to numerical errors (exp->log..)
+            },
+        ]
+    )
+    topo2_result = dict(
+        name='Height-difference autocorrelation function (ACF)',
+        xlabel='Distance',
+        ylabel='ACF',
+        xunit='nm',  # nm instead of µm
+        yunit='nm²',
+        xscale='log',
+        yscale='log',
+        series=[
+            {
+                'name': '1D',  # taken from y=2*x
+                'x': 1e3*np.array([0.1, 1.5, 2.5, 5.0]),   # large numbers because of xunit=nm compared to xunit=µm
+                'y': 1e6*np.array([0.2, 3, 5, 10]),  # larger numbers because nm²->µm²
+            }  # the numbers are scaled here in order to match the units of first topography + reuse known results
+        ]
+    )
+
+    autocorrelation_mock = mocker.patch('topobank.analysis.functions.autocorrelation',
+                                        side_effect=[topo1_result, topo2_result])
+
+    surf = SurfaceFactory()
+    topo1 = TopographyFactory(surface=surf)  # we just need 2 topographies
+    topo2 = TopographyFactory(surface=surf)
+
+    result = autocorrelation_for_surface(surf, num_points=15)
+
+    expected_x, expected_y, expected_std_err_y = _expected('log')
+
+    expected_result = {
+        'name': 'Height-difference autocorrelation function (ACF)',
+        'xlabel': 'Distance',
+        'ylabel': 'ACF',
+        'xunit': 'µm',
+        'yunit': 'µm²',
+        'xscale': 'log',
+        'yscale': 'log',
+        'series': [
+            {
+                'name': '1D',
+                'x': expected_x,
+                'y': expected_y,
+                'std_err_y': expected_std_err_y
+            }
+        ]
+    }
+
+    for k in ['name', 'xunit', 'yunit', 'xlabel', 'ylabel', 'xscale', 'yscale']:
+        assert expected_result[k] == result[k]
+
+    assert expected_result['series'][0]['name'] == result['series'][0]['name']
+    assert_allclose(expected_result['series'][0]['x'], result['series'][0]['x'])
+    assert_allclose(expected_result['series'][0]['y'], result['series'][0]['y'])
+    assert_allclose(expected_result['series'][0]['std_err_y'], result['series'][0]['std_err_y'])
+
+
+@pytest.mark.django_db
+def test_variable_bandwidth_for_surface(mocker):
+    """Testing variable bandwidth for an artificial surface."""
+
+    # ACF results for individual topographies are mocked up
+    topo1_result = dict(
+        name='Variable-bandwidth analysis',
+        xlabel='Bandwidth',
+        ylabel='RMS Height',
+        xunit='µm',
+        yunit='µm',
+        xscale='log',
+        yscale='log',
+        series=[
+            {
+                'name': 'VBM',  # taken from y=x
+                'x': np.array([1, 2, 3, 5, 6, 7]),
+                'y': np.array([1, 2, 3, 5, 6, 7]),
+                # using here 0.9 instead of 1 so we can clearly
+                # interpolate at 1.0, otherwise with (1,1) there is no
+                # interpolation at 1.0 due to numerical errors (exp->log..)
+            },
+        ]
+    )
+    topo2_result = dict(
+        name='Variable-bandwidth analysis',
+        xlabel='Bandwidth',
+        ylabel='RMS Height',
+        xunit='nm',  # nm instead of µm
+        yunit='nm',
+        xscale='log',
+        yscale='log',
+        series=[
+            {
+                'name': 'VBM',  # taken from y=2*x
+                'x': 1e3*np.array([0.1, 1.5, 2.5, 5.0]),   # large numbers because of xunit=nm compared to xunit=µm
+                'y': 1e3*np.array([0.2, 3, 5, 10]),        # large numbers because of yunit=nm compared to yunit=µm
+            }  # the numbers are scaled here in order to match the units of first topography + reuse known results
+        ]
+    )
+
+    vbm_mock = mocker.patch('topobank.analysis.functions.variable_bandwidth',
+                            side_effect=[topo1_result, topo2_result])
+
+    surf = SurfaceFactory()
+    topo1 = TopographyFactory(surface=surf)  # we just need 2 topographies
+    topo2 = TopographyFactory(surface=surf)
+
+    result = variable_bandwidth_for_surface(surf, num_points=15)
+
+    expected_x, expected_y, expected_std_err_y = _expected('log')
+
+    expected_result = {
+        'name': 'Variable-bandwidth analysis',
+        'xlabel': 'Bandwidth',
+        'ylabel': 'RMS Height',
+        'xunit': 'µm',
+        'yunit': 'µm',
+        'xscale': 'log',
+        'yscale': 'log',
+        'series': [
+            {
+                'name': 'VBM',
+                'x': expected_x,
+                'y': expected_y,
+                'std_err_y': expected_std_err_y
+            }
+        ]
+    }
+
+    for k in ['name', 'xunit', 'yunit', 'xlabel', 'ylabel', 'xscale', 'yscale']:
+        assert expected_result[k] == result[k]
+
+    assert expected_result['series'][0]['name'] == result['series'][0]['name']
+    assert_allclose(expected_result['series'][0]['x'], result['series'][0]['x'])
+    assert_allclose(expected_result['series'][0]['y'], result['series'][0]['y'])
+    assert_allclose(expected_result['series'][0]['std_err_y'], result['series'][0]['std_err_y'])

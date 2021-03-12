@@ -236,7 +236,6 @@ def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, st
         # result['scalars'].update(scalars_grad)
         # result['series'].extend(series_grad)
 
-
     elif topography.dim == 1:
         dh_dx = topography.derivative(n=1)
         scalars_slope_x, series_slope_x = _moments_histogram_gaussian(dh_dx, bins=bins, wfac=wfac,
@@ -390,6 +389,8 @@ def average_series_list(series_list, num_points=100, xscale='linear'):
                 Number of points in results
     xscale: str
                 Scaling of x axis on which the sampling is done. Can be 'linear' or 'log'.
+                If given 'log', the incoming data is filtered such that x values are always
+                positive.
 
     Result
     ------
@@ -398,7 +399,7 @@ def average_series_list(series_list, num_points=100, xscale='linear'):
 
     {
         'name': str, common name of all series
-        'x': np.array, points spanning range of all x points in input series
+        'x': np.array, points spanning range of all x points in input series (only positive if xscale=='log')
         'y': np.array, average values for all relevant points in input series when using linear interpolation
     }
 
@@ -418,20 +419,27 @@ def average_series_list(series_list, num_points=100, xscale='linear'):
             raise ValueError("Empty series given for averaging!")
 
     #
-    # Find out range of x values for result
-    #
-    min_x = min(min(s['x']) for s in series_list)
-    max_x = max(max(s['x']) for s in series_list)
-
-    #
     # If xscale not 'linear', the sampling for interpolation
-    # is done on another scale, e.g. log scale. Later
-    # the values must be scaled back.
+    # is done on another scale, e.g. log scale. For log scale, only
+    # positive x values are allowed.
     #
     spacing_funcs = {
         'linear': np.linspace,
         'log': np.geomspace
     }
+
+    if xscale == 'log':
+        for s in series_list:
+            positive_idx = s['x'] > 0
+            s['x'] = s['x'][positive_idx]
+            s['y'] = s['y'][positive_idx]
+
+    #
+    # Find out range of x values for result
+    #
+    min_x = min(min(s['x']) for s in series_list)
+    max_x = max(max(s['x']) for s in series_list)
+
 
     try:
         av_x = spacing_funcs[xscale](min_x, max_x, num_points)
@@ -450,6 +458,7 @@ def average_series_list(series_list, num_points=100, xscale='linear'):
     std_err_y = scipy.stats.sem(interpol_y_list, nan_policy='omit')
     # a masked value in result of sem() only appears if there is for a given index only one
     # number (others are nan).
+
     return {
         'name': common_name,
         'x': av_x,
@@ -458,11 +467,35 @@ def average_series_list(series_list, num_points=100, xscale='linear'):
     }
 
 
-@register_implementation(name="Power Spectrum", card_view_flavor='plot')
-def power_spectrum_for_surface(surface, window=None, tip_radius=None, num_points=100,
-                               progress_recorder=None, storage_prefix=None):
-    """Calculate average power spectrum for a surface."""
+def average_results_for_surface(surface, topo_analysis_func, num_points=100,
+                                progress_recorder=None, storage_prefix=None, **kwargs):
+    """Generic analysis function for average over topographies
 
+    Parameters
+        surface: Surface instance
+        topo_analysis_func: function
+            analysis function which should be called on each topography
+            using the **kwargs arguments.
+        progress_recorder: ProgressRecorder instance
+            currently used only on top level, not passed to topography analysis
+        storage_prefix:
+            also passed to topo_analysis_func
+        kwargs: dict
+            other keyword arguments passed to topo_analysis_func
+    Returns:
+        dict with
+
+        {
+            'xunit': str,
+            'yunit': str,
+            'series': sequence of series with results
+        }
+
+        This dict can be used to build the full result dict
+
+    Currently this only meant to be used with function returning results for xscale='log'
+    like power_spectrum or autocorrelation (could be generalized).
+    """
     topographies = surface.topography_set
     num_topographies = topographies.count()
 
@@ -472,7 +505,7 @@ def power_spectrum_for_surface(surface, window=None, tip_radius=None, num_points
     xunit = None
     yunit = None
 
-    nsteps = num_topographies + 1  # averaging counted as extra step
+    num_steps = num_topographies + 1  # averaging counted as extra step
 
     #
     # We have to process each series name individually, so we first collect the series
@@ -481,7 +514,7 @@ def power_spectrum_for_surface(surface, window=None, tip_radius=None, num_points
     # series might already been scaled because of a log-log plot.
     #
     for topo_idx, topo in enumerate(topographies.all()):
-        topo_result = power_spectrum(topo, window=window, tip_radius=tip_radius)
+        topo_result = topo_analysis_func(topo, storage_prefix=storage_prefix, **kwargs)
 
         if xunit is None:
             xunit = topo_result['xunit']
@@ -502,22 +535,44 @@ def power_spectrum_for_surface(surface, window=None, tip_radius=None, num_points
                 'y': s['y'] * yunit_factor,
             }
             topo_result_series[series_name].append(scaled_series)
-        progress_recorder.set_progress(topo_idx + 1, nsteps)
+        if progress_recorder:
+            progress_recorder.set_progress(topo_idx + 1, num_steps)
 
-    result = dict(
+    result_series = []
+
+    for series_list in topo_result_series.values():
+        result_series.append(average_series_list(series_list, num_points=num_points, xscale='log'))
+    if progress_recorder:
+        progress_recorder.set_progress(num_steps, num_steps)
+
+    return dict(
+        xunit=xunit,
+        yunit=yunit,
+        series=result_series
+    )
+
+
+@register_implementation(name="Power Spectrum", card_view_flavor='plot')
+def power_spectrum_for_surface(surface, window=None, tip_radius=None, num_points=100,
+                               progress_recorder=None, storage_prefix=None):
+    """Calculate average power spectrum for a surface."""
+
+    func_kwargs = dict(
+        window=window,
+        tip_radius=tip_radius,
+        storage_prefix=storage_prefix
+    )
+    result = average_results_for_surface(surface, topo_analysis_func=power_spectrum,
+                                         num_points=num_points, progress_recorder=progress_recorder,
+                                         **func_kwargs)
+
+    result.update(dict(
         name='Power-spectral density (PSD)',
         xlabel='Wavevector',
         ylabel='PSD',
-        xunit=xunit,
-        yunit=yunit,
         xscale='log',
         yscale='log',
-        series=[]  # will be extended in the loop below
-    )
-
-    for series_list in topo_result_series.values():
-        result['series'].append(average_series_list(series_list, num_points=num_points, xscale='log'))
-    progress_recorder.set_progress(nsteps, nsteps)
+    ))
 
     return result
 
@@ -610,60 +665,19 @@ def autocorrelation(topography, progress_recorder=None, storage_prefix=None):
 def autocorrelation_for_surface(surface, num_points=100,
                                 progress_recorder=None, storage_prefix=None):
     """Calculate average autocorrelation for a surface."""
+    result = average_results_for_surface(surface, topo_analysis_func=autocorrelation,
+                                         num_points=num_points, progress_recorder=progress_recorder,
+                                         storage_prefix=storage_prefix)
 
-    topographies = surface.topography_set
-    num_topographies = topographies.count()
-
-    topo_result_series = {}  # key: series name, value: list of dict's, one for each result series
-
-    ureg = UnitRegistry()
-    xunit = None
-    yunit = None
-
-    #
-    # We have to process each series name individually, so we first collect the series
-    # for each series name. Each series is also scaled, in order to use common units.
-    # When scaling the series, we have to take into account that the
-    # series might already been scaled because of a log-log plot.
-    #
-    for topo_idx, topo in enumerate(topographies.all()):
-        topo_result = autocorrelation(topo)
-
-        if xunit is None:
-            xunit = topo_result['xunit']
-            yunit = topo_result['yunit']
-            xunit_factor = 1
-            yunit_factor = 1
-        else:
-            xunit_factor = ureg.convert(1, topo_result['xunit'], xunit)
-            yunit_factor = ureg.convert(1, topo_result['yunit'], yunit)
-
-        for s in topo_result['series']:
-            series_name = s['name']
-            if series_name not in topo_result_series:
-                topo_result_series[series_name] = []
-            scaled_series = {
-                'name': s['name'],
-                'x': s['x'] * xunit_factor,
-                'y': s['y'] * yunit_factor,
-            }
-            topo_result_series[series_name].append(scaled_series)
-
-    result = dict(
+    result.update(dict(
         name='Height-difference autocorrelation function (ACF)',
         xlabel='Distance',
         ylabel='ACF',
-        xunit=xunit,
-        yunit=yunit,
         xscale='log',
         yscale='log',
-        series=[]  # will be extended in the loop below
-    )
+    ))
 
-    for series_list in topo_result_series.values():
-        result['series'].append(average_series_list(series_list, num_points=num_points, xscale='log'))
-
-    return result   # TODO reuse implementation of power spectrum for surface
+    return result
 
 
 @register_implementation(name="Variable Bandwidth", card_view_flavor='plot')
@@ -691,6 +705,25 @@ def variable_bandwidth(topography, progress_recorder=None, storage_prefix=None):
                  ),
         ]
     )
+
+
+@register_implementation(name="Variable Bandwidth", card_view_flavor='plot')
+def variable_bandwidth_for_surface(surface, num_points=100,
+                                   progress_recorder=None, storage_prefix=None):
+    """Calculate average variable bandwidth for a surface."""
+    result = average_results_for_surface(surface, topo_analysis_func=variable_bandwidth,
+                                         num_points=num_points, progress_recorder=progress_recorder,
+                                         storage_prefix=storage_prefix)
+    result.update(dict(
+        name='Variable-bandwidth analysis',
+        xlabel='Bandwidth',
+        ylabel='RMS Height',
+        xscale='log',
+        yscale='log',
+    ))
+
+    return result
+
 
 
 def _next_contact_step(system, history=None, pentol=None, maxiter=None):

@@ -501,13 +501,15 @@ class PlotCardView(SimpleCardView):
                 mask = np.zeros(xarr.shape, dtype=bool)
                 if get_axis_type('xscale') == 'log':
                     mask |= np.isclose(xarr, 0, atol=SMALLEST_ABSOLUT_NUMBER_IN_LOGPLOTS)
+                    mask |= np.isnan(xarr)  # sometimes nan is a problem here
                 if get_axis_type('yscale') == 'log':
                     mask |= np.isclose(yarr, 0, atol=SMALLEST_ABSOLUT_NUMBER_IN_LOGPLOTS)
+                    mask |= np.isnan(yarr)  # sometimes nan is a problem here
 
                 series_name = s['name']
                 source_data = dict(x=analysis_xscale * xarr[~mask],
                                    y=analysis_yscale * yarr[~mask],
-                                   series=(series_name,) * len(xarr))
+                                   series=(series_name,) * len(xarr[~mask]))
 
                 source = ColumnDataSource(data=source_data)
                 # it's a little dirty to add the same value for series for every point
