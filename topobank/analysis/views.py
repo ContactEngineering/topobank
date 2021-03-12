@@ -364,6 +364,16 @@ class PlotCardView(SimpleCardView):
                      series_dashes=json.dumps(list())))
             return context
 
+        # order analyses such that surface analyses are coming last (plotted on top)
+        surface_ct = ContentType.objects.get_for_model(Surface)
+        analyses_success = list(analyses_success.filter(~Q(subject_type=surface_ct))) + \
+            list(analyses_success.filter(subject_type=surface_ct))
+        # this is no queryset any more!
+
+        #
+        # Use first analysis to determine some properties for the whole plot
+        #
+
         first_analysis_result = analyses_success[0].result_obj
         title = first_analysis_result['name']
 
