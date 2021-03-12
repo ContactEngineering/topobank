@@ -366,15 +366,17 @@ class PlotCardView(SimpleCardView):
 
         # order analyses such that surface analyses are coming last (plotted on top)
         surface_ct = ContentType.objects.get_for_model(Surface)
-        analyses_success = list(analyses_success.filter(~Q(subject_type=surface_ct))) + \
-            list(analyses_success.filter(subject_type=surface_ct))
-        # this is no queryset any more!
+        analyses_success_list = list(analyses_success.filter(~Q(subject_type=surface_ct)))
+        for surface_analysis in analyses_success.filter(subject_type=surface_ct):
+            if surface_analysis.subject.num_topographies() > 1:
+                # only show average for surface if more than one topography
+                analyses_success_list.append(surface_analysis)
 
         #
         # Use first analysis to determine some properties for the whole plot
         #
 
-        first_analysis_result = analyses_success[0].result_obj
+        first_analysis_result = analyses_success_list[0].result_obj
         title = first_analysis_result['name']
 
         xunit = first_analysis_result['xunit'] if 'xunit' in first_analysis_result else None
@@ -448,7 +450,7 @@ class PlotCardView(SimpleCardView):
         special_values = []  # elements: tuple(subject, quantity name, value, unit string)
         subjects = []
 
-        for analysis in analyses_success:
+        for analysis in analyses_success_list:
 
             subject = analysis.subject
             is_surface_analysis = isinstance(subject, Surface)
