@@ -403,8 +403,7 @@ class PlotCardView(SimpleCardView):
         #
         # Create the plot figure
         #
-        plot = figure(title=title,
-                      plot_height=300,
+        plot = figure(plot_height=300,
                       sizing_mode='scale_width',
                       x_range=x_range,
                       y_range=y_range,
