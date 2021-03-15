@@ -8,7 +8,9 @@
   analysis model where not only a topography
   can be subject to an analysis but also a surface
   or later other objects (#365)
-  
+- added surface name to tooltip in plots, such that
+  topographies with same names can be distinguished (#567)
+
 ## 0.9.6 (2020-12-04)
 
 - added display of license when viewing a published 

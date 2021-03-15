@@ -454,8 +454,11 @@ class PlotCardView(SimpleCardView):
 
             subject = analysis.subject
             is_surface_analysis = isinstance(subject, Surface)
+            is_topography_analysis = isinstance(subject, Topography)
 
             subject_display_name = f"{subject.name} ({subject.get_content_type().model})"
+            if is_topography_analysis:
+                subject_display_name += f", surface: {subject.surface.name}"
 
             #
             # find out colors for subject and define an index
@@ -721,9 +724,12 @@ class ContactMechanicsCardView(SimpleCardView):
             labels = []
             for analysis in analyses_success:
                 analysis_result = analysis.result_obj
-
+                # subject is always a topography for contact analyses so far,
+                # so there is a surface
+                surface = analysis.subject.surface
                 data = dict(
                     topography_name=(analysis.subject.name,) * len(analysis_result['mean_pressures']),
+                    surface_name=(surface.name,) * len(analysis_result['mean_pressures']),
                     mean_pressure=analysis_result['mean_pressures'],
                     total_contact_area=analysis_result['total_contact_areas'],
                     mean_displacement=analysis_result['mean_displacements'],
@@ -760,6 +766,7 @@ class ContactMechanicsCardView(SimpleCardView):
             #
             tooltips = [
                 ("topography", "@topography_name"),
+                ("surface", "@surface_name"),
                 (load_axis_label, "@mean_pressure"),
                 (area_axis_label, "@total_contact_area"),
                 (disp_axis_label, "@mean_gap"),
