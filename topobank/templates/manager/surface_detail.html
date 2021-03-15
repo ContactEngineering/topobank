@@ -94,9 +94,7 @@
                   <span class="sr-only">Next</span>
                 </a>
               </div>
-
             </div>
-
 
             <div class="tab-pane fade" id="bandwidths">
               {% if surface.num_topographies == 0 %}
@@ -104,6 +102,10 @@
                   This surface has no topographies yet.
                   You can add topographies by pressing the
                   <b>{% fontawesome_icon 'plus-square-o' %} Add topography</b> button.
+                </div>
+              {% else %}
+                <div class="alert alert-info">
+                  This bandwidth plot shows the range of length scales that have been measured for this surface.
                 </div>
               {% endif %}
               {% for bw_err in bandwidths_data_with_errors %}
