@@ -167,7 +167,6 @@ class TopographyFileUploadForm(forms.ModelForm):
         return cleaned_data
 
 
-
 class TopographyMetaDataForm(CleanVulnerableFieldsMixin, forms.ModelForm):
 
     class Meta:
@@ -193,8 +192,6 @@ class TopographyMetaDataForm(CleanVulnerableFieldsMixin, forms.ModelForm):
     measurement_date = forms.DateField(widget=DatePickerInput(format=MEASUREMENT_DATE_INPUT_FORMAT),
                                        help_text=MEASUREMENT_DATE_HELP_TEXT)
     description = forms.Textarea()
-
-
 
     helper.layout = Layout(
         Div(
