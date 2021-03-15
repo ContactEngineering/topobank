@@ -4,10 +4,11 @@
 
 - added surface analyses which calculates an average
   over all topographies of a surface; implemented
-  for PSD, ACF, and VBM; in general more generic
-  analysis model where not only a topography
-  can be subject to an analysis but also a surface
-  or later other objects (#365)
+  for analysis functions "Power Spectrum", 
+  "Autocorrelation", and "Variable Bandwidth"; 
+  there implemented a more generic analysis model 
+  where not only a topography can be subject to an 
+  analysis but also a surface or later other objects (#365)
 - added surface name to tooltip in plots, such that
   topographies with same names can be distinguished (#567)
 - disabled creation of example surface for new users;
