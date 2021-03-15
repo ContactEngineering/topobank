@@ -1,5 +1,14 @@
 # Changelog for *TopoBank*
 
+## 0.10.0 (not published yet)
+
+- added surface analyses which calculates an average
+  over all topographies of a surface; implemented
+  for PSD, ACF, and VBM ; in general more generic
+  analysis model where not only a topography
+  can be subject to an analysis but also a surface
+  or later other objects (#365)
+  
 ## 0.9.6 (2020-12-04)
 
 - added display of license when viewing a published 
