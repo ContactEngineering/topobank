@@ -14,7 +14,17 @@ from ..registry import ImplementationMissingException
 
 @pytest.mark.django_db
 def test_exception_implementation_missing():
-    pass
+    # We create an implementation for surfaces, but not for topographies
+    topo = TopographyFactory()
+    surface = topo.surface
+
+    impl = AnalysisFunctionImplementationFactory(code_ref='surface_analysis_function_for_tests',
+                                                 subject_type=ContentType.objects.get_for_model(surface))
+    function = impl.function
+
+    function.eval(surface)  # that's okay, it's implemented
+    with pytest.raises(ImplementationMissingException):
+        function.eval(topo)  # that's not implemented
 
 
 @pytest.mark.django_db
