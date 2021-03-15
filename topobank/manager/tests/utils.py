@@ -31,7 +31,7 @@ class SurfaceFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = Surface
 
-    name = factory.Sequence(lambda n: "surface-{}".format(n))
+    name = factory.Sequence(lambda n: "surface-{:05d}".format(n))  # format because of defined order by name
     creator = factory.SubFactory(UserFactory)
 
 
@@ -42,7 +42,7 @@ class TopographyFactory(factory.django.DjangoModelFactory):
 
     surface = factory.SubFactory(SurfaceFactory)
     # creator is set automatically to surface's creator if not set, see signals
-    name = factory.Sequence(lambda n: "topography-{}".format(n))
+    name = factory.Sequence(lambda n: "topography-{:05d}".format(n))
     datafile = factory.django.FileField(from_path=str(settings.ROOT_DIR.path(FIXTURE_DIR+"/10x10.txt")))
     data_source = 0
     measurement_date = factory.Sequence(lambda n: datetime.date(2019, 1, 1)+datetime.timedelta(days=n))
