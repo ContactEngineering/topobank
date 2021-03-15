@@ -213,7 +213,7 @@ def test_see_published_by_others(user_alice_logged_in, user_bob, handle_usage_st
     surface_description = "Valuable results."
     surface = SurfaceFactory(creator=user_bob, name=surface_name, description=surface_description)
     TopographyFactory(surface=surface)
-    publication = surface.publish('cc0', 'Bob')
+    publication = surface.publish('cc0-1.0', 'Bob')
 
     # Alice filters for published surfaces - enters
     # "Select" tab and chooses "Only published surfaces"
@@ -250,7 +250,7 @@ def test_see_published_by_others(user_alice_logged_in, user_bob, handle_usage_st
     #
     # Bob publishes again, Alice reloads the page
     #
-    publication = surface.publish('cc0', 'Bob')
+    publication = surface.publish('cc0-1.0', 'Bob')
     browser.reload()
 
     #
@@ -289,7 +289,7 @@ def test_switch_between_wip_and_version(user_alice_logged_in, handle_usage_stati
     #
     surface = SurfaceFactory(creator=user_alice, name="Alice's Surface")
     topo = TopographyFactory(surface=surface)
-    publication = surface.publish('cc0', 'Alice')
+    publication = surface.publish('cc0-1.0', 'Alice')
 
     #
     # When browsing to the surface, the current surface is shown as "Work in progress"
@@ -355,7 +355,7 @@ def test_how_to_cite(user_alice_logged_in, handle_usage_statistics):
     surface_name = "Diamond Structure"
     surface = SurfaceFactory(creator=user_alice, name=surface_name)
     topo = TopographyFactory(surface=surface)
-    publication = surface.publish('cc0', 'Famous Scientist')
+    publication = surface.publish('cc0-1.0', 'Famous Scientist')
 
     # Alice filters for published surfaces - enters
     # "Select" tab and chooses "Only published surfaces"
