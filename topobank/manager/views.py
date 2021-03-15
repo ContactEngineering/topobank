@@ -191,15 +191,16 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
             step0_data = self.get_cleaned_data_for_step('upload')
             datafile = step0_data['datafile']
             datafile_format = step0_data['datafile_format']
+            toporeader = get_topography_reader(datafile, format=datafile_format)
 
         if step == 'metadata':
             initial['name'] = os.path.basename(datafile.name)  # the original file name
+            # TODO read aquisition time for all channels; if there is one for all and the date is unique, use
+            # this date as measurement date's intial value
 
         if step in ['units']:
 
             step1_data = self.get_cleaned_data_for_step('metadata')
-
-            toporeader = get_topography_reader(datafile, format=datafile_format)
             channel = int(step1_data['data_source'])
             channel_info = toporeader.channels[channel]
 
