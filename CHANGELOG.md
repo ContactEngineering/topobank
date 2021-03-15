@@ -13,6 +13,7 @@
 - disabled creation of example surface for new users;
   this is no longer needed since there are published
   surfaces accessible for all users (#570)
+- added small description on surface landing page (#574)  
 
 ## 0.9.6 (2020-12-04)
 

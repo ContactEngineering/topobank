@@ -53,6 +53,11 @@
                   You can add topographies by pressing the
                   <b>{% fontawesome_icon 'plus-square-o' %} Add topography</b> button.
                 </div>
+              {% else %}
+                <div class="alert alert-info">
+                  This Surface contains {{ surface.num_topographies }} individual
+                  measurement{{ surface.num_topographies|pluralize }} of Topography.
+                </div>
               {% endif %}
 
               <div id="topography_carousel" class="carousel slide" data-ride="carousel"
