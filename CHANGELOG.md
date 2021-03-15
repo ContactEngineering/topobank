@@ -16,6 +16,7 @@
   surfaces accessible for all users (#570)
 - added small description on surface landing page (#574) 
 - added small description for bandwidth plot (#576)
+- removed plot title from many plots where not needed (#591)
 
 ## 0.9.6 (2020-12-04)
 
