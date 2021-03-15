@@ -8,8 +8,28 @@ from ..models import Analysis, AnalysisFunction
 from topobank.manager.models import Topography
 from topobank.manager.tests.utils import two_topos  # needed for fixture
 from .utils import AnalysisFunctionFactory, AnalysisFunctionImplementationFactory, TopographyFactory, \
-    TopographyAnalysisFactory
+    TopographyAnalysisFactory, SurfaceAnalysisFactory, SurfaceFactory
 from ..registry import ImplementationMissingException
+
+
+@pytest.mark.django_db
+def test_topography_as_analysis_subject():
+    topo = TopographyFactory()
+    # we must have an implementation before creating the analysis
+    impl = AnalysisFunctionImplementationFactory(code_ref='topography_analysis_function_for_tests',
+                                                 subject_type=ContentType.objects.get_for_model(topo))
+    analysis = TopographyAnalysisFactory(subject=topo, function=impl.function)
+    assert analysis.subject == topo
+
+
+@pytest.mark.django_db
+def test_surface_as_analysis_subject():
+    surf = SurfaceFactory()
+    # we must have an implementation before creating the analysis
+    impl = AnalysisFunctionImplementationFactory(code_ref='surface_analysis_function_for_tests',
+                                                 subject_type=ContentType.objects.get_for_model(surf))
+    analysis = SurfaceAnalysisFactory(subject=surf, function=impl.function)
+    assert analysis.subject == surf
 
 
 @pytest.mark.django_db
