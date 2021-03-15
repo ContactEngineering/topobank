@@ -10,6 +10,9 @@
   or later other objects (#365)
 - added surface name to tooltip in plots, such that
   topographies with same names can be distinguished (#567)
+- disabled creation of example surface for new users;
+  this is no longer needed since there are published
+  surfaces accessible for all users (#570)
 
 ## 0.9.6 (2020-12-04)
 
