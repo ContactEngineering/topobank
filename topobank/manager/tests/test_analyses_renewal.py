@@ -42,7 +42,22 @@ def test_surface_analysis_renewal_on_topography_change(client, mocker):
     assert renew_surf_analyses_mock.called
 
 
+@pytest.mark.django_db
+def test_surface_analysis_renewal_on_topography_deletion(client, mocker):
+    """Check whether methods for renewal are called if topography is deleted.
+    """
 
+    renew_surf_analyses_mock = mocker.patch('topobank.manager.models.Surface.renew_analyses')
 
+    user = UserFactory()
+    surface = SurfaceFactory(creator=user)
+    topo = TopographyFactory(surface=surface)
+
+    client.force_login(user)
+
+    response = client.post(reverse('manager:topography-delete', kwargs=dict(pk=topo.pk)))
+
+    assert response.status_code == 302
+    assert renew_surf_analyses_mock.called
 
 
