@@ -6,7 +6,7 @@
   over all topographies of a surface; implemented
   for analysis functions "Power Spectrum", 
   "Autocorrelation", and "Variable Bandwidth"; 
-  there implemented a more generic analysis model 
+  using a more generic analysis model in the backend 
   where not only a topography can be subject to an 
   analysis but also a surface or later other objects (#365)
 - added surface name to tooltip in plots, such that
