@@ -436,7 +436,8 @@ TRACKED_DEPENDENCIES = [
     ('NuMPI', 'NuMPI.__version__'),
     ('muFFT', 'muFFT.version.description()'),
     ('topobank', 'topobank.__version__'),
-    ('numpy', 'numpy.version.full_version')
+    ('numpy', 'numpy.__version__'),
+    ('scipy', 'scipy.__version__'),
 ]
 
 #
