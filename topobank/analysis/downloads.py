@@ -489,10 +489,10 @@ def download_contact_mechanics_analyses_as_zip(request, analyses):
 
     for analysis in analyses:
 
-        zip_dir = analysis.topography.name
+        zip_dir = analysis.subject.name
         if zip_dir in zip_dirs:
             # make directory unique
-            zip_dir += "-{}".format(analysis.topography.id)
+            zip_dir += "-{}".format(analysis.subject.id)
         zip_dirs.add(zip_dir)
 
         #
@@ -540,7 +540,7 @@ def download_contact_mechanics_analyses_as_zip(request, analyses):
     #
     # Add a Readme file
     #
-    zf.writestr("README.txt",\
+    zf.writestr("README.txt",
                 f"""
 Contents of this ZIP archive
 ============================
@@ -576,11 +576,32 @@ as well as the attributes
 * `mean_pressure`: mean pressure (in units of `E*`)
 * `total_contact_area`: total contact area (fractional)
 
-In order to read the data, you can use a netCDF library.
-Here are some examples:
+Accessing the CSV file
+======================
+
+Inside the archive you find a file "plot.csv" which contains the data
+from the plot.
+
+With Python and numpy you can load it e.g. like this:
+
+```
+import numpy as np
+pressure_contact_area = np.loadtxt("plot.csv", delimiter=",",
+                                   skiprows=1, usecols=(1,2))
+```
+
+With pandas, you can do:
+
+```
+import pandas as pd
+df = pd.read_csv("plot.csv", index_col=0)
+```
 
 Accessing the NetCDF files
 ==========================
+
+In order to read the data for each point,
+you can use a netCDF library. Please see the following examples:
 
 ### Python
 
@@ -601,9 +622,9 @@ Another convenient package you can use is [`xarray`](xarray.pydata.org/).
 In order to read the pressure map in Matlab, use
 
 ```
-ncid = netcdf.open("result-step-0.nc",'NC_NOWRITE');
-varid = netcdf.inqVarID(ncid,"pressure");
-pressure = netcdf.getVar(ncid,varid);
+ncid = netcdf.open("result-step-0.nc", 'NC_NOWRITE');
+varid = netcdf.inqVarID(ncid, "pressure");
+pressure = netcdf.getVar(ncid, varid);
 ```
 
 Have look in the official Matlab documentation for more information.
