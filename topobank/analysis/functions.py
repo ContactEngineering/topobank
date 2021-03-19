@@ -133,11 +133,39 @@ def height_distribution(topography, bins=None, wfac=5, progress_recorder=None, s
     )
 
 
-def _moments_histogram_gaussian(arr, bins, wfac, quantity, label, unit, gaussian=True):
-    """Return moments, histogram and gaussian for an array.
+def _reasonable_histogram_range(arr):
+    """Return 'range' argument for np.histogram
 
-    :param arr: array
+    Fixes problem with too small default ranges
+    which is roughly arr.max()-arr.min() < 1e-08.
+    We take 5*e-8 as threshold in order to be safe.
+
+    Parameters
+    ----------
+    arr: array
+        array to calculate histogram for
+
+    Returns
+    -------
+    (float, float)
+    The lower and upper range of the bins.
+
+    """
+    arr_min = arr.min()
+    arr_max = arr.max()
+
+    if arr_max-arr_min < 5e-8:
+        hist_range = (arr_min-1e-3, arr_max+1e-3)
+    else:
+        hist_range = (arr_min, arr_max)
+    return hist_range
+
+
+def _moments_histogram_gaussian(arr, bins, topography, wfac, quantity, label, unit, gaussian=True):
+    """Return moments, histogram and gaussian for an array.
+    :param arr: array, array to calculate moments and histogram for
     :param bins: bins argument for np.histogram
+    :param topography: SurfaceTopography topography instance, used for histogram ranges
     :param wfac: numeric width factor
     :param quantity: str, what kind of quantity this is (e.g. 'slope')
     :param label: str, how these results should be extra labeled (e.g. 'x direction')
@@ -155,7 +183,9 @@ def _moments_histogram_gaussian(arr, bins, wfac, quantity, label, unit, gaussian
 
     mean = arr.mean()
     rms = np.sqrt((arr**2).mean())
-    hist, bin_edges = np.histogram(arr, bins=bins, density=True)
+
+    hist, bin_edges = np.histogram(arr, bins=bins, density=True,
+                                   range=_reasonable_histogram_range(arr))
 
     scalars = {
         f"Mean {quantity.capitalize()} ({label})": dict(value=mean, unit=unit),
@@ -175,8 +205,8 @@ def _moments_histogram_gaussian(arr, bins, wfac, quantity, label, unit, gaussian
 
         series.append(
             dict(name=f'RMS {quantity} ({label})',
-             x=x_gauss,
-             y=y_gauss)
+                 x=x_gauss,
+                 y=y_gauss)
         )
 
     return scalars, series
@@ -208,16 +238,20 @@ def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, st
         #
         # Results for x direction
         #
-        scalars_slope_x, series_slope_x = _moments_histogram_gaussian(dh_dx, bins=bins, wfac=wfac,
+        scalars_slope_x, series_slope_x = _moments_histogram_gaussian(dh_dx, bins=bins,
+                                                                      topography=topography,
+                                                                      wfac=wfac,
                                                                       quantity="slope", unit='1',
                                                                       label='x direction')
         result['scalars'].update(scalars_slope_x)
         result['series'].extend(series_slope_x)
 
         #
-        # Results for x direction
+        # Results for y direction
         #
-        scalars_slope_y, series_slope_y = _moments_histogram_gaussian(dh_dy, bins=bins, wfac=wfac,
+        scalars_slope_y, series_slope_y = _moments_histogram_gaussian(dh_dy, bins=bins,
+                                                                      topography=topography,
+                                                                      wfac=wfac,
                                                                       quantity="slope", unit='1',
                                                                       label='y direction')
         result['scalars'].update(scalars_slope_y)
@@ -238,7 +272,9 @@ def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, st
 
     elif topography.dim == 1:
         dh_dx = topography.derivative(n=1)
-        scalars_slope_x, series_slope_x = _moments_histogram_gaussian(dh_dx, bins=bins, wfac=wfac,
+        scalars_slope_x, series_slope_x = _moments_histogram_gaussian(dh_dx, bins=bins,
+                                                                      topography=topography,
+                                                                      wfac=wfac,
                                                                       quantity="slope", unit='1',
                                                                       label='x direction')
         result['scalars'].update(scalars_slope_x)
@@ -263,17 +299,17 @@ def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None
     #
     if topography.dim == 2:
         curv_x, curv_y = topography.derivative(n=2)
-        if topography.is_periodic:
-            curv = curv_x[:,:] + curv_y[:,:]
-        else:
-            curv = curv_x[:, 1:-1] + curv_y[1:-1, :]
+        curv = curv_x + curv_y
     else:
         curv = topography.derivative(n=2)
 
     mean_curv = np.mean(curv)
     rms_curv = topography.rms_curvature()
 
-    hist, bin_edges = np.histogram(np.ma.compressed(curv), bins=bins,
+    hist_arr = np.ma.compressed(curv)
+
+    hist, bin_edges = np.histogram(hist_arr, bins=bins,
+                                   range=_reasonable_histogram_range(hist_arr),
                                    density=True)
 
     minval = mean_curv - wfac * rms_curv

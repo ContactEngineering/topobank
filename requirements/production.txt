@@ -201,7 +201,7 @@ markupsafe==1.1.1
     # via
     #   -r ./base.txt
     #   jinja2
-mufft==0.11.1
+mufft==0.15.0
     # via
     #   -r ./base.txt
     #   contactmechanics
@@ -333,7 +333,7 @@ sqlparse==0.4.1
     # via
     #   -r ./base.txt
     #   django
-surfacetopography==0.91.5
+surfacetopography==0.92.0
     # via
     #   -r ./base.txt
     #   contactmechanics
