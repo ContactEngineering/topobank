@@ -6,7 +6,7 @@ whitenoise  # https://github.com/evansd/whitenoise
 
 # Django
 # ------------------------------------------------------------------------------
-django==2.2.13  #  does this work with pyup?  # https://www.djangoproject.com/
+django==2.2.19  #  does this work with pyup?  # https://www.djangoproject.com/
 django-environ  # https://github.com/joke2k/django-environ
 django-model-utils  # https://github.com/jazzband/django-model-utils
 django-allauth  # https://github.com/pennersr/django-allauth
@@ -74,6 +74,9 @@ ContactMechanics>=0.90.1
 # plotting
 bokeh==2.2.3
 # link to CSS+JS in HTML files must must this version!
+
+# because of several CVE where size of images is not properly checked
+Pillow>=8.1.1
 # for exporting bokeh plots programmatically (thumbnails), we need a webdriver
 selenium
 

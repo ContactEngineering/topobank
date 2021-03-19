@@ -141,7 +141,7 @@ django-test-plus==1.4.0
     # via -r local.in
 django-trackstats==0.5.0
     # via -r ./base.txt
-django==2.2.13
+django==2.2.19
     # via
     #   -r ./base.txt
     #   django-allauth
@@ -299,7 +299,7 @@ pexpect==4.8.0
     # via ipython
 pickleshare==0.7.5
     # via ipython
-pillow==8.0.0
+pillow==8.1.2
     # via
     #   -r ./base.txt
     #   bokeh

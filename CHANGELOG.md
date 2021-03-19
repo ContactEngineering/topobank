@@ -20,6 +20,7 @@
 - uses SurfaceTopography version 0.92.0 now, 
   which returns nonuniform PSD only up to a reasonable 
   wavevector (#568)
+- upgrade of Pillow and django because of CVEs  
 
 ## 0.9.6 (2020-12-04)
 

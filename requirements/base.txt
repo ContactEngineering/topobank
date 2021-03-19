@@ -92,7 +92,7 @@ git+http://git@github.com/mcrot/django-termsandconditions.git@optional_terms
     # via -r base.in
 django-trackstats==0.5.0
     # via -r base.in
-django==2.2.13
+django==2.2.19
     # via
     #   -r base.in
     #   django-allauth
@@ -189,7 +189,7 @@ pandas==1.1.3
     # via
     #   -r base.in
     #   xarray
-pillow==8.0.0
+pillow==8.1.2
     # via
     #   -r base.in
     #   bokeh
