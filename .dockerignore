@@ -2,3 +2,5 @@ node_modules
 topobank/media
 media
 .git
+venv
+

@@ -73,6 +73,7 @@ RUN addgroup django \
 # Prepare application code
 #
 COPY . /app
+RUN rm -Rf app/venv
 RUN chown -R django /app
 # is the following needed?
 RUN chmod -R u+w /app
