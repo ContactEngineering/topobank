@@ -716,6 +716,45 @@ def autocorrelation_for_surface(surface, num_points=100,
     return result
 
 
+@register_implementation(name="Scale-dependent Slope", card_view_flavor='plot')
+def scale_dependent_slope(topography, progress_recorder=None, storage_prefix=None):
+
+    return_dict = autocorrelation(topography, progress_recorder=progress_recorder,
+                                  storage_prefix=storage_prefix)
+
+    for dataset in return_dict['series']:
+        x = dataset['x']
+        y = dataset['y']
+        # Avoid division by zero
+        m = abs(x) > 1e-12
+        dataset['x'] = x[m]
+        dataset['y'] = np.sqrt(2 * y[m]) / x[m]
+    return_dict['name'] = 'Scale-dependent slope'
+    return_dict['ylabel'] = 'Slope'
+    return_dict['yunit'] = ''
+
+    return return_dict
+
+
+@register_implementation(name="Scale-dependent Slope", card_view_flavor='plot')
+def scale_dependent_slope_for_surface(surface, num_points=100,
+                                      progress_recorder=None, storage_prefix=None):
+    """Calculate average autocorrelation for a surface."""
+    result = average_results_for_surface(surface, topo_analysis_func=scale_dependent_slope,
+                                         num_points=num_points, progress_recorder=progress_recorder,
+                                         storage_prefix=storage_prefix)
+
+    result.update(dict(
+        name='Scale-dependent slope',
+        xlabel='Distance',
+        ylabel='Slope',
+        xscale='log',
+        yscale='log',
+    ))
+
+    return result
+
+
 @register_implementation(name="Variable Bandwidth", card_view_flavor='plot')
 def variable_bandwidth(topography, progress_recorder=None, storage_prefix=None):
 
