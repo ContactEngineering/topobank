@@ -725,10 +725,8 @@ def scale_dependent_slope(topography, progress_recorder=None, storage_prefix=Non
     for dataset in return_dict['series']:
         x = dataset['x']
         y = dataset['y']
-        # Avoid division by zero
-        m = abs(x) > 1e-12
-        dataset['x'] = x[m]
-        dataset['y'] = np.sqrt(2 * y[m]) / x[m]
+        dataset['x'] = x[1:]
+        dataset['y'] = np.sqrt(2 * y[1:]) / x[1:]
     return_dict['name'] = 'Scale-dependent slope'
     return_dict['ylabel'] = 'Slope'
     return_dict['yunit'] = ''
