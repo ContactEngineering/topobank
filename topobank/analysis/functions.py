@@ -743,7 +743,7 @@ def scale_dependent_slope_for_surface(surface, num_points=100,
                                          storage_prefix=storage_prefix)
 
     result.update(dict(
-        name='Scale-dependent slope',
+        name='Scale-dependent Slope',
         xlabel='Distance',
         ylabel='Slope',
         xscale='log',
