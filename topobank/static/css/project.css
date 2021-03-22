@@ -176,6 +176,10 @@ td.ellipsis {
   overflow: hidden;
   text-overflow: ellipsis; /** this does not work here, don't know why */
 }
+.topobank-surface-checkbox div.bk-input-group span {
+  font-weight: bold;
+}
+
 
 /** Extra (dynamic) tabs */
 .nav-tabs {

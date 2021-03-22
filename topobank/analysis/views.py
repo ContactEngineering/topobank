@@ -28,7 +28,7 @@ from bokeh.models.formatters import FuncTickFormatter
 from bokeh.models.ranges import DataRange1d
 from bokeh.plotting import figure
 from bokeh.embed import components, json_item
-from bokeh.models.widgets import CheckboxGroup, Tabs, Panel, Toggle
+from bokeh.models.widgets import CheckboxGroup, Tabs, Panel, Toggle, Div
 from bokeh.models.widgets.markups import Paragraph
 from bokeh.models import Legend, LinearColorMapper, ColorBar, CategoricalColorMapper
 
@@ -364,21 +364,53 @@ class PlotCardView(SimpleCardView):
                      series_dashes=json.dumps(list())))
             return context
 
+        #
         # order analyses such that surface analyses are coming last (plotted on top)
+        #
+        topography_ct = ContentType.objects.get_for_model(Topography)
         surface_ct = ContentType.objects.get_for_model(Surface)
         analyses_success_list = list(analyses_success.filter(~Q(subject_type=surface_ct)))
+
         for surface_analysis in analyses_success.filter(subject_type=surface_ct):
             if surface_analysis.subject.num_topographies() > 1:
                 # only show average for surface if more than one topography
                 analyses_success_list.append(surface_analysis)
 
         #
+        # Build order of subjects such that surfaces are first (used for checkbox on subjects)
+        #
+        subjects = set(a.subject for a in analyses_success_list)
+        subjects = sorted(subjects, key=lambda s: s.get_content_type() == surface_ct, reverse=True)  # surfaces first
+        subject_names_for_plot = []
+
+        # Build subject groups by content type, so each content type gets its
+        # one checkbox group
+
+        subject_checkbox_groups = {}   # key: ContentType, value: list of subject names to display
+
+        for s in subjects:
+            subject_ct = s.get_content_type()
+            subject_name = s.name
+            if subject_ct == surface_ct:
+                subject_name = f"Average of {subject_name}"
+            subject_names_for_plot.append(subject_name)
+
+            if subject_ct not in subject_checkbox_groups.keys():
+                subject_checkbox_groups[subject_ct] = []
+
+            subject_checkbox_groups[subject_ct].append(subject_name)
+
+        has_at_least_one_surface_subject = surface_ct in subject_checkbox_groups.keys()
+        if has_at_least_one_surface_subject:
+            num_surface_subjects = len(subject_checkbox_groups[surface_ct])
+        else:
+            num_surface_subjects = 0
+
+        #
         # Use first analysis to determine some properties for the whole plot
         #
 
         first_analysis_result = analyses_success_list[0].result_obj
-        title = first_analysis_result['name']
-
         xunit = first_analysis_result['xunit'] if 'xunit' in first_analysis_result else None
         yunit = first_analysis_result['yunit'] if 'yunit' in first_analysis_result else None
 
@@ -432,7 +464,6 @@ class PlotCardView(SimpleCardView):
         # TODO remove code for toggling symbols if not needed
 
         subject_colors = OrderedDict()  # key: subject instance, value: color
-        subject_display_names = []
 
         series_dashes = OrderedDict()  # key: series name
         series_names = []
@@ -447,27 +478,22 @@ class PlotCardView(SimpleCardView):
         js_args = {}
 
         special_values = []  # elements: tuple(subject, quantity name, value, unit string)
-        subjects = []
 
         for analysis in analyses_success_list:
 
+            #
+            # Define some helper variables
+            #
             subject = analysis.subject
+            subject_idx = subjects.index(subject)  # unique identifier within the plot
+            subject_colors[subject] = next(color_cycle)
+
             is_surface_analysis = isinstance(subject, Surface)
             is_topography_analysis = isinstance(subject, Topography)
 
-            subject_display_name = f"{subject.name} ({subject.get_content_type().model})"
+            subject_display_name = subject_names_for_plot[subject_idx]
             if is_topography_analysis:
                 subject_display_name += f", surface: {subject.surface.name}"
-
-            #
-            # find out colors for subject and define an index
-            #
-            if subject not in subjects:
-                subjects.append(subject)
-                subject_colors[subject] = next(color_cycle)
-                subject_display_names.append(subject_display_name)
-
-            subject_idx = subjects.index(subject)  # unique identifier within the plot
 
             #
             # handle task state
@@ -576,8 +602,11 @@ class PlotCardView(SimpleCardView):
                 js_args[glyph_id] = line_glyph  # mapping from Python to JS
 
                 # only indices of visible glyphs appear in "active" lists of both button groups
-                js_code += f"{glyph_id}.visible = series_btn_group.active.includes({series_idx}) " \
-                           + f"&& subject_btn_group.active.includes({subject_idx});"
+                js_code += f"{glyph_id}.visible = series_btn_group.active.includes({series_idx}) "
+                if is_surface_analysis:
+                    js_code += f"&& surface_btn_group.active.includes({subject_idx});"
+                elif is_topography_analysis:
+                    js_code += f"&& topography_btn_group.active.includes({subject_idx - num_surface_subjects});"
 
                 if show_symbols:
                     # prepare unique id for this symbols
@@ -585,8 +614,11 @@ class PlotCardView(SimpleCardView):
                     js_args[glyph_id] = symbol_glyph  # mapping from Python to JS
 
                     # only indices of visible glyphs appear in "active" lists of both button groups
-                    js_code += f"{glyph_id}.visible = series_btn_group.active.includes({series_idx}) " \
-                               + f"&& subject_btn_group.active.includes({subject_idx});"
+                    js_code += f"{glyph_id}.visible = series_btn_group.active.includes({series_idx}) "
+                    if is_surface_analysis:
+                        js_code += f"&& surface_btn_group.active.includes({subject_idx});"
+                    elif is_topography_analysis:
+                        js_code += f"&& topography_btn_group.active.includes({subject_idx - num_surface_subjects});"
 
             #
             # Collect special values to be shown in the result card
@@ -627,21 +659,34 @@ class PlotCardView(SimpleCardView):
             labels=series_names,
             css_classes=["topobank-series-checkbox"],
             visible=False,
-            active=list(range(len(series_names))))  # all active
+            active=list(range(len(series_names))))  # all indices included -> all active
 
-        subject_names_for_btn_group = list(s.name for s in subject_colors.keys())
-        subject_btn_group = CheckboxGroup(
-            labels=subject_names_for_btn_group,
-            css_classes=["topobank-subject-checkbox"],
-            visible=False,
-            active=list(range(len(subject_names_for_btn_group))))  # all active
+        # create list of checkbox group, one checkbox group for each subject type
+        if has_at_least_one_surface_subject:
+            surface_btn_group = CheckboxGroup(
+                    labels=subject_checkbox_groups[surface_ct],
+                    css_classes=["topobank-subject-checkbox", "topobank-surface-checkbox"],
+                    visible=False,
+                    active=list(range(len(subject_checkbox_groups[surface_ct]))))  # all indices included -> all active
+        else:
+            surface_btn_group = Div()
 
-        subject_btn_group_toggle_button = Toggle(label="Topographies / Surfaces")
+        topography_btn_group = CheckboxGroup(
+                labels=subject_checkbox_groups[topography_ct],
+                css_classes=["topobank-subject-checkbox", "topobank-topography-checkbox"],
+                visible=False,
+                active=list(range(len(subject_checkbox_groups[topography_ct]))))
+
+        subject_btn_group_toggle_button_label = "Topographies"
+        if has_at_least_one_surface_subject:
+            subject_btn_group_toggle_button_label = "Average / "+subject_btn_group_toggle_button_label
+        subject_btn_group_toggle_button = Toggle(label=subject_btn_group_toggle_button_label)
         series_btn_group_toggle_button = Toggle(label="Data Series")
 
         # extend mapping of Python to JS objects
         js_args['series_btn_group'] = series_button_group
-        js_args['subject_btn_group'] = subject_btn_group
+        js_args['surface_btn_group'] = surface_btn_group
+        js_args['topography_btn_group'] = topography_btn_group
         js_args['subject_btn_group_toggle_btn'] = subject_btn_group_toggle_button
         js_args['series_btn_group_toggle_btn'] = series_btn_group_toggle_button
 
@@ -651,12 +696,15 @@ class PlotCardView(SimpleCardView):
         # """.format(card_id)
 
         toggle_lines_callback = CustomJS(args=js_args, code=js_code)
-        toggle_topography_checkboxes = CustomJS(args=js_args, code="""
-            subject_btn_group.visible = subject_btn_group_toggle_btn.active;
+        toggle_subject_checkboxes = CustomJS(args=js_args, code="""
+            surface_btn_group.visible = subject_btn_group_toggle_btn.active;
+            topography_btn_group.visible = subject_btn_group_toggle_btn.active;
         """)
         toggle_series_checkboxes = CustomJS(args=js_args, code="""
             series_btn_group.visible = series_btn_group_toggle_btn.active;
         """)
+
+        subject_btn_groups = column([surface_btn_group, topography_btn_group])
 
         #
         # TODO Idea: Generate DIVs with Markup of colors and dashes and align with Buttons/Checkboxes
@@ -664,13 +712,16 @@ class PlotCardView(SimpleCardView):
 
         widgets = grid([
             [subject_btn_group_toggle_button, series_btn_group_toggle_button],
-            [subject_btn_group, series_button_group],
+            [subject_btn_groups, series_button_group],
         ])
 
         series_button_group.js_on_click(toggle_lines_callback)
-        subject_btn_group.js_on_click(toggle_lines_callback)
-        subject_btn_group_toggle_button.js_on_click(toggle_topography_checkboxes)
+        if has_at_least_one_surface_subject:
+            surface_btn_group.js_on_click(toggle_lines_callback)
+        topography_btn_group.js_on_click(toggle_lines_callback)
+        subject_btn_group_toggle_button.js_on_click(toggle_subject_checkboxes)
         series_btn_group_toggle_button.js_on_click(toggle_series_checkboxes)
+
         #
         # Convert plot and widgets to HTML, add meta data for template
         #
