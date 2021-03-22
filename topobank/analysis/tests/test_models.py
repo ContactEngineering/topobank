@@ -117,6 +117,7 @@ def test_autoload_analysis_functions():
         dict(name='Variable Bandwidth'),
         dict(name='Contact Mechanics'),
         dict(name='RMS Values'),
+        dict(name='Scale-dependent Slope'),
     ], key=itemgetter('name'))
 
     assert len(expected_funcs) == len(funcs), f"Wrong number of registered functions: {funcs}"

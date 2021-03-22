@@ -9,10 +9,11 @@ from SurfaceTopography import Topography, NonuniformLineScan
 from topobank.analysis.functions import (
     IncompatibleTopographyException,
     height_distribution, slope_distribution, curvature_distribution,
-    power_spectrum, autocorrelation, variable_bandwidth,
+    power_spectrum, autocorrelation, scale_dependent_slope, variable_bandwidth,
     contact_mechanics, rms_values,
     average_series_list,
-    power_spectrum_for_surface, autocorrelation_for_surface, variable_bandwidth_for_surface)
+    power_spectrum_for_surface, autocorrelation_for_surface, scale_dependent_slope_for_surface,
+    variable_bandwidth_for_surface)
 
 from topobank.manager.tests.utils import SurfaceFactory, TopographyFactory
 
@@ -357,7 +358,7 @@ def test_curvature_distribution_simple_2d_topography_periodic():
     arr = np.sin(y / 2 / np.pi)  # only slope in y direction, second derivative is -sin
 
     t = Topography(arr, (100, 100), periodic=True, info=info).detrend('center')
-    # resulting heights follow this function: h(x,y)=-4y+9
+    # resulting heights follow this function: h(x,y)=-2y+9
 
     topography = FakeTopographyModel(t)
     result = curvature_distribution(topography, bins=3)
@@ -372,7 +373,7 @@ def test_curvature_distribution_simple_2d_topography_periodic():
 
 def test_power_spectrum_simple_2d_topography(simple_linear_2d_topography):
     unit = simple_linear_2d_topography.info['unit']
-    # resulting heights follow this function: h(x,y)=-4y+9
+    # resulting heights follow this function: h(x,y)=-2y+9
 
     topography = FakeTopographyModel(simple_linear_2d_topography)
     result = power_spectrum(topography)
@@ -398,7 +399,7 @@ def test_power_spectrum_simple_2d_topography(simple_linear_2d_topography):
 
 
 def test_autocorrelation_simple_2d_topography(simple_linear_2d_topography):
-    # resulting heights follow this function: h(x,y)=-4y+9
+    # resulting heights follow this function: h(x,y)=-2y+9
     topography = FakeTopographyModel(simple_linear_2d_topography)
     result = autocorrelation(topography)
 
@@ -407,6 +408,19 @@ def test_autocorrelation_simple_2d_topography(simple_linear_2d_topography):
     assert result['name'] == 'Height-difference autocorrelation function (ACF)'
 
     # TODO Check result values for autocorrelation
+
+
+def test_scale_dependent_slope_simple_2d_topography(simple_linear_2d_topography):
+    # resulting heights follow this function: h(x,y)=-2y+9
+    topography = FakeTopographyModel(simple_linear_2d_topography)
+    result = scale_dependent_slope(topography)
+
+    assert sorted(result.keys()) == sorted(['name', 'xlabel', 'ylabel', 'xscale', 'yscale', 'xunit', 'yunit', 'series'])
+
+    assert result['name'] == 'Scale-dependent slope'
+    for dataset in result['series']:
+        if dataset['name'] == 'Along y':
+            np.testing.assert_almost_equal(dataset['y'], 2*np.ones_like(dataset['y']))
 
 
 def test_variable_bandwidth_simple_2d_topography(simple_linear_2d_topography):
@@ -578,9 +592,6 @@ def test_psd_for_surface(mocker):
                 'name': '1D',  # taken from y=x
                 'x': np.array([1, 2, 3, 5, 6, 7]),
                 'y': np.array([1, 2, 3, 5, 6, 7]),
-                # using here 0.9 instead of 1 so we can clearly
-                # interpolate at 1.0, otherwise with (1,1) there is no
-                # interpolation at 1.0 due to numerical errors (exp->log..)
             },
         ]
     )
@@ -658,9 +669,6 @@ def test_autocorrelation_for_surface(mocker):
                 'name': '1D',  # taken from y=x
                 'x': np.array([1, 2, 3, 5, 6, 7]),
                 'y': np.array([1, 2, 3, 5, 6, 7]),
-                # using here 0.9 instead of 1 so we can clearly
-                # interpolate at 1.0, otherwise with (1,1) there is no
-                # interpolation at 1.0 due to numerical errors (exp->log..)
             },
         ]
     )
@@ -720,6 +728,82 @@ def test_autocorrelation_for_surface(mocker):
 
 
 @pytest.mark.django_db
+def test_scale_dependent_slope_for_surface(mocker):
+    """Testing autocorrelation for an artificial surface."""
+
+    # ACF results for individual topographies are mocked up
+    topo1_result = dict(
+        name='Scale-dependent Slope',
+        xlabel='Distance',
+        ylabel='Slope',
+        xunit='µm',
+        yunit='1',
+        xscale='log',
+        yscale='log',
+        series=[
+            {
+                'name': '1D',  # taken from y=x
+                'x': np.array([1, 2, 3, 5, 6, 7]),
+                'y': np.array([1, 2, 3, 5, 6, 7]),
+            },
+        ]
+    )
+    topo2_result = dict(
+        name='Scale-dependent Slope',
+        xlabel='Distance',
+        ylabel='Slope',
+        xunit='nm',  # nm instead of µm
+        yunit='1',
+        xscale='log',
+        yscale='log',
+        series=[
+            {
+                'name': '1D',  # taken from y=2*x
+                'x': 1e3 * np.array([0.1, 1.5, 2.5, 5.0]),  # large numbers because of xunit=nm compared to xunit=µm
+                'y': np.array([0.2, 3, 5, 10]),  # no conversion of y-data (because it is a slope)
+            }  # the numbers are scaled here in order to match the units of first topography + reuse known results
+        ]
+    )
+
+    scale_dependent_slope_mock = mocker.patch('topobank.analysis.functions.scale_dependent_slope',
+                                              side_effect=[topo1_result, topo2_result])
+
+    surf = SurfaceFactory()
+    topo1 = TopographyFactory(surface=surf)  # we just need 2 topographies
+    topo2 = TopographyFactory(surface=surf)
+
+    result = scale_dependent_slope_for_surface(surf, num_points=15)
+
+    expected_x, expected_y, expected_std_err_y = _expected('log')
+
+    expected_result = {
+        'name': 'Scale-dependent Slope',
+        'xlabel': 'Distance',
+        'ylabel': 'Slope',
+        'xunit': 'µm',
+        'yunit': '1',
+        'xscale': 'log',
+        'yscale': 'log',
+        'series': [
+            {
+                'name': '1D',
+                'x': expected_x,
+                'y': expected_y,
+                'std_err_y': expected_std_err_y
+            }
+        ]
+    }
+
+    for k in ['name', 'xunit', 'yunit', 'xlabel', 'ylabel', 'xscale', 'yscale']:
+        assert expected_result[k] == result[k]
+
+    assert expected_result['series'][0]['name'] == result['series'][0]['name']
+    assert_allclose(expected_result['series'][0]['x'], result['series'][0]['x'])
+    assert_allclose(expected_result['series'][0]['y'], result['series'][0]['y'])
+    assert_allclose(expected_result['series'][0]['std_err_y'], result['series'][0]['std_err_y'])
+
+
+@pytest.mark.django_db
 def test_variable_bandwidth_for_surface(mocker):
     """Testing variable bandwidth for an artificial surface."""
 
@@ -737,9 +821,6 @@ def test_variable_bandwidth_for_surface(mocker):
                 'name': 'VBM',  # taken from y=x
                 'x': np.array([1, 2, 3, 5, 6, 7]),
                 'y': np.array([1, 2, 3, 5, 6, 7]),
-                # using here 0.9 instead of 1 so we can clearly
-                # interpolate at 1.0, otherwise with (1,1) there is no
-                # interpolation at 1.0 due to numerical errors (exp->log..)
             },
         ]
     )
