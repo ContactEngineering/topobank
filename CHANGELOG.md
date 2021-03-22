@@ -24,6 +24,7 @@
 - also show version numbers for numpy and scipy in version
   information, also track those versions for analyses from
   now on (#600)
+- added scale-dependent slope (#403)
 
 ## 0.9.6 (2020-12-04)
 
