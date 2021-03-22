@@ -381,10 +381,12 @@ class PlotCardView(SimpleCardView):
         subjects = set(a.subject for a in analyses_success_list)
         subjects = sorted(subjects, key=lambda s: s.get_content_type() == surface_ct, reverse=True)  # surfaces first
         subject_names_for_btn_group = []
+        has_at_least_one_surface_subject = False
         for s in subjects:
             subject_name = s.name
             if s.get_content_type() == surface_ct:
                 subject_name = f"Average of {subject_name}"
+                has_at_least_one_surface_subject = True
             subject_names_for_btn_group.append(subject_name)
 
         #
@@ -642,7 +644,10 @@ class PlotCardView(SimpleCardView):
             visible=False,
             active=list(range(len(subjects))))  # all indices included -> all active
 
-        subject_btn_group_toggle_button = Toggle(label="Topographies / Surfaces")
+        subject_btn_group_toggle_button_label = "Topographies"
+        if has_at_least_one_surface_subject:
+            subject_btn_group_toggle_button_label = "Surfaces / "+subject_btn_group_toggle_button_label
+        subject_btn_group_toggle_button = Toggle(label=subject_btn_group_toggle_button_label)
         series_btn_group_toggle_button = Toggle(label="Data Series")
 
         # extend mapping of Python to JS objects
