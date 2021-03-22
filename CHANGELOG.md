@@ -8,7 +8,7 @@
   "Autocorrelation", and "Variable Bandwidth"; 
   using a more generic analysis model in the backend 
   where not only a topography can be subject to an 
-  analysis but also a surface or later other objects (#365)
+  analysis but also a surface or later other objects (#365, #602)
 - added surface name to tooltip in plots, such that
   topographies with same names can be distinguished (#567)
 - disabled creation of example surface for new users;
