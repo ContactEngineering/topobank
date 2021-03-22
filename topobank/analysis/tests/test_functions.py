@@ -592,9 +592,6 @@ def test_psd_for_surface(mocker):
                 'name': '1D',  # taken from y=x
                 'x': np.array([1, 2, 3, 5, 6, 7]),
                 'y': np.array([1, 2, 3, 5, 6, 7]),
-                # using here 0.9 instead of 1 so we can clearly
-                # interpolate at 1.0, otherwise with (1,1) there is no
-                # interpolation at 1.0 due to numerical errors (exp->log..)
             },
         ]
     )
@@ -672,9 +669,6 @@ def test_autocorrelation_for_surface(mocker):
                 'name': '1D',  # taken from y=x
                 'x': np.array([1, 2, 3, 5, 6, 7]),
                 'y': np.array([1, 2, 3, 5, 6, 7]),
-                # using here 0.9 instead of 1 so we can clearly
-                # interpolate at 1.0, otherwise with (1,1) there is no
-                # interpolation at 1.0 due to numerical errors (exp->log..)
             },
         ]
     )
@@ -743,7 +737,7 @@ def test_scale_dependent_slope_for_surface(mocker):
         xlabel='Distance',
         ylabel='Slope',
         xunit='µm',
-        yunit=None,
+        yunit='1',
         xscale='log',
         yscale='log',
         series=[
@@ -751,9 +745,6 @@ def test_scale_dependent_slope_for_surface(mocker):
                 'name': '1D',  # taken from y=x
                 'x': np.array([1, 2, 3, 5, 6, 7]),
                 'y': np.array([1, 2, 3, 5, 6, 7]),
-                # using here 0.9 instead of 1 so we can clearly
-                # interpolate at 1.0, otherwise with (1,1) there is no
-                # interpolation at 1.0 due to numerical errors (exp->log..)
             },
         ]
     )
@@ -762,7 +753,7 @@ def test_scale_dependent_slope_for_surface(mocker):
         xlabel='Distance',
         ylabel='Slope',
         xunit='nm',  # nm instead of µm
-        yunit=None,
+        yunit='1',
         xscale='log',
         yscale='log',
         series=[
@@ -790,7 +781,7 @@ def test_scale_dependent_slope_for_surface(mocker):
         'xlabel': 'Distance',
         'ylabel': 'Slope',
         'xunit': 'µm',
-        'yunit': None,
+        'yunit': '1',
         'xscale': 'log',
         'yscale': 'log',
         'series': [
@@ -830,9 +821,6 @@ def test_variable_bandwidth_for_surface(mocker):
                 'name': 'VBM',  # taken from y=x
                 'x': np.array([1, 2, 3, 5, 6, 7]),
                 'y': np.array([1, 2, 3, 5, 6, 7]),
-                # using here 0.9 instead of 1 so we can clearly
-                # interpolate at 1.0, otherwise with (1,1) there is no
-                # interpolation at 1.0 due to numerical errors (exp->log..)
             },
         ]
     )
