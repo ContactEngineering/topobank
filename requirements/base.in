@@ -74,6 +74,7 @@ ContactMechanics>=0.90.1
 # plotting
 bokeh==2.2.3
 # link to CSS+JS in HTML files must must this version!
+jinja2>=2.11.3  # because of CVE-2020-28493
 
 # because of several CVE where size of images is not properly checked
 Pillow>=8.1.1

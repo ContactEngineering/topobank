@@ -132,8 +132,9 @@ itypes==1.2.0
     # via coreapi
 jdcal==1.4.1
     # via openpyxl
-jinja2==2.11.2
+jinja2==2.11.3
     # via
+    #   -r base.in
     #   bokeh
     #   coreschema
 jmespath==0.10.0
