@@ -3,7 +3,7 @@ Management command for importing a surface from file(s).
 
 ONLY USE FROM TRUSTED SOURCES!
 """
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.core.files import File
 from django.core.files.storage import default_storage
 
@@ -63,7 +63,7 @@ class Command(BaseCommand):
             '--category',
             type=str,
             choices=[c[0] for c in Surface.CATEGORY_CHOICES],
-            dest='category',
+            dest='surface_category',
             default='exp',
             help='Category of the imported surface. Default: exp'
         )
@@ -82,7 +82,9 @@ class Command(BaseCommand):
 
         topo_name = topo_descr['name']
 
-        size_x, size_y = topo_descr['size']
+        size_x, *size_rest = topo_descr['size']
+        size_y = None if len(size_rest) == 0 else size_rest[0]
+
         user = surface.creator
 
         topo_kwargs = dict(
@@ -146,8 +148,9 @@ class Command(BaseCommand):
             user = User.objects.get(username=username)
             self.stdout.write(self.style.NOTICE(f"User with given username '{username}' found."))
         except User.DoesNotExist:
-            self.stdout.write(self.style.ERROR(f"Cannot find user with given username '{username}'."))
-            sys.exit(1)
+            err_msg = f"Cannot find user with given username '{username}'."
+            self.stdout.write(self.style.ERROR(err_msg))
+            raise CommandError(err_msg)
 
         self.stdout.write(self.style.NOTICE(f"New surface will have the name '{options['surface_name']}'."))
 
@@ -160,7 +163,8 @@ class Command(BaseCommand):
         for filename in options['surface_archives']:
             try:
                 surface_name = options['surface_name']
-                surface = Surface(creator=user, name=surface_name,
+                surface_category = options['surface_category']
+                surface = Surface(creator=user, name=surface_name, category=surface_category,
                                   description=f'Imported from file "{filename}" on {now}.')
                 if not dry_run:
                     surface.save()
@@ -171,7 +175,9 @@ class Command(BaseCommand):
                 if not dry_run:
                     surface.renew_analyses()
             except Exception as exc:
-                self.stdout.write(self.style.ERROR(f"Cannot process file '{filename}'. Reason: {exc}"))
+                err_msg = f"Cannot process file '{filename}'. Reason: {exc}"
+                self.stdout.write(self.style.ERROR(err_msg))
+                raise CommandError(err_msg) from exc
 
         if options['dry_run']:
             self.stdout.write(self.style.WARNING("This was a dry run, nothing has been changed."))
