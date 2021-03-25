@@ -6,7 +6,7 @@ import pytest
 from pathlib import Path
 from django.shortcuts import reverse
 
-from .utils import FIXTURE_DIR, TopographyFactory, SurfaceFactory, UserFactory
+from .utils import FIXTURE_DIR, Topography1DFactory, SurfaceFactory, UserFactory
 from topobank.utils import assert_in_content, assert_no_form_errors
 
 
@@ -20,7 +20,7 @@ def test_surface_analysis_renewal_on_topography_change(client, mocker):
 
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
-    topo = TopographyFactory(surface=surface, size_y=1)
+    topo = Topography1DFactory(surface=surface, size_y=1)
 
     client.force_login(user)
 
@@ -54,7 +54,7 @@ def test_surface_analysis_renewal_on_topography_deletion(client, mocker, handle_
 
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
-    topo = TopographyFactory(surface=surface)
+    topo = Topography1DFactory(surface=surface)
 
     client.force_login(user)
 

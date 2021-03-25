@@ -18,7 +18,8 @@ from django.urls import reverse
 
 from topobank.manager.models import Topography, Surface
 from topobank.manager.utils import subjects_to_json
-from topobank.manager.tests.utils import SurfaceFactory, UserFactory, TopographyFactory, two_topos
+from topobank.manager.tests.utils import SurfaceFactory, UserFactory, \
+    Topography1DFactory, Topography2DFactory, two_topos
 from topobank.taskapp.tasks import current_configuration
 from topobank.utils import assert_in_content, assert_not_in_content
 from .utils import AnalysisFunctionFactory, AnalysisFunctionImplementationFactory, \
@@ -289,9 +290,9 @@ def test_warnings_for_different_arguments(client, handle_usage_statistics):
     user = UserFactory()
     surf1 = SurfaceFactory(creator=user)
     surf2 = SurfaceFactory(creator=user)
-    topo1a = TopographyFactory(surface=surf1)
-    topo1b = TopographyFactory(surface=surf1)
-    topo2a = TopographyFactory(surface=surf2)
+    topo1a = Topography1DFactory(surface=surf1)
+    topo1b = Topography1DFactory(surface=surf1)
+    topo2a = Topography1DFactory(surface=surf2)
 
     func = AnalysisFunctionFactory()
     topo_impl = AnalysisFunctionImplementationFactory(function=func,
@@ -629,7 +630,7 @@ def test_rms_values_rounded(rf, mocker):
         }
     ]
 
-    topo = TopographyFactory(size_x=1, size_y=1)
+    topo = Topography2DFactory(size_x=1, size_y=1)
 
     func = AnalysisFunction.objects.get(name='RMS Values')
     TopographyAnalysisFactory(subject=topo, function=func)
@@ -825,9 +826,9 @@ def test_download_analysis_results_without_permission(client, two_topos, ids_dow
 @pytest.fixture
 def two_analyses_two_publications():
     surface1 = SurfaceFactory()
-    TopographyFactory(surface=surface1)
+    Topography1DFactory(surface=surface1)
     surface2 = SurfaceFactory()
-    TopographyFactory(surface=surface2)
+    Topography1DFactory(surface=surface2)
     pub1 = surface1.publish('cc0-1.0', surface1.creator.name)
     pub2 = surface2.publish('cc0-1.0', surface1.creator.name+", "+surface2.creator.name)
     pub_topo1 = pub1.surface.topography_set.first()
@@ -911,11 +912,11 @@ def test_view_shared_analysis_results(client, handle_usage_statistics):
     # func2 = AnalysisFunctionFactory()
 
     # Two topographies for surface1
-    topo1a = TopographyFactory(surface=surface1, name='topo1a')
-    topo1b = TopographyFactory(surface=surface1, name='topo1b')
+    topo1a = Topography1DFactory(surface=surface1, name='topo1a')
+    topo1b = Topography1DFactory(surface=surface1, name='topo1b')
 
     # One topography for surface2
-    topo2a = TopographyFactory(surface=surface2, name='topo2a')
+    topo2a = Topography1DFactory(surface=surface2, name='topo2a')
 
     # analyses, differentiate by start time
     analysis1a_1 = TopographyAnalysisFactory(subject=topo1a, function=func1,

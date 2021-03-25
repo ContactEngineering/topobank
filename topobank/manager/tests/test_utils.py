@@ -8,7 +8,7 @@ import json
 from django.shortcuts import reverse
 from django.contrib.contenttypes.models import ContentType
 
-from ..tests.utils import two_topos, TopographyFactory, SurfaceFactory, TagModelFactory, UserFactory, \
+from ..tests.utils import two_topos, Topography1DFactory, SurfaceFactory, TagModelFactory, UserFactory, \
     user_three_topographies_three_surfaces_three_tags
 from ..utils import selection_to_instances, instances_to_selection, tags_for_user, \
     instances_to_topographies, surfaces_for_user, subjects_to_json
@@ -175,9 +175,9 @@ def test_instances_to_topographies(user_three_topographies_three_surfaces_three_
 def test_subjects_to_json():
     surf1 = SurfaceFactory()
     surf2 = SurfaceFactory()
-    topo1a = TopographyFactory(surface=surf1)
-    topo1b = TopographyFactory(surface=surf1)
-    topo2a = TopographyFactory(surface=surf2)
+    topo1a = Topography1DFactory(surface=surf1)
+    topo1b = Topography1DFactory(surface=surf1)
+    topo2a = Topography1DFactory(surface=surf2)
 
     stj = subjects_to_json([surf1, surf2, topo1a, topo1b, topo2a])
     subjects_ids = json.loads(stj)

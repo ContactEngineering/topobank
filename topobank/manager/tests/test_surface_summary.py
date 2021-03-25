@@ -8,7 +8,7 @@ from django.shortcuts import reverse
 from ..models import Topography
 from ..utils import bandwidths_data
 
-from .utils import TopographyFactory, topography_loaded_from_broken_file
+from .utils import Topography1DFactory, topography_loaded_from_broken_file
 from topobank.utils import assert_in_content
 
 @pytest.fixture
@@ -62,7 +62,7 @@ def test_bandwidths_data(two_topos_mock):
 @pytest.mark.django_db
 def test_bandwidth_with_angstrom():
 
-    topo = TopographyFactory(unit='Å')
+    topo = Topography1DFactory(unit='Å')
     bd = bandwidths_data([topo])
 
     assert len(bd) == 1
@@ -80,7 +80,7 @@ def test_bandwidth_error_message_in_dict_when_problems_while_loading(topography_
     #
 
     topo1 = topography_loaded_from_broken_file
-    topo2 = TopographyFactory()
+    topo2 = Topography1DFactory()
     bd = bandwidths_data([topo1, topo2])
     assert len(bd) == 2
 

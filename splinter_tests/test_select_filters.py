@@ -4,7 +4,7 @@ from splinter_tests.utils import search_for, clear_search_term, selected_categor
     selected_tree_mode, is_text_present_in_result_table, active_page_number, active_page_size, select_tree_mode, \
     goto_sharing_page, goto_select_page
 
-from topobank.manager.tests.utils import SurfaceFactory, TopographyFactory, TagModelFactory
+from topobank.manager.tests.utils import SurfaceFactory, Topography1DFactory, TagModelFactory
 
 
 @pytest.fixture(scope='function')
@@ -14,15 +14,15 @@ def items_for_filtering(db, user_alice, user_bob):
     tag2 = TagModelFactory(name='tag2')
 
     surface1 = SurfaceFactory(name='surface1', creator=user_alice, category='exp', description='apple')
-    topo1a = TopographyFactory(name='topo1a', surface=surface1)
-    topo1b = TopographyFactory(name='topo1b', surface=surface1, tags=[tag1, tag2])
+    topo1a = Topography1DFactory(name='topo1a', surface=surface1)
+    topo1b = Topography1DFactory(name='topo1b', surface=surface1, tags=[tag1, tag2])
 
     surface2 = SurfaceFactory(name='surface2', creator=user_alice, category='dum',
                               tags=[tag1], description='banana')
-    topo2a = TopographyFactory(name='topo2a', surface=surface2)
+    topo2a = Topography1DFactory(name='topo2a', surface=surface2)
 
     surface3 = SurfaceFactory(name='surface3', creator=user_bob, category='sim', description='cherry')
-    topo3a = TopographyFactory(name='topo3a', surface=surface3)
+    topo3a = Topography1DFactory(name='topo3a', surface=surface3)
 
     surface3.share(user_alice)
 

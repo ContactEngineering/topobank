@@ -6,6 +6,7 @@ ONLY USE FROM TRUSTED SOURCES!
 from django.core.management.base import BaseCommand, CommandError
 from django.core.files import File
 from django.core.files.storage import default_storage
+from django.utils.timezone import now
 
 import zipfile
 import sys
@@ -28,7 +29,7 @@ class Command(BaseCommand):
     In the web app, users can download surfaces as a ZIP archive.
     For development it's useful to transfer surface data from
     the production system to a development system.
-    This command allows to import a surface archive which was
+    This command allows to import surface archives which were
     previously downloaded.
 
     ONLY FOR USE WITH FILES FROM TRUSTED SOURCES.
@@ -46,26 +47,7 @@ class Command(BaseCommand):
             'surface_archives',
             nargs='+',
             type=str,
-            help='filename(s) of surface archives'
-        )
-
-        parser.add_argument(
-            '-n',
-            '--name',
-            type=str,
-            dest='surface_name',
-            default='Imported Surface',
-            help='Name which should be given to the imported surface. Default: "Imported Surface"'
-        )
-
-        parser.add_argument(
-            '-c',
-            '--category',
-            type=str,
-            choices=[c[0] for c in Surface.CATEGORY_CHOICES],
-            dest='surface_category',
-            default='exp',
-            help='Category of the imported surface. Default: exp'
+            help='filename of surface archive(s)'
         )
 
         parser.add_argument(
@@ -75,14 +57,13 @@ class Command(BaseCommand):
             help='Just read input files and show what would be done.',
         )
 
+    def process_topography(self, topo_dict, topo_file, surface, dry_run=False):
+        self.stdout.write(self.style.NOTICE(f"Processing topography '{topo_dict['name']}'.."))
+        self.stdout.write(self.style.NOTICE(f"  Original creator is '{topo_dict['creator']}'."))
 
-    def process_topography(self, topo_descr, topo_file, surface, dry_run=False):
-        self.stdout.write(self.style.NOTICE(f"Processing topography '{topo_descr['name']}'.."))
-        self.stdout.write(self.style.NOTICE(f"  Original creator is '{topo_descr['creator']}'."))
+        topo_name = topo_dict['name']
 
-        topo_name = topo_descr['name']
-
-        size_x, *size_rest = topo_descr['size']
+        size_x, *size_rest = topo_dict['size']
         size_y = None if len(size_rest) == 0 else size_rest[0]
 
         user = surface.creator
@@ -93,11 +74,13 @@ class Command(BaseCommand):
             surface=surface,
             size_x=size_x,
             size_y=size_y,
-            height_scale=topo_descr['height_scale'],
-            measurement_date=topo_descr['measurement_date'],
-            description=topo_descr['description'],
-            data_source=topo_descr['data_source'],
-            unit=topo_descr['unit'],
+            height_scale=topo_dict['height_scale'],
+            measurement_date=topo_dict['measurement_date'],
+            description=topo_dict['description'],
+            data_source=topo_dict['data_source'],
+            unit=topo_dict['unit'],
+            tags=topo_dict['tags'],
+            detrend_mode=topo_dict['detrend_mode'],
         )
 
         # saving topo file in backend
@@ -114,18 +97,15 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(f"Topography '{topo_name}' saved in database."))
             topography.renew_thumbnail()
 
-
-    def process_surface_archive(self, surface_zip, surface, dry_run=False):
-        """Process surface archive i.e. importing the surface.
+    def process_surface_archive(self, surface_zip, user, dry_run=False):
+        """Process surface archive i.e. importing the surfaces.
 
         Parameters
         ----------
         surface_zip: zipfile.Zipfile
-            archive with the surface
+            archive with surfaces
         user: topobank.users.User
             User which should be creator of the surface and all data.
-        surface_name: str
-            name of the new surface
         dry_run: bool
             Ih True, only show what would be done without actually importing data.
         """
@@ -133,12 +113,40 @@ class Command(BaseCommand):
             meta = yaml.load(meta_file)
             # This is potentially unsafe, but needed for the current download format
 
-            for topo_descr in meta:
-                topo_file = surface_zip.open(topo_descr['name'], mode='r')
-                self.process_topography(topo_descr, topo_file, surface, dry_run=dry_run)
+            for surface_dict in meta['surfaces']:
+                import_time = str(now())
 
+                surface_description = surface_dict['description']
+                surface_description += f'\n\nImported from file "{surface_zip.filename}" on {import_time}.'
+                surface = Surface(creator=user,
+                                  name=surface_dict['name'],
+                                  category=surface_dict['category'],
+                                  description=surface_description,
+                                  tags=surface_dict['tags'])
+                if not dry_run:
+                    surface.save()
+                    self.stdout.write(self.style.SUCCESS(f"Surface '{surface.name}' saved."))
+                for topo_dict in surface_dict['topographies']:
+                    try:
+                        topo_file = surface_zip.open(topo_dict['datafile'], mode='r')
+                        self.process_topography(topo_dict, topo_file, surface, dry_run=dry_run)
+                    except Exception as exc:
+                        raise CommandError(f"Cannot create topography from description {topo_dict}. Reason: {exc}")
+                if not dry_run:
+                    surface.renew_analyses()
 
     def handle(self, *args, **options):
+        """
+
+        Parameters
+        ----------
+        args
+        options
+
+        Returns
+        -------
+        list of ids of newly created surfaces
+        """
 
         #
         # First try to find given user
@@ -152,28 +160,18 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR(err_msg))
             raise CommandError(err_msg)
 
-        self.stdout.write(self.style.NOTICE(f"New surface will have the name '{options['surface_name']}'."))
-
         dry_run = options['dry_run']
-        now = datetime.datetime.now()
+        if dry_run:
+            self.stdout.write(self.style.WARNING("Dry run. Nothing will be changed."))
 
         #
         # Then process the given IP archives with surfaces
         #
         for filename in options['surface_archives']:
             try:
-                surface_name = options['surface_name']
-                surface_category = options['surface_category']
-                surface = Surface(creator=user, name=surface_name, category=surface_category,
-                                  description=f'Imported from file "{filename}" on {now}.')
-                if not dry_run:
-                    surface.save()
-                    self.stdout.write(self.style.SUCCESS(f"Surface '{surface_name}' saved."))
                 with zipfile.ZipFile(filename, mode='r') as surface_zip:
-                    self.process_surface_archive(surface_zip, surface,
+                    self.process_surface_archive(surface_zip, user,
                                                  options['dry_run'])
-                if not dry_run:
-                    surface.renew_analyses()
             except Exception as exc:
                 err_msg = f"Cannot process file '{filename}'. Reason: {exc}"
                 self.stdout.write(self.style.ERROR(err_msg))

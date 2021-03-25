@@ -1476,16 +1476,50 @@ def download_surface(request, surface_id):
         raise PermissionDenied()
 
     topographies = Topography.objects.filter(surface=surface_id)
+    already_used_topofile_names = []
+    topography_dicts = []
 
     bytes = BytesIO()
     with zipfile.ZipFile(bytes, mode='w') as zf:
+
+        # create unique file names for the data files
+        # using the original file name + a counter, if needed
+        counter = 0
         for topography in topographies:
-            zf.writestr(topography.name, topography.datafile.read())
+            topo_dict = topography.to_dict()
+            # this dict may be okay, but have to check whether the filename is unique
+
+            topofile_name = os.path.basename(topo_dict['datafile'])
+            #
+            # Make the filename unique in the archive
+            #
+            if topofile_name in already_used_topofile_names:
+                topofile_name_root, topofile_name_ext = os.path.splitext(topofile_name)
+                topofile_name = f"{topofile_name_root}_{counter}.{topofile_name_ext}"
+                counter += 1
+
+            topo_dict['datafile'] = topofile_name  # should be same as in archive
+            already_used_topofile_names.append(topofile_name)
+
+            # add topography file to ZIP archive
+            zf.writestr(topofile_name, topography.datafile.read())
+
+            topography_dicts.append(topo_dict)
 
         #
         # Add metadata file
         #
-        zf.writestr("meta.yml", yaml.dump([topography.to_dict() for topography in topographies]))
+        surface_dict = surface.to_dict(request)
+        surface_dict['topographies'] = topography_dicts
+
+        from django.utils.timezone import now
+        metadata = dict(
+            versions=dict(topobank=settings.TOPOBANK_VERSION),
+            surfaces=[surface_dict],
+            download_time=str(now()),
+        )
+
+        zf.writestr("meta.yml", yaml.dump(metadata))
 
         #
         # Add a Readme file

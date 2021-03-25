@@ -2,15 +2,15 @@ import pytest
 from django.shortcuts import reverse
 
 from ..serializers import TopographySerializer, SurfaceSerializer
-from .utils import SurfaceFactory, TopographyFactory, UserFactory, ordereddicts_to_dicts
+from .utils import SurfaceFactory, Topography1DFactory, UserFactory, ordereddicts_to_dicts
 
 
 @pytest.mark.django_db
 def test_surface_serializer(rf):
     user = UserFactory()
     surface1 = SurfaceFactory(name='mysurface', creator=user)
-    topo1a = TopographyFactory(surface=surface1)
-    topo1b = TopographyFactory(surface=surface1)
+    topo1a = Topography1DFactory(surface=surface1)
+    topo1b = Topography1DFactory(surface=surface1)
     surface2 = SurfaceFactory(name='mysurface', creator=user)
 
     surface1.tags = ['bike', 'train/tgv']

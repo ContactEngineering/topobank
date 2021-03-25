@@ -6,7 +6,7 @@ from pathlib import Path
 import datetime
 import os.path
 
-from .utils import FIXTURE_DIR, SurfaceFactory, TopographyFactory, UserFactory, \
+from .utils import FIXTURE_DIR, SurfaceFactory, Topography1DFactory, Topography2DFactory, UserFactory, \
     two_topos, one_line_scan, user_three_topographies_three_surfaces_three_tags
 from ..models import Topography, Surface, MAX_LENGTH_DATAFILE_FORMAT
 from ..forms import TopographyForm, TopographyWizardUnitsForm, SurfaceForm
@@ -388,7 +388,7 @@ def test_upload_topography_and_name_like_an_existing_for_same_surface(client):
 
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
-    TopographyFactory(surface=surface, name="TOPO")  # <-- we will try to create another topography named TOPO later
+    Topography1DFactory(surface=surface, name="TOPO")  # <-- we will try to create another topography named TOPO later
 
     client.force_login(user)
 
@@ -995,7 +995,7 @@ def test_only_positive_size_values_on_edit(client, django_user_model, handle_usa
     user = django_user_model.objects.create_user(username=username, password=password)
 
     surface = SurfaceFactory(creator=user)
-    topography = TopographyFactory(surface=surface, size_y=1024)  # pass size_y in order to have a map
+    topography = Topography2DFactory(surface=surface, size_y=1024)  # pass size_y in order to have a map
 
     assert client.login(username=username, password=password)
 

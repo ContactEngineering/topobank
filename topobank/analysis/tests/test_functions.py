@@ -15,7 +15,7 @@ from topobank.analysis.functions import (
     power_spectrum_for_surface, autocorrelation_for_surface, scale_dependent_slope_for_surface,
     variable_bandwidth_for_surface)
 
-from topobank.manager.tests.utils import SurfaceFactory, TopographyFactory
+from topobank.manager.tests.utils import SurfaceFactory, Topography1DFactory
 
 
 ###############################################################################
@@ -617,8 +617,8 @@ def test_psd_for_surface(mocker):
                                        side_effect=[topo1_result, topo2_result])
 
     surf = SurfaceFactory()
-    topo1 = TopographyFactory(surface=surf)  # we just need 2 topographies
-    topo2 = TopographyFactory(surface=surf)
+    topo1 = Topography1DFactory(surface=surf)  # we just need 2 topographies
+    topo2 = Topography1DFactory(surface=surf)
 
     result = power_spectrum_for_surface(surf, num_points=15)
 
@@ -693,8 +693,8 @@ def test_autocorrelation_for_surface(mocker):
                                         side_effect=[topo1_result, topo2_result])
 
     surf = SurfaceFactory()
-    topo1 = TopographyFactory(surface=surf)  # we just need 2 topographies
-    topo2 = TopographyFactory(surface=surf)
+    topo1 = Topography1DFactory(surface=surf)  # we just need 2 topographies
+    topo2 = Topography1DFactory(surface=surf)
 
     result = autocorrelation_for_surface(surf, num_points=15)
 
@@ -769,8 +769,8 @@ def test_scale_dependent_slope_for_surface(mocker):
                                               side_effect=[topo1_result, topo2_result])
 
     surf = SurfaceFactory()
-    topo1 = TopographyFactory(surface=surf)  # we just need 2 topographies
-    topo2 = TopographyFactory(surface=surf)
+    topo1 = Topography1DFactory(surface=surf)  # we just need 2 topographies
+    topo2 = Topography1DFactory(surface=surf)
 
     result = scale_dependent_slope_for_surface(surf, num_points=15)
 
@@ -845,8 +845,8 @@ def test_variable_bandwidth_for_surface(mocker):
                             side_effect=[topo1_result, topo2_result])
 
     surf = SurfaceFactory()
-    topo1 = TopographyFactory(surface=surf)  # we just need 2 topographies
-    topo2 = TopographyFactory(surface=surf)
+    topo1 = Topography1DFactory(surface=surf)  # we just need 2 topographies
+    topo2 = Topography1DFactory(surface=surf)
 
     result = variable_bandwidth_for_surface(surf, num_points=15)
 

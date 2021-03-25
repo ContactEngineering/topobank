@@ -1,4 +1,8 @@
+"""
+Tests related to the models in topobank.manager app
+"""
 import pytest
+import datetime
 
 from django.db.utils import IntegrityError
 from django.db import transaction
@@ -6,7 +10,7 @@ from notifications.signals import notify
 from notifications.models import Notification
 
 from ..models import Topography, Surface
-from .utils import two_topos, SurfaceFactory, UserFactory, TopographyFactory
+from .utils import two_topos, SurfaceFactory, UserFactory, Topography1DFactory, Topography2DFactory
 
 @pytest.mark.django_db
 def test_topography_name(two_topos):
@@ -25,11 +29,58 @@ def test_topography_has_periodic_flag(two_topos):
 def test_topography_str(two_topos):
     surface = Surface.objects.get(name="Surface 1")
     topos = Topography.objects.filter(surface=surface).order_by('name')
-    assert [ str(t) for t in topos ] == ["Topography 'Example 3 - ZSensor' from 2018-01-01"]
+    assert [str(t) for t in topos ] == ["Topography 'Example 3 - ZSensor' from 2018-01-01"]
 
     surface = Surface.objects.get(name="Surface 2")
     topos = Topography.objects.filter(surface=surface).order_by('name')
     assert [str(t) for t in topos] == ["Topography 'Example 4 - Default' from 2018-01-02"]
+
+
+@pytest.mark.django_db
+def test_topography_to_dict():
+    user = UserFactory()
+    surface = SurfaceFactory(creator=user)
+    name = "Some nice topography"
+    size_x = 10
+    size_y = 20
+    height_scale = 2.0
+    detrend_mode = 'curvature'
+    description = """
+    Some nice text about this topography.
+    """
+    unit = "µm"  # needs unicode
+    measurement_date = datetime.date(2020, 1, 2)
+    is_periodic = True
+    tags = ['house', 'tree', 'tree/leaf']
+
+    topo = Topography2DFactory(surface=surface,
+                               name=name,
+                               size_x=size_x,
+                               size_y=size_y,
+                               height_scale=height_scale,
+                               detrend_mode=detrend_mode,
+                               description=description,
+                               unit=unit,
+                               is_periodic=is_periodic,
+                               measurement_date=measurement_date,
+                               tags=tags)
+
+    assert topo.to_dict() == {
+        'name': name,
+        'size': (size_x, size_y),
+        'height_scale': height_scale,
+        'detrend_mode': detrend_mode,
+        'datafile': topo.datafile.name,
+        'description': description,
+        'unit': unit,
+        'data_source': topo.data_source,
+        'creator': dict(name=user.name, orcid=user.orcid_id),
+        'measurement_date': measurement_date,
+        'is_periodic': is_periodic,
+        'tags': tags
+    }
+
+
 
 
 @pytest.mark.django_db
@@ -55,15 +106,15 @@ def test_unique_topography_name_in_same_surface():
     user = UserFactory()
     surface1 = SurfaceFactory(creator=user)
 
-    TopographyFactory(surface=surface1, name='TOPO')
+    Topography1DFactory(surface=surface1, name='TOPO')
 
     with transaction.atomic(): # otherwise we can't proceed in this test
         with pytest.raises(IntegrityError):
-            TopographyFactory(surface=surface1, name='TOPO')
+            Topography1DFactory(surface=surface1, name='TOPO')
 
     # no problem with another surface
     surface2 = SurfaceFactory(creator=user)
-    TopographyFactory(surface=surface2, name='TOPO')
+    Topography1DFactory(surface=surface2, name='TOPO')
 
 @pytest.mark.django_db
 def test_surface_description(django_user_model):
@@ -186,7 +237,7 @@ def test_notifications_are_deleted_when_topography_deleted():
     user = UserFactory(password=password)
     surface = SurfaceFactory(creator=user)
 
-    topo = TopographyFactory(surface=surface)
+    topo = Topography1DFactory(surface=surface)
     topo_id = topo.id
 
     notify.send(sender=user, verb="create", target=topo, recipient=user, description="You have a new topography")

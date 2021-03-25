@@ -6,7 +6,7 @@ from django.conf import settings
 from django.shortcuts import reverse
 from guardian.shortcuts import get_perms
 
-from .utils import SurfaceFactory, UserFactory, TopographyFactory, TagModelFactory
+from .utils import SurfaceFactory, UserFactory, Topography2DFactory, TagModelFactory
 from ..forms import SurfacePublishForm
 from ..views import SurfaceDetailView
 from topobank.publication.models import MAX_LEN_AUTHORS_FIELD
@@ -90,12 +90,12 @@ def test_surface_deepcopy():
     dateb = datetime.date(2020, 7, 2)
 
     surface1 = SurfaceFactory(description="test", tags=[tag1])
-    topo1a = TopographyFactory(surface=surface1, name='a',
-                               measurement_date=datea, tags=[tag2],
-                               description="This is a)")
-    topo1b = TopographyFactory(surface=surface1, name='b',
-                               measurement_date=dateb, tags=[tag1, tag2],
-                               description="This is b)")
+    topo1a = Topography2DFactory(surface=surface1, name='a',
+                                 measurement_date=datea, tags=[tag2],
+                                 description="This is a)")
+    topo1b = Topography2DFactory(surface=surface1, name='b',
+                                 measurement_date=dateb, tags=[tag1, tag2],
+                                 description="This is b)")
 
     surface2 = surface1.deepcopy()
 
@@ -136,8 +136,8 @@ def test_switch_versions_on_properties_tab(client, settings, handle_usage_statis
 
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
-    topo1 = TopographyFactory(surface=surface)
-    topo2 = TopographyFactory(surface=surface)
+    topo1 = Topography2DFactory(surface=surface)
+    topo2 = Topography2DFactory(surface=surface)
 
     #
     # First: The surface is not published yet
@@ -187,8 +187,8 @@ def test_notification_saying_new_version_exists(client, settings, handle_usage_s
 
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
-    topo1 = TopographyFactory(surface=surface)
-    topo2 = TopographyFactory(surface=surface)
+    topo1 = Topography2DFactory(surface=surface)
+    topo2 = Topography2DFactory(surface=surface)
 
     client.force_login(user)
 
@@ -224,7 +224,7 @@ def test_license_in_surface_download(client, license, handle_usage_statistics):
     user1 = UserFactory()
     user2 = UserFactory()
     surface = SurfaceFactory(creator=user1)
-    TopographyFactory(surface=surface)
+    Topography2DFactory(surface=surface)
     publication = surface.publish(license, 'Alice')
     client.force_login(user2)
 

@@ -2,64 +2,65 @@
 Testing management commands for manager app.
 """
 from django.core.management import call_command
+from django.shortcuts import reverse
 
 import pytest
 import datetime
 from pathlib import Path
+import tempfile
 
-from topobank.manager.tests.utils import Surface, UserFactory, FIXTURE_DIR
+from topobank.manager.models import Surface
+from topobank.manager.tests.utils import UserFactory, FIXTURE_DIR, SurfaceFactory, \
+    Topography2DFactory, Topography1DFactory
 
 
 @pytest.mark.django_db
-def test_import_surface():
+def test_import_downloaded_surface_archive(client):
 
     username = 'test_user'
     surface_name = "Test Surface for Import"
     surface_category = 'dum'
     user = UserFactory(username=username)
-    input_file_path = Path(FIXTURE_DIR + '/surface_for_import.zip')
+    surface = SurfaceFactory(creator=user, name=surface_name, category=surface_category)
+    topo1 = Topography2DFactory(surface=surface, name='2D Measurement', size_x=10, size_y=10, unit='mm')
+    topo2 = Topography1DFactory(surface=surface, name='1D Measurement', size_x=10, unit='µm')
 
-    assert Surface.objects.count() == 0
+    client.force_login(user)
 
-    # generate the surface
-    call_command('import_surface', username, input_file_path,
-                 '--name', surface_name, '--category', surface_category)
+    download_url = reverse('manager:surface-download', kwargs=dict(surface_id=surface.id))
+    response = client.get(download_url)
 
-    assert Surface.objects.count() == 1
+    # write downloaded data to temporary file and open
+    with tempfile.NamedTemporaryFile(mode='wb') as zip_archive:
+        zip_archive.write(response.content)
+        zip_archive.seek(0)
+
+        # reimport the surface
+        call_command('import_surfaces', username, zip_archive.name)
+
+    surface_copy = Surface.objects.get(description__icontains='imported from file')
 
     #
     # Check surface
     #
-    surface = Surface.objects.get(name=surface_name)
-    assert surface.category == surface_category
-    assert surface.num_topographies() == 2
-    assert "Imported from file" in surface.description
+    assert surface_copy.name == surface.name
+    assert surface_copy.category == surface.category
+    assert surface.description in surface_copy.description
+    assert surface_copy.tags == surface.tags
 
     #
     # Check imported topographies
     #
-    t0, t1 = surface.topography_set.order_by('name')
+    assert surface_copy.num_topographies() == surface.num_topographies()
 
-    assert t0.name == 'topo_1D.txt'
-    assert t0.description == "1D Example"
-    assert t0.size_x == 10.
-    assert t0.size_y is None
-    assert t0.height_scale == 2.0
-    assert t0.measurement_date == datetime.date(2021, 3, 23)
-    assert t0.unit == "nm"
-    assert t0.creator == user
-    assert t0.data_source == 0
+    for tc, t in zip(surface_copy.topography_set.order_by('name'), surface.topography_set.order_by('name')):
 
-    assert t1.name == 'topo_2D.txt'
-    assert t1.description == "2D Example"
-    assert t1.size_x == 10.
-    assert t1.size_y == 10.
-    assert t1.height_scale == 1.0
-    assert t1.measurement_date == datetime.date(2021, 3, 24)
-    assert t1.unit == "\xB5m"
-    assert t1.creator == user
-    assert t1.data_source == 0
-
+        #
+        # Compare individual topographies
+        #
+        for attrname in ['name', 'description', 'size_x', 'size_y', 'height_scale',
+                         'measurement_date', 'unit', 'creator', 'data_source', 'tags']:
+            assert getattr(tc, attrname) == getattr(t, attrname)
 
 
 

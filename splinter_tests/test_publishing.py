@@ -2,7 +2,7 @@ import pytest
 
 from django.shortcuts import reverse
 
-from topobank.manager.tests.utils import SurfaceFactory, TopographyFactory
+from topobank.manager.tests.utils import SurfaceFactory, Topography2DFactory
 from splinter_tests.utils import goto_select_page, goto_publications_page, \
     select_sharing_status, press_view_for_item_by_name, num_items_in_result_table, \
     data_of_item_by_name
@@ -74,7 +74,7 @@ def test_publishing_form(user_alice_logged_in, handle_usage_statistics):
     #
     # We add a topography and reload
     #
-    TopographyFactory(surface=surface)
+    Topography2DFactory(surface=surface)
     browser.reload()
 
     #
@@ -143,7 +143,7 @@ def test_publishing_form_multiple_authors(user_alice_logged_in, handle_usage_sta
     surface_name = "First published surface"
 
     surface = SurfaceFactory(creator=user_alice, name=surface_name)
-    TopographyFactory(surface=surface)
+    Topography2DFactory(surface=surface)
 
     #
     # Alice opens properties for the surface
@@ -212,7 +212,7 @@ def test_see_published_by_others(user_alice_logged_in, user_bob, handle_usage_st
     surface_name = "Bob has published this"
     surface_description = "Valuable results."
     surface = SurfaceFactory(creator=user_bob, name=surface_name, description=surface_description)
-    TopographyFactory(surface=surface)
+    Topography2DFactory(surface=surface)
     publication = surface.publish('cc0-1.0', 'Bob')
 
     # Alice filters for published surfaces - enters
@@ -288,7 +288,7 @@ def test_switch_between_wip_and_version(user_alice_logged_in, handle_usage_stati
     # Alice has a surface and publishes it
     #
     surface = SurfaceFactory(creator=user_alice, name="Alice's Surface")
-    topo = TopographyFactory(surface=surface)
+    topo = Topography2DFactory(surface=surface)
     publication = surface.publish('cc0-1.0', 'Alice')
 
     #
@@ -354,7 +354,7 @@ def test_how_to_cite(user_alice_logged_in, handle_usage_statistics):
     #
     surface_name = "Diamond Structure"
     surface = SurfaceFactory(creator=user_alice, name=surface_name)
-    topo = TopographyFactory(surface=surface)
+    topo = Topography2DFactory(surface=surface)
     publication = surface.publish('cc0-1.0', 'Famous Scientist')
 
     # Alice filters for published surfaces - enters

@@ -3,7 +3,7 @@ from django.shortcuts import reverse
 from django.core.exceptions import PermissionDenied
 
 from ..utils import selection_from_session, selection_to_instances
-from .utils import UserFactory, SurfaceFactory, TopographyFactory
+from .utils import UserFactory, SurfaceFactory, Topography1DFactory
 from topobank.analysis.tests.utils import TopographyAnalysisFactory, \
     AnalysisFunctionFactory, AnalysisFunctionImplementationFactory
 from topobank.utils import assert_in_content, assert_not_in_content
@@ -31,7 +31,7 @@ def test_anonymous_user_can_see_published(client, handle_usage_statistics):
     bob = UserFactory(name="Bob")
     surface_name = "Diamond Structure"
     surface = SurfaceFactory(creator=bob, name=surface_name)
-    topo = TopographyFactory(surface=surface)
+    topo = Topography1DFactory(surface=surface)
     pub = surface.publish('cc0-1.0', bob.name)
 
     # no one is logged in now, assuming the select tab sends a search request
@@ -46,7 +46,7 @@ def test_anonymous_user_can_select_published(client, handle_usage_statistics):
     bob = UserFactory(name="Bob")
     surface_name = "Diamond Structure"
     surface = SurfaceFactory(creator=bob, name=surface_name)
-    topo = TopographyFactory(surface=surface)
+    topo = Topography1DFactory(surface=surface)
     pub = surface.publish('cc0-1.0', bob.name)
     published_surface = pub.surface
     published_topo = published_surface.topography_set.first()
@@ -80,7 +80,7 @@ def test_anonymous_user_cannot_change(client, handle_usage_statistics):
     bob = UserFactory(name="Bob")
     surface_name = "Diamond Structure"
     surface = SurfaceFactory(creator=bob, name=surface_name)
-    topo = TopographyFactory(surface=surface)
+    topo = Topography1DFactory(surface=surface)
 
     response = client.get(reverse('manager:topography-delete', kwargs=dict(pk=topo.pk)))
     assert response.status_code == 403
@@ -117,7 +117,7 @@ def test_anonymous_user_cannot_change(client, handle_usage_statistics):
 def test_download_analyses_without_permission(client, handle_usage_statistics):
     bob = UserFactory()
     surface = SurfaceFactory(creator=bob)
-    topo = TopographyFactory(surface=surface)
+    topo = Topography1DFactory(surface=surface)
     function = AnalysisFunctionFactory()
     impl = AnalysisFunctionImplementationFactory(function=function)
     analysis = TopographyAnalysisFactory(subject=topo, function=function)

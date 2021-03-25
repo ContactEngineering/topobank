@@ -6,15 +6,15 @@ from django.contrib.contenttypes.models import ContentType
 
 from ..models import Analysis, AnalysisFunction
 from topobank.manager.models import Topography
-from topobank.manager.tests.utils import two_topos  # needed for fixture
-from .utils import AnalysisFunctionFactory, AnalysisFunctionImplementationFactory, TopographyFactory, \
+from topobank.manager.tests.utils import two_topos, Topography1DFactory  # needed for fixture
+from .utils import AnalysisFunctionFactory, AnalysisFunctionImplementationFactory, \
     TopographyAnalysisFactory, SurfaceAnalysisFactory, SurfaceFactory
 from ..registry import ImplementationMissingException
 
 
 @pytest.mark.django_db
 def test_topography_as_analysis_subject():
-    topo = TopographyFactory()
+    topo = Topography1DFactory()
     # we must have an implementation before creating the analysis
     impl = AnalysisFunctionImplementationFactory(code_ref='topography_analysis_function_for_tests',
                                                  subject_type=ContentType.objects.get_for_model(topo))
@@ -35,7 +35,7 @@ def test_surface_as_analysis_subject():
 @pytest.mark.django_db
 def test_exception_implementation_missing():
     # We create an implementation for surfaces, but not for topographies
-    topo = TopographyFactory()
+    topo = Topography1DFactory()
     surface = topo.surface
 
     impl = AnalysisFunctionImplementationFactory(code_ref='surface_analysis_function_for_tests',
@@ -55,7 +55,7 @@ def test_analysis_function_implementation():
     assert impl.python_function() == topography_analysis_function_for_tests
     assert impl.get_default_kwargs() == dict(a=1, b="foo")
 
-    t = TopographyFactory()
+    t = Topography1DFactory()
     result = impl.eval(t, a=2, b="bar")
     assert result['comment'] == f"a is 2 and b is bar"
 
@@ -70,7 +70,7 @@ def test_analysis_function():
     assert func.python_function(ct) == topography_analysis_function_for_tests
     assert func.get_default_kwargs(ct) == dict(a=1, b="foo")
 
-    t = TopographyFactory()
+    t = Topography1DFactory()
     result = func.eval(t, a=2, b="bar")
     assert result['comment'] == f"a is 2 and b is bar"
 
