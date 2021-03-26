@@ -4,4 +4,4 @@ set -o errexit
 set -o nounset
 
 
-celery -A topobank.taskapp worker -l INFO --concurrency=2
+celery -A topobank.taskapp worker -l INFO
