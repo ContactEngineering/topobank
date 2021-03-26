@@ -92,7 +92,17 @@ class Command(BaseCommand):
             help='If True, trigger analyses for all topographies and surfaces.',
         )
 
-    def process_topography(self, topo_dict, topo_file, surface, ignore_missing=False, dry_run=False):
+        parser.add_argument(
+            '--skip-thumbnails',
+            action='store_true',
+            dest='skip_thumbnails',
+            help='If True, do not create thumbnails. Faster, can be created separately.',
+        )
+
+
+    def process_topography(self, topo_dict, topo_file, surface,
+                           ignore_missing=False, dry_run=False,
+                           trigger_analyses=False, skip_thumbnails=False):
         self.stdout.write(self.style.NOTICE(f"  Topography name: '{topo_dict['name']}'"))
         self.stdout.write(self.style.NOTICE(f"  Original creator is '{topo_dict['creator']}'."))
 
@@ -135,10 +145,14 @@ class Command(BaseCommand):
         if not dry_run:
             topography.save()
             self.stdout.write(self.style.SUCCESS(f"Topography '{topo_name}' saved in database."))
-            topography.renew_thumbnail()
+            if not skip_thumbnails:
+                topography.renew_thumbnail()
+            if trigger_analyses:
+                topography.renew_analyses()
 
     def process_surface_archive(self, surface_zip, user, datafile_attribute='datafile',
-                                ignore_missing=False, dry_run=False, trigger_analyses=False):
+                                ignore_missing=False, dry_run=False, trigger_analyses=False,
+                                skip_thumbnails=False):
         """Process surface archive i.e. importing the surfaces.
 
         Parameters
@@ -155,6 +169,8 @@ class Command(BaseCommand):
             If True, only show what would be done without actually importing data.
         trigger_analyses: bool
             If True, trigger analyses after importing a surface.
+        skip_thumbnails: bool
+            If True, do not create thumbnails for topographies.
         """
         with surface_zip.open('meta.yml', mode='r') as meta_file:
             meta = yaml.load(meta_file, Loader=yaml.FullLoader)
@@ -193,12 +209,15 @@ class Command(BaseCommand):
                             f"  Cannot load datafile for '{topo_dict}' from archive. Reason: {exc}") from exc
                     try:
                         self.process_topography(topo_dict, topo_file, surface,
-                                                ignore_missing=ignore_missing, dry_run=dry_run)
+                                                ignore_missing=ignore_missing,
+                                                dry_run=dry_run, trigger_analyses=trigger_analyses,
+                                                skip_thumbnails=skip_thumbnails)
                     except Exception as exc:
                         raise CommandError(
                             f"  Cannot create topography from description {topo_dict}. Reason: {exc}") from exc
                 if not dry_run and trigger_analyses:
-                    surface.renew_analyses()
+                    surface.renew_analyses(include_topographies=False)
+                    # topographies have already been triggered after saving
 
     def handle(self, *args, **options):
         """
@@ -241,7 +260,8 @@ class Command(BaseCommand):
                     self.process_surface_archive(surface_zip, user, datafile_attribute,
                                                  ignore_missing=options['ignore_missing'],
                                                  dry_run=options['dry_run'],
-                                                 trigger_analyses=options['trigger_analyses'])
+                                                 trigger_analyses=options['trigger_analyses'],
+                                                 skip_thumbnails=options['skip_thumbnails'])
             except Exception as exc:
                 err_msg = f"Cannot process file '{filename}'. Reason: {exc}"
                 self.stdout.write(self.style.ERROR(err_msg))
