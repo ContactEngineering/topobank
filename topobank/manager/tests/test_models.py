@@ -81,6 +81,64 @@ def test_topography_to_dict():
     }
 
 
+@pytest.mark.django_db
+def test_surface_to_dict(mocker):
+    user = UserFactory()
+
+    name = "My nice surface"
+    category = "sim"
+    description = """
+    Some nice text about this surface.
+    """
+    tags = ['house', 'tree', 'tree/leaf', 'tree/leaf/fallen']
+
+    surface = SurfaceFactory(creator=user,
+                             name=name,
+                             category=category,
+                             description=description,
+                             tags=tags)
+
+    expected_dict_unpublished = {
+        'name': name,
+        'description': description,
+        'creator': dict(name=user.name, orcid=user.orcid_id),
+        'tags': tags,
+        'category': category,
+        'is_published': False,
+    }
+    expected_dict_published = expected_dict_unpublished.copy()
+
+    #
+    # prepare publication and compare again
+    #
+    authors = 'Billy the Kid, Lucky Luke'
+    license = 'cc0-1.0'
+
+    fake_url = '/go/fake_url'
+
+    url_mock = mocker.patch('topobank.manager.models.Publication.get_absolute_url')
+    url_mock.return_value = fake_url
+
+    publication = surface.publish(license, authors)
+
+    expected_dict_published['is_published'] = True
+    expected_dict_published['publication'] = {
+            'license': publication.get_license_display(),
+            'authors': authors,
+            'date': format(publication.datetime.date(), '%Y-%m-%d'),
+            'url': fake_url,
+            'version': 1
+        }
+
+    print(surface.to_dict())
+    print(publication.surface.to_dict())
+
+    assert surface.to_dict() == expected_dict_unpublished
+    assert publication.surface.to_dict() == expected_dict_published
+
+
+
+
 
 
 @pytest.mark.django_db
