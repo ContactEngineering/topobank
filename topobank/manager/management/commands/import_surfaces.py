@@ -9,7 +9,6 @@ from django.core.files.storage import default_storage
 from django.utils.timezone import now
 
 import zipfile
-import sys
 import yaml
 import logging
 import os.path
@@ -20,7 +19,21 @@ from topobank.users.models import User
 
 _log = logging.getLogger(__name__)
 
-ALL_PERMISSIONS = ['view_surface', 'change_surface', 'delete_surface', 'share_surface', 'publish_surface']
+TOPOGRAPHY_DEFAULT_ATTR_VALUES = {
+    'tags': [],
+    'detrend_mode': 'center',
+    'is_periodic': False,
+    'height_scale': 1.,
+    'data_source': 0,
+    'measurement_date': datetime.date(1970, 1, 1),
+    'description': '',
+}
+
+SURFACE_DEFAULT_ATTR_VALUES = {
+    'tags': [],
+    'description': '',
+    'is_published': False,
+}
 
 
 class Command(BaseCommand):
@@ -57,8 +70,30 @@ class Command(BaseCommand):
             help='Just read input files and show what would be done.',
         )
 
-    def process_topography(self, topo_dict, topo_file, surface, dry_run=False):
-        self.stdout.write(self.style.NOTICE(f"Processing topography '{topo_dict['name']}'.."))
+        parser.add_argument(
+            '--name-as-datafile',
+            action='store_true',
+            dest='name_as_datafile',
+            help='Use the "name" attribute of topographies instead of "datafile". Useful for old container format.',
+        )
+
+        parser.add_argument(
+            '--ignore-missing',
+            action='store_true',
+            dest='ignore_missing',
+            help='If attributes are missing, try to use feasible defaults . Useful for old container format.',
+        )
+
+        parser.add_argument(
+            '-t',
+            '--trigger-analyses',
+            action='store_true',
+            dest='trigger_analyses',
+            help='If True, trigger analyses for all topographies and surfaces.',
+        )
+
+    def process_topography(self, topo_dict, topo_file, surface, ignore_missing=False, dry_run=False):
+        self.stdout.write(self.style.NOTICE(f"  Topography name: '{topo_dict['name']}'"))
         self.stdout.write(self.style.NOTICE(f"  Original creator is '{topo_dict['creator']}'."))
 
         topo_name = topo_dict['name']
@@ -67,6 +102,10 @@ class Command(BaseCommand):
         size_y = None if len(size_rest) == 0 else size_rest[0]
 
         user = surface.creator
+
+        if ignore_missing:
+            for k, default in TOPOGRAPHY_DEFAULT_ATTR_VALUES.items():
+                topo_dict.setdefault(k, default)
 
         topo_kwargs = dict(
             creator=user,
@@ -81,6 +120,7 @@ class Command(BaseCommand):
             unit=topo_dict['unit'],
             tags=topo_dict['tags'],
             detrend_mode=topo_dict['detrend_mode'],
+            is_periodic=topo_dict['is_periodic']
         )
 
         # saving topo file in backend
@@ -97,7 +137,8 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(f"Topography '{topo_name}' saved in database."))
             topography.renew_thumbnail()
 
-    def process_surface_archive(self, surface_zip, user, dry_run=False):
+    def process_surface_archive(self, surface_zip, user, datafile_attribute='datafile',
+                                ignore_missing=False, dry_run=False, trigger_analyses=False):
         """Process surface archive i.e. importing the surfaces.
 
         Parameters
@@ -106,14 +147,25 @@ class Command(BaseCommand):
             archive with surfaces
         user: topobank.users.User
             User which should be creator of the surface and all data.
+        datafile_attribute: str
+            attribute in file from which the file name for a topography is stored
+        ignore_missing: bool
+            If True, try to find reasonable defaults for missing attributes.
         dry_run: bool
-            Ih True, only show what would be done without actually importing data.
+            If True, only show what would be done without actually importing data.
+        trigger_analyses: bool
+            If True, trigger analyses after importing a surface.
         """
         with surface_zip.open('meta.yml', mode='r') as meta_file:
-            meta = yaml.load(meta_file)
-            # This is potentially unsafe, but needed for the current download format
+            meta = yaml.load(meta_file, Loader=yaml.FullLoader)
+            # FullLoader needed for the current download format
 
             for surface_dict in meta['surfaces']:
+
+                if ignore_missing:
+                    for k, default in SURFACE_DEFAULT_ATTR_VALUES.items():
+                        surface_dict.setdefault(k, default)
+
                 import_time = str(now())
 
                 surface_description = surface_dict['description']
@@ -126,13 +178,26 @@ class Command(BaseCommand):
                 if not dry_run:
                     surface.save()
                     self.stdout.write(self.style.SUCCESS(f"Surface '{surface.name}' saved."))
-                for topo_dict in surface_dict['topographies']:
+
+                num_topographies = len(surface_dict['topographies'])
+                for topo_idx, topo_dict in enumerate(surface_dict['topographies']):
+                    self.stdout.write(
+                        self.style.NOTICE(f"Processing topography {topo_idx+1}/{num_topographies} in archive..."))
                     try:
-                        topo_file = surface_zip.open(topo_dict['datafile'], mode='r')
-                        self.process_topography(topo_dict, topo_file, surface, dry_run=dry_run)
+                        datafile_name = topo_dict[datafile_attribute]
+                        self.stdout.write(self.style.NOTICE(f"  Trying to read file '{datafile_name}' in archive..."))
+                        topo_file = surface_zip.open(datafile_name, mode='r')
+                        self.stdout.write(self.style.NOTICE(f"  Datafile '{datafile_name}' found in archive."))
                     except Exception as exc:
-                        raise CommandError(f"Cannot create topography from description {topo_dict}. Reason: {exc}")
-                if not dry_run:
+                        raise CommandError(
+                            f"  Cannot load datafile for '{topo_dict}' from archive. Reason: {exc}") from exc
+                    try:
+                        self.process_topography(topo_dict, topo_file, surface,
+                                                ignore_missing=ignore_missing, dry_run=dry_run)
+                    except Exception as exc:
+                        raise CommandError(
+                            f"  Cannot create topography from description {topo_dict}. Reason: {exc}") from exc
+                if not dry_run and trigger_analyses:
                     surface.renew_analyses()
 
     def handle(self, *args, **options):
@@ -164,14 +229,19 @@ class Command(BaseCommand):
         if dry_run:
             self.stdout.write(self.style.WARNING("Dry run. Nothing will be changed."))
 
+        datafile_attribute = 'name' if options['name_as_datafile'] else 'datafile'
+        self.stdout.write(self.style.NOTICE(f"As datafile attribute '{datafile_attribute}' will be used."))
+
         #
         # Then process the given IP archives with surfaces
         #
         for filename in options['surface_archives']:
             try:
                 with zipfile.ZipFile(filename, mode='r') as surface_zip:
-                    self.process_surface_archive(surface_zip, user,
-                                                 options['dry_run'])
+                    self.process_surface_archive(surface_zip, user, datafile_attribute,
+                                                 ignore_missing=options['ignore_missing'],
+                                                 dry_run=options['dry_run'],
+                                                 trigger_analyses=options['trigger_analyses'])
             except Exception as exc:
                 err_msg = f"Cannot process file '{filename}'. Reason: {exc}"
                 self.stdout.write(self.style.ERROR(err_msg))
