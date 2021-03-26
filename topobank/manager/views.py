@@ -54,6 +54,7 @@ from ..usage_stats.utils import increase_statistics_by_date, increase_statistics
 from ..users.models import User
 from ..users.utils import get_default_group
 from ..publication.models import Publication, MAX_LEN_AUTHORS_FIELD
+from .containers import write_surface_container
 
 # create dicts with labels and option values for Select tab
 CATEGORY_FILTER_CHOICES = {'all': 'All categories',
@@ -1475,94 +1476,11 @@ def download_surface(request, surface_id):
     if not request.user.has_perm('view_surface', surface):
         raise PermissionDenied()
 
-    topographies = Topography.objects.filter(surface=surface_id)
-    already_used_topofile_names = []
-    topography_dicts = []
-
-    bytes = BytesIO()
-    with zipfile.ZipFile(bytes, mode='w') as zf:
-
-        # create unique file names for the data files
-        # using the original file name + a counter, if needed
-        counter = 0
-        for topography in topographies:
-            topo_dict = topography.to_dict()
-            # this dict may be okay, but have to check whether the filename is unique
-
-            topofile_name = os.path.basename(topo_dict['datafile'])
-            #
-            # Make the filename unique in the archive
-            #
-            if topofile_name in already_used_topofile_names:
-                topofile_name_root, topofile_name_ext = os.path.splitext(topofile_name)
-                topofile_name = f"{topofile_name_root}_{counter}.{topofile_name_ext}"
-                counter += 1
-
-            topo_dict['datafile'] = topofile_name  # should be same as in archive
-            already_used_topofile_names.append(topofile_name)
-
-            # add topography file to ZIP archive
-            zf.writestr(topofile_name, topography.datafile.read())
-
-            topography_dicts.append(topo_dict)
-
-        #
-        # Add metadata file
-        #
-        surface_dict = surface.to_dict(request)
-        surface_dict['topographies'] = topography_dicts
-
-        from django.utils.timezone import now
-        metadata = dict(
-            versions=dict(topobank=settings.TOPOBANK_VERSION),
-            surfaces=[surface_dict],
-            download_time=str(now()),
-        )
-
-        zf.writestr("meta.yml", yaml.dump(metadata))
-
-        #
-        # Add a Readme file
-        #
-        readme_txt = """
-            Contents of this ZIP archive
-            ============================
-            This archive contains a surface: A collection of individual topography measurements.
-
-            The meta data for the surface and the individual topographies can be found in the
-            auxiliary file 'meta.yml'. It is formatted as a [YAML](https://yaml.org/) file.
-
-            Version information
-            ===================
-
-            TopoBank: {}
-            """.format(settings.TOPOBANK_VERSION)
-        if surface.is_published:
-            pub = surface.publication
-            #
-            # Add license information to README file
-            #
-            license_txt = pub.get_license_display()
-            license_info = settings.CC_LICENSE_INFOS[pub.license]
-            readme_txt += """
-            License information
-            ===================
-
-            This surface has been published and the data is licensed under "{}".
-            For details about this license see
-            - {} (description) and
-            - {} (legal code), or
-            - file "LICENSE.txt" (legal code).
-            """.format(license_txt, license_info['description_url'], license_info['legal_code_url'])
-            #
-            # Also add license file
-            #
-            zf.write(staticfiles_storage.path(f"other/{pub.license}-legalcode.txt"), arcname="LICENSE.txt")
-
-        zf.writestr("README.txt", textwrap.dedent(readme_txt))
+    container_bytes = BytesIO()
+    write_surface_container(container_bytes, [surface], request=request)
 
     # Prepare response object.
-    response = HttpResponse(bytes.getvalue(),
+    response = HttpResponse(container_bytes.getvalue(),
                             content_type='application/x-zip-compressed')
     response['Content-Disposition'] = 'attachment; filename="{}"'.format('surface.zip')
 

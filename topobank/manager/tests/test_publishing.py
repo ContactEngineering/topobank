@@ -236,10 +236,12 @@ def test_license_in_surface_download(client, license, handle_usage_statistics):
         with z.open('README.txt') as readme_file:
             readme_bytes = readme_file.read()
             readme_txt = readme_bytes.decode('utf-8')
-            assert publication.get_license_display() in readme_txt
+            # assert publication.get_license_display() in readme_txt
+            assert settings.CC_LICENSE_INFOS[license]['title'] in readme_txt
 
-        # There should be also a file "LICENSE.txt"
-        with z.open('LICENSE.txt') as license_file:
+        # There should be also a file "LICENSE-....txt"
+        expected_license_filename = f"LICENSE-{license}.txt"
+        with z.open(expected_license_filename) as license_file:
             license_bytes = license_file.read()
             license_txt = license_bytes.decode('utf-8')
             # title of license should be in the text
