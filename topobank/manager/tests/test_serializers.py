@@ -16,12 +16,12 @@ def test_surface_serializer(rf):
     surface1.tags = ['bike', 'train/tgv']
     surface1.save()
 
-    request = rf.get(reverse('home')) # any request
+    request = rf.get(reverse('home'))  # any request
     request.user = user
 
     context = dict(
-        request = request,
-        selected_instances = ([topo1a], [surface2], []),  # no tags selected here (3rd list is empty)
+        request=request,
+        selected_instances=([topo1a], [surface2], []),  # no tags selected here (3rd list is empty)
     )
 
     surfser = SurfaceSerializer(context=context)
