@@ -3,4 +3,10 @@ topobank/media
 media
 .git
 venv
+__pycache__
+.cache
+.idea
+.pytest_cache
+.ipynb_checkpoints
+htmlcov
 
