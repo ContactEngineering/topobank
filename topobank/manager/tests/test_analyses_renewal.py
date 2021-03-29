@@ -5,8 +5,11 @@ import pytest
 
 from pathlib import Path
 from django.shortcuts import reverse
+from django.contrib.contenttypes.models import ContentType
 
 from .utils import FIXTURE_DIR, Topography1DFactory, SurfaceFactory, UserFactory
+from topobank.analysis.tests.utils import SurfaceAnalysisFactory, AnalysisFunctionFactory, \
+    AnalysisFunctionImplementationFactory
 from topobank.utils import assert_in_content, assert_no_form_errors
 
 
@@ -46,22 +49,28 @@ def test_surface_analysis_renewal_on_topography_change(client, mocker):
 
 
 @pytest.mark.django_db
-def test_surface_analysis_renewal_on_topography_deletion(client, mocker, handle_usage_statistics):
-    """Check whether methods for renewal are called if topography is deleted.
+def test_surface_analysis_removal_on_topography_deletion(client, handle_usage_statistics):
+    """Check whether surface analyses are deleted if topography is deleted.
     """
-
-    renew_surf_analyses_mock = mocker.patch('topobank.manager.models.Surface.renew_analyses')
 
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
     topo = Topography1DFactory(surface=surface)
+
+    func = AnalysisFunctionFactory()
+    impl = AnalysisFunctionImplementationFactory(function=func,
+                                                 subject_type=ContentType.objects.get_for_model(surface))
+    SurfaceAnalysisFactory(subject=surface, function=func)
+    SurfaceAnalysisFactory(subject=surface, function=func)
 
     client.force_login(user)
 
     response = client.post(reverse('manager:topography-delete', kwargs=dict(pk=topo.pk)))
 
     assert response.status_code == 302
-    assert renew_surf_analyses_mock.called
+
+    # No more surface analyses left
+    assert surface.analyses.count() == 0
 
 
 @pytest.mark.django_db
