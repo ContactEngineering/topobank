@@ -274,7 +274,12 @@ class AnalysisFunction(models.Model):
         First argument is the subject of the analysis (topography or surface),
         all other arguments are keyword arguments.
         """
-        subject_type = ContentType.objects.get_for_model(subject)
+        if subject is None:
+            raise ValueError(f"Cannot evaluate analysis function '{self.name}' with None as subject.")
+        try:
+            subject_type = ContentType.objects.get_for_model(subject)
+        except Exception as exc:
+            raise ValueError(f"Cannot find content type for subject '{subject}'.")
         return self._implementation(subject_type).eval(subject, **kwargs)
 
 
