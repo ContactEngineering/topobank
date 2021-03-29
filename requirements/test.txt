@@ -209,7 +209,7 @@ kombu==4.6.11
     # via
     #   -r base.txt
     #   celery
-lxml==4.6.2
+lxml==4.6.3
     # via
     #   -r base.txt
     #   splinter
@@ -355,7 +355,7 @@ pytz==2020.1
     #   django-notifications-hq
     #   django-trackstats
     #   pandas
-pyyaml==5.3.1
+pyyaml==5.4.1
     # via
     #   -r base.txt
     #   bokeh

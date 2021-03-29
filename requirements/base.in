@@ -1,6 +1,5 @@
 pytz  # https://github.com/stub42/pytz
 python-slugify  # https://github.com/un33k/python-slugify
-Pillow>=6.2.2  # https://github.com/python-pillow/Pillow
 argon2-cffi  # https://github.com/hynek/argon2_cffi
 whitenoise  # https://github.com/evansd/whitenoise
 
@@ -74,10 +73,7 @@ ContactMechanics>=0.90.1
 # plotting
 bokeh==2.2.3
 # link to CSS+JS in HTML files must must this version!
-jinja2>=2.11.3  # because of CVE-2020-28493
 
-# because of several CVE where size of images is not properly checked
-Pillow>=8.1.1
 # for exporting bokeh plots programmatically (thumbnails), we need a webdriver
 selenium
 
@@ -127,5 +123,11 @@ django-bootstrap-datepicker-plus
 short_url
 django-fullurl
 
-# some contraints due to security concers
-lxml>=4.6.1
+# some other constraints due to security concers
+lxml>=4.6.3
+jinja2>=2.11.3  # because of CVE-2020-28493
+
+# because of several CVE where size of images is not properly checked
+Pillow>=8.1.1
+
+PyYAML>=5.4  # CVE-2020-14343
