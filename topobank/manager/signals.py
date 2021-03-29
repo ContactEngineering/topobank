@@ -42,9 +42,9 @@ def remove_files(sender, instance, **kwargs):
 
 
 @receiver(post_delete, sender=Topography)
-def renew_surface_analyses(sender, instance, **kwargs):
-    """All surface analyses have to be renewed if a topography is deleted."""
-    instance.surface.renew_analyses(include_topographies=False)
+def invalidate_surface_analyses(sender, instance, **kwargs):
+    """All surface analyses have to be invalidated if a topography is deleted."""
+    instance.surface.analyses.all().delete()
 
 
 @receiver(pre_save, sender=Topography)
