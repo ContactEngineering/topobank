@@ -22,13 +22,13 @@ from django.conf import settings
 import django_tables2 as tables
 
 from bokeh.layouts import row, column, grid
-from bokeh.models import ColumnDataSource, CustomJS, TapTool, Circle, HoverTool, Band
+from bokeh.models import ColumnDataSource, CustomJS, TapTool, Circle, HoverTool
 from bokeh.palettes import Category10
 from bokeh.models.formatters import FuncTickFormatter
 from bokeh.models.ranges import DataRange1d
 from bokeh.plotting import figure
 from bokeh.embed import components, json_item
-from bokeh.models.widgets import CheckboxGroup, Tabs, Panel, Toggle, Div
+from bokeh.models.widgets import CheckboxGroup, Tabs, Panel, Toggle, Div, RadioGroup, Slider
 from bokeh.models.widgets.markups import Paragraph
 from bokeh.models import Legend, LinearColorMapper, ColorBar, CategoricalColorMapper
 
@@ -474,7 +474,8 @@ class PlotCardView(SimpleCardView):
         #
         # Traverse analyses and plot lines
         #
-        js_code = ""
+        js_code_toggle_callback = ""  # callback code if user clicks on checkbox to toggle lines
+        js_code_alpha_callback = ""  # callback code if user changes alpha value by slider
         js_args = {}
 
         special_values = []  # elements: tuple(subject, quantity name, value, unit string)
@@ -602,11 +603,14 @@ class PlotCardView(SimpleCardView):
                 js_args[glyph_id] = line_glyph  # mapping from Python to JS
 
                 # only indices of visible glyphs appear in "active" lists of both button groups
-                js_code += f"{glyph_id}.visible = series_btn_group.active.includes({series_idx}) "
+                js_code_toggle_callback += f"{glyph_id}.visible = series_btn_group.active.includes({series_idx}) "
                 if is_surface_analysis:
-                    js_code += f"&& surface_btn_group.active.includes({subject_idx});"
+                    js_code_toggle_callback += f"&& surface_btn_group.active.includes({subject_idx});"
                 elif is_topography_analysis:
-                    js_code += f"&& topography_btn_group.active.includes({subject_idx - num_surface_subjects});"
+                    js_code_toggle_callback += f"&& topography_btn_group.active.includes({subject_idx - num_surface_subjects});"
+                # Opaqueness of topography lines should be changeable
+                if is_topography_analysis:
+                    js_code_alpha_callback += f"{glyph_id}.glyph.line_alpha = topography_alpha_slider.value;"
 
                 if show_symbols:
                     # prepare unique id for this symbols
@@ -614,11 +618,11 @@ class PlotCardView(SimpleCardView):
                     js_args[glyph_id] = symbol_glyph  # mapping from Python to JS
 
                     # only indices of visible glyphs appear in "active" lists of both button groups
-                    js_code += f"{glyph_id}.visible = series_btn_group.active.includes({series_idx}) "
+                    js_code_toggle_callback += f"{glyph_id}.visible = series_btn_group.active.includes({series_idx}) "
                     if is_surface_analysis:
-                        js_code += f"&& surface_btn_group.active.includes({subject_idx});"
+                        js_code_toggle_callback += f"&& surface_btn_group.active.includes({subject_idx});"
                     elif is_topography_analysis:
-                        js_code += f"&& topography_btn_group.active.includes({subject_idx - num_surface_subjects});"
+                        js_code_toggle_callback += f"&& topography_btn_group.active.includes({subject_idx - num_surface_subjects});"
 
             #
             # Collect special values to be shown in the result card
@@ -682,20 +686,30 @@ class PlotCardView(SimpleCardView):
             subject_btn_group_toggle_button_label = "Average / "+subject_btn_group_toggle_button_label
         subject_btn_group_toggle_button = Toggle(label=subject_btn_group_toggle_button_label)
         series_btn_group_toggle_button = Toggle(label="Data Series")
+        options_group_toggle_button = Toggle(label="Plot Options")
 
+        topography_alpha_slider = Slider(start=0, end=1, title="Visibility of topography lines",
+                                         value=0.3 if has_at_least_one_surface_subject else 1.0,
+                                         step=0.1, visible=False)
+        options_group = column([topography_alpha_slider])
+
+        #
         # extend mapping of Python to JS objects
-        js_args['series_btn_group'] = series_button_group
+        #
         js_args['surface_btn_group'] = surface_btn_group
         js_args['topography_btn_group'] = topography_btn_group
+        js_args['series_btn_group'] = series_button_group
+        js_args['topography_alpha_slider'] = topography_alpha_slider
+
         js_args['subject_btn_group_toggle_btn'] = subject_btn_group_toggle_button
         js_args['series_btn_group_toggle_btn'] = series_btn_group_toggle_button
+        js_args['options_group_toggle_btn'] = options_group_toggle_button
 
-        # add code for setting styles of widgetbox elements
-        # js_code += """
-        # style_checkbox_labels({});
-        # """.format(card_id)
-
-        toggle_lines_callback = CustomJS(args=js_args, code=js_code)
+        #
+        # Toggling visibility of the buttons / checkboxes
+        #
+        js_args['source'] = source
+        toggle_lines_callback = CustomJS(args=js_args, code=js_code_toggle_callback)
         toggle_subject_checkboxes = CustomJS(args=js_args, code="""
             surface_btn_group.visible = subject_btn_group_toggle_btn.active;
             topography_btn_group.visible = subject_btn_group_toggle_btn.active;
@@ -703,17 +717,11 @@ class PlotCardView(SimpleCardView):
         toggle_series_checkboxes = CustomJS(args=js_args, code="""
             series_btn_group.visible = series_btn_group_toggle_btn.active;
         """)
+        toggle_options = CustomJS(args=js_args, code="""
+            topography_alpha_slider.visible = options_group_toggle_btn.active;
+        """)
 
         subject_btn_groups = column([surface_btn_group, topography_btn_group])
-
-        #
-        # TODO Idea: Generate DIVs with Markup of colors and dashes and align with Buttons/Checkboxes
-        #
-
-        widgets = grid([
-            [subject_btn_group_toggle_button, series_btn_group_toggle_button],
-            [subject_btn_groups, series_button_group],
-        ])
 
         series_button_group.js_on_click(toggle_lines_callback)
         if has_at_least_one_surface_subject:
@@ -721,6 +729,18 @@ class PlotCardView(SimpleCardView):
         topography_btn_group.js_on_click(toggle_lines_callback)
         subject_btn_group_toggle_button.js_on_click(toggle_subject_checkboxes)
         series_btn_group_toggle_button.js_on_click(toggle_series_checkboxes)
+        options_group_toggle_button.js_on_click(toggle_options)
+
+        topography_alpha_slider.js_on_change('value', CustomJS(args=js_args,
+                                                               code=js_code_alpha_callback))
+
+        #
+        # Build layout for buttons underneath plot
+        #
+        widgets = grid([
+            [subject_btn_group_toggle_button, series_btn_group_toggle_button, options_group_toggle_button],
+            [subject_btn_groups, series_button_group, options_group],
+        ])
 
         #
         # Convert plot and widgets to HTML, add meta data for template
