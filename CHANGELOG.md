@@ -13,6 +13,8 @@
   which also calculates an average over a surface (#403)  
 - added surface name to tooltip in plots, such that
   topographies with same names can be distinguished (#567)
+- added widget for choosing opacity of topographies to 
+  analysis plots (#617)  
 - disabled creation of example surface for new users;
   this is no longer needed since there are published
   surfaces accessible for all users (#570)
