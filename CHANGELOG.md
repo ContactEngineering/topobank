@@ -27,6 +27,7 @@
 - added small description on surface landing page (#574) 
 - added small description for bandwidth plot (#576)
 - removed plot title from many plots where not needed (#591)
+- changed mail address for contact (#619)   
 - uses SurfaceTopography version 0.92.0 now, 
   which returns nonuniform PSD only up to a reasonable 
   wavevector (#568)

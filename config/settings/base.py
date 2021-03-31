@@ -460,7 +460,7 @@ SERIALIZATION_MODULES = {
 #
 # E-Mail address to contact us
 #
-CONTACT_EMAIL_ADDRESS = "topobank@imtek.uni-freiburg.de"
+CONTACT_EMAIL_ADDRESS = "support@contact.engineering"
 
 #
 # Publication settings
