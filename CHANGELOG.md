@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-## 0.10.0 (not published yet)
+## 0.10.0 (2021-03-31)
 
 - added surface analyses which calculates an average
   over all topographies of a surface; implemented
