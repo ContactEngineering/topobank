@@ -1,5 +1,10 @@
 # Changelog for *TopoBank*
 
+## 0.10.1 (2021-03-31)
+
+- added upgrade of pip in Dockerfile so no rust is needed 
+  for python package 'cryptography'
+
 ## 0.10.0 (2021-03-31)
 
 - added surface analyses which calculates an average
