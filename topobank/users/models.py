@@ -4,6 +4,8 @@ from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
+from django.db.utils import ProgrammingError
+
 from allauth.socialaccount.models import SocialAccount
 from guardian.mixins import GuardianUserMixin
 from guardian.shortcuts import get_objects_for_user, get_anonymous_user
@@ -82,7 +84,21 @@ class User(GuardianUserMixin, AbstractUser):
 
     @property
     def is_anonymous(self):
-        return self.id == get_anonymous_user().id  # TODO could be optimized by only requesting once
+        """Return whether user is anonymous.
+
+        If available, guardians AnonymousUser is taken into account here,
+        otherwise the default implementation.
+
+        Returns
+        -------
+        boolean
+        """
+        try:
+            # we might get an exception if the migrations
+            # haven't been performed yet
+            return self.id == get_anonymous_user().id
+        except ProgrammingError:
+            return super().is_anonymous
 
     # @property
     # def is_authenticated(self):  # needed in "termsandconditions" to distinguish from real user

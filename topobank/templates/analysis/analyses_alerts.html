@@ -1,13 +1,12 @@
 {% load fontawesome %}
 
-
 {% if analyses_unready %}
   {# If there are still unfinished analyses, show progress bars for all analyses involved in this card  #}
 
     <table class="table table-condensed">
       <thead>
         <tr>
-          <th>Topography</th>
+          <th>Subject</th>
           <th>Progress</th>
           <th>Message</th>
         </tr>
@@ -16,7 +15,7 @@
         {% for av in analyses_available %}
 
           <tr>
-            <td>{{ av.topography.name }}</td>
+            <td>{{ av.subject.name }}</td>
             <td>
               <div class='progress-wrapper'>
                 <div id='progress-bar-{{ av.id }}' class='progress-bar' style="background-color: #68a9ef; width: 0%;">&nbsp;</div>
@@ -66,7 +65,7 @@
     {% if analyses_failure %}
     <div class="alert alert-warning">
       {% fontawesome_icon 'exclamation-circle' %}
-      Analysis for {{ analyses_failure|length }} topograph{{ analyses_failure|length|pluralize:"y,ies" }} failed.
+      Analysis for {{ analyses_failure|length }} subject{{ analyses_failure|length|pluralize }} failed.
       See tab "Warnings" for details.
     </div>
     {% endif %}
@@ -76,34 +75,37 @@
   <div class="alert alert-info">
       {% fontawesome_icon 'exclamation-circle' %}
       {% if num_basket_items %}
-        You have chosen topographies, but no analyses are available yet.
+        You have chosen subjects for analyses, but no analyses are available yet.
       {% else %}
-      You haven't chosen any topographies yet. You can do this with the checkboxes on the
-      <a class="alert-link" href="{% url 'manager:select' %}">
-      <b><i class="fa fa-fw fa-check-square-o"></i>Select</b></a> tab.
+        You haven't chosen anything to analyze yet. You can do this with the checkboxes on the
+        <a class="alert-link" href="{% url 'manager:select' %}">
+        <b><i class="fa fa-fw fa-check-square-o"></i>Select</b></a> tab.
       {% endif %}
   </div>
-{% elif unique_kwargs is None%}
-  <div class="alert alert-warning">
-      {% fontawesome_icon 'exclamation-circle' %}
-      Arguments for this analysis differ among topographies.
-      See <a href="#" data-toggle="modal" data-target="#statusesModal-{{ card_id }}">task information</a> for details.
-      You may trigger a recalculation with common arguments.
-  </div>
+{% else %}
+  {% for subject_type, unique_kwargs_for_type in unique_kwargs.items %}
+    {% if unique_kwargs_for_type is None %}
+      <div class="alert alert-warning">
+          {% fontawesome_icon 'exclamation-circle' %}
+          Arguments for this analysis function differ among chosen subjects of type '{{ subject_type }}'.
+          See <a href="#" data-toggle="modal" data-target="#statusesModal-{{ card_id }}">task information</a> for details.
+          You may trigger a recalculation with common arguments.
+      </div>
+    {% endif %}
+  {% endfor %}
 {% endif %}
 
-{% for mt in topographies_missing %}
+{% for ms in subjects_missing %}
 
-  <div class="alert alert-warning" id="trigger-div-{{ function.id }}-{{ mt.id }}">
-    Analysis for topography <a href="{% url 'manager:topography-detail' mt.id %}" class="alert-link">{{ mt.name }}</a>
-    of surface <a href="{% url 'manager:surface-detail' mt.surface.id %}" class="alert-link">{{ mt.surface.name }}</a>
-    not triggered yet. Please <button id="trigger-button-{{ function.id }}-{{ mt.id }}">trigger</button> if needed.
+  <div class="alert alert-warning" id="trigger-div-{{ function.id }}-{{ forloop.counter }}">
+    Analysis for subject <a href="{{ ms.get_absolute_url }}" class="alert-link">{{ ms.name }}</a>
+    not triggered yet. Please <button id="trigger-button-{{ function.id }}-{{ forloop.counter }}">trigger</button> if needed.
   </div>
   <script>
-   $("#trigger-button-{{ function.id }}-{{ mt.id }}").click( function() {
-         var div = $('#trigger-div-{{ function.id }}-{{ mt.id }}'); // show answer for click in a prominent way
+   $("#trigger-button-{{ function.id }}-{{ forloop.counter }}").click( function() {
+         var div = $('#trigger-div-{{ function.id }}-{{ ms.id }}'); // show answer for click in a prominent way
 
-         console.log("Button 'trigger' clicked for function {{ function.name }} and topography {{ mt.id }}!");
+         console.log("Button 'trigger' clicked for function {{ function.name }} and subject {{ ms }}!");
 
          $.ajax({
           type: "POST",
@@ -111,18 +113,16 @@
           timeout: 0,
           data: {
             function_id: {{ function.id }},
-            topography_ids: [{{ mt.id }}],
+            subjects_ids_json: JSON.stringify({ "{{ ms.get_content_type.id }}": {{ ms.id }} }),
             function_kwargs_json: JSON.stringify({}), // empty object -> default parameter
             csrfmiddlewaretoken: "{{csrf_token}}"
           },
           success : function(data, textStatus, xhr) {
             // debug_msg("Job submission successful. Status: "+xhr.status+" textStatus: "+textStatus);
             if (xhr.status==200) {
-              $(div).html("Triggered for topography '{{ mt.name }}'. Reload page for results.");
+              $(div).html("Triggered for subject '{{ ms.name }}' ({{ ms.get_content_type.model }}). Reload page for results.");
               $(div).removeClass("alert-warning");
               $(div).addClass("alert-success");
-              // submit_analyses_card_ajax("{% url 'analysis:card' %}", "{{ card.id }}", "detail", {{ function.id }},{{ topography_ids_requested_json|safe }}, 0);
-              // debug_msg("Triggered card reload. Status: "+xhr.status+" textStatus: "+textStatus);
             } else {
               console.log("Submitting analyses failed");
               $(div).html("Triggering calculation failed, status: "+xhr.status+" response:"+xhr.responseText);

@@ -31,12 +31,12 @@ EXCEPTION_CLASSES_FOR_INCOMPATIBILITIES = (IncompatibleTopographyException, Inco
 
 _log = get_task_logger(__name__)
 
+
 @after_setup_task_logger.connect
 def setup_task_logger(logger, *args, **kwargs):
     fmt = '%(asctime)s - %(task_id)s - %(task_name)s - %(name)s - %(levelname)s - %(message)s'
     for handler in logger.handlers:
         handler.setFormatter(TaskFormatter(fmt))
-
 
 
 def current_configuration():
@@ -117,18 +117,18 @@ def perform_analysis(self, analysis_id):
     # actually perform analysis
     #
     try:
+        # noinspection PickleLoad
         kwargs = pickle.loads(analysis.kwargs)
-        _log.debug("Loading topography %s..", analysis.topography_id)
-        topography = Topography.objects.get(id=analysis.topography_id).topography()
+        subject = analysis.subject
         kwargs['progress_recorder'] = progress_recorder
         kwargs['storage_prefix'] = analysis.storage_prefix
-        _log.debug("Evaluating analysis function '%s' on topography %s ..",
-                   analysis.function.name, analysis.topography_id)
-        result = analysis.function.eval(topography, **kwargs)
+        _log.debug("Evaluating analysis function '%s' on subject '%s' ..",
+                   analysis.function.name, subject)
+        result = analysis.function.eval(subject, **kwargs)
         save_result(result, Analysis.SUCCESS)
-    except (Topography.DoesNotExist, IntegrityError):
-        _log.warning("Topography %s for analysis %s doesn't exist any more, so that analysis will be deleted..",
-                    analysis.topography_id, analysis.id)
+    except (Topography.DoesNotExist, Surface.DoesNotExist, IntegrityError) as exc:
+        _log.warning("Subject for analysis %s doesn't exist any more, so that analysis will be deleted..",
+                     analysis.id)
         analysis.delete()
         # we want a real exception here so celery's flower can show the task as failure
         raise
@@ -166,7 +166,7 @@ def perform_analysis(self, analysis_id):
                                         increment=1000 * td.total_seconds())
 
         except Analysis.DoesNotExist:
-            # Analysis was deleted, e.g. because topography was missing
+            # Analysis was deleted, e.g. because topography or surface was missing
             pass
 
 

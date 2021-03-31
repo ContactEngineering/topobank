@@ -71,7 +71,12 @@
       // for each card submit ajax call to insert result card
       {% url 'analysis:card' as card_url %}
       {% for card in cards %}
-        submit_analyses_card_ajax("{{ card_url }}", "card-{{ forloop.counter }}", "list", {{ card.function.id }}, {{ card.topography_ids_json|safe }}, 0);
+        {#console.log("analysis-list.html:")#}
+        {#console.log("{{ card_url }}", "card-{{ forloop.counter }}", "list", {{ card.function.id }});#}
+        {#console.log("subjects_ids_json:");#}
+        {#console.log({{ card.subjects_ids_json|safe }});#}
+        submit_analyses_card_ajax("{{ card_url }}", "card-{{ forloop.counter }}", "list", {{ card.function.id }},
+                                  {{ card.subjects_ids_json|safe }}, 0);
       {% endfor %}
 
       // we want that closing an item in the basket

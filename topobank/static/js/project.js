@@ -1,5 +1,5 @@
 /* Project specific Javascript goes here. */
-
+"use strict";
 /*
 Formatting hack to get around crispy-forms unfortunate hardcoding
 in helpers.FormHelper:
@@ -29,7 +29,7 @@ function siSuffixMeters(numberOfSignificantFigures = 3) {
  *   µm3 => µm³
  */
 function unicode_superscript(s) {
-    superscript_dict = {
+    var superscript_dict = {
         '0': '⁰',
         '1': '¹',
         '2': '²',
@@ -61,24 +61,24 @@ function unicode_superscript(s) {
 function format_exponential(d, maxNumberOfDecimalPlaces) {
         if (maxNumberOfDecimalPlaces === void 0) { maxNumberOfDecimalPlaces = 3; }
 
-        if (d == 0 || d === undefined || isNaN(d) || Math.abs(d) == Infinity) {
+        if (d === 0 || d === undefined || isNaN(d) || Math.abs(d) == Infinity) {
             return String(d);
         }
-        else if (typeof d === "number") {
+        else if ("number" === typeof d) {
             var multiplier = Math.pow(10, maxNumberOfDecimalPlaces);
             var sign = d < 0 ? -1 : 1;
             var e = Math.floor(Math.log(sign * d) / Math.log(10));
             var m = sign * d / Math.pow(10, e);
             var m_rounded = Math.round(m * multiplier) / multiplier;
-            if (m_rounded == 10) {
+            if (10 == m_rounded) {
                 m_rounded = 1;
                 e++;
             }
-            if (e == 0) {
+            if (0 == e) {
                 return String(sign * m_rounded); // do not attach ×10⁰ == 1
             }
-            else if (m_rounded == 1) {
-                if (sign > 0) {
+            else if (1 == m_rounded) {
+                if (0 < sign) {
                     return "10" + unicode_superscript(String(e));
                 }
                 else {
@@ -101,13 +101,19 @@ function format_exponential(d, maxNumberOfDecimalPlaces) {
  * @param card_element_id {String} CSS id of the div element containing the card
  * @param template_flavor {String} defines which template should be finally used (e.g. 'list', 'detail')
  * @param function_id {Number} Integer number of the analysis function which should be displayed
- * @param topography_ids {Object} list of integer numbers with ids of topographies which should be displayed
+ * @param subjects_ids {Object} object where key: contenttype id and value: a list of object ids of the subjects
+ *                          for which analyses should be displayed
  * @param call_count {Integer} 0 for first call in a chain of ajax calls, increased by one in further calls
  */
-function submit_analyses_card_ajax(card_url, card_element_id, template_flavor, function_id, topography_ids, call_count) {
+function submit_analyses_card_ajax(card_url, card_element_id, template_flavor, function_id,
+                                   subjects_ids, call_count) {
 
-      var jquery_card_selector = "#"+card_element_id;
-      var jquery_indicator_selector = jquery_card_selector+"-wait-text"; // for increasing number of dots after each ajax call
+    // console.log("submit_analyses_card_ajax:")
+    // console.log(card_url, card_element_id, template_flavor, function_id, call_count);
+    // console.log("subjects_ids:", subjects_ids);
+
+    const jquery_card_selector = "#" + card_element_id;
+    const jquery_indicator_selector = jquery_card_selector+"-wait-text"; // for increasing number of dots after each ajax call
       // see GH 236
 
       if (call_count === undefined) {
@@ -126,71 +132,30 @@ function submit_analyses_card_ajax(card_url, card_element_id, template_flavor, f
            card_id: card_element_id,
            template_flavor: template_flavor,
            function_id: function_id,
-           topography_ids: topography_ids,
+           subjects_ids_json: JSON.stringify(subjects_ids),
            csrfmiddlewaretoken: csrf_token
         },
         success : function(data, textStatus, xhr) {
 
-          if ((call_count == 0) || (xhr.status==200) ) {
+          if ((0 == call_count) || (200 == xhr.status) ) {
             $(jquery_card_selector).html(data); // insert resulting HTML code
             // We want to only insert cards on first and last call and
             // only once if there is only one call.
           }
-          if (xhr.status==202) {
+          if (202 == xhr.status) {
             // Not all analyses are ready, retrigger AJAX call
             console.log("Analyses for card with element id '"+card_element_id+"' not ready. Retrying..");
             setTimeout(function () {
-              submit_analyses_card_ajax(card_url, card_element_id, template_flavor, function_id, topography_ids, call_count+1);
+              submit_analyses_card_ajax(card_url, card_element_id, template_flavor, function_id,
+                                        subjects_ids, call_count+1);
             }, 1000); // TODO limit number of retries?
           }
         },
         error: function(xhr, textStatus, errorThrown) {
           // console.log("Error receiving response for card '"+card_element_id+"'. Status: "+xhr.status
           //            +" Response: "+xhr.responseText)
-          if (errorThrown != "abort") {
+          if ("abort" != errorThrown) {
               $(jquery_card_selector).html("Please report this error: " + errorThrown + " " + xhr.status + " " + xhr.responseText);
-              $(jquery_card_selector).addClass("alert alert-danger");
-          }
-        }
-      });
-}
-
-/**
- * Submit an ajax call for updating an card in the surfaces view.
- *
- * @param card_url {String} URL to call in order to get card content as HTTP response
- * @param surface_id {Number} Id of the surface being displayed
- * @param parent_path {String} URL which can be used to provide a target on pressing cancel button
- */
-function submit_surface_card_ajax(card_url, surface_id, parent_path) {
-
-      var jquery_card_selector = "#card-"+surface_id;
-
-      // console.log("Submitting AJAX call for surface card "+jquery_card_selector+"..");
-
-      $.ajax({
-        type: "GET",
-        url: card_url,
-        timeout: 0,
-        data: {
-           surface_id: surface_id,
-           parent_path: parent_path
-        },
-        success : function(data, textStatus, xhr) {
-            // console.log("Received response for card '" + jquery_card_selector + "'. Status: " + xhr.status);
-            $(jquery_card_selector).html(data); // insert resulting HTML code
-            if (xhr.status == 202) {
-                // Data is not ready, retrigger AJAX call
-                setTimeout(function () {
-                    submit_surface_card_ajax(card_url, surface_id);
-                }, 1000);
-            }
-        },
-        error: function(xhr, textStatus, errorThrown) {
-          // console.log("Error receiving response for card '"+card_element_id+"'. Status: "+xhr.status
-          //            +" Response: "+xhr.responseText)
-          if (errorThrown != "abort") {
-              $(jquery_card_selector).html("Please report this error: " + errorThrown + " " + xhr.status + " " +xhr.responseText);
               $(jquery_card_selector).addClass("alert alert-danger");
           }
         }

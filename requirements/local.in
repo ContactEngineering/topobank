@@ -31,7 +31,7 @@ pytest-django  # https://github.com/pytest-dev/pytest-django
 
 # Dependency Handling
 # ------------------------------------------------------------------------------
-pip-tools
+pip-tools>=5.5.0
 
 # Docker
 # ------------------------------------------------------------------------------

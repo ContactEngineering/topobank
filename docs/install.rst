@@ -52,18 +52,10 @@ Dann Abhängigkeiten installieren:
 
     $ pip install -r requirements/local.txt
     $ pip install -r requirements/test.txt    # um tests laufen zu lassen
-    $ pip install matplotlib          # fehlt noch in requirements
 
 (Bei mir unter Ubuntu war hier noch "sudo apt-get install python3-tk" nötig)
 
-PyCo installieren in virtual environment, z.B.
-
-.. code:: bash
-
-     # cd ../PyCo; pip install -r requirements.txt; pip install .
-     # ... oder wo auch immer Pyco bei Dir ist
-
-Datenbank (momentan noch SQLite) initialisieren mit
+Datenbank initialisieren mit
 
 .. code:: bash
 
@@ -136,6 +128,12 @@ your local computer. Here an example for Ubuntu:
 
 .. code:: bash
 
+    sudo apt install rabbitmq-server
+
+Then the configure:
+
+.. code:: bash
+
     sudo rabbitmqctl add_user roettger secert7$
     sudo rabbitmqctl add_vhost topobank
     sudo rabbitmqctl set_permissions -p topobank roettger ".*" ".*" ".*"
@@ -143,6 +141,12 @@ your local computer. Here an example for Ubuntu:
 In production choose another user name, e.g. "django" or topobank
 
 .. todo:: Probably running in a docker container is much easier, to be tested.
+
+Setup of Memcached on local machine
+-----------------------------------
+
+
+
 
 Preparing fixtures with test databases
 --------------------------------------

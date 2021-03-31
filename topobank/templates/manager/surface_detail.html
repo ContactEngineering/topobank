@@ -53,6 +53,11 @@
                   You can add topographies by pressing the
                   <b>{% fontawesome_icon 'plus-square-o' %} Add topography</b> button.
                 </div>
+              {% else %}
+                <div class="alert alert-info">
+                  This Surface contains {{ surface.num_topographies }} individual
+                  measurement{{ surface.num_topographies|pluralize }} of Topography.
+                </div>
               {% endif %}
 
               <div id="topography_carousel" class="carousel slide" data-ride="carousel"
@@ -71,7 +76,7 @@
                         <img class="d-block img-thumbnail"
                              src="{% url 'manager:topography-thumbnail' topo.id %}" alt="Topography '{{ topo.name }}'">
                       {% else %}
-                        <img class="d-block img-thumbnail" src="{% static 'images/thumbnail-unavailable.jpg' %}">
+                        <img class="d-block img-thumbnail" src="{% static 'images/thumbnail_unavailable.png' %}">
                       {% endif %}
                     </a>
                     <div class="carousel-caption d-none d-md-block bg-dark mb-4">
@@ -89,9 +94,7 @@
                   <span class="sr-only">Next</span>
                 </a>
               </div>
-
             </div>
-
 
             <div class="tab-pane fade" id="bandwidths">
               {% if surface.num_topographies == 0 %}
@@ -99,6 +102,10 @@
                   This surface has no topographies yet.
                   You can add topographies by pressing the
                   <b>{% fontawesome_icon 'plus-square-o' %} Add topography</b> button.
+                </div>
+              {% else %}
+                <div class="alert alert-info">
+                  This bandwidth plot shows the range of length scales that have been measured for this surface.
                 </div>
               {% endif %}
               {% for bw_err in bandwidths_data_with_errors %}

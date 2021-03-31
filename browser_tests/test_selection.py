@@ -14,7 +14,7 @@ def test_selection_synchronize(surface_1_with_topographies_testuser_logged_in, w
     #
     # Create an analysis function for selection
     #
-    func = AnalysisFunction.objects.create(pyfunc="height_distribution", automatic=False, name="Height Distribution")
+    func = AnalysisFunction.objects.create(name="Height Distribution")
     func.save()
 
     #
@@ -156,7 +156,7 @@ def test_selection_only_own_surfaces_and_topos(live_server, django_user_model,
     #
     # Create an analysis function for selection
     #
-    func = AnalysisFunction.objects.create(pyfunc="height_distribution", automatic=False, name="Height Distribution")
+    func = AnalysisFunction.objects.create(name="Height Distribution")
     func.save()
 
     #

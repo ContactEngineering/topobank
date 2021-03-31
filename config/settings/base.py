@@ -436,7 +436,8 @@ TRACKED_DEPENDENCIES = [
     ('NuMPI', 'NuMPI.__version__'),
     ('muFFT', 'muFFT.version.description()'),
     ('topobank', 'topobank.__version__'),
-    ('numpy', 'numpy.version.full_version')
+    ('numpy', 'numpy.__version__'),
+    ('scipy', 'scipy.__version__'),
 ]
 
 #
@@ -459,7 +460,7 @@ SERIALIZATION_MODULES = {
 #
 # E-Mail address to contact us
 #
-CONTACT_EMAIL_ADDRESS = "topobank@imtek.uni-freiburg.de"
+CONTACT_EMAIL_ADDRESS = "support@contact.engineering"
 
 #
 # Publication settings
@@ -491,3 +492,12 @@ CC_LICENSE_INFOS = {  # each element refers to two links: (description URL, full
 #
 FIREFOX_BINARY_PATH = env.path('FIREFOX_BINARY_PATH')
 GECKODRIVER_PATH = env.path('GECKODRIVER_PATH')
+
+#
+# Analysis-specific settings
+#
+CONTACT_MECHANICS_KWARGS_LIMITS = {
+            'nsteps': dict(min=1, max=50),
+            'maxiter': dict(min=1, max=1000),
+            'pressures': dict(maxlen=50),
+}

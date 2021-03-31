@@ -7,15 +7,18 @@ from ..models import Analysis
 
 register = template.Library()
 
+
 @register.filter
 def analyses_results_urls_list_str(analyses):
-    l = [ '"'+reverse('analysis:retrieve', kwargs=dict(pk=a.id))+'"' for a in analyses ]
+    l = ['"'+reverse('analysis:retrieve', kwargs=dict(pk=a.id))+'"' for a in analyses]
     return '['+','.join(l)+']'
+
 
 @register.filter
 def analyses_results_ids_list_str(analyses):
-    l = [ '{}'.format(a.id) for a in analyses ]
+    l = ['{}'.format(a.id) for a in analyses]
     return ','.join(l)
+
 
 @register.simple_tag
 def body_for_mailto_link(analysis, user):
@@ -23,8 +26,9 @@ def body_for_mailto_link(analysis, user):
     body = ("Hey there,\n\n"
             "I've problems doing an analysis with 'contact.engineering'.\nHere are some details:\n\n"
             f"Analysis ID: {analysis.id}\n"
-            f"Analysis Function: '{analysis.function.name}'\n"    
-            f"Topography ID: {analysis.topography.id}\n"
+            f"Analysis Function: '{analysis.function.name}'\n"
+            f"Subject Type: {analysis.subject_type.name}\n"
+            f"Subject ID: {analysis.subject.id}\n"
             f"Analysis State: {analysis.get_task_state_display()}\n")
 
     # using multi line strings was difficult here with the line breaks.

@@ -1,5 +1,42 @@
 # Changelog for *TopoBank*
 
+## 0.10.0 (2021-03-31)
+
+- added surface analyses which calculates an average
+  over all topographies of a surface; implemented
+  for analysis functions "Power Spectrum", 
+  "Autocorrelation", and "Variable Bandwidth"; 
+  using a more generic analysis model in the backend 
+  where not only a topography can be subject to an 
+  analysis but also a surface or later other objects (#365, #602)
+- added analysis function "Scale-dependent Slope",
+  which also calculates an average over a surface (#403)  
+- added surface name to tooltip in plots, such that
+  topographies with same names can be distinguished (#567)
+- added widget for choosing opacity of topographies to 
+  analysis plots (#617)  
+- disabled creation of example surface for new users;
+  this is no longer needed since there are published
+  surfaces accessible for all users (#570)
+- added missing meta data for surfaces and topographies
+  to surface container download; now format can contain
+  multiple surfaces and licenses (#552, #614)
+- added management command 'import_surfaces' which can
+  be used to import surfaces containers previously downloaded
+  in the web app (#601) 
+- added small description on surface landing page (#574) 
+- added small description for bandwidth plot (#576)
+- removed plot title from many plots where not needed (#591)
+- changed mail address for contact (#619)   
+- uses SurfaceTopography version 0.92.0 now, 
+  which returns nonuniform PSD only up to a reasonable 
+  wavevector (#568)
+- upgrade of Pillow, jinja, lxml, PyYAML, pygments, and django 
+  because of CVEs
+- also show version numbers for numpy and scipy in version
+  information, also track those versions for analyses from
+  now on (#600)
+
 ## 0.9.6 (2020-12-04)
 
 - added display of license when viewing a published 

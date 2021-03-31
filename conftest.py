@@ -7,7 +7,7 @@ import logging
 
 from trackstats.models import Domain, Metric
 
-from topobank.analysis.functions import register_all
+from topobank.analysis.registry import AnalysisFunctionRegistry
 from topobank.manager.tests.utils import UserFactory
 
 _log = logging.getLogger(__name__)
@@ -53,7 +53,8 @@ def user_alice_logged_in(live_server, browser, user_alice, handle_usage_statisti
     #
     # Register all analysis functions
     #
-    register_all()
+    reg = AnalysisFunctionRegistry()
+    reg.sync()
 
     browser.visit(live_server.url + "/accounts/login")  # we don't want to use ORCID here for testing
 
@@ -87,8 +88,10 @@ def user_alice_logged_in(live_server, browser, user_alice, handle_usage_statisti
         _log.info("Cleared all sessions.")
 
 
-
-
-
+@pytest.fixture(autouse=True)
+def reset_singletons():
+    from topobank.analysis.functions import AnalysisFunctionRegistry
+    reg = AnalysisFunctionRegistry()
+    del reg
 
 

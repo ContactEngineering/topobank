@@ -18,7 +18,8 @@
             <thead>
             <tr>
               <th scope="col">Function</th>
-              <th scope="col">Topography</th>
+              <th scope="col">Subject Type</th>
+              <th scope="col">Subject</th>
               <th scope="col">Further Args</th>
               <th scope="col">Task State</th>
               <th scope="col">Start Time</th>
@@ -29,9 +30,10 @@
             {% for analysis in analyses_available %}
               <tr>
                 <td>{{ analysis.function.name }}</td>
+                <td>{{ analysis.subject.get_content_type.model.title }}</td>
                 <td class="ellipsis">
-                  <a href="{% url 'manager:topography-detail' analysis.topography_id %}">
-                      {{ analysis.topography.name }}
+                  <a href="{{ analysis.subject.get_absolute_url }}">
+                      {{ analysis.subject.name }}
                   </a>
                 </td>
                 <td>{{ analysis.get_kwargs_display }}</td>
@@ -46,7 +48,7 @@
         </small>
         {% else %}
           <div class="alert alert-info">
-          No analysis triggered for this function and these topographies.
+          No analysis triggered for this function and these subjects.
           </div>
         {% endif %}
       </div>

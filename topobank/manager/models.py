@@ -7,6 +7,8 @@ from django.db import transaction
 from django.core.files.storage import default_storage
 from django.core.files import File
 from django.core.files.base import ContentFile
+from django.contrib.contenttypes.fields import GenericRelation
+from django.contrib.contenttypes.models import ContentType
 
 from guardian.shortcuts import assign_perm, remove_perm, get_users_with_perms
 import tagulous.models as tm
@@ -15,6 +17,7 @@ import numpy as np
 import math
 import logging
 import io
+import abc
 
 from bokeh.models import DataRange1d, LinearColorMapper, ColorBar
 from bokeh.plotting import figure
@@ -25,6 +28,8 @@ from .utils import get_topography_reader, get_firefox_webdriver
 from topobank.users.models import User
 from topobank.publication.models import Publication
 from topobank.users.utils import get_default_group
+from topobank.analysis.models import Analysis
+from topobank.analysis.utils import renew_analyses_for_subject
 
 _log = logging.getLogger(__name__)
 
@@ -63,6 +68,7 @@ class PlotTopographyException(Exception):
 class TagModel(tm.TagTreeModel):
     """This is the common tag model for surfaces and topographies.
     """
+
     class TagMeta:
         force_lowercase = True
         # not needed yet
@@ -70,16 +76,45 @@ class TagModel(tm.TagTreeModel):
 
 
 class PublishedSurfaceManager(models.Manager):
+    """Manager which works on published surfaces."""
+
     def get_queryset(self):
         return super().get_queryset().exclude(publication__isnull=True)
 
 
 class UnpublishedSurfaceManager(models.Manager):
+    """Manager which works on unpublished surfaces."""
+
     def get_queryset(self):
         return super().get_queryset().filter(publication__isnull=True)
 
 
-class Surface(models.Model):
+class SubjectMixin:
+    """Extra methods common to all instances which can be subject to an analysis.
+    """
+
+    # This is needed for objects to be able to serve as subjects
+    #     for analysis, because some template code uses this.
+    # Probably this could be made faster by caching the result.
+    # Not sure whether this should be done at compile time.
+    @classmethod
+    def get_content_type(cls):
+        """Returns ContentType for own class."""
+        return ContentType.objects.get_for_model(cls)
+
+    def is_shared(self, with_user, allow_change=False):
+        """Returns True, if this subject is shared with a given user.
+
+        Always returns True if user is the creator of the related surface.
+
+        :param with_user: User to test
+        :param allow_change: If True, only return True if surface can be changed by given user
+        :return: True or False
+        """
+        raise NotImplementedError()
+
+
+class Surface(models.Model, SubjectMixin):
     """Physical Surface.
 
     There can be many topographies (measurements) for one surface.
@@ -90,13 +125,16 @@ class Surface(models.Model):
         ('dum', 'Dummy data')
     ]
 
-    LICENSE_CHOICES = [ (k, settings.CC_LICENSE_INFOS[k]['option_name']) for k in ['cc0-1.0', 'ccby-4.0', 'ccbysa-4.0']]
+    LICENSE_CHOICES = [(k, settings.CC_LICENSE_INFOS[k]['option_name']) for k in ['cc0-1.0', 'ccby-4.0', 'ccbysa-4.0']]
 
     name = models.CharField(max_length=80)
     creator = models.ForeignKey(User, on_delete=models.CASCADE)
     description = models.TextField(blank=True)
     category = models.TextField(choices=CATEGORY_CHOICES, null=True, blank=False)  # TODO change in character field
     tags = tm.TagField(to=TagModel)
+    analyses = GenericRelation(Analysis, related_query_name='surface',
+                               content_type_field='subject_type',
+                               object_id_field='subject_id')
 
     objects = models.Manager()
     published = PublishedSurfaceManager()
@@ -124,6 +162,38 @@ class Surface(models.Model):
 
     def num_topographies(self):
         return self.topography_set.count()
+
+    def to_dict(self, request=None):
+        """Create dictionary for export of metadata to json or yaml.
+
+        Does not include topographies. They can be added like this:
+
+         surface_dict = surface.to_dict()
+         surface_dict['topographies'] = [t.to_dict() for t in surface.topography_set.order_by('name')]
+
+        Parameters:
+            request: HTTPRequest
+                Needed for calculating publication URLs.
+                If not given, only return relative publication URL.
+        Returns:
+            dict
+        """
+        d = {'name': self.name,
+             'category': self.category,
+             'creator': {'name': self.creator.name, 'orcid': self.creator.orcid_id},
+             'description': self.description,
+             'tags': [t.name for t in self.tags.order_by('name')],
+             'is_published': self.is_published,
+             }
+        if self.is_published:
+            d['publication'] = {
+                'url': self.publication.get_full_url(request) if request else self.publication.get_absolute_url(),
+                'license': self.publication.get_license_display(),
+                'authors': self.publication.authors,
+                'version': self.publication.version,
+                'date': str(self.publication.datetime.date()),
+            }
+        return d
 
     def is_shared(self, with_user, allow_change=False):
         """Returns True, if this surface is shared with a given user.
@@ -155,9 +225,9 @@ class Surface(models.Model):
         _log.info("After sharing surface %d with user %d, requesting all standard analyses..", self.id, with_user.id)
         from topobank.analysis.models import AnalysisFunction
         from topobank.analysis.utils import request_analysis
-        auto_analysis_funcs = AnalysisFunction.objects.filter(automatic=True)
+        analysis_funcs = AnalysisFunction.objects.all()
         for topo in self.topography_set.all():
-            for af in auto_analysis_funcs:
+            for af in analysis_funcs:
                 request_analysis(with_user, af, topo)  # standard arguments
 
     def unshare(self, with_user):
@@ -195,10 +265,10 @@ class Surface(models.Model):
 
         for topo in self.topography_set.all():
             new_topo = topo.deepcopy(copy)
-            # we pass the surface here because there is a contraint that (surface_id + topography name)
+            # we pass the surface here because there is a constraint that (surface_id + topography name)
             # must be unique, i.e. a surface should never have two topographies of the same name,
             # so we can't set the new surface as the second step
-            new_topo.renew_analyses()
+        copy.renew_analyses()
 
         _log.info("Created deepcopy of surface %s -> surface %s", self.pk, copy.pk)
         return copy
@@ -244,11 +314,10 @@ class Surface(models.Model):
         #
         min_seconds = settings.MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS
         if latest_publication and (min_seconds is not None):
-            delta_since_last_pub = timezone.now()-latest_publication.datetime
+            delta_since_last_pub = timezone.now() - latest_publication.datetime
             delta_secs = delta_since_last_pub.total_seconds()
             if delta_secs < min_seconds:
-                raise NewPublicationTooFastException(latest_publication, math.ceil(min_seconds-delta_secs))
-
+                raise NewPublicationTooFastException(latest_publication, math.ceil(min_seconds - delta_secs))
 
         #
         # Create a copy of this surface
@@ -272,7 +341,7 @@ class Surface(models.Model):
                                          publisher=self.creator,
                                          publisher_orcid_id=self.creator.orcid_id)
 
-        _log.info(f"Published surface {self.name} (id: {self.id}) "+\
+        _log.info(f"Published surface {self.name} (id: {self.id}) " + \
                   f"with license {license}, version {version}, authors '{authors}'")
         _log.info(f"URL of publication: {pub.get_absolute_url()}")
 
@@ -280,10 +349,27 @@ class Surface(models.Model):
 
     @property
     def is_published(self):
+        """Returns True, if a publication for this surface exists.
+        """
         return hasattr(self, 'publication')  # checks whether the related object surface.publication exists
 
+    def renew_analyses(self, include_topographies=True):
+        """Renew analyses related to this surface.
 
-class Topography(models.Model):
+        This includes analyses
+        - with any of its topographies as subject  (if also_topographies=True)
+        - with this surfaces as subject
+        This is done in that order.
+        """
+        if include_topographies:
+            _log.info("Regenerating analyses of topographies of surface %d..", self.pk)
+            for topo in self.topography_set.all():
+                topo.renew_analyses()
+        _log.info("Regenerating analyses directly related to surface %d..", self.pk)
+        renew_analyses_for_subject(self)
+
+
+class Topography(models.Model, SubjectMixin):
     """Topography Measurement of a Surface.
     """
 
@@ -294,7 +380,7 @@ class Topography(models.Model):
 
     LENGTH_UNIT_CHOICES = [
         ('km', 'kilometers'),
-        ('m','meters'),
+        ('m', 'meters'),
         ('mm', 'millimeters'),
         ('µm', 'micrometers'),
         ('nm', 'nanometers'),
@@ -318,6 +404,9 @@ class Topography(models.Model):
     measurement_date = models.DateField()
     description = models.TextField(blank=True)
     tags = tm.TagField(to=TagModel)
+    analyses = GenericRelation(Analysis, related_query_name='topography',
+                               content_type_field='subject_type',
+                               object_id_field='subject_id')
 
     #
     # Fields related to raw data
@@ -361,7 +450,7 @@ class Topography(models.Model):
     # Methods
     #
     def __str__(self):
-        return "Topography '{0}' from {1}".format(\
+        return "Topography '{0}' from {1}".format( \
             self.name, self.measurement_date)
 
     def get_absolute_url(self):
@@ -369,6 +458,16 @@ class Topography(models.Model):
 
     def cache_key(self):
         return f"topography-{self.id}-channel-{self.data_source}"
+
+    def is_shared(self, with_user, allow_change=False):
+        """Returns True, if this topography is shared with a given user.
+
+        Always returns True if user is the creator of the surface.
+        :param with_user: User to test
+        :param allow_change: If True, only return True if surface can be changed by given user
+        :return: True or False
+        """
+        return self.surface.is_shared(with_user, allow_change=allow_change)
 
     def topography(self):
         """Return a SurfaceTopography.Topography/UniformLineScan/NonuniformLineScan instance.
@@ -398,7 +497,7 @@ class Topography(models.Model):
             channel_physical_sizes = channel_dict.physical_sizes
             physical_sizes_is_None = channel_physical_sizes is None \
                                      or (channel_physical_sizes == (None,)) \
-                                     or (channel_physical_sizes == (None,None))
+                                     or (channel_physical_sizes == (None, None))
             # workaround, see GH 299 in Pyco
 
             if physical_sizes_is_None:
@@ -428,49 +527,23 @@ class Topography(models.Model):
         return topo
 
     def renew_analyses(self):
-        """Submit all automatic analysis for this topography.
-
-        Before make sure to delete all analyses for same topography,
-        they all can be wrong if this topography changed.
-
-        TODO Maybe also renew all already existing analyses with different parameters?
-
-        Implementation Note:
-
-        This method cannot be easily used in a post_save signal,
-        because the pre_delete signal deletes the datafile and
-        this also then triggers "renew_analyses".
-        """
-        from topobank.analysis.utils import submit_analysis
-        from topobank.analysis.models import AnalysisFunction, Analysis
-        from guardian.shortcuts import get_users_with_perms
-
-        auto_analysis_funcs = AnalysisFunction.objects.filter(automatic=True)
-
-        # collect users which are allowed to view analyses
-        users = get_users_with_perms(self.surface)
-
-        def submit_all(instance=self):
-            for af in auto_analysis_funcs:
-                Analysis.objects.filter(function=af, topography=instance).delete()
-                try:
-                    submit_analysis(users, af, instance)
-                except Exception as err:
-                    _log.error("Cannot submit analysis for function '%s' and topography %d. Reason: %s",
-                               af.name, instance.id, str(err))
-
-        transaction.on_commit(lambda: submit_all(self))
+        """Submit all analysis for this topography."""
+        renew_analyses_for_subject(self)
 
     def to_dict(self):
         """Create dictionary for export of metadata to json or yaml"""
         return {'name': self.name,
+                'datafile': self.datafile.name,
                 'data_source': self.data_source,
+                'detrend_mode': self.detrend_mode,
+                'is_periodic': self.is_periodic,
                 'creator': {'name': self.creator.name, 'orcid': self.creator.orcid_id},
                 'measurement_date': self.measurement_date,
                 'description': self.description,
                 'unit': self.unit,
                 'height_scale': self.height_scale,
-                'size': (self.size_x, self.size_y)}
+                'size': (self.size_x,) if self.size_y is None else (self.size_x, self.size_y),
+                'tags': [t.name for t in self.tags.order_by('name')]}
 
     def deepcopy(self, to_surface):
         """Creates a copy of this topography with all data files copied.
@@ -520,7 +593,7 @@ class Topography(models.Model):
                 return self._get_1d_plot(st_topo, reduced=thumbnail)
             except Exception as exc:
                 raise PlotTopographyException("Error generating 1D plot for topography.") from exc
-        elif st_topo.dim ==2:
+        elif st_topo.dim == 2:
             try:
                 return self._get_2d_plot(st_topo, reduced=thumbnail)
             except Exception as exc:
@@ -696,7 +769,7 @@ class Topography(models.Model):
         image = get_screenshot_as_png(plot, driver=driver)
 
         thumbnail_height = 400
-        thumbnail_width = int(image.size[0] * thumbnail_height/image.size[1])
+        thumbnail_width = int(image.size[0] * thumbnail_height / image.size[1])
         image.thumbnail((thumbnail_width, thumbnail_height))
         image_file = io.BytesIO()
         image.save(image_file, 'PNG')
@@ -711,5 +784,3 @@ class Topography(models.Model):
 
         if generate_driver:
             driver.close()  # important to free memory
-
-

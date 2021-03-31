@@ -11,7 +11,9 @@ RUN apt-get update \
   && apt-get install --yes apt-utils \
   && apt-get install --yes libfftw3-3 libfftw3-dev libopenblas-dev libpq-dev gcc g++ gettext \
   # Pillow requirements
-  && apt-get install --yes libjpeg-dev zlib1g-dev libfreetype6-dev liblcms2-dev libtiff-dev tk-dev tcl-dev librabbitmq-dev
+  && apt-get install --yes libjpeg-dev zlib1g-dev libfreetype6-dev liblcms2-dev libtiff-dev tk-dev tcl-dev librabbitmq-dev \
+  # NetCDF requirements
+  && apt-get install --yes libnetcdf-dev
 
 # clean up image
 RUN apt-get -qy autoremove

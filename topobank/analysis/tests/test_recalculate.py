@@ -3,18 +3,22 @@ from notifications.models import Notification
 import pytest
 from django.db import transaction
 
-from topobank.manager.tests.utils import SurfaceFactory, TopographyFactory, UserFactory
-from topobank.analysis.tests.utils import AnalysisFunctionFactory
+from topobank.manager.tests.utils import SurfaceFactory, Topography1DFactory, UserFactory
+from topobank.analysis.tests.utils import AnalysisFunctionFactory, AnalysisFunctionImplementationFactory
 from topobank.analysis.models import Analysis, AnalysisCollection
+from topobank.manager.utils import subjects_to_json
+
 
 @pytest.mark.django_db
 def test_recalculate(client):
 
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
-    topo1 = TopographyFactory(surface=surface)
-    topo2 = TopographyFactory(surface=surface)
+    topo1 = Topography1DFactory(surface=surface)
+    topo2 = Topography1DFactory(surface=surface)
+
     func = AnalysisFunctionFactory(name="test function")
+    impl = AnalysisFunctionImplementationFactory(function=func)
 
     client.force_login(user)
 
@@ -22,9 +26,9 @@ def test_recalculate(client):
         # trigger "recalculate" for two topographies
         response = client.post(reverse('analysis:card-submit'), {
             'function_id': func.id,
-            'topography_ids[]': [topo1.id, topo2.id],
+            'subjects_ids_json': subjects_to_json([topo1, topo2]),
             'function_kwargs_json': '{}'
-        }, HTTP_X_REQUESTED_WITH='XMLHttpRequest') # we need an AJAX request
+        }, HTTP_X_REQUESTED_WITH='XMLHttpRequest')  # we need an AJAX request
         assert response.status_code == 200
 
     #

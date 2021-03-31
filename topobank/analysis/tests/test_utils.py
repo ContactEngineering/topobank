@@ -2,9 +2,12 @@ import pytest
 import pickle
 import math
 import datetime
+from django.contrib.contenttypes.models import ContentType
 
 from topobank.analysis.models import Analysis, AnalysisFunction
 from topobank.analysis.utils import mangle_sheet_name, request_analysis, round_to_significant_digits
+from topobank.analysis.tests.utils import TopographyAnalysisFactory, AnalysisFunctionFactory
+from topobank.manager.tests.utils import UserFactory
 from topobank.manager.models import Topography
 from topobank.manager.tests.utils import two_topos  # or fixture
 
@@ -22,9 +25,9 @@ def test_request_analysis(two_topos, django_user_model):
 
     user = django_user_model.objects.create(name='testuser')
 
-    analysis = request_analysis(user=user, topography=topo1, analysis_func=af)
+    analysis = request_analysis(user=user, subject=topo1, analysis_func=af)
 
-    assert analysis.topography == topo1
+    assert analysis.subject == topo1
     assert analysis.function == af
     assert user in analysis.users.all()
 
@@ -39,13 +42,13 @@ def test_latest_analyses(two_topos, django_user_model):
     af = AnalysisFunction.objects.first()
 
     # delete all prior analyses for these two topographies in order to have a clean state
-    Analysis.objects.filter(topography__in=[topo1,topo2]).delete()
+    Analysis.objects.filter(topography__in=[topo1, topo2]).delete()
 
     #
     # Topography 1
     #
-    analysis = Analysis.objects.create(
-        topography=topo1,
+    analysis = TopographyAnalysisFactory.create(
+        subject=topo1,
         function=af,
         task_state=Analysis.SUCCESS,
         kwargs=pickle.dumps({}),
@@ -56,8 +59,8 @@ def test_latest_analyses(two_topos, django_user_model):
     analysis.users.add(user)
 
     # save a second only, which has a later start time
-    analysis = Analysis.objects.create(
-        topography=topo1,
+    analysis = TopographyAnalysisFactory.create(
+        subject=topo1,
         function=af,
         task_state=Analysis.SUCCESS,
         kwargs=pickle.dumps({}),
@@ -70,8 +73,8 @@ def test_latest_analyses(two_topos, django_user_model):
     #
     # Topography 2
     #
-    analysis = Analysis.objects.create(
-        topography=topo2,
+    analysis = TopographyAnalysisFactory.create(
+        subject=topo2,
         function=af,
         task_state=Analysis.SUCCESS,
         kwargs=pickle.dumps({}),
@@ -82,8 +85,8 @@ def test_latest_analyses(two_topos, django_user_model):
     analysis.users.add(user)
 
     # save a second one, which has the latest start time
-    analysis = Analysis.objects.create(
-        topography=topo2,
+    analysis = TopographyAnalysisFactory.create(
+        subject=topo2,
         function=af,
         task_state=Analysis.SUCCESS,
         kwargs=pickle.dumps({}),
@@ -94,8 +97,8 @@ def test_latest_analyses(two_topos, django_user_model):
     analysis.users.add(user)
 
     # save a third one, which has a later start time than the first
-    analysis = Analysis.objects.create(
-        topography=topo2,
+    analysis = TopographyAnalysisFactory.create(
+        subject=topo2,
         function=af,
         task_state=Analysis.SUCCESS,
         kwargs=pickle.dumps({}),
@@ -105,13 +108,15 @@ def test_latest_analyses(two_topos, django_user_model):
     analysis.save()
     analysis.users.add(user)
 
-    analyses = get_latest_analyses(user, af.id, [topo1.id, topo2.id])
+    tt = ContentType.objects.get_for_model(Topography)
+    analyses = get_latest_analyses(user, af, [topo1, topo2])
 
-    assert len(analyses) == 2 # one analysis per function and topography
+    assert len(analyses) == 2  # one analysis per function and topography
 
     # both topographies should be in there
-    at1 = analyses.get(topography=topo1)
-    at2 = analyses.get(topography=topo2)
+
+    at1 = analyses.get(subject_type=tt, subject_id=topo1.id)
+    at2 = analyses.get(subject_type=tt, subject_id=topo2.id)
 
     from django.conf import settings
 
@@ -121,6 +126,13 @@ def test_latest_analyses(two_topos, django_user_model):
 
     assert at1.start_time == tz.localize(datetime.datetime(2018, 1, 2, 12))
     assert at2.start_time == tz.localize(datetime.datetime(2018, 1, 5, 12))
+
+
+@pytest.mark.django_db
+def test_latest_analyses_if_no_analyses():
+    user = UserFactory()
+    function = AnalysisFunctionFactory()
+    assert get_latest_analyses(user, function, []).count() == 0
 
 
 def test_mangle_sheet_name():

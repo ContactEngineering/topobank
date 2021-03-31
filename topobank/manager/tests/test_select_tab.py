@@ -7,7 +7,7 @@ from ..views import select_surface, unselect_surface, SurfaceListView, SurfaceSe
     select_topography, unselect_topography, \
     TagTreeView, select_tag, unselect_tag, unselect_all, DEFAULT_SELECT_TAB_STATE
 from ..utils import selected_instances
-from .utils import SurfaceFactory, UserFactory, TopographyFactory, \
+from .utils import SurfaceFactory, UserFactory, Topography1DFactory, \
     TagModelFactory, ordereddicts_to_dicts
 from topobank.utils import assert_no_form_errors
 
@@ -20,8 +20,8 @@ def test_select_surface():
     surface1 = SurfaceFactory(creator=user)
     surface2 = SurfaceFactory(creator=user)
     surface3 = SurfaceFactory(creator=user)
-    topo3a = TopographyFactory(surface=surface3)
-    topo3b = TopographyFactory(surface=surface3)
+    topo3a = Topography1DFactory(surface=surface3)
+    topo3b = Topography1DFactory(surface=surface3)
 
     factory = APIRequestFactory()
     session = {}
@@ -139,7 +139,7 @@ def test_try_to_select_topography_but_not_allowed():
     user1 = UserFactory()
     user2 = UserFactory()
     surface1 = SurfaceFactory(creator=user1)
-    topo1 = TopographyFactory(surface=surface1)
+    topo1 = Topography1DFactory(surface=surface1)
 
     factory = APIRequestFactory()
     session = {}
@@ -189,9 +189,9 @@ def test_try_to_select_tag_but_not_allowed():
 def test_select_topography():
     user = UserFactory()
     surface1 = SurfaceFactory(creator=user)
-    topo1a = TopographyFactory(surface=surface1)
-    topo1b = TopographyFactory(surface=surface1)
-    topo1c = TopographyFactory(surface=surface1)
+    topo1a = Topography1DFactory(surface=surface1)
+    topo1b = Topography1DFactory(surface=surface1)
+    topo1c = Topography1DFactory(surface=surface1)
     surface2 = SurfaceFactory(creator=user)
 
     factory = APIRequestFactory()
@@ -262,8 +262,8 @@ def test_select_topography():
 def test_unselect_topography():
     user = UserFactory()
     surface1 = SurfaceFactory(creator=user)
-    topo1a = TopographyFactory(surface=surface1)
-    topo1b = TopographyFactory(surface=surface1)
+    topo1a = Topography1DFactory(surface=surface1)
+    topo1b = Topography1DFactory(surface=surface1)
     surface2 = SurfaceFactory(creator=user)
 
     factory = APIRequestFactory()
@@ -312,10 +312,10 @@ def user_three_surfaces_four_topographies():
     surface2 = SurfaceFactory(creator=user, category='sim')
     surface3 = SurfaceFactory(creator=user, category='dum')
 
-    topo1a = TopographyFactory(surface=surface1)
-    topo1b = TopographyFactory(surface=surface1)
-    topo2a = TopographyFactory(surface=surface2)
-    topo2b = TopographyFactory(surface=surface2)
+    topo1a = Topography1DFactory(surface=surface1)
+    topo1b = Topography1DFactory(surface=surface1)
+    topo2a = Topography1DFactory(surface=surface2)
+    topo2b = Topography1DFactory(surface=surface2)
     # no topography for surface3 on purpose
 
     return user, surface1, surface2, surface3, topo1a, topo1b, topo2a, topo2b
@@ -1186,7 +1186,7 @@ def test_unselect_all():
 
     # we use the tags, so the user is allowed to select it
     surface1 = SurfaceFactory(creator=user, tags=[tag1])
-    topo1 = TopographyFactory(surface=surface1)
+    topo1 = Topography1DFactory(surface=surface1)
 
     factory = APIRequestFactory()
     session = dict(selection=[f'tag-{tag1.pk}', f'surface-{surface1.pk}', f'topography-{topo1.pk}'])

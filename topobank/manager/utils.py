@@ -3,8 +3,12 @@ from guardian.shortcuts import get_objects_for_user
 from django.conf import settings
 from django.db.models import Q
 from django.core.exceptions import PermissionDenied
+from django.contrib.contenttypes.models import ContentType
 import markdown2
 from os.path import devnull
+import traceback
+import logging
+import json
 
 from selenium import webdriver
 from selenium.webdriver.remote.webdriver import WebDriver
@@ -12,9 +16,6 @@ from selenium.webdriver.firefox.firefox_binary import FirefoxBinary
 
 from SurfaceTopography import open_topography
 from SurfaceTopography.IO import readers as surface_topography_readers
-
-import traceback
-import logging
 
 
 _log = logging.getLogger(__name__)
@@ -415,6 +416,110 @@ def current_selection_as_basket_items(request):
     """
     topographies, surfaces, tags = selected_instances(request)
     return instances_to_basket_items(topographies, surfaces, tags)
+
+
+def subjects_to_json(subjects):
+    """Return JSON code suitable for passing 'subjects_ids' in AJAX call.
+
+    Parameters
+    ----------
+    subjects: sequence of Topography or Surface
+
+    Returns
+    -------
+    As JSON: dict with
+
+        key: content_type id as str (only strings can be keys in JSON hashes)
+        values: array of integers with object ids for given content type (key)
+
+    Each content type from the given subjects is represented as key.
+    Each subject is represented by an id in the array of integers.
+    """
+    tmp = {}  # key: ContentType, value: list of subject ids
+    for sub in subjects:
+        ct = ContentType.objects.get_for_model(sub)  # uses cache internally
+        if ct not in tmp:
+            tmp[ct] = []
+        tmp[ct].append(sub.id)
+
+    result = {
+        ct.id: sub_ids for ct, sub_ids in tmp.items()
+    }
+    return json.dumps(result)
+
+
+def subjects_from_json(subjects_ids_json, function=None):
+    """Return subject instances from ids given as json, optionally filtered.
+
+    Parameters
+    ----------
+    subjects_ids_json: JSON encoded dict with
+
+        key: content_type id as str (only strings can be keys in JSON hashes)
+        values: array of integers with object ids for given content type (key)
+
+        Each content type from the given subjects is represented as key.
+        Each subject is represented by an id in the array of integers.
+
+    function: AnalysisFunction instance or None
+        If given an analysis function, the subjects returned will
+        be filtered so only subjects are included which have
+        an implementation for the given function.
+
+    Returns
+    -------
+    sequence of subject instances (e.g. Topography or Surface)
+
+    """
+    subjects_ids = json.loads(subjects_ids_json)
+    subjects = []
+    for subject_type_id_str, subject_object_ids in subjects_ids.items():
+        ct = ContentType.objects.get_for_id(int(subject_type_id_str))  # keys in JSON hashes are always string
+        if function:
+            if not function.is_implemented_for_type(ct):
+                # skip these subjects
+                continue
+        for so_id in subject_object_ids:
+            subjects.append(ct.get_object_for_this_type(id=so_id))
+    return subjects
+
+
+def selection_to_subjects_json(request):
+    """Convert current selection into list of subjects as json.
+
+    Parameters
+    ----------
+    request
+
+    Returns
+    -------
+    (eff_topographies, eff_surfaces, subjects_ids_json)
+
+    where:
+        eff_topographies  - list of topographies which are effectively
+                            included in the selection (selected explicitly
+                            or implicitly by surfaces and tags)
+        eff_surfaces      - list of surfaces which are effectively
+                            included in the selection (by selecting surfaces+tags)
+        subjects_ids_json - JSONfied dict with key: content type id, value: list of object ids
+                            This dict encodes all subjects in the selection
+
+    The eff_ results can be used for selection which tabs should be shown in the UI.
+    This was the original purpose for returning them here.
+    """
+    topographies, surfaces, tags = selected_instances(request)
+    effective_topographies = instances_to_topographies(topographies, surfaces, tags)
+
+    # Do we have permission for all of these?
+    user = request.user
+    effective_topographies = [t for t in effective_topographies if user.has_perm('view_surface', t.surface)]
+    effective_surfaces = [s for s in surfaces if user.has_perm('view_surface', s)]
+
+    # we collect effective topographies and surfaces because we have so far implementations
+    # for analysis functions for topographies and surfaces
+    subjects_ids_json = subjects_to_json(effective_topographies+effective_surfaces)
+
+    return effective_topographies, effective_surfaces, subjects_ids_json
 
 
 def mailto_link_for_reporting_an_error(subject, info, err_msg, traceback) -> str:

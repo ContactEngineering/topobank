@@ -17,10 +17,11 @@ RUN apt-get update \
      liblcms2-dev libtiff-dev tk-dev tcl-dev librabbitmq-dev \
   # Requirements in order to built libmufft
   # (curl is used to download pybind11 and Eigen3)
-  && apt-get install --yes curl
+  && apt-get install --yes curl \
   # && apt-get install --yes mpicc libfftw3-mpi-dev
   # && apt-get install --yes clang-5 libfftw3-dev
-  # Requirement needed for exporting bokeh plots
+  && apt-get install --yes libmemcached-dev \
+  && apt-get install --yes libnetcdf-dev
 
 # clean up image
 RUN apt-get -qy autoremove
@@ -72,6 +73,7 @@ RUN addgroup django \
 # Prepare application code
 #
 COPY . /app
+RUN rm -Rf app/venv
 RUN chown -R django /app
 # is the following needed?
 RUN chmod -R u+w /app

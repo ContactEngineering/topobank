@@ -562,7 +562,7 @@
           timeout: 0,
           data: {
             function_id: {{ function.id }},
-            topography_ids: {{ topography_ids_requested_json|safe }},
+            subjects_ids_json: JSON.stringify({{ subjects_ids_json|safe }}),
             function_kwargs_json: JSON.stringify(function_kwargs),
             csrfmiddlewaretoken: "{{csrf_token}}"
           },
@@ -570,7 +570,7 @@
             // debug_msg("Job submission successful. Status: "+xhr.status+" textStatus: "+textStatus);
             if (xhr.status == 200) {
               console.log("Triggering reload of card");
-              submit_analyses_card_ajax("{% url 'analysis:card' %}", "card", "detail", {{ function.id }}, {{ topography_ids_requested_json|safe }}, 0);
+              submit_analyses_card_ajax("{% url 'analysis:card' %}", "card", "detail", {{ function.id }}, {{ subjects_ids_json|safe }}, 0);
               // debug_msg("Triggered card reload. Status: "+xhr.status+" textStatus: "+textStatus);
             } else {
               console.log("Submitting analyses failed");

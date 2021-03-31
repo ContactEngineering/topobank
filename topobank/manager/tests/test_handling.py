@@ -6,7 +6,7 @@ from pathlib import Path
 import datetime
 import os.path
 
-from .utils import FIXTURE_DIR, SurfaceFactory, TopographyFactory, UserFactory, \
+from .utils import FIXTURE_DIR, SurfaceFactory, Topography1DFactory, Topography2DFactory, UserFactory, \
     two_topos, one_line_scan, user_three_topographies_three_surfaces_three_tags
 from ..models import Topography, Surface, MAX_LENGTH_DATAFILE_FORMAT
 from ..forms import TopographyForm, TopographyWizardUnitsForm, SurfaceForm
@@ -16,13 +16,13 @@ from topobank.utils import assert_in_content, \
 
 import SurfaceTopography.IO  # for mocking
 
+
 #######################################################################
 # Selections
 #######################################################################
 
 @pytest.mark.django_db
 def test_empty_surface_selection(client, handle_usage_statistics):
-
     #
     # database objects
     #
@@ -52,7 +52,6 @@ def test_empty_surface_selection(client, handle_usage_statistics):
 #
 @pytest.mark.django_db
 def test_upload_topography_di(client, handle_usage_statistics):
-
     input_file_path = Path(FIXTURE_DIR + '/example3.di')  # maybe use package 'pytest-datafiles' here instead
     description = "test description"
     category = 'exp'
@@ -63,11 +62,11 @@ def test_upload_topography_di(client, handle_usage_statistics):
 
     # first create a surface
     response = client.post(reverse('manager:surface-create'),
-                               data={
-                                'name': 'surface1',
-                                'creator': user.id,
-                                'category': category,
-                               }, follow=True)
+                           data={
+                               'name': 'surface1',
+                               'creator': user.id,
+                               'category': category,
+                           }, follow=True)
 
     assert_no_form_errors(response)
 
@@ -82,10 +81,10 @@ def test_upload_topography_di(client, handle_usage_statistics):
         response = client.post(reverse('manager:topography-create',
                                        kwargs=dict(surface_id=surface.id)),
                                data={
-                                'topography_create_wizard-current_step': 'upload',
-                                'upload-datafile': fp,
-                                'upload-datafile_format': '',
-                                'upload-surface': surface.id,
+                                   'topography_create_wizard-current_step': 'upload',
+                                   'upload-datafile': fp,
+                                   'upload-datafile_format': '',
+                                   'upload-surface': surface.id,
                                }, follow=True)
 
     assert response.status_code == 200
@@ -110,11 +109,11 @@ def test_upload_topography_di(client, handle_usage_statistics):
     response = client.post(reverse('manager:topography-create',
                                    kwargs=dict(surface_id=surface.id)),
                            data={
-                            'topography_create_wizard-current_step': 'metadata',
-                            'metadata-name': 'topo1',
-                            'metadata-measurement_date': '2018-06-21',
-                            'metadata-data_source': 0,
-                            'metadata-description': description,
+                               'topography_create_wizard-current_step': 'metadata',
+                               'metadata-name': 'topo1',
+                               'metadata-measurement_date': '2018-06-21',
+                               'metadata-data_source': 0,
+                               'metadata-description': description,
                            })
 
     assert response.status_code == 200
@@ -151,7 +150,7 @@ def test_upload_topography_di(client, handle_usage_statistics):
 
     t = topos[0]
 
-    assert t.measurement_date == datetime.date(2018,6,21)
+    assert t.measurement_date == datetime.date(2018, 6, 21)
     assert t.description == description
     assert "example3" in t.datafile.name
     assert 256 == t.resolution_x
@@ -175,10 +174,10 @@ def test_upload_topography_npy(client):
         response = client.post(reverse('manager:topography-create',
                                        kwargs=dict(surface_id=surface.id)),
                                data={
-                                'topography_create_wizard-current_step': 'upload',
-                                'upload-datafile': fp,
-                                'upload-datafile_format': '',
-                                'upload-surface': surface.id,
+                                   'topography_create_wizard-current_step': 'upload',
+                                   'upload-datafile': fp,
+                                   'upload-datafile_format': '',
+                                   'upload-surface': surface.id,
                                }, follow=True)
 
     assert response.status_code == 200
@@ -197,11 +196,11 @@ def test_upload_topography_npy(client):
     response = client.post(reverse('manager:topography-create',
                                    kwargs=dict(surface_id=surface.id)),
                            data={
-                            'topography_create_wizard-current_step': 'metadata',
-                            'metadata-name': 'topo1',
-                            'metadata-measurement_date': '2020-10-21',
-                            'metadata-data_source': 0,
-                            'metadata-description': description,
+                               'topography_create_wizard-current_step': 'metadata',
+                               'metadata-name': 'topo1',
+                               'metadata-measurement_date': '2020-10-21',
+                               'metadata-data_source': 0,
+                               'metadata-description': description,
                            }, follow=True)
 
     assert response.status_code == 200
@@ -235,7 +234,7 @@ def test_upload_topography_npy(client):
 
     t = topos[0]
 
-    assert t.measurement_date == datetime.date(2020,10,21)
+    assert t.measurement_date == datetime.date(2020, 10, 21)
     assert t.description == description
     assert "example-2d" in t.datafile.name
     assert 2 == t.resolution_x
@@ -258,7 +257,6 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
                                exp_resolution_x, exp_resolution_y,
                                physical_sizes_to_be_set, exp_physical_sizes,
                                handle_usage_statistics):
-
     input_file_path = Path(input_filename)
     expected_toponame = input_file_path.name
 
@@ -273,11 +271,11 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
 
     # first create a surface
     response = client.post(reverse('manager:surface-create'),
-                               data={
-                                'name': 'surface1',
-                                'creator': user.id,
-                                'category': 'sim'
-                               }, follow=True)
+                           data={
+                               'name': 'surface1',
+                               'creator': user.id,
+                               'category': 'sim'
+                           }, follow=True)
 
     assert_no_form_errors(response)
     assert response.status_code == 200
@@ -292,9 +290,9 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
         response = client.post(reverse('manager:topography-create',
                                        kwargs=dict(surface_id=surface.id)),
                                data={
-                                'topography_create_wizard-current_step': 'upload',
-                                'upload-datafile': fp,
-                                'upload-surface': surface.id,
+                                   'topography_create_wizard-current_step': 'upload',
+                                   'upload-datafile': fp,
+                                   'upload-surface': surface.id,
                                }, follow=True)
 
     assert response.status_code == 200
@@ -305,7 +303,7 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
     #
 
     # now we should be on the page with second step
-    assert b"Step 2 of 3" in response.content, "Errors:"+str(response.context['form'].errors)
+    assert b"Step 2 of 3" in response.content, "Errors:" + str(response.context['form'].errors)
 
     assert_in_content(response, '<option value="0">Default</option>')
 
@@ -317,11 +315,11 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
     response = client.post(reverse('manager:topography-create',
                                    kwargs=dict(surface_id=surface.id)),
                            data={
-                            'topography_create_wizard-current_step': 'metadata',
-                            'metadata-name': 'topo1',
-                            'metadata-measurement_date': '2018-06-21',
-                            'metadata-data_source': 0,
-                            'metadata-description': description,
+                               'topography_create_wizard-current_step': 'metadata',
+                               'metadata-name': 'topo1',
+                               'metadata-measurement_date': '2018-06-21',
+                               'metadata-data_source': 0,
+                               'metadata-description': description,
                            })
 
     assert response.status_code == 200
@@ -336,7 +334,8 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
                                        kwargs=dict(surface_id=surface.id)),
                                data={
                                    'topography_create_wizard-current_step': "units",
-                                   'units-size_editable': physical_sizes_to_be_set is not None,  # would be sent when initialize form
+                                   'units-size_editable': physical_sizes_to_be_set is not None,
+                                   # would be sent when initialize form
                                    'units-size_x': physical_sizes_to_be_set[0] if physical_sizes_to_be_set else '',
                                    'units-unit': 'nm',
                                    'units-height_scale': 1,
@@ -369,7 +368,7 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
 
     t = topos[0]
 
-    assert t.measurement_date == datetime.date(2018,6,21)
+    assert t.measurement_date == datetime.date(2018, 6, 21)
     assert t.description == description
     assert input_file_path.stem in t.datafile.name
     assert exp_resolution_x == t.resolution_x
@@ -384,13 +383,12 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
 
 
 @pytest.mark.django_db
-def test_upload_topography_and_name_like_an_exisiting_for_same_surface(client):
-
+def test_upload_topography_and_name_like_an_existing_for_same_surface(client):
     input_file_path = Path(FIXTURE_DIR + "/10x10.txt")
 
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
-    TopographyFactory(surface=surface, name="TOPO")   # <-- we will try to create another topography named TOPO later
+    Topography1DFactory(surface=surface, name="TOPO")  # <-- we will try to create another topography named TOPO later
 
     client.force_login(user)
 
@@ -399,14 +397,13 @@ def test_upload_topography_and_name_like_an_exisiting_for_same_surface(client):
     # open first step of wizard: file upload
     #
     with input_file_path.open(mode='rb') as fp:
-
         response = client.post(reverse('manager:topography-create',
                                        kwargs=dict(surface_id=surface.id)),
                                data={
-                                'topography_create_wizard-current_step': 'upload',
-                                'upload-datafile': fp,
-                                'upload-datafile_format': '',
-                                'upload-surface': surface.id,
+                                   'topography_create_wizard-current_step': 'upload',
+                                   'upload-datafile': fp,
+                                   'upload-datafile_format': '',
+                                   'upload-surface': surface.id,
                                })
 
     assert response.status_code == 200
@@ -423,11 +420,11 @@ def test_upload_topography_and_name_like_an_exisiting_for_same_surface(client):
     response = client.post(reverse('manager:topography-create',
                                    kwargs=dict(surface_id=surface.id)),
                            data={
-                            'topography_create_wizard-current_step': 'metadata',
-                            'metadata-name': 'TOPO', # <----- already exisiting for this surface
-                            'metadata-measurement_date': '2018-06-21',
-                            'metadata-data_source': 0,
-                            'metadata-description': "bla",
+                               'topography_create_wizard-current_step': 'metadata',
+                               'metadata-name': 'TOPO',  # <----- already exisiting for this surface
+                               'metadata-measurement_date': '2018-06-21',
+                               'metadata-data_source': 0,
+                               'metadata-description': "bla",
                            })
 
     assert response.status_code == 200
@@ -436,8 +433,7 @@ def test_upload_topography_and_name_like_an_exisiting_for_same_surface(client):
 
 @pytest.mark.django_db
 def test_trying_upload_of_topography_file_with_unknown_format(client, django_user_model):
-
-    input_file_path = Path(FIXTURE_DIR+"/../../static/js/project.js")  # this is nonsense
+    input_file_path = Path(FIXTURE_DIR + "/../../static/js/project.js")  # this is nonsense
 
     username = 'testuser'
     password = 'abcd$1234'
@@ -449,9 +445,9 @@ def test_trying_upload_of_topography_file_with_unknown_format(client, django_use
     # first create a surface
     response = client.post(reverse('manager:surface-create'),
                            data={
-                            'name': 'surface1',
-                            'creator': user.id,
-                            'category': 'dum',
+                               'name': 'surface1',
+                               'creator': user.id,
+                               'category': 'dum',
                            }, follow=True)
     assert response.status_code == 200
 
@@ -461,13 +457,12 @@ def test_trying_upload_of_topography_file_with_unknown_format(client, django_use
     # open first step of wizard: file upload
     #
     with open(str(input_file_path), mode='rb') as fp:
-
         response = client.post(reverse('manager:topography-create',
                                        kwargs=dict(surface_id=surface.id)),
                                data={
-                                'topography_create_wizard-current_step': 'upload',
-                                'upload-datafile': fp,
-                                'upload-datafile_format': '',
+                                   'topography_create_wizard-current_step': 'upload',
+                                   'upload-datafile': fp,
+                                   'upload-datafile_format': '',
                                })
     assert response.status_code == 200
     assert_form_error(response, 'Cannot determine file format')
@@ -476,10 +471,9 @@ def test_trying_upload_of_topography_file_with_unknown_format(client, django_use
 @pytest.mark.django_db
 def test_trying_upload_of_topography_file_with_too_long_format_name(client, django_user_model, mocker,
                                                                     handle_usage_statistics):
-
     import SurfaceTopography.IO
 
-    too_long_datafile_format = 'a'*(MAX_LENGTH_DATAFILE_FORMAT+1)
+    too_long_datafile_format = 'a' * (MAX_LENGTH_DATAFILE_FORMAT + 1)
 
     m = mocker.patch('SurfaceTopography.IO.DIReader.format')
     m.return_value = too_long_datafile_format
@@ -499,14 +493,13 @@ def test_trying_upload_of_topography_file_with_too_long_format_name(client, djan
     # open first step of wizard: file upload
     #
     with open(str(input_file_path), mode='rb') as fp:
-
         response = client.post(reverse('manager:topography-create',
                                        kwargs=dict(surface_id=surface.id)),
                                data={
-                                'topography_create_wizard-current_step': 'upload',
-                                'upload-datafile': fp,
-                                'upload-datafile_format': '',
-                                'upload-surface': surface.id,
+                                   'topography_create_wizard-current_step': 'upload',
+                                   'upload-datafile': fp,
+                                   'upload-datafile_format': '',
+                                   'upload-surface': surface.id,
                                })
     assert response.status_code == 200
     assert_form_error(response, 'Too long name for datafile format')
@@ -514,7 +507,6 @@ def test_trying_upload_of_topography_file_with_too_long_format_name(client, djan
 
 @pytest.mark.django_db
 def test_trying_upload_of_corrupted_topography_file(client, django_user_model):
-
     input_file_path = Path(FIXTURE_DIR + '/example3_corrupt.di')
     # I used the correct file "example3.di" and broke it on purpose
     # The headers are still okay, but the topography can't be read by PyCo
@@ -533,11 +525,11 @@ def test_trying_upload_of_corrupted_topography_file(client, django_user_model):
 
     # first create a surface
     response = client.post(reverse('manager:surface-create'),
-                               data={
-                                'name': 'surface1',
-                                'creator': user.id,
-                                'category': category,
-                               }, follow=True)
+                           data={
+                               'name': 'surface1',
+                               'creator': user.id,
+                               'category': category,
+                           }, follow=True)
 
     assert_no_form_errors(response)
 
@@ -549,13 +541,12 @@ def test_trying_upload_of_corrupted_topography_file(client, django_user_model):
     # open first step of wizard: file upload
     #
     with open(str(input_file_path), mode='rb') as fp:
-
         response = client.post(reverse('manager:topography-create',
                                        kwargs=dict(surface_id=surface.id)),
                                data={
-                                'topography_create_wizard-current_step': 'upload',
-                                'upload-datafile': fp,
-                                'upload-surface': surface.id,
+                                   'topography_create_wizard-current_step': 'upload',
+                                   'upload-datafile': fp,
+                                   'upload-surface': surface.id,
                                }, follow=True)
 
     assert response.status_code == 200
@@ -565,7 +556,7 @@ def test_trying_upload_of_corrupted_topography_file(client, django_user_model):
     #
 
     # now we should be on the page with second step
-    assert b"Step 2 of 3" in response.content, "Errors:"+str(response.context['form'].errors)
+    assert b"Step 2 of 3" in response.content, "Errors:" + str(response.context['form'].errors)
 
     assert_in_content(response, '<option value="2">Height</option>')
 
@@ -577,11 +568,11 @@ def test_trying_upload_of_corrupted_topography_file(client, django_user_model):
     response = client.post(reverse('manager:topography-create',
                                    kwargs=dict(surface_id=surface.id)),
                            data={
-                            'topography_create_wizard-current_step': 'metadata',
-                            'metadata-name': 'topo1',
-                            'metadata-measurement_date': '2018-06-21',
-                            'metadata-data_source': 2,
-                            'metadata-description': description,
+                               'topography_create_wizard-current_step': 'metadata',
+                               'metadata-name': 'topo1',
+                               'metadata-measurement_date': '2018-06-21',
+                               'metadata-data_source': 2,
+                               'metadata-description': description,
                            })
 
     assert response.status_code == 200
@@ -620,7 +611,6 @@ def test_trying_upload_of_corrupted_topography_file(client, django_user_model):
 
 @pytest.mark.django_db
 def test_topography_list(client, two_topos, django_user_model, handle_usage_statistics):
-
     username = 'testuser'
     password = 'abcd$1234'
 
@@ -646,9 +636,11 @@ def test_topography_list(client, two_topos, django_user_model, handle_usage_stat
 
         # TODO tests missing for bar length and position (selenium??)
 
+
 @pytest.fixture
 def topo_example3():
     return Topography.objects.get(name='Example 3 - ZSensor')
+
 
 @pytest.fixture
 def topo_example4():
@@ -657,7 +649,6 @@ def topo_example4():
 
 @pytest.mark.django_db
 def test_edit_topography(client, two_topos, django_user_model, topo_example3, handle_usage_statistics):
-
     new_name = "This is a better name"
     new_measurement_date = "2018-07-01"
     new_description = "New results available"
@@ -679,7 +670,7 @@ def test_edit_topography(client, two_topos, django_user_model, topo_example3, ha
     initial = form.initial
 
     assert initial['name'] == topo_example3.name
-    assert initial['measurement_date'] == datetime.date(2018,1,1)
+    assert initial['measurement_date'] == datetime.date(2018, 1, 1)
     assert initial['description'] == 'description1'
     assert initial['size_x'] == pytest.approx(10)
     assert initial['size_y'] == pytest.approx(10)
@@ -691,17 +682,17 @@ def test_edit_topography(client, two_topos, django_user_model, topo_example3, ha
     #
     response = client.post(reverse('manager:topography-update', kwargs=dict(pk=topo_example3.pk)),
                            data={
-                            'save-stay': 1, # we want to save, but stay on page
-                            'surface': topo_example3.surface.pk,
-                            'data_source': 0,
-                            'name': new_name,
-                            'measurement_date': new_measurement_date,
-                            'description': new_description,
-                            'size_x': 500,
-                            'size_y': 1000,
-                            'unit': 'nm',
-                            'height_scale': 0.1,
-                            'detrend_mode': 'height',
+                               'save-stay': 1,  # we want to save, but stay on page
+                               'surface': topo_example3.surface.pk,
+                               'data_source': 0,
+                               'name': new_name,
+                               'measurement_date': new_measurement_date,
+                               'description': new_description,
+                               'size_x': 500,
+                               'size_y': 1000,
+                               'unit': 'nm',
+                               'height_scale': 0.1,
+                               'detrend_mode': 'height',
                            }, follow=True)
 
     assert_no_form_errors(response)
@@ -732,10 +723,8 @@ def test_edit_topography(client, two_topos, django_user_model, topo_example3, ha
     assert bytes(new_name, 'utf-8') in response.content
 
 
-
 @pytest.mark.django_db
 def test_edit_line_scan(client, one_line_scan, django_user_model, handle_usage_statistics):
-
     new_name = "This is a better name"
     new_measurement_date = "2018-07-01"
     new_description = "New results available"
@@ -760,12 +749,12 @@ def test_edit_line_scan(client, one_line_scan, django_user_model, handle_usage_s
     initial = form.initial
 
     assert initial['name'] == 'Simple Line Scan'
-    assert initial['measurement_date'] == datetime.date(2018,1,1)
+    assert initial['measurement_date'] == datetime.date(2018, 1, 1)
     assert initial['description'] == 'description1'
     assert initial['size_x'] == 9
     assert pytest.approx(initial['height_scale']) == 1.
     assert initial['detrend_mode'] == 'height'
-    assert 'size_y' not in form.fields # should have been removed by __init__
+    assert 'size_y' not in form.fields  # should have been removed by __init__
     assert initial['is_periodic'] == False
 
     #
@@ -773,16 +762,16 @@ def test_edit_line_scan(client, one_line_scan, django_user_model, handle_usage_s
     #
     response = client.post(reverse('manager:topography-update', kwargs=dict(pk=topo_id)),
                            data={
-                            'save-stay': 1,  # we want to save, but stay on page
-                            'surface': surface_id,
-                            'data_source': 0,
-                            'name': new_name,
-                            'measurement_date': new_measurement_date,
-                            'description': new_description,
-                            'size_x': 500,
-                            'unit': 'nm',
-                            'height_scale': 0.1,
-                            'detrend_mode': 'height',
+                               'save-stay': 1,  # we want to save, but stay on page
+                               'surface': surface_id,
+                               'data_source': 0,
+                               'name': new_name,
+                               'measurement_date': new_measurement_date,
+                               'description': new_description,
+                               'size_x': 500,
+                               'unit': 'nm',
+                               'height_scale': 0.1,
+                               'detrend_mode': 'height',
                            })
 
     assert response.context is None, "Errors in form: {}".format(response.context['form'].errors)
@@ -813,7 +802,6 @@ def test_edit_line_scan(client, one_line_scan, django_user_model, handle_usage_s
 
 @pytest.mark.django_db
 def test_edit_topography_only_detrend_center_when_periodic(client, django_user_model):
-
     input_file_path = Path(FIXTURE_DIR + "/10x10.txt")
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
@@ -884,18 +872,18 @@ def test_edit_topography_only_detrend_center_when_periodic(client, django_user_m
     #
     response = client.post(reverse('manager:topography-update', kwargs=dict(pk=topo.pk)),
                            data={
-                            'save-stay': 1, # we want to save, but stay on page
-                            'surface': surface.pk,
-                            'data_source': 0,
-                            'name': topo.name,
-                            'measurement_date': topo.measurement_date,
-                            'description': topo.description,
-                            'size_x': 500,
-                            'size_y': 1000,
-                            'unit': 'nm',
-                            'height_scale': 0.1,
-                            'detrend_mode': 'height',
-                            'is_periodic': True, # <--------- this should not be allowed with detrend_mode 'height'
+                               'save-stay': 1,  # we want to save, but stay on page
+                               'surface': surface.pk,
+                               'data_source': 0,
+                               'name': topo.name,
+                               'measurement_date': topo.measurement_date,
+                               'description': topo.description,
+                               'size_x': 500,
+                               'size_y': 1000,
+                               'unit': 'nm',
+                               'height_scale': 0.1,
+                               'detrend_mode': 'height',
+                               'is_periodic': True,  # <--------- this should not be allowed with detrend_mode 'height'
                            }, follow=True)
 
     assert Topography.DETREND_MODE_CHOICES[0][0] == 'center'
@@ -906,7 +894,6 @@ def test_edit_topography_only_detrend_center_when_periodic(client, django_user_m
 
 @pytest.mark.django_db
 def test_topography_detail(client, two_topos, django_user_model, topo_example4, handle_usage_statistics):
-
     username = 'testuser'
     password = 'abcd$1234'
 
@@ -915,7 +902,6 @@ def test_topography_detail(client, two_topos, django_user_model, topo_example4, 
     django_user_model.objects.get(username=username)
 
     assert client.login(username=username, password=password)
-
 
     response = client.get(reverse('manager:topography-detail', kwargs=dict(pk=topo_pk)))
     assert response.status_code == 200
@@ -932,9 +918,9 @@ def test_topography_detail(client, two_topos, django_user_model, topo_example4, 
     # .. physical size
     assert_in_content(response, "112.80791 µm x 27.73965 µm")
 
+
 @pytest.mark.django_db
 def test_delete_topography(client, two_topos, django_user_model, topo_example3, handle_usage_statistics):
-
     username = 'testuser'
     password = 'abcd$1234'
 
@@ -966,7 +952,6 @@ def test_delete_topography(client, two_topos, django_user_model, topo_example3, 
 @pytest.mark.skip("Cannot be implemented up to now, because don't know how to reuse datafile")
 @pytest.mark.django_db
 def test_delete_topography_with_its_datafile_used_by_others(client, two_topos, django_user_model):
-
     username = 'testuser'
     password = 'abcd$1234'
     topo_id = 1
@@ -979,7 +964,7 @@ def test_delete_topography_with_its_datafile_used_by_others(client, two_topos, d
 
     # make topography 2 use the same datafile
     topo2 = Topography.objects.get(pk=2)
-    topo2.datafile.path = topo_datafile_path # This does not work
+    topo2.datafile.path = topo_datafile_path  # This does not work
 
     assert client.login(username=username, password=password)
 
@@ -999,8 +984,8 @@ def test_delete_topography_with_its_datafile_used_by_others(client, two_topos, d
     # topography file should **not** have been deleted, because still used by topo2
     assert os.path.exists(topo_datafile_path)
 
-def test_only_positive_size_values_on_edit(client, django_user_model, handle_usage_statistics):
 
+def test_only_positive_size_values_on_edit(client, django_user_model, handle_usage_statistics):
     #
     # prepare database
     #
@@ -1010,7 +995,7 @@ def test_only_positive_size_values_on_edit(client, django_user_model, handle_usa
     user = django_user_model.objects.create_user(username=username, password=password)
 
     surface = SurfaceFactory(creator=user)
-    topography = TopographyFactory(surface=surface, size_y=1024) # pass size_y in order to have a map
+    topography = Topography2DFactory(surface=surface, size_y=1024)  # pass size_y in order to have a map
 
     assert client.login(username=username, password=password)
 
@@ -1024,7 +1009,7 @@ def test_only_positive_size_values_on_edit(client, django_user_model, handle_usa
                                'name': topography.name,
                                'measurement_date': topography.measurement_date,
                                'description': topography.description,
-                               'size_x': -500.0, # negative, should be > 0
+                               'size_x': -500.0,  # negative, should be > 0
                                'size_y': 0,  # zero, should be > 0
                                'unit': 'nm',
                                'height_scale': 0.1,
@@ -1042,7 +1027,6 @@ def test_only_positive_size_values_on_edit(client, django_user_model, handle_usa
 
 @pytest.mark.django_db
 def test_create_surface(client, django_user_model, handle_usage_statistics):
-
     description = "My description. hasdhahdlahdla"
     name = "Surface 1 kjfhakfhökadsökdf"
     category = "exp"
@@ -1061,13 +1045,14 @@ def test_create_surface(client, django_user_model, handle_usage_statistics):
     #
     response = client.post(reverse('manager:surface-create'),
                            data={
-                            'name': name,
-                            'creator': user.id,
-                            'description': description,
-                            'category': category,
+                               'name': name,
+                               'creator': user.id,
+                               'description': description,
+                               'category': category,
                            }, follow=True)
 
-    assert ('context' not in response) or ('form' not in response.context), "Still on form: {}".format(response.context['form'].errors)
+    assert ('context' not in response) or ('form' not in response.context), "Still on form: {}".format(
+        response.context['form'].errors)
 
     assert response.status_code == 200
 
@@ -1077,9 +1062,9 @@ def test_create_surface(client, django_user_model, handle_usage_statistics):
 
     assert 1 == Surface.objects.count()
 
+
 @pytest.mark.django_db
 def test_edit_surface(client, django_user_model):
-
     surface_id = 1
     username = 'testuser'
     password = 'abcd$1234'
@@ -1098,13 +1083,14 @@ def test_edit_surface(client, django_user_model):
 
     response = client.post(reverse('manager:surface-update', kwargs=dict(pk=surface_id)),
                            data={
-                            'name': new_name,
-                            'creator': user.id,
-                            'description': new_description,
-                            'category': new_category
+                               'name': new_name,
+                               'creator': user.id,
+                               'description': new_description,
+                               'category': new_category
                            })
 
-    assert ('context' not in response) or ('form' not in response.context), "Still on form: {}".format(response.context['form'].errors)
+    assert ('context' not in response) or ('form' not in response.context), "Still on form: {}".format(
+        response.context['form'].errors)
 
     assert response.status_code == 302
     assert reverse('manager:surface-detail', kwargs=dict(pk=surface_id)) == response.url
@@ -1115,9 +1101,9 @@ def test_edit_surface(client, django_user_model):
     assert new_description == surface.description
     assert new_category == surface.category
 
+
 @pytest.mark.django_db
 def test_delete_surface(client, django_user_model, handle_usage_statistics):
-
     surface_id = 1
     username = 'testuser'
     password = 'abcd$1234'
@@ -1138,7 +1124,8 @@ def test_delete_surface(client, django_user_model, handle_usage_statistics):
 
     response = client.post(reverse('manager:surface-delete', kwargs=dict(pk=surface_id)))
 
-    assert ('context' not in response) or ('form' not in response.context), "Still on form: {}".format(response.context['form'].errors)
+    assert ('context' not in response) or ('form' not in response.context), "Still on form: {}".format(
+        response.context['form'].errors)
 
     assert response.status_code == 302
     assert reverse('manager:select') == response.url
@@ -1147,7 +1134,6 @@ def test_delete_surface(client, django_user_model, handle_usage_statistics):
 
 
 def test_topography_form_field_is_periodic():
-
     data = {
         'size_editable': True,
         'unit_editable': True,
@@ -1176,4 +1162,3 @@ def test_topography_form_field_is_periodic():
 
     form = TopographyForm(initial=data, has_size_y=True, allow_periodic=False, autocomplete_tags=[])
     assert form.fields['is_periodic'].disabled
-

@@ -231,8 +231,8 @@ class TagSerializer(serializers.ModelSerializer):
         #
         # Assume that all surfaces and topographies given in the context are already filtered
         #
-        surfaces = self.context['surfaces'].filter(tags__pk=obj.pk)
-        topographies = self.context['topographies'].filter(tags__pk=obj.pk)
+        surfaces = self.context['surfaces'].filter(tags__pk=obj.pk).order_by('name')
+        topographies = self.context['topographies'].filter(tags__pk=obj.pk).order_by('name')
         tags = [x for x in obj.children.all() if x in self.context['tags_for_user']]
 
         #

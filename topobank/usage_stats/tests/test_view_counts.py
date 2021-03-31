@@ -5,14 +5,19 @@ from django.shortcuts import reverse
 
 from trackstats.models import Metric, Period
 
-from topobank.analysis.tests.utils import AnalysisFactory
+from topobank.analysis.tests.utils import TopographyAnalysisFactory, AnalysisFunctionFactory, \
+    AnalysisFunctionImplementationFactory
+from topobank.manager.utils import subjects_to_json
+
 
 @pytest.mark.django_db
 def test_counts_analyses_views(client, mocker, handle_usage_statistics):
-    analysis = AnalysisFactory()
-    topography = analysis.topography
+    function = AnalysisFunctionFactory()
+    impl = AnalysisFunctionImplementationFactory(function=function)
+    analysis = TopographyAnalysisFactory.create(function=function)
+    topography = analysis.subject
     function = analysis.function
-    user = analysis.topography.surface.creator
+    user = topography.surface.creator
 
     metric = Metric.objects.ANALYSES_RESULTS_VIEW_COUNT
 
@@ -26,7 +31,7 @@ def test_counts_analyses_views(client, mocker, handle_usage_statistics):
             'function_id': function.id,
             'card_id': 'card',
             'template_flavor': 'list',
-            'topography_ids[]': [topography.id],
+            'subjects_ids_json': subjects_to_json([topography]),
         }, HTTP_X_REQUESTED_WITH='XMLHttpRequest')  # we need an AJAX request
         return response
 

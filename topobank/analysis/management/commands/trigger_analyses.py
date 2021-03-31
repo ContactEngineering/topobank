@@ -1,48 +1,37 @@
 from django.core.management.base import BaseCommand
+from django.contrib.contenttypes.models import ContentType
 from guardian.shortcuts import get_users_with_perms
 import logging
 import sys
+from abc import ABC, abstractmethod
 
 from topobank.manager.models import Topography, Surface
 from topobank.analysis.models import Analysis
 from topobank.analysis.models import AnalysisFunction
-from topobank.analysis.utils import submit_analysis, renew_analysis
+from topobank.analysis.utils import submit_analysis, renew_analysis, renew_analyses_for_subject
 
 _log = logging.getLogger(__name__)
+
+CONTENTTYPES = {c: ContentType.objects.get_for_model(klass)
+                for c, klass in zip('staf', [Surface, Topography, Analysis, AnalysisFunction])}
+
 
 class Command(BaseCommand):
     help = "Trigger analyses for given surfaces, topographies or functions."
 
     def add_arguments(self, parser):
 
-        parser.add_argument('item', nargs='+', type=str,
+        parser.add_argument('item', nargs='*', type=str,
                             help="""
                             Item for which analyses should be triggered.
                             Format:
                               's<surface_id>':    all analyses for a specific surface,
                               't<topography_id>': all analyses for a specific topography,
-                              'f<function_id>':   all analyses for a given function,
-                              'a<analysis_id>':   a specific analysis,
+                              'a<analysis_id>':   a specific, existing analysis,
+                              'f<function_id>':   analyses for a given function and all subjects,
                               'failed':           all failed analyses,
                               'pending':          all pending analyses.
                             """)
-
-        parser.add_argument(
-            '--dry-run',
-            action='store_true',
-            dest='dry_run',
-            help='Just parse arguments and print how much analyses would be triggered.',
-        )
-
-        parser.add_argument(
-            '-d',
-            '--default-kwargs',
-            action='store_true',
-            dest='default_kwargs',
-            help="""Always use default arguments instead of existing function arguments.
-            New analysis (not already existing) will be started with default arguments.
-            """,
-        )
 
         parser.add_argument(
             '-l',
@@ -52,119 +41,84 @@ class Command(BaseCommand):
             help='Just list analysis functions with ids and exit.',
         )
 
-    def parse_item(self, item, analysis_funcs):
-        """Parse one item and return set of (function, topography).
+    def parse_item(self, item):
+        """Parse one item and trigger analyses.
 
         :param item: str with an item from command line
-        :param analysis_funcs: sequence of analysis functions to search analyses for
-        :return: set of tuple (function, topography)
+        :return: list of TriggerCommand instances
 
         The parameter item can be
 
          "failed": return set for all failed analyses
          "pending": return set for all pending analyses
-         "s<surface_id>": return set for all topographies for given surface, e.g. "s13" means surface_id=13
+         "s<surface_id>": return set for all related analyses for given surface, e.g. "s13" means surface_id=13
          "t<topo_id>": return set for given topography
          "a<analysis_id>": return set only for given analysis
-         "f<analysis_id>": return set for given analysis function and all topographies
+         "f<function_id>": return set for given analysis function and all subjects
         """
 
-        if item == "failed":
-            failed_analyses = Analysis.objects.filter(task_state=Analysis.FAILURE, function__in=analysis_funcs)
-            self.stdout.write(self.style.SUCCESS(f"Found {len(failed_analyses)} failed analyses."))
-            return set( (a.function, a.topography) for a in failed_analyses)
-
-        if item == "pending":
-            pending_analyses = Analysis.objects.filter(task_state=Analysis.PENDING, function__in=analysis_funcs)
-            self.stdout.write(self.style.SUCCESS(f"Found {len(pending_analyses)} pending analyses."))
-            return set( (a.function, a.topography) for a in pending_analyses)
-
-        if item[0] not in 'staf':
+        if item in ["failed", "pending"]:
+            task_state = item[:2]
+            analyses = Analysis.objects.filter(task_state=task_state)
+            for a in analyses:
+                renew_analysis(a)
+            self.stdout.write(
+                self.style.SUCCESS(f"Found {len(analyses)} analyses with task state '{task_state}'.")
+            )
+        elif item[0] not in CONTENTTYPES.keys():
             self.stdout.write(self.style.WARNING(f"Cannot interpret first character of item '{item}'. Skipping."))
-            return ()
+        else:
+            try:
+                obj_id = int(item[1:])
+            except ValueError:
+                self.stdout.write(self.style.WARNING(f"Cannot interpret id of item '{item}'. Skipping."))
+                return
 
-        try:
-            id = int(item[1:])
-        except ValueError:
-            self.stdout.write(self.style.WARNING(f"Cannot interpret id of item '{item}'. Skipping."))
-            return ()
+            ct = CONTENTTYPES[item[0]]
 
-        classes = {
-            's': Surface,
-            't': Topography,
-            'a': Analysis,
-            'f': AnalysisFunction,
-        }
+            try:
+                obj = ct.get_object_for_this_type(id=obj_id)
+            except ct.DoesNotExist:
+                self.stdout.write(self.style.WARNING(f"Cannot find item '{item}' in database. Skipping."))
+                return
 
-        klass = classes[item[0]]
+            if ct.name in ['surface', 'topography']:
+                renew_analyses_for_subject(obj)
+                self.stdout.write(
+                    self.style.SUCCESS(f"Renewed analyses for subject '{obj}'.")
+                )
+            elif ct.name == "analysis":
+                renew_analysis(obj)
+                self.stdout.write(
+                    self.style.SUCCESS(f"Renewed analysis '{obj}'.")
+                )
+            elif ct.name == "analysis function":
+                num_analyses = 0
+                for ct in obj.get_implementation_types():
+                    subjects = ct.get_all_objects_for_this_type()
+                    for subject in subjects:
+                        related_surface = subject if isinstance(subject, Surface) else subject.surface
+                        users = get_users_with_perms(related_surface)
+                        submit_analysis(users, obj, subject)
+                        self.stdout.write(
+                            self.style.SUCCESS(f"Triggered analysis for function '{obj}' and subject '{subject}'.")
+                        )
+                        num_analyses += 1
+                self.stdout.write(
+                    self.style.SUCCESS(f"Triggered {num_analyses} analyses for function '{obj}'.")
+                )
+            else:
+                self.stdout.write(self.style.WARNING(f"Don't know how to handle contenttype '{ct.name}'."))
 
-        try:
-            obj = klass.objects.get(id=id)
-        except klass.DoesNotExist:
-            self.stdout.write(self.style.WARNING(f"Cannot find item '{item}' in database. Skipping."))
-            return ()
-
-        result = set()
-
-        if klass == Surface:
-            for topo in obj.topography_set.all():
-                for af in analysis_funcs:
-                    result.add((af, topo))
-        elif klass == Topography:
-            for af in analysis_funcs:
-                result.add((af, obj))
-        elif klass == Analysis:
-            result.add((obj.function, obj.topography))
-        elif klass == AnalysisFunction:
-            for topo in  Topography.objects.all():
-                result.add((obj, topo))
-
-        return result
 
     def handle(self, *args, **options):
-        #
-        # collect analyses to trigger
-        #
-        auto_analysis_funcs = AnalysisFunction.objects.filter(automatic=True)
 
         if options['list_funcs']:
-            for af in auto_analysis_funcs:
-               self.stdout.write(self.style.SUCCESS(f"Id {af.id}: {af.name} (python: {af.pyfunc}, automatic: {af.automatic})"))
+            analysis_funcs = AnalysisFunction.objects.all()
+            for af in analysis_funcs:
+                type_names_str = ", ".join([t.name for t in af.get_implementation_types()])
+                self.stdout.write(self.style.SUCCESS(f"f{af.id}: {af.name}, implemented for: {type_names_str}"))
             sys.exit(0)
 
-        dry_run = options['dry_run']
-
-        num_triggered = 0
-
-        trigger_set = set()
         for item in options['item']:
-            trigger_set.update(self.parse_item(item, auto_analysis_funcs))
-
-        #
-        # Trigger analyses
-        #
-        for func, topo in trigger_set:
-            # collect users which are allowed to view analyses
-            users = set(get_users_with_perms(topo.surface))
-            matching_analyses = Analysis.objects.filter(topography=topo, function=func)
-
-            #
-            # Check whether analyses exist which match .. if exist, regenerate with same
-            # arguments.
-            for a in matching_analyses:
-                if not dry_run:
-                    a = renew_analysis(a, use_default_kwargs=options['default_kwargs'])
-                users.difference_update(set(a.users.all()))  # for some users we have already submitted an analysis
-                num_triggered += 1
-
-            # submit with standard arguments for rest of users with view permission
-            # which do not have this kind of analysis yet
-            if len(users) > 0:
-                if not dry_run:
-                    submit_analysis(users, func, topo)
-                num_triggered += 1
-
-        if dry_run:
-            self.stdout.write(self.style.SUCCESS(f"Would trigger {num_triggered} analyses, but this is a dry run."))
-        else:
-            self.stdout.write(self.style.SUCCESS(f"Triggered {num_triggered} analyses."))
+            self.parse_item(item)

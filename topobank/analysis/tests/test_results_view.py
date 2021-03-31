@@ -2,25 +2,31 @@
 Test for results view.
 """
 
-import pytest
 import datetime
+import openpyxl
 import pickle
-import numpy as np
-import tempfile, openpyxl
+import tempfile
+import json
 
+import ContactMechanics
+import NuMPI
+import SurfaceTopography
+import muFFT
+import numpy as np
+import pytest
 from django.urls import reverse
 
-import SurfaceTopography, ContactMechanics, muFFT, NuMPI
-
-from ..views import RmsTableCardView, NUM_SIGNIFICANT_DIGITS_RMS_VALUES
-from ..models import Analysis, AnalysisFunction
-from topobank.manager.tests.utils import two_topos  # needed for fixture, see arguments below
 from topobank.manager.models import Topography, Surface
-from topobank.manager.tests.utils import SurfaceFactory, UserFactory, TopographyFactory
-from .utils import AnalysisFactory, AnalysisFunctionFactory
-from topobank.utils import assert_in_content, assert_not_in_content
+from topobank.manager.utils import subjects_to_json
+from topobank.manager.tests.utils import SurfaceFactory, UserFactory, \
+    Topography1DFactory, Topography2DFactory, two_topos
 from topobank.taskapp.tasks import current_configuration
-from topobank.analysis.tests.test_functions import simple_2d_topography
+from topobank.utils import assert_in_content, assert_not_in_content
+from .utils import AnalysisFunctionFactory, AnalysisFunctionImplementationFactory, \
+    TopographyAnalysisFactory, SurfaceAnalysisFactory
+
+from ..models import Analysis, AnalysisFunction
+from ..views import RmsTableCardView, NUM_SIGNIFICANT_DIGITS_RMS_VALUES
 
 
 def selection_from_instances(instances):
@@ -31,6 +37,7 @@ def selection_from_instances(instances):
         x.append("{}-{}".format(prefix, i.id))
 
     return x
+
 
 def test_selection_from_instances(mocker):
     mocker.patch('topobank.manager.models.Topography')
@@ -43,7 +50,7 @@ def test_selection_from_instances(mocker):
                  Topography(id=3, name="T3"),
                  ]
 
-    expected = [ 'surface-1', 'surface-2', 'topography-1', 'topography-2', 'topography-3']
+    expected = ['surface-1', 'surface-2', 'topography-1', 'topography-2', 'topography-3']
 
     assert expected == selection_from_instances(instances)
 
@@ -65,13 +72,12 @@ def test_analysis_times(client, two_topos, django_user_model):
                                    'series': [],
                                    })
 
-    analysis = Analysis.objects.create(
-        topography=topo,
+    analysis = TopographyAnalysisFactory.create(
+        subject=topo,
         function=af,
         task_state=Analysis.SUCCESS,
-        kwargs=pickle.dumps({}),
         start_time=datetime.datetime(2018, 1, 1, 12),
-        end_time=datetime.datetime(2018, 1, 1, 13, 1, 1), # duration: 1 hour, 1 minute, 1 sec
+        end_time=datetime.datetime(2018, 1, 1, 13, 1, 1),  # duration: 1 hour, 1 minute, 1 sec
         result=pickled_result,
     )
     analysis.users.add(user)
@@ -79,7 +85,7 @@ def test_analysis_times(client, two_topos, django_user_model):
 
     response = client.post(reverse("analysis:card"),
                            data={
-                               'topography_ids[]': [topo.id],
+                               'subjects_ids_json': subjects_to_json([topo]),
                                'function_id': af.id,
                                'card_id': "card-1",
                                'template_flavor': 'list',
@@ -89,8 +95,8 @@ def test_analysis_times(client, two_topos, django_user_model):
 
     assert response.status_code == 200
 
-    assert_in_content(response, "2018-01-01 12:00:00") # start_time
-    assert_in_content(response, "1:01:01") # duration
+    assert_in_content(response, "2018-01-01 12:00:00")  # start_time
+    assert_in_content(response, "1:01:01")  # duration
 
 
 @pytest.mark.django_db
@@ -115,8 +121,8 @@ def test_show_only_last_analysis(client, two_topos, django_user_model, handle_us
     #
     # Topography 1
     #
-    analysis = Analysis.objects.create(
-        topography=topo1,
+    analysis = TopographyAnalysisFactory.create(
+        subject=topo1,
         function=af,
         task_state=Analysis.SUCCESS,
         kwargs=pickle.dumps({}),
@@ -128,8 +134,8 @@ def test_show_only_last_analysis(client, two_topos, django_user_model, handle_us
     analysis.save()
 
     # save a second only, which has a later start time
-    analysis = Analysis.objects.create(
-        topography=topo1,
+    analysis = TopographyAnalysisFactory.create(
+        subject=topo1,
         function=af,
         task_state=Analysis.SUCCESS,
         kwargs=pickle.dumps({}),
@@ -143,8 +149,8 @@ def test_show_only_last_analysis(client, two_topos, django_user_model, handle_us
     #
     # Topography 2
     #
-    analysis = Analysis.objects.create(
-        topography=topo2,
+    analysis = TopographyAnalysisFactory.create(
+        subject=topo2,
         function=af,
         task_state=Analysis.SUCCESS,
         kwargs=pickle.dumps({}),
@@ -156,8 +162,8 @@ def test_show_only_last_analysis(client, two_topos, django_user_model, handle_us
     analysis.save()
 
     # save a second only, which has a later start time
-    analysis = Analysis.objects.create(
-        topography=topo2,
+    analysis = TopographyAnalysisFactory.create(
+        subject=topo2,
         function=af,
         task_state=Analysis.SUCCESS,
         kwargs=pickle.dumps({}),
@@ -174,7 +180,7 @@ def test_show_only_last_analysis(client, two_topos, django_user_model, handle_us
     #
     response = client.post(reverse("analysis:card"),
                            data={
-                               'topography_ids[]': [topo1.id, topo2.id],
+                               'subjects_ids_json': subjects_to_json([topo1, topo2]),
                                'function_id': af.id,
                                'card_id': 1,
                                'template_flavor': 'list'
@@ -184,8 +190,6 @@ def test_show_only_last_analysis(client, two_topos, django_user_model, handle_us
 
     assert response.status_code == 200
 
-    # export_reponse_as_html(response)
-
     assert b"2018-01-02 12:00:00" in response.content
     assert b"2018-01-04 12:00:00" in response.content
 
@@ -193,9 +197,9 @@ def test_show_only_last_analysis(client, two_topos, django_user_model, handle_us
     assert b"2018-01-03 12:00:00" not in response.content
 
 
+@pytest.mark.skip("Not sure if this test is correct. Why all analyses should be shown?")
 @pytest.mark.django_db
 def test_show_analyses_with_different_arguments(client, two_topos, django_user_model, handle_usage_statistics):
-
 
     user = django_user_model.objects.get(username='testuser')
     client.force_login(user)
@@ -214,11 +218,11 @@ def test_show_analyses_with_different_arguments(client, two_topos, django_user_m
     #
     # Create analyses for same function and topography but with different arguments
     #
-    analysis = Analysis.objects.create(
-        topography=topo1,
+    analysis = TopographyAnalysisFactory.create(
+        subject=topo1,
         function=af,
         task_state=Analysis.SUCCESS,
-        kwargs=pickle.dumps({'bins':10}),
+        kwargs=pickle.dumps({'bins': 10}),
         start_time=datetime.datetime(2018, 1, 1, 12),
         end_time=datetime.datetime(2018, 1, 1, 13, 1, 1),
         result=pickled_result,
@@ -226,12 +230,12 @@ def test_show_analyses_with_different_arguments(client, two_topos, django_user_m
     analysis.users.add(user)
     analysis.save()
 
-    # save a second only, which has a later start time
-    analysis = Analysis.objects.create(
-        topography=topo1,
+    # save a second, which has a later start time
+    analysis = TopographyAnalysisFactory.create(
+        subject=topo1,
         function=af,
         task_state=Analysis.SUCCESS,
-        kwargs=pickle.dumps({'bins':20}),
+        kwargs=pickle.dumps({'bins': 20}),
         start_time=datetime.datetime(2018, 1, 2, 12),
         end_time=datetime.datetime(2018, 1, 2, 13, 1, 1),
         result=pickled_result,
@@ -239,9 +243,9 @@ def test_show_analyses_with_different_arguments(client, two_topos, django_user_m
     analysis.users.add(user)
     analysis.save()
 
-    # save a second only, which has a later start time
-    analysis = Analysis.objects.create(
-        topography=topo1,
+    # save a third, which has a later start time
+    analysis = TopographyAnalysisFactory.create(
+        subject=topo1,
         function=af,
         task_state=Analysis.SUCCESS,
         kwargs=pickle.dumps({'bins': 30}),
@@ -257,7 +261,7 @@ def test_show_analyses_with_different_arguments(client, two_topos, django_user_m
     #
     response = client.post(reverse("analysis:card"),
                            data={
-                               'topography_ids[]': [topo1.id],
+                               'subjects_ids_json': subjects_to_json([topo1]),
                                'function_id': af.id,
                                'card_id': "card-1",
                                'template_flavor': 'list'
@@ -267,9 +271,9 @@ def test_show_analyses_with_different_arguments(client, two_topos, django_user_m
 
     assert response.status_code == 200
 
-    assert b"2018-01-01 12:00:00" in response.content
-    assert b"2018-01-02 12:00:00" in response.content
-    assert b"2018-01-03 12:00:00" in response.content
+    assert_in_content(response, "2018-01-01 12:00:00")
+    assert_in_content(response, "2018-01-02 12:00:00")
+    assert_in_content(response, "2018-01-03 12:00:00")
 
     # arguments should be visible in output
 
@@ -278,6 +282,73 @@ def test_show_analyses_with_different_arguments(client, two_topos, django_user_m
 
     assert str(dict(bins=10)) in unescaped
     assert str(dict(bins=20)) in unescaped
+
+
+@pytest.mark.django_db
+def test_warnings_for_different_arguments(client, handle_usage_statistics):
+
+    user = UserFactory()
+    surf1 = SurfaceFactory(creator=user)
+    surf2 = SurfaceFactory(creator=user)
+    topo1a = Topography1DFactory(surface=surf1)
+    topo1b = Topography1DFactory(surface=surf1)
+    topo2a = Topography1DFactory(surface=surf2)
+
+    func = AnalysisFunctionFactory()
+    topo_impl = AnalysisFunctionImplementationFactory(function=func,
+                                                      subject_type=topo1a.get_content_type(),
+                                                      code_ref='topography_analysis_function_for_tests')
+    surf_impl = AnalysisFunctionImplementationFactory(function=func,
+                                                      subject_type=surf1.get_content_type(),
+                                                      code_ref='surface_analysis_function_for_tests')
+
+    #
+    # Generate analyses for topographies with differing arguments
+    #
+    kwargs_1a = pickle.dumps(dict(a=1, b=2))
+    kwargs_1b = pickle.dumps(dict(a=1, b=3))  # differing from kwargs_1a!
+    ana1a = TopographyAnalysisFactory(subject=topo1a, function=func, kwargs=kwargs_1a)
+    ana1b = TopographyAnalysisFactory(subject=topo1b, function=func, kwargs=kwargs_1b)
+    ana2a = TopographyAnalysisFactory(subject=topo2a, function=func)  # default arguments
+
+    #
+    # Generate analyses for surfaces with differing arguments
+    #
+    kwargs_1 = pickle.dumps(dict(a=1, c=2))
+    kwargs_2 = pickle.dumps(dict(a=1, c=3))  # differing from kwargs_1a!
+    ana1 = SurfaceAnalysisFactory(subject=surf1, function=func, kwargs=kwargs_1)
+    ana2 = SurfaceAnalysisFactory(subject=surf2, function=func, kwargs=kwargs_2)
+
+    client.force_login(user)
+
+    #
+    # request card, there should be warnings, one for topographies and one for surfaces
+    #
+    response = client.post(reverse("analysis:card"),
+                           data={
+                               'subjects_ids_json': subjects_to_json([topo1a, topo1b, topo2a, surf1, surf2]),
+                               'function_id': func.id,
+                               'card_id': "card-1",
+                               'template_flavor': 'list'
+                           },
+                           HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+                           follow=True)
+
+    assert response.status_code == 200
+
+    assert_in_content(response,
+                      "Arguments for this analysis function differ among chosen subjects of type 'topography'")
+    assert_in_content(response,
+                      "Arguments for this analysis function differ among chosen subjects of type 'surface'")
+
+    # arguments should be visible in output
+    #
+    # import html.parser
+    # unescaped = html.unescape(response.content.decode())
+    #
+    # assert str(dict(bins=10)) in unescaped
+    # assert str(dict(bins=20)) in unescaped
+
 
 
 @pytest.mark.skip("Test makes no sense, because it needs AJAX call to be executed.")
@@ -304,8 +375,8 @@ def test_show_multiple_analyses_for_two_functions(client, two_topos):
     for af in [af1, af2]:
         for topo in [topo1, topo2]:
             counter += 1
-            analysis = Analysis.objects.create(
-                topography=topo,
+            analysis = TopographyAnalysisFactory.create(
+                subject=topo,
                 function=af,
                 task_state=Analysis.SUCCESS,
                 kwargs=pickle.dumps({'bins':10}),
@@ -353,10 +424,12 @@ def ids_downloadable_analyses(two_topos):
     config = current_configuration()
 
     #
-    # create two analyses with resuls
+    # create two analyses with results
     #
     topos = [Topography.objects.get(name="Example 3 - ZSensor"), Topography.objects.get(name="Example 4 - Default")]
-    function = AnalysisFunction.objects.create(name="Test Function", pyfunc='dummy', automatic=False)
+    # function = AnalysisFunction.objects.create(name="Test Function")
+    function = AnalysisFunctionFactory()
+    AnalysisFunctionImplementationFactory(function=function)
 
     v = np.arange(5)
     ids = []
@@ -383,18 +456,19 @@ def ids_downloadable_analyses(two_topos):
                      )
             ])
 
-        analysis = Analysis.objects.create(topography=topos[k],
-                                           function=function,
-                                           result=pickle.dumps(result),
-                                           kwargs=pickle.dumps({}),
-                                           configuration=config)
+        analysis = TopographyAnalysisFactory.create(
+            subject=topos[k],
+            function=function,
+            result=pickle.dumps(result),
+            kwargs=pickle.dumps({}),
+            configuration=config)
         ids.append(analysis.id)
 
     return ids
 
 
 @pytest.mark.django_db
-def test_analysis_download_as_txt(client, two_topos, ids_downloadable_analyses, settings):
+def test_analysis_download_as_txt(client, two_topos, ids_downloadable_analyses, settings, handle_usage_statistics):
 
     username = 'testuser'
     password = 'abcd$1234'
@@ -410,7 +484,7 @@ def test_analysis_download_as_txt(client, two_topos, ids_downloadable_analyses, 
 
     txt = response.content.decode()
 
-    assert "Test Function" in txt # function name should be in there
+    assert "Test Function" in txt  # function name should be in there
 
     # check whether version numbers are in there
     assert SurfaceTopography.__version__.split('+')[0] in txt
@@ -476,8 +550,8 @@ def test_rms_table_download_as_txt(client, two_topos, file_format, handle_usage_
     import pickle
     pickled_kwargs = pickle.dumps({})
 
-    ana1 = AnalysisFactory.create(topography=t1, function=func, kwargs=pickled_kwargs)
-    ana2 = AnalysisFactory.create(topography=t1, function=func, kwargs=pickled_kwargs)
+    ana1 = TopographyAnalysisFactory.create(subject=t1, function=func, kwargs=pickled_kwargs)
+    ana2 = TopographyAnalysisFactory.create(subject=t1, function=func, kwargs=pickled_kwargs)
 
     username = 'testuser'
     password = 'abcd$1234'
@@ -556,16 +630,16 @@ def test_rms_values_rounded(rf, mocker):
         }
     ]
 
-    topo = TopographyFactory(size_x=1, size_y=1)
+    topo = Topography2DFactory(size_x=1, size_y=1)
 
     func = AnalysisFunction.objects.get(name='RMS Values')
-    AnalysisFactory(topography=topo, function=func)
+    TopographyAnalysisFactory(subject=topo, function=func)
 
     request = rf.post(reverse('analysis:card'), data={
             'function_id': func.id,
             'card_id': 'card',
             'template_flavor': 'list',
-            'topography_ids[]': [topo.id],
+            'subjects_ids_json': subjects_to_json([topo]),
     }, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
     request.user = topo.surface.creator
     request.session = {}
@@ -614,7 +688,7 @@ def test_analysis_download_as_xlsx(client, two_topos, ids_downloadable_analyses,
 
     response = client.get(download_url)
 
-    tmp = tempfile.NamedTemporaryFile(suffix='.xlsx') # will be deleted automatically
+    tmp = tempfile.NamedTemporaryFile(suffix='.xlsx')  # will be deleted automatically
     tmp.write(response.content)
     tmp.seek(0)
 
@@ -682,9 +756,10 @@ def test_analysis_download_as_xlsx(client, two_topos, ids_downloadable_analyses,
     assert_version_in_vals('muFFT', muFFT.version.description())
     assert_version_in_vals('topobank', settings.TOPOBANK_VERSION)
 
-    # topography names should also be included, as well as the creator
+    # subject names should also be included, as well as the creator
     for t in topos:
-        assert ('Topography', t.name) in vals
+        assert ('Subject Type', 'topography') in vals
+        assert ('Subject Name', t.name) in vals
         assert ('Creator', str(t.creator)) in vals
 
 
@@ -751,17 +826,18 @@ def test_download_analysis_results_without_permission(client, two_topos, ids_dow
 @pytest.fixture
 def two_analyses_two_publications():
     surface1 = SurfaceFactory()
-    TopographyFactory(surface=surface1)
+    Topography1DFactory(surface=surface1)
     surface2 = SurfaceFactory()
-    TopographyFactory(surface=surface2)
+    Topography1DFactory(surface=surface2)
     pub1 = surface1.publish('cc0-1.0', surface1.creator.name)
     pub2 = surface2.publish('cc0-1.0', surface1.creator.name+", "+surface2.creator.name)
     pub_topo1 = pub1.surface.topography_set.first()
     pub_topo2 = pub2.surface.topography_set.first()
 
     func = AnalysisFunctionFactory()
-    analysis1 = AnalysisFactory(topography=pub_topo1, function=func)
-    analysis2 = AnalysisFactory(topography=pub_topo2, function=func)
+    AnalysisFunctionImplementationFactory(function=func)
+    analysis1 = TopographyAnalysisFactory(subject=pub_topo1, function=func)
+    analysis2 = TopographyAnalysisFactory(subject=pub_topo2, function=func)
 
     return analysis1, analysis2, pub1, pub2
 
@@ -832,29 +908,27 @@ def test_view_shared_analysis_results(client, handle_usage_statistics):
 
     # create topographies + functions + analyses
     func1 = AnalysisFunctionFactory()
-    #func2 = AnalysisFunctionFactory()
+    impl1 = AnalysisFunctionImplementationFactory(function=func1)
+    # func2 = AnalysisFunctionFactory()
 
     # Two topographies for surface1
-    topo1a = TopographyFactory(surface=surface1, name='topo1a')
-    topo1b = TopographyFactory(surface=surface1, name='topo1b')
+    topo1a = Topography1DFactory(surface=surface1, name='topo1a')
+    topo1b = Topography1DFactory(surface=surface1, name='topo1b')
 
     # One topography for surface2
-    topo2a = TopographyFactory(surface=surface2, name='topo2a')
+    topo2a = Topography1DFactory(surface=surface2, name='topo2a')
 
     # analyses, differentiate by start time
-    analysis1a_1 = AnalysisFactory(topography=topo1a, function=func1,
-                                   start_time=datetime.datetime(2019, 1, 1, 12))
-    analysis1b_1 = AnalysisFactory(topography=topo1b, function=func1,
-                                   start_time=datetime.datetime(2019, 1, 1, 13))
-    analysis2a_1 = AnalysisFactory(topography=topo2a, function=func1,
-                                   start_time=datetime.datetime(2019, 1, 1, 14))
+    analysis1a_1 = TopographyAnalysisFactory(subject=topo1a, function=func1,
+                                             start_time=datetime.datetime(2019, 1, 1, 12))
+    analysis1b_1 = TopographyAnalysisFactory(subject=topo1b, function=func1,
+                                             start_time=datetime.datetime(2019, 1, 1, 13))
+    analysis2a_1 = TopographyAnalysisFactory(subject=topo2a, function=func1,
+                                             start_time=datetime.datetime(2019, 1, 1, 14))
 
-    # analysis1a_2 = AnalysisFactory(topography=topo1a, function=func2,
-    #                                start_time=datetime.datetime(2019, 1, 1, 15))
-    # analysis1b_2 = AnalysisFactory(topography=topo1b, function=func2,
-    #                                start_time=datetime.datetime(2019, 1, 1, 16))
-    # analysis2a_2 = AnalysisFactory(topography=topo2a, function=func2,
-    #                                start_time=datetime.datetime(2019, 1, 1, 17))
+    # Function should have three analyses, all successful (the default when using the factory)
+    assert func1.analysis_set.count() == 3
+    assert all(a.task_state == 'su' for a in func1.analysis_set.all())
 
     # user2 shares surfaces, so user 1 should see surface1+surface2
     surface2.share(user1)
@@ -866,13 +940,17 @@ def test_view_shared_analysis_results(client, handle_usage_statistics):
 
     response = client.post(reverse("analysis:card"),
                            data={
-                               'topography_ids[]': [topo1a.id, topo1b.id, topo2a.id],
+                               'subjects_ids_json': subjects_to_json([topo1a, topo1b, topo2a]),
                                'function_id': func1.id,
                                'card_id': 1,
                                'template_flavor': 'list'
                            },
                            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
                            follow=True)
+
+    # Function should still have three analyses, all successful (the default when using the factory)
+    assert func1.analysis_set.count() == 3
+    assert all(a.task_state == 'su' for a in func1.analysis_set.all())
 
     assert response.status_code == 200
 
@@ -890,7 +968,7 @@ def test_view_shared_analysis_results(client, handle_usage_statistics):
 
     response = client.post(reverse("analysis:card"),
                            data={
-                               'topography_ids[]': [topo1a.id, topo1b.id, topo2a.id],
+                               'subjects_ids_json': subjects_to_json([topo1a, topo1b, topo2a]),
                                'function_id': func1.id,
                                'card_id': 1,
                                'template_flavor': 'list'

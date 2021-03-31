@@ -1,216 +1,49 @@
 """
-Functions which can be chosen for analysis of topographies.
+Implementations of analysis functions for topographies and surfaces.
 
-The first argument is always a SurfaceTopography.Topography!
+The first argument is either a Topography or Surface instance (model).
 """
-
-import numpy as np
-import tempfile
-
-# These imports are needed for storage
 from django.core.files.storage import default_storage
 from django.core.files import File
+from django.conf import settings
+
 import xarray as xr
+import numpy as np
+import tempfile
+from pint import UnitRegistry, UndefinedUnitError
+from scipy.interpolate import interp1d
+import scipy.stats
 
 from SurfaceTopography import Topography, PlasticTopography
-
 from ContactMechanics import PeriodicFFTElasticHalfSpace, FreeFFTElasticHalfSpace, make_system
 
-CONTACT_MECHANICS_KWARGS_LIMITS = {
-            'nsteps': dict(min=1, max=50),
-            'maxiter': dict(min=1, max=1000),
-            'pressures': dict(maxlen=50),
-}
-
-# TODO: _unicode_map and super and subscript functions should be moved to some support module.
-
-_unicode_map = {
-    # superscript subscript
-    '0': ('\u2070', '\u2080'),
-    '1': ('\u00B9', '\u2081'),
-    '2': ('\u00B2', '\u2082'),
-    '3': ('\u00B3', '\u2083'),
-    '4': ('\u2074', '\u2084'),
-    '5': ('\u2075', '\u2085'),
-    '6': ('\u2076', '\u2086'),
-    '7': ('\u2077', '\u2087'),
-    '8': ('\u2078', '\u2088'),
-    '9': ('\u2079', '\u2089'),
-    'a': ('\u1d43', '\u2090'),
-    'b': ('\u1d47', '?'),
-    'c': ('\u1d9c', '?'),
-    'd': ('\u1d48', '?'),
-    'e': ('\u1d49', '\u2091'),
-    'f': ('\u1da0', '?'),
-    'g': ('\u1d4d', '?'),
-    'h': ('\u02b0', '\u2095'),
-    'i': ('\u2071', '\u1d62'),
-    'j': ('\u02b2', '\u2c7c'),
-    'k': ('\u1d4f', '\u2096'),
-    'l': ('\u02e1', '\u2097'),
-    'm': ('\u1d50', '\u2098'),
-    'n': ('\u207f', '\u2099'),
-    'o': ('\u1d52', '\u2092'),
-    'p': ('\u1d56', '\u209a'),
-    'q': ('?', '?'),
-    'r': ('\u02b3', '\u1d63'),
-    's': ('\u02e2', '\u209b'),
-    't': ('\u1d57', '\u209c'),
-    'u': ('\u1d58', '\u1d64'),
-    'v': ('\u1d5b', '\u1d65'),
-    'w': ('\u02b7', '?'),
-    'x': ('\u02e3', '\u2093'),
-    'y': ('\u02b8', '?'),
-    'z': ('?', '?'),
-    'A': ('\u1d2c', '?'),
-    'B': ('\u1d2e', '?'),
-    'C': ('?', '?'),
-    'D': ('\u1d30', '?'),
-    'E': ('\u1d31', '?'),
-    'F': ('?', '?'),
-    'G': ('\u1d33', '?'),
-    'H': ('\u1d34', '?'),
-    'I': ('\u1d35', '?'),
-    'J': ('\u1d36', '?'),
-    'K': ('\u1d37', '?'),
-    'L': ('\u1d38', '?'),
-    'M': ('\u1d39', '?'),
-    'N': ('\u1d3a', '?'),
-    'O': ('\u1d3c', '?'),
-    'P': ('\u1d3e', '?'),
-    'Q': ('?', '?'),
-    'R': ('\u1d3f', '?'),
-    'S': ('?', '?'),
-    'T': ('\u1d40', '?'),
-    'U': ('\u1d41', '?'),
-    'V': ('\u2c7d', '?'),
-    'W': ('\u1d42', '?'),
-    'X': ('?', '?'),
-    'Y': ('?', '?'),
-    'Z': ('?', '?'),
-    '+': ('\u207A', '\u208A'),
-    '-': ('\u207B', '\u208B'),
-    '=': ('\u207C', '\u208C'),
-    '(': ('\u207D', '\u208D'),
-    ')': ('\u207E', '\u208E'),
-    ':alpha': ('\u1d45', '?'),
-    ':beta': ('\u1d5d', '\u1d66'),
-    ':gamma': ('\u1d5e', '\u1d67'),
-    ':delta': ('\u1d5f', '?'),
-    ':epsilon': ('\u1d4b', '?'),
-    ':theta': ('\u1dbf', '?'),
-    ':iota': ('\u1da5', '?'),
-    ':pho': ('?', '\u1d68'),
-    ':phi': ('\u1db2', '?'),
-    ':psi': ('\u1d60', '\u1d69'),
-    ':chi': ('\u1d61', '\u1d6a'),
-    ':coffee': ('\u2615', '\u2615')
-}
-
-_analysis_funcs = [] # is used in register_all
+import topobank.manager.models  # will be used to evaluate model classes
+from .registry import AnalysisFunctionRegistry
 
 
-def register_all():
-    """Registers all analysis functions in the database.
-
-    Use @analysis_function decorator to mark analysis functions
-    in the code.
-
-    :returns: number of registered analysis functions
-    """
-    from .models import AnalysisFunction
-    for rf in _analysis_funcs:
-        AnalysisFunction.objects.update_or_create(name=rf['name'],
-                                                  pyfunc=rf['pyfunc'],
-                                                  automatic=rf['automatic'])
-    return len(_analysis_funcs)
-
-
-def analysis_function(card_view_flavor="simple", name=None, automatic=False):
-    """Decorator for marking a function as analysis function for a topography.
+def register_implementation(card_view_flavor="simple", name=None):
+    """Decorator for marking a function as implementation for an analysis function.
 
     :param card_view_flavor: defines how results for this function are displayed, see views.CARD_VIEW_FLAVORS
     :param name: human-readable name, default is to create this from function name
-    :param automatic: choose True, if you want to calculate this for every new topography
 
-    See views.py for possible view classes. The should be descendants of the class
-    "SimpleCardView".
+    Only card_view_flavor can be used which are defined in the
+    AnalysisFunction model. Additionally See views.py for possible view classes.
+    They should be descendants of the class "SimpleCardView".
     """
     def register_decorator(func):
         """
-        :param func: function to be registered, first arg must be a Topography
+        :param func: function to be registered, first arg must be a "topography" or "surface"
         :return: decorated function
+
+        Depending on the name of the first argument, you get either a Topography
+        or a Surface instance.
         """
-
-        if name is None:
-            name_ = func.__name__.replace('_', ' ').title()
-        else:
-            name_ = name
-
-        # the following data is used in "register_all" to create database objects for the function
-        _analysis_funcs.append(dict(
-            name = name_,
-            pyfunc = func.__name__,
-            automatic = automatic
-        ))
-
-        # TODO: Can a default argument be automated without writing it?
-        # Add progress_recorder argument with default value, if not defined:
-        # sig = signature(func)
-        #if 'progress_recorder' not in sig.parameters:
-        #    func = lambda *args, **kw: func(*args, progress_recorder=ConsoleProgressRecorder(), **kw)
-        #    # the console progress recorder will work in tests and when calling the function
-        #    # outside of an celery context
-        #    #
-        #    # When used in a celery context, this argument will be overwritten with
-        #    # another recorder updated by a celery task
-
-        func.card_view_flavor = card_view_flavor  # will be used when choosing the right view on request
+        registry = AnalysisFunctionRegistry()  # singleton
+        registry.add_implementation(name, card_view_flavor, func)
         return func
 
     return register_decorator
-
-
-def unicode_superscript(s):
-    """
-    Convert a string into the unicode superscript equivalent.
-
-    :param s: Input string
-    :return: String with superscript numerals
-    """
-    return ''.join(_unicode_map[c][0] if c in _unicode_map else c for c in s)
-
-
-def unicode_subscript(s):
-    """
-    Convert numerals inside a string into the unicode subscript equivalent.
-
-    :param s: Input string
-    :return: String with superscript numerals
-    """
-    return ''.join(_unicode_map[c][1] if c in _unicode_map else c for c in s)
-
-
-def float_to_unicode(f, digits=3):
-    """
-    Convert a floating point number into a human-readable unicode representation.
-    Examples are: 1.2×10³, 120.43, 120×10⁻³. Exponents will be multiples of three.
-
-    :param f: Floating-point number for conversion.
-    :param digits: Number of significant digits.
-    :return: Human-readable unicode string.
-    """
-    e = int(np.floor(np.log10(f)))
-    m = f / 10 ** e
-
-    e3 = (e // 3) * 3
-    m *= 10 ** (e - e3)
-
-    if e3 == 0:
-        return ('{{:.{}g}}'.format(digits)).format(m)
-
-    else:
-        return ('{{:.{}g}}×10{{}}'.format(digits)).format(m, unicode_superscript(str(e3)))
 
 
 def _reasonable_bins_argument(topography):
@@ -226,16 +59,6 @@ def _reasonable_bins_argument(topography):
         # return 'auto'
 
 
-def test_function(topography):
-    return { 'name': 'Test result for test function called for topography {}.'.format(topography),
-             'xunit': 'm',
-             'yunit': 'm',
-             'xlabel': 'x',
-             'ylabel': 'y',
-             'series': []}
-test_function.card_view_flavor = 'simple'
-
-
 class IncompatibleTopographyException(Exception):
     """Raise this exception in case a function cannot handle a topography.
 
@@ -247,8 +70,9 @@ class IncompatibleTopographyException(Exception):
 #
 # Use this during development if you need a long running task with failures
 #
-# @analysis_function(card_view_flavor='simple', automatic=True)
+# @analysis_function(card_view_flavor='simple')
 # def long_running_task(topography, progress_recorder=None, storage_prefix=None):
+#     topography = topography.topography()
 #     import time, random
 #     n = 10 + random.randint(1,10)
 #     F = 30
@@ -260,8 +84,11 @@ class IncompatibleTopographyException(Exception):
 #     return dict(message="done", physical_sizes=topography.physical_sizes, n=n)
 
 
-@analysis_function(card_view_flavor='plot', automatic=True)
+@register_implementation(name="Height Distribution", card_view_flavor='plot')
 def height_distribution(topography, bins=None, wfac=5, progress_recorder=None, storage_prefix=None):
+
+    # Get low level topography from SurfaceTopography model
+    topography = topography.topography()
 
     if bins is None:
         bins = _reasonable_bins_argument(topography)
@@ -306,11 +133,39 @@ def height_distribution(topography, bins=None, wfac=5, progress_recorder=None, s
     )
 
 
-def _moments_histogram_gaussian(arr, bins, wfac, quantity, label, unit, gaussian=True):
-    """Return moments, histogram and gaussian for an array.
+def _reasonable_histogram_range(arr):
+    """Return 'range' argument for np.histogram
 
-    :param arr: array
+    Fixes problem with too small default ranges
+    which is roughly arr.max()-arr.min() < 1e-08.
+    We take 5*e-8 as threshold in order to be safe.
+
+    Parameters
+    ----------
+    arr: array
+        array to calculate histogram for
+
+    Returns
+    -------
+    (float, float)
+    The lower and upper range of the bins.
+
+    """
+    arr_min = arr.min()
+    arr_max = arr.max()
+
+    if arr_max-arr_min < 5e-8:
+        hist_range = (arr_min-1e-3, arr_max+1e-3)
+    else:
+        hist_range = (arr_min, arr_max)
+    return hist_range
+
+
+def _moments_histogram_gaussian(arr, bins, topography, wfac, quantity, label, unit, gaussian=True):
+    """Return moments, histogram and gaussian for an array.
+    :param arr: array, array to calculate moments and histogram for
     :param bins: bins argument for np.histogram
+    :param topography: SurfaceTopography topography instance, used for histogram ranges
     :param wfac: numeric width factor
     :param quantity: str, what kind of quantity this is (e.g. 'slope')
     :param label: str, how these results should be extra labeled (e.g. 'x direction')
@@ -328,7 +183,9 @@ def _moments_histogram_gaussian(arr, bins, wfac, quantity, label, unit, gaussian
 
     mean = arr.mean()
     rms = np.sqrt((arr**2).mean())
-    hist, bin_edges = np.histogram(arr, bins=bins, density=True)
+
+    hist, bin_edges = np.histogram(arr, bins=bins, density=True,
+                                   range=_reasonable_histogram_range(arr))
 
     scalars = {
         f"Mean {quantity.capitalize()} ({label})": dict(value=mean, unit=unit),
@@ -348,15 +205,18 @@ def _moments_histogram_gaussian(arr, bins, wfac, quantity, label, unit, gaussian
 
         series.append(
             dict(name=f'RMS {quantity} ({label})',
-             x=x_gauss,
-             y=y_gauss)
+                 x=x_gauss,
+                 y=y_gauss)
         )
 
     return scalars, series
 
 
-@analysis_function(card_view_flavor='plot', automatic=True)
+@register_implementation(name="Slope Distribution", card_view_flavor='plot')
 def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, storage_prefix=None):
+
+    # Get low level topography from SurfaceTopography model
+    topography = topography.topography()
 
     if bins is None:
         bins = _reasonable_bins_argument(topography)
@@ -378,16 +238,20 @@ def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, st
         #
         # Results for x direction
         #
-        scalars_slope_x, series_slope_x = _moments_histogram_gaussian(dh_dx, bins=bins, wfac=wfac,
+        scalars_slope_x, series_slope_x = _moments_histogram_gaussian(dh_dx, bins=bins,
+                                                                      topography=topography,
+                                                                      wfac=wfac,
                                                                       quantity="slope", unit='1',
                                                                       label='x direction')
         result['scalars'].update(scalars_slope_x)
         result['series'].extend(series_slope_x)
 
         #
-        # Results for x direction
+        # Results for y direction
         #
-        scalars_slope_y, series_slope_y = _moments_histogram_gaussian(dh_dy, bins=bins, wfac=wfac,
+        scalars_slope_y, series_slope_y = _moments_histogram_gaussian(dh_dy, bins=bins,
+                                                                      topography=topography,
+                                                                      wfac=wfac,
                                                                       quantity="slope", unit='1',
                                                                       label='y direction')
         result['scalars'].update(scalars_slope_y)
@@ -406,10 +270,11 @@ def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, st
         # result['scalars'].update(scalars_grad)
         # result['series'].extend(series_grad)
 
-
     elif topography.dim == 1:
         dh_dx = topography.derivative(n=1)
-        scalars_slope_x, series_slope_x = _moments_histogram_gaussian(dh_dx, bins=bins, wfac=wfac,
+        scalars_slope_x, series_slope_x = _moments_histogram_gaussian(dh_dx, bins=bins,
+                                                                      topography=topography,
+                                                                      wfac=wfac,
                                                                       quantity="slope", unit='1',
                                                                       label='x direction')
         result['scalars'].update(scalars_slope_x)
@@ -420,8 +285,12 @@ def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, st
     return result
 
 
-@analysis_function(card_view_flavor='plot', automatic=True)
+@register_implementation(name="Curvature Distribution", card_view_flavor='plot')
 def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None, storage_prefix=None):
+
+    # Get low level topography from SurfaceTopography model
+    topography = topography.topography()
+
     if bins is None:
         bins = _reasonable_bins_argument(topography)
 
@@ -430,17 +299,17 @@ def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None
     #
     if topography.dim == 2:
         curv_x, curv_y = topography.derivative(n=2)
-        if topography.is_periodic:
-            curv = curv_x[:,:] + curv_y[:,:]
-        else:
-            curv = curv_x[:, 1:-1] + curv_y[1:-1, :]
+        curv = curv_x + curv_y
     else:
         curv = topography.derivative(n=2)
 
     mean_curv = np.mean(curv)
     rms_curv = topography.rms_curvature()
 
-    hist, bin_edges = np.histogram(np.ma.compressed(curv), bins=bins,
+    hist_arr = np.ma.compressed(curv)
+
+    hist, bin_edges = np.histogram(hist_arr, bins=bins,
+                                   range=_reasonable_histogram_range(hist_arr),
                                    density=True)
 
     minval = mean_curv - wfac * rms_curv
@@ -474,8 +343,12 @@ def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None
     )
 
 
-@analysis_function(card_view_flavor='plot', automatic=True)
+@register_implementation(name="Power Spectrum", card_view_flavor='plot')
 def power_spectrum(topography, window=None, tip_radius=None, progress_recorder=None, storage_prefix=None):
+
+    # Get low level topography from SurfaceTopography model
+    topography = topography.topography()
+
     if window == 'None':
         window = None
 
@@ -532,12 +405,224 @@ def power_spectrum(topography, window=None, tip_radius=None, progress_recorder=N
     return result
 
 
-@analysis_function(card_view_flavor='plot', automatic=True)
+def average_series_list(series_list, num_points=100, xscale='linear'):
+    """Given a list of series dicts, return a dict for an average series.
+
+    Parameters
+    ----------
+    series_list: list of dicts
+
+                Each dict represents a function and should have the following keys:
+
+                {
+                    'name': str, name of series, must be equal for all given series!
+                    'x': np.array with x values, 1D
+                    'y': np.array with y values, same length as 'x'
+                }
+
+                All numbers must be given in the same units.
+    num_points: int
+                Number of points in results
+    xscale: str
+                Scaling of x axis on which the sampling is done. Can be 'linear' or 'log'.
+                If given 'log', the incoming data is filtered such that x values are always
+                positive.
+
+    Result
+    ------
+
+    Also a series dict
+
+    {
+        'name': str, common name of all series
+        'x': np.array, points spanning range of all x points in input series (only positive if xscale=='log')
+        'y': np.array, average values for all relevant points in input series when using linear interpolation
+    }
+
+    """
+    if len(series_list) == 0:
+        raise ValueError("At least one series must be given for averaging!")
+
+    # Check for common name
+    name_set = set(s['name'] for s in series_list)
+    if len(name_set) > 1:
+        raise ValueError("Series names must be unique!")
+    common_name = name_set.pop()
+
+    # x values must not be empty
+    for s in series_list:
+        if s['x'].size == 0:
+            raise ValueError("Empty series given for averaging!")
+
+    #
+    # If xscale not 'linear', the sampling for interpolation
+    # is done on another scale, e.g. log scale. For log scale, only
+    # positive x values are allowed.
+    #
+    spacing_funcs = {
+        'linear': np.linspace,
+        'log': np.geomspace
+    }
+
+    if xscale == 'log':
+        for s in series_list:
+            positive_idx = s['x'] > 0
+            s['x'] = s['x'][positive_idx]
+            s['y'] = s['y'][positive_idx]
+
+    #
+    # Find out range of x values for result
+    #
+    min_x = min(min(s['x']) for s in series_list)
+    max_x = max(max(s['x']) for s in series_list)
+
+
+    try:
+        av_x = spacing_funcs[xscale](min_x, max_x, num_points)
+    except KeyError:
+        raise ValueError(f"Averaging for xscale '{xscale}' not yet implemented.")
+
+    # do linear interpolation for each series and average y values of all relevant series
+    interpol_y_list = []
+    for s in series_list:
+        # we interpolate in the scale of original data (not log scale)
+        interpol = interp1d(s['x'], s['y'], bounds_error=False)  # inserts NaN outside of boundaries
+        interp_y = interpol(av_x)
+        interpol_y_list.append(interp_y)
+
+    av_y = np.nanmean(interpol_y_list, axis=0)  # ignores NaNs generated by interpolation
+    std_err_y = scipy.stats.sem(interpol_y_list, nan_policy='omit')
+    # a masked value in result of sem() only appears if there is for a given index only one
+    # number (others are nan).
+
+    return {
+        'name': common_name,
+        'x': av_x,
+        'y': av_y,
+        'std_err_y': std_err_y
+    }
+
+
+def average_results_for_surface(surface, topo_analysis_func, num_points=100,
+                                progress_recorder=None, storage_prefix=None, **kwargs):
+    """Generic analysis function for average over topographies
+
+    Parameters
+        surface: Surface instance
+        topo_analysis_func: function
+            analysis function which should be called on each topography
+            using the **kwargs arguments.
+        progress_recorder: ProgressRecorder instance
+            currently used only on top level, not passed to topography analysis
+        storage_prefix:
+            also passed to topo_analysis_func
+        kwargs: dict
+            other keyword arguments passed to topo_analysis_func
+    Returns:
+        dict with
+
+        {
+            'xunit': str,
+            'yunit': str,
+            'series': sequence of series with results
+        }
+
+        This dict can be used to build the full result dict
+
+    Currently this only meant to be used with function returning results for xscale='log'
+    like power_spectrum or autocorrelation (could be generalized).
+    """
+    topographies = surface.topography_set
+    num_topographies = topographies.count()
+
+    topo_result_series = {}  # key: series name, value: list of dict's, one for each result series
+
+    ureg = UnitRegistry()
+    xunit = None
+    yunit = None
+
+    num_steps = num_topographies + 1  # averaging counted as extra step
+
+    #
+    # We have to process each series name individually, so we first collect the series
+    # for each series name. Each series is also scaled, in order to use common units.
+    # When scaling the series, we have to take into account that the
+    # series might already been scaled because of a log-log plot.
+    #
+    for topo_idx, topo in enumerate(topographies.all()):
+        topo_result = topo_analysis_func(topo, storage_prefix=storage_prefix, **kwargs)
+
+        if xunit is None:
+            xunit = topo_result['xunit']
+            yunit = topo_result['yunit']
+            xunit_factor = 1
+            yunit_factor = 1
+        else:
+            xunit_factor = ureg.convert(1, topo_result['xunit'], xunit)
+            yunit_factor = ureg.convert(1, topo_result['yunit'], yunit)
+
+        for s in topo_result['series']:
+            series_name = s['name']
+            if series_name not in topo_result_series:
+                topo_result_series[series_name] = []
+            scaled_series = {
+                'name': s['name'],
+                'x': s['x'] * xunit_factor,
+                'y': s['y'] * yunit_factor,
+            }
+            topo_result_series[series_name].append(scaled_series)
+        if progress_recorder:
+            progress_recorder.set_progress(topo_idx + 1, num_steps)
+
+    result_series = []
+
+    for series_list in topo_result_series.values():
+        result_series.append(average_series_list(series_list, num_points=num_points, xscale='log'))
+    if progress_recorder:
+        progress_recorder.set_progress(num_steps, num_steps)
+
+    return dict(
+        xunit=xunit,
+        yunit=yunit,
+        series=result_series
+    )
+
+
+@register_implementation(name="Power Spectrum", card_view_flavor='plot')
+def power_spectrum_for_surface(surface, window=None, tip_radius=None, num_points=100,
+                               progress_recorder=None, storage_prefix=None):
+    """Calculate average power spectrum for a surface."""
+
+    func_kwargs = dict(
+        window=window,
+        tip_radius=tip_radius,
+        storage_prefix=storage_prefix
+    )
+    result = average_results_for_surface(surface, topo_analysis_func=power_spectrum,
+                                         num_points=num_points, progress_recorder=progress_recorder,
+                                         **func_kwargs)
+
+    result.update(dict(
+        name='Power-spectral density (PSD)',
+        xlabel='Wavevector',
+        ylabel='PSD',
+        xscale='log',
+        yscale='log',
+    ))
+
+    return result
+
+
+@register_implementation(name="Autocorrelation", card_view_flavor='plot')
 def autocorrelation(topography, progress_recorder=None, storage_prefix=None):
+
+    # Get low level topography from SurfaceTopography model
+    topography = topography.topography()
 
     if topography.dim == 2:
         sx, sy = topography.physical_sizes
-        transposed_topography = Topography(topography.heights().T, physical_sizes=(sy,sx), periodic=topography.is_periodic)
+        transposed_topography = Topography(topography.heights().T, physical_sizes=(sy, sx),
+                                           periodic=topography.is_periodic)
         r_T, A_T = transposed_topography.autocorrelation_1D()
         r_2D, A_2D = topography.autocorrelation_2D()
 
@@ -584,12 +669,12 @@ def autocorrelation(topography, progress_recorder=None, storage_prefix=None):
     # Build series
     #
     series = [dict(name='Along x',
-                 x=r,
-                 y=A,
-                )]
+                   x=r,
+                   y=A,
+                   )]
 
     if topography.dim == 2:
-        series=[
+        series = [
             dict(name='Radial average',
                  x=r_2D,
                  y=A_2D,
@@ -612,8 +697,67 @@ def autocorrelation(topography, progress_recorder=None, storage_prefix=None):
         series=series)
 
 
-@analysis_function(card_view_flavor='plot', automatic=True)
+@register_implementation(name="Autocorrelation", card_view_flavor='plot')
+def autocorrelation_for_surface(surface, num_points=100,
+                                progress_recorder=None, storage_prefix=None):
+    """Calculate average autocorrelation for a surface."""
+    result = average_results_for_surface(surface, topo_analysis_func=autocorrelation,
+                                         num_points=num_points, progress_recorder=progress_recorder,
+                                         storage_prefix=storage_prefix)
+
+    result.update(dict(
+        name='Height-difference autocorrelation function (ACF)',
+        xlabel='Distance',
+        ylabel='ACF',
+        xscale='log',
+        yscale='log',
+    ))
+
+    return result
+
+
+@register_implementation(name="Scale-dependent Slope", card_view_flavor='plot')
+def scale_dependent_slope(topography, progress_recorder=None, storage_prefix=None):
+
+    return_dict = autocorrelation(topography, progress_recorder=progress_recorder,
+                                  storage_prefix=storage_prefix)
+
+    for dataset in return_dict['series']:
+        x = dataset['x']
+        y = dataset['y']
+        dataset['x'] = x[1:]
+        dataset['y'] = np.sqrt(2 * y[1:]) / x[1:]
+    return_dict['name'] = 'Scale-dependent slope'
+    return_dict['ylabel'] = 'Slope'
+    return_dict['yunit'] = '1'
+
+    return return_dict
+
+
+@register_implementation(name="Scale-dependent Slope", card_view_flavor='plot')
+def scale_dependent_slope_for_surface(surface, num_points=100,
+                                      progress_recorder=None, storage_prefix=None):
+    """Calculate average autocorrelation for a surface."""
+    result = average_results_for_surface(surface, topo_analysis_func=scale_dependent_slope,
+                                         num_points=num_points, progress_recorder=progress_recorder,
+                                         storage_prefix=storage_prefix)
+
+    result.update(dict(
+        name='Scale-dependent Slope',
+        xlabel='Distance',
+        ylabel='Slope',
+        xscale='log',
+        yscale='log',
+    ))
+
+    return result
+
+
+@register_implementation(name="Variable Bandwidth", card_view_flavor='plot')
 def variable_bandwidth(topography, progress_recorder=None, storage_prefix=None):
+
+    # Get low level topography from SurfaceTopography model
+    topography = topography.topography()
 
     magnifications, bandwidths, rms_heights = topography.variable_bandwidth()
 
@@ -634,6 +778,25 @@ def variable_bandwidth(topography, progress_recorder=None, storage_prefix=None):
                  ),
         ]
     )
+
+
+@register_implementation(name="Variable Bandwidth", card_view_flavor='plot')
+def variable_bandwidth_for_surface(surface, num_points=100,
+                                   progress_recorder=None, storage_prefix=None):
+    """Calculate average variable bandwidth for a surface."""
+    result = average_results_for_surface(surface, topo_analysis_func=variable_bandwidth,
+                                         num_points=num_points, progress_recorder=progress_recorder,
+                                         storage_prefix=storage_prefix)
+    result.update(dict(
+        name='Variable-bandwidth analysis',
+        xlabel='Bandwidth',
+        ylabel='RMS Height',
+        xscale='log',
+        yscale='log',
+    ))
+
+    return result
+
 
 
 def _next_contact_step(system, history=None, pentol=None, maxiter=None):
@@ -798,7 +961,7 @@ def _contact_at_given_load(system, external_force, history=None, pentol=None, ma
            (mean_displacements, mean_gaps, mean_pressures, total_contact_areas, converged)
 
 
-@analysis_function(card_view_flavor='contact mechanics', automatic=True)
+@register_implementation(name="Contact Mechanics", card_view_flavor='contact mechanics')
 def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
                       pressures=None, maxiter=100, progress_recorder=None, storage_prefix=None):
     """
@@ -814,6 +977,9 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
     :param storage_prefix:
     :return:
     """
+
+    # Get low level topography from SurfaceTopography model
+    topography = topography.topography()
 
     if topography.dim == 1:
         raise IncompatibleTopographyException("Contact mechanics not implemented for line scans.")
@@ -833,15 +999,16 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
     if (nsteps is not None) and (pressures is not None):
         raise ValueError("Both 'nsteps' and 'pressures' are given. One must be None.")
 
+    kwargs_limits = settings.CONTACT_MECHANICS_KWARGS_LIMITS
     #
     # Check some limits for number of pressures, maxiter, and nsteps
     # (same should be used in HTML page and checked by JS)
     #
-    if (nsteps) and ((nsteps<CONTACT_MECHANICS_KWARGS_LIMITS['nsteps']['min']) or (nsteps>CONTACT_MECHANICS_KWARGS_LIMITS['nsteps']['max'])):
+    if nsteps and ((nsteps < kwargs_limits['nsteps']['min']) or (nsteps > kwargs_limits['nsteps']['max'])):
         raise ValueError(f"Invalid value for 'nsteps': {nsteps}")
-    if (pressures) and ((len(pressures)<1) or (len(pressures)>CONTACT_MECHANICS_KWARGS_LIMITS['pressures']['maxlen'])):
+    if pressures and ((len(pressures) < 1) or (len(pressures) > kwargs_limits['pressures']['maxlen'])):
         raise ValueError(f"Invalid number of pressures given: {len(pressures)}")
-    if (maxiter<CONTACT_MECHANICS_KWARGS_LIMITS['maxiter']['min']) or (maxiter>CONTACT_MECHANICS_KWARGS_LIMITS['maxiter']['max']):
+    if (maxiter<kwargs_limits['maxiter']['min']) or (maxiter > kwargs_limits['maxiter']['max']):
         raise ValueError(f"Invalid value for 'maxiter': {maxiter}")
 
     # Conversion of force units
@@ -859,8 +1026,6 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
                               nonperiodic=FreeFFTElasticHalfSpace)
 
     half_space_kwargs = {}
-    if substrate_str == 'nonperiodic':
-        half_space_kwargs['check_boundaries'] = False # TODO remove this with PyCo > 0.52.0, there the default is changed
 
     substrate = half_space_factory[substrate_str](topography.nb_grid_pts, 1.0, topography.physical_sizes,
                                                   **half_space_kwargs)
@@ -904,12 +1069,12 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
         dataset = xr.Dataset({'pressure': pressure_xy,
                               'contacting_points': contacting_points_xy,
                               'gap': gap_xy,
-                              'displacement': displacement_xy}) # one dataset per analysis step: smallest unit to retrieve
+                              'displacement': displacement_xy})  # one dataset per analysis step: smallest unit to retrieve
         dataset.attrs['mean_pressure'] = mean_pressure
         dataset.attrs['total_contact_area'] = total_contact_area
         dataset.attrs['type'] = substrate_str
         if hardness:
-            dataset.attrs['hardness'] = hardness # TODO how to save hardness=None? Not possible in netCDF
+            dataset.attrs['hardness'] = hardness  # TODO how to save hardness=None? Not possible in netCDF
 
         with tempfile.NamedTemporaryFile(prefix='analysis-') as tmpfile:
             dataset.to_netcdf(tmpfile.name, format=netcdf_format)
@@ -953,15 +1118,15 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
     )
 
 
-@analysis_function(card_view_flavor='rms table', automatic=True, name="RMS Values")
+@register_implementation(name="RMS Values", card_view_flavor='rms table')
 def rms_values(topography, progress_recorder=None, storage_prefix=None):
     """Just calculate RMS values for given topography.
 
     Parameters
     ----------
-    topography
-    progress_recorder
-    storage_prefix
+    topography: topobank.manager.models.Topography
+    progress_recorder: celery_progress.backend.ProgressRecorder or None
+    storage_prefix: str or None
 
     Returns
     -------
@@ -972,6 +1137,9 @@ def rms_values(topography, progress_recorder=None, storage_prefix=None):
      value
      unit
     """
+
+    # Get low level topography from SurfaceTopography model
+    topography = topography.topography()
 
     try:
         unit = topography.info['unit']
@@ -1029,3 +1197,26 @@ def rms_values(topography, progress_recorder=None, storage_prefix=None):
         raise ValueError("This analysis function can only handle 1D or 2D topographies.")
 
     return result
+
+
+def topography_analysis_function_for_tests(topography, a=1, b="foo"):
+    """This function can be registered for tests."""
+    return {'name': 'Test result for test function called for topography {}.'.format(topography),
+            'xunit': 'm',
+            'yunit': 'm',
+            'xlabel': 'x',
+            'ylabel': 'y',
+            'series': [],
+            'comment': f"a is {a} and b is {b}"}
+
+
+def surface_analysis_function_for_tests(surface, a=1, c="bar"):
+    """This function can be registered for tests."""
+    return {'name': 'Test result for test function called for surface {}.'.format(surface),
+            'xunit': 'm',
+            'yunit': 'm',
+            'xlabel': 'x',
+            'ylabel': 'y',
+            'series': [],
+            'comment': f"a is {a} and c is {c}"}
+

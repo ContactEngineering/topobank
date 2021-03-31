@@ -41,6 +41,12 @@ def remove_files(sender, instance, **kwargs):
         _log.warning("Cannot delete data file '%s', reason: %s", instance.datafile.name, str(exc))
 
 
+@receiver(post_delete, sender=Topography)
+def invalidate_surface_analyses(sender, instance, **kwargs):
+    """All surface analyses have to be invalidated if a topography is deleted."""
+    instance.surface.analyses.all().delete()
+
+
 @receiver(pre_save, sender=Topography)
 def set_creator_if_needed(sender, instance, **kwargs):
     if instance.creator is None:
