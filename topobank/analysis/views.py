@@ -708,7 +708,6 @@ class PlotCardView(SimpleCardView):
         #
         # Toggling visibility of the buttons / checkboxes
         #
-        js_args['source'] = source
         toggle_lines_callback = CustomJS(args=js_args, code=js_code_toggle_callback)
         toggle_subject_checkboxes = CustomJS(args=js_args, code="""
             surface_btn_group.visible = subject_btn_group_toggle_btn.active;
