@@ -468,6 +468,8 @@ class PlotCardView(SimpleCardView):
         series_dashes = OrderedDict()  # key: series name
         series_names = []
 
+        DEFAULT_ALPHA_FOR_TOPOGRAPHIES = 0.3 if has_at_least_one_surface_subject else 1.0
+
         # Also give each series a symbol (only used for small number of points)
         # series_symbols = OrderedDict()  # key: series name
 
@@ -578,16 +580,20 @@ class PlotCardView(SimpleCardView):
 
                 # hover_name = "{} for '{}'".format(series_name, topography_name)
                 line_width = LINEWIDTH_FOR_SURFACE_AVERAGE if is_surface_analysis else 1
+                topo_alpha = DEFAULT_ALPHA_FOR_TOPOGRAPHIES if is_topography_analysis else 1.
                 line_glyph = plot.line('x', 'y', source=source, legend_label=legend_entry,
                                        line_color=curr_color,
                                        line_dash=curr_dash,
                                        line_width=line_width,
+                                       line_alpha=topo_alpha,
                                        name=subject_display_name)
                 if show_symbols:
                     symbol_glyph = plot.scatter('x', 'y', source=source,
                                                 legend_label=legend_entry,
                                                 marker='circle',
                                                 size=10,
+                                                line_alpha=topo_alpha,
+                                                fill_alpha=topo_alpha,
                                                 line_color=curr_color,
                                                 line_dash=curr_dash,
                                                 fill_color=curr_color,
@@ -623,6 +629,9 @@ class PlotCardView(SimpleCardView):
                         js_code_toggle_callback += f"&& surface_btn_group.active.includes({subject_idx});"
                     elif is_topography_analysis:
                         js_code_toggle_callback += f"&& topography_btn_group.active.includes({subject_idx - num_surface_subjects});"
+                        js_code_alpha_callback += f"{glyph_id}.glyph.line_alpha = topography_alpha_slider.value;"
+                        js_code_alpha_callback += f"{glyph_id}.glyph.fill_alpha = topography_alpha_slider.value;"
+
 
             #
             # Collect special values to be shown in the result card
@@ -688,8 +697,8 @@ class PlotCardView(SimpleCardView):
         series_btn_group_toggle_button = Toggle(label="Data Series")
         options_group_toggle_button = Toggle(label="Plot Options")
 
-        topography_alpha_slider = Slider(start=0, end=1, title="Visibility of topography lines",
-                                         value=0.3 if has_at_least_one_surface_subject else 1.0,
+        topography_alpha_slider = Slider(start=0, end=1, title="Opacity of topography lines",
+                                         value=DEFAULT_ALPHA_FOR_TOPOGRAPHIES if has_at_least_one_surface_subject else 1.0,
                                          step=0.1, visible=False)
         options_group = column([topography_alpha_slider])
 
