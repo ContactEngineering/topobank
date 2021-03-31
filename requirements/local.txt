@@ -325,7 +325,7 @@ pycparser==2.20
     #   cffi
 pyflakes==2.2.0
     # via flake8
-pygments==2.7.1
+pygments==2.8.1
     # via
     #   -r ./base.txt
     #   ipython

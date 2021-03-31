@@ -198,7 +198,7 @@ pint==0.16.1
     # via -r base.in
 pycparser==2.20
     # via cffi
-pygments==2.7.1
+pygments==2.8.1
     # via -r base.in
 pyjwt[crypto]==1.7.1
     # via django-allauth

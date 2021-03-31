@@ -257,7 +257,7 @@ pycparser==2.20
     # via
     #   -r ./base.txt
     #   cffi
-pygments==2.7.1
+pygments==2.8.1
     # via -r ./base.txt
 pyjwt[crypto]==1.7.1
     # via

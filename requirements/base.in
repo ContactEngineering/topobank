@@ -111,7 +111,7 @@ markdown2>=2.3.9
 # Version 2.3.8 has a security issue (CVE-2020-11888)
 
 # for syntax highlighting for docstrings of readers
-pygments
+pygments>=2.7.4
 
 # datepicker
 django-bootstrap-datepicker-plus
