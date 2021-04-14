@@ -453,6 +453,12 @@ class Topography(models.Model, SubjectMixin):
         return "Topography '{0}' from {1}".format( \
             self.name, self.measurement_date)
 
+    @property
+    def label(self):
+        """Return a string which can be used in the UI.
+        """
+        return self.name
+
     def get_absolute_url(self):
         return reverse('manager:topography-detail', kwargs=dict(pk=self.pk))
 

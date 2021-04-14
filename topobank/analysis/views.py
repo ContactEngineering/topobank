@@ -390,7 +390,7 @@ class PlotCardView(SimpleCardView):
 
         for s in subjects:
             subject_ct = s.get_content_type()
-            subject_name = s.name
+            subject_name = s.label
             if subject_ct == surface_ct:
                 subject_name = f"Average of {subject_name}"
             subject_names_for_plot.append(subject_name)
