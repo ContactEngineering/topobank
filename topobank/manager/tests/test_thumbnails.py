@@ -41,10 +41,10 @@ def test_thumbnail_renewal_on_topography_detrend_mode_change(client, mocker):
                                'unit': 'nm',
                                'height_scale': 1,
                                'detrend_mode': 'height',
-                           })
+                           }, follow=True)
 
     # we just check here that the form is filled completely, otherwise the thumbnail would not be recreated too
     assert_no_form_errors(response)
-    assert response.status_code == 302
+    assert response.status_code == 200
 
     assert renew_topo_thumbnail_mock.called
