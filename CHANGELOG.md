@@ -2,6 +2,7 @@
 
 ## 1.0.0 (not published yet)
 
+- add "Download" button for surfaces to Select page (#618)
 - upgrade to Django 2.2.20 because of CVE
 
 ## 0.10.1 (2021-03-31)

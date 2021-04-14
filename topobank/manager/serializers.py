@@ -138,9 +138,9 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
             if obj.num_topographies() > 0:
                 urls.update({
                     'analyze': reverse('analysis:surface', kwargs=dict(surface_id=obj.id)),
-                    'download': reverse('manager:surface-download', kwargs=dict(surface_id=obj.id)),
-
                 })
+            urls['download'] = reverse('manager:surface-download', kwargs=dict(surface_id=obj.id))
+
         if 'change_surface' in perms:
             urls.update({
                 'add_topography': reverse('manager:topography-create', kwargs=dict(surface_id=obj.id)),
