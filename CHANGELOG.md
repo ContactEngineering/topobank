@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 1.0.0 (not published yet)
+
+- upgrade to Django 2.2.20 because of CVE
+
 ## 0.10.1 (2021-03-31)
 
 - added upgrade of pip in Dockerfile so no rust is needed 
