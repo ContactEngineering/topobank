@@ -3,6 +3,11 @@
 ## 1.0.0 (not published yet)
 
 - add "Download" button for surfaces to Select page (#618)
+- fixed bug that no average curve was shown if a surface
+  was selected by tag only (#632)
+- make two different averages distinguishable in plot
+  widgets if one is published by adding version number
+  to label
 - upgrade to Django 2.2.20 because of CVE
 
 ## 0.10.1 (2021-03-31)
