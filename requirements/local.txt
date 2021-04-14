@@ -141,7 +141,7 @@ django-test-plus==1.4.0
     # via -r local.in
 django-trackstats==0.5.0
     # via -r ./base.txt
-django==2.2.19
+django==2.2.20
     # via
     #   -r ./base.txt
     #   django-allauth
