@@ -250,6 +250,13 @@ def instances_to_selection(topographies=[], surfaces=[]):
 def instances_to_topographies(topographies, surfaces, tags):
     """Returns a queryset of topographies, based on given instances
 
+    Given topographies, surfaces and tags are resolved and
+    all topographies are returned which are either
+    - explicitly given
+    - given indirectly by a surface
+    - given indirectly by a tag, if the topography is tagged accordingly
+    - given indirectly by a tag, if its surface is tagged accordingly
+
     Parameters
     ----------
     topographies: sequence of topographies
@@ -272,6 +279,34 @@ def instances_to_topographies(topographies, surfaces, tags):
     topographies |= Topography.objects.filter(tags__in=tag_ids)
 
     return topographies.distinct().order_by('id')
+
+
+def instances_to_surfaces(surfaces, tags):
+    """Returns a queryset of surfaces, based on given instances
+
+    Given surfaces and tags are resolved and
+    all surfaces are returned which are either
+    - explicitly given
+    - given indirectly by a tag, if the surface is tagged accordingly
+
+    Parameters
+    ----------
+    surfaces: sequence of surfaces
+    tags: sequence of tags
+
+    Returns
+    -------
+    Queryset of surface, distinct
+    """
+    from .models import Surface
+
+    surface_ids = [s.id for s in surfaces]
+    tag_ids = [tag.id for tag in tags]
+
+    surfaces = Surface.objects.filter(id__in=surface_ids)
+    surfaces |= Surface.objects.filter(tags__in=tag_ids)
+
+    return surfaces.distinct().order_by('id')
 
 
 def selection_to_instances(selection):
@@ -509,11 +544,12 @@ def selection_to_subjects_json(request):
     """
     topographies, surfaces, tags = selected_instances(request)
     effective_topographies = instances_to_topographies(topographies, surfaces, tags)
+    effective_surfaces = instances_to_surfaces(surfaces, tags)
 
     # Do we have permission for all of these?
     user = request.user
     effective_topographies = [t for t in effective_topographies if user.has_perm('view_surface', t.surface)]
-    effective_surfaces = [s for s in surfaces if user.has_perm('view_surface', s)]
+    effective_surfaces = [s for s in effective_surfaces if user.has_perm('view_surface', s)]
 
     # we collect effective topographies and surfaces because we have so far implementations
     # for analysis functions for topographies and surfaces

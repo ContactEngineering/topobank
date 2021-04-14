@@ -11,7 +11,7 @@ from django.contrib.contenttypes.models import ContentType
 from ..tests.utils import two_topos, Topography1DFactory, SurfaceFactory, TagModelFactory, UserFactory, \
     user_three_topographies_three_surfaces_three_tags
 from ..utils import selection_to_instances, instances_to_selection, tags_for_user, \
-    instances_to_topographies, surfaces_for_user, subjects_to_json
+    instances_to_topographies, surfaces_for_user, subjects_to_json, instances_to_surfaces
 from ..models import Surface, Topography, TagModel
 
 
@@ -169,6 +169,30 @@ def test_instances_to_topographies(user_three_topographies_three_surfaces_three_
 
     # also two tags can be given
     assert list(instances_to_topographies([], [], [tag2, tag3])) == [topo1b, topo2a]
+
+
+@pytest.mark.django_db
+def test_instances_to_surfaces(user_three_topographies_three_surfaces_three_tags):
+    #
+    # Define instances as local variables
+    #
+    user, (topo1a, topo1b, topo2a), (surface1, surface2, surface3), (tag1, tag2, tag3) \
+        = user_three_topographies_three_surfaces_three_tags
+
+    # nothing given, nothing returned
+    assert list(instances_to_surfaces([], [])) == []
+
+    # surface without topographies is the same
+    assert list(instances_to_surfaces([surface3], [])) == [surface3]
+
+    # two surfaces given
+    assert list(instances_to_surfaces([surface2, surface1], [])) == [surface1, surface2]
+
+    # a single tag can be selected
+    assert list(instances_to_surfaces([], [tag3])) == [surface3]
+
+    # also two tags can be given
+    assert list(instances_to_surfaces([], [tag2, tag3])) == [surface2, surface3]
 
 
 @pytest.mark.django_db
