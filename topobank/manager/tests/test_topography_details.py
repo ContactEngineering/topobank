@@ -5,8 +5,10 @@ from django.shortcuts import reverse
 from .utils import topography_loaded_from_broken_file  # needed as fixture
 from topobank.utils import assert_in_content
 
+
 @pytest.mark.django_db
-def test_error_message_when_topography_file_cannot_be_loaded(client, topography_loaded_from_broken_file):
+def test_error_message_when_topography_file_cannot_be_loaded(client, topography_loaded_from_broken_file,
+                                                             handle_usage_statistics):
 
     client.force_login(user=topography_loaded_from_broken_file.surface.creator)
 
