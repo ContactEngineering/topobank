@@ -19,7 +19,7 @@ import logging
 import io
 import abc
 
-from bokeh.models import DataRange1d, LinearColorMapper, ColorBar
+from bokeh.models import DataRange1d, LinearColorMapper, ColorBar, FuncTickFormatter
 from bokeh.plotting import figure
 from bokeh.io.export import get_screenshot_as_png
 
@@ -670,6 +670,10 @@ class Topography(models.Model, SubjectMixin):
             plot.xaxis.axis_label_text_font_style = "normal"
             plot.yaxis.axis_label_text_font_style = "normal"
 
+        # see js function "format_exponential()" in project.js file
+        plot.xaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
+        plot.yaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
+
         plot.toolbar.logo = None
 
         return plot
@@ -730,6 +734,10 @@ class Topography(models.Model, SubjectMixin):
             plot.xaxis.axis_label_text_font_style = "normal"
             plot.yaxis.axis_label_text_font_style = "normal"
 
+        # see js function "format_exponential()" in project.js file
+        plot.xaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
+        plot.yaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
+
         # we need to rotate the height data in order to be compatible with image in Gwyddion
         plot.image([np.rot90(heights)], x=0, y=topo_size[1],
                    dw=topo_size[0], dh=topo_size[1], color_mapper=color_mapper)
@@ -743,9 +751,10 @@ class Topography(models.Model, SubjectMixin):
                                 label_standoff=12,
                                 location=(0, 0),
                                 width=colorbar_width,
+                                formatter=FuncTickFormatter(code="return format_exponential(tick);"),
                                 title=f"height ({self.unit})")
-
             plot.add_layout(colorbar, 'right')
+
 
         return plot
 
