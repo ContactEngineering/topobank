@@ -654,16 +654,8 @@ class PlotCardView(SimpleCardView):
 
         # plot.legend.click_policy = "hide" # can be used to disable lines by clicking on legend
         plot.legend.visible = False  # we have extra widgets to disable lines
-        plot.toolbar.logo = None
         plot.toolbar.active_inspect = None
-        plot.xaxis.axis_label_text_font_style = "normal"
-        plot.yaxis.axis_label_text_font_style = "normal"
-        plot.xaxis.major_label_text_font_size = "12pt"
-        plot.yaxis.major_label_text_font_size = "12pt"
-
-        # see js function "format_exponential()" in project.js file
-        plot.xaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
-        plot.yaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
+        _configure_plot(plot)
 
         #
         # Adding widgets for switching lines on/off
@@ -1133,8 +1125,7 @@ def _contact_mechanics_geometry_figure(values, frame_width, frame_height, topo_u
     x_range = DataRange1d(start=0, end=topo_size[0], bounds='auto', range_padding=5)
     y_range = DataRange1d(start=0, end=topo_size[1], bounds='auto', range_padding=5)
 
-    p = figure(title=title,
-               x_range=x_range,
+    p = figure(x_range=x_range,
                y_range=y_range,
                frame_width=frame_width,
                frame_height=frame_height,
@@ -1159,7 +1150,7 @@ def _contact_mechanics_geometry_figure(values, frame_width, frame_height, topo_u
         colorbar = ColorBar(color_mapper=color_mapper,
                             label_standoff=12,
                             location=(0, 0),
-                            title=value_unit)
+                            title=f"{title} ({value_unit})")
         colorbar.formatter = FuncTickFormatter(code="return format_exponential(tick);")
         p.add_layout(colorbar, "right")
 
