@@ -863,9 +863,6 @@ class ContactMechanicsCardView(SimpleCardView):
                                        y_axis_type="log",
                                        tools=tools)
 
-            contact_area_plot.xaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
-            contact_area_plot.yaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
-
             load_plot = figure(title=None,
                                plot_height=400,
                                sizing_mode='scale_width',
@@ -873,8 +870,6 @@ class ContactMechanicsCardView(SimpleCardView):
                                y_axis_label=load_axis_label,
                                x_axis_type="linear",
                                y_axis_type="log", tools=tools)
-
-            load_plot.yaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
 
             for source, label in zip(sources, labels):
                 curr_color = next(color_cycle)
@@ -1061,6 +1056,8 @@ def _configure_plot(plot):
     plot.yaxis.axis_label_text_font_style = "normal"
     plot.xaxis.major_label_text_font_size = "12pt"
     plot.yaxis.major_label_text_font_size = "12pt"
+    plot.xaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
+    plot.yaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
 
 
 def submit_analyses_view(request):
@@ -1163,7 +1160,7 @@ def _contact_mechanics_geometry_figure(values, frame_width, frame_height, topo_u
                             label_standoff=12,
                             location=(0, 0),
                             title=value_unit)
-
+        colorbar.formatter = FuncTickFormatter(code="return format_exponential(tick);")
         p.add_layout(colorbar, "right")
 
     _configure_plot(p)
@@ -1187,11 +1184,6 @@ def _contact_mechanics_distribution_figure(values, x_axis_label, y_axis_label,
                x_axis_type=x_axis_type,
                y_axis_type=y_axis_type,
                toolbar_location="above")
-
-    if x_axis_type == "log":
-        p.xaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
-    if y_axis_type == "log":
-        p.yaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
 
     p.step(edges[:-1], hist, mode="before", line_width=2)
 
