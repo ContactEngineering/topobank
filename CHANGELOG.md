@@ -8,6 +8,8 @@
 - make two different averages distinguishable in plot
   widgets if one is published by adding version number
   to label
+- now longer use "e" notation on plot axis, but scientific
+  notation with power of 10 (#636)  
 - upgrade to Django 2.2.20 because of CVE
 
 ## 0.10.1 (2021-03-31)
