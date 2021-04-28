@@ -2,6 +2,8 @@
 
 ## 1.0.0 (not published yet)
 
+## 0.11.0 (not published yet)
+
 - add "Download" button for surfaces to Select page (#618)
 - fixed bug that no average curve was shown if a surface
   was selected by tag only (#632)
@@ -11,6 +13,7 @@
 - now longer use "e" notation on plot axis, but scientific
   notation with power of 10 (#636)  
 - upgrade to Django 2.2.20 because of CVE
+- upgrade of packages py and django-debug-toolbar because of CVEs
 
 ## 0.10.1 (2021-03-31)
 

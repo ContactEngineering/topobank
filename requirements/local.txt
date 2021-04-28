@@ -101,7 +101,7 @@ django-crispy-forms==1.9.2
     # via -r ./base.txt
 django-debug-toolbar-request-history==0.1.3
     # via -r local.in
-django-debug-toolbar==2.2
+django-debug-toolbar==3.2.1
     # via
     #   -r local.in
     #   django-debug-toolbar-request-history
