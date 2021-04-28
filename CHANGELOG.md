@@ -4,7 +4,10 @@
 
 ## 0.11.0 (not published yet)
 
-- add "Download" button for surfaces to Select page (#618)
+- added "Download" button to individual surfaces to 
+  "Select" page (#618)
+- added "Download" button for downloading all surfaces
+  related to the current selection (#642)
 - fixed bug that no average curve was shown if a surface
   was selected by tag only (#632)
 - make two different averages distinguishable in plot
