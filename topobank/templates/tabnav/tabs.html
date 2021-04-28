@@ -28,14 +28,17 @@
           <a class="btn btn-sm btn-outline-success" href="{% url 'analysis:list' %}">
             <i class="fa fa-fw fa-area-chart"></i>Analyze
           </a>
-          <a class="btn btn-sm btn-outline-secondary pull-right"
-             href="{% url 'manager:download-selection' %}"
-             id="download-selection">
-            <i class="fa fa-download"></i> Download related surfaces
-          </a>
-          <button class="btn btn-sm btn-outline-secondary pull-right" v-on:click="unselect_all" id="unselect-all">
-            <i class="fa fa-times"></i> Clear selection
-          </button>
+          <div class="btn-group btn-group-sm pull-right" role="group" aria-label="Actions on current selection">
+            <button class="btn btn-sm btn-outline-secondary" v-on:click="unselect_all" id="unselect-all">
+              <i class="fa fa-times"></i> Clear selection
+            </button>
+            <a class="btn btn-sm btn-outline-secondary"
+               href="{% url 'manager:download-selection' %}"
+               type="button"
+               id="download-selection">
+              <i class="fa fa-download"></i> Download related surfaces
+            </a>
+          </div>
         </div>
         <div class="m-1" v-else>No items selected yet. In order to select, please use the checkboxes on the
           <a class="text-dark" href="{% url 'manager:select' %}"><i class="fa fa-fw fa-check-square-o"></i>Select</a> tab.
