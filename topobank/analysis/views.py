@@ -1043,6 +1043,16 @@ class RmsTableCardView(SimpleCardView):
 
 
 def _configure_plot(plot):
+    """Some often needed settings for bokeh figures.
+
+    Parameters
+    ----------
+    plot: bokeh Figure
+
+    Returns
+    -------
+    None
+    """
     plot.toolbar.logo = None
     plot.xaxis.axis_label_text_font_style = "normal"
     plot.yaxis.axis_label_text_font_style = "normal"
@@ -1125,16 +1135,24 @@ def _contact_mechanics_geometry_figure(values, frame_width, frame_height, topo_u
     x_range = DataRange1d(start=0, end=topo_size[0], bounds='auto', range_padding=5)
     y_range = DataRange1d(start=0, end=topo_size[1], bounds='auto', range_padding=5)
 
+    boolean_values = values.dtype == np.bool
+
+    COLORBAR_WIDTH = 50
+    COLORBAR_LABEL_STANDOFF = 12
+
+    plot_width = frame_width
+    if not boolean_values:
+        plot_width += COLORBAR_WIDTH + COLORBAR_LABEL_STANDOFF + 5
+
     p = figure(x_range=x_range,
                y_range=y_range,
                frame_width=frame_width,
                frame_height=frame_height,
+               plot_width=plot_width,
                x_axis_label="Position x ({})".format(topo_unit),
                y_axis_label="Position y ({})".format(topo_unit),
                match_aspect=True,
                toolbar_location="above")
-
-    boolean_values = values.dtype == np.bool
 
     if boolean_values:
         color_mapper = LinearColorMapper(palette=["black", "white"], low=0, high=1)
@@ -1148,7 +1166,8 @@ def _contact_mechanics_geometry_figure(values, frame_width, frame_height, topo_u
 
     if not boolean_values:
         colorbar = ColorBar(color_mapper=color_mapper,
-                            label_standoff=12,
+                            label_standoff=COLORBAR_LABEL_STANDOFF,
+                            width=COLORBAR_WIDTH,
                             location=(0, 0),
                             title=f"{title} ({value_unit})")
         colorbar.formatter = FuncTickFormatter(code="return format_exponential(tick);")
@@ -1181,10 +1200,6 @@ def _contact_mechanics_distribution_figure(values, x_axis_label, y_axis_label,
     _configure_plot(p)
 
     return p
-
-
-def _contact_mechanics_displacement_figure():
-    pass
 
 
 def contact_mechanics_data(request):
@@ -1282,11 +1297,12 @@ def contact_mechanics_data(request):
                     **geometry_figure_common_args),
                 'contact-pressure': _contact_mechanics_geometry_figure(
                     pressure,
-                    title=r'Contact pressure p(E*)',
+                    title=r'Pressure',
+                    value_unit='E*',
                     **geometry_figure_common_args),
                 'displacement': _contact_mechanics_geometry_figure(
                     displacement,
-                    title=r'Displacement', value_unit=unit,
+                    title=r'Displacem.', value_unit=unit,
                     **geometry_figure_common_args),
                 'gap': _contact_mechanics_geometry_figure(
                     gap, title=r'Gap', value_unit=unit,
