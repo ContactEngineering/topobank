@@ -379,6 +379,42 @@ def selected_instances(request):
     return topographies, surfaces, list(tags)
 
 
+def current_selection_as_surface_list(request):
+    """Returns a list of surfaces related to the current selection.
+
+    For all selected items, surfaces, topographies, or tags
+    the surface is identified which contains the selected data.
+    In the result, each of those surfaces is included once.
+
+    :param request: current request
+    :return: list of Surface instances, sorted by name
+    """
+    from .models import Surface
+
+    topographies, surfaces, tags = selected_instances(request)
+
+    #
+    # Collect all surfaces related to the selected items in a set
+    #
+    surfaces = set(surfaces)
+    for topo in topographies:
+        surfaces.add(topo.surface)
+    for tag in tags:
+        related_objects = tag.get_related_objects(flat=True)
+        for obj in related_objects:
+            if isinstance(obj, Surface):
+                surfaces.add(obj)
+            elif hasattr(obj, 'surface'):
+                surfaces.add(obj.surface)
+    #
+    # Filter surfaces such that the requesting user has permissions to read
+    #
+    surfaces = [surf for surf in surfaces if request.user.has_perm('view_surface', surf)]
+    surfaces.sort(key=lambda s: s.name)
+
+    return surfaces
+
+
 def instances_to_basket_items(topographies, surfaces, tags):
     """
 
@@ -797,3 +833,4 @@ def get_firefox_webdriver() -> WebDriver:
         executable_path=str(settings.GECKODRIVER_PATH),
         service_log_path=devnull,
     )
+

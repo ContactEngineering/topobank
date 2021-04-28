@@ -1497,29 +1497,8 @@ def download_selection_as_surfaces(request):
     :return:
     """
 
-    from .utils import selected_instances
-
-    topographies, surfaces, tags = selected_instances(request)
-
-    #
-    # Collect all surfaces related to the selected items in a set
-    #
-    surfaces = set(surfaces)
-    for topo in topographies:
-        surfaces.add(topo.surface)
-    for tag in tags:
-        related_objects = tag.get_related_objects(flat=True)
-        for obj in related_objects:
-            if isinstance(obj, Surface):
-                surfaces.add(obj)
-            elif hasattr(obj, 'surface'):
-                surfaces.add(obj.surface)
-    #
-    # Filter surfaces such that the requesting user has permissions to read
-    #
-    surfaces = [surf for surf in surfaces if request.user.has_perm('view_surface', surf)]
-
-    surfaces.sort(key=lambda s: s.name)
+    from .utils import current_selection_as_surface_list
+    surfaces = current_selection_as_surface_list(request)
 
     container_bytes = BytesIO()
     write_surface_container(container_bytes, surfaces, request=request)
