@@ -358,7 +358,7 @@ def selected_instances(request):
 
     The returned tuple has 3 elements, each a list:
 
-     'topographies': all topographies in the selection (if 'surface' is given, filtered by this surface)
+     'topographies': all topographies in the selection
      'surfaces': all surfaces explicitly found in the selection (not only because its topography was selected)
      'tags': all tags explicitly found in selection (not because all tagged items are selected)
 
