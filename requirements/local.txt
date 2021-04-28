@@ -315,8 +315,10 @@ psycopg2-binary==2.8.5
     # via -r local.in
 ptyprocess==0.6.0
     # via pexpect
-py==1.9.0
-    # via pytest
+py==1.10.0
+    # via
+    #   -r local.in
+    #   pytest
 pycodestyle==2.6.0
     # via flake8
 pycparser==2.20
