@@ -28,6 +28,11 @@
           <a class="btn btn-sm btn-outline-success" href="{% url 'analysis:list' %}">
             <i class="fa fa-fw fa-area-chart"></i>Analyze
           </a>
+          <a class="btn btn-sm btn-outline-secondary pull-right"
+             href="{% url 'manager:download-selection' %}"
+             id="download-selection">
+            <i class="fa fa-download"></i> Download related surfaces
+          </a>
           <button class="btn btn-sm btn-outline-secondary pull-right" v-on:click="unselect_all" id="unselect-all">
             <i class="fa fa-times"></i> Clear selection
           </button>
