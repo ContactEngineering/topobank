@@ -227,11 +227,12 @@ def selection_from_session(session):
     return session.get(SELECTION_SESSION_VARNAME, [])
 
 
-def instances_to_selection(topographies=[], surfaces=[]):
+def instances_to_selection(topographies=[], surfaces=[], tags=[]):
     """Returns a list of strings suitable for selecting instances.
 
     :param topographies: sequence of Topography instances
     :param surfaces: sequence of Surface instances
+    :param tags: sequence of TagModel instances
     :return: list of str, alphabetically sorted
     """
     selection = []
@@ -243,6 +244,9 @@ def instances_to_selection(topographies=[], surfaces=[]):
 
     for surf in surfaces:
         selection.append(f'surface-{surf.id}')
+
+    for tag in tags:
+        selection.append(f'tag-{tag.id}')
 
     return sorted(selection)
 
