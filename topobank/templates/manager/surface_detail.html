@@ -48,15 +48,17 @@
 
             <div class="tab-pane fade active show" id="topographies">
               {% if surface.num_topographies == 0 %}
-                <div class="alert alert-info">
+                <div class="topobank-info-text">
                   This surface has no measurements yet.
                   You can add measurements by pressing the
                   <b>{% fontawesome_icon 'plus-square-o' %} Add measurement</b> button.
                 </div>
               {% else %}
-                <div class="alert alert-info">
-                  This surface contains {{ surface.num_topographies }} individual
-                  measurement{{ surface.num_topographies|pluralize }}.
+                <div class="topobank-info-text">
+                  A surface is a container for multiple measurements of the same specimen or
+                  material. This surface contains {{ surface.num_topographies }} individual
+                  measurement{{ surface.num_topographies|pluralize }}. The gallery below cycles
+                  through visualizations of those measurements.
                 </div>
               {% endif %}
 
@@ -104,8 +106,9 @@
                   <b>{% fontawesome_icon 'plus-square-o' %} Add measurement</b> button.
                 </div>
               {% else %}
-                <div class="alert alert-info">
+                <div class="topobank-info-text">
                   This bandwidth plot shows the range of length scales that have been measured for this surface.
+                  Each of the blocks below represent one measurement.
                 </div>
               {% endif %}
               {% for bw_err in bandwidths_data_with_errors %}
