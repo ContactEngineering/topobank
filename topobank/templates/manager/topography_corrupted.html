@@ -9,7 +9,7 @@
     <div class="row">
         <div class="col-4">
             <div class="alert alert-error">
-                Sorry, the topography cannot be created, because
+                Sorry, the measurement data cannot be added, because
                 the file you have uploaded seems to be corrupted.
             </div>
             <div class="alert alert-info">
@@ -25,7 +25,7 @@
             </a>
             <a href="{% url 'manager:topography-create' surface.id %}?redirect={% url 'manager:surface-detail' surface.id %}"
                       class="btn btn-default btn-block btn-lg">
-              {% fontawesome_icon 'plus-square-o' %} Try again to add a topography
+              {% fontawesome_icon 'plus-square-o' %} Try again to add measurement data
             </a>
         </div>
     </div>
