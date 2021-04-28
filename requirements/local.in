@@ -13,6 +13,8 @@ sphinx_rtd_theme
 # ------------------------------------------------------------------------------
 pytest  # https://github.com/pytest-dev/pytest
 pytest-sugar  # https://github.com/Frozenball/pytest-sugar
+# Because of CVE-2020-29651
+py>=1.10.0
 
 # Code quality
 # ------------------------------------------------------------------------------
