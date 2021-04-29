@@ -1115,17 +1115,24 @@ def _contact_mechanics_geometry_figure(values, frame_width, frame_height, topo_u
     x_range = DataRange1d(start=0, end=topo_size[0], bounds='auto', range_padding=5)
     y_range = DataRange1d(start=0, end=topo_size[1], bounds='auto', range_padding=5)
 
-    p = figure(title=title,
-               x_range=x_range,
+    boolean_values = values.dtype == np.bool
+
+    COLORBAR_WIDTH = 50
+    COLORBAR_LABEL_STANDOFF = 12
+
+    plot_width = frame_width
+    if not boolean_values:
+        plot_width += COLORBAR_WIDTH + COLORBAR_LABEL_STANDOFF + 5
+
+    p = figure(x_range=x_range,
                y_range=y_range,
                frame_width=frame_width,
                frame_height=frame_height,
+               plot_width=plot_width,
                x_axis_label="Position x ({})".format(topo_unit),
                y_axis_label="Position y ({})".format(topo_unit),
                match_aspect=True,
                toolbar_location="above")
-
-    boolean_values = values.dtype == np.bool
 
     if boolean_values:
         color_mapper = LinearColorMapper(palette=["black", "white"], low=0, high=1)
@@ -1139,9 +1146,10 @@ def _contact_mechanics_geometry_figure(values, frame_width, frame_height, topo_u
 
     if not boolean_values:
         colorbar = ColorBar(color_mapper=color_mapper,
-                            label_standoff=12,
+                            label_standoff=COLORBAR_LABEL_STANDOFF,
+                            width=COLORBAR_WIDTH,
                             location=(0, 0),
-                            title=value_unit)
+                            title=f"{title} ({value_unit})")
         colorbar.formatter = FuncTickFormatter(code="return format_exponential(tick);")
         p.add_layout(colorbar, "right")
 
@@ -1172,10 +1180,6 @@ def _contact_mechanics_distribution_figure(values, x_axis_label, y_axis_label,
     configure_plot(p)
 
     return p
-
-
-def _contact_mechanics_displacement_figure():
-    pass
 
 
 def contact_mechanics_data(request):

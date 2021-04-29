@@ -101,7 +101,7 @@ django-crispy-forms==1.9.2
     # via -r ./base.txt
 django-debug-toolbar-request-history==0.1.3
     # via -r local.in
-django-debug-toolbar==2.2
+django-debug-toolbar==3.2.1
     # via
     #   -r local.in
     #   django-debug-toolbar-request-history
@@ -315,8 +315,10 @@ psycopg2-binary==2.8.5
     # via -r local.in
 ptyprocess==0.6.0
     # via pexpect
-py==1.9.0
-    # via pytest
+py==1.10.0
+    # via
+    #   -r local.in
+    #   pytest
 pycodestyle==2.6.0
     # via flake8
 pycparser==2.20

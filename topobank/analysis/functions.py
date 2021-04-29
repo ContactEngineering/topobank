@@ -1041,7 +1041,7 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
 
     netcdf_format = 'NETCDF4'
 
-    data_paths = [] # collect in _next_contact_step?
+    data_paths = []  # collect in _next_contact_step?
 
     if pressures is not None:
         nsteps = len(pressures)

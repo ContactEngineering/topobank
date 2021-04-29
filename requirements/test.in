@@ -14,6 +14,9 @@ pytest-sugar
 pytest-mock
 pytest-cov
 
+# Because of CVE-2020-29651
+py>=1.10.0
+
 # additional for browser test
 pytest-splinter
 splinter[django]
