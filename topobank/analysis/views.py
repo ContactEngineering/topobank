@@ -24,13 +24,11 @@ import django_tables2 as tables
 from bokeh.layouts import row, column, grid
 from bokeh.models import ColumnDataSource, CustomJS, TapTool, Circle, HoverTool
 from bokeh.palettes import Category10
-from bokeh.models.formatters import FuncTickFormatter
 from bokeh.models.ranges import DataRange1d
 from bokeh.plotting import figure
 from bokeh.embed import components, json_item
-from bokeh.models.widgets import CheckboxGroup, Tabs, Panel, Toggle, Div, RadioGroup, Slider
-from bokeh.models.widgets.markups import Paragraph
-from bokeh.models import Legend, LinearColorMapper, ColorBar, CategoricalColorMapper
+from bokeh.models.widgets import CheckboxGroup, Tabs, Panel, Toggle, Div, Slider
+from bokeh.models import LinearColorMapper, ColorBar
 
 import xarray as xr
 
@@ -46,6 +44,7 @@ from ..manager.models import Topography, Surface
 from ..manager.utils import selected_instances, instances_to_selection, instances_to_topographies, \
     selection_to_subjects_json, subjects_from_json, subjects_to_json
 from ..usage_stats.utils import increase_statistics_by_date_and_object
+from ..plots import configure_plot
 from .models import Analysis, AnalysisFunction, AnalysisCollection, CARD_VIEW_FLAVORS, ImplementationMissingException
 from .forms import FunctionSelectForm
 from .utils import get_latest_analyses, round_to_significant_digits, request_analysis
@@ -652,7 +651,7 @@ class PlotCardView(SimpleCardView):
         # Final configuration of the plot
         #
 
-        _configure_plot(plot)
+        configure_plot(plot)
 
         # plot.legend.click_policy = "hide" # can be used to disable lines by clicking on legend
         plot.legend.visible = False  # we have extra widgets to disable lines
@@ -903,8 +902,8 @@ class ContactMechanicsCardView(SimpleCardView):
                 js_code += f"{glyph_id_area_plot}.visible = topography_btn_group.active.includes({topography_idx});"
                 js_code += f"{glyph_id_load_plot}.visible = topography_btn_group.active.includes({topography_idx});"
 
-            _configure_plot(contact_area_plot)
-            _configure_plot(load_plot)
+            configure_plot(contact_area_plot)
+            configure_plot(load_plot)
 
             #
             # Adding widget for switching symbols on/off
@@ -1043,18 +1042,6 @@ class RmsTableCardView(SimpleCardView):
         return context
 
 
-def _configure_plot(plot):
-    plot.toolbar.logo = None
-    plot.xaxis.axis_label_text_font_style = "normal"
-    plot.yaxis.axis_label_text_font_style = "normal"
-    plot.xaxis.major_label_text_font_size = "12pt"
-    plot.yaxis.major_label_text_font_size = "12pt"
-    plot.xaxis.axis_label_text_font_size = "12pt"
-    plot.yaxis.axis_label_text_font_size = "12pt"
-    plot.xaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
-    plot.yaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
-
-
 def submit_analyses_view(request):
     """Requests analyses.
     :param request:
@@ -1158,7 +1145,7 @@ def _contact_mechanics_geometry_figure(values, frame_width, frame_height, topo_u
         colorbar.formatter = FuncTickFormatter(code="return format_exponential(tick);")
         p.add_layout(colorbar, "right")
 
-    _configure_plot(p)
+    configure_plot(p)
 
     return p
 
@@ -1182,7 +1169,7 @@ def _contact_mechanics_distribution_figure(values, x_axis_label, y_axis_label,
 
     p.step(edges[:-1], hist, mode="before", line_width=2)
 
-    _configure_plot(p)
+    configure_plot(p)
 
     return p
 
