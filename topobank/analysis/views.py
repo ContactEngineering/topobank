@@ -1289,37 +1289,32 @@ def contact_mechanics_data(request):
                 #
                 'contact-geometry': _contact_mechanics_geometry_figure(
                     contacting_points,
-                    title="Contact geometry",
                     **geometry_figure_common_args),
                 'contact-pressure': _contact_mechanics_geometry_figure(
                     pressure,
-                    title=r'Contact pressure p(E*)',
                     **geometry_figure_common_args),
                 'displacement': _contact_mechanics_geometry_figure(
                     displacement,
-                    title=r'Displacement', value_unit=unit,
+                    value_unit=unit,
                     **geometry_figure_common_args),
                 'gap': _contact_mechanics_geometry_figure(
-                    gap, title=r'Gap', value_unit=unit,
+                    gap, value_unit=unit,
                     **geometry_figure_common_args),
                 #
                 # Distribution figures
                 #
                 'pressure-distribution': _contact_mechanics_distribution_figure(
                     pressure[contacting_points],
-                    title="Pressure distribution",
                     x_axis_label="Pressure p (E*)",
                     y_axis_label="Probability P(p) (1/E*)",
                     **common_kwargs),
                 'gap-distribution': _contact_mechanics_distribution_figure(
                     gap[gap > gap_tol],
-                    title="Gap distribution",
                     x_axis_label="Gap g ({})".format(topo.unit),
                     y_axis_label="Probability P(g) (1/{})".format(topo.unit),
                     **common_kwargs),
                 'cluster-size-distribution': _contact_mechanics_distribution_figure(
                     contact_areas,
-                    title="Cluster size distribution",
                     x_axis_label="Cluster area A({}²)".format(topo.unit),
                     y_axis_label="Probability P(A)",
                     x_axis_type="log",
