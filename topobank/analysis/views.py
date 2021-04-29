@@ -652,18 +652,11 @@ class PlotCardView(SimpleCardView):
         # Final configuration of the plot
         #
 
+        _configure_plot(plot)
+
         # plot.legend.click_policy = "hide" # can be used to disable lines by clicking on legend
         plot.legend.visible = False  # we have extra widgets to disable lines
-        plot.toolbar.logo = None
         plot.toolbar.active_inspect = None
-        plot.xaxis.axis_label_text_font_style = "normal"
-        plot.yaxis.axis_label_text_font_style = "normal"
-        plot.xaxis.major_label_text_font_size = "12pt"
-        plot.yaxis.major_label_text_font_size = "12pt"
-
-        # see js function "format_exponential()" in project.js file
-        plot.xaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
-        plot.yaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
 
         #
         # Adding widgets for switching lines on/off
