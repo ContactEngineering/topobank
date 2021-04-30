@@ -1274,16 +1274,22 @@ def contact_mechanics_data(request):
                 #
                 'contact-geometry': _contact_mechanics_geometry_figure(
                     contacting_points,
+                    title="Contact geometry",
                     **geometry_figure_common_args),
                 'contact-pressure': _contact_mechanics_geometry_figure(
                     pressure,
+                    title=r'Pressure',
+                    value_unit='E*',
                     **geometry_figure_common_args),
                 'displacement': _contact_mechanics_geometry_figure(
                     displacement,
+                    title=r'Displacem.',
                     value_unit=unit,
                     **geometry_figure_common_args),
                 'gap': _contact_mechanics_geometry_figure(
-                    gap, value_unit=unit,
+                    gap,
+                    title=r'Gap',
+                    value_unit=unit,
                     **geometry_figure_common_args),
                 #
                 # Distribution figures
