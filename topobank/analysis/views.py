@@ -683,14 +683,14 @@ class PlotCardView(SimpleCardView):
                 visible=False,
                 active=list(range(len(subject_checkbox_groups[topography_ct]))))
 
-        subject_btn_group_toggle_button_label = "Topographies"
+        subject_btn_group_toggle_button_label = "Measurements"
         if has_at_least_one_surface_subject:
             subject_btn_group_toggle_button_label = "Average / "+subject_btn_group_toggle_button_label
         subject_btn_group_toggle_button = Toggle(label=subject_btn_group_toggle_button_label)
-        series_btn_group_toggle_button = Toggle(label="Data Series")
-        options_group_toggle_button = Toggle(label="Plot Options")
+        series_btn_group_toggle_button = Toggle(label="Data series")
+        options_group_toggle_button = Toggle(label="Plot options")
 
-        topography_alpha_slider = Slider(start=0, end=1, title="Opacity of topography lines",
+        topography_alpha_slider = Slider(start=0, end=1, title="Opacity of measurement lines",
                                          value=DEFAULT_ALPHA_FOR_TOPOGRAPHIES if has_at_least_one_surface_subject else 1.0,
                                          step=0.1, visible=False)
         options_group = column([topography_alpha_slider])
@@ -915,7 +915,7 @@ class ContactMechanicsCardView(SimpleCardView):
                 visible=False,
                 active=list(range(len(topography_names))))  # all active
 
-            topography_btn_group_toggle_button = Toggle(label="Topographies")
+            topography_btn_group_toggle_button = Toggle(label="Measurements")
 
             # extend mapping of Python to JS objects
             js_args['topography_btn_group'] = topography_button_group
@@ -968,7 +968,7 @@ class ContactMechanicsCardView(SimpleCardView):
                  message="""
                  Translucent data points did not converge within iteration limit and may carry large errors.
                  <i>A</i> is the true contact area and <i>A0</i> the apparent contact area,
-                 i.e. the size of the provided topography.""")
+                 i.e. the size of the provided measurement.""")
         ]
 
         context['limits_calc_kwargs'] = settings.CONTACT_MECHANICS_KWARGS_LIMITS
@@ -1099,7 +1099,7 @@ def submit_analyses_view(request):
     return JsonResponse({}, status=status)
 
 
-def _contact_mechanics_geometry_figure(values, frame_width, frame_height, topo_unit, topo_size, title=None,
+def _contact_mechanics_geometry_figure(values, frame_width, frame_height, topo_unit, topo_size, colorbar_title=None,
                                        value_unit=None):
     """
 
@@ -1108,7 +1108,7 @@ def _contact_mechanics_geometry_figure(values, frame_width, frame_height, topo_u
     :param frame_height:
     :param topo_unit:
     :param topo_size:
-    :param title:
+    :param colorbar_title:
     :param value_unit:
     :return:
     """
@@ -1150,7 +1150,7 @@ def _contact_mechanics_geometry_figure(values, frame_width, frame_height, topo_u
                             label_standoff=COLORBAR_LABEL_STANDOFF,
                             width=COLORBAR_WIDTH,
                             location=(0, 0),
-                            title=f"{title} ({value_unit})")
+                            title=f"{colorbar_title} ({value_unit})")
         colorbar.formatter = FuncTickFormatter(code="return format_exponential(tick);")
         p.add_layout(colorbar, "right")
 
@@ -1274,21 +1274,21 @@ def contact_mechanics_data(request):
                 #
                 'contact-geometry': _contact_mechanics_geometry_figure(
                     contacting_points,
-                    title="Contact geometry",
+                    colorbar_title="Contact geometry",
                     **geometry_figure_common_args),
                 'contact-pressure': _contact_mechanics_geometry_figure(
                     pressure,
-                    title=r'Pressure',
+                    colorbar_title=r'Pressure',
                     value_unit='E*',
                     **geometry_figure_common_args),
                 'displacement': _contact_mechanics_geometry_figure(
                     displacement,
-                    title=r'Displacem.',
+                    colorbar_title=r'Displacem.',
                     value_unit=unit,
                     **geometry_figure_common_args),
                 'gap': _contact_mechanics_geometry_figure(
                     gap,
-                    title=r'Gap',
+                    colorbar_title=r'Gap',
                     value_unit=unit,
                     **geometry_figure_common_args),
                 #
@@ -1359,7 +1359,7 @@ def extra_tabs_if_single_item_selected(topographies, surfaces):
                 'href': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
                 'active': False,
                 'login_required': False,
-                'tooltip': f"Properties of topography '{topo.name}'",
+                'tooltip': f"Properties of measurement '{topo.name}'",
             }
         ])
     elif len(surfaces) == 1 and all(t.surface == surfaces[0] for t in topographies):

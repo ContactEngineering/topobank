@@ -393,7 +393,8 @@ class Topography(models.Model, SubjectMixin):
         ('curvature', 'Remove curvature'),
     ]
 
-    verbose_name_plural = 'topographies'
+    verbose_name = 'measurement'
+    verbose_name_plural = 'measurements'
 
     #
     # Descriptive fields

@@ -410,7 +410,7 @@ def download_rms_table_analyses_to_txt(request, analyses):
                          row['unit']])
 
     f.write('# Table of RMS Values\n')
-    df = pd.DataFrame(data, columns=['surface', 'topography', 'quantity', 'direction', 'value', 'unit'])
+    df = pd.DataFrame(data, columns=['surface', 'measurement', 'quantity', 'direction', 'value', 'unit'])
     df.to_csv(f, index=False)
     f.write('\n')
 
@@ -451,10 +451,10 @@ def download_rms_table_analyses_to_xlsx(request, analyses):
         topo = analysis.subject
         for row in pickle.loads(analysis.result):
             row['surface'] = topo.surface.name
-            row['topography'] = topo.name
+            row['measurement'] = topo.name
             data.append(row)
 
-    rms_df = pd.DataFrame(data, columns=['surface', 'topography', 'quantity', 'direction', 'value', 'unit'])
+    rms_df = pd.DataFrame(data, columns=['surface', 'measurement', 'quantity', 'direction', 'value', 'unit'])
     rms_df.to_excel(excel, sheet_name="RMS values", index=False)
     info_df = _analyses_meta_data_dataframe(analyses, request)
     info_df.to_excel(excel, sheet_name='INFORMATION', index=False)
@@ -546,7 +546,7 @@ Contents of this ZIP archive
 ============================
 This archive contains data from contact mechanics calculation.
 
-Each directory corresponds to one topography and is named after the topography.
+Each directory corresponds to one measurement and is named after the measurement.
 Inside you find two types of files:
 
 - a simple CSV file ('plot.csv')
@@ -633,8 +633,8 @@ Version information
 ===================
 
 For version information of the packages used, please look into the files named
-'info.txt' in the subdirectories for each topography. The versions of the packages
-used for analysis may differ among topographies, because they may have been
+'info.txt' in the subdirectories for each measurement. The versions of the packages
+used for analysis may differ among measurements, because they may have been
 calculated at different times.
     """)
 
