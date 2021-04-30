@@ -14,15 +14,6 @@
   border-color: #eed3d7;
 }
 
-.topobank-info-text {
-  position: relative;
-  padding: .75rem 1.25rem;
-  margin-bottom: 1rem;
-  border: 1px solid transparent;
-  background-color: #f8f9fa;
-  border-radius: .25rem;
-}
-
 .spinner {
   width: 20px;
   height: 20px;
