@@ -29,6 +29,7 @@ from bokeh.plotting import figure
 from bokeh.embed import components, json_item
 from bokeh.models.widgets import CheckboxGroup, Tabs, Panel, Toggle, Div, Slider
 from bokeh.models import LinearColorMapper, ColorBar
+from bokeh.models.formatters import FuncTickFormatter
 
 import xarray as xr
 
