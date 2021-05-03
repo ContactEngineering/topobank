@@ -20,6 +20,7 @@ from ContactMechanics import PeriodicFFTElasticHalfSpace, FreeFFTElasticHalfSpac
 import topobank.manager.models  # will be used to evaluate model classes
 from .registry import AnalysisFunctionRegistry
 
+GAUSSIAN_FIT_SERIES_NAME = 'Gaussian fit'
 
 def register_implementation(card_view_flavor="simple", name=None):
     """Decorator for marking a function as implementation for an analysis function.
@@ -125,7 +126,7 @@ def height_distribution(topography, bins=None, wfac=5, progress_recorder=None, s
                  x=(bin_edges[:-1] + bin_edges[1:]) / 2,
                  y=hist,
                  ),
-            dict(name='RMS height',
+            dict(name=GAUSSIAN_FIT_SERIES_NAME,
                  x=x_gauss,
                  y=y_gauss,
                  )
@@ -204,7 +205,7 @@ def _moments_histogram_gaussian(arr, bins, topography, wfac, quantity, label, un
         y_gauss = np.exp(-(x_gauss - mean) ** 2 / (2 * rms ** 2)) / (np.sqrt(2 * np.pi) * rms)
 
         series.append(
-            dict(name=f'RMS {quantity} ({label})',
+            dict(name=GAUSSIAN_FIT_SERIES_NAME+f' ({label})',
                  x=x_gauss,
                  y=y_gauss)
         )
@@ -335,7 +336,7 @@ def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None
                  x=(bin_edges[:-1] + bin_edges[1:]) / 2,
                  y=hist,
                  ),
-            dict(name='RMS curvature',
+            dict(name=GAUSSIAN_FIT_SERIES_NAME,
                  x=x_gauss,
                  y=y_gauss,
                  )

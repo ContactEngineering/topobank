@@ -15,7 +15,10 @@
   to label
 - now longer use "e" notation on plot axis, but scientific
   notation with power of 10 (#636)  
-- moved labels of colorbars next to colorbars (#592)  
+- moved labels of colorbars next to colorbars (#592)
+- in analyses results for height/slope/curvature distribution,
+  renamed data series from "RMS height/slope/curvature" to
+  "Gaussian fit" (#641)
 - upgrade to Django 2.2.20 because of CVE
 - upgrade of packages py and django-debug-toolbar because of CVEs
 

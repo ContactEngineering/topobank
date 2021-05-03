@@ -1064,6 +1064,22 @@ If building the containers was successful, aks yourself these questions:
   unless they are already published. When already published, it is assured the correct
   rights have been applied. This is needed for publishing.
 
+- If any analyses have to rerun, e.g. because the format of the analyses result have changed,
+  call
+
+  .. code:: bash
+
+     docker-compose -f production.yml run --rm django python manage.py trigger_analyses -h
+
+  with appropriate arguments. As example, if all calculations for analysis functions with
+  ids 1, 2, and 3 have to be rerun, call:
+
+.. code:: bash
+
+     docker-compose -f production.yml run --rm django python manage.py trigger_analyses f1 f2 f3
+
+  This may take some time.
+
 
 Restart application
 ...................
@@ -1084,6 +1100,8 @@ Without supervisor, call:
 
 Test whether the new application works. See also above link if you want to scale the application,
 e.g. having more processes handling the web requests or celery workers.
+
+
 
 Generating thumbails
 ....................
