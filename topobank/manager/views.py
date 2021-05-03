@@ -1466,7 +1466,7 @@ def download_surface(request, surface_id):
     """
 
     #
-    # Check permissions and collect analyses
+    # Check existence and permissions for given surface
     #
     try:
         surface = Surface.objects.get(id=surface_id)
@@ -1486,6 +1486,32 @@ def download_surface(request, surface_id):
 
     increase_statistics_by_date_and_object(Metric.objects.SURFACE_DOWNLOAD_COUNT,
                                            period=Period.DAY, obj=surface)
+
+    return response
+
+
+def download_selection_as_surfaces(request):
+    """Returns a file comprised from surfaces related to the selection.
+
+    :param request: current request
+    :return:
+    """
+
+    from .utils import current_selection_as_surface_list
+    surfaces = current_selection_as_surface_list(request)
+
+    container_bytes = BytesIO()
+    write_surface_container(container_bytes, surfaces, request=request)
+
+    # Prepare response object.
+    response = HttpResponse(container_bytes.getvalue(),
+                            content_type='application/x-zip-compressed')
+    response['Content-Disposition'] = 'attachment; filename="{}"'.format('surface.zip')
+
+    # increase download count for each surface
+    for surf in surfaces:
+        increase_statistics_by_date_and_object(Metric.objects.SURFACE_DOWNLOAD_COUNT,
+                                               period=Period.DAY, obj=surf)
 
     return response
 

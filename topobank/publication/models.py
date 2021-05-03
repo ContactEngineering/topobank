@@ -2,11 +2,13 @@ from django.db import models
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.safestring import mark_safe
+from django.conf import settings
 
 MAX_LEN_AUTHORS_FIELD = 512
 
 CITATION_FORMAT_FLAVORS = ['html', 'ris', 'bibtex', 'biblatex']
 DEFAULT_KEYWORDS = ['surface', 'topography']
+
 
 class UnknownCitationFormat(Exception):
     def __init__(self, flavor):
@@ -18,14 +20,8 @@ class UnknownCitationFormat(Exception):
 
 class Publication(models.Model):
 
-    LICENSE_CHOICES = [
-        ('cc0-1.0', 'CC0 (Public Domain Dedication)'),
-        # https://creativecommons.org/publicdomain/zero/1.0/
-        ('ccby-4.0', 'CC BY 4.0'),
-        # https://creativecommons.org/licenses/by/4.0/
-        ('ccbysa-4.0', 'CC BY-SA 4.0'),
-        # https://creativecommons.org/licenses/by-sa/4.0/
-    ]
+    LICENSE_CHOICES = [(k, settings.CC_LICENSE_INFOS[k]['option_name'])
+                       for k in ['cc0-1.0', 'ccby-4.0', 'ccbysa-4.0']]
 
     short_url = models.CharField(max_length=10, unique=True, null=True)
     surface = models.OneToOneField("manager.Surface", on_delete=models.PROTECT, related_name='publication')

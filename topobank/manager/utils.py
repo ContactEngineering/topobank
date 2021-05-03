@@ -227,11 +227,12 @@ def selection_from_session(session):
     return session.get(SELECTION_SESSION_VARNAME, [])
 
 
-def instances_to_selection(topographies=[], surfaces=[]):
+def instances_to_selection(topographies=[], surfaces=[], tags=[]):
     """Returns a list of strings suitable for selecting instances.
 
     :param topographies: sequence of Topography instances
     :param surfaces: sequence of Surface instances
+    :param tags: sequence of TagModel instances
     :return: list of str, alphabetically sorted
     """
     selection = []
@@ -243,6 +244,9 @@ def instances_to_selection(topographies=[], surfaces=[]):
 
     for surf in surfaces:
         selection.append(f'surface-{surf.id}')
+
+    for tag in tags:
+        selection.append(f'tag-{tag.id}')
 
     return sorted(selection)
 
@@ -358,7 +362,7 @@ def selected_instances(request):
 
     The returned tuple has 3 elements, each a list:
 
-     'topographies': all topographies in the selection (if 'surface' is given, filtered by this surface)
+     'topographies': all topographies in the selection
      'surfaces': all surfaces explicitly found in the selection (not only because its topography was selected)
      'tags': all tags explicitly found in selection (not because all tagged items are selected)
 
@@ -377,6 +381,42 @@ def selected_instances(request):
                 if request.user.has_perm('view_surface', s)]
 
     return topographies, surfaces, list(tags)
+
+
+def current_selection_as_surface_list(request):
+    """Returns a list of surfaces related to the current selection.
+
+    For all selected items, surfaces, topographies, or tags
+    the surface is identified which contains the selected data.
+    In the result, each of those surfaces is included once.
+
+    :param request: current request
+    :return: list of Surface instances, sorted by name
+    """
+    from .models import Surface
+
+    topographies, surfaces, tags = selected_instances(request)
+
+    #
+    # Collect all surfaces related to the selected items in a set
+    #
+    surfaces = set(surfaces)
+    for topo in topographies:
+        surfaces.add(topo.surface)
+    for tag in tags:
+        related_objects = tag.get_related_objects(flat=True)
+        for obj in related_objects:
+            if isinstance(obj, Surface):
+                surfaces.add(obj)
+            elif hasattr(obj, 'surface'):
+                surfaces.add(obj.surface)
+    #
+    # Filter surfaces such that the requesting user has permissions to read
+    #
+    surfaces = [surf for surf in surfaces if request.user.has_perm('view_surface', surf)]
+    surfaces.sort(key=lambda s: s.name)
+
+    return surfaces
 
 
 def instances_to_basket_items(topographies, surfaces, tags):
@@ -797,3 +837,4 @@ def get_firefox_webdriver() -> WebDriver:
         executable_path=str(settings.GECKODRIVER_PATH),
         service_log_path=devnull,
     )
+

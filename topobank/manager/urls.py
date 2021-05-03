@@ -125,6 +125,11 @@ urlpatterns = [
         name='select'
     ),
     url(
+        regex=r'select/download$',
+        view=login_required(views.download_selection_as_surfaces),
+        name='download-selection'
+    ),
+    url(
        regex=r'unselect-all/$',
        view=login_required(views.unselect_all),
        name='unselect-all'
