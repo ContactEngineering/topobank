@@ -19,6 +19,7 @@
 - in analyses results for height/slope/curvature distribution,
   renamed data series from "RMS height/slope/curvature" to
   "Gaussian fit" (#641)
+- upgrade to SurfaceTopography 0.93.0 (#643)  
 - upgrade to Django 2.2.20 because of CVE
 - upgrade of packages py and django-debug-toolbar because of CVEs
 
