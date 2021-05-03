@@ -298,3 +298,11 @@ section[title="Terms and Conditions"] div.toc-container, #tc-terms-html {
   color: #555;
   border-color: #2b90d9;
 }
+
+.bk-root {
+  font-size: 1rem !important;
+}
+
+.bk-btn {
+  font-size: 1rem !important;
+}

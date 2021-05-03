@@ -20,7 +20,7 @@
           <div class="nav nav-pills nav-pills-custom flex-column" aria-orientation="vertical">
 
               <a class="nav-link mb-3 p-3 shadow active" data-toggle="pill" href="#topographies" role="tab" aria-selected="true">
-                Topographies
+                Measurements
               </a>
               <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#bandwidths" role="tab" aria-selected="false">
                 Bandwidths
@@ -49,14 +49,16 @@
             <div class="tab-pane fade active show" id="topographies">
               {% if surface.num_topographies == 0 %}
                 <div class="alert alert-info">
-                  This surface has no topographies yet.
-                  You can add topographies by pressing the
-                  <b>{% fontawesome_icon 'plus-square-o' %} Add topography</b> button.
+                  This surface has no measurements yet.
+                  You can add measurements by pressing the
+                  <b>{% fontawesome_icon 'plus-square-o' %} Add measurement</b> button.
                 </div>
               {% else %}
-                <div class="alert alert-info">
-                  This Surface contains {{ surface.num_topographies }} individual
-                  measurement{{ surface.num_topographies|pluralize }} of Topography.
+                <div class="alert alert-secondary">
+                  A surface is a container for multiple measurements of the same specimen or
+                  material. This surface contains {{ surface.num_topographies }} individual
+                  measurement{{ surface.num_topographies|pluralize }}. The gallery below cycles
+                  through visualizations of those measurements.
                 </div>
               {% endif %}
 
@@ -99,13 +101,14 @@
             <div class="tab-pane fade" id="bandwidths">
               {% if surface.num_topographies == 0 %}
                 <div class="alert alert-info">
-                  This surface has no topographies yet.
-                  You can add topographies by pressing the
-                  <b>{% fontawesome_icon 'plus-square-o' %} Add topography</b> button.
+                  This surface has no measurements yet.
+                  You can add measurements by pressing the
+                  <b>{% fontawesome_icon 'plus-square-o' %} Add measurement</b> button.
                 </div>
               {% else %}
-                <div class="alert alert-info">
+                <div class="alert alert-secondary">
                   This bandwidth plot shows the range of length scales that have been measured for this surface.
+                  Each of the blocks below represents one measurement.
                 </div>
               {% endif %}
               {% for bw_err in bandwidths_data_with_errors %}
@@ -117,7 +120,7 @@
               {% endfor %}
               {{ plot_div | safe }}
               <caption>Move on a bar to see the name and a thumbnail and
-                click to open the corresponding topography.</caption>
+                click to open the corresponding measurement.</caption>
             </div>
 
 
@@ -274,7 +277,7 @@
 
               {% if "change_surface" in surface_perms %}
                 <a href="{% url 'manager:topography-create' surface.id %}?redirect={{ request.path }}" class="btn btn-default btn-block btn-lg">
-                  {% fontawesome_icon 'plus-square-o' %} Add topography
+                  {% fontawesome_icon 'plus-square-o' %} Add measurement
                 </a>
               {% endif %}
 

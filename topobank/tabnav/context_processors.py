@@ -57,7 +57,7 @@ def fixed_tabs_processor(request):
         },
         {
             'login_required': False,
-            'title': 'Select',
+            'title': 'Find & select',
             'icon': 'check-square-o',
             'href': SELECT_URL,
             'active': request.path == SELECT_URL,

@@ -17,12 +17,12 @@
     <div class="alert alert-success">
       <h2 class="alert-heading">Implications of publishing</h2>
       <ul>
-        <li>The surface and all topographies will be <b>visible by everyone</b>,
+        <li>The surface and all measurements will be <b>visible by everyone</b>,
           registered or anonymous users, now and in future.</li>
         <li>The related data (raw data, descriptions, ..) <b>will be downloadable by everyone</b>.</li>
         <li>Every user can perform analyses on your data.</li>
         <li>You choose a license for your data - the choice of the license is irrevocable.</li>
-        <li>If you have assigned tags to the surface or its topographies, these tags are also
+        <li>If you have assigned tags to the surface or its measurements, these tags are also
         part of the publication.</li>
         <li>Your ORCID iD will saved along with your publication.</li>
       </ul>
@@ -41,7 +41,7 @@
       <h2 class="alert-heading">Alternative to publication: Sharing</h2>
       <p>If you want to share this surface with a few users for <b>collaboration</b>,
       please consider <a href="{% url 'manager:surface-share' surface.id %}">sharing this surface</a> instead.</p>
-      <p>Unlike publishing this means, that the surface and all related topographies
+      <p>Unlike publishing this means, that the surface and all related measurements
         are only visible for <b>selected users</b>, not for everyone.
         No snapshot is created.
       </p>
@@ -49,18 +49,18 @@
 
     {% if surface.topography_set.count == 0 %}
       <div class="alert alert-error">
-        <h2 class="alert-heading">This surface has no topographies yet</h2>
+        <h2 class="alert-heading">This surface has no measurements yet</h2>
         <div class="row">
           <div class="col">
             <p>
-              If you'd like to publish this surface, please add at least one topography to it.
+              If you'd like to publish this surface, please add at least one measurement to it.
               You can do this by pressing the button on the right or on the previous tab.
             </p>
           </div>
           <div class="col">
             <a class="btn btn-default alert-link"
                href="{% url 'manager:topography-create' surface.id %}">
-              {% fontawesome_icon 'plus-square-o' %} Add topography
+              {% fontawesome_icon 'plus-square-o' %} Add measurement
             </a>
           </div>
         </div>

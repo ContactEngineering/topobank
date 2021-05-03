@@ -1177,7 +1177,7 @@ class SurfaceShareView(FormMixin, DetailView):
 
 class PublicationsTable(tables.Table):
     publication = tables.Column(linkify=True, verbose_name='Surface', order_by='surface__name')
-    num_topographies = tables.Column(verbose_name='# Topographies')
+    num_topographies = tables.Column(verbose_name='# Measurements')
     authors = tables.Column(verbose_name="Authors")
     license = tables.Column(verbose_name="License")
     datetime = tables.Column(verbose_name="Publication Date")
@@ -1332,7 +1332,7 @@ class PublicationRateTooHighView(TemplateView):
 class SharingInfoTable(tables.Table):
     surface = tables.Column(linkify=lambda **kwargs: kwargs['record']['surface'].get_absolute_url(),
                             accessor='surface__name')
-    num_topographies = tables.Column(verbose_name='# Topographies')
+    num_topographies = tables.Column(verbose_name='# Measurements')
     created_by = tables.Column(linkify=lambda **kwargs: kwargs['record']['created_by'].get_absolute_url(),
                                accessor='created_by__name')
     shared_with = tables.Column(linkify=lambda **kwargs: kwargs['record']['shared_with'].get_absolute_url(),

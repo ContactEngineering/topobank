@@ -12,20 +12,21 @@ Thank you.
 <ol>
   <li>Visit the
     <a href="{% url 'manager:select' %}"><i class="fa fa-fw fa-check-square-o"></i>Select</a> tab.</li>
-  <li>If you want to add a topography to an existing surface, press its "View" button.
+  <li>If you want to add a measurement to an existing surface, press its "View" button.
   Otherwise press the "Create surface" button and fill out the form, press "Save".</li>
-  <li>The detail page for the surface opens. Press "Add topography" and follow the dialogue.</li>
+  <li>The detail page for the surface opens. Press "Add measurement" and follow the dialogue.</li>
 </ol>
 
 <hr>
 
-<h2>Analyzing surfaces and topographies</h2>
+<h2>Analyzing surfaces and measurements</h2>
 
 
-<h3>Comparing analysis results from multiple surfaces/topographies</h3>
+<h3>Comparing analysis results from multiple surfaces/measurements</h3>
 <ol>
   <li>First visit <a href="{% url 'manager:select' %}"><i class="fa fa-fw fa-check-square-o"></i>Select</a>,
-  and use the checkboxes to select one or more surface and/or topographies. You can see the topographies by clicking on the small triangle
+  and use the checkboxes to select one or more surface and/or measurements.
+    You can see the measurements by clicking on the small triangle
    on the left-hand side of a surface's name. The selected items appear in the bar underneath the
   top navigation bar, which always shows the <em>current selection</em>.</li>
   <li>Next to the current selection a button appears:
@@ -45,28 +46,28 @@ Thank you.
 </ol>
 
 
-<h3>Showing analysis results for a single surface or topography</h3>
+<h3>Showing analysis results for a single surface or measurement</h3>
 
-If you want to analyze a single surface or topography, there are also alternative ways:
+If you want to analyze a single surface or measurement, there are also alternative ways:
 
 <ol>
   <li>First visit the <a href="{% url 'manager:select' %}"><i class="fa fa-fw fa-check-square-o"></i>Select</a> tab, and
   find the surface you are interested in. Press the "Analyze" button on the right-hand side of the row.
-  Then automatically, this surface is selected with all of its topographies and
-  the "Analyze" tab is loaded. This also works for topographies.</li>
-  <li>If you want to analyze a single topography, there is also another way.
+  Then automatically, this surface is selected with all of its measurements and
+  the "Analyze" tab is loaded. This also works for measurements.</li>
+  <li>If you want to analyze a single measurement, there is also another way.
   You can enter the surface by pressing the button "View".
-  Now open the topography, either by pressing the corresponding bar in the
-  bandwidth plot or by sweeping through a gallery of topographies and clicking on one thumbnail.
-  After the detail page for the topography has opened, press "Analyze this topography".
-  The old selection is then replaced by this topography, and the  <b><i class="fa fa-fw fa-area-chart"></i>Analyze</b>
+  Now open the measurement, either by pressing the corresponding bar in the
+  bandwidth plot or by sweeping through a gallery of measurements and clicking on one thumbnail.
+  After the detail page for the measurement has opened, press "Analyze this measurement".
+  The old selection is then replaced by this measurement, and the  <b><i class="fa fa-fw fa-area-chart"></i>Analyze</b>
   tab opens.</li>
 </ol>
 
 <h3>Averaging analysis results over several measurements</h3>
 
 Some analysis functions like <em>Power Spectrum</em> or <em>Autocorrelation</em> are not only
-calculated over single measurements (=topographies) but also as an average over all measurements
+calculated over single measurements but also as an average over all measurements
 of a surface. When selecting analysis function for display, these functions are denoted with <em>"(Average)"</em>
 in their name. If a surface has more then one measurement, additionally a thick line with an average is
 plotted on top of the other lines. The average is also included in the download of the data, together with
