@@ -247,6 +247,7 @@
     </div>
   </div>
 
+  {% if not analyses_unready and analyses_success %}
   <hr />
 
   <div class="row">
@@ -312,6 +313,8 @@
     </div>
 
   </div>
+  {% endif %}
+
 {% endblock card_body %}
 
 {% block card_javascript %}
