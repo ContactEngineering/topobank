@@ -70,6 +70,7 @@ defusedxml==0.6.0
     # via
     #   -r ./base.txt
     #   python3-openid
+    #   surfacetopography
 django-allauth==0.43.0
     # via -r ./base.txt
 django-appconf==1.0.4
@@ -207,9 +208,7 @@ mufft==0.15.0
     #   contactmechanics
     #   surfacetopography
 netcdf4==1.5.4
-    # via
-    #   -r ./base.txt
-    #   surfacetopography
+    # via -r ./base.txt
 numpi==0.1.4
     # via
     #   -r ./base.txt
@@ -225,10 +224,15 @@ numpy==1.19.2
     #   mufft
     #   netcdf4
     #   numpi
+    #   numpyencoder
     #   pandas
     #   scipy
     #   surfacetopography
     #   xarray
+numpyencoder==0.3.0
+    # via
+    #   -r ./base.txt
+    #   surfacetopography
 oauthlib==3.1.0
     # via
     #   -r ./base.txt
@@ -333,7 +337,7 @@ sqlparse==0.4.1
     # via
     #   -r ./base.txt
     #   django
-surfacetopography==0.92.0
+surfacetopography==0.93.0
     # via
     #   -r ./base.txt
     #   contactmechanics
