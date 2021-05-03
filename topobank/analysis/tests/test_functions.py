@@ -255,13 +255,14 @@ def test_height_distribution_simple_2d_topography(simple_linear_2d_topography):
 
     exp_bins = np.array([-8.1, -6.3, -4.5, -2.7, -0.9, 0.9, 2.7, 4.5, 6.3, 8.1])  # for heights
     exp_height_dist_values = np.ones((10,)) * 1 / (10 * 1.8)  # each interval has width of 1.8, 10 intervals
-    series0 = result['series'][0]
+    series0, series1 = result['series']
 
     assert series0['name'] == 'Height distribution'
 
     np.testing.assert_almost_equal(series0['x'], exp_bins)
     np.testing.assert_almost_equal(series0['y'], exp_height_dist_values)
 
+    assert series1['name'] == 'Gaussian fit'
     # TODO not testing gauss values yet since number of points is unknown
     # proposal: use a well tested function instead of own formula
 
@@ -292,7 +293,7 @@ def test_slope_distribution_simple_2d_topography(simple_linear_2d_topography):
 
     exp_bins_x = np.array([-1. / 1500, 0, 1. / 1500])  # for slopes
     exp_slope_dist_values_x = [0, 1500, 0]
-    series0 = result['series'][0]
+    series0, series1, series2, series3 = result['series']
 
     assert series0['name'] == 'Slope distribution (x direction)'
 
@@ -301,13 +302,15 @@ def test_slope_distribution_simple_2d_topography(simple_linear_2d_topography):
 
     exp_bins_y = np.array([-2 - 1. / 1500, -2, -2 + 1. / 1500])  # for slopes
     exp_slope_dist_values_y = [0, 1500, 0]
-    series2 = result['series'][2]
+
+    assert series1['name'] == 'Gaussian fit (x direction)'
 
     assert series2['name'] == 'Slope distribution (y direction)'
 
     np.testing.assert_almost_equal(series2['x'], exp_bins_y)
     np.testing.assert_almost_equal(series2['y'], exp_slope_dist_values_y)
 
+    assert series3['name'] == 'Gaussian fit (y direction)'
     # TODO not testing gauss values yet since number of points is unknown
     # proposal: use a well tested function instead of own formula
 
@@ -345,8 +348,8 @@ def test_curvature_distribution_simple_2d_topography(simple_linear_2d_topography
     np.testing.assert_almost_equal(s0['x'], exp_bins)
     np.testing.assert_almost_equal(s0['y'], exp_curvature_dist_values)
 
-    assert s1['name'] == 'RMS curvature'
-    # Not testing gaussian here
+    assert s1['name'] == 'Gaussian fit'
+    # Not further testing gaussian here
 
 
 def test_curvature_distribution_simple_2d_topography_periodic():
