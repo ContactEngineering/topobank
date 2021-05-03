@@ -1114,7 +1114,7 @@ def _contact_mechanics_geometry_figure(values, frame_width, frame_height, topo_u
     """
 
     x_range = DataRange1d(start=0, end=topo_size[0], bounds='auto', range_padding=5)
-    y_range = DataRange1d(start=0, end=topo_size[1], bounds='auto', range_padding=5)
+    y_range = DataRange1d(start=topo_size[1], end=0, flipped=True, range_padding=5)
 
     boolean_values = values.dtype == np.bool
 
@@ -1143,7 +1143,7 @@ def _contact_mechanics_geometry_figure(values, frame_width, frame_height, topo_u
 
         color_mapper = LinearColorMapper(palette='Viridis256', low=min_val, high=max_val)
 
-    p.image([values], x=0, y=0, dw=topo_size[0], dh=topo_size[1], color_mapper=color_mapper)
+    p.image([np.rot90(values)], x=0, y=topo_size[1], dw=topo_size[0], dh=topo_size[1], color_mapper=color_mapper)
 
     if not boolean_values:
         colorbar = ColorBar(color_mapper=color_mapper,
