@@ -406,11 +406,13 @@ def download_rms_table_analyses_to_txt(request, analyses):
                          topography.name,
                          row['quantity'],
                          row['direction'] if row['direction'] else '',
-                         row['value'],
+                         row['area_value'],
+                         row['profile_value'],
                          row['unit']])
 
     f.write('# Table of RMS Values\n')
-    df = pd.DataFrame(data, columns=['surface', 'measurement', 'quantity', 'direction', 'value', 'unit'])
+    df = pd.DataFrame(data, columns=['surface', 'measurement', 'quantity', 'direction',
+                                     'value_S_q', 'value_R_q', 'unit'])
     df.to_csv(f, index=False)
     f.write('\n')
 
@@ -454,7 +456,9 @@ def download_rms_table_analyses_to_xlsx(request, analyses):
             row['measurement'] = topo.name
             data.append(row)
 
-    rms_df = pd.DataFrame(data, columns=['surface', 'measurement', 'quantity', 'direction', 'value', 'unit'])
+    rms_df = pd.DataFrame(data, columns=['surface', 'measurement', 'quantity', 'direction',
+                                         'area_value', 'profile_value', 'unit'])
+    rms_df.rename(columns={'area_value': 'Value S_q', 'profile_value': 'Value R_q'}, inplace=True)
     rms_df.to_excel(excel, sheet_name="RMS values", index=False)
     info_df = _analyses_meta_data_dataframe(analyses, request)
     info_df.to_excel(excel, sheet_name='INFORMATION', index=False)

@@ -1154,15 +1154,19 @@ def rms_values(topography, progress_recorder=None, storage_prefix=None):
         {
             'quantity': 'RMS Height',
             'direction': None,
-            'value': topography.rms_height_from_area() if topography.dim == 2
-            else topography.rms_height_from_profile(),
+            'area_value': topography.rms_height_from_area()
+            if hasattr(topography, 'rms_height_from_area') else None,
+            'profile_value': topography.rms_height_from_profile()
+            if hasattr(topography, 'rms_height_from_profile') else None,
             'unit': unit,
         },
         {
             'quantity': 'RMS Curvature',
             'direction': None,
-            'value': topography.rms_curvature_from_area() if topography.dim == 2
-            else topography.rms_curvature_from_profile(),
+            'area_value': topography.rms_curvature_from_area()
+            if hasattr(topography, 'rms_curvature_from_area') else None,
+            'profile_value': topography.rms_curvature_from_profile()
+            if hasattr(topography, 'rms_curvature_from_profile') else None,
             'unit': inverse_unit,
         },
     ]
@@ -1173,13 +1177,15 @@ def rms_values(topography, progress_recorder=None, storage_prefix=None):
             {
                 'quantity': 'RMS Slope',
                 'direction': 'x',
-                'value': rms_slope_from_der(dh_dx),
+                'area_value': None,
+                'profile_value': rms_slope_from_der(dh_dx),  # TODO Correct?
                 'unit': 1,
             },
             {
                 'quantity': 'RMS Slope',
                 'direction': 'y',
-                'value': rms_slope_from_der(dh_dy),
+                'area_value': None,
+                'profile_value': rms_slope_from_der(dh_dy),  # TODO Correct?
                 'unit': 1,
             }
         ])
@@ -1189,7 +1195,8 @@ def rms_values(topography, progress_recorder=None, storage_prefix=None):
             {
                 'quantity': 'RMS Slope',
                 'direction': 'x',
-                'value': rms_slope_from_der(dh_dx),
+                'area_value': None,
+                'profile_value': rms_slope_from_der(dh_dx),  # TODO Correct?
                 'unit': 1,
             }
         ])
