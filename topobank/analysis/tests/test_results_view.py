@@ -607,25 +607,29 @@ def test_rms_values_rounded(rf, mocker):
         {
             'quantity': 'RMS Height',
             'direction': None,
-            'value': np.float32(1.2345678),
+            'value_sq': np.float32(1.2345678),
+            'value_rq': np.float32(8.7654321),
             'unit': 'm',
         },
         {
             'quantity': 'RMS Curvature',
             'direction': None,
-            'value': np.float32(0.9),
+            'value_sq': np.float32(0.9),
+            'value_rq': np.float32(9.87654321),
             'unit': '1/m',
         },
         {
             'quantity': 'RMS Slope',
             'direction': 'x',
-            'value': np.float32(-1.56789),
+            'value_rq': np.float32(-1.56789),
+            'value_sq': None,
             'unit': 1,
         },
         {
             'quantity': 'RMS Slope',
             'direction': 'y',
-            'value': np.float32('nan'),
+            'value_rq': np.float32('nan'),
+            'value_sq': None,
             'unit': 1,
         }
     ]
@@ -652,12 +656,14 @@ def test_rms_values_rounded(rf, mocker):
     # we want rounding to 5 digits
     assert NUM_SIGNIFICANT_DIGITS_RMS_VALUES == 5
     assert b"1.2346" in response.content
+    assert b"8.7654" in response.content
     assert b"0.9" in response.content
+    assert b"9.8765" in response.content
     assert b"-1.5679" in response.content
     assert b"NaN" in response.content
 
 
-@pytest.mark.parametrize("same_names", [ False, True])
+@pytest.mark.parametrize("same_names", [False, True])
 @pytest.mark.django_db
 def test_analysis_download_as_xlsx(client, two_topos, ids_downloadable_analyses, same_names, settings, handle_usage_statistics):
 

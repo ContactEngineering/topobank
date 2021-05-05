@@ -976,16 +976,6 @@ class ContactMechanicsCardView(SimpleCardView):
         return context
 
 
-class RMSTable(tables.Table):
-    topography = tables.Column(linkify=lambda **kwargs: kwargs['record']['topography'].get_absolute_url(),
-                               accessor='topography__name')
-    quantity = tables.Column()
-    direction = tables.Column()
-    area_value = tables.Column()
-    profile_value = tables.Column()
-    unit = tables.Column()
-
-
 class RmsTableCardView(SimpleCardView):
 
     @staticmethod
@@ -1011,12 +1001,15 @@ class RmsTableCardView(SimpleCardView):
             analysis_result = analysis.result_obj
 
             for d in analysis_result:
-
-                d['area_value'] = self._convert_value(d['area_value'])
-                d['profile_value'] = self._convert_value(d['profile_value'])
+                d['value'] = self._convert_value(d['value'])
 
                 if not d['direction']:
                     d['direction'] = ''
+                if not d['from']:
+                    d['from'] = ''
+                if not d['symbol']:
+                    d['symbol'] = ''
+
                 # put topography in every line
                 topo = analysis.subject
                 d.update(dict(topography_name=topo.name,

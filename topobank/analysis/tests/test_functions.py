@@ -495,22 +495,22 @@ def test_rms_values(simple_linear_2d_topography):
     topography = FakeTopographyModel(simple_linear_2d_topography)
     result = rms_values(topography)
 
-    assert result[0]['quantity'] == 'RMS Height'
+    assert result[0]['quantity'] == 'RMS height'
     assert result[0]['direction'] is None
-    assert np.isclose(result[0]['value'], np.sqrt(33))
+    assert np.isclose(result[0]['value_sq'], np.sqrt(33))
     assert result[0]['unit'] == unit
 
-    assert result[1]['quantity'] == 'RMS Curvature'
+    assert result[1]['quantity'] == 'RMS curvature'
     assert result[1]['direction'] is None
-    assert np.isclose(result[1]['value'], 0)
+    assert np.isclose(result[1]['value_sq'], 0)
     assert result[1]['unit'] == inverse_unit
 
-    assert result[2]['quantity'] == 'RMS Slope'
+    assert result[2]['quantity'] == 'RMS gradient'
     assert result[2]['direction'] == 'x'
     assert np.isclose(result[2]['value'], 0)
     assert result[2]['unit'] == 1
 
-    assert result[3]['quantity'] == 'RMS Slope'
+    assert result[3]['quantity'] == 'RMS gradient'
     assert result[3]['direction'] == 'y'
     assert np.isclose(result[3]['value'], 2)
     assert result[3]['unit'] == 1

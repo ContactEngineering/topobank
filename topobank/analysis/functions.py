@@ -1139,69 +1139,119 @@ def rms_values(topography, progress_recorder=None, storage_prefix=None):
     # Get low level topography from SurfaceTopography model
     topography = topography.topography()
 
+    # noinspection PyBroadException
     try:
         unit = topography.info['unit']
         inverse_unit = '{}⁻¹'.format(unit)
-    except:
+    except Exception:
         unit = None
         inverse_unit = None
 
-    def rms_slope_from_der(der):
-        der = der.flatten()
-        return np.sqrt(((der ** 2).mean()))
+    is_2D = topography.dim == 2
+    if not is_2D and not (topography.dim == 1):
+        raise ValueError("This analysis function can only handle 1D or 2D topographies.")
 
+    FROM_1D = 'profile (1D)'
+    FROM_2D = 'area (2D)'
+
+    #
+    # RMS height
+    #
     result = [
         {
-            'quantity': 'RMS Height',
-            'direction': None,
-            'area_value': topography.rms_height_from_area()
-            if hasattr(topography, 'rms_height_from_area') else None,
-            'profile_value': topography.rms_height_from_profile()
-            if hasattr(topography, 'rms_height_from_profile') else None,
+            'quantity': 'RMS height',
+            'from': FROM_1D,
+            'symbol': 'Rq',
+            'direction': 'x',
+            'value': topography.rms_height_from_profile(),
             'unit': unit,
-        },
-        {
-            'quantity': 'RMS Curvature',
-            'direction': None,
-            'area_value': topography.rms_curvature_from_area()
-            if hasattr(topography, 'rms_curvature_from_area') else None,
-            'profile_value': topography.rms_curvature_from_profile()
-            if hasattr(topography, 'rms_curvature_from_profile') else None,
-            'unit': inverse_unit,
-        },
+        }
     ]
-
-    if topography.dim == 2:
-        dh_dx, dh_dy = topography.derivative(n=1)
+    if is_2D:
         result.extend([
             {
-                'quantity': 'RMS Slope',
+                'quantity': 'RMS height',
+                'from': FROM_1D,
+                'symbol': 'Rq',
+                'direction': 'y',
+                'value': topography.transpose().rms_height_from_profile(),
+                'unit': unit,
+            },
+            {
+                'quantity': 'RMS height',
+                'from': FROM_2D,
+                'symbol': 'Sq',
+                'direction': None,
+                'value': topography.rms_height_from_area(),
+                'unit': unit,
+            },
+        ])
+    #
+    # RMS curvature
+    #
+    if is_2D:
+        result.extend([
+            # .rms_curvature_from_profile() does not exist for 2D (so far)
+            # {
+            #     'quantity': 'RMS curvature',
+            #     'from': FROM_1D,
+            #     'symbol': '',
+            #     'direction': 'y',
+            #     'value': topography.transpose().rms_curvature_from_profile(),
+            #     'unit': inverse_unit,
+            # },
+            {
+                'quantity': 'RMS curvature',
+                'from': FROM_2D,
+                'symbol': '',
+                'direction': None,
+                'value': topography.rms_curvature_from_area(),
+                'unit': inverse_unit,
+            }
+        ])
+    # else:  # TODO Should this also be done for 2D? But .rms_curvature_from_profile does not exist in this case
+    #     result.append({
+    #         'quantity': 'RMS curvature',
+    #         'from': FROM_1D,
+    #         'symbol': '',
+    #         'direction': 'x',
+    #         'value': topography.rms_curvature_from_profile(),
+    #         'unit': inverse_unit,
+    #     })
+
+    #
+    # RMS gradient/slope
+    #
+    if is_2D:
+        result.extend([
+            {
+                'quantity': 'RMS gradient',
+                'from': '',
+                'symbol': 'R&Delta;q',  # HTML
                 'direction': 'x',
-                'area_value': None,
-                'profile_value': rms_slope_from_der(dh_dx),  # TODO Correct?
+                'value': topography.rms_gradient(),  # x direction
                 'unit': 1,
             },
             {
-                'quantity': 'RMS Slope',
+                'quantity': 'RMS gradient',
+                'from': '',
+                'symbol': 'R&Delta;q',
                 'direction': 'y',
-                'area_value': None,
-                'profile_value': rms_slope_from_der(dh_dy),  # TODO Correct?
+                'value': topography.transpose().rms_gradient(),  # y direction
                 'unit': 1,
-            }
+            },
         ])
     elif topography.dim == 1:
-        dh_dx = topography.derivative(n=1)
         result.extend([
             {
-                'quantity': 'RMS Slope',
+                'quantity': 'RMS slope',  # TODO slope or gradient?
+                'from': FROM_1D,
+                'symbol': 'R&Delta;q',
                 'direction': 'x',
-                'area_value': None,
-                'profile_value': rms_slope_from_der(dh_dx),  # TODO Correct?
+                'value': topography.rms_slope_from_profile(),
                 'unit': 1,
             }
         ])
-    else:
-        raise ValueError("This analysis function can only handle 1D or 2D topographies.")
 
     return result
 
