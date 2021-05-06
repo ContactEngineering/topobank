@@ -151,7 +151,7 @@ greenlet==0.4.16
     # via
     #   -r production.in
     #   gevent
-gunicorn[gevent]==20.0.4
+gunicorn[gevent]==20.1.0
     # via -r production.in
 h5netcdf==0.8.1
     # via -r ./base.txt
