@@ -495,25 +495,74 @@ def test_rms_values(simple_linear_2d_topography):
     topography = FakeTopographyModel(simple_linear_2d_topography)
     result = rms_values(topography)
 
-    assert result[0]['quantity'] == 'RMS height'
-    assert result[0]['direction'] is None
-    assert np.isclose(result[0]['value_sq'], np.sqrt(33))
-    assert result[0]['unit'] == unit
+    expected = [
+        {
+            'quantity': 'RMS height',
+            'direction': 'x',
+            'from': 'profile (1D)',
+            'symbol': 'Rq',
+            'value': 0,
+            'unit': unit
+        },
+        {
+            'quantity': 'RMS height',
+            'direction': 'y',
+            'from': 'profile (1D)',
+            'symbol': 'Rq',
+            'value': 5.74456264,
+            'unit': unit
+        },
+        {
+            'quantity': 'RMS height',
+            'direction': None,
+            'from': 'area (2D)',
+            'symbol': 'Sq',
+            'value': np.sqrt(33),
+            'unit': unit
+        },
+        {
+            'quantity': 'RMS curvature',
+            'direction': None,
+            'from': 'area (2D)',
+            'symbol': '',
+            'value': 0,
+            'unit': inverse_unit,
+        },
+        {
+            'quantity': 'RMS slope',
+            'direction': 'x',
+            'from': 'profile (1D)',
+            'symbol': 'R&Delta;q',
+            'value': 0,
+            'unit': 1,
+        },
+        {
+            'quantity': 'RMS slope',
+            'direction': 'y',
+            'from': 'profile (1D)',
+            'symbol': 'R&Delta;q',
+            'value': 2,
+            'unit': 1,
+        },
+        {
+            'quantity': 'RMS gradient',
+            'direction': None,
+            'from': 'area (2D)',
+            'symbol': '',
+            'value': 2,
+            'unit': 1,
+        },
+    ]
 
-    assert result[1]['quantity'] == 'RMS curvature'
-    assert result[1]['direction'] is None
-    assert np.isclose(result[1]['value_sq'], 0)
-    assert result[1]['unit'] == inverse_unit
+    # compare all fields
+    for exp, actual in zip(expected, result):
+        assert_allclose(exp['value'], actual['value'],
+                        atol=1e-15,
+                        err_msg=f"Different values: exp: {exp}, actual: {actual}")
+        del exp['value']
+        del actual['value']
+        assert exp == actual
 
-    assert result[2]['quantity'] == 'RMS gradient'
-    assert result[2]['direction'] == 'x'
-    assert np.isclose(result[2]['value'], 0)
-    assert result[2]['unit'] == 1
-
-    assert result[3]['quantity'] == 'RMS gradient'
-    assert result[3]['direction'] == 'y'
-    assert np.isclose(result[3]['value'], 2)
-    assert result[3]['unit'] == 1
 
 
 ###############################################################################

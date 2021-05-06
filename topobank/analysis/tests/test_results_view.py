@@ -607,29 +607,41 @@ def test_rms_values_rounded(rf, mocker):
         {
             'quantity': 'RMS Height',
             'direction': None,
-            'value_sq': np.float32(1.2345678),
-            'value_rq': np.float32(8.7654321),
+            'from': 'area (2D)',
+            'symbol': 'Sq',
+            'value': np.float32(1.2345678),
+            'unit': 'm',
+        },
+        {
+            'quantity': 'RMS Height',
+            'direction': 'x',
+            'from': 'profile (1D)',
+            'symbol': 'Rq',
+            'value': np.float32(8.7654321),
             'unit': 'm',
         },
         {
             'quantity': 'RMS Curvature',
             'direction': None,
-            'value_sq': np.float32(0.9),
-            'value_rq': np.float32(9.87654321),
+            'from': 'profile (1D)',
+            'symbol': '',
+            'value': np.float32(0.9),
             'unit': '1/m',
         },
         {
             'quantity': 'RMS Slope',
             'direction': 'x',
-            'value_rq': np.float32(-1.56789),
-            'value_sq': None,
+            'from': 'profile (1D)',
+            'symbol': 'S&Delta;q',
+            'value': np.float32(-1.56789),
             'unit': 1,
         },
         {
             'quantity': 'RMS Slope',
             'direction': 'y',
-            'value_rq': np.float32('nan'),
-            'value_sq': None,
+            'from': 'profile (1D)',
+            'symbol': 'S&Delta;q',
+            'value': np.float32('nan'),
             'unit': 1,
         }
     ]
@@ -658,7 +670,6 @@ def test_rms_values_rounded(rf, mocker):
     assert b"1.2346" in response.content
     assert b"8.7654" in response.content
     assert b"0.9" in response.content
-    assert b"9.8765" in response.content
     assert b"-1.5679" in response.content
     assert b"NaN" in response.content
 

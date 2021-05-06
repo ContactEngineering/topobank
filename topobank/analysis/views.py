@@ -1036,8 +1036,6 @@ class RmsTableCardView(SimpleCardView):
         #
         # create table
         #
-        # table = RMSTable(data=data, empty_text="No RMS values calculated.", request=self.request)
-
         context.update(dict(
             table_data=data
         ))

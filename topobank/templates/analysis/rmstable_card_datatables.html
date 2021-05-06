@@ -40,7 +40,7 @@
         {data: 'from', title: 'From'},
         {data: 'symbol', title: 'Symbol'},
         {data: 'direction', title: 'Direction'},
-        {data: 'value', title: 'Value'},
+        {data: 'value', title: 'Value', render: function (x) { return format_exponential(x, 5);}},
         {data: 'unit', title: 'Unit'},
       ],
       responsive: true

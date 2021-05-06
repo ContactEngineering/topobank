@@ -1143,7 +1143,7 @@ def rms_values(topography, progress_recorder=None, storage_prefix=None):
     try:
         unit = topography.info['unit']
         inverse_unit = '{}⁻¹'.format(unit)
-    except Exception:
+    except KeyError:
         unit = None
         inverse_unit = None
 
@@ -1209,7 +1209,7 @@ def rms_values(topography, progress_recorder=None, storage_prefix=None):
                 'unit': inverse_unit,
             }
         ])
-    # else:  # TODO Should this also be done for 2D? But .rms_curvature_from_profile does not exist in this case
+    # else:  # .rms_curvature_from_profile() does not exist for uniform line scans (so far)
     #     result.append({
     #         'quantity': 'RMS curvature',
     #         'from': FROM_1D,
@@ -1246,7 +1246,7 @@ def rms_values(topography, progress_recorder=None, storage_prefix=None):
                 'quantity': 'RMS gradient',
                 'from': FROM_2D,
                 'symbol': '',
-                'direction': '',
+                'direction': None,
                 'value': topography.rms_gradient(),
                 'unit': 1,
             },
