@@ -1222,35 +1222,34 @@ def rms_values(topography, progress_recorder=None, storage_prefix=None):
     #
     # RMS gradient/slope
     #
+    result.extend([
+        {
+            'quantity': 'RMS slope',
+            'from': FROM_1D,
+            'symbol': 'R&Delta;q',
+            'direction': 'x',
+            'value': topography.rms_slope_from_profile(),  # x direction
+            'unit': 1,
+        }
+    ])
     if is_2D:
         result.extend([
             {
-                'quantity': 'RMS gradient',
-                'from': '',
-                'symbol': 'R&Delta;q',  # HTML
-                'direction': 'x',
-                'value': topography.rms_gradient(),  # x direction
-                'unit': 1,
-            },
-            {
-                'quantity': 'RMS gradient',
-                'from': '',
-                'symbol': 'R&Delta;q',
-                'direction': 'y',
-                'value': topography.transpose().rms_gradient(),  # y direction
-                'unit': 1,
-            },
-        ])
-    elif topography.dim == 1:
-        result.extend([
-            {
-                'quantity': 'RMS slope',  # TODO slope or gradient?
+                'quantity': 'RMS slope',
                 'from': FROM_1D,
-                'symbol': 'R&Delta;q',
-                'direction': 'x',
-                'value': topography.rms_slope_from_profile(),
+                'symbol': 'R&Delta;q',  # HTML
+                'direction': 'y',
+                'value': topography.transpose().rms_slope_from_profile(),  # y direction
                 'unit': 1,
-            }
+            },
+            {
+                'quantity': 'RMS gradient',
+                'from': FROM_2D,
+                'symbol': '',
+                'direction': '',
+                'value': topography.rms_gradient(),
+                'unit': 1,
+            },
         ])
 
     return result

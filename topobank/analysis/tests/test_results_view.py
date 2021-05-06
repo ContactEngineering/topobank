@@ -570,9 +570,9 @@ def test_rms_table_download_as_txt(client, two_topos, file_format, handle_usage_
         txt = response.content.decode()
 
         assert "RMS Values" in txt  # function name should be in there
-        assert "RMS Height" in txt
-        assert "RMS Slope" in txt
-        assert "RMS Curvature" in txt
+        assert "RMS height" in txt
+        assert "RMS slope" in txt
+        assert "RMS curvature" in txt
     else:
         # Resulting workbook should have two sheets
         tmp = tempfile.NamedTemporaryFile(suffix='.xlsx')  # will be deleted automatically
@@ -589,9 +589,9 @@ def test_rms_table_download_as_txt(client, two_topos, file_format, handle_usage_
 
         all_values_list = list(np.array(list(ws.values)).flatten())
 
-        assert 'RMS Height' in all_values_list
-        assert 'RMS Slope' in all_values_list
-        assert 'RMS Curvature' in all_values_list
+        assert 'RMS height' in all_values_list
+        assert 'RMS slope' in all_values_list
+        assert 'RMS curvature' in all_values_list
 
         xlsx.get_sheet_by_name("INFORMATION")
 
