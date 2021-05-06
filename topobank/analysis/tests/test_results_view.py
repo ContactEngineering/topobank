@@ -541,11 +541,11 @@ def test_analysis_download_as_txt(client, two_topos, ids_downloadable_analyses, 
 
 @pytest.mark.parametrize('file_format', ['txt', 'xlsx'])
 @pytest.mark.django_db
-def test_rms_table_download_as_txt(client, two_topos, file_format, handle_usage_statistics):
+def test_roughness_params_download_as_txt(client, two_topos, file_format, handle_usage_statistics):
     # This is only a simple test which checks whether the file can be downloaded
     t1, t2 = two_topos
 
-    func = AnalysisFunction.objects.get(name='RMS Values')
+    func = AnalysisFunction.objects.get(name='Roughness Parameters')
 
     import pickle
     pickled_kwargs = pickle.dumps({})
@@ -569,7 +569,7 @@ def test_rms_table_download_as_txt(client, two_topos, file_format, handle_usage_
     if file_format == 'txt':
         txt = response.content.decode()
 
-        assert "RMS Values" in txt  # function name should be in there
+        assert "Roughness Parameters" in txt  # function name should be in there
         assert "RMS height" in txt
         assert "RMS slope" in txt
         assert "RMS curvature" in txt
@@ -597,12 +597,12 @@ def test_rms_table_download_as_txt(client, two_topos, file_format, handle_usage_
 
 
 @pytest.mark.django_db
-def test_rms_values_rounded(rf, mocker):
+def test_roughness_params_rounded(rf, mocker):
 
     from django.core.management import call_command
     call_command('register_analysis_functions')
 
-    m = mocker.patch('topobank.analysis.functions.rms_values')
+    m = mocker.patch('topobank.analysis.functions.roughness_parameters')
     m.return_value = [  # some fake values for rounding
         {
             'quantity': 'RMS Height',
@@ -648,7 +648,7 @@ def test_rms_values_rounded(rf, mocker):
 
     topo = Topography2DFactory(size_x=1, size_y=1)
 
-    func = AnalysisFunction.objects.get(name='RMS Values')
+    func = AnalysisFunction.objects.get(name='Roughness Parameters')
     TopographyAnalysisFactory(subject=topo, function=func)
 
     request = rf.post(reverse('analysis:card'), data={

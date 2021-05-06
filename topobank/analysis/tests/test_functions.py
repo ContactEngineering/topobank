@@ -10,7 +10,7 @@ from topobank.analysis.functions import (
     IncompatibleTopographyException,
     height_distribution, slope_distribution, curvature_distribution,
     power_spectrum, autocorrelation, scale_dependent_slope, variable_bandwidth,
-    contact_mechanics, rms_values,
+    contact_mechanics, roughness_parameters,
     average_series_list,
     power_spectrum_for_surface, autocorrelation_for_surface, scale_dependent_slope_for_surface,
     variable_bandwidth_for_surface)
@@ -489,11 +489,11 @@ def test_contact_mechanics_effective_kwargs_in_result(periodic):
     assert result['effective_kwargs'] == exp_effective_kwargs
 
 
-def test_rms_values(simple_linear_2d_topography):
+def test_roughness_parameters(simple_linear_2d_topography):
     unit = simple_linear_2d_topography.info['unit']
     inverse_unit = '{}⁻¹'.format(unit)
     topography = FakeTopographyModel(simple_linear_2d_topography)
-    result = rms_values(topography)
+    result = roughness_parameters(topography)
 
     expected = [
         {
@@ -562,7 +562,6 @@ def test_rms_values(simple_linear_2d_topography):
         del exp['value']
         del actual['value']
         assert exp == actual
-
 
 
 ###############################################################################
