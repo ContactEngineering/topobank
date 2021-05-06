@@ -11,8 +11,9 @@
 - make two different averages distinguishable in plot
   widgets if one is published by adding version number
   to label
-- added columns "from" and "symbol" to RMS values,
-  added more values, show number as decimal powers (#651)  
+- renamed analysis function "RMS Values" to "Roughness Parameters";
+  added columns "from" and "symbol", added more values, show numbers 
+  as decimal powers (#651, #653)  
 - no longer use "e" notation on plot axis, but scientific
   notation with power of 10 (#636)  
 - moved labels of colorbars next to colorbars (#592)

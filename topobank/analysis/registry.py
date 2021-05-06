@@ -183,8 +183,19 @@ class AnalysisFunctionRegistry(metaclass=Singleton):
         """Returns function names as list."""
         return self._card_view_flavors.keys()
 
-    def sync(self):
+    def sync(self, cleanup=False):
         """Make sure all implementations are represented in database.
+
+        It's recommended to run this with cleanup=True if an analysis
+        function should be removed.
+
+        Parameters
+        ----------
+
+        cleanup: bool
+            If True, delete all analysis functions for which no implementations exist
+            and also delete all analyses related to those functions.
+            Be careful, will delete existing analysis.
         """
         from .models import AnalysisFunction, AnalysisFunctionImplementation, Analysis
 
@@ -216,8 +227,15 @@ class AnalysisFunctionRegistry(metaclass=Singleton):
         for func in AnalysisFunction.objects.all():
             if func.name not in function_names_used:
                 _log.info(f"Function '{func.name}' is no longer used in the code.")
-                num_analyses = Analysis.objects.filter(function=func).count()
+                dangling_analyses = Analysis.objects.filter(function=func)
+                num_analyses = dangling_analyses.filter(function=func).count()
                 _log.info(f"There are still {num_analyses} analyses for this function.")
+                if cleanup:
+                    _log.info("Deleting those..")
+                    dangling_analyses.delete()
+                    func.delete()
+                    _log.info(f"Deleted function '{func.name}' and all its analyses.")
+
         #
         # Ensure all implementations needed exist in database
         #
