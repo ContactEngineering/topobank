@@ -19,10 +19,11 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("Registered {} analysis functions in total.".format(func_count)))
         self.stdout.write(self.style.SUCCESS("   created: {}".format(counts['funcs_created'])))
         self.stdout.write(self.style.SUCCESS("   updated: {}".format(counts['funcs_updated'])))
-        self.stdout.write(self.style.SUCCESS("Registered {} analysis function implementations in total.".format(impl_count)))
+        self.stdout.write(self.style.SUCCESS("Registered {} analysis function implementations in total." \
+                                             .format(impl_count)))
         self.stdout.write(self.style.SUCCESS("   created: {}".format(counts['implementations_created'])))
         self.stdout.write(self.style.SUCCESS("   updated: {}".format(counts['implementations_updated'])))
-        self.stdout.write(self.style.SUCCESS("Deleted {} analysis function implementations (if no code found).".format(
-            counts['implementations_deleted'])))
-
-
+        self.stdout.write(self.style.SUCCESS("Deleted {} analysis function implementations (because no code found)." \
+                                             .format(counts['implementations_deleted'])))
+        self.stdout.write(self.style.SUCCESS("Deleted {} analysis functions.".format(
+            counts['funcs_deleted'])))

@@ -184,13 +184,13 @@ class AnalysisFunction(models.Model):
     PLOT = 'plot'
     POWER_SPECTRUM = 'power spectrum'
     CONTACT_MECHANICS = 'contact mechanics'
-    RMS_TABLE = 'rms table'
+    ROUGHNESS_PARAMETERS = 'roughness parameters'
     CARD_VIEW_FLAVOR_CHOICES = [
         (SIMPLE, 'Simple display of the results as raw data structure'),
         (PLOT, 'Display results in a plot with multiple datasets'),
         (POWER_SPECTRUM, 'Display results in a plot suitable for power spectrum'),
         (CONTACT_MECHANICS, 'Display suitable for contact mechanics including special widgets'),
-        (RMS_TABLE, 'Display a table with RMS values.')
+        (ROUGHNESS_PARAMETERS, 'Display a table with roughness parameters.')
     ]
 
     name = models.CharField(max_length=80, help_text="A human-readable name.", unique=True)

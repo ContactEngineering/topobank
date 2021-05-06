@@ -976,7 +976,7 @@ class ContactMechanicsCardView(SimpleCardView):
         return context
 
 
-class RmsTableCardView(SimpleCardView):
+class RoughnessParametersCardView(SimpleCardView):
 
     @staticmethod
     def _convert_value(v):

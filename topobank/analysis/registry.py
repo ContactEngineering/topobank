@@ -2,9 +2,12 @@
 Registry for collection analysis functions.
 """
 import inspect
+import logging
 from ..utils import Singleton
 
 from django.contrib.contenttypes.models import ContentType
+
+_log = logging.getLogger(__name__)
 
 
 class AnalysisFunctionException(Exception):
@@ -92,12 +95,12 @@ class AnalysisFunctionRegistry(metaclass=Singleton):
     def __init__(self):
         self._implementations = {}
         # key: (name, subject_type_name)
-        #      where name: Function name in GUI,
+        #      where name: Function name in UI,
         #      subject_type_name: "Topography" or "Surface" (type)
         # value: reference to implementation of analysis function
 
         self._card_view_flavors = {}
-        # key: name
+        # key: function name in UI
         # value: card view flavor
 
     def add_implementation(self, name, card_view_flavor, func):
@@ -112,9 +115,8 @@ class AnalysisFunctionRegistry(metaclass=Singleton):
 
         Parameters
         ----------
-
         name: str
-            Function name in the GUI
+            Function name in the UI
         card_view_flavor: str
             Card view flavor, see AnalysisFunction model for possible values.
         func: function
@@ -184,16 +186,21 @@ class AnalysisFunctionRegistry(metaclass=Singleton):
     def sync(self):
         """Make sure all implementations are represented in database.
         """
-        from .models import AnalysisFunction, AnalysisFunctionImplementation
+        from .models import AnalysisFunction, AnalysisFunctionImplementation, Analysis
 
         counts = dict(
             funcs_updated=0,
             funcs_created=0,
+            funcs_deleted=0,
             implementations_updated=0,
             implementations_created=0,
             implementations_deleted=0,
         )
 
+        #
+        # Ensure all analysis functions needed exist in database
+        #
+        function_names_used = []
         for name, card_view_flavor in self._card_view_flavors.items():
             func, created = AnalysisFunction.objects.update_or_create(defaults=dict(card_view_flavor=card_view_flavor),
                                                                       name=name)
@@ -201,7 +208,19 @@ class AnalysisFunctionRegistry(metaclass=Singleton):
                 counts['funcs_created'] += 1
             else:
                 counts['funcs_updated'] += 1
+            function_names_used.append(name)
 
+        #
+        # Optionally delete all analysis functions which are no longer needed
+        #
+        for func in AnalysisFunction.objects.all():
+            if func.name not in function_names_used:
+                _log.info(f"Function '{func.name}' is no longer used in the code.")
+                num_analyses = Analysis.objects.filter(function=func).count()
+                _log.info(f"There are still {num_analyses} analyses for this function.")
+        #
+        # Ensure all implementations needed exist in database
+        #
         for name, subject_type_name in self._implementations:
             function = AnalysisFunction.objects.get(name=name)
             subject_type = ContentType.objects.get_by_natural_key('manager', subject_type_name)

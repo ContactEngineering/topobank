@@ -26,7 +26,7 @@ from .utils import AnalysisFunctionFactory, AnalysisFunctionImplementationFactor
     TopographyAnalysisFactory, SurfaceAnalysisFactory
 
 from ..models import Analysis, AnalysisFunction
-from ..views import RmsTableCardView, NUM_SIGNIFICANT_DIGITS_RMS_VALUES
+from ..views import RoughnessParametersCardView, NUM_SIGNIFICANT_DIGITS_RMS_VALUES
 
 
 def selection_from_instances(instances):
@@ -660,7 +660,7 @@ def test_rms_values_rounded(rf, mocker):
     request.user = topo.surface.creator
     request.session = {}
 
-    rms_table_card_view = RmsTableCardView.as_view()
+    rms_table_card_view = RoughnessParametersCardView.as_view()
     response = rms_table_card_view(request)
     assert response.status_code == 200
 

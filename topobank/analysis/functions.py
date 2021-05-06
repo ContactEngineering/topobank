@@ -1116,9 +1116,9 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
     )
 
 
-@register_implementation(name="RMS Values", card_view_flavor='rms table')
-def rms_values(topography, progress_recorder=None, storage_prefix=None):
-    """Just calculate RMS values for given topography.
+@register_implementation(name="Roughness Parameters", card_view_flavor='roughness parameters')
+def roughness_parameters(topography, progress_recorder=None, storage_prefix=None):
+    """Calculate roughness parameters for given topography.
 
     Parameters
     ----------
@@ -1130,10 +1130,12 @@ def rms_values(topography, progress_recorder=None, storage_prefix=None):
     -------
     list of dicts where each dict has keys
 
-     quantity
-     direction
-     value
-     unit
+     quantity, e.g. 'RMS height' or 'RMS gradient'
+     direction, e.g. 'x' or None
+     from, e.g. 'profile (1D)' or 'area (2D)' or ''
+     symbol, e.g. 'Sq' or ''
+     value, a number or NaN
+     unit, e.g. 'nm'
     """
 
     # Get low level topography from SurfaceTopography model
