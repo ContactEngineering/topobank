@@ -561,8 +561,10 @@ def test_roughness_params_download_as_txt(client, two_topos, file_format, handle
     ids_downloadable_analyses = [ana1.id, ana2.id]
 
     ids_str = ",".join(str(i) for i in ids_downloadable_analyses)
-    download_url = reverse('analysis:download', kwargs=dict(ids=ids_str, card_view_flavor='rms table',
-                                                            file_format=file_format))
+    download_url = reverse('analysis:download',
+                           kwargs=dict(ids=ids_str,
+                                       card_view_flavor='roughness parameters',
+                                       file_format=file_format))
 
     response = client.get(download_url)
 
@@ -585,7 +587,7 @@ def test_roughness_params_download_as_txt(client, two_topos, file_format, handle
 
         assert len(xlsx.worksheets) == 2
 
-        ws = xlsx.get_sheet_by_name("RMS values")
+        ws = xlsx.get_sheet_by_name("Roughness Parameters")
 
         all_values_list = list(np.array(list(ws.values)).flatten())
 
