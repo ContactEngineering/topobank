@@ -1005,6 +1005,15 @@ If building the containers was successful, aks yourself these questions:
 
      docker-compose -f production.yml run --rm django python manage.py register_analysis_functions
 
+  If analysis functions have been replaced or removed, also use switch `--cleanup` or `-c`:
+
+  .. code:: bash
+
+     docker-compose -f production.yml run --rm django python manage.py register_analysis_functions --cleanup
+
+  This will delete all analysis functions no longer referenced by implementations.
+  It will also delete all related analysis, so handle with care!
+
 - Is there any need to change sth. in the S3 storage?
 
   Prepare the S3 storage as needed.
