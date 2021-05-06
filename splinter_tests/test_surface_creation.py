@@ -31,7 +31,7 @@ def test_empty_surface(user_alice_logged_in):
     #
     # Navigate back to surface list
     #
-    select_link = browser.find_link_by_partial_text('Select').first
+    select_link = browser.find_link_by_partial_text('Find & select').first
     select_link.click()
     assert browser.is_text_present('Create Surface', wait_time=2)
 

@@ -69,7 +69,7 @@ def test_publishing_form(user_alice_logged_in, handle_usage_statistics):
     #
     # Since no topography is available for the surface, a hint is shown
     #
-    assert browser.is_text_present("This surface has no topographies yet")
+    assert browser.is_text_present("This surface has no measurements yet")
 
     #
     # We add a topography and reload
