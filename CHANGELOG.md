@@ -8,12 +8,12 @@
   "Select" page (#618)
 - added "Download" button for downloading all surfaces
   related to the current selection (#642)
-- fixed bug that no average curve was shown if a surface
-  was selected by tag only (#632)
 - make two different averages distinguishable in plot
   widgets if one is published by adding version number
   to label
-- now longer use "e" notation on plot axis, but scientific
+- added columns "from" and "symbol" to RMS values,
+  added more values, show number as decimal powers (#651)  
+- no longer use "e" notation on plot axis, but scientific
   notation with power of 10 (#636)  
 - moved labels of colorbars next to colorbars (#592)
 - in analyses results for height/slope/curvature distribution,
@@ -22,6 +22,9 @@
 - upgrade to SurfaceTopography 0.93.0 (#643)  
 - upgrade to Django 2.2.20 because of CVE
 - upgrade of packages py and django-debug-toolbar because of CVEs
+- fixed bug that no average curve was shown if a surface
+  was selected by tag only (#632)
+
 
 ## 0.10.1 (2021-03-31)
 

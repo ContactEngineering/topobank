@@ -570,9 +570,9 @@ def test_rms_table_download_as_txt(client, two_topos, file_format, handle_usage_
         txt = response.content.decode()
 
         assert "RMS Values" in txt  # function name should be in there
-        assert "RMS Height" in txt
-        assert "RMS Slope" in txt
-        assert "RMS Curvature" in txt
+        assert "RMS height" in txt
+        assert "RMS slope" in txt
+        assert "RMS curvature" in txt
     else:
         # Resulting workbook should have two sheets
         tmp = tempfile.NamedTemporaryFile(suffix='.xlsx')  # will be deleted automatically
@@ -589,9 +589,9 @@ def test_rms_table_download_as_txt(client, two_topos, file_format, handle_usage_
 
         all_values_list = list(np.array(list(ws.values)).flatten())
 
-        assert 'RMS Height' in all_values_list
-        assert 'RMS Slope' in all_values_list
-        assert 'RMS Curvature' in all_values_list
+        assert 'RMS height' in all_values_list
+        assert 'RMS slope' in all_values_list
+        assert 'RMS curvature' in all_values_list
 
         xlsx.get_sheet_by_name("INFORMATION")
 
@@ -607,24 +607,40 @@ def test_rms_values_rounded(rf, mocker):
         {
             'quantity': 'RMS Height',
             'direction': None,
+            'from': 'area (2D)',
+            'symbol': 'Sq',
             'value': np.float32(1.2345678),
+            'unit': 'm',
+        },
+        {
+            'quantity': 'RMS Height',
+            'direction': 'x',
+            'from': 'profile (1D)',
+            'symbol': 'Rq',
+            'value': np.float32(8.7654321),
             'unit': 'm',
         },
         {
             'quantity': 'RMS Curvature',
             'direction': None,
+            'from': 'profile (1D)',
+            'symbol': '',
             'value': np.float32(0.9),
             'unit': '1/m',
         },
         {
             'quantity': 'RMS Slope',
             'direction': 'x',
+            'from': 'profile (1D)',
+            'symbol': 'S&Delta;q',
             'value': np.float32(-1.56789),
             'unit': 1,
         },
         {
             'quantity': 'RMS Slope',
             'direction': 'y',
+            'from': 'profile (1D)',
+            'symbol': 'S&Delta;q',
             'value': np.float32('nan'),
             'unit': 1,
         }
@@ -652,12 +668,13 @@ def test_rms_values_rounded(rf, mocker):
     # we want rounding to 5 digits
     assert NUM_SIGNIFICANT_DIGITS_RMS_VALUES == 5
     assert b"1.2346" in response.content
+    assert b"8.7654" in response.content
     assert b"0.9" in response.content
     assert b"-1.5679" in response.content
     assert b"NaN" in response.content
 
 
-@pytest.mark.parametrize("same_names", [ False, True])
+@pytest.mark.parametrize("same_names", [False, True])
 @pytest.mark.django_db
 def test_analysis_download_as_xlsx(client, two_topos, ids_downloadable_analyses, same_names, settings, handle_usage_statistics):
 

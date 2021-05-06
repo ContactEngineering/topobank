@@ -976,16 +976,20 @@ class ContactMechanicsCardView(SimpleCardView):
         return context
 
 
-class RMSTable(tables.Table):
-    topography = tables.Column(linkify=lambda **kwargs: kwargs['record']['topography'].get_absolute_url(),
-                               accessor='topography__name')
-    quantity = tables.Column()
-    direction = tables.Column()
-    value = tables.Column()
-    unit = tables.Column()
-
-
 class RmsTableCardView(SimpleCardView):
+
+    @staticmethod
+    def _convert_value(v):
+        if v is not None:
+            if math.isnan(v):
+                v = None  # will be interpreted as null in JS, replace there with NaN!
+                # It's not easy to pass NaN as JSON:
+                # https://stackoverflow.com/questions/15228651/how-to-parse-json-string-containing-nan-in-node-js
+            else:
+                # convert float32 to float, round to fixed number of significant digits
+                v = round_to_significant_digits(v.astype(float),
+                                                NUM_SIGNIFICANT_DIGITS_RMS_VALUES)
+        return v
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -997,17 +1001,15 @@ class RmsTableCardView(SimpleCardView):
             analysis_result = analysis.result_obj
 
             for d in analysis_result:
-                if math.isnan(d['value']):
-                    d['value'] = None  # will be interpreted as null in JS, replace there with NaN!
-                    # It's not easy to pass NaN as JSON:
-                    # https://stackoverflow.com/questions/15228651/how-to-parse-json-string-containing-nan-in-node-js
-                else:
-                    # convert float32 to float, round to fixed number of significant digits
-                    d['value'] = round_to_significant_digits(d['value'].astype(float),
-                                                             NUM_SIGNIFICANT_DIGITS_RMS_VALUES)
+                d['value'] = self._convert_value(d['value'])
 
                 if not d['direction']:
                     d['direction'] = ''
+                if not d['from']:
+                    d['from'] = ''
+                if not d['symbol']:
+                    d['symbol'] = ''
+
                 # put topography in every line
                 topo = analysis.subject
                 d.update(dict(topography_name=topo.name,
@@ -1034,8 +1036,6 @@ class RmsTableCardView(SimpleCardView):
         #
         # create table
         #
-        # table = RMSTable(data=data, empty_text="No RMS values calculated.", request=self.request)
-
         context.update(dict(
             table_data=data
         ))
