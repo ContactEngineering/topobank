@@ -13,13 +13,15 @@
   to label
 - renamed analysis function "RMS Values" to "Roughness Parameters";
   added columns "from" and "symbol", added more values, show numbers 
-  as decimal powers (#651, #653)  
+  as decimal powers (#651, #653)
 - no longer use "e" notation on plot axis, but scientific
   notation with power of 10 (#636)  
 - moved labels of colorbars next to colorbars (#592)
 - in analyses results for height/slope/curvature distribution,
   renamed data series from "RMS height/slope/curvature" to
   "Gaussian fit" (#641)
+- changed surface container format in order to hold multiple
+  data files for measurements later (#652) 
 - upgrade to SurfaceTopography 0.93.0 (#643)  
 - upgrade to Django 2.2.20 because of CVE
 - upgrade of packages py and django-debug-toolbar because of CVEs

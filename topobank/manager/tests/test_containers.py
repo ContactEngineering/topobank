@@ -65,7 +65,7 @@ def test_surface_container():
         # all data files should be included
         for surf_descr in meta_surfaces:
             for topo_descr in surf_descr['topographies']:
-                datafile_name = topo_descr['datafile']
+                datafile_name = topo_descr['datafile']['original']
                 assert datafile_name in zf.namelist()
 
         # check version information

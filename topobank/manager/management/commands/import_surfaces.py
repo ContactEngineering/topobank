@@ -200,7 +200,7 @@ class Command(BaseCommand):
                     self.stdout.write(
                         self.style.NOTICE(f"Processing topography {topo_idx+1}/{num_topographies} in archive..."))
                     try:
-                        datafile_name = topo_dict[datafile_attribute]
+                        datafile_name = topo_dict[datafile_attribute]['original']  # there will be more entries later
                         self.stdout.write(self.style.NOTICE(f"  Trying to read file '{datafile_name}' in archive..."))
                         topo_file = surface_zip.open(datafile_name, mode='r')
                         self.stdout.write(self.style.NOTICE(f"  Datafile '{datafile_name}' found in archive."))
