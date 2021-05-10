@@ -2,7 +2,7 @@
 
 ## 1.0.0 (not published yet)
 
-## 0.11.0 (not published yet)
+## 0.11.0 (2021-05-10)
 
 - added "Download" button to individual surfaces to 
   "Select" page (#618)
@@ -28,7 +28,6 @@
 - fixed bug that no average curve was shown if a surface
   was selected by tag only (#632)
 - fixed management command "save_default_function_kwargs" (#621)  
-
 
 ## 0.10.1 (2021-03-31)
 
