@@ -10,7 +10,7 @@ from topobank.analysis.functions import (
     IncompatibleTopographyException,
     height_distribution, slope_distribution, curvature_distribution,
     power_spectrum, autocorrelation, scale_dependent_slope, variable_bandwidth,
-    contact_mechanics, rms_values,
+    contact_mechanics, roughness_parameters,
     average_series_list,
     power_spectrum_for_surface, autocorrelation_for_surface, scale_dependent_slope_for_surface,
     variable_bandwidth_for_surface)
@@ -255,13 +255,14 @@ def test_height_distribution_simple_2d_topography(simple_linear_2d_topography):
 
     exp_bins = np.array([-8.1, -6.3, -4.5, -2.7, -0.9, 0.9, 2.7, 4.5, 6.3, 8.1])  # for heights
     exp_height_dist_values = np.ones((10,)) * 1 / (10 * 1.8)  # each interval has width of 1.8, 10 intervals
-    series0 = result['series'][0]
+    series0, series1 = result['series']
 
     assert series0['name'] == 'Height distribution'
 
     np.testing.assert_almost_equal(series0['x'], exp_bins)
     np.testing.assert_almost_equal(series0['y'], exp_height_dist_values)
 
+    assert series1['name'] == 'Gaussian fit'
     # TODO not testing gauss values yet since number of points is unknown
     # proposal: use a well tested function instead of own formula
 
@@ -292,7 +293,7 @@ def test_slope_distribution_simple_2d_topography(simple_linear_2d_topography):
 
     exp_bins_x = np.array([-1. / 1500, 0, 1. / 1500])  # for slopes
     exp_slope_dist_values_x = [0, 1500, 0]
-    series0 = result['series'][0]
+    series0, series1, series2, series3 = result['series']
 
     assert series0['name'] == 'Slope distribution (x direction)'
 
@@ -301,13 +302,15 @@ def test_slope_distribution_simple_2d_topography(simple_linear_2d_topography):
 
     exp_bins_y = np.array([-2 - 1. / 1500, -2, -2 + 1. / 1500])  # for slopes
     exp_slope_dist_values_y = [0, 1500, 0]
-    series2 = result['series'][2]
+
+    assert series1['name'] == 'Gaussian fit (x direction)'
 
     assert series2['name'] == 'Slope distribution (y direction)'
 
     np.testing.assert_almost_equal(series2['x'], exp_bins_y)
     np.testing.assert_almost_equal(series2['y'], exp_slope_dist_values_y)
 
+    assert series3['name'] == 'Gaussian fit (y direction)'
     # TODO not testing gauss values yet since number of points is unknown
     # proposal: use a well tested function instead of own formula
 
@@ -345,8 +348,8 @@ def test_curvature_distribution_simple_2d_topography(simple_linear_2d_topography
     np.testing.assert_almost_equal(s0['x'], exp_bins)
     np.testing.assert_almost_equal(s0['y'], exp_curvature_dist_values)
 
-    assert s1['name'] == 'RMS curvature'
-    # Not testing gaussian here
+    assert s1['name'] == 'Gaussian fit'
+    # Not further testing gaussian here
 
 
 def test_curvature_distribution_simple_2d_topography_periodic():
@@ -486,31 +489,79 @@ def test_contact_mechanics_effective_kwargs_in_result(periodic):
     assert result['effective_kwargs'] == exp_effective_kwargs
 
 
-def test_rms_values(simple_linear_2d_topography):
+def test_roughness_parameters(simple_linear_2d_topography):
     unit = simple_linear_2d_topography.info['unit']
     inverse_unit = '{}⁻¹'.format(unit)
     topography = FakeTopographyModel(simple_linear_2d_topography)
-    result = rms_values(topography)
+    result = roughness_parameters(topography)
 
-    assert result[0]['quantity'] == 'RMS Height'
-    assert result[0]['direction'] is None
-    assert np.isclose(result[0]['value'], np.sqrt(33))
-    assert result[0]['unit'] == unit
+    expected = [
+        {
+            'quantity': 'RMS height',
+            'direction': 'x',
+            'from': 'profile (1D)',
+            'symbol': 'Rq',
+            'value': 0,
+            'unit': unit
+        },
+        {
+            'quantity': 'RMS height',
+            'direction': 'y',
+            'from': 'profile (1D)',
+            'symbol': 'Rq',
+            'value': 5.74456264,
+            'unit': unit
+        },
+        {
+            'quantity': 'RMS height',
+            'direction': None,
+            'from': 'area (2D)',
+            'symbol': 'Sq',
+            'value': np.sqrt(33),
+            'unit': unit
+        },
+        {
+            'quantity': 'RMS curvature',
+            'direction': None,
+            'from': 'area (2D)',
+            'symbol': '',
+            'value': 0,
+            'unit': inverse_unit,
+        },
+        {
+            'quantity': 'RMS slope',
+            'direction': 'x',
+            'from': 'profile (1D)',
+            'symbol': 'R&Delta;q',
+            'value': 0,
+            'unit': 1,
+        },
+        {
+            'quantity': 'RMS slope',
+            'direction': 'y',
+            'from': 'profile (1D)',
+            'symbol': 'R&Delta;q',
+            'value': 2,
+            'unit': 1,
+        },
+        {
+            'quantity': 'RMS gradient',
+            'direction': None,
+            'from': 'area (2D)',
+            'symbol': '',
+            'value': 2,
+            'unit': 1,
+        },
+    ]
 
-    assert result[1]['quantity'] == 'RMS Curvature'
-    assert result[1]['direction'] is None
-    assert np.isclose(result[1]['value'], 0)
-    assert result[1]['unit'] == inverse_unit
-
-    assert result[2]['quantity'] == 'RMS Slope'
-    assert result[2]['direction'] == 'x'
-    assert np.isclose(result[2]['value'], 0)
-    assert result[2]['unit'] == 1
-
-    assert result[3]['quantity'] == 'RMS Slope'
-    assert result[3]['direction'] == 'y'
-    assert np.isclose(result[3]['value'], 2)
-    assert result[3]['unit'] == 1
+    # compare all fields
+    for exp, actual in zip(expected, result):
+        assert_allclose(exp['value'], actual['value'],
+                        atol=1e-15,
+                        err_msg=f"Different values: exp: {exp}, actual: {actual}")
+        del exp['value']
+        del actual['value']
+        assert exp == actual
 
 
 ###############################################################################

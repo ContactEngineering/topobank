@@ -100,7 +100,7 @@ def click_select_option(browser, name, value):
 
 
 def select_filter_by_name_and_value(browser, name, value):
-    assert 'Select' in active_tab_title(browser)
+    assert 'Find & select' in active_tab_title(browser)
     # browser.choose(name, value)  # does not work
     click_select_option(browser, name, value)
     # skip loading time
@@ -139,7 +139,7 @@ def goto_sharing_page(browser):
 
 
 def goto_select_page(browser):
-    select_link = browser.find_link_by_partial_text('Select')
+    select_link = browser.find_link_by_partial_text('Find & select')
     select_link.click()
     assert browser.is_text_present("Showing")
 

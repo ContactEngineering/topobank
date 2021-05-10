@@ -24,13 +24,12 @@ import django_tables2 as tables
 from bokeh.layouts import row, column, grid
 from bokeh.models import ColumnDataSource, CustomJS, TapTool, Circle, HoverTool
 from bokeh.palettes import Category10
-from bokeh.models.formatters import FuncTickFormatter
 from bokeh.models.ranges import DataRange1d
 from bokeh.plotting import figure
 from bokeh.embed import components, json_item
-from bokeh.models.widgets import CheckboxGroup, Tabs, Panel, Toggle, Div, RadioGroup, Slider
-from bokeh.models.widgets.markups import Paragraph
-from bokeh.models import Legend, LinearColorMapper, ColorBar, CategoricalColorMapper
+from bokeh.models.widgets import CheckboxGroup, Tabs, Panel, Toggle, Div, Slider
+from bokeh.models import LinearColorMapper, ColorBar
+from bokeh.models.formatters import FuncTickFormatter
 
 import xarray as xr
 
@@ -46,6 +45,7 @@ from ..manager.models import Topography, Surface
 from ..manager.utils import selected_instances, instances_to_selection, instances_to_topographies, \
     selection_to_subjects_json, subjects_from_json, subjects_to_json
 from ..usage_stats.utils import increase_statistics_by_date_and_object
+from ..plots import configure_plot
 from .models import Analysis, AnalysisFunction, AnalysisCollection, CARD_VIEW_FLAVORS, ImplementationMissingException
 from .forms import FunctionSelectForm
 from .utils import get_latest_analyses, round_to_significant_digits, request_analysis
@@ -390,7 +390,7 @@ class PlotCardView(SimpleCardView):
 
         for s in subjects:
             subject_ct = s.get_content_type()
-            subject_name = s.name
+            subject_name = s.label
             if subject_ct == surface_ct:
                 subject_name = f"Average of {subject_name}"
             subject_names_for_plot.append(subject_name)
@@ -652,18 +652,11 @@ class PlotCardView(SimpleCardView):
         # Final configuration of the plot
         #
 
+        configure_plot(plot)
+
         # plot.legend.click_policy = "hide" # can be used to disable lines by clicking on legend
         plot.legend.visible = False  # we have extra widgets to disable lines
-        plot.toolbar.logo = None
         plot.toolbar.active_inspect = None
-        plot.xaxis.axis_label_text_font_style = "normal"
-        plot.yaxis.axis_label_text_font_style = "normal"
-        plot.xaxis.major_label_text_font_size = "12pt"
-        plot.yaxis.major_label_text_font_size = "12pt"
-
-        # see js function "format_exponential()" in project.js file
-        plot.xaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
-        plot.yaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
 
         #
         # Adding widgets for switching lines on/off
@@ -690,14 +683,14 @@ class PlotCardView(SimpleCardView):
                 visible=False,
                 active=list(range(len(subject_checkbox_groups[topography_ct]))))
 
-        subject_btn_group_toggle_button_label = "Topographies"
+        subject_btn_group_toggle_button_label = "Measurements"
         if has_at_least_one_surface_subject:
             subject_btn_group_toggle_button_label = "Average / "+subject_btn_group_toggle_button_label
         subject_btn_group_toggle_button = Toggle(label=subject_btn_group_toggle_button_label)
-        series_btn_group_toggle_button = Toggle(label="Data Series")
-        options_group_toggle_button = Toggle(label="Plot Options")
+        series_btn_group_toggle_button = Toggle(label="Data series")
+        options_group_toggle_button = Toggle(label="Plot options")
 
-        topography_alpha_slider = Slider(start=0, end=1, title="Opacity of topography lines",
+        topography_alpha_slider = Slider(start=0, end=1, title="Opacity of measurement lines",
                                          value=DEFAULT_ALPHA_FOR_TOPOGRAPHIES if has_at_least_one_surface_subject else 1.0,
                                          step=0.1, visible=False)
         options_group = column([topography_alpha_slider])
@@ -863,9 +856,6 @@ class ContactMechanicsCardView(SimpleCardView):
                                        y_axis_type="log",
                                        tools=tools)
 
-            contact_area_plot.xaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
-            contact_area_plot.yaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
-
             load_plot = figure(title=None,
                                plot_height=400,
                                sizing_mode='scale_width',
@@ -873,8 +863,6 @@ class ContactMechanicsCardView(SimpleCardView):
                                y_axis_label=load_axis_label,
                                x_axis_type="linear",
                                y_axis_type="log", tools=tools)
-
-            load_plot.yaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
 
             for source, label in zip(sources, labels):
                 curr_color = next(color_cycle)
@@ -915,8 +903,8 @@ class ContactMechanicsCardView(SimpleCardView):
                 js_code += f"{glyph_id_area_plot}.visible = topography_btn_group.active.includes({topography_idx});"
                 js_code += f"{glyph_id_load_plot}.visible = topography_btn_group.active.includes({topography_idx});"
 
-            _configure_plot(contact_area_plot)
-            _configure_plot(load_plot)
+            configure_plot(contact_area_plot)
+            configure_plot(load_plot)
 
             #
             # Adding widget for switching symbols on/off
@@ -927,7 +915,7 @@ class ContactMechanicsCardView(SimpleCardView):
                 visible=False,
                 active=list(range(len(topography_names))))  # all active
 
-            topography_btn_group_toggle_button = Toggle(label="Topographies")
+            topography_btn_group_toggle_button = Toggle(label="Measurements")
 
             # extend mapping of Python to JS objects
             js_args['topography_btn_group'] = topography_button_group
@@ -980,7 +968,7 @@ class ContactMechanicsCardView(SimpleCardView):
                  message="""
                  Translucent data points did not converge within iteration limit and may carry large errors.
                  <i>A</i> is the true contact area and <i>A0</i> the apparent contact area,
-                 i.e. the size of the provided topography.""")
+                 i.e. the size of the provided measurement.""")
         ]
 
         context['limits_calc_kwargs'] = settings.CONTACT_MECHANICS_KWARGS_LIMITS
@@ -988,16 +976,20 @@ class ContactMechanicsCardView(SimpleCardView):
         return context
 
 
-class RMSTable(tables.Table):
-    topography = tables.Column(linkify=lambda **kwargs: kwargs['record']['topography'].get_absolute_url(),
-                               accessor='topography__name')
-    quantity = tables.Column()
-    direction = tables.Column()
-    value = tables.Column()
-    unit = tables.Column()
+class RoughnessParametersCardView(SimpleCardView):
 
-
-class RmsTableCardView(SimpleCardView):
+    @staticmethod
+    def _convert_value(v):
+        if v is not None:
+            if math.isnan(v):
+                v = None  # will be interpreted as null in JS, replace there with NaN!
+                # It's not easy to pass NaN as JSON:
+                # https://stackoverflow.com/questions/15228651/how-to-parse-json-string-containing-nan-in-node-js
+            else:
+                # convert float32 to float, round to fixed number of significant digits
+                v = round_to_significant_digits(v.astype(float),
+                                                NUM_SIGNIFICANT_DIGITS_RMS_VALUES)
+        return v
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1009,17 +1001,15 @@ class RmsTableCardView(SimpleCardView):
             analysis_result = analysis.result_obj
 
             for d in analysis_result:
-                if math.isnan(d['value']):
-                    d['value'] = None  # will be interpreted as null in JS, replace there with NaN!
-                    # It's not easy to pass NaN as JSON:
-                    # https://stackoverflow.com/questions/15228651/how-to-parse-json-string-containing-nan-in-node-js
-                else:
-                    # convert float32 to float, round to fixed number of significant digits
-                    d['value'] = round_to_significant_digits(d['value'].astype(float),
-                                                             NUM_SIGNIFICANT_DIGITS_RMS_VALUES)
+                d['value'] = self._convert_value(d['value'])
 
                 if not d['direction']:
                     d['direction'] = ''
+                if not d['from']:
+                    d['from'] = ''
+                if not d['symbol']:
+                    d['symbol'] = ''
+
                 # put topography in every line
                 topo = analysis.subject
                 d.update(dict(topography_name=topo.name,
@@ -1046,21 +1036,11 @@ class RmsTableCardView(SimpleCardView):
         #
         # create table
         #
-        # table = RMSTable(data=data, empty_text="No RMS values calculated.", request=self.request)
-
         context.update(dict(
             table_data=data
         ))
 
         return context
-
-
-def _configure_plot(plot):
-    plot.toolbar.logo = None
-    plot.xaxis.axis_label_text_font_style = "normal"
-    plot.yaxis.axis_label_text_font_style = "normal"
-    plot.xaxis.major_label_text_font_size = "12pt"
-    plot.yaxis.major_label_text_font_size = "12pt"
 
 
 def submit_analyses_view(request):
@@ -1119,7 +1099,7 @@ def submit_analyses_view(request):
     return JsonResponse({}, status=status)
 
 
-def _contact_mechanics_geometry_figure(values, frame_width, frame_height, topo_unit, topo_size, title=None,
+def _contact_mechanics_geometry_figure(values, frame_width, frame_height, topo_unit, topo_size, colorbar_title=None,
                                        value_unit=None):
     """
 
@@ -1128,25 +1108,32 @@ def _contact_mechanics_geometry_figure(values, frame_width, frame_height, topo_u
     :param frame_height:
     :param topo_unit:
     :param topo_size:
-    :param title:
+    :param colorbar_title:
     :param value_unit:
     :return:
     """
 
     x_range = DataRange1d(start=0, end=topo_size[0], bounds='auto', range_padding=5)
-    y_range = DataRange1d(start=0, end=topo_size[1], bounds='auto', range_padding=5)
+    y_range = DataRange1d(start=topo_size[1], end=0, flipped=True, range_padding=5)
 
-    p = figure(title=title,
-               x_range=x_range,
+    boolean_values = values.dtype == np.bool
+
+    COLORBAR_WIDTH = 50
+    COLORBAR_LABEL_STANDOFF = 12
+
+    plot_width = frame_width
+    if not boolean_values:
+        plot_width += COLORBAR_WIDTH + COLORBAR_LABEL_STANDOFF + 5
+
+    p = figure(x_range=x_range,
                y_range=y_range,
                frame_width=frame_width,
                frame_height=frame_height,
+               plot_width=plot_width,
                x_axis_label="Position x ({})".format(topo_unit),
                y_axis_label="Position y ({})".format(topo_unit),
                match_aspect=True,
                toolbar_location="above")
-
-    boolean_values = values.dtype == np.bool
 
     if boolean_values:
         color_mapper = LinearColorMapper(palette=["black", "white"], low=0, high=1)
@@ -1156,17 +1143,18 @@ def _contact_mechanics_geometry_figure(values, frame_width, frame_height, topo_u
 
         color_mapper = LinearColorMapper(palette='Viridis256', low=min_val, high=max_val)
 
-    p.image([values], x=0, y=0, dw=topo_size[0], dh=topo_size[1], color_mapper=color_mapper)
+    p.image([np.rot90(values)], x=0, y=topo_size[1], dw=topo_size[0], dh=topo_size[1], color_mapper=color_mapper)
 
     if not boolean_values:
         colorbar = ColorBar(color_mapper=color_mapper,
-                            label_standoff=12,
+                            label_standoff=COLORBAR_LABEL_STANDOFF,
+                            width=COLORBAR_WIDTH,
                             location=(0, 0),
-                            title=value_unit)
-
+                            title=f"{colorbar_title} ({value_unit})")
+        colorbar.formatter = FuncTickFormatter(code="return format_exponential(tick);")
         p.add_layout(colorbar, "right")
 
-    _configure_plot(p)
+    configure_plot(p)
 
     return p
 
@@ -1188,20 +1176,11 @@ def _contact_mechanics_distribution_figure(values, x_axis_label, y_axis_label,
                y_axis_type=y_axis_type,
                toolbar_location="above")
 
-    if x_axis_type == "log":
-        p.xaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
-    if y_axis_type == "log":
-        p.yaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
-
     p.step(edges[:-1], hist, mode="before", line_width=2)
 
-    _configure_plot(p)
+    configure_plot(p)
 
     return p
-
-
-def _contact_mechanics_displacement_figure():
-    pass
 
 
 def contact_mechanics_data(request):
@@ -1295,37 +1274,38 @@ def contact_mechanics_data(request):
                 #
                 'contact-geometry': _contact_mechanics_geometry_figure(
                     contacting_points,
-                    title="Contact geometry",
+                    colorbar_title="Contact geometry",
                     **geometry_figure_common_args),
                 'contact-pressure': _contact_mechanics_geometry_figure(
                     pressure,
-                    title=r'Contact pressure p(E*)',
+                    colorbar_title=r'Pressure',
+                    value_unit='E*',
                     **geometry_figure_common_args),
                 'displacement': _contact_mechanics_geometry_figure(
                     displacement,
-                    title=r'Displacement', value_unit=unit,
+                    colorbar_title=r'Displacem.',
+                    value_unit=unit,
                     **geometry_figure_common_args),
                 'gap': _contact_mechanics_geometry_figure(
-                    gap, title=r'Gap', value_unit=unit,
+                    gap,
+                    colorbar_title=r'Gap',
+                    value_unit=unit,
                     **geometry_figure_common_args),
                 #
                 # Distribution figures
                 #
                 'pressure-distribution': _contact_mechanics_distribution_figure(
                     pressure[contacting_points],
-                    title="Pressure distribution",
                     x_axis_label="Pressure p (E*)",
                     y_axis_label="Probability P(p) (1/E*)",
                     **common_kwargs),
                 'gap-distribution': _contact_mechanics_distribution_figure(
                     gap[gap > gap_tol],
-                    title="Gap distribution",
                     x_axis_label="Gap g ({})".format(topo.unit),
                     y_axis_label="Probability P(g) (1/{})".format(topo.unit),
                     **common_kwargs),
                 'cluster-size-distribution': _contact_mechanics_distribution_figure(
                     contact_areas,
-                    title="Cluster size distribution",
                     x_axis_label="Cluster area A({}²)".format(topo.unit),
                     y_axis_label="Probability P(A)",
                     x_axis_type="log",
@@ -1379,7 +1359,7 @@ def extra_tabs_if_single_item_selected(topographies, surfaces):
                 'href': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
                 'active': False,
                 'login_required': False,
-                'tooltip': f"Properties of topography '{topo.name}'",
+                'tooltip': f"Properties of measurement '{topo.name}'",
             }
         ])
     elif len(surfaces) == 1 and all(t.surface == surfaces[0] for t in topographies):

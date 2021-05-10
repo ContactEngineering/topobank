@@ -1,5 +1,34 @@
 # Changelog for *TopoBank*
 
+## 1.0.0 (not published yet)
+
+## 0.11.0 (2021-05-10)
+
+- added "Download" button to individual surfaces to 
+  "Select" page (#618)
+- added "Download" button for downloading all surfaces
+  related to the current selection (#642)
+- make two different averages distinguishable in plot
+  widgets if one is published by adding version number
+  to label
+- renamed analysis function "RMS Values" to "Roughness Parameters";
+  added columns "from" and "symbol", added more values, show numbers 
+  as decimal powers (#651, #653)
+- no longer use "e" notation on plot axis, but scientific
+  notation with power of 10 (#636)  
+- moved labels of colorbars next to colorbars (#592)
+- in analyses results for height/slope/curvature distribution,
+  renamed data series from "RMS height/slope/curvature" to
+  "Gaussian fit" (#641)
+- changed surface container format in order to hold multiple
+  data files for measurements later (#652) 
+- upgrade to SurfaceTopography 0.93.0 (#643)  
+- upgrade to Django 2.2.20 because of CVE
+- upgrade of packages py and django-debug-toolbar because of CVEs
+- fixed bug that no average curve was shown if a surface
+  was selected by tag only (#632)
+- fixed management command "save_default_function_kwargs" (#621)  
+
 ## 0.10.1 (2021-03-31)
 
 - added upgrade of pip in Dockerfile so no rust is needed 

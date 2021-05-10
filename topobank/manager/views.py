@@ -1177,7 +1177,7 @@ class SurfaceShareView(FormMixin, DetailView):
 
 class PublicationsTable(tables.Table):
     publication = tables.Column(linkify=True, verbose_name='Surface', order_by='surface__name')
-    num_topographies = tables.Column(verbose_name='# Topographies')
+    num_topographies = tables.Column(verbose_name='# Measurements')
     authors = tables.Column(verbose_name="Authors")
     license = tables.Column(verbose_name="License")
     datetime = tables.Column(verbose_name="Publication Date")
@@ -1332,7 +1332,7 @@ class PublicationRateTooHighView(TemplateView):
 class SharingInfoTable(tables.Table):
     surface = tables.Column(linkify=lambda **kwargs: kwargs['record']['surface'].get_absolute_url(),
                             accessor='surface__name')
-    num_topographies = tables.Column(verbose_name='# Topographies')
+    num_topographies = tables.Column(verbose_name='# Measurements')
     created_by = tables.Column(linkify=lambda **kwargs: kwargs['record']['created_by'].get_absolute_url(),
                                accessor='created_by__name')
     shared_with = tables.Column(linkify=lambda **kwargs: kwargs['record']['shared_with'].get_absolute_url(),
@@ -1466,7 +1466,7 @@ def download_surface(request, surface_id):
     """
 
     #
-    # Check permissions and collect analyses
+    # Check existence and permissions for given surface
     #
     try:
         surface = Surface.objects.get(id=surface_id)
@@ -1486,6 +1486,32 @@ def download_surface(request, surface_id):
 
     increase_statistics_by_date_and_object(Metric.objects.SURFACE_DOWNLOAD_COUNT,
                                            period=Period.DAY, obj=surface)
+
+    return response
+
+
+def download_selection_as_surfaces(request):
+    """Returns a file comprised from surfaces related to the selection.
+
+    :param request: current request
+    :return:
+    """
+
+    from .utils import current_selection_as_surface_list
+    surfaces = current_selection_as_surface_list(request)
+
+    container_bytes = BytesIO()
+    write_surface_container(container_bytes, surfaces, request=request)
+
+    # Prepare response object.
+    response = HttpResponse(container_bytes.getvalue(),
+                            content_type='application/x-zip-compressed')
+    response['Content-Disposition'] = 'attachment; filename="{}"'.format('surface.zip')
+
+    # increase download count for each surface
+    for surf in surfaces:
+        increase_statistics_by_date_and_object(Metric.objects.SURFACE_DOWNLOAD_COUNT,
+                                               period=Period.DAY, obj=surf)
 
     return response
 

@@ -518,7 +518,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
             'urls': {'add_topography': surface3_prefix + 'new-topography/',
                      'delete': surface3_prefix + 'delete/',
                      'detail': surface3_prefix,
-                     # 'download': surface3_prefix + 'download/', # this should be missing, because no topographies yet
+                     'download': surface3_prefix + 'download/',
                      'select': surface3_prefix + 'select/',
                      'share': surface3_prefix + 'share/',
                      'publish': surface3_prefix + 'publish/',

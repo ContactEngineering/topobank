@@ -116,7 +116,7 @@ def test_autoload_analysis_functions():
         dict(name='Autocorrelation'),
         dict(name='Variable Bandwidth'),
         dict(name='Contact Mechanics'),
-        dict(name='RMS Values'),
+        dict(name='Roughness Parameters'),
         dict(name='Scale-dependent Slope'),
     ], key=itemgetter('name'))
 

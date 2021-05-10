@@ -60,7 +60,7 @@
                       </div>
                       <div class="mr-2">
                       {% if not is_anonymous %}You have{% endif %}
-                        <div class="welcome-page-statistics">{{ num_topographies }}</div> individual topographies.
+                        <div class="welcome-page-statistics">{{ num_topographies }}</div> individual measurements.
                       </div>
                     </div>
                   </div>
@@ -115,23 +115,23 @@
             <h2>Surfaces</h2>
             <p>A <em>surface</em> represents the real-life surface you are measuring, together with its descriptive
               metadata. If you make multiple measurements on the same real-world surface (even using different
-              techniques), you can collect all the <em>topography</em> measurements together in a single <em>surface</em>.
+              techniques), you can collect all the topography <em>measurements</em> together in a single <em>surface</em>.
             </p>
             <p><a class="btn btn-secondary" href="{% url 'manager:surface-create' %}" role="button">Create a surface
               &raquo;</a></p>
           </div>
           <div class="col-md-3">
-            <h2>Topographies</h2>
-            <p>For each <em>surface</em>, you must upload one or more <em>topographies</em>. These represent each
+            <h2>Measurements</h2>
+            <p>For each <em>surface</em>, you must upload one or more <em>measurements</em>. These represent each
               individual measurement you performed. You can save metadata for each one, and perform basic pre-analysis.
             </p>
-            <p><a class="btn btn-secondary" href="{% url 'manager:select' %}" role="button">Select topographies
+            <p><a class="btn btn-secondary" href="{% url 'manager:select' %}" role="button">Select measurements
               &raquo;</a></p>
           </div>
           <div class="col-md-3">
             <h2>Analyses</h2>
             <p>A number <em>analyses</em>, such as computing the power-spectral density or the real area of contact, are
-            automatically performed on all uploaded <em>topographies</em>.
+            automatically performed on all uploaded <em>measurements</em>.
             These analyses are stored, can be retriggered, visualized or compared.</p>
             <p><a class="btn btn-secondary" href="{% url 'analysis:list' %}" role="button">Show analyses &raquo;</a></p>
           </div>

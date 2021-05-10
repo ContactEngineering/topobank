@@ -184,13 +184,13 @@ class AnalysisFunction(models.Model):
     PLOT = 'plot'
     POWER_SPECTRUM = 'power spectrum'
     CONTACT_MECHANICS = 'contact mechanics'
-    RMS_TABLE = 'rms table'
+    ROUGHNESS_PARAMETERS = 'roughness parameters'
     CARD_VIEW_FLAVOR_CHOICES = [
         (SIMPLE, 'Simple display of the results as raw data structure'),
         (PLOT, 'Display results in a plot with multiple datasets'),
         (POWER_SPECTRUM, 'Display results in a plot suitable for power spectrum'),
         (CONTACT_MECHANICS, 'Display suitable for contact mechanics including special widgets'),
-        (RMS_TABLE, 'Display a table with RMS values.')
+        (ROUGHNESS_PARAMETERS, 'Display a table with roughness parameters.')
     ]
 
     name = models.CharField(max_length=80, help_text="A human-readable name.", unique=True)
@@ -199,7 +199,7 @@ class AnalysisFunction(models.Model):
     def __str__(self):
         return self.name
 
-    def _implementation(self, subject_type):
+    def get_implementation(self, subject_type):
         """Return implementation for given subject type.
 
         Parameters
@@ -210,6 +210,11 @@ class AnalysisFunction(models.Model):
         Returns
         -------
         AnalysisFunctionImplementation instance
+
+        Raises
+        ------
+        ImplementationMissingException
+            in case the implementation is missing
         """
         try:
             impl = self.implementations.get(subject_type=subject_type)
@@ -234,7 +239,7 @@ class AnalysisFunction(models.Model):
         ImplementationMissingException
             if implementation for given subject type does not exist
         """
-        return self._implementation(subject_type).python_function()
+        return self.get_implementation(subject_type).python_function()
 
     def get_implementation_types(self):
         """Return list of content types for which this function is implemented.
@@ -266,7 +271,7 @@ class AnalysisFunction(models.Model):
 
         dict
         """
-        return self._implementation(subject_type).get_default_kwargs()
+        return self.get_implementation(subject_type).get_default_kwargs()
 
     def eval(self, subject, **kwargs):
         """Call appropriate python function.
@@ -280,7 +285,7 @@ class AnalysisFunction(models.Model):
             subject_type = ContentType.objects.get_for_model(subject)
         except Exception as exc:
             raise ValueError(f"Cannot find content type for subject '{subject}'.")
-        return self._implementation(subject_type).eval(subject, **kwargs)
+        return self.get_implementation(subject_type).eval(subject, **kwargs)
 
 
 class AnalysisFunctionImplementation(models.Model):

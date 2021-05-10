@@ -5,7 +5,7 @@ whitenoise  # https://github.com/evansd/whitenoise
 
 # Django
 # ------------------------------------------------------------------------------
-django==2.2.19  #  does this work with pyup?  # https://www.djangoproject.com/
+django==2.2.20  #  does this work with pyup?  # https://www.djangoproject.com/
 django-environ  # https://github.com/joke2k/django-environ
 django-model-utils  # https://github.com/jazzband/django-model-utils
 django-allauth  # https://github.com/pennersr/django-allauth
@@ -67,8 +67,8 @@ bleach>=3.3.0
 # Contact Mechanics
 #
 muFFT>=0.11.1
-SurfaceTopography>=0.92.0
-ContactMechanics>=0.90.1
+SurfaceTopography>=0.93.0<1.0
+ContactMechanics>=0.90.1<1.0
 
 # plotting
 bokeh==2.2.3

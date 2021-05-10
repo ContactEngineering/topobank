@@ -197,6 +197,13 @@
                 </a>
               `
           }
+          if (urls.hasOwnProperty('download')) {
+              result += `
+                <a href="${urls['download']}" class="btn btn-default" type="button">
+                    Download
+                </a>
+              `
+          }
           return result;
       }
 

@@ -227,11 +227,12 @@ def selection_from_session(session):
     return session.get(SELECTION_SESSION_VARNAME, [])
 
 
-def instances_to_selection(topographies=[], surfaces=[]):
+def instances_to_selection(topographies=[], surfaces=[], tags=[]):
     """Returns a list of strings suitable for selecting instances.
 
     :param topographies: sequence of Topography instances
     :param surfaces: sequence of Surface instances
+    :param tags: sequence of TagModel instances
     :return: list of str, alphabetically sorted
     """
     selection = []
@@ -244,11 +245,21 @@ def instances_to_selection(topographies=[], surfaces=[]):
     for surf in surfaces:
         selection.append(f'surface-{surf.id}')
 
+    for tag in tags:
+        selection.append(f'tag-{tag.id}')
+
     return sorted(selection)
 
 
 def instances_to_topographies(topographies, surfaces, tags):
     """Returns a queryset of topographies, based on given instances
+
+    Given topographies, surfaces and tags are resolved and
+    all topographies are returned which are either
+    - explicitly given
+    - given indirectly by a surface
+    - given indirectly by a tag, if the topography is tagged accordingly
+    - given indirectly by a tag, if its surface is tagged accordingly
 
     Parameters
     ----------
@@ -272,6 +283,34 @@ def instances_to_topographies(topographies, surfaces, tags):
     topographies |= Topography.objects.filter(tags__in=tag_ids)
 
     return topographies.distinct().order_by('id')
+
+
+def instances_to_surfaces(surfaces, tags):
+    """Returns a queryset of surfaces, based on given instances
+
+    Given surfaces and tags are resolved and
+    all surfaces are returned which are either
+    - explicitly given
+    - given indirectly by a tag, if the surface is tagged accordingly
+
+    Parameters
+    ----------
+    surfaces: sequence of surfaces
+    tags: sequence of tags
+
+    Returns
+    -------
+    Queryset of surface, distinct
+    """
+    from .models import Surface
+
+    surface_ids = [s.id for s in surfaces]
+    tag_ids = [tag.id for tag in tags]
+
+    surfaces = Surface.objects.filter(id__in=surface_ids)
+    surfaces |= Surface.objects.filter(tags__in=tag_ids)
+
+    return surfaces.distinct().order_by('id')
 
 
 def selection_to_instances(selection):
@@ -323,7 +362,7 @@ def selected_instances(request):
 
     The returned tuple has 3 elements, each a list:
 
-     'topographies': all topographies in the selection (if 'surface' is given, filtered by this surface)
+     'topographies': all topographies in the selection
      'surfaces': all surfaces explicitly found in the selection (not only because its topography was selected)
      'tags': all tags explicitly found in selection (not because all tagged items are selected)
 
@@ -342,6 +381,42 @@ def selected_instances(request):
                 if request.user.has_perm('view_surface', s)]
 
     return topographies, surfaces, list(tags)
+
+
+def current_selection_as_surface_list(request):
+    """Returns a list of surfaces related to the current selection.
+
+    For all selected items, surfaces, topographies, or tags
+    the surface is identified which contains the selected data.
+    In the result, each of those surfaces is included once.
+
+    :param request: current request
+    :return: list of Surface instances, sorted by name
+    """
+    from .models import Surface
+
+    topographies, surfaces, tags = selected_instances(request)
+
+    #
+    # Collect all surfaces related to the selected items in a set
+    #
+    surfaces = set(surfaces)
+    for topo in topographies:
+        surfaces.add(topo.surface)
+    for tag in tags:
+        related_objects = tag.get_related_objects(flat=True)
+        for obj in related_objects:
+            if isinstance(obj, Surface):
+                surfaces.add(obj)
+            elif hasattr(obj, 'surface'):
+                surfaces.add(obj.surface)
+    #
+    # Filter surfaces such that the requesting user has permissions to read
+    #
+    surfaces = [surf for surf in surfaces if request.user.has_perm('view_surface', surf)]
+    surfaces.sort(key=lambda s: s.name)
+
+    return surfaces
 
 
 def instances_to_basket_items(topographies, surfaces, tags):
@@ -509,11 +584,12 @@ def selection_to_subjects_json(request):
     """
     topographies, surfaces, tags = selected_instances(request)
     effective_topographies = instances_to_topographies(topographies, surfaces, tags)
+    effective_surfaces = instances_to_surfaces(surfaces, tags)
 
     # Do we have permission for all of these?
     user = request.user
     effective_topographies = [t for t in effective_topographies if user.has_perm('view_surface', t.surface)]
-    effective_surfaces = [s for s in surfaces if user.has_perm('view_surface', s)]
+    effective_surfaces = [s for s in effective_surfaces if user.has_perm('view_surface', s)]
 
     # we collect effective topographies and surfaces because we have so far implementations
     # for analysis functions for topographies and surfaces
@@ -761,3 +837,4 @@ def get_firefox_webdriver() -> WebDriver:
         executable_path=str(settings.GECKODRIVER_PATH),
         service_log_path=devnull,
     )
+

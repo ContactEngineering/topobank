@@ -62,7 +62,10 @@ def write_surface_container(file, surfaces, request=None):
                 topofile_name = f"{topofile_name_root}_{counter}.{topofile_name_ext}"
                 counter += 1
 
-            topo_dict['datafile'] = topofile_name  # should be same as in archive
+            topo_dict['datafile'] = {
+                'original': topofile_name,  # should be same as in archive
+            }
+
             already_used_topofile_names.append(topofile_name)
 
             # add topography file to ZIP archive

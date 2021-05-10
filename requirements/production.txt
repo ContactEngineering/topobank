@@ -70,6 +70,7 @@ defusedxml==0.6.0
     # via
     #   -r ./base.txt
     #   python3-openid
+    #   surfacetopography
 django-allauth==0.43.0
     # via -r ./base.txt
 django-appconf==1.0.4
@@ -112,7 +113,7 @@ git+http://git@github.com/mcrot/django-termsandconditions.git@optional_terms
     # via -r ./base.txt
 django-trackstats==0.5.0
     # via -r ./base.txt
-django==2.2.19
+django==2.2.20
     # via
     #   -r ./base.txt
     #   django-allauth
@@ -150,7 +151,7 @@ greenlet==0.4.16
     # via
     #   -r production.in
     #   gevent
-gunicorn[gevent]==20.0.4
+gunicorn[gevent]==20.1.0
     # via -r production.in
 h5netcdf==0.8.1
     # via -r ./base.txt
@@ -207,9 +208,7 @@ mufft==0.15.0
     #   contactmechanics
     #   surfacetopography
 netcdf4==1.5.4
-    # via
-    #   -r ./base.txt
-    #   surfacetopography
+    # via -r ./base.txt
 numpi==0.1.4
     # via
     #   -r ./base.txt
@@ -225,10 +224,15 @@ numpy==1.19.2
     #   mufft
     #   netcdf4
     #   numpi
+    #   numpyencoder
     #   pandas
     #   scipy
     #   surfacetopography
     #   xarray
+numpyencoder==0.3.0
+    # via
+    #   -r ./base.txt
+    #   surfacetopography
 oauthlib==3.1.0
     # via
     #   -r ./base.txt
@@ -333,7 +337,7 @@ sqlparse==0.4.1
     # via
     #   -r ./base.txt
     #   django
-surfacetopography==0.92.0
+surfacetopography==0.93.0
     # via
     #   -r ./base.txt
     #   contactmechanics

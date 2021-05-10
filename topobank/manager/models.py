@@ -17,12 +17,12 @@ import numpy as np
 import math
 import logging
 import io
-import abc
 
-from bokeh.models import DataRange1d, LinearColorMapper, ColorBar
+from bokeh.models import DataRange1d, LinearColorMapper, ColorBar, FuncTickFormatter
 from bokeh.plotting import figure
 from bokeh.io.export import get_screenshot_as_png
 
+from ..plots import configure_plot
 from .utils import get_topography_reader, get_firefox_webdriver
 
 from topobank.users.models import User
@@ -393,7 +393,8 @@ class Topography(models.Model, SubjectMixin):
         ('curvature', 'Remove curvature'),
     ]
 
-    verbose_name_plural = 'topographies'
+    verbose_name = 'measurement'
+    verbose_name_plural = 'measurements'
 
     #
     # Descriptive fields
@@ -452,6 +453,12 @@ class Topography(models.Model, SubjectMixin):
     def __str__(self):
         return "Topography '{0}' from {1}".format( \
             self.name, self.measurement_date)
+
+    @property
+    def label(self):
+        """Return a string which can be used in the UI.
+        """
+        return self.name
 
     def get_absolute_url(self):
         return reverse('manager:topography-detail', kwargs=dict(pk=self.pk))
@@ -656,13 +663,15 @@ class Topography(models.Model, SubjectMixin):
         if show_symbols:
             plot.circle(x, y)
 
+        configure_plot(plot)
         if reduced:
             plot.xaxis.visible = False
             plot.yaxis.visible = False
             plot.grid.visible = False
-        else:
-            plot.xaxis.axis_label_text_font_style = "normal"
-            plot.yaxis.axis_label_text_font_style = "normal"
+
+        # see js function "format_exponential()" in project.js file
+        plot.xaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
+        plot.yaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
 
         plot.toolbar.logo = None
 
@@ -685,9 +694,9 @@ class Topography(models.Model, SubjectMixin):
         color_mapper = LinearColorMapper(palette="Viridis256", low=heights.min(), high=heights.max())
 
         TOOLTIPS = [
-            ("x", "$x " + self.unit),
-            ("y", "$y " + self.unit),
-            ("height", "@image " + self.unit),
+            ("Position x", "$x " + self.unit),
+            ("Position y", "$y " + self.unit),
+            ("Height", "@image " + self.unit),
         ]
         colorbar_width = 50
 
@@ -717,12 +726,10 @@ class Topography(models.Model, SubjectMixin):
                       tooltips=TOOLTIPS,
                       toolbar_location=toolbar_location)
 
+        configure_plot(plot)
         if reduced:
             plot.xaxis.visible = None
             plot.yaxis.visible = None
-        else:
-            plot.xaxis.axis_label_text_font_style = "normal"
-            plot.yaxis.axis_label_text_font_style = "normal"
 
         # we need to rotate the height data in order to be compatible with image in Gwyddion
         plot.image([np.rot90(heights)], x=0, y=topo_size[1],
@@ -737,9 +744,10 @@ class Topography(models.Model, SubjectMixin):
                                 label_standoff=12,
                                 location=(0, 0),
                                 width=colorbar_width,
+                                formatter=FuncTickFormatter(code="return format_exponential(tick);"),
                                 title=f"height ({self.unit})")
-
             plot.add_layout(colorbar, 'right')
+
 
         return plot
 

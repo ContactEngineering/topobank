@@ -8,10 +8,11 @@ import json
 from django.shortcuts import reverse
 from django.contrib.contenttypes.models import ContentType
 
-from ..tests.utils import two_topos, Topography1DFactory, SurfaceFactory, TagModelFactory, UserFactory, \
-    user_three_topographies_three_surfaces_three_tags
+from ..tests.utils import two_topos, Topography1DFactory, Topography2DFactory, SurfaceFactory, \
+    TagModelFactory, UserFactory, user_three_topographies_three_surfaces_three_tags
 from ..utils import selection_to_instances, instances_to_selection, tags_for_user, \
-    instances_to_topographies, surfaces_for_user, subjects_to_json
+    instances_to_topographies, surfaces_for_user, subjects_to_json, instances_to_surfaces, \
+    current_selection_as_surface_list
 from ..models import Surface, Topography, TagModel
 
 
@@ -41,12 +42,18 @@ def test_selection_to_instances(testuser, mock_topos):
 
 
 @pytest.mark.django_db
-def test_instances_to_selection(two_topos):
-    topo1 = Topography.objects.get(name="Example 3 - ZSensor")
-    topo2 = Topography.objects.get(name="Example 4 - Default")
+def test_instances_to_selection():
 
-    surface1 = Surface.objects.get(name="Surface 1")
-    surface2 = Surface.objects.get(name="Surface 2")
+    user = UserFactory()
+
+    tag1 = TagModelFactory()
+    tag2 = TagModelFactory()
+
+    surface1 = SurfaceFactory(creator=user, tags=[tag1, tag2])
+    surface2 = SurfaceFactory(creator=user)
+
+    topo1 = Topography2DFactory(surface=surface1)
+    topo2 = Topography1DFactory(surface=surface2, tags=[tag2])
 
     assert topo1.surface != topo2.surface
 
@@ -55,24 +62,26 @@ def test_instances_to_selection(two_topos):
     assert s == [f'topography-{topo1.id}', f'topography-{topo2.id}']
 
     #
-    # Giving an extra surface here should make no difference
-    #
-    s = instances_to_selection(topographies=[topo1, topo2])
-    assert s == [f'topography-{topo1.id}', f'topography-{topo2.id}']
-
-    #
-    # Should be summarized to one surface if all topographies are given?
-    #
-    # topo2.surface = topo1.surface
-    # topo2.save()
-    # s = instances_to_selection([topo1, topo2])
-    # assert s == [f'surface-{topo1.surface.id}']
-
-    #
     # It should be possible to give surfaces
     #
     s = instances_to_selection(surfaces=[surface1, surface2])
     assert s == [f'surface-{surface1.id}', f'surface-{surface2.id}']
+
+    #
+    # It should be possible to give surfaces and topographies
+    #
+    s = instances_to_selection(topographies=[topo1], surfaces=[surface2])
+    assert s == [f'surface-{surface2.id}', f'topography-{topo1.id}']
+
+    #
+    # It should be possible to pass tags
+    #
+    s = instances_to_selection(tags=[tag2, tag1])
+    assert s == [f'tag-{tag1.id}', f'tag-{tag2.id}']
+
+    # Also mixed with other instances
+    s = instances_to_selection(tags=[tag2, tag1], topographies=[topo1], surfaces=[surface2])
+    assert s == [f'surface-{surface2.id}', f'tag-{tag1.id}', f'tag-{tag2.id}', f'topography-{topo1.id}']
 
 
 @pytest.mark.django_db
@@ -172,6 +181,30 @@ def test_instances_to_topographies(user_three_topographies_three_surfaces_three_
 
 
 @pytest.mark.django_db
+def test_instances_to_surfaces(user_three_topographies_three_surfaces_three_tags):
+    #
+    # Define instances as local variables
+    #
+    user, (topo1a, topo1b, topo2a), (surface1, surface2, surface3), (tag1, tag2, tag3) \
+        = user_three_topographies_three_surfaces_three_tags
+
+    # nothing given, nothing returned
+    assert list(instances_to_surfaces([], [])) == []
+
+    # surface without topographies is the same
+    assert list(instances_to_surfaces([surface3], [])) == [surface3]
+
+    # two surfaces given
+    assert list(instances_to_surfaces([surface2, surface1], [])) == [surface1, surface2]
+
+    # a single tag can be selected
+    assert list(instances_to_surfaces([], [tag3])) == [surface3]
+
+    # also two tags can be given
+    assert list(instances_to_surfaces([], [tag2, tag3])) == [surface2, surface3]
+
+
+@pytest.mark.django_db
 def test_subjects_to_json():
     surf1 = SurfaceFactory()
     surf2 = SurfaceFactory()
@@ -189,3 +222,43 @@ def test_subjects_to_json():
     assert set(subjects_ids[str(topo_ct.id)]) == set([topo1a.id, topo1b.id, topo2a.id])
 
 
+@pytest.mark.django_db
+def test_related_surfaces_for_selection(rf):
+    user = UserFactory()
+
+    # create tags
+    tag1 = TagModelFactory(name='apple')
+    tag2 = TagModelFactory(name='banana')
+
+    # create surfaces
+    surf1 = SurfaceFactory(creator=user, tags=[tag1])
+    surf2 = SurfaceFactory(creator=user)
+    surf3 = SurfaceFactory(creator=user, tags=[tag1])
+
+    # add some topographies
+    topo1a = Topography1DFactory(surface=surf1)
+    topo1b = Topography2DFactory(surface=surf1, tags=[tag2])
+    topo2a = Topography2DFactory(surface=surf2, tags=[tag1])
+    # surf3 has no topography
+
+    def get_request(topographies=[], surfaces=[], tags=[]):
+        """Simple get request while setting the selection"""
+        request = rf.get(reverse('manager:select'))
+        request.user = user
+        request.session = {'selection': instances_to_selection(
+            topographies=topographies,
+            surfaces=surfaces,
+            tags=tags,
+        )}
+        return request
+
+    # tag 'apple' should return all three surfaces
+    assert current_selection_as_surface_list(get_request(tags=[tag1])) == [surf1, surf2, surf3]
+
+    # one topography should return its surface
+    assert current_selection_as_surface_list(get_request(topographies=[topo1a])) == [surf1]
+
+    # We should be able to mix tags, topographies and surfaces
+    assert current_selection_as_surface_list(get_request(topographies=[topo1a],
+                                                         surfaces=[surf1],
+                                                         tags=[tag2])) == [surf1]

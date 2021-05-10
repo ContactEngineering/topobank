@@ -256,7 +256,7 @@ def test_sharing_info_table(client, handle_usage_statistics):
     pprint.pprint(data)
 
     assert data == [
-        ['Surface', '# Topographies', 'Created by', 'Shared with', 'Allow change', ''],
+        ['Surface', '# Measurements', 'Created by', 'Shared with', 'Allow change', ''],
         [surface1.name, '1', user1.name, user2.name, FALSE_CHAR, ''],
         [surface1.name, '1', user1.name, user3.name, TRUE_CHAR, ''],
         [surface2.name, '0', user2.name, user1.name, FALSE_CHAR, ''],
@@ -283,7 +283,7 @@ def test_sharing_info_table(client, handle_usage_statistics):
     pprint.pprint(data)
 
     assert data == [
-        ['Surface', '# Topographies', 'Created by', 'Shared with', 'Allow change', ''],
+        ['Surface', '# Measurements', 'Created by', 'Shared with', 'Allow change', ''],
         [surface1.name, '1', user1.name, user2.name, FALSE_CHAR, ''],
         [surface2.name, '0', user2.name, user1.name, FALSE_CHAR, ''],
     ]
@@ -309,7 +309,7 @@ def test_sharing_info_table(client, handle_usage_statistics):
     pprint.pprint(data)
 
     assert data == [
-        ['Surface', '# Topographies', 'Created by', 'Shared with', 'Allow change', ''],
+        ['Surface', '# Measurements', 'Created by', 'Shared with', 'Allow change', ''],
         [surface1.name, '1', user1.name, user3.name, TRUE_CHAR, ''],
     ]
 
@@ -338,7 +338,7 @@ def test_sharing_info_table(client, handle_usage_statistics):
     pprint.pprint(data)
 
     assert data == [
-        ['Surface', '# Topographies', 'Created by', 'Shared with', 'Allow change', ''],
+        ['Surface', '# Measurements', 'Created by', 'Shared with', 'Allow change', ''],
         [surface1.name, '1', user1.name, user2.name, FALSE_CHAR, ''],
         [surface2.name, '0', user2.name, user1.name, FALSE_CHAR, ''],
     ]
@@ -364,7 +364,7 @@ def test_sharing_info_table(client, handle_usage_statistics):
     pprint.pprint(data)
 
     assert data == [
-        ['Surface', '# Topographies', 'Created by', 'Shared with', 'Allow change', ''],
+        ['Surface', '# Measurements', 'Created by', 'Shared with', 'Allow change', ''],
         [surface1.name, '1', user1.name, user2.name, TRUE_CHAR, ''],
         [surface2.name, '0', user2.name, user1.name, FALSE_CHAR, ''],
     ]
@@ -390,7 +390,7 @@ def test_sharing_info_table(client, handle_usage_statistics):
     pprint.pprint(data)
 
     assert data == [
-        ['Surface', '# Topographies', 'Created by', 'Shared with', 'Allow change', ''],
+        ['Surface', '# Measurements', 'Created by', 'Shared with', 'Allow change', ''],
         [surface1.name, '1', user1.name, user2.name, TRUE_CHAR, ''],
         [surface2.name, '0', user2.name, user1.name, FALSE_CHAR, ''],
     ]

@@ -15,8 +15,8 @@
         </button>
         <div class="dropdown-menu dropdown-menu-right">
           {% if analyses_success %}
-          <a class="dropdown-item" href="{% url 'analysis:download' analyses_success|analyses_results_ids_list_str 'rms table' 'txt' %}">Download as TXT</a>
-          <a class="dropdown-item" href="{% url 'analysis:download' analyses_success|analyses_results_ids_list_str 'rms table' 'xlsx' %}">Download as XLSX</a>
+          <a class="dropdown-item" href="{% url 'analysis:download' analyses_success|analyses_results_ids_list_str 'roughness parameters' 'txt' %}">Download as TXT</a>
+          <a class="dropdown-item" href="{% url 'analysis:download' analyses_success|analyses_results_ids_list_str 'roughness parameters' 'xlsx' %}">Download as XLSX</a>
           {% endif %}
           {% if not analyses_unready %}
             <div class="dropdown-divider"></div>
@@ -44,7 +44,7 @@
         <div class="tab-pane fade show active" id="table-tab-{{ card_id }}" role="tabpanel">
           {% include 'analysis/analyses_alerts.html' %}
           {% if not analyses_unready and analyses_success %}
-            {% include 'analysis/rmstable_card_datatables.html' %}
+            {% include 'analysis/roughnessparameters_card_datatables.html' %}
           {% endif %}
         </div>
         {% include 'analysis/analyses_warnings_tab_pane.html' %}

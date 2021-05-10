@@ -60,8 +60,8 @@ def download_analyses(request, ids, card_view_flavor, file_format):
     download_response_functions = {
         ('plot', 'xlsx'): download_plot_analyses_to_xlsx,
         ('plot', 'txt'): download_plot_analyses_to_txt,
-        ('rms table', 'xlsx'): download_rms_table_analyses_to_xlsx,
-        ('rms table', 'txt'): download_rms_table_analyses_to_txt,
+        ('roughness parameters', 'xlsx'): download_roughness_parameters_to_xlsx,
+        ('roughness parameters', 'txt'): download_roughness_parameters_to_txt,
         ('contact mechanics', 'zip'): download_contact_mechanics_analyses_as_zip,
     }
 
@@ -354,11 +354,12 @@ def download_plot_analyses_to_xlsx(request, analyses):
     return response
 
 
-def download_rms_table_analyses_to_txt(request, analyses):
-    """Download RMS table data for given analyses as CSV file.
+def download_roughness_parameters_to_txt(request, analyses):
+    """Download roughness parameters from given analyses as CSV file.
 
-       RMS-Tables only make sense for analyses where subject is a topography (so far).
-       All other analyses (e.g. for surfaces) will be ignored here.
+       Tables with roughness parameters only make sense for analyses
+       where subject is a topography (so far). All other analyses
+       (e.g. for surfaces) will be ignored here.
 
         Parameters
         ----------
@@ -406,11 +407,14 @@ def download_rms_table_analyses_to_txt(request, analyses):
                          topography.name,
                          row['quantity'],
                          row['direction'] if row['direction'] else '',
+                         row['from'] if row['from'] else '',
+                         row['symbol'] if row['symbol'] else '',
                          row['value'],
                          row['unit']])
 
-    f.write('# Table of RMS Values\n')
-    df = pd.DataFrame(data, columns=['surface', 'topography', 'quantity', 'direction', 'value', 'unit'])
+    f.write('# Table of roughness parameters\n')
+    df = pd.DataFrame(data, columns=['surface', 'measurement', 'quantity', 'direction',
+                                     'from', 'symbol', 'value', 'unit'])
     df.to_csv(f, index=False)
     f.write('\n')
 
@@ -424,11 +428,12 @@ def download_rms_table_analyses_to_txt(request, analyses):
     return response
 
 
-def download_rms_table_analyses_to_xlsx(request, analyses):
-    """Download RMS table data for given analyses as XLSX file.
+def download_roughness_parameters_to_xlsx(request, analyses):
+    """Download roughness parameters from given analyses as XLSX file.
 
-       Only analyses for topographies will be used here.
-       All others (e.g. for surfaces) will be ignored.
+       Tables with roughness parameters only make sense for analyses
+       where subject is a topography (so far). All other analyses
+       (e.g. for surfaces) will be ignored here.
 
         Parameters
         ----------
@@ -451,11 +456,13 @@ def download_rms_table_analyses_to_xlsx(request, analyses):
         topo = analysis.subject
         for row in pickle.loads(analysis.result):
             row['surface'] = topo.surface.name
-            row['topography'] = topo.name
+            row['measurement'] = topo.name
             data.append(row)
 
-    rms_df = pd.DataFrame(data, columns=['surface', 'topography', 'quantity', 'direction', 'value', 'unit'])
-    rms_df.to_excel(excel, sheet_name="RMS values", index=False)
+    roughness_df = pd.DataFrame(data, columns=['surface', 'measurement', 'quantity', 'direction',
+                                               'from', 'symbol', 'value', 'unit'])
+    roughness_df.replace(r'&Delta;', 'Δ', inplace=True, regex=True)  # we want a real greek delta
+    roughness_df.to_excel(excel, sheet_name="Roughness Parameters", index=False)
     info_df = _analyses_meta_data_dataframe(analyses, request)
     info_df.to_excel(excel, sheet_name='INFORMATION', index=False)
     excel.close()
@@ -463,7 +470,8 @@ def download_rms_table_analyses_to_xlsx(request, analyses):
     # Prepare response object.
     response = HttpResponse(f.getvalue(),
                             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    response['Content-Disposition'] = 'attachment; filename="rms_table.xlsx"'
+    filename = '{}.xlsx'.format(analysis.function.name.replace(' ', '_'))
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
 
     # Close file and return response.
     f.close()
@@ -546,7 +554,7 @@ Contents of this ZIP archive
 ============================
 This archive contains data from contact mechanics calculation.
 
-Each directory corresponds to one topography and is named after the topography.
+Each directory corresponds to one measurement and is named after the measurement.
 Inside you find two types of files:
 
 - a simple CSV file ('plot.csv')
@@ -633,8 +641,8 @@ Version information
 ===================
 
 For version information of the packages used, please look into the files named
-'info.txt' in the subdirectories for each topography. The versions of the packages
-used for analysis may differ among topographies, because they may have been
+'info.txt' in the subdirectories for each measurement. The versions of the packages
+used for analysis may differ among measurements, because they may have been
 calculated at different times.
     """)
 

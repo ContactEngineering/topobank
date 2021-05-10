@@ -14,62 +14,47 @@
 
   <div class="row">
 
-    {# Left side #}
+      <div class="col-12 col-sm-4 col-md-3 col-lg-2">
 
+      <div class="nav nav-pills nav-pills-custom flex-column" aria-orientation="vertical">
+        <a class="nav-link mb-3 p-3 shadow active" data-toggle="pill" href="#area-load-displacement-tab" role="tab" aria-selected="true">
+          Area, load and displacement
+        </a>
+        {% if analyses_failure or extra_warnings %}
+          <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#warnings-tab-{{ card_id }}" role="tab" aria-selected="false">
+            Warnings
+          </a>
+        {% endif %}
+      </div>
+
+    </div>
+
+
+    {# Right side #}
     <div class="col-sm-6">
-      {% include 'analysis/analyses_alerts.html' %}
+      <div class="tab-content">
 
-      {% if not analyses_unready %}
-      <div class="container">
+        {% include 'analysis/analyses_alerts.html' %}
+
+        {% if not analyses_unready %}
+        <div class="tab-pane fade active show" id="area-load-displacement-tab">
             {% if not analyses_unready and analyses_success %}
               {# Show all analyses for which we have results #}
               {{ plot_div | safe }}
             {% endif %}
-      </div>
-      {% endif %}
+        </div>
+        {% endif %}
+        {% include 'analysis/analyses_warnings_tab_pane.html' %}
 
+      </div>
     </div>
 
-    {# Right side #}
-    <div class="col-sm-6">
-      {# Tab navigation on right side #}
-      {% if not analyses_unready %}
-      <ul class="nav nav-tabs" role="tablist">
-        <li class="nav-item">
-          <a class="nav-link active" data-toggle="tab" href="#tools-tab">Tools</a>
-        </li>
-        {% if not analyses_unready %}
-        <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle" data-toggle="dropdown" href="#">
-            Details
-          </a>
-          <div class="dropdown-menu">
-            <a class="dropdown-item" data-toggle="tab" href="#contact-geometry-tab">Contact geometry</a>
-            <a class="dropdown-item" data-toggle="tab" href="#contact-pressure-tab">Contact pressure</a>
-            <a class="dropdown-item" data-toggle="tab" href="#pressure-distribution-tab">Pressure distribution</a>
-            <a class="dropdown-item" data-toggle="tab" href="#displacement-tab">Displacement</a>
-            <a class="dropdown-item" data-toggle="tab" href="#gap-tab">Gap</a>
-            <a class="dropdown-item" data-toggle="tab" href="#gap-distribution-tab">Gap distribution</a>
-            <a class="dropdown-item" data-toggle="tab" href="#cluster-size-distribution-tab">Cluster size distribution</a>
-          </div>
-        </li>
-        {% endif %}
-        {% if analyses_failure or extra_warnings %}
-        <li class="nav-item" style="list-style-type: none;">
-          {# Use href with card_id because the included HTML uses this too #}
-          <a class="nav-link" data-toggle="tab" href="#warnings-tab-{{ card_id }}" role="tab">Warnings</a>
-        </li>
-        {% endif %}
-      </ul>
-      {% endif %}
-
-      {# Tab contents on right side #}
-      <div class="tab-content mt-3">
+    <div class="col-sm-4">
         <div class="tab-pane container active" id="tools-tab">
 
           {# BUTTON "TASK INFORMATION" #}
           <div class="row p-3">
-            <div class="col-8">
+            <div class="col-12">
               {% if analyses_available and not analyses_unready %}
                 <a class="btn btn-default btn-block btn-lg" href="#" data-toggle="modal"
                    data-target="#statusesModal-{{ card_id }}">{% fontawesome_icon 'tasks' %} Task information</a>
@@ -80,7 +65,7 @@
           {% if not analyses_unready and analyses_success %}
           {# BUTTON "DOWNLOAD" #}
           <div class="row p-3">
-            <div class="col-8">
+            <div class="col-12">
               <a id="download" class="btn btn-default btn-block btn-lg"
               href="{% url 'analysis:download' analyses_success|analyses_results_ids_list_str 'contact mechanics' 'zip' %}">
                 {% fontawesome_icon 'download' %} Download
@@ -92,7 +77,7 @@
           {# ELEMENTS FOR TRIGGERING A CALCULATION #}
           {% if not analyses_unready %}
           <div class="row p-1">
-            <div class="col-8">
+            <div class="col-12">
 
               <form>
                 <div class="form-group row">
@@ -107,8 +92,8 @@
 
                     </div>
                     <select class="custom-select" id="substrate-select">
-                      <option value="periodic" selected>Periodic (repeating array of the topography)</option>
-                      <option value="nonperiodic">Free boundaries (flat punch with topography)</option>
+                      <option value="periodic" selected>Periodic (repeating array of the measurement)</option>
+                      <option value="nonperiodic">Free boundaries (flat punch with measurement)</option>
                     </select>
                     <div class="input-group-append">
                       <div class="input-group-text">
@@ -242,7 +227,7 @@
           </div>
 
           <div class="row p-1">
-            <div class="col-8">
+            <div class="col-12">
               {% if request.user.is_anonymous %}
                 <button title="Please login for this feature"
                       class="btn btn-primary btn-block btn-lg disabled }}" disabled>
@@ -259,36 +244,77 @@
           {% endif %}
 
         </div>
+    </div>
+  </div>
 
+  {% if not analyses_unready and analyses_success %}
+  <hr />
+
+  <div class="row">
+
+    <div class="col-12 col-sm-4 col-md-3 col-lg-2">
+
+      <div class="nav nav-pills nav-pills-custom flex-column" aria-orientation="vertical">
+        <a class="nav-link mb-3 p-3 shadow active" data-toggle="pill" href="#contact-geometry-tab" role="tab" aria-selected="true">
+          Contact geometry
+        </a>
+        <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#contact-pressure-tab" role="tab" aria-selected="false">
+          Contact pressure
+        </a>
+        <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#pressure-distribution-tab" role="tab" aria-selected="false">
+          Pressure distribution
+        </a>
+        <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#displacement-tab" role="tab" aria-selected="false">
+          Displacement
+        </a>
+        <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#gap-tab" role="tab" aria-selected="false">
+          Gap
+        </a>
+        <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#gap-distribution-tab" role="tab" aria-selected="false">
+          Gap distribution
+        </a>
+        <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#cluster-size-distribution-tab" role="tab" aria-selected="false">
+          Cluster size distribution
+        </a>
+
+      </div>
+
+    </div>
+
+    {# Midde side #}
+    <div class="col-sm-8">
+      {# Tab contents on right side #}
+      <div class="tab-content mt-3">
         {% if not analyses_unready %}
-        <div class="tab-pane fade" id="contact-geometry-tab">
-          <div id="contact-geometry" class="alert alert-info">For contact geometry, select a point in the graphs on the left!</div>
+        <div class="tab-pane fade active show" id="contact-geometry-tab">
+          <div id="contact-geometry" class="alert alert-info">For contact geometry, select a point in the graphs on the top!</div>
         </div>
         <div class="tab-pane fade" id="contact-pressure-tab">
-          <div id="contact-pressure" class="alert alert-info">For contact pressure, select a point in the graphs on the left!</div>
+          <div id="contact-pressure" class="alert alert-info">For contact pressure, select a point in the graphs on the top!</div>
         </div>
         <div class="tab-pane fade" id="pressure-distribution-tab">
-          <div id="pressure-distribution" class="alert alert-info">For pressure distribution, select a point in the graphs on the left!</div>
+          <div id="pressure-distribution" class="alert alert-info">For pressure distribution, select a point in the graphs on the top!</div>
         </div>
         <div class="tab-pane fade" id="displacement-tab">
-          <div id="displacement" class="alert alert-info">For displacement, select a point in the graphs on the left!</div>
+          <div id="displacement" class="alert alert-info">For displacement, select a point in the graphs on the top!</div>
         </div>
         <div class="tab-pane fade" id="gap-tab">
-          <div id="gap" class="alert alert-info">For gap, select a point in the graphs on the left!</div>
+          <div id="gap" class="alert alert-info">For gap, select a point in the graphs on the top!</div>
         </div>
         <div class="tab-pane fade" id="gap-distribution-tab">
-          <div id="gap-distribution" class="alert alert-info">For gap distribution, select a point in the graphs on the left!</div>
+          <div id="gap-distribution" class="alert alert-info">For gap distribution, select a point in the graphs on the top!</div>
         </div>
         <div class="tab-pane fade" id="cluster-size-distribution-tab">
-          <div id="cluster-size-distribution" class="alert alert-info">For cluser size distribution, select a point in the graphs on the left!</div>
+          <div id="cluster-size-distribution" class="alert alert-info">For cluser size distribution, select a point in the graphs on the top!</div>
         </div>
         {% endif %}
-        {% include 'analysis/analyses_warnings_tab_pane.html' %}
 
       </div>
     </div>
 
   </div>
+  {% endif %}
+
 {% endblock card_body %}
 
 {% block card_javascript %}
