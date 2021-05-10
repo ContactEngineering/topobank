@@ -27,6 +27,7 @@
 - upgrade of packages py and django-debug-toolbar because of CVEs
 - fixed bug that no average curve was shown if a surface
   was selected by tag only (#632)
+- fixed management command "save_default_function_kwargs" (#621)  
 
 
 ## 0.10.1 (2021-03-31)
