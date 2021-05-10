@@ -2,6 +2,10 @@
 
 ## 1.0.0 (not published yet)
 
+## 0.11.1 (2021-05-11)
+
+- added missing migrations
+
 ## 0.11.0 (2021-05-10)
 
 - added "Download" button to individual surfaces to 
