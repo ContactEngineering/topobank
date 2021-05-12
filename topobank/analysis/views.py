@@ -27,7 +27,7 @@ from bokeh.palettes import Category10
 from bokeh.models.ranges import DataRange1d
 from bokeh.plotting import figure
 from bokeh.embed import components, json_item
-from bokeh.models.widgets import CheckboxGroup, Tabs, Panel, Toggle, Div, Slider
+from bokeh.models.widgets import CheckboxGroup, Tabs, Panel, Toggle, Div, Slider, Button
 from bokeh.models import LinearColorMapper, ColorBar
 from bokeh.models.formatters import FuncTickFormatter
 
@@ -683,6 +683,11 @@ class PlotCardView(SimpleCardView):
                 visible=False,
                 active=list(range(len(subject_checkbox_groups[topography_ct]))))
 
+        topography_select_all_btn = Button(label="Select all",
+                                           visible=False,
+                                           width_policy='min')  # TODO add icon with CSS?
+        # topography_deselect_all_btn = Button(label="deselect all", css_classes=["btn", "btn-secondary"])
+
         subject_btn_group_toggle_button_label = "Measurements"
         if has_at_least_one_surface_subject:
             subject_btn_group_toggle_button_label = "Average / "+subject_btn_group_toggle_button_label
@@ -700,6 +705,8 @@ class PlotCardView(SimpleCardView):
         #
         js_args['surface_btn_group'] = surface_btn_group
         js_args['topography_btn_group'] = topography_btn_group
+        js_args['topography_select_all_btn'] = topography_select_all_btn
+
         js_args['series_btn_group'] = series_button_group
         js_args['topography_alpha_slider'] = topography_alpha_slider
 
@@ -714,6 +721,7 @@ class PlotCardView(SimpleCardView):
         toggle_subject_checkboxes = CustomJS(args=js_args, code="""
             surface_btn_group.visible = subject_btn_group_toggle_btn.active;
             topography_btn_group.visible = subject_btn_group_toggle_btn.active;
+            topography_select_all_btn.visible = subject_btn_group_toggle_btn.active;
         """)
         toggle_series_checkboxes = CustomJS(args=js_args, code="""
             series_btn_group.visible = series_btn_group_toggle_btn.active;
@@ -722,7 +730,10 @@ class PlotCardView(SimpleCardView):
             topography_alpha_slider.visible = options_group_toggle_btn.active;
         """)
 
-        subject_btn_groups = column([surface_btn_group, topography_btn_group])
+        subject_btn_groups = column([surface_btn_group,
+                                     topography_select_all_btn,
+                                     # topography_deselect_all_btn,
+                                     topography_btn_group])
 
         series_button_group.js_on_click(toggle_lines_callback)
         if has_at_least_one_surface_subject:
@@ -732,6 +743,9 @@ class PlotCardView(SimpleCardView):
         series_btn_group_toggle_button.js_on_click(toggle_series_checkboxes)
         options_group_toggle_button.js_on_click(toggle_options)
 
+        #
+        # Other callbacks
+        #
         topography_alpha_slider.js_on_change('value', CustomJS(args=js_args,
                                                                code=js_code_alpha_callback))
 
