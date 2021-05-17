@@ -951,7 +951,7 @@ class ContactMechanicsCardView(SimpleCardView):
             configure_plot(load_plot)
 
             #
-            # Adding widget for switching symbols on/off
+            # Adding widgets for switching symbols on/off
             #
             topography_button_group = CheckboxGroup(
                 labels=topography_names,
@@ -959,23 +959,49 @@ class ContactMechanicsCardView(SimpleCardView):
                 visible=False,
                 active=list(range(len(topography_names))))  # all active
 
-            topography_btn_group_toggle_button = Toggle(label="Measurements")
+            topography_btn_group_toggle_button = Toggle(label="Measurements", button_type='primary')
+
+            subject_select_all_btn = Button(label="Select all",
+                                            width_policy='min',
+                                            visible=False)
+            subject_deselect_all_btn = Button(label="Deselect all",
+                                              width_policy='min',
+                                              visible=False)
 
             # extend mapping of Python to JS objects
             js_args['topography_btn_group'] = topography_button_group
             js_args['topography_btn_group_toggle_btn'] = topography_btn_group_toggle_button
+            js_args['subject_select_all_btn'] = subject_select_all_btn
+            js_args['subject_deselect_all_btn'] = subject_deselect_all_btn
 
             toggle_lines_callback = CustomJS(args=js_args, code=js_code)
             toggle_topography_checkboxes = CustomJS(args=js_args, code="""
-                        topography_btn_group.visible = topography_btn_group_toggle_btn.active;
-                    """)
+                topography_btn_group.visible = topography_btn_group_toggle_btn.active;
+                subject_select_all_btn.visible = topography_btn_group_toggle_btn.active;
+                subject_deselect_all_btn.visible = topography_btn_group_toggle_btn.active;
+            """)
 
             widgets = grid([
                 [topography_btn_group_toggle_button],
-                [topography_button_group]
+                layout([subject_select_all_btn, subject_deselect_all_btn],
+                       [topography_button_group])
             ])
             topography_button_group.js_on_click(toggle_lines_callback)
             topography_btn_group_toggle_button.js_on_click(toggle_topography_checkboxes)
+
+            #
+            # Callback for toggling lines
+            #
+            subject_select_all_btn.js_on_click(CustomJS(args=js_args, code="""
+                let all_topo_idx = [];
+                for (let i=0; i<topography_btn_group.labels.length; i++) {
+                    all_topo_idx.push(i);
+                }
+                topography_btn_group.active = all_topo_idx;
+            """))
+            subject_deselect_all_btn.js_on_click(CustomJS(args=js_args, code="""
+                topography_btn_group.active = [];
+            """))
 
             #
             # Layout plot
