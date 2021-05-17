@@ -674,7 +674,7 @@ class PlotCardView(SimpleCardView):
                     visible=False,
                     active=list(range(len(subject_checkbox_groups[surface_ct]))))  # all indices included -> all active
         else:
-            surface_btn_group = Div()
+            surface_btn_group = Div(visible=False)
 
         topography_btn_group = CheckboxGroup(
                 labels=subject_checkbox_groups[topography_ct],
@@ -760,16 +760,20 @@ class PlotCardView(SimpleCardView):
         # Callback for toggling lines
         #
         topography_select_all_btn.js_on_click(CustomJS(args=js_args, code="""
-            let all_surf_idx = [];
             let all_topo_idx = [];
-            for (let i=0; i<surface_btn_group.labels.length; i++) {
-                all_surf_idx.push(i);
-            }
             for (let i=0; i<topography_btn_group.labels.length; i++) {
                 all_topo_idx.push(i);
             }
-            surface_btn_group.active = all_surf_idx;
             topography_btn_group.active = all_topo_idx;
+
+            /** surface_btn_group may just be a div if no averages defined */
+            if ('labels' in surface_btn_group) {
+                let all_surf_idx = [];
+                for (let i=0; i<surface_btn_group.labels.length; i++) {
+                    all_surf_idx.push(i);
+                }
+                surface_btn_group.active = all_surf_idx;
+            }
         """))
         topography_deselect_all_btn.js_on_click(CustomJS(args=js_args, code="""
             surface_btn_group.active = [];
