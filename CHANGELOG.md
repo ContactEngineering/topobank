@@ -2,6 +2,10 @@
 
 ## 1.0.0 (not published yet)
 
+- added buttons for selection and deselection of
+  measurements and averages to analysis result plots (#623)
+  
+
 ## 0.11.1 (2021-05-11)
 
 - added missing migrations
