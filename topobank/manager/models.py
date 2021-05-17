@@ -17,12 +17,12 @@ import numpy as np
 import math
 import logging
 import io
-import abc
 
-from bokeh.models import DataRange1d, LinearColorMapper, ColorBar
+from bokeh.models import DataRange1d, LinearColorMapper, ColorBar, FuncTickFormatter
 from bokeh.plotting import figure
 from bokeh.io.export import get_screenshot_as_png
 
+from ..plots import configure_plot
 from .utils import get_topography_reader, get_firefox_webdriver
 
 from topobank.users.models import User
@@ -68,6 +68,7 @@ class PlotTopographyException(Exception):
 class TagModel(tm.TagTreeModel):
     """This is the common tag model for surfaces and topographies.
     """
+
     class TagMeta:
         force_lowercase = True
         # not needed yet
@@ -76,12 +77,14 @@ class TagModel(tm.TagTreeModel):
 
 class PublishedSurfaceManager(models.Manager):
     """Manager which works on published surfaces."""
+
     def get_queryset(self):
         return super().get_queryset().exclude(publication__isnull=True)
 
 
 class UnpublishedSurfaceManager(models.Manager):
     """Manager which works on unpublished surfaces."""
+
     def get_queryset(self):
         return super().get_queryset().filter(publication__isnull=True)
 
@@ -89,6 +92,7 @@ class UnpublishedSurfaceManager(models.Manager):
 class SubjectMixin:
     """Extra methods common to all instances which can be subject to an analysis.
     """
+
     # This is needed for objects to be able to serve as subjects
     #     for analysis, because some template code uses this.
     # Probably this could be made faster by caching the result.
@@ -158,6 +162,38 @@ class Surface(models.Model, SubjectMixin):
 
     def num_topographies(self):
         return self.topography_set.count()
+
+    def to_dict(self, request=None):
+        """Create dictionary for export of metadata to json or yaml.
+
+        Does not include topographies. They can be added like this:
+
+         surface_dict = surface.to_dict()
+         surface_dict['topographies'] = [t.to_dict() for t in surface.topography_set.order_by('name')]
+
+        Parameters:
+            request: HTTPRequest
+                Needed for calculating publication URLs.
+                If not given, only return relative publication URL.
+        Returns:
+            dict
+        """
+        d = {'name': self.name,
+             'category': self.category,
+             'creator': {'name': self.creator.name, 'orcid': self.creator.orcid_id},
+             'description': self.description,
+             'tags': [t.name for t in self.tags.order_by('name')],
+             'is_published': self.is_published,
+             }
+        if self.is_published:
+            d['publication'] = {
+                'url': self.publication.get_full_url(request) if request else self.publication.get_absolute_url(),
+                'license': self.publication.get_license_display(),
+                'authors': self.publication.authors,
+                'version': self.publication.version,
+                'date': str(self.publication.datetime.date()),
+            }
+        return d
 
     def is_shared(self, with_user, allow_change=False):
         """Returns True, if this surface is shared with a given user.
@@ -278,11 +314,10 @@ class Surface(models.Model, SubjectMixin):
         #
         min_seconds = settings.MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS
         if latest_publication and (min_seconds is not None):
-            delta_since_last_pub = timezone.now()-latest_publication.datetime
+            delta_since_last_pub = timezone.now() - latest_publication.datetime
             delta_secs = delta_since_last_pub.total_seconds()
             if delta_secs < min_seconds:
-                raise NewPublicationTooFastException(latest_publication, math.ceil(min_seconds-delta_secs))
-
+                raise NewPublicationTooFastException(latest_publication, math.ceil(min_seconds - delta_secs))
 
         #
         # Create a copy of this surface
@@ -306,7 +341,7 @@ class Surface(models.Model, SubjectMixin):
                                          publisher=self.creator,
                                          publisher_orcid_id=self.creator.orcid_id)
 
-        _log.info(f"Published surface {self.name} (id: {self.id}) "+\
+        _log.info(f"Published surface {self.name} (id: {self.id}) " + \
                   f"with license {license}, version {version}, authors '{authors}'")
         _log.info(f"URL of publication: {pub.get_absolute_url()}")
 
@@ -345,7 +380,7 @@ class Topography(models.Model, SubjectMixin):
 
     LENGTH_UNIT_CHOICES = [
         ('km', 'kilometers'),
-        ('m','meters'),
+        ('m', 'meters'),
         ('mm', 'millimeters'),
         ('µm', 'micrometers'),
         ('nm', 'nanometers'),
@@ -358,7 +393,8 @@ class Topography(models.Model, SubjectMixin):
         ('curvature', 'Remove curvature'),
     ]
 
-    verbose_name_plural = 'topographies'
+    verbose_name = 'measurement'
+    verbose_name_plural = 'measurements'
 
     #
     # Descriptive fields
@@ -415,8 +451,14 @@ class Topography(models.Model, SubjectMixin):
     # Methods
     #
     def __str__(self):
-        return "Topography '{0}' from {1}".format(\
+        return "Topography '{0}' from {1}".format( \
             self.name, self.measurement_date)
+
+    @property
+    def label(self):
+        """Return a string which can be used in the UI.
+        """
+        return self.name
 
     def get_absolute_url(self):
         return reverse('manager:topography-detail', kwargs=dict(pk=self.pk))
@@ -462,7 +504,7 @@ class Topography(models.Model, SubjectMixin):
             channel_physical_sizes = channel_dict.physical_sizes
             physical_sizes_is_None = channel_physical_sizes is None \
                                      or (channel_physical_sizes == (None,)) \
-                                     or (channel_physical_sizes == (None,None))
+                                     or (channel_physical_sizes == (None, None))
             # workaround, see GH 299 in Pyco
 
             if physical_sizes_is_None:
@@ -498,13 +540,17 @@ class Topography(models.Model, SubjectMixin):
     def to_dict(self):
         """Create dictionary for export of metadata to json or yaml"""
         return {'name': self.name,
+                'datafile': self.datafile.name,
                 'data_source': self.data_source,
+                'detrend_mode': self.detrend_mode,
+                'is_periodic': self.is_periodic,
                 'creator': {'name': self.creator.name, 'orcid': self.creator.orcid_id},
                 'measurement_date': self.measurement_date,
                 'description': self.description,
                 'unit': self.unit,
                 'height_scale': self.height_scale,
-                'size': (self.size_x, self.size_y)}
+                'size': (self.size_x,) if self.size_y is None else (self.size_x, self.size_y),
+                'tags': [t.name for t in self.tags.order_by('name')]}
 
     def deepcopy(self, to_surface):
         """Creates a copy of this topography with all data files copied.
@@ -554,7 +600,7 @@ class Topography(models.Model, SubjectMixin):
                 return self._get_1d_plot(st_topo, reduced=thumbnail)
             except Exception as exc:
                 raise PlotTopographyException("Error generating 1D plot for topography.") from exc
-        elif st_topo.dim ==2:
+        elif st_topo.dim == 2:
             try:
                 return self._get_2d_plot(st_topo, reduced=thumbnail)
             except Exception as exc:
@@ -617,13 +663,15 @@ class Topography(models.Model, SubjectMixin):
         if show_symbols:
             plot.circle(x, y)
 
+        configure_plot(plot)
         if reduced:
             plot.xaxis.visible = False
             plot.yaxis.visible = False
             plot.grid.visible = False
-        else:
-            plot.xaxis.axis_label_text_font_style = "normal"
-            plot.yaxis.axis_label_text_font_style = "normal"
+
+        # see js function "format_exponential()" in project.js file
+        plot.xaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
+        plot.yaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
 
         plot.toolbar.logo = None
 
@@ -646,9 +694,9 @@ class Topography(models.Model, SubjectMixin):
         color_mapper = LinearColorMapper(palette="Viridis256", low=heights.min(), high=heights.max())
 
         TOOLTIPS = [
-            ("x", "$x " + self.unit),
-            ("y", "$y " + self.unit),
-            ("height", "@image " + self.unit),
+            ("Position x", "$x " + self.unit),
+            ("Position y", "$y " + self.unit),
+            ("Height", "@image " + self.unit),
         ]
         colorbar_width = 50
 
@@ -678,12 +726,10 @@ class Topography(models.Model, SubjectMixin):
                       tooltips=TOOLTIPS,
                       toolbar_location=toolbar_location)
 
+        configure_plot(plot)
         if reduced:
             plot.xaxis.visible = None
             plot.yaxis.visible = None
-        else:
-            plot.xaxis.axis_label_text_font_style = "normal"
-            plot.yaxis.axis_label_text_font_style = "normal"
 
         # we need to rotate the height data in order to be compatible with image in Gwyddion
         plot.image([np.rot90(heights)], x=0, y=topo_size[1],
@@ -698,9 +744,10 @@ class Topography(models.Model, SubjectMixin):
                                 label_standoff=12,
                                 location=(0, 0),
                                 width=colorbar_width,
+                                formatter=FuncTickFormatter(code="return format_exponential(tick);"),
                                 title=f"height ({self.unit})")
-
             plot.add_layout(colorbar, 'right')
+
 
         return plot
 
@@ -730,7 +777,7 @@ class Topography(models.Model, SubjectMixin):
         image = get_screenshot_as_png(plot, driver=driver)
 
         thumbnail_height = 400
-        thumbnail_width = int(image.size[0] * thumbnail_height/image.size[1])
+        thumbnail_width = int(image.size[0] * thumbnail_height / image.size[1])
         image.thumbnail((thumbnail_width, thumbnail_height))
         image_file = io.BytesIO()
         image.save(image_file, 'PNG')
@@ -745,5 +792,3 @@ class Topography(models.Model, SubjectMixin):
 
         if generate_driver:
             driver.close()  # important to free memory
-
-

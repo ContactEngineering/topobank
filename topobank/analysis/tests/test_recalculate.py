@@ -3,7 +3,7 @@ from notifications.models import Notification
 import pytest
 from django.db import transaction
 
-from topobank.manager.tests.utils import SurfaceFactory, TopographyFactory, UserFactory
+from topobank.manager.tests.utils import SurfaceFactory, Topography1DFactory, UserFactory
 from topobank.analysis.tests.utils import AnalysisFunctionFactory, AnalysisFunctionImplementationFactory
 from topobank.analysis.models import Analysis, AnalysisCollection
 from topobank.manager.utils import subjects_to_json
@@ -14,8 +14,8 @@ def test_recalculate(client):
 
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
-    topo1 = TopographyFactory(surface=surface)
-    topo2 = TopographyFactory(surface=surface)
+    topo1 = Topography1DFactory(surface=surface)
+    topo2 = Topography1DFactory(surface=surface)
 
     func = AnalysisFunctionFactory(name="test function")
     impl = AnalysisFunctionImplementationFactory(function=func)

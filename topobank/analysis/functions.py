@@ -20,6 +20,8 @@ from ContactMechanics import PeriodicFFTElasticHalfSpace, FreeFFTElasticHalfSpac
 import topobank.manager.models  # will be used to evaluate model classes
 from .registry import AnalysisFunctionRegistry
 
+GAUSSIAN_FIT_SERIES_NAME = 'Gaussian fit'
+
 
 def register_implementation(card_view_flavor="simple", name=None):
     """Decorator for marking a function as implementation for an analysis function.
@@ -31,6 +33,7 @@ def register_implementation(card_view_flavor="simple", name=None):
     AnalysisFunction model. Additionally See views.py for possible view classes.
     They should be descendants of the class "SimpleCardView".
     """
+
     def register_decorator(func):
         """
         :param func: function to be registered, first arg must be a "topography" or "surface"
@@ -55,7 +58,7 @@ def _reasonable_bins_argument(topography):
     if topography.is_uniform:
         return int(np.sqrt(np.prod(topography.nb_grid_pts)) + 1.0)
     else:
-        return int(np.sqrt(np.prod(len(topography.positions()))) + 1.0) # TODO discuss whether auto or this
+        return int(np.sqrt(np.prod(len(topography.positions()))) + 1.0)  # TODO discuss whether auto or this
         # return 'auto'
 
 
@@ -66,6 +69,7 @@ class IncompatibleTopographyException(Exception):
     as note to the user, not as failure. It is an excepted failure.
     """
     pass
+
 
 #
 # Use this during development if you need a long running task with failures
@@ -86,7 +90,6 @@ class IncompatibleTopographyException(Exception):
 
 @register_implementation(name="Height Distribution", card_view_flavor='plot')
 def height_distribution(topography, bins=None, wfac=5, progress_recorder=None, storage_prefix=None):
-
     # Get low level topography from SurfaceTopography model
     topography = topography.topography()
 
@@ -96,7 +99,7 @@ def height_distribution(topography, bins=None, wfac=5, progress_recorder=None, s
     profile = topography.heights()
 
     mean_height = np.mean(profile)
-    rms_height = topography.rms_height(kind='Sq' if topography.dim == 2 else 'Rq')
+    rms_height = topography.rms_height_from_area() if topography.dim == 2 else topography.rms_height_from_profile()
 
     hist, bin_edges = np.histogram(np.ma.compressed(profile), bins=bins, density=True)
 
@@ -125,7 +128,7 @@ def height_distribution(topography, bins=None, wfac=5, progress_recorder=None, s
                  x=(bin_edges[:-1] + bin_edges[1:]) / 2,
                  y=hist,
                  ),
-            dict(name='RMS height',
+            dict(name=GAUSSIAN_FIT_SERIES_NAME,
                  x=x_gauss,
                  y=y_gauss,
                  )
@@ -133,11 +136,39 @@ def height_distribution(topography, bins=None, wfac=5, progress_recorder=None, s
     )
 
 
-def _moments_histogram_gaussian(arr, bins, wfac, quantity, label, unit, gaussian=True):
-    """Return moments, histogram and gaussian for an array.
+def _reasonable_histogram_range(arr):
+    """Return 'range' argument for np.histogram
 
-    :param arr: array
+    Fixes problem with too small default ranges
+    which is roughly arr.max()-arr.min() < 1e-08.
+    We take 5*e-8 as threshold in order to be safe.
+
+    Parameters
+    ----------
+    arr: array
+        array to calculate histogram for
+
+    Returns
+    -------
+    (float, float)
+    The lower and upper range of the bins.
+
+    """
+    arr_min = arr.min()
+    arr_max = arr.max()
+
+    if arr_max - arr_min < 5e-8:
+        hist_range = (arr_min - 1e-3, arr_max + 1e-3)
+    else:
+        hist_range = (arr_min, arr_max)
+    return hist_range
+
+
+def _moments_histogram_gaussian(arr, bins, topography, wfac, quantity, label, unit, gaussian=True):
+    """Return moments, histogram and gaussian for an array.
+    :param arr: array, array to calculate moments and histogram for
     :param bins: bins argument for np.histogram
+    :param topography: SurfaceTopography topography instance, used for histogram ranges
     :param wfac: numeric width factor
     :param quantity: str, what kind of quantity this is (e.g. 'slope')
     :param label: str, how these results should be extra labeled (e.g. 'x direction')
@@ -154,8 +185,10 @@ def _moments_histogram_gaussian(arr, bins, wfac, quantity, label, unit, gaussian
     arr = arr.flatten()
 
     mean = arr.mean()
-    rms = np.sqrt((arr**2).mean())
-    hist, bin_edges = np.histogram(arr, bins=bins, density=True)
+    rms = np.sqrt((arr ** 2).mean())
+
+    hist, bin_edges = np.histogram(arr, bins=bins, density=True,
+                                   range=_reasonable_histogram_range(arr))
 
     scalars = {
         f"Mean {quantity.capitalize()} ({label})": dict(value=mean, unit=unit),
@@ -174,9 +207,9 @@ def _moments_histogram_gaussian(arr, bins, wfac, quantity, label, unit, gaussian
         y_gauss = np.exp(-(x_gauss - mean) ** 2 / (2 * rms ** 2)) / (np.sqrt(2 * np.pi) * rms)
 
         series.append(
-            dict(name=f'RMS {quantity} ({label})',
-             x=x_gauss,
-             y=y_gauss)
+            dict(name=GAUSSIAN_FIT_SERIES_NAME + f' ({label})',
+                 x=x_gauss,
+                 y=y_gauss)
         )
 
     return scalars, series
@@ -184,7 +217,6 @@ def _moments_histogram_gaussian(arr, bins, wfac, quantity, label, unit, gaussian
 
 @register_implementation(name="Slope Distribution", card_view_flavor='plot')
 def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, storage_prefix=None):
-
     # Get low level topography from SurfaceTopography model
     topography = topography.topography()
 
@@ -208,16 +240,20 @@ def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, st
         #
         # Results for x direction
         #
-        scalars_slope_x, series_slope_x = _moments_histogram_gaussian(dh_dx, bins=bins, wfac=wfac,
+        scalars_slope_x, series_slope_x = _moments_histogram_gaussian(dh_dx, bins=bins,
+                                                                      topography=topography,
+                                                                      wfac=wfac,
                                                                       quantity="slope", unit='1',
                                                                       label='x direction')
         result['scalars'].update(scalars_slope_x)
         result['series'].extend(series_slope_x)
 
         #
-        # Results for x direction
+        # Results for y direction
         #
-        scalars_slope_y, series_slope_y = _moments_histogram_gaussian(dh_dy, bins=bins, wfac=wfac,
+        scalars_slope_y, series_slope_y = _moments_histogram_gaussian(dh_dy, bins=bins,
+                                                                      topography=topography,
+                                                                      wfac=wfac,
                                                                       quantity="slope", unit='1',
                                                                       label='y direction')
         result['scalars'].update(scalars_slope_y)
@@ -238,7 +274,9 @@ def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, st
 
     elif topography.dim == 1:
         dh_dx = topography.derivative(n=1)
-        scalars_slope_x, series_slope_x = _moments_histogram_gaussian(dh_dx, bins=bins, wfac=wfac,
+        scalars_slope_x, series_slope_x = _moments_histogram_gaussian(dh_dx, bins=bins,
+                                                                      topography=topography,
+                                                                      wfac=wfac,
                                                                       quantity="slope", unit='1',
                                                                       label='x direction')
         result['scalars'].update(scalars_slope_x)
@@ -251,7 +289,6 @@ def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, st
 
 @register_implementation(name="Curvature Distribution", card_view_flavor='plot')
 def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None, storage_prefix=None):
-
     # Get low level topography from SurfaceTopography model
     topography = topography.topography()
 
@@ -263,17 +300,18 @@ def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None
     #
     if topography.dim == 2:
         curv_x, curv_y = topography.derivative(n=2)
-        if topography.is_periodic:
-            curv = curv_x[:,:] + curv_y[:,:]
-        else:
-            curv = curv_x[:, 1:-1] + curv_y[1:-1, :]
+        curv = curv_x + curv_y
     else:
         curv = topography.derivative(n=2)
 
     mean_curv = np.mean(curv)
-    rms_curv = topography.rms_curvature()
+    rms_curv = topography.rms_curvature_from_area() if topography.dim == 2 else topography.rms_curvature_from_profile()
+    # rms_curv = topography.rms_curvature()
 
-    hist, bin_edges = np.histogram(np.ma.compressed(curv), bins=bins,
+    hist_arr = np.ma.compressed(curv)
+
+    hist, bin_edges = np.histogram(hist_arr, bins=bins,
+                                   range=_reasonable_histogram_range(hist_arr),
                                    density=True)
 
     minval = mean_curv - wfac * rms_curv
@@ -299,7 +337,7 @@ def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None
                  x=(bin_edges[:-1] + bin_edges[1:]) / 2,
                  y=hist,
                  ),
-            dict(name='RMS curvature',
+            dict(name=GAUSSIAN_FIT_SERIES_NAME,
                  x=x_gauss,
                  y=y_gauss,
                  )
@@ -309,14 +347,13 @@ def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None
 
 @register_implementation(name="Power Spectrum", card_view_flavor='plot')
 def power_spectrum(topography, window=None, tip_radius=None, progress_recorder=None, storage_prefix=None):
-
     # Get low level topography from SurfaceTopography model
     topography = topography.topography()
 
     if window == 'None':
         window = None
 
-    q_1D, C_1D = topography.power_spectrum_1D(window=window)
+    q_1D, C_1D = topography.power_spectrum_from_profile(window=window)
     # Remove NaNs and Infs
     q_1D = q_1D[np.isfinite(C_1D)]
     C_1D = C_1D[np.isfinite(C_1D)]
@@ -345,9 +382,9 @@ def power_spectrum(topography, window=None, tip_radius=None, progress_recorder=N
         #
         sx, sy = topography.physical_sizes
         transposed_topography = Topography(topography.heights().T, (sy, sx))
-        q_1D_T, C_1D_T = transposed_topography.power_spectrum_1D(window=window)
-        q_2D, C_2D = topography.power_spectrum_2D(window=window,
-                                                  nbins=len(q_1D) - 1)
+        q_1D_T, C_1D_T = transposed_topography.power_spectrum_from_profile(window=window)
+        q_2D, C_2D = topography.power_spectrum_from_area(window=window,
+                                                         nbins=len(q_1D) - 1)
         # Remove NaNs and Infs
         q_1D_T = q_1D_T[np.isfinite(C_1D_T)]
         C_1D_T = C_1D_T[np.isfinite(C_1D_T)]
@@ -439,7 +476,6 @@ def average_series_list(series_list, num_points=100, xscale='linear'):
     #
     min_x = min(min(s['x']) for s in series_list)
     max_x = max(max(s['x']) for s in series_list)
-
 
     try:
         av_x = spacing_funcs[xscale](min_x, max_x, num_points)
@@ -579,7 +615,6 @@ def power_spectrum_for_surface(surface, window=None, tip_radius=None, num_points
 
 @register_implementation(name="Autocorrelation", card_view_flavor='plot')
 def autocorrelation(topography, progress_recorder=None, storage_prefix=None):
-
     # Get low level topography from SurfaceTopography model
     topography = topography.topography()
 
@@ -587,8 +622,8 @@ def autocorrelation(topography, progress_recorder=None, storage_prefix=None):
         sx, sy = topography.physical_sizes
         transposed_topography = Topography(topography.heights().T, physical_sizes=(sy, sx),
                                            periodic=topography.is_periodic)
-        r_T, A_T = transposed_topography.autocorrelation_1D()
-        r_2D, A_2D = topography.autocorrelation_2D()
+        r_T, A_T = transposed_topography.autocorrelation_from_profile()
+        r_2D, A_2D = topography.autocorrelation_from_area()
 
         # Truncate ACF at half the system size
         s = min(sx, sy) / 2
@@ -596,7 +631,7 @@ def autocorrelation(topography, progress_recorder=None, storage_prefix=None):
         s, = topography.physical_sizes
 
     if topography.is_uniform:
-        r, A = topography.autocorrelation_1D()
+        r, A = topography.autocorrelation_from_profile()
     else:
         # Work around. The implementation for non-uniform line scans is very slow. Map onto a uniform grid.
         x, h = topography.positions_and_heights()
@@ -605,7 +640,7 @@ def autocorrelation(topography, progress_recorder=None, storage_prefix=None):
             raise RuntimeError('Positions not sorted')
         else:
             n = min(100000, 10 * int(s / min_dist))
-        r, A = topography.to_uniform(n, 0).autocorrelation_1D()
+        r, A = topography.to_uniform(n, 0).autocorrelation_from_profile()
         r = r[::10]
         A = A[::10]
 
@@ -680,9 +715,44 @@ def autocorrelation_for_surface(surface, num_points=100,
     return result
 
 
+@register_implementation(name="Scale-dependent Slope", card_view_flavor='plot')
+def scale_dependent_slope(topography, progress_recorder=None, storage_prefix=None):
+    return_dict = autocorrelation(topography, progress_recorder=progress_recorder,
+                                  storage_prefix=storage_prefix)
+
+    for dataset in return_dict['series']:
+        x = dataset['x']
+        y = dataset['y']
+        dataset['x'] = x[1:]
+        dataset['y'] = np.sqrt(2 * y[1:]) / x[1:]
+    return_dict['name'] = 'Scale-dependent slope'
+    return_dict['ylabel'] = 'Slope'
+    return_dict['yunit'] = '1'
+
+    return return_dict
+
+
+@register_implementation(name="Scale-dependent Slope", card_view_flavor='plot')
+def scale_dependent_slope_for_surface(surface, num_points=100,
+                                      progress_recorder=None, storage_prefix=None):
+    """Calculate average autocorrelation for a surface."""
+    result = average_results_for_surface(surface, topo_analysis_func=scale_dependent_slope,
+                                         num_points=num_points, progress_recorder=progress_recorder,
+                                         storage_prefix=storage_prefix)
+
+    result.update(dict(
+        name='Scale-dependent Slope',
+        xlabel='Distance',
+        ylabel='Slope',
+        xscale='log',
+        yscale='log',
+    ))
+
+    return result
+
+
 @register_implementation(name="Variable Bandwidth", card_view_flavor='plot')
 def variable_bandwidth(topography, progress_recorder=None, storage_prefix=None):
-
     # Get low level topography from SurfaceTopography model
     topography = topography.topography()
 
@@ -723,7 +793,6 @@ def variable_bandwidth_for_surface(surface, num_points=100,
     ))
 
     return result
-
 
 
 def _next_contact_step(system, history=None, pentol=None, maxiter=None):
@@ -783,7 +852,8 @@ def _next_contact_step(system, history=None, pentol=None, maxiter=None):
         mean_displacement = -top + 0.01 * (top - middle)
     else:
         # Intermediate sort by area
-        sorted_disp, sorted_area = np.transpose(sorted(zip(mean_displacements, total_contact_areas), key=lambda x:x[1]))
+        sorted_disp, sorted_area = np.transpose(
+            sorted(zip(mean_displacements, total_contact_areas), key=lambda x: x[1]))
 
         ref_area = np.log10(np.array(sorted_area + 1 / np.prod(topography.nb_grid_pts)))
         darea = np.append(ref_area[1:] - ref_area[:-1], -ref_area[-1])
@@ -935,7 +1005,7 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
         raise ValueError(f"Invalid value for 'nsteps': {nsteps}")
     if pressures and ((len(pressures) < 1) or (len(pressures) > kwargs_limits['pressures']['maxlen'])):
         raise ValueError(f"Invalid number of pressures given: {len(pressures)}")
-    if (maxiter<kwargs_limits['maxiter']['min']) or (maxiter > kwargs_limits['maxiter']['max']):
+    if (maxiter < kwargs_limits['maxiter']['min']) or (maxiter > kwargs_limits['maxiter']['max']):
         raise ValueError(f"Invalid value for 'maxiter': {maxiter}")
 
     # Conversion of force units
@@ -962,13 +1032,13 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
     # Heuristics for the possible tolerance on penetration.
     # This is necessary because numbers can vary greatly
     # depending on the system of units.
-    rms_height = topography.rms_height()
+    rms_height = topography.rms_height_from_area()
     pentol = rms_height / (10 * np.mean(topography.nb_grid_pts))
     pentol = max(pentol, min_pentol)
 
     netcdf_format = 'NETCDF4'
 
-    data_paths = [] # collect in _next_contact_step?
+    data_paths = []  # collect in _next_contact_step?
 
     if pressures is not None:
         nsteps = len(pressures)
@@ -977,18 +1047,19 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
     for i in range(nsteps):
         if pressures is None:
             displacement_xy, gap_xy, pressure_xy, contacting_points_xy, \
-                mean_displacement, mean_pressure, total_contact_area, history = \
+            mean_displacement, mean_pressure, total_contact_area, history = \
                 _next_contact_step(system, history=history, pentol=pentol, maxiter=maxiter)
         else:
             displacement_xy, gap_xy, pressure_xy, contacting_points_xy, \
-                mean_displacement, mean_pressure, total_contact_area, history = \
-                _contact_at_given_load(system, pressures[i]*force_conv, history=history, pentol=pentol, maxiter=maxiter)
+            mean_displacement, mean_pressure, total_contact_area, history = \
+                _contact_at_given_load(system, pressures[i] * force_conv, history=history, pentol=pentol,
+                                       maxiter=maxiter)
 
         #
         # Save displacement_xy, gap_xy, pressure_xy and contacting_points_xy
         # to storage, will be retrieved later for visualization
         #
-        pressure_xy = xr.DataArray(pressure_xy, dims=('x', 'y')) # maybe define coordinates
+        pressure_xy = xr.DataArray(pressure_xy, dims=('x', 'y'))  # maybe define coordinates
         gap_xy = xr.DataArray(gap_xy, dims=('x', 'y'))
         displacement_xy = xr.DataArray(displacement_xy, dims=('x', 'y'))
         contacting_points_xy = xr.DataArray(contacting_points_xy, dims=('x', 'y'))
@@ -1006,7 +1077,7 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
         with tempfile.NamedTemporaryFile(prefix='analysis-') as tmpfile:
             dataset.to_netcdf(tmpfile.name, format=netcdf_format)
 
-            storage_path = storage_prefix+"result-step-{}.nc".format(i)
+            storage_path = storage_prefix + "result-step-{}.nc".format(i)
             tmpfile.seek(0)
             storage_path = default_storage.save(storage_path, File(tmpfile))
             data_paths.append(storage_path)
@@ -1031,11 +1102,11 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
         min_pentol=min_pentol,
         mean_pressures=mean_pressure[sort_order],
         total_contact_areas=total_contact_area[sort_order],
-        mean_displacements=mean_displacement[sort_order]/rms_height,
-        mean_gaps=mean_gap[sort_order]/rms_height,
+        mean_displacements=mean_displacement[sort_order] / rms_height,
+        mean_gaps=mean_gap[sort_order] / rms_height,
         converged=converged[sort_order],
         data_paths=data_paths[sort_order],
-        effective_kwargs = dict(
+        effective_kwargs=dict(
             substrate_str=substrate_str,
             hardness=hardness,
             nsteps=nsteps,
@@ -1045,9 +1116,9 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
     )
 
 
-@register_implementation(name="RMS Values", card_view_flavor='rms table')
-def rms_values(topography, progress_recorder=None, storage_prefix=None):
-    """Just calculate RMS values for given topography.
+@register_implementation(name="Roughness Parameters", card_view_flavor='roughness parameters')
+def roughness_parameters(topography, progress_recorder=None, storage_prefix=None):
+    """Calculate roughness parameters for given topography.
 
     Parameters
     ----------
@@ -1059,69 +1130,129 @@ def rms_values(topography, progress_recorder=None, storage_prefix=None):
     -------
     list of dicts where each dict has keys
 
-     quantity
-     direction
-     value
-     unit
+     quantity, e.g. 'RMS height' or 'RMS gradient'
+     direction, e.g. 'x' or None
+     from, e.g. 'profile (1D)' or 'area (2D)' or ''
+     symbol, e.g. 'Sq' or ''
+     value, a number or NaN
+     unit, e.g. 'nm'
     """
 
     # Get low level topography from SurfaceTopography model
     topography = topography.topography()
 
+    # noinspection PyBroadException
     try:
         unit = topography.info['unit']
         inverse_unit = '{}⁻¹'.format(unit)
-    except:
+    except KeyError:
         unit = None
         inverse_unit = None
 
-    def rms_slope_from_der(der):
-        der = der.flatten()
-        return np.sqrt(((der**2).mean()))
+    is_2D = topography.dim == 2
+    if not is_2D and not (topography.dim == 1):
+        raise ValueError("This analysis function can only handle 1D or 2D topographies.")
 
+    FROM_1D = 'profile (1D)'
+    FROM_2D = 'area (2D)'
+
+    #
+    # RMS height
+    #
     result = [
         {
-            'quantity': 'RMS Height',
-            'direction': None,
-            'value': topography.rms_height(),
+            'quantity': 'RMS height',
+            'from': FROM_1D,
+            'symbol': 'Rq',
+            'direction': 'x',
+            'value': topography.rms_height_from_profile(),
             'unit': unit,
-        },
-        {
-            'quantity': 'RMS Curvature',
-            'direction': None,
-            'value': topography.rms_curvature(),
-            'unit': inverse_unit,
-        },
+        }
     ]
-
-    if topography.dim == 2:
-        dh_dx, dh_dy = topography.derivative(n=1)
+    if is_2D:
         result.extend([
             {
-                'quantity': 'RMS Slope',
-                'direction': 'x',
-                'value': rms_slope_from_der(dh_dx),
+                'quantity': 'RMS height',
+                'from': FROM_1D,
+                'symbol': 'Rq',
+                'direction': 'y',
+                'value': topography.transpose().rms_height_from_profile(),
+                'unit': unit,
+            },
+            {
+                'quantity': 'RMS height',
+                'from': FROM_2D,
+                'symbol': 'Sq',
+                'direction': None,
+                'value': topography.rms_height_from_area(),
+                'unit': unit,
+            },
+        ])
+    #
+    # RMS curvature
+    #
+    if is_2D:
+        result.extend([
+            # .rms_curvature_from_profile() does not exist for 2D (so far)
+            # {
+            #     'quantity': 'RMS curvature',
+            #     'from': FROM_1D,
+            #     'symbol': '',
+            #     'direction': 'y',
+            #     'value': topography.transpose().rms_curvature_from_profile(),
+            #     'unit': inverse_unit,
+            # },
+            {
+                'quantity': 'RMS curvature',
+                'from': FROM_2D,
+                'symbol': '',
+                'direction': None,
+                'value': topography.rms_curvature_from_area(),
+                'unit': inverse_unit,
+            }
+        ])
+    # else:  # .rms_curvature_from_profile() does not exist for uniform line scans (so far)
+    #     result.append({
+    #         'quantity': 'RMS curvature',
+    #         'from': FROM_1D,
+    #         'symbol': '',
+    #         'direction': 'x',
+    #         'value': topography.rms_curvature_from_profile(),
+    #         'unit': inverse_unit,
+    #     })
+
+    #
+    # RMS gradient/slope
+    #
+    result.extend([
+        {
+            'quantity': 'RMS slope',
+            'from': FROM_1D,
+            'symbol': 'R&Delta;q',
+            'direction': 'x',
+            'value': topography.rms_slope_from_profile(),  # x direction
+            'unit': 1,
+        }
+    ])
+    if is_2D:
+        result.extend([
+            {
+                'quantity': 'RMS slope',
+                'from': FROM_1D,
+                'symbol': 'R&Delta;q',  # HTML
+                'direction': 'y',
+                'value': topography.transpose().rms_slope_from_profile(),  # y direction
                 'unit': 1,
             },
             {
-                'quantity': 'RMS Slope',
-                'direction': 'y',
-                'value': rms_slope_from_der(dh_dy),
+                'quantity': 'RMS gradient',
+                'from': FROM_2D,
+                'symbol': '',
+                'direction': None,
+                'value': topography.rms_gradient(),
                 'unit': 1,
-            }
+            },
         ])
-    elif topography.dim == 1:
-        dh_dx = topography.derivative(n=1)
-        result.extend([
-            {
-                'quantity': 'RMS Slope',
-                'direction': 'x',
-                'value': rms_slope_from_der(dh_dx),
-                'unit': 1,
-            }
-        ])
-    else:
-        raise ValueError("This analysis function can only handle 1D or 2D topographies.")
 
     return result
 
@@ -1146,4 +1277,3 @@ def surface_analysis_function_for_tests(surface, a=1, c="bar"):
             'ylabel': 'y',
             'series': [],
             'comment': f"a is {a} and c is {c}"}
-

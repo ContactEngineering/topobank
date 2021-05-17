@@ -54,6 +54,7 @@ from ..usage_stats.utils import increase_statistics_by_date, increase_statistics
 from ..users.models import User
 from ..users.utils import get_default_group
 from ..publication.models import Publication, MAX_LEN_AUTHORS_FIELD
+from .containers import write_surface_container
 
 # create dicts with labels and option values for Select tab
 CATEGORY_FILTER_CHOICES = {'all': 'All categories',
@@ -1177,7 +1178,7 @@ class SurfaceShareView(FormMixin, DetailView):
 
 class PublicationsTable(tables.Table):
     publication = tables.Column(linkify=True, verbose_name='Surface', order_by='surface__name')
-    num_topographies = tables.Column(verbose_name='# Topographies')
+    num_topographies = tables.Column(verbose_name='# Measurements')
     authors = tables.Column(verbose_name="Authors")
     license = tables.Column(verbose_name="License")
     datetime = tables.Column(verbose_name="Publication Date")
@@ -1332,7 +1333,7 @@ class PublicationRateTooHighView(TemplateView):
 class SharingInfoTable(tables.Table):
     surface = tables.Column(linkify=lambda **kwargs: kwargs['record']['surface'].get_absolute_url(),
                             accessor='surface__name')
-    num_topographies = tables.Column(verbose_name='# Topographies')
+    num_topographies = tables.Column(verbose_name='# Measurements')
     created_by = tables.Column(linkify=lambda **kwargs: kwargs['record']['created_by'].get_absolute_url(),
                                accessor='created_by__name')
     shared_with = tables.Column(linkify=lambda **kwargs: kwargs['record']['shared_with'].get_absolute_url(),
@@ -1466,7 +1467,7 @@ def download_surface(request, surface_id):
     """
 
     #
-    # Check permissions and collect analyses
+    # Check existence and permissions for given surface
     #
     try:
         surface = Surface.objects.get(id=surface_id)
@@ -1476,65 +1477,42 @@ def download_surface(request, surface_id):
     if not request.user.has_perm('view_surface', surface):
         raise PermissionDenied()
 
-    topographies = Topography.objects.filter(surface=surface_id)
-
-    bytes = BytesIO()
-    with zipfile.ZipFile(bytes, mode='w') as zf:
-        for topography in topographies:
-            zf.writestr(topography.name, topography.datafile.read())
-
-        #
-        # Add metadata file
-        #
-        zf.writestr("meta.yml", yaml.dump([topography.to_dict() for topography in topographies]))
-
-        #
-        # Add a Readme file
-        #
-        readme_txt = """
-            Contents of this ZIP archive
-            ============================
-            This archive contains a surface: A collection of individual topography measurements.
-
-            The meta data for the surface and the individual topographies can be found in the
-            auxiliary file 'meta.yml'. It is formatted as a [YAML](https://yaml.org/) file.
-
-            Version information
-            ===================
-
-            TopoBank: {}
-            """.format(settings.TOPOBANK_VERSION)
-        if surface.is_published:
-            pub = surface.publication
-            #
-            # Add license information to README file
-            #
-            license_txt = pub.get_license_display()
-            license_info = settings.CC_LICENSE_INFOS[pub.license]
-            readme_txt += """
-            License information
-            ===================
-
-            This surface has been published and the data is licensed under "{}".
-            For details about this license see
-            - {} (description) and
-            - {} (legal code), or
-            - file "LICENSE.txt" (legal code).
-            """.format(license_txt, license_info['description_url'], license_info['legal_code_url'])
-            #
-            # Also add license file
-            #
-            zf.write(staticfiles_storage.path(f"other/{pub.license}-legalcode.txt"), arcname="LICENSE.txt")
-
-        zf.writestr("README.txt", textwrap.dedent(readme_txt))
+    container_bytes = BytesIO()
+    write_surface_container(container_bytes, [surface], request=request)
 
     # Prepare response object.
-    response = HttpResponse(bytes.getvalue(),
+    response = HttpResponse(container_bytes.getvalue(),
                             content_type='application/x-zip-compressed')
     response['Content-Disposition'] = 'attachment; filename="{}"'.format('surface.zip')
 
     increase_statistics_by_date_and_object(Metric.objects.SURFACE_DOWNLOAD_COUNT,
                                            period=Period.DAY, obj=surface)
+
+    return response
+
+
+def download_selection_as_surfaces(request):
+    """Returns a file comprised from surfaces related to the selection.
+
+    :param request: current request
+    :return:
+    """
+
+    from .utils import current_selection_as_surface_list
+    surfaces = current_selection_as_surface_list(request)
+
+    container_bytes = BytesIO()
+    write_surface_container(container_bytes, surfaces, request=request)
+
+    # Prepare response object.
+    response = HttpResponse(container_bytes.getvalue(),
+                            content_type='application/x-zip-compressed')
+    response['Content-Disposition'] = 'attachment; filename="{}"'.format('surface.zip')
+
+    # increase download count for each surface
+    for surf in surfaces:
+        increase_statistics_by_date_and_object(Metric.objects.SURFACE_DOWNLOAD_COUNT,
+                                               period=Period.DAY, obj=surf)
 
     return response
 

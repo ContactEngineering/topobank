@@ -1,12 +1,11 @@
 pytz  # https://github.com/stub42/pytz
 python-slugify  # https://github.com/un33k/python-slugify
-Pillow>=6.2.2  # https://github.com/python-pillow/Pillow
 argon2-cffi  # https://github.com/hynek/argon2_cffi
 whitenoise  # https://github.com/evansd/whitenoise
 
 # Django
 # ------------------------------------------------------------------------------
-django==2.2.13  #  does this work with pyup?  # https://www.djangoproject.com/
+django==2.2.20  #  does this work with pyup?  # https://www.djangoproject.com/
 django-environ  # https://github.com/joke2k/django-environ
 django-model-utils  # https://github.com/jazzband/django-model-utils
 django-allauth  # https://github.com/pennersr/django-allauth
@@ -68,12 +67,13 @@ bleach>=3.3.0
 # Contact Mechanics
 #
 muFFT>=0.11.1
-SurfaceTopography>=0.91.5
-ContactMechanics>=0.90.1
+SurfaceTopography>=0.93.0<1.0
+ContactMechanics>=0.90.1<1.0
 
 # plotting
 bokeh==2.2.3
 # link to CSS+JS in HTML files must must this version!
+
 # for exporting bokeh plots programmatically (thumbnails), we need a webdriver
 selenium
 
@@ -111,7 +111,7 @@ markdown2>=2.3.9
 # Version 2.3.8 has a security issue (CVE-2020-11888)
 
 # for syntax highlighting for docstrings of readers
-pygments
+pygments>=2.7.4
 
 # datepicker
 django-bootstrap-datepicker-plus
@@ -123,5 +123,11 @@ django-bootstrap-datepicker-plus
 short_url
 django-fullurl
 
-# some contraints due to security concers
-lxml>=4.6.1
+# some other constraints due to security concers
+lxml>=4.6.3
+jinja2>=2.11.3  # because of CVE-2020-28493
+
+# because of several CVE where size of images is not properly checked
+Pillow>=8.1.1
+
+PyYAML>=5.4  # CVE-2020-14343

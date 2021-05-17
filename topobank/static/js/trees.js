@@ -58,7 +58,7 @@ let search_results_vm = new Vue({
                   },
                   types: {
                     "surface": {icon: "fa fa-diamond fa-fw", iconTooltip: "This is a surface"},
-                    "topography": {icon: "fa fa-file-o fa-fw", iconTooltip: "This is a topography"},
+                    "topography": {icon: "fa fa-file-o fa-fw", iconTooltip: "This is a measurement"},
                     "tag": {icon: "fa fa-tag fa-fw", iconTooltip: "This is a tag"},
                   },
                   icon: function(event, data) {

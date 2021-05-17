@@ -7,7 +7,7 @@ from topobank.analysis.utils import request_analysis, submit_analysis
 
 from topobank.analysis.tests.utils import AnalysisFunctionImplementationFactory, AnalysisFunctionFactory, \
     TopographyAnalysisFactory
-from topobank.manager.tests.utils import TopographyFactory, UserFactory
+from topobank.manager.tests.utils import Topography1DFactory, UserFactory
 
 
 @pytest.mark.django_db
@@ -27,7 +27,7 @@ def test_request_analysis(mocker):
     # mocker.patch('django.db.models.QuerySet.delete') # we don't need to test with delete here
     mocker.patch('topobank.taskapp.tasks.perform_analysis.delay')  # we don't want to calculate anything
 
-    topo = TopographyFactory()
+    topo = Topography1DFactory()
 
     # just an abbreviation
     def assert_correct_args(analysis, expected_kwargs):
@@ -77,7 +77,7 @@ def test_unmark_other_analyses_during_request_analysis(mocker):
     af = AnalysisFunctionFactory(name="somefunc")
     afim = AnalysisFunctionImplementationFactory(function=af)
 
-    topo = TopographyFactory()
+    topo = Topography1DFactory()
 
     a1 = TopographyAnalysisFactory(subject=topo, function=af, kwargs=pickle.dumps(dict(a=9, b=19)), users=[])
     a2 = TopographyAnalysisFactory(subject=topo, function=af, kwargs=pickle.dumps(dict(a=29, b=39)), users=[user])

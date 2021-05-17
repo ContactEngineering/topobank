@@ -176,6 +176,19 @@ td.ellipsis {
   overflow: hidden;
   text-overflow: ellipsis; /** this does not work here, don't know why */
 }
+.topobank-surface-checkbox div.bk-input-group span {
+  font-weight: bold;
+}
+
+/** bokeh's "primary" color should be same as bootstrap's */
+div.bk-btn-group button.bk-btn-primary {
+  background-color: #007bff;
+  border-color: #007aff;
+}
+div.bk-btn-group button.bk-btn-primary:hover {
+    background-color: #0069d9;
+    border-color: #0062cc;
+}
 
 /** Extra (dynamic) tabs */
 .nav-tabs {
@@ -293,4 +306,12 @@ section[title="Terms and Conditions"] div.toc-container, #tc-terms-html {
   background: none;
   color: #555;
   border-color: #2b90d9;
+}
+
+.bk-root {
+  font-size: 1rem !important;
+}
+
+.bk-btn {
+  font-size: 1rem !important;
 }

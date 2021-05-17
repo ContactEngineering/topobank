@@ -27,7 +27,7 @@
       ],
       columns: [
         {
-          title: 'Topography',
+          title: 'Measurement',
           render: function (data, type, row) {
             let name = row.topography_name;
             let name_to_use = (type === 'display' && result_view_mode === 'list' && name.length > 10)
@@ -37,8 +37,10 @@
           }
         },
         {data: 'quantity', title: 'Quantity'},
+        {data: 'from', title: 'From'},
+        {data: 'symbol', title: '<span title="according to ASME B46.1">Symbol 🛈</span>'},
         {data: 'direction', title: 'Direction'},
-        {data: 'value', title: 'Value'},
+        {data: 'value', title: 'Value', render: function (x) { return format_exponential(x, 5);}},
         {data: 'unit', title: 'Unit'},
       ],
       responsive: true

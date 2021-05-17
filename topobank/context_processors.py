@@ -6,6 +6,8 @@ import django
 import json
 import bokeh
 import celery
+import numpy
+import scipy
 
 import SurfaceTopography, ContactMechanics, NuMPI, muFFT
 
@@ -38,6 +40,12 @@ def versions_processor(request):
              version=muFFT.version.description(),
              links={'Website': 'https://gitlab.com/muspectre/muspectre',
                     'Changelog': f'https://gitlab.com/muspectre/muspectre/-/blob/{muFFT.version.description()}/CHANGELOG.md'}),
+        dict(module='NumPy',
+             version=numpy.__version__,
+             links={'Website': 'https://numpy.org/'}),
+        dict(module='SciPy',
+             version=scipy.__version__,
+             links={'Website': 'https://www.scipy.org/'}),
         dict(module='Django',
              version=django.__version__,
              links={'Website': 'https://www.djangoproject.com/'}),

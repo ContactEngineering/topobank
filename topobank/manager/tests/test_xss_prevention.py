@@ -1,7 +1,7 @@
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 
-from .utils import UserFactory, TopographyFactory, SurfaceFactory
+from .utils import UserFactory, Topography1DFactory, Topography2DFactory, SurfaceFactory
 from ..forms import SurfaceForm, TopographyForm, SurfacePublishForm, TopographyMetaDataForm
 
 MALICIOUS_TEXT = "<script>alert('hi')</script>"
@@ -15,7 +15,7 @@ def test_surface_description_is_safe():
 
     malicious_description = MALICIOUS_TEXT
 
-    form_data={
+    form_data = {
         'name': "Hacker's Surface",
         'creator': user.id,
         'description': malicious_description,
@@ -36,7 +36,7 @@ def test_surface_description_is_safe():
 def test_topography_description_is_safe_on_update():
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
-    topography = TopographyFactory(surface=surface, size_x=1, size_y=1, tags=[])
+    topography = Topography1DFactory(surface=surface, size_x=1, size_y=1, tags=[])
 
     form_initial = {
         'surface': surface.pk,
@@ -78,7 +78,7 @@ def test_topography_description_is_safe_on_update():
 def test_topography_description_is_safe_on_creation():
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
-    topography = TopographyFactory(surface=surface, size_x=1, size_y=1, tags=[])
+    topography = Topography2DFactory(surface=surface, size_x=1, size_y=1, tags=[])
 
     form_initial = {
         'data_source': 0,
@@ -135,7 +135,7 @@ def test_surface_tag_is_safe():
 def test_topography_tag_is_safe_on_update():
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
-    topography = TopographyFactory(surface=surface, size_x=1, size_y=1, tags=[])
+    topography = Topography2DFactory(surface=surface, size_x=1, size_y=1, tags=[])
 
     form_initial = {
         'surface': surface.pk,
@@ -177,7 +177,7 @@ def test_topography_tag_is_safe_on_update():
 def test_topography_tag_is_safe_on_creation():
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
-    topography = TopographyFactory(surface=surface, size_x=1, size_y=1, tags=[])
+    topography = Topography2DFactory(surface=surface, size_x=1, size_y=1, tags=[])
 
     form_initial = {
         'data_source': 0,
@@ -231,7 +231,7 @@ def test_surface_name_is_safe():
 def test_topography_name_is_safe_on_update():
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
-    topography = TopographyFactory(surface=surface, size_x=1, size_y=1, tags=[])
+    topography = Topography2DFactory(surface=surface, size_x=1, size_y=1, tags=[])
 
     form_initial = {
         'surface': surface.pk,
@@ -273,7 +273,7 @@ def test_topography_name_is_safe_on_update():
 def test_topography_name_is_safe_on_creation():
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
-    topography = TopographyFactory(surface=surface, size_x=1, size_y=1, tags=[])
+    topography = Topography2DFactory(surface=surface, size_x=1, size_y=1, tags=[])
 
     form_initial = {
         'data_source': 0,

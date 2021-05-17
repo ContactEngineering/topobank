@@ -20,8 +20,8 @@ RUN apt-get update \
   && apt-get install --yes curl \
   # && apt-get install --yes mpicc libfftw3-mpi-dev
   # && apt-get install --yes clang-5 libfftw3-dev
-  && apt-get install --yes libmemcached-dev
-  # Requirement needed for exporting bokeh plots
+  && apt-get install --yes libmemcached-dev \
+  && apt-get install --yes libnetcdf-dev
 
 # clean up image
 RUN apt-get -qy autoremove
@@ -31,6 +31,9 @@ RUN apt-get -qy autoremove
 #
 RUN apt-get install --yes libgtk-3-0 libdbus-glib-1-2
 RUN conda install -c conda-forge firefox geckodriver
+
+# Upgrade pip, so package 'cryptography' does not need to be compiled with rust
+RUN pip install --upgrade pip
 
 #
 # Install requirements for TopoBank
@@ -73,6 +76,7 @@ RUN addgroup django \
 # Prepare application code
 #
 COPY . /app
+RUN rm -Rf app/venv
 RUN chown -R django /app
 # is the following needed?
 RUN chmod -R u+w /app

@@ -6,7 +6,7 @@ import datetime
 import json
 
 from ..models import Analysis, AnalysisFunction, AnalysisFunctionImplementation
-from topobank.manager.tests.utils import TopographyFactory, SurfaceFactory
+from topobank.manager.tests.utils import Topography2DFactory, SurfaceFactory
 from topobank.manager.models import Topography, Surface
 
 _log = logging.getLogger(__name__)
@@ -61,7 +61,7 @@ class AnalysisFactory(factory.django.DjangoModelFactory):
         # See https://factoryboy.readthedocs.io/en/stable/recipes.html#django-models-with-genericforeignkeys
 
     function = factory.SubFactory(AnalysisFunctionFactory)
-    subject = factory.SubFactory(TopographyFactory)  # Does this work with a generic subject?
+    subject = factory.SubFactory(Topography2DFactory)  # Does this work with a generic subject?
 
     subject_id = factory.SelfAttribute('subject.id')
     subject_type = factory.LazyAttribute(
@@ -89,7 +89,7 @@ class AnalysisFactory(factory.django.DjangoModelFactory):
 
 class TopographyAnalysisFactory(AnalysisFactory):
     """Create an analysis for a topography."""
-    subject = factory.SubFactory(TopographyFactory)
+    subject = factory.SubFactory(Topography2DFactory)
 
     # noinspection PyMissingOrEmptyDocstring
     class Meta:

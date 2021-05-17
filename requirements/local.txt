@@ -87,6 +87,7 @@ defusedxml==0.6.0
     # via
     #   -r ./base.txt
     #   python3-openid
+    #   surfacetopography
 django-allauth==0.43.0
     # via -r ./base.txt
 django-appconf==1.0.4
@@ -101,7 +102,7 @@ django-crispy-forms==1.9.2
     # via -r ./base.txt
 django-debug-toolbar-request-history==0.1.3
     # via -r local.in
-django-debug-toolbar==2.2
+django-debug-toolbar==3.2.1
     # via
     #   -r local.in
     #   django-debug-toolbar-request-history
@@ -141,7 +142,7 @@ django-test-plus==1.4.0
     # via -r local.in
 django-trackstats==0.5.0
     # via -r ./base.txt
-django==2.2.13
+django==2.2.20
     # via
     #   -r ./base.txt
     #   django-allauth
@@ -215,7 +216,7 @@ jdcal==1.4.1
     #   openpyxl
 jedi==0.17.2
     # via ipython
-jinja2==2.11.2
+jinja2==2.11.3
     # via
     #   -r ./base.txt
     #   bokeh
@@ -234,7 +235,7 @@ kombu==4.6.11
     # via
     #   -r ./base.txt
     #   celery
-lxml==4.6.2
+lxml==4.6.3
     # via -r ./base.txt
 markdown2==2.3.10
     # via -r ./base.txt
@@ -246,15 +247,13 @@ mccabe==0.6.1
     # via flake8
 more-itertools==8.4.0
     # via pytest
-mufft==0.11.1
+mufft==0.15.0
     # via
     #   -r ./base.txt
     #   contactmechanics
     #   surfacetopography
 netcdf4==1.5.4
-    # via
-    #   -r ./base.txt
-    #   surfacetopography
+    # via -r ./base.txt
 numpi==0.1.4
     # via
     #   -r ./base.txt
@@ -270,10 +269,15 @@ numpy==1.19.2
     #   mufft
     #   netcdf4
     #   numpi
+    #   numpyencoder
     #   pandas
     #   scipy
     #   surfacetopography
     #   xarray
+numpyencoder==0.3.0
+    # via
+    #   -r ./base.txt
+    #   surfacetopography
 oauthlib==3.1.0
     # via
     #   -r ./base.txt
@@ -299,7 +303,7 @@ pexpect==4.8.0
     # via ipython
 pickleshare==0.7.5
     # via ipython
-pillow==8.0.0
+pillow==8.1.2
     # via
     #   -r ./base.txt
     #   bokeh
@@ -315,8 +319,10 @@ psycopg2-binary==2.8.5
     # via -r local.in
 ptyprocess==0.6.0
     # via pexpect
-py==1.9.0
-    # via pytest
+py==1.10.0
+    # via
+    #   -r local.in
+    #   pytest
 pycodestyle==2.6.0
     # via flake8
 pycparser==2.20
@@ -325,7 +331,7 @@ pycparser==2.20
     #   cffi
 pyflakes==2.2.0
     # via flake8
-pygments==2.7.1
+pygments==2.8.1
     # via
     #   -r ./base.txt
     #   ipython
@@ -372,7 +378,7 @@ pytz==2020.1
     #   django-notifications-hq
     #   django-trackstats
     #   pandas
-pyyaml==5.3.1
+pyyaml==5.4.1
     # via
     #   -r ./base.txt
     #   bokeh
@@ -435,7 +441,7 @@ sqlparse==0.4.1
     #   -r ./base.txt
     #   django
     #   django-debug-toolbar
-surfacetopography==0.91.5
+surfacetopography==0.93.0
     # via
     #   -r ./base.txt
     #   contactmechanics

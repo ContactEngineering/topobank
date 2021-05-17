@@ -2,7 +2,7 @@ import pytest
 
 from django.shortcuts import reverse
 
-from topobank.manager.tests.utils import TopographyFactory, UserFactory
+from topobank.manager.tests.utils import Topography1DFactory, UserFactory
 from topobank.manager.utils import subjects_to_json
 from .utils import AnalysisFunctionFactory
 from ..views import card_view_class, SimpleCardView, PlotCardView, PowerSpectrumCardView
@@ -18,7 +18,7 @@ def test_card_templates_simple(client, mocker, handle_usage_statistics):
     password = "secret"
     user = UserFactory(password=password)
     func1 = AnalysisFunctionFactory(card_view_flavor='power spectrum')
-    topo1 = TopographyFactory()
+    topo1 = Topography1DFactory()
 
     # An analysis function with card_view_flavor='power spectrum'
     # should use the template which is needed for PowerSpectrumCardView.
@@ -58,7 +58,7 @@ def test_card_templates_for_power_spectrum(client, mocker, handle_usage_statisti
     password = "secret"
     user = UserFactory(password=password)
     func1 = AnalysisFunctionFactory(card_view_flavor='power spectrum')
-    topo1 = TopographyFactory()
+    topo1 = Topography1DFactory()
 
     assert client.login(username=user.username, password=password)
 

@@ -32,7 +32,7 @@
         <div class="tab-pane show active" id="table" role="tabpanel" aria-labelledby="card-tab">
           {% include 'analysis/analyses_alerts.html' %}
           {% if analyses_success %}
-             {% include 'analysis/rmstable_card_datatables.html' %}
+             {% include 'analysis/roughnessparameters_card_datatables.html' %}
           {% endif %}
         </div>
         {% include 'analysis/analyses_warnings_tab_pane.html' %}
@@ -51,10 +51,10 @@
           {% if analyses_available %}
             {% if analyses_success %}
               <a class="btn btn-default btn-block btn-lg"
-                 href="{% url 'analysis:download' analyses_success|analyses_results_ids_list_str 'rms table' 'txt' %}">
+                 href="{% url 'analysis:download' analyses_success|analyses_results_ids_list_str 'roughness parameters' 'txt' %}">
                 {% fontawesome_icon 'download' %} Download as TXT</a>
               <a class="btn btn-default btn-block btn-lg"
-                 href="{% url 'analysis:download' analyses_success|analyses_results_ids_list_str 'rms table' 'xlsx' %}">
+                 href="{% url 'analysis:download' analyses_success|analyses_results_ids_list_str 'roughness parameters' 'xlsx' %}">
                 {% fontawesome_icon 'download' %} Download as XLSX</a>
             {% endif %}
             {% if not analyses_unready %}

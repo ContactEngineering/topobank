@@ -2,7 +2,7 @@ import pytest
 
 from splinter_tests.utils import checkbox_for_item_by_name, is_in_basket, \
     goto_select_page, goto_sharing_page, active_page_number
-from topobank.manager.tests.utils import SurfaceFactory, TopographyFactory, TagModelFactory
+from topobank.manager.tests.utils import SurfaceFactory, Topography1DFactory, TagModelFactory
 
 
 @pytest.fixture(scope='function')
@@ -12,11 +12,11 @@ def items_for_selection(db, user_alice):
     tag2 = TagModelFactory(name="tag2")
 
     surface1 = SurfaceFactory(creator=user_alice, name='surface1')
-    topo1a = TopographyFactory(surface=surface1, name='topo1a')
-    topo1b = TopographyFactory(surface=surface1, tags=[tag1, tag2], name='topo1b')
+    topo1a = Topography1DFactory(surface=surface1, name='topo1a')
+    topo1b = Topography1DFactory(surface=surface1, tags=[tag1, tag2], name='topo1b')
 
     surface2 = SurfaceFactory(creator=user_alice, tags=[tag1], name="surface2")
-    topo2a = TopographyFactory(surface=surface2, name='topo2a')
+    topo2a = Topography1DFactory(surface=surface2, name='topo2a')
 
     return dict(
         tags=[tag1, tag2],

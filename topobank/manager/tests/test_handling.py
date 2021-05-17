@@ -1,12 +1,18 @@
 from django.shortcuts import reverse
 from django.core.files.uploadedfile import SimpleUploadedFile
+from rest_framework.test import APIRequestFactory
+
+from trackstats.models import Metric, Period
 
 import pytest
 from pathlib import Path
 import datetime
 import os.path
+import zipfile
+from io import BytesIO
+import yaml
 
-from .utils import FIXTURE_DIR, SurfaceFactory, TopographyFactory, UserFactory, \
+from .utils import FIXTURE_DIR, SurfaceFactory, Topography1DFactory, Topography2DFactory, UserFactory, \
     two_topos, one_line_scan, user_three_topographies_three_surfaces_three_tags
 from ..models import Topography, Surface, MAX_LENGTH_DATAFILE_FORMAT
 from ..forms import TopographyForm, TopographyWizardUnitsForm, SurfaceForm
@@ -38,6 +44,52 @@ def test_empty_surface_selection(client, handle_usage_statistics):
     # Now the selection should contain one empty surface
     #
     assert client.session['selection'] == [f'surface-{surface.pk}']
+
+
+@pytest.mark.django_db
+def test_download_selection(client, mocker, handle_usage_statistics):
+
+    record_mock = mocker.patch('trackstats.models.StatisticByDateAndObject.objects.record')
+
+    user = UserFactory()
+    surface1 = SurfaceFactory(creator=user)
+    surface2 = SurfaceFactory(creator=user)
+    topo1a = Topography1DFactory(surface=surface1)
+    topo1b = Topography2DFactory(surface=surface1)
+    topo2a = Topography1DFactory(surface=surface2)
+
+    factory = APIRequestFactory()
+
+    request = factory.get(reverse('manager:download-selection'))
+    request.user = user
+    request.session = {
+        'selection': [f'topography-{topo1a.id}', f'surface-{surface2.id}']
+    }
+    from ..views import download_selection_as_surfaces
+    response = download_selection_as_surfaces(request)
+    assert response.status_code == 200
+
+    # open zip file and look into meta file, there should be two surfaces and three topographies
+    with zipfile.ZipFile(BytesIO(response.content)) as zf:
+        meta_file = zf.open('meta.yml')
+        meta = yaml.load(meta_file)
+        assert len(meta['surfaces']) == 2
+        assert len(meta['surfaces'][0]['topographies']) == 2
+        assert len(meta['surfaces'][1]['topographies']) == 1
+
+    # each downloaded surface is counted once
+    metric = Metric.objects.SURFACE_DOWNLOAD_COUNT
+    today = datetime.date.today()
+    record_mock.assert_any_call(metric=metric, object=surface1, period=Period.DAY,
+                                value=1, date=today)
+    record_mock.assert_any_call(metric=metric, object=surface2, period=Period.DAY,
+                                value=1, date=today)
+
+
+
+
+
+
 
 
 #######################################################################
@@ -388,7 +440,7 @@ def test_upload_topography_and_name_like_an_existing_for_same_surface(client):
 
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
-    TopographyFactory(surface=surface, name="TOPO")  # <-- we will try to create another topography named TOPO later
+    Topography1DFactory(surface=surface, name="TOPO")  # <-- we will try to create another topography named TOPO later
 
     client.force_login(user)
 
@@ -995,7 +1047,7 @@ def test_only_positive_size_values_on_edit(client, django_user_model, handle_usa
     user = django_user_model.objects.create_user(username=username, password=password)
 
     surface = SurfaceFactory(creator=user)
-    topography = TopographyFactory(surface=surface, size_y=1024)  # pass size_y in order to have a map
+    topography = Topography2DFactory(surface=surface, size_y=1024)  # pass size_y in order to have a map
 
     assert client.login(username=username, password=password)
 

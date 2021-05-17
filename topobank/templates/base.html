@@ -16,7 +16,7 @@
     <meta name="description" content="">
     <meta name="author" content="">
 
-    <title>contact.engineering - Topography Storage and Analysis</title>
+    <title>contact.engineering - Store and analyze surface topography measurements</title>
 
     <link rel="icon" type="image/x-icon" href="{% static 'images/favicons/favicon.ico' %}"/>
 
@@ -82,7 +82,7 @@
         {% else %} {# user is anonymous #}
           <li class="nav-item">
             <a class="btn btn-info" href="{% provider_login_url 'orcid' method="oauth2" %}">
-                  Sign in via ORCID for more functionality.
+                  Sign in via ORCID
             </a>
           </li>
         {% endif %} {# if user is not anonymous #}

@@ -21,16 +21,15 @@ from django.conf import settings
 
 import django_tables2 as tables
 
-from bokeh.layouts import row, column, grid
-from bokeh.models import ColumnDataSource, CustomJS, TapTool, Circle, HoverTool, Band
+from bokeh.layouts import row, column, grid, layout
+from bokeh.models import ColumnDataSource, CustomJS, TapTool, Circle, HoverTool
 from bokeh.palettes import Category10
-from bokeh.models.formatters import FuncTickFormatter
 from bokeh.models.ranges import DataRange1d
 from bokeh.plotting import figure
 from bokeh.embed import components, json_item
-from bokeh.models.widgets import CheckboxGroup, Tabs, Panel, Toggle
-from bokeh.models.widgets.markups import Paragraph
-from bokeh.models import Legend, LinearColorMapper, ColorBar, CategoricalColorMapper
+from bokeh.models.widgets import CheckboxGroup, Tabs, Panel, Toggle, Div, Slider, Button
+from bokeh.models import LinearColorMapper, ColorBar
+from bokeh.models.formatters import FuncTickFormatter
 
 import xarray as xr
 
@@ -46,6 +45,7 @@ from ..manager.models import Topography, Surface
 from ..manager.utils import selected_instances, instances_to_selection, instances_to_topographies, \
     selection_to_subjects_json, subjects_from_json, subjects_to_json
 from ..usage_stats.utils import increase_statistics_by_date_and_object
+from ..plots import configure_plot
 from .models import Analysis, AnalysisFunction, AnalysisCollection, CARD_VIEW_FLAVORS, ImplementationMissingException
 from .forms import FunctionSelectForm
 from .utils import get_latest_analyses, round_to_significant_digits, request_analysis
@@ -364,21 +364,53 @@ class PlotCardView(SimpleCardView):
                      series_dashes=json.dumps(list())))
             return context
 
+        #
         # order analyses such that surface analyses are coming last (plotted on top)
+        #
+        topography_ct = ContentType.objects.get_for_model(Topography)
         surface_ct = ContentType.objects.get_for_model(Surface)
         analyses_success_list = list(analyses_success.filter(~Q(subject_type=surface_ct)))
+
         for surface_analysis in analyses_success.filter(subject_type=surface_ct):
             if surface_analysis.subject.num_topographies() > 1:
                 # only show average for surface if more than one topography
                 analyses_success_list.append(surface_analysis)
 
         #
+        # Build order of subjects such that surfaces are first (used for checkbox on subjects)
+        #
+        subjects = set(a.subject for a in analyses_success_list)
+        subjects = sorted(subjects, key=lambda s: s.get_content_type() == surface_ct, reverse=True)  # surfaces first
+        subject_names_for_plot = []
+
+        # Build subject groups by content type, so each content type gets its
+        # one checkbox group
+
+        subject_checkbox_groups = {}   # key: ContentType, value: list of subject names to display
+
+        for s in subjects:
+            subject_ct = s.get_content_type()
+            subject_name = s.label
+            if subject_ct == surface_ct:
+                subject_name = f"Average of {subject_name}"
+            subject_names_for_plot.append(subject_name)
+
+            if subject_ct not in subject_checkbox_groups.keys():
+                subject_checkbox_groups[subject_ct] = []
+
+            subject_checkbox_groups[subject_ct].append(subject_name)
+
+        has_at_least_one_surface_subject = surface_ct in subject_checkbox_groups.keys()
+        if has_at_least_one_surface_subject:
+            num_surface_subjects = len(subject_checkbox_groups[surface_ct])
+        else:
+            num_surface_subjects = 0
+
+        #
         # Use first analysis to determine some properties for the whole plot
         #
 
         first_analysis_result = analyses_success_list[0].result_obj
-        title = first_analysis_result['name']
-
         xunit = first_analysis_result['xunit'] if 'xunit' in first_analysis_result else None
         yunit = first_analysis_result['yunit'] if 'yunit' in first_analysis_result else None
 
@@ -403,8 +435,7 @@ class PlotCardView(SimpleCardView):
         #
         # Create the plot figure
         #
-        plot = figure(title=title,
-                      plot_height=300,
+        plot = figure(plot_height=300,
                       sizing_mode='scale_width',
                       x_range=x_range,
                       y_range=y_range,
@@ -433,10 +464,11 @@ class PlotCardView(SimpleCardView):
         # TODO remove code for toggling symbols if not needed
 
         subject_colors = OrderedDict()  # key: subject instance, value: color
-        subject_display_names = []
 
         series_dashes = OrderedDict()  # key: series name
         series_names = []
+
+        DEFAULT_ALPHA_FOR_TOPOGRAPHIES = 0.3 if has_at_least_one_surface_subject else 1.0
 
         # Also give each series a symbol (only used for small number of points)
         # series_symbols = OrderedDict()  # key: series name
@@ -444,31 +476,27 @@ class PlotCardView(SimpleCardView):
         #
         # Traverse analyses and plot lines
         #
-        js_code = ""
+        js_code_toggle_callback = ""  # callback code if user clicks on checkbox to toggle lines
+        js_code_alpha_callback = ""  # callback code if user changes alpha value by slider
         js_args = {}
 
         special_values = []  # elements: tuple(subject, quantity name, value, unit string)
-        subjects = []
 
         for analysis in analyses_success_list:
 
+            #
+            # Define some helper variables
+            #
             subject = analysis.subject
+            subject_idx = subjects.index(subject)  # unique identifier within the plot
+            subject_colors[subject] = next(color_cycle)
+
             is_surface_analysis = isinstance(subject, Surface)
             is_topography_analysis = isinstance(subject, Topography)
 
-            subject_display_name = f"{subject.name} ({subject.get_content_type().model})"
+            subject_display_name = subject_names_for_plot[subject_idx]
             if is_topography_analysis:
                 subject_display_name += f", surface: {subject.surface.name}"
-
-            #
-            # find out colors for subject and define an index
-            #
-            if subject not in subjects:
-                subjects.append(subject)
-                subject_colors[subject] = next(color_cycle)
-                subject_display_names.append(subject_display_name)
-
-            subject_idx = subjects.index(subject)  # unique identifier within the plot
 
             #
             # handle task state
@@ -552,16 +580,20 @@ class PlotCardView(SimpleCardView):
 
                 # hover_name = "{} for '{}'".format(series_name, topography_name)
                 line_width = LINEWIDTH_FOR_SURFACE_AVERAGE if is_surface_analysis else 1
+                topo_alpha = DEFAULT_ALPHA_FOR_TOPOGRAPHIES if is_topography_analysis else 1.
                 line_glyph = plot.line('x', 'y', source=source, legend_label=legend_entry,
                                        line_color=curr_color,
                                        line_dash=curr_dash,
                                        line_width=line_width,
+                                       line_alpha=topo_alpha,
                                        name=subject_display_name)
                 if show_symbols:
                     symbol_glyph = plot.scatter('x', 'y', source=source,
                                                 legend_label=legend_entry,
                                                 marker='circle',
                                                 size=10,
+                                                line_alpha=topo_alpha,
+                                                fill_alpha=topo_alpha,
                                                 line_color=curr_color,
                                                 line_dash=curr_dash,
                                                 fill_color=curr_color,
@@ -577,8 +609,14 @@ class PlotCardView(SimpleCardView):
                 js_args[glyph_id] = line_glyph  # mapping from Python to JS
 
                 # only indices of visible glyphs appear in "active" lists of both button groups
-                js_code += f"{glyph_id}.visible = series_btn_group.active.includes({series_idx}) " \
-                           + f"&& subject_btn_group.active.includes({subject_idx});"
+                js_code_toggle_callback += f"{glyph_id}.visible = series_btn_group.active.includes({series_idx}) "
+                if is_surface_analysis:
+                    js_code_toggle_callback += f"&& surface_btn_group.active.includes({subject_idx});"
+                elif is_topography_analysis:
+                    js_code_toggle_callback += f"&& topography_btn_group.active.includes({subject_idx - num_surface_subjects});"
+                # Opaqueness of topography lines should be changeable
+                if is_topography_analysis:
+                    js_code_alpha_callback += f"{glyph_id}.glyph.line_alpha = topography_alpha_slider.value;"
 
                 if show_symbols:
                     # prepare unique id for this symbols
@@ -586,8 +624,13 @@ class PlotCardView(SimpleCardView):
                     js_args[glyph_id] = symbol_glyph  # mapping from Python to JS
 
                     # only indices of visible glyphs appear in "active" lists of both button groups
-                    js_code += f"{glyph_id}.visible = series_btn_group.active.includes({series_idx}) " \
-                               + f"&& subject_btn_group.active.includes({subject_idx});"
+                    js_code_toggle_callback += f"{glyph_id}.visible = series_btn_group.active.includes({series_idx}) "
+                    if is_surface_analysis:
+                        js_code_toggle_callback += f"&& surface_btn_group.active.includes({subject_idx});"
+                    elif is_topography_analysis:
+                        js_code_toggle_callback += f"&& topography_btn_group.active.includes({subject_idx - num_surface_subjects});"
+                        js_code_alpha_callback += f"{glyph_id}.glyph.line_alpha = topography_alpha_slider.value;"
+                        js_code_alpha_callback += f"{glyph_id}.glyph.fill_alpha = topography_alpha_slider.value;"
 
             #
             # Collect special values to be shown in the result card
@@ -608,18 +651,11 @@ class PlotCardView(SimpleCardView):
         # Final configuration of the plot
         #
 
+        configure_plot(plot)
+
         # plot.legend.click_policy = "hide" # can be used to disable lines by clicking on legend
         plot.legend.visible = False  # we have extra widgets to disable lines
-        plot.toolbar.logo = None
         plot.toolbar.active_inspect = None
-        plot.xaxis.axis_label_text_font_style = "normal"
-        plot.yaxis.axis_label_text_font_style = "normal"
-        plot.xaxis.major_label_text_font_size = "12pt"
-        plot.yaxis.major_label_text_font_size = "12pt"
-
-        # see js function "format_exponential()" in project.js file
-        plot.xaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
-        plot.yaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
 
         #
         # Adding widgets for switching lines on/off
@@ -628,50 +664,129 @@ class PlotCardView(SimpleCardView):
             labels=series_names,
             css_classes=["topobank-series-checkbox"],
             visible=False,
-            active=list(range(len(series_names))))  # all active
+            active=list(range(len(series_names))))  # all indices included -> all active
 
-        subject_names_for_btn_group = list(s.name for s in subject_colors.keys())
-        subject_btn_group = CheckboxGroup(
-            labels=subject_names_for_btn_group,
-            css_classes=["topobank-subject-checkbox"],
-            visible=False,
-            active=list(range(len(subject_names_for_btn_group))))  # all active
+        # create list of checkbox group, one checkbox group for each subject type
+        if has_at_least_one_surface_subject:
+            surface_btn_group = CheckboxGroup(
+                    labels=subject_checkbox_groups[surface_ct],
+                    css_classes=["topobank-subject-checkbox", "topobank-surface-checkbox"],
+                    visible=False,
+                    active=list(range(len(subject_checkbox_groups[surface_ct]))))  # all indices included -> all active
+        else:
+            surface_btn_group = Div(visible=False)
 
-        subject_btn_group_toggle_button = Toggle(label="Topographies / Surfaces")
-        series_btn_group_toggle_button = Toggle(label="Data Series")
+        topography_btn_group = CheckboxGroup(
+                labels=subject_checkbox_groups[topography_ct],
+                css_classes=["topobank-subject-checkbox", "topobank-topography-checkbox"],
+                visible=False,
+                active=list(range(len(subject_checkbox_groups[topography_ct]))))
 
+        subject_select_all_btn = Button(label="Select all",
+                                        width_policy='min',
+                                        visible=False)
+        subject_deselect_all_btn = Button(label="Deselect all",
+                                          width_policy='min',
+                                          visible=False)
+
+        subject_btn_group_toggle_button_label = "Measurements"
+        if has_at_least_one_surface_subject:
+            subject_btn_group_toggle_button_label = "Average / "+subject_btn_group_toggle_button_label
+        subject_btn_group_toggle_button = Toggle(label=subject_btn_group_toggle_button_label,
+                                                 button_type='primary')
+        series_btn_group_toggle_button = Toggle(label="Data series",
+                                                button_type='primary')
+        options_group_toggle_button = Toggle(label="Plot options",
+                                             button_type='primary')
+
+        topography_alpha_slider = Slider(start=0, end=1, title="Opacity of measurement lines",
+                                         value=DEFAULT_ALPHA_FOR_TOPOGRAPHIES
+                                         if has_at_least_one_surface_subject else 1.0,
+                                         sizing_mode='scale_width',
+                                         step=0.1, visible=False)
+        options_group = column([topography_alpha_slider])
+
+        #
         # extend mapping of Python to JS objects
+        #
+        js_args['surface_btn_group'] = surface_btn_group
+        js_args['topography_btn_group'] = topography_btn_group
+        js_args['subject_select_all_btn'] = subject_select_all_btn
+        js_args['subject_deselect_all_btn'] = subject_deselect_all_btn
+
         js_args['series_btn_group'] = series_button_group
-        js_args['subject_btn_group'] = subject_btn_group
+        js_args['topography_alpha_slider'] = topography_alpha_slider
+
         js_args['subject_btn_group_toggle_btn'] = subject_btn_group_toggle_button
         js_args['series_btn_group_toggle_btn'] = series_btn_group_toggle_button
+        js_args['options_group_toggle_btn'] = options_group_toggle_button
 
-        # add code for setting styles of widgetbox elements
-        # js_code += """
-        # style_checkbox_labels({});
-        # """.format(card_id)
-
-        toggle_lines_callback = CustomJS(args=js_args, code=js_code)
-        toggle_topography_checkboxes = CustomJS(args=js_args, code="""
-            subject_btn_group.visible = subject_btn_group_toggle_btn.active;
+        #
+        # Toggling visibility of the buttons / checkboxes
+        #
+        toggle_lines_callback = CustomJS(args=js_args, code=js_code_toggle_callback)
+        toggle_subject_checkboxes = CustomJS(args=js_args, code="""
+            surface_btn_group.visible = subject_btn_group_toggle_btn.active;
+            topography_btn_group.visible = subject_btn_group_toggle_btn.active;
+            subject_select_all_btn.visible = subject_btn_group_toggle_btn.active;
+            subject_deselect_all_btn.visible = subject_btn_group_toggle_btn.active;
         """)
         toggle_series_checkboxes = CustomJS(args=js_args, code="""
             series_btn_group.visible = series_btn_group_toggle_btn.active;
         """)
+        toggle_options = CustomJS(args=js_args, code="""
+            topography_alpha_slider.visible = options_group_toggle_btn.active;
+        """)
 
-        #
-        # TODO Idea: Generate DIVs with Markup of colors and dashes and align with Buttons/Checkboxes
-        #
-
-        widgets = grid([
-            [subject_btn_group_toggle_button, series_btn_group_toggle_button],
-            [subject_btn_group, series_button_group],
-        ])
+        subject_btn_groups = layout([subject_select_all_btn, subject_deselect_all_btn],
+                                    [surface_btn_group],
+                                    [topography_btn_group])
 
         series_button_group.js_on_click(toggle_lines_callback)
-        subject_btn_group.js_on_click(toggle_lines_callback)
-        subject_btn_group_toggle_button.js_on_click(toggle_topography_checkboxes)
+        if has_at_least_one_surface_subject:
+            surface_btn_group.js_on_click(toggle_lines_callback)
+        topography_btn_group.js_on_click(toggle_lines_callback)
+        subject_btn_group_toggle_button.js_on_click(toggle_subject_checkboxes)
         series_btn_group_toggle_button.js_on_click(toggle_series_checkboxes)
+        options_group_toggle_button.js_on_click(toggle_options)
+
+        #
+        # Callback for changing opaqueness of measurement lines
+        #
+        topography_alpha_slider.js_on_change('value', CustomJS(args=js_args,
+                                                               code=js_code_alpha_callback))
+
+        #
+        # Callback for toggling lines
+        #
+        subject_select_all_btn.js_on_click(CustomJS(args=js_args, code="""
+            let all_topo_idx = [];
+            for (let i=0; i<topography_btn_group.labels.length; i++) {
+                all_topo_idx.push(i);
+            }
+            topography_btn_group.active = all_topo_idx;
+
+            /** surface_btn_group may just be a div if no averages defined */
+            if ('labels' in surface_btn_group) {
+                let all_surf_idx = [];
+                for (let i=0; i<surface_btn_group.labels.length; i++) {
+                    all_surf_idx.push(i);
+                }
+                surface_btn_group.active = all_surf_idx;
+            }
+        """))
+        subject_deselect_all_btn.js_on_click(CustomJS(args=js_args, code="""
+            surface_btn_group.active = [];
+            topography_btn_group.active = [];
+        """))
+        #
+        # Build layout for buttons underneath plot
+        #
+        widgets = grid([
+            [subject_btn_group_toggle_button, series_btn_group_toggle_button, options_group_toggle_button],
+            [subject_btn_groups, series_button_group, options_group],
+        ])
+
         #
         # Convert plot and widgets to HTML, add meta data for template
         #
@@ -785,9 +900,6 @@ class ContactMechanicsCardView(SimpleCardView):
                                        y_axis_type="log",
                                        tools=tools)
 
-            contact_area_plot.xaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
-            contact_area_plot.yaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
-
             load_plot = figure(title=None,
                                plot_height=400,
                                sizing_mode='scale_width',
@@ -795,8 +907,6 @@ class ContactMechanicsCardView(SimpleCardView):
                                y_axis_label=load_axis_label,
                                x_axis_type="linear",
                                y_axis_type="log", tools=tools)
-
-            load_plot.yaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
 
             for source, label in zip(sources, labels):
                 curr_color = next(color_cycle)
@@ -837,11 +947,11 @@ class ContactMechanicsCardView(SimpleCardView):
                 js_code += f"{glyph_id_area_plot}.visible = topography_btn_group.active.includes({topography_idx});"
                 js_code += f"{glyph_id_load_plot}.visible = topography_btn_group.active.includes({topography_idx});"
 
-            _configure_plot(contact_area_plot)
-            _configure_plot(load_plot)
+            configure_plot(contact_area_plot)
+            configure_plot(load_plot)
 
             #
-            # Adding widget for switching symbols on/off
+            # Adding widgets for switching symbols on/off
             #
             topography_button_group = CheckboxGroup(
                 labels=topography_names,
@@ -849,23 +959,49 @@ class ContactMechanicsCardView(SimpleCardView):
                 visible=False,
                 active=list(range(len(topography_names))))  # all active
 
-            topography_btn_group_toggle_button = Toggle(label="Topographies")
+            topography_btn_group_toggle_button = Toggle(label="Measurements", button_type='primary')
+
+            subject_select_all_btn = Button(label="Select all",
+                                            width_policy='min',
+                                            visible=False)
+            subject_deselect_all_btn = Button(label="Deselect all",
+                                              width_policy='min',
+                                              visible=False)
 
             # extend mapping of Python to JS objects
             js_args['topography_btn_group'] = topography_button_group
             js_args['topography_btn_group_toggle_btn'] = topography_btn_group_toggle_button
+            js_args['subject_select_all_btn'] = subject_select_all_btn
+            js_args['subject_deselect_all_btn'] = subject_deselect_all_btn
 
             toggle_lines_callback = CustomJS(args=js_args, code=js_code)
             toggle_topography_checkboxes = CustomJS(args=js_args, code="""
-                        topography_btn_group.visible = topography_btn_group_toggle_btn.active;
-                    """)
+                topography_btn_group.visible = topography_btn_group_toggle_btn.active;
+                subject_select_all_btn.visible = topography_btn_group_toggle_btn.active;
+                subject_deselect_all_btn.visible = topography_btn_group_toggle_btn.active;
+            """)
 
             widgets = grid([
                 [topography_btn_group_toggle_button],
-                [topography_button_group]
+                layout([subject_select_all_btn, subject_deselect_all_btn],
+                       [topography_button_group])
             ])
             topography_button_group.js_on_click(toggle_lines_callback)
             topography_btn_group_toggle_button.js_on_click(toggle_topography_checkboxes)
+
+            #
+            # Callback for toggling lines
+            #
+            subject_select_all_btn.js_on_click(CustomJS(args=js_args, code="""
+                let all_topo_idx = [];
+                for (let i=0; i<topography_btn_group.labels.length; i++) {
+                    all_topo_idx.push(i);
+                }
+                topography_btn_group.active = all_topo_idx;
+            """))
+            subject_deselect_all_btn.js_on_click(CustomJS(args=js_args, code="""
+                topography_btn_group.active = [];
+            """))
 
             #
             # Layout plot
@@ -902,7 +1038,7 @@ class ContactMechanicsCardView(SimpleCardView):
                  message="""
                  Translucent data points did not converge within iteration limit and may carry large errors.
                  <i>A</i> is the true contact area and <i>A0</i> the apparent contact area,
-                 i.e. the size of the provided topography.""")
+                 i.e. the size of the provided measurement.""")
         ]
 
         context['limits_calc_kwargs'] = settings.CONTACT_MECHANICS_KWARGS_LIMITS
@@ -910,16 +1046,20 @@ class ContactMechanicsCardView(SimpleCardView):
         return context
 
 
-class RMSTable(tables.Table):
-    topography = tables.Column(linkify=lambda **kwargs: kwargs['record']['topography'].get_absolute_url(),
-                               accessor='topography__name')
-    quantity = tables.Column()
-    direction = tables.Column()
-    value = tables.Column()
-    unit = tables.Column()
+class RoughnessParametersCardView(SimpleCardView):
 
-
-class RmsTableCardView(SimpleCardView):
+    @staticmethod
+    def _convert_value(v):
+        if v is not None:
+            if math.isnan(v):
+                v = None  # will be interpreted as null in JS, replace there with NaN!
+                # It's not easy to pass NaN as JSON:
+                # https://stackoverflow.com/questions/15228651/how-to-parse-json-string-containing-nan-in-node-js
+            else:
+                # convert float32 to float, round to fixed number of significant digits
+                v = round_to_significant_digits(v.astype(float),
+                                                NUM_SIGNIFICANT_DIGITS_RMS_VALUES)
+        return v
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -931,17 +1071,15 @@ class RmsTableCardView(SimpleCardView):
             analysis_result = analysis.result_obj
 
             for d in analysis_result:
-                if math.isnan(d['value']):
-                    d['value'] = None  # will be interpreted as null in JS, replace there with NaN!
-                    # It's not easy to pass NaN as JSON:
-                    # https://stackoverflow.com/questions/15228651/how-to-parse-json-string-containing-nan-in-node-js
-                else:
-                    # convert float32 to float, round to fixed number of significant digits
-                    d['value'] = round_to_significant_digits(d['value'].astype(float),
-                                                             NUM_SIGNIFICANT_DIGITS_RMS_VALUES)
+                d['value'] = self._convert_value(d['value'])
 
                 if not d['direction']:
                     d['direction'] = ''
+                if not d['from']:
+                    d['from'] = ''
+                if not d['symbol']:
+                    d['symbol'] = ''
+
                 # put topography in every line
                 topo = analysis.subject
                 d.update(dict(topography_name=topo.name,
@@ -968,21 +1106,11 @@ class RmsTableCardView(SimpleCardView):
         #
         # create table
         #
-        # table = RMSTable(data=data, empty_text="No RMS values calculated.", request=self.request)
-
         context.update(dict(
             table_data=data
         ))
 
         return context
-
-
-def _configure_plot(plot):
-    plot.toolbar.logo = None
-    plot.xaxis.axis_label_text_font_style = "normal"
-    plot.yaxis.axis_label_text_font_style = "normal"
-    plot.xaxis.major_label_text_font_size = "12pt"
-    plot.yaxis.major_label_text_font_size = "12pt"
 
 
 def submit_analyses_view(request):
@@ -1041,7 +1169,7 @@ def submit_analyses_view(request):
     return JsonResponse({}, status=status)
 
 
-def _contact_mechanics_geometry_figure(values, frame_width, frame_height, topo_unit, topo_size, title=None,
+def _contact_mechanics_geometry_figure(values, frame_width, frame_height, topo_unit, topo_size, colorbar_title=None,
                                        value_unit=None):
     """
 
@@ -1050,25 +1178,32 @@ def _contact_mechanics_geometry_figure(values, frame_width, frame_height, topo_u
     :param frame_height:
     :param topo_unit:
     :param topo_size:
-    :param title:
+    :param colorbar_title:
     :param value_unit:
     :return:
     """
 
     x_range = DataRange1d(start=0, end=topo_size[0], bounds='auto', range_padding=5)
-    y_range = DataRange1d(start=0, end=topo_size[1], bounds='auto', range_padding=5)
+    y_range = DataRange1d(start=topo_size[1], end=0, flipped=True, range_padding=5)
 
-    p = figure(title=title,
-               x_range=x_range,
+    boolean_values = values.dtype == np.bool
+
+    COLORBAR_WIDTH = 50
+    COLORBAR_LABEL_STANDOFF = 12
+
+    plot_width = frame_width
+    if not boolean_values:
+        plot_width += COLORBAR_WIDTH + COLORBAR_LABEL_STANDOFF + 5
+
+    p = figure(x_range=x_range,
                y_range=y_range,
                frame_width=frame_width,
                frame_height=frame_height,
+               plot_width=plot_width,
                x_axis_label="Position x ({})".format(topo_unit),
                y_axis_label="Position y ({})".format(topo_unit),
                match_aspect=True,
                toolbar_location="above")
-
-    boolean_values = values.dtype == np.bool
 
     if boolean_values:
         color_mapper = LinearColorMapper(palette=["black", "white"], low=0, high=1)
@@ -1078,17 +1213,18 @@ def _contact_mechanics_geometry_figure(values, frame_width, frame_height, topo_u
 
         color_mapper = LinearColorMapper(palette='Viridis256', low=min_val, high=max_val)
 
-    p.image([values], x=0, y=0, dw=topo_size[0], dh=topo_size[1], color_mapper=color_mapper)
+    p.image([np.rot90(values)], x=0, y=topo_size[1], dw=topo_size[0], dh=topo_size[1], color_mapper=color_mapper)
 
     if not boolean_values:
         colorbar = ColorBar(color_mapper=color_mapper,
-                            label_standoff=12,
+                            label_standoff=COLORBAR_LABEL_STANDOFF,
+                            width=COLORBAR_WIDTH,
                             location=(0, 0),
-                            title=value_unit)
-
+                            title=f"{colorbar_title} ({value_unit})")
+        colorbar.formatter = FuncTickFormatter(code="return format_exponential(tick);")
         p.add_layout(colorbar, "right")
 
-    _configure_plot(p)
+    configure_plot(p)
 
     return p
 
@@ -1110,20 +1246,11 @@ def _contact_mechanics_distribution_figure(values, x_axis_label, y_axis_label,
                y_axis_type=y_axis_type,
                toolbar_location="above")
 
-    if x_axis_type == "log":
-        p.xaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
-    if y_axis_type == "log":
-        p.yaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
-
     p.step(edges[:-1], hist, mode="before", line_width=2)
 
-    _configure_plot(p)
+    configure_plot(p)
 
     return p
-
-
-def _contact_mechanics_displacement_figure():
-    pass
 
 
 def contact_mechanics_data(request):
@@ -1217,37 +1344,38 @@ def contact_mechanics_data(request):
                 #
                 'contact-geometry': _contact_mechanics_geometry_figure(
                     contacting_points,
-                    title="Contact geometry",
+                    colorbar_title="Contact geometry",
                     **geometry_figure_common_args),
                 'contact-pressure': _contact_mechanics_geometry_figure(
                     pressure,
-                    title=r'Contact pressure p(E*)',
+                    colorbar_title=r'Pressure',
+                    value_unit='E*',
                     **geometry_figure_common_args),
                 'displacement': _contact_mechanics_geometry_figure(
                     displacement,
-                    title=r'Displacement', value_unit=unit,
+                    colorbar_title=r'Displacem.',
+                    value_unit=unit,
                     **geometry_figure_common_args),
                 'gap': _contact_mechanics_geometry_figure(
-                    gap, title=r'Gap', value_unit=unit,
+                    gap,
+                    colorbar_title=r'Gap',
+                    value_unit=unit,
                     **geometry_figure_common_args),
                 #
                 # Distribution figures
                 #
                 'pressure-distribution': _contact_mechanics_distribution_figure(
                     pressure[contacting_points],
-                    title="Pressure distribution",
                     x_axis_label="Pressure p (E*)",
                     y_axis_label="Probability P(p) (1/E*)",
                     **common_kwargs),
                 'gap-distribution': _contact_mechanics_distribution_figure(
                     gap[gap > gap_tol],
-                    title="Gap distribution",
                     x_axis_label="Gap g ({})".format(topo.unit),
                     y_axis_label="Probability P(g) (1/{})".format(topo.unit),
                     **common_kwargs),
                 'cluster-size-distribution': _contact_mechanics_distribution_figure(
                     contact_areas,
-                    title="Cluster size distribution",
                     x_axis_label="Cluster area A({}²)".format(topo.unit),
                     y_axis_label="Probability P(A)",
                     x_axis_type="log",
@@ -1301,7 +1429,7 @@ def extra_tabs_if_single_item_selected(topographies, surfaces):
                 'href': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
                 'active': False,
                 'login_required': False,
-                'tooltip': f"Properties of topography '{topo.name}'",
+                'tooltip': f"Properties of measurement '{topo.name}'",
             }
         ])
     elif len(surfaces) == 1 and all(t.surface == surfaces[0] for t in topographies):

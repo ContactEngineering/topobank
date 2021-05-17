@@ -18,14 +18,15 @@ from django.urls import reverse
 
 from topobank.manager.models import Topography, Surface
 from topobank.manager.utils import subjects_to_json
-from topobank.manager.tests.utils import SurfaceFactory, UserFactory, TopographyFactory, two_topos
+from topobank.manager.tests.utils import SurfaceFactory, UserFactory, \
+    Topography1DFactory, Topography2DFactory, two_topos
 from topobank.taskapp.tasks import current_configuration
 from topobank.utils import assert_in_content, assert_not_in_content
 from .utils import AnalysisFunctionFactory, AnalysisFunctionImplementationFactory, \
     TopographyAnalysisFactory, SurfaceAnalysisFactory
 
 from ..models import Analysis, AnalysisFunction
-from ..views import RmsTableCardView, NUM_SIGNIFICANT_DIGITS_RMS_VALUES
+from ..views import RoughnessParametersCardView, NUM_SIGNIFICANT_DIGITS_RMS_VALUES
 
 
 def selection_from_instances(instances):
@@ -289,9 +290,9 @@ def test_warnings_for_different_arguments(client, handle_usage_statistics):
     user = UserFactory()
     surf1 = SurfaceFactory(creator=user)
     surf2 = SurfaceFactory(creator=user)
-    topo1a = TopographyFactory(surface=surf1)
-    topo1b = TopographyFactory(surface=surf1)
-    topo2a = TopographyFactory(surface=surf2)
+    topo1a = Topography1DFactory(surface=surf1)
+    topo1b = Topography1DFactory(surface=surf1)
+    topo2a = Topography1DFactory(surface=surf2)
 
     func = AnalysisFunctionFactory()
     topo_impl = AnalysisFunctionImplementationFactory(function=func,
@@ -540,11 +541,11 @@ def test_analysis_download_as_txt(client, two_topos, ids_downloadable_analyses, 
 
 @pytest.mark.parametrize('file_format', ['txt', 'xlsx'])
 @pytest.mark.django_db
-def test_rms_table_download_as_txt(client, two_topos, file_format, handle_usage_statistics):
+def test_roughness_params_download_as_txt(client, two_topos, file_format, handle_usage_statistics):
     # This is only a simple test which checks whether the file can be downloaded
     t1, t2 = two_topos
 
-    func = AnalysisFunction.objects.get(name='RMS Values')
+    func = AnalysisFunction.objects.get(name='Roughness Parameters')
 
     import pickle
     pickled_kwargs = pickle.dumps({})
@@ -560,18 +561,20 @@ def test_rms_table_download_as_txt(client, two_topos, file_format, handle_usage_
     ids_downloadable_analyses = [ana1.id, ana2.id]
 
     ids_str = ",".join(str(i) for i in ids_downloadable_analyses)
-    download_url = reverse('analysis:download', kwargs=dict(ids=ids_str, card_view_flavor='rms table',
-                                                            file_format=file_format))
+    download_url = reverse('analysis:download',
+                           kwargs=dict(ids=ids_str,
+                                       card_view_flavor='roughness parameters',
+                                       file_format=file_format))
 
     response = client.get(download_url)
 
     if file_format == 'txt':
         txt = response.content.decode()
 
-        assert "RMS Values" in txt  # function name should be in there
-        assert "RMS Height" in txt
-        assert "RMS Slope" in txt
-        assert "RMS Curvature" in txt
+        assert "Roughness Parameters" in txt  # function name should be in there
+        assert "RMS height" in txt
+        assert "RMS slope" in txt
+        assert "RMS curvature" in txt
     else:
         # Resulting workbook should have two sheets
         tmp = tempfile.NamedTemporaryFile(suffix='.xlsx')  # will be deleted automatically
@@ -584,54 +587,70 @@ def test_rms_table_download_as_txt(client, two_topos, file_format, handle_usage_
 
         assert len(xlsx.worksheets) == 2
 
-        ws = xlsx.get_sheet_by_name("RMS values")
+        ws = xlsx.get_sheet_by_name("Roughness Parameters")
 
         all_values_list = list(np.array(list(ws.values)).flatten())
 
-        assert 'RMS Height' in all_values_list
-        assert 'RMS Slope' in all_values_list
-        assert 'RMS Curvature' in all_values_list
+        assert 'RMS height' in all_values_list
+        assert 'RMS slope' in all_values_list
+        assert 'RMS curvature' in all_values_list
 
         xlsx.get_sheet_by_name("INFORMATION")
 
 
 @pytest.mark.django_db
-def test_rms_values_rounded(rf, mocker):
+def test_roughness_params_rounded(rf, mocker):
 
     from django.core.management import call_command
     call_command('register_analysis_functions')
 
-    m = mocker.patch('topobank.analysis.functions.rms_values')
+    m = mocker.patch('topobank.analysis.functions.roughness_parameters')
     m.return_value = [  # some fake values for rounding
         {
             'quantity': 'RMS Height',
             'direction': None,
+            'from': 'area (2D)',
+            'symbol': 'Sq',
             'value': np.float32(1.2345678),
+            'unit': 'm',
+        },
+        {
+            'quantity': 'RMS Height',
+            'direction': 'x',
+            'from': 'profile (1D)',
+            'symbol': 'Rq',
+            'value': np.float32(8.7654321),
             'unit': 'm',
         },
         {
             'quantity': 'RMS Curvature',
             'direction': None,
+            'from': 'profile (1D)',
+            'symbol': '',
             'value': np.float32(0.9),
             'unit': '1/m',
         },
         {
             'quantity': 'RMS Slope',
             'direction': 'x',
+            'from': 'profile (1D)',
+            'symbol': 'S&Delta;q',
             'value': np.float32(-1.56789),
             'unit': 1,
         },
         {
             'quantity': 'RMS Slope',
             'direction': 'y',
+            'from': 'profile (1D)',
+            'symbol': 'S&Delta;q',
             'value': np.float32('nan'),
             'unit': 1,
         }
     ]
 
-    topo = TopographyFactory(size_x=1, size_y=1)
+    topo = Topography2DFactory(size_x=1, size_y=1)
 
-    func = AnalysisFunction.objects.get(name='RMS Values')
+    func = AnalysisFunction.objects.get(name='Roughness Parameters')
     TopographyAnalysisFactory(subject=topo, function=func)
 
     request = rf.post(reverse('analysis:card'), data={
@@ -643,7 +662,7 @@ def test_rms_values_rounded(rf, mocker):
     request.user = topo.surface.creator
     request.session = {}
 
-    rms_table_card_view = RmsTableCardView.as_view()
+    rms_table_card_view = RoughnessParametersCardView.as_view()
     response = rms_table_card_view(request)
     assert response.status_code == 200
 
@@ -651,12 +670,13 @@ def test_rms_values_rounded(rf, mocker):
     # we want rounding to 5 digits
     assert NUM_SIGNIFICANT_DIGITS_RMS_VALUES == 5
     assert b"1.2346" in response.content
+    assert b"8.7654" in response.content
     assert b"0.9" in response.content
     assert b"-1.5679" in response.content
     assert b"NaN" in response.content
 
 
-@pytest.mark.parametrize("same_names", [ False, True])
+@pytest.mark.parametrize("same_names", [False, True])
 @pytest.mark.django_db
 def test_analysis_download_as_xlsx(client, two_topos, ids_downloadable_analyses, same_names, settings, handle_usage_statistics):
 
@@ -825,9 +845,9 @@ def test_download_analysis_results_without_permission(client, two_topos, ids_dow
 @pytest.fixture
 def two_analyses_two_publications():
     surface1 = SurfaceFactory()
-    TopographyFactory(surface=surface1)
+    Topography1DFactory(surface=surface1)
     surface2 = SurfaceFactory()
-    TopographyFactory(surface=surface2)
+    Topography1DFactory(surface=surface2)
     pub1 = surface1.publish('cc0-1.0', surface1.creator.name)
     pub2 = surface2.publish('cc0-1.0', surface1.creator.name+", "+surface2.creator.name)
     pub_topo1 = pub1.surface.topography_set.first()
@@ -911,11 +931,11 @@ def test_view_shared_analysis_results(client, handle_usage_statistics):
     # func2 = AnalysisFunctionFactory()
 
     # Two topographies for surface1
-    topo1a = TopographyFactory(surface=surface1, name='topo1a')
-    topo1b = TopographyFactory(surface=surface1, name='topo1b')
+    topo1a = Topography1DFactory(surface=surface1, name='topo1a')
+    topo1b = Topography1DFactory(surface=surface1, name='topo1b')
 
     # One topography for surface2
-    topo2a = TopographyFactory(surface=surface2, name='topo2a')
+    topo2a = Topography1DFactory(surface=surface2, name='topo2a')
 
     # analyses, differentiate by start time
     analysis1a_1 = TopographyAnalysisFactory(subject=topo1a, function=func1,

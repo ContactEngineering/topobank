@@ -1,21 +1,83 @@
 # Changelog for *TopoBank*
 
-## 0.10.0 (not published yet)
+## 1.0.0 (not published yet)
+
+- added buttons for selection and deselection of
+  measurements and averages to analysis result plots (#623)
+  
+
+## 0.11.1 (2021-05-11)
+
+- added missing migrations
+
+## 0.11.0 (2021-05-10)
+
+- added "Download" button to individual surfaces to 
+  "Select" page (#618)
+- added "Download" button for downloading all surfaces
+  related to the current selection (#642)
+- make two different averages distinguishable in plot
+  widgets if one is published by adding version number
+  to label
+- renamed analysis function "RMS Values" to "Roughness Parameters";
+  added columns "from" and "symbol", added more values, show numbers 
+  as decimal powers (#651, #653)
+- no longer use "e" notation on plot axis, but scientific
+  notation with power of 10 (#636)  
+- moved labels of colorbars next to colorbars (#592)
+- in analyses results for height/slope/curvature distribution,
+  renamed data series from "RMS height/slope/curvature" to
+  "Gaussian fit" (#641)
+- changed surface container format in order to hold multiple
+  data files for measurements later (#652) 
+- upgrade to SurfaceTopography 0.93.0 (#643)  
+- upgrade to Django 2.2.20 because of CVE
+- upgrade of packages py and django-debug-toolbar because of CVEs
+- fixed bug that no average curve was shown if a surface
+  was selected by tag only (#632)
+- fixed management command "save_default_function_kwargs" (#621)  
+
+## 0.10.1 (2021-03-31)
+
+- added upgrade of pip in Dockerfile so no rust is needed 
+  for python package 'cryptography'
+
+## 0.10.0 (2021-03-31)
 
 - added surface analyses which calculates an average
   over all topographies of a surface; implemented
   for analysis functions "Power Spectrum", 
   "Autocorrelation", and "Variable Bandwidth"; 
-  there implemented a more generic analysis model 
+  using a more generic analysis model in the backend 
   where not only a topography can be subject to an 
-  analysis but also a surface or later other objects (#365)
+  analysis but also a surface or later other objects (#365, #602)
+- added analysis function "Scale-dependent Slope",
+  which also calculates an average over a surface (#403)  
 - added surface name to tooltip in plots, such that
   topographies with same names can be distinguished (#567)
+- added widget for choosing opacity of topographies to 
+  analysis plots (#617)  
 - disabled creation of example surface for new users;
   this is no longer needed since there are published
   surfaces accessible for all users (#570)
+- added missing meta data for surfaces and topographies
+  to surface container download; now format can contain
+  multiple surfaces and licenses (#552, #614)
+- added management command 'import_surfaces' which can
+  be used to import surfaces containers previously downloaded
+  in the web app (#601) 
 - added small description on surface landing page (#574) 
 - added small description for bandwidth plot (#576)
+- removed plot title from many plots where not needed (#591)
+- changed mail address for contact (#619)   
+- uses SurfaceTopography version 0.92.0 now, 
+  which returns nonuniform PSD only up to a reasonable 
+  wavevector (#568)
+- upgrade of Pillow, jinja, lxml, PyYAML, pygments, and django 
+  because of CVEs
+- also show version numbers for numpy and scipy in version
+  information, also track those versions for analyses from
+  now on (#600)
 
 ## 0.9.6 (2020-12-04)
 

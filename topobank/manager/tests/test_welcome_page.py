@@ -1,7 +1,7 @@
 import pytest
 from django.shortcuts import reverse
 
-from topobank.manager.tests.utils import SurfaceFactory, TopographyFactory, UserFactory
+from topobank.manager.tests.utils import SurfaceFactory, Topography1DFactory, UserFactory
 from topobank.analysis.tests.utils import AnalysisFunctionImplementationFactory, TopographyAnalysisFactory
 
 from topobank.utils import assert_in_content
@@ -22,7 +22,7 @@ def test_instances():
     ]
 
     topographies = [
-        TopographyFactory(surface=surfaces[0])
+        Topography1DFactory(surface=surfaces[0])
     ]
 
     impl = AnalysisFunctionImplementationFactory()
@@ -48,7 +48,7 @@ def test_welcome_page_statistics(client, test_instances, with_publication, handl
 
     assert_in_content(response, '<div class="welcome-page-statistics">2</div> registered users')
     assert_in_content(response, '<div class="welcome-page-statistics">2</div> surfaces in the database')
-    assert_in_content(response, '<div class="welcome-page-statistics">1</div> individual topographies')
+    assert_in_content(response, '<div class="welcome-page-statistics">1</div> individual measurements')
     assert_in_content(response, '<div class="welcome-page-statistics">1</div> computed analyses')
 
     #
@@ -58,7 +58,7 @@ def test_welcome_page_statistics(client, test_instances, with_publication, handl
     response = client.get(reverse('home'))
 
     assert_in_content(response, '<div class="welcome-page-statistics">2</div> surfaces in the database')
-    assert_in_content(response, '<div class="welcome-page-statistics">1</div> individual topographies')
+    assert_in_content(response, '<div class="welcome-page-statistics">1</div> individual measurements')
     assert_in_content(response, '<div class="welcome-page-statistics">1</div> computed analyses')
     assert_in_content(response, '<div class="welcome-page-statistics">0</div> surfaces of other users')
 
@@ -71,7 +71,7 @@ def test_welcome_page_statistics(client, test_instances, with_publication, handl
     response = client.get(reverse('home'))
 
     assert_in_content(response, '<div class="welcome-page-statistics">0</div> surfaces in the database')
-    assert_in_content(response, '<div class="welcome-page-statistics">0</div> individual topographies')
+    assert_in_content(response, '<div class="welcome-page-statistics">0</div> individual measurements')
     assert_in_content(response, '<div class="welcome-page-statistics">0</div> computed analyses')
     if with_publication:
         num_access = 2

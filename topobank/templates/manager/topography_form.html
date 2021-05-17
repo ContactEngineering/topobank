@@ -12,12 +12,12 @@
     <div class="btn-group pull-right">
       <a href="{% url 'manager:topography-update' topography_prev %}"
          class="btn btn-default {% if topography_prev == topography.id %} disabled {% endif %}"
-         data-toggle="tooltip" data-placement="bottom" title="Discard unsaved changes and show previous topography of related surface">
+         data-toggle="tooltip" data-placement="bottom" title="Discard unsaved changes and show previous measurement of related surface">
         {% fontawesome_icon 'chevron-left' %}
       </a>
       <a href="{% url 'manager:topography-update' topography_next %}"
          class="btn btn-default {% if topography_next == topography.id %} disabled {% endif %}"
-         data-toggle="tooltip" data-placement="bottom" title="Discard unsaved changes and show next topography of related surface">
+         data-toggle="tooltip" data-placement="bottom" title="Discard unsaved changes and show next measurement of related surface">
         {% fontawesome_icon 'chevron-right' %}
       </a>
     </div>

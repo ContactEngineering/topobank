@@ -5,7 +5,7 @@ from django.shortcuts import reverse
 from bs4 import BeautifulSoup
 from notifications.models import Notification
 
-from .utils import FIXTURE_DIR, SurfaceFactory, TopographyFactory, UserFactory
+from .utils import FIXTURE_DIR, SurfaceFactory, Topography1DFactory, Topography2DFactory, UserFactory
 from topobank.utils import assert_in_content, assert_not_in_content, assert_no_form_errors
 
 
@@ -130,7 +130,7 @@ def test_appearance_buttons_based_on_permissions(client, handle_usage_statistics
 
     surface.share(user2)
 
-    topo = TopographyFactory(surface=surface, size_y=512)
+    topo = Topography2DFactory(surface=surface, size_y=512)
     topo_detail_url = reverse('manager:topography-detail', kwargs=dict(pk=topo.pk))
     topo_update_url = reverse('manager:topography-update', kwargs=dict(pk=topo.pk))
     topo_delete_url = reverse('manager:topography-delete', kwargs=dict(pk=topo.pk))
@@ -232,7 +232,7 @@ def test_sharing_info_table(client, handle_usage_statistics):
 
     surface2.share(user1)
 
-    TopographyFactory(surface=surface1)  # one topography for surface 1
+    Topography1DFactory(surface=surface1)  # one topography for surface 1
 
     FALSE_CHAR = '✘'
     TRUE_CHAR = '✔'
@@ -256,7 +256,7 @@ def test_sharing_info_table(client, handle_usage_statistics):
     pprint.pprint(data)
 
     assert data == [
-        ['Surface', '# Topographies', 'Created by', 'Shared with', 'Allow change', ''],
+        ['Surface', '# Measurements', 'Created by', 'Shared with', 'Allow change', ''],
         [surface1.name, '1', user1.name, user2.name, FALSE_CHAR, ''],
         [surface1.name, '1', user1.name, user3.name, TRUE_CHAR, ''],
         [surface2.name, '0', user2.name, user1.name, FALSE_CHAR, ''],
@@ -283,7 +283,7 @@ def test_sharing_info_table(client, handle_usage_statistics):
     pprint.pprint(data)
 
     assert data == [
-        ['Surface', '# Topographies', 'Created by', 'Shared with', 'Allow change', ''],
+        ['Surface', '# Measurements', 'Created by', 'Shared with', 'Allow change', ''],
         [surface1.name, '1', user1.name, user2.name, FALSE_CHAR, ''],
         [surface2.name, '0', user2.name, user1.name, FALSE_CHAR, ''],
     ]
@@ -309,7 +309,7 @@ def test_sharing_info_table(client, handle_usage_statistics):
     pprint.pprint(data)
 
     assert data == [
-        ['Surface', '# Topographies', 'Created by', 'Shared with', 'Allow change', ''],
+        ['Surface', '# Measurements', 'Created by', 'Shared with', 'Allow change', ''],
         [surface1.name, '1', user1.name, user3.name, TRUE_CHAR, ''],
     ]
 
@@ -338,7 +338,7 @@ def test_sharing_info_table(client, handle_usage_statistics):
     pprint.pprint(data)
 
     assert data == [
-        ['Surface', '# Topographies', 'Created by', 'Shared with', 'Allow change', ''],
+        ['Surface', '# Measurements', 'Created by', 'Shared with', 'Allow change', ''],
         [surface1.name, '1', user1.name, user2.name, FALSE_CHAR, ''],
         [surface2.name, '0', user2.name, user1.name, FALSE_CHAR, ''],
     ]
@@ -364,7 +364,7 @@ def test_sharing_info_table(client, handle_usage_statistics):
     pprint.pprint(data)
 
     assert data == [
-        ['Surface', '# Topographies', 'Created by', 'Shared with', 'Allow change', ''],
+        ['Surface', '# Measurements', 'Created by', 'Shared with', 'Allow change', ''],
         [surface1.name, '1', user1.name, user2.name, TRUE_CHAR, ''],
         [surface2.name, '0', user2.name, user1.name, FALSE_CHAR, ''],
     ]
@@ -390,7 +390,7 @@ def test_sharing_info_table(client, handle_usage_statistics):
     pprint.pprint(data)
 
     assert data == [
-        ['Surface', '# Topographies', 'Created by', 'Shared with', 'Allow change', ''],
+        ['Surface', '# Measurements', 'Created by', 'Shared with', 'Allow change', ''],
         [surface1.name, '1', user1.name, user2.name, TRUE_CHAR, ''],
         [surface2.name, '0', user2.name, user1.name, FALSE_CHAR, ''],
     ]
@@ -459,7 +459,7 @@ def test_notification_when_deleting_shared_stuff(client):
     user1 = UserFactory()
     user2 = UserFactory()
     surface = SurfaceFactory(creator=user1)
-    topography = TopographyFactory(surface=surface)
+    topography = Topography1DFactory(surface=surface)
 
     surface.share(user2, allow_change=True)
 
@@ -494,7 +494,7 @@ def test_notification_when_editing_shared_stuff(client, handle_usage_statistics)
     user1 = UserFactory()
     user2 = UserFactory()
     surface = SurfaceFactory(creator=user1)
-    topography = TopographyFactory(surface=surface, size_y=512)
+    topography = Topography2DFactory(surface=surface, size_y=512)
 
     surface.share(user2, allow_change=True)
 

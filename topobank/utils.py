@@ -17,7 +17,7 @@ def export_reponse_as_html(response, fname=DEFAULT_DEBUG_HTML_FILENAME):
     """
     f = open(fname, mode='w')
 
-    f.write(response.content.decode('utf-8').replace('\\n','\n'))
+    f.write(response.content.decode('utf-8').replace('\\n', '\n'))
     f.close()
 
 
@@ -32,10 +32,10 @@ def assert_in_content(response, x):
     in_content = bytes(representation, encoding='utf-8') in response.content
 
     if not in_content:
-        export_reponse_as_html(response) # for debugging
+        export_reponse_as_html(response)  # for debugging
 
-    assert in_content, f"Cannot find '{representation}' in this content:\n{response.content}.\n\n"+\
-        f"See file://{DEFAULT_DEBUG_HTML_FILENAME} in order to view the output."
+    assert in_content, f"Cannot find '{representation}' in this content:\n{response.content}.\n\n" + \
+                       f"See file://{DEFAULT_DEBUG_HTML_FILENAME} in order to view the output."
 
 
 def assert_not_in_content(response, x):
@@ -49,10 +49,10 @@ def assert_not_in_content(response, x):
     in_content = bytes(representation, encoding='utf-8') in response.content
 
     if in_content:
-        export_reponse_as_html(response) # for debugging
+        export_reponse_as_html(response)  # for debugging
 
-    assert not in_content, f"Unexpectedly, there is '{representation}' in this content:\n{response.content}.\n\n"+\
-        f"See file://{DEFAULT_DEBUG_HTML_FILENAME} in order to view the output."
+    assert not in_content, f"Unexpectedly, there is '{representation}' in this content:\n{response.content}.\n\n" + \
+                           f"See file://{DEFAULT_DEBUG_HTML_FILENAME} in order to view the output."
 
 
 def assert_no_form_errors(response):
@@ -91,14 +91,14 @@ def assert_form_error(response, error_msg_fragment, field_name=None):
 
     assert field_name in response.context['form'].errors, \
         "Form shows errors, but not {} which is expected. Errors: {}".format(
-            "independent from a special field" if field_name=='__all__' else f"for field '{field_name}'",
+            "independent from a special field" if field_name == '__all__' else f"for field '{field_name}'",
             response.context['form'].errors
         )
 
     errors = response.context['form'].errors[field_name]
 
     assert any((error_msg_fragment in err) for err in errors), \
-        f"Form has errors as expected, but no error contains the given error message fragment '{error_msg_fragment}'."+\
+        f"Form has errors as expected, but no error contains the given error message fragment '{error_msg_fragment}'." + \
         f" Instead: {errors}"
 
 
@@ -121,4 +121,3 @@ class Singleton(type):
         if cls not in cls._instances:
             cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
         return cls._instances[cls]
-
