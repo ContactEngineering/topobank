@@ -4,7 +4,8 @@
 
 - added buttons for selection and deselection of
   measurements and averages to analysis result plots (#623)
-  
+- fixes internal server error because of failing thumbnail
+  generation (#662)
 
 ## 0.11.1 (2021-05-11)
 
