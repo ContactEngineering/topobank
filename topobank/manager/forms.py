@@ -24,7 +24,7 @@ from topobank.users.models import User
 _log = logging.getLogger(__name__)
 
 MEASUREMENT_DATE_INPUT_FORMAT = '%Y-%m-%d'
-MEASUREMENT_DATE_HELP_TEXT = 'Valid format: "YYYY-mm-dd"'
+MEASUREMENT_DATE_HELP_TEXT = 'Valid format: "YYYY-mm-dd".'
 ASTERISK_HELP_HTML = HTML("<p>Fields marked with an asterisk (*) are mandatory.</p>")
 TAGS_HELP_TEXT = "You can choose existing tags or create new tags on-the-fly. "+\
                  "Use '/' character to build hierarchies, e.g. 'fruit/apple'."
@@ -168,6 +168,9 @@ class TopographyFileUploadForm(forms.ModelForm):
 
 
 class TopographyMetaDataForm(CleanVulnerableFieldsMixin, forms.ModelForm):
+    """
+    Form used for meta data 'data source' (channel), name of measurement, description and tags.
+    """
 
     class Meta:
         model = Topography
@@ -182,6 +185,14 @@ class TopographyMetaDataForm(CleanVulnerableFieldsMixin, forms.ModelForm):
 
         self.fields['tags'] = TagField(required=False, autocomplete_tags=autocomplete_tags,
                                        help_text=TAGS_HELP_TEXT)
+        measurement_date_help_text = MEASUREMENT_DATE_HELP_TEXT
+        if self.initial['measurement_date']:
+            measurement_date_help_text += f" The date \"{self.initial['measurement_date']}\" is the latest date "\
+                                          "we've found over all channels in the data file."
+        else:
+            measurement_date_help_text += f" No valid measurement date could be read from the file."
+        self.fields['measurement_date'] = forms.DateField(widget=DatePickerInput(format=MEASUREMENT_DATE_INPUT_FORMAT),
+                                                          help_text=measurement_date_help_text)
 
     helper = FormHelper()
     helper.form_method = 'POST'
@@ -189,8 +200,6 @@ class TopographyMetaDataForm(CleanVulnerableFieldsMixin, forms.ModelForm):
     helper.form_tag = False
 
     name = forms.CharField()
-    measurement_date = forms.DateField(widget=DatePickerInput(format=MEASUREMENT_DATE_INPUT_FORMAT),
-                                       help_text=MEASUREMENT_DATE_HELP_TEXT)
     description = forms.Textarea()
 
     helper.layout = Layout(

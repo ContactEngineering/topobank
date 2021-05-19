@@ -2,6 +2,8 @@
 
 ## 1.0.0 (not published yet)
 
+- use acquisition time from data file as initial 
+  value for 'measurement date' after upload (#433)
 - added buttons for selection and deselection of
   measurements and averages to analysis result plots (#623)
 - fixes internal server error because of failing thumbnail

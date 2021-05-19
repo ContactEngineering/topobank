@@ -1,3 +1,4 @@
+import datetime
 import json
 import logging
 import os.path
@@ -80,6 +81,8 @@ DEFAULT_SELECT_TAB_STATE = {
     # all these values are the default if no filter has been applied
     # and the page is loaded the first time
 }
+
+MEASUREMENT_TIME_INFO_FIELD = 'acquisition_time'
 
 _log = logging.getLogger(__name__)
 
@@ -196,8 +199,20 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
 
         if step == 'metadata':
             initial['name'] = os.path.basename(datafile.name)  # the original file name
-            # TODO read aquisition time for all channels; if there is one for all and the date is unique, use
-            # this date as measurement date's intial value
+            # Use the latest data available on all channels as initial measurement date, if any - see GH #433
+            measurement_dates = []
+            for ch in toporeader.channels:
+                try:
+                    measurement_time_str = ch.info[MEASUREMENT_TIME_INFO_FIELD]
+                    measurement_time = datetime.datetime.strptime(measurement_time_str, '%Y-%m-%d %H:%M:%S')
+                    measurement_dates.append(measurement_time.date())  # timezone is not known an not taken into account
+                except KeyError:
+                    # measurement time not available in channel
+                    pass
+                except ValueError as exc:
+                    _log.info(f'Found measurement timestamp in file {datafile.name}, but could not parse: {exc}')
+
+            initial['measurement_date'] = max(measurement_dates, default=None)
 
         if step in ['units']:
 
