@@ -585,6 +585,53 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
         return context
 
 
+def topography_plot(request, pk):
+    """Render an HTML snippet with topography plot"""
+    try:
+        pk = int(pk)
+        topo = Topography.objects.get(pk=pk)
+        assert request.user.has_perm('view_surface', topo.surface)
+    except (ValueError, Topography.DoesNotExist, AssertionError):
+        raise PermissionDenied()  # This should be shown independent of whether the surface exists
+
+    errors = []  # list of dicts with keys 'message' and 'link'
+    context = {}
+
+    plotted = False
+
+    try:
+        plot = topo.get_plot()
+        plotted = True
+    except LoadTopographyException as exc:
+        err_message = "Topography '{}' (id: {}) cannot be loaded unexpectedly.".format(
+            topo.name, topo.id)
+        _log.error(err_message)
+        link = mailto_link_for_reporting_an_error(f"Failure loading topography (id: {topo.id})",
+                                                  "Plotting measurement",
+                                                  err_message,
+                                                  traceback.format_exc())
+
+        errors.append(dict(message=err_message, link=link))
+    except PlotTopographyException as exc:
+        err_message = "Topography '{}' (id: {}) cannot be plotted.".format(topo.name, topo.id)
+        _log.error(err_message)
+        link = mailto_link_for_reporting_an_error(f"Failure plotting measurement (id: {topo.id})",
+                                                  "Plotting measurement",
+                                                  err_message,
+                                                  traceback.format_exc())
+
+        errors.append(dict(message=err_message, link=link))
+
+    if plotted:
+        script, div = components(plot)
+        context['image_plot_script'] = script
+        context['image_plot_div'] = div
+
+    context['errors'] = errors
+
+    return render(request, 'manager/topography_plot.html', context=context)
+
+
 class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
     model = Topography
     context_object_name = 'topography'
@@ -594,39 +641,6 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
 
         topo = self.object
 
-        errors = []  # list of dicts with keys 'message' and 'link'
-
-        plotted = False
-
-        try:
-            plot = topo.get_plot()
-            plotted = True
-        except LoadTopographyException as exc:
-            err_message = "Topography '{}' (id: {}) cannot be loaded unexpectedly.".format(
-                topo.name, topo.id)
-            _log.error(err_message)
-            link = mailto_link_for_reporting_an_error(f"Failure loading topography (id: {topo.id})",
-                                                      "Showing topography details",
-                                                      err_message,
-                                                      traceback.format_exc())
-
-            errors.append(dict(message=err_message, link=link))
-        except PlotTopographyException as exc:
-            err_message = "Topography '{}' (id: {}) cannot be plotted.".format(topo.name, topo.id)
-            _log.error(err_message)
-            link = mailto_link_for_reporting_an_error(f"Failure plotting topography (id: {topo.id})",
-                                                      "Showing topography details",
-                                                      err_message,
-                                                      traceback.format_exc())
-
-            errors.append(dict(message=err_message, link=link))
-
-        if plotted:
-            script, div = components(plot)
-            context['image_plot_script'] = script
-            context['image_plot_div'] = div
-
-        context['errors'] = errors
 
         try:
             context['topography_next'] = topo.get_next_by_measurement_date(surface=topo.surface).id
