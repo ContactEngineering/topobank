@@ -250,6 +250,7 @@ ADMIN_URL = 'admin/'
 # https://docs.djangoproject.com/en/dev/ref/settings/#admins
 ADMINS = [
     ("""Michael Röttger""", 'roettger@tf.uni-freiburg.de'),
+    ("""Lars Pastewka""", 'lars.pastewka@imtek.uni-freiburg.de')
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#managers
 MANAGERS = ADMINS
