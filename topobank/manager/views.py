@@ -1,3 +1,4 @@
+import datetime
 import json
 import logging
 import os.path
@@ -80,6 +81,8 @@ DEFAULT_SELECT_TAB_STATE = {
     # all these values are the default if no filter has been applied
     # and the page is loaded the first time
 }
+
+MEASUREMENT_TIME_INFO_FIELD = 'acquisition_time'
 
 _log = logging.getLogger(__name__)
 
@@ -192,15 +195,28 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
             step0_data = self.get_cleaned_data_for_step('upload')
             datafile = step0_data['datafile']
             datafile_format = step0_data['datafile_format']
+            toporeader = get_topography_reader(datafile, format=datafile_format)
 
         if step == 'metadata':
             initial['name'] = os.path.basename(datafile.name)  # the original file name
+            # Use the latest data available on all channels as initial measurement date, if any - see GH #433
+            measurement_dates = []
+            for ch in toporeader.channels:
+                try:
+                    measurement_time_str = ch.info[MEASUREMENT_TIME_INFO_FIELD]
+                    measurement_time = datetime.datetime.strptime(measurement_time_str, '%Y-%m-%d %H:%M:%S')
+                    measurement_dates.append(measurement_time.date())  # timezone is not known an not taken into account
+                except KeyError:
+                    # measurement time not available in channel
+                    pass
+                except ValueError as exc:
+                    _log.info(f'Found measurement timestamp in file {datafile.name}, but could not parse: {exc}')
+
+            initial['measurement_date'] = max(measurement_dates, default=None)
 
         if step in ['units']:
 
             step1_data = self.get_cleaned_data_for_step('metadata')
-
-            toporeader = get_topography_reader(datafile, format=datafile_format)
             channel = int(step1_data['data_source'])
             channel_info = toporeader.channels[channel]
 
@@ -569,6 +585,53 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
         return context
 
 
+def topography_plot(request, pk):
+    """Render an HTML snippet with topography plot"""
+    try:
+        pk = int(pk)
+        topo = Topography.objects.get(pk=pk)
+        assert request.user.has_perm('view_surface', topo.surface)
+    except (ValueError, Topography.DoesNotExist, AssertionError):
+        raise PermissionDenied()  # This should be shown independent of whether the surface exists
+
+    errors = []  # list of dicts with keys 'message' and 'link'
+    context = {}
+
+    plotted = False
+
+    try:
+        plot = topo.get_plot()
+        plotted = True
+    except LoadTopographyException as exc:
+        err_message = "Topography '{}' (id: {}) cannot be loaded unexpectedly.".format(
+            topo.name, topo.id)
+        _log.error(err_message)
+        link = mailto_link_for_reporting_an_error(f"Failure loading topography (id: {topo.id})",
+                                                  "Plotting measurement",
+                                                  err_message,
+                                                  traceback.format_exc())
+
+        errors.append(dict(message=err_message, link=link))
+    except PlotTopographyException as exc:
+        err_message = "Topography '{}' (id: {}) cannot be plotted.".format(topo.name, topo.id)
+        _log.error(err_message)
+        link = mailto_link_for_reporting_an_error(f"Failure plotting measurement (id: {topo.id})",
+                                                  "Plotting measurement",
+                                                  err_message,
+                                                  traceback.format_exc())
+
+        errors.append(dict(message=err_message, link=link))
+
+    if plotted:
+        script, div = components(plot)
+        context['image_plot_script'] = script
+        context['image_plot_div'] = div
+
+    context['errors'] = errors
+
+    return render(request, 'manager/topography_plot.html', context=context)
+
+
 class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
     model = Topography
     context_object_name = 'topography'
@@ -578,39 +641,6 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
 
         topo = self.object
 
-        errors = []  # list of dicts with keys 'message' and 'link'
-
-        plotted = False
-
-        try:
-            plot = topo.get_plot()
-            plotted = True
-        except LoadTopographyException as exc:
-            err_message = "Topography '{}' (id: {}) cannot be loaded unexpectedly.".format(
-                topo.name, topo.id)
-            _log.error(err_message)
-            link = mailto_link_for_reporting_an_error(f"Failure loading topography (id: {topo.id})",
-                                                      "Showing topography details",
-                                                      err_message,
-                                                      traceback.format_exc())
-
-            errors.append(dict(message=err_message, link=link))
-        except PlotTopographyException as exc:
-            err_message = "Topography '{}' (id: {}) cannot be plotted.".format(topo.name, topo.id)
-            _log.error(err_message)
-            link = mailto_link_for_reporting_an_error(f"Failure plotting topography (id: {topo.id})",
-                                                      "Showing topography details",
-                                                      err_message,
-                                                      traceback.format_exc())
-
-            errors.append(dict(message=err_message, link=link))
-
-        if plotted:
-            script, div = components(plot)
-            context['image_plot_script'] = script
-            context['image_plot_div'] = div
-
-        context['errors'] = errors
 
         try:
             context['topography_next'] = topo.get_next_by_measurement_date(surface=topo.surface).id

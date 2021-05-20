@@ -65,6 +65,10 @@ class PlotTopographyException(Exception):
     pass
 
 
+class ThumbnailGenerationException(Exception):
+    pass
+
+
 class TagModel(tm.TagTreeModel):
     """This is the common tag model for surfaces and topographies.
     """
@@ -748,10 +752,9 @@ class Topography(models.Model, SubjectMixin):
                                 title=f"height ({self.unit})")
             plot.add_layout(colorbar, 'right')
 
-
         return plot
 
-    def renew_thumbnail(self, driver=None):
+    def _renew_thumbnail(self, driver=None):
         """Renew thumbnail field.
 
         Parameters
@@ -760,13 +763,13 @@ class Topography(models.Model, SubjectMixin):
             selenium webdriver instance, if not given
             a firefox instance is created using
             `utils.get_firefox_webdriver()`
-
         Returns
         -------
         None
-
         """
+
         plot = self.get_plot(thumbnail=True)
+
         #
         # Create a plot and save a thumbnail image in in-memory file
         #
@@ -792,3 +795,36 @@ class Topography(models.Model, SubjectMixin):
 
         if generate_driver:
             driver.close()  # important to free memory
+        pass
+
+    def renew_thumbnail(self, driver=None, none_on_error=True):
+        """Renew thumbnail field.
+
+        Parameters
+        ----------
+        driver
+            selenium webdriver instance, if not given
+            a firefox instance is created using
+            `utils.get_firefox_webdriver()`
+        none_on_error: bool
+            If True (default), sets thumbnail to None if there are any errors.
+            If False, exceptions have to be caught outside.
+
+        Returns
+        -------
+        None
+
+        Raises
+        ------
+        ThumbnailGenerationException
+        """
+        try:
+            self._renew_thumbnail(driver=driver)
+        except Exception as exc:
+            if none_on_error:
+                self.thumbnail = None
+                self.save()
+                _log.warning(f"Problems while generating thumbnail for topography {self.id}: {exc}. "
+                             "Saving <None> instead.")
+            else:
+                raise ThumbnailGenerationException from exc

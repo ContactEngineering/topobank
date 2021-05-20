@@ -180,6 +180,15 @@ td.ellipsis {
   font-weight: bold;
 }
 
+/** bokeh's "primary" color should be same as bootstrap's */
+div.bk-btn-group button.bk-btn-primary {
+  background-color: #007bff;
+  border-color: #007aff;
+}
+div.bk-btn-group button.bk-btn-primary:hover {
+    background-color: #0069d9;
+    border-color: #0062cc;
+}
 
 /** Extra (dynamic) tabs */
 .nav-tabs {

@@ -30,14 +30,9 @@
 
           <div class="tab-content mt-2">
             <div class="tab-pane fade active show" id="plot" role="tabpanel" aria-labelledby="plot-tab">
-              {% for err in errors %}
-                <div class="alert alert-error">
-                  {{ err.message }}
-                  Please <a class="alert-link" href="{{ err.link }}">click here</a>
-                  to send us an e-mail about this issue. Sorry for the inconvenience.
-                </div>
-              {% endfor %}
-              {{ image_plot_div|safe }}
+              <div id="topography-plot-content">
+                <span class="spinner"></span> Loading plot, please wait...
+              </div>
             </div>
 
             <div class="tab-pane fade" id="properties" role="tabpanel" aria-labelledby="properties-tab">
@@ -161,11 +156,50 @@
 
 {% block javascript %}
 
-<script src="https://cdn.bokeh.org/bokeh/release/bokeh-2.2.3.min.js"></script>
-<script src="https://cdn.bokeh.org/bokeh/release/bokeh-widgets-2.2.3.min.js"></script>
-<script src="https://cdn.bokeh.org/bokeh/release/bokeh-tables-2.2.3.min.js"></script>
+  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-2.2.3.min.js"></script>
+  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-widgets-2.2.3.min.js"></script>
+  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-tables-2.2.3.min.js"></script>
 
-{{ image_plot_script | safe }}
+
+  {# Some JSON code to define JS variables from Django context #}
+  {{ category_filter_choices | json_script:"category-filter-choices" }}
+
+  <script>
+  $(document).ready(function () {
+    /** Triggering loading of bokeh plot */
+    $.ajax({
+              url: "{% url 'manager:topography-plot' topography.pk %}",
+              type: 'get',
+              success : function(data){
+                // server returns rendered "topography_plot.html"
+                // which is just pure html, use this to replace the existing
+                // html within the "plot content" div
+                console.log("Plot data received.");
+                $('#topography-plot-content').html(data);
+              },
+              error: function (xhr, textStatus, errorThrown) {
+                /**
+                 * If an error occurs *not* because of XMLHttpRequest.abort(), show an
+                 * error message. Do not show error on .abort(). See also
+                 * https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/abort
+                 * */
+                if (xhr.status == 0) {
+                  console.log("Canceled plot generation.");
+                  $('#topography-plot-content').html(`
+                  Canceled loading of plot.
+                `)
+                } else {
+                  console.error("Could not create plot: " + errorThrown + " " + xhr.status + " " + xhr.responseText);
+                  $('#topography-plot-content').html(`
+                  <div class='alert alert-danger'>
+                      Could not request plot data. Error: ${errorThrown}
+                  </div>
+                `);  /* TODO Different message when stopped, e.g. when pressing edit? */
+                }
+              }
+    })
+  });
+  </script>
 
 {% endblock %}
 

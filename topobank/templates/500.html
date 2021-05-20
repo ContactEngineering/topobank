@@ -1,13 +1,21 @@
-{% extends "base.html" %}
-
-{% block title %}Server Error{% endblock %}
+{% extends 'base.html' %}
+{% load fontawesome %}
 
 {% block content %}
-<h1>Ooops!!! 500</h1>
 
-<h3>Looks like something went wrong!</h3>
+<div class="card">
+ <h3 class="card-header">
+   {% fontawesome_icon 'flash' %}
+   Server error
+ </h3>
+ <div class="card-body">
+   <div class="alert alert-error" role="alert">
+     Oops, something went wrong! We're sorry.
+     <p>We track these errors automatically, but if the problem persists please
+       <a href="#" data-toggle="modal" data-target="#contactModal">contact us</a>.</p>
+   </div>
+    <a class="btn btn-primary" href="{% url 'home' %}">Take me back to the site</a>
+ </div>
+</div>
 
-<p>We track these errors automatically, but if the problem persists feel free to contact us. In the meantime, try refreshing.</p>
 {% endblock content %}
-
-

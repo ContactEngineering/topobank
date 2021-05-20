@@ -1,5 +1,9 @@
+"""
+Views and helper functions for downloading analyses.
+"""
 from django.http import HttpResponse, HttpResponseForbidden, HttpResponseBadRequest
 from django.core.files.storage import default_storage
+from django.contrib.contenttypes.models import ContentType
 
 import pandas as pd
 import io
@@ -12,6 +16,8 @@ import textwrap
 from .models import Analysis
 from .views import CARD_VIEW_FLAVORS
 from .utils import mangle_sheet_name
+from ..manager.models import Surface
+
 
 #######################################################################
 # Download views
@@ -38,6 +44,7 @@ def download_analyses(request, ids, card_view_flavor, file_format):
     analyses_ids = [int(i) for i in ids.split(',')]
 
     analyses = []
+    surface_ct = ContentType.objects.get_for_model(Surface)
 
     for aid in analyses_ids:
         analysis = Analysis.objects.get(id=aid)
@@ -47,6 +54,14 @@ def download_analyses(request, ids, card_view_flavor, file_format):
         #
         if not analysis.is_visible_for_user(user):
             return HttpResponseForbidden()
+
+        #
+        # Exclude analysis for surfaces having only one topography
+        # (this is useful for averages - the only surface analyses so far -
+        # and may be controlled by other means later, if needed)
+        #
+        if (analysis.subject_type == surface_ct) and (analysis.subject.num_topographies() <= 1):
+            continue
 
         analyses.append(analysis)
 
@@ -99,8 +114,9 @@ def _analyses_meta_data_dataframe(analyses, request):
         pub = surface.publication if surface.is_published else None
 
         if i == 0:
-            properties = ["Function"]
-            values = [str(analysis.function)]
+            # list function name and a blank line
+            properties = ["Function", ""]
+            values = [str(analysis.function), ""]
 
         properties += ['Subject Type', 'Subject Name',
                        'Creator',
@@ -329,9 +345,14 @@ def download_plot_analyses_to_xlsx(request, analyses):
         for series in result['series']:
             df_columns_dict = {column1: series['x'], column2: series['y']}
             try:
+                std_err_y_mask = series['std_err_y'].mask
+            except (AttributeError, KeyError) as exc:
+                std_err_y_mask = np.zeros(series['y'].shape, dtype=bool)
+
+            try:
                 df_columns_dict[column3] = series['std_err_y']
                 df_columns_dict[column4] = [comment_on_average(y, masked)
-                                            for y, masked in zip(series['y'], series['std_err_y'].mask)]
+                                            for y, masked in zip(series['y'], std_err_y_mask)]
             except KeyError:
                 pass
             df = pd.DataFrame(df_columns_dict)

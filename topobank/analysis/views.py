@@ -21,13 +21,13 @@ from django.conf import settings
 
 import django_tables2 as tables
 
-from bokeh.layouts import row, column, grid
+from bokeh.layouts import row, column, grid, layout
 from bokeh.models import ColumnDataSource, CustomJS, TapTool, Circle, HoverTool
 from bokeh.palettes import Category10
 from bokeh.models.ranges import DataRange1d
 from bokeh.plotting import figure
 from bokeh.embed import components, json_item
-from bokeh.models.widgets import CheckboxGroup, Tabs, Panel, Toggle, Div, Slider
+from bokeh.models.widgets import CheckboxGroup, Tabs, Panel, Toggle, Div, Slider, Button
 from bokeh.models import LinearColorMapper, ColorBar
 from bokeh.models.formatters import FuncTickFormatter
 
@@ -632,7 +632,6 @@ class PlotCardView(SimpleCardView):
                         js_code_alpha_callback += f"{glyph_id}.glyph.line_alpha = topography_alpha_slider.value;"
                         js_code_alpha_callback += f"{glyph_id}.glyph.fill_alpha = topography_alpha_slider.value;"
 
-
             #
             # Collect special values to be shown in the result card
             #
@@ -675,7 +674,7 @@ class PlotCardView(SimpleCardView):
                     visible=False,
                     active=list(range(len(subject_checkbox_groups[surface_ct]))))  # all indices included -> all active
         else:
-            surface_btn_group = Div()
+            surface_btn_group = Div(visible=False)
 
         topography_btn_group = CheckboxGroup(
                 labels=subject_checkbox_groups[topography_ct],
@@ -683,15 +682,27 @@ class PlotCardView(SimpleCardView):
                 visible=False,
                 active=list(range(len(subject_checkbox_groups[topography_ct]))))
 
+        subject_select_all_btn = Button(label="Select all",
+                                        width_policy='min',
+                                        visible=False)
+        subject_deselect_all_btn = Button(label="Deselect all",
+                                          width_policy='min',
+                                          visible=False)
+
         subject_btn_group_toggle_button_label = "Measurements"
         if has_at_least_one_surface_subject:
             subject_btn_group_toggle_button_label = "Average / "+subject_btn_group_toggle_button_label
-        subject_btn_group_toggle_button = Toggle(label=subject_btn_group_toggle_button_label)
-        series_btn_group_toggle_button = Toggle(label="Data series")
-        options_group_toggle_button = Toggle(label="Plot options")
+        subject_btn_group_toggle_button = Toggle(label=subject_btn_group_toggle_button_label,
+                                                 button_type='primary')
+        series_btn_group_toggle_button = Toggle(label="Data series",
+                                                button_type='primary')
+        options_group_toggle_button = Toggle(label="Plot options",
+                                             button_type='primary')
 
         topography_alpha_slider = Slider(start=0, end=1, title="Opacity of measurement lines",
-                                         value=DEFAULT_ALPHA_FOR_TOPOGRAPHIES if has_at_least_one_surface_subject else 1.0,
+                                         value=DEFAULT_ALPHA_FOR_TOPOGRAPHIES
+                                         if has_at_least_one_surface_subject else 1.0,
+                                         sizing_mode='scale_width',
                                          step=0.1, visible=False)
         options_group = column([topography_alpha_slider])
 
@@ -700,6 +711,9 @@ class PlotCardView(SimpleCardView):
         #
         js_args['surface_btn_group'] = surface_btn_group
         js_args['topography_btn_group'] = topography_btn_group
+        js_args['subject_select_all_btn'] = subject_select_all_btn
+        js_args['subject_deselect_all_btn'] = subject_deselect_all_btn
+
         js_args['series_btn_group'] = series_button_group
         js_args['topography_alpha_slider'] = topography_alpha_slider
 
@@ -714,6 +728,8 @@ class PlotCardView(SimpleCardView):
         toggle_subject_checkboxes = CustomJS(args=js_args, code="""
             surface_btn_group.visible = subject_btn_group_toggle_btn.active;
             topography_btn_group.visible = subject_btn_group_toggle_btn.active;
+            subject_select_all_btn.visible = subject_btn_group_toggle_btn.active;
+            subject_deselect_all_btn.visible = subject_btn_group_toggle_btn.active;
         """)
         toggle_series_checkboxes = CustomJS(args=js_args, code="""
             series_btn_group.visible = series_btn_group_toggle_btn.active;
@@ -722,7 +738,9 @@ class PlotCardView(SimpleCardView):
             topography_alpha_slider.visible = options_group_toggle_btn.active;
         """)
 
-        subject_btn_groups = column([surface_btn_group, topography_btn_group])
+        subject_btn_groups = layout([subject_select_all_btn, subject_deselect_all_btn],
+                                    [surface_btn_group],
+                                    [topography_btn_group])
 
         series_button_group.js_on_click(toggle_lines_callback)
         if has_at_least_one_surface_subject:
@@ -732,9 +750,35 @@ class PlotCardView(SimpleCardView):
         series_btn_group_toggle_button.js_on_click(toggle_series_checkboxes)
         options_group_toggle_button.js_on_click(toggle_options)
 
+        #
+        # Callback for changing opaqueness of measurement lines
+        #
         topography_alpha_slider.js_on_change('value', CustomJS(args=js_args,
                                                                code=js_code_alpha_callback))
 
+        #
+        # Callback for toggling lines
+        #
+        subject_select_all_btn.js_on_click(CustomJS(args=js_args, code="""
+            let all_topo_idx = [];
+            for (let i=0; i<topography_btn_group.labels.length; i++) {
+                all_topo_idx.push(i);
+            }
+            topography_btn_group.active = all_topo_idx;
+
+            /** surface_btn_group may just be a div if no averages defined */
+            if ('labels' in surface_btn_group) {
+                let all_surf_idx = [];
+                for (let i=0; i<surface_btn_group.labels.length; i++) {
+                    all_surf_idx.push(i);
+                }
+                surface_btn_group.active = all_surf_idx;
+            }
+        """))
+        subject_deselect_all_btn.js_on_click(CustomJS(args=js_args, code="""
+            surface_btn_group.active = [];
+            topography_btn_group.active = [];
+        """))
         #
         # Build layout for buttons underneath plot
         #
@@ -907,7 +951,7 @@ class ContactMechanicsCardView(SimpleCardView):
             configure_plot(load_plot)
 
             #
-            # Adding widget for switching symbols on/off
+            # Adding widgets for switching symbols on/off
             #
             topography_button_group = CheckboxGroup(
                 labels=topography_names,
@@ -915,23 +959,49 @@ class ContactMechanicsCardView(SimpleCardView):
                 visible=False,
                 active=list(range(len(topography_names))))  # all active
 
-            topography_btn_group_toggle_button = Toggle(label="Measurements")
+            topography_btn_group_toggle_button = Toggle(label="Measurements", button_type='primary')
+
+            subject_select_all_btn = Button(label="Select all",
+                                            width_policy='min',
+                                            visible=False)
+            subject_deselect_all_btn = Button(label="Deselect all",
+                                              width_policy='min',
+                                              visible=False)
 
             # extend mapping of Python to JS objects
             js_args['topography_btn_group'] = topography_button_group
             js_args['topography_btn_group_toggle_btn'] = topography_btn_group_toggle_button
+            js_args['subject_select_all_btn'] = subject_select_all_btn
+            js_args['subject_deselect_all_btn'] = subject_deselect_all_btn
 
             toggle_lines_callback = CustomJS(args=js_args, code=js_code)
             toggle_topography_checkboxes = CustomJS(args=js_args, code="""
-                        topography_btn_group.visible = topography_btn_group_toggle_btn.active;
-                    """)
+                topography_btn_group.visible = topography_btn_group_toggle_btn.active;
+                subject_select_all_btn.visible = topography_btn_group_toggle_btn.active;
+                subject_deselect_all_btn.visible = topography_btn_group_toggle_btn.active;
+            """)
 
             widgets = grid([
                 [topography_btn_group_toggle_button],
-                [topography_button_group]
+                layout([subject_select_all_btn, subject_deselect_all_btn],
+                       [topography_button_group])
             ])
             topography_button_group.js_on_click(toggle_lines_callback)
             topography_btn_group_toggle_button.js_on_click(toggle_topography_checkboxes)
+
+            #
+            # Callback for toggling lines
+            #
+            subject_select_all_btn.js_on_click(CustomJS(args=js_args, code="""
+                let all_topo_idx = [];
+                for (let i=0; i<topography_btn_group.labels.length; i++) {
+                    all_topo_idx.push(i);
+                }
+                topography_btn_group.active = all_topo_idx;
+            """))
+            subject_deselect_all_btn.js_on_click(CustomJS(args=js_args, code="""
+                topography_btn_group.active = [];
+            """))
 
             #
             # Layout plot
