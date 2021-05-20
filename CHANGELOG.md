@@ -10,6 +10,9 @@
   now done in the background for faster page access (#597)
 - fixes internal server error because of failing thumbnail
   generation (#662)
+- fixes internal server error display, now show a more
+  friendly page with contact link and button to go 
+  back to site (#666)
 
 ## 0.11.1 (2021-05-11)
 
