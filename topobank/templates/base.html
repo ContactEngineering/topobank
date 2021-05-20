@@ -50,7 +50,7 @@
       <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbar_supported_content">
         <span class="navbar-toggler-icon"></span>
       </button>
-
+      {% if request %}  {# in case of error 500, there is no request #}
       <div class="collapse navbar-collapse" id="navbar_supported_content">
 
       {# Search Bar #}
@@ -111,7 +111,7 @@
             {% endif %}
           </a>
           <div class="dropdown-menu dropdown-menu-right user-dropdown" aria-labelledby="userDropdown">
-            {% if not request.user.is_anonymous %}
+            {% if not request.user.is_anonymous and request.user.username %}
             <a class="dropdown-item" href="{% url 'users:detail' request.user.username %}"><i class="fa fa-user fa-fw"></i> User Profile</a>
             <!-- a class="dropdown-item" href="#"><i class="fa fa-cog fa-fw"></i> Settings<a> -->
             <div class="dropdown-divider"></div>
@@ -122,11 +122,12 @@
             {% endif %}
           </div>
         </li>
+
       </ul>
 
 
       </div>
-
+      {% endif %}
     </nav>
 
     {% tab_navigation %}

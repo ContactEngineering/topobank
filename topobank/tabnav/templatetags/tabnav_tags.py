@@ -7,6 +7,10 @@ TABS_CONTEXT_KEYS = ['fixed_tabs', 'extra_tabs']
 
 @register.inclusion_tag('tabnav/tabs.html', takes_context=True)
 def tab_navigation(context):
+
+    if 'request' not in context:
+        return {}  # Needed in case of 500 status (server error)
+
     is_anonymous = context['request'].user.is_anonymous
     request_path = context['request'].path
     active_tab = {}
