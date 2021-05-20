@@ -13,6 +13,8 @@
 - fixes internal server error display, now show a more
   friendly page with contact link and button to go 
   back to site (#666)
+- fixes server error when downloading analyses data
+  for PSD for surfaces with only one measurement (#664)
 
 ## 0.11.1 (2021-05-11)
 
