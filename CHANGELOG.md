@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-## 0.12.0 (not published yet)
+## 0.12.0 (2021-05-20)
 
 - use acquisition time from data file as initial 
   value for 'measurement date' after upload, if present (#433)
