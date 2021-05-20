@@ -178,12 +178,24 @@
                 $('#topography-plot-content').html(data);
               },
               error: function (xhr, textStatus, errorThrown) {
-                console.error("Could not create plot: " + errorThrown + " " + xhr.status + " " + xhr.responseText);
-                $('#topography-plot-content').html(`
-                <div class='alert alert-danger'>
-                    Could not request plot data. Error: ${errorThrown}
-                </div>
+                /**
+                 * If an error occurs *not* because of XMLHttpRequest.abort(), show an
+                 * error message. Do not show error on .abort(). See also
+                 * https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/abort
+                 * */
+                if (xhr.status == 0) {
+                  console.log("Canceled plot generation.");
+                  $('#topography-plot-content').html(`
+                  Canceled loading of plot.
+                `)
+                } else {
+                  console.error("Could not create plot: " + errorThrown + " " + xhr.status + " " + xhr.responseText);
+                  $('#topography-plot-content').html(`
+                  <div class='alert alert-danger'>
+                      Could not request plot data. Error: ${errorThrown}
+                  </div>
                 `);  /* TODO Different message when stopped, e.g. when pressing edit? */
+                }
               }
     })
   });

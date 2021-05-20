@@ -1,11 +1,13 @@
 # Changelog for *TopoBank*
 
-## 1.0.0 (not published yet)
+## 0.12.0 (not published yet)
 
 - use acquisition time from data file as initial 
   value for 'measurement date' after upload, if present (#433)
 - added buttons for selection and deselection of
   measurements and averages to analysis result plots (#623)
+- on viewing a measurement, loading of the plot is
+  now done in the background for faster page access (#597)
 - fixes internal server error because of failing thumbnail
   generation (#662)
 
