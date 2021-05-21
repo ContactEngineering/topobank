@@ -518,6 +518,8 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
         if len(significant_fields_with_changes) > 0:
             _log.info(f"During edit of topography {topo.id} significant fields changed: " +
                       f"{significant_fields_with_changes}.")
+            _log.info("Renewing squeezed datafile...")
+            topo.renew_squeezed()
             _log.info("Renewing thumbnail...")
             topo.renew_thumbnail()
             _log.info("Renewing analyses...")

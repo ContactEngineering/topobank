@@ -56,6 +56,10 @@ def set_creator_if_needed(sender, instance, **kwargs):
 @receiver(post_save, sender=Topography)
 def invalidate_cached_topography(sender, instance, **kwargs):
     cache.delete(instance.cache_key())
+    # instance.renew_squeezed()
+    # TODO really?
+    # so each time the cache is invalidated, a new
+    # squeezed version is stored for faster data access
 
 
 def _remove_notifications(instance):

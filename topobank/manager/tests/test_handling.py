@@ -86,12 +86,6 @@ def test_download_selection(client, mocker, handle_usage_statistics):
                                 value=1, date=today)
 
 
-
-
-
-
-
-
 #######################################################################
 # Topographies
 #######################################################################
