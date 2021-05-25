@@ -73,7 +73,7 @@ class TopographyFileUploadForm(forms.ModelForm):
             HTML('You are about to add a topography to surface <em>{{ surface.name }}</em>.'),
             Field('datafile'),
             Field('datafile_format', type='hidden'),  # in order to have data later in wizard's done() method
-            Field('surface', type='hidden')  # in order to have data later in wizard's done() method
+            Field('surface', type='hidden'),  # in order to have data later in wizard's done() method
         ),
         FormActions(
             Submit('save', 'Next'),

@@ -147,11 +147,11 @@ def test_call_topography_method_multiple_times(two_topos):
     #
     # coeffs should not change in between calls
     #
-    st_topo = topo.topography()
+    st_topo = topo.topography(allow_squeezed=False)
 
     coeffs_before = st_topo.coeffs
     scaling_factor_before = st_topo.parent_topography.scale_factor
-    st_topo = topo.topography()
+    st_topo = topo.topography(allow_squeezed=False)
 
     assert st_topo.parent_topography.scale_factor == scaling_factor_before
     assert st_topo.coeffs == coeffs_before
@@ -320,12 +320,16 @@ def test_notifications_are_deleted_when_topography_deleted():
 @pytest.mark.django_db
 def test_squeezed_datafile(handle_usage_statistics):
     topo = Topography2DFactory(height_scale=2, detrend_mode='height')
+    # Original heights are modified here. The modified values
+    # should be reconstructed when loading squeezed data. This is checked here.
 
-    #assert topo.squeezed_datafile is None
-    st_topo = topo.topography()
-    orig_heights = st_topo.heights()
+    assert not topo.has_squeezed_datafile
+    st_topo = topo.topography(allow_squeezed=False)
+    orig_heights = st_topo.heights()  # This was read from the original data
 
-    topo.renew_squeezed()
+    topo.renew_squeezed_datafile()
+    assert topo.has_squeezed_datafile
+
     from SurfaceTopography.IO import open_topography
     with topo.squeezed_datafile.open(mode='rb') as sdf:
         reader = open_topography(sdf)

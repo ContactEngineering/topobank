@@ -93,9 +93,10 @@ def get_topography_reader(filefield, format=None):
     if not hasattr(filefield, 'mode'):
         filefield.mode = 'rb'
     if hasattr(filefield.file, 'seek'):
-        # make sure the file is rewinded
+        # make sure the file is rewound
         filefield.file.seek(0)
-    return open_topography(filefield, format=format)
+    reader = open_topography(filefield, format=format)
+    return reader
 
 
 def surfaces_for_user(user, perms=['view_surface']):

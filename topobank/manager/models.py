@@ -39,6 +39,7 @@ MAX_LENGTH_DATAFILE_FORMAT = 15  # some more characters than currently needed, w
 MAX_NUM_POINTS_FOR_SYMBOLS_IN_LINE_SCAN_PLOT = 100
 SQUEEZED_DATAFILE_FORMAT = 'nc'
 
+
 def user_directory_path(instance, filename):
     # file will be uploaded to MEDIA_ROOT/user_<id>/<filename>
     return 'topographies/user_{0}/{1}'.format(instance.surface.creator.id, filename)
@@ -470,10 +471,17 @@ class Topography(models.Model, SubjectMixin):
         """
         return self.name
 
+    @property
+    def has_squeezed_datafile(self):
+        """If True, a squeezed data file can be retrieved via self.squeezed_datafile"""
+        return bool(self.squeezed_datafile)
+
     def get_absolute_url(self):
+        """URL of detail page for this topography."""
         return reverse('manager:topography-detail', kwargs=dict(pk=self.pk))
 
     def cache_key(self):
+        """Used for caching topographies avoiding reading datafiles again when interpreted in the same way"""
         return f"topography-{self.id}-channel-{self.data_source}"
 
     def is_shared(self, with_user, allow_change=False):
@@ -516,16 +524,23 @@ class Topography(models.Model, SubjectMixin):
         topo = cache.get(cache_key)
         if topo is None:
             if allow_squeezed:
-                # If we are allowed to use a squeezed version, create one if not already happened
-                # (also needed for downloads/analyses, so this is saved in the database)
-                if self.squeezed_datafile is None:
-                    self.renew_squeezed()
-                toporeader = get_topography_reader(self.squeezed_datafile, format=SQUEEZED_DATAFILE_FORMAT)
-                topo = toporeader.topography()
-                # In the squeezed format, these things are already applied/included:
-                #  info dict with unit, scaling, detrending, physical sizes
-                # so don't need to provide them to the .topography() method
-            else:
+                try:
+                    # If we are allowed to use a squeezed version, create one if not already happened
+                    # (also needed for downloads/analyses, so this is saved in the database)
+                    if not self.has_squeezed_datafile:
+                        self.renew_squeezed_datafile()
+                    toporeader = get_topography_reader(self.squeezed_datafile, format=SQUEEZED_DATAFILE_FORMAT)
+                    topo = toporeader.topography()
+                    # In the squeezed format, these things are already applied/included:
+                    #  info dict with unit, scaling, detrending, physical sizes
+                    # so don't need to provide them to the .topography() method
+                    _log.info(f"Using squeezed datafile instead of original datafile for topography id {self.id}.")
+                except Exception as exc:
+                    _log.error(f"Could not create squeezed datafile for topography with id {self.id}. "
+                               "Using original file instead.")
+                    topo = None
+
+            if topo is None:
                 toporeader = get_topography_reader(self.datafile, format=self.datafile_format)
                 topography_kwargs = dict(channel_index=self.data_source,
                                          periodic=self.is_periodic)
@@ -563,6 +578,9 @@ class Topography(models.Model, SubjectMixin):
 
             cache.set(cache_key, topo)
             # be sure to invalidate the cache key if topography is saved again -> signals.py
+
+        else:
+            _log.info(f"Using topography from cache for id {self.id}.")
 
         return topo
 
@@ -858,7 +876,7 @@ class Topography(models.Model, SubjectMixin):
             else:
                 raise ThumbnailGenerationException from exc
 
-    def renew_squeezed(self):
+    def renew_squeezed_datafile(self):
         """Renew squeezed datafile file."""
         _log.info(f"Renewing squeezed datafile for topography {self.id}..")
         with tempfile.NamedTemporaryFile() as tmp:
@@ -867,5 +885,4 @@ class Topography(models.Model, SubjectMixin):
             orig_stem, orig_ext = os.path.splitext(self.datafile.name)
             squeezed_name = f"{orig_stem}-squeezed.nc"
             self.squeezed_datafile = default_storage.save(squeezed_name, File(open(tmp.name, mode='rb')))
-            # self.save()
-
+            self.save()
