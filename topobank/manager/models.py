@@ -528,13 +528,19 @@ class Topography(models.Model, SubjectMixin):
                     # If we are allowed to use a squeezed version, create one if not already happened
                     # (also needed for downloads/analyses, so this is saved in the database)
                     if not self.has_squeezed_datafile:
-                        self.renew_squeezed_datafile()
-                    toporeader = get_topography_reader(self.squeezed_datafile, format=SQUEEZED_DATAFILE_FORMAT)
-                    topo = toporeader.topography()
-                    # In the squeezed format, these things are already applied/included:
-                    #  info dict with unit, scaling, detrending, physical sizes
-                    # so don't need to provide them to the .topography() method
-                    _log.info(f"Using squeezed datafile instead of original datafile for topography id {self.id}.")
+                        from topobank.taskapp.tasks import renew_squeezed_datafile
+                        renew_squeezed_datafile.delay(self.id)
+                        # this is now done in background, we load the original files instead for minimal delay
+                    else:
+                        #
+                        # Okay, we can use the squeezed datafile, it's already there.
+                        #
+                        toporeader = get_topography_reader(self.squeezed_datafile, format=SQUEEZED_DATAFILE_FORMAT)
+                        topo = toporeader.topography()
+                        # In the squeezed format, these things are already applied/included:
+                        #  info dict with unit, scaling, detrending, physical sizes
+                        # so don't need to provide them to the .topography() method
+                        _log.info(f"Using squeezed datafile instead of original datafile for topography id {self.id}.")
                 except Exception as exc:
                     _log.error(f"Could not create squeezed datafile for topography with id {self.id}. "
                                "Using original file instead.")
