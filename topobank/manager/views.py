@@ -56,6 +56,7 @@ from ..users.models import User
 from ..users.utils import get_default_group
 from ..publication.models import Publication, MAX_LEN_AUTHORS_FIELD
 from .containers import write_surface_container
+from ..taskapp.tasks import renew_squeezed_datafile, renew_topography_thumbnail
 
 # create dicts with labels and option values for Select tab
 CATEGORY_FILTER_CHOICES = {'all': 'All categories',
@@ -195,13 +196,14 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
             step0_data = self.get_cleaned_data_for_step('upload')
             datafile = step0_data['datafile']
             datafile_format = step0_data['datafile_format']
-            toporeader = get_topography_reader(datafile, format=datafile_format)
+            # toporeader = get_topography_reader(datafile, format=datafile_format)
+            channel_infos = step0_data['channel_infos']
 
         if step == 'metadata':
             initial['name'] = os.path.basename(datafile.name)  # the original file name
             # Use the latest data available on all channels as initial measurement date, if any - see GH #433
             measurement_dates = []
-            for ch in toporeader.channels:
+            for ch in channel_infos:
                 try:
                     measurement_time_str = ch.info[MEASUREMENT_TIME_INFO_FIELD]
                     measurement_time = datetime.datetime.strptime(measurement_time_str, '%Y-%m-%d %H:%M:%S')
@@ -218,7 +220,7 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
 
             step1_data = self.get_cleaned_data_for_step('metadata')
             channel = int(step1_data['data_source'])
-            channel_info = toporeader.channels[channel]
+            channel_info = channel_infos[channel]
 
             #
             # Set initial size
@@ -291,7 +293,8 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
             step0_data = self.get_cleaned_data_for_step('upload')
             datafile = step0_data['datafile']
             datafile_format = step0_data['datafile_format']
-            toporeader = get_topography_reader(datafile, format=datafile_format)
+            # toporeader = get_topography_reader(datafile, format=datafile_format)
+            channel_infos = step0_data['channel_infos']
 
         if step == 'metadata':
 
@@ -308,7 +311,7 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
             # Set data source choices based on file contents
             #
             kwargs['data_source_choices'] = [(k, clean_channel_name(channel_info.name)) for k, channel_info in
-                                             enumerate(toporeader.channels)
+                                             enumerate(channel_infos)
                                              if not (('unit' in channel_info.info)
                                                      and isinstance(channel_info.info['unit'], tuple))]
 
@@ -321,7 +324,7 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
         if step in ['units']:
             step1_data = self.get_cleaned_data_for_step('metadata')
             channel = int(step1_data['data_source'])
-            channel_info = toporeader.channels[channel]
+            channel_info = channel_infos[channel]
 
             has_2_dim = channel_info.dim == 2
             no_sizes_given = channel_info.physical_sizes is None
@@ -406,6 +409,11 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
         d['creator'] = self.request.user
 
         #
+        # Remove helper data
+        #
+        del d['channel_infos']
+
+        #
         # create topography in database
         #
         instance = Topography(**d)
@@ -418,10 +426,9 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
         # topography file in the system:
         topo = Topography.objects.get(id=instance.id)
         try:
-            topo.topography()
-            # since the topography should be saved in the cache this
-            # should not take much extra time
-            # TODO can't we determine/save resolution here?!
+            # While loading we're also saving a squeezed form, so it
+            # can be loaded faster the next time
+            topo.renew_squeezed_datafile()
         except Exception as exc:
             _log.warning("Cannot read topography from file '{}', exception: {}".format(
                 d['datafile'], str(exc)
@@ -433,7 +440,7 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
             #
             return redirect('manager:topography-corrupted', surface_id=surface.id)
 
-        topo.renew_thumbnail()
+        renew_topography_thumbnail.delay(topo.id)
         topo.renew_analyses()
         topo.surface.renew_analyses(include_topographies=False)
 
@@ -518,10 +525,10 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
         if len(significant_fields_with_changes) > 0:
             _log.info(f"During edit of topography {topo.id} significant fields changed: " +
                       f"{significant_fields_with_changes}.")
-            _log.info("Renewing squeezed datafile...")
-            topo.renew_squeezed_datafile()
-            _log.info("Renewing thumbnail...")
-            topo.renew_thumbnail()
+            _log.info("Triggering renewal of squeezed datafile in background...")
+            renew_squeezed_datafile.delay(topo.id)
+            _log.info("Triggering renewal of thumbnail in background...")
+            renew_topography_thumbnail.delay(topo.id)
             _log.info("Renewing analyses...")
             topo.renew_analyses()
             topo.surface.renew_analyses(include_topographies=False)

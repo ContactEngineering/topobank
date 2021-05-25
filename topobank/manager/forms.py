@@ -164,6 +164,11 @@ class TopographyFileUploadForm(forms.ModelForm):
                     raise forms.ValidationError("Number of grid points must be a positive number > 0." +
                                                 f" (channel: {channel_index})", code='invalid_topography')
 
+        # "channel_infos" is not part of the model, but will be added
+        # as extra data in order to avoid reloading the file later
+        # several times just for channel infos
+        cleaned_data['channel_infos'] = list(toporeader.channels)
+
         return cleaned_data
 
 
