@@ -167,6 +167,7 @@
   <script>
   $(document).ready(function () {
     /** Triggering loading of bokeh plot */
+    console.log("Requesting plot via AJAX call..");
     $.ajax({
               url: "{% url 'manager:topography-plot' topography.pk %}",
               type: 'get',
@@ -174,8 +175,9 @@
                 // server returns rendered "topography_plot.html"
                 // which is just pure html, use this to replace the existing
                 // html within the "plot content" div
-                console.log("Plot data received.");
+                console.log("Plot data received. Inserting plot..");
                 $('#topography-plot-content').html(data);
+                console.log("Plot inserted.")
               },
               error: function (xhr, textStatus, errorThrown) {
                 /**
@@ -194,7 +196,7 @@
                   <div class='alert alert-danger'>
                       Could not request plot data. Error: ${errorThrown}
                   </div>
-                `);  /* TODO Different message when stopped, e.g. when pressing edit? */
+                `);
                 }
               }
     })
