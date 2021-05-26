@@ -14,8 +14,6 @@ env:
     - DJANGO_SETTINGS_MODULE=config.settings.test
     - FIREFOX_BINARY_PATH=/usr/lib/firefox/firefox
     - GECKODRIVER_PATH=/usr/bin/geckodriver
-    - PYTHONUNBUFFERED=x
-    - PYTEST_DEBUG=1
 python:
   - 3.7
 #before_install:
