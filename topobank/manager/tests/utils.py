@@ -94,7 +94,7 @@ def two_topos():
 
     datafile1 = factory.django.FileField(from_path=FIXTURE_DIR + "/example3.di")
     datafile2 = factory.django.FileField(from_path=FIXTURE_DIR + "/example4.txt")
-
+    raise Exception("Test Exception for understanding while CI stalls")
     topos1 = Topography2DFactory(surface=surface1,
                                  creator=user,
                                  name='Example 3 - ZSensor',
