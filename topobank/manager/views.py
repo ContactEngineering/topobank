@@ -22,6 +22,7 @@ from django.core.files import File
 from django.core.files.storage import FileSystemStorage
 from django.core.files.storage import default_storage
 from django.db.models import Q
+from django.db import transaction
 from django.http import HttpResponse, Http404
 from django.shortcuts import redirect, render
 from django.urls import reverse, reverse_lazy
@@ -56,7 +57,7 @@ from ..users.models import User
 from ..users.utils import get_default_group
 from ..publication.models import Publication, MAX_LEN_AUTHORS_FIELD
 from .containers import write_surface_container
-from ..taskapp.tasks import renew_squeezed_datafile, renew_topography_thumbnail
+from ..taskapp.tasks import renew_squeezed_datafile, renew_topography_thumbnail, renew_analyses_related_to_topography
 
 # create dicts with labels and option values for Select tab
 CATEGORY_FILTER_CHOICES = {'all': 'All categories',
@@ -440,9 +441,12 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
             #
             return redirect('manager:topography-corrupted', surface_id=surface.id)
 
-        renew_topography_thumbnail.delay(topo.id)
-        topo.renew_analyses()
-        topo.surface.renew_analyses(include_topographies=False)
+        #
+        # Ok, we can work with this data.
+        # Trigger some calculations in background.
+        #
+        transaction.on_commit(lambda: renew_topography_thumbnail.delay(topo.id))
+        transaction.on_commit(lambda: renew_analyses_related_to_topography.delay(topo.id))
 
         #
         # Notify other others with access to the topography
@@ -526,12 +530,11 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
             _log.info(f"During edit of topography {topo.id} significant fields changed: " +
                       f"{significant_fields_with_changes}.")
             _log.info("Triggering renewal of squeezed datafile in background...")
-            renew_squeezed_datafile.delay(topo.id)
+            transaction.on_commit(lambda: renew_squeezed_datafile.delay(topo.id))
             _log.info("Triggering renewal of thumbnail in background...")
-            renew_topography_thumbnail.delay(topo.id)
-            _log.info("Renewing analyses...")
-            topo.renew_analyses()
-            topo.surface.renew_analyses(include_topographies=False)
+            transaction.on_commit(lambda:renew_topography_thumbnail.delay(topo.id))
+            _log.info("Triggering renewal of analyses...")
+            transaction.on_commit(lambda:renew_analyses_related_to_topography.delay(topo.id))
             notification_msg += f"\nBecause significant fields have changed, all related analyses are recalculated now."
 
         #

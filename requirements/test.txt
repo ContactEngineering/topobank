@@ -90,6 +90,8 @@ django-appconf==1.0.4
     #   django-select2
 django-bootstrap-datepicker-plus==3.0.5
     # via -r base.txt
+django-capture-on-commit-callbacks==1.4.0
+    # via -r test.in
 django-coverage-plugin==1.8.0
     # via -r test.in
 django-crispy-forms==1.9.2
@@ -134,6 +136,7 @@ django==2.2.20
     #   django-allauth
     #   django-appconf
     #   django-bootstrap-datepicker-plus
+    #   django-capture-on-commit-callbacks
     #   django-filter
     #   django-formtools
     #   django-fullurl

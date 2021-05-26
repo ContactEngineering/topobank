@@ -28,3 +28,7 @@ beautifulsoup4
 
 # for testing functions depending on date functions
 freezegun
+
+# for testing on_commit callbacks
+django-capture-on-commit-callbacks
+# not needed any more for Django 3.2+
