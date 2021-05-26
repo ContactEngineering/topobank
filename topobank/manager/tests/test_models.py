@@ -73,7 +73,10 @@ def test_topography_to_dict():
         'size': (size_x, size_y),
         'height_scale': height_scale,
         'detrend_mode': detrend_mode,
-        'datafile': topo.datafile.name,
+        'datafile': {
+            'original': topo.datafile.name,
+            'squeezed-netcdf': topo.squeezed_datafile.name,
+        },
         'description': description,
         'unit': unit,
         'data_source': topo.data_source,

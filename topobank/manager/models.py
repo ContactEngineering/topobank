@@ -597,7 +597,10 @@ class Topography(models.Model, SubjectMixin):
     def to_dict(self):
         """Create dictionary for export of metadata to json or yaml"""
         return {'name': self.name,
-                'datafile': self.datafile.name,
+                'datafile': {
+                    'original': self.datafile.name,
+                    'squeezed-netcdf': self.squeezed_datafile.name,
+                },
                 'data_source': self.data_source,
                 'detrend_mode': self.detrend_mode,
                 'is_periodic': self.is_periodic,
