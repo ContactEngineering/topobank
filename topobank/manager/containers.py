@@ -56,14 +56,14 @@ def write_surface_container(file, surfaces, request=None):
             # this dict may be okay, but have to check whether the filename is unique
             # because every filename should only appear once in the archive
 
-            def unique_topography_filename(fn):
+            def unique_topography_filename(fn, already_used_topofile_names=already_used_topofile_names):
                 """Make sure the filename is unique in archive.
 
                 If filename `fn` is already used, add a counter.
                 Return the name that should be used.
                 """
                 nonlocal counter
-                if fn in already_used_topofile_names:
+                while fn in already_used_topofile_names:
                     fn_root, fn_ext = os.path.splitext(fn)
                     fn = f"{fn_root}_{counter}.{fn_ext}"
                     counter += 1
@@ -73,7 +73,8 @@ def write_surface_container(file, surfaces, request=None):
             # Return original datafile to archive
             #
             original_name = unique_topography_filename(
-                os.path.basename(topo_dict['datafile']['original'])
+                os.path.basename(topo_dict['datafile']['original']),
+                already_used_topofile_names=already_used_topofile_names
             )
             topo_dict['datafile']['original'] = original_name
             already_used_topofile_names.append(original_name)
@@ -91,7 +92,8 @@ def write_surface_container(file, surfaces, request=None):
                                f"for download: {exc}")
             if topography.has_squeezed_datafile:
                 squeezed_file_name = unique_topography_filename(
-                    os.path.basename(topo_dict['datafile']['squeezed-netcdf'])
+                    os.path.basename(topography.squeezed_datafile.name),
+                    already_used_topofile_names=already_used_topofile_names
                 )
                 topo_dict['datafile']['squeezed-netcdf'] = squeezed_file_name
                 already_used_topofile_names.append(squeezed_file_name)
