@@ -6,7 +6,7 @@
   by putting jobs into background and reducing file 
   loads (#261)
 - using a squeezed datafile internally for faster 
-  loading of measurements (#661) 
+  loading of measurements (#605, #661) 
   
 ## 0.12.0 (2021-05-20)
 
