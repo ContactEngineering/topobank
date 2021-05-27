@@ -132,6 +132,13 @@ def write_surface_container(file, surfaces, request=None):
     collection of individual topography measurements.
     In total {} topography measurements are included.
 
+    For each measurement two files are included:
+    - The original data file which was uploaded by a user,
+    - as alternative, a NetCDF 3 file with extension "-squeezed.nc" which can
+      be used to load the data in other programs, e.g. Matlab; here "squeezed"
+      means that height scale factors and detrending have already been applied
+      and the data can be directly used.
+
     The meta data for the surfaces and the individual topographies
     can be found in the auxiliary file 'meta.yml'. It is formatted
     as a [YAML](https://yaml.org/) file.
