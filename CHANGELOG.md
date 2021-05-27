@@ -2,11 +2,13 @@
 
 ## 0.13.0 (not published yet)
 
-- improve performance when uploading new measurements 
+- improved performance when uploading new measurements 
   by putting jobs into background and reducing file 
   loads (#261)
-- using a squeezed datafile internally for faster 
-  loading of measurements (#605, #661) 
+- now using a squeezed datafile internally for faster 
+  loading of measurements (#605, #661)
+- fixed internal error when analysis card for 
+  contact mechanics in certain cases (#670)
   
 ## 0.12.0 (2021-05-20)
 

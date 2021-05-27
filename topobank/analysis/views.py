@@ -1022,7 +1022,10 @@ class ContactMechanicsCardView(SimpleCardView):
         # parameters for topography analyses
         #
         topography_ct = ContentType.objects.get_for_model(Topography)
-        unique_kwargs = context['unique_kwargs'][topography_ct]
+        try:
+            unique_kwargs = context['unique_kwargs'][topography_ct]
+        except KeyError:
+            unique_kwargs = None
         if unique_kwargs:
             initial_calc_kwargs = unique_kwargs
         else:
