@@ -1083,11 +1083,24 @@ If building the containers was successful, aks yourself these questions:
   with appropriate arguments. As example, if all calculations for analysis functions with
   ids 1, 2, and 3 have to be rerun, call:
 
-.. code:: bash
+  .. code:: bash
 
      docker-compose -f production.yml run --rm django python manage.py trigger_analyses f1 f2 f3
 
   This may take some time.
+
+- Is there a change of the internal representation of the "squeezed" data format?
+
+  Currently all data files are saved in an alternative format, the "squeezed datafile".
+  Currently this is a NetCDF3 format provided by the package `SurfaceTopography`.
+  If this format changes or all squeezed files should be recreated, you should run
+
+  .. code:: bash
+
+     docker-compose -f production.yml run --rm django python manage.py renew_squeezed
+
+  This may take some time. You could use the switch `-b` to do it in the task queue,
+  but then you don't know at the end whether it was successful.
 
 
 Restart application
