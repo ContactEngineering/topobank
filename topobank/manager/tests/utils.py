@@ -50,7 +50,6 @@ class Topography1DFactory(factory.django.DjangoModelFactory):
     # creator is set automatically to surface's creator if not set, see signals
     name = factory.Sequence(lambda n: "topography-{:05d}".format(n))
     datafile = factory.django.FileField(from_path=str(settings.ROOT_DIR.path(FIXTURE_DIR + "/line_scan_1.asc")))
-    squeezed_datafile = factory.django.FileField(from_path=str(settings.ROOT_DIR.path(FIXTURE_DIR + "/line_scan_1.asc")))  # TODO just for test
     data_source = 0
     measurement_date = factory.Sequence(lambda n: datetime.date(2019, 1, 1) + datetime.timedelta(days=n))
     size_x = 512
