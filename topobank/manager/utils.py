@@ -674,7 +674,7 @@ def _bandwidths_data_entry(topo):
     if unit is None:
         _log.warning("No unit given for topography {}. Cannot calculate bandwidth.".format(topo.name))
         err_message = 'No unit given for topography, cannot calculate bandwidth.'
-    elif not unit in UNIT_TO_METERS:
+    elif unit not in UNIT_TO_METERS:
         _log.warning("Unknown unit {} given for topography {}. Cannot calculate bandwidth.".format(
             unit, topo.name))
         err_message = "Unknown unit {} given for topography {}. Cannot calculate bandwidth.".format(
