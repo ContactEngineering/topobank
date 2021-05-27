@@ -6,7 +6,8 @@
   by putting jobs into background and reducing file 
   loads (#261)
 - now using a squeezed datafile internally for faster 
-  loading of measurements (#605, #661)
+  loading of measurements, also added management command
+  for recreating those files (#605, #661)
 - fixed internal error when analysis card for 
   contact mechanics in certain cases (#670)
   
