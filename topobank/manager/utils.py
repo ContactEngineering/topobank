@@ -17,7 +17,6 @@ from selenium.webdriver.firefox.firefox_binary import FirefoxBinary
 from SurfaceTopography import open_topography
 from SurfaceTopography.IO import readers as surface_topography_readers
 
-
 _log = logging.getLogger(__name__)
 
 DEFAULT_DATASOURCE_NAME = 'Default'
@@ -178,9 +177,9 @@ def filtered_topographies(request, surfaces):
     search_term = get_search_term(request)
     if search_term:
         topographies = topographies.filter(
-                Q(name__icontains=search_term) |
-                Q(description__icontains=search_term) |
-                Q(tags__name__icontains=search_term))
+            Q(name__icontains=search_term) |
+            Q(description__icontains=search_term) |
+            Q(tags__name__icontains=search_term))
     return topographies.distinct()
 
 
@@ -594,7 +593,7 @@ def selection_to_subjects_json(request):
 
     # we collect effective topographies and surfaces because we have so far implementations
     # for analysis functions for topographies and surfaces
-    subjects_ids_json = subjects_to_json(effective_topographies+effective_surfaces)
+    subjects_ids_json = subjects_to_json(effective_topographies + effective_surfaces)
 
     return effective_topographies, effective_surfaces, subjects_ids_json
 
@@ -628,9 +627,9 @@ def body_for_mailto_link_for_reporting_an_error(info, err_msg, traceback) -> str
 
     body += "Traceback:\n"
 
-    body += "-"*72+"\n"
+    body += "-" * 72 + "\n"
     body += f"\n{traceback}\n"
-    body += "-"*72+"\n"
+    body += "-" * 72 + "\n"
     body += "\n\nBest, <your name>"
 
     # change characters to we can use this in a link
@@ -652,7 +651,7 @@ def _bandwidths_data_entry(topo):
     except Exception:
         err_message = "Topography '{}' (id: {}) cannot be loaded unexpectedly.".format(
             topo.name, topo.id)
-        _log.error(err_message+"\n"+traceback.format_exc())
+        _log.error(err_message + "\n" + traceback.format_exc())
 
         link = mailto_link_for_reporting_an_error(f"Failure loading topography (id: {topo.id})",
                                                   "Bandwidth data calculation",
@@ -660,11 +659,11 @@ def _bandwidths_data_entry(topo):
                                                   traceback.format_exc())
 
         return {
-                'lower_bound': None,
-                'upper_bound': None,
-                'topography': topo,
-                'link': link,
-                'error_message': err_message
+            'lower_bound': None,
+            'upper_bound': None,
+            'topography': topo,
+            'link': link,
+            'error_message': err_message
         }
 
     try:
@@ -698,11 +697,11 @@ def _bandwidths_data_entry(topo):
         upper_bound_meters = None
 
     return {
-            'lower_bound': lower_bound_meters,
-            'upper_bound': upper_bound_meters,
-            'topography': topo,
-            'link': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
-            'error_message': err_message
+        'lower_bound': lower_bound_meters,
+        'upper_bound': upper_bound_meters,
+        'topography': topo,
+        'link': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
+        'error_message': err_message
     }
 
 
@@ -725,7 +724,7 @@ def bandwidths_data(topographies):
     The idea is to be able to display error messages and the links
     also on javascript level which gets this data.
     """
-    bandwidths_data = [ _bandwidths_data_entry(t) for t in topographies]
+    bandwidths_data = [_bandwidths_data_entry(t) for t in topographies]
 
     #
     # Sort by lower bound, put lower bound=None first to show error messages first in plot
@@ -826,7 +825,6 @@ def get_tree_mode(request) -> str:
 
 
 def get_firefox_webdriver() -> WebDriver:
-
     binary = FirefoxBinary(str(settings.FIREFOX_BINARY_PATH))
 
     options = webdriver.firefox.options.Options()
@@ -838,4 +836,3 @@ def get_firefox_webdriver() -> WebDriver:
         executable_path=str(settings.GECKODRIVER_PATH),
         service_log_path=devnull,
     )
-
