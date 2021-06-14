@@ -522,8 +522,24 @@ def test_roughness_parameters(simple_linear_2d_topography):
         },
         {
             'quantity': 'RMS curvature',
+            'direction': 'y',
+            'from': 'profile (1D)',
+            'symbol': '',
+            'value': 0,
+            'unit': inverse_unit,
+        },
+        {
+            'quantity': 'RMS curvature',
             'direction': None,
             'from': 'area (2D)',
+            'symbol': '',
+            'value': 0,
+            'unit': inverse_unit,
+        },
+        {
+            'quantity': 'RMS curvature',
+            'direction': 'x',
+            'from': 'profile (1D)',
             'symbol': '',
             'value': 0,
             'unit': inverse_unit,
@@ -557,7 +573,7 @@ def test_roughness_parameters(simple_linear_2d_topography):
     # compare all fields
     for exp, actual in zip(expected, result):
         assert_allclose(exp['value'], actual['value'],
-                        atol=1e-15,
+                        atol=1e-14,
                         err_msg=f"Different values: exp: {exp}, actual: {actual}")
         del exp['value']
         del actual['value']
