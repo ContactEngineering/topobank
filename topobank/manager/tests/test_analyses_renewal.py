@@ -10,7 +10,7 @@ from django_capture_on_commit_callbacks import capture_on_commit_callbacks
 
 from .utils import FIXTURE_DIR, Topography1DFactory, SurfaceFactory, UserFactory
 from topobank.analysis.tests.utils import SurfaceAnalysisFactory, AnalysisFunctionFactory, \
-    AnalysisFunctionImplementationFactory, TopographyAnalysisFactory
+    AnalysisFunctionImplementationFactory, TopographyAnalysisFactory, Topography2DFactory
 from topobank.utils import assert_in_content, assert_no_form_errors
 
 
@@ -25,7 +25,7 @@ def test_renewal_on_topography_change(client, mocker):
 
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
-    topo = Topography1DFactory(surface=surface, size_y=1)
+    topo = Topography2DFactory(surface=surface, size_y=1, size_editable=True)
 
     client.force_login(user)
 
