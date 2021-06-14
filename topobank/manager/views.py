@@ -258,14 +258,11 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
             initial['unit_editable'] = initial['unit'] is None
 
             #
-            # Set initial height and height unit
+            # Set initial height scale factor
             #
-            if 'height_scale_factor' in channel_info.info:
-                initial['height_scale'] = channel_info.info['height_scale_factor']
-            else:
-                initial['height_scale'] = 1
-
-            initial['height_scale_editable'] = True  # because of GH 131 we decided to always allow editing
+            height_scale_factor_missing = channel_info.height_scale_factor is None  # missing in file
+            initial['height_scale_editable'] = height_scale_factor_missing
+            initial['height_scale'] = 1 if height_scale_factor_missing else channel_info.height_scale_factor
 
             #
             # Set initial detrend mode

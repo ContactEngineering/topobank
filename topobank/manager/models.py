@@ -571,11 +571,8 @@ class Topography(models.Model, SubjectMixin):
                     # Adjust height scale to value chosen by user
                     topography_kwargs['height_scale_factor'] = self.height_scale
 
-                    # from SurfaceTopography.read_topography's docstring:
-                    #
-                    # height_scale_factor : float
-                    #    Override height scale factor found in the data file.
-                    #
+                    # This is only possible and needed, if no height scale was
+                    # given in the data file already.
                     # So default is to use the factor from the file.
 
                 # Eventually get topography from module "SurfaceTopography" using the given keywords
