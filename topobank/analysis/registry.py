@@ -235,6 +235,7 @@ class AnalysisFunctionRegistry(metaclass=Singleton):
                     dangling_analyses.delete()
                     func.delete()
                     _log.info(f"Deleted function '{func.name}' and all its analyses.")
+                    counts['funcs_deleted'] += 1
 
         #
         # Ensure all implementations needed exist in database

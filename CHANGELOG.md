@@ -14,6 +14,7 @@
 - fixed incorrect scaling for OPD files (#675)  
 - fixed internal error when analysis card for 
   contact mechanics in certain cases (#670)
+- fixed count when deleting analysis functions (#657)  
 - upgraded to SurfaceTopography 0.94.0  
 - several updates of dependencies for security reasons  
   
