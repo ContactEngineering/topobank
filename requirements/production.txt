@@ -4,387 +4,105 @@
 #
 #    pip-compile --output-file=production.txt production.in
 #
-amqp==2.6.1
-    # via
-    #   -r ./base.txt
-    #   kombu
-argon2-cffi==20.1.0
-    # via -r ./base.txt
-babel==2.8.0
-    # via
-    #   -r ./base.txt
-    #   celery-flower
-billiard==3.6.3.0
-    # via
-    #   -r ./base.txt
-    #   celery
-bleach==3.3.0
-    # via -r ./base.txt
-bokeh==2.2.3
-    # via -r ./base.txt
-boto3==1.16.1
-    # via -r ./base.txt
-botocore==1.19.1
-    # via
-    #   -r ./base.txt
-    #   boto3
-    #   s3transfer
-celery-flower==1.0.1
-    # via -r ./base.txt
-celery-progress==0.0.14
-    # via -r ./base.txt
-celery==4.4.7
-    # via
-    #   -r ./base.txt
-    #   celery-flower
-certifi==2020.6.20
-    # via
-    #   -r ./base.txt
-    #   requests
-cffi==1.14.3
-    # via
-    #   -r ./base.txt
-    #   argon2-cffi
-    #   cryptography
-cftime==1.2.1
-    # via
-    #   -r ./base.txt
-    #   netcdf4
-chardet==3.0.4
-    # via
-    #   -r ./base.txt
-    #   requests
-contactmechanics==0.90.1
-    # via -r ./base.txt
-coreapi==2.3.3
-    # via -r ./base.txt
-coreschema==0.0.4
-    # via
-    #   -r ./base.txt
-    #   coreapi
-cryptography==3.4.6
-    # via
-    #   -r ./base.txt
-    #   pyjwt
-defusedxml==0.6.0
-    # via
-    #   -r ./base.txt
-    #   python3-openid
-    #   surfacetopography
-django-allauth==0.43.0
-    # via -r ./base.txt
-django-appconf==1.0.4
-    # via
-    #   -r ./base.txt
-    #   django-select2
-django-bootstrap-datepicker-plus==3.0.5
-    # via -r ./base.txt
-django-crispy-forms==1.9.2
-    # via -r ./base.txt
-django-environ==0.4.5
-    # via -r ./base.txt
-django-filter==2.4.0
-    # via -r ./base.txt
-django-fontawesome==1.0
-    # via -r ./base.txt
-django-formtools==2.2
-    # via -r ./base.txt
-django-fullurl==1.1
-    # via -r ./base.txt
-django-guardian==2.3.0
-    # via -r ./base.txt
-django-model-utils==4.0.0
-    # via
-    #   -r ./base.txt
-    #   django-notifications-hq
-django-notifications-hq==1.6.0
-    # via -r ./base.txt
-git+http://github.com/IMTEK-Simulation/django-progressbarupload.git
-    # via -r ./base.txt
-django-select2==7.4.2
-    # via -r ./base.txt
-django-storages==1.10.1
-    # via -r ./base.txt
-django-tables2==2.3.2
-    # via -r ./base.txt
-django-tagulous==1.0.0
-    # via -r ./base.txt
-git+http://git@github.com/mcrot/django-termsandconditions.git@optional_terms
-    # via -r ./base.txt
-django-trackstats==0.5.0
-    # via -r ./base.txt
-django==2.2.20
-    # via
-    #   -r ./base.txt
-    #   django-allauth
-    #   django-appconf
-    #   django-bootstrap-datepicker-plus
-    #   django-filter
-    #   django-formtools
-    #   django-fullurl
-    #   django-guardian
-    #   django-model-utils
-    #   django-notifications-hq
-    #   django-select2
-    #   django-storages
-    #   django-tables2
-    #   django-tagulous
-    #   django-termsandconditions
-    #   django-trackstats
-    #   djangorestframework
-    #   jsonfield
-djangorestframework==3.12.1
-    # via -r ./base.txt
-et-xmlfile==1.0.1
-    # via
-    #   -r ./base.txt
-    #   openpyxl
-future==0.18.2
-    # via
-    #   -r ./base.txt
-    #   django-termsandconditions
-gevent==20.6.2
-    # via
-    #   -r production.in
-    #   gunicorn
-greenlet==0.4.16
-    # via
-    #   -r production.in
-    #   gevent
-gunicorn[gevent]==20.1.0
-    # via -r production.in
-h5netcdf==0.8.1
-    # via -r ./base.txt
-h5py==2.10.0
-    # via
-    #   -r ./base.txt
-    #   h5netcdf
-    #   surfacetopography
-idna==2.10
-    # via
-    #   -r ./base.txt
-    #   requests
-igor==0.3
-    # via
-    #   -r ./base.txt
-    #   surfacetopography
-itypes==1.2.0
-    # via
-    #   -r ./base.txt
-    #   coreapi
-jdcal==1.4.1
-    # via
-    #   -r ./base.txt
-    #   openpyxl
-jinja2==2.11.3
-    # via
-    #   -r ./base.txt
-    #   bokeh
-    #   coreschema
-jmespath==0.10.0
-    # via
-    #   -r ./base.txt
-    #   boto3
-    #   botocore
-jsonfield==3.1.0
-    # via
-    #   -r ./base.txt
-    #   django-notifications-hq
-kombu==4.6.11
-    # via
-    #   -r ./base.txt
-    #   celery
-lxml==4.6.3
-    # via -r ./base.txt
-markdown2==2.3.10
-    # via -r ./base.txt
-markupsafe==1.1.1
-    # via
-    #   -r ./base.txt
-    #   jinja2
-mufft==0.15.0
-    # via
-    #   -r ./base.txt
-    #   contactmechanics
-    #   surfacetopography
-netcdf4==1.5.4
-    # via -r ./base.txt
-numpi==0.1.4
-    # via
-    #   -r ./base.txt
-    #   contactmechanics
-    #   surfacetopography
-numpy==1.19.2
-    # via
-    #   -r ./base.txt
-    #   bokeh
-    #   cftime
-    #   contactmechanics
-    #   h5py
-    #   mufft
-    #   netcdf4
-    #   numpi
-    #   numpyencoder
-    #   pandas
-    #   scipy
-    #   surfacetopography
-    #   xarray
-numpyencoder==0.3.0
-    # via
-    #   -r ./base.txt
-    #   surfacetopography
-oauthlib==3.1.0
-    # via
-    #   -r ./base.txt
-    #   requests-oauthlib
-openpyxl==3.0.5
-    # via -r ./base.txt
-packaging==20.4
-    # via
-    #   -r ./base.txt
-    #   bleach
-    #   bokeh
-    #   pint
-pandas==1.1.3
-    # via
-    #   -r ./base.txt
-    #   xarray
-pillow==8.1.2
-    # via
-    #   -r ./base.txt
-    #   bokeh
-pint==0.16.1
-    # via -r ./base.txt
-psycopg2-binary==2.8.5
-    # via -r production.in
-pycparser==2.20
-    # via
-    #   -r ./base.txt
-    #   cffi
-pygments==2.8.1
-    # via -r ./base.txt
-pyjwt[crypto]==1.7.1
-    # via
-    #   -r ./base.txt
-    #   django-allauth
-pylibmc==1.6.1
-    # via -r ./base.txt
-pyparsing==2.4.7
-    # via
-    #   -r ./base.txt
-    #   packaging
-python-dateutil==2.8.1
-    # via
-    #   -r ./base.txt
-    #   bokeh
-    #   botocore
-    #   pandas
-python-memcached==1.59
-    # via -r production.in
-python-slugify==4.0.1
-    # via -r ./base.txt
-python3-openid==3.2.0
-    # via
-    #   -r ./base.txt
-    #   django-allauth
-pytz==2020.1
-    # via
-    #   -r ./base.txt
-    #   babel
-    #   celery
-    #   celery-flower
-    #   django
-    #   django-notifications-hq
-    #   django-trackstats
-    #   pandas
-pyyaml==5.4.1
-    # via
-    #   -r ./base.txt
-    #   bokeh
-    #   django-fontawesome
-requests-oauthlib==1.3.0
-    # via
-    #   -r ./base.txt
-    #   django-allauth
-requests==2.24.0
-    # via
-    #   -r ./base.txt
-    #   coreapi
-    #   django-allauth
-    #   requests-oauthlib
-s3transfer==0.3.3
-    # via
-    #   -r ./base.txt
-    #   boto3
-scipy==1.5.3
-    # via
-    #   -r ./base.txt
-    #   numpi
-selenium==3.141.0
-    # via -r ./base.txt
-short-url==1.2.2
-    # via -r ./base.txt
-six==1.15.0
-    # via
-    #   -r ./base.txt
-    #   argon2-cffi
-    #   bleach
-    #   h5py
-    #   packaging
-    #   python-dateutil
-    #   python-memcached
-sqlparse==0.4.1
-    # via
-    #   -r ./base.txt
-    #   django
-surfacetopography==0.93.0
-    # via
-    #   -r ./base.txt
-    #   contactmechanics
-swapper==1.1.2.post1
-    # via
-    #   -r ./base.txt
-    #   django-notifications-hq
-text-unidecode==1.3
-    # via
-    #   -r ./base.txt
-    #   python-slugify
-tornado==5.1.1
-    # via
-    #   -r ./base.txt
-    #   bokeh
-    #   celery-flower
-typing-extensions==3.7.4.3
-    # via
-    #   -r ./base.txt
-    #   bokeh
-uritemplate==3.0.1
-    # via
-    #   -r ./base.txt
-    #   coreapi
-urllib3==1.25.11
-    # via
-    #   -r ./base.txt
-    #   botocore
-    #   requests
-    #   selenium
-vine==1.3.0
-    # via
-    #   -r ./base.txt
-    #   amqp
-    #   celery
-webencodings==0.5.1
-    # via
-    #   -r ./base.txt
-    #   bleach
-whitenoise==5.2.0
-    # via -r ./base.txt
-xarray==0.16.1
-    # via -r ./base.txt
-zope.event==4.4
-    # via gevent
-zope.interface==5.1.0
-    # via gevent
+amqp==2.6.1               # via -r ./base.txt, kombu
+argon2-cffi==20.1.0       # via -r ./base.txt
+babel==2.8.0              # via -r ./base.txt, celery-flower
+billiard==3.6.3.0         # via -r ./base.txt, celery
+bleach==3.3.0             # via -r ./base.txt
+bokeh==2.2.3              # via -r ./base.txt
+boto3==1.16.1             # via -r ./base.txt
+botocore==1.19.1          # via -r ./base.txt, boto3, s3transfer
+celery-flower==1.0.1      # via -r ./base.txt
+celery-progress==0.0.14   # via -r ./base.txt
+celery==4.4.7             # via -r ./base.txt, celery-flower
+certifi==2020.6.20        # via -r ./base.txt, requests
+cffi==1.14.3              # via -r ./base.txt, argon2-cffi, cryptography
+cftime==1.2.1             # via -r ./base.txt, netcdf4
+chardet==3.0.4            # via -r ./base.txt, requests
+contactmechanics==0.90.1  # via -r ./base.txt
+cryptography==3.4.6       # via -r ./base.txt, pyjwt
+defusedxml==0.6.0         # via -r ./base.txt, python3-openid, surfacetopography
+django-allauth==0.43.0    # via -r ./base.txt
+django-appconf==1.0.4     # via -r ./base.txt, django-select2
+django-bootstrap-datepicker-plus==3.0.5  # via -r ./base.txt
+django-crispy-forms==1.9.2  # via -r ./base.txt
+django-environ==0.4.5     # via -r ./base.txt
+django-filter==2.4.0      # via -r ./base.txt
+django-fontawesome==1.0   # via -r ./base.txt
+django-formtools==2.2     # via -r ./base.txt
+django-fullurl==1.1       # via -r ./base.txt
+django-guardian==2.3.0    # via -r ./base.txt
+django-model-utils==4.0.0  # via -r ./base.txt, django-notifications-hq
+django-notifications-hq==1.6.0  # via -r ./base.txt
+git+http://github.com/IMTEK-Simulation/django-progressbarupload.git  # via -r ./base.txt
+django-select2==7.4.2     # via -r ./base.txt
+django-storages==1.10.1   # via -r ./base.txt
+django-tables2==2.3.2     # via -r ./base.txt
+django-tagulous==1.0.0    # via -r ./base.txt
+git+http://git@github.com/mcrot/django-termsandconditions.git@optional_terms  # via -r ./base.txt
+django-trackstats==0.5.0  # via -r ./base.txt
+django==2.2.21            # via -r ./base.txt, django-allauth, django-appconf, django-bootstrap-datepicker-plus, django-filter, django-formtools, django-fullurl, django-guardian, django-model-utils, django-notifications-hq, django-select2, django-storages, django-tables2, django-tagulous, django-termsandconditions, django-trackstats, djangorestframework, jsonfield
+djangorestframework==3.12.1  # via -r ./base.txt
+et-xmlfile==1.0.1         # via -r ./base.txt, openpyxl
+future==0.18.2            # via -r ./base.txt, django-termsandconditions
+gevent==20.6.2            # via -r production.in, gunicorn
+greenlet==0.4.16          # via -r production.in, gevent
+gunicorn[gevent]==20.1.0  # via -r production.in
+h5netcdf==0.8.1           # via -r ./base.txt
+h5py==2.10.0              # via -r ./base.txt, h5netcdf, surfacetopography
+idna==2.10                # via -r ./base.txt, requests
+igor==0.3                 # via -r ./base.txt, surfacetopography
+jdcal==1.4.1              # via -r ./base.txt, openpyxl
+jinja2==2.11.3            # via -r ./base.txt, bokeh
+jmespath==0.10.0          # via -r ./base.txt, boto3, botocore
+jsonfield==3.1.0          # via -r ./base.txt, django-notifications-hq
+kombu==4.6.11             # via -r ./base.txt, celery
+lxml==4.6.3               # via -r ./base.txt
+markdown2==2.4.0          # via -r ./base.txt
+markupsafe==1.1.1         # via -r ./base.txt, jinja2
+mufft==0.15.0             # via -r ./base.txt, contactmechanics, surfacetopography
+netcdf4==1.5.4            # via -r ./base.txt
+numpi==0.1.4              # via -r ./base.txt, contactmechanics, surfacetopography
+numpy==1.19.2             # via -r ./base.txt, bokeh, cftime, contactmechanics, h5py, mufft, netcdf4, numpi, numpyencoder, pandas, scipy, surfacetopography, xarray
+numpyencoder==0.3.0       # via -r ./base.txt, surfacetopography
+oauthlib==3.1.0           # via -r ./base.txt, requests-oauthlib
+openpyxl==3.0.5           # via -r ./base.txt
+packaging==20.4           # via -r ./base.txt, bleach, bokeh, pint
+pandas==1.1.3             # via -r ./base.txt, xarray
+pillow==8.1.2             # via -r ./base.txt, bokeh
+pint==0.16.1              # via -r ./base.txt
+psycopg2-binary==2.8.5    # via -r production.in
+pycparser==2.20           # via -r ./base.txt, cffi
+pygments==2.8.1           # via -r ./base.txt
+pyjwt[crypto]==1.7.1      # via -r ./base.txt, django-allauth
+pylibmc==1.6.1            # via -r ./base.txt
+pyparsing==2.4.7          # via -r ./base.txt, packaging
+python-dateutil==2.8.1    # via -r ./base.txt, bokeh, botocore, pandas
+python-memcached==1.59    # via -r production.in
+python-slugify==4.0.1     # via -r ./base.txt
+python3-openid==3.2.0     # via -r ./base.txt, django-allauth
+pytz==2020.1              # via -r ./base.txt, babel, celery, celery-flower, django, django-notifications-hq, django-trackstats, pandas
+pyyaml==5.4.1             # via -r ./base.txt, bokeh, django-fontawesome, surfacetopography
+requests-oauthlib==1.3.0  # via -r ./base.txt, django-allauth
+requests==2.24.0          # via -r ./base.txt, django-allauth, requests-oauthlib
+s3transfer==0.3.3         # via -r ./base.txt, boto3
+scipy==1.5.3              # via -r ./base.txt, numpi
+selenium==3.141.0         # via -r ./base.txt
+short-url==1.2.2          # via -r ./base.txt
+six==1.15.0               # via -r ./base.txt, argon2-cffi, bleach, h5py, packaging, python-dateutil, python-memcached
+sqlparse==0.4.1           # via -r ./base.txt, django
+surfacetopography==0.94.0  # via -r ./base.txt, contactmechanics
+swapper==1.1.2.post1      # via -r ./base.txt, django-notifications-hq
+text-unidecode==1.3       # via -r ./base.txt, python-slugify
+tornado==5.1.1            # via -r ./base.txt, bokeh, celery-flower
+typing-extensions==3.7.4.3  # via -r ./base.txt, bokeh
+urllib3==1.25.11          # via -r ./base.txt, botocore, requests, selenium
+vine==1.3.0               # via -r ./base.txt, amqp, celery
+webencodings==0.5.1       # via -r ./base.txt, bleach
+whitenoise==5.2.0         # via -r ./base.txt
+xarray==0.16.1            # via -r ./base.txt
+zope.event==4.4           # via gevent
+zope.interface==5.1.0     # via gevent
 
 # The following packages are considered to be unsafe in a requirements file:
 # setuptools
