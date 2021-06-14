@@ -8,6 +8,7 @@
 - now using a squeezed datafile internally for faster 
   loading of measurements, also added management command
   for recreating those files (#605, #661)
+- fixed incorrect scaling for OPD files (#675)  
 - fixed internal error when analysis card for 
   contact mechanics in certain cases (#670)
 - several updates of dependencies for security reasons  
