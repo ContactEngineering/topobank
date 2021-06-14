@@ -8,9 +8,11 @@
 - now using a squeezed datafile internally for faster 
   loading of measurements, also added management command
   for recreating those files (#605, #661)
+- fixed loading of 2D xyz files (#659, #585)  
 - fixed incorrect scaling for OPD files (#675)  
 - fixed internal error when analysis card for 
   contact mechanics in certain cases (#670)
+- upgraded to SurfaceTopography 0.94.0  
 - several updates of dependencies for security reasons  
   
 ## 0.12.0 (2021-05-20)
