@@ -146,7 +146,7 @@ tr.fancytree-active span.fancytree-title, tr.fancytree-active div.description-co
 }
 
 div.version-column {
-  text-align: center;
+  text-align: left;
 }
 
 /**

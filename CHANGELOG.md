@@ -8,6 +8,8 @@
 - now using a squeezed datafile internally for faster 
   loading of measurements, also added management command
   for recreating those files (#605, #661)
+- added publication date next to version number in 
+  table on select page (#608)
 - fixed loading of 2D xyz files (#659, #585)  
 - fixed incorrect scaling for OPD files (#675)  
 - fixed internal error when analysis card for 
