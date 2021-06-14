@@ -5,7 +5,7 @@ whitenoise  # https://github.com/evansd/whitenoise
 
 # Django
 # ------------------------------------------------------------------------------
-django==2.2.21  #  does this work with pyup?  # https://www.djangoproject.com/
+django==2.2.24  #  does this work with pyup?  # https://www.djangoproject.com/
 django-environ  # https://github.com/joke2k/django-environ
 django-model-utils  # https://github.com/jazzband/django-model-utils
 django-allauth  # https://github.com/pennersr/django-allauth
@@ -132,7 +132,7 @@ django-fullurl
 lxml>=4.6.3
 jinja2>=2.11.3  # because of CVE-2020-28493
 
-# because of several CVE where size of images is not properly checked
-Pillow>=8.1.1
+# because of several CVEs
+Pillow>=8.2.0
 
 PyYAML>=5.4  # CVE-2020-14343

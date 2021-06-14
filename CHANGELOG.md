@@ -10,6 +10,7 @@
   for recreating those files (#605, #661)
 - fixed internal error when analysis card for 
   contact mechanics in certain cases (#670)
+- several updates of dependencies for security reasons  
   
 ## 0.12.0 (2021-05-20)
 
