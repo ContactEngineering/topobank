@@ -5,6 +5,7 @@ from rest_framework.test import APIRequestFactory
 from trackstats.models import Metric, Period
 
 import pytest
+from pytest import approx
 from pathlib import Path
 import datetime
 import os.path
@@ -684,17 +685,17 @@ def test_topography_list(client, two_topos, django_user_model, handle_usage_stat
 
 
 @pytest.fixture
-def topo_example3():
+def topo_example3(two_topos):
     return Topography.objects.get(name='Example 3 - ZSensor')
 
 
 @pytest.fixture
-def topo_example4():
+def topo_example4(two_topos):
     return Topography.objects.get(name='Example 4 - Default')
 
 
 @pytest.mark.django_db
-def test_edit_topography(client, two_topos, django_user_model, topo_example3, handle_usage_statistics):
+def test_edit_topography(client, django_user_model, topo_example3, handle_usage_statistics):
     new_name = "This is a better name"
     new_measurement_date = "2018-07-01"
     new_description = "New results available"
@@ -718,9 +719,9 @@ def test_edit_topography(client, two_topos, django_user_model, topo_example3, ha
     assert initial['name'] == topo_example3.name
     assert initial['measurement_date'] == datetime.date(2018, 1, 1)
     assert initial['description'] == 'description1'
-    assert initial['size_x'] == pytest.approx(10)
-    assert initial['size_y'] == pytest.approx(10)
-    assert pytest.approx(initial['height_scale']) == 0.29638271279074097
+    assert initial['size_x'] == approx(10)
+    assert initial['size_y'] == approx(10)
+    assert initial['height_scale'] == approx(0.29638271279074097)
     assert initial['detrend_mode'] == 'height'
 
     #
@@ -739,6 +740,7 @@ def test_edit_topography(client, two_topos, django_user_model, topo_example3, ha
                                'unit': 'nm',
                                'height_scale': 0.1,
                                'detrend_mode': 'height',
+                               'tags': 'ab, bc',  # needs a string
                            }, follow=True)
 
     assert_no_form_errors(response)
@@ -759,8 +761,9 @@ def test_edit_topography(client, two_topos, django_user_model, topo_example3, ha
     assert t.description == new_description
     assert t.name == new_name
     assert "example3" in t.datafile.name
-    assert pytest.approx(t.size_x) == 500
-    assert pytest.approx(t.size_y) == 1000
+    assert t.size_x == approx(500)
+    assert t.size_y == approx(1000)
+    assert t.tags == ['ab', 'bc']
 
     #
     # the changed topography should also appear in the list of topographies
@@ -798,7 +801,7 @@ def test_edit_line_scan(client, one_line_scan, django_user_model, handle_usage_s
     assert initial['measurement_date'] == datetime.date(2018, 1, 1)
     assert initial['description'] == 'description1'
     assert initial['size_x'] == 9
-    assert pytest.approx(initial['height_scale']) == 1.
+    assert initial['height_scale'] == approx(1.)
     assert initial['detrend_mode'] == 'height'
     assert 'size_y' not in form.fields  # should have been removed by __init__
     assert initial['is_periodic'] == False
@@ -836,7 +839,7 @@ def test_edit_line_scan(client, one_line_scan, django_user_model, handle_usage_s
     assert t.description == new_description
     assert t.name == new_name
     assert "line_scan_1" in t.datafile.name
-    assert pytest.approx(t.size_x) == 500
+    assert t.size_x == approx(500)
     assert t.size_y is None
 
     #
@@ -1031,17 +1034,17 @@ def test_delete_topography_with_its_datafile_used_by_others(client, two_topos, d
     assert os.path.exists(topo_datafile_path)
 
 
-def test_only_positive_size_values_on_edit(client, django_user_model, handle_usage_statistics):
+@pytest.mark.django_db
+def test_only_positive_size_values_on_edit(client, handle_usage_statistics):
     #
     # prepare database
     #
     username = 'testuser'
     password = 'abcd$1234'
 
-    user = django_user_model.objects.create_user(username=username, password=password)
-
+    user = UserFactory(username=username, password=password)
     surface = SurfaceFactory(creator=user)
-    topography = Topography2DFactory(surface=surface, size_y=1024)  # pass size_y in order to have a map
+    topography = Topography2DFactory(surface=surface, size_x=1024, size_y=1024, size_editable=True)
 
     assert client.login(username=username, password=password)
 
@@ -1062,6 +1065,7 @@ def test_only_positive_size_values_on_edit(client, django_user_model, handle_usa
                                'detrend_mode': 'height',
                            })
 
+    assert response.status_code == 200
     assert 'form' in response.context
     assert "Size x must be greater than zero" in response.context['form'].errors['size_x'][0]
     assert "Size y must be greater than zero" in response.context['form'].errors['size_y'][0]
