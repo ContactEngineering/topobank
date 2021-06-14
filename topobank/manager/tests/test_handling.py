@@ -657,6 +657,100 @@ def test_trying_upload_of_corrupted_topography_file(client, django_user_model):
 
 
 @pytest.mark.django_db
+def test_upload_opd_file_check(client, handle_usage_statistics):
+    user = UserFactory()
+    surface = SurfaceFactory(creator=user, name="surface1")
+    description = "Some description"
+    client.force_login(user)
+
+    #
+    # open first step of wizard: file upload
+    #
+    input_file_path = Path(FIXTURE_DIR + '/example.opd')  # maybe use package 'pytest-datafiles' here instead
+    with open(str(input_file_path), mode='rb') as fp:
+        response = client.post(reverse('manager:topography-create',
+                                       kwargs=dict(surface_id=surface.id)),
+                               data={
+                                   'topography_create_wizard-current_step': 'upload',
+                                   'upload-datafile': fp,
+                                   'upload-datafile_format': '',
+                                   'upload-surface': surface.id,
+                               }, follow=True)
+
+    assert response.status_code == 200
+    assert_no_form_errors(response)
+
+    #
+    # now we should be on the page with second step
+    #
+    assert_in_content(response, "Step 2 of 3")
+    assert_in_content(response, '<option value="0">Default</option>')
+    assert response.context['form'].initial['name'] == 'example.opd'
+
+    #
+    # Send data for second page
+    #
+    response = client.post(reverse('manager:topography-create',
+                                   kwargs=dict(surface_id=surface.id)),
+                           data={
+                               'topography_create_wizard-current_step': 'metadata',
+                               'metadata-name': 'topo1',
+                               'metadata-measurement_date': '2021-06-09',
+                               'metadata-data_source': 0,
+                               'metadata-description': description,
+                           }, follow=True)
+
+    assert response.status_code == 200
+    assert_no_form_errors(response)
+
+    assert_in_content(response, "Step 3 of 3")
+
+    # check whether known values for size and height scale are in content
+    assert_in_content(response, "0.1485370245")
+    assert_in_content(response, "0.1500298589")
+    assert_in_content(response, "0.0005343980102539062")
+
+    #
+    # Send data for third page
+    #
+    response = client.post(reverse('manager:topography-create',
+                                   kwargs=dict(surface_id=surface.id)),
+                           data={
+                               'topography_create_wizard-current_step': 'units',
+                               'units-size_x': '1',
+                               'units-size_y': '1',
+                               'units-unit': 'nm',
+                               'units-detrend_mode': 'height',
+                               'units-resolution_x': 199,
+                               'units-resolution_y': 201,
+                           }, follow=True)
+
+    assert response.status_code == 200
+    assert_no_form_errors(response)
+
+    surface = Surface.objects.get(name='surface1')
+    topos = surface.topography_set.all()
+
+    assert len(topos) == 1
+
+    t = topos[0]
+
+    assert t.measurement_date == datetime.date(2021, 6, 9)
+    assert t.description == description
+    assert "example" in t.datafile.name
+    assert t.size_x == approx(0.1485370245)
+    assert t.size_y == approx(0.1500298589)
+    assert t.resolution_x == approx(199)
+    assert t.resolution_y == approx(201)
+    assert t.height_scale == approx(0.0005343980102539062)
+    assert t.creator == user
+    assert t.datafile_format == 'opd'
+    assert not t.size_editable
+    assert not t.height_scale_editable
+    assert not t.unit_editable
+
+
+@pytest.mark.django_db
 def test_topography_list(client, two_topos, django_user_model, handle_usage_statistics):
     username = 'testuser'
     password = 'abcd$1234'
