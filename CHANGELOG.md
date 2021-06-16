@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-## 0.13.0 (not published yet)
+## 0.13.0 (2021-06-16)
 
 - improved performance when uploading new measurements 
   by putting jobs into background and reducing file 
