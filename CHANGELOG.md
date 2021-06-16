@@ -12,6 +12,7 @@
   table on select page (#608)
 - added 1D RMS curvature values for line scans and 
   maps to table with roughness parameters (#660)
+- added management command 'fix_height_scale' (#678) 
 - fixed failing curvature distribution for 
   uniform line scans (#663)
 - fixed loading of 2D xyz files (#659, #585)  
