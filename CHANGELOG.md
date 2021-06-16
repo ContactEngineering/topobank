@@ -21,6 +21,8 @@
 - fixed count when deleting analysis functions (#657)
 - fixed detrend mode option label "Remove curvature"
   to "Remove curvature and tilt" (#580)
+- made display of bandwidth plot more slender for 
+  surfaces with only one measurement (#630)
 - upgraded to SurfaceTopography 0.94.0  
 - several updates of dependencies for security reasons  
   

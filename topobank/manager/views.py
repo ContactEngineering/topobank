@@ -861,6 +861,8 @@ class SurfaceDetailView(DetailView):
 
         if len(bw_data_without_errors) > 0:
 
+            bar_height = 0.95
+
             bw_left = [bw['lower_bound'] for bw in bw_data_without_errors]
             bw_right = [bw['upper_bound'] for bw in bw_data_without_errors]
             bw_center = np.exp((np.log(bw_left)+np.log(bw_right))/2)  # we want to center on log scale
@@ -894,13 +896,17 @@ class SurfaceDetailView(DetailView):
                           tools=["tap", "hover"],
                           toolbar_location=None,
                           tooltips=TOOL_TIPS)
-            hbar_renderer = plot.hbar(y="y", left="left", right="right", height=0.95,
+            hbar_renderer = plot.hbar(y="y", left="left", right="right", height=bar_height,
                                       name='bandwidths', source=bw_source)
             hbar_renderer.nonselection_glyph = None  # makes glyph invariant on selection
             plot.yaxis.visible = False
             plot.grid.visible = False
             plot.outline_line_color = None
             plot.xaxis.formatter = FuncTickFormatter(code="return siSuffixMeters(2)(tick)")
+
+            # make that 1 single topography does not look like a block
+            if len(bw_data_without_errors) == 1:
+                plot.y_range.end = bar_height * 1.5
 
             # make clicking a bar going opening a new page
             taptool = plot.select(type=TapTool)
