@@ -71,7 +71,9 @@
                 </tr>
                 <tr>
                   <th scope="row">Height conversion factor</th>
-                  <td>{{ topography.height_scale }} {{ topography.unit }}</td>
+                  <td>{{ topography.height_scale }} {{ topography.unit }}
+                    ({% if topography.height_scale_editable %}given by user{% else %}fixed by file contents{% endif %})
+                  </td>
                 </tr>
                 <tr>
                   <th scope="row">Detrending mode</th>
