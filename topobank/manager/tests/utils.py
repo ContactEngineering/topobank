@@ -1,4 +1,5 @@
 import json
+import tempfile
 from operator import itemgetter
 
 import pytest
@@ -54,9 +55,9 @@ class Topography1DFactory(factory.django.DjangoModelFactory):
     measurement_date = factory.Sequence(lambda n: datetime.date(2019, 1, 1) + datetime.timedelta(days=n))
     size_x = 512
     # if you need size_y, use Topography2DFactory below
-    size_editable = True
-    unit_editable = True
-    height_scale_editable = True
+    size_editable = False
+    unit_editable = False
+    height_scale_editable = False
     unit = 'nm'
 
 
@@ -103,6 +104,7 @@ def two_topos():
                                  description="description1",
                                  size_x=10.0,
                                  size_y=10.0,
+                                 size_editable=True,  # needed for tests
                                  unit='µm',
                                  detrend_mode='height',
                                  height_scale=0.296382712790741,
@@ -140,6 +142,7 @@ def one_line_scan():
                                measurement_date=datetime.date(2018, 1, 1),
                                description="description1",
                                size_x=9,
+                               size_editable=True,  # needed for test
                                detrend_mode='height',
                                datafile=datafile)
 
@@ -170,8 +173,8 @@ def topography_loaded_from_broken_file():
 
     from django.core.files.base import ContentFile
     new_content = ContentFile('\x00')  # some nonsense which cannot be interpreted by module "SurfaceTopography"
-    fname = topo.datafile.name
-    topo.datafile.save(fname, new_content)
+    with tempfile.NamedTemporaryFile(mode='wb') as tmp:
+        topo.datafile.save(tmp.name, new_content)
 
     return topo
 

@@ -3,6 +3,7 @@ Tests related to the models in topobank.manager app
 """
 import pytest
 import datetime
+from numpy.testing import assert_allclose
 
 from django.db.utils import IntegrityError
 from django.db import transaction
@@ -12,11 +13,13 @@ from notifications.models import Notification
 from ..models import Topography, Surface
 from .utils import two_topos, SurfaceFactory, UserFactory, Topography1DFactory, Topography2DFactory
 
+
 @pytest.mark.django_db
 def test_topography_name(two_topos):
     topos = Topography.objects.all().order_by('name')
     assert [ t.name for t in topos ] == ['Example 3 - ZSensor',
                                          'Example 4 - Default']
+
 
 @pytest.mark.django_db
 def test_topography_has_periodic_flag(two_topos):
@@ -70,7 +73,10 @@ def test_topography_to_dict():
         'size': (size_x, size_y),
         'height_scale': height_scale,
         'detrend_mode': detrend_mode,
-        'datafile': topo.datafile.name,
+        'datafile': {
+            'original': topo.datafile.name,
+            'squeezed-netcdf': topo.squeezed_datafile.name,
+        },
         'description': description,
         'unit': unit,
         'data_source': topo.data_source,
@@ -137,10 +143,6 @@ def test_surface_to_dict(mocker):
     assert publication.surface.to_dict() == expected_dict_published
 
 
-
-
-
-
 @pytest.mark.django_db
 def test_call_topography_method_multiple_times(two_topos):
     topo = Topography.objects.get(name="Example 3 - ZSensor")
@@ -148,11 +150,11 @@ def test_call_topography_method_multiple_times(two_topos):
     #
     # coeffs should not change in between calls
     #
-    st_topo = topo.topography()
+    st_topo = topo.topography(allow_squeezed=False)
 
     coeffs_before = st_topo.coeffs
     scaling_factor_before = st_topo.parent_topography.scale_factor
-    st_topo = topo.topography()
+    st_topo = topo.topography(allow_squeezed=False)
 
     assert st_topo.parent_topography.scale_factor == scaling_factor_before
     assert st_topo.coeffs == coeffs_before
@@ -174,6 +176,7 @@ def test_unique_topography_name_in_same_surface():
     surface2 = SurfaceFactory(creator=user)
     Topography1DFactory(surface=surface2, name='TOPO')
 
+
 @pytest.mark.django_db
 def test_surface_description(django_user_model):
 
@@ -192,6 +195,7 @@ def test_surface_description(django_user_model):
 
     surface = Surface.objects.get(name='Surface 1')
     assert "First surface" == surface.description
+
 
 @pytest.mark.django_db
 def test_surface_share_and_unshare():
@@ -265,6 +269,7 @@ def test_other_methods_about_sharing():
     assert not surface.is_shared(user2)
     assert not surface.is_shared(user2, allow_change=True)
 
+
 @pytest.mark.django_db
 def test_notifications_are_deleted_when_surface_deleted():
 
@@ -287,6 +292,7 @@ def test_notifications_are_deleted_when_surface_deleted():
     surface.delete()
 
     assert Notification.objects.filter(target_content_type=ct, target_object_id=surface_id).count() == 0
+
 
 @pytest.mark.django_db
 def test_notifications_are_deleted_when_topography_deleted():
@@ -312,6 +318,26 @@ def test_notifications_are_deleted_when_topography_deleted():
     topo.delete()
 
     assert Notification.objects.filter(target_content_type=ct, target_object_id=topo_id).count() == 0
+
+
+@pytest.mark.django_db
+def test_squeezed_datafile(handle_usage_statistics):
+    topo = Topography2DFactory(height_scale=2, detrend_mode='height')
+    # Original heights are modified here. The modified values
+    # should be reconstructed when loading squeezed data. This is checked here.
+
+    assert not topo.has_squeezed_datafile
+    st_topo = topo.topography(allow_squeezed=False)
+    orig_heights = st_topo.heights()  # This was read from the original data
+
+    topo.renew_squeezed_datafile()
+    assert topo.has_squeezed_datafile
+
+    from SurfaceTopography.IO import open_topography
+    with topo.squeezed_datafile.open(mode='rb') as sdf:
+        reader = open_topography(sdf)
+        st_topo = reader.topography()
+        assert_allclose(st_topo.heights(), orig_heights)
 
 
 

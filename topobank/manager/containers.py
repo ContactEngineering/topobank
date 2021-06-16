@@ -5,12 +5,15 @@ import zipfile
 import os.path
 import yaml
 import textwrap
+import logging
 
 from django.utils.timezone import now
 from django.conf import settings
 from django.contrib.staticfiles.storage import staticfiles_storage
 
 from .models import Topography
+
+_log = logging.getLogger(__name__)
 
 
 def write_surface_container(file, surfaces, request=None):
@@ -53,23 +56,50 @@ def write_surface_container(file, surfaces, request=None):
             # this dict may be okay, but have to check whether the filename is unique
             # because every filename should only appear once in the archive
 
-            topofile_name = os.path.basename(topo_dict['datafile'])
-            #
-            # Make the filename unique in the archive
-            #
-            if topofile_name in already_used_topofile_names:
-                topofile_name_root, topofile_name_ext = os.path.splitext(topofile_name)
-                topofile_name = f"{topofile_name_root}_{counter}.{topofile_name_ext}"
-                counter += 1
+            def unique_topography_filename(fn, already_used_topofile_names=already_used_topofile_names):
+                """Make sure the filename is unique in archive.
 
-            topo_dict['datafile'] = {
-                'original': topofile_name,  # should be same as in archive
-            }
+                If filename `fn` is already used, add a counter.
+                Return the name that should be used.
+                """
+                nonlocal counter
+                while fn in already_used_topofile_names:
+                    fn_root, fn_ext = os.path.splitext(fn)
+                    fn = f"{fn_root}_{counter}.{fn_ext}"
+                    counter += 1
+                return fn
 
-            already_used_topofile_names.append(topofile_name)
+            #
+            # Return original datafile to archive
+            #
+            original_name = unique_topography_filename(
+                os.path.basename(topo_dict['datafile']['original']),
+                already_used_topofile_names=already_used_topofile_names
+            )
+            topo_dict['datafile']['original'] = original_name
+            already_used_topofile_names.append(original_name)
 
             # add topography file to ZIP archive
-            zf.writestr(topofile_name, topography.datafile.read())
+            zf.writestr(original_name, topography.datafile.read())
+            #
+            # Also add squeezed netcdf file, if possible
+            #
+            if not topography.has_squeezed_datafile:
+                try:
+                    topography.renew_squeezed_datafile()
+                except Exception as exc:
+                    _log.error(f"Cannot generate squeezed datafile of topography id {topography.id} "
+                               f"for download: {exc}")
+            if topography.has_squeezed_datafile:
+                squeezed_file_name = unique_topography_filename(
+                    os.path.basename(topography.squeezed_datafile.name),
+                    already_used_topofile_names=already_used_topofile_names
+                )
+                topo_dict['datafile']['squeezed-netcdf'] = squeezed_file_name
+                already_used_topofile_names.append(squeezed_file_name)
+
+                # add topography file to ZIP archive
+                zf.writestr(squeezed_file_name, topography.squeezed_datafile.read())
 
             topography_dicts.append(topo_dict)
 
@@ -101,6 +131,13 @@ def write_surface_container(file, surfaces, request=None):
     This archive contains {} surface(s). Each surface is a
     collection of individual topography measurements.
     In total {} topography measurements are included.
+
+    For each measurement two files are included:
+    - The original data file which was uploaded by a user,
+    - as alternative, a NetCDF 3 file with extension "-squeezed.nc" which can
+      be used to load the data in other programs, e.g. Matlab; here "squeezed"
+      means that height scale factors and detrending have already been applied
+      and the data can be directly used.
 
     The meta data for the surfaces and the individual topographies
     can be found in the auxiliary file 'meta.yml'. It is formatted

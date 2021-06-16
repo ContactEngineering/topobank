@@ -67,6 +67,8 @@ def test_surface_container():
             for topo_descr in surf_descr['topographies']:
                 datafile_name = topo_descr['datafile']['original']
                 assert datafile_name in zf.namelist()
+                squeezed_datafile_name = topo_descr['datafile']['squeezed-netcdf']
+                assert squeezed_datafile_name in zf.namelist()
 
         # check version information
         assert meta['versions']['topobank'] == settings.TOPOBANK_VERSION

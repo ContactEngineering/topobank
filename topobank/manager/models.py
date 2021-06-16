@@ -17,6 +17,8 @@ import numpy as np
 import math
 import logging
 import io
+import tempfile
+import os.path
 
 from bokeh.models import DataRange1d, LinearColorMapper, ColorBar, FuncTickFormatter
 from bokeh.plotting import figure
@@ -35,6 +37,7 @@ _log = logging.getLogger(__name__)
 
 MAX_LENGTH_DATAFILE_FORMAT = 15  # some more characters than currently needed, we may have sub formats in future
 MAX_NUM_POINTS_FOR_SYMBOLS_IN_LINE_SCAN_PLOT = 100
+SQUEEZED_DATAFILE_FORMAT = 'nc'
 
 
 def user_directory_path(instance, filename):
@@ -394,7 +397,7 @@ class Topography(models.Model, SubjectMixin):
     DETREND_MODE_CHOICES = [
         ('center', 'No detrending, but substract mean height'),
         ('height', 'Remove tilt'),
-        ('curvature', 'Remove curvature'),
+        ('curvature', 'Remove curvature and tilt'),
     ]
 
     verbose_name = 'measurement'
@@ -425,6 +428,10 @@ class Topography(models.Model, SubjectMixin):
     # a special meaning (autodetection of format). If I would use an empty string
     # as proposed in the docs, I would have to implement extra logic everywhere the field
     # 'datafile_format' is used.
+
+    # All data is also stored in a 'squeezed' format for faster loading and processing
+    # This is probably netCDF3. Scales and detrend has already been applied here.
+    squeezed_datafile = models.FileField(max_length=260, upload_to=user_directory_path, null=True)
 
     #
     # Fields with physical meta data
@@ -464,10 +471,17 @@ class Topography(models.Model, SubjectMixin):
         """
         return self.name
 
+    @property
+    def has_squeezed_datafile(self):
+        """If True, a squeezed data file can be retrieved via self.squeezed_datafile"""
+        return bool(self.squeezed_datafile)
+
     def get_absolute_url(self):
+        """URL of detail page for this topography."""
         return reverse('manager:topography-detail', kwargs=dict(pk=self.pk))
 
     def cache_key(self):
+        """Used for caching topographies avoiding reading datafiles again when interpreted in the same way"""
         return f"topography-{self.id}-channel-{self.data_source}"
 
     def is_shared(self, with_user, allow_change=False):
@@ -480,7 +494,7 @@ class Topography(models.Model, SubjectMixin):
         """
         return self.surface.is_shared(with_user, allow_change=allow_change)
 
-    def topography(self):
+    def topography(self, allow_squeezed=True):
         """Return a SurfaceTopography.Topography/UniformLineScan/NonuniformLineScan instance.
 
         This instance is guaranteed to
@@ -489,6 +503,18 @@ class Topography(models.Model, SubjectMixin):
         - have a size: .physical_sizes
         - scaled and detrended with the saved parameters
 
+        It has not necessarily a pipeline with all these steps
+        and a 'detrend_mode` attribute. This is only the case
+        if allow_squeezed=False. In this case the returned instance
+        was regenerated from the original file.
+
+        Parameters
+        ----------
+
+        allow_squeezed: bool
+            If True (default), the instance is allowed to be generated
+            from a squeezed datafile which is not the original datafile.
+            This is often faster then the original file format.
         """
         cache_key = self.cache_key()
 
@@ -497,43 +523,67 @@ class Topography(models.Model, SubjectMixin):
         #
         topo = cache.get(cache_key)
         if topo is None:
-            toporeader = get_topography_reader(self.datafile, format=self.datafile_format)
-            topography_kwargs = dict(channel_index=self.data_source,
-                                     periodic=self.is_periodic)
+            if allow_squeezed:
+                try:
+                    # If we are allowed to use a squeezed version, create one if not already happened
+                    # (also needed for downloads/analyses, so this is saved in the database)
+                    if not self.has_squeezed_datafile:
+                        from topobank.taskapp.tasks import renew_squeezed_datafile
+                        renew_squeezed_datafile.delay(self.id)
+                        # this is now done in background, we load the original files instead for minimal delay
+                    else:
+                        #
+                        # Okay, we can use the squeezed datafile, it's already there.
+                        #
+                        toporeader = get_topography_reader(self.squeezed_datafile, format=SQUEEZED_DATAFILE_FORMAT)
+                        topo = toporeader.topography()
+                        # In the squeezed format, these things are already applied/included:
+                        #  info dict with unit, scaling, detrending, physical sizes
+                        # so don't need to provide them to the .topography() method
+                        _log.info(f"Using squeezed datafile instead of original datafile for topography id {self.id}.")
+                except Exception as exc:
+                    _log.error(f"Could not create squeezed datafile for topography with id {self.id}. "
+                               "Using original file instead.")
+                    topo = None
 
-            # Set size if physical size was not given in datafile
-            # (see also  TopographyCreateWizard.get_form_initial)
-            # Physical size is always a tuple or None.
-            channel_dict = toporeader.channels[self.data_source]
-            channel_physical_sizes = channel_dict.physical_sizes
-            physical_sizes_is_None = channel_physical_sizes is None \
-                                     or (channel_physical_sizes == (None,)) \
-                                     or (channel_physical_sizes == (None, None))
-            # workaround, see GH 299 in Pyco
+            if topo is None:
+                toporeader = get_topography_reader(self.datafile, format=self.datafile_format)
+                topography_kwargs = dict(channel_index=self.data_source,
+                                         periodic=self.is_periodic)
 
-            if physical_sizes_is_None:
-                if self.size_y is None:
-                    topography_kwargs['physical_sizes'] = self.size_x,
-                else:
-                    topography_kwargs['physical_sizes'] = self.size_x, self.size_y
+                # Set size if physical size was not given in datafile
+                # (see also  TopographyCreateWizard.get_form_initial)
+                # Physical size is always a tuple or None.
+                channel_dict = toporeader.channels[self.data_source]
+                channel_physical_sizes = channel_dict.physical_sizes
+                physical_sizes_is_None = channel_physical_sizes is None \
+                                         or (channel_physical_sizes == (None,)) \
+                                         or (channel_physical_sizes == (None, None))
+                # workaround, see GH 299 in Pyco
 
-            if self.height_scale_editable:
-                # Adjust height scale to value chosen by user
-                topography_kwargs['height_scale_factor'] = self.height_scale
+                if physical_sizes_is_None:
+                    if self.size_y is None:
+                        topography_kwargs['physical_sizes'] = self.size_x,
+                    else:
+                        topography_kwargs['physical_sizes'] = self.size_x, self.size_y
 
-                # from SurfaceTopography.read_topography's docstring:
-                #
-                # height_scale_factor : float
-                #    Override height scale factor found in the data file.
-                #
-                # So default is to use the factor from the file.
+                if self.height_scale_editable:
+                    # Adjust height scale to value chosen by user
+                    topography_kwargs['height_scale_factor'] = self.height_scale
 
-            # Eventually get topography from module "SurfaceTopography" using the given keywords
-            topo = toporeader.topography(**topography_kwargs)
-            topo = topo.detrend(detrend_mode=self.detrend_mode, info=dict(unit=self.unit))
+                    # This is only possible and needed, if no height scale was
+                    # given in the data file already.
+                    # So default is to use the factor from the file.
+
+                # Eventually get topography from module "SurfaceTopography" using the given keywords
+                topo = toporeader.topography(**topography_kwargs)
+                topo = topo.detrend(detrend_mode=self.detrend_mode, info=dict(unit=self.unit))
 
             cache.set(cache_key, topo)
             # be sure to invalidate the cache key if topography is saved again -> signals.py
+
+        else:
+            _log.info(f"Using topography from cache for id {self.id}.")
 
         return topo
 
@@ -544,7 +594,10 @@ class Topography(models.Model, SubjectMixin):
     def to_dict(self):
         """Create dictionary for export of metadata to json or yaml"""
         return {'name': self.name,
-                'datafile': self.datafile.name,
+                'datafile': {
+                    'original': self.datafile.name,
+                    'squeezed-netcdf': self.squeezed_datafile.name,
+                },
                 'data_source': self.data_source,
                 'detrend_mode': self.detrend_mode,
                 'is_periodic': self.is_periodic,
@@ -828,3 +881,14 @@ class Topography(models.Model, SubjectMixin):
                              "Saving <None> instead.")
             else:
                 raise ThumbnailGenerationException from exc
+
+    def renew_squeezed_datafile(self):
+        """Renew squeezed datafile file."""
+        _log.info(f"Renewing squeezed datafile for topography {self.id}..")
+        with tempfile.NamedTemporaryFile() as tmp:
+            st_topo = self.topography(allow_squeezed=False)
+            st_topo.to_netcdf(tmp.name)
+            orig_stem, orig_ext = os.path.splitext(self.datafile.name)
+            squeezed_name = f"{orig_stem}-squeezed.nc"
+            self.squeezed_datafile = default_storage.save(squeezed_name, File(open(tmp.name, mode='rb')))
+            self.save()

@@ -31,7 +31,9 @@
           <div class="tab-content mt-2">
             <div class="tab-pane fade active show" id="plot" role="tabpanel" aria-labelledby="plot-tab">
               <div id="topography-plot-content">
-                <span class="spinner"></span> Loading plot, please wait...
+                <span class="spinner"></span> Generating and loading plot with
+                      {{ topography.resolution_x }} {% if topography.resolution_y %} x {{ topography.resolution_y }} {% endif %} points,
+                    please wait...
               </div>
             </div>
 
@@ -69,7 +71,9 @@
                 </tr>
                 <tr>
                   <th scope="row">Height conversion factor</th>
-                  <td>{{ topography.height_scale }} {{ topography.unit }}</td>
+                  <td>{{ topography.height_scale }} {{ topography.unit }}
+                    ({% if topography.height_scale_editable %}given by user{% else %}fixed by file contents{% endif %})
+                  </td>
                 </tr>
                 <tr>
                   <th scope="row">Detrending mode</th>
@@ -167,6 +171,7 @@
   <script>
   $(document).ready(function () {
     /** Triggering loading of bokeh plot */
+    console.log("Requesting plot via AJAX call..");
     $.ajax({
               url: "{% url 'manager:topography-plot' topography.pk %}",
               type: 'get',
@@ -174,8 +179,9 @@
                 // server returns rendered "topography_plot.html"
                 // which is just pure html, use this to replace the existing
                 // html within the "plot content" div
-                console.log("Plot data received.");
+                console.log("Plot data received. Inserting plot..");
                 $('#topography-plot-content').html(data);
+                console.log("Plot inserted.")
               },
               error: function (xhr, textStatus, errorThrown) {
                 /**
@@ -194,7 +200,7 @@
                   <div class='alert alert-danger'>
                       Could not request plot data. Error: ${errorThrown}
                   </div>
-                `);  /* TODO Different message when stopped, e.g. when pressing edit? */
+                `);
                 }
               }
     })

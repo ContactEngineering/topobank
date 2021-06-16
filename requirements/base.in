@@ -5,7 +5,7 @@ whitenoise  # https://github.com/evansd/whitenoise
 
 # Django
 # ------------------------------------------------------------------------------
-django==2.2.20  #  does this work with pyup?  # https://www.djangoproject.com/
+django==2.2.24  #  does this work with pyup?  # https://www.djangoproject.com/
 django-environ  # https://github.com/joke2k/django-environ
 django-model-utils  # https://github.com/jazzband/django-model-utils
 django-allauth  # https://github.com/pennersr/django-allauth
@@ -17,7 +17,7 @@ cryptography>=3.3.2
 
 # Django REST Framework
 djangorestframework  # https://github.com/encode/django-rest-framework
-coreapi  # https://github.com/core-api/python-client
+# coreapi  # https://github.com/core-api/python-client
 
 # Icons
 django-fontawesome
@@ -67,12 +67,12 @@ bleach>=3.3.0
 # Contact Mechanics
 #
 muFFT>=0.11.1
-SurfaceTopography>=0.93.0<1.0
+SurfaceTopography>=0.94.0<1.0
 ContactMechanics>=0.90.1<1.0
 
 # plotting
 bokeh==2.2.3
-# link to CSS+JS in HTML files must must this version!
+# links to CSS+JS in HTML files must have exactly this version!
 
 # for exporting bokeh plots programmatically (thumbnails), we need a webdriver
 selenium
@@ -107,8 +107,13 @@ git+http://git@github.com/mcrot/django-termsandconditions.git@optional_terms
 # TODO fork this into account of IMTEK/Simulation organisation if still needed (maybe we don't need optional terms)
 
 # markdown conversion for terms & conditions and for docstrings in readers
-markdown2>=2.3.9
+markdown2>=2.4.0
 # Version 2.3.8 has a security issue (CVE-2020-11888)
+# Version 2.3.9 has a security issue (CVE-2021-26813)
+
+# urllib3>=1.26.5
+# Upgrade because of CVE-2021-33503
+# Cannot be used yet (2021-06-08), because several packages need lower versions (botocore, django-allauth, selenium)
 
 # for syntax highlighting for docstrings of readers
 pygments>=2.7.4
@@ -127,7 +132,7 @@ django-fullurl
 lxml>=4.6.3
 jinja2>=2.11.3  # because of CVE-2020-28493
 
-# because of several CVE where size of images is not properly checked
-Pillow>=8.1.1
+# because of several CVEs
+Pillow>=8.2.0
 
 PyYAML>=5.4  # CVE-2020-14343

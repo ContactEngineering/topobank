@@ -1,5 +1,32 @@
 # Changelog for *TopoBank*
 
+## 0.13.0 (2021-06-16)
+
+- improved performance when uploading new measurements 
+  by putting jobs into background and reducing file 
+  loads (#261)
+- now using a squeezed datafile internally for faster 
+  loading of measurements, also added management command
+  for recreating those files (#605, #661)
+- added publication date next to version number in 
+  table on select page (#608)
+- added 1D RMS curvature values for line scans and 
+  maps to table with roughness parameters (#660)
+- added management command 'fix_height_scale' (#678) 
+- fixed failing curvature distribution for 
+  uniform line scans (#663)
+- fixed loading of 2D xyz files (#659, #585)  
+- fixed incorrect scaling for OPD files (#675)  
+- fixed internal error when analysis card for 
+  contact mechanics in certain cases (#670)
+- fixed count when deleting analysis functions (#657)
+- fixed detrend mode option label "Remove curvature"
+  to "Remove curvature and tilt" (#580)
+- made display of bandwidth plot more slender for 
+  surfaces with only one measurement (#630)
+- upgraded to SurfaceTopography 0.94.0  
+- several updates of dependencies for security reasons  
+  
 ## 0.12.0 (2021-05-20)
 
 - use acquisition time from data file as initial 

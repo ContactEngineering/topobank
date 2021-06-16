@@ -8,6 +8,9 @@ addons:
   apt:
     packages:
       - firefox-geckodriver
+      - rabbitmq-server
+services:
+  - rabbitmq
 env:
   global:
     - USE_DOCKER=no

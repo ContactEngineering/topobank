@@ -182,7 +182,12 @@ let search_results_vm = new Vue({
 
                       // Set column with version
                       if (node.data.version !== undefined) {
-                          const version_html = `<div class='version-column'>${node.data.version}</div>`
+                          let version_html = node.data.version;
+                          if (node.data.publication_date.length > 0) {
+                              version_html += " (" + node.data.publication_date +  ")";
+                          }
+
+                          version_html = "<div class='version-column'>" + version_html + "</div>"
                           $tdList
                               .eq(1)
                               .html(version_html);

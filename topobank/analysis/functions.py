@@ -1193,15 +1193,14 @@ def roughness_parameters(topography, progress_recorder=None, storage_prefix=None
     #
     if is_2D:
         result.extend([
-            # .rms_curvature_from_profile() does not exist for 2D (so far)
-            # {
-            #     'quantity': 'RMS curvature',
-            #     'from': FROM_1D,
-            #     'symbol': '',
-            #     'direction': 'y',
-            #     'value': topography.transpose().rms_curvature_from_profile(),
-            #     'unit': inverse_unit,
-            # },
+            {
+                'quantity': 'RMS curvature',
+                'from': FROM_1D,
+                'symbol': '',
+                'direction': 'y',
+                'value': topography.transpose().rms_curvature_from_profile(),
+                'unit': inverse_unit,
+            },
             {
                 'quantity': 'RMS curvature',
                 'from': FROM_2D,
@@ -1211,15 +1210,16 @@ def roughness_parameters(topography, progress_recorder=None, storage_prefix=None
                 'unit': inverse_unit,
             }
         ])
-    # else:  # .rms_curvature_from_profile() does not exist for uniform line scans (so far)
-    #     result.append({
-    #         'quantity': 'RMS curvature',
-    #         'from': FROM_1D,
-    #         'symbol': '',
-    #         'direction': 'x',
-    #         'value': topography.rms_curvature_from_profile(),
-    #         'unit': inverse_unit,
-    #     })
+
+    # RMS curvature in x direction is needed for 1D and 2D
+    result.append({
+        'quantity': 'RMS curvature',
+        'from': FROM_1D,
+        'symbol': '',
+        'direction': 'x',
+        'value': topography.rms_curvature_from_profile(),
+        'unit': inverse_unit,
+    })
 
     #
     # RMS gradient/slope

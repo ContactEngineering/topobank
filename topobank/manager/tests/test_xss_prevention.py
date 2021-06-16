@@ -112,7 +112,7 @@ def test_surface_tag_is_safe():
 
     user = UserFactory()
 
-    form_data={
+    form_data = {
         'name': "Hacker's Surface",
         'creator': user.id,
         'description': 'sth',

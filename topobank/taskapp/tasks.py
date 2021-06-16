@@ -181,7 +181,7 @@ def check_analysis_collection(collection_id):
     collection = AnalysisCollection.objects.get(id=collection_id)
 
     analyses = collection.analyses.all()
-    task_states = [ analysis.task_state for analysis in analyses ]
+    task_states = [analysis.task_state for analysis in analyses ]
 
     has_started = any(ts not in ['pe'] for ts in task_states)
     has_failure = any(ts in ['fa'] for ts in task_states)
@@ -246,3 +246,73 @@ def save_landing_page_statistics():
         value=current_stats['num_analyses_excluding_publications'],
         period=Period.DAY
     )
+
+
+@app.task
+def renew_squeezed_datafile(topography_id):
+    """Renew squeezed datafile for given topography,
+
+    Parameters
+    ----------
+    topography_id: int
+        ID if topography for which the datafile should be calculated
+        and saved.
+
+    Returns
+    -------
+    None
+    """
+    _log.debug(f"Renewing squeezed datafile for topography id {topography_id}..")
+    try:
+        topography = Topography.objects.get(id=topography_id)
+        topography.renew_squeezed_datafile()
+    except Topography.DoesNotExist:
+        _log.error(f"Couldn't find topography with id {topography_id}. Cannot renew squeezed datafile.")
+
+
+@app.task
+def renew_topography_thumbnail(topography_id):
+    """Renew thumbnail for given topography,
+
+    Parameters
+    ----------
+    topography_id: int
+        ID if topography for which the thumbnail should be generated
+        and saved.
+
+    Returns
+    -------
+    None
+    """
+    _log.debug(f"Renewing thumbnail for topography id {topography_id}..")
+    try:
+        topography = Topography.objects.get(id=topography_id)
+        topography.renew_thumbnail()
+    except Topography.DoesNotExist:
+        _log.error(f"Couldn't find topography with id {topography_id}. Cannot renew thumbnail.")
+
+
+@app.task
+def renew_analyses_related_to_topography(topography_id, include_surface=True):
+    """Renew analyses related to given topography,
+
+        Parameters
+        ----------
+        topography_id: int
+            ID if topography for which analyes should be regenerated.
+        include_surface: bool
+            If True, also analyses for the topography's surface are
+            regenerated.
+
+        Returns
+        -------
+        None
+    """
+    _log.debug(f"Renewing all analyses which are related to topography id {topography_id}..")
+    try:
+        topography = Topography.objects.get(id=topography_id)
+        topography.renew_analyses()
+        if include_surface:
+            topography.surface.renew_analyses(include_topographies=False)
+    except Topography.DoesNotExist:
+        _log.error(f"Couldn't find topography with id {topography_id}. Cannot renew analyses.")

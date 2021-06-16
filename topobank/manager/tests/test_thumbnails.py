@@ -4,6 +4,7 @@ Tests related to thumbnails.
 import pytest
 
 from django.shortcuts import reverse
+from django_capture_on_commit_callbacks import capture_on_commit_callbacks
 from topobank.manager.tests.utils import Topography2DFactory, UserFactory, SurfaceFactory, Topography1DFactory
 from topobank.utils import assert_no_form_errors
 
@@ -16,11 +17,13 @@ def test_thumbnail_exists_for_new_topography():
 
 
 @pytest.mark.django_db
-def test_thumbnail_renewal_on_topography_detrend_mode_change(client, mocker):
+def test_renewal_on_topography_detrend_mode_change(client, mocker):
     """Check whether thumbnail is renewed if detrend mode changes for a topography
     """
 
-    renew_topo_thumbnail_mock = mocker.patch('topobank.manager.models.Topography.renew_thumbnail')
+    renew_topo_squeezed_mock = mocker.patch('topobank.manager.views.renew_squeezed_datafile.delay')
+    renew_topo_analyses_mock = mocker.patch('topobank.manager.views.renew_analyses_related_to_topography.delay')
+    renew_topo_thumbnail_mock = mocker.patch('topobank.manager.views.renew_topography_thumbnail.delay')
 
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
@@ -28,23 +31,26 @@ def test_thumbnail_renewal_on_topography_detrend_mode_change(client, mocker):
 
     client.force_login(user)
 
-    response = client.post(reverse('manager:topography-update', kwargs=dict(pk=topo.pk)),
-                           data={
-                               'save-stay': 1,  # we want to save, but stay on page
-                               'surface': surface.pk,
-                               'data_source': 0,
-                               'name': topo.name,
-                               'measurement_date': topo.measurement_date,
-                               'description': "something",
-                               'size_x': 1,
-                               'size_y': 1,
-                               'unit': 'nm',
-                               'height_scale': 1,
-                               'detrend_mode': 'height',
-                           }, follow=True)
+    with capture_on_commit_callbacks(execute=True) as callbacks:
+        response = client.post(reverse('manager:topography-update', kwargs=dict(pk=topo.pk)),
+                               data={
+                                   'save-stay': 1,  # we want to save, but stay on page
+                                   'surface': surface.pk,
+                                   'data_source': 0,
+                                   'name': topo.name,
+                                   'measurement_date': topo.measurement_date,
+                                   'description': "something",
+                                   'size_x': 1,
+                                   'size_y': 1,
+                                   'unit': 'nm',
+                                   'height_scale': 1,
+                                   'detrend_mode': 'height',
+                               }, follow=True)
 
     # we just check here that the form is filled completely, otherwise the thumbnail would not be recreated too
     assert_no_form_errors(response)
     assert response.status_code == 200
-
+    assert len(callbacks) == 3  # call for renewal of thumbnail, squeezed datafile, and analyses
     assert renew_topo_thumbnail_mock.called
+    assert renew_topo_squeezed_mock.called
+    assert renew_topo_analyses_mock.called

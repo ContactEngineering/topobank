@@ -73,7 +73,7 @@ class TopographyFileUploadForm(forms.ModelForm):
             HTML('You are about to add a topography to surface <em>{{ surface.name }}</em>.'),
             Field('datafile'),
             Field('datafile_format', type='hidden'),  # in order to have data later in wizard's done() method
-            Field('surface', type='hidden')  # in order to have data later in wizard's done() method
+            Field('surface', type='hidden'),  # in order to have data later in wizard's done() method
         ),
         FormActions(
             Submit('save', 'Next'),
@@ -163,6 +163,11 @@ class TopographyFileUploadForm(forms.ModelForm):
                 if n <= 0:
                     raise forms.ValidationError("Number of grid points must be a positive number > 0." +
                                                 f" (channel: {channel_index})", code='invalid_topography')
+
+        # "channel_infos" is not part of the model, but will be added
+        # as extra data in order to avoid reloading the file later
+        # several times just for channel infos
+        cleaned_data['channel_infos'] = list(toporeader.channels)
 
         return cleaned_data
 

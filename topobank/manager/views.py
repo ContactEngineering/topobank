@@ -22,6 +22,7 @@ from django.core.files import File
 from django.core.files.storage import FileSystemStorage
 from django.core.files.storage import default_storage
 from django.db.models import Q
+from django.db import transaction
 from django.http import HttpResponse, Http404
 from django.shortcuts import redirect, render
 from django.urls import reverse, reverse_lazy
@@ -56,6 +57,7 @@ from ..users.models import User
 from ..users.utils import get_default_group
 from ..publication.models import Publication, MAX_LEN_AUTHORS_FIELD
 from .containers import write_surface_container
+from ..taskapp.tasks import renew_squeezed_datafile, renew_topography_thumbnail, renew_analyses_related_to_topography
 
 # create dicts with labels and option values for Select tab
 CATEGORY_FILTER_CHOICES = {'all': 'All categories',
@@ -195,13 +197,14 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
             step0_data = self.get_cleaned_data_for_step('upload')
             datafile = step0_data['datafile']
             datafile_format = step0_data['datafile_format']
-            toporeader = get_topography_reader(datafile, format=datafile_format)
+            # toporeader = get_topography_reader(datafile, format=datafile_format)
+            channel_infos = step0_data['channel_infos']
 
         if step == 'metadata':
             initial['name'] = os.path.basename(datafile.name)  # the original file name
             # Use the latest data available on all channels as initial measurement date, if any - see GH #433
             measurement_dates = []
-            for ch in toporeader.channels:
+            for ch in channel_infos:
                 try:
                     measurement_time_str = ch.info[MEASUREMENT_TIME_INFO_FIELD]
                     measurement_time = datetime.datetime.strptime(measurement_time_str, '%Y-%m-%d %H:%M:%S')
@@ -218,7 +221,7 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
 
             step1_data = self.get_cleaned_data_for_step('metadata')
             channel = int(step1_data['data_source'])
-            channel_info = toporeader.channels[channel]
+            channel_info = channel_infos[channel]
 
             #
             # Set initial size
@@ -255,14 +258,11 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
             initial['unit_editable'] = initial['unit'] is None
 
             #
-            # Set initial height and height unit
+            # Set initial height scale factor
             #
-            if 'height_scale_factor' in channel_info.info:
-                initial['height_scale'] = channel_info.info['height_scale_factor']
-            else:
-                initial['height_scale'] = 1
-
-            initial['height_scale_editable'] = True  # because of GH 131 we decided to always allow editing
+            height_scale_factor_missing = channel_info.height_scale_factor is None  # missing in file
+            initial['height_scale_editable'] = height_scale_factor_missing
+            initial['height_scale'] = 1 if height_scale_factor_missing else channel_info.height_scale_factor
 
             #
             # Set initial detrend mode
@@ -291,7 +291,8 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
             step0_data = self.get_cleaned_data_for_step('upload')
             datafile = step0_data['datafile']
             datafile_format = step0_data['datafile_format']
-            toporeader = get_topography_reader(datafile, format=datafile_format)
+            # toporeader = get_topography_reader(datafile, format=datafile_format)
+            channel_infos = step0_data['channel_infos']
 
         if step == 'metadata':
 
@@ -308,7 +309,7 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
             # Set data source choices based on file contents
             #
             kwargs['data_source_choices'] = [(k, clean_channel_name(channel_info.name)) for k, channel_info in
-                                             enumerate(toporeader.channels)
+                                             enumerate(channel_infos)
                                              if not (('unit' in channel_info.info)
                                                      and isinstance(channel_info.info['unit'], tuple))]
 
@@ -321,7 +322,7 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
         if step in ['units']:
             step1_data = self.get_cleaned_data_for_step('metadata')
             channel = int(step1_data['data_source'])
-            channel_info = toporeader.channels[channel]
+            channel_info = channel_infos[channel]
 
             has_2_dim = channel_info.dim == 2
             no_sizes_given = channel_info.physical_sizes is None
@@ -406,6 +407,11 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
         d['creator'] = self.request.user
 
         #
+        # Remove helper data
+        #
+        del d['channel_infos']
+
+        #
         # create topography in database
         #
         instance = Topography(**d)
@@ -418,10 +424,9 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
         # topography file in the system:
         topo = Topography.objects.get(id=instance.id)
         try:
-            topo.topography()
-            # since the topography should be saved in the cache this
-            # should not take much extra time
-            # TODO can't we determine/save resolution here?!
+            # While loading we're also saving a squeezed form, so it
+            # can be loaded faster the next time
+            topo.renew_squeezed_datafile()
         except Exception as exc:
             _log.warning("Cannot read topography from file '{}', exception: {}".format(
                 d['datafile'], str(exc)
@@ -433,9 +438,12 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
             #
             return redirect('manager:topography-corrupted', surface_id=surface.id)
 
-        topo.renew_thumbnail()
-        topo.renew_analyses()
-        topo.surface.renew_analyses(include_topographies=False)
+        #
+        # Ok, we can work with this data.
+        # Trigger some calculations in background.
+        #
+        transaction.on_commit(lambda: renew_topography_thumbnail.delay(topo.id))
+        transaction.on_commit(lambda: renew_analyses_related_to_topography.delay(topo.id))
 
         #
         # Notify other others with access to the topography
@@ -518,11 +526,12 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
         if len(significant_fields_with_changes) > 0:
             _log.info(f"During edit of topography {topo.id} significant fields changed: " +
                       f"{significant_fields_with_changes}.")
-            _log.info("Renewing thumbnail...")
-            topo.renew_thumbnail()
-            _log.info("Renewing analyses...")
-            topo.renew_analyses()
-            topo.surface.renew_analyses(include_topographies=False)
+            _log.info("Triggering renewal of squeezed datafile in background...")
+            transaction.on_commit(lambda: renew_squeezed_datafile.delay(topo.id))
+            _log.info("Triggering renewal of thumbnail in background...")
+            transaction.on_commit(lambda:renew_topography_thumbnail.delay(topo.id))
+            _log.info("Triggering renewal of analyses...")
+            transaction.on_commit(lambda:renew_analyses_related_to_topography.delay(topo.id))
             notification_msg += f"\nBecause significant fields have changed, all related analyses are recalculated now."
 
         #
@@ -852,6 +861,8 @@ class SurfaceDetailView(DetailView):
 
         if len(bw_data_without_errors) > 0:
 
+            bar_height = 0.95
+
             bw_left = [bw['lower_bound'] for bw in bw_data_without_errors]
             bw_right = [bw['upper_bound'] for bw in bw_data_without_errors]
             bw_center = np.exp((np.log(bw_left)+np.log(bw_right))/2)  # we want to center on log scale
@@ -885,13 +896,17 @@ class SurfaceDetailView(DetailView):
                           tools=["tap", "hover"],
                           toolbar_location=None,
                           tooltips=TOOL_TIPS)
-            hbar_renderer = plot.hbar(y="y", left="left", right="right", height=0.95,
+            hbar_renderer = plot.hbar(y="y", left="left", right="right", height=bar_height,
                                       name='bandwidths', source=bw_source)
             hbar_renderer.nonselection_glyph = None  # makes glyph invariant on selection
             plot.yaxis.visible = False
             plot.grid.visible = False
             plot.outline_line_color = None
             plot.xaxis.formatter = FuncTickFormatter(code="return siSuffixMeters(2)(tick)")
+
+            # make that 1 single topography does not look like a block
+            if len(bw_data_without_errors) == 1:
+                plot.y_range.end = bar_height * 1.5
 
             # make clicking a bar going opening a new page
             taptool = plot.select(type=TapTool)
