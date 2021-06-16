@@ -1102,6 +1102,23 @@ If building the containers was successful, aks yourself these questions:
   This may take some time. You could use the switch `-b` to do it in the task queue,
   but then you don't know at the end whether it was successful.
 
+- Should the height_scale_factor of all measurements be corrected?
+
+  With version of SurfaceTopography 0.94.0 the reader channels have the information
+  whether the height scale factor is fixed by the file contents.
+  Before there were some inconsistencies between file contents and the database
+  flags for some measurements.
+
+  In order to fix all flags `height_scale_editable` and also `height_scale`, if not editable,
+  in the database run first
+
+  .. code:: bash
+
+     docker-compose -f production.yml run --rm django python manage.py fix_height_scale --dry-run
+
+  and look whether the statistics in the output makes sense. If yes, run the command without `--dry-run`
+  and the database will be changed accordingly.
+
 
 Restart application
 ...................
