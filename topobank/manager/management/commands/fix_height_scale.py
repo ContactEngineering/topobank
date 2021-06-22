@@ -84,7 +84,7 @@ class Command(BaseCommand):
                     do_save = True
 
             if (not height_scale_editable) and math.isclose(channel.height_scale_factor, topo.height_scale):
-                num_different_editable += 1
+                num_different_factor += 1
                 if not options['dry_run']:
                     topo.height_scale = channel.height_scale_factor
                     do_save = True

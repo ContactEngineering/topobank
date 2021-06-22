@@ -4,6 +4,8 @@
 
 - ENH: Added upper and lower bound of bandwidth to 
   roughness parameter table (#677)
+- BUG: Fixed statistics in output when correcting 
+  height scales via management command 
 
 ## 0.13.0 (2021-06-16)
 
