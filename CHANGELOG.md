@@ -1,5 +1,10 @@
 # Changelog for *TopoBank*
 
+## 0.14.0 (not published yet)
+
+- ENH: Added upper and lower bound of bandwidth to 
+  roughness parameter table (#677)
+
 ## 0.13.0 (2021-06-16)
 
 - improved performance when uploading new measurements 

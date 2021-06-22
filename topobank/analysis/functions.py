@@ -1254,6 +1254,29 @@ def roughness_parameters(topography, progress_recorder=None, storage_prefix=None
             },
         ])
 
+    #
+    # Bandwidth (pixel_size, scan_size), see GH #677
+    #
+    lower_bound, upper_bound = topography.bandwidth()
+    result.extend([
+        {
+            'quantity': 'Bandwidth: lower bound',
+            'from': FROM_2D if is_2D else FROM_1D,
+            'symbol': '',
+            'direction': None,
+            'value': lower_bound,
+            'unit': unit,
+        },
+        {
+            'quantity': 'Bandwidth: upper bound',
+            'from': FROM_2D if is_2D else FROM_1D,
+            'symbol': '',
+            'direction': None,
+            'value': upper_bound,
+            'unit': unit,
+        },
+    ])
+
     return result
 
 
