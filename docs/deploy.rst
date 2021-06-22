@@ -782,6 +782,13 @@ see  https://godoc.org/github.com/robfig/cron.
 
 Then, after starting the containers, the backup is done automatically.
 
+In order to backup once without schedule in production, run
+
+.. code:: bash
+
+    docker-compose -f production.yml run --rm -e DBBACKUP_SCHEDULE=none dbbackup
+
+
 Restoring database from a backup
 --------------------------------
 
