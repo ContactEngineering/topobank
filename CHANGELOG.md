@@ -4,6 +4,10 @@
 
 - ENH: Added upper and lower bound of bandwidth to 
   roughness parameter table (#677)
+- ENH: Removed restriction of column width of 
+  first column of roughness parameter table when
+  on "Analyze" tab, added horizontal scrollbar
+  instead (#560)
 - BUG: Fixed statistics in output when correcting 
   height scales via management command 
 
