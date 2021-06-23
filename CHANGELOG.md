@@ -13,6 +13,8 @@
 - BUG: Fixed cryptic error messages for analyses
   on reentrant line scan, fixed display of "infinity"
   in roughness parameter table (#683)
+- BUG: Improved error message if interpolation for 
+  averaging fails, shows failing measurement (#681)
 
 ## 0.13.0 (2021-06-16)
 

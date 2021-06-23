@@ -455,6 +455,7 @@ def average_series_list(series_list, num_points=100, xscale='linear'):
 
                 {
                     'name': str, name of series, must be equal for all given series!
+                    'subject': Topography/Surface instance, these values are related to
                     'x': np.array with x values, 1D
                     'y': np.array with y values, same length as 'x'
                 }
@@ -524,7 +525,12 @@ def average_series_list(series_list, num_points=100, xscale='linear'):
     interpol_y_list = []
     for s in series_list:
         # we interpolate in the scale of original data (not log scale)
-        interpol = interp1d(s['x'], s['y'], bounds_error=False)  # inserts NaN outside of boundaries
+        try:
+            interpol = interp1d(s['x'], s['y'], bounds_error=False)  # inserts NaN outside of boundaries
+        except ValueError as exc:
+            msg = f"Could not compute interpolation function for intermediate results of '{s['subject'].name}', "
+            msg += f"so we can't do the averaging. Reason: {exc}"
+            raise IncompatibleTopographyException(msg) from exc
         interp_y = interpol(av_x)
         interpol_y_list.append(interp_y)
 
@@ -573,7 +579,7 @@ def average_results_for_surface(surface, topo_analysis_func, num_points=100,
     topographies = surface.topography_set
     num_topographies = topographies.count()
 
-    topo_result_series = {}  # key: series name, value: list of dict's, one for each result series
+    topo_result_series = {}  # key: series name, value: list of dicts, one for each result series
 
     ureg = UnitRegistry()
     xunit = None
@@ -605,6 +611,7 @@ def average_results_for_surface(surface, topo_analysis_func, num_points=100,
                 topo_result_series[series_name] = []
             scaled_series = {
                 'name': s['name'],
+                'subject': topo,  # for documentation purposes on failures
                 'x': s['x'] * xunit_factor,
                 'y': s['y'] * yunit_factor,
             }
