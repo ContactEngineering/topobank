@@ -9,4 +9,9 @@ urlpatterns = [
         view=views.go,
         name='go'
     ),
+    path(
+        '<str:short_url>/download/',
+        view=views.download,
+        name='go-download'
+    ),
 ]
