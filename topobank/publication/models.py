@@ -113,7 +113,7 @@ class Publication(models.Model):
             author = {{{author}}},
             year   = {{{year}}},
             note   = {{{note}}},
-            keywords = {{{keywords}}}
+            keywords = {{{keywords}}},
             howpublished = {{{publication_url}}},
         }}
         """.format(title=title,
@@ -144,7 +144,7 @@ class Publication(models.Model):
             month  = {{{month}}},
             date   = {{{date}}},
             note   = {{{note}}},
-            keywords = {{{keywords}}}
+            keywords = {{{keywords}}},
             url = {{{url}}},
             urldate = {{{urldate}}}
         }}

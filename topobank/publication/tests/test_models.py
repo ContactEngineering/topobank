@@ -83,7 +83,7 @@ def test_citation_bibtex(rf, example_pub):
             author = {{Alice and Bob}},
             year   = {{2020}},
             note   = {{This is a nice surface for testing.}},
-            keywords = {{surface,topography,diamond}}
+            keywords = {{surface,topography,diamond}},
             howpublished = {{{url}}},
         }}
     """.format(url=example_pub.get_full_url(request)).strip()
@@ -108,12 +108,12 @@ def test_citation_biblatex(rf, example_pub):
             month  = {{1}},
             date   = {{2020-01-01}},
             note   = {{This is a nice surface for testing.}},
-            keywords = {{surface,topography,diamond}}
+            keywords = {{surface,topography,diamond}},
             url = {{{url}}},
             urldate = {{2020-10-01}}
         }}""".format(url=example_pub.get_full_url(request)).strip()
 
-    with freeze_time(datetime.date(2020,10,1)):
+    with freeze_time(datetime.date(2020, 10, 1)):
         result_biblatex = example_pub.get_citation('biblatex', request).strip()
 
     assert exp_biblatex == result_biblatex

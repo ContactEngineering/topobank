@@ -8,6 +8,8 @@
   first column of roughness parameter table when
   on "Analyze" tab, added horizontal scrollbar
   instead (#560)
+- BUG: Fixed missing commas in BibTeX and BibLaTeX
+  citations (#686)
 - BUG: Fixed statistics in output when correcting 
   height scales via management command
 - BUG: Fixed cryptic error messages for analyses
