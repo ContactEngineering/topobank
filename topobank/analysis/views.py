@@ -1058,6 +1058,8 @@ class RoughnessParametersCardView(SimpleCardView):
                 v = None  # will be interpreted as null in JS, replace there with NaN!
                 # It's not easy to pass NaN as JSON:
                 # https://stackoverflow.com/questions/15228651/how-to-parse-json-string-containing-nan-in-node-js
+            elif math.isinf(v):
+                return 'infinity'
             else:
                 # convert float32 to float, round to fixed number of significant digits
                 v = round_to_significant_digits(v.astype(float),

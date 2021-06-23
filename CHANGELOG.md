@@ -9,7 +9,10 @@
   on "Analyze" tab, added horizontal scrollbar
   instead (#560)
 - BUG: Fixed statistics in output when correcting 
-  height scales via management command 
+  height scales via management command
+- BUG: Fixed cryptic error messages for analyses
+  on reentrant line scan, fixed display of "infinity"
+  in roughness parameter table (#683)
 
 ## 0.13.0 (2021-06-16)
 
