@@ -10,6 +10,8 @@
   instead (#560)
 - ENH: Cache containers of published 
   surfaces in storage on first download (#684)
+- ENH: Added note how to stop animation in the 
+  thumbnail gallery (#689)
 - BUG: Fixed missing commas in BibTeX and BibLaTeX
   citations (#686)
 - BUG: Fixed statistics in output when correcting 
