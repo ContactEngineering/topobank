@@ -462,8 +462,7 @@ class Topography(models.Model, SubjectMixin):
     # Methods
     #
     def __str__(self):
-        return "Topography '{0}' from {1}".format( \
-            self.name, self.measurement_date)
+        return "Topography '{0}' from {1}".format(self.name, self.measurement_date)
 
     @property
     def label(self):
@@ -663,7 +662,7 @@ class Topography(models.Model, SubjectMixin):
             except Exception as exc:
                 raise PlotTopographyException("Error generating 2D plot for topography.") from exc
         else:
-            raise PlotTopographyException("Can only plot 1D or 2D topograpies, this has {} dimensions.".format(
+            raise PlotTopographyException("Can only plot 1D or 2D topographies, this has {} dimensions.".format(
                 st_topo.dim
             ))
 
