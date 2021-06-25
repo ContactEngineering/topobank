@@ -8,6 +8,8 @@
   first column of roughness parameter table when
   on "Analyze" tab, added horizontal scrollbar
   instead (#560)
+- ENH: Cache containers of published 
+  surfaces in storage on first download (#684)
 - BUG: Fixed missing commas in BibTeX and BibLaTeX
   citations (#686)
 - BUG: Fixed statistics in output when correcting 

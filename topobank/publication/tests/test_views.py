@@ -5,7 +5,6 @@ import zipfile
 from io import BytesIO
 import yaml
 
-from .utils import example_pub
 from topobank.manager.tests.utils import UserFactory
 from topobank.utils import assert_in_content
 
@@ -37,3 +36,9 @@ def test_go_download_link(client, example_pub):
         assert meta['surfaces'][0]['name'] == surface.name
 
     assert_in_content(response, example_pub.surface.name)
+
+
+@pytest.mark.django_db
+def test_redirection_invalid_publication_link(client, handle_usage_statistics):
+    response = client.get(reverse('publication:go', kwargs=dict(short_url='THISISNONSENSE')))
+    assert response.status_code == 404

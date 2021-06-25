@@ -1521,11 +1521,45 @@ def download_surface(request, surface_id):
     if not request.user.has_perm('view_surface', surface):
         raise PermissionDenied()
 
-    container_bytes = BytesIO()
-    write_surface_container(container_bytes, [surface], request=request)
+    content_data = None
+
+    #
+    # If the surface has been published, there might be a container file already.
+    # If yes:
+    #   Is there already a container?
+    #     Then it instead of creating a new container.from
+    #     If no, save the container in the publication later.
+    # If no: create a container for this surface on the fly
+    #
+    renew_publication_container = False
+    if surface.is_published:
+        pub = surface.publication
+
+        # noinspection PyBroadException
+        try:
+            with pub.container.open() as cf:
+                content_data = cf.read()
+            _log.debug(f"Read container for published surface {pub.short_url} from storage.")
+        except Exception:  # not interested here, why it fails
+            renew_publication_container = True
+
+    if content_data is None:
+        container_bytes = BytesIO()
+        _log.info(f"Preparing container of surface id={surface_id} for download..")
+        write_surface_container(container_bytes, [surface], request=request)
+        content_data = container_bytes.getvalue()
+
+        if renew_publication_container:
+            try:
+                container_bytes.seek(0)
+                _log.info(f"Saving container for publication with URL {pub.short_url} to storage for later..")
+                pub.container.save(pub.container_storage_path, container_bytes)
+            except (OSError, BlockingIOError) as exc:
+                _log.error(f"Cannot save container for publication {pub.short_url} to storage. "
+                           f"Reason: {exc}")
 
     # Prepare response object.
-    response = HttpResponse(container_bytes.getvalue(),
+    response = HttpResponse(content_data,
                             content_type='application/x-zip-compressed')
     response['Content-Disposition'] = 'attachment; filename="{}"'.format('surface.zip')
 

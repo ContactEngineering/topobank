@@ -32,8 +32,8 @@ class Publication(models.Model):
     version = models.PositiveIntegerField(default=1)
     datetime = models.DateTimeField(auto_now_add=True)
     license = models.CharField(max_length=12, choices=LICENSE_CHOICES, blank=False, default='')
-
     authors = models.CharField(max_length=MAX_LEN_AUTHORS_FIELD)
+    container = models.FileField(max_length=50, default='')
 
     def get_absolute_url(self):
         return reverse('publication:go', args=[self.short_url])
@@ -162,3 +162,19 @@ class Publication(models.Model):
         )
 
         return s.strip()
+
+    @property
+    def storage_prefix(self):
+        """Return prefix used for storage.
+https://docs.djangoproject.com/en/2.2/ref/models/fields/#django.db.models.FileField.upload_to
+        Looks like a relative path to a directory.
+        If storage is on filesystem, the prefix should correspond
+        to a real directory.
+        """
+        return "publications/{}/".format(self.short_url)
+
+    @property
+    def container_storage_path(self):
+        """Return relative path of container in storage."""
+        return f"{self.storage_prefix}container.zip"
+

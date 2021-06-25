@@ -3,10 +3,6 @@ import pytest
 import datetime
 from freezegun import freeze_time
 
-from django.shortcuts import reverse
-
-from .utils import example_pub
-
 
 @pytest.mark.django_db
 def test_publication_orcid_id(example_pub):
@@ -101,6 +97,6 @@ def test_citation_biblatex(rf, example_pub):
 
 
 @pytest.mark.django_db
-def test_redirection_invalid_publication_link(client, handle_usage_statistics):
-    response = client.get(reverse('publication:go', kwargs=dict(short_url='THISISNONSENSE')))
-    assert response.status_code == 404
+def test_container_attributes(example_pub):
+    assert example_pub.container_storage_path == 'publications/' + example_pub.short_url + "/container.zip"
+    assert hasattr(example_pub, 'container')
