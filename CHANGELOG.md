@@ -9,7 +9,9 @@
   on "Analyze" tab, added horizontal scrollbar
   instead (#560)
 - ENH: Cache containers of published 
-  surfaces in storage on first download (#684)
+  surfaces in storage on first download, enabled
+  direct download of published surfaces  by adding 
+  "download/" to publication URL (#684)
 - ENH: Added note how to stop animation in the 
   thumbnail gallery (#689)
 - BUG: Fixed missing commas in BibTeX and BibLaTeX
