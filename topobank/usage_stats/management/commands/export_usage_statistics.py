@@ -150,6 +150,29 @@ class Command(BaseCommand):
         register_metrics()
 
         #
+        # Compile Dataframe for "summary" sheet (see GH #572)
+        #
+        summary_df = pd.DataFrame()
+
+        # Shows the data by month, with the current month at the top, and going
+        # reverse-chronologically back to the creation month at the bottom.
+        # Show a monthly cumulative total for each of the "summable" numbers (logins by users,
+        # analyses requested, etc.).
+        # Show a monthly snapshot number for any non-cumulative numbers like total number of users.
+        # Use narrow columns.
+
+        columns = [
+            'new logins',
+            'requests',
+            'select page req',
+            'analysis CPU secs',
+            'registered users',
+            'surfaces',
+            'measurements',
+            'analyses'
+        ]
+
+        #
         # Compile results with single value for a date
         #
         # Elements: (metric_ref, factor, column_heading or None for default)
@@ -197,6 +220,7 @@ class Command(BaseCommand):
         # Write all dataframes to Excel file
         #
         with pd.ExcelWriter(EXPORT_FILE_NAME) as writer:
+            summary_df.to_excel(writer, sheet_name='summary')
             statistics_by_date_df.to_excel(writer, sheet_name='statistics by date')
             result_views_by_date_function_df.to_excel(writer, sheet_name='analysis views by date+function')
             analysis_cpu_seconds_by_date_function_df.to_excel(writer, sheet_name='cpu seconds by date+function')
