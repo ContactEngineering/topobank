@@ -425,7 +425,7 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
     #
     # Also check some properties of the SurfaceTopography.Topography
     #
-    st_topo = t.topography()
+    st_topo = t.topography(allow_cache=False, allow_squeezed=False)
     assert st_topo.physical_sizes == exp_physical_sizes
 
 

@@ -493,7 +493,7 @@ class Topography(models.Model, SubjectMixin):
         """
         return self.surface.is_shared(with_user, allow_change=allow_change)
 
-    def topography(self, allow_squeezed=True):
+    def topography(self, allow_cache=True, allow_squeezed=True):
         """Return a SurfaceTopography.Topography/UniformLineScan/NonuniformLineScan instance.
 
         This instance is guaranteed to
@@ -515,6 +515,10 @@ class Topography(models.Model, SubjectMixin):
 
         Parameters
         ----------
+        allow_cache: bool
+            If True (default), the instance is allowed to get the
+            topography from cache if available. If not, the topography
+            in cache is rewritten.
 
         allow_squeezed: bool
             If True (default), the instance is allowed to be generated
@@ -526,7 +530,7 @@ class Topography(models.Model, SubjectMixin):
         #
         # Try to get topography from cache if possible
         #
-        topo = cache.get(cache_key)
+        topo = cache.get(cache_key) if allow_cache else None
         if topo is None:
             if allow_squeezed:
                 try:
@@ -891,7 +895,7 @@ class Topography(models.Model, SubjectMixin):
         """Renew squeezed datafile file."""
         _log.info(f"Renewing squeezed datafile for topography {self.id}..")
         with tempfile.NamedTemporaryFile() as tmp:
-            st_topo = self.topography(allow_squeezed=False)
+            st_topo = self.topography(allow_cache=False, allow_squeezed=False)  # really reread from original file
             st_topo.to_netcdf(tmp.name)
             orig_stem, orig_ext = os.path.splitext(self.datafile.name)
             squeezed_name = f"{orig_stem}-squeezed.nc"
