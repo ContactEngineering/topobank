@@ -493,7 +493,7 @@ class Topography(models.Model, SubjectMixin):
         """
         return self.surface.is_shared(with_user, allow_change=allow_change)
 
-    def topography(self, allow_squeezed=False):
+    def topography(self, allow_squeezed=True):
         """Return a SurfaceTopography.Topography/UniformLineScan/NonuniformLineScan instance.
 
         This instance is guaranteed to
@@ -511,7 +511,7 @@ class Topography(models.Model, SubjectMixin):
         applied.
 
         If allow_squeezed=True, the returned topography may be read
-        from a cached file which sclaing and detrending already applied.
+        from a cached file which scaling and detrending already applied.
 
         Parameters
         ----------

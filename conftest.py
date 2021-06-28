@@ -118,3 +118,12 @@ def example_pub():
         pub = surface.publish('cc0-1.0', authors)
 
     return pub
+
+
+@pytest.fixture()
+def use_dummy_cache_backend(settings):
+    settings.CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.dummy.DummyCache",
+        }
+    }
