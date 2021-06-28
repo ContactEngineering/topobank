@@ -493,19 +493,25 @@ class Topography(models.Model, SubjectMixin):
         """
         return self.surface.is_shared(with_user, allow_change=allow_change)
 
-    def topography(self, allow_squeezed=True):
+    def topography(self, allow_squeezed=False):
         """Return a SurfaceTopography.Topography/UniformLineScan/NonuniformLineScan instance.
 
         This instance is guaranteed to
 
         - have an info dict with 'unit' key: .info['unit']
         - have a size: .physical_sizes
-        - scaled and detrended with the saved parameters
+        - have been scaled and detrended with the saved parameters
 
         It has not necessarily a pipeline with all these steps
-        and a 'detrend_mode` attribute. This is only the case
+        and a 'detrend_mode` attribute.
+
+        This is only always the case
         if allow_squeezed=False. In this case the returned instance
-        was regenerated from the original file.
+        was regenerated from the original file with additional steps
+        applied.
+
+        If allow_squeezed=True, the returned topography may be read
+        from a cached file which sclaing and detrending already applied.
 
         Parameters
         ----------

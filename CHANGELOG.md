@@ -14,6 +14,10 @@
   "download/" to publication URL (#684)
 - ENH: Added note how to stop animation in the 
   thumbnail gallery (#689)
+- BUG: Fixed wrong topography for plots and 
+  analysis results after changing significant
+  fields like detrend_mode, was introduced with 
+  0.13.0 (#590)
 - BUG: Fixed missing commas in BibTeX and BibLaTeX
   citations (#686)
 - BUG: Fixed statistics in output when correcting 

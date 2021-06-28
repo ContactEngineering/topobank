@@ -526,12 +526,12 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
         if len(significant_fields_with_changes) > 0:
             _log.info(f"During edit of topography {topo.id} significant fields changed: " +
                       f"{significant_fields_with_changes}.")
-            _log.info("Triggering renewal of squeezed datafile in background...")
-            transaction.on_commit(lambda: renew_squeezed_datafile.delay(topo.id))
+            _log.info("Renewing squeezed datafile...")
+            topo.renew_squeezed_datafile()  # cannot be done in background, other steps depend on this, see GH #590
             _log.info("Triggering renewal of thumbnail in background...")
-            transaction.on_commit(lambda:renew_topography_thumbnail.delay(topo.id))
-            _log.info("Triggering renewal of analyses...")
-            transaction.on_commit(lambda:renew_analyses_related_to_topography.delay(topo.id))
+            transaction.on_commit(lambda: renew_topography_thumbnail.delay(topo.id))
+            _log.info("Triggering renewal of analyses in background...")
+            transaction.on_commit(lambda: renew_analyses_related_to_topography.delay(topo.id))
             notification_msg += f"\nBecause significant fields have changed, all related analyses are recalculated now."
 
         #
