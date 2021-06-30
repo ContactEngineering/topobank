@@ -219,7 +219,9 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
 
         if step in ['units']:
 
-            step1_data = self.get_cleaned_data_for_step('metadata')
+            step1_data = self.get_cleaned_data_for_step('metadata') or {'data_source': 0}
+            # in case the form doesn't validate, the first data source is chosen, workaround for GH 691
+
             channel = int(step1_data['data_source'])
             channel_info = channel_infos[channel]
 
@@ -320,7 +322,10 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
             kwargs['autocomplete_tags'] = tags_for_user(self.request.user)
 
         if step in ['units']:
-            step1_data = self.get_cleaned_data_for_step('metadata')
+            step1_data = self.get_cleaned_data_for_step('metadata') or {'data_source': 0}
+            # in case the form doesn't validate, the first data source is chosen, workaround for GH 691
+            # TODO: why can this happen? handle differently?
+
             channel = int(step1_data['data_source'])
             channel_info = channel_infos[channel]
 
