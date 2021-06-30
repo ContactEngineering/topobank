@@ -1126,6 +1126,24 @@ If building the containers was successful, aks yourself these questions:
   and look whether the statistics in the output makes sense. If yes, run the command without `--dry-run`
   and the database will be changed accordingly.
 
+- Should the sizes of all measurements be corrected?
+
+  With version of SurfaceTopography 0.94.0 the reader channels have the information
+  whether the size is fixed by the file contents.
+  Before there were some inconsistencies between file contents and the database
+  flags for some measurements.
+
+  In order to fix all flags `size_editable` and also the sizes itself, if not editable,
+  in the database run first
+
+  .. code:: bash
+
+     docker-compose -f production.yml run --rm django python manage.py fix_sizes --dry-run
+
+  and look whether the statistics in the output makes sense. If yes, run the command without `--dry-run`
+  and the database will be changed accordingly.
+
+
 
 Restart application
 ...................

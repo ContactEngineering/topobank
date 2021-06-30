@@ -14,6 +14,9 @@
   "download/" to publication URL (#684)
 - ENH: Added note how to stop animation in the 
   thumbnail gallery (#689)
+- ENH: New management command to align topography
+  sizes in database with reporting from 
+  SurfaceTopography (#685)
 - BUG: Fixed wrong topography for plots and 
   analysis results after changing significant
   fields like detrend_mode, was introduced with 
