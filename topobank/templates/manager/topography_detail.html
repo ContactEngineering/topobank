@@ -61,6 +61,7 @@
                   <th scope="row">Physical size</th>
                   <td>
                     {{ topography.size_x }} {{ topography.unit }}{% if topography.size_y %} x {{ topography.size_y }} {{ topography.unit }} {% endif %}
+                    ({% if topography.size_editable %}given by user{% else %}fixed by file contents{% endif %})
                   </td>
                 </tr>
                 <tr>
@@ -82,7 +83,11 @@
                 <tr>
                   <th scope="row">Number of data points</th>
                   <td>
-                    {{ topography.resolution_x }}{% if topography.resolution_y %} x {{ topography.resolution_y }} {% endif %}
+                    {% if topography.resolution_x %}
+                      {{ topography.resolution_x }}{% if topography.resolution_y %} x {{ topography.resolution_y }} {% endif %}
+                    {% else %}
+                      (not saved yet)
+                    {% endif %}
                   </td>
                 </tr>
                 </tbody>
