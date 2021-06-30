@@ -25,7 +25,7 @@ class Command(BaseCommand):
 
     This scripts sets the field according to what SurfaceTopography
     returns, so the database is consistent. Might be needed after
-    upgrade to SurfaceTopography 0.04.0 or later.
+    upgrade to SurfaceTopography 0.94.0 or later.
 
     Also the height_scale itself is fixed in the database, if the
     factor is not editable but differs from the factor given in the channel.
@@ -73,7 +73,7 @@ class Command(BaseCommand):
             if height_scale_editable:
                 num_editable += 1
                 if not math.isclose(topo.height_scale, 1.):
-                    num_editable_not_1
+                    num_editable_not_1 += 1
             else:
                 num_not_editable += 1
 
@@ -99,7 +99,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f"Processed {num_topographies} topographies."))
         self.stdout.write(self.style.SUCCESS(f"Number of editable height scale factors: {num_editable}"))
         self.stdout.write(self.style.SUCCESS(f"                 ... of which are not 1: {num_editable_not_1}"))
-        self.stdout.write(self.style.SUCCESS(f"Number of fixed height scale factors: {num_not_editable}"))
+        self.stdout.write(self.style.SUCCESS(f"Number of height scale factors fixed in file: {num_not_editable}"))
         self.stdout.write(
             self.style.SUCCESS(f"Number of detected differences in editable flag: {num_different_editable}"))
         self.stdout.write(

@@ -29,6 +29,7 @@
   in roughness parameter table (#683)
 - BUG: Improved error message if interpolation for 
   averaging fails, shows failing measurement (#681)
+- BUG: Fixes in output of 'fix_height_scale' script  
 
 ## 0.13.0 (2021-06-16)
 
