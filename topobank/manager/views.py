@@ -196,8 +196,6 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
             # provide datafile attribute from first step
             step0_data = self.get_cleaned_data_for_step('upload')
             datafile = step0_data['datafile']
-            datafile_format = step0_data['datafile_format']
-            # toporeader = get_topography_reader(datafile, format=datafile_format)
             channel_infos = step0_data['channel_infos']
 
         if step == 'metadata':
@@ -219,7 +217,9 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
 
         if step in ['units']:
 
-            step1_data = self.get_cleaned_data_for_step('metadata')
+            step1_data = self.get_cleaned_data_for_step('metadata') or {'data_source': 0}
+            # in case the form doesn't validate, the first data source is chosen, workaround for GH 691
+
             channel = int(step1_data['data_source'])
             channel_info = channel_infos[channel]
 
@@ -289,9 +289,6 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
         if step in ['metadata', 'units']:
             # provide datafile attribute and reader from first step
             step0_data = self.get_cleaned_data_for_step('upload')
-            datafile = step0_data['datafile']
-            datafile_format = step0_data['datafile_format']
-            # toporeader = get_topography_reader(datafile, format=datafile_format)
             channel_infos = step0_data['channel_infos']
 
         if step == 'metadata':
@@ -320,7 +317,10 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
             kwargs['autocomplete_tags'] = tags_for_user(self.request.user)
 
         if step in ['units']:
-            step1_data = self.get_cleaned_data_for_step('metadata')
+            step1_data = self.get_cleaned_data_for_step('metadata') or {'data_source': 0}
+            # in case the form doesn't validate, the first data source is chosen, workaround for GH 691
+            # TODO: why can this happen? handle differently?
+
             channel = int(step1_data['data_source'])
             channel_info = channel_infos[channel]
 
@@ -526,12 +526,12 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
         if len(significant_fields_with_changes) > 0:
             _log.info(f"During edit of topography {topo.id} significant fields changed: " +
                       f"{significant_fields_with_changes}.")
-            _log.info("Triggering renewal of squeezed datafile in background...")
-            transaction.on_commit(lambda: renew_squeezed_datafile.delay(topo.id))
+            _log.info("Renewing squeezed datafile...")
+            topo.renew_squeezed_datafile()  # cannot be done in background, other steps depend on this, see GH #590
             _log.info("Triggering renewal of thumbnail in background...")
-            transaction.on_commit(lambda:renew_topography_thumbnail.delay(topo.id))
-            _log.info("Triggering renewal of analyses...")
-            transaction.on_commit(lambda:renew_analyses_related_to_topography.delay(topo.id))
+            transaction.on_commit(lambda: renew_topography_thumbnail.delay(topo.id))
+            _log.info("Triggering renewal of analyses in background...")
+            transaction.on_commit(lambda: renew_analyses_related_to_topography.delay(topo.id))
             notification_msg += f"\nBecause significant fields have changed, all related analyses are recalculated now."
 
         #

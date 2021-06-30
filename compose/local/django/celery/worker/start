@@ -3,5 +3,4 @@
 set -o errexit
 set -o nounset
 
-
-celery -A topobank.taskapp worker -l DEBUG
+celery -A topobank.taskapp worker -l INFO

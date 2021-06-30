@@ -8,10 +8,11 @@ import pytest
 import datetime
 from pathlib import Path
 import tempfile
+import math
 
-from topobank.manager.models import Surface
+from topobank.manager.models import Surface, Topography
 from topobank.manager.tests.utils import UserFactory, FIXTURE_DIR, SurfaceFactory, \
-    Topography2DFactory, Topography1DFactory
+    Topography2DFactory, Topography1DFactory, two_topos
 
 
 @pytest.mark.django_db
@@ -61,6 +62,28 @@ def test_import_downloaded_surface_archive(client):
         for attrname in ['name', 'description', 'size_x', 'size_y', 'height_scale',
                          'measurement_date', 'unit', 'creator', 'data_source', 'tags']:
             assert getattr(tc, attrname) == getattr(t, attrname)
+
+
+@pytest.mark.django_db
+def test_fix_sizes(two_topos):
+    topo = two_topos[0]
+    assert topo.name == 'Example 3 - ZSensor'
+    # this file comes from a DI file where sizes are fixed
+
+    # let's save wrong values to fix it
+    topo.size_editable = True   # this is wrong
+    topo.size_x = 1.  # also wrong
+    topo.size_y = 2.
+    topo.save()
+
+    call_command('fix_sizes')
+
+    # Reload topography from database
+    new_topo = Topography.objects.get(id=topo.id)
+    assert not new_topo.size_editable
+    assert math.isclose(new_topo.size_x, 1e4, abs_tol=1e-8)
+    assert math.isclose(new_topo.size_y, 1e4, abs_tol=1e-8)
+
 
 
 

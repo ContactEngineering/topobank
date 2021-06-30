@@ -21,7 +21,8 @@ def test_renewal_on_topography_detrend_mode_change(client, mocker):
     """Check whether thumbnail is renewed if detrend mode changes for a topography
     """
 
-    renew_topo_squeezed_mock = mocker.patch('topobank.manager.views.renew_squeezed_datafile.delay')
+    from ..models import Topography
+    renew_squeezed_mock = mocker.patch.object(Topography, 'renew_squeezed_datafile')
     renew_topo_analyses_mock = mocker.patch('topobank.manager.views.renew_analyses_related_to_topography.delay')
     renew_topo_thumbnail_mock = mocker.patch('topobank.manager.views.renew_topography_thumbnail.delay')
 
@@ -50,7 +51,7 @@ def test_renewal_on_topography_detrend_mode_change(client, mocker):
     # we just check here that the form is filled completely, otherwise the thumbnail would not be recreated too
     assert_no_form_errors(response)
     assert response.status_code == 200
-    assert len(callbacks) == 3  # call for renewal of thumbnail, squeezed datafile, and analyses
+    assert len(callbacks) == 2  # call for renewal of thumbnail, and analyses after commit
     assert renew_topo_thumbnail_mock.called
-    assert renew_topo_squeezed_mock.called
     assert renew_topo_analyses_mock.called
+    assert renew_squeezed_mock.called  # was directly called, not as callback from commit

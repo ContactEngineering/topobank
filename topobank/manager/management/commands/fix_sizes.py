@@ -9,17 +9,17 @@ _log = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
-    """Fix height scale in database."""
-    help = """Fix height_scale_editable of measurements.
+    """Fix sizes in database."""
+    help = """Fix sizes of measurements.
 
-    Each measurement/topography has a field 'height_scale_editable'.
+    Each measurement/topography has a field 'sizes_editable'.
     Since version 0.94.0 of SurfaceTopography, the reader channels
-    return None if the height scale was not fixed by the file
-    contents. It returns a number, when it is fixed by the file
-    and should not be changed by the user.
+    return None if the sizes were not fixed by the file
+    contents. It returns a number (1D) or a tuple of numbers (2D),
+    when it is fixed by the file and should not be changed by the user.
 
     In Topobank, each Topography in the database has a field
-    'height_scale_editable' which controls whether the field
+    'sizes_editable' which controls whether the field
     can be changed in the UI. For new measurements, this is set
     correctly, but there might be old entries with wrong settings.
 
@@ -27,8 +27,8 @@ class Command(BaseCommand):
     returns, so the database is consistent. Might be needed after
     upgrade to SurfaceTopography 0.94.0 or later.
 
-    Also the height_scale itself is fixed in the database, if the
-    factor is not editable but differs from the factor given in the channel.
+    Also the sizes itself is fixed in the database, if the
+    factor is not editable but differs from what is given in the channel.
     """
 
     def add_arguments(self, parser):
@@ -49,11 +49,12 @@ class Command(BaseCommand):
         num_saved = 0
 
         num_different_editable = 0  # number of topographies which have differences in height_scale_editable
-        num_different_factor = 0  # number of topographies which have differences in height_scale factor
+        num_different_sizes = 0  # number of topographies which have differences in sizes
 
         num_not_editable = 0
         num_editable = 0
-        num_editable_not_1 = 0  # number of topographies with height scales factors given unequal 1
+
+        topographies_with_differences = set()
 
         topographies = Topography.objects.all()
         num_topographies = topographies.count()
@@ -68,28 +69,42 @@ class Command(BaseCommand):
                 continue
 
             channel = reader.channels[topo.data_source]
-            height_scale_editable = channel.height_scale_factor is None
+            size_editable = channel.physical_sizes is None
+            channel_sizes = channel.physical_sizes
 
-            if height_scale_editable:
+            if size_editable:
                 num_editable += 1
-                if not math.isclose(topo.height_scale, 1.):
-                    num_editable_not_1 += 1
             else:
                 num_not_editable += 1
 
-            if height_scale_editable != topo.height_scale_editable:
+            if size_editable != topo.size_editable:
                 num_different_editable += 1
+                topographies_with_differences.add(topo)
                 if not options['dry_run']:
-                    topo.height_scale_editable = height_scale_editable
+                    topo.size_editable = size_editable
                     do_save = True
 
-            if (not height_scale_editable) and math.isclose(channel.height_scale_factor, topo.height_scale):
-                num_different_factor += 1
-                if not options['dry_run']:
-                    topo.height_scale = channel.height_scale_factor
-                    do_save = True
+            if not size_editable:  # we don't change the sizes if they're editable
+                assert isinstance(channel_sizes, tuple)
+
+                has_2_dim = len(channel_sizes) == 2
+                sizes_equal = math.isclose(channel_sizes[0], topo.size_x)
+                if has_2_dim:
+                    sizes_equal = sizes_equal and math.isclose(channel_sizes[1], topo.size_y)
+
+                if not sizes_equal:
+                    num_different_sizes += 1
+                    topographies_with_differences.add(topo)
+                    if not options['dry_run']:
+                        topo.size_x = channel_sizes[0]
+                        if has_2_dim:
+                            topo.size_y = channel_sizes[1]
+                        else:
+                            topo.size_y = None
+                        do_save = True
 
             if do_save:
+                self.stdout.write(self.style.NOTICE(f"Saving topography {topo.id}, name '{topo.name}'.."))
                 topo.save()
                 num_saved += 1
 
@@ -97,13 +112,16 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.NOTICE(f"Processed {idx+1} topographies so far.."))
 
         self.stdout.write(self.style.SUCCESS(f"Processed {num_topographies} topographies."))
-        self.stdout.write(self.style.SUCCESS(f"Number of editable height scale factors: {num_editable}"))
-        self.stdout.write(self.style.SUCCESS(f"                 ... of which are not 1: {num_editable_not_1}"))
-        self.stdout.write(self.style.SUCCESS(f"Number of height scale factors fixed by file contents: {num_not_editable}"))
+        self.stdout.write(self.style.SUCCESS(f"Number of editable sizes: {num_editable}"))
+        self.stdout.write(self.style.SUCCESS(f"Number of sizes fixed by file contents: {num_not_editable}"))
         self.stdout.write(
             self.style.SUCCESS(f"Number of detected differences in editable flag: {num_different_editable}"))
         self.stdout.write(
-            self.style.SUCCESS(f"Number of detected differences in factor: {num_different_factor}"))
+            self.style.SUCCESS(f"Number of detected differences in sizes: {num_different_sizes}"))
+        self.stdout.write(
+            self.style.NOTICE(f"Found differences for {len(topographies_with_differences)} these topographies:"))
+        for td in topographies_with_differences:
+            self.stdout.write(self.style.NOTICE(f"    topography {td.id}, name '{td.name}'"))
         self.stdout.write(self.style.SUCCESS(f"Number of saved measurements: {num_saved}"))
 
         if options['dry_run']:
