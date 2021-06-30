@@ -196,8 +196,6 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
             # provide datafile attribute from first step
             step0_data = self.get_cleaned_data_for_step('upload')
             datafile = step0_data['datafile']
-            datafile_format = step0_data['datafile_format']
-            # toporeader = get_topography_reader(datafile, format=datafile_format)
             channel_infos = step0_data['channel_infos']
 
         if step == 'metadata':
@@ -291,9 +289,6 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
         if step in ['metadata', 'units']:
             # provide datafile attribute and reader from first step
             step0_data = self.get_cleaned_data_for_step('upload')
-            datafile = step0_data['datafile']
-            datafile_format = step0_data['datafile_format']
-            # toporeader = get_topography_reader(datafile, format=datafile_format)
             channel_infos = step0_data['channel_infos']
 
         if step == 'metadata':
