@@ -71,6 +71,14 @@ class IncompatibleTopographyException(Exception):
     pass
 
 
+class ReentrantTopographyException(IncompatibleTopographyException):
+    """Raise this exception if a function cannot handle a topography because it is reentrant.
+
+    By handling this special exception, the UI can show the incompatibility
+    as note to the user, not as failure. It is an excepted failure.
+    """
+    pass
+
 #
 # Use this during development if you need a long running task with failures
 #
@@ -187,8 +195,16 @@ def _moments_histogram_gaussian(arr, bins, topography, wfac, quantity, label, un
     mean = arr.mean()
     rms = np.sqrt((arr ** 2).mean())
 
-    hist, bin_edges = np.histogram(arr, bins=bins, density=True,
-                                   range=_reasonable_histogram_range(arr))
+    try:
+        hist, bin_edges = np.histogram(arr, bins=bins, density=True,
+                                       range=_reasonable_histogram_range(arr))
+    except ValueError as exc:
+        # Workaround for GH #683 in order to recognize reentrant measurements.
+        # Replace with catching of specific exception when
+        # https://github.com/ContactEngineering/SurfaceTopography/issues/108 is implemented.
+        if (len(exc.args) > 0) and (exc.args[0] == 'supplied range of [0.0, inf] is not finite'):
+            raise ReentrantTopographyException(f"Cannot compute {quantity} statistics for reentrant surfaces.")
+        raise
 
     scalars = {
         f"Mean {quantity.capitalize()} ({label})": dict(value=mean, unit=unit),
@@ -217,6 +233,7 @@ def _moments_histogram_gaussian(arr, bins, topography, wfac, quantity, label, un
 
 @register_implementation(name="Slope Distribution", card_view_flavor='plot')
 def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, storage_prefix=None):
+    """Calculates slope distribution for given topography."""
     # Get low level topography from SurfaceTopography model
     topography = topography.topography()
 
@@ -310,9 +327,17 @@ def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None
 
     hist_arr = np.ma.compressed(curv)
 
-    hist, bin_edges = np.histogram(hist_arr, bins=bins,
-                                   range=_reasonable_histogram_range(hist_arr),
-                                   density=True)
+    try:
+        hist, bin_edges = np.histogram(hist_arr, bins=bins,
+                                       range=_reasonable_histogram_range(hist_arr),
+                                       density=True)
+    except ValueError as exc:
+        # Workaround for GH #683 in order to recognize reentrant measurements.
+        # Replace with catching of specific exception when
+        # https://github.com/ContactEngineering/SurfaceTopography/issues/108 is implemented.
+        if (len(exc.args) > 0) and (exc.args[0] == 'supplied range of [-inf, inf] is not finite'):
+            raise ReentrantTopographyException("Cannot calculate curvature distribution for reentrant measurements.")
+        raise
 
     minval = mean_curv - wfac * rms_curv
     maxval = mean_curv + wfac * rms_curv
@@ -347,13 +372,26 @@ def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None
 
 @register_implementation(name="Power Spectrum", card_view_flavor='plot')
 def power_spectrum(topography, window=None, tip_radius=None, progress_recorder=None, storage_prefix=None):
+    """Calculate Power Spectrum for given topography."""
     # Get low level topography from SurfaceTopography model
     topography = topography.topography()
 
     if window == 'None':
         window = None
 
-    q_1D, C_1D = topography.power_spectrum_from_profile(window=window)
+    try:
+        q_1D, C_1D = topography.power_spectrum_from_profile(window=window)
+    except RuntimeError as exc:
+        # Workaround: Raise a special exception in case it is probably
+        # because of an reentrant measurement, see GH #683
+        if (len(exc.args) > 0) and (exc.args[0] == 'Positions not sorted.'):  # use exact arguments here
+            raise ReentrantTopographyException("Cannot compute PSD for reentrant surfaces.")
+        # Better: Catch specific exception
+        # when https://github.com/ContactEngineering/SurfaceTopography/issues/108 is implemented
+
+        raise
+
+
     # Remove NaNs and Infs
     q_1D = q_1D[np.isfinite(C_1D)]
     C_1D = C_1D[np.isfinite(C_1D)]
@@ -417,6 +455,7 @@ def average_series_list(series_list, num_points=100, xscale='linear'):
 
                 {
                     'name': str, name of series, must be equal for all given series!
+                    'subject': Topography/Surface instance, these values are related to
                     'x': np.array with x values, 1D
                     'y': np.array with y values, same length as 'x'
                 }
@@ -486,7 +525,12 @@ def average_series_list(series_list, num_points=100, xscale='linear'):
     interpol_y_list = []
     for s in series_list:
         # we interpolate in the scale of original data (not log scale)
-        interpol = interp1d(s['x'], s['y'], bounds_error=False)  # inserts NaN outside of boundaries
+        try:
+            interpol = interp1d(s['x'], s['y'], bounds_error=False)  # inserts NaN outside of boundaries
+        except ValueError as exc:
+            msg = f"Could not compute interpolation function for intermediate results of '{s['subject'].name}', "
+            msg += f"so we can't do the averaging. Reason: {exc}"
+            raise IncompatibleTopographyException(msg) from exc
         interp_y = interpol(av_x)
         interpol_y_list.append(interp_y)
 
@@ -535,7 +579,7 @@ def average_results_for_surface(surface, topo_analysis_func, num_points=100,
     topographies = surface.topography_set
     num_topographies = topographies.count()
 
-    topo_result_series = {}  # key: series name, value: list of dict's, one for each result series
+    topo_result_series = {}  # key: series name, value: list of dicts, one for each result series
 
     ureg = UnitRegistry()
     xunit = None
@@ -567,6 +611,7 @@ def average_results_for_surface(surface, topo_analysis_func, num_points=100,
                 topo_result_series[series_name] = []
             scaled_series = {
                 'name': s['name'],
+                'subject': topo,  # for documentation purposes on failures
                 'x': s['x'] * xunit_factor,
                 'y': s['y'] * yunit_factor,
             }
@@ -637,7 +682,7 @@ def autocorrelation(topography, progress_recorder=None, storage_prefix=None):
         x, h = topography.positions_and_heights()
         min_dist = np.min(np.diff(x))
         if min_dist <= 0:
-            raise RuntimeError('Positions not sorted')
+            raise ReentrantTopographyException('Cannot calculate autocorrelation for nonuniform reentrant measurements')
         else:
             n = min(100000, 10 * int(s / min_dist))
         r, A = topography.to_uniform(n, 0).autocorrelation_from_profile()
@@ -1253,6 +1298,29 @@ def roughness_parameters(topography, progress_recorder=None, storage_prefix=None
                 'unit': 1,
             },
         ])
+
+    #
+    # Bandwidth (pixel_size, scan_size), see GH #677
+    #
+    lower_bound, upper_bound = topography.bandwidth()
+    result.extend([
+        {
+            'quantity': 'Bandwidth: lower bound',
+            'from': FROM_2D if is_2D else FROM_1D,
+            'symbol': '',
+            'direction': None,
+            'value': lower_bound,
+            'unit': unit,
+        },
+        {
+            'quantity': 'Bandwidth: upper bound',
+            'from': FROM_2D if is_2D else FROM_1D,
+            'symbol': '',
+            'direction': None,
+            'value': upper_bound,
+            'unit': unit,
+        },
+    ])
 
     return result
 

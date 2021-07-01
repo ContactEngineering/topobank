@@ -568,9 +568,28 @@ def test_roughness_parameters(simple_linear_2d_topography):
             'value': 2,
             'unit': 1,
         },
+        {
+            'quantity': 'Bandwidth: lower bound',
+            'direction': None,
+            'from': 'area (2D)',
+            'symbol': '',
+            'value': 1.0,
+            'unit': unit,
+        },
+        {
+            'quantity': 'Bandwidth: upper bound',
+            'direction': None,
+            'from': 'area (2D)',
+            'symbol': '',
+            'value': 7.5,
+            'unit': unit,
+        },
     ]
 
-    # compare all fields
+    # Look whether all fields are included
+    assert len(result) == len(expected)
+
+    # compare all fields in detail
     for exp, actual in zip(expected, result):
         assert_allclose(exp['value'], actual['value'],
                         atol=1e-14,

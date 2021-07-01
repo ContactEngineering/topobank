@@ -30,20 +30,18 @@
           title: 'Measurement',
           render: function (data, type, row) {
             let name = row.topography_name;
-            let name_to_use = (type === 'display' && result_view_mode === 'list' && name.length > 10)
-                              ? name.substr( 0, 10 ) +'…' : name;
-            // use truncated name with ellipsis in order to make column smaller (only for view mode 'list')
-            return `<a target="_blank" title="${name}" href="${row.topography_url}">${name_to_use}</a>`;
+            return `<a target="_blank" title="${name}" href="${row.topography_url}">${name}</a>`;
           }
         },
         {data: 'quantity', title: 'Quantity'},
         {data: 'from', title: 'From'},
-        {data: 'symbol', title: '<span title="according to ASME B46.1">Symbol 🛈</span>'},
-        {data: 'direction', title: 'Direction'},
+        {data: 'symbol', title: '<span title="Symbol according to ASME B46.1">Sym. 🛈</span>'},
+        {data: 'direction', title: 'Direct.'},
         {data: 'value', title: 'Value', render: function (x) { return format_exponential(x, 5);}},
         {data: 'unit', title: 'Unit'},
       ],
-      responsive: true
+      responsive: true,
+      scrollX: true
     })
   })
 </script>

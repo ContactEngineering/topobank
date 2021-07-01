@@ -462,8 +462,7 @@ class Topography(models.Model, SubjectMixin):
     # Methods
     #
     def __str__(self):
-        return "Topography '{0}' from {1}".format( \
-            self.name, self.measurement_date)
+        return "Topography '{0}' from {1}".format(self.name, self.measurement_date)
 
     @property
     def label(self):
@@ -494,22 +493,32 @@ class Topography(models.Model, SubjectMixin):
         """
         return self.surface.is_shared(with_user, allow_change=allow_change)
 
-    def topography(self, allow_squeezed=True):
+    def topography(self, allow_cache=True, allow_squeezed=True):
         """Return a SurfaceTopography.Topography/UniformLineScan/NonuniformLineScan instance.
 
         This instance is guaranteed to
 
         - have an info dict with 'unit' key: .info['unit']
         - have a size: .physical_sizes
-        - scaled and detrended with the saved parameters
+        - have been scaled and detrended with the saved parameters
 
         It has not necessarily a pipeline with all these steps
-        and a 'detrend_mode` attribute. This is only the case
+        and a 'detrend_mode` attribute.
+
+        This is only always the case
         if allow_squeezed=False. In this case the returned instance
-        was regenerated from the original file.
+        was regenerated from the original file with additional steps
+        applied.
+
+        If allow_squeezed=True, the returned topography may be read
+        from a cached file which scaling and detrending already applied.
 
         Parameters
         ----------
+        allow_cache: bool
+            If True (default), the instance is allowed to get the
+            topography from cache if available. If not, the topography
+            in cache is rewritten.
 
         allow_squeezed: bool
             If True (default), the instance is allowed to be generated
@@ -521,7 +530,7 @@ class Topography(models.Model, SubjectMixin):
         #
         # Try to get topography from cache if possible
         #
-        topo = cache.get(cache_key)
+        topo = cache.get(cache_key) if allow_cache else None
         if topo is None:
             if allow_squeezed:
                 try:
@@ -663,7 +672,7 @@ class Topography(models.Model, SubjectMixin):
             except Exception as exc:
                 raise PlotTopographyException("Error generating 2D plot for topography.") from exc
         else:
-            raise PlotTopographyException("Can only plot 1D or 2D topograpies, this has {} dimensions.".format(
+            raise PlotTopographyException("Can only plot 1D or 2D topographies, this has {} dimensions.".format(
                 st_topo.dim
             ))
 
@@ -886,7 +895,7 @@ class Topography(models.Model, SubjectMixin):
         """Renew squeezed datafile file."""
         _log.info(f"Renewing squeezed datafile for topography {self.id}..")
         with tempfile.NamedTemporaryFile() as tmp:
-            st_topo = self.topography(allow_squeezed=False)
+            st_topo = self.topography(allow_cache=False, allow_squeezed=False)  # really reread from original file
             st_topo.to_netcdf(tmp.name)
             orig_stem, orig_ext = os.path.splitext(self.datafile.name)
             squeezed_name = f"{orig_stem}-squeezed.nc"

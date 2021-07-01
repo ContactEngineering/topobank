@@ -1,30 +1,7 @@
+"""Tests related to publication models."""
 import pytest
 import datetime
 from freezegun import freeze_time
-
-from django.shortcuts import reverse
-
-from topobank.manager.tests.utils import SurfaceFactory, UserFactory
-
-
-@pytest.mark.django_db
-@pytest.fixture
-def example_pub():
-
-    user = UserFactory()
-
-    authors = "Alice, Bob"
-    publication_date = datetime.date(2020,1,1)
-    description = "This is a nice surface for testing."
-    name = "Diamond Structure"
-
-    surface = SurfaceFactory(name=name, creator=user, description=description)
-    surface.tags = ['diamond']
-
-    with freeze_time(publication_date):
-        pub = surface.publish('cc0-1.0', authors)
-
-    return pub
 
 
 @pytest.mark.django_db
@@ -83,7 +60,7 @@ def test_citation_bibtex(rf, example_pub):
             author = {{Alice and Bob}},
             year   = {{2020}},
             note   = {{This is a nice surface for testing.}},
-            keywords = {{surface,topography,diamond}}
+            keywords = {{surface,topography,diamond}},
             howpublished = {{{url}}},
         }}
     """.format(url=example_pub.get_full_url(request)).strip()
@@ -108,18 +85,18 @@ def test_citation_biblatex(rf, example_pub):
             month  = {{1}},
             date   = {{2020-01-01}},
             note   = {{This is a nice surface for testing.}},
-            keywords = {{surface,topography,diamond}}
+            keywords = {{surface,topography,diamond}},
             url = {{{url}}},
             urldate = {{2020-10-01}}
         }}""".format(url=example_pub.get_full_url(request)).strip()
 
-    with freeze_time(datetime.date(2020,10,1)):
+    with freeze_time(datetime.date(2020, 10, 1)):
         result_biblatex = example_pub.get_citation('biblatex', request).strip()
 
     assert exp_biblatex == result_biblatex
 
 
 @pytest.mark.django_db
-def test_redirection_invalid_publication_link(client, handle_usage_statistics):
-    response = client.get(reverse('publication:go', kwargs=dict(short_url='THISISNONSENSE')))
-    assert response.status_code == 404
+def test_container_attributes(example_pub):
+    assert example_pub.container_storage_path == 'publications/' + example_pub.short_url + "/container.zip"
+    assert hasattr(example_pub, 'container')

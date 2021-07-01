@@ -1,5 +1,42 @@
 # Changelog for *TopoBank*
 
+## 0.14.0 (2021-07-01)
+
+- ENH: Added upper and lower bound of bandwidth to 
+  roughness parameter table (#677)
+- ENH: Removed restriction of column width of 
+  first column of roughness parameter table when
+  on "Analyze" tab, added horizontal scrollbar
+  instead (#560)
+- ENH: Cache containers of published 
+  surfaces in storage on first download, enabled
+  direct download of published surfaces  by adding 
+  "download/" to publication URL (#684)
+- ENH: Added note how to stop animation in the 
+  thumbnail gallery (#689)
+- ENH: New management command to align topography
+  sizes in database with reporting from 
+  SurfaceTopography (#685)
+- ENH: Added summary page for usage statistics with
+  monthly numbers (#572), also sorted sheets now
+  in descending order with the latest date first
+- BUG: Fixed wrong topography for plots and 
+  analysis results after changing significant
+  fields like detrend_mode, was introduced with 
+  0.13.0 (#590)
+- BUG: Workaround for NoneType exception happend
+  some times when creating new topographies (#691)
+- BUG: Fixed missing commas in BibTeX and BibLaTeX
+  citations (#686)
+- BUG: Fixed statistics in output when correcting 
+  height scales via management command
+- BUG: Fixed cryptic error messages for analyses
+  on reentrant line scan, fixed display of "infinity"
+  in roughness parameter table (#683)
+- BUG: Improved error message if interpolation for 
+  averaging fails, shows failing measurement (#681)
+- BUG: Fixes in output of 'fix_height_scale' script  
+
 ## 0.13.0 (2021-06-16)
 
 - improved performance when uploading new measurements 

@@ -1,6 +1,8 @@
 """
 Tests related to the models in topobank.manager app
 """
+import tempfile
+
 import pytest
 import datetime
 from numpy.testing import assert_allclose
@@ -321,23 +323,63 @@ def test_notifications_are_deleted_when_topography_deleted():
 
 
 @pytest.mark.django_db
-def test_squeezed_datafile(handle_usage_statistics):
-    topo = Topography2DFactory(height_scale=2, detrend_mode='height')
+@pytest.mark.parametrize('height_scale_factor', [1, 2])
+@pytest.mark.parametrize('detrend_mode', ['center', 'height', 'curvature'])
+def test_squeezed_datafile(handle_usage_statistics, height_scale_factor, detrend_mode, use_dummy_cache_backend):
+
+    factory_kwargs = dict(height_scale_editable=True)
+    if height_scale_factor is not None:
+        factory_kwargs['height_scale'] = height_scale_factor
+    if detrend_mode is not None:
+        factory_kwargs['detrend_mode'] = detrend_mode
+
+    topo = Topography2DFactory(**factory_kwargs)
     # Original heights are modified here. The modified values
     # should be reconstructed when loading squeezed data. This is checked here.
 
+    assert topo.height_scale == height_scale_factor
+    assert topo.detrend_mode == detrend_mode
+
     assert not topo.has_squeezed_datafile
     st_topo = topo.topography(allow_squeezed=False)
-    orig_heights = st_topo.heights()  # This was read from the original data
+    orig_heights = st_topo.heights()  # This was read from the original data, detrending+scaling applied
+
+    #
+    # Check with pure SurfaceTopography instance
+    #
+    from SurfaceTopography.IO import open_topography
+    df = topo.datafile.open(mode='rb')  # no context manager, we don't want the file closed
+    reader = open_topography(df)
+    st_topo = reader.topography(topo.data_source, physical_sizes=(topo.size_x, topo.size_y))
+    if height_scale_factor is not None:
+        st_topo = st_topo.scale(height_scale_factor)
+    if detrend_mode is not None:
+        st_topo = st_topo.detrend(detrend_mode)
+    assert_allclose(st_topo.heights(), orig_heights)
+    df.seek(0)
+
+    #
+    # so here we know that .topography(allow_squeeze=False) return the same as loading using open_topography only
+    #
+    # Using the squeezed data file should result in same heights
 
     topo.renew_squeezed_datafile()
     assert topo.has_squeezed_datafile
 
-    from SurfaceTopography.IO import open_topography
-    with topo.squeezed_datafile.open(mode='rb') as sdf:
-        reader = open_topography(sdf)
-        st_topo = reader.topography()
-        assert_allclose(st_topo.heights(), orig_heights)
+    sdf = topo.squeezed_datafile.open(mode='rb')
+    reader = open_topography(sdf)
+    st_topo_from_squeezed = reader.topography()
+    assert_allclose(st_topo_from_squeezed.heights(), orig_heights)
+    sdf.seek(0)
+
+    # Also check whether this data is returned by .topography if squeezed allowed
+    st_topo_from_squeezed = topo.topography(allow_squeezed=True)
+    assert_allclose(st_topo_from_squeezed.heights(), orig_heights)
+
+    df.close()
+    sdf.close()
+
+
 
 
 

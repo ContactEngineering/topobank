@@ -1,6 +1,8 @@
+"""
+Definition of celery tasks used in TopoBank.
+"""
 import pickle
 import traceback
-import logging
 
 from django.utils import timezone
 from django.db.utils import IntegrityError
@@ -99,7 +101,7 @@ def perform_analysis(self, analysis_id):
 
     analysis.task_state = Analysis.STARTED
     analysis.task_id = self.request.id
-    analysis.start_time = timezone.now() # with timezone
+    analysis.start_time = timezone.now()  # with timezone
     analysis.configuration = current_configuration()
     analysis.save()
 
@@ -294,12 +296,12 @@ def renew_topography_thumbnail(topography_id):
 
 @app.task
 def renew_analyses_related_to_topography(topography_id, include_surface=True):
-    """Renew analyses related to given topography,
+    """Renew analyses related to given topography.
 
         Parameters
         ----------
         topography_id: int
-            ID if topography for which analyes should be regenerated.
+            ID of topography for which analyses should be regenerated.
         include_surface: bool
             If True, also analyses for the topography's surface are
             regenerated.

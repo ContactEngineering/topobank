@@ -51,7 +51,7 @@ class CleanVulnerableFieldsMixin:
         return bleach.clean(self.cleaned_data['name'])
 
     def clean_tags(self):
-        tags = [ bleach.clean(t) for t in self.cleaned_data['tags']]
+        tags = [bleach.clean(t) for t in self.cleaned_data['tags']]
         return tags
 
 

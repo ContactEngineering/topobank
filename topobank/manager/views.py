@@ -196,8 +196,6 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
             # provide datafile attribute from first step
             step0_data = self.get_cleaned_data_for_step('upload')
             datafile = step0_data['datafile']
-            datafile_format = step0_data['datafile_format']
-            # toporeader = get_topography_reader(datafile, format=datafile_format)
             channel_infos = step0_data['channel_infos']
 
         if step == 'metadata':
@@ -219,7 +217,9 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
 
         if step in ['units']:
 
-            step1_data = self.get_cleaned_data_for_step('metadata')
+            step1_data = self.get_cleaned_data_for_step('metadata') or {'data_source': 0}
+            # in case the form doesn't validate, the first data source is chosen, workaround for GH 691
+
             channel = int(step1_data['data_source'])
             channel_info = channel_infos[channel]
 
@@ -289,9 +289,6 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
         if step in ['metadata', 'units']:
             # provide datafile attribute and reader from first step
             step0_data = self.get_cleaned_data_for_step('upload')
-            datafile = step0_data['datafile']
-            datafile_format = step0_data['datafile_format']
-            # toporeader = get_topography_reader(datafile, format=datafile_format)
             channel_infos = step0_data['channel_infos']
 
         if step == 'metadata':
@@ -320,7 +317,10 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
             kwargs['autocomplete_tags'] = tags_for_user(self.request.user)
 
         if step in ['units']:
-            step1_data = self.get_cleaned_data_for_step('metadata')
+            step1_data = self.get_cleaned_data_for_step('metadata') or {'data_source': 0}
+            # in case the form doesn't validate, the first data source is chosen, workaround for GH 691
+            # TODO: why can this happen? handle differently?
+
             channel = int(step1_data['data_source'])
             channel_info = channel_infos[channel]
 
@@ -526,12 +526,12 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
         if len(significant_fields_with_changes) > 0:
             _log.info(f"During edit of topography {topo.id} significant fields changed: " +
                       f"{significant_fields_with_changes}.")
-            _log.info("Triggering renewal of squeezed datafile in background...")
-            transaction.on_commit(lambda: renew_squeezed_datafile.delay(topo.id))
+            _log.info("Renewing squeezed datafile...")
+            topo.renew_squeezed_datafile()  # cannot be done in background, other steps depend on this, see GH #590
             _log.info("Triggering renewal of thumbnail in background...")
-            transaction.on_commit(lambda:renew_topography_thumbnail.delay(topo.id))
-            _log.info("Triggering renewal of analyses...")
-            transaction.on_commit(lambda:renew_analyses_related_to_topography.delay(topo.id))
+            transaction.on_commit(lambda: renew_topography_thumbnail.delay(topo.id))
+            _log.info("Triggering renewal of analyses in background...")
+            transaction.on_commit(lambda: renew_analyses_related_to_topography.delay(topo.id))
             notification_msg += f"\nBecause significant fields have changed, all related analyses are recalculated now."
 
         #
@@ -1521,11 +1521,45 @@ def download_surface(request, surface_id):
     if not request.user.has_perm('view_surface', surface):
         raise PermissionDenied()
 
-    container_bytes = BytesIO()
-    write_surface_container(container_bytes, [surface], request=request)
+    content_data = None
+
+    #
+    # If the surface has been published, there might be a container file already.
+    # If yes:
+    #   Is there already a container?
+    #     Then it instead of creating a new container.from
+    #     If no, save the container in the publication later.
+    # If no: create a container for this surface on the fly
+    #
+    renew_publication_container = False
+    if surface.is_published:
+        pub = surface.publication
+
+        # noinspection PyBroadException
+        try:
+            with pub.container.open() as cf:
+                content_data = cf.read()
+            _log.debug(f"Read container for published surface {pub.short_url} from storage.")
+        except Exception:  # not interested here, why it fails
+            renew_publication_container = True
+
+    if content_data is None:
+        container_bytes = BytesIO()
+        _log.info(f"Preparing container of surface id={surface_id} for download..")
+        write_surface_container(container_bytes, [surface], request=request)
+        content_data = container_bytes.getvalue()
+
+        if renew_publication_container:
+            try:
+                container_bytes.seek(0)
+                _log.info(f"Saving container for publication with URL {pub.short_url} to storage for later..")
+                pub.container.save(pub.container_storage_path, container_bytes)
+            except (OSError, BlockingIOError) as exc:
+                _log.error(f"Cannot save container for publication {pub.short_url} to storage. "
+                           f"Reason: {exc}")
 
     # Prepare response object.
-    response = HttpResponse(container_bytes.getvalue(),
+    response = HttpResponse(content_data,
                             content_type='application/x-zip-compressed')
     response['Content-Disposition'] = 'attachment; filename="{}"'.format('surface.zip')
 

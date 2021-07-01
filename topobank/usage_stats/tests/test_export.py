@@ -1,0 +1,39 @@
+"""Tests for output file for usage statistics."""
+from django.core.management import call_command
+from django.shortcuts import reverse
+
+import pytest
+import pandas as pd
+import datetime
+
+from topobank.manager.tests.utils import UserFactory, Topography2DFactory, SurfaceFactory
+from ...taskapp.tasks import save_landing_page_statistics
+
+@pytest.mark.django_db
+def test_export_with_empty_statistics():
+    call_command('export_usage_statistics')
+
+
+@pytest.mark.django_db
+def test_sheets(client, handle_usage_statistics):
+
+    user = UserFactory()
+    surface = SurfaceFactory(creator=user)
+    topo1 = Topography2DFactory(surface=surface)
+    topo2 = Topography2DFactory(surface=surface)
+
+    save_landing_page_statistics()  # save current state for users, surfaces, ..
+
+    client.force_login(user)  # not counted as login here
+
+    client.get(reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)))
+    # Now there is one surface view
+
+    # tried to use freezegun.freeze_time here,
+    # but openpyxl had problems with FakeDate class
+    call_command('export_usage_statistics')
+
+    df = pd.read_excel("usage_statistics.xlsx", sheet_name="summary", engine='openpyxl')
+    assert df.columns[0] == 'month'
+    assert df.iloc[0, 1:].tolist() == [0, 1, 0, 0, 1, 1, 2, 0]
+    # excluding month here, because it varies and freezegun does not work

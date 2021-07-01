@@ -3,11 +3,13 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.mail import EmailMessage
 from django.conf import settings
+from openpyxl.utils import get_column_letter
 
 from trackstats.models import Metric, StatisticByDate, StatisticByDateAndObject
 from topobank.usage_stats.utils import register_metrics
 
 import pandas as pd
+import numpy as np
 import logging
 
 EXPORT_FILE_NAME = 'usage_statistics.xlsx'
@@ -34,11 +36,13 @@ def _adjust_columns_widths(worksheet):
         max_length = 0
 
         for cell in col:
+            # noinspection PyBroadException
             try:  # Necessary to avoid error on empty cells
                 if len(str(cell.value)) > max_length:
                     max_length = len(cell.value)
             except:
                 pass
+
         adjusted_width = (max_length + 2) * 1.2
 
         # Since Openpyxl 2.6, the column name is  ".column_letter" as .column became the column number (1-based)
@@ -46,8 +50,9 @@ def _adjust_columns_widths(worksheet):
         worksheet.column_dimensions[column].width = adjusted_width
 
 
-def _empty_date_dataframe():
-    return pd.DataFrame(columns=['date']).set_index('date')
+def _empty_date_dataframe(columns=[]):
+    columns = ['date'] + columns
+    return pd.DataFrame(columns=columns).set_index('date')
 
 
 def _statisticByDate2dataframe(metric_ref, column_heading=None):
@@ -76,14 +81,15 @@ def _statisticByDate2dataframe(metric_ref, column_heading=None):
 
     dates = []
     values = []
-    for l in statistics.values():
-        dates.append(l['date'])
-        values.append(l['value'])
+    for stat_entry in statistics.values():
+        dates.append(stat_entry['date'])
+        values.append(stat_entry['value'])
 
     if column_heading is None:
         column_heading = metric.name
 
     df = pd.DataFrame({'date': dates, column_heading: values})
+    df['date'] = pd.to_datetime(df['date'])
     df.set_index('date', inplace=True)
 
     return df
@@ -132,10 +138,137 @@ def _statisticByDateAndObject2dataframe(metric_ref, content_type, attr_name='nam
     if values:
         df = pd.DataFrame.from_records(values, index='date').groupby('date').sum()
         df.fillna(0, inplace=True)
+        df.sort_index(ascending=False, inplace=True)
         return df
     else:
         _log.warning("No usable values for statistics for metric '%s'.", metric_ref)
         return _empty_date_dataframe()
+
+
+def make_excel():
+
+    last_value_func = lambda x: x.iloc[-1] if len(x) > 0 else np.nan
+    #
+    # Compile results with single value for a date
+    #
+    # Elements: (metric_ref, factor, column_heading or None for default, aggregation function)
+    #
+    single_value_metrics = [
+        ('login_count', 1, 'Number of users having logged in', np.sum),
+        ('total_request_count', 1, 'Total number of requests of any kind', np.sum),
+        ('search_view_count', 1, 'Number of views for Search page', np.sum),
+        ('total_analysis_cpu_ms', .001/60/60, 'Total analysis CPU time in hours', np.sum),
+        ('total_number_users', 1, 'Total number of registered users', last_value_func),
+        ('total_number_surfaces', 1, 'Total number of surfaces', last_value_func),
+        ('total_number_topographies', 1, 'Total number of topographies', last_value_func),
+        ('total_number_analyses', 1, 'Total number of analyses', last_value_func),
+    ]
+
+    statistics_by_date_df = pd.DataFrame({'date': []}).set_index('date')
+
+    for metric_ref, factor, column_heading, agg_func in single_value_metrics:
+        metric_df = factor * _statisticByDate2dataframe(metric_ref,
+                                                        column_heading=column_heading)
+        if len(metric_df) > 0:
+            statistics_by_date_df = pd.merge(statistics_by_date_df,
+                                             metric_df,
+                                             on='date', how='outer')
+        else:
+            # add column with NaN
+            if column_heading is None:
+                column_heading = metric_ref
+            statistics_by_date_df[column_heading] = np.nan
+
+    statistics_by_date_df.fillna(0, inplace=True)
+    statistics_by_date_df.sort_index(ascending=False, inplace=True)  # we want to have it sorted by date
+
+    #
+    # Compile summary for sheet statistics_by_date
+    #
+    if statistics_by_date_df.empty:
+        summary_df = pd.DataFrame()
+    else:
+        summary_groups = statistics_by_date_df.reset_index().groupby(pd.Grouper(key='date', axis=0, freq='M'))
+
+        summary_df = summary_groups.aggregate({ column_heading: agg_func
+                                                for metric_ref, factor, column_heading, agg_func
+                                                in single_value_metrics})
+
+        # sort columns
+        column_order = [ch for _, _, ch, _ in single_value_metrics]
+        summary_df = summary_df[column_order]
+
+        # Replacing long descriptive names with short names in summary
+        summary_df.rename(columns={
+            'Number of users having logged in': 'logins',
+            'Total number of requests of any kind': 'any requests',
+            'Number of views for Search page': 'search page requests',
+            'Total analysis CPU time in hours': 'analysis CPU hours',
+            'Total number of registered users': 'registered users',
+            'Total number of surfaces': 'surfaces',
+            'Total number of topographies': 'measurements',
+            'Total number of analyses': 'analyses',
+        }, inplace=True)
+        summary_df.index.names = ['month']
+        summary_df.index = summary_df.index.to_period("M")
+        summary_df.sort_index(ascending=False, inplace=True)
+
+    #
+    # Compile results for statistics for objects
+    #
+    ct_af = ContentType.objects.get(model='analysisfunction')
+    result_views_by_date_function_df = _statisticByDateAndObject2dataframe('analyses_results_view_count', ct_af)
+    analysis_cpu_seconds_by_date_function_df = _statisticByDateAndObject2dataframe('total_analysis_cpu_ms',
+                                                                                   ct_af) / 1000
+
+    ct_pub = ContentType.objects.get(model='publication')
+    publication_views_by_date_function_df = _statisticByDateAndObject2dataframe('publication_view_count', ct_pub,
+                                                                                'short_url')
+
+    ct_surf = ContentType.objects.get(model='surface')
+    surface_views_by_date_function_df = _statisticByDateAndObject2dataframe('surface_view_count', ct_surf, 'id')
+    surface_downloads_by_date_function_df = _statisticByDateAndObject2dataframe('surface_download_count',
+                                                                                ct_surf, 'id')
+
+    #
+    # Write all dataframes to Excel file
+    #
+    with pd.ExcelWriter(EXPORT_FILE_NAME) as writer:
+        summary_df.to_excel(writer, sheet_name='summary')
+        statistics_by_date_df.to_excel(writer, sheet_name='statistics by date')
+        result_views_by_date_function_df.to_excel(writer, sheet_name='analysis views by date+function')
+        analysis_cpu_seconds_by_date_function_df.to_excel(writer, sheet_name='cpu seconds by date+function')
+        publication_views_by_date_function_df.to_excel(writer, sheet_name='publication req. by date+url')
+        surface_views_by_date_function_df.to_excel(writer, sheet_name='surface views by date+id')
+        surface_downloads_by_date_function_df.to_excel(writer, sheet_name='surface downloads by date+id')
+        for sheetname, sheet in writer.sheets.items():
+            _adjust_columns_widths(sheet)
+
+        # Do some more formatting on summary sheet
+        summary_sheet = writer.sheets['summary']
+        # cell ranges
+        index_column = 'A'
+        value_cells = 'B2:{col}{row}'.format(
+            col=get_column_letter(summary_sheet.max_column),
+            row=summary_sheet.max_row)
+        title_row = '1'
+
+        # index column width
+        summary_sheet.column_dimensions[index_column].width = 21
+
+        # for general styling, one has to iterate over
+        # all cells individually
+        CPU_cells = 'E2:E{row}'.format(
+            row=summary_sheet.max_row)
+        for row in summary_sheet[CPU_cells]:
+            for cell in row:
+                cell.number_format = '0.00'
+
+        index_cells = 'A2:A{row}'.format(
+            row=summary_sheet.max_row)
+        for row in summary_sheet[index_cells]:
+            for cell in row:
+                cell.number_format = 'yyyy-mm'
 
 
 class Command(BaseCommand):
@@ -150,61 +283,28 @@ class Command(BaseCommand):
         register_metrics()
 
         #
-        # Compile results with single value for a date
+        # Compile Dataframe for "summary" sheet (see GH #572)
         #
-        # Elements: (metric_ref, factor, column_heading or None for default)
-        #
-        single_value_metrics = [
-            ('login_count', 1, None),
-            ('total_request_count', 1, None),
-            ('search_view_count', 1, None),
-            ('total_analysis_cpu_ms', .001, 'Total analysis CPU time in seconds'),
-            ('total_number_users', 1, None),
-            ('total_number_surfaces', 1, None),
-            ('total_number_topographies', 1, None),
-            ('total_number_analyses', 1, None),
-        ]
+        #summary_df = pd.DataFrame({'month': []}).set_index('month')
 
-        statistics_by_date_df = pd.DataFrame({'date': []}).set_index('date')
+        # Shows the data by month, with the current month at the top, and going
+        # reverse-chronologically back to the creation month at the bottom.
+        # Show a monthly cumulative total for each of the "summable" numbers (logins by users,
+        # analyses requested, etc.).
+        # Show a monthly snapshot number for any non-cumulative numbers like total number of users.
+        # Use narrow columns.
 
-        for metric_ref, factor, column_heading in  single_value_metrics:
-            metric_df = factor * _statisticByDate2dataframe(metric_ref,
-                                                            column_heading=column_heading)
-            statistics_by_date_df = pd.merge(statistics_by_date_df,
-                                             metric_df,
-                                             on='date', how='outer')
-
-        statistics_by_date_df.fillna(0, inplace=True)
-        statistics_by_date_df.sort_index(inplace=True)  # we want to have it sorted by date
-
-        #
-        # Compile results for statistics for objects
-        #
-        ct_af = ContentType.objects.get(model='analysisfunction')
-        result_views_by_date_function_df = _statisticByDateAndObject2dataframe('analyses_results_view_count', ct_af)
-        analysis_cpu_seconds_by_date_function_df = _statisticByDateAndObject2dataframe('total_analysis_cpu_ms', ct_af)/1000
-
-        ct_pub = ContentType.objects.get(model='publication')
-        publication_views_by_date_function_df = _statisticByDateAndObject2dataframe('publication_view_count', ct_pub,
-                                                                                    'short_url')
-
-        ct_surf = ContentType.objects.get(model='surface')
-        surface_views_by_date_function_df = _statisticByDateAndObject2dataframe('surface_view_count', ct_surf, 'id')
-        surface_downloads_by_date_function_df = _statisticByDateAndObject2dataframe('surface_download_count',
-                                                                                    ct_surf, 'id')
-
-        #
-        # Write all dataframes to Excel file
-        #
-        with pd.ExcelWriter(EXPORT_FILE_NAME) as writer:
-            statistics_by_date_df.to_excel(writer, sheet_name='statistics by date')
-            result_views_by_date_function_df.to_excel(writer, sheet_name='analysis views by date+function')
-            analysis_cpu_seconds_by_date_function_df.to_excel(writer, sheet_name='cpu seconds by date+function')
-            publication_views_by_date_function_df.to_excel(writer, sheet_name='publication req. by date+url')
-            surface_views_by_date_function_df.to_excel(writer, sheet_name='surface views by date+id')
-            surface_downloads_by_date_function_df.to_excel(writer, sheet_name='surface downloads by date+id')
-            for sheetname, sheet in writer.sheets.items():
-                _adjust_columns_widths(sheet)
+        # columns = [
+        #     'new logins',
+        #     'requests',
+        #     'select page req',
+        #     'analysis CPU secs',
+        #     'registered users',
+        #     'surfaces',
+        #     'measurements',
+        #     'analyses'
+        # ]
+        make_excel()
 
         self.stdout.write(self.style.SUCCESS(f"Written user statistics to file '{EXPORT_FILE_NAME}'."))
 
