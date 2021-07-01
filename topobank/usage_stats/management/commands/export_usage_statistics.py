@@ -50,8 +50,9 @@ def _adjust_columns_widths(worksheet):
         worksheet.column_dimensions[column].width = adjusted_width
 
 
-def _empty_date_dataframe():
-    return pd.DataFrame(columns=['date']).set_index('date')
+def _empty_date_dataframe(columns=[]):
+    columns = ['date'] + columns
+    return pd.DataFrame(columns=columns).set_index('date')
 
 
 def _statisticByDate2dataframe(metric_ref, column_heading=None):
@@ -80,9 +81,9 @@ def _statisticByDate2dataframe(metric_ref, column_heading=None):
 
     dates = []
     values = []
-    for l in statistics.values():
-        dates.append(l['date'])
-        values.append(l['value'])
+    for stat_entry in statistics.values():
+        dates.append(stat_entry['date'])
+        values.append(stat_entry['value'])
 
     if column_heading is None:
         column_heading = metric.name
@@ -137,6 +138,7 @@ def _statisticByDateAndObject2dataframe(metric_ref, content_type, attr_name='nam
     if values:
         df = pd.DataFrame.from_records(values, index='date').groupby('date').sum()
         df.fillna(0, inplace=True)
+        df.sort_index(ascending=False, inplace=True)
         return df
     else:
         _log.warning("No usable values for statistics for metric '%s'.", metric_ref)
@@ -144,70 +146,72 @@ def _statisticByDateAndObject2dataframe(metric_ref, content_type, attr_name='nam
 
 
 def make_excel():
+
+    last_value_func = lambda x: x.iloc[-1] if len(x) > 0 else np.nan
     #
     # Compile results with single value for a date
     #
-    # Elements: (metric_ref, factor, column_heading or None for default)
+    # Elements: (metric_ref, factor, column_heading or None for default, aggregation function)
     #
     single_value_metrics = [
-        ('login_count', 1, None),
-        ('total_request_count', 1, None),
-        ('search_view_count', 1, None),
-        ('total_analysis_cpu_ms', .001, 'Total analysis CPU time in seconds'),
-        ('total_number_users', 1, None),
-        ('total_number_surfaces', 1, None),
-        ('total_number_topographies', 1, None),
-        ('total_number_analyses', 1, None),
+        ('login_count', 1, 'Number of users having logged in', np.sum),
+        ('total_request_count', 1, 'Total number of requests of any kind', np.sum),
+        ('search_view_count', 1, 'Number of views for Search page', np.sum),
+        ('total_analysis_cpu_ms', .001/60/60, 'Total analysis CPU time in hours', np.sum),
+        ('total_number_users', 1, 'Total number of registered users', last_value_func),
+        ('total_number_surfaces', 1, 'Total number of surfaces', last_value_func),
+        ('total_number_topographies', 1, 'Total number of topographies', last_value_func),
+        ('total_number_analyses', 1, 'Total number of analyses', last_value_func),
     ]
 
     statistics_by_date_df = pd.DataFrame({'date': []}).set_index('date')
 
-    for metric_ref, factor, column_heading in single_value_metrics:
+    for metric_ref, factor, column_heading, agg_func in single_value_metrics:
         metric_df = factor * _statisticByDate2dataframe(metric_ref,
                                                         column_heading=column_heading)
         if len(metric_df) > 0:
             statistics_by_date_df = pd.merge(statistics_by_date_df,
                                              metric_df,
                                              on='date', how='outer')
+        else:
+            # add column with NaN
+            if column_heading is None:
+                column_heading = metric_ref
+            statistics_by_date_df[column_heading] = np.nan
 
     statistics_by_date_df.fillna(0, inplace=True)
-    statistics_by_date_df.sort_index(inplace=True)  # we want to have it sorted by date
+    statistics_by_date_df.sort_index(ascending=False, inplace=True)  # we want to have it sorted by date
 
     #
     # Compile summary for sheet statistics_by_date
     #
-    # return statistics_by_date_df
-    summary_groups = statistics_by_date_df.reset_index().groupby(pd.Grouper(key='date', axis=0, freq='M'))
+    if statistics_by_date_df.empty:
+        summary_df = pd.DataFrame()
+    else:
+        summary_groups = statistics_by_date_df.reset_index().groupby(pd.Grouper(key='date', axis=0, freq='M'))
 
-    last_value_func = lambda x: x.iloc[-1] if len(x) > 0 else np.nan
-    summary_df = summary_groups.aggregate({
-        'Number of users having logged in': np.sum,
-        'Total number of requests of any kind': np.sum,
-        'Number of views for Search page': np.sum,
-        'Total analysis CPU time in seconds': np.sum,
-        'Total number of registered users': last_value_func,
-        'Total number of surfaces': last_value_func,
-        'Total number of topographies': last_value_func,
-        'Total number of analyses': last_value_func,
-    })
+        summary_df = summary_groups.aggregate({ column_heading: agg_func
+                                                for metric_ref, factor, column_heading, agg_func
+                                                in single_value_metrics})
 
-    summary_df['Total analysis CPU time in hours'] = summary_df['Total analysis CPU time in seconds'] / 60 / 60
-    del summary_df['Total analysis CPU time in seconds']
+        # sort columns
+        column_order = [ch for _, _, ch, _ in single_value_metrics]
+        summary_df = summary_df[column_order]
 
-    # Replacing long descriptive names with short names
-    summary_df.rename(columns={
-        'Number of users having logged in': 'logins',
-        'Total number of requests of any kind': 'any requests',
-        'Number of views for Search page': 'search page requests',
-        'Total analysis CPU time in hours': 'analysis CPU hours',
-        'Total number of registered users': 'registered users',
-        'Total number of surfaces': 'surfaces',
-        'Total number of topographies': 'measurements',
-        'Total number of analyses': 'analyses',
-    }, inplace=True)
-    summary_df.index.names = ['month']
-    summary_df.index = summary_df.index.to_period("M")
-    summary_df.sort_index(ascending=False, inplace=True)
+        # Replacing long descriptive names with short names in summary
+        summary_df.rename(columns={
+            'Number of users having logged in': 'logins',
+            'Total number of requests of any kind': 'any requests',
+            'Number of views for Search page': 'search page requests',
+            'Total analysis CPU time in hours': 'analysis CPU hours',
+            'Total number of registered users': 'registered users',
+            'Total number of surfaces': 'surfaces',
+            'Total number of topographies': 'measurements',
+            'Total number of analyses': 'analyses',
+        }, inplace=True)
+        summary_df.index.names = ['month']
+        summary_df.index = summary_df.index.to_period("M")
+        summary_df.sort_index(ascending=False, inplace=True)
 
     #
     # Compile results for statistics for objects
@@ -251,13 +255,20 @@ def make_excel():
 
         # index column width
         summary_sheet.column_dimensions[index_column].width = 21
+
         # for general styling, one has to iterate over
         # all cells individually
-        CPU_cells = 'I2:I{row}'.format(
+        CPU_cells = 'E2:E{row}'.format(
             row=summary_sheet.max_row)
         for row in summary_sheet[CPU_cells]:
             for cell in row:
                 cell.number_format = '0.00'
+
+        index_cells = 'A2:A{row}'.format(
+            row=summary_sheet.max_row)
+        for row in summary_sheet[index_cells]:
+            for cell in row:
+                cell.number_format = 'yyyy-mm'
 
 
 class Command(BaseCommand):

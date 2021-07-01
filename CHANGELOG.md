@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-## 0.14.0 (not published yet)
+## 0.14.0 (2021-07-01)
 
 - ENH: Added upper and lower bound of bandwidth to 
   roughness parameter table (#677)
@@ -17,6 +17,9 @@
 - ENH: New management command to align topography
   sizes in database with reporting from 
   SurfaceTopography (#685)
+- ENH: Added summary page for usage statistics with
+  monthly numbers (#572), also sorted sheets now
+  in descending order with the latest date first
 - BUG: Fixed wrong topography for plots and 
   analysis results after changing significant
   fields like detrend_mode, was introduced with 
