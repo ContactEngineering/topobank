@@ -57,7 +57,6 @@ def test_selection_from_instances(mocker):
 
 @pytest.mark.django_db
 def test_analysis_times(client, two_topos, django_user_model):
-
     user = django_user_model.objects.get(username='testuser')
     client.force_login(user)
 
@@ -101,7 +100,6 @@ def test_analysis_times(client, two_topos, django_user_model):
 
 @pytest.mark.django_db
 def test_show_only_last_analysis(client, two_topos, django_user_model, handle_usage_statistics):
-
     username = 'testuser'
     user = django_user_model.objects.get(username=username)
     client.force_login(user)
@@ -200,7 +198,6 @@ def test_show_only_last_analysis(client, two_topos, django_user_model, handle_us
 @pytest.mark.skip("Not sure if this test is correct. Why all analyses should be shown?")
 @pytest.mark.django_db
 def test_show_analyses_with_different_arguments(client, two_topos, django_user_model, handle_usage_statistics):
-
     user = django_user_model.objects.get(username='testuser')
     client.force_login(user)
 
@@ -286,7 +283,6 @@ def test_show_analyses_with_different_arguments(client, two_topos, django_user_m
 
 @pytest.mark.django_db
 def test_warnings_for_different_arguments(client, handle_usage_statistics):
-
     user = UserFactory()
     surf1 = SurfaceFactory(creator=user)
     surf2 = SurfaceFactory(creator=user)
@@ -350,11 +346,9 @@ def test_warnings_for_different_arguments(client, handle_usage_statistics):
     # assert str(dict(bins=20)) in unescaped
 
 
-
 @pytest.mark.skip("Test makes no sense, because it needs AJAX call to be executed.")
 @pytest.mark.django_db
 def test_show_multiple_analyses_for_two_functions(client, two_topos):
-
     username = 'testuser'
     password = 'abcd$1234'
 
@@ -379,9 +373,9 @@ def test_show_multiple_analyses_for_two_functions(client, two_topos):
                 subject=topo,
                 function=af,
                 task_state=Analysis.SUCCESS,
-                kwargs=pickle.dumps({'bins':10}),
+                kwargs=pickle.dumps({'bins': 10}),
                 start_time=datetime.datetime(2018, 1, 1, counter),
-                end_time=datetime.datetime(2018, 1, 1, counter+1),
+                end_time=datetime.datetime(2018, 1, 1, counter + 1),
             )
             analysis.save()
 
@@ -420,7 +414,6 @@ def test_show_multiple_analyses_for_two_functions(client, two_topos):
 
 @pytest.fixture
 def ids_downloadable_analyses(two_topos):
-
     config = current_configuration()
 
     #
@@ -469,7 +462,6 @@ def ids_downloadable_analyses(two_topos):
 
 @pytest.mark.django_db
 def test_analysis_download_as_txt(client, two_topos, ids_downloadable_analyses, settings, handle_usage_statistics):
-
     username = 'testuser'
     password = 'abcd$1234'
 
@@ -493,7 +485,6 @@ def test_analysis_download_as_txt(client, two_topos, ids_downloadable_analyses, 
     assert muFFT.version.description() in txt
     assert settings.TOPOBANK_VERSION in txt
 
-
     # check whether creator of topography is listed
     topo1, topo2 = two_topos
 
@@ -507,7 +498,7 @@ def test_analysis_download_as_txt(client, two_topos, ids_downloadable_analyses, 
     filtered_lines = []
     for line in txt.splitlines():
         line = line.strip()
-        if not line.startswith('#') and len(line)>0:
+        if not line.startswith('#') and len(line) > 0:
             filtered_lines.append(line)
     filtered_txt = "\n".join(filtered_lines)
 
@@ -600,7 +591,6 @@ def test_roughness_params_download_as_txt(client, two_topos, file_format, handle
 
 @pytest.mark.django_db
 def test_roughness_params_rounded(rf, mocker):
-
     from django.core.management import call_command
     call_command('register_analysis_functions')
 
@@ -654,10 +644,10 @@ def test_roughness_params_rounded(rf, mocker):
     TopographyAnalysisFactory(subject=topo, function=func)
 
     request = rf.post(reverse('analysis:card'), data={
-            'function_id': func.id,
-            'card_id': 'card',
-            'template_flavor': 'list',
-            'subjects_ids_json': subjects_to_json([topo]),
+        'function_id': func.id,
+        'card_id': 'card',
+        'template_flavor': 'list',
+        'subjects_ids_json': subjects_to_json([topo]),
     }, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
     request.user = topo.surface.creator
     request.session = {}
@@ -678,8 +668,8 @@ def test_roughness_params_rounded(rf, mocker):
 
 @pytest.mark.parametrize("same_names", [False, True])
 @pytest.mark.django_db
-def test_analysis_download_as_xlsx(client, two_topos, ids_downloadable_analyses, same_names, settings, handle_usage_statistics):
-
+def test_analysis_download_as_xlsx(client, two_topos, ids_downloadable_analyses, same_names, settings,
+                                   handle_usage_statistics):
     topos = Topography.objects.all()
     assert len(topos) == 2
 
@@ -715,51 +705,68 @@ def test_analysis_download_as_xlsx(client, two_topos, ids_downloadable_analyses,
 
     print(xlsx.sheetnames)
 
-    assert len(xlsx.worksheets) == 2*2 + 1
+    assert len(xlsx.worksheets) == 1 + 1 + 2 * 2  # INDEX, META DATA, 2*2 analysis sheets
 
-    ws = xlsx.get_sheet_by_name(f"{first_topo_name_in_sheet_name} - First Series")
+    def assert_data_equal(sheet, exp_data):
+        first_data_row = 5
+        last_data_col = 2
+        data = np.array(list(sheet.values))[first_data_row:, :last_data_col + 1]
+        np.testing.assert_equal(data, exp_data)
 
-    assert list(ws.values) == [
-        (None, 'time (s)', 'distance (m)'),
-        (0, 0, 0),
-        (1, 1, 2),
-        (2, 2, 4),
-        (3, 3, 6),
-        (4, 4, 8),
-    ]
+    assert_data_equal(xlsx.get_sheet_by_name(f"analysis-0-series-0"),
+                      [
+                          (None, 'time (s)', 'distance (m)'),
+                          (0, 0, 0),
+                          (1, 1, 2),
+                          (2, 2, 4),
+                          (3, 3, 6),
+                          (4, 4, 8),
+                      ]
+                      )
 
-    ws = xlsx.get_sheet_by_name(f"{first_topo_name_in_sheet_name} - Second Series")
+    assert_data_equal(xlsx.get_sheet_by_name(f"analysis-0-series-1"),
+                      [
+                          (None, 'time (s)', 'distance (m)'),
+                          (0, 1, 3),
+                          (1, 2, 6),
+                          (2, 3, 9),
+                          (3, 4, 12),
+                          (4, 5, 15),
+                      ]
+                      )
 
-    assert list(ws.values) == [
-        (None, 'time (s)', 'distance (m)'),
-        (0, 1, 3),
-        (1, 2, 6),
-        (2, 3, 9),
-        (3, 4, 12),
-        (4, 5, 15),
-    ]
+    assert_data_equal(xlsx.get_sheet_by_name(f"analysis-0-series-1"),
+                      [
+                          (None, 'time (s)', 'distance (m)'),
+                          (0, 1, 3),
+                          (1, 2, 6),
+                          (2, 3, 9),
+                          (3, 4, 12),
+                          (4, 5, 15),
+                      ]
+                      )
 
-    ws = xlsx.get_sheet_by_name(f"{second_topo_name_in_sheet_name} - First Series")
+    assert_data_equal(xlsx.get_sheet_by_name(f"analysis-1-series-0"),
+                      [
+                          (None, 'time (s)', 'distance (m)'),
+                          (0, 1, 1),
+                          (1, 2, 3),
+                          (2, 3, 5),
+                          (3, 4, 7),
+                          (4, 5, 9),
+                      ]
+                      )
 
-    assert list(ws.values) == [
-        (None, 'time (s)', 'distance (m)'),
-        (0, 1, 1),
-        (1, 2, 3),
-        (2, 3, 5),
-        (3, 4, 7),
-        (4, 5, 9),
-    ]
-
-    ws = xlsx.get_sheet_by_name(f"{second_topo_name_in_sheet_name} - Second Series")
-
-    assert list(ws.values) == [
-        (None, 'time (s)', 'distance (m)'),
-        (0, 2, 4),
-        (1, 3, 7),
-        (2, 4, 10),
-        (3, 5, 13),
-        (4, 6, 16),
-    ]
+    assert_data_equal(xlsx.get_sheet_by_name(f"analysis-1-series-1"),
+                      [
+                          (None, 'time (s)', 'distance (m)'),
+                          (0, 2, 4),
+                          (1, 3, 7),
+                          (2, 4, 10),
+                          (3, 5, 13),
+                          (4, 6, 16),
+                      ]
+                      )
 
     # check whether version numbers are available in INFORMATION sheet
     ws = xlsx.get_sheet_by_name("INFORMATION")
@@ -782,10 +789,32 @@ def test_analysis_download_as_xlsx(client, two_topos, ids_downloadable_analyses,
         assert ('Creator', str(t.creator)) in vals
 
 
+    # Check links on INDEX sheet
+    ws = xlsx.get_sheet_by_name("INDEX")
+
+    function_name = Analysis.objects.get(id=ids_downloadable_analyses[0]).function.name
+
+    assert list(ws.values) == [
+        ("Subject Name", "Subject Type", "Function Name", "Data Series", "Link"),
+        (first_topo_name, "measurement", function_name,
+         "First Series", "Click to jump to sheet 'analysis-0-series-0'"),
+        (first_topo_name, "measurement", function_name,
+         "Second Series", "Click to jump to sheet 'analysis-0-series-1'"),
+        (second_topo_name, "measurement", function_name,
+         "First Series", "Click to jump to sheet 'analysis-1-series-0'"),
+        (second_topo_name, "measurement", function_name,
+         "Second Series", "Click to jump to sheet 'analysis-1-series-1'"),
+    ]
+
+    first_link_cell = ws["E2"]
+    assert first_link_cell.style == "Hyperlink"
+    from openpyxl.worksheet.hyperlink import Hyperlink
+    assert isinstance(first_link_cell.hyperlink, Hyperlink)
+
+
 @pytest.mark.django_db
 def test_analysis_download_as_xlsx_despite_slash_in_sheetname(client, two_topos, ids_downloadable_analyses,
                                                               django_user_model, handle_usage_statistics):
-
     topos = Topography.objects.all()
     assert len(topos) == 2
 
@@ -806,7 +835,7 @@ def test_analysis_download_as_xlsx_despite_slash_in_sheetname(client, two_topos,
 
     # if this works without error, it's okay, let's test also if the sheet can be loaded:
 
-    tmp = tempfile.NamedTemporaryFile(suffix='.xlsx') # will be deleted automatically
+    tmp = tempfile.NamedTemporaryFile(suffix='.xlsx')  # will be deleted automatically
     tmp.write(response.content)
     tmp.seek(0)
 
@@ -814,13 +843,12 @@ def test_analysis_download_as_xlsx_despite_slash_in_sheetname(client, two_topos,
 
     print(xlsx.sheetnames)
 
-    assert len(xlsx.worksheets) == 2*2 + 1
+    assert len(xlsx.worksheets) == 1 + 1 + 2 * 2
 
 
 @pytest.mark.django_db
 def test_download_analysis_results_without_permission(client, two_topos, ids_downloadable_analyses, django_user_model,
                                                       handle_usage_statistics):
-
     # two_topos belong to a user "testuser"
     user_2 = django_user_model.objects.create_user(username="attacker")
     client.force_login(user_2)
@@ -849,7 +877,7 @@ def two_analyses_two_publications():
     surface2 = SurfaceFactory()
     Topography1DFactory(surface=surface2)
     pub1 = surface1.publish('cc0-1.0', surface1.creator.name)
-    pub2 = surface2.publish('cc0-1.0', surface1.creator.name+", "+surface2.creator.name)
+    pub2 = surface2.publish('cc0-1.0', surface1.creator.name + ", " + surface2.creator.name)
     pub_topo1 = pub1.surface.topography_set.first()
     pub_topo2 = pub2.surface.topography_set.first()
 
@@ -863,7 +891,6 @@ def two_analyses_two_publications():
 
 @pytest.mark.django_db
 def test_publication_link_in_txt_download(client, two_analyses_two_publications, handle_usage_statistics):
-
     (analysis1, analysis2, pub1, pub2) = two_analyses_two_publications
 
     #
@@ -913,7 +940,6 @@ def test_publication_link_in_xlsx_download(client, two_analyses_two_publications
 
 @pytest.mark.django_db
 def test_view_shared_analysis_results(client, handle_usage_statistics):
-
     password = 'abcd$1234'
 
     #

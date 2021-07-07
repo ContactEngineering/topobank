@@ -2,10 +2,14 @@
 
 ## 0.15.0 (not published yet)
 
+- ENH: Enhanced layout of XLSX files with analysis
+  data for analysis functions Height/Slope/Curvature 
+  Distribution, Power Spectrum, Autocorrelation, 
+  Scale-dependent slope, variable bandwidth (#669)
 - ENH: Added anonymous distribution with number of
   measurement uploads over users to Excel file with
   usage statistics (#693)
-
+  
 ## 0.14.0 (2021-07-01)
 
 - ENH: Added upper and lower bound of bandwidth to 
