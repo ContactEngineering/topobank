@@ -18,7 +18,7 @@ def test_empty_surface(user_alice_logged_in):
 
     browser.fill('name', 'My first empty surface')
 
-    dummy_data_option = browser.find_by_id('id_category_3').first
+    dummy_data_option = browser.find_by_id('id_category_2').first
     browser.execute_script("arguments[0].click();", dummy_data_option._element)
     # This kind of click is a workaround (see https://stackoverflow.com/a/48667924/10608001)
     # because for some reason, the found option is not visible and cannot be clicked.

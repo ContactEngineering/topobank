@@ -229,7 +229,7 @@ def test_see_published_by_others(user_alice_logged_in, user_bob, handle_usage_st
     # The version number is "1".
     data = data_of_item_by_name(browser, surface_name)
     assert data['description'] == surface_description
-    assert data['version'] == "1"
+    assert data['version'] == "1 (2021-07-12)"
 
     # Alice opens the properties and sees
     # the "published by Bob" badge.
@@ -369,7 +369,7 @@ def test_how_to_cite(user_alice_logged_in, handle_usage_statistics):
     assert num_items_in_result_table(browser) == 1  # only published is visible
 
     data = data_of_item_by_name(browser, surface_name)
-    assert data['version'] == "1"
+    assert data['version'] == "1 (2021-07-12)"
 
     # Alice opens the properties and sees
     # the "published by yo" badge.
