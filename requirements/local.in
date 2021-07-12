@@ -2,7 +2,9 @@
 
 Werkzeug  # https://github.com/pallets/werkzeug
 ipdb  # https://github.com/gotcha/ipdb
-psycopg2-binary  # https://github.com/psycopg/psycopg2
+psycopg2-binary>=2.8,<2.9  # https://github.com/psycopg/psycopg2
+# Not version 2.9 because of this
+# https://stackoverflow.com/questions/68024060/assertionerror-database-connection-isnt-set-to-utc
 
 # Documentation
 # ------------------------------------------------------------------------------

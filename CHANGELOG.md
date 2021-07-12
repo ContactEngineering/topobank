@@ -9,7 +9,10 @@
 - ENH: Added anonymous distribution with number of
   measurement uploads over users to Excel file with
   usage statistics (#693)
-  
+- MAINT: Upgrade for several dependencies, e.g. 
+  SurfaceTopography to version 0.95.1 (#697),
+  upgrade of urllib3 because of a CVE
+
 ## 0.14.0 (2021-07-01)
 
 - ENH: Added upper and lower bound of bandwidth to 

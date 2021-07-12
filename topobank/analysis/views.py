@@ -1306,7 +1306,8 @@ def contact_mechanics_data(request):
             data_path = analysis.result_obj['data_paths'][index]
 
             data = default_storage.open(data_path)
-            ds = xr.load_dataset(data.open(mode='rb'))
+            ds = xr.load_dataset(data.open(mode='rb'), engine="h5netcdf")
+            # "engine" argument needed after version updates for TopoBank 0.15.0
 
             pressure = ds['pressure'].values
             contacting_points = ds['contacting_points'].values

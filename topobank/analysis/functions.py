@@ -801,7 +801,10 @@ def variable_bandwidth(topography, progress_recorder=None, storage_prefix=None):
     # Get low level topography from SurfaceTopography model
     topography = topography.topography()
 
-    magnifications, bandwidths, rms_heights = topography.variable_bandwidth()
+    if topography.dim == 2:
+        magnifications, bandwidths, rms_heights = topography.variable_bandwidth_from_area()
+    else:
+        magnifications, bandwidths, rms_heights = topography.variable_bandwidth_from_profile()
 
     unit = topography.info['unit']
 
