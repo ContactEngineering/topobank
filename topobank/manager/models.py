@@ -1,4 +1,8 @@
+"""
+Basic models for the web app for handling topography data.
+"""
 from django.db import models
+from django.contrib.postgres.fields import JSONField
 from django.shortcuts import reverse
 from django.utils import timezone
 from django.conf import settings
@@ -454,6 +458,11 @@ class Topography(models.Model, SubjectMixin):
     is_periodic = models.BooleanField(default=False)
 
     #
+    # Fields about instrument type
+    #
+    instrument = models.ForeignKey('Instrument', on_delete=models.SET_NULL, null=True)
+
+    #
     # Other fields
     #
     thumbnail = models.ImageField(null=True, upload_to=user_directory_path)
@@ -901,3 +910,29 @@ class Topography(models.Model, SubjectMixin):
             squeezed_name = f"{orig_stem}-squeezed.nc"
             self.squeezed_datafile = default_storage.save(squeezed_name, File(open(tmp.name, mode='rb')))
             self.save()
+
+
+class Instrument(models.Model):
+    """Instrument which measures topographies"""
+
+    INSTRUMENT_TYPE_CHOICES = [
+        ('undefined', 'Undefined - all data assumed to be reliable'),
+        ('microscope-based', 'Microscope-based with known instrument resolution'),
+        ('contact-based', 'Contact-based with known tip radius'),
+    ]
+
+    name = models.CharField(max_length=80)
+    type = models.TextField(choices=INSTRUMENT_TYPE_CHOICES)
+    creator = models.ForeignKey(User, on_delete=models.CASCADE)
+    description = models.TextField(blank=True)
+    parameters = JSONField()
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def label(self):
+        return f"{self.name} ({self.type})"
+
+    def get_absolute_url(self):
+        return reverse('manager:instrument-detail', kwargs=dict(pk=self.pk))

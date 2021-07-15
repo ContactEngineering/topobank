@@ -90,6 +90,23 @@
                     {% endif %}
                   </td>
                 </tr>
+                <tr>
+                  <th scope="row">Instrument</th>
+                  <td>
+                    {% if topography.instrument %}
+                      <a href="{% url 'manager:instrument-detail' topography.instrument.pk %}">
+                        {{ topography.instrument.label }}
+                      </a>
+                    {% else %}
+                      (no <a href="{% url 'manager:instrument-list' %}">
+                        instrument
+                      </a> assigned to this measurement -
+                      <a href="{% url 'manager:topography-update' topography.pk %}">
+                        edit this measurement
+                      </a> to assign one)
+                    {% endif %}
+                  </td>
+                </tr>
                 </tbody>
               </table>
             </div>

@@ -45,8 +45,8 @@ from rest_framework.utils.urls import remove_query_param, replace_query_param
 from trackstats.models import Metric, Period
 
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm, DEFAULT_LICENSE
-from .forms import TopographyForm, SurfaceForm, SurfaceShareForm, SurfacePublishForm
-from .models import Topography, Surface, TagModel, \
+from .forms import TopographyForm, SurfaceForm, SurfaceShareForm, SurfacePublishForm, InstrumentForm
+from .models import Topography, Surface, TagModel, Instrument, \
     NewPublicationTooFastException, LoadTopographyException, PlotTopographyException
 from .serializers import SurfaceSerializer, TagSerializer
 from .utils import selected_instances, bandwidths_data, get_topography_reader, tags_for_user, get_reader_infos, \
@@ -118,6 +118,18 @@ surface_share_permission_required = method_decorator(
 
 surface_publish_permission_required = method_decorator(
     permission_required_or_403('manager.publish_surface', ('manager.Surface', 'pk', 'pk'))
+)
+
+instrument_view_permission_required = method_decorator(
+    permission_required_or_403('manager.view_instrument', ('manager.Instrument', 'pk', 'pk'))
+)
+
+instrument_update_permission_required = method_decorator(
+    permission_required_or_403('manager.change_instrument', ('manager.Instrument', 'pk', 'pk'))
+)
+
+instrument_delete_permission_required = method_decorator(
+    permission_required_or_403('manager.delete_instrument', ('manager.Instrument', 'pk', 'pk'))
 )
 
 
@@ -1956,3 +1968,194 @@ def thumbnail(request, pk):
     return response
 
 
+class InstrumentTable(tables.Table):
+    name = tables.Column(linkify=lambda record: record.get_absolute_url())
+
+    class Meta:
+        model = Instrument
+        template_name = "django_tables2/bootstrap.html"
+        fields = ("name", "type", "description", "parameters")
+
+
+class InstrumentListView(ListView):
+    model = Instrument
+    context_object_name = 'instruments'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user = self.request.user
+        context['table'] = InstrumentTable(Instrument.objects.filter(creator=user).order_by('name'))
+
+        context['extra_tabs'] = [
+            {
+                'title': f"Instruments",
+                'icon': "tachometer",
+                'href': reverse('manager:instrument-list'),
+                'active': True,
+                'tooltip': f"List of measurement instruments"
+            }
+        ]
+
+        return context
+
+
+class InstrumentCreateView(ORCIDUserRequiredMixin, CreateView):
+    model = Instrument
+    form_class = InstrumentForm
+
+    def get_initial(self, *args, **kwargs):
+        initial = super(InstrumentCreateView, self).get_initial()
+        initial = initial.copy()
+        initial['creator'] = self.request.user
+        return initial
+
+    def get_success_url(self):
+        return reverse('manager:instrument-detail', kwargs=dict(pk=self.object.pk))
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        context['extra_tabs'] = [
+            {
+                'title': f"Instruments",
+                'icon': "tachometer",
+                'href': reverse('manager:instrument-list'),
+                'active': False,
+                'tooltip': f"List of measurement instruments"
+            },
+            {
+                'title': f"Create instrument",
+                'icon': "plus-square-o",
+                'href': self.request.path,
+                'active': True,
+                'tooltip': "Creating a new instrument"
+            }
+        ]
+        return context
+
+
+class TopographyListTable(tables.Table):
+    name = tables.Column(linkify=lambda record: record.get_absolute_url())
+    surface = tables.Column(linkify=lambda record: record.surface.get_absolute_url())
+
+    class Meta:
+        model = Topography
+        template_name = "django_tables2/bootstrap.html"
+        fields = ("name", "surface", "description", "parameters")
+
+
+class InstrumentDetailView(DetailView):
+    model = Instrument
+    context_object_name = 'instrument'
+
+    @instrument_view_permission_required
+    def dispatch(self, request, *args, **kwargs):
+        return super().dispatch(request, *args, *kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        instrument = self.object
+
+        context['extra_tabs'] = [
+            {
+                'title': "Instruments",
+                'icon': "tachometer",
+                'href': reverse('manager:instrument-list'),
+                'active': False,
+                'tooltip': f"List of measurement instruments"
+            },
+            {
+                'title': f"{instrument.label}",
+                'icon': "tachometer",
+                'href': self.request.path,
+                'active': True,
+                'tooltip': f"Details for instrument {instrument.label}"
+            }
+        ]
+
+        context['topography_list_table'] = TopographyListTable(Topography.objects.filter(instrument=instrument))
+        return context
+
+
+class InstrumentUpdateView(UpdateView):
+    model = Instrument
+    form_class = InstrumentForm
+    context_object_name = 'instrument'
+
+    @instrument_view_permission_required
+    def dispatch(self, request, *args, **kwargs):
+        return super().dispatch(request, *args, *kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        instrument = self.object
+
+        context['extra_tabs'] = [
+            {
+                'title': "Instruments",
+                'icon': "tachometer",
+                'href': reverse('manager:instrument-list'),
+                'active': False,
+                'tooltip': f"List of measurement instruments"
+            },
+            {
+                'title': f"{instrument.label}",
+                'icon': "tachometer",
+                'href': reverse('manager:instrument-detail', kwargs=dict(pk=instrument.pk)),
+                'active': False,
+                'tooltip': f"Details for instrument {instrument.label}"
+            },
+            {
+                'title': f"Edit instrument",
+                'icon': "pencil",
+                'href': self.request.path,
+                'active': True,
+                'tooltip': f"Editing instrument {instrument.label}"
+            }
+        ]
+        return context
+
+
+class InstrumentDeleteView(DeleteView):
+    model = Instrument
+    context_object_name = 'instrument'
+    success_url = reverse_lazy('manager:instrument-list')
+
+    @instrument_view_permission_required
+    def dispatch(self, request, *args, **kwargs):
+        return super().dispatch(request, *args, *kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        instrument = self.object
+
+        context['extra_tabs'] = [
+            {
+                'title': "Instruments",
+                'icon': "tachometer",
+                'href': reverse('manager:instrument-list'),
+                'active': False,
+                'tooltip': f"List of measurement instruments"
+            },
+            {
+                'title': f"{instrument.label}",
+                'icon': "tachometer",
+                'href': reverse('manager:instrument-detail', kwargs=dict(pk=instrument.pk)),
+                'active': False,
+                'tooltip': f"Details for instrument {instrument.label}"
+            },
+            {
+                'title': f"Delete Instrument?",
+                'icon': "trash",
+                'href': self.request.path,
+                'active': True,
+                'tooltip': f"Conforming deletion of instrument '{instrument.label}'"
+            }
+        ]
+
+        context['num_topographies'] = Topography.objects.filter(instrument=instrument).count()
+
+        return context

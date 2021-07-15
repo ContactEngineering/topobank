@@ -1,6 +1,7 @@
 from django.forms import forms, ModelMultipleChoiceField
 from django import forms
 from django_select2.forms import ModelSelect2MultipleWidget
+from django.contrib.postgres.forms import JSONField as JSONField4Form
 import bleach  # using bleach instead of django.utils.html.escape because it allows more (e.g. for markdown)
 
 from crispy_forms.helper import FormHelper
@@ -16,7 +17,7 @@ import logging
 from SurfaceTopography.IO.Reader import CannotDetectFileFormat, CorruptFile, UnknownFileFormatGiven, ReadFileError
 
 from topobank.manager.utils import get_topography_reader
-from .models import Topography, Surface, MAX_LENGTH_DATAFILE_FORMAT
+from .models import Topography, Surface, Instrument, MAX_LENGTH_DATAFILE_FORMAT
 from ..publication.models import MAX_LEN_AUTHORS_FIELD
 
 from topobank.users.models import User
@@ -426,6 +427,7 @@ class TopographyForm(CleanVulnerableFieldsMixin, TopographyUnitsForm):
                   'size_x', 'size_y',
                   'unit', 'is_periodic',
                   'height_scale', 'detrend_mode',
+                  'instrument',
                   'surface')
 
     def __init__(self, *args, **kwargs):
@@ -462,6 +464,7 @@ class TopographyForm(CleanVulnerableFieldsMixin, TopographyUnitsForm):
                 Fieldset('Height Conversion',
                          Field('height_scale')),
                 Field('detrend_mode'),
+                Field('instrument'),
                 *self.editable_fields,
             ),
             FormActions(
@@ -680,5 +683,54 @@ class SurfacePublishForm(forms.Form):
 
         return cleaned_data
 
+
+class InstrumentForm(CleanVulnerableFieldsMixin, forms.ModelForm):
+    """Form for creating or updating instruments.
+    """
+
+    class Meta:
+        model = Instrument
+        fields = ('name', 'type', 'creator', 'description', 'parameters')
+
+    parameters = JSONField4Form(required=False)
+    type = forms.ChoiceField(widget=forms.RadioSelect, choices=Instrument.INSTRUMENT_TYPE_CHOICES)
+    reliability_factor_value = forms.FloatField()
+    reliability_factor_unit = forms.ChoiceField(widget=forms.RadioSelect, choices=Topography.LENGTH_UNIT_CHOICES)
+
+    helper = FormHelper()
+    helper.form_method = 'POST'
+    helper.form_show_errors = False  # crispy forms has nicer template code for errors
+
+    helper.layout = Layout(
+        Div(
+            Field('name'),
+            Field('type'),
+            Field('description'),
+            Fieldset('reliability_factor_name',  # need to be replaced by javascript depending on type
+                     Field('reliability_factor_value'),
+                     Field('reliability_factor_unit')),
+            Field('parameters', type='hidden'),
+            Field('creator', type='hidden')
+        ),
+        FormActions(
+                Submit('save', 'Save'),
+                HTML("""
+                    <a class="btn btn-default" id="cancel-btn" onclick="history.back(-1)">Cancel</a>
+                """),
+            ),
+        ASTERISK_HELP_HTML
+    )
+
+    def clean(self):
+        cleaned_data = super().clean()
+
+        # TODO set resolution, tip radius, ..
+        parameters = {
+            'type': cleaned_data['type']
+        }
+
+        cleaned_data['parameters'] = parameters
+
+        return cleaned_data
 
 

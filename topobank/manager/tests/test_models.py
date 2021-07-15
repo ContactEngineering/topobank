@@ -19,8 +19,8 @@ from .utils import two_topos, SurfaceFactory, UserFactory, Topography1DFactory, 
 @pytest.mark.django_db
 def test_topography_name(two_topos):
     topos = Topography.objects.all().order_by('name')
-    assert [ t.name for t in topos ] == ['Example 3 - ZSensor',
-                                         'Example 4 - Default']
+    assert [t.name for t in topos] == ['Example 3 - ZSensor',
+                                       'Example 4 - Default']
 
 
 @pytest.mark.django_db
@@ -28,6 +28,20 @@ def test_topography_has_periodic_flag(two_topos):
     topos = Topography.objects.all().order_by('name')
     assert not topos[0].is_periodic
     assert not topos[1].is_periodic
+
+
+@pytest.mark.django_db
+def test_topography_instrument_type():
+    topo = Topography2DFactory(instrument={
+        'type': 'microscope',
+        'resolution': {
+            'value': 10,
+            'unit': 'nm',
+        }
+    })
+    assert topo.instrument['type'] == 'microscope'
+    assert topo.instrument['resolution']['value'] == 10
+    assert topo.instrument['resolution']['unit'] == 'nm'
 
 
 @pytest.mark.django_db
