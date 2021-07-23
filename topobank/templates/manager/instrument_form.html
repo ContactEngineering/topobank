@@ -35,3 +35,35 @@
 
 {% endblock content %}
 
+
+{% block javascript %}
+  {{ block.super }}
+  <script>
+    /** For UI related to reliability analysis: */
+    function set_reliability_input_labels() {
+      // Replace "reliability_factor" items based on type setting
+      let selected_type = $('input:radio[name="type"]:checked').val();
+      let reliability_factor_name;
+      if (selected_type == 'microscope-based') {
+        reliability_factor_name = "Resolution"
+      } else if (selected_type == 'contact-based') {
+        reliability_factor_name = "Tip radius"
+      }
+
+      if (reliability_factor_name === undefined ) {
+        // remove factor from form
+        $('#id_reliability_factor').hide();
+      } else {
+        $('#id_reliability_factor').show();
+        $("#div_id_reliability_factor_value > label").text(reliability_factor_name);
+        $("#div_id_reliability_factor_unit > label").text(reliability_factor_name+' unit');
+      }
+    }
+
+    $().ready(function () {
+      set_reliability_input_labels();
+      $('input:radio[name="type"]').click(set_reliability_input_labels);
+    })
+  </script>
+{% endblock %}
+

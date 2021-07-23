@@ -13,168 +13,216 @@
 
   <div class="tab-content mt-2 extra-tab">
 
-      <div class="row">
+    <div class="row">
 
-        <div class="col-12 col-sm-4 col-md-3 col-lg-2">
-          <div class="nav nav-pills nav-pills-custom flex-column" role="tablist" aria-orientation="vertical">
-             <a class="nav-link mb-3 p-3 shadow active" data-toggle="pill" href="#plot" role="tab" aria-selected="true">
-               Plot
-             </a>
-             <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#properties" role="tab" aria-selected="false">
-               Properties
-             </a>
-          </div>
+      {# First column: Navigation pills #}
+      <div class="col-12 col-sm-4 col-md-3 col-lg-2">
+        <div class="nav nav-pills nav-pills-custom flex-column" role="tablist" aria-orientation="vertical">
+          <a class="nav-link mb-3 p-3 shadow active" data-toggle="pill" href="#plot" role="tab" aria-selected="true">
+            Plot
+          </a>
+          <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#properties" role="tab" aria-selected="false">
+            Properties
+          </a>
+          <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#instrument" role="tab" aria-selected="false">
+            Instrument
+          </a>
         </div>
+      </div>
 
-        <div class="col-xs-12 col">
+      {# Second column: Content for pill selection (first column) #}
+      <div class="col-xs-12 col">
+        <div class="tab-content mt-2">
 
-          <div class="tab-content mt-2">
-            <div class="tab-pane fade active show" id="plot" role="tabpanel" aria-labelledby="plot-tab">
-              <div id="topography-plot-content">
-                <span class="spinner"></span> Generating and loading plot with
-                      {{ topography.resolution_x }} {% if topography.resolution_y %} x {{ topography.resolution_y }} {% endif %} points,
-                    please wait...
-              </div>
+          {# Plot #}
+          <div class="tab-pane fade active show" id="plot" role="tabpanel" aria-labelledby="plot-tab">
+            <div id="topography-plot-content">
+              <span class="spinner"></span> Generating and loading plot with
+              {{ topography.resolution_x }} {% if topography.resolution_y %} x {{ topography.resolution_y }} {% endif %}
+              points, please wait...
             </div>
+          </div>
 
-            <div class="tab-pane fade" id="properties" role="tabpanel" aria-labelledby="properties-tab">
+          {# Properties #}
+          <div class="tab-pane fade" id="properties" role="tabpanel" aria-labelledby="properties-tab">
+            <table class="table table-striped table-bordered w-75">
+              <caption>Measurement properties</caption>
+              <tbody>
+              <tr>
+                <th scope="row">Measurement date</th>
+                <td>{{ topography.measurement_date }}</td>
+              </tr>
+              <tr>
+                <th scope="row">File format</th>
+                <td>{{ topography.datafile_format|default_if_none:'(not saved yet - autodetection on every use)' }}</td>
+              </tr>
+              <tr>
+                <th scope="row">Data source</th>
+                <td>{{ topography.data_source }}</td>
+              </tr>
+              <tr>
+                <th scope="row">Description</th>
+                <td>{{ topography.description }}</td>
+              </tr>
+              <tr>
+                <th scope="row">Physical size</th>
+                <td>
+                  {{ topography.size_x }} {{ topography.unit }}{% if topography.size_y %} x {{ topography.size_y }}
+                  {{ topography.unit }} {% endif %}
+                  ({% if topography.size_editable %}given by user{% else %}fixed by file contents{% endif %})
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Periodicity</th>
+                <td>
+                  This topography is {% if not topography.is_periodic %}not {% endif %}periodic.
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Height conversion factor</th>
+                <td>{{ topography.height_scale }} {{ topography.unit }}
+                  ({% if topography.height_scale_editable %}given by user{% else %}fixed by file contents{% endif %})
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Detrending mode</th>
+                <td>{{ topography.get_detrend_mode_display }}</td>
+              </tr>
+              <tr>
+                <th scope="row">Number of data points</th>
+                <td>
+                  {% if topography.resolution_x %}
+                    {{ topography.resolution_x }}{% if topography.resolution_y %} x {{ topography.resolution_y }}
+                    {% endif %}
+                  {% else %}
+                    (not saved yet)
+                  {% endif %}
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+
+          {# instrument #}
+          <div class="tab-pane fade" id="instrument" role="tabpanel" aria-labelledby="instrument-tab">
+            {% if instrument_dict %}
               <table class="table table-striped table-bordered w-75">
-                <caption>Measurement properties</caption>
+                <caption>Instrument properties for this measurement</caption>
                 <tbody>
                 <tr>
-                  <th scope="row">Measurement date</th>
-                  <td>{{ topography.measurement_date }}</td>
+                  <th scope="row">Name</th>
+                  <td>
+                    {% if topography.instrument %}
+                      <a href="{{ topography.instrument.get_absolute_url }}">{{ topography.instrument.name }}</a>
+                    {% else %}
+                      {{ instrument_dict.name }}
+                    {% endif %}
+                  </td>
                 </tr>
                 <tr>
-                  <th scope="row">File format</th>
-                  <td>{{ topography.datafile_format|default_if_none:'(not saved yet - autodetection on every use)' }}</td>
-                </tr>
-                <tr>
-                  <th scope="row">Data source</th>
-                  <td>{{ topography.data_source }}</td>
+                  <th scope="row">Type</th>
+                  <td>{{ instrument_dict.type }}</td>
                 </tr>
                 <tr>
                   <th scope="row">Description</th>
-                  <td>{{ topography.description }}</td>
+                  <td>{{ instrument_dict.description }}</td>
                 </tr>
-                <tr>
-                  <th scope="row">Physical size</th>
-                  <td>
-                    {{ topography.size_x }} {{ topography.unit }}{% if topography.size_y %} x {{ topography.size_y }} {{ topography.unit }} {% endif %}
-                    ({% if topography.size_editable %}given by user{% else %}fixed by file contents{% endif %})
-                  </td>
-                </tr>
-                <tr>
-                  <th scope="row">Periodicity</th>
-                  <td>
-                    This topography is {% if not topography.is_periodic %}not {% endif %}periodic.
-                  </td>
-                </tr>
-                <tr>
-                  <th scope="row">Height conversion factor</th>
-                  <td>{{ topography.height_scale }} {{ topography.unit }}
-                    ({% if topography.height_scale_editable %}given by user{% else %}fixed by file contents{% endif %})
-                  </td>
-                </tr>
-                <tr>
-                  <th scope="row">Detrending mode</th>
-                  <td>{{ topography.get_detrend_mode_display }}</td>
-                </tr>
-                <tr>
-                  <th scope="row">Number of data points</th>
-                  <td>
-                    {% if topography.resolution_x %}
-                      {{ topography.resolution_x }}{% if topography.resolution_y %} x {{ topography.resolution_y }} {% endif %}
-                    {% else %}
-                      (not saved yet)
-                    {% endif %}
-                  </td>
-                </tr>
-                <tr>
-                  <th scope="row">Instrument</th>
-                  <td>
-                    {% if topography.instrument %}
-                      <a href="{% url 'manager:instrument-detail' topography.instrument.pk %}">
-                        {{ topography.instrument.label }}
-                      </a>
-                    {% else %}
-                      (no <a href="{% url 'manager:instrument-list' %}">
-                        instrument
-                      </a> assigned to this measurement -
-                      <a href="{% url 'manager:topography-update' topography.pk %}">
-                        edit this measurement
-                      </a> to assign one)
-                    {% endif %}
-                  </td>
-                </tr>
+                {# Insert parameters as extra lines #}
+                {% with instrument_dict.parameters as instrument_params %}
+                  {% if instrument_dict.type == "microscope-based" %}
+                  <tr>
+                    <th scope="row">Resolution</th>
+                    <td>{{ instrument_params.resolution.value }} {{ instrument_params.resolution.unit }}</td>
+                  </tr>
+                  {% elif instrument_dict.type == "contact-based" %}
+                   <tr>
+                    <th scope="row">Tip radius</th>
+                    <td>{{ instrument_params.tip_radius.value }} {{ instrument_params.tip_radius.unit }}</td>
+                  </tr>
+                  {% endif %}
+                {% endwith %}
+
                 </tbody>
               </table>
-            </div>
-
-          </div>
-
-        </div>
-
-        <div class="col-sm-3 col-12">
-          {# Buttons for switching between topographies #}
-          <div class="row p-3">
-            <div class="col">
-              <ul class="nav nav-pills pull-right">
-                <li>
-                  <div class="btn-group">
-                    <a href="{% url 'manager:topography-detail' topography_next %}"
-                       class="btn btn-default {% if topography_next == topography.id %} disabled {% endif %}"
-                       data-toggle="tooltip" title="previous topography of related surface">
-                      {% fontawesome_icon 'chevron-left' %}
-                    </a>
-                    <a href="{% url 'manager:topography-detail' topography_prev %}"
-                       class="btn btn-default {% if topography_prev == topography.id %} disabled {% endif %}"
-                       data-toggle="tooltip" title="next topography of related surface">
-                      {% fontawesome_icon 'chevron-right' %}
-                    </a>
-                  </div>
-                </li>
-              </ul>
-            </div>
-          </div>
-          {# Badges and tags in a card #}
-          <div class="row p-3">
-            <div class="col">
-              <div class="card shadow-sm">
-                <div class="card-body">
-                  {% render_uploaded_by_badge request topography %}
-                  {% for tag in topography.tags.all %}
-                    <span class="badge badge-success">{{ tag.name }}</span>
-                  {% endfor %}
+            {% else %}
+              <div class="alert alert-info">
+                No instrument data has been associated with this measurement.
+              </div>
+              {% if not topography.surface.is_published %}
+                <div class="alert alert-info">
+                  You can add instrument information by
+                  <a href="{% url 'manager:topography-update' topography.pk %}">
+                    editing this measurement</a>  to assign an existing instrument.
+                  In order to see when instruments exist, you can review
+                  <a href="{% url 'manager:instrument-list' %}">your instrument list</a>.
+                  Here you can also define new instruments that will be selectable for measurements.
                 </div>
+              {% endif %}
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div class="col-sm-3 col-12">
+        {# Buttons for switching between topographies #}
+        <div class="row p-3">
+          <div class="col">
+            <ul class="nav nav-pills pull-right">
+              <li>
+                <div class="btn-group">
+                  <a href="{% url 'manager:topography-detail' topography_next %}"
+                     class="btn btn-default {% if topography_next == topography.id %} disabled {% endif %}"
+                     data-toggle="tooltip" title="previous topography of related surface">
+                    {% fontawesome_icon 'chevron-left' %}
+                  </a>
+                  <a href="{% url 'manager:topography-detail' topography_prev %}"
+                     class="btn btn-default {% if topography_prev == topography.id %} disabled {% endif %}"
+                     data-toggle="tooltip" title="next topography of related surface">
+                    {% fontawesome_icon 'chevron-right' %}
+                  </a>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </div>
+        {# Badges and tags in a card #}
+        <div class="row p-3">
+          <div class="col">
+            <div class="card shadow-sm">
+              <div class="card-body">
+                {% render_uploaded_by_badge request topography %}
+                {% for tag in topography.tags.all %}
+                  <span class="badge badge-success">{{ tag.name }}</span>
+                {% endfor %}
               </div>
             </div>
           </div>
-          {# Buttons #}
-          <div class="row p-3">
-            <div class="col">
-              <a href="{% url 'analysis:topography' topography.id %}" class="btn btn-default btn-block btn-lg">
-                  {% fontawesome_icon 'area-chart' %} Analyze this measurement
+        </div>
+        {# Buttons #}
+        <div class="row p-3">
+          <div class="col">
+            <a href="{% url 'analysis:topography' topography.id %}" class="btn btn-default btn-block btn-lg">
+              {% fontawesome_icon 'area-chart' %} Analyze this measurement
+            </a>
+            {% if "change_surface" in surface_perms %}
+              <a href="{% url 'manager:topography-update' topography.id %}"
+                 class="btn btn-default btn-block btn-lg">
+                {% fontawesome_icon 'edit' %} Edit
               </a>
-              {% if "change_surface" in surface_perms %}
-                <a href="{% url 'manager:topography-update' topography.id %}"
-                   class="btn btn-default btn-block btn-lg">
-                  {% fontawesome_icon 'edit' %} Edit
-                </a>
 
-                <a href="{% url 'manager:topography-delete' topography.id %}"
-                   class="btn btn-outline-danger btn-block btn-lg">
-                  {% fontawesome_icon 'trash' %} Delete
-                </a>
-              {% endif %}
-            </div>
+              <a href="{% url 'manager:topography-delete' topography.id %}"
+                 class="btn btn-outline-danger btn-block btn-lg">
+                {% fontawesome_icon 'trash' %} Delete
+              </a>
+            {% endif %}
           </div>
         </div>
-
       </div>
 
-
     </div>
+
+
+  </div>
 
 
 
@@ -191,42 +239,42 @@
   {{ category_filter_choices | json_script:"category-filter-choices" }}
 
   <script>
-  $(document).ready(function () {
-    /** Triggering loading of bokeh plot */
-    console.log("Requesting plot via AJAX call..");
-    $.ajax({
-              url: "{% url 'manager:topography-plot' topography.pk %}",
-              type: 'get',
-              success : function(data){
-                // server returns rendered "topography_plot.html"
-                // which is just pure html, use this to replace the existing
-                // html within the "plot content" div
-                console.log("Plot data received. Inserting plot..");
-                $('#topography-plot-content').html(data);
-                console.log("Plot inserted.")
-              },
-              error: function (xhr, textStatus, errorThrown) {
-                /**
-                 * If an error occurs *not* because of XMLHttpRequest.abort(), show an
-                 * error message. Do not show error on .abort(). See also
-                 * https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/abort
-                 * */
-                if (xhr.status == 0) {
-                  console.log("Canceled plot generation.");
-                  $('#topography-plot-content').html(`
+    $(document).ready(function () {
+      /** Triggering loading of bokeh plot */
+      console.log("Requesting plot via AJAX call..");
+      $.ajax({
+        url: "{% url 'manager:topography-plot' topography.pk %}",
+        type: 'get',
+        success: function (data) {
+          // server returns rendered "topography_plot.html"
+          // which is just pure html, use this to replace the existing
+          // html within the "plot content" div
+          console.log("Plot data received. Inserting plot..");
+          $('#topography-plot-content').html(data);
+          console.log("Plot inserted.")
+        },
+        error: function (xhr, textStatus, errorThrown) {
+          /**
+           * If an error occurs *not* because of XMLHttpRequest.abort(), show an
+           * error message. Do not show error on .abort(). See also
+           * https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/abort
+           * */
+          if (xhr.status == 0) {
+            console.log("Canceled plot generation.");
+            $('#topography-plot-content').html(`
                   Canceled loading of plot.
                 `)
-                } else {
-                  console.error("Could not create plot: " + errorThrown + " " + xhr.status + " " + xhr.responseText);
-                  $('#topography-plot-content').html(`
+          } else {
+            console.error("Could not create plot: " + errorThrown + " " + xhr.status + " " + xhr.responseText);
+            $('#topography-plot-content').html(`
                   <div class='alert alert-danger'>
                       Could not request plot data. Error: ${errorThrown}
                   </div>
                 `);
-                }
-              }
-    })
-  });
+          }
+        }
+      });
+    });
   </script>
 
 {% endblock %}

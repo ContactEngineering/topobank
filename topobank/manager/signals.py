@@ -7,14 +7,14 @@ from django.contrib.contenttypes.models import ContentType
 from allauth.account.signals import user_logged_in
 import logging
 
-from .models import Topography, Surface
+from .models import Topography, Surface, Instrument
 from .views import DEFAULT_SELECT_TAB_STATE
 
 _log = logging.getLogger(__name__)
 
 
 @receiver(post_save, sender=Surface)
-def grant_permissions_to_owner(sender, instance, created, **kwargs):
+def grant_surface_permissions_to_owner(sender, instance, created, **kwargs):
 
     if created:
         #
@@ -81,6 +81,20 @@ def remove_notifications_for_surface(sender, instance, using, **kwargs):
 @receiver(post_delete, sender=Topography)
 def remove_notifications_for_topography(sender, instance, using, **kwargs):
     _remove_notifications(instance)
+
+
+@receiver(post_save, sender=Instrument)
+def grant_instrument_permissions_to_owner(sender, instance, created, **kwargs):
+
+    if created:
+        #
+        # Grant all permissions for this instrument to its creator
+        #
+        for perm in ['view_instrument', 'change_instrument', 'delete_instrument', 'share_instrument']:
+            assign_perm(perm, instance.creator, instance)
+
+        # This should be only done when creating an instrument,
+        # otherwise all permissions would be granted when editing an instrument
 
 
 @receiver(user_logged_in)

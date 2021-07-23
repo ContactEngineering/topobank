@@ -184,5 +184,14 @@ urlpatterns = [
         view=login_required(views.InstrumentDeleteView.as_view()),
         name='instrument-delete'
     ),
-
+    url(
+       regex=r'instrument/(?P<pk>\d+)/share/$',
+       view=login_required(views.InstrumentShareView.as_view()),
+       name='instrument-share'
+    ),
+    url(
+       regex=r'instrument/(?P<pk>\d+)/json/$',
+       view=login_required(views.instrument_as_json),
+       name='instrument-json'
+    ),
 ]

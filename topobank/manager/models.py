@@ -259,6 +259,8 @@ class Surface(models.Model, SubjectMixin):
         topographies are copied, therefore all meta data.
         All files will be copied.
 
+        References to instruments will not be copied.
+
         The automated analyses will be triggered for this new surface.
 
         Returns
@@ -458,9 +460,15 @@ class Topography(models.Model, SubjectMixin):
     is_periodic = models.BooleanField(default=False)
 
     #
-    # Fields about instrument type
+    # Fields about instrument and its parameters
     #
-    instrument = models.ForeignKey('Instrument', on_delete=models.SET_NULL, null=True)
+    instrument = models.ForeignKey('Instrument', on_delete=models.SET_NULL, null=True, blank=True)
+    # The reference to the instrument itself can be set to NULL without loosing the
+    # parameters used for it. This reference is only used for convenience in the UI as long
+    # as the topography is not published.
+
+    instrument_json = JSONField(default=dict, blank=True)
+    # representation of the instrument as JSON - needed for publication or individual parameters.
 
     #
     # Other fields
@@ -495,9 +503,11 @@ class Topography(models.Model, SubjectMixin):
     def is_shared(self, with_user, allow_change=False):
         """Returns True, if this topography is shared with a given user.
 
-        Always returns True if user is the creator of the surface.
+        Just returns whether the related surface is shared with the user
+        or not.
+
         :param with_user: User to test
-        :param allow_change: If True, only return True if surface can be changed by given user
+        :param allow_change: If True, only return True if topography can be changed by given user
         :return: True or False
         """
         return self.surface.is_shared(with_user, allow_change=allow_change)
@@ -638,6 +648,7 @@ class Topography(models.Model, SubjectMixin):
         Returns
         -------
         The copied topography.
+        The reference to an instrument is not copied, it is always None.
 
         """
 
@@ -649,6 +660,8 @@ class Topography(models.Model, SubjectMixin):
             copy.datafile = default_storage.save(self.datafile.name, File(datafile))
 
         copy.tags = self.tags.get_tag_list()
+        copy.instrument_json = copy.instrument_dict()  # should include all meta data of instrument
+        copy.instrument = None  # we don't copy the instrument reference
         copy.save()
 
         return copy
@@ -911,14 +924,42 @@ class Topography(models.Model, SubjectMixin):
             self.squeezed_datafile = default_storage.save(squeezed_name, File(open(tmp.name, mode='rb')))
             self.save()
 
+    def instrument_dict(self):
+        """Return data about instrument used for this measurement, as dict.
+
+        The dict has the following structure:
+
+        Either an empty dict or
+
+        {
+            "name: "name of instrument",
+            # "manufacturer": "manufacturer of instrument",
+            "type": "contact-based",  # see Instrument class
+            "description": "This is a ....",
+            "parameters: {
+                # some dict, UI elements must be implemented for that
+            }
+        """
+        result = {}
+
+        if self.instrument:
+            result.update(self.instrument.to_dict())
+        result.update(self.instrument_json)
+
+        return result
+
 
 class Instrument(models.Model):
     """Instrument which measures topographies"""
 
+    TYPE_UNDEFINED = 'undefined'
+    TYPE_MICROSCOPE_BASED = 'microscope-based'
+    TYPE_CONTACT_BASED = 'contact-based'
+
     INSTRUMENT_TYPE_CHOICES = [
-        ('undefined', 'Undefined - all data assumed to be reliable'),
-        ('microscope-based', 'Microscope-based with known instrument resolution'),
-        ('contact-based', 'Contact-based with known tip radius'),
+        (TYPE_UNDEFINED, 'Instrument of unknown type - all data considered as reliable'),
+        (TYPE_MICROSCOPE_BASED, 'Microscope-based instrument with known resolution'),
+        (TYPE_CONTACT_BASED, 'Contact-based instrument with known tip radius'),
     ]
 
     name = models.CharField(max_length=80)
@@ -936,3 +977,52 @@ class Instrument(models.Model):
 
     def get_absolute_url(self):
         return reverse('manager:instrument-detail', kwargs=dict(pk=self.pk))
+
+    def is_shared(self, with_user, allow_change=False):
+        """Returns True, if this instrument is shared with a given user.
+
+        Always returns True if user is the creator.
+
+        :param with_user: User to test
+        :param allow_change: If True, only return True if instrument can be changed by given user
+        :return: True or False
+        """
+        result = with_user.has_perm('view_instrument', self)
+        if result and allow_change:
+            result = with_user.has_perm('change_instrument', self)
+        return result
+
+    def share(self, with_user, allow_change=False):
+        """Share this instrument with a given user.
+
+        :param with_user: user to share with
+        :param allow_change: if True, also allow changing the instrument
+        """
+        assign_perm('view_instrument', with_user, self)
+        if allow_change:
+            assign_perm('change_instrument', with_user, self)
+
+    def unshare(self, with_user):
+        """Remove share on this instrument for given user.
+
+        If the user has no permissions, nothing happens.
+
+        :param with_user: User to remove share from
+        """
+        for perm in ['view_instrument', 'change_instrument']:
+            if with_user.has_perm(perm, self):
+                remove_perm(perm, with_user, self)
+
+    def to_dict(self):
+        """Create dictionary for export of metadata to json or yaml"""
+        return {'name': self.name,
+                'type': self.type,
+                'description': self.description,
+                'parameters': self.parameters}
+
+    class Meta:
+        ordering = ['name']
+        permissions = (
+            ('share_instrument', 'Can share instrument'),
+        )
+

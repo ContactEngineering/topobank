@@ -1,7 +1,7 @@
 
 {% extends 'base.html' %}
 {% load fontawesome %}
-
+{% load static %}
 
 {% block content %}
 
@@ -43,6 +43,9 @@
         {% crispy form form.helper %}
       </div>
     </div>
+    <div id="instrument-retrieval-message">
+      {# Maybe filled below in case of AJAX problems when retrieving instrument details #}
+    </div>
 
   </div>
 
@@ -52,7 +55,27 @@
 
   {{ block.super }}
 
+  {# Some JSON code to define JS variables from Django context #}
+  {{ instrument_dict | json_script:"instrument-dict" }}
+
+  <script src="{% static 'js/instrument.js' %}"></script>
+
   <script>
-    $('[data-toggle="tooltip"]').tooltip();
+
+    let instrument_json_url_template = "{% url 'manager:instrument-json' '999999999' %}";
+    // 999999999 will can replaced by the selected instrument_id
+
+    let instrument_dict = JSON.parse(document.getElementById('instrument-dict').textContent);
+
+    $(document).ready(function () {
+      $('[data-toggle="tooltip"]').tooltip();
+
+      // set values from topography
+      set_reliability_input_labels(instrument_dict);
+
+      $('#id_instrument').change(function () {
+        update_instrument_parameters(instrument_json_url_template);  // overwrite parameters from topography
+      })
+    })
   </script>
 {% endblock javascript %}

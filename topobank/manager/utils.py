@@ -1,5 +1,5 @@
 from django.shortcuts import reverse
-from guardian.shortcuts import get_objects_for_user
+from guardian.shortcuts import get_objects_for_user, get_users_with_perms
 from django.conf import settings
 from django.db.models import Q
 from django.core.exceptions import PermissionDenied
@@ -96,6 +96,17 @@ def get_topography_reader(filefield, format=None):
         filefield.file.seek(0)
     reader = open_topography(filefield, format=format)
     return reader
+
+
+def instruments_for_user(user, perms=['view_instrument']):
+    """Return a queryset of all instruments, the user has *all* given permissions.
+
+    :param user: user for which we want to know the instrument
+    :param perms: list of permission codenames, default is ['view_instrument']
+    :return: queryset of instruments
+    """
+    from topobank.manager.models import Instrument
+    return get_objects_for_user(user, perms, klass=Instrument, accept_global_perms=False)
 
 
 def surfaces_for_user(user, perms=['view_surface']):
@@ -836,3 +847,72 @@ def get_firefox_webdriver() -> WebDriver:
         executable_path=str(settings.GECKODRIVER_PATH),
         service_log_path=devnull,
     )
+
+
+def get_permission_table_data(instance, request_user, actions=['view', 'change', 'delete', 'share']):
+    """Prepare data for a permission table.
+
+    Parameters
+    ----------
+    instance: Model
+        Model instance for which the permission table should be generated.
+    request_user: User
+        User for which the permission table is prepared.
+    actions: list of str
+        Action for which permission may be given. Example: ['view', 'change', 'delete', 'share']
+
+    Returns
+    -------
+    List of tuples for cells. Each cell is represented by a 4-tuple
+
+       (user_display_name, user_url, allowed, description)
+
+    where
+
+        user_display_name: name of the user
+        user_url: URL to user details
+        allowed: boolean which is true, when allowed
+        description: a str with verbal description of this entry for tooltips.
+
+    """
+    perms = get_users_with_perms(instance, attach_perms=True)
+    # is now a dict of the form
+    #  <User: joe>: ['view_surface'], <User: dan>: ['view_surface', 'change_surface']}
+    allowed_users = sorted(perms.keys(), key=lambda u: u.name if u else '')
+
+    # convert to list of boolean based on list ACTIONS
+    #
+    # Each table element here is a 2-tuple: (cell content, cell title)
+    #
+    # The cell content is inserted into the cell.
+    # The cell title is shown in a tooltip and can be used in tests.
+    #
+    perm_postfix = type(instance).__name__.lower()
+    perms_table = []
+    for user in allowed_users:
+
+        if user == request_user:
+            user_display_name = "You"
+            auxiliary = "have"
+        else:
+            user_display_name = request_user.name
+            auxiliary = "has"
+
+        # the current user is represented as None, can be displayed in a special way in template ("You")
+        row = [(user_display_name, user.get_absolute_url())]  # cell title is used for passing a link here
+        for act in actions:
+
+            perm = act + '_' + perm_postfix
+            has_perm = perm in perms[user]
+
+            cell_title = "{} {}".format(user_display_name, auxiliary)
+            if not has_perm:
+                cell_title += "n't"
+            cell_title += " the permission to {} this surface".format(act)
+
+            row.append((has_perm, cell_title))
+
+        perms_table.append(row)
+
+    return perms_table
+
