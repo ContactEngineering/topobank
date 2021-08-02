@@ -11,7 +11,7 @@ import logging
 import datetime
 import factory
 
-from ..models import Topography, Surface, TagModel, Instrument
+from ..models import Topography, Surface, TagModel
 from topobank.users.tests.factories import UserFactory
 
 # from topobank.users.models import User
@@ -35,16 +35,6 @@ class SurfaceFactory(factory.django.DjangoModelFactory):
         model = Surface
 
     name = factory.Sequence(lambda n: "surface-{:05d}".format(n))  # format because of defined order by name
-    creator = factory.SubFactory(UserFactory)
-
-
-class InstrumentFactory(factory.django.DjangoModelFactory):
-    """Generates an Instrument."""
-
-    class Meta:
-        model = Instrument
-
-    name = factory.Sequence(lambda n: "instrument-{:05d}".format(n))  # format because of defined order by name
     creator = factory.SubFactory(UserFactory)
 
 

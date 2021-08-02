@@ -1,15 +1,11 @@
 import datetime
-import json
 import logging
 import os.path
 import traceback
-import zipfile
 from io import BytesIO
 
 import django_tables2 as tables
 import numpy as np
-import yaml
-import textwrap
 
 from bokeh.embed import components
 from bokeh.models import DataRange1d, LinearColorMapper, ColorBar, LabelSet, FuncTickFormatter, TapTool, OpenURL
@@ -46,14 +42,13 @@ from rest_framework.utils.urls import remove_query_param, replace_query_param
 from trackstats.models import Metric, Period
 
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm, DEFAULT_LICENSE
-from .forms import TopographyForm, SurfaceForm, SurfaceShareForm, SurfacePublishForm, \
-    InstrumentForm, InstrumentShareForm, RELIABILITY_FACTOR_KEYS
-from .models import Topography, Surface, TagModel, Instrument, \
+from .forms import TopographyForm, SurfaceForm, SurfaceShareForm, SurfacePublishForm
+from .models import Topography, Surface, TagModel, \
     NewPublicationTooFastException, LoadTopographyException, PlotTopographyException
 from .serializers import SurfaceSerializer, TagSerializer
 from .utils import selected_instances, bandwidths_data, get_topography_reader, tags_for_user, get_reader_infos, \
     mailto_link_for_reporting_an_error, current_selection_as_basket_items, filtered_surfaces, \
-    filtered_topographies, instruments_for_user, get_search_term, get_category, get_sharing_status, get_tree_mode, \
+    filtered_topographies, get_search_term, get_category, get_sharing_status, get_tree_mode, \
     get_permission_table_data
 from ..usage_stats.utils import increase_statistics_by_date, increase_statistics_by_date_and_object
 from ..users.models import User
@@ -121,22 +116,6 @@ surface_share_permission_required = method_decorator(
 
 surface_publish_permission_required = method_decorator(
     permission_required_or_403('manager.publish_surface', ('manager.Surface', 'pk', 'pk'))
-)
-
-instrument_view_permission_required = method_decorator(
-    permission_required_or_403('manager.view_instrument', ('manager.Instrument', 'pk', 'pk'))
-)
-
-instrument_update_permission_required = method_decorator(
-    permission_required_or_403('manager.change_instrument', ('manager.Instrument', 'pk', 'pk'))
-)
-
-instrument_delete_permission_required = method_decorator(
-    permission_required_or_403('manager.delete_instrument', ('manager.Instrument', 'pk', 'pk'))
-)
-
-instrument_share_permission_required = method_decorator(
-    permission_required_or_403('manager.share_instrument', ('manager.Instrument', 'pk', 'pk'))
 )
 
 
@@ -429,6 +408,10 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
         # Remove helper data
         #
         del d['channel_infos']
+        del d['resolution_value']
+        del d['resolution_unit']
+        del d['tip_radius_value']
+        del d['tip_radius_unit']
 
         #
         # create topography in database
@@ -540,7 +523,9 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
         # If a significant field changed, renew all analyses
         #
         significant_fields = {'size_x', 'size_y', 'unit', 'is_periodic', 'height_scale',
-                              'detrend_mode', 'datafile', 'data_source', 'instrument_json'}
+                              'detrend_mode', 'datafile', 'data_source',
+                              'instrument_type',
+                              'instrument_parameters'}
         significant_fields_with_changes = set(form.changed_data).intersection(significant_fields)
         if len(significant_fields_with_changes) > 0:
             _log.info(f"During edit of topography {topo.id} significant fields changed: " +
@@ -610,8 +595,6 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
                 'tooltip': f"Editing topography '{topo.name}'"
             }
         ]
-
-        context['instrument_dict'] = topo.instrument_dict()
 
         return context
 
@@ -703,8 +686,6 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
                 'tooltip': f"Properties of topography '{topo.name}'"
             }
         ]
-
-        context['instrument_dict'] = topo.instrument_dict()
 
         return context
 
@@ -1905,32 +1886,6 @@ def unselect_all(request):
     return Response([])
 
 
-@api_view(['GET'])
-def instrument_as_json(request, pk):
-    """Returns serialized data for instrument.
-
-    :param request: request
-    :param pk: primary key of the instrument
-    :return: JSON Response
-    """
-    try:
-        pk = int(pk)
-    except ValueError:
-        raise Http404()
-
-    try:
-        instrument = Instrument.objects.get(pk=pk)
-    except Instrument.DoesNotExist:
-        raise Http404()
-
-    if not request.user.has_perm('view_instrument', instrument):
-        raise PermissionDenied()
-
-    json = JSONRenderer().render(instrument.to_dict())
-
-    return Response(json)
-
-
 def thumbnail(request, pk):
     """Returns image data for a topography thumbail
 
@@ -1968,325 +1923,3 @@ def thumbnail(request, pk):
             response.write(img_file.read())
 
     return response
-
-
-class InstrumentTable(tables.Table):
-    """Table for listing instruments."""
-    name = tables.Column(linkify=lambda record: record.get_absolute_url())
-
-    # noinspection PyMissingOrEmptyDocstring
-    class Meta:
-        model = Instrument
-        template_name = "django_tables2/bootstrap.html"
-        fields = ("name", "type", "description", "parameters")
-
-
-class InstrumentListView(ListView):
-    """Showing a list of instruments for the current user."""
-    model = Instrument
-    context_object_name = 'instruments'
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-
-        context['table'] = InstrumentTable(instruments_for_user(self.request.user))
-        context['extra_tabs'] = [
-            {
-                'title': f"Instruments",
-                'icon': "tachometer",
-                'href': reverse('manager:instrument-list'),
-                'active': True,
-                'tooltip': f"List of measurement instruments"
-            }
-        ]
-
-        return context
-
-
-class InstrumentCreateView(ORCIDUserRequiredMixin, CreateView):
-    model = Instrument
-    form_class = InstrumentForm
-
-    def get_initial(self, *args, **kwargs):
-        initial = super(InstrumentCreateView, self).get_initial()
-        initial = initial.copy()
-        initial['creator'] = self.request.user
-        return initial
-
-    def get_success_url(self):
-        return reverse('manager:instrument-detail', kwargs=dict(pk=self.object.pk))
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-
-        context['extra_tabs'] = [
-            {
-                'title': f"Instruments",
-                'icon': "tachometer",
-                'href': reverse('manager:instrument-list'),
-                'active': False,
-                'tooltip': f"List of measurement instruments"
-            },
-            {
-                'title': f"Create instrument",
-                'icon': "plus-square-o",
-                'href': self.request.path,
-                'active': True,
-                'tooltip': "Creating a new instrument"
-            }
-        ]
-        return context
-
-
-class TopographyListTable(tables.Table):
-    name = tables.Column(linkify=lambda record: record.get_absolute_url())
-    surface = tables.Column(linkify=lambda record: record.surface.get_absolute_url())
-    instrument_json = tables.JSONColumn(accessor='instrument_json__parameters', verbose_name='Parameters')
-    different_from_default = tables.BooleanColumn(verbose_name="Different from default parameters?")
-
-    def render_different_from_default(self, record):
-        result = False
-        if record.instrument and 'parameters' in record.instrument_json:
-            result = record.instrument_json['parameters'] != record.instrument.parameters
-
-        # result_as_text = "Measurement's parameters differ from default parameters of the instrument." if result else \
-        #     "Measurement has same parameters than the default parameters of the instrument."
-        return "yes" if result else "no"
-
-
-    class Meta:
-        model = Topography
-        template_name = "django_tables2/bootstrap.html"
-        fields = ("name", "surface", "instrument_json")
-
-
-class InstrumentDetailView(DetailView):
-    model = Instrument
-    context_object_name = 'instrument'
-
-    @instrument_view_permission_required
-    def dispatch(self, request, *args, **kwargs):
-        return super().dispatch(request, *args, *kwargs)
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-
-        instrument = self.object
-
-        #
-        # Permission data
-        #
-        ACTIONS = ['view', 'change', 'delete', 'share']  # defines the order of permissions in table
-
-        instrument_perms_table = get_permission_table_data(instrument, self.request.user, ACTIONS)
-
-        context['permission_table'] = {
-            'head': [''] + ACTIONS,
-            'body': instrument_perms_table
-        }
-
-        context['extra_tabs'] = [
-            {
-                'title': "Instruments",
-                'icon': "tachometer",
-                'href': reverse('manager:instrument-list'),
-                'active': False,
-                'tooltip': f"List of measurement instruments"
-            },
-            {
-                'title': f"{instrument.label}",
-                'icon': "tachometer",
-                'href': self.request.path,
-                'active': True,
-                'tooltip': f"Details for instrument {instrument.label}"
-            }
-        ]
-
-        context['topography_list_table'] = TopographyListTable(Topography.objects.filter(instrument=instrument))
-        return context
-
-
-class InstrumentUpdateView(UpdateView):
-    model = Instrument
-    form_class = InstrumentForm
-    context_object_name = 'instrument'
-
-    @instrument_update_permission_required
-    def dispatch(self, request, *args, **kwargs):
-        return super().dispatch(request, *args, *kwargs)
-
-    def get_initial(self):
-        initial = super().get_initial()
-
-        instrument = self.object
-        instrument_type = instrument.type
-        instrument_params = instrument.parameters
-
-        if (instrument_type != Instrument.TYPE_UNDEFINED) and instrument_params:
-            reliability_factor = instrument_params[RELIABILITY_FACTOR_KEYS[instrument_type]]
-            initial['reliability_factor_value'] = reliability_factor['value']
-            initial['reliability_factor_unit'] = reliability_factor['unit']
-
-        return initial
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-
-        instrument = self.object
-
-        context['extra_tabs'] = [
-            {
-                'title': "Instruments",
-                'icon': "tachometer",
-                'href': reverse('manager:instrument-list'),
-                'active': False,
-                'tooltip': f"List of measurement instruments"
-            },
-            {
-                'title': f"{instrument.label}",
-                'icon': "tachometer",
-                'href': reverse('manager:instrument-detail', kwargs=dict(pk=instrument.pk)),
-                'active': False,
-                'tooltip': f"Details for instrument {instrument.label}"
-            },
-            {
-                'title': f"Edit instrument",
-                'icon': "pencil",
-                'href': self.request.path,
-                'active': True,
-                'tooltip': f"Editing instrument {instrument.label}"
-            }
-        ]
-        return context
-
-
-class InstrumentDeleteView(DeleteView):
-    model = Instrument
-    context_object_name = 'instrument'
-    success_url = reverse_lazy('manager:instrument-list')
-
-    @instrument_delete_permission_required
-    def dispatch(self, request, *args, **kwargs):
-        return super().dispatch(request, *args, *kwargs)
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-
-        instrument = self.object
-
-        context['extra_tabs'] = [
-            {
-                'title': "Instruments",
-                'icon': "tachometer",
-                'href': reverse('manager:instrument-list'),
-                'active': False,
-                'tooltip': f"List of measurement instruments"
-            },
-            {
-                'title': f"{instrument.label}",
-                'icon': "tachometer",
-                'href': reverse('manager:instrument-detail', kwargs=dict(pk=instrument.pk)),
-                'active': False,
-                'tooltip': f"Details for instrument {instrument.label}"
-            },
-            {
-                'title': f"Delete Instrument?",
-                'icon': "trash",
-                'href': self.request.path,
-                'active': True,
-                'tooltip': f"Conforming deletion of instrument '{instrument.label}'"
-            }
-        ]
-
-        context['num_topographies'] = Topography.objects.filter(instrument=instrument).count()
-
-        return context
-
-
-class InstrumentShareView(FormMixin, DetailView):
-    model = Instrument
-    context_object_name = 'instrument'
-    template_name = "manager/share.html"
-    form_class = InstrumentShareForm
-
-    @instrument_share_permission_required
-    def dispatch(self, request, *args, **kwargs):
-        return super().dispatch(request, *args, *kwargs)
-
-    def get_success_url(self):
-        return reverse('manager:instrument-detail', kwargs=dict(pk=self.object.pk))
-
-    def post(self, request, *args, **kwargs):
-        self.object = self.get_object()
-        form = self.get_form()
-        if form.is_valid():
-            return self.form_valid(form)
-        else:
-            return self.form_invalid(form)
-
-    def form_valid(self, form):
-
-        if 'save' in self.request.POST:
-            users = form.cleaned_data.get('users', [])
-            allow_change = form.cleaned_data.get('allow_change', False)
-            instrument = self.object
-            for user in users:
-                _log.info("Sharing instrument {} with user {} (allow change? {}).".format(
-                    instrument.pk, user.username, allow_change))
-
-                instrument.share(user, allow_change=allow_change)
-
-                #
-                # Notify user about the shared instrument
-                #
-                notification_message = f"{self.request.user} has shared instrument '{instrument.name}' with you"
-                notify.send(self.request.user, recipient=user,
-                            verb="share",
-                            target=instrument,
-                            public=False,
-                            description=notification_message,
-                            href=instrument.get_absolute_url())
-
-                if allow_change:
-                    notify.send(self.request.user, recipient=user, verb="allow change",
-                                target=instrument, public=False,
-                                description=f"""
-                                You are allowed to change the instrument '{instrument.name}' shared by {self.request.user}
-                                """,
-                                href=instrument.get_absolute_url())
-
-        return super().form_valid(form)
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        instrument = self.object
-
-        #
-        # Extra tabs
-        #
-        context['extra_tabs'] = [
-            {
-                'title': f"{instrument.label}",
-                'icon': "tachometer",
-                'href': reverse('manager:instrument-detail', kwargs=dict(pk=instrument.pk)),
-                'active': False,
-                'tooltip': f"Properties of instrument '{instrument.label}'"
-            },
-            {
-                'title': f"Share instrument?",
-                'icon': "share-alt",
-                'href': self.request.path,
-                'active': True,
-                'tooltip': f"Sharing instrument '{instrument.label}'"
-            }
-        ]
-
-        #
-        # Labels and URLs
-        #
-        context['instrument'] = instrument
-        context['instance_label'] = instrument.label
-        context['instance_type_label'] = "instrument"
-        context['cancel_url'] = reverse('manager:instrument-detail', kwargs=dict(pk=instrument.pk))
-
-        return context

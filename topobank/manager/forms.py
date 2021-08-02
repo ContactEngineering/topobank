@@ -17,7 +17,7 @@ import logging
 from SurfaceTopography.IO.Reader import CannotDetectFileFormat, CorruptFile, UnknownFileFormatGiven, ReadFileError
 
 from topobank.manager.utils import get_topography_reader
-from .models import Topography, Surface, Instrument, MAX_LENGTH_DATAFILE_FORMAT
+from .models import Topography, Surface, MAX_LENGTH_DATAFILE_FORMAT
 from ..publication.models import MAX_LEN_AUTHORS_FIELD
 
 from topobank.users.models import User
@@ -35,8 +35,8 @@ TAGS_HELP_TEXT = "You can choose existing tags or create new tags on-the-fly. " 
 DEFAULT_LICENSE = 'ccbysa-4.0'
 
 RELIABILITY_FACTOR_KEYS = {
-    Instrument.TYPE_MICROSCOPE_BASED: 'resolution',
-    Instrument.TYPE_CONTACT_BASED: 'tip_radius'
+    Topography.INSTRUMENT_TYPE_MICROSCOPE_BASED: 'resolution',
+    Topography.INSTRUMENT_TYPE_CONTACT_BASED: 'tip_radius'
 }
 
 
@@ -329,10 +329,15 @@ class TopographyUnitsForm(forms.ModelForm):
         #
         # Individual fields for instrument parameters - start values must be set in Javascript
         #
-        self.fields['reliability_factor_value'] = forms.FloatField(required=False)
-        self.fields['reliability_factor_unit'] = forms.ChoiceField(widget=forms.Select,
-                                                                   choices=Topography.LENGTH_UNIT_CHOICES,
-                                                                   required=False, initial=None)
+
+        self.fields['resolution_value'] = forms.FloatField(required=False)
+        self.fields['resolution_unit'] = forms.ChoiceField(widget=forms.Select,
+                                                           choices=Topography.LENGTH_UNIT_CHOICES,
+                                                           required=False, initial='µm')
+        self.fields['tip_radius_value'] = forms.FloatField(required=False)
+        self.fields['tip_radius_unit'] = forms.ChoiceField(widget=forms.Select,
+                                                           choices=Topography.LENGTH_UNIT_CHOICES,
+                                                           required=False, initial='µm')
 
     def _clean_size_element(self, dim_name):
         """Checks whether given value is larger than zero.
@@ -366,92 +371,112 @@ class TopographyUnitsForm(forms.ModelForm):
                                         "Either choose that option or disable periodicity (see checkbox).")
         return cleaned_data['detrend_mode']
 
-    def clean_reliability_factor_value(self):
-        cleaned_data = self.cleaned_data
+    def _clean_reliability_factor_value(self, reliability_factor_name, reliability_factor_value):
 
         try:
-            if cleaned_data['reliability_factor_value'] <= 0:
-                raise forms.ValidationError("Given value for instrument parameters must be positive!",
+            if reliability_factor_value <= 0:
+                raise forms.ValidationError(f"Given value for {reliability_factor_name} must be positive!",
                                             code="invalid_reliability_factor_value")
         except (KeyError, TypeError):
-            cleaned_data['reliability_factor_value'] = None
+            raise forms.ValidationError(f"Please specify a number for {reliability_factor_name} value.")
 
-        return cleaned_data['reliability_factor_value']
+        return reliability_factor_value
 
-    def clean_reliability_factor_unit(self):
-        cleaned_data = self.cleaned_data
+    def _clean_reliability_factor_unit(self, reliability_factor_name, reliability_factor_unit):
 
         try:
             valid_unit_values = [x[0] for x in Topography.LENGTH_UNIT_CHOICES]
-            if not cleaned_data['reliability_factor_unit'] in valid_unit_values:
-                raise forms.ValidationError("Given unit for instrument parameters is invalid!",
+            if not reliability_factor_unit in valid_unit_values:
+                raise forms.ValidationError(f"Given unit for {reliability_factor_name} is invalid!",
                                             code="invalid_reliability_factor_unit")
         except (KeyError, TypeError):
-            cleaned_data['reliability_factor_unit'] = None
+            raise forms.ValidationError(f"Please specify the units for the {reliability_factor_name} value.")
 
-        return cleaned_data['reliability_factor_unit']
+        return reliability_factor_unit
 
-    def make_instrument_json(self):
+    def clean_resolution_value(self):
+        cleaned_data = self.cleaned_data
+        if cleaned_data['instrument_type'] == Topography.INSTRUMENT_TYPE_MICROSCOPE_BASED:
+            return self._clean_reliability_factor_value('resolution', cleaned_data['resolution_value'])
+        return ''
+
+    def clean_resolution_unit(self):
+        cleaned_data = self.cleaned_data
+        if cleaned_data['instrument_type'] == Topography.INSTRUMENT_TYPE_MICROSCOPE_BASED:
+            return self._clean_reliability_factor_unit('resolution', cleaned_data['resolution_unit'])
+        return ''
+
+    def clean_tip_radius_value(self):
+        cleaned_data = self.cleaned_data
+        if cleaned_data['instrument_type'] == Topography.INSTRUMENT_TYPE_CONTACT_BASED:
+            return self._clean_reliability_factor_value('tip_radius', cleaned_data['tip_radius_value'])
+        return ''
+
+    def clean_tip_radius_unit(self):
+        cleaned_data = self.cleaned_data
+        if cleaned_data['instrument_type'] == Topography.INSTRUMENT_TYPE_CONTACT_BASED:
+            return self._clean_reliability_factor_unit('tip_radius', cleaned_data['tip_radius_unit'])
+        return ''
+
+    def make_instrument_parameters(self):
         """Build instrument_json from selected instrument and parameters given in form fields."""
         cleaned_data = super().clean()
 
-        instrument = cleaned_data['instrument']
-
-        instrument_json = {}
-
-        if instrument:
-            #
-            # Build 'parameters' dict as part of JSON field
-            #
-            try:
-                parameters = {
-                    RELIABILITY_FACTOR_KEYS[instrument.type]: {
-                        'value': cleaned_data['reliability_factor_value'],
-                        'unit': cleaned_data['reliability_factor_unit'],
-                    }
+        instrument_type = cleaned_data['instrument_type']
+        instrument_parameters = {
+            'microscope-based': {
+                'resolution': {
+                    'value': cleaned_data['resolution_value'],
+                    'unit': cleaned_data['resolution_unit'],
                 }
-                instrument_json = {
-                    "parameters": parameters,
+            },
+            'contact-based': {
+                'tip_radius': {
+                    'value': cleaned_data['tip_radius_value'],
+                    'unit': cleaned_data['tip_radius_unit'],
                 }
+            },
+            'undefined': {}
+        }
 
-            except KeyError:
-                pass
+        return instrument_parameters[instrument_type]
 
-        return instrument_json
+    def clean(self):
+        cleaned_data = super().clean()
+
+        # Combine value from parameter fields to a single value
+        cleaned_data['instrument_parameters'] = self.make_instrument_parameters() if self.is_valid() else {}
+
+        return cleaned_data
 
 
-class TopographyInstrumentDetailsLayout(Layout):
-    """Layout which is used in topography forms to display form elements related to instruments."""
+class InstrumentLayout(Layout):
+    """Layout which is used in topography forms to display form elements related to an instrument."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(
             Fieldset('Instrument',
-                     Field('instrument', id='id_instrument'),
-                     HTML("""
-                                         <table class="table table-striped table-bordered instrument-detail">
-                                            <tr>
-                                                <th scope="row">Name</th>
-                                                <td id="id_instrument_name">Test</td>
-                                            </tr>
-                                            <tr>
-                                                <th scope="row">Type</th>
-                                                <td id="id_instrument_type">example-based</td>
-                                            </tr>
-                                            <tr>
-                                                <th scope="row">Description</th>
-                                                <td id="id_instrument_description">Example description</td>
-                                            </tr>
-                                         </table>
-                                         """),
-                     ),
-            Fieldset('Instrument Parameters',
+                     Field('instrument_name', id='id_instrument_name'),
+                     Field('instrument_type', id='id_instrument_type'),
                      # "Field" class uses "id" instead of "css_id" which is an anomaly:
                      #   https://github.com/django-crispy-forms/django-crispy-forms/issues/426
-                     Field('reliability_factor_value', id='id_reliability_factor_value'),
-                     Field('reliability_factor_unit', id='id_reliability_factor_unit'),
-                     css_class='instrument-parameters'),
-            # css class needed to hide/show instrument parameters
-            Field('instrument_json', type='hidden'),
+                     Div(Field('reliability_factor_value',
+                               id='id_reliability_factor_value'),
+                         Field('reliability_factor_unit',
+                               id='id_reliability_factor_unit'),
+                         css_class='instrument-parameters'),
+                     Div(Field('resolution_value',
+                               id='id_resolution_value'),
+                         Field('resolution_unit',
+                               id='id_resolution_unit'),
+                         css_class='instrument-resolution'),
+                     Div(Field('tip_radius_value',
+                               id='id_tip_radius_value'),
+                         Field('tip_radius_unit',
+                               id='id_tip_radius_unit'),
+                         css_class='instrument-tip-radius'),
+                     ),
+            Field('instrument_parameters', type='hidden'),
             *args, **kwargs)
 
 
@@ -469,7 +494,7 @@ class TopographyWizardUnitsForm(TopographyUnitsForm):
                   'unit', 'is_periodic',
                   'height_scale', 'detrend_mode',
                   'resolution_x', 'resolution_y',
-                  'instrument', 'instrument_json')
+                  'instrument_name', 'instrument_type', 'instrument_parameters')
 
     def __init__(self, *args, **kwargs):
         has_size_y = kwargs.pop('has_size_y')
@@ -495,11 +520,8 @@ class TopographyWizardUnitsForm(TopographyUnitsForm):
         size_fieldset_args.append(Field('unit'))
         size_fieldset_args.append(Field('is_periodic'))
 
-        self.fields['instrument'].help_text = """Choose an existing instrument as template for instrument details.
-                This instrument will be associated with this measurement as long as it is unpublished.
-                Nevertheless if you publish, all the instrument details below will be part of the publication.
-                """
-        self.fields['instrument'].label = "Name"
+        self.fields['instrument_name'].label = "Name"
+        self.fields['instrument_type'].label = "Type"
 
         self.helper.layout = Layout(
             Div(
@@ -507,7 +529,7 @@ class TopographyWizardUnitsForm(TopographyUnitsForm):
                 Fieldset('Height Conversion',
                          Field('height_scale')),
                 Field('detrend_mode'),
-                TopographyInstrumentDetailsLayout(),
+                InstrumentLayout(),
                 *self.editable_fields,
                 *resolution_fieldset_args,
             ),
@@ -520,13 +542,6 @@ class TopographyWizardUnitsForm(TopographyUnitsForm):
 
     def clean_size_y(self):
         return self._clean_size_element('y')
-
-    def clean(self):
-        cleaned_data = super().clean()
-        cleaned_data['instrument_json'] = self.make_instrument_json()
-        del cleaned_data['reliability_factor_value']
-        del cleaned_data['reliability_factor_unit']
-        return cleaned_data
 
 
 class TopographyForm(CleanVulnerableFieldsMixin, TopographyUnitsForm):
@@ -545,8 +560,9 @@ class TopographyForm(CleanVulnerableFieldsMixin, TopographyUnitsForm):
                   'size_x', 'size_y',
                   'unit', 'is_periodic',
                   'height_scale', 'detrend_mode',
-                  'instrument',
-                  'instrument_json',
+                  'instrument_name',
+                  'instrument_type',
+                  'instrument_parameters',
                   'surface')
 
     def __init__(self, *args, **kwargs):
@@ -571,6 +587,12 @@ class TopographyForm(CleanVulnerableFieldsMixin, TopographyUnitsForm):
         size_fieldset_args.append(Field('unit'))
         size_fieldset_args.append(Field('is_periodic'))
 
+        self.fields['instrument_name'].label = "Name"
+        self.fields['instrument_type'].label = "Type"
+
+        self.helper.form_method = 'POST'
+        self.helper.form_show_errors = False  # crispy forms has nicer template code for errors
+
         self.helper.layout = Layout(
             Div(
                 Field('surface', readonly=True, hidden=True),
@@ -583,7 +605,7 @@ class TopographyForm(CleanVulnerableFieldsMixin, TopographyUnitsForm):
                 Fieldset('Height Conversion',
                          Field('height_scale')),
                 Field('detrend_mode'),
-                TopographyInstrumentDetailsLayout(),
+                InstrumentLayout(),
                 *self.editable_fields,
             ),
             FormActions(
@@ -611,13 +633,6 @@ class TopographyForm(CleanVulnerableFieldsMixin, TopographyUnitsForm):
 
     def clean_size_y(self):
         return self._clean_size_element('y')
-
-    def clean(self):
-        cleaned_data = super().clean()
-        cleaned_data['instrument_json'] = self.make_instrument_json()
-        del cleaned_data['reliability_factor_value']
-        del cleaned_data['reliability_factor_unit']
-        return cleaned_data
 
 
 class SurfaceForm(CleanVulnerableFieldsMixin, forms.ModelForm):
@@ -814,139 +829,3 @@ class SurfacePublishForm(forms.Form):
         cleaned_data['authors'] = bleach.clean(authors_string)  # prevent XSS attacks
 
         return cleaned_data
-
-
-#
-# class InstrumentWidget(forms.MultiWidget):
-#     def __init__(self, attrs=None):
-#         widgets = [forms.Select(attrs=attrs),       # for instrument
-#                    forms.NumberInput(attrs=attrs),  # for reliability factor value (e.g. resolution value)
-#                    forms.Select(attrs=attrs)]       # for reliability factor unit (e.g. resolution unit)
-#         super().__init__(widgets, attrs)
-#
-#     def decompress(self, value):
-#         """Gets a tuple (instrument, parameters) and breaks it up into the widgets values.
-#
-#         instrument -- Instrument instance
-#         parameters -- dict
-#         """
-#         if value:
-#             instrument, parameters = value
-#             reliability_factor = parameters[RELIABILITY_FACTOR_KEYS[instrument.type]]
-#             return [instrument, reliability_factor['value'], reliability_factor['unit']]
-#         return [None, None, None]
-
-
-#
-# The definition of the widget an field for the instrument's parameters
-# is currently very simple: just a value and a unit. Could become more complex
-# later.
-#
-# class InstrumentParametersWidget(forms.MultiWidget):
-#     def __init__(self, attrs=None):
-#         widgets = [forms.RadioSelect(attrs=attrs),
-#                    forms.NumberInput(attrs=attrs),
-#                    forms.Select(attrs=attrs)]
-#         super().__init__(widgets, attrs)
-#
-#     def decompress(self, value):
-#         """Gets a parameters dict and breaks it up into the widgets values"""
-#         if value:
-#             instrument_type = value['type']
-#             reliability_factor = value[RELIABILITY_FACTOR_KEYS[instrument_type]]
-#             return [instrument_type, reliability_factor['value'], reliability_factor['unit']]
-#         return [None, None, None]
-#
-#
-# class InstrumentParametersField(forms.MultiValueField):
-#     widget = InstrumentParametersWidget
-#
-#     def __init__(self, *args, **kwargs):
-#         # error_messages = {
-#         #     'incomplete': "Please specify all parameters needed for this type of measurement."
-#         # }
-#         fields = [forms.ChoiceField(choices=Instrument.INSTRUMENT_TYPE_CHOICES, required=True),
-#                   forms.FloatField(),
-#                   forms.ChoiceField(choices=Topography.LENGTH_UNIT_CHOICES)]
-#         super().__init__(fields, *args, **kwargs)
-#
-#     def compress(self, data_list):
-#         """Builds a parameters dict from given list of values"""
-#         instrument_type, reliability_factor_value, reliability_factor_unit = data_list
-#         return {
-#             'type': instrument_type,
-#             RELIABILITY_FACTOR_KEYS[instrument_type]: {
-#                 'value': reliability_factor_value,
-#                 'unit': reliability_factor_unit,
-#             }
-#         }
-
-
-class InstrumentForm(CleanVulnerableFieldsMixin, forms.ModelForm):
-    """Form for creating or updating instruments.
-    """
-
-    class Meta:
-        model = Instrument
-        fields = ('name', 'type', 'creator', 'description', 'parameters')
-
-    parameters = JSONField4Form(required=False)
-    type = forms.ChoiceField(widget=forms.RadioSelect, choices=Instrument.INSTRUMENT_TYPE_CHOICES)
-
-    reliability_factor_value = forms.FloatField(required=False)
-    reliability_factor_unit = forms.ChoiceField(widget=forms.Select, choices=Topography.LENGTH_UNIT_CHOICES,
-                                                required=False)
-
-    helper = FormHelper()
-    helper.form_method = 'POST'
-    helper.form_show_errors = False  # crispy forms has nicer template code for errors
-
-    helper.layout = Layout(
-        Div(
-            Field('name'),
-            Field('description'),
-            Field('type'),
-            Fieldset('Parameters',
-                     'reliability_factor_value',
-                     'reliability_factor_unit', css_id='id_reliability_factor'),  # id needed to hide/show it
-            Field('parameters', type='hidden'),  # id needed to hide/show it
-            Field('creator', type='hidden')
-        ),
-        FormActions(
-            Submit('save', 'Save'),
-            HTML("""
-                    <a class="btn btn-default" id="cancel-btn" onclick="history.back(-1)">Cancel</a>
-                """),
-        ),
-        ASTERISK_HELP_HTML
-    )
-
-    def clean(self):
-        cleaned_data = super().clean()
-
-        #
-        # Build 'parameters' dict for JSON field
-        #
-        #
-        try:
-            parameters = {
-                RELIABILITY_FACTOR_KEYS[cleaned_data['type']]: {
-                    'value': cleaned_data['reliability_factor_value'],
-                    'unit': cleaned_data['reliability_factor_unit'],
-                }
-            }
-        except KeyError:
-            parameters = {}
-
-        cleaned_data['parameters'] = parameters
-
-        return cleaned_data
-
-
-class InstrumentShareForm(ShareForm):
-    """Form for sharing instrument."""
-
-    def __init__(self, *args, **kwargs):
-        allow_change_help_text = """If selected, users will be able to edit meta data,
-         e.g. change the type of instrument or change the default parameters for new measurements."""
-        super().__init__('instrument', allow_change_help_text, *args, **kwargs)

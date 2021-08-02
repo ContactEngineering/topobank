@@ -98,17 +98,6 @@ def get_topography_reader(filefield, format=None):
     return reader
 
 
-def instruments_for_user(user, perms=['view_instrument']):
-    """Return a queryset of all instruments, the user has *all* given permissions.
-
-    :param user: user for which we want to know the instrument
-    :param perms: list of permission codenames, default is ['view_instrument']
-    :return: queryset of instruments
-    """
-    from topobank.manager.models import Instrument
-    return get_objects_for_user(user, perms, klass=Instrument, accept_global_perms=False)
-
-
 def surfaces_for_user(user, perms=['view_surface']):
     """Return a queryset of all surfaces, the user has *all* given permissions.
 

@@ -159,39 +159,4 @@ urlpatterns = [
         view=login_required(views.PublicationListView.as_view()),
         name='publications'
     ),
-    url(
-        regex=r'instrument/$',
-        view=login_required(views.InstrumentListView.as_view()),
-        name='instrument-list'
-    ),
-    url(
-        regex=r'instrument/new$',
-        view=login_required(views.InstrumentCreateView.as_view()),
-        name='instrument-create'
-    ),
-    url(
-        regex=r'instrument/(?P<pk>\d+)/$',
-        view=login_required(views.InstrumentDetailView.as_view()),
-        name='instrument-detail'
-    ),
-    url(
-        regex=r'instrument/(?P<pk>\d+)/update/$',
-        view=login_required(views.InstrumentUpdateView.as_view()),
-        name='instrument-update'
-    ),
-    url(
-        regex=r'instrument/(?P<pk>\d+)/delete/$',
-        view=login_required(views.InstrumentDeleteView.as_view()),
-        name='instrument-delete'
-    ),
-    url(
-       regex=r'instrument/(?P<pk>\d+)/share/$',
-       view=login_required(views.InstrumentShareView.as_view()),
-       name='instrument-share'
-    ),
-    url(
-       regex=r'instrument/(?P<pk>\d+)/json/$',
-       view=login_required(views.instrument_as_json),
-       name='instrument-json'
-    ),
 ]

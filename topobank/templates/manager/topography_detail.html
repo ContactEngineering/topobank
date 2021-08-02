@@ -105,60 +105,35 @@
 
           {# instrument #}
           <div class="tab-pane fade" id="instrument" role="tabpanel" aria-labelledby="instrument-tab">
-            {% if instrument_dict %}
-              <table class="table table-striped table-bordered w-75">
-                <caption>Instrument properties for this measurement</caption>
-                <tbody>
-                <tr>
-                  <th scope="row">Name</th>
-                  <td>
-                    {% if topography.instrument %}
-                      <a href="{{ topography.instrument.get_absolute_url }}">{{ topography.instrument.name }}</a>
-                    {% else %}
-                      {{ instrument_dict.name }}
-                    {% endif %}
-                  </td>
-                </tr>
-                <tr>
-                  <th scope="row">Type</th>
-                  <td>{{ instrument_dict.type }}</td>
-                </tr>
-                <tr>
-                  <th scope="row">Description</th>
-                  <td>{{ instrument_dict.description }}</td>
-                </tr>
-                {# Insert parameters as extra lines #}
-                {% with instrument_dict.parameters as instrument_params %}
-                  {% if instrument_dict.type == "microscope-based" %}
+            <table class="table table-striped table-bordered w-75">
+              <caption>Instrument properties for this measurement</caption>
+              <tbody>
+              <tr>
+                <th scope="row">Name</th>
+                <td>
+                  {{ topography.instrument_name | default:"(undefined)" }}
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Type</th>
+                <td>{{ topography.get_instrument_type_display }}</td>
+              </tr>
+              {# Insert parameters as extra lines #}
+              {% with topography.instrument_parameters as instrument_params %}
+                {% if topography.instrument_type == "microscope-based" %}
                   <tr>
                     <th scope="row">Resolution</th>
                     <td>{{ instrument_params.resolution.value }} {{ instrument_params.resolution.unit }}</td>
                   </tr>
-                  {% elif instrument_dict.type == "contact-based" %}
-                   <tr>
+                {% elif topography.instrument_type == "contact-based" %}
+                  <tr>
                     <th scope="row">Tip radius</th>
                     <td>{{ instrument_params.tip_radius.value }} {{ instrument_params.tip_radius.unit }}</td>
                   </tr>
-                  {% endif %}
-                {% endwith %}
-
-                </tbody>
-              </table>
-            {% else %}
-              <div class="alert alert-info">
-                No instrument data has been associated with this measurement.
-              </div>
-              {% if not topography.surface.is_published %}
-                <div class="alert alert-info">
-                  You can add instrument information by
-                  <a href="{% url 'manager:topography-update' topography.pk %}">
-                    editing this measurement</a>  to assign an existing instrument.
-                  In order to see when instruments exist, you can review
-                  <a href="{% url 'manager:instrument-list' %}">your instrument list</a>.
-                  Here you can also define new instruments that will be selectable for measurements.
-                </div>
-              {% endif %}
-            {% endif %}
+                {% endif %}
+              {% endwith %}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>

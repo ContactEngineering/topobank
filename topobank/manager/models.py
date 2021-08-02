@@ -406,6 +406,16 @@ class Topography(models.Model, SubjectMixin):
         ('curvature', 'Remove curvature and tilt'),
     ]
 
+    INSTRUMENT_TYPE_UNDEFINED = 'undefined'
+    INSTRUMENT_TYPE_MICROSCOPE_BASED = 'microscope-based'
+    INSTRUMENT_TYPE_CONTACT_BASED = 'contact-based'
+
+    INSTRUMENT_TYPE_CHOICES = [
+        (INSTRUMENT_TYPE_UNDEFINED, 'Instrument of unknown type - all data considered as reliable'),
+        (INSTRUMENT_TYPE_MICROSCOPE_BASED, 'Microscope-based instrument with known resolution'),
+        (INSTRUMENT_TYPE_CONTACT_BASED, 'Contact-based instrument with known tip radius'),
+    ]
+
     verbose_name = 'measurement'
     verbose_name_plural = 'measurements'
 
@@ -462,13 +472,9 @@ class Topography(models.Model, SubjectMixin):
     #
     # Fields about instrument and its parameters
     #
-    instrument = models.ForeignKey('Instrument', on_delete=models.SET_NULL, null=True, blank=True)
-    # The reference to the instrument itself can be set to NULL without loosing the
-    # parameters used for it. This reference is only used for convenience in the UI as long
-    # as the topography is not published.
-
-    instrument_json = JSONField(default=dict, blank=True)
-    # representation of the instrument as JSON - needed for publication or individual parameters.
+    instrument_name = models.CharField(max_length=200, blank=True)
+    instrument_type = models.TextField(choices=INSTRUMENT_TYPE_CHOICES, default=INSTRUMENT_TYPE_UNDEFINED)
+    instrument_parameters = JSONField(default=dict, blank=True)
 
     #
     # Other fields
@@ -660,8 +666,6 @@ class Topography(models.Model, SubjectMixin):
             copy.datafile = default_storage.save(self.datafile.name, File(datafile))
 
         copy.tags = self.tags.get_tag_list()
-        copy.instrument_json = copy.instrument_dict()  # should include all meta data of instrument
-        copy.instrument = None  # we don't copy the instrument reference
         copy.save()
 
         return copy
@@ -947,82 +951,4 @@ class Topography(models.Model, SubjectMixin):
         result.update(self.instrument_json)
 
         return result
-
-
-class Instrument(models.Model):
-    """Instrument which measures topographies"""
-
-    TYPE_UNDEFINED = 'undefined'
-    TYPE_MICROSCOPE_BASED = 'microscope-based'
-    TYPE_CONTACT_BASED = 'contact-based'
-
-    INSTRUMENT_TYPE_CHOICES = [
-        (TYPE_UNDEFINED, 'Instrument of unknown type - all data considered as reliable'),
-        (TYPE_MICROSCOPE_BASED, 'Microscope-based instrument with known resolution'),
-        (TYPE_CONTACT_BASED, 'Contact-based instrument with known tip radius'),
-    ]
-
-    name = models.CharField(max_length=80)
-    type = models.TextField(choices=INSTRUMENT_TYPE_CHOICES)
-    creator = models.ForeignKey(User, on_delete=models.CASCADE)
-    description = models.TextField(blank=True)
-    parameters = JSONField()
-
-    def __str__(self):
-        return self.name
-
-    @property
-    def label(self):
-        return f"{self.name} ({self.type})"
-
-    def get_absolute_url(self):
-        return reverse('manager:instrument-detail', kwargs=dict(pk=self.pk))
-
-    def is_shared(self, with_user, allow_change=False):
-        """Returns True, if this instrument is shared with a given user.
-
-        Always returns True if user is the creator.
-
-        :param with_user: User to test
-        :param allow_change: If True, only return True if instrument can be changed by given user
-        :return: True or False
-        """
-        result = with_user.has_perm('view_instrument', self)
-        if result and allow_change:
-            result = with_user.has_perm('change_instrument', self)
-        return result
-
-    def share(self, with_user, allow_change=False):
-        """Share this instrument with a given user.
-
-        :param with_user: user to share with
-        :param allow_change: if True, also allow changing the instrument
-        """
-        assign_perm('view_instrument', with_user, self)
-        if allow_change:
-            assign_perm('change_instrument', with_user, self)
-
-    def unshare(self, with_user):
-        """Remove share on this instrument for given user.
-
-        If the user has no permissions, nothing happens.
-
-        :param with_user: User to remove share from
-        """
-        for perm in ['view_instrument', 'change_instrument']:
-            if with_user.has_perm(perm, self):
-                remove_perm(perm, with_user, self)
-
-    def to_dict(self):
-        """Create dictionary for export of metadata to json or yaml"""
-        return {'name': self.name,
-                'type': self.type,
-                'description': self.description,
-                'parameters': self.parameters}
-
-    class Meta:
-        ordering = ['name']
-        permissions = (
-            ('share_instrument', 'Can share instrument'),
-        )
 

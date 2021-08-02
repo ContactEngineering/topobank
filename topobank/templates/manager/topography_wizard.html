@@ -58,15 +58,13 @@
     {# Load JS code for loading instrument details via AJAX #}
     <script src="{% static 'js/instrument.js' %}"></script>
     <script>
-    let instrument_json_url_template = "{% url 'manager:instrument-json' '999999999' %}";
-    // 999999999 will can replaced by the selected instrument_id
 
     $(document).ready(function () {
       // set values from topography
-      set_reliability_input_labels({});
+      update_instrument_parameters_in_form();
 
-      $('#id_instrument').change(function () {
-        update_instrument_parameters(instrument_json_url_template);  // overwrite parameters from topography
+      $('#id_instrument_type').change(function () {
+        update_instrument_parameters_in_form();
       })
     });
     </script>

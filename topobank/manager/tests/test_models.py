@@ -13,7 +13,7 @@ from notifications.signals import notify
 from notifications.models import Notification
 
 from ..models import Topography, Surface
-from .utils import two_topos, SurfaceFactory, UserFactory, Topography1DFactory, Topography2DFactory, InstrumentFactory
+from .utils import two_topos, SurfaceFactory, UserFactory, Topography1DFactory, Topography2DFactory
 
 
 @pytest.mark.django_db
