@@ -11,6 +11,7 @@ addons:
       - rabbitmq-server
 services:
   - rabbitmq
+  - postgresql
 env:
   global:
     - USE_DOCKER=no
