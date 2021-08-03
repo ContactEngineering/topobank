@@ -56,7 +56,7 @@ def test_selection_from_instances(mocker):
 
 
 @pytest.mark.django_db
-def test_analysis_times(client, two_topos, django_user_model):
+def test_analysis_times(client, two_topos, django_user_model, handle_usage_statistics):
     user = django_user_model.objects.get(username='testuser')
     client.force_login(user)
 

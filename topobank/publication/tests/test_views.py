@@ -19,7 +19,7 @@ def test_go_link(client, example_pub):
 
 
 @pytest.mark.django_db
-def test_go_download_link(client, example_pub):
+def test_go_download_link(client, example_pub, handle_usage_statistics):
     user = UserFactory()
     client.force_login(user)
     response = client.get(reverse('publication:go-download', kwargs=dict(short_url=example_pub.short_url)), follow=True)
