@@ -283,7 +283,7 @@ prompt-toolkit==3.0.19
     #   -r ./base.txt
     #   click-repl
 psycopg2-binary==2.8.6
-    # via -r production.in
+    # via -r ./base.txt
 pycparser==2.20
     # via
     #   -r ./base.txt

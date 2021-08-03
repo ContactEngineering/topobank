@@ -347,7 +347,7 @@ prompt-toolkit==3.0.19
     #   click-repl
     #   ipython
 psycopg2-binary==2.8.6
-    # via -r local.in
+    # via -r ./base.txt
 ptyprocess==0.7.0
     # via pexpect
 py==1.10.0

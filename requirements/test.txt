@@ -309,6 +309,8 @@ prompt-toolkit==3.0.19
     # via
     #   -r base.txt
     #   click-repl
+psycopg2-binary==2.8.6
+    # via -r base.txt
 py==1.10.0
     # via
     #   -r test.in
