@@ -3,6 +3,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 
 from .utils import UserFactory, Topography1DFactory, Topography2DFactory, SurfaceFactory
 from ..forms import SurfaceForm, TopographyForm, SurfacePublishForm, TopographyMetaDataForm
+from ..models import Topography
 
 MALICIOUS_TEXT = "<script>alert('hi')</script>"
 BLEACHED_MALICIOUS_TEXT = "&lt;script&gt;alert('hi')&lt;/script&gt;"
@@ -53,6 +54,7 @@ def test_topography_description_is_safe_on_update():
         'size_editable': False,
         'unit_editable': False,
         'height_scale_editable': False,
+        'instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
     }
     form_kwargs = {
         'has_size_y': topography.size_y is not None,
@@ -152,6 +154,9 @@ def test_topography_tag_is_safe_on_update():
         'size_editable': False,
         'unit_editable': False,
         'height_scale_editable': False,
+        'instrument_name': '',
+        'instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
+        'instrument_parameters': '{}',
     }
     form_kwargs = {
         'has_size_y': topography.size_y is not None,
@@ -248,6 +253,9 @@ def test_topography_name_is_safe_on_update():
         'size_editable': False,
         'unit_editable': False,
         'height_scale_editable': False,
+        'instrument_name': '',
+        'instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
+        'instrument_parameters': '{}',
     }
     form_kwargs = {
         'has_size_y': topography.size_y is not None,

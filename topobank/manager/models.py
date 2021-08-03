@@ -928,27 +928,3 @@ class Topography(models.Model, SubjectMixin):
             self.squeezed_datafile = default_storage.save(squeezed_name, File(open(tmp.name, mode='rb')))
             self.save()
 
-    def instrument_dict(self):
-        """Return data about instrument used for this measurement, as dict.
-
-        The dict has the following structure:
-
-        Either an empty dict or
-
-        {
-            "name: "name of instrument",
-            # "manufacturer": "manufacturer of instrument",
-            "type": "contact-based",  # see Instrument class
-            "description": "This is a ....",
-            "parameters: {
-                # some dict, UI elements must be implemented for that
-            }
-        """
-        result = {}
-
-        if self.instrument:
-            result.update(self.instrument.to_dict())
-        result.update(self.instrument_json)
-
-        return result
-

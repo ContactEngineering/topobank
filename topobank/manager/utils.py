@@ -884,7 +884,7 @@ def get_permission_table_data(instance, request_user, actions=['view', 'change',
             user_display_name = "You"
             auxiliary = "have"
         else:
-            user_display_name = request_user.name
+            user_display_name = user.name
             auxiliary = "has"
 
         # the current user is represented as None, can be displayed in a special way in template ("You")

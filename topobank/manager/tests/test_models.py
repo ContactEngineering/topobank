@@ -1,8 +1,6 @@
 """
 Tests related to the models in topobank.manager app
 """
-import tempfile
-
 import pytest
 import datetime
 from numpy.testing import assert_allclose
@@ -30,9 +28,8 @@ def test_topography_has_periodic_flag(two_topos):
     assert not topos[1].is_periodic
 
 
-@pytest.mark.parametrize("instrument_defined", [True, False])
 @pytest.mark.django_db
-def test_topography_instrument_dict(instrument_defined):
+def test_topography_instrument_dict():
 
     instrument_parameters = {
         'tip_radius': {
@@ -40,46 +37,18 @@ def test_topography_instrument_dict(instrument_defined):
             'unit': 'nm',
         }
     }
-
-    if instrument_defined:
-        instrument_name = 'My Profilometer'
-        instrument_type = 'contact-based'
-        instrument_description = """This is a nice instrument.
-        Enjoy!"""
-
-
-        instrument = InstrumentFactory(name=instrument_name,
-                                       type=instrument_type,
-                                       description=instrument_description,
-                                       parameters={
-                                           'tip_radius': {
-                                               'value': 5,
-                                               'unit': 'nm',
-                                           }
-                                       })
-    else:
-        instrument = None
+    instrument_name = 'My Profilometer'
+    instrument_type = 'contact-based'
 
     topo = Topography2DFactory(
-        instrument=instrument,
-        instrument_json={
-            "parameters": instrument_parameters
-        }
+        instrument_name=instrument_name,
+        instrument_type=instrument_type,
+        instrument_parameters=instrument_parameters,
     )
 
-    instrument_dict = topo.instrument_dict()
-
-    if instrument_defined:
-        assert instrument_dict == {
-            'name': instrument_name,
-            'type': instrument_type,
-            'description': instrument_description,
-            'parameters': instrument_parameters,
-        }
-    else:
-        assert instrument_dict == {
-            "parameters": instrument_parameters
-        }
+    assert topo.instrument_name == instrument_name
+    assert topo.instrument_type == instrument_type
+    assert topo.instrument_parameters == instrument_parameters
 
 
 @pytest.mark.django_db
@@ -296,6 +265,7 @@ def test_surface_share_and_unshare():
     # no problem to call this removal again
     surface.unshare(user2)
 
+
 @pytest.mark.django_db
 def test_other_methods_about_sharing():
 
@@ -430,34 +400,6 @@ def test_squeezed_datafile(handle_usage_statistics, height_scale_factor, detrend
 
     df.close()
     sdf.close()
-
-
-@pytest.mark.django_db
-def test_instrument_to_dict():
-
-    instrument_parameters = {
-        'tip_radius': {
-            'value': 10,
-            'unit': 'nm',
-        }
-    }
-
-    instrument_name = 'My Profilometer'
-    instrument_type = 'contact-based'
-    instrument_description = """This is a nice instrument.
-    Enjoy!"""
-
-    instrument = InstrumentFactory(name=instrument_name,
-                                   type=instrument_type,
-                                   description=instrument_description,
-                                   parameters=instrument_parameters)
-
-    assert instrument.to_dict() == {
-        "name": instrument_name,
-        "type": instrument_type,
-        "description": instrument_description,
-        "parameters": instrument_parameters,
-    }
 
 
 

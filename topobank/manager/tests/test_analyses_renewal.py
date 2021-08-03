@@ -49,6 +49,9 @@ def test_renewal_on_topography_change(client, mocker):
                                    'unit': 'nm',
                                    'height_scale': 1,
                                    'detrend_mode': 'center',
+                                   'instrument_name': '',
+                                   'instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
+                                   'instrument_parameters': '{}',
                                }, follow=True)
 
     assert response.status_code == 200
@@ -160,6 +163,8 @@ def test_renewal_on_topography_creation(client, mocker, handle_usage_statistics)
                                    'units-detrend_mode': 'height',
                                    'units-resolution_x': 2,
                                    'units-resolution_y': 2,
+                                   'units-instrument_type': 'undefined',
+
                                }, follow=True)
 
     assert_no_form_errors(response)

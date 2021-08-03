@@ -67,8 +67,7 @@
               <tr>
                 <th scope="row">Physical size</th>
                 <td>
-                  {{ topography.size_x }} {{ topography.unit }}{% if topography.size_y %} x {{ topography.size_y }}
-                  {{ topography.unit }} {% endif %}
+                  {{ topography.size_x }} {{ topography.unit }}{% if topography.size_y %} x {{ topography.size_y }} {{ topography.unit }} {% endif %}
                   ({% if topography.size_editable %}given by user{% else %}fixed by file contents{% endif %})
                 </td>
               </tr>
@@ -80,8 +79,7 @@
               </tr>
               <tr>
                 <th scope="row">Height conversion factor</th>
-                <td>{{ topography.height_scale }} {{ topography.unit }}
-                  ({% if topography.height_scale_editable %}given by user{% else %}fixed by file contents{% endif %})
+                <td>{{ topography.height_scale }} {{ topography.unit }} ({% if topography.height_scale_editable %}given by user{% else %}fixed by file contents{% endif %})
                 </td>
               </tr>
               <tr>

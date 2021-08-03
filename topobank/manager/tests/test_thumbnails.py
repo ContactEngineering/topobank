@@ -46,6 +46,7 @@ def test_renewal_on_topography_detrend_mode_change(client, mocker):
                                    'unit': 'nm',
                                    'height_scale': 1,
                                    'detrend_mode': 'height',
+                                   'instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
                                }, follow=True)
 
     # we just check here that the form is filled completely, otherwise the thumbnail would not be recreated too
