@@ -78,6 +78,17 @@ def test_topography_to_dict():
     measurement_date = datetime.date(2020, 1, 2)
     is_periodic = True
     tags = ['house', 'tree', 'tree/leaf']
+    instrument = {
+        'name': 'My nice instrument',
+        'type': 'microscope-based',
+        'parameters': {
+            'resolution':
+                {
+                    'value': 10,
+                    'unit': 'µm',
+                }
+        }
+    }
 
     topo = Topography2DFactory(surface=surface,
                                name=name,
@@ -89,7 +100,10 @@ def test_topography_to_dict():
                                unit=unit,
                                is_periodic=is_periodic,
                                measurement_date=measurement_date,
-                               tags=tags)
+                               tags=tags,
+                               instrument_name=instrument['name'],
+                               instrument_type=instrument['type'],
+                               instrument_parameters=instrument['parameters'])
 
     assert topo.to_dict() == {
         'name': name,
@@ -106,7 +120,8 @@ def test_topography_to_dict():
         'creator': dict(name=user.name, orcid=user.orcid_id),
         'measurement_date': measurement_date,
         'is_periodic': is_periodic,
-        'tags': tags
+        'tags': tags,
+        'instrument': instrument,
     }
 
 
