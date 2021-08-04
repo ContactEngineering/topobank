@@ -1,3 +1,4 @@
+import freezegun
 import pytest
 
 from django.shortcuts import reverse
@@ -194,6 +195,7 @@ def test_publishing_form_multiple_authors(user_alice_logged_in, handle_usage_sta
     assert browser.is_text_present("Queen of Hearts")
 
 
+@freezegun.freeze_time('2021-07-12')
 @pytest.mark.django_db
 def test_see_published_by_others(user_alice_logged_in, user_bob, handle_usage_statistics, settings):
     browser, user_alice = user_alice_logged_in
@@ -345,6 +347,7 @@ def test_switch_between_wip_and_version(user_alice_logged_in, handle_usage_stati
     assert browser.is_text_present("Edit meta data")
 
 
+@freezegun.freeze_time('2021-07-12')
 @pytest.mark.django_db
 def test_how_to_cite(user_alice_logged_in, handle_usage_statistics):
     browser, user_alice = user_alice_logged_in
