@@ -657,7 +657,12 @@ class Topography(models.Model, SubjectMixin):
                 'unit': self.unit,
                 'height_scale': self.height_scale,
                 'size': (self.size_x,) if self.size_y is None else (self.size_x, self.size_y),
-                'tags': [t.name for t in self.tags.order_by('name')]}
+                'tags': [t.name for t in self.tags.order_by('name')],
+                'instrument': {
+                    'name': self.instrument_name,
+                    'type': self.instrument_type,
+                    'parameters': self.instrument_parameters,
+                }}
 
     def deepcopy(self, to_surface):
         """Creates a copy of this topography with all data files copied.

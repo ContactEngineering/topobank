@@ -17,6 +17,15 @@ from ..containers import write_surface_container
 @pytest.mark.django_db
 def test_surface_container():
 
+    instrument_name = 'My nice profilometer'
+    instrument_type = 'contact-based'
+    instrument_params = {
+        'tip_radius': {
+            'value': 10,
+            'unit': 'µm',
+        }
+    }
+
     user = UserFactory()
     tag1 = TagModelFactory(name='apple')
     tag2 = TagModelFactory(name='banana')
@@ -29,7 +38,10 @@ def test_surface_container():
     topo2a = Topography2DFactory(surface=surface2,
                                  tags=[tag1, tag2],
                                  description='Nice measurement',
-                                 size_x=10, size_y=5)
+                                 size_x=10, size_y=5,
+                                 instrument_name=instrument_name,
+                                 instrument_type=instrument_type,
+                                 instrument_parameters=instrument_params)
     # surface 3 is empty
 
     # surface 2 is published
@@ -92,6 +104,12 @@ def test_surface_container():
                       'data_source', 'height_scale', 'measurement_date', 'name', 'unit']:
             assert topo_meta[field] == getattr(topo2a, field)
         assert topo_meta['size'] == (topo2a.size_x, topo2a.size_y)
+
+        assert topo_meta['instrument'] == {
+            'name': instrument_name,
+            'type': instrument_type,
+            'parameters': instrument_params,
+        }
 
     os.remove(outfile.name)
 
