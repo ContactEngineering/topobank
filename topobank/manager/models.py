@@ -49,11 +49,15 @@ def user_directory_path(instance, filename):
     return 'topographies/user_{0}/{1}'.format(instance.surface.creator.id, filename)
 
 
-class AlreadyPublishedException(Exception):
+class PublicationException(Exception):
     pass
 
 
-class NewPublicationTooFastException(Exception):
+class AlreadyPublishedException(PublicationException):
+    pass
+
+
+class NewPublicationTooFastException(PublicationException):
     def __init__(self, latest_publication, wait_seconds):
         self._latest_pub = latest_publication
         self._wait_seconds = wait_seconds
@@ -301,6 +305,12 @@ class Surface(models.Model, SubjectMixin):
         # Add read permission for everyone
         assign_perm('view_surface', get_default_group(), self)
 
+        from guardian.shortcuts import get_perms
+        # TODO for unknown reasons, when not in Docker, the published surfaces are still changeable
+        # Here "remove_perm" does not work. We do not allow this. See GH 704.
+        if 'change_surface' in get_perms(self.creator, self):
+            raise PublicationException("Withdrawing permissions for publication did not work!")
+
     def publish(self, license, authors):
         """Publish surface.
 
@@ -337,7 +347,13 @@ class Surface(models.Model, SubjectMixin):
         #
         copy = self.deepcopy()
 
-        copy.set_publication_permissions()
+        try:
+            copy.set_publication_permissions()
+        except PublicationException as exc:
+            # see GH 704
+            _log.error(f"Could not set permission for copied surface to publish .. deleting copy of surface {self.pk}.")
+            copy.delete()
+            raise
 
         #
         # Create publication
