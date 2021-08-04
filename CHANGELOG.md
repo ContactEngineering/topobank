@@ -49,8 +49,8 @@
   analysis results after changing significant
   fields like detrend_mode, was introduced with 
   0.13.0 (#590)
-- BUG: Workaround for NoneType exception happend
-  some times when creating new topographies (#691)
+- BUG: Workaround for NoneType exception happened
+  sometime when creating new topographies (#691)
 - BUG: Fixed missing commas in BibTeX and BibLaTeX
   citations (#686)
 - BUG: Fixed statistics in output when correcting 
