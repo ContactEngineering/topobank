@@ -57,6 +57,34 @@ def test_published_field():
 
 
 @pytest.mark.django_db
+def test_set_publication_permissions():
+    user1 = UserFactory()
+    user2 = UserFactory()
+    surface = SurfaceFactory(creator=user1)
+
+    # before publishing, user1 is allowed everything,
+    # user2 nothing
+    assert set(get_perms(user1, surface)) == set(['view_surface', 'delete_surface', 'change_surface',
+                                                  'share_surface', 'publish_surface'])
+    assert get_perms(user2, surface) == []
+
+    surface.set_publication_permissions()
+
+    # now, both users are only allowed viewing
+    user1_perms = get_perms(user1, surface)
+    user2_perms = get_perms(user2, surface)
+
+    assert user1_perms == ['view_surface']
+    assert user2_perms == ['view_surface']
+
+    assert 'change_surface' not in user1_perms  # no longer allowed to change the surface
+
+    # For some reason, when running topobank with runserver and not in Docker,
+    # the removal of the permissions does not work - not sure why. This happens
+    # somehow while implementing issues for release 0.15
+
+
+@pytest.mark.django_db
 def test_permissions_for_published():
     user1 = UserFactory()
     user2 = UserFactory()
