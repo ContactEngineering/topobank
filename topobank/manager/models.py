@@ -386,9 +386,9 @@ class Topography(models.Model, SubjectMixin):
     """Topography Measurement of a Surface.
     """
 
-    # TODO After upgrade to Django 2.2, use contraints: https://docs.djangoproject.com/en/2.2/ref/models/constraints/
+    # TODO After upgrade to Django 2.2, use constraints: https://docs.djangoproject.com/en/2.2/ref/models/constraints/
     class Meta:
-        ordering = ['name']
+        ordering = ['measurement_date', 'pk']
         unique_together = (('surface', 'name'),)
 
     LENGTH_UNIT_CHOICES = [

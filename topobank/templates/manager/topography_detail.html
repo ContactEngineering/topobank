@@ -143,13 +143,13 @@
             <ul class="nav nav-pills pull-right">
               <li>
                 <div class="btn-group">
-                  <a href="{% url 'manager:topography-detail' topography_next %}"
-                     class="btn btn-default {% if topography_next == topography.id %} disabled {% endif %}"
+                  <a href="{% url 'manager:topography-detail' topography_prev %}"
+                     class="btn btn-default {% if topography_prev == topography.id %} disabled {% endif %}"
                      data-toggle="tooltip" title="previous topography of related surface">
                     {% fontawesome_icon 'chevron-left' %}
                   </a>
-                  <a href="{% url 'manager:topography-detail' topography_prev %}"
-                     class="btn btn-default {% if topography_prev == topography.id %} disabled {% endif %}"
+                  <a href="{% url 'manager:topography-detail' topography_next %}"
+                     class="btn btn-default {% if topography_next == topography.id %} disabled {% endif %}"
                      data-toggle="tooltip" title="next topography of related surface">
                     {% fontawesome_icon 'chevron-right' %}
                   </a>

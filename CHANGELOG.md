@@ -11,6 +11,8 @@
   usage statistics (#693)
 - ENH: Added support for SPM file format 
   as newer DI files that contain 32-bit data (#695)  
+- BUG: Unified order of measurements in surface details
+  and when switching between measurements (#703)
 - MAINT: Upgrade for several dependencies, e.g. 
   SurfaceTopography to version 0.95.1 (#697),
   upgrade of urllib3 because of a CVE
