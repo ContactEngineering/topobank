@@ -46,7 +46,7 @@ boto3 # S3
 django-storages
 
 # Permissions on object level
-django-guardian
+django-guardian>=2.4.0<3
 
 # Celery
 # django-kombu # is this still needed? See https://pypi.org/project/django-kombu/
