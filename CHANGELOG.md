@@ -2,6 +2,12 @@
 
 ## 0.15.0 (not published yet)
 
+- ENH: Added entry for instrument details for
+  measurements (name, instrument type and parameters);
+  specific parameters are saved in JSON field
+  depending on instrument type, default type
+  or all measurements is 'undefined'; this data will
+  be used later for reliability analysis (#620)
 - ENH: Enhanced layout of XLSX files with analysis
   data for analysis functions Height/Slope/Curvature 
   Distribution, Power Spectrum, Autocorrelation, 
@@ -16,6 +22,8 @@
 - MAINT: Upgrade for several dependencies, e.g. 
   SurfaceTopography to version 0.95.1 (#697),
   upgrade of urllib3 because of a CVE
+- MAINT: Using now PostgreSQL also for tests because
+  of JSON fields
 
 ## 0.14.0 (2021-07-01)
 
