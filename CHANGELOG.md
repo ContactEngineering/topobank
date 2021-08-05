@@ -1,5 +1,10 @@
 # Changelog for *TopoBank*
 
+## 0.15.1 (2021-08-05)
+
+- BUG: Removed unneeded form fields for instrument
+  details.
+
 ## 0.15.0 (2021-08-05)
 
 - ENH: Added entry for instrument details for
