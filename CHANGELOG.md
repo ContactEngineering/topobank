@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-## 0.15.0 (not published yet)
+## 0.15.0 (2021-08-05)
 
 - ENH: Added entry for instrument details for
   measurements (name, instrument type and parameters);
