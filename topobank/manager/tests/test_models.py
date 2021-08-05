@@ -1,8 +1,6 @@
 """
 Tests related to the models in topobank.manager app
 """
-import tempfile
-
 import pytest
 import datetime
 from numpy.testing import assert_allclose
@@ -19,8 +17,8 @@ from .utils import two_topos, SurfaceFactory, UserFactory, Topography1DFactory, 
 @pytest.mark.django_db
 def test_topography_name(two_topos):
     topos = Topography.objects.all().order_by('name')
-    assert [ t.name for t in topos ] == ['Example 3 - ZSensor',
-                                         'Example 4 - Default']
+    assert [t.name for t in topos] == ['Example 3 - ZSensor',
+                                       'Example 4 - Default']
 
 
 @pytest.mark.django_db
@@ -28,6 +26,29 @@ def test_topography_has_periodic_flag(two_topos):
     topos = Topography.objects.all().order_by('name')
     assert not topos[0].is_periodic
     assert not topos[1].is_periodic
+
+
+@pytest.mark.django_db
+def test_topography_instrument_dict():
+
+    instrument_parameters = {
+        'tip_radius': {
+            'value': 10,
+            'unit': 'nm',
+        }
+    }
+    instrument_name = 'My Profilometer'
+    instrument_type = 'contact-based'
+
+    topo = Topography2DFactory(
+        instrument_name=instrument_name,
+        instrument_type=instrument_type,
+        instrument_parameters=instrument_parameters,
+    )
+
+    assert topo.instrument_name == instrument_name
+    assert topo.instrument_type == instrument_type
+    assert topo.instrument_parameters == instrument_parameters
 
 
 @pytest.mark.django_db
@@ -57,6 +78,17 @@ def test_topography_to_dict():
     measurement_date = datetime.date(2020, 1, 2)
     is_periodic = True
     tags = ['house', 'tree', 'tree/leaf']
+    instrument = {
+        'name': 'My nice instrument',
+        'type': 'microscope-based',
+        'parameters': {
+            'resolution':
+                {
+                    'value': 10,
+                    'unit': 'µm',
+                }
+        }
+    }
 
     topo = Topography2DFactory(surface=surface,
                                name=name,
@@ -68,7 +100,10 @@ def test_topography_to_dict():
                                unit=unit,
                                is_periodic=is_periodic,
                                measurement_date=measurement_date,
-                               tags=tags)
+                               tags=tags,
+                               instrument_name=instrument['name'],
+                               instrument_type=instrument['type'],
+                               instrument_parameters=instrument['parameters'])
 
     assert topo.to_dict() == {
         'name': name,
@@ -85,7 +120,8 @@ def test_topography_to_dict():
         'creator': dict(name=user.name, orcid=user.orcid_id),
         'measurement_date': measurement_date,
         'is_periodic': is_periodic,
-        'tags': tags
+        'tags': tags,
+        'instrument': instrument,
     }
 
 
@@ -244,6 +280,7 @@ def test_surface_share_and_unshare():
     # no problem to call this removal again
     surface.unshare(user2)
 
+
 @pytest.mark.django_db
 def test_other_methods_about_sharing():
 
@@ -378,8 +415,6 @@ def test_squeezed_datafile(handle_usage_statistics, height_scale_factor, detrend
 
     df.close()
     sdf.close()
-
-
 
 
 

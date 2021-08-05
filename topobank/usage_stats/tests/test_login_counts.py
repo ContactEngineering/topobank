@@ -7,6 +7,7 @@ from trackstats.models import Metric, StatisticByDate
 from topobank.manager.tests.utils import UserFactory
 from topobank.users.signals import track_user_login
 
+
 @pytest.mark.django_db
 def test_login_statistics(client):
 

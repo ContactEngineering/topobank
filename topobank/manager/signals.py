@@ -14,7 +14,7 @@ _log = logging.getLogger(__name__)
 
 
 @receiver(post_save, sender=Surface)
-def grant_permissions_to_owner(sender, instance, created, **kwargs):
+def grant_surface_permissions_to_owner(sender, instance, created, **kwargs):
 
     if created:
         #
@@ -81,7 +81,6 @@ def remove_notifications_for_surface(sender, instance, using, **kwargs):
 @receiver(post_delete, sender=Topography)
 def remove_notifications_for_topography(sender, instance, using, **kwargs):
     _remove_notifications(instance)
-
 
 @receiver(user_logged_in)
 def set_default_select_tab_state(request, user, **kwargs):

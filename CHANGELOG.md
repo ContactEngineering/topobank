@@ -1,5 +1,30 @@
 # Changelog for *TopoBank*
 
+## 0.15.0 (2021-08-05)
+
+- ENH: Added entry for instrument details for
+  measurements (name, instrument type and parameters);
+  specific parameters are saved in JSON field
+  depending on instrument type, default type
+  or all measurements is 'undefined'; this data will
+  be used later for reliability analysis (#620)
+- ENH: Enhanced layout of XLSX files with analysis
+  data for analysis functions Height/Slope/Curvature 
+  Distribution, Power Spectrum, Autocorrelation, 
+  Scale-dependent slope, variable bandwidth (#669)
+- ENH: Added anonymous distribution with number of
+  measurement uploads over users to Excel file with
+  usage statistics (#693)
+- ENH: Added support for SPM file format 
+  as newer DI files that contain 32-bit data (#695)  
+- BUG: Unified order of measurements in surface details
+  and when switching between measurements (#703)
+- MAINT: Upgrade for several dependencies, e.g. 
+  SurfaceTopography to version 0.95.1 (#697),
+  upgrade of urllib3 because of a CVE
+- MAINT: Using now PostgreSQL also for tests because
+  of JSON fields
+
 ## 0.14.0 (2021-07-01)
 
 - ENH: Added upper and lower bound of bandwidth to 
@@ -24,8 +49,8 @@
   analysis results after changing significant
   fields like detrend_mode, was introduced with 
   0.13.0 (#590)
-- BUG: Workaround for NoneType exception happend
-  some times when creating new topographies (#691)
+- BUG: Workaround for NoneType exception happened
+  sometime when creating new topographies (#691)
 - BUG: Fixed missing commas in BibTeX and BibLaTeX
   citations (#686)
 - BUG: Fixed statistics in output when correcting 

@@ -46,7 +46,9 @@ class Command(BaseCommand):
         num_with = 0
         num_without = 0
 
-        for topo in Topography.objects.all():
+        num_total = Topography.objects.count()
+
+        for topo_idx, topo in enumerate(Topography.objects.order_by('name')):
             if not topo.has_squeezed_datafile:
                 num_without += 1
             else:
@@ -56,7 +58,7 @@ class Command(BaseCommand):
                 num_skipped += 1
                 continue
 
-            _log.info(f"Renewing squeezed data file for '{topo.name}', id {topo.id}..")
+            _log.info(f"Renewing squeezed data file for '{topo.name}', id {topo.id}, {topo_idx+1}/{num_total}..")
             if not options['dry_run']:
                 try:
                     if options['background']:

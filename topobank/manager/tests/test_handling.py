@@ -182,6 +182,7 @@ def test_upload_topography_di(client, handle_usage_statistics):
                                'units-detrend_mode': 'height',
                                'units-resolution_x': 256,
                                'units-resolution_y': 256,
+                               'units-instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
                            }, follow=True)
 
     assert response.status_code == 200
@@ -269,6 +270,7 @@ def test_upload_topography_npy(client):
                                'units-detrend_mode': 'height',
                                'units-resolution_x': 2,
                                'units-resolution_y': 2,
+                               'units-instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
                            }, follow=True)
 
     assert response.status_code == 200
@@ -388,6 +390,7 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
                                    'units-height_scale': 1,
                                    'units-detrend_mode': 'height',
                                    'units-resolution_x': exp_resolution_x,
+                                   'units-instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
                                }, follow=True)
     else:
         response = client.post(reverse('manager:topography-create',
@@ -403,6 +406,7 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
                                    'units-detrend_mode': 'height',
                                    'units-resolution_x': exp_resolution_x,
                                    'units-resolution_y': exp_resolution_y,
+                                   'units-instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
                                }, follow=True)
 
     assert response.status_code == 200
@@ -479,7 +483,7 @@ def test_upload_topography_and_name_like_an_existing_for_same_surface(client):
 
 
 @pytest.mark.django_db
-def test_trying_upload_of_topography_file_with_unknown_format(client, django_user_model):
+def test_trying_upload_of_topography_file_with_unknown_format(client, django_user_model, handle_usage_statistics):
     input_file_path = Path(FIXTURE_DIR + "/../../static/js/project.js")  # this is nonsense
 
     username = 'testuser'
@@ -639,6 +643,7 @@ def test_trying_upload_of_corrupted_topography_file(client, django_user_model):
                                'units-detrend_mode': 'height',
                                'units-resolution_x': 256,
                                'units-resolution_y': 256,
+                               'units-instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
                            }, follow=True)
 
     assert response.status_code == 200
@@ -723,6 +728,7 @@ def test_upload_opd_file_check(client, handle_usage_statistics):
                                'units-detrend_mode': 'height',
                                'units-resolution_x': 199,
                                'units-resolution_y': 201,
+                               'units-instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
                            }, follow=True)
 
     assert response.status_code == 200
@@ -835,6 +841,7 @@ def test_edit_topography(client, django_user_model, topo_example3, handle_usage_
                                'height_scale': 0.1,
                                'detrend_mode': 'height',
                                'tags': 'ab, bc',  # needs a string
+                               'instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
                            }, follow=True)
 
     assert_no_form_errors(response)
@@ -915,6 +922,7 @@ def test_edit_line_scan(client, one_line_scan, django_user_model, handle_usage_s
                                'unit': 'nm',
                                'height_scale': 0.1,
                                'detrend_mode': 'height',
+                               'instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
                            })
 
     assert response.context is None, "Errors in form: {}".format(response.context['form'].errors)
@@ -996,6 +1004,9 @@ def test_edit_topography_only_detrend_center_when_periodic(client, django_user_m
                                'units-detrend_mode': 'height',
                                'units-resolution_x': 10,
                                'units-resolution_y': 10,
+                               'units-instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
+                               'units-instrument_name': '',
+                               'units-instrument_parameters': {},
                            })
 
     assert response.status_code == 302
@@ -1027,6 +1038,9 @@ def test_edit_topography_only_detrend_center_when_periodic(client, django_user_m
                                'height_scale': 0.1,
                                'detrend_mode': 'height',
                                'is_periodic': True,  # <--------- this should not be allowed with detrend_mode 'height'
+                               'instrument_type': Topography.INSTRUMENT_TYPE_MICROSCOPE_BASED,
+                               'instrument_parameters': "{'resolution': { 'value': 1, 'unit':'mm'}}",
+                               'instrument_name': 'AFM',
                            }, follow=True)
 
     assert Topography.DETREND_MODE_CHOICES[0][0] == 'center'
@@ -1052,7 +1066,7 @@ def test_topography_detail(client, two_topos, django_user_model, topo_example4, 
     # resolution should be written somewhere
     assert_in_content(response, "305 x 75")
 
-    # .. as well as Detrending mode
+    # .. as well as detrending mode
     assert_in_content(response, "Remove tilt")
 
     # .. description
@@ -1157,6 +1171,9 @@ def test_only_positive_size_values_on_edit(client, handle_usage_statistics):
                                'unit': 'nm',
                                'height_scale': 0.1,
                                'detrend_mode': 'height',
+                               'instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
+                               'instrument_parameters': '{}',
+                               'instrument_name': '',
                            })
 
     assert response.status_code == 200

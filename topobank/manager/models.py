@@ -1,4 +1,8 @@
+"""
+Basic models for the web app for handling topography data.
+"""
 from django.db import models
+from django.contrib.postgres.fields import JSONField
 from django.shortcuts import reverse
 from django.utils import timezone
 from django.conf import settings
@@ -45,11 +49,15 @@ def user_directory_path(instance, filename):
     return 'topographies/user_{0}/{1}'.format(instance.surface.creator.id, filename)
 
 
-class AlreadyPublishedException(Exception):
+class PublicationException(Exception):
     pass
 
 
-class NewPublicationTooFastException(Exception):
+class AlreadyPublishedException(PublicationException):
+    pass
+
+
+class NewPublicationTooFastException(PublicationException):
     def __init__(self, latest_publication, wait_seconds):
         self._latest_pub = latest_publication
         self._wait_seconds = wait_seconds
@@ -255,6 +263,8 @@ class Surface(models.Model, SubjectMixin):
         topographies are copied, therefore all meta data.
         All files will be copied.
 
+        References to instruments will not be copied.
+
         The automated analyses will be triggered for this new surface.
 
         Returns
@@ -295,6 +305,12 @@ class Surface(models.Model, SubjectMixin):
         # Add read permission for everyone
         assign_perm('view_surface', get_default_group(), self)
 
+        from guardian.shortcuts import get_perms
+        # TODO for unknown reasons, when not in Docker, the published surfaces are still changeable
+        # Here "remove_perm" does not work. We do not allow this. See GH 704.
+        if 'change_surface' in get_perms(self.creator, self):
+            raise PublicationException("Withdrawing permissions for publication did not work!")
+
     def publish(self, license, authors):
         """Publish surface.
 
@@ -331,7 +347,13 @@ class Surface(models.Model, SubjectMixin):
         #
         copy = self.deepcopy()
 
-        copy.set_publication_permissions()
+        try:
+            copy.set_publication_permissions()
+        except PublicationException as exc:
+            # see GH 704
+            _log.error(f"Could not set permission for copied surface to publish .. deleting copy of surface {self.pk}.")
+            copy.delete()
+            raise
 
         #
         # Create publication
@@ -380,9 +402,9 @@ class Topography(models.Model, SubjectMixin):
     """Topography Measurement of a Surface.
     """
 
-    # TODO After upgrade to Django 2.2, use contraints: https://docs.djangoproject.com/en/2.2/ref/models/constraints/
+    # TODO After upgrade to Django 2.2, use constraints: https://docs.djangoproject.com/en/2.2/ref/models/constraints/
     class Meta:
-        ordering = ['name']
+        ordering = ['measurement_date', 'pk']
         unique_together = (('surface', 'name'),)
 
     LENGTH_UNIT_CHOICES = [
@@ -398,6 +420,16 @@ class Topography(models.Model, SubjectMixin):
         ('center', 'No detrending, but substract mean height'),
         ('height', 'Remove tilt'),
         ('curvature', 'Remove curvature and tilt'),
+    ]
+
+    INSTRUMENT_TYPE_UNDEFINED = 'undefined'
+    INSTRUMENT_TYPE_MICROSCOPE_BASED = 'microscope-based'
+    INSTRUMENT_TYPE_CONTACT_BASED = 'contact-based'
+
+    INSTRUMENT_TYPE_CHOICES = [
+        (INSTRUMENT_TYPE_UNDEFINED, 'Instrument of unknown type - all data considered as reliable'),
+        (INSTRUMENT_TYPE_MICROSCOPE_BASED, 'Microscope-based instrument with known resolution'),
+        (INSTRUMENT_TYPE_CONTACT_BASED, 'Contact-based instrument with known tip radius'),
     ]
 
     verbose_name = 'measurement'
@@ -454,6 +486,13 @@ class Topography(models.Model, SubjectMixin):
     is_periodic = models.BooleanField(default=False)
 
     #
+    # Fields about instrument and its parameters
+    #
+    instrument_name = models.CharField(max_length=200, blank=True)
+    instrument_type = models.TextField(choices=INSTRUMENT_TYPE_CHOICES, default=INSTRUMENT_TYPE_UNDEFINED)
+    instrument_parameters = JSONField(default=dict, blank=True)
+
+    #
     # Other fields
     #
     thumbnail = models.ImageField(null=True, upload_to=user_directory_path)
@@ -486,9 +525,11 @@ class Topography(models.Model, SubjectMixin):
     def is_shared(self, with_user, allow_change=False):
         """Returns True, if this topography is shared with a given user.
 
-        Always returns True if user is the creator of the surface.
+        Just returns whether the related surface is shared with the user
+        or not.
+
         :param with_user: User to test
-        :param allow_change: If True, only return True if surface can be changed by given user
+        :param allow_change: If True, only return True if topography can be changed by given user
         :return: True or False
         """
         return self.surface.is_shared(with_user, allow_change=allow_change)
@@ -616,7 +657,12 @@ class Topography(models.Model, SubjectMixin):
                 'unit': self.unit,
                 'height_scale': self.height_scale,
                 'size': (self.size_x,) if self.size_y is None else (self.size_x, self.size_y),
-                'tags': [t.name for t in self.tags.order_by('name')]}
+                'tags': [t.name for t in self.tags.order_by('name')],
+                'instrument': {
+                    'name': self.instrument_name,
+                    'type': self.instrument_type,
+                    'parameters': self.instrument_parameters,
+                }}
 
     def deepcopy(self, to_surface):
         """Creates a copy of this topography with all data files copied.
@@ -629,6 +675,7 @@ class Topography(models.Model, SubjectMixin):
         Returns
         -------
         The copied topography.
+        The reference to an instrument is not copied, it is always None.
 
         """
 
@@ -901,3 +948,4 @@ class Topography(models.Model, SubjectMixin):
             squeezed_name = f"{orig_stem}-squeezed.nc"
             self.squeezed_datafile = default_storage.save(squeezed_name, File(open(tmp.name, mode='rb')))
             self.save()
+

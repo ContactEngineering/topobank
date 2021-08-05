@@ -203,7 +203,6 @@ function install_handler_for_aborting_all_ajax_calls_on_page_leave() {
 }
 
 
-
 /*
  * Setup document handlers.
  */

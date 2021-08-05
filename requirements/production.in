@@ -9,11 +9,6 @@ gunicorn[gevent]>=20.1.0  # https://github.com/benoitc/gunicorn
 #
 # Got problems with eventlet, see issue #415
 
-# psycopg2 --no-binary psycopg2  # https://github.com/psycopg/psycopg2
-psycopg2-binary  # https://github.com/psycopg/psycopg2
-
-#psycopg2==2.7.4 --no-binary psycopg2  # https://github.com/psycopg/psycopg2
-
 # Django
 # ------------------------------------------------------------------------------
 # django-storages[boto3]==1.6.6  # https://github.com/jschneier/django-storages

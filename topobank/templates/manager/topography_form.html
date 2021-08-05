@@ -1,7 +1,7 @@
 
 {% extends 'base.html' %}
 {% load fontawesome %}
-
+{% load static %}
 
 {% block content %}
 
@@ -43,7 +43,6 @@
         {% crispy form form.helper %}
       </div>
     </div>
-
   </div>
 
 {% endblock content %}
@@ -52,7 +51,22 @@
 
   {{ block.super }}
 
+  <script src="{% static 'js/instrument.js' %}"></script>
+
+  {# Some JSON code to define JS variables from Django context #}
+  {{ topography.instrument_parameters | json_script:"instrument-parameters" }}
+
   <script>
-    $('[data-toggle="tooltip"]').tooltip();
+    const instrument_parameters = JSON.parse(document.getElementById('instrument-parameters').textContent);
+    $(document).ready(function () {
+      $('[data-toggle="tooltip"]').tooltip();
+
+      // set values from topography
+      update_instrument_parameters_in_form(instrument_parameters);
+
+      $('#id_instrument_type').change(function () {
+        update_instrument_parameters_in_form(instrument_parameters);
+      })
+    })
   </script>
 {% endblock javascript %}

@@ -55,10 +55,10 @@
                        },
                        success: function (data, textStatus, xhr) {
                            if (basket.unselect_handler) {
-                             console.log("keys to unselect: ", basket.keys)
+                             console.log("keys to unselect: ", basket.keys);
                              basket.keys.forEach(function (key) {
                                 basket.unselect_handler(key);
-                             })
+                             });
                            }
                            basket.update(data);
                        },

@@ -3,10 +3,12 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.mail import EmailMessage
 from django.conf import settings
+from django.db.models import Count
 from openpyxl.utils import get_column_letter
 
 from trackstats.models import Metric, StatisticByDate, StatisticByDateAndObject
 from topobank.usage_stats.utils import register_metrics
+from topobank.manager.models import Topography, Surface
 
 import pandas as pd
 import numpy as np
@@ -214,6 +216,23 @@ def make_excel():
         summary_df.sort_index(ascending=False, inplace=True)
 
     #
+    # Compile distribution of measurements over users
+    #
+    measurement_dist_qs = Topography.objects.values('creator').annotate(meas_count=Count('creator')).order_by('-meas_count')
+    measurement_dist_df = pd.DataFrame.from_records(measurement_dist_qs)
+    if not measurement_dist_df.empty:
+        surface_dist_qs = Surface.objects.values('creator').annotate(surf_count=Count('creator')).order_by('-surf_count')
+        surface_dist_df = pd.DataFrame.from_records(surface_dist_qs)
+        measurement_dist_df = measurement_dist_df.merge(surface_dist_df, on='creator', how='left')
+        del measurement_dist_df['creator']
+        measurement_dist_df.sort_values('meas_count', ascending=False)
+        measurement_dist_df.rename(columns={'meas_count': 'number of measurement uploads',
+                                            'surf_count': 'number of surfaces'},
+                                   inplace=True)
+        measurement_dist_df.index.rename('rank', inplace=True)
+        measurement_dist_df.index += 1  # we want the index start with 1
+
+    #
     # Compile results for statistics for objects
     #
     ct_af = ContentType.objects.get(model='analysisfunction')
@@ -235,6 +254,7 @@ def make_excel():
     #
     with pd.ExcelWriter(EXPORT_FILE_NAME) as writer:
         summary_df.to_excel(writer, sheet_name='summary')
+        measurement_dist_df.to_excel(writer, sheet_name='upload distribution over users')
         statistics_by_date_df.to_excel(writer, sheet_name='statistics by date')
         result_views_by_date_function_df.to_excel(writer, sheet_name='analysis views by date+function')
         analysis_cpu_seconds_by_date_function_df.to_excel(writer, sheet_name='cpu seconds by date+function')

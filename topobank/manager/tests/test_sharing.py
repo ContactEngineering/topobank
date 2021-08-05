@@ -5,6 +5,7 @@ from django.shortcuts import reverse
 from bs4 import BeautifulSoup
 from notifications.models import Notification
 
+from ..models import Topography
 from .utils import FIXTURE_DIR, SurfaceFactory, Topography1DFactory, Topography2DFactory, UserFactory
 from topobank.utils import assert_in_content, assert_not_in_content, assert_no_form_errors
 
@@ -515,6 +516,7 @@ def test_notification_when_editing_shared_stuff(client, handle_usage_statistics)
         'unit': topography.unit,
         'height_scale': 0.1,  # we also change a significant value here -> recalculate
         'detrend_mode': 'height',
+        'instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
     }, follow=True)
     assert response.status_code == 200
     assert_no_form_errors(response)
@@ -641,6 +643,7 @@ def test_upload_topography_for_shared_surface(client, handle_usage_statistics):
                                'units-detrend_mode': 'height',
                                'units-resolution_x': 256,
                                'units-resolution_y': 256,
+                               'units-instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
                            }, follow=True)
 
     assert response.status_code == 200

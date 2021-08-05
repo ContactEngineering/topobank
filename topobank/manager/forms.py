@@ -1,10 +1,11 @@
 from django.forms import forms, ModelMultipleChoiceField
 from django import forms
 from django_select2.forms import ModelSelect2MultipleWidget
+from django.contrib.postgres.forms import JSONField as JSONField4Form
 import bleach  # using bleach instead of django.utils.html.escape because it allows more (e.g. for markdown)
 
 from crispy_forms.helper import FormHelper
-from crispy_forms.layout import Submit, Layout, Field, HTML, Div, Fieldset
+from crispy_forms.layout import Submit, Layout, Field, HTML, Div, Fieldset, MultiField, ButtonHolder
 from crispy_forms.bootstrap import FormActions
 
 from tagulous.forms import TagField
@@ -23,12 +24,21 @@ from topobank.users.models import User
 
 _log = logging.getLogger(__name__)
 
+# minimum number of letters to type until a user name is displayed while sharing sth
+SHARING_MIN_LETTERS_FOR_USER_DISPLAY = 3
+
 MEASUREMENT_DATE_INPUT_FORMAT = '%Y-%m-%d'
 MEASUREMENT_DATE_HELP_TEXT = 'Valid format: "YYYY-mm-dd".'
 ASTERISK_HELP_HTML = HTML("<p>Fields marked with an asterisk (*) are mandatory.</p>")
-TAGS_HELP_TEXT = "You can choose existing tags or create new tags on-the-fly. "+\
+TAGS_HELP_TEXT = "You can choose existing tags or create new tags on-the-fly. " + \
                  "Use '/' character to build hierarchies, e.g. 'fruit/apple'."
 DEFAULT_LICENSE = 'ccbysa-4.0'
+
+RELIABILITY_FACTOR_KEYS = {
+    Topography.INSTRUMENT_TYPE_MICROSCOPE_BASED: 'resolution',
+    Topography.INSTRUMENT_TYPE_CONTACT_BASED: 'tip_radius'
+}
+
 
 ################################################################
 # Topography Forms
@@ -56,7 +66,6 @@ class CleanVulnerableFieldsMixin:
 
 
 class TopographyFileUploadForm(forms.ModelForm):
-
     class Meta:
         model = Topography
         fields = ('datafile', 'datafile_format', 'surface')
@@ -116,13 +125,14 @@ class TopographyFileUploadForm(forms.ModelForm):
                 msg += f"Reason: {exc.message} "
 
             msg += " Please try another file or contact us."
-            _log.info(msg+" Exception: "+str(exc))
+            _log.info(msg + " Exception: " + str(exc))
             raise forms.ValidationError(msg, code='invalid_topography_file')
 
         if len(datafile_format) > MAX_LENGTH_DATAFILE_FORMAT:
-            raise forms.ValidationError("Too long name for datafile format: '%(fmt)s'. At maximum %(maxlen)d characters allowed.",
-                                        params=dict(fmt=datafile_format, maxlen=MAX_LENGTH_DATAFILE_FORMAT),
-                                        code='too_long_datafile_format')
+            raise forms.ValidationError(
+                "Too long name for datafile format: '%(fmt)s'. At maximum %(maxlen)d characters allowed.",
+                params=dict(fmt=datafile_format, maxlen=MAX_LENGTH_DATAFILE_FORMAT),
+                code='too_long_datafile_format')
 
         cleaned_data['datafile_format'] = datafile_format
 
@@ -143,7 +153,6 @@ class TopographyFileUploadForm(forms.ModelForm):
             if dim > 2:
                 raise forms.ValidationError(f"Number of dimensions for channel no. {channel_index} > 2.",
                                             code='invalid_topography')
-
 
             numbers = channel_info.nb_grid_pts
 
@@ -192,7 +201,7 @@ class TopographyMetaDataForm(CleanVulnerableFieldsMixin, forms.ModelForm):
                                        help_text=TAGS_HELP_TEXT)
         measurement_date_help_text = MEASUREMENT_DATE_HELP_TEXT
         if self.initial['measurement_date']:
-            measurement_date_help_text += f" The date \"{self.initial['measurement_date']}\" is the latest date "\
+            measurement_date_help_text += f" The date \"{self.initial['measurement_date']}\" is the latest date " \
                                           "we've found over all channels in the data file."
         else:
             measurement_date_help_text += f" No valid measurement date could be read from the file."
@@ -220,7 +229,6 @@ class TopographyMetaDataForm(CleanVulnerableFieldsMixin, forms.ModelForm):
             HTML("""
                 <a href="{{ cancel_action }}" class="btn btn-default" id="cancel-btn">Cancel</a>
                 """),
-            # Submit('cancel', 'Cancel', formnovalidate="formnovalidate"),
         ),
         ASTERISK_HELP_HTML
     )
@@ -255,7 +263,7 @@ def make_is_periodic_field():
 class TopographyUnitsForm(forms.ModelForm):
     """
     This is a base class used to avoid code duplication.
-    The form is not directly used.
+    This form class is not directly used, only as base class.
     """
 
     is_periodic = make_is_periodic_field()
@@ -293,7 +301,7 @@ class TopographyUnitsForm(forms.ModelForm):
                 self.fields['size_y'].disabled = True
 
         if not self.initial['unit_editable']:
-            help_texts['unit'] = "The unit of the physical size and height scale was given in the " +\
+            help_texts['unit'] = "The unit of the physical size and height scale was given in the " + \
                                  "data file and is fixed."
             self.fields['unit'].disabled = True
 
@@ -317,6 +325,19 @@ class TopographyUnitsForm(forms.ModelForm):
         # For certain cases like line scans we need to disable the periodic checkbox
         #
         self.fields['is_periodic'].disabled = not self._allow_periodic
+
+        #
+        # Individual fields for instrument parameters - start values must be set in Javascript
+        #
+
+        self.fields['resolution_value'] = forms.FloatField(required=False)
+        self.fields['resolution_unit'] = forms.ChoiceField(widget=forms.Select,
+                                                           choices=Topography.LENGTH_UNIT_CHOICES,
+                                                           required=False, initial='µm')
+        self.fields['tip_radius_value'] = forms.FloatField(required=False)
+        self.fields['tip_radius_unit'] = forms.ChoiceField(widget=forms.Select,
+                                                           choices=Topography.LENGTH_UNIT_CHOICES,
+                                                           required=False, initial='µm')
 
     def _clean_size_element(self, dim_name):
         """Checks whether given value is larger than zero.
@@ -345,10 +366,118 @@ class TopographyUnitsForm(forms.ModelForm):
         cleaned_data = super().clean()
 
         if cleaned_data['is_periodic'] and (cleaned_data['detrend_mode'] != 'center'):
-            raise forms.ValidationError("When enabling periodicity only detrend mode "+\
-                                        f"'{Topography.DETREND_MODE_CHOICES[0][1]}' is a valid option. "+\
+            raise forms.ValidationError("When enabling periodicity only detrend mode " + \
+                                        f"'{Topography.DETREND_MODE_CHOICES[0][1]}' is a valid option. " + \
                                         "Either choose that option or disable periodicity (see checkbox).")
         return cleaned_data['detrend_mode']
+
+    def _clean_reliability_factor_value(self, reliability_factor_name, reliability_factor_value):
+
+        try:
+            if reliability_factor_value <= 0:
+                raise forms.ValidationError(f"Given value for {reliability_factor_name} must be positive!",
+                                            code="invalid_reliability_factor_value")
+        except (KeyError, TypeError):
+            raise forms.ValidationError(f"Please specify a number for {reliability_factor_name} value.")
+
+        return reliability_factor_value
+
+    def _clean_reliability_factor_unit(self, reliability_factor_name, reliability_factor_unit):
+
+        try:
+            valid_unit_values = [x[0] for x in Topography.LENGTH_UNIT_CHOICES]
+            if not reliability_factor_unit in valid_unit_values:
+                raise forms.ValidationError(f"Given unit for {reliability_factor_name} is invalid!",
+                                            code="invalid_reliability_factor_unit")
+        except (KeyError, TypeError):
+            raise forms.ValidationError(f"Please specify the units for the {reliability_factor_name} value.")
+
+        return reliability_factor_unit
+
+    def clean_resolution_value(self):
+        cleaned_data = self.cleaned_data
+        if cleaned_data['instrument_type'] == Topography.INSTRUMENT_TYPE_MICROSCOPE_BASED:
+            return self._clean_reliability_factor_value('resolution', cleaned_data['resolution_value'])
+        return ''
+
+    def clean_resolution_unit(self):
+        cleaned_data = self.cleaned_data
+        if cleaned_data['instrument_type'] == Topography.INSTRUMENT_TYPE_MICROSCOPE_BASED:
+            return self._clean_reliability_factor_unit('resolution', cleaned_data['resolution_unit'])
+        return ''
+
+    def clean_tip_radius_value(self):
+        cleaned_data = self.cleaned_data
+        if cleaned_data['instrument_type'] == Topography.INSTRUMENT_TYPE_CONTACT_BASED:
+            return self._clean_reliability_factor_value('tip_radius', cleaned_data['tip_radius_value'])
+        return ''
+
+    def clean_tip_radius_unit(self):
+        cleaned_data = self.cleaned_data
+        if cleaned_data['instrument_type'] == Topography.INSTRUMENT_TYPE_CONTACT_BASED:
+            return self._clean_reliability_factor_unit('tip_radius', cleaned_data['tip_radius_unit'])
+        return ''
+
+    def make_instrument_parameters(self):
+        """Build instrument_json from selected instrument and parameters given in form fields."""
+        cleaned_data = super().clean()
+
+        instrument_type = cleaned_data['instrument_type']
+        instrument_parameters = {
+            'microscope-based': {
+                'resolution': {
+                    'value': cleaned_data['resolution_value'],
+                    'unit': cleaned_data['resolution_unit'],
+                }
+            },
+            'contact-based': {
+                'tip_radius': {
+                    'value': cleaned_data['tip_radius_value'],
+                    'unit': cleaned_data['tip_radius_unit'],
+                }
+            },
+            'undefined': {}
+        }
+
+        return instrument_parameters[instrument_type]
+
+    def clean(self):
+        cleaned_data = super().clean()
+
+        # Combine value from parameter fields to a single value
+        cleaned_data['instrument_parameters'] = self.make_instrument_parameters() if self.is_valid() else {}
+
+        return cleaned_data
+
+
+class InstrumentLayout(Layout):
+    """Layout which is used in topography forms to display form elements related to an instrument."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(
+            Fieldset('Instrument',
+                     Field('instrument_name', id='id_instrument_name'),
+                     Field('instrument_type', id='id_instrument_type'),
+                     # "Field" class uses "id" instead of "css_id" which is an anomaly:
+                     #   https://github.com/django-crispy-forms/django-crispy-forms/issues/426
+                     Div(Field('reliability_factor_value',
+                               id='id_reliability_factor_value'),
+                         Field('reliability_factor_unit',
+                               id='id_reliability_factor_unit'),
+                         css_class='instrument-parameters'),
+                     Div(Field('resolution_value',
+                               id='id_resolution_value'),
+                         Field('resolution_unit',
+                               id='id_resolution_unit'),
+                         css_class='instrument-resolution'),
+                     Div(Field('tip_radius_value',
+                               id='id_tip_radius_value'),
+                         Field('tip_radius_unit',
+                               id='id_tip_radius_unit'),
+                         css_class='instrument-tip-radius'),
+                     ),
+            Field('instrument_parameters', type='hidden'),
+            *args, **kwargs)
 
 
 class TopographyWizardUnitsForm(TopographyUnitsForm):
@@ -364,7 +493,8 @@ class TopographyWizardUnitsForm(TopographyUnitsForm):
                   'size_x', 'size_y',
                   'unit', 'is_periodic',
                   'height_scale', 'detrend_mode',
-                  'resolution_x', 'resolution_y')
+                  'resolution_x', 'resolution_y',
+                  'instrument_name', 'instrument_type', 'instrument_parameters')
 
     def __init__(self, *args, **kwargs):
         has_size_y = kwargs.pop('has_size_y')
@@ -374,7 +504,7 @@ class TopographyWizardUnitsForm(TopographyUnitsForm):
         self.helper.form_tag = True
 
         size_fieldset_args = ['Physical Size',
-                               Field('size_x')]
+                              Field('size_x')]
         resolution_fieldset_args = [Field('resolution_x', type="hidden")]
         # resolution is handled here only in order to have the data in wizard's .done() method
 
@@ -390,19 +520,23 @@ class TopographyWizardUnitsForm(TopographyUnitsForm):
         size_fieldset_args.append(Field('unit'))
         size_fieldset_args.append(Field('is_periodic'))
 
+        self.fields['instrument_name'].label = "Name"
+        self.fields['instrument_type'].label = "Type"
+
         self.helper.layout = Layout(
             Div(
                 Fieldset(*size_fieldset_args),
                 Fieldset('Height Conversion',
                          Field('height_scale')),
                 Field('detrend_mode'),
+                InstrumentLayout(),
                 *self.editable_fields,
-                *resolution_fieldset_args
+                *resolution_fieldset_args,
             ),
             FormActions(
                 Submit('save', 'Save new topography'),
                 HTML("""<a href="{{ cancel_action }}" class="btn btn-default" id="cancel-btn">Cancel</a>"""),
-                ),
+            ),
             ASTERISK_HELP_HTML
         )
 
@@ -426,6 +560,9 @@ class TopographyForm(CleanVulnerableFieldsMixin, TopographyUnitsForm):
                   'size_x', 'size_y',
                   'unit', 'is_periodic',
                   'height_scale', 'detrend_mode',
+                  'instrument_name',
+                  'instrument_type',
+                  'instrument_parameters',
                   'surface')
 
     def __init__(self, *args, **kwargs):
@@ -439,7 +576,7 @@ class TopographyForm(CleanVulnerableFieldsMixin, TopographyUnitsForm):
         self.helper.form_tag = True
 
         size_fieldset_args = ['Physical Size',
-                               Field('size_x')]
+                              Field('size_x')]
         if has_size_y:
             size_fieldset_args.append(Field('size_y'))
             if not self.initial['size_editable']:
@@ -449,6 +586,12 @@ class TopographyForm(CleanVulnerableFieldsMixin, TopographyUnitsForm):
 
         size_fieldset_args.append(Field('unit'))
         size_fieldset_args.append(Field('is_periodic'))
+
+        self.fields['instrument_name'].label = "Name"
+        self.fields['instrument_type'].label = "Type"
+
+        self.helper.form_method = 'POST'
+        self.helper.form_show_errors = False  # crispy forms has nicer template code for errors
 
         self.helper.layout = Layout(
             Div(
@@ -462,16 +605,17 @@ class TopographyForm(CleanVulnerableFieldsMixin, TopographyUnitsForm):
                 Fieldset('Height Conversion',
                          Field('height_scale')),
                 Field('detrend_mode'),
+                InstrumentLayout(),
                 *self.editable_fields,
             ),
             FormActions(
-                    Submit('save-stay', 'Save and keep editing'),
-                    Submit('save-finish', 'Save and finish editing'),
-                    HTML("""
+                Submit('save-stay', 'Save and keep editing'),
+                Submit('save-finish', 'Save and finish editing'),
+                HTML("""
                         <a href="{% url 'manager:topography-detail' object.id %}" class="btn btn-default" id="cancel-btn">
                         Finish editing without saving</a>
                     """),
-                ),
+            ),
             ASTERISK_HELP_HTML
         )
         self.fields['tags'] = TagField(
@@ -524,11 +668,11 @@ class SurfaceForm(CleanVulnerableFieldsMixin, forms.ModelForm):
             Field('creator', type='hidden')
         ),
         FormActions(
-                Submit('save', 'Save'),
-                HTML("""
+            Submit('save', 'Save'),
+            HTML("""
                     <a class="btn btn-default" id="cancel-btn" onclick="history.back(-1)">Cancel</a>
                 """),
-            ),
+        ),
         ASTERISK_HELP_HTML
     )
 
@@ -539,62 +683,68 @@ class MultipleUserSelectWidget(ModelSelect2MultipleWidget):
     max_results = 10
 
     def filter_queryset(self, request, term, queryset=None, **dependent_fields):
-
         #
         # Type at least a number of letters before first results are shown
         #
-        if len(term) < SurfaceShareForm.SHARING_MIN_LETTERS_FOR_USER_DISPLAY:
+        if len(term) < SHARING_MIN_LETTERS_FOR_USER_DISPLAY:
             return queryset.none()
 
         #
         # Exclude anonymous user and requesting user
         #
-        return queryset.filter(name__icontains=term)\
-            .exclude(username='AnonymousUser')\
-            .exclude(id=request.user.id)\
+        return queryset.filter(name__icontains=term) \
+            .exclude(username='AnonymousUser') \
+            .exclude(id=request.user.id) \
             .order_by('name')
 
 
-class SurfaceShareForm(forms.Form):
-    """Form for sharing surfaces.
-    """
+class ShareForm(forms.Form):
 
-    # minimum number of letters to type until a user name is displayed
-    SHARING_MIN_LETTERS_FOR_USER_DISPLAY = 3
-
-    def __init__(self, *args, **kwargs):
+    def __init__(self, instance_type_label, allow_change_help_text, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    users = ModelMultipleChoiceField(
-        required=True,
-        queryset=User.objects,
-        widget=MultipleUserSelectWidget(attrs={'data-minimum-input-length': SHARING_MIN_LETTERS_FOR_USER_DISPLAY}),
-        label="Users to share with",
-        help_text="""<b>Type at least {} characters to start a search.</b>
-          Select one or multiple users you want to give access to this surface.
-          """.format(SHARING_MIN_LETTERS_FOR_USER_DISPLAY))
+        self.fields['users'] = ModelMultipleChoiceField(
+            required=True,
+            queryset=User.objects,
+            widget=MultipleUserSelectWidget(attrs={'data-minimum-input-length': SHARING_MIN_LETTERS_FOR_USER_DISPLAY}),
+            label="Users to share with",
+            help_text="""<b>Type at least {} characters to start a search.</b>
+              Select one or multiple users you want to give access to this {}.
+              """.format(SHARING_MIN_LETTERS_FOR_USER_DISPLAY, instance_type_label))
 
-    allow_change = forms.BooleanField(widget=forms.CheckboxInput, required=False,
-                                      help_text="""If selected, users will be able to edit meta data
-                                      and to add/change/remove individual topographies.""")
+        self.fields['allow_change'] = forms.BooleanField(
+            widget=forms.CheckboxInput, required=False,
+            help_text=f"{allow_change_help_text}")  # for some reason, this cannot be given via context
 
-    helper = FormHelper()
-    helper.form_method = 'POST'
+        helper = FormHelper()
+        helper.form_method = 'POST'
 
-    helper.layout = Layout(
-        Div(
-            HTML("Would you like to share the surface <em>{{ surface.name }}</em> with other users?"),
-            Field('users', css_class='col-7'),
-            Field('allow_change'),
-            FormActions(
-                Submit('save', 'Share this surface', css_class='btn-primary'),
-                HTML("""
-                <a href="{% url 'manager:surface-detail' surface.pk %}" class="btn btn-default" id="cancel-btn">Cancel</a>
-                """),
-            ),
-            ASTERISK_HELP_HTML
+        helper.layout = Layout(
+            Div(
+                HTML(
+                    "Would you like to share this {{ instance_type_label }} <em>{{ instance_label }}</em> with other users?"),
+                Field('users', css_class='col-7'),
+                Field('allow_change'),
+                FormActions(
+                    Submit('save', 'Share this {{ instance_type_label }}', css_class='btn-primary'),
+                    HTML("""
+                    <a href="{{ cancel_url }}" class="btn btn-default" id="cancel-btn">Cancel</a>
+                    """),
+                ),
+                ASTERISK_HELP_HTML
+            )
         )
-    )
+
+        self.helper = helper
+
+
+class SurfaceShareForm(ShareForm):
+    """Form for sharing surfaces."""
+
+    def __init__(self, *args, **kwargs):
+        allow_change_help_text = """If selected, users will be able to edit meta data and
+        to add/change/remove individual topographies."""
+        super().__init__('surface', allow_change_help_text, *args, **kwargs)
 
 
 class SurfacePublishForm(forms.Form):
@@ -605,9 +755,9 @@ class SurfacePublishForm(forms.Form):
                                 label="I understand the implications of publishing this surface and I agree.",
                                 help_text="""Please read the implications of publishing listed above and check.""")
     copyright_hold = forms.BooleanField(widget=forms.CheckboxInput, required=True,
-                                label="I hold copyright of this data or have been authorized by the copyright holders.",
-                                help_text="""Please make sure you're not publishing data """
-                                          """from others without their authorization.""")
+                                        label="I hold copyright of this data or have been authorized by the copyright holders.",
+                                        help_text="""Please make sure you're not publishing data """
+                                                  """from others without their authorization.""")
 
     authors = forms.CharField(max_length=MAX_LEN_AUTHORS_FIELD, required=False)  # we be filled in clean() method
     num_author_fields = forms.IntegerField(required=True)
@@ -648,7 +798,7 @@ class SurfacePublishForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         for i in range(num_author_fields):
-            self.fields[f'author_{i}'] = forms.CharField(required=False, label=f"{i+1}. Author")
+            self.fields[f'author_{i}'] = forms.CharField(required=False, label=f"{i + 1}. Author")
 
     def clean(self):
         cleaned_data = super().clean()
@@ -679,6 +829,3 @@ class SurfacePublishForm(forms.Form):
         cleaned_data['authors'] = bleach.clean(authors_string)  # prevent XSS attacks
 
         return cleaned_data
-
-
-

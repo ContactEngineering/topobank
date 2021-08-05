@@ -7,7 +7,7 @@ def render_boolean(value, title, show_false=False):
     """Returns a HMTL snippet which can be inserted as True/False symbol.
     """
     return {
-        'boolean_value' : value,
+        'boolean_value': value,
         'title': title,
         'show_false': show_false
     }

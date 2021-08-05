@@ -2,6 +2,7 @@ pytz  # https://github.com/stub42/pytz
 python-slugify  # https://github.com/un33k/python-slugify
 argon2-cffi  # https://github.com/hynek/argon2_cffi
 whitenoise  # https://github.com/evansd/whitenoise
+psycopg2-binary>=2.8,<2.9  # https://github.com/psycopg/psycopg2
 
 # Django
 # ------------------------------------------------------------------------------
@@ -45,17 +46,17 @@ boto3 # S3
 django-storages
 
 # Permissions on object level
-django-guardian
+django-guardian>=2.4.0<3
 
 # Celery
 # django-kombu # is this still needed? See https://pypi.org/project/django-kombu/
-celery<5.0
+celery>=5.0,<6.0
 # pylibmc is also used for memcached in production
 pylibmc
 # librabbitmq>=2.0
 # problems while compiling librabbitmq
-celery-flower
-tornado>=4.2.0,<6.0.0
+flower==1.0.0
+# tornado>=4.2.0,<6.0.0
 
 # progress bars for celery tasks, served by Django
 celery-progress
@@ -67,7 +68,7 @@ bleach>=3.3.0
 # Contact Mechanics
 #
 muFFT>=0.11.1
-SurfaceTopography>=0.94.0<1.0
+SurfaceTopography>=0.95.1<1.0
 ContactMechanics>=0.90.1<1.0
 
 # plotting
@@ -111,9 +112,8 @@ markdown2>=2.4.0
 # Version 2.3.8 has a security issue (CVE-2020-11888)
 # Version 2.3.9 has a security issue (CVE-2021-26813)
 
-# urllib3>=1.26.5
+urllib3>=1.26.5
 # Upgrade because of CVE-2021-33503
-# Cannot be used yet (2021-06-08), because several packages need lower versions (botocore, django-allauth, selenium)
 
 # for syntax highlighting for docstrings of readers
 pygments>=2.7.4

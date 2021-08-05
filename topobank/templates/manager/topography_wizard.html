@@ -54,5 +54,19 @@
 {% block javascript %}
   {% if wizard.steps.step1 == 1 %}
     {% progress_bar_media %}
+  {% elif wizard.steps.step1 == 3 %}
+    {# Load JS code for loading instrument details via AJAX #}
+    <script src="{% static 'js/instrument.js' %}"></script>
+    <script>
+
+    $(document).ready(function () {
+      // set values from topography
+      update_instrument_parameters_in_form();
+
+      $('#id_instrument_type').change(function () {
+        update_instrument_parameters_in_form();
+      })
+    });
+    </script>
   {% endif %}
 {% endblock %}

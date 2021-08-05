@@ -57,10 +57,38 @@ def test_published_field():
 
 
 @pytest.mark.django_db
-def test_permissions_for_published():
-    surface = SurfaceFactory()
-    user1 = surface.creator
+def test_set_publication_permissions():
+    user1 = UserFactory()
     user2 = UserFactory()
+    surface = SurfaceFactory(creator=user1)
+
+    # before publishing, user1 is allowed everything,
+    # user2 nothing
+    assert set(get_perms(user1, surface)) == set(['view_surface', 'delete_surface', 'change_surface',
+                                                  'share_surface', 'publish_surface'])
+    assert get_perms(user2, surface) == []
+
+    surface.set_publication_permissions()
+
+    # now, both users are only allowed viewing
+    user1_perms = get_perms(user1, surface)
+    user2_perms = get_perms(user2, surface)
+
+    assert user1_perms == ['view_surface']
+    assert user2_perms == ['view_surface']
+
+    assert 'change_surface' not in user1_perms  # no longer allowed to change the surface
+
+    # For some reason, when running topobank with runserver and not in Docker,
+    # the removal of the permissions does not work - not sure why. This happens
+    # somehow while implementing issues for release 0.15
+
+
+@pytest.mark.django_db
+def test_permissions_for_published():
+    user1 = UserFactory()
+    user2 = UserFactory()
+    surface = SurfaceFactory(creator=user1)
 
     # before publishing, user1 is allowed everything,
     # user2 nothing
@@ -92,10 +120,15 @@ def test_surface_deepcopy():
     surface1 = SurfaceFactory(description="test", tags=[tag1])
     topo1a = Topography2DFactory(surface=surface1, name='a',
                                  measurement_date=datea, tags=[tag2],
-                                 description="This is a)")
+                                 description="This is a)",
+                                 instrument_name="Instrument A",
+                                 instrument_type='undefined')
     topo1b = Topography2DFactory(surface=surface1, name='b',
                                  measurement_date=dateb, tags=[tag1, tag2],
-                                 description="This is b)")
+                                 description="This is b)",
+                                 instrument_name="Instrument B",
+                                 instrument_type="microscope-based",
+                                 instrument_parameters="{ 'resolution': { 'value': 10, 'unit':'mm' } }")
 
     surface2 = surface1.deepcopy()
 
@@ -127,6 +160,10 @@ def test_surface_deepcopy():
         assert t1.datafile.open(mode='rb').read() == t2.datafile.open(mode='rb').read()
         assert t1.data_source == t2.data_source
         assert t1.datafile_format == t2.datafile_format
+
+        assert t1.instrument_name == t2.instrument_name
+        assert t1.instrument_type == t2.instrument_type
+        assert t1.instrument_parameters == t2.instrument_parameters
 
 
 @pytest.mark.django_db

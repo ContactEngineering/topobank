@@ -1,6 +1,11 @@
 """
 Views and helper functions for downloading analyses.
 """
+import tempfile
+
+import openpyxl
+from openpyxl.worksheet.hyperlink import Hyperlink
+from openpyxl.styles import PatternFill, Border, Side, Alignment, Protection, Font
 from django.http import HttpResponse, HttpResponseForbidden, HttpResponseBadRequest
 from django.core.files.storage import default_storage
 from django.contrib.contenttypes.models import ContentType
@@ -306,8 +311,15 @@ def download_plot_analyses_to_xlsx(request, analyses):
     # TODO: We need a mechanism for embedding references to papers into output.
 
     # Pack analysis results into a single text file.
-    f = io.BytesIO()
-    excel = pd.ExcelWriter(f)
+    excel_file_buffer = io.BytesIO()
+    excel_writer = pd.ExcelWriter(excel_file_buffer)
+    bold_font = Font(bold=True)
+
+    #
+    # Create sheet with meta data
+    #
+    meta_df = _analyses_meta_data_dataframe(analyses, request)
+    meta_df.to_excel(excel_writer, sheet_name='INFORMATION', index=False, freeze_panes=(1, 0))
 
     # Analyze subject names and store a distinct name
     # which can be used in sheet names if subject names are not unique
@@ -335,14 +347,16 @@ def download_plot_analyses_to_xlsx(request, analyses):
             return 'no error could be computed because the average contains only a single data point'
         return ''
 
-    for i, analysis in enumerate(analyses):
+    index_entries = []  # tuples with (subject name, subject type, function name, data series, hyperlink to sheet)
+
+    for analysis_idx, analysis in enumerate(analyses):
         result = pickle.loads(analysis.result)
         column1 = '{} ({})'.format(result['xlabel'], result['xunit'])
         column2 = '{} ({})'.format(result['ylabel'], result['yunit'])
         column3 = 'standard error of {} ({})'.format(result['ylabel'], result['yunit'])
         column4 = 'comment'
 
-        for series in result['series']:
+        for series_idx, series in enumerate(result['series']):
             df_columns_dict = {column1: series['x'], column2: series['y']}
             try:
                 std_err_y_mask = series['std_err_y'].mask
@@ -357,21 +371,105 @@ def download_plot_analyses_to_xlsx(request, analyses):
                 pass
             df = pd.DataFrame(df_columns_dict)
 
-            sheet_name = '{} - {}'.format(subject_names_in_sheet_names[i],
-                                          series['name']).replace('/', ' div ')
-            df.to_excel(excel, sheet_name=mangle_sheet_name(sheet_name))
-    df = _analyses_meta_data_dataframe(analyses, request)
-    df.to_excel(excel, sheet_name='INFORMATION', index=False)
-    excel.close()
+            #
+            # Save data for index entry
+            #
+            sheet_name = f"analysis-{analysis_idx}-series-{series_idx}"
 
-    # Prepare response object.
-    response = HttpResponse(f.getvalue(),
-                            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            subject_type = analysis.subject.get_content_type().name  # human-readable name
+            if subject_type == 'topography':
+                subject_type = 'measurement'  # this is how topographies are denoted in the UI
+            index_entries.append((analysis.subject.name, subject_type,
+                                  analysis.function.name, series['name'], sheet_name))
+
+            #
+            # Write data sheet to excel file
+            #
+            df.to_excel(excel_writer, sheet_name=sheet_name, freeze_panes=(6, 1), startcol=0, startrow=5)
+            sheet = excel_writer.sheets[sheet_name]
+            sheet["A1"] = "Analysis"
+            sheet["A1"].font = bold_font
+            sheet["B1"] = analysis.function.name
+            sheet["A2"] = "Subject"
+            sheet["A2"].font = bold_font
+            sheet["B2"] = analysis.subject.name
+            sheet["A3"] = "Subject Type"
+            sheet["A3"].font = bold_font
+            sheet["B3"] = subject_type
+            sheet["A4"] = "Data Series"
+            sheet["A4"].font = bold_font
+            sheet["B4"] = series['name']
+            sheet.column_dimensions['A'].width = 20
+            sheet.column_dimensions['B'].width = 20
+            sheet.column_dimensions['C'].width = 20
+            sheet.column_dimensions['D'].width = 25
+
+            # Link "Back to Index"
+            sheet["D1"].hyperlink = Hyperlink(ref=f"D1",
+                                              location="'INDEX'!A1",
+                                              tooltip=f"Click to jump back to INDEX")
+            sheet["D1"].value = "Click to jump back to INDEX"
+            sheet["D1"].style = "Hyperlink"
+
+
+
+    excel_writer.close()
+
     filename = '{}.xlsx'.format(analysis.function.name).replace(' ', '_')
+    #
+    # Create INDEX sheet with links in Openpyxl
+    #
+    wb = openpyxl.load_workbook(excel_file_buffer)
+    excel_file_buffer.close()
+
+    index_ws = wb.create_sheet("INDEX", 0)
+
+    index_headers = ["Subject Name", "Subject Type", "Function Name", "Data Series", "Link"]
+    for col_idx, col_header in enumerate(index_headers):
+        header_cell = index_ws.cell(row=1, column=col_idx+1)
+        header_cell.value = col_header
+        header_cell.font = bold_font
+
+    def create_index_entry(row, index_entry):
+        """Create a row on the index sheet."""
+        subject_name, subject_type, function_name, data_series, sheet_name = index_entry
+        index_ws.cell(row=row, column=1).value = subject_name
+        index_ws.cell(row=row, column=2).value = subject_type
+        index_ws.cell(row=row, column=3).value = function_name
+        index_ws.cell(row=row, column=4).value = data_series
+        hyperlink_cell = index_ws.cell(row=row, column=5)
+        hyperlink_label = f"Click to jump to sheet '{sheet_name}'"
+        hyperlink_location = f"'{sheet_name}'!B2"  # don't use # here before sheet name, does not work
+
+        # Hyperlink class: target keyword seems to be used for external links
+        # hyperlink_cell.value = f'=HYPERLINK("{hyperlink_location}", "{hyperlink_label}")'
+        # didn't manage to get it working with HYPERLINK function
+        hyperlink_cell.value = hyperlink_label
+        hyperlink_cell.hyperlink = Hyperlink(ref=f"E{row}",
+                                             location=hyperlink_location,
+                                             tooltip=f"Click to jump to sheet '{sheet_name}' with data")
+        hyperlink_cell.style = "Hyperlink"
+
+    for entry_idx, index_entry in enumerate(index_entries):
+        create_index_entry(entry_idx+2, index_entry)
+    # create_index_entry(len(index_entries) + 2, ("META DATA", '', '', '', 'META DATA'))
+
+    # increase column width on index page
+    for col, colwidth in [("A", 30), ("B", 15), ("C", 25), ("D", 30), ("E", 45)]:
+        index_ws.column_dimensions[col].width = colwidth
+
+    #
+    # Save to named temporary file and prepare response
+    #
+    with tempfile.NamedTemporaryFile() as tmp:
+        wb.save(tmp.name)
+        tmp.seek(0)
+
+        response = HttpResponse(tmp.read(),
+                                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
     response['Content-Disposition'] = 'attachment; filename="{}"'.format(filename)
 
-    # Close file and return response.
-    f.close()
     return response
 
 

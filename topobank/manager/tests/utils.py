@@ -59,6 +59,9 @@ class Topography1DFactory(factory.django.DjangoModelFactory):
     unit_editable = False
     height_scale_editable = False
     unit = 'nm'
+    instrument_name = ""
+    instrument_type = Topography.INSTRUMENT_TYPE_UNDEFINED
+    instrument_parameters = {}
 
 
 class Topography2DFactory(Topography1DFactory):

@@ -4,4 +4,4 @@ set -o errexit
 set -o nounset
 
 rm -f './celerybeat.pid'
-celery -A topobank.taskapp beat -l INFO --workdir /app
+celery -A topobank.taskapp  --workdir /app beat -l INFO

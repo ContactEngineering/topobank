@@ -4,10 +4,10 @@ from django.shortcuts import reverse
 
 import pytest
 import pandas as pd
-import datetime
 
 from topobank.manager.tests.utils import UserFactory, Topography2DFactory, SurfaceFactory
 from ...taskapp.tasks import save_landing_page_statistics
+
 
 @pytest.mark.django_db
 def test_export_with_empty_statistics():

@@ -1,15 +1,11 @@
 import datetime
-import json
 import logging
 import os.path
 import traceback
-import zipfile
 from io import BytesIO
 
 import django_tables2 as tables
 import numpy as np
-import yaml
-import textwrap
 
 from bokeh.embed import components
 from bokeh.models import DataRange1d, LinearColorMapper, ColorBar, LabelSet, FuncTickFormatter, TapTool, OpenURL
@@ -38,9 +34,10 @@ from guardian.decorators import permission_required_or_403
 from guardian.shortcuts import get_users_with_perms, get_objects_for_user, get_anonymous_user
 from notifications.signals import notify
 from rest_framework.decorators import api_view
-from rest_framework.generics import ListAPIView
+from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
+from rest_framework.renderers import JSONRenderer
 from rest_framework.utils.urls import remove_query_param, replace_query_param
 from trackstats.models import Metric, Period
 
@@ -51,7 +48,8 @@ from .models import Topography, Surface, TagModel, \
 from .serializers import SurfaceSerializer, TagSerializer
 from .utils import selected_instances, bandwidths_data, get_topography_reader, tags_for_user, get_reader_infos, \
     mailto_link_for_reporting_an_error, current_selection_as_basket_items, filtered_surfaces, \
-    filtered_topographies, get_search_term, get_category, get_sharing_status, get_tree_mode
+    filtered_topographies, get_search_term, get_category, get_sharing_status, get_tree_mode, \
+    get_permission_table_data
 from ..usage_stats.utils import increase_statistics_by_date, increase_statistics_by_date_and_object
 from ..users.models import User
 from ..users.utils import get_default_group
@@ -410,6 +408,10 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
         # Remove helper data
         #
         del d['channel_infos']
+        del d['resolution_value']
+        del d['resolution_unit']
+        del d['tip_radius_value']
+        del d['tip_radius_unit']
 
         #
         # create topography in database
@@ -521,7 +523,9 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
         # If a significant field changed, renew all analyses
         #
         significant_fields = {'size_x', 'size_y', 'unit', 'is_periodic', 'height_scale',
-                              'detrend_mode', 'datafile', 'data_source'}
+                              'detrend_mode', 'datafile', 'data_source',
+                              'instrument_type',
+                              'instrument_parameters'}
         significant_fields_with_changes = set(form.changed_data).intersection(significant_fields)
         if len(significant_fields_with_changes) > 0:
             _log.info(f"During edit of topography {topo.id} significant fields changed: " +
@@ -591,6 +595,7 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
                 'tooltip': f"Editing topography '{topo.name}'"
             }
         ]
+
         return context
 
 
@@ -922,46 +927,7 @@ class SurfaceDetailView(DetailView):
         #
         ACTIONS = ['view', 'change', 'delete', 'share']  # defines the order of permissions in table
 
-        # surface_perms = get_users_with_perms(self.object, attach_perms=True, only_with_perms_in=potential_perms)
-        surface_perms = get_users_with_perms(surface, attach_perms=True)
-        # is now a dict of the form
-        #  <User: joe>: ['view_surface'], <User: dan>: ['view_surface', 'change_surface']}
-        surface_users = sorted(surface_perms.keys(), key=lambda u: u.name if u else '')
-
-        # convert to list of boolean based on list ACTIONS
-        #
-        # Each table element here is a 2-tuple: (cell content, cell title)
-        #
-        # The cell content is inserted into the cell.
-        # The cell title is shown in a tooltip and can be used in tests.
-        #
-        surface_perms_table = []
-        for user in surface_users:
-
-            is_request_user = user == self.request.user
-
-            if is_request_user:
-                user_display_name = "You"
-                auxiliary = "have"
-            else:
-                user_display_name = user.name
-                auxiliary = "has"
-
-            # the current user is represented as None, can be displayed in a special way in template ("You")
-            row = [(user_display_name, user.get_absolute_url())]  # cell title is used for passing a link here
-            for a in ACTIONS:
-
-                perm = a + '_surface'
-                has_perm = perm in surface_perms[user]
-
-                cell_title = "{} {}".format(user_display_name, auxiliary)
-                if not has_perm:
-                    cell_title += "n't"
-                cell_title += " the permission to {} this surface".format(a)
-
-                row.append((has_perm, cell_title))
-
-            surface_perms_table.append(row)
+        surface_perms_table = get_permission_table_data(surface, self.request.user, ACTIONS)
 
         context['permission_table'] = {
             'head': [''] + ACTIONS,
@@ -1144,7 +1110,7 @@ class SurfaceDeleteView(DeleteView):
 class SurfaceShareView(FormMixin, DetailView):
     model = Surface
     context_object_name = 'surface'
-    template_name = "manager/surface_share.html"
+    template_name = "manager/share.html"
     form_class = SurfaceShareForm
 
     @surface_share_permission_required
@@ -1216,6 +1182,9 @@ class SurfaceShareView(FormMixin, DetailView):
             }
         ]
         context['surface'] = surface
+        context['instance_label'] = surface.label
+        context['instance_type_label'] = "surface"
+        context['cancel_url'] = reverse('manager:surface-detail', kwargs=dict(pk=surface.pk))
 
         return context
 
@@ -1954,5 +1923,3 @@ def thumbnail(request, pk):
             response.write(img_file.read())
 
     return response
-
-
