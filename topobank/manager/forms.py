@@ -460,11 +460,6 @@ class InstrumentLayout(Layout):
                      Field('instrument_type', id='id_instrument_type'),
                      # "Field" class uses "id" instead of "css_id" which is an anomaly:
                      #   https://github.com/django-crispy-forms/django-crispy-forms/issues/426
-                     Div(Field('reliability_factor_value',
-                               id='id_reliability_factor_value'),
-                         Field('reliability_factor_unit',
-                               id='id_reliability_factor_unit'),
-                         css_class='instrument-parameters'),
                      Div(Field('resolution_value',
                                id='id_resolution_value'),
                          Field('resolution_unit',
