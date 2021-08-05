@@ -998,7 +998,14 @@ Update configuration/database
 
 If building the containers was successful, aks yourself these questions:
 
-- Is a migration of the database needed? If yes, do
+- Is a migration of the database needed? If yes,
+  first create a backup of the database:
+
+  .. code:: bash
+
+    docker-compose -f production.yml run --rm -e DBBACKUP_SCHEDULE=none dbbackup
+
+  Then migrate:
 
   .. code:: bash
 
