@@ -1335,7 +1335,14 @@ def topography_analysis_function_for_tests(topography, a=1, b="foo"):
             'yunit': 'm',
             'xlabel': 'x',
             'ylabel': 'y',
-            'series': [],
+            'series': [
+                dict(
+                    name='Fibonacci series',
+                    x=np.array((1, 2, 3, 4, 5, 6, 7, 8)),
+                    y=np.array((0, 1, 1, 2, 3, 5, 8, 13)),
+                    std_err_y=np.zeros(8),
+                )
+            ],
             'comment': f"a is {a} and b is {b}"}
 
 

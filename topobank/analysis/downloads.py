@@ -276,10 +276,14 @@ def download_plot_analyses_to_txt(request, analyses):
 
         for series in result['series']:
             series_data = [series['x'], series['y']]
-            try:
-                series_data.append(series['std_err_y'].filled(np.nan))
-            except KeyError:
-                pass
+            if std_err_y_in_series:
+                try:
+                    std_err_y = series['std_err_y']
+                    if hasattr(std_err_y, 'filled'):
+                        std_err_y = std_err_y.filled(np.nan)
+                    series_data.append(std_err_y)
+                except KeyError:
+                    pass
             np.savetxt(f, np.transpose(series_data),
                        header='{}\n{}\n{}'.format(series['name'], '-' * len(series['name']), header))
             f.write('\n')

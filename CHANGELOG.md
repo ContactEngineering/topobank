@@ -1,5 +1,10 @@
 # Changelog for *TopoBank*
 
+## 0.16.0 (not published yet)
+
+- BUG: Fixed issue while downloading analysis results
+  with stderr for y without masked values (#711)
+
 ## 0.15.1 (2021-08-05)
 
 - BUG: Removed unneeded form fields for instrument
