@@ -333,9 +333,11 @@ def test_warnings_for_different_arguments(client, handle_usage_statistics):
     assert response.status_code == 200
 
     assert_in_content(response,
-                      "Arguments for this analysis function differ among chosen subjects of type 'topography'")
+                      "Arguments for this analysis function differ among chosen "
+                      "subjects of type 'manager | topography'")
     assert_in_content(response,
-                      "Arguments for this analysis function differ among chosen subjects of type 'surface'")
+                      "Arguments for this analysis function differ among chosen "
+                      "subjects of type 'manager | surface'")
 
     # arguments should be visible in output
     #

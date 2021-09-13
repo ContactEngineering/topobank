@@ -1,7 +1,7 @@
 {# Needs some keys in context. See AJAX view "PlotCardView" #}
 {% extends 'analysis/simple_card_detail.html' %}
 {% load analysis_tags %}
-{% load fontawesome %}
+{% load fontawesome_5 %}
 
 {% block card_header %}
   <div class="card-title">
@@ -83,14 +83,14 @@
             {% if analyses_success %}
               <a class="btn btn-default btn-block btn-lg"
                  href="{% url 'analysis:download' analyses_success|analyses_results_ids_list_str 'plot' 'txt' %}">
-                {% fontawesome_icon 'download' %} Download as TXT</a>
+                {% fa5_icon 'download' %} Download as TXT</a>
               <a class="btn btn-default btn-block btn-lg"
                  href="{% url 'analysis:download' analyses_success|analyses_results_ids_list_str 'plot' 'xlsx' %}">
-                {% fontawesome_icon 'download' %} Download as XLSX</a>
+                {% fa5_icon 'download' %} Download as XLSX</a>
             {% endif %}
             {% if not analyses_unready %}
               <a class="btn btn-default btn-block btn-lg" href="#" data-toggle="modal"
-                 data-target="#statusesModal-{{ card_id }}">{% fontawesome_icon 'tasks' %} Task information</a>
+                 data-target="#statusesModal-{{ card_id }}">{% fa5_icon 'tasks' %} Task information</a>
             {% endif %}
           {% endif %}
         </div>

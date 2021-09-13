@@ -22,7 +22,7 @@ def test_tab_navigation_tag(rf):
         'extra_tabs': [
             {
                 'title': 'Analyze',
-                'icon': 'area-chart',
+                'icon': 'chart-area',
             }
         ]
     }
@@ -32,7 +32,7 @@ def test_tab_navigation_tag(rf):
     assert tag_context['tabs'] == [
         {
             'title': 'Analyze',
-            'icon': 'area-chart',
+            'icon': 'chart-area',
             'active': True,
             'href': '/somepage',
             'login_required': True

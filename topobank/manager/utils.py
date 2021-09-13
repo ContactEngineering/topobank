@@ -1,9 +1,12 @@
 from django.shortcuts import reverse
 from guardian.shortcuts import get_objects_for_user, get_users_with_perms
 from django.conf import settings
-from django.db.models import Q
+from django.db.models import Q, Value
+from django.db.models.functions import Replace
 from django.core.exceptions import PermissionDenied
 from django.contrib.contenttypes.models import ContentType
+from django.contrib.postgres.search import SearchVector, SearchQuery
+
 import markdown2
 from os.path import devnull
 import traceback
@@ -109,8 +112,40 @@ def surfaces_for_user(user, perms=['view_surface']):
     return get_objects_for_user(user, perms, klass=Surface, accept_global_perms=False)
 
 
-def filtered_surfaces(request):
+def filter_queryset_by_search_term(qs, search_term, search_fields):
+    """Filter queryset for a given search term.
+
+    Parameters
+    ----------
+    qs : QuerySet
+        QuerySet which should be additionally filtered by a search term.
+    search_term: str
+        Search term entered by the user. Can be an expression.
+        See https://docs.djangoproject.com/en/3.2/ref/contrib/postgres/search/
+        for details.
+    search_fields: list of str
+        ORM expressions which refer to search fields, e.g. "description"
+        or "topography__description" for the description field of a child object
+
+    Returns
+    -------
+    Filtered query set.
     """
+    return qs.annotate(
+        search=SearchVector(*search_fields, config='english')
+    ).filter(
+        search=SearchQuery(search_term, config="english", search_type='websearch')
+        # search__icontains=search_term  # alternative, which finds substrings but does not allow for expressions
+    ).distinct('id').order_by('id')
+
+
+def filtered_surfaces(request):
+    """Return queryset with surfaces matching all filter criteria.
+
+    Surfaces should be
+    - readable by the current user
+    - filtered by category and sharing status
+    - filtered by search expression, if given
 
     Parameters
     ----------
@@ -147,14 +182,27 @@ def filtered_surfaces(request):
     search_term = get_search_term(request)
     if search_term:
         #
-        # find all topographies which should be at top level
+        # search specific fields of all surfaces in a 'websearch' manner:
+        # combine phrases by "AND", allow expressions and quotes
         #
-        qs = qs.filter(Q(name__icontains=search_term) |
-                       Q(description__icontains=search_term) |
-                       Q(tags__name__icontains=search_term) |
-                       Q(topography__name__icontains=search_term) |
-                       Q(topography__description__icontains=search_term) |
-                       Q(topography__tags__name__icontains=search_term)).distinct()
+        # See https://docs.djangoproject.com/en/3.2/ref/contrib/postgres/search/#full-text-search
+        # for details.
+        #
+        # We introduce an extra field for search in tag names where the tag names
+        # are changed so that the tokenizer splits the names into multiple words
+        qs = qs.annotate(
+            tag_names_for_search=Replace(
+                Replace('tags__name', Value('.'), Value(' ')),   # replace . with space
+                Value('/'), Value(' ')),                         # replace / with space
+            topography_tag_names_for_search=Replace(             # same for the topographies
+                Replace('topography__tags__name', Value('.'), Value(' ')),
+                Value('/'), Value(' ')),
+            topography_name_for_search=Replace('topography__name', Value('.'), Value(' '))  # often there are filenames
+        ).distinct('id').order_by('id')
+        qs = filter_queryset_by_search_term(qs, search_term, [
+            'description', 'name', 'tag_names_for_search',
+            'topography_name_for_search', 'topography__description', 'topography_tag_names_for_search',
+        ])
     return qs
 
 
@@ -176,11 +224,18 @@ def filtered_topographies(request, surfaces):
     topographies = Topography.objects.filter(surface__in=surfaces)
     search_term = get_search_term(request)
     if search_term:
-        topographies = topographies.filter(
-            Q(name__icontains=search_term) |
-            Q(description__icontains=search_term) |
-            Q(tags__name__icontains=search_term))
-    return topographies.distinct()
+        # We introduce an extra field for search in tag names where the tag names
+        # are changed so that the tokenizer splits the names into multiple words
+        topographies = topographies.annotate(
+            tag_names_for_search=Replace(
+                Replace('tags__name', Value('.'), Value(' ')),  # replace . with space
+                Value('/'), Value(' ')),                        # replace / with space
+            name_for_search=Replace('name', Value('.'), Value(' '))
+        ).distinct('id').order_by('id')
+        topographies = filter_queryset_by_search_term(topographies, search_term, [
+            'description', 'name_for_search', 'tag_names_for_search',
+        ])
+    return topographies
 
 
 def tags_for_user(user, surfaces=None, topographies=None):

@@ -2,7 +2,6 @@
 Basic models for the web app for handling topography data.
 """
 from django.db import models
-from django.contrib.postgres.fields import JSONField
 from django.shortcuts import reverse
 from django.utils import timezone
 from django.conf import settings
@@ -490,7 +489,7 @@ class Topography(models.Model, SubjectMixin):
     #
     instrument_name = models.CharField(max_length=200, blank=True)
     instrument_type = models.TextField(choices=INSTRUMENT_TYPE_CHOICES, default=INSTRUMENT_TYPE_UNDEFINED)
-    instrument_parameters = JSONField(default=dict, blank=True)
+    instrument_parameters = models.JSONField(default=dict, blank=True)
 
     #
     # Other fields

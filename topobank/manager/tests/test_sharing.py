@@ -103,14 +103,14 @@ def test_list_surface_permissions(client, handle_usage_statistics):
     assert_in_content(response, "You have the permission to view this surface")
 
     # related to user 2
-    assert_in_content(response, "Bob Marley hasn&#39;t the permission to share this surface")
-    assert_in_content(response, "Bob Marley hasn&#39;t the permission to delete this surface")
-    assert_in_content(response, "Bob Marley hasn&#39;t the permission to change this surface")
+    assert_in_content(response, "Bob Marley hasn&#x27;t the permission to share this surface")
+    assert_in_content(response, "Bob Marley hasn&#x27;t the permission to delete this surface")
+    assert_in_content(response, "Bob Marley hasn&#x27;t the permission to change this surface")
     assert_in_content(response, "Bob Marley has the permission to view this surface")
 
     # related to user 3
-    assert_in_content(response, "Alice Cooper hasn&#39;t the permission to share this surface")
-    assert_in_content(response, "Alice Cooper hasn&#39;t the permission to delete this surface")
+    assert_in_content(response, "Alice Cooper hasn&#x27;t the permission to share this surface")
+    assert_in_content(response, "Alice Cooper hasn&#x27;t the permission to delete this surface")
     assert_in_content(response, "Alice Cooper has the permission to change this surface")
     assert_in_content(response, "Alice Cooper has the permission to view this surface")
 

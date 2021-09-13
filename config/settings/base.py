@@ -63,6 +63,7 @@ DJANGO_APPS = [
     'django.contrib.staticfiles',
     # 'django.contrib.humanize', # Handy template tags
     'django.contrib.admin',
+    'django.contrib.postgres',  # needed for 'search' lookup
 ]
 THIRD_PARTY_APPS = [
     'crispy_forms',
@@ -71,7 +72,7 @@ THIRD_PARTY_APPS = [
     'allauth.socialaccount',
     'allauth.socialaccount.providers.orcid',
     'rest_framework',
-    'fontawesome',
+    'fontawesome_5',
     'formtools',
     'bokeh',
     'termsandconditions',
@@ -106,6 +107,12 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 MIGRATION_MODULES = {
     'sites': 'topobank.contrib.sites.migrations'
 }
+
+# AUTO-CREATED PRIMARY KEYS
+# ------------------------------------------------------------------------------
+# New in Django 3.2.
+# See: https://docs.djangoproject.com/en/3.2/releases/3.2/#customizing-type-of-auto-created-primary-keys
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 
 # AUTHENTICATION
 # ------------------------------------------------------------------------------

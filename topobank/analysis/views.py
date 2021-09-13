@@ -1423,7 +1423,8 @@ def extra_tabs_if_single_item_selected(topographies, surfaces):
         tabs.extend([
             {
                 'title': f"{topo.surface.label}",
-                'icon': "diamond",
+                'icon': "gem",
+                'icon_style_prefix': 'far',
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
                 'active': False,
                 'login_required': False,
@@ -1431,7 +1432,8 @@ def extra_tabs_if_single_item_selected(topographies, surfaces):
             },
             {
                 'title': f"{topo.name}",
-                'icon': "file-o",
+                'icon': "file",
+                'icon_style_prefix': 'far',
                 'href': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
                 'active': False,
                 'login_required': False,
@@ -1444,7 +1446,8 @@ def extra_tabs_if_single_item_selected(topographies, surfaces):
         tabs.append(
             {
                 'title': f"{surface.label}",
-                'icon': "diamond",
+                'icon': 'gem',
+                'icon_style_prefix': 'far',
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
                 'active': False,
                 'login_required': False,
@@ -1477,7 +1480,7 @@ class AnalysisFunctionDetailView(DetailView):
         tabs.extend([
             {
                 'title': f"Analyze",
-                'icon': "area-chart",
+                'icon': "chart-area",
                 'href': reverse('analysis:list'),
                 'active': False,
                 'login_required': False,
@@ -1485,7 +1488,7 @@ class AnalysisFunctionDetailView(DetailView):
             },
             {
                 'title': f"{function.name}",
-                'icon': "area-chart",
+                'icon': "chart-area",
                 'href': self.request.path,
                 'active': True,
                 'login_required': False,
@@ -1604,7 +1607,8 @@ class AnalysesListView(FormView):
         tabs.append(
             {
                 'title': f"Analyze",
-                'icon': "area-chart",
+                'icon': "chart-area",
+                'icon-style-prefix': 'fas',
                 'href': self.request.path,
                 'active': True,
                 'login_required': False,

@@ -95,6 +95,7 @@ def test_surface_serializer(rf):
         'sharing_status': 'own',
         'tags': ['bike', 'train/tgv'],
         'title': surface1.name,
+        'topography_count': 2,
         'type': 'surface',
         'version': '',
         'urls': {'add_topography': surface1_prefix + 'new-topography/',

@@ -1,13 +1,13 @@
 {# Needs some keys in context. See AJAX view "RmsTableCardView" #}
 {% load analysis_tags %}
-{% load fontawesome %}
+{% load fontawesome_5 %}
 
 <div class="card search-result-card">
     <div class="card-header">
       {% if analyses_available %}
-      <div class="btn-group btn-group-sm pull-right dropdown">
-        <a href="{% url 'analysis:function-detail' function.pk %}" class="btn btn-default pull-right open-btn">
-                  {% fontawesome_icon 'folder-open-o' %} Open
+      <div class="btn-group btn-group-sm float-right dropdown">
+        <a href="{% url 'analysis:function-detail' function.pk %}" class="btn btn-default float-right open-btn">
+                  {% fa5_icon 'folder-open' 'far' %} Open
         </a>
         <button type="button" class="btn btn-default" data-toggle="dropdown"
                 aria-haspopup="true" aria-expanded="false">

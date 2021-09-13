@@ -8,6 +8,8 @@ amqp==5.0.6
     # via kombu
 argon2-cffi==20.1.0
     # via -r base.in
+asgiref==3.4.1
+    # via django
 billiard==3.6.4.0
     # via celery
 bleach==3.3.0
@@ -60,13 +62,14 @@ defusedxml==0.7.1
     # via
     #   python3-openid
     #   surfacetopography
-django==2.2.24
+django==3.2.7
     # via
     #   -r base.in
     #   django-allauth
     #   django-appconf
     #   django-bootstrap-datepicker-plus
     #   django-filter
+    #   django-fontawesome-5
     #   django-formtools
     #   django-fullurl
     #   django-guardian
@@ -92,7 +95,7 @@ django-environ==0.4.5
     # via -r base.in
 django-filter==2.4.0
     # via -r base.in
-django-fontawesome==1.0
+django-fontawesome-5==1.0.18
     # via -r base.in
 django-formtools==2.3
     # via -r base.in
@@ -106,7 +109,7 @@ django-model-utils==4.1.1
     #   django-notifications-hq
 django-notifications-hq==1.6.0
     # via -r base.in
-git+http://github.com/IMTEK-Simulation/django-progressbarupload.git
+git+http://github.com/ContactEngineering/django-progressbarupload.git
     # via -r base.in
 django-select2==7.7.1
     # via -r base.in
@@ -114,7 +117,7 @@ django-storages==1.11.1
     # via -r base.in
 django-tables2==2.4.0
     # via -r base.in
-django-tagulous==1.1.0
+django-tagulous==1.2.1
     # via -r base.in
 git+http://git@github.com/mcrot/django-termsandconditions.git@optional_terms
     # via -r base.in
@@ -203,7 +206,7 @@ pandas==1.3.0
     # via
     #   -r base.in
     #   xarray
-pillow==8.3.1
+pillow==8.3.2
     # via
     #   -r base.in
     #   bokeh
@@ -252,7 +255,6 @@ pyyaml==5.4.1
     # via
     #   -r base.in
     #   bokeh
-    #   django-fontawesome
     #   surfacetopography
 requests==2.25.1
     # via
@@ -278,7 +280,7 @@ six==1.16.0
     #   python-dateutil
 sqlparse==0.4.1
     # via django
-surfacetopography==0.95.1
+surfacetopography==0.95.2
     # via
     #   -r base.in
     #   contactmechanics

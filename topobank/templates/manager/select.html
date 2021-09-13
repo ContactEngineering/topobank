@@ -1,6 +1,6 @@
 
 {% extends 'base.html' %}
-{% load fontawesome %}
+{% load fontawesome_5 %}
 {% load surface_tags %}
 {% load guardian_tags %}
 {% load static i18n %}
@@ -34,7 +34,7 @@
               <button class="btn btn-warning form-control" type="button"
                       id="clear-search-term-btn"
                       @click="clear_search_term">
-                Clear filter for <em>[[ search_term ]]</em>
+                Clear filter for <b>[[ search_term ]]</b>
               </button>
             </div>
             <div v-else class="form-group col-md-4">
@@ -69,10 +69,10 @@
               <label v-for="choice in
                      [ { label: 'Surface list',
                          value: 'surface list',
-                         icon: 'fa-diamond'},
+                         icon_class: 'far fa-gem'},
                        { label:'Tag tree',
                          value: 'tag tree',
-                         icon: 'fa-tag'}]"
+                         icon_class: 'fas fa-tag'}]"
                      class="btn"
                      v-bind:class="{active: tree_mode==choice.value,
                                     'btn-success': tree_mode==choice.value,
@@ -80,7 +80,7 @@
                 <input type="radio" class="btn-group-toggle" autocomplete="off"
                        name="tree_mode"
                        v-bind:value="choice.value" v-model="tree_mode"  @change="reload">
-                <span><i class="fa" v-bind:class="choice.icon"></i> [[ choice.label ]]</span>
+                <span><i v-bind:class="choice.icon_class"></i> [[ choice.label ]]</span>
               </label>
             </div>
             {% if request.user.is_anonymous %}
@@ -124,7 +124,8 @@
         <div id="scrollParent">
           <table id="surface-tree" class="table table-condensed">
             <colgroup>
-              <col width="40%"></col>
+              <col width="37%"></col>
+              <col width="3%"></col>
               <col width="8%"></col>
               <col width="40%"></col>
               <col width="12%"></col>
@@ -132,6 +133,7 @@
             <thead>
             <tr>
               <th scope="col">Name</th>
+              <th scope="col" title="Number of measurements" class="text-right">#</th>
               <th scope="col">Version</th>
               <th scope="col">Description</th>
               <th scope="col">Actions</th>
@@ -219,6 +221,11 @@
         basket.unselect_handler = function unselect_nodes(key) {
               search_results_vm.set_selected_by_key(key, false);
         };
+
+        // If a search term was given, put it into the search field, so it can be modified
+        if (initial_select_tab_state['search_term'].length > 0) {
+          $('#global-search-input').val(initial_select_tab_state['search_term']);
+        }
       });
 
       // we don't want error messages if the page is left before everything is loaded

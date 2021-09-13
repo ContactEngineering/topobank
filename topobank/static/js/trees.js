@@ -49,7 +49,7 @@ let search_results_vm = new Vue({
                 .fancytree({
                   extensions: ["glyph", "table"],
                   glyph: {
-                      preset: "awesome4",
+                      preset: "awesome5",
                       map: {
                         // Override distinct default icons here
                         folder: "fa-folder",
@@ -57,9 +57,9 @@ let search_results_vm = new Vue({
                       }
                   },
                   types: {
-                    "surface": {icon: "fa fa-diamond fa-fw", iconTooltip: "This is a surface"},
-                    "topography": {icon: "fa fa-file-o fa-fw", iconTooltip: "This is a measurement"},
-                    "tag": {icon: "fa fa-tag fa-fw", iconTooltip: "This is a tag"},
+                    "surface": {icon: "far fa-gem", iconTooltip: "This is a surface"},
+                    "topography": {icon: "far fa-file", iconTooltip: "This is a measurement"},
+                    "tag": {icon: "fas fa-tag", iconTooltip: "This is a tag"},
                   },
                   icon: function(event, data) {
                     // data.typeInfo contains tree.types[node.type] (or {} if not found)
@@ -180,6 +180,12 @@ let search_results_vm = new Vue({
                           $tdList.eq(0).find('.fancytree-title').after(tag_html);
                       }
 
+                      // Set column with number of measurements
+                      if (node.data.topography_count !== undefined) {
+                          let topo_count_html='<div class="text-right">'+node.data.topography_count+'</div>';
+                          $tdList.eq(1).html(topo_count_html);
+                      }
+
                       // Set column with version
                       if (node.data.version !== undefined) {
                           let version_html = node.data.version;
@@ -189,7 +195,7 @@ let search_results_vm = new Vue({
 
                           version_html = "<div class='version-column'>" + version_html + "</div>"
                           $tdList
-                              .eq(1)
+                              .eq(2)
                               .html(version_html);
 
                           // Also add badge for "published" to first column
@@ -227,7 +233,7 @@ let search_results_vm = new Vue({
 
                           description_html += "</div>";
                           $tdList
-                              .eq(2)
+                              .eq(3)
                               .html(description_html);
 
                           $('#'+btn_id).on("click", function() {
@@ -249,7 +255,7 @@ let search_results_vm = new Vue({
                             </div>
                           `;
                           $tdList
-                              .eq(3)
+                              .eq(4)
                               .html(actions_html);
                       }
 

@@ -1,7 +1,7 @@
 {% load fullurl %}
 {# Need 'publication_url' in context #}
 {% load citation_tags %}
-{% load fontawesome %}
+{% load fontawesome_5 %}
 
 <h2>How to cite this surface?</h2>
 
@@ -29,7 +29,7 @@ a format name in order to expand. If you need another format, please
               aria-label="Copy to clipboard"
               data-clipboard-target="#citation-{{ flavor }}-format"
               title="Copy to clipboard">
-        {% fontawesome_icon 'clipboard' %} Copy
+        {% fa5_icon 'clipboard' %} Copy
       </button>
       <div id="citation-{{ flavor }}-format" class="card-body">
         {% if use_code %}<pre><code>{% endif %}{% citation surface.publication flavor request %}{% if use_code %}</code></pre>{% endif %}

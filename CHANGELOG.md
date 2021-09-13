@@ -2,8 +2,17 @@
 
 ## 0.16.0 (not published yet)
 
+- ENH: Enhanced search by supporting "weblike" search 
+  expressions; now the search term is interpreted as
+  phrases combined by 'AND'; also 'OR' and expressions
+  with parentheses can be used now; change: only 
+  topographies matching the search expression are 
+  displayed underneath surfaces from now on (#701)
 - BUG: Fixed issue while downloading analysis results
   with stderr for y without masked values (#711)
+- MAINT: Upgrade to Django 3.2
+- MAINT: Upgrade to fontawesome 5
+- 
 
 ## 0.15.1 (2021-08-05)
 

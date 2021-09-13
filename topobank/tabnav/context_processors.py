@@ -5,6 +5,7 @@ SELECT_URL = reverse('manager:select')
 SHARING_INFO_URL = reverse('manager:sharing-info')
 PUBLICATIONS_URL = reverse('manager:publications')
 
+
 def fixed_tabs_processor(request):
     """Adds fixed tabs.
 
@@ -21,9 +22,10 @@ def fixed_tabs_processor(request):
     {
         'login_required': True,  # boolean, if True, tab is only shown to logged-in users
         'title': 'Tab title shown on the tab',
-        'icon': 'edit'  # a fontawesome icon name,
-        'href': ''  # A URL pointing to the view for the tab
-        'active': False  #  a boolean; True means the tab is active
+        'icon': 'edit',  # a fontawesome icon name,
+        'icon_style_prefix': 'fas',  # class used as prefix for icons, default: 'fas' (=solid)
+        'href': '',  # A URL pointing to the view for the tab
+        'active': False,  #  a boolean; True means the tab is active
     }
     """
 
@@ -58,13 +60,19 @@ def fixed_tabs_processor(request):
         {
             'login_required': False,
             'title': 'Find & select',
-            'icon': 'check-square-o',
+            'icon': 'check-square',
+            'icon_style_prefix': 'far',
             'href': SELECT_URL,
             'active': request.path == SELECT_URL,
             'tooltip': "Select surfaces and topographies for analysis or create new surfaces",
             'show_basket': True,
         },
     ]
+
+    # Add default value for icon_style_prefix if missing
+    for tab in tabs:
+        tab.setdefault('icon_style_prefix', 'fas')
+
     return dict(fixed_tabs=tabs)
 
 
