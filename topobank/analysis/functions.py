@@ -15,6 +15,8 @@ from scipy.interpolate import interp1d
 import scipy.stats
 
 from SurfaceTopography import Topography, PlasticTopography
+from SurfaceTopography.Container.common import bandwidth, suggest_length_unit
+from SurfaceTopography.Container.ScaleDependentStatistics import scale_dependent_statistical_property
 from ContactMechanics import PeriodicFFTElasticHalfSpace, FreeFFTElasticHalfSpace, make_system
 
 import topobank.manager.models  # will be used to evaluate model classes
@@ -49,6 +51,11 @@ def register_implementation(card_view_flavor="simple", name=None):
     return register_decorator
 
 
+def _topography_iter(container):
+    for t in container:
+        yield t.topography()
+
+
 def _reasonable_bins_argument(topography):
     """Returns a reasonable 'bins' argument for np.histogram for given topography's heights.
 
@@ -60,6 +67,13 @@ def _reasonable_bins_argument(topography):
     else:
         return int(np.sqrt(np.prod(len(topography.positions()))) + 1.0)  # TODO discuss whether auto or this
         # return 'auto'
+
+
+def _logspace_full_decades(minval, maxval, points_per_decade=5):
+    log_minval = int(np.floor(np.log10(minval)))
+    log_maxval = int(np.ceil(np.log10(maxval)))
+    s = np.logspace(log_minval, log_maxval, points_per_decade*(log_maxval-log_minval)+1)
+    return s[np.logical_and(s >= minval, s <= maxval)]
 
 
 class IncompatibleTopographyException(Exception):
@@ -374,6 +388,7 @@ def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None
 def power_spectrum(topography, window=None, tip_radius=None, progress_recorder=None, storage_prefix=None):
     """Calculate Power Spectrum for given topography."""
     # Get low level topography from SurfaceTopography model
+    top = topography
     topography = topography.topography()
 
     if window == 'None':
@@ -418,11 +433,9 @@ def power_spectrum(topography, window=None, tip_radius=None, progress_recorder=N
         #
         # Add two more series with power spectra
         #
-        sx, sy = topography.physical_sizes
-        transposed_topography = Topography(topography.heights().T, (sy, sx))
+        transposed_topography = topography.transpose()
         q_1D_T, C_1D_T = transposed_topography.power_spectrum_from_profile(window=window)
-        q_2D, C_2D = topography.power_spectrum_from_area(window=window,
-                                                         nbins=len(q_1D) - 1)
+        q_2D, C_2D = topography.power_spectrum_from_area(window=window)
         # Remove NaNs and Infs
         q_1D_T = q_1D_T[np.isfinite(C_1D_T)]
         C_1D_T = C_1D_T[np.isfinite(C_1D_T)]
@@ -794,6 +807,81 @@ def scale_dependent_slope_for_surface(surface, num_points=100,
     ))
 
     return result
+
+
+@register_implementation(name="Scale-dependent Curvature", card_view_flavor='plot')
+def scale_dependent_curvature(topography, progress_recorder=None, storage_prefix=None):
+    t = topography.topography()
+    lower, upper = t.bandwidth()
+    # Factor of two for curvature
+    distances = _logspace_full_decades(2 * lower, upper)
+
+    if t.dim == 2:
+        fac = 3
+    else:
+        fac = 1
+
+    curvatures_sq = t.scale_dependent_statistical_property(
+        lambda x, y=None: np.var(x), n=1, distance=distances,
+        progress_callback=lambda i, n: progress_recorder.set_progress(i + 1, fac * n))
+    series = [dict(name='Curvature in x-direction',
+                   x=distances,
+                   y=np.sqrt(curvatures_sq),
+                   )]
+
+    if t.dim == 2:
+        curvatures_sq = t.transpose().scale_dependent_statistical_property(
+            lambda x, y=None: np.var(x), n=1, distance=distances,
+            progress_callback=lambda i, n: progress_recorder.set_progress(n + i + 1, 3 * n))
+        series += [dict(name='Curvature in y-direction',
+                        x=distances,
+                        y=np.sqrt(curvatures_sq),
+                        )]
+
+        curvatures_sq = t.transpose().scale_dependent_statistical_property(
+            lambda x, y: np.var((x + y) / 2), n=1, distance=distances,
+            progress_callback=lambda i, n: progress_recorder.set_progress(2 * n + i + 1, 3 * n))
+        series += [dict(name='1/2 Laplacian',
+                        x=distances,
+                        y=np.sqrt(curvatures_sq),
+                        )]
+
+    unit = t.unit
+    return dict(
+        name='Scale-dependent curvature',
+        xlabel='Distance',
+        ylabel='Curvature',
+        xunit=unit,
+        yunit='{}⁻¹'.format(unit),
+        xscale='log',
+        yscale='log',
+        series=series)
+
+
+@register_implementation(name="Scale-dependent Curvature", card_view_flavor='plot')
+def scale_dependent_curvature_for_surface(surface, progress_recorder=None, storage_prefix=None):
+    topographies = surface.topography_set.all()
+    unit = suggest_length_unit(topographies)
+    lower, upper = bandwidth(_topography_iter(topographies), unit=unit)
+    # Factor of two for curvature
+    distances = _logspace_full_decades(2 * lower, upper)
+    curvatures_sq = scale_dependent_statistical_property(
+        _topography_iter(topographies), lambda x, y=None: np.var(x), n=1, distance=distances, unit=unit,
+        progress_callback=lambda i, n: progress_recorder.set_progress(i+1, n))
+    series = [dict(name='Curvature in x-direction',
+                   x=distances,
+                   y=np.sqrt(curvatures_sq),
+                   )]
+
+    return dict(
+        name='Scale-dependent curvature',
+        xlabel='Distance',
+        ylabel='Curvature',
+        xunit=unit,
+        yunit='{}⁻¹'.format(unit),
+        xscale='log',
+        yscale='log',
+        series=series)
 
 
 @register_implementation(name="Variable Bandwidth", card_view_flavor='plot')

@@ -573,6 +573,16 @@ class Topography(models.Model, SubjectMixin):
         #
         topo = cache.get(cache_key) if allow_cache else None
         if topo is None:
+            # Build dictionary with instrument information from database... this may override data provided by the
+            # topography reader
+            info = {
+                'instrument': {
+                    'name': self.instrument_name,
+                    'type': self.instrument_type,
+                    'parameters': self.instrument_parameters,
+                }
+            }
+
             if allow_squeezed:
                 try:
                     # If we are allowed to use a squeezed version, create one if not already happened
@@ -586,7 +596,7 @@ class Topography(models.Model, SubjectMixin):
                         # Okay, we can use the squeezed datafile, it's already there.
                         #
                         toporeader = get_topography_reader(self.squeezed_datafile, format=SQUEEZED_DATAFILE_FORMAT)
-                        topo = toporeader.topography()
+                        topo = toporeader.topography(info=info)
                         # In the squeezed format, these things are already applied/included:
                         #  info dict with unit, scaling, detrending, physical sizes
                         # so don't need to provide them to the .topography() method
@@ -599,7 +609,8 @@ class Topography(models.Model, SubjectMixin):
             if topo is None:
                 toporeader = get_topography_reader(self.datafile, format=self.datafile_format)
                 topography_kwargs = dict(channel_index=self.data_source,
-                                         periodic=self.is_periodic)
+                                         periodic=self.is_periodic,
+                                         info=info)
 
                 # Set size if physical size was not given in datafile
                 # (see also  TopographyCreateWizard.get_form_initial)
