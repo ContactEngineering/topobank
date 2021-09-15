@@ -130,7 +130,10 @@ class Command(BaseCommand):
             unit=topo_dict['unit'],
             tags=topo_dict['tags'],
             detrend_mode=topo_dict['detrend_mode'],
-            is_periodic=topo_dict['is_periodic']
+            is_periodic=topo_dict['is_periodic'],
+            instrument_name=topo_dict['instrument']['name'],
+            instrument_type=topo_dict['instrument']['type'],
+            instrument_parameters=topo_dict['instrument']['parameters'],
         )
 
         # saving topo file in backend
