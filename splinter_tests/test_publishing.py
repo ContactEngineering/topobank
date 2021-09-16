@@ -195,7 +195,7 @@ def test_publishing_form_multiple_authors(user_alice_logged_in, handle_usage_sta
     assert browser.is_text_present("Queen of Hearts")
 
 
-@freezegun.freeze_time('2021-07-12')
+@freezegun.freeze_time('2021-07-12', tick=True)  # tick needed for selenium tests if text not present
 @pytest.mark.django_db
 def test_see_published_by_others(user_alice_logged_in, user_bob, handle_usage_statistics, settings):
     browser, user_alice = user_alice_logged_in
