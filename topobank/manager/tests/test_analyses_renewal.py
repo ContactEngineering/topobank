@@ -6,7 +6,6 @@ import pytest
 from pathlib import Path
 from django.shortcuts import reverse
 from django.contrib.contenttypes.models import ContentType
-from django_capture_on_commit_callbacks import capture_on_commit_callbacks
 
 from .utils import FIXTURE_DIR, Topography1DFactory, SurfaceFactory, UserFactory
 from topobank.analysis.tests.utils import SurfaceAnalysisFactory, AnalysisFunctionFactory, \
