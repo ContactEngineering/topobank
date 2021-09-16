@@ -103,9 +103,9 @@ openpyxl
 pint
 
 # terms and conditions
-# django-termsandconditions>=1.2.13<2.0
+django-termsandconditions>=2.0.8
 # install from own optional_terms branch
-git+http://git@github.com/mcrot/django-termsandconditions.git@optional_terms
+# git+http://git@github.com/mcrot/django-termsandconditions.git@optional_terms
 # TODO fork this into account of IMTEK/Simulation organisation if still needed (maybe we don't need optional terms)
 
 # markdown conversion for terms & conditions and for docstrings in readers

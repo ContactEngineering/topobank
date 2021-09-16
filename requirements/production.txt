@@ -145,7 +145,7 @@ django-tables2==2.4.0
     # via -r ./base.txt
 django-tagulous==1.2.1
     # via -r ./base.txt
-git+http://git@github.com/mcrot/django-termsandconditions.git@optional_terms
+django-termsandconditions==2.0.8
     # via -r ./base.txt
 django-trackstats==0.5.0
     # via -r ./base.txt
@@ -157,10 +157,6 @@ et-xmlfile==1.1.0
     #   openpyxl
 flower==1.0.0
     # via -r ./base.txt
-future==0.18.2
-    # via
-    #   -r ./base.txt
-    #   django-termsandconditions
 gevent==21.1.2
     # via
     #   -r production.in
