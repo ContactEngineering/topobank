@@ -1,4 +1,6 @@
-dist: bionic
+# Ubuntu 20.04
+dist: focal
+
 #services:
 #  - xvfb
 language: python
