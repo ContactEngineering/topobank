@@ -198,12 +198,13 @@ def _moments_histogram_gaussian(arr, bins, topography, wfac, quantity, label, un
     try:
         hist, bin_edges = np.histogram(arr, bins=bins, density=True,
                                        range=_reasonable_histogram_range(arr))
-    except ValueError as exc:
+    except (ValueError, RuntimeError) as exc:
         # Workaround for GH #683 in order to recognize reentrant measurements.
         # Replace with catching of specific exception when
         # https://github.com/ContactEngineering/SurfaceTopography/issues/108 is implemented.
-        if (len(exc.args) > 0) and (exc.args[0] == 'supplied range of [0.0, inf] is not finite'):
-            raise ReentrantTopographyException(f"Cannot compute {quantity} statistics for reentrant surfaces.")
+        if (len(exc.args) > 0) and \
+           ((exc.args[0] == 'supplied range of [0.0, inf] is not finite') or ('is reentrant' in exc.args[0])):
+            raise ReentrantTopographyException("Cannot calculate curvature distribution for reentrant measurements.")
         raise
 
     scalars = {
@@ -331,11 +332,12 @@ def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None
         hist, bin_edges = np.histogram(hist_arr, bins=bins,
                                        range=_reasonable_histogram_range(hist_arr),
                                        density=True)
-    except ValueError as exc:
+    except (ValueError, RuntimeError) as exc:
         # Workaround for GH #683 in order to recognize reentrant measurements.
         # Replace with catching of specific exception when
         # https://github.com/ContactEngineering/SurfaceTopography/issues/108 is implemented.
-        if (len(exc.args) > 0) and (exc.args[0] == 'supplied range of [-inf, inf] is not finite'):
+        if (len(exc.args) > 0) and \
+           ((exc.args[0] == 'supplied range of [-inf, inf] is not finite') or ('is reentrant' in exc.args[0])):
             raise ReentrantTopographyException("Cannot calculate curvature distribution for reentrant measurements.")
         raise
 
@@ -384,13 +386,11 @@ def power_spectrum(topography, window=None, tip_radius=None, progress_recorder=N
     except RuntimeError as exc:
         # Workaround: Raise a special exception in case it is probably
         # because of an reentrant measurement, see GH #683
-        if (len(exc.args) > 0) and (exc.args[0] == 'Positions not sorted.'):  # use exact arguments here
+        if (len(exc.args) > 0) \
+           and (exc.args[0] == 'Positions not sorted.' or ("is reentrant" in exc.args[0])):
             raise ReentrantTopographyException("Cannot compute PSD for reentrant surfaces.")
-        # Better: Catch specific exception
-        # when https://github.com/ContactEngineering/SurfaceTopography/issues/108 is implemented
-
+        # Maybe it would be better if SurfaceTopography threw an exception with more explicit class
         raise
-
 
     # Remove NaNs and Infs
     q_1D = q_1D[np.isfinite(C_1D)]
