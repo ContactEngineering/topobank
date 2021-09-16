@@ -5,6 +5,7 @@ language: python
 cache: pip
 addons:
   firefox: latest
+  postgresql: "13"
   apt:
     packages:
       - firefox-geckodriver
