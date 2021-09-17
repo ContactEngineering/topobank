@@ -9,7 +9,6 @@ from .utils import ordereddicts_to_dicts, Topography1DFactory, UserFactory, Surf
 from ..models import TagModel
 
 
-
 @pytest.fixture
 def user_three_surfaces_four_topographies():
     #
@@ -840,3 +839,99 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
             }
         },
     ]
+
+
+@pytest.mark.django_db
+def test_search_expressions_with_request_factory():
+
+    user = UserFactory()
+
+    surface1 = SurfaceFactory(creator=user)
+
+    topo1a = Topography1DFactory(surface=surface1, description="a big tiger")
+    topo1b = Topography1DFactory(surface=surface1, description="a big elephant")
+    topo1c = Topography1DFactory(surface=surface1, description="Find this here and a small ant")
+    topo1d = Topography1DFactory(surface=surface1, description="not me, big snake")
+
+    surface2 = SurfaceFactory(creator=user)
+
+    topo2a = Topography1DFactory(surface=surface2, name='Measurement 2A')
+    topo2b = Topography1DFactory(surface=surface2, name='Measurement 2B', description="a small lion")
+
+    #
+    # Set some tags
+    #
+    topo1b.tags = ['bike']
+    topo1b.save()
+    topo1c.tags = ['transport/bike']
+    topo1c.save()
+    topo1d.tags = ['bike']
+    topo1d.save()
+
+    #
+    # Define helper function for testing searching
+    #
+    factory = APIRequestFactory()
+
+    def search_surfaces(expr):
+        """Search given given expression and return dicts with results"""
+        request = factory.get(reverse('manager:search')+f"?search={expr}")
+        request.user = user
+        request.session = {}  # must be there
+        response = SurfaceListView.as_view()(request)
+        assert response.status_code == 200
+        return ordereddicts_to_dicts(response.data['page_results'], sorted_by='title')
+
+    # simple search for a topography by name given a phrase
+    result = search_surfaces(f"'{topo2a.name}'")
+    assert len(result) == 1  # one surface
+    assert len(result[0]['children']) == 1  # one topography
+    assert result[0]['children'][0]['name'] == topo2a.name
+
+    # AND search for topographies by name
+    result = search_surfaces(f'"{topo2a.name}" "{topo1a.name}"')
+    assert len(result) == 0  # no surfaces
+
+    # OR search for topographies by name
+    result = search_surfaces(f'"{topo2a.name}" OR "{topo1a.name}"')
+    assert len(result) == 2  # two surfaces
+    # noinspection DuplicatedCode
+    assert len(result[0]['children']) == 1  # one topography
+    assert len(result[1]['children']) == 1  # one topography
+    assert result[0]['children'][0]['name'] == topo1a.name
+    assert result[1]['children'][0]['name'] == topo2a.name
+
+    # Exclusion using '-'
+    result = search_surfaces(f'-elephant')
+    assert len(result) == 2
+    assert result[0]['name'] == surface1.name
+    assert result[1]['name'] == surface2.name
+    assert len(result[0]['children']) == 3  # here one measurement is excluded
+    assert len(result[1]['children']) == 2
+
+    # Searching nearby
+    result = search_surfaces(f'Find * here')
+    assert len(result) == 1
+    assert result[0]['name'] == surface1.name
+    assert len(result[0]['children']) == 1  # here one measurement has it
+    assert result[0]['children'][0]["description"] == "Find this here and a small ant"
+
+    # more complex search expression using a phrase
+    #
+    # Parentheses do not work with 'websearch' for simplicity.
+    #
+    # (NOT) binds most tightly, "quoted text" (FOLLOWED BY) next most tightly,
+    # then AND (default if no parameter), with OR binding the least tightly.
+    #
+
+    # result = search_surfaces(f'bike AND "a big" or "a small" -"not me"')
+    result = search_surfaces(f'bike -snake big')
+
+    assert len(result) == 1  # surface 2 is excluded because there is no "bike"
+    assert result[0]['name'] == surface1.name
+    assert len(result[0]['children']) == 1
+    assert result[0]['children'][0]["name"] == topo1b.name  # topo1d is excluded because of 'not me'
+
+
+
+
