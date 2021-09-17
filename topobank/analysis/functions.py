@@ -3,6 +3,8 @@ Implementations of analysis functions for topographies and surfaces.
 
 The first argument is either a Topography or Surface instance (model).
 """
+import collections
+
 from django.core.files.storage import default_storage
 from django.core.files import File
 from django.conf import settings
@@ -14,8 +16,9 @@ from pint import UnitRegistry, UndefinedUnitError
 from scipy.interpolate import interp1d
 import scipy.stats
 
-from SurfaceTopography import Topography, PlasticTopography
+from SurfaceTopography import PlasticTopography
 from SurfaceTopography.Container.common import bandwidth, suggest_length_unit
+from SurfaceTopography.Container.Averaging import log_average
 from SurfaceTopography.Container.ScaleDependentStatistics import scale_dependent_statistical_property
 from ContactMechanics import PeriodicFFTElasticHalfSpace, FreeFFTElasticHalfSpace, make_system
 
@@ -51,9 +54,23 @@ def register_implementation(card_view_flavor="simple", name=None):
     return register_decorator
 
 
-def _topography_iter(container):
-    for t in container:
-        yield t.topography()
+class ContainerProxy(collections.Iterator):
+    """
+    Proxy class that emulates a SurfaceTopography `Container` and can be used
+    to iterate over native SurfaceTopography objects.
+    """
+    def __init__(self, obj):
+        self._obj = obj
+        self._iter = iter(obj)
+
+    def __len__(self):
+        return len(self._obj)
+
+    def __iter__(self):
+        return ContainerProxy(self._obj)
+
+    def __next__(self):
+        return next(self._iter).topography()
 
 
 def _reasonable_bins_argument(topography):
@@ -110,7 +127,7 @@ class ReentrantTopographyException(IncompatibleTopographyException):
 #     return dict(message="done", physical_sizes=topography.physical_sizes, n=n)
 
 
-@register_implementation(name="Height Distribution", card_view_flavor='plot')
+@register_implementation(name="Height distribution", card_view_flavor='plot')
 def height_distribution(topography, bins=None, wfac=5, progress_recorder=None, storage_prefix=None):
     # Get low level topography from SurfaceTopography model
     topography = topography.topography()
@@ -245,7 +262,7 @@ def _moments_histogram_gaussian(arr, bins, topography, wfac, quantity, label, un
     return scalars, series
 
 
-@register_implementation(name="Slope Distribution", card_view_flavor='plot')
+@register_implementation(name="Slope distribution", card_view_flavor='plot')
 def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, storage_prefix=None):
     """Calculates slope distribution for given topography."""
     # Get low level topography from SurfaceTopography model
@@ -318,7 +335,7 @@ def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, st
     return result
 
 
-@register_implementation(name="Curvature Distribution", card_view_flavor='plot')
+@register_implementation(name="Curvature distribution", card_view_flavor='plot')
 def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None, storage_prefix=None):
     # Get low level topography from SurfaceTopography model
     topography = topography.topography()
@@ -384,11 +401,10 @@ def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None
     )
 
 
-@register_implementation(name="Power Spectrum", card_view_flavor='plot')
-def power_spectrum(topography, window=None, tip_radius=None, progress_recorder=None, storage_prefix=None):
+@register_implementation(name="Power spectrum", card_view_flavor='plot')
+def power_spectrum(topography, window=None, progress_recorder=None, storage_prefix=None):
     """Calculate Power Spectrum for given topography."""
     # Get low level topography from SurfaceTopography model
-    top = topography
     topography = topography.topography()
 
     if window == 'None':
@@ -399,19 +415,57 @@ def power_spectrum(topography, window=None, tip_radius=None, progress_recorder=N
     except RuntimeError as exc:
         # Workaround: Raise a special exception in case it is probably
         # because of an reentrant measurement, see GH #683
-        if (len(exc.args) > 0) and (exc.args[0] == 'Positions not sorted.'):  # use exact arguments here
-            raise ReentrantTopographyException("Cannot compute PSD for reentrant surfaces.")
+        if (len(exc.args) > 0) and (exc.args[0] == 'This topography is reentrant (i.e. it contains overhangs). The '
+                                                   'power-spectral density cannot be computed for reentrant '
+                                                   'topographies.'):  # use exact arguments here
+            raise ReentrantTopographyException("Cannot compute the power-spectral density for reentrant surfaces.")
         # Better: Catch specific exception
         # when https://github.com/ContactEngineering/SurfaceTopography/issues/108 is implemented
 
         raise
 
-
     # Remove NaNs and Infs
     q_1D = q_1D[np.isfinite(C_1D)]
     C_1D = C_1D[np.isfinite(C_1D)]
 
-    unit = topography.info['unit']
+    if topography.dim == 2:
+        q_1D_T, C_1D_T = topography.transpose().power_spectrum_from_profile(window=window)
+        q_2D, C_2D = topography.power_spectrum_from_area(window=window)
+
+        # Remove NaNs and Infs
+        q_1D_T = q_1D_T[np.isfinite(C_1D_T)]
+        C_1D_T = C_1D_T[np.isfinite(C_1D_T)]
+        q_2D = q_2D[np.isfinite(C_2D)]
+        C_2D = C_2D[np.isfinite(C_2D)]
+
+    #
+    # Build series
+    #
+    series = [
+        dict(name='1D PSD along x',
+             x=q_1D,
+             y=C_1D,
+             ),
+    ]
+
+    if topography.dim == 2:
+        #
+        # Add two more series with power spectra
+        #
+        series = [
+            dict(name='q/π × 2D PSD',
+                 x=q_2D,
+                 y=q_2D * C_2D / np.pi,
+                 ),
+            series[0],
+            dict(name='1D PSD along y',
+                 x=q_1D_T,
+                 y=C_1D_T,
+                 )
+        ]
+
+    # Unit for displaying ACF
+    unit = topography.unit
 
     result = dict(
         name='Power-spectral density (PSD)',
@@ -421,41 +475,10 @@ def power_spectrum(topography, window=None, tip_radius=None, progress_recorder=N
         yunit='{}³'.format(unit),
         xscale='log',
         yscale='log',
-        series=[
-            dict(name='1D PSD along x',
-                 x=q_1D[1:],
-                 y=C_1D[1:],
-                 ),
-        ]
+        series=series
     )
 
-    if topography.dim == 2:
-        #
-        # Add two more series with power spectra
-        #
-        transposed_topography = topography.transpose()
-        q_1D_T, C_1D_T = transposed_topography.power_spectrum_from_profile(window=window)
-        q_2D, C_2D = topography.power_spectrum_from_area(window=window)
-        # Remove NaNs and Infs
-        q_1D_T = q_1D_T[np.isfinite(C_1D_T)]
-        C_1D_T = C_1D_T[np.isfinite(C_1D_T)]
-        q_2D = q_2D[np.isfinite(C_2D)]
-        C_2D = C_2D[np.isfinite(C_2D)]
-
-        result['series'] = [
-            dict(name='q/π × 2D PSD',
-                 x=q_2D[1:],
-                 y=q_2D[1:] * C_2D[1:] / np.pi,
-                 ),
-            result['series'][0],
-            dict(name='1D PSD along y',
-                 x=q_1D_T[1:],
-                 y=C_1D_T[1:],
-                 )
-        ]
-
     return result
-
 
 def average_series_list(series_list, num_points=100, xscale='linear'):
     """Given a list of series dicts, return a dict for an average series.
@@ -646,27 +669,39 @@ def average_results_for_surface(surface, topo_analysis_func, num_points=100,
     )
 
 
-@register_implementation(name="Power Spectrum", card_view_flavor='plot')
-def power_spectrum_for_surface(surface, window=None, tip_radius=None, num_points=100,
-                               progress_recorder=None, storage_prefix=None):
+@register_implementation(name="Power spectrum", card_view_flavor='plot')
+def power_spectrum_for_surface(surface, window=None, progress_recorder=None, storage_prefix=None):
     """Calculate average power spectrum for a surface."""
+    if window == 'None':
+        window = None
 
-    func_kwargs = dict(
-        window=window,
-        tip_radius=tip_radius,
-        storage_prefix=storage_prefix
-    )
-    result = average_results_for_surface(surface, topo_analysis_func=power_spectrum,
-                                         num_points=num_points, progress_recorder=progress_recorder,
-                                         **func_kwargs)
+    topographies = ContainerProxy(surface.topography_set.all())
+    unit = suggest_length_unit(topographies)
+    q, C = log_average(topographies, 'power_spectrum_from_profile', unit, window=window,
+                       progress_callback=lambda i, n: progress_recorder.set_progress(i + 1, n))
 
-    result.update(dict(
+    # Remove NaNs
+    q = q[np.isfinite(C)]
+    C = C[np.isfinite(C)]
+
+    #
+    # Build series
+    #
+    series = [dict(name='Along x',
+                   x=q,
+                   y=C,
+                   )]
+
+    result = dict(
         name='Power-spectral density (PSD)',
         xlabel='Wavevector',
         ylabel='PSD',
+        xunit='{}⁻¹'.format(unit),
+        yunit='{}³'.format(unit),
         xscale='log',
         yscale='log',
-    ))
+        series=series
+    )
 
     return result
 
@@ -676,50 +711,23 @@ def autocorrelation(topography, progress_recorder=None, storage_prefix=None):
     # Get low level topography from SurfaceTopography model
     topography = topography.topography()
 
-    if topography.dim == 2:
-        sx, sy = topography.physical_sizes
-        transposed_topography = Topography(topography.heights().T, physical_sizes=(sy, sx),
-                                           periodic=topography.is_periodic)
-        r_T, A_T = transposed_topography.autocorrelation_from_profile()
-        r_2D, A_2D = topography.autocorrelation_from_area()
+    r, A = topography.autocorrelation_from_profile()
 
-        # Truncate ACF at half the system size
-        s = min(sx, sy) / 2
-    else:
-        s, = topography.physical_sizes
-
-    if topography.is_uniform:
-        r, A = topography.autocorrelation_from_profile()
-    else:
-        # Work around. The implementation for non-uniform line scans is very slow. Map onto a uniform grid.
-        x, h = topography.positions_and_heights()
-        min_dist = np.min(np.diff(x))
-        if min_dist <= 0:
-            raise ReentrantTopographyException('Cannot calculate autocorrelation for nonuniform reentrant measurements')
-        else:
-            n = min(100000, 10 * int(s / min_dist))
-        r, A = topography.to_uniform(n, 0).autocorrelation_from_profile()
-        r = r[::10]
-        A = A[::10]
-
-    A = A[r < s]
-    r = r[r < s]
-    # Remove NaNs and Infs
+    # Remove NaNs
     r = r[np.isfinite(A)]
     A = A[np.isfinite(A)]
 
     if topography.dim == 2:
-        A_T = A_T[r_T < s]
-        r_T = r_T[r_T < s]
-        A_2D = A_2D[r_2D < s]
-        r_2D = r_2D[r_2D < s]
+        r_T, A_T = topography.transpose().autocorrelation_from_profile()
+        r_2D, A_2D = topography.autocorrelation_from_area()
 
-        # Remove NaNs and Infs
+        # Remove NaNs
         r_T = r_T[np.isfinite(A_T)]
         A_T = A_T[np.isfinite(A_T)]
         r_2D = r_2D[np.isfinite(A_2D)]
         A_2D = A_2D[np.isfinite(A_2D)]
 
+    # Unit for displaying ACF
     unit = topography.info['unit']
 
     #
@@ -755,98 +763,143 @@ def autocorrelation(topography, progress_recorder=None, storage_prefix=None):
 
 
 @register_implementation(name="Autocorrelation", card_view_flavor='plot')
-def autocorrelation_for_surface(surface, num_points=100,
-                                progress_recorder=None, storage_prefix=None):
+def autocorrelation_for_surface(surface, progress_recorder=None, storage_prefix=None):
     """Calculate average autocorrelation for a surface."""
-    result = average_results_for_surface(surface, topo_analysis_func=autocorrelation,
-                                         num_points=num_points, progress_recorder=progress_recorder,
-                                         storage_prefix=storage_prefix)
+    topographies = ContainerProxy(surface.topography_set.all())
+    unit = suggest_length_unit(topographies)
+    r, A = log_average(topographies, 'autocorrelation_from_profile', unit,
+                       progress_callback=lambda i, n: progress_recorder.set_progress(i + 1, n))
 
-    result.update(dict(
+    # Remove NaNs
+    r = r[np.isfinite(A)]
+    A = A[np.isfinite(A)]
+
+    #
+    # Build series
+    #
+    series = [dict(name='Along x',
+                   x=r,
+                   y=A,
+                   )]
+
+    result = dict(
         name='Height-difference autocorrelation function (ACF)',
         xlabel='Distance',
         ylabel='ACF',
+        xunit=unit,
+        yunit='{}²'.format(unit),
         xscale='log',
         yscale='log',
-    ))
+        series=series)
 
     return result
 
 
-@register_implementation(name="Scale-dependent Slope", card_view_flavor='plot')
+@register_implementation(name="Scale-dependent slope", card_view_flavor='plot')
 def scale_dependent_slope(topography, progress_recorder=None, storage_prefix=None):
-    return_dict = autocorrelation(topography, progress_recorder=progress_recorder,
-                                  storage_prefix=storage_prefix)
+    topography = topography.topography()
 
-    for dataset in return_dict['series']:
-        x = dataset['x']
-        y = dataset['y']
-        dataset['x'] = x[1:]
-        dataset['y'] = np.sqrt(2 * y[1:]) / x[1:]
-    return_dict['name'] = 'Scale-dependent slope'
-    return_dict['ylabel'] = 'Slope'
-    return_dict['yunit'] = '1'
-
-    return return_dict
-
-
-@register_implementation(name="Scale-dependent Slope", card_view_flavor='plot')
-def scale_dependent_slope_for_surface(surface, num_points=100,
-                                      progress_recorder=None, storage_prefix=None):
-    """Calculate average autocorrelation for a surface."""
-    result = average_results_for_surface(surface, topo_analysis_func=scale_dependent_slope,
-                                         num_points=num_points, progress_recorder=progress_recorder,
-                                         storage_prefix=storage_prefix)
-
-    result.update(dict(
-        name='Scale-dependent Slope',
-        xlabel='Distance',
-        ylabel='Slope',
-        xscale='log',
-        yscale='log',
-    ))
-
-    return result
-
-
-@register_implementation(name="Scale-dependent Curvature", card_view_flavor='plot')
-def scale_dependent_curvature(topography, progress_recorder=None, storage_prefix=None):
-    t = topography.topography()
-    lower, upper = t.bandwidth()
-    # Factor of two for curvature
-    distances = _logspace_full_decades(2 * lower, upper)
-
-    if t.dim == 2:
+    if topography.dim == 2:
         fac = 3
     else:
         fac = 1
 
-    curvatures_sq = t.scale_dependent_statistical_property(
-        lambda x, y=None: np.var(x), n=1, distance=distances,
+    distances, curvatures_sq = topography.scale_dependent_statistical_property(
+        lambda x, y=None: np.mean(x * x), n=1,
+        progress_callback=lambda i, n: progress_recorder.set_progress(i + 1, fac * n))
+    series = [dict(name='Slope in x-direction',
+                   x=distances,
+                   y=np.sqrt(curvatures_sq),
+                   )]
+
+    if topography.dim == 2:
+        distances, curvatures_sq = topography.transpose().scale_dependent_statistical_property(
+            lambda x, y=None: np.mean(x * x), n=1,
+            progress_callback=lambda i, n: progress_recorder.set_progress(n + i + 1, 3 * n))
+        series += [dict(name='Slope in y-direction',
+                        x=distances,
+                        y=np.sqrt(curvatures_sq),
+                        )]
+
+        distances, curvatures_sq = topography.transpose().scale_dependent_statistical_property(
+            lambda x, y: np.mean(x * x + y * y), n=1,
+            progress_callback=lambda i, n: progress_recorder.set_progress(2 * n + i + 1, 3 * n))
+        series += [dict(name='Gradient',
+                        x=distances,
+                        y=np.sqrt(curvatures_sq),
+                        )]
+
+    unit = topography.unit
+    return dict(
+        name='Scale-dependent slope',
+        xlabel='Distance',
+        ylabel='Slope',
+        xunit=unit,
+        yunit='1',
+        xscale='log',
+        yscale='log',
+        series=series)
+
+
+@register_implementation(name="Scale-dependent slope", card_view_flavor='plot')
+def scale_dependent_slope_for_surface(surface, progress_recorder=None, storage_prefix=None):
+    topographies = ContainerProxy(surface.topography_set.all())
+    unit = suggest_length_unit(topographies)
+    # Factor of two for curvature
+    distances, curvatures_sq = scale_dependent_statistical_property(
+        topographies, lambda x, y=None: np.mean(x * x), n=1, unit=unit,
+        progress_callback=lambda i, n: progress_recorder.set_progress(i+1, n))
+    series = [dict(name='Curvature in x-direction',
+                   x=distances,
+                   y=np.sqrt(curvatures_sq),
+                   )]
+
+    return dict(
+        name='Scale-dependent slope',
+        xlabel='Distance',
+        ylabel='Slope',
+        xunit=unit,
+        yunit='1',
+        xscale='log',
+        yscale='log',
+        series=series)
+
+
+@register_implementation(name="Scale-dependent curvature", card_view_flavor='plot')
+def scale_dependent_curvature(topography, progress_recorder=None, storage_prefix=None):
+    topography = topography.topography()
+
+    if topography.dim == 2:
+        fac = 3
+    else:
+        fac = 1
+
+    distances, curvatures_sq = topography.scale_dependent_statistical_property(
+        lambda x, y=None: np.var(x), n=2,
         progress_callback=lambda i, n: progress_recorder.set_progress(i + 1, fac * n))
     series = [dict(name='Curvature in x-direction',
                    x=distances,
                    y=np.sqrt(curvatures_sq),
                    )]
 
-    if t.dim == 2:
-        curvatures_sq = t.transpose().scale_dependent_statistical_property(
-            lambda x, y=None: np.var(x), n=1, distance=distances,
+    if topography.dim == 2:
+        distances, curvatures_sq = topography.transpose().scale_dependent_statistical_property(
+            lambda x, y=None: np.var(x), n=2,
             progress_callback=lambda i, n: progress_recorder.set_progress(n + i + 1, 3 * n))
         series += [dict(name='Curvature in y-direction',
                         x=distances,
                         y=np.sqrt(curvatures_sq),
                         )]
 
-        curvatures_sq = t.transpose().scale_dependent_statistical_property(
-            lambda x, y: np.var((x + y) / 2), n=1, distance=distances,
+        distances, curvatures_sq = topography.transpose().scale_dependent_statistical_property(
+            lambda x, y: np.var((x + y) / 2), n=2,
             progress_callback=lambda i, n: progress_recorder.set_progress(2 * n + i + 1, 3 * n))
         series += [dict(name='1/2 Laplacian',
                         x=distances,
                         y=np.sqrt(curvatures_sq),
                         )]
 
-    unit = t.unit
+    unit = topography.unit
     return dict(
         name='Scale-dependent curvature',
         xlabel='Distance',
@@ -858,15 +911,13 @@ def scale_dependent_curvature(topography, progress_recorder=None, storage_prefix
         series=series)
 
 
-@register_implementation(name="Scale-dependent Curvature", card_view_flavor='plot')
+@register_implementation(name="Scale-dependent curvature", card_view_flavor='plot')
 def scale_dependent_curvature_for_surface(surface, progress_recorder=None, storage_prefix=None):
-    topographies = surface.topography_set.all()
+    topographies = ContainerProxy(surface.topography_set.all())
     unit = suggest_length_unit(topographies)
-    lower, upper = bandwidth(_topography_iter(topographies), unit=unit)
     # Factor of two for curvature
-    distances = _logspace_full_decades(2 * lower, upper)
-    curvatures_sq = scale_dependent_statistical_property(
-        _topography_iter(topographies), lambda x, y=None: np.var(x), n=1, distance=distances, unit=unit,
+    distances, curvatures_sq = scale_dependent_statistical_property(
+        topographies, lambda x, y=None: np.var(x), n=2, unit=unit,
         progress_callback=lambda i, n: progress_recorder.set_progress(i+1, n))
     series = [dict(name='Curvature in x-direction',
                    x=distances,
@@ -884,7 +935,7 @@ def scale_dependent_curvature_for_surface(surface, progress_recorder=None, stora
         series=series)
 
 
-@register_implementation(name="Variable Bandwidth", card_view_flavor='plot')
+@register_implementation(name="Variable bandwidth", card_view_flavor='plot')
 def variable_bandwidth(topography, progress_recorder=None, storage_prefix=None):
     # Get low level topography from SurfaceTopography model
     topography = topography.topography()
@@ -913,7 +964,7 @@ def variable_bandwidth(topography, progress_recorder=None, storage_prefix=None):
     )
 
 
-@register_implementation(name="Variable Bandwidth", card_view_flavor='plot')
+@register_implementation(name="Variable bandwidth", card_view_flavor='plot')
 def variable_bandwidth_for_surface(surface, num_points=100,
                                    progress_recorder=None, storage_prefix=None):
     """Calculate average variable bandwidth for a surface."""
@@ -1094,7 +1145,7 @@ def _contact_at_given_load(system, external_force, history=None, pentol=None, ma
            (mean_displacements, mean_gaps, mean_pressures, total_contact_areas, converged)
 
 
-@register_implementation(name="Contact Mechanics", card_view_flavor='contact mechanics')
+@register_implementation(name="Contact mechanics", card_view_flavor='contact mechanics')
 def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
                       pressures=None, maxiter=100, progress_recorder=None, storage_prefix=None):
     """
@@ -1252,7 +1303,7 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
     )
 
 
-@register_implementation(name="Roughness Parameters", card_view_flavor='roughness parameters')
+@register_implementation(name="Roughness parameters", card_view_flavor='roughness parameters')
 def roughness_parameters(topography, progress_recorder=None, storage_prefix=None):
     """Calculate roughness parameters for given topography.
 
