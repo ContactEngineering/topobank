@@ -306,43 +306,50 @@
               <li>Descriptions of surfaces and measurements</li>
             </ul>
 
-            <p>All texts in these fields are split into tokens. Searching means to find matches
-              of the search expression among these tokens. You can build search expression as follows:</p>
+            <p>All texts in these fields are split into a vector of tokens. Searching means to find matches
+              of the search expression among these tokens. You can build search expression from search terms
+              as follows:</p>
+
             <table class="table table-bordered table-condensed">
               <thead class="thead-light">
                 <th>Search result should list items with</th>
                 <th>Search expression</th>
+                <th>Comment</th>
               </thead>
               <tbody>
                 <tr>
-                  <td><em>AFM</em> and <em>surface</em></td>
+                  <td>both <em>AFM</em> and <em>surface</em></td>
                   <td><input type="text" value="AFM surface" size="40" readonly></td>
+                  <td>text not inside quote marks will be interpreted as AND</td>
                 </tr>
                 <tr>
-                  <td><em>AFM</em> or <em>surface</em></td>
-                  <td><input type="text" value="AFM or surface" size="40" readonly></td>
+                  <td>either <em>AFM</em> or <em>surface</em> or both</td>
+                  <td><input type="text" value="AFM OR surface" size="40" readonly></td>
+                  <td>logical OR, least precedence</td>
                 </tr>
                 <tr>
                   <td><em>AFM</em> but not <em>surface</em></td>
                   <td><input type="text" value="AFM -surface" size="40" readonly></td>
+                  <td>the logical not operator is written by using -, has highest precedence</td>
                 </tr>
                 <tr>
                   <td>the phrase <em>AFM Surface</em></td>
                   <td><input type="text" value='"AFM surface"' size="40" readonly></td>
-                </tr>
-                <tr>
-                  <td><em>AFM<em> nearby </em>Surface</em> with some words in between</td>
-                  <td><input type="text" value='"AFM * surface"' size="40" readonly></td>
+                  <td><em>AFM</em> and <em>surface</em> are found if next to each other</td>
                 </tr>
                 <tr>
                   <td><em>AFM Surface</em> as a phrase and <em>imported</em> somewhere else</td>
                   <td><input type="text" value='"AFM surface" imported' size="40" readonly></td>
+                  <td></td>
                 </tr>
                 <tr>
-                  <td><em>AFM Surface</em> as a phrase and either <em>imported</em> or <em>material</em></td>
-                  <td><input type="text" value='"AFM surface" (imported or material)' size="40" readonly></td>
+                  <td><em>AFM Surface</em> as a phrase and <em>imported</em> but not <em>material</em></td>
+                  <td><input type="text" value='"AFM surface" imported -material' size="40" readonly></td>
+                  <td>The above can also be combined. Parentheses are not allowed, all entries
+                  are valid search expressions.</td>
                 </tr>
               </tbody>
+
             </table>
           </div>
           <div class="modal-footer">
