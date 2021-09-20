@@ -467,6 +467,7 @@ class PlotCardView(SimpleCardView):
 
         series_dashes = OrderedDict()  # key: series name
         series_names = []
+        series_actives = []
 
         DEFAULT_ALPHA_FOR_TOPOGRAPHIES = 0.3 if has_at_least_one_surface_subject else 1.0
 
@@ -559,6 +560,9 @@ class PlotCardView(SimpleCardView):
                 # but I don't know to a have a second field next to "name", which
                 # is used for the subject here
 
+                # Initial visibility
+                is_visible = s['visible'] if 'visible' in s else True
+
                 #
                 # find out dashes for data series
                 #
@@ -587,6 +591,7 @@ class PlotCardView(SimpleCardView):
                                        line_width=line_width,
                                        line_alpha=topo_alpha,
                                        name=subject_display_name)
+                line_glyph.visible = is_visible
                 if show_symbols:
                     symbol_glyph = plot.scatter('x', 'y', source=source,
                                                 legend_label=legend_entry,
@@ -598,11 +603,14 @@ class PlotCardView(SimpleCardView):
                                                 line_dash=curr_dash,
                                                 fill_color=curr_color,
                                                 name=subject_display_name)
+                    symbol_glyph.visible = is_visible
 
                 #
                 # Prepare JS code to toggle visibility
                 #
                 series_idx = series_names.index(series_name)
+                if is_visible:
+                    series_actives += [series_idx]
 
                 # prepare unique id for this line
                 glyph_id = f"glyph_{subject_idx}_{series_idx}_line"
@@ -660,11 +668,13 @@ class PlotCardView(SimpleCardView):
         #
         # Adding widgets for switching lines on/off
         #
+        print(series_names)
+        print(series_actives)
         series_button_group = CheckboxGroup(
             labels=series_names,
             css_classes=["topobank-series-checkbox"],
             visible=False,
-            active=list(range(len(series_names))))  # all indices included -> all active
+            active=series_actives)
 
         # create list of checkbox group, one checkbox group for each subject type
         if has_at_least_one_surface_subject:
