@@ -250,9 +250,7 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
             #
             # Set unit
             #
-            initial['unit'] = channel_info.info['unit'] \
-                if (('unit' in channel_info.info) and (not isinstance(channel_info.info['unit'], tuple))) \
-                else None
+            initial['unit'] = channel_info.unit
             initial['unit_editable'] = initial['unit'] is None
 
             #

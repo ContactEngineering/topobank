@@ -538,7 +538,7 @@ class Topography(models.Model, SubjectMixin):
 
         This instance is guaranteed to
 
-        - have an info dict with 'unit' key: .info['unit']
+        - have a 'unit' property
         - have a size: .physical_sizes
         - have been scaled and detrended with the saved parameters
 
@@ -587,7 +587,7 @@ class Topography(models.Model, SubjectMixin):
                         toporeader = get_topography_reader(self.squeezed_datafile, format=SQUEEZED_DATAFILE_FORMAT)
                         topo = toporeader.topography()
                         # In the squeezed format, these things are already applied/included:
-                        #  info dict with unit, scaling, detrending, physical sizes
+                        # unit, scaling, detrending, physical sizes
                         # so don't need to provide them to the .topography() method
                         _log.info(f"Using squeezed datafile instead of original datafile for topography id {self.id}.")
                 except Exception as exc:
@@ -624,9 +624,16 @@ class Topography(models.Model, SubjectMixin):
                     # given in the data file already.
                     # So default is to use the factor from the file.
 
+                #
+                # Set the unit, if not already given by file contents
+                #
+                channel_unit = channel_dict.unit
+                if not channel_unit and self.unit:
+                    topography_kwargs['unit'] = self.unit
+
                 # Eventually get topography from module "SurfaceTopography" using the given keywords
                 topo = toporeader.topography(**topography_kwargs)
-                topo = topo.detrend(detrend_mode=self.detrend_mode, info=dict(unit=self.unit))
+                topo = topo.detrend(detrend_mode=self.detrend_mode)
 
             cache.set(cache_key, topo)
             # be sure to invalidate the cache key if topography is saved again -> signals.py

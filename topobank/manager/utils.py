@@ -722,7 +722,7 @@ def _bandwidths_data_entry(topo):
         }
 
     try:
-        unit = st_topo.info['unit']
+        unit = st_topo.unit
     except KeyError:
         unit = None
 
@@ -734,8 +734,8 @@ def _bandwidths_data_entry(topo):
             unit, topo.name))
         err_message = "Unknown unit {} given for topography {}. Cannot calculate bandwidth.".format(
             unit, topo.name)
-
-    meter_factor = UNIT_TO_METERS[unit]
+    else:
+        meter_factor = UNIT_TO_METERS[unit]
 
     if err_message is None:
 

@@ -117,7 +117,7 @@ def height_distribution(topography, bins=None, wfac=5, progress_recorder=None, s
     y_gauss = np.exp(-(x_gauss - mean_height) ** 2 / (2 * rms_height ** 2)) / (np.sqrt(2 * np.pi) * rms_height)
 
     try:
-        unit = topography.info['unit']
+        unit = topography.unit
     except:
         unit = None
 
@@ -346,7 +346,7 @@ def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None
     x_gauss = np.linspace(minval, maxval, 1001)
     y_gauss = np.exp(-(x_gauss - mean_curv) ** 2 / (2 * rms_curv ** 2)) / (np.sqrt(2 * np.pi) * rms_curv)
 
-    unit = topography.info['unit']
+    unit = topography.unit
     inverse_unit = '{}⁻¹'.format(unit)
 
     return dict(
@@ -396,7 +396,7 @@ def power_spectrum(topography, window=None, tip_radius=None, progress_recorder=N
     q_1D = q_1D[np.isfinite(C_1D)]
     C_1D = C_1D[np.isfinite(C_1D)]
 
-    unit = topography.info['unit']
+    unit = topography.unit
 
     result = dict(
         name='Power-spectral density (PSD)',
@@ -707,7 +707,7 @@ def autocorrelation(topography, progress_recorder=None, storage_prefix=None):
         r_2D = r_2D[np.isfinite(A_2D)]
         A_2D = A_2D[np.isfinite(A_2D)]
 
-    unit = topography.info['unit']
+    unit = topography.unit
 
     #
     # Build series
@@ -806,7 +806,7 @@ def variable_bandwidth(topography, progress_recorder=None, storage_prefix=None):
     else:
         magnifications, bandwidths, rms_heights = topography.variable_bandwidth_from_profile()
 
-    unit = topography.info['unit']
+    unit = topography.unit
 
     return dict(
         name='Variable-bandwidth analysis',
@@ -1191,7 +1191,7 @@ def roughness_parameters(topography, progress_recorder=None, storage_prefix=None
 
     # noinspection PyBroadException
     try:
-        unit = topography.info['unit']
+        unit = topography.unit
         inverse_unit = '{}⁻¹'.format(unit)
     except KeyError:
         unit = None
