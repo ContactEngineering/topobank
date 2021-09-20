@@ -10,6 +10,8 @@
   displayed underneath surfaces from now on (#701)
 - BUG: Fixed issue while downloading analysis results
   with stderr for y without masked values (#711)
+- BUG: Missing points were not shown correctly in 
+  2D plots (#699)
 - MAINT: Upgrade to Django 3.2
 - MAINT: Upgrade to fontawesome 5
 - MAINT: Upgrade to Postgres 13.4
