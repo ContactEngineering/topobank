@@ -1,12 +1,12 @@
 {# Needs some keys in context. See AJAX view "SimpleCardView" #}
 {% load analysis_tags %}
-{% load fontawesome %}
+{% load fontawesome_5 %}
 
 <div class="card search-result-card">
     <div class="card-header">
       {% block card_header %}
         {% if analyses_available %}
-        <div class="btn-group btn-group-sm pull-right dropdown">
+        <div class="btn-group btn-group-sm float-right dropdown">
 
           <button type="button" class="btn btn-default" data-toggle="dropdown"
                   aria-haspopup="true" aria-expanded="false">

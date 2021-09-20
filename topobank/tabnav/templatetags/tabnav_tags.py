@@ -7,6 +7,12 @@ TABS_CONTEXT_KEYS = ['fixed_tabs', 'extra_tabs']
 
 @register.inclusion_tag('tabnav/tabs.html', takes_context=True)
 def tab_navigation(context):
+    """Can be used to insert tab navigation on the page.
+
+    Use {% tab_navigation %} in order to include
+    navigation by tabs. This function here provides the
+    context which is used with the given template.
+    """
 
     if 'request' not in context:
         return {}  # Needed in case of 500 status (server error)
@@ -40,6 +46,9 @@ def tab_navigation(context):
 
     # calculate minimum number of tabs
     min_num_tabs = len(context['fixed_tabs'])
+
+    if not context.get('connect_fixed_tabs_with_extra_tabs', True):  # default is to connect
+        min_num_tabs += 1  # avoid double bracket between fixed and extra tabs -> no connection
 
     local_context = dict(tabs=tabs, min_num_tabs=min_num_tabs, active_tab=active_tab)
     if 'exception' in context:

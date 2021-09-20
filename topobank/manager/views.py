@@ -250,9 +250,7 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
             #
             # Set unit
             #
-            initial['unit'] = channel_info.info['unit'] \
-                if (('unit' in channel_info.info) and (not isinstance(channel_info.info['unit'], tuple))) \
-                else None
+            initial['unit'] = channel_info.unit
             initial['unit_editable'] = initial['unit'] is None
 
             #
@@ -356,7 +354,8 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
         context['extra_tabs'] = [
             {
                 'title': f"{surface}",
-                'icon': "diamond",
+                'icon': "gem",
+                'icon_style_prefix': 'far',
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
                 'active': False,
                 'tooltip': f"Properties of surface '{surface.label}'"
@@ -476,7 +475,8 @@ class CorruptedTopographyView(TemplateView):
         context['extra_tabs'] = [
             {
                 'title': f"{surface}",
-                'icon': "diamond",
+                'icon': "gem",
+                'icon_style_prefix': 'far',
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
                 'active': False,
                 'tooltip': f"Properties of surface '{surface.label}'"
@@ -575,14 +575,16 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
         context['extra_tabs'] = [
             {
                 'title': f"{topo.surface.label}",
-                'icon': "diamond",
+                'icon': "gem",
+                'icon_style_prefix': 'far',
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
                 'active': False,
                 'tooltip': f"Properties of surface '{topo.surface.label}'"
             },
             {
                 'title': f"{topo.name}",
-                'icon': "file-o",
+                'icon': "file",
+                'icon_style_prefix': 'far',
                 'href': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
                 'active': False,
                 'tooltip': f"Properties of topography '{topo.name}'"
@@ -671,7 +673,8 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
         context['extra_tabs'] = [
             {
                 'title': f"{topo.surface.label}",
-                'icon': "diamond",
+                'icon': "gem",
+                'icon_style_prefix': 'far',
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
                 'active': False,
                 'login_required': False,
@@ -679,7 +682,8 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
             },
             {
                 'title': f"{topo.name}",
-                'icon': "file-o",
+                'icon': "file",
+                'icon_style_prefix': 'far',
                 'href': self.request.path,
                 'active': True,
                 'login_required': False,
@@ -721,14 +725,16 @@ class TopographyDeleteView(TopographyUpdatePermissionMixin, DeleteView):
         context['extra_tabs'] = [
             {
                 'title': f"{topo.surface.label}",
-                'icon': "diamond",
+                'icon': "gem",
+                'icon_style_prefix': 'far',
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
                 'active': False,
                 'tooltip': f"Properties of surface '{topo.surface.label}'"
             },
             {
                 'title': f"{topo.name}",
-                'icon': "file-o",
+                'icon': "file",
+                'icon_style_prefix': 'far',
                 'href': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
                 'active': False,
                 'tooltip': f"Properties of topography '{topo.name}'"
@@ -940,7 +946,8 @@ class SurfaceDetailView(DetailView):
         context['extra_tabs'] = [
             {
                 'title': surface.label,
-                'icon': "diamond",
+                'icon': "gem",
+                'icon_style_prefix': 'far',
                 'href': self.request.path,
                 'active': True,
                 'login_required': False,
@@ -1037,7 +1044,8 @@ class SurfaceUpdateView(UpdateView):
         context['extra_tabs'] = [
             {
                 'title': f"{surface.label}",
-                'icon': "diamond",
+                'icon': "gem",
+                'icon_style_prefix': 'far',
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
                 'active': False,
                 'tooltip': f"Properties of surface '{surface.label}'"
@@ -1091,7 +1099,8 @@ class SurfaceDeleteView(DeleteView):
         context['extra_tabs'] = [
             {
                 'title': f"{surface.label}",
-                'icon': "diamond",
+                'icon': "gem",
+                'icon_style_prefix': 'far',
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
                 'active': False,
                 'tooltip': f"Properties of surface '{surface.label}'"
@@ -1168,7 +1177,8 @@ class SurfaceShareView(FormMixin, DetailView):
         context['extra_tabs'] = [
             {
                 'title': f"{surface.label}",
-                'icon': "diamond",
+                'icon': "gem",
+                'icon_style_prefix': 'far',
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
                 'active': False,
                 'tooltip': f"Properties of surface '{surface.label}'"
@@ -1297,7 +1307,8 @@ class SurfacePublishView(FormView):
         context['extra_tabs'] = [
             {
                 'title': f"{surface.label}",
-                'icon': "diamond",
+                'icon': "gem",
+                'icon_style_prefix': 'far',
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
                 'active': False,
                 'tooltip': f"Properties of surface '{surface.label}'"
@@ -1328,7 +1339,8 @@ class PublicationRateTooHighView(TemplateView):
         context['extra_tabs'] = [
             {
                 'title': f"{surface.label}",
-                'icon': "diamond",
+                'icon': "gem",
+                'icon_style_prefix': 'far',
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
                 'active': False,
                 'tooltip': f"Properties of surface '{surface.label}'"
@@ -1638,8 +1650,8 @@ class TagTreeView(ListAPIView):
         return tags_for_user(self.request.user, surfaces, topographies).filter(parent=None)
         # Only top level are collected, the children are added in the serializer.
         #
-        # The filtered surfaces and topographies are calculated twice here,
-        # I'm not sure how to circumvent this.
+        # TODO The filtered surfaces and topographies are calculated twice here, not sure how to circumvent this.
+        # Maybe by caching with request argument?
 
     def get_serializer_context(self):
         context = super().get_serializer_context()

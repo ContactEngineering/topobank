@@ -36,7 +36,7 @@
               <li>
                 <a class="terms-link" href="{% url 'tc_accept_specific_page' terms.slug %}{% if returnTo %}?returnTo={{ returnTo }}{% endif %}">
                 {% if terms.name %}{{ terms.name|safe }}{% endif %}
-                </a> ({% if terms.optional %}optional{% else %}needed{% endif %})
+                </a>
               </li>
           {% endfor %}
           </ul>
@@ -48,7 +48,7 @@
       {# This is shown to anonymous users #}
       {% for terms in active_terms %}
         <div class="card">
-          <div class="card-header"><h2>{{ terms.name|safe }}{% if terms.optional %} (optional){% endif %}</h2></div>
+          <div class="card-header"><h2>{{ terms.name|safe }}</h2></div>
           <div class="card-body">
             {{ terms.text|safe }}
           </div>

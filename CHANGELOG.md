@@ -2,8 +2,20 @@
 
 ## 0.16.0 (not published yet)
 
+- ENH: Enhanced search by supporting "weblike" search 
+  expressions; now the search term is interpreted as
+  phrases combined by 'AND'; also logical expressions 
+  with OR and - for NOT can be used; change: only 
+  topographies matching the search expression are 
+  displayed underneath surfaces from now on (#701)
 - BUG: Fixed issue while downloading analysis results
   with stderr for y without masked values (#711)
+- BUG: Missing points were not shown correctly in 
+  2D plots (#699)
+- MAINT: Upgrade to Django 3.2
+- MAINT: Upgrade to fontawesome 5
+- MAINT: Upgrade to Postgres 13.4
+- MAINT: Upgrade of several packages
 
 ## 0.15.1 (2021-08-05)
 

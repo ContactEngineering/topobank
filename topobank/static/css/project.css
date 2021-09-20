@@ -111,7 +111,7 @@ input.checkbox-color-design:checked+span:after {
 
 span.fancytree-node > span.fancytree-expander {
   font-size: x-large;
-  vertical-align: top;
+  /** vertical-align: top; */
   margin-right: 20px;
 }
 
@@ -124,11 +124,12 @@ span.fancytree-node > span.fancytree-title {
 
 
 span.fancytree-checkbox {
-  padding-top: 1%;
-  /** padding: 2%; */
-  font-size: larger;
+  /** padding-top: 1%; */
+  font-size: large;
+  line-height: 50%;
   /** display: table-cell; */
-  vertical-align: middle;
+  vertical-align: middle !important;
+  /** line-height: 1;*/
   margin-right: 20px;
 }
 
@@ -197,7 +198,7 @@ div.bk-btn-group button.bk-btn-primary:hover {
 
 /** Animate search bar */
 #global-search {
-  width: 120px;
+  width: 162px;
   -webkit-transition: width 0.4s ease-in-out;
   transition: width 0.4s ease-in-out;
 }

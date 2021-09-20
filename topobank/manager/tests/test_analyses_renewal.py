@@ -6,7 +6,6 @@ import pytest
 from pathlib import Path
 from django.shortcuts import reverse
 from django.contrib.contenttypes.models import ContentType
-from django_capture_on_commit_callbacks import capture_on_commit_callbacks
 
 from .utils import FIXTURE_DIR, Topography1DFactory, SurfaceFactory, UserFactory
 from topobank.analysis.tests.utils import SurfaceAnalysisFactory, AnalysisFunctionFactory, \
@@ -15,7 +14,7 @@ from topobank.utils import assert_in_content, assert_no_form_errors
 
 
 @pytest.mark.django_db
-def test_renewal_on_topography_change(client, mocker):
+def test_renewal_on_topography_change(client, mocker, django_capture_on_commit_callbacks):
     """Check whether methods for renewal are called on significant topography change.
     """
     renew_topo_analyses_mock = mocker.patch('topobank.manager.views.renew_analyses_related_to_topography.delay')
@@ -35,7 +34,7 @@ def test_renewal_on_topography_change(client, mocker):
 
     client.force_login(user)
 
-    with capture_on_commit_callbacks(execute=True) as callbacks:
+    with django_capture_on_commit_callbacks(execute=True) as callbacks:
         response = client.post(reverse('manager:topography-update', kwargs=dict(pk=topo.pk)),
                                data={
                                    'save-stay': 1,  # we want to save, but stay on page
@@ -100,7 +99,7 @@ def test_analysis_removal_on_topography_deletion(client, handle_usage_statistics
 
 
 @pytest.mark.django_db
-def test_renewal_on_topography_creation(client, mocker, handle_usage_statistics):
+def test_renewal_on_topography_creation(client, mocker, handle_usage_statistics, django_capture_on_commit_callbacks):
 
     renew_topo_analyses_mock = mocker.patch('topobank.manager.views.renew_analyses_related_to_topography.delay')
     renew_topo_thumbnail_mock = mocker.patch('topobank.manager.views.renew_topography_thumbnail.delay')
@@ -151,7 +150,7 @@ def test_renewal_on_topography_creation(client, mocker, handle_usage_statistics)
     # Send data for third page
     #
     assert_in_content(response, "Step 3 of 3")
-    with capture_on_commit_callbacks(execute=True) as callbacks:
+    with django_capture_on_commit_callbacks(execute=True) as callbacks:
         response = client.post(reverse('manager:topography-create',
                                        kwargs=dict(surface_id=surface.id)),
                                data={

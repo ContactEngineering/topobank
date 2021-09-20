@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% load static i18n %}
-{% load fontawesome %}
+{% load fontawesome_5 %}
 {% load guardian_tags %}
 {% load surface_tags %}
 
@@ -140,18 +140,18 @@
         {# Buttons for switching between topographies #}
         <div class="row p-3">
           <div class="col">
-            <ul class="nav nav-pills pull-right">
+            <ul class="nav nav-pills float-right">
               <li>
                 <div class="btn-group">
                   <a href="{% url 'manager:topography-detail' topography_prev %}"
                      class="btn btn-default {% if topography_prev == topography.id %} disabled {% endif %}"
                      data-toggle="tooltip" title="previous topography of related surface">
-                    {% fontawesome_icon 'chevron-left' %}
+                    {% fa5_icon 'chevron-left' %}
                   </a>
                   <a href="{% url 'manager:topography-detail' topography_next %}"
                      class="btn btn-default {% if topography_next == topography.id %} disabled {% endif %}"
                      data-toggle="tooltip" title="next topography of related surface">
-                    {% fontawesome_icon 'chevron-right' %}
+                    {% fa5_icon 'chevron-right' %}
                   </a>
                 </div>
               </li>
@@ -175,17 +175,17 @@
         <div class="row p-3">
           <div class="col">
             <a href="{% url 'analysis:topography' topography.id %}" class="btn btn-default btn-block btn-lg">
-              {% fontawesome_icon 'area-chart' %} Analyze this measurement
+              {% fa5_icon 'chart-area' %} Analyze this measurement
             </a>
             {% if "change_surface" in surface_perms %}
               <a href="{% url 'manager:topography-update' topography.id %}"
                  class="btn btn-default btn-block btn-lg">
-                {% fontawesome_icon 'edit' %} Edit
+                {% fa5_icon 'edit' %} Edit
               </a>
 
               <a href="{% url 'manager:topography-delete' topography.id %}"
                  class="btn btn-outline-danger btn-block btn-lg">
-                {% fontawesome_icon 'trash' %} Delete
+                {% fa5_icon 'trash' %} Delete
               </a>
             {% endif %}
           </div>

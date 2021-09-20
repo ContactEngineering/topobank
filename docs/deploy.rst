@@ -497,14 +497,10 @@ Then import terms and conditions:
 .. code:: bash
 
     docker-compose -f production.yml run --rm django python manage.py import_terms site-terms 1.0 topobank/static/other/TermsConditions.md
-    docker-compose -f production.yml run --rm django python manage.py import_terms --optional optional-terms 1.0 topobank/static/other/TermsConditionsSupplement.md
-
-Import the second one only if you want to ask for optional terms and conditions.
 
 After these conditions are installed, they are active (default activation time is installation time) and
-the user is asked when signing in. At least the non-optional terms and conditions (with slug "site-terms")
-must be accepted in order to use the application.
-The optional terms can also be accepted later, e.g. bei choosing "Terms & Conditions" from the help menu.
+the user is asked when signing in. The terms and conditions (with slug "site-terms") must be accepted in order to
+use the application.
 
 .. _automated-restart:
 
@@ -961,6 +957,29 @@ If you don't use `supervisor`, just call
 
 (this won't help when started via supervisor, because topobank is immediately restarted again).
 
+For 0.15.x -> 0.16.0: Rewind a migration
+........................................
+
+If you upgrade from version 0.15.x to 0.16.0, then a special step ins needed before the code is updated.
+For 0.16.0 we switch back from our own fork for "django-termsandconditions" to the official one.
+
+Create a backup copy of the tables `termsandconditions_termsandconditions`
+and `user_termsandconditions_termsandconditions`, e.g. by copying as extra tables with a `_sav` suffix in the name.
+
+Then, delete all optional terms in the database, they are no longer supported. Also all references if
+they have been accepted by users. Then, before migration, make sure to migrate this app back to an earlier state:
+
+.. code:: bash
+
+  docker-compose -f production.yml run --rm django python manage.py migrate termsandconditions 0003_auto_20170627_1217
+
+If a default for the info is needed, choose an empty string.
+
+Check if the data is complete using the table copies or use them to fix problems.
+Delete the backup copies.
+
+Now the missing migrations of django-termsandconditions should apply when doing the migration below.
+
 Update the code
 ...............
 
@@ -1012,6 +1031,7 @@ If building the containers was successful, aks yourself these questions:
      docker-compose -f production.yml run --rm django python manage.py migrate
 
   See here for reference: https://cookiecutter-django.readthedocs.io/en/latest/deployment-with-docker.html?highlight=migrate
+
 
 - Are there new analysis functions? IF yes, do
 

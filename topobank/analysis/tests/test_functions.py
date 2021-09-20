@@ -233,7 +233,7 @@ def simple_linear_2d_topography():
 
 
 def test_height_distribution_simple_2d_topography(simple_linear_2d_topography):
-    exp_unit = simple_linear_2d_topography.info['unit']
+    exp_unit = simple_linear_2d_topography.unit
     topography = FakeTopographyModel(simple_linear_2d_topography)
     result = height_distribution(topography, bins=10)
 
@@ -316,7 +316,7 @@ def test_slope_distribution_simple_2d_topography(simple_linear_2d_topography):
 
 
 def test_curvature_distribution_simple_2d_topography(simple_linear_2d_topography):
-    unit = simple_linear_2d_topography.info['unit']
+    unit = simple_linear_2d_topography.unit
     # resulting heights follow this function: h(x,y)=-4y+9
 
     topography = FakeTopographyModel(simple_linear_2d_topography)
@@ -375,7 +375,7 @@ def test_curvature_distribution_simple_2d_topography_periodic():
 
 
 def test_power_spectrum_simple_2d_topography(simple_linear_2d_topography):
-    unit = simple_linear_2d_topography.info['unit']
+    unit = simple_linear_2d_topography.unit
     # resulting heights follow this function: h(x,y)=-2y+9
 
     topography = FakeTopographyModel(simple_linear_2d_topography)
@@ -490,7 +490,7 @@ def test_contact_mechanics_effective_kwargs_in_result(periodic):
 
 
 def test_roughness_parameters(simple_linear_2d_topography):
-    unit = simple_linear_2d_topography.info['unit']
+    unit = simple_linear_2d_topography.unit
     inverse_unit = '{}⁻¹'.format(unit)
     topography = FakeTopographyModel(simple_linear_2d_topography)
     result = roughness_parameters(topography)

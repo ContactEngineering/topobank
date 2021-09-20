@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load fontawesome %}
+{% load fontawesome_5 %}
 {% load license_tags %}
 {% load crispy_forms_tags %}
 
@@ -60,7 +60,7 @@
           <div class="col">
             <a class="btn btn-default alert-link"
                href="{% url 'manager:topography-create' surface.id %}">
-              {% fontawesome_icon 'plus-square-o' %} Add measurement
+              {% fa5_icon 'plus-square-o' %} Add measurement
             </a>
           </div>
         </div>

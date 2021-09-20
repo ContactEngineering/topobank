@@ -1,10 +1,10 @@
 {# Just render the URLs appended to a license #}
-{% load fontawesome %}
+{% load fontawesome_5 %}
 <span>
  <a class="alert-link" href="{{ description_url }}" target="_blank">
-   {% fontawesome_icon 'external-link' %} Description
+   {% fa5_icon 'external-link-alt' %} Description
  </a>
  <a class="alert-link" href="{{ legal_code_url }}" target="_blank">
-   {% fontawesome_icon 'external-link' %} Legal code
+   {% fa5_icon 'external-link-alt' %} Legal code
  </a>
 </span>
