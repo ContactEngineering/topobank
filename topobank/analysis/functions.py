@@ -654,6 +654,7 @@ def scale_dependent_roughness_parameter(topography, progress_recorder, n, name, 
         series += [dict(name=yname,
                         x=distances,
                         y=np.sqrt(rms_values_sq),
+                        visible=False,
                         )]
 
         distances, rms_values_sq = topography.transpose().scale_dependent_statistical_property(
@@ -662,6 +663,7 @@ def scale_dependent_roughness_parameter(topography, progress_recorder, n, name, 
         series += [dict(name=xyname,
                         x=distances,
                         y=np.sqrt(rms_values_sq),
+                        visible=False,
                         )]
 
     unit = topography.unit
