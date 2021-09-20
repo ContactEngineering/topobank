@@ -630,8 +630,8 @@ def variable_bandwidth_for_surface(surface, progress_recorder=None, storage_pref
                                          '{}')
 
 
-@register_implementation(name="Scale-dependent slope", card_view_flavor='plot')
-def scale_dependent_slope(topography, progress_recorder=None, storage_prefix=None):
+def scale_dependent_roughness_parameter(topography, progress_recorder, n, name, ylabel, xname, yname, xyfunc, xyname,
+                                        yunit):
     topography = topography.topography()
 
     if topography.dim == 2:
@@ -639,135 +639,118 @@ def scale_dependent_slope(topography, progress_recorder=None, storage_prefix=Non
     else:
         fac = 1
 
-    distances, curvatures_sq = topography.scale_dependent_statistical_property(
-        lambda x, y=None: np.mean(x * x), n=1,
+    distances, rms_values_sq = topography.scale_dependent_statistical_property(
+        lambda x, y=None: np.mean(x * x), n=n,
         progress_callback=lambda i, n: progress_recorder.set_progress(i + 1, fac * n))
-    series = [dict(name='Slope in x-direction',
+    series = [dict(name=xname,
                    x=distances,
-                   y=np.sqrt(curvatures_sq),
+                   y=np.sqrt(rms_values_sq),
                    )]
 
     if topography.dim == 2:
-        distances, curvatures_sq = topography.transpose().scale_dependent_statistical_property(
-            lambda x, y=None: np.mean(x * x), n=1,
+        distances, rms_values_sq = topography.transpose().scale_dependent_statistical_property(
+            lambda x, y=None: np.mean(x * x), n=n,
             progress_callback=lambda i, n: progress_recorder.set_progress(n + i + 1, 3 * n))
-        series += [dict(name='Slope in y-direction',
+        series += [dict(name=yname,
                         x=distances,
-                        y=np.sqrt(curvatures_sq),
+                        y=np.sqrt(rms_values_sq),
                         )]
 
-        distances, curvatures_sq = topography.transpose().scale_dependent_statistical_property(
-            lambda x, y: np.mean(x * x + y * y), n=1,
+        distances, rms_values_sq = topography.transpose().scale_dependent_statistical_property(
+            lambda x, y: np.mean(xyfunc(x, y)), n=n,
             progress_callback=lambda i, n: progress_recorder.set_progress(2 * n + i + 1, 3 * n))
-        series += [dict(name='Gradient',
+        series += [dict(name=xyname,
                         x=distances,
-                        y=np.sqrt(curvatures_sq),
+                        y=np.sqrt(rms_values_sq),
                         )]
 
     unit = topography.unit
     return dict(
-        name='Scale-dependent slope',
+        name=name,
         xlabel='Distance',
-        ylabel='Slope',
+        ylabel=ylabel,
         xunit=unit,
-        yunit='1',
+        yunit=yunit.format(unit),
         xscale='log',
         yscale='log',
         series=series)
+
+
+def scale_dependent_roughness_parameter_for_surface(surface, progress_recorder, n, name, ylabel, xname, yunit):
+    topographies = ContainerProxy(surface.topography_set.all())
+    unit = suggest_length_unit(topographies)
+    # Factor of two for curvature
+    distances, rms_values_sq = scale_dependent_statistical_property(
+        topographies, lambda x, y=None: np.mean(x * x), n=n, unit=unit,
+        progress_callback=lambda i, n: progress_recorder.set_progress(i + 1, n))
+    series = [dict(name=xname,
+                   x=distances,
+                   y=np.sqrt(rms_values_sq),
+                   )]
+
+    return dict(
+        name=name,
+        xlabel='Distance',
+        ylabel=ylabel,
+        xunit=unit,
+        yunit=yunit.format(unit),
+        xscale='log',
+        yscale='log',
+        series=series)
+
+
+@register_implementation(name="Scale-dependent slope", card_view_flavor='plot')
+def scale_dependent_slope(topography, progress_recorder=None, storage_prefix=None):
+    return scale_dependent_roughness_parameter(
+        topography,
+        progress_recorder,
+        1,
+        'Scale-dependent slope',
+        'Slope',
+        'Slope in x-direction',
+        'Slope in y-direction',
+        lambda x, y: x * x + y * y,
+        'Gradient',
+        '1')
 
 
 @register_implementation(name="Scale-dependent slope", card_view_flavor='plot')
 def scale_dependent_slope_for_surface(surface, progress_recorder=None, storage_prefix=None):
-    topographies = ContainerProxy(surface.topography_set.all())
-    unit = suggest_length_unit(topographies)
-    # Factor of two for curvature
-    distances, curvatures_sq = scale_dependent_statistical_property(
-        topographies, lambda x, y=None: np.mean(x * x), n=1, unit=unit,
-        progress_callback=lambda i, n: progress_recorder.set_progress(i + 1, n))
-    series = [dict(name='Curvature in x-direction',
-                   x=distances,
-                   y=np.sqrt(curvatures_sq),
-                   )]
-
-    return dict(
-        name='Scale-dependent slope',
-        xlabel='Distance',
-        ylabel='Slope',
-        xunit=unit,
-        yunit='1',
-        xscale='log',
-        yscale='log',
-        series=series)
+    return scale_dependent_roughness_parameter_for_surface(
+        surface,
+        progress_recorder,
+        1,
+        'Scale-dependent slope',
+        'Slope',
+        'Slope in x-direction',
+        '1')
 
 
 @register_implementation(name="Scale-dependent curvature", card_view_flavor='plot')
 def scale_dependent_curvature(topography, progress_recorder=None, storage_prefix=None):
-    topography = topography.topography()
-
-    if topography.dim == 2:
-        fac = 3
-    else:
-        fac = 1
-
-    distances, curvatures_sq = topography.scale_dependent_statistical_property(
-        lambda x, y=None: np.var(x), n=2,
-        progress_callback=lambda i, n: progress_recorder.set_progress(i + 1, fac * n))
-    series = [dict(name='Curvature in x-direction',
-                   x=distances,
-                   y=np.sqrt(curvatures_sq),
-                   )]
-
-    if topography.dim == 2:
-        distances, curvatures_sq = topography.transpose().scale_dependent_statistical_property(
-            lambda x, y=None: np.var(x), n=2,
-            progress_callback=lambda i, n: progress_recorder.set_progress(n + i + 1, 3 * n))
-        series += [dict(name='Curvature in y-direction',
-                        x=distances,
-                        y=np.sqrt(curvatures_sq),
-                        )]
-
-        distances, curvatures_sq = topography.transpose().scale_dependent_statistical_property(
-            lambda x, y: np.var((x + y) / 2), n=2,
-            progress_callback=lambda i, n: progress_recorder.set_progress(2 * n + i + 1, 3 * n))
-        series += [dict(name='1/2 Laplacian',
-                        x=distances,
-                        y=np.sqrt(curvatures_sq),
-                        )]
-
-    unit = topography.unit
-    return dict(
-        name='Scale-dependent curvature',
-        xlabel='Distance',
-        ylabel='Curvature',
-        xunit=unit,
-        yunit='{}⁻¹'.format(unit),
-        xscale='log',
-        yscale='log',
-        series=series)
+    return scale_dependent_roughness_parameter(
+        topography,
+        progress_recorder,
+        1,
+        'Scale-dependent curvature',
+        'Curvature',
+        'Curvature in x-direction',
+        'Curvature in y-direction',
+        lambda x, y: (x + y) ** 2 / 4,
+        '1/2 Laplacian',
+        '{}⁻¹')
 
 
 @register_implementation(name="Scale-dependent curvature", card_view_flavor='plot')
 def scale_dependent_curvature_for_surface(surface, progress_recorder=None, storage_prefix=None):
-    topographies = ContainerProxy(surface.topography_set.all())
-    unit = suggest_length_unit(topographies)
-    # Factor of two for curvature
-    distances, curvatures_sq = scale_dependent_statistical_property(
-        topographies, lambda x, y=None: np.var(x), n=2, unit=unit,
-        progress_callback=lambda i, n: progress_recorder.set_progress(i + 1, n))
-    series = [dict(name='Curvature in x-direction',
-                   x=distances,
-                   y=np.sqrt(curvatures_sq),
-                   )]
-
-    return dict(
-        name='Scale-dependent curvature',
-        xlabel='Distance',
-        ylabel='Curvature',
-        xunit=unit,
-        yunit='{}⁻¹'.format(unit),
-        xscale='log',
-        yscale='log',
-        series=series)
+    return scale_dependent_roughness_parameter_for_surface(
+        surface,
+        progress_recorder,
+        1,
+        'Scale-dependent curvature',
+        'Curvature',
+        'Curvature in x-direction',
+        '{}⁻¹')
 
 
 def _next_contact_step(system, history=None, pentol=None, maxiter=None):
