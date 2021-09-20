@@ -6,7 +6,7 @@
       <a class="nav-link {% if tab.active %}active{% endif %}" href="{% if tab.href %}{{ tab.href }}{% else %}{{ request.path }}{% endif %}">
         <i class="{{ tab.icon_style_prefix|default:"fas" }} fa-{{ tab.icon}}"></i> {{ tab.title|truncatechars:50 }}
         {% if not forloop.last and forloop.counter >= min_num_tabs %}
-          {# we only want the double angle for all tabs which could be the last but or not #}
+          {# we only want the double angle for all tabs which could be the last but are not #}
         {% fa5_icon 'angle-double-right' %}
         {% endif %}
       </a>

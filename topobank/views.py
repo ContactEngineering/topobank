@@ -63,10 +63,11 @@ class TermsView(TemplateView):
 
         context['extra_tabs'] = [{
             'login_required': False,
-            'icon': 'legal',
+            'icon': 'file-contract',
             'title': "Terms and Conditions",
             'active': True,
         }]
+        context['connect_fixed_tabs_with_extra_tabs'] = False
 
         return context
 
@@ -108,14 +109,14 @@ def tabs_for_terms(terms, request_path):
 
     return [
         {
-            'icon': 'legal',
+            'icon': 'file-contract',
             'title': "Terms and Conditions",
             'href': reverse('terms'),
             'active': False,
             'login_required': False,
         },
         {
-            'icon': 'legal',
+            'icon': 'file-contract',
             'title': tab_title,
             'href': request_path,
             'active': True,
@@ -128,6 +129,7 @@ class TabbedTermsMixin:
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['extra_tabs'] = tabs_for_terms(self.get_terms(self.kwargs), self.request.path)
+        context['connect_fixed_tabs_with_extra_tabs'] = False
         return context
 
 
