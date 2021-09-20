@@ -12,6 +12,7 @@
   with stderr for y without masked values (#711)
 - MAINT: Upgrade to Django 3.2
 - MAINT: Upgrade to fontawesome 5
+- MAINT: Upgrade to Postgres 13.4
 - MAINT: Upgrade of several packages
 
 ## 0.15.1 (2021-08-05)
