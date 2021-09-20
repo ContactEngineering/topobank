@@ -131,10 +131,14 @@ class Command(BaseCommand):
             tags=topo_dict['tags'],
             detrend_mode=topo_dict['detrend_mode'],
             is_periodic=topo_dict['is_periodic'],
-            instrument_name=topo_dict['instrument']['name'],
-            instrument_type=topo_dict['instrument']['type'],
-            instrument_parameters=topo_dict['instrument']['parameters'],
         )
+
+        if 'instrument' in topo_dict:
+            topo_kwargs.update(dict(
+                instrument_name=topo_dict['instrument']['name'],
+                instrument_type=topo_dict['instrument']['type'],
+                instrument_parameters=topo_dict['instrument']['parameters'],
+            ))
 
         # saving topo file in backend
         new_topo_file_path = os.path.join(user.get_media_path(), os.path.basename(topo_name))
