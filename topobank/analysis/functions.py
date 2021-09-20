@@ -415,17 +415,12 @@ def analysis_function(topography, funcname_profile, funcname_area, name, xlabel,
     r = r[np.isfinite(A)]
     A = A[np.isfinite(A)]
 
-    # Check whether we need to create a data series with unreliable data
-    cutoff = topography.short_reliability_cutoff()
-    lower, upper = topography.bandwidth()
-    unreliable_data_exists = cutoff is not None and cutoff > lower
+    # Create dataset with unreliable data
+    ru, Au = func(reliable=False, **kwargs)
 
-    if unreliable_data_exists:
-        ru, Au = func(reliable=False, **kwargs)
-
-        # Remove NaNs
-        ru = ru[np.isfinite(Au)]
-        Au = Au[np.isfinite(Au)]
+    # Remove NaNs
+    ru = ru[np.isfinite(Au)]
+    Au = Au[np.isfinite(Au)]
 
     if topography.dim == 2:
         transpose_func = getattr(topography.transpose(), funcname_profile)
@@ -440,15 +435,14 @@ def analysis_function(topography, funcname_profile, funcname_area, name, xlabel,
         r_2D = r_2D[np.isfinite(A_2D)]
         A_2D = A_2D[np.isfinite(A_2D)]
 
-        if unreliable_data_exists:
-            ru_T, Au_T = transpose_func(reliable=False, **kwargs)
-            ru_2D, Au_2D = areal_func(reliable=False, **kwargs)
+        ru_T, Au_T = transpose_func(reliable=False, **kwargs)
+        ru_2D, Au_2D = areal_func(reliable=False, **kwargs)
 
-            # Remove NaNs
-            ru_T = ru_T[np.isfinite(Au_T)]
-            Au_T = Au_T[np.isfinite(Au_T)]
-            ru_2D = ru_2D[np.isfinite(Au_2D)]
-            Au_2D = Au_2D[np.isfinite(Au_2D)]
+        # Remove NaNs
+        ru_T = ru_T[np.isfinite(Au_T)]
+        Au_T = Au_T[np.isfinite(Au_T)]
+        ru_2D = ru_2D[np.isfinite(Au_2D)]
+        Au_2D = Au_2D[np.isfinite(Au_2D)]
 
     #
     # Build series
@@ -474,28 +468,27 @@ def analysis_function(topography, funcname_profile, funcname_area, name, xlabel,
                  ),
         ]
 
-    if unreliable_data_exists:
+    series += [
+        dict(name='{} (incl. unreliable data)'.format(xname),
+             x=ru,
+             y=Au,
+             visible=False,
+             ),
+    ]
+
+    if topography.dim == 2:
         series += [
-            dict(name='{} (incl. unreliable data)'.format(xname),
-                 x=ru,
-                 y=Au,
+            dict(name='{} (incl. unreliable data)'.format(yname),
+                 x=ru_T,
+                 y=Au_T,
+                 visible=False,
+                 ),
+            dict(name='{} (incl. unreliable data)'.format(aname),
+                 x=ru_2D,
+                 y=Au_2D,
                  visible=False,
                  ),
         ]
-
-        if topography.dim == 2:
-            series += [
-                dict(name='{} (incl. unreliable data)'.format(yname),
-                     x=ru_T,
-                     y=Au_T,
-                     visible=False,
-                     ),
-                dict(name='{} (incl. unreliable data)'.format(aname),
-                     x=ru_2D,
-                     y=Au_2D,
-                     visible=False,
-                     ),
-            ]
 
     # Unit for displaying ACF
     unit = topography.unit
