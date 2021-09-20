@@ -733,7 +733,7 @@ def scale_dependent_curvature(topography, progress_recorder=None, storage_prefix
     return scale_dependent_roughness_parameter(
         topography,
         progress_recorder,
-        1,
+        2,
         'Scale-dependent curvature',
         'Curvature',
         'Curvature in x-direction',
@@ -748,7 +748,7 @@ def scale_dependent_curvature_for_surface(surface, progress_recorder=None, stora
     return scale_dependent_roughness_parameter_for_surface(
         surface,
         progress_recorder,
-        1,
+        2,
         'Scale-dependent curvature',
         'Curvature',
         'Curvature in x-direction',
