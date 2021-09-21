@@ -630,8 +630,8 @@ def variable_bandwidth_for_surface(surface, progress_recorder=None, storage_pref
                                          '{}')
 
 
-def scale_dependent_roughness_parameter(topography, progress_recorder, n, name, ylabel, xname, yname, xyfunc, xyname,
-                                        yunit):
+def scale_dependent_roughness_parameter(topography, progress_recorder, order_of_derivative, name, ylabel, xname, yname,
+                                        xyfunc, xyname, yunit):
     topography = topography.topography()
 
     if topography.dim == 2:
@@ -640,7 +640,7 @@ def scale_dependent_roughness_parameter(topography, progress_recorder, n, name, 
         fac = 1
 
     distances, rms_values_sq = topography.scale_dependent_statistical_property(
-        lambda x, y=None: np.mean(x * x), n=n,
+        lambda x, y=None: np.mean(x * x), n=order_of_derivative,
         progress_callback=lambda i, n: progress_recorder.set_progress(i + 1, fac * n))
     series = [dict(name=xname,
                    x=distances,
@@ -649,7 +649,7 @@ def scale_dependent_roughness_parameter(topography, progress_recorder, n, name, 
 
     if topography.dim == 2:
         distances, rms_values_sq = topography.transpose().scale_dependent_statistical_property(
-            lambda x, y=None: np.mean(x * x), n=n,
+            lambda x, y=None: np.mean(x * x), n=order_of_derivative,
             progress_callback=lambda i, n: progress_recorder.set_progress(n + i + 1, 3 * n))
         series += [dict(name=yname,
                         x=distances,
@@ -658,7 +658,7 @@ def scale_dependent_roughness_parameter(topography, progress_recorder, n, name, 
                         )]
 
         distances, rms_values_sq = topography.transpose().scale_dependent_statistical_property(
-            lambda x, y: np.mean(xyfunc(x, y)), n=n,
+            lambda x, y: np.mean(xyfunc(x, y)), n=order_of_derivative,
             progress_callback=lambda i, n: progress_recorder.set_progress(2 * n + i + 1, 3 * n))
         series += [dict(name=xyname,
                         x=distances,
@@ -678,12 +678,13 @@ def scale_dependent_roughness_parameter(topography, progress_recorder, n, name, 
         series=series)
 
 
-def scale_dependent_roughness_parameter_for_surface(surface, progress_recorder, n, name, ylabel, xname, yunit):
+def scale_dependent_roughness_parameter_for_surface(surface, progress_recorder, order_of_derivative, name, ylabel,
+                                                    xname, yunit):
     topographies = ContainerProxy(surface.topography_set.all())
     unit = suggest_length_unit(topographies)
     # Factor of two for curvature
     distances, rms_values_sq = scale_dependent_statistical_property(
-        topographies, lambda x, y=None: np.mean(x * x), n=n, unit=unit,
+        topographies, lambda x, y=None: np.mean(x * x), n=order_of_derivative, unit=unit,
         progress_callback=lambda i, n: progress_recorder.set_progress(i + 1, n))
     series = [dict(name=xname,
                    x=distances,
