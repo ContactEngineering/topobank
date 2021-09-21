@@ -278,7 +278,7 @@ six==1.16.0
     #   python-dateutil
 sqlparse==0.4.1
     # via django
-surfacetopography==0.97.0
+surfacetopography==0.97.1
     # via
     #   -r base.in
     #   contactmechanics
