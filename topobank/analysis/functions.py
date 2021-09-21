@@ -54,7 +54,7 @@ def register_implementation(card_view_flavor="simple", name=None):
     return register_decorator
 
 
-class ContainerProxy(collections.Iterator):
+class ContainerProxy(collections.abc.Iterator):
     """
     Proxy class that emulates a SurfaceTopography `Container` and can be used
     to iterate over native SurfaceTopography objects.
@@ -271,6 +271,10 @@ def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, st
     # Get low level topography from SurfaceTopography model
     topography = topography.topography()
 
+    if topography.is_reentrant:
+        raise ReentrantTopographyException(
+            'Slope distribution: Cannot calculate analysis function for reentrant measurements.')
+
     if bins is None:
         bins = _reasonable_bins_argument(topography)
 
@@ -343,6 +347,10 @@ def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None
     # Get low level topography from SurfaceTopography model
     topography = topography.topography()
 
+    if topography.is_reentrant:
+        raise ReentrantTopographyException(
+            'Curvature distribution: Cannot calculate analysis function for reentrant measurements.')
+
     if bins is None:
         bins = _reasonable_bins_argument(topography)
 
@@ -409,6 +417,10 @@ def analysis_function(topography, funcname_profile, funcname_area, name, xlabel,
                       yunit, **kwargs):
     # Get low level topography from SurfaceTopography model
     topography = topography.topography()
+
+    if topography.is_reentrant:
+        raise ReentrantTopographyException(
+            '{}: Cannot calculate analysis function for reentrant measurements.'.format(name))
 
     func = getattr(topography, funcname_profile)
     r, A = func(**kwargs)
@@ -511,9 +523,8 @@ def analysis_function_for_surface(surface, progress_recorder, funcname_profile, 
     """Calculate average variable bandwidth for a surface."""
     topographies = ContainerProxy(surface.topography_set.all())
     unit = suggest_length_unit(topographies)
-    r, A = log_average(topographies, funcname_profile, unit,
-                       progress_callback=lambda i, n: progress_recorder.set_progress(i + 1, n),
-                       **kwargs)
+    progress_callback = None if progress_recorder is None else lambda i, n: progress_recorder.set_progress(i + 1, n)
+    r, A = log_average(topographies, funcname_profile, unit, progress_callback=progress_callback, **kwargs)
 
     # Remove NaNs
     r = r[np.isfinite(A)]
@@ -541,7 +552,7 @@ def analysis_function_for_surface(surface, progress_recorder, funcname_profile, 
 
 
 @register_implementation(name="Power spectrum", card_view_flavor='plot')
-def power_spectrum(topography, window=None, progress_recorder=None, storage_prefix=None):
+def power_spectrum(topography, window=None, progress_recorder=None, storage_prefix=None, **kwargs):
     """Calculate Power Spectrum for given topography."""
     # Get low level topography from SurfaceTopography model
     return analysis_function(topography,
@@ -555,11 +566,11 @@ def power_spectrum(topography, window=None, progress_recorder=None, storage_pref
                              'q/π × 2D PSD',
                              '{}⁻¹',
                              '{}³',
-                             window=window)
+                             **kwargs)
 
 
 @register_implementation(name="Power spectrum", card_view_flavor='plot')
-def power_spectrum_for_surface(surface, window=None, progress_recorder=None, storage_prefix=None):
+def power_spectrum_for_surface(surface, progress_recorder=None, storage_prefix=None, **kwargs):
     """Calculate Power Spectrum for given topography."""
     # Get low level topography from SurfaceTopography model
     return analysis_function_for_surface(surface,
@@ -571,39 +582,41 @@ def power_spectrum_for_surface(surface, window=None, progress_recorder=None, sto
                                          '1D PSD along x',
                                          '{}⁻¹',
                                          '{}³',
-                                         window=window)
+                                         **kwargs)
 
 
 @register_implementation(name="Autocorrelation", card_view_flavor='plot')
-def autocorrelation(topography, progress_recorder=None, storage_prefix=None):
+def autocorrelation(topography, progress_recorder=None, storage_prefix=None, **kwargs):
     return analysis_function(topography,
                              'autocorrelation_from_profile',
                              'autocorrelation_from_area',
-                             'Autocorrelation (ACF)',
+                             'Height-difference autocorrelation function (ACF)',
                              'Distance',
                              'ACF',
                              'Along x',
                              'Along y',
                              'Radial average',
                              '{}',
-                             '{}²')
+                             '{}²',
+                             **kwargs)
 
 
 @register_implementation(name="Autocorrelation", card_view_flavor='plot')
-def autocorrelation_for_surface(surface, progress_recorder=None, storage_prefix=None):
+def autocorrelation_for_surface(surface, progress_recorder=None, storage_prefix=None, **kwargs):
     return analysis_function_for_surface(surface,
                                          progress_recorder,
                                          'autocorrelation_from_profile',
-                                         'Autocorrelation (ACF)',
+                                         'Height-difference autocorrelation function (ACF)',
                                          'Distance',
                                          'ACF',
                                          'Along x',
                                          '{}',
-                                         '{}²')
+                                         '{}²',
+                                         **kwargs)
 
 
 @register_implementation(name="Variable bandwidth", card_view_flavor='plot')
-def variable_bandwidth(topography, progress_recorder=None, storage_prefix=None):
+def variable_bandwidth(topography, progress_recorder=None, storage_prefix=None, **kwargs):
     return analysis_function(topography,
                              'variable_bandwidth_from_profile',
                              'variable_bandwidth_from_area',
@@ -614,11 +627,12 @@ def variable_bandwidth(topography, progress_recorder=None, storage_prefix=None):
                              'Profile decomposition along y',
                              'Areal decomposition',
                              '{}',
-                             '{}')
+                             '{}',
+                             **kwargs)
 
 
 @register_implementation(name="Variable bandwidth", card_view_flavor='plot')
-def variable_bandwidth_for_surface(surface, progress_recorder=None, storage_prefix=None):
+def variable_bandwidth_for_surface(surface, progress_recorder=None, storage_prefix=None, **kwargs):
     return analysis_function_for_surface(surface,
                                          progress_recorder,
                                          'variable_bandwidth_from_profile',
@@ -627,39 +641,47 @@ def variable_bandwidth_for_surface(surface, progress_recorder=None, storage_pref
                                          'RMS height',
                                          'Profile decomposition along x',
                                          '{}',
-                                         '{}')
+                                         '{}',
+                                         **kwargs)
 
 
 def scale_dependent_roughness_parameter(topography, progress_recorder, order_of_derivative, name, ylabel, xname, yname,
-                                        xyfunc, xyname, yunit):
+                                        xyfunc, xyname, yunit, **kwargs):
     topography = topography.topography()
+
+    if topography.is_reentrant:
+        raise ReentrantTopographyException(
+            '{}: Cannot calculate analysis function for reentrant measurements.'.format(name))
 
     if topography.dim == 2:
         fac = 3
     else:
         fac = 1
 
+    progress_callback = None if progress_recorder is None else \
+        lambda i, n: progress_recorder.set_progress(i + 1, fac * n)
     distances, rms_values_sq = topography.scale_dependent_statistical_property(
-        lambda x, y=None: np.mean(x * x), n=order_of_derivative,
-        progress_callback=lambda i, n: progress_recorder.set_progress(i + 1, fac * n))
+        lambda x, y=None: np.mean(x * x), n=order_of_derivative, progress_callback=progress_callback, **kwargs)
     series = [dict(name=xname,
                    x=distances,
                    y=np.sqrt(rms_values_sq),
                    )]
 
     if topography.dim == 2:
+        progress_callback = None if progress_recorder is None else \
+            lambda i, n: progress_recorder.set_progress(n + i + 1, 3 * n)
         distances, rms_values_sq = topography.transpose().scale_dependent_statistical_property(
-            lambda x, y=None: np.mean(x * x), n=order_of_derivative,
-            progress_callback=lambda i, n: progress_recorder.set_progress(n + i + 1, 3 * n))
+            lambda x, y=None: np.mean(x * x), n=order_of_derivative, progress_callback=progress_callback, **kwargs)
         series += [dict(name=yname,
                         x=distances,
                         y=np.sqrt(rms_values_sq),
                         visible=False,
                         )]
 
+        progress_callback = None if progress_recorder is None else \
+            lambda i, n: progress_recorder.set_progress(2 * n + i + 1, 3 * n)
         distances, rms_values_sq = topography.transpose().scale_dependent_statistical_property(
-            lambda x, y: np.mean(xyfunc(x, y)), n=order_of_derivative,
-            progress_callback=lambda i, n: progress_recorder.set_progress(2 * n + i + 1, 3 * n))
+            lambda x, y: np.mean(xyfunc(x, y)), n=order_of_derivative, progress_callback=progress_callback, **kwargs)
         series += [dict(name=xyname,
                         x=distances,
                         y=np.sqrt(rms_values_sq),
@@ -679,13 +701,14 @@ def scale_dependent_roughness_parameter(topography, progress_recorder, order_of_
 
 
 def scale_dependent_roughness_parameter_for_surface(surface, progress_recorder, order_of_derivative, name, ylabel,
-                                                    xname, yunit):
+                                                    xname, yunit, **kwargs):
     topographies = ContainerProxy(surface.topography_set.all())
     unit = suggest_length_unit(topographies)
     # Factor of two for curvature
+    progress_callback = None if progress_recorder is None else lambda i, n: progress_recorder.set_progress(i + 1, n)
     distances, rms_values_sq = scale_dependent_statistical_property(
         topographies, lambda x, y=None: np.mean(x * x), n=order_of_derivative, unit=unit,
-        progress_callback=lambda i, n: progress_recorder.set_progress(i + 1, n))
+        progress_callback=progress_callback, **kwargs)
     series = [dict(name=xname,
                    x=distances,
                    y=np.sqrt(rms_values_sq),
@@ -703,7 +726,7 @@ def scale_dependent_roughness_parameter_for_surface(surface, progress_recorder, 
 
 
 @register_implementation(name="Scale-dependent slope", card_view_flavor='plot')
-def scale_dependent_slope(topography, progress_recorder=None, storage_prefix=None):
+def scale_dependent_slope(topography, progress_recorder=None, storage_prefix=None, **kwargs):
     return scale_dependent_roughness_parameter(
         topography,
         progress_recorder,
@@ -714,11 +737,12 @@ def scale_dependent_slope(topography, progress_recorder=None, storage_prefix=Non
         'Slope in y-direction',
         lambda x, y: x * x + y * y,
         'Gradient',
-        '1')
+        '1',
+        **kwargs)
 
 
 @register_implementation(name="Scale-dependent slope", card_view_flavor='plot')
-def scale_dependent_slope_for_surface(surface, progress_recorder=None, storage_prefix=None):
+def scale_dependent_slope_for_surface(surface, progress_recorder=None, storage_prefix=None, **kwargs):
     return scale_dependent_roughness_parameter_for_surface(
         surface,
         progress_recorder,
@@ -726,11 +750,12 @@ def scale_dependent_slope_for_surface(surface, progress_recorder=None, storage_p
         'Scale-dependent slope',
         'Slope',
         'Slope in x-direction',
-        '1')
+        '1',
+        **kwargs)
 
 
 @register_implementation(name="Scale-dependent curvature", card_view_flavor='plot')
-def scale_dependent_curvature(topography, progress_recorder=None, storage_prefix=None):
+def scale_dependent_curvature(topography, progress_recorder=None, storage_prefix=None, **kwargs):
     return scale_dependent_roughness_parameter(
         topography,
         progress_recorder,
@@ -741,11 +766,12 @@ def scale_dependent_curvature(topography, progress_recorder=None, storage_prefix
         'Curvature in y-direction',
         lambda x, y: (x + y) ** 2 / 4,
         '1/2 Laplacian',
-        '{}⁻¹')
+        '{}⁻¹',
+        **kwargs)
 
 
 @register_implementation(name="Scale-dependent curvature", card_view_flavor='plot')
-def scale_dependent_curvature_for_surface(surface, progress_recorder=None, storage_prefix=None):
+def scale_dependent_curvature_for_surface(surface, progress_recorder=None, storage_prefix=None, **kwargs):
     return scale_dependent_roughness_parameter_for_surface(
         surface,
         progress_recorder,
@@ -753,7 +779,8 @@ def scale_dependent_curvature_for_surface(surface, progress_recorder=None, stora
         'Scale-dependent curvature',
         'Curvature',
         'Curvature in x-direction',
-        '{}⁻¹')
+        '{}⁻¹',
+        **kwargs)
 
 
 def _next_contact_step(system, history=None, pentol=None, maxiter=None):

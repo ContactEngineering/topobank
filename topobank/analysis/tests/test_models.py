@@ -109,15 +109,16 @@ def test_autoload_analysis_functions():
     funcs = AnalysisFunction.objects.all().order_by('name')
 
     expected_funcs = sorted([
-        dict(name='Height Distribution',),
-        dict(name='Slope Distribution'),
-        dict(name='Curvature Distribution'),
-        dict(name='Power Spectrum'),
+        dict(name='Height distribution',),
+        dict(name='Slope distribution'),
+        dict(name='Curvature distribution'),
+        dict(name='Power spectrum'),
         dict(name='Autocorrelation'),
-        dict(name='Variable Bandwidth'),
-        dict(name='Contact Mechanics'),
-        dict(name='Roughness Parameters'),
-        dict(name='Scale-dependent Slope'),
+        dict(name='Variable bandwidth'),
+        dict(name='Contact mechanics'),
+        dict(name='Roughness parameters'),
+        dict(name='Scale-dependent slope'),
+        dict(name='Scale-dependent curvature'),
     ], key=itemgetter('name'))
 
     assert len(expected_funcs) == len(funcs), f"Wrong number of registered functions: {funcs}"
@@ -141,7 +142,7 @@ def test_default_function_kwargs():
 
     call_command('register_analysis_functions')
 
-    func = AnalysisFunction.objects.get(name='Contact Mechanics')
+    func = AnalysisFunction.objects.get(name='Contact mechanics')
 
     expected_kwargs = dict(
         substrate_str=None,

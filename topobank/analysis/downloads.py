@@ -585,7 +585,7 @@ def download_roughness_parameters_to_xlsx(request, analyses):
     roughness_df = pd.DataFrame(data, columns=['surface', 'measurement', 'quantity', 'direction',
                                                'from', 'symbol', 'value', 'unit'])
     roughness_df.replace(r'&Delta;', 'Δ', inplace=True, regex=True)  # we want a real greek delta
-    roughness_df.to_excel(excel, sheet_name="Roughness Parameters", index=False)
+    roughness_df.to_excel(excel, sheet_name="Roughness parameters", index=False)
     info_df = _analyses_meta_data_dataframe(analyses, request)
     info_df.to_excel(excel, sheet_name='INFORMATION', index=False)
     excel.close()
