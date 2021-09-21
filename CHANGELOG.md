@@ -8,10 +8,20 @@
   with OR and - for NOT can be used; change: only 
   topographies matching the search expression are 
   displayed underneath surfaces from now on (#701)
+- ENH: Reliability analysis for scanning probe data (#83)
+- ENH: Scale-dependent curvature (#586)
+- BUG: Scale-dependent slope is now computed uses the
+  brute force approach (closes #687)
 - BUG: Fixed issue while downloading analysis results
   with stderr for y without masked values (#711)
 - BUG: Missing points were not shown correctly in 
   2D plots (#699)
+- MAINT: Computing of averages is handled on the
+  SurfaceTopography side
+- MAINT: All properties are averages to a reasonable
+  number of data points (closes #696)
+- MAINT: Decapitalized analysis function names (e.g.
+  "Roughness Parameters" -> "Roughness parameters")
 - MAINT: Upgrade to Django 3.2
 - MAINT: Upgrade to fontawesome 5
 - MAINT: Upgrade to Postgres 13.4
