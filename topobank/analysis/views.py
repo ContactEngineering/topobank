@@ -668,8 +668,6 @@ class PlotCardView(SimpleCardView):
         #
         # Adding widgets for switching lines on/off
         #
-        print(series_names)
-        print(series_actives)
         series_button_group = CheckboxGroup(
             labels=series_names,
             css_classes=["topobank-series-checkbox"],
