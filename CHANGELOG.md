@@ -26,6 +26,7 @@
 - MAINT: Upgrade to fontawesome 5
 - MAINT: Upgrade to Postgres 13.4
 - MAINT: Upgrade of several packages
+- MAINT: Removed error bars on analysis results
 
 ## 0.15.1 (2021-08-05)
 
