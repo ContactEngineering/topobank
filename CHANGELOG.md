@@ -12,6 +12,7 @@
   with stderr for y without masked values (#711)
 - BUG: Missing points were not shown correctly in 
   2D plots (#699)
+- BUG: Fixed height scale applied twice on import (#718)
 - MAINT: Upgrade to Django 3.2
 - MAINT: Upgrade to fontawesome 5
 - MAINT: Upgrade to Postgres 13.4

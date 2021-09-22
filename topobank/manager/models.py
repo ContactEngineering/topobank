@@ -649,26 +649,30 @@ class Topography(models.Model, SubjectMixin):
 
     def to_dict(self):
         """Create dictionary for export of metadata to json or yaml"""
-        return {'name': self.name,
-                'datafile': {
-                    'original': self.datafile.name,
-                    'squeezed-netcdf': self.squeezed_datafile.name,
-                },
-                'data_source': self.data_source,
-                'detrend_mode': self.detrend_mode,
-                'is_periodic': self.is_periodic,
-                'creator': {'name': self.creator.name, 'orcid': self.creator.orcid_id},
-                'measurement_date': self.measurement_date,
-                'description': self.description,
-                'unit': self.unit,
-                'height_scale': self.height_scale,
-                'size': (self.size_x,) if self.size_y is None else (self.size_x, self.size_y),
-                'tags': [t.name for t in self.tags.order_by('name')],
-                'instrument': {
-                    'name': self.instrument_name,
-                    'type': self.instrument_type,
-                    'parameters': self.instrument_parameters,
-                }}
+        result = {'name': self.name,
+                  'datafile': {
+                      'original': self.datafile.name,
+                      'squeezed-netcdf': self.squeezed_datafile.name,
+                  },
+                  'data_source': self.data_source,
+                  'detrend_mode': self.detrend_mode,
+                  'is_periodic': self.is_periodic,
+                  'creator': {'name': self.creator.name, 'orcid': self.creator.orcid_id},
+                  'measurement_date': self.measurement_date,
+                  'description': self.description,
+                  'unit': self.unit,
+                  'size': (self.size_x,) if self.size_y is None else (self.size_x, self.size_y),
+                  'tags': [t.name for t in self.tags.order_by('name')],
+                  'instrument': {
+                      'name': self.instrument_name,
+                      'type': self.instrument_type,
+                      'parameters': self.instrument_parameters,
+                  }}
+        if self.height_scale_editable:
+            result['height_scale'] = self.height_scale
+            # see GH 718
+
+        return result
 
     def deepcopy(self, to_surface):
         """Creates a copy of this topography with all data files copied.

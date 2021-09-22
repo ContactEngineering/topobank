@@ -9,7 +9,7 @@ import os
 
 from django.conf import settings
 
-from .utils import SurfaceFactory, Topography2DFactory, Topography1DFactory, TagModelFactory, UserFactory
+from .utils import SurfaceFactory, Topography2DFactory, Topography1DFactory, TagModelFactory, UserFactory, FIXTURE_DIR
 
 from ..containers import write_surface_container
 
@@ -34,7 +34,14 @@ def test_surface_container():
     surface3 = SurfaceFactory(creator=user, description='Nice results')
 
     topo1a = Topography1DFactory(surface=surface1)
-    topo1b = Topography2DFactory(surface=surface1)
+    topo1b = Topography2DFactory(surface=surface1,
+                                 datafile__from_path=str(settings.ROOT_DIR.path(FIXTURE_DIR + "/example4.txt")),
+                                 height_scale_editable=False)
+    # for topo1b we use a datafile which has an height_scale_factor defined - this is needed in order
+    # to test that this factor is NOT exported to meta.yaml -
+    # for the initialisation syntax (datafile__from_path) here see:
+    # https://factoryboy.readthedocs.io/en/stable/orms.html
+
     topo2a = Topography2DFactory(surface=surface2,
                                  tags=[tag1, tag2],
                                  description='Nice measurement',
@@ -50,6 +57,13 @@ def test_surface_container():
 
     surfaces = [surface1, surface2, surface3, surface4]
 
+    # make sure all squeezed files have been generated
+    for t in [topo1a, topo1b, topo2a]:
+        t.renew_squeezed_datafile()
+
+    #
+    # Create container file
+    #
     outfile = tempfile.NamedTemporaryFile(mode='wb', delete=False)
     write_surface_container(outfile, surfaces)
     outfile.close()
@@ -101,7 +115,7 @@ def test_surface_container():
         topo_meta = meta_surface4['topographies'][0]
         assert topo_meta['tags'] == ['apple', 'banana']
         for field in ['is_periodic', 'description', 'detrend_mode',
-                      'data_source', 'height_scale', 'measurement_date', 'name', 'unit']:
+                      'data_source', 'measurement_date', 'name', 'unit']:
             assert topo_meta[field] == getattr(topo2a, field)
         assert topo_meta['size'] == (topo2a.size_x, topo2a.size_y)
 
@@ -110,6 +124,19 @@ def test_surface_container():
             'type': instrument_type,
             'parameters': instrument_params,
         }
+
+        # topo1a should have an height_scale_factor in meta data because
+        # this information is not included in the data file
+        topo1a_meta = meta_surfaces[0]['topographies'][0]
+        assert 'height_scale' in topo1a_meta
+
+        #
+        # topo1b should have no height_scale_factor included
+        # because it's already applied on import, see GH 718
+        #
+        topo1b_meta = meta_surfaces[0]['topographies'][1]
+        assert topo1b_meta['name'] == topo1b.name
+        assert 'height_scale' not in topo1b_meta
 
     os.remove(outfile.name)
 
