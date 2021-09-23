@@ -102,6 +102,7 @@ def test_topography_to_dict():
                                size_x=size_x,
                                size_y=size_y,
                                height_scale=height_scale,
+                               height_scale_editable=True,  # should be always True when height scale is given extra
                                detrend_mode=detrend_mode,
                                description=description,
                                unit=unit,

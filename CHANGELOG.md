@@ -16,6 +16,7 @@
   with stderr for y without masked values (#711)
 - BUG: Missing points were not shown correctly in 
   2D plots (#699)
+- BUG: Fixed height scale applied twice on import (#718)
 - MAINT: Computing of averages is handled on the
   SurfaceTopography side
 - MAINT: All properties are averages to a reasonable
