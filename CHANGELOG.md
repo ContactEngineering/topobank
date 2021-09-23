@@ -22,7 +22,7 @@
 - MAINT: Computing of averages is handled on the
   SurfaceTopography side
 - MAINT: All properties are averages to a reasonable
-  number of data points (closes #696)
+  number of data points (#696)
 - MAINT: Decapitalized analysis function names (e.g.
   "Roughness Parameters" -> "Roughness parameters")
 - MAINT: Upgrade to Django 3.2
