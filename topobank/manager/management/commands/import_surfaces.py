@@ -137,6 +137,7 @@ class Command(BaseCommand):
                 instrument_name=topo_dict['instrument']['name'],
                 instrument_type=topo_dict['instrument']['type'],
                 instrument_parameters=topo_dict['instrument']['parameters'],
+            ))
         except KeyError:
             # Metadata does not contain instrument information
             pass
