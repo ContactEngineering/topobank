@@ -17,6 +17,8 @@
 - BUG: Missing points were not shown correctly in 
   2D plots (#699)
 - BUG: Fixed height scale applied twice on import (#718)
+- BUG: Fixed continuing average along x after data
+  is completed (#724)
 - MAINT: Computing of averages is handled on the
   SurfaceTopography side
 - MAINT: All properties are averages to a reasonable
