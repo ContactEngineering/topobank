@@ -552,7 +552,8 @@ def analysis_function_for_surface(surface, progress_recorder, funcname_profile, 
 
 
 @register_implementation(name="Power spectrum", card_view_flavor='plot')
-def power_spectrum(topography, window=None, progress_recorder=None, storage_prefix=None, **kwargs):
+def power_spectrum(topography, progress_recorder=None, storage_prefix=None, window=None,
+                   nb_points_per_decade=10):
     """Calculate Power Spectrum for given topography."""
     # Get low level topography from SurfaceTopography model
     return analysis_function(topography,
@@ -566,13 +567,16 @@ def power_spectrum(topography, window=None, progress_recorder=None, storage_pref
                              'q/π × 2D PSD',
                              '{}⁻¹',
                              '{}³',
-                             **kwargs)
+                             window=window,
+                             nb_points_per_decade=nb_points_per_decade)
 
 
 @register_implementation(name="Power spectrum", card_view_flavor='plot')
-def power_spectrum_for_surface(surface, progress_recorder=None, storage_prefix=None, **kwargs):
+def power_spectrum_for_surface(surface, progress_recorder=None, storage_prefix=None, window=None,
+                               nb_points_per_decade=10):
     """Calculate Power Spectrum for given topography."""
     # Get low level topography from SurfaceTopography model
+
     return analysis_function_for_surface(surface,
                                          progress_recorder,
                                          'power_spectrum_from_profile',
@@ -582,11 +586,12 @@ def power_spectrum_for_surface(surface, progress_recorder=None, storage_prefix=N
                                          '1D PSD along x',
                                          '{}⁻¹',
                                          '{}³',
-                                         **kwargs)
+                                         window=window,
+                                         nb_points_per_decade=nb_points_per_decade)
 
 
 @register_implementation(name="Autocorrelation", card_view_flavor='plot')
-def autocorrelation(topography, progress_recorder=None, storage_prefix=None, **kwargs):
+def autocorrelation(topography, progress_recorder=None, storage_prefix=None, nb_points_per_decade=10):
     return analysis_function(topography,
                              'autocorrelation_from_profile',
                              'autocorrelation_from_area',
@@ -598,11 +603,11 @@ def autocorrelation(topography, progress_recorder=None, storage_prefix=None, **k
                              'Radial average',
                              '{}',
                              '{}²',
-                             **kwargs)
+                             nb_points_per_decade=nb_points_per_decade)
 
 
 @register_implementation(name="Autocorrelation", card_view_flavor='plot')
-def autocorrelation_for_surface(surface, progress_recorder=None, storage_prefix=None, **kwargs):
+def autocorrelation_for_surface(surface, progress_recorder=None, storage_prefix=None, nb_points_per_decade=10):
     return analysis_function_for_surface(surface,
                                          progress_recorder,
                                          'autocorrelation_from_profile',
@@ -612,11 +617,11 @@ def autocorrelation_for_surface(surface, progress_recorder=None, storage_prefix=
                                          'Along x',
                                          '{}',
                                          '{}²',
-                                         **kwargs)
+                                         nb_points_per_decade=nb_points_per_decade)
 
 
 @register_implementation(name="Variable bandwidth", card_view_flavor='plot')
-def variable_bandwidth(topography, progress_recorder=None, storage_prefix=None, **kwargs):
+def variable_bandwidth(topography, progress_recorder=None, storage_prefix=None, nb_points_per_decade=10):
     return analysis_function(topography,
                              'variable_bandwidth_from_profile',
                              'variable_bandwidth_from_area',
@@ -628,11 +633,11 @@ def variable_bandwidth(topography, progress_recorder=None, storage_prefix=None, 
                              'Areal decomposition',
                              '{}',
                              '{}',
-                             **kwargs)
+                             nb_points_per_decade=nb_points_per_decade)
 
 
 @register_implementation(name="Variable bandwidth", card_view_flavor='plot')
-def variable_bandwidth_for_surface(surface, progress_recorder=None, storage_prefix=None, **kwargs):
+def variable_bandwidth_for_surface(surface, progress_recorder=None, storage_prefix=None, nb_points_per_decade=10):
     return analysis_function_for_surface(surface,
                                          progress_recorder,
                                          'variable_bandwidth_from_profile',
@@ -642,7 +647,7 @@ def variable_bandwidth_for_surface(surface, progress_recorder=None, storage_pref
                                          'Profile decomposition along x',
                                          '{}',
                                          '{}',
-                                         **kwargs)
+                                         nb_points_per_decade=nb_points_per_decade)
 
 
 def scale_dependent_roughness_parameter(topography, progress_recorder, order_of_derivative, name, ylabel, xname, yname,
@@ -726,7 +731,7 @@ def scale_dependent_roughness_parameter_for_surface(surface, progress_recorder, 
 
 
 @register_implementation(name="Scale-dependent slope", card_view_flavor='plot')
-def scale_dependent_slope(topography, progress_recorder=None, storage_prefix=None, **kwargs):
+def scale_dependent_slope(topography, progress_recorder=None, storage_prefix=None, nb_points_per_decade=10):
     return scale_dependent_roughness_parameter(
         topography,
         progress_recorder,
@@ -738,11 +743,11 @@ def scale_dependent_slope(topography, progress_recorder=None, storage_prefix=Non
         lambda x, y: x * x + y * y,
         'Gradient',
         '1',
-        **kwargs)
+        nb_points_per_decade=nb_points_per_decade)
 
 
 @register_implementation(name="Scale-dependent slope", card_view_flavor='plot')
-def scale_dependent_slope_for_surface(surface, progress_recorder=None, storage_prefix=None, **kwargs):
+def scale_dependent_slope_for_surface(surface, progress_recorder=None, storage_prefix=None, nb_points_per_decade=10):
     return scale_dependent_roughness_parameter_for_surface(
         surface,
         progress_recorder,
@@ -751,11 +756,11 @@ def scale_dependent_slope_for_surface(surface, progress_recorder=None, storage_p
         'Slope',
         'Slope in x-direction',
         '1',
-        **kwargs)
+        nb_points_per_decade=nb_points_per_decade)
 
 
 @register_implementation(name="Scale-dependent curvature", card_view_flavor='plot')
-def scale_dependent_curvature(topography, progress_recorder=None, storage_prefix=None, **kwargs):
+def scale_dependent_curvature(topography, progress_recorder=None, storage_prefix=None, nb_points_per_decade=10):
     return scale_dependent_roughness_parameter(
         topography,
         progress_recorder,
@@ -767,11 +772,11 @@ def scale_dependent_curvature(topography, progress_recorder=None, storage_prefix
         lambda x, y: (x + y) ** 2 / 4,
         '1/2 Laplacian',
         '{}⁻¹',
-        **kwargs)
+        nb_points_per_decade=nb_points_per_decade)
 
 
 @register_implementation(name="Scale-dependent curvature", card_view_flavor='plot')
-def scale_dependent_curvature_for_surface(surface, progress_recorder=None, storage_prefix=None, **kwargs):
+def scale_dependent_curvature_for_surface(surface, progress_recorder=None, storage_prefix=None, nb_points_per_decade=10):
     return scale_dependent_roughness_parameter_for_surface(
         surface,
         progress_recorder,
@@ -780,7 +785,7 @@ def scale_dependent_curvature_for_surface(surface, progress_recorder=None, stora
         'Curvature',
         'Curvature in x-direction',
         '{}⁻¹',
-        **kwargs)
+        nb_points_per_decade=nb_points_per_decade)
 
 
 def _next_contact_step(system, history=None, pentol=None, maxiter=None):
