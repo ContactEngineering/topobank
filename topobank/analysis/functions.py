@@ -621,7 +621,7 @@ def autocorrelation_for_surface(surface, progress_recorder=None, storage_prefix=
 
 
 @register_implementation(name="Variable bandwidth", card_view_flavor='plot')
-def variable_bandwidth(topography, progress_recorder=None, storage_prefix=None, nb_points_per_decade=10):
+def variable_bandwidth(topography, progress_recorder=None, storage_prefix=None):
     return analysis_function(topography,
                              'variable_bandwidth_from_profile',
                              'variable_bandwidth_from_area',
@@ -632,8 +632,7 @@ def variable_bandwidth(topography, progress_recorder=None, storage_prefix=None, 
                              'Profile decomposition along y',
                              'Areal decomposition',
                              '{}',
-                             '{}',
-                             nb_points_per_decade=nb_points_per_decade)
+                             '{}')
 
 
 @register_implementation(name="Variable bandwidth", card_view_flavor='plot')
