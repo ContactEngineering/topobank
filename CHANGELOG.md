@@ -30,6 +30,7 @@
 - MAINT: Upgrade to Postgres 13.4
 - MAINT: Upgrade of several packages
 - MAINT: Removed error bars on analysis results
+- MAINT: Upgrade of sqlparse because of CVE
 
 ## 0.15.1 (2021-08-05)
 

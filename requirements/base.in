@@ -133,7 +133,7 @@ django-fullurl
 lxml>=4.6.3
 jinja2>=2.11.3  # because of CVE-2020-28493
 
-# because of several CVEs
-Pillow>=8.3.2
-
+Pillow>=8.3.2  # because of several CVEs
 PyYAML>=5.4  # CVE-2020-14343
+sqlparse>=0.4.2  # CVE-2021-32839
+
