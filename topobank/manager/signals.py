@@ -65,6 +65,7 @@ def set_creator_if_needed(sender, instance, **kwargs):
 
 @receiver(post_save, sender=Topography)
 def invalidate_cached_topography(sender, instance, **kwargs):
+    """After a topography has been changed, we can't use the cached version any more."""
     cache.delete(instance.cache_key())
 
 
