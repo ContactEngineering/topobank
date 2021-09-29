@@ -520,15 +520,29 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
         notification_msg = f"User {user} changed topography '{topo.name}'. Changed fields: {','.join(form.changed_data)}."
 
         #
-        # If a significant field changed, renew all analyses
+        # If a significant field changes, renew squeezed datafile, all analyses, and also thumbnail
         #
+        # changed_dict = topo.tracker.changed()  # key: field name, value: previous field value
+        changed_fields = form.changed_data
+
+        _log.debug("These fields have been changed according to form: %s", changed_fields)
+
         significant_fields = {'size_x', 'size_y', 'unit', 'is_periodic', 'height_scale',
                               'detrend_mode', 'datafile', 'data_source',
-                              'instrument_type',
-                              'instrument_parameters'}
-        significant_fields_with_changes = set(form.changed_data).intersection(significant_fields)
+                              'instrument_type',  # , 'instrument_parameters'
+                              # 'tip_radius_value', 'tip_radius_unit',
+                             }
+        significant_fields_with_changes = set(changed_fields).intersection(significant_fields)
+
+        # check instrument_parameters manually, since this is not detected properly
+        if form.cleaned_data['instrument_parameters'] != form.initial['instrument_parameters']:
+            significant_fields_with_changes.add('instrument_parameters')
+            _log.info("Instrument parameters changed:")
+            _log.info("  before: %s", form.initial['instrument_parameters'])
+            _log.info("  after:  %s", form.cleaned_data['instrument_parameters'])
+
         if len(significant_fields_with_changes) > 0:
-            _log.info(f"During edit of topography {topo.id} significant fields changed: " +
+            _log.info(f"During edit of topography id={topo.id} some significant fields changed: " +
                       f"{significant_fields_with_changes}.")
             _log.info("Renewing squeezed datafile...")
             topo.renew_squeezed_datafile()  # cannot be done in background, other steps depend on this, see GH #590
@@ -537,6 +551,8 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
             _log.info("Triggering renewal of analyses in background...")
             transaction.on_commit(lambda: renew_analyses_related_to_topography.delay(topo.id))
             notification_msg += f"\nBecause significant fields have changed, all related analyses are recalculated now."
+        else:
+            _log.info("Changes not significant for renewal of thumbnails or analysis results.")
 
         #
         # notify other users

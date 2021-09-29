@@ -268,6 +268,18 @@ class TopographyUnitsForm(forms.ModelForm):
 
     is_periodic = make_is_periodic_field()
 
+    #
+    # Individual fields for instrument parameters - start values must be set in Javascript
+    #
+    resolution_value = forms.FloatField(required=False, min_value=0)
+    resolution_unit = forms.ChoiceField(widget=forms.Select,
+                                        choices=Topography.LENGTH_UNIT_CHOICES,
+                                        required=False)
+    tip_radius_value = forms.FloatField(required=False, min_value=0)
+    tip_radius_unit = forms.ChoiceField(widget=forms.Select,
+                                        choices=Topography.LENGTH_UNIT_CHOICES,
+                                        required=False)
+
     def __init__(self, *args, **kwargs):
         self._allow_periodic = kwargs.pop('allow_periodic')
         super().__init__(*args, **kwargs)
@@ -326,19 +338,6 @@ class TopographyUnitsForm(forms.ModelForm):
         #
         self.fields['is_periodic'].disabled = not self._allow_periodic
 
-        #
-        # Individual fields for instrument parameters - start values must be set in Javascript
-        #
-
-        self.fields['resolution_value'] = forms.FloatField(required=False)
-        self.fields['resolution_unit'] = forms.ChoiceField(widget=forms.Select,
-                                                           choices=Topography.LENGTH_UNIT_CHOICES,
-                                                           required=False, initial='µm')
-        self.fields['tip_radius_value'] = forms.FloatField(required=False)
-        self.fields['tip_radius_unit'] = forms.ChoiceField(widget=forms.Select,
-                                                           choices=Topography.LENGTH_UNIT_CHOICES,
-                                                           required=False, initial='µm')
-
     def _clean_size_element(self, dim_name):
         """Checks whether given value is larger than zero.
 
@@ -371,82 +370,36 @@ class TopographyUnitsForm(forms.ModelForm):
                                         "Either choose that option or disable periodicity (see checkbox).")
         return cleaned_data['detrend_mode']
 
-    def _clean_reliability_factor_value(self, reliability_factor_name, reliability_factor_value):
-
-        try:
-            if reliability_factor_value <= 0:
-                raise forms.ValidationError(f"Given value for {reliability_factor_name} must be positive!",
-                                            code="invalid_reliability_factor_value")
-        except (KeyError, TypeError):
-            raise forms.ValidationError(f"Please specify a number for {reliability_factor_name} value.")
-
-        return reliability_factor_value
-
-    def _clean_reliability_factor_unit(self, reliability_factor_name, reliability_factor_unit):
-
-        try:
-            valid_unit_values = [x[0] for x in Topography.LENGTH_UNIT_CHOICES]
-            if not reliability_factor_unit in valid_unit_values:
-                raise forms.ValidationError(f"Given unit for {reliability_factor_name} is invalid!",
-                                            code="invalid_reliability_factor_unit")
-        except (KeyError, TypeError):
-            raise forms.ValidationError(f"Please specify the units for the {reliability_factor_name} value.")
-
-        return reliability_factor_unit
-
-    def clean_resolution_value(self):
-        cleaned_data = self.cleaned_data
-        if cleaned_data['instrument_type'] == Topography.INSTRUMENT_TYPE_MICROSCOPE_BASED:
-            return self._clean_reliability_factor_value('resolution', cleaned_data['resolution_value'])
-        return ''
-
-    def clean_resolution_unit(self):
-        cleaned_data = self.cleaned_data
-        if cleaned_data['instrument_type'] == Topography.INSTRUMENT_TYPE_MICROSCOPE_BASED:
-            return self._clean_reliability_factor_unit('resolution', cleaned_data['resolution_unit'])
-        return ''
-
-    def clean_tip_radius_value(self):
-        cleaned_data = self.cleaned_data
-        if cleaned_data['instrument_type'] == Topography.INSTRUMENT_TYPE_CONTACT_BASED:
-            return self._clean_reliability_factor_value('tip_radius', cleaned_data['tip_radius_value'])
-        return ''
-
-    def clean_tip_radius_unit(self):
-        cleaned_data = self.cleaned_data
-        if cleaned_data['instrument_type'] == Topography.INSTRUMENT_TYPE_CONTACT_BASED:
-            return self._clean_reliability_factor_unit('tip_radius', cleaned_data['tip_radius_unit'])
-        return ''
-
     def make_instrument_parameters(self):
-        """Build instrument_json from selected instrument and parameters given in form fields."""
-        cleaned_data = super().clean()
+        """Build instrument_json from selected instrument and parameters given in form fields.
+
+        Must be called after self.clean() was called such that self.cleaned_data is set.
+        """
+        from .models import Topography
+
+        cleaned_data = self.cleaned_data
 
         instrument_type = cleaned_data['instrument_type']
-        instrument_parameters = {
-            'microscope-based': {
-                'resolution': {
-                    'value': cleaned_data['resolution_value'],
-                    'unit': cleaned_data['resolution_unit'],
-                }
-            },
-            'contact-based': {
-                'tip_radius': {
-                    'value': cleaned_data['tip_radius_value'],
-                    'unit': cleaned_data['tip_radius_unit'],
-                }
-            },
-            'undefined': {}
-        }
-
-        return instrument_parameters[instrument_type]
+        result = {}
+        if instrument_type == Topography.INSTRUMENT_TYPE_MICROSCOPE_BASED:
+            result['resolution'] = {
+                'value': cleaned_data.get('resolution_value'),
+                'unit': cleaned_data.get('resolution_unit'),
+            }
+        elif instrument_type == Topography.INSTRUMENT_TYPE_CONTACT_BASED:
+            result['tip_radius'] = {
+                'value': cleaned_data.get('tip_radius_value'),
+                'unit': cleaned_data.get('tip_radius_unit'),
+            }
+        return result
 
     def clean(self):
         cleaned_data = super().clean()
+        if self.errors:
+            return
 
         # Combine value from parameter fields to a single value
-        cleaned_data['instrument_parameters'] = self.make_instrument_parameters() if self.is_valid() else {}
-
+        cleaned_data['instrument_parameters'] = self.make_instrument_parameters()
         return cleaned_data
 
 

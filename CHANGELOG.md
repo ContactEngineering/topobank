@@ -19,6 +19,8 @@
 - BUG: Fixed height scale applied twice on import (#718)
 - BUG: Fixed continuing average along x after data
   is completed (#724)
+- BUG: Fixed that analyses were not recalculated
+  if instrument parameters change (#728)
 - MAINT: Computing of averages is handled on the
   SurfaceTopography side
 - MAINT: All properties are averages to a reasonable

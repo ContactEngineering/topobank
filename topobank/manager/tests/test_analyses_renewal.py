@@ -13,8 +13,25 @@ from topobank.analysis.tests.utils import SurfaceAnalysisFactory, AnalysisFuncti
 from topobank.utils import assert_in_content, assert_no_form_errors
 
 
+@pytest.mark.parametrize("changed_values_dict", [  # would should be changed in POST request (->str values!)
+    {
+        "size_y": '100'
+    },
+    {
+        "instrument_type": 'microscope-based',  # instrument type changed at least
+        "resolution_value": '1',
+        "resolution_unit": 'mm',
+    },
+    {
+        "tip_radius_value": '2',  # value changed
+    },
+    {
+        "tip_radius_unit": 'nm',  # unit changed
+    }
+])
 @pytest.mark.django_db
-def test_renewal_on_topography_change(client, mocker, django_capture_on_commit_callbacks):
+def test_renewal_on_topography_change(client, mocker, django_capture_on_commit_callbacks, handle_usage_statistics,
+                                      changed_values_dict):
     """Check whether methods for renewal are called on significant topography change.
     """
     renew_topo_analyses_mock = mocker.patch('topobank.manager.views.renew_analyses_related_to_topography.delay')
@@ -30,36 +47,163 @@ def test_renewal_on_topography_change(client, mocker, django_capture_on_commit_c
 
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
-    topo = Topography2DFactory(surface=surface, size_y=1, size_editable=True)
+    topo = Topography2DFactory(surface=surface, size_x=1, size_y=1, size_editable=True,
+                               instrument_type=Topography.INSTRUMENT_TYPE_CONTACT_BASED,
+                               instrument_parameters={
+                                   "tip_radius": {
+                                       "value": 1.0,
+                                       "unit": "mm"
+                                   }
+                               })
 
     client.force_login(user)
 
-    with django_capture_on_commit_callbacks(execute=True) as callbacks:
-        response = client.post(reverse('manager:topography-update', kwargs=dict(pk=topo.pk)),
-                               data={
-                                   'save-stay': 1,  # we want to save, but stay on page
-                                   'surface': surface.pk,
-                                   'data_source': 0,
-                                   'name': topo.name,
-                                   'measurement_date': topo.measurement_date,
-                                   'description': "something",
-                                   'size_x': 1,
-                                   'size_y': 100,  # here is a change at least
-                                   'unit': 'nm',
-                                   'height_scale': 1,
-                                   'detrend_mode': 'center',
-                                   'instrument_name': '',
-                                   'instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
-                                   'instrument_parameters': '{}',
-                               }, follow=True)
+    initial_data_for_post = {
+        'save-stay': 'Save and keep editing',  # we want to save, but stay on page
+        'surface': str(surface.pk),
+        'data_source': str(topo.data_source),
+        'description': topo.description,
+        'name': topo.name,
+        'size_x': str(topo.size_x),
+        'size_y': str(topo.size_y),
+        'size_editable': "True",
+        'unit': topo.unit,
+        'unit_editable': "True",
+        'height_scale': str(topo.height_scale),
+        'height_scale_editable': "True",
+        'detrend_mode': 'center',
+        'measurement_date': format(topo.measurement_date, '%Y-%m-%d'),
+        'tags': '',
+        'instrument_name': '',
+        'instrument_type': topo.instrument_type,
+        'instrument_parameters': '{"tip_radius": { "value": 1.0, "unit": "mm"} }',
+        # add some helper fields which have been added to the form, such that
+        # the POST request has all parameters as the original HTML form
+        'tip_radius_value': '1.0',  # no change so far
+        'tip_radius_unit': 'mm',  # no change so far
+    }
 
+    # also pass that? seems to be included in POST data on actual page
+    # {
+    #     "initial-instrument_parameters": "{}",
+    #     "resolution_unit": "km",
+    #     "resolution_value": "",
+    #     "tip_radius_unit": "km",
+    #     "tip_radius_value": "",
+    #
+    # }
+    changed_data_for_post = initial_data_for_post.copy()
+
+    changed_data_for_post.update(changed_values_dict)  # here is a change at least
+
+    #
+    # first get the form
+    #
+    response = client.get(reverse('manager:topography-update', kwargs=dict(pk=topo.pk)), follow=True)
     assert response.status_code == 200
 
-    assert len(callbacks) == 2  # two callbacks on commit
+    #
+    # if we post the initial data, nothing should have been changed, so no actions should be triggered
+    #
+    with django_capture_on_commit_callbacks(execute=True) as callbacks:
+        response = client.post(reverse('manager:topography-update', kwargs=dict(pk=topo.pk)),
+                               data=initial_data_for_post, follow=True)
+    assert_no_form_errors(response)
+    assert response.status_code == 200
+
+    assert len(callbacks) == 0
+    # Nothing changed, so no callbacks
+
+    assert not renew_squeezed_method_mock.called
+    assert not renew_topo_analyses_mock.called
+    assert not renew_topo_thumbnail_mock.called
+
+    #
+    # now we post the changed data, some action (=callbacks) should be triggered
+    #
+    with django_capture_on_commit_callbacks(execute=True) as callbacks:
+        response = client.post(reverse('manager:topography-update', kwargs=dict(pk=topo.pk)),
+                               data=changed_data_for_post, follow=True)
+    assert_no_form_errors(response)
+    assert response.status_code == 200
+
+    assert len(callbacks) == 2
+    # two callbacks on commit expected, see view
 
     assert renew_squeezed_method_mock.called
     assert renew_topo_analyses_mock.called
     assert renew_topo_thumbnail_mock.called
+
+
+@pytest.mark.parametrize("changed_values_dict", [
+    {
+        "size_y": 100
+    },
+    {
+        "instrument_type": 'microscope-based',  # instrument type changed at least
+        "resolution_value": 1,
+        "resolution_unit": 'mm',
+    },
+    {
+        "tip_radius_value": 2,  # value changed
+    },
+    {
+        "tip_radius_unit": 'nm',  # unit changed
+    }
+])
+@pytest.mark.django_db
+def test_form_changed_when_input_changes(changed_values_dict):
+    from ..models import Topography
+    from ..forms import TopographyForm
+    import datetime
+
+    user = UserFactory()
+    surface = SurfaceFactory(creator=user)
+
+    initial_data = {
+        'save-stay': 1,  # we want to save, but stay on page
+        'surface': surface.pk,  # must be a valid choice
+        'data_source': 0,
+        'datafile': 'somefile',  # not relevant here
+        'name': 'bla',
+        'size_x': 1,
+        'size_y': 2,
+        'size_editable': True,
+        'height_scale': 2,
+        'height_scale_editable': True,
+        'unit': 'mm',
+        'unit_editable': True,
+        'detrend_mode': 'center',
+        'measurement_date': datetime.date(2021, 9, 24),
+        'instrument_type': Topography.INSTRUMENT_TYPE_CONTACT_BASED,
+        'instrument_parameters': {"tip_radius": {"value": 1, "unit": "mm"}},
+        'resolution_value': '',
+        'resolution_unit': '',
+        'tip_radius_value': 1,  # no change so far
+        'tip_radius_unit': 'mm',  # no change so far
+    }
+
+    # if the initial data is passed as data, nothing has been changed
+    form = TopographyForm(initial_data, initial=initial_data,
+                          has_size_y=True, autocomplete_tags=[],
+                          allow_periodic=False)
+    assert form.is_valid(), form.errors
+    # assert not form.has_changed(), (form.changed_data,
+    #                                 [(form.data[k], form.initial[k], form.data[k] == form.initial[k])
+    #                                  for k in form.changed_data])
+    assert set(changed_values_dict.keys()).intersection(form.changed_data) == set()
+    # somehow "instrument_parameters" is in changed_data, even if there is not change, don't know why
+
+    # if we pass changed data, this should be detected
+    form_data = initial_data.copy()
+    form_data.update(changed_values_dict)  # here is a change at least  (besides 'instrument_parameters', see above)
+    form = TopographyForm(form_data, initial=initial_data,
+                          has_size_y=True, autocomplete_tags=[],
+                          allow_periodic=False)
+
+    assert form.is_valid(), form.errors
+    assert set(changed_values_dict.keys()).intersection(form.changed_data) == set(changed_values_dict.keys())
+    # all keys which have changed are included in form.changed_data + "instrument_parameters which is left out here
 
 
 @pytest.mark.django_db
@@ -100,7 +244,6 @@ def test_analysis_removal_on_topography_deletion(client, handle_usage_statistics
 
 @pytest.mark.django_db
 def test_renewal_on_topography_creation(client, mocker, handle_usage_statistics, django_capture_on_commit_callbacks):
-
     renew_topo_analyses_mock = mocker.patch('topobank.manager.views.renew_analyses_related_to_topography.delay')
     renew_topo_thumbnail_mock = mocker.patch('topobank.manager.views.renew_topography_thumbnail.delay')
 
@@ -171,5 +314,3 @@ def test_renewal_on_topography_creation(client, mocker, handle_usage_statistics,
     assert len(callbacks) == 2  # for thumbnail and for analyses
     assert renew_topo_analyses_mock.called
     assert renew_topo_thumbnail_mock.called
-
-
