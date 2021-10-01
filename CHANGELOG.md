@@ -21,6 +21,8 @@
   is completed (#724)
 - BUG: Fixed that analyses were not recalculated
   if instrument parameters change (#728)
+- BUG: Resolution value or tip radius value no longer
+  mandatory when instrument type has been chosen (#705)
 - MAINT: Computing of averages is handled on the
   SurfaceTopography side
 - MAINT: All properties are averages to a reasonable

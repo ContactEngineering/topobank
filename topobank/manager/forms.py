@@ -338,6 +338,13 @@ class TopographyUnitsForm(forms.ModelForm):
         #
         self.fields['is_periodic'].disabled = not self._allow_periodic
 
+        #
+        # Additional help texts for instrument parameters
+        #
+        for kind in ['resolution', 'tip radius']:
+            self.fields[f"{kind.replace(' ', '_')}_value"].help_text = \
+                f"If a {kind} is entered, the data will be analyzed to remove {kind} artifacts."
+
     def _clean_size_element(self, dim_name):
         """Checks whether given value is larger than zero.
 
@@ -374,21 +381,26 @@ class TopographyUnitsForm(forms.ModelForm):
         """Build instrument_json from selected instrument and parameters given in form fields.
 
         Must be called after self.clean() was called such that self.cleaned_data is set.
+
+        If no value is given, the parameters will be empty regardless the instrument type.
         """
         from .models import Topography
 
         cleaned_data = self.cleaned_data
 
         instrument_type = cleaned_data['instrument_type']
+        resolution_value = cleaned_data.get('resolution_value')
+        tip_radius_value = cleaned_data.get('tip_radius_value')
+
         result = {}
-        if instrument_type == Topography.INSTRUMENT_TYPE_MICROSCOPE_BASED:
+        if instrument_type == Topography.INSTRUMENT_TYPE_MICROSCOPE_BASED and resolution_value is not None:
             result['resolution'] = {
-                'value': cleaned_data.get('resolution_value'),
+                'value': resolution_value,
                 'unit': cleaned_data.get('resolution_unit'),
             }
-        elif instrument_type == Topography.INSTRUMENT_TYPE_CONTACT_BASED:
+        elif instrument_type == Topography.INSTRUMENT_TYPE_CONTACT_BASED and tip_radius_value is not None:
             result['tip_radius'] = {
-                'value': cleaned_data.get('tip_radius_value'),
+                'value': tip_radius_value,
                 'unit': cleaned_data.get('tip_radius_unit'),
             }
         return result
