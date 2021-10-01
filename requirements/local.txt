@@ -80,7 +80,7 @@ click-repl==0.2.0
     # via
     #   -r ./base.txt
     #   celery
-contactmechanics==0.90.1
+contactmechanics==0.91.0
     # via -r ./base.txt
 coverage==5.5
     # via
@@ -474,7 +474,7 @@ sqlparse==0.4.2
     #   -r ./base.txt
     #   django
     #   django-debug-toolbar
-surfacetopography==0.97.1
+surfacetopography==0.97.4
     # via
     #   -r ./base.txt
     #   contactmechanics

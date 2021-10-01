@@ -30,11 +30,13 @@
   number of data points (#696)
 - MAINT: Decapitalized analysis function names (e.g.
   "Roughness Parameters" -> "Roughness parameters")
+- MAINT: Removed error bars on analysis results
 - MAINT: Upgrade to Django 3.2
 - MAINT: Upgrade to fontawesome 5
 - MAINT: Upgrade to Postgres 13.4
-- MAINT: Upgrade of several packages
-- MAINT: Removed error bars on analysis results
+- MAINT: Upgrade to SurfaceTopography 0.94.1 (#730)
+- MAINT: Upgrade to ContactMechanics 0.91.0
+- MAINT: Upgrade of several other packages
 - MAINT: Upgrade of sqlparse because of CVE
 
 ## 0.15.1 (2021-08-05)

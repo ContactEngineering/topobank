@@ -50,7 +50,7 @@ click-plugins==1.1.1
     # via celery
 click-repl==0.2.0
     # via celery
-contactmechanics==0.90.1
+contactmechanics==0.91.0
     # via -r base.in
 cryptography==3.4.7
     # via
@@ -280,7 +280,7 @@ sqlparse==0.4.2
     # via
     #   -r base.in
     #   django
-surfacetopography==0.97.1
+surfacetopography==0.97.4
     # via
     #   -r base.in
     #   contactmechanics

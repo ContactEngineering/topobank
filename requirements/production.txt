@@ -71,7 +71,7 @@ click-repl==0.2.0
     # via
     #   -r ./base.txt
     #   celery
-contactmechanics==0.90.1
+contactmechanics==0.91.0
     # via -r ./base.txt
 cryptography==3.4.7
     # via
@@ -366,7 +366,7 @@ sqlparse==0.4.2
     # via
     #   -r ./base.txt
     #   django
-surfacetopography==0.97.1
+surfacetopography==0.97.4
     # via
     #   -r ./base.txt
     #   contactmechanics
