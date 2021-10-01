@@ -10,6 +10,7 @@
   displayed underneath surfaces from now on (#701)
 - ENH: Reliability analysis for scanning probe data (#83)
 - ENH: Scale-dependent curvature (#586)
+- ENH: Added links to GitHub discussions (#722)
 - BUG: Scale-dependent slope is now computed uses the
   brute force approach (closes #687)
 - BUG: Fixed issue while downloading analysis results
