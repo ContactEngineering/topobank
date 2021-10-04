@@ -75,11 +75,11 @@ RUN addgroup django \
 #
 # Prepare application code
 #
-COPY . /app
-RUN rm -Rf app/venv
-RUN chown -R django /app
+COPY --chown=django . /app
+RUN rm -Rf app/venv app/.idea app/.pytest_cache app/.git app/__pycache__ app/media/topographies app/media/analyses
+
 # is the following needed?
-RUN chmod -R u+w /app
+# RUN chmod -R u+w /app
 
 #
 # Finalize..
