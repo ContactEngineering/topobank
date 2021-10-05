@@ -34,7 +34,7 @@
 - MAINT: Upgrade to Django 3.2
 - MAINT: Upgrade to fontawesome 5
 - MAINT: Upgrade to Postgres 13.4
-- MAINT: Upgrade to SurfaceTopography 0.94.1 (#730)
+- MAINT: Upgrade to SurfaceTopography 0.97.5 (#730)
 - MAINT: Upgrade to ContactMechanics 0.91.0
 - MAINT: Upgrade of several other packages
 - MAINT: Upgrade of sqlparse because of CVE
