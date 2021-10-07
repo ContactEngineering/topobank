@@ -844,7 +844,8 @@ class SurfaceCreateView(ORCIDUserRequiredMixin, CreateView):
         context['extra_tabs'] = [
             {
                 'title': f"Create surface",
-                'icon': "plus-square-o",
+                'icon': "plus-square",
+                'icon_style_prefix': 'far',
                 'href': self.request.path,
                 'active': True,
                 'tooltip': "Creating a new surface"
