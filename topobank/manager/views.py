@@ -362,7 +362,8 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
             },
             {
                 'title': f"Add topography",
-                'icon': "plus-square-o",
+                'icon': "plus-square",
+                'icon_style_prefix': 'far',
                 'href': self.request.path,
                 'active': True,
                 'tooltip': f"Adding a topography to surface '{surface.label}'"
