@@ -722,47 +722,66 @@ def scale_dependent_roughness_parameter(topography, progress_recorder, order_of_
     else:
         fac = 1
 
+    def process_series_reliable_unreliable(series_name, func_kwargs, is_reliable_visible=False):
+        """Add series for reliable and unreliable data.
+
+        Series with reliable data is only added if there is some reliable data.
+        Series are added to `series` from out scope.
+
+        Parameters
+        ----------
+        series_name: str
+            name of the series
+        func_kwargs: dict
+            arguments for `topography.scale_dependent_statistical_property`
+        is_reliable_visible: bool
+            If True, the series for 'reliable=True' should be visible in the UI.
+            Default is False.
+        """
+        nonlocal series
+        try:
+            distances, rms_values_sq = topography.scale_dependent_statistical_property(**func_kwargs)
+            series += [dict(name=series_name,
+                            x=distances,
+                            y=np.sqrt(rms_values_sq),
+                            visible=is_reliable_visible)]
+        except CannotPerformAnalysisError as exc:
+            alerts.append(make_alert_entry('warning', topography_name, topography_url, series_name, str(exc)))
+
+        distances, rms_values_sq = topography.scale_dependent_statistical_property(reliable=False, **func_kwargs)
+        series += [dict(name=series_name + ' (incl. unreliable data)',
+                        x=distances,
+                        y=np.sqrt(rms_values_sq),
+                        visible=False),
+                   ]
+
     progress_callback = None if progress_recorder is None else \
         lambda i, n: progress_recorder.set_progress(i + 1, fac * n)
 
-    try:
-        distances, rms_values_sq = topography.scale_dependent_statistical_property(
-            lambda x, y=None: np.mean(x * x), n=order_of_derivative, progress_callback=progress_callback, **kwargs)
-        series += [dict(name=xname,
-                        x=distances,
-                        y=np.sqrt(rms_values_sq))]
-    except CannotPerformAnalysisError as exc:
-        alerts.append(make_alert_entry('warning', topography_name, topography_url, xname, str(exc)))
+    x_kwargs = dict(func=lambda x, y=None: np.mean(x * x),
+                    n=order_of_derivative,
+                    progress_callback=progress_callback, **kwargs)
+
+    process_series_reliable_unreliable(xname, x_kwargs, is_reliable_visible=True)
 
     if topography.dim == 2:
         progress_callback = None if progress_recorder is None else \
             lambda i, n: progress_recorder.set_progress(n + i + 1, 3 * n)
-        try:
-            distances, rms_values_sq = topography.transpose().scale_dependent_statistical_property(
-                lambda x, y=None: np.mean(x * x), n=order_of_derivative, progress_callback=progress_callback, **kwargs)
-            series += [dict(name=yname,
-                            x=distances,
-                            y=np.sqrt(rms_values_sq),
-                            visible=False,
-                            )]
-        except CannotPerformAnalysisError as exc:
-            alerts.append(make_alert_entry('warning', topography_name, topography_url, yname, str(exc)))
+
+        y_kwargs = dict(func=lambda x, y=None: np.mean(x * x),
+                        n=order_of_derivative,
+                        progress_callback=progress_callback, **kwargs)
+
+        process_series_reliable_unreliable(yname, y_kwargs)
 
         progress_callback = None if progress_recorder is None else \
             lambda i, n: progress_recorder.set_progress(2 * n + i + 1, 3 * n)
 
-        try:
-            distances, rms_values_sq = topography.transpose().scale_dependent_statistical_property(
-                lambda x, y: np.mean(xyfunc(x, y)),
-                n=order_of_derivative,
-                progress_callback=progress_callback, **kwargs)
-            series += [dict(name=xyname,
-                            x=distances,
-                            y=np.sqrt(rms_values_sq),
-                            visible=False,
-                            )]
-        except CannotPerformAnalysisError as exc:
-            alerts.append(make_alert_entry('warning', topography_name, topography_url, xyname, str(exc)))
+        xy_kwargs = dict(func=lambda x, y: np.mean(xyfunc(x, y)),
+                         n=order_of_derivative,
+                         progress_callback=progress_callback, **kwargs)
+
+        process_series_reliable_unreliable(xyname, xy_kwargs)
 
     unit = topography.unit
     return dict(
