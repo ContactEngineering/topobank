@@ -247,6 +247,8 @@ class SimpleCardView(TemplateView):
         for st in function.get_implementation_types():
             try:
                 kw = unique_kwargs[st]
+                if kw is None:
+                    kw = {}
             except KeyError:
                 kw = function.get_default_kwargs(st)
             kwargs_for_missing[st] = kw
@@ -1048,7 +1050,7 @@ class ContactMechanicsCardView(SimpleCardView):
             initial_calc_kwargs = unique_kwargs
         else:
             # default initial arguments for form if we don't have unique common arguments
-            contact_mechanics_func = AnalysisFunction.objects.get(name="Contact Mechanics")
+            contact_mechanics_func = AnalysisFunction.objects.get(name="Contact mechanics")
             initial_calc_kwargs = contact_mechanics_func.get_default_kwargs(topography_ct)
             initial_calc_kwargs['substrate_str'] = 'nonperiodic'  # because most topographies are non-periodic
 
