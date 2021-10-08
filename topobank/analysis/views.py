@@ -482,6 +482,7 @@ class PlotCardView(SimpleCardView):
         js_args = {}
 
         special_values = []  # elements: tuple(subject, quantity name, value, unit string)
+        alerts = []  # elements: dict with keys 'alert_class' and 'message'
 
         for analysis in analyses_success_list:
 
@@ -643,7 +644,7 @@ class PlotCardView(SimpleCardView):
             #
             # Collect special values to be shown in the result card
             #
-            if 'scalars' in analysis.result_obj:
+            if 'scalars' in analysis_result:
                 for scalar_name, scalar_dict in analysis.result_obj['scalars'].items():
                     try:
                         scalar_unit = scalar_dict['unit']
@@ -654,6 +655,14 @@ class PlotCardView(SimpleCardView):
                     except (KeyError, IndexError):
                         _log.warning("Cannot display scalar '%s' given as '%s'. Skipping.", scalar_name, scalar_dict)
                         special_values.append((subject, scalar_name, str(scalar_dict), ''))
+
+            #
+            # Collect alert messages from analysis results
+            #
+            try:
+                alerts.extend(analysis_result['alerts'])
+            except KeyError:
+                pass
 
         #
         # Final configuration of the plot
@@ -804,6 +813,7 @@ class PlotCardView(SimpleCardView):
             plot_script=script,
             plot_div=div,
             special_values=special_values,
+            extra_warnings=alerts,
             topography_colors=json.dumps(list(subject_colors.values())),
             series_dashes=json.dumps(list(series_dashes.values()))))
 

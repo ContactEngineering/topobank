@@ -20,6 +20,7 @@ from SurfaceTopography import PlasticTopography
 from SurfaceTopography.Container.common import bandwidth, suggest_length_unit
 from SurfaceTopography.Container.Averaging import log_average
 from SurfaceTopography.Container.ScaleDependentStatistics import scale_dependent_statistical_property
+from SurfaceTopography.Exceptions import CannotPerformAnalysisError
 from ContactMechanics import PeriodicFFTElasticHalfSpace, FreeFFTElasticHalfSpace, make_system
 
 import topobank.manager.models  # will be used to evaluate model classes
@@ -413,21 +414,63 @@ def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None
     )
 
 
+def make_alert_entry(level, subject_name, subject_url, data_series_name, detail_mesg):
+    """Build string with alert message often used in the functions.
+
+    Parameters
+    ----------
+    level: str
+        One of ['info', 'warning', 'danger'], see also alert classes in bootstrap 4
+    subject_name: str
+        Name of the subject.
+    subject_url: str
+        URL of the subject
+    data_series_name: str
+        Name of the data series this applies to.
+    detail_mesg: str
+        Details about the alert.
+
+    Returns
+    -------
+    str
+    """
+    link = f'<a class="alert-link" href="{subject_url}">{subject_name}</a>'
+    message = f"Failure for measurement {link}, data series '{data_series_name}': {detail_mesg}"
+    return dict(alert_class=f"alert-{level}", message=message)
+
+
 def analysis_function(topography, funcname_profile, funcname_area, name, xlabel, ylabel, xname, yname, aname, xunit,
                       yunit, **kwargs):
-    # Get low level topography from SurfaceTopography model
+
+    topography_name = topography.name
+    topography_url = topography.get_absolute_url()
+
+    # Switch to low level topography from SurfaceTopography model
     topography = topography.topography()
 
     if topography.is_reentrant:
         raise ReentrantTopographyException(
             '{}: Cannot calculate analysis function for reentrant measurements.'.format(name))
 
-    func = getattr(topography, funcname_profile)
-    r, A = func(**kwargs)
+    alerts = []  # list of dicts with keys 'alert_class', 'message'
+    series = []  # list of dicts with series data, keys: 'name', 'x', 'y', 'visible'
 
-    # Remove NaNs
-    r = r[np.isfinite(A)]
-    A = A[np.isfinite(A)]
+    func = getattr(topography, funcname_profile)
+
+    try:
+        r, A = func(**kwargs)
+        # Remove NaNs
+        r = r[np.isfinite(A)]
+        A = A[np.isfinite(A)]
+
+        series += [
+            dict(name=xname,
+                 x=r,
+                 y=A,
+                 ),
+        ]
+    except CannotPerformAnalysisError as exc:
+        alerts.append(make_alert_entry('warning', topography_name, topography_url, xname, str(exc)))
 
     # Create dataset with unreliable data
     ru, Au = func(reliable=False, **kwargs)
@@ -437,17 +480,39 @@ def analysis_function(topography, funcname_profile, funcname_area, name, xlabel,
     Au = Au[np.isfinite(Au)]
 
     if topography.dim == 2:
+
         transpose_func = getattr(topography.transpose(), funcname_profile)
         areal_func = getattr(topography, funcname_area)
 
-        r_T, A_T = transpose_func(**kwargs)
-        r_2D, A_2D = areal_func(**kwargs)
+        try:
+            r_T, A_T = transpose_func(**kwargs)
+            # Remove NaNs
+            r_T = r_T[np.isfinite(A_T)]
+            A_T = A_T[np.isfinite(A_T)]
+            series += [
+                dict(name=yname,
+                     x=r_T,
+                     y=A_T,
+                     visible=False,  # We hide everything by default except for the first data series
+                     ),
+            ]
+        except CannotPerformAnalysisError as exc:
+            alerts.append(make_alert_entry('warning', topography_name, topography_url, yname, str(exc)))
 
-        # Remove NaNs
-        r_T = r_T[np.isfinite(A_T)]
-        A_T = A_T[np.isfinite(A_T)]
-        r_2D = r_2D[np.isfinite(A_2D)]
-        A_2D = A_2D[np.isfinite(A_2D)]
+        try:
+            r_2D, A_2D = areal_func(**kwargs)
+            # Remove NaNs
+            r_2D = r_2D[np.isfinite(A_2D)]
+            A_2D = A_2D[np.isfinite(A_2D)]
+            series += [
+                dict(name=aname,
+                     x=r_2D,
+                     y=A_2D,
+                     visible=False,
+                     ),
+            ]
+        except CannotPerformAnalysisError as exc:
+            alerts.append(make_alert_entry('warning', topography_name, topography_url, aname, str(exc)))
 
         ru_T, Au_T = transpose_func(reliable=False, **kwargs)
         ru_2D, Au_2D = areal_func(reliable=False, **kwargs)
@@ -459,29 +524,8 @@ def analysis_function(topography, funcname_profile, funcname_area, name, xlabel,
         Au_2D = Au_2D[np.isfinite(Au_2D)]
 
     #
-    # Build series
+    # Add series with unreliable data
     #
-    series = [
-        dict(name=xname,
-             x=r,
-             y=A,
-             ),
-    ]
-
-    if topography.dim == 2:
-        series += [
-            dict(name=yname,
-                 x=r_T,
-                 y=A_T,
-                 visible=False,  # We hide everything by default except for the first data series
-                 ),
-            dict(name=aname,
-                 x=r_2D,
-                 y=A_2D,
-                 visible=False,
-                 ),
-        ]
-
     series += [
         dict(name='{} (incl. unreliable data)'.format(xname),
              x=ru,
@@ -504,7 +548,6 @@ def analysis_function(topography, funcname_profile, funcname_area, name, xlabel,
                  ),
         ]
 
-    # Unit for displaying ACF
     unit = topography.unit
 
     return dict(
@@ -515,7 +558,8 @@ def analysis_function(topography, funcname_profile, funcname_area, name, xlabel,
         yunit=yunit.format(unit),
         xscale='log',
         yscale='log',
-        series=series)
+        series=series,
+        alerts=alerts)
 
 
 def analysis_function_for_surface(surface, progress_recorder, funcname_profile, name, xlabel, ylabel, xname, xunit,
@@ -523,20 +567,29 @@ def analysis_function_for_surface(surface, progress_recorder, funcname_profile, 
     """Calculate average variable bandwidth for a surface."""
     topographies = ContainerProxy(surface.topography_set.all())
     unit = suggest_length_unit(topographies)
+
+    series = []
+    alerts = []
+
     progress_callback = None if progress_recorder is None else lambda i, n: progress_recorder.set_progress(i + 1, n)
-    r, A = log_average(topographies, funcname_profile, unit, progress_callback=progress_callback, **kwargs)
 
-    # Remove NaNs
-    r = r[np.isfinite(A)]
-    A = A[np.isfinite(A)]
+    try:
+        r, A = log_average(topographies, funcname_profile, unit, progress_callback=progress_callback, **kwargs)
 
-    #
-    # Build series
-    #
-    series = [dict(name=xname,
-                   x=r,
-                   y=A,
-                   )]
+        # Remove NaNs
+        r = r[np.isfinite(A)]
+        A = A[np.isfinite(A)]
+
+        #
+        # Build series
+        #
+        series += [dict(name=xname,
+                        x=r,
+                        y=A,
+                        )]
+    except CannotPerformAnalysisError as exc:
+        alerts.append(make_alert_entry('warning', surface.name, surface.get_absolute_url(),
+                                       xname, str(exc)))
 
     result = dict(
         name=name,
@@ -651,7 +704,14 @@ def variable_bandwidth_for_surface(surface, progress_recorder=None, storage_pref
 
 def scale_dependent_roughness_parameter(topography, progress_recorder, order_of_derivative, name, ylabel, xname, yname,
                                         xyfunc, xyname, yunit, **kwargs):
+
+    topography_name = topography.name
+    topography_url = topography.get_absolute_url()
+
     topography = topography.topography()
+
+    series = []
+    alerts = []
 
     if topography.is_reentrant:
         raise ReentrantTopographyException(
@@ -664,33 +724,45 @@ def scale_dependent_roughness_parameter(topography, progress_recorder, order_of_
 
     progress_callback = None if progress_recorder is None else \
         lambda i, n: progress_recorder.set_progress(i + 1, fac * n)
-    distances, rms_values_sq = topography.scale_dependent_statistical_property(
-        lambda x, y=None: np.mean(x * x), n=order_of_derivative, progress_callback=progress_callback, **kwargs)
-    series = [dict(name=xname,
-                   x=distances,
-                   y=np.sqrt(rms_values_sq),
-                   )]
+
+    try:
+        distances, rms_values_sq = topography.scale_dependent_statistical_property(
+            lambda x, y=None: np.mean(x * x), n=order_of_derivative, progress_callback=progress_callback, **kwargs)
+        series += [dict(name=xname,
+                        x=distances,
+                        y=np.sqrt(rms_values_sq))]
+    except CannotPerformAnalysisError as exc:
+        alerts.append(make_alert_entry('warning', topography_name, topography_url, xname, str(exc)))
 
     if topography.dim == 2:
         progress_callback = None if progress_recorder is None else \
             lambda i, n: progress_recorder.set_progress(n + i + 1, 3 * n)
-        distances, rms_values_sq = topography.transpose().scale_dependent_statistical_property(
-            lambda x, y=None: np.mean(x * x), n=order_of_derivative, progress_callback=progress_callback, **kwargs)
-        series += [dict(name=yname,
-                        x=distances,
-                        y=np.sqrt(rms_values_sq),
-                        visible=False,
-                        )]
+        try:
+            distances, rms_values_sq = topography.transpose().scale_dependent_statistical_property(
+                lambda x, y=None: np.mean(x * x), n=order_of_derivative, progress_callback=progress_callback, **kwargs)
+            series += [dict(name=yname,
+                            x=distances,
+                            y=np.sqrt(rms_values_sq),
+                            visible=False,
+                            )]
+        except CannotPerformAnalysisError as exc:
+            alerts.append(make_alert_entry('warning', topography_name, topography_url, yname, str(exc)))
 
         progress_callback = None if progress_recorder is None else \
             lambda i, n: progress_recorder.set_progress(2 * n + i + 1, 3 * n)
-        distances, rms_values_sq = topography.transpose().scale_dependent_statistical_property(
-            lambda x, y: np.mean(xyfunc(x, y)), n=order_of_derivative, progress_callback=progress_callback, **kwargs)
-        series += [dict(name=xyname,
-                        x=distances,
-                        y=np.sqrt(rms_values_sq),
-                        visible=False,
-                        )]
+
+        try:
+            distances, rms_values_sq = topography.transpose().scale_dependent_statistical_property(
+                lambda x, y: np.mean(xyfunc(x, y)),
+                n=order_of_derivative,
+                progress_callback=progress_callback, **kwargs)
+            series += [dict(name=xyname,
+                            x=distances,
+                            y=np.sqrt(rms_values_sq),
+                            visible=False,
+                            )]
+        except CannotPerformAnalysisError as exc:
+            alerts.append(make_alert_entry('warning', topography_name, topography_url, xyname, str(exc)))
 
     unit = topography.unit
     return dict(
@@ -701,22 +773,31 @@ def scale_dependent_roughness_parameter(topography, progress_recorder, order_of_
         yunit=yunit.format(unit),
         xscale='log',
         yscale='log',
-        series=series)
+        series=series,
+        alerts=alerts)
 
 
 def scale_dependent_roughness_parameter_for_surface(surface, progress_recorder, order_of_derivative, name, ylabel,
                                                     xname, yunit, **kwargs):
     topographies = ContainerProxy(surface.topography_set.all())
     unit = suggest_length_unit(topographies)
+
+    series = []
+    alerts = []
+
     # Factor of two for curvature
     progress_callback = None if progress_recorder is None else lambda i, n: progress_recorder.set_progress(i + 1, n)
-    distances, rms_values_sq = scale_dependent_statistical_property(
-        topographies, lambda x, y=None: np.mean(x * x), n=order_of_derivative, unit=unit,
-        progress_callback=progress_callback, **kwargs)
-    series = [dict(name=xname,
-                   x=distances,
-                   y=np.sqrt(rms_values_sq),
-                   )]
+
+    try:
+        distances, rms_values_sq = scale_dependent_statistical_property(
+            topographies, lambda x, y=None: np.mean(x * x), n=order_of_derivative, unit=unit,
+            progress_callback=progress_callback, **kwargs)
+        series = [dict(name=xname,
+                       x=distances,
+                       y=np.sqrt(rms_values_sq),
+                       )]
+    except CannotPerformAnalysisError as exc:
+        alerts.append(make_alert_entry('warning', surface.name, surface.get_absolute_url(), xname, str(exc)))
 
     return dict(
         name=name,
@@ -726,7 +807,8 @@ def scale_dependent_roughness_parameter_for_surface(surface, progress_recorder, 
         yunit=yunit.format(unit),
         xscale='log',
         yscale='log',
-        series=series)
+        series=series,
+        alerts=alerts)
 
 
 @register_implementation(name="Scale-dependent slope", card_view_flavor='plot')
@@ -1287,6 +1369,7 @@ def topography_analysis_function_for_tests(topography, a=1, b="foo"):
                     std_err_y=np.zeros(8),
                 )
             ],
+            'alerts': [dict(alert_class='alert-info', message="This is a test for a measurement alert.")],
             'comment': f"a is {a} and b is {b}"}
 
 
@@ -1298,4 +1381,5 @@ def surface_analysis_function_for_tests(surface, a=1, c="bar"):
             'xlabel': 'x',
             'ylabel': 'y',
             'series': [],
+            'alerts': [dict(alert_class='alert-info', message="This is a test for a surface alert.")],
             'comment': f"a is {a} and c is {c}"}

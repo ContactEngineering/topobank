@@ -16,6 +16,7 @@ from celery.utils.log import get_task_logger
 
 from notifications.signals import notify
 
+from SurfaceTopography.Exceptions import CannotPerformAnalysisError
 from ContactMechanics.Systems import IncompatibleFormulationError
 
 from .celery import app
@@ -29,7 +30,8 @@ from topobank.usage_stats.utils import increase_statistics_by_date, increase_sta
                                         current_statistics
 
 
-EXCEPTION_CLASSES_FOR_INCOMPATIBILITIES = (IncompatibleTopographyException, IncompatibleFormulationError)
+EXCEPTION_CLASSES_FOR_INCOMPATIBILITIES = (IncompatibleTopographyException, IncompatibleFormulationError,
+                                           CannotPerformAnalysisError)
 
 _log = get_task_logger(__name__)
 

@@ -29,7 +29,7 @@
       <h5>{{ title }}</h5>
     </div>
     <div class="card-body">
-      {% if analyses_failure %}
+      {% if analyses_failure or extra_warnings %}
       <ul class="nav nav-tabs">
         <li class="nav-item" style="list-style-type: none;">
           <a class="nav-link active" data-toggle="tab" href="#plot-tab-{{ card_id }}">Plot</a>

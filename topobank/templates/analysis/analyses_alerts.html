@@ -69,6 +69,12 @@
       See tab "Warnings" for details.
     </div>
     {% endif %}
+    {% if extra_warnings %}
+    <div class="alert alert-info">
+      {% fa5_icon 'exclamation-circle' %}
+      Please see tab "Warnings" for additional information about these results.
+    </div>
+    {% endif %}
 {% endif %}
 
 {% if not analyses_available %}

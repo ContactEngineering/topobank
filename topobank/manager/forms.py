@@ -14,7 +14,7 @@ from bootstrap_datepicker_plus import DatePickerInput
 
 import logging
 
-from SurfaceTopography.IO.Reader import CannotDetectFileFormat, CorruptFile, UnknownFileFormatGiven, ReadFileError
+from SurfaceTopography.Exceptions import CannotDetectFileFormat, CorruptFile, UnknownFileFormatGiven, ReadFileError
 
 from topobank.manager.utils import get_topography_reader
 from .models import Topography, Surface, MAX_LENGTH_DATAFILE_FORMAT
