@@ -12,7 +12,7 @@
 - ENH: Scale-dependent curvature (#586)
 - ENH: Added links to GitHub discussions (#722)
 - BUG: Scale-dependent slope is now computed uses the
-  brute force approach (closes #687)
+  brute force approach (#687)
 - BUG: Fixed issue while downloading analysis results
   with stderr for y without masked values (#711)
 - BUG: Missing points were not shown correctly in 
