@@ -599,7 +599,8 @@ def analysis_function_for_surface(surface, progress_recorder, funcname_profile, 
         yunit=yunit.format(unit),
         xscale='log',
         yscale='log',
-        series=series)
+        series=series,
+        alerts=alerts)
 
     return result
 
