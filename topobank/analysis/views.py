@@ -469,7 +469,7 @@ class PlotCardView(SimpleCardView):
 
         series_dashes = OrderedDict()  # key: series name
         series_names = []
-        series_actives = []
+        series_visible = set()  # names of visible series on initial load, needed for checkboxes
 
         DEFAULT_ALPHA_FOR_TOPOGRAPHIES = 0.3 if has_at_least_one_surface_subject else 1.0
 
@@ -613,7 +613,7 @@ class PlotCardView(SimpleCardView):
                 #
                 series_idx = series_names.index(series_name)
                 if is_visible:
-                    series_actives += [series_idx]
+                    series_visible.add(series_name)  # we don't use the index here, because we need to reorder later
 
                 # prepare unique id for this line
                 glyph_id = f"glyph_{subject_idx}_{series_idx}_line"
@@ -679,6 +679,9 @@ class PlotCardView(SimpleCardView):
         #
         # Adding widgets for switching lines on/off
         #
+        # ensure a fixed order of the existing series
+        series_names.sort()
+        series_actives = [series_names.index(sv) for sv in series_visible]
         series_button_group = CheckboxGroup(
             labels=series_names,
             css_classes=["topobank-series-checkbox"],
