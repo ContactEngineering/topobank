@@ -280,7 +280,7 @@ sqlparse==0.4.2
     # via
     #   -r base.in
     #   django
-surfacetopography==0.98.0
+surfacetopography==0.98.1
     # via
     #   -r base.in
     #   contactmechanics
