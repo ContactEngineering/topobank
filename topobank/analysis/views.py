@@ -5,7 +5,7 @@ from typing import Optional, Dict, Any
 import numpy as np
 import math
 import itertools
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 
 from django.contrib.contenttypes.models import ContentType
 from django.http import HttpResponse, Http404, JsonResponse
@@ -486,6 +486,34 @@ class PlotCardView(SimpleCardView):
         special_values = []  # elements: tuple(subject, quantity name, value, unit string)
         alerts = []  # elements: dict with keys 'alert_class' and 'message'
 
+        #
+        # First traversal: find all available series names and sort them
+        # We need fixed series indices, because this is used on Javascript level to connect
+        # checkboxes to glyphs.
+        #
+        series_names = set()
+        for analysis in analyses_success_list:
+            analysis_result = analysis.result_obj
+            #
+            # handle task state
+            #
+            if analysis.task_state == analysis.FAILURE:
+                continue  # should not happen if only called with successful analyses
+            elif analysis.task_state == analysis.SUCCESS:
+                series = analysis.result_obj['series']
+            else:
+                # not ready yet
+                continue  # should not happen if only called with successful analyses
+            for s in series:
+                series_names.add(s['name'])
+
+        series_names = sorted(list(series_names))  # index of a name in this list is the "series_idx"
+        series_visible = set()  # elements: series indices, decides whether a series is visible
+        series_glyphs = defaultdict(list)  # key: series_idx, value: list of glyphs for that series
+
+        #
+        # Second traversal: do the plotting
+        #
         for analysis in analyses_success_list:
 
             #
@@ -563,8 +591,15 @@ class PlotCardView(SimpleCardView):
                 # but I don't know to a have a second field next to "name", which
                 # is used for the subject here
 
-                # Initial visibility
+                #
+                # Collect data for visibility of the corresponding series
+                #
                 is_visible = s['visible'] if 'visible' in s else True
+                series_idx = series_names.index(series_name)
+                if is_visible:
+                    series_visible.add(series_idx)
+                    # as soon as one dataset wants this series to be visible,
+                    # this series will be visible for all
 
                 #
                 # find out dashes for data series
@@ -572,7 +607,6 @@ class PlotCardView(SimpleCardView):
                 if series_name not in series_dashes:
                     series_dashes[series_name] = next(dash_cycle)
                     # series_symbols[series_name] = next(symbol_cycle)
-                    series_names.append(series_name)
 
                 #
                 # Actually plot the line
@@ -594,7 +628,9 @@ class PlotCardView(SimpleCardView):
                                        line_width=line_width,
                                        line_alpha=topo_alpha,
                                        name=subject_display_name)
-                line_glyph.visible = is_visible
+
+                series_glyphs[series_idx].append(line_glyph)
+
                 if show_symbols:
                     symbol_glyph = plot.scatter('x', 'y', source=source,
                                                 legend_label=legend_entry,
@@ -606,15 +642,11 @@ class PlotCardView(SimpleCardView):
                                                 line_dash=curr_dash,
                                                 fill_color=curr_color,
                                                 name=subject_display_name)
-                    symbol_glyph.visible = is_visible
+                    series_glyphs[series_idx].append(symbol_glyph)
 
                 #
                 # Prepare JS code to toggle visibility
                 #
-                series_idx = series_names.index(series_name)
-                if is_visible:
-                    series_visible.add(series_name)  # we don't use the index here, because we need to reorder later
-
                 # prepare unique id for this line
                 glyph_id = f"glyph_{subject_idx}_{series_idx}_line"
                 js_args[glyph_id] = line_glyph  # mapping from Python to JS
@@ -667,6 +699,14 @@ class PlotCardView(SimpleCardView):
                 pass
 
         #
+        # Adjust visibility of glyphs depending on visibility of series
+        #
+        for series_idx, glyphs in series_glyphs.items():
+            visible = series_idx in series_visible
+            for glyph in glyphs:
+                glyph.visible = visible
+
+        #
         # Final configuration of the plot
         #
 
@@ -686,7 +726,7 @@ class PlotCardView(SimpleCardView):
             labels=series_names,
             css_classes=["topobank-series-checkbox"],
             visible=False,
-            active=series_actives)
+            active=list(series_visible))  # active must be list of ints which are indexes in 'labels'
 
         # create list of checkbox group, one checkbox group for each subject type
         if has_at_least_one_surface_subject:

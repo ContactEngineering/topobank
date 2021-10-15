@@ -17,6 +17,10 @@ from topobank.analysis.functions import (
 
 from topobank.manager.tests.utils import SurfaceFactory, Topography1DFactory
 
+EXPECTED_KEYS_FOR_DIST_ANALYSIS = sorted(['name', 'scalars', 'xlabel', 'ylabel', 'xunit', 'yunit', 'series'])
+EXPECTED_KEYS_FOR_PLOT_CARD_ANALYSIS = sorted(['alerts', 'name',
+                                               'xlabel', 'ylabel', 'xunit', 'yunit',
+                                               'xscale', 'yscale', 'series'])
 
 ###############################################################################
 # Helpers for doing tests
@@ -28,11 +32,15 @@ class FakeTopographyModel:
     """This model is used to create a Topography for being passed to analysis functions.
     """
     t: Topography
+    name: str = "mytopo"
 
     def topography(self):
         """Return low level topography.
         """
         return self.t
+
+    def get_absolute_url(self):
+        return "some/url/"
 
 
 ###############################################################################
@@ -52,7 +60,7 @@ def test_height_distribution_simple_line_scan():
 
     result = height_distribution(topography)
 
-    assert list(result.keys()) == ['name', 'scalars', 'xlabel', 'ylabel', 'xunit', 'yunit', 'series']
+    assert sorted(result.keys()) == EXPECTED_KEYS_FOR_DIST_ANALYSIS
 
     assert result['name'] == 'Height distribution'
     assert result['scalars'] == {
@@ -87,7 +95,7 @@ def test_slope_distribution_simple_line_scan():
 
     result = slope_distribution(topography, bins=3)
 
-    assert sorted(result.keys()) == sorted(['name', 'scalars', 'xlabel', 'ylabel', 'xunit', 'yunit', 'series'])
+    assert sorted(result.keys()) == EXPECTED_KEYS_FOR_DIST_ANALYSIS
 
     assert result['name'] == 'Slope distribution'
     assert result['scalars'] == {
@@ -123,7 +131,7 @@ def test_curvature_distribution_simple_line_scan():
     bins = np.array((-4.75, -4.25, -3.75, -3.25))  # special for this test in order to know results
     result = curvature_distribution(topography, bins=bins)
 
-    assert sorted(result.keys()) == sorted(['name', 'scalars', 'xlabel', 'ylabel', 'xunit', 'yunit', 'series'])
+    assert sorted(result.keys()) == EXPECTED_KEYS_FOR_DIST_ANALYSIS
 
     assert result['name'] == 'Curvature distribution'
 
@@ -163,7 +171,7 @@ def test_power_spectrum_simple_nonuniform_linescan():
 
     result = power_spectrum(topography)
 
-    assert sorted(result.keys()) == sorted(['name', 'xlabel', 'ylabel', 'xunit', 'yunit', 'xscale', 'yscale', 'series'])
+    assert sorted(result.keys()) == EXPECTED_KEYS_FOR_PLOT_CARD_ANALYSIS
 
     assert result['name'] == 'Power-spectral density (PSD)'
 
@@ -193,7 +201,7 @@ def test_autocorrelation_simple_nonuniform_topography():
 
     result = autocorrelation(topography)
 
-    assert sorted(result.keys()) == sorted(['name', 'xlabel', 'ylabel', 'xscale', 'yscale', 'xunit', 'yunit', 'series'])
+    assert sorted(result.keys()) == EXPECTED_KEYS_FOR_PLOT_CARD_ANALYSIS
 
     assert result['name'] == 'Height-difference autocorrelation function (ACF)'
 
@@ -210,7 +218,7 @@ def test_variable_bandwidth_simple_nonuniform_linescan():
 
     result = variable_bandwidth(topography)
 
-    assert sorted(result.keys()) == sorted(['name', 'xlabel', 'ylabel', 'xscale', 'yscale', 'xunit', 'yunit', 'series'])
+    assert sorted(result.keys()) == EXPECTED_KEYS_FOR_PLOT_CARD_ANALYSIS
 
     assert result['name'] == 'Variable-bandwidth analysis'
     # TODO Check result values for bandwidth
@@ -238,7 +246,7 @@ def test_height_distribution_simple_2d_topography(simple_linear_2d_topography):
     topography = FakeTopographyModel(simple_linear_2d_topography)
     result = height_distribution(topography, bins=10)
 
-    assert sorted(result.keys()) == sorted(['name', 'scalars', 'xlabel', 'ylabel', 'xunit', 'yunit', 'series'])
+    assert sorted(result.keys()) == EXPECTED_KEYS_FOR_DIST_ANALYSIS
 
     assert result['name'] == 'Height distribution'
 
@@ -273,7 +281,7 @@ def test_slope_distribution_simple_2d_topography(simple_linear_2d_topography):
     topography = FakeTopographyModel(simple_linear_2d_topography)
     result = slope_distribution(topography, bins=3)
 
-    assert sorted(result.keys()) == sorted(['name', 'scalars', 'xlabel', 'ylabel', 'xunit', 'yunit', 'series'])
+    assert sorted(result.keys()) == EXPECTED_KEYS_FOR_DIST_ANALYSIS
 
     assert result['name'] == 'Slope distribution'
 
@@ -323,7 +331,7 @@ def test_curvature_distribution_simple_2d_topography(simple_linear_2d_topography
     topography = FakeTopographyModel(simple_linear_2d_topography)
     result = curvature_distribution(topography, bins=3)
 
-    assert sorted(result.keys()) == sorted(['name', 'scalars', 'xlabel', 'ylabel', 'xunit', 'yunit', 'series'])
+    assert sorted(result.keys()) == EXPECTED_KEYS_FOR_DIST_ANALYSIS
 
     assert result['name'] == 'Curvature distribution'
 
@@ -367,7 +375,7 @@ def test_curvature_distribution_simple_2d_topography_periodic():
     topography = FakeTopographyModel(t)
     result = curvature_distribution(topography, bins=3)
 
-    assert sorted(result.keys()) == sorted(['name', 'scalars', 'xlabel', 'ylabel', 'xunit', 'yunit', 'series'])
+    assert sorted(result.keys()) == EXPECTED_KEYS_FOR_DIST_ANALYSIS
 
     assert result['name'] == 'Curvature distribution'
 
@@ -382,7 +390,7 @@ def test_power_spectrum_simple_2d_topography(simple_linear_2d_topography):
     topography = FakeTopographyModel(simple_linear_2d_topography)
     result = power_spectrum(topography)
 
-    assert sorted(result.keys()) == sorted(['name', 'xlabel', 'ylabel', 'xunit', 'yunit', 'xscale', 'yscale', 'series'])
+    assert sorted(result.keys()) == EXPECTED_KEYS_FOR_PLOT_CARD_ANALYSIS
 
     assert result['name'] == 'Power-spectral density (PSD)'
 
@@ -410,7 +418,7 @@ def test_autocorrelation_simple_2d_topography(simple_linear_2d_topography):
     topography = FakeTopographyModel(simple_linear_2d_topography)
     result = autocorrelation(topography)
 
-    assert sorted(result.keys()) == sorted(['name', 'xlabel', 'ylabel', 'xscale', 'yscale', 'xunit', 'yunit', 'series'])
+    assert sorted(result.keys()) == EXPECTED_KEYS_FOR_PLOT_CARD_ANALYSIS
 
     assert result['name'] == 'Height-difference autocorrelation function (ACF)'
 
@@ -422,7 +430,7 @@ def test_scale_dependent_slope_simple_2d_topography(simple_linear_2d_topography)
     topography = FakeTopographyModel(simple_linear_2d_topography)
     result = scale_dependent_slope(topography)
 
-    assert sorted(result.keys()) == sorted(['name', 'xlabel', 'ylabel', 'xscale', 'yscale', 'xunit', 'yunit', 'series'])
+    assert sorted(result.keys()) == EXPECTED_KEYS_FOR_PLOT_CARD_ANALYSIS
 
     assert result['name'] == 'Scale-dependent slope'
     for dataset in result['series']:
@@ -434,7 +442,7 @@ def test_variable_bandwidth_simple_2d_topography(simple_linear_2d_topography):
     topography = FakeTopographyModel(simple_linear_2d_topography)
     result = variable_bandwidth(topography)
 
-    assert sorted(result.keys()) == sorted(['name', 'xlabel', 'ylabel', 'xscale', 'yscale', 'xunit', 'yunit', 'series'])
+    assert sorted(result.keys()) == EXPECTED_KEYS_FOR_PLOT_CARD_ANALYSIS
 
     assert result['name'] == 'Variable-bandwidth analysis'
     # TODO Check result values for bandwidth
@@ -665,12 +673,15 @@ def test_psd_for_surface(simple_surface):
             {
                 'name': '1D PSD along x',
                 # This is a pure regression test
-                'x': [6.283185e+00, 1.519298e+01, 3.309015e+01, 6.765766e+01, 1.573632e+02, 3.147830e+02, 7.032335e+02,
-                      1.576467e+03, 3.405169e+03, 7.314807e+03, 1.371526e+04],
-                'y': [8.380153e-04, 1.444988e-04, 9.826013e-05, 3.993137e-04, 5.072961e-03, 1.219130e-03, 2.709713e-17,
-                      1.241935e-09, 5.070337e-18, 5.135261e-22, 1.737850e-14],
+                'x': [6.283185e+00, 1.503970e+01, 3.281944e+01, 6.922845e+01,
+                      1.589340e+02, 3.147830e+02, 7.102774e+02, 1.576467e+03,
+                      3.436698e+03, 7.409395e+03, 1.377832e+04],
+                'y': [8.380153e-04, 1.444988e-04, 9.826013e-05, 3.596532e-04,
+                      5.352438e-03, 1.219130e-03, 2.709713e-17, 1.241935e-09,
+                      4.943693e-18, 4.544197e-22, 1.767813e-14],
             }
-        ]
+        ],
+        'alerts': [],
     }
 
     for k in ['name', 'xunit', 'yunit', 'xlabel', 'ylabel', 'xscale', 'yscale']:
@@ -698,12 +709,12 @@ def test_autocorrelation_for_surface(simple_surface):
             {
                 'name': 'Along x',
                 # This is a pure regression test
-                'x': [4.316547e-04, 7.194245e-04, 1.507281e-03, 3.271786e-03,
-                      8.093844e-03, 1.674524e-02, 3.469552e-02, 7.412141e-02,
-                      1.592920e-01, 3.407080e-01, 7.300885e-01],
-                'y': [1.055669e-07, 2.788402e-07, 7.872059e-07, 3.479716e-07,
+                'x': [3.237410e-04, 7.194245e-04, 1.492413e-03, 3.247700e-03,
+                      8.111829e-03, 1.683517e-02, 3.496530e-02, 7.431925e-02,
+                      1.592920e-01, 3.451327e-01, 7.345133e-01],
+                'y': [6.372497e-08, 2.788402e-07, 7.872059e-07, 3.479716e-07,
                       2.909510e-01, 4.353897e-01, 2.104788e-01, 2.454415e-01,
-                      5.123730e-01, 5.052799e-01, 5.042386e-01],
+                      5.123730e-01, 4.951154e-01, 5.092170e-01],
             }
         ]
     }
@@ -733,8 +744,9 @@ def test_variable_bandwidth_for_surface(simple_surface):
             {
                 'name': 'Profile decomposition along x',
                 # This is a pure regression test
-                'x': [3.892199e-04, 7.784397e-04, 1.556879e-03, 3.113759e-03, 6.227518e-03, 1.356651e-02, 2.826642e-02,
-                      6.861511e-02, 1.250000e-01, 2.500000e-01, 7.500000e-01],
+                'x': [3.892199e-04, 7.784397e-04, 1.556879e-03, 3.113759e-03,
+                      6.227518e-03, 1.342703e-02, 2.808543e-02, 6.861511e-02,
+                      1.250000e-01, 2.500000e-01, 7.500000e-01],
                 'y': [9.832030e-06, 3.501679e-05, 1.304232e-04, 4.237846e-04, 6.662862e-04, 6.774048e-04, 6.856179e-04,
                       3.342818e-01, 7.008752e-01, 7.070114e-01, 7.083317e-01],
             }

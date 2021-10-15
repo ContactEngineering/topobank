@@ -15,7 +15,8 @@
 
     <div class="col-9">
       <ul class="nav nav-tabs">
-        {% if special_values or analyses_failure %}{#  we only need the plot tab if there is anything else #}
+        {% if special_values or analyses_failure or extra_warnings %}
+          {#  we only need the plot tab if there are at least two tabs #}
         <li class="nav-item">
           <a class="nav-link active" href="#plot" data-toggle="tab" role="tab">Plot</a>
         </li>
@@ -25,7 +26,7 @@
           <a class="nav-link" href="#values" data-toggle="tab" role="tab">Special values</a>
         </li>
         {% endif %}
-        {% if analyses_failure %}
+        {% if analyses_failure or extra_warnings %}
         <li class="nav-item">
           {# Use href with card_id because the included HTML uses this too #}
           <a class="nav-link" href="#warnings-tab-{{ card_id }}" data-toggle="tab" role="tab">Warnings</a>
