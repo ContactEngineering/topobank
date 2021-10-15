@@ -720,8 +720,6 @@ class PlotCardView(SimpleCardView):
         # Adding widgets for switching lines on/off
         #
         # ensure a fixed order of the existing series
-        series_names.sort()
-        series_actives = [series_names.index(sv) for sv in series_visible]
         series_button_group = CheckboxGroup(
             labels=series_names,
             css_classes=["topobank-series-checkbox"],
