@@ -6,7 +6,7 @@ import io
 from SurfaceTopography.IO import read_topography
 
 from ..functions import ReentrantTopographyException, power_spectrum,\
-    slope_distribution, curvature_distribution, autocorrelation, scale_dependent_slope
+    slope_distribution, curvature_distribution, autocorrelation, scale_dependent_slope, scale_dependent_curvature
 from .test_functions import FakeTopographyModel
 
 
@@ -25,8 +25,8 @@ def reentrant_line_scan():
     return read_topography(in_mem_file)
 
 
-@pytest.mark.parametrize('analysis_func', [power_spectrum, slope_distribution,
-                                           curvature_distribution, autocorrelation, scale_dependent_slope])
+@pytest.mark.parametrize('analysis_func', [power_spectrum, slope_distribution, curvature_distribution, autocorrelation,
+                                           scale_dependent_slope, scale_dependent_curvature])
 def test_power_spectrum(reentrant_line_scan, analysis_func):
     topo = FakeTopographyModel(reentrant_line_scan)
     with pytest.raises(ReentrantTopographyException) as exc:

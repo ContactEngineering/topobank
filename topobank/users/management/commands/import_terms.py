@@ -38,15 +38,6 @@ class Command(BaseCommand):
         parser.add_argument('terms_file', type=open,
                             help="Path of input file containing the terms in markdown format.")
 
-        # Named (optional) arguments
-        parser.add_argument(
-            '-o',
-            '--optional',
-            action='store_true',
-            dest='optional',
-            help='Mark these terms as optional. If not given, the terms are mandatory.',
-        )
-
         parser.add_argument(
             '-a',
             '--date-active',
@@ -103,7 +94,7 @@ class Command(BaseCommand):
         if options['summary']:
             info = options['summary']
         else:
-            info = None
+            info = ""  # no longer allowed to be None with migration 0004 in official repo of django-termsandconditons
 
         #
         # Finally create terms and conditions in database
@@ -112,7 +103,6 @@ class Command(BaseCommand):
             slug=options['slug'].strip(),
             version_number=options['terms_version'],
             name=name,
-            optional=options['optional'],
             date_created=timezone.now(),
             date_active=date_active,
             text=terms_html,

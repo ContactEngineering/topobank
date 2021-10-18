@@ -1,6 +1,6 @@
 
 {% extends 'base.html' %}
-{% load fontawesome %}
+{% load fontawesome_5 %}
 {% load static %}
 
 {% block content %}
@@ -9,16 +9,16 @@
 
   <div class="tab-content p-2 extra-tab">
 
-    <div class="btn-group pull-right">
+    <div class="btn-group float-right">
       <a href="{% url 'manager:topography-update' topography_prev %}"
          class="btn btn-default {% if topography_prev == topography.id %} disabled {% endif %}"
          data-toggle="tooltip" data-placement="bottom" title="Discard unsaved changes and show previous measurement of related surface">
-        {% fontawesome_icon 'chevron-left' %}
+        {% fa5_icon 'chevron-left' %}
       </a>
       <a href="{% url 'manager:topography-update' topography_next %}"
          class="btn btn-default {% if topography_next == topography.id %} disabled {% endif %}"
          data-toggle="tooltip" data-placement="bottom" title="Discard unsaved changes and show next measurement of related surface">
-        {% fontawesome_icon 'chevron-right' %}
+        {% fa5_icon 'chevron-right' %}
       </a>
     </div>
 

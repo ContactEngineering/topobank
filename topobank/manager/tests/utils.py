@@ -57,7 +57,7 @@ class Topography1DFactory(factory.django.DjangoModelFactory):
     # if you need size_y, use Topography2DFactory below
     size_editable = False
     unit_editable = False
-    height_scale_editable = False
+    height_scale_editable = True
     unit = 'nm'
     instrument_name = ""
     instrument_type = Topography.INSTRUMENT_TYPE_UNDEFINED
@@ -110,7 +110,9 @@ def two_topos():
                                  size_editable=True,  # needed for tests
                                  unit='µm',
                                  detrend_mode='height',
-                                 height_scale=0.296382712790741,
+                                 height_scale_editable=False,  # height_scale_factor defined in DI file
+                                 height_scale=0.296382712790741,  # workaround: mentioned here so it is correctly set
+                                 # normally this would be set during the upload process
                                  datafile=datafile1,
                                  resolution_x=256,
                                  resolution_y=256)
@@ -125,7 +127,8 @@ def two_topos():
                                  size_y=27.73965,
                                  unit='µm',
                                  detrend_mode='height',
-                                 height_scale=2.91818e-08,
+                                 height_scale=2.91818e-08,  # workaround: mentioned here so it is correctly set
+                                 height_scale_editable=False,  # defined in TXT file
                                  datafile=datafile2,
                                  resolution_x=305,
                                  resolution_y=75)

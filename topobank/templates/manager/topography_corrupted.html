@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% load static i18n %}
-{% load fontawesome %}
+{% load fontawesome_5 %}
 
 {% block content %}
 
@@ -21,11 +21,11 @@
 
             <a href="{% url 'manager:surface-detail' surface.id %}"
                       class="btn btn-default btn-block btn-lg">
-              {% fontawesome_icon 'diamond' %} Back to surface details
+              {% fa5_icon 'gem' 'far' %} Back to surface details
             </a>
             <a href="{% url 'manager:topography-create' surface.id %}?redirect={% url 'manager:surface-detail' surface.id %}"
                       class="btn btn-default btn-block btn-lg">
-              {% fontawesome_icon 'plus-square-o' %} Try again to add measurement data
+              {% fa5_icon 'plus-square-o' %} Try again to add measurement data
             </a>
         </div>
     </div>

@@ -2,7 +2,6 @@
 Basic models for the web app for handling topography data.
 """
 from django.db import models
-from django.contrib.postgres.fields import JSONField
 from django.shortcuts import reverse
 from django.utils import timezone
 from django.conf import settings
@@ -490,7 +489,7 @@ class Topography(models.Model, SubjectMixin):
     #
     instrument_name = models.CharField(max_length=200, blank=True)
     instrument_type = models.TextField(choices=INSTRUMENT_TYPE_CHOICES, default=INSTRUMENT_TYPE_UNDEFINED)
-    instrument_parameters = JSONField(default=dict, blank=True)
+    instrument_parameters = models.JSONField(default=dict, blank=True)
 
     #
     # Other fields
@@ -539,7 +538,7 @@ class Topography(models.Model, SubjectMixin):
 
         This instance is guaranteed to
 
-        - have an info dict with 'unit' key: .info['unit']
+        - have a 'unit' property
         - have a size: .physical_sizes
         - have been scaled and detrended with the saved parameters
 
@@ -573,6 +572,16 @@ class Topography(models.Model, SubjectMixin):
         #
         topo = cache.get(cache_key) if allow_cache else None
         if topo is None:
+            # Build dictionary with instrument information from database... this may override data provided by the
+            # topography reader
+            info = {
+                'instrument': {
+                    'name': self.instrument_name,
+                    'type': self.instrument_type,
+                    'parameters': self.instrument_parameters,
+                }
+            }
+
             if allow_squeezed:
                 try:
                     # If we are allowed to use a squeezed version, create one if not already happened
@@ -586,9 +595,9 @@ class Topography(models.Model, SubjectMixin):
                         # Okay, we can use the squeezed datafile, it's already there.
                         #
                         toporeader = get_topography_reader(self.squeezed_datafile, format=SQUEEZED_DATAFILE_FORMAT)
-                        topo = toporeader.topography()
+                        topo = toporeader.topography(info=info)
                         # In the squeezed format, these things are already applied/included:
-                        #  info dict with unit, scaling, detrending, physical sizes
+                        # unit, scaling, detrending, physical sizes
                         # so don't need to provide them to the .topography() method
                         _log.info(f"Using squeezed datafile instead of original datafile for topography id {self.id}.")
                 except Exception as exc:
@@ -599,7 +608,8 @@ class Topography(models.Model, SubjectMixin):
             if topo is None:
                 toporeader = get_topography_reader(self.datafile, format=self.datafile_format)
                 topography_kwargs = dict(channel_index=self.data_source,
-                                         periodic=self.is_periodic)
+                                         periodic=self.is_periodic,
+                                         info=info)
 
                 # Set size if physical size was not given in datafile
                 # (see also  TopographyCreateWizard.get_form_initial)
@@ -625,9 +635,16 @@ class Topography(models.Model, SubjectMixin):
                     # given in the data file already.
                     # So default is to use the factor from the file.
 
+                #
+                # Set the unit, if not already given by file contents
+                #
+                channel_unit = channel_dict.unit
+                if not channel_unit and self.unit:
+                    topography_kwargs['unit'] = self.unit
+
                 # Eventually get topography from module "SurfaceTopography" using the given keywords
                 topo = toporeader.topography(**topography_kwargs)
-                topo = topo.detrend(detrend_mode=self.detrend_mode, info=dict(unit=self.unit))
+                topo = topo.detrend(detrend_mode=self.detrend_mode)
 
             cache.set(cache_key, topo)
             # be sure to invalidate the cache key if topography is saved again -> signals.py
@@ -643,26 +660,30 @@ class Topography(models.Model, SubjectMixin):
 
     def to_dict(self):
         """Create dictionary for export of metadata to json or yaml"""
-        return {'name': self.name,
-                'datafile': {
-                    'original': self.datafile.name,
-                    'squeezed-netcdf': self.squeezed_datafile.name,
-                },
-                'data_source': self.data_source,
-                'detrend_mode': self.detrend_mode,
-                'is_periodic': self.is_periodic,
-                'creator': {'name': self.creator.name, 'orcid': self.creator.orcid_id},
-                'measurement_date': self.measurement_date,
-                'description': self.description,
-                'unit': self.unit,
-                'height_scale': self.height_scale,
-                'size': (self.size_x,) if self.size_y is None else (self.size_x, self.size_y),
-                'tags': [t.name for t in self.tags.order_by('name')],
-                'instrument': {
-                    'name': self.instrument_name,
-                    'type': self.instrument_type,
-                    'parameters': self.instrument_parameters,
-                }}
+        result = {'name': self.name,
+                  'datafile': {
+                      'original': self.datafile.name,
+                      'squeezed-netcdf': self.squeezed_datafile.name,
+                  },
+                  'data_source': self.data_source,
+                  'detrend_mode': self.detrend_mode,
+                  'is_periodic': self.is_periodic,
+                  'creator': {'name': self.creator.name, 'orcid': self.creator.orcid_id},
+                  'measurement_date': self.measurement_date,
+                  'description': self.description,
+                  'unit': self.unit,
+                  'size': (self.size_x,) if self.size_y is None else (self.size_x, self.size_y),
+                  'tags': [t.name for t in self.tags.order_by('name')],
+                  'instrument': {
+                      'name': self.instrument_name,
+                      'type': self.instrument_type,
+                      'parameters': self.instrument_parameters,
+                  }}
+        if self.height_scale_editable:
+            result['height_scale'] = self.height_scale
+            # see GH 718
+
+        return result
 
     def deepcopy(self, to_surface):
         """Creates a copy of this topography with all data files copied.

@@ -29,6 +29,13 @@ def test_topography_has_periodic_flag(two_topos):
 
 
 @pytest.mark.django_db
+def test_topography_has_unit_set(two_topos):
+    topos = Topography.objects.all().order_by('name')
+    assert topos[0].unit == 'µm'
+    assert topos[1].unit == 'µm'
+
+
+@pytest.mark.django_db
 def test_topography_instrument_dict():
 
     instrument_parameters = {
@@ -95,6 +102,7 @@ def test_topography_to_dict():
                                size_x=size_x,
                                size_y=size_y,
                                height_scale=height_scale,
+                               height_scale_editable=True,  # should be always True when height scale is given extra
                                detrend_mode=detrend_mode,
                                description=description,
                                unit=unit,

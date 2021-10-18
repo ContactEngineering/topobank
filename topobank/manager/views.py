@@ -250,9 +250,7 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
             #
             # Set unit
             #
-            initial['unit'] = channel_info.info['unit'] \
-                if (('unit' in channel_info.info) and (not isinstance(channel_info.info['unit'], tuple))) \
-                else None
+            initial['unit'] = channel_info.unit
             initial['unit_editable'] = initial['unit'] is None
 
             #
@@ -356,14 +354,16 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
         context['extra_tabs'] = [
             {
                 'title': f"{surface}",
-                'icon': "diamond",
+                'icon': "gem",
+                'icon_style_prefix': 'far',
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
                 'active': False,
                 'tooltip': f"Properties of surface '{surface.label}'"
             },
             {
                 'title': f"Add topography",
-                'icon': "plus-square-o",
+                'icon': "plus-square",
+                'icon_style_prefix': 'far',
                 'href': self.request.path,
                 'active': True,
                 'tooltip': f"Adding a topography to surface '{surface.label}'"
@@ -476,7 +476,8 @@ class CorruptedTopographyView(TemplateView):
         context['extra_tabs'] = [
             {
                 'title': f"{surface}",
-                'icon': "diamond",
+                'icon': "gem",
+                'icon_style_prefix': 'far',
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
                 'active': False,
                 'tooltip': f"Properties of surface '{surface.label}'"
@@ -520,15 +521,29 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
         notification_msg = f"User {user} changed topography '{topo.name}'. Changed fields: {','.join(form.changed_data)}."
 
         #
-        # If a significant field changed, renew all analyses
+        # If a significant field changes, renew squeezed datafile, all analyses, and also thumbnail
         #
+        # changed_dict = topo.tracker.changed()  # key: field name, value: previous field value
+        changed_fields = form.changed_data
+
+        _log.debug("These fields have been changed according to form: %s", changed_fields)
+
         significant_fields = {'size_x', 'size_y', 'unit', 'is_periodic', 'height_scale',
                               'detrend_mode', 'datafile', 'data_source',
-                              'instrument_type',
-                              'instrument_parameters'}
-        significant_fields_with_changes = set(form.changed_data).intersection(significant_fields)
+                              'instrument_type',  # , 'instrument_parameters'
+                              # 'tip_radius_value', 'tip_radius_unit',
+                             }
+        significant_fields_with_changes = set(changed_fields).intersection(significant_fields)
+
+        # check instrument_parameters manually, since this is not detected properly
+        if form.cleaned_data['instrument_parameters'] != form.initial['instrument_parameters']:
+            significant_fields_with_changes.add('instrument_parameters')
+            _log.info("Instrument parameters changed:")
+            _log.info("  before: %s", form.initial['instrument_parameters'])
+            _log.info("  after:  %s", form.cleaned_data['instrument_parameters'])
+
         if len(significant_fields_with_changes) > 0:
-            _log.info(f"During edit of topography {topo.id} significant fields changed: " +
+            _log.info(f"During edit of topography id={topo.id} some significant fields changed: " +
                       f"{significant_fields_with_changes}.")
             _log.info("Renewing squeezed datafile...")
             topo.renew_squeezed_datafile()  # cannot be done in background, other steps depend on this, see GH #590
@@ -537,6 +552,8 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
             _log.info("Triggering renewal of analyses in background...")
             transaction.on_commit(lambda: renew_analyses_related_to_topography.delay(topo.id))
             notification_msg += f"\nBecause significant fields have changed, all related analyses are recalculated now."
+        else:
+            _log.info("Changes not significant for renewal of thumbnails or analysis results.")
 
         #
         # notify other users
@@ -575,14 +592,16 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
         context['extra_tabs'] = [
             {
                 'title': f"{topo.surface.label}",
-                'icon': "diamond",
+                'icon': "gem",
+                'icon_style_prefix': 'far',
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
                 'active': False,
                 'tooltip': f"Properties of surface '{topo.surface.label}'"
             },
             {
                 'title': f"{topo.name}",
-                'icon': "file-o",
+                'icon': "file",
+                'icon_style_prefix': 'far',
                 'href': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
                 'active': False,
                 'tooltip': f"Properties of topography '{topo.name}'"
@@ -671,7 +690,8 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
         context['extra_tabs'] = [
             {
                 'title': f"{topo.surface.label}",
-                'icon': "diamond",
+                'icon': "gem",
+                'icon_style_prefix': 'far',
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
                 'active': False,
                 'login_required': False,
@@ -679,7 +699,8 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
             },
             {
                 'title': f"{topo.name}",
-                'icon': "file-o",
+                'icon': "file",
+                'icon_style_prefix': 'far',
                 'href': self.request.path,
                 'active': True,
                 'login_required': False,
@@ -721,14 +742,16 @@ class TopographyDeleteView(TopographyUpdatePermissionMixin, DeleteView):
         context['extra_tabs'] = [
             {
                 'title': f"{topo.surface.label}",
-                'icon': "diamond",
+                'icon': "gem",
+                'icon_style_prefix': 'far',
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
                 'active': False,
                 'tooltip': f"Properties of surface '{topo.surface.label}'"
             },
             {
                 'title': f"{topo.name}",
-                'icon': "file-o",
+                'icon': "file",
+                'icon_style_prefix': 'far',
                 'href': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
                 'active': False,
                 'tooltip': f"Properties of topography '{topo.name}'"
@@ -822,7 +845,8 @@ class SurfaceCreateView(ORCIDUserRequiredMixin, CreateView):
         context['extra_tabs'] = [
             {
                 'title': f"Create surface",
-                'icon': "plus-square-o",
+                'icon': "plus-square",
+                'icon_style_prefix': 'far',
                 'href': self.request.path,
                 'active': True,
                 'tooltip': "Creating a new surface"
@@ -940,7 +964,8 @@ class SurfaceDetailView(DetailView):
         context['extra_tabs'] = [
             {
                 'title': surface.label,
-                'icon': "diamond",
+                'icon': "gem",
+                'icon_style_prefix': 'far',
                 'href': self.request.path,
                 'active': True,
                 'login_required': False,
@@ -1037,7 +1062,8 @@ class SurfaceUpdateView(UpdateView):
         context['extra_tabs'] = [
             {
                 'title': f"{surface.label}",
-                'icon': "diamond",
+                'icon': "gem",
+                'icon_style_prefix': 'far',
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
                 'active': False,
                 'tooltip': f"Properties of surface '{surface.label}'"
@@ -1091,7 +1117,8 @@ class SurfaceDeleteView(DeleteView):
         context['extra_tabs'] = [
             {
                 'title': f"{surface.label}",
-                'icon': "diamond",
+                'icon': "gem",
+                'icon_style_prefix': 'far',
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
                 'active': False,
                 'tooltip': f"Properties of surface '{surface.label}'"
@@ -1168,7 +1195,8 @@ class SurfaceShareView(FormMixin, DetailView):
         context['extra_tabs'] = [
             {
                 'title': f"{surface.label}",
-                'icon': "diamond",
+                'icon': "gem",
+                'icon_style_prefix': 'far',
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
                 'active': False,
                 'tooltip': f"Properties of surface '{surface.label}'"
@@ -1297,7 +1325,8 @@ class SurfacePublishView(FormView):
         context['extra_tabs'] = [
             {
                 'title': f"{surface.label}",
-                'icon': "diamond",
+                'icon': "gem",
+                'icon_style_prefix': 'far',
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
                 'active': False,
                 'tooltip': f"Properties of surface '{surface.label}'"
@@ -1328,7 +1357,8 @@ class PublicationRateTooHighView(TemplateView):
         context['extra_tabs'] = [
             {
                 'title': f"{surface.label}",
-                'icon': "diamond",
+                'icon': "gem",
+                'icon_style_prefix': 'far',
                 'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
                 'active': False,
                 'tooltip': f"Properties of surface '{surface.label}'"
@@ -1638,8 +1668,8 @@ class TagTreeView(ListAPIView):
         return tags_for_user(self.request.user, surfaces, topographies).filter(parent=None)
         # Only top level are collected, the children are added in the serializer.
         #
-        # The filtered surfaces and topographies are calculated twice here,
-        # I'm not sure how to circumvent this.
+        # TODO The filtered surfaces and topographies are calculated twice here, not sure how to circumvent this.
+        # Maybe by caching with request argument?
 
     def get_serializer_context(self):
         context = super().get_serializer_context()

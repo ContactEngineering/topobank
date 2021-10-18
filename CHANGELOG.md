@@ -1,5 +1,45 @@
 # Changelog for *TopoBank*
 
+## 0.16.0 (2021-10-18)
+
+- ENH: Enhanced search by supporting "weblike" search 
+  expressions; now the search term is interpreted as
+  phrases combined by 'AND'; also logical expressions 
+  with OR and - for NOT can be used; change: only 
+  topographies matching the search expression are 
+  displayed underneath surfaces from now on (#701)
+- ENH: Reliability analysis for scanning probe data (#83)
+- ENH: Scale-dependent curvature (#586)
+- ENH: Added links to GitHub discussions (#722)
+- ENH: Show publication authors on Find&Select page (#733)
+- BUG: Scale-dependent slope is now computed using the
+  brute force approach (#687)
+- BUG: Fixed issue while downloading analysis results
+  with stderr for y without masked values (#711)
+- BUG: Missing points were not shown correctly in 
+  2D plots (#699)
+- BUG: Fixed height scale applied twice on import (#718)
+- BUG: Fixed continuing average along x after data
+  is completed (#724)
+- BUG: Fixed that analyses were not recalculated
+  if instrument parameters change (#728)
+- BUG: Resolution value or tip radius value no longer
+  mandatory when instrument type has been chosen (#705)
+- MAINT: Computing of averages is handled on the
+  SurfaceTopography side
+- MAINT: All properties are averages to a reasonable
+  number of data points (#696)
+- MAINT: Decapitalized analysis function names (e.g.
+  "Roughness Parameters" -> "Roughness parameters")
+- MAINT: Removed error bars on analysis results
+- MAINT: Upgrade to Django 3.2
+- MAINT: Upgrade to fontawesome 5
+- MAINT: Upgrade to Postgres 13.4
+- MAINT: Upgrade to SurfaceTopography 0.98.0 (#730, #734)
+- MAINT: Upgrade to ContactMechanics 0.91.0
+- MAINT: Upgrade of several other packages
+- MAINT: Upgrade of sqlparse because of CVE
+
 ## 0.15.1 (2021-08-05)
 
 - BUG: Removed unneeded form fields for instrument

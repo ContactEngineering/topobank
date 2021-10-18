@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load fontawesome %}
+{% load fontawesome_5 %}
 {% load surface_tags %}
 {% load guardian_tags %}
 {% load static %}
@@ -51,7 +51,7 @@
                 <div class="alert alert-info">
                   This surface has no measurements yet.
                   You can add measurements by pressing the
-                  <b>{% fontawesome_icon 'plus-square-o' %} Add measurement</b> button.
+                  <b>{% fa5_icon 'plus-square-o' %} Add measurement</b> button.
                 </div>
               {% else %}
                 <div class="alert alert-secondary">
@@ -104,7 +104,7 @@
                 <div class="alert alert-info">
                   This surface has no measurements yet.
                   You can add measurements by pressing the
-                  <b>{% fontawesome_icon 'plus-square-o' %} Add measurement</b> button.
+                  <b>{% fa5_icon 'plus-square-o' %} Add measurement</b> button.
                 </div>
               {% else %}
                 <div class="alert alert-secondary">
@@ -145,7 +145,7 @@
                 {% if surface.is_published %}
                   <tr>
                     <td>
-                      <span>{% fontawesome_icon 'group' %} Everyone</span>
+                      <span>{% fa5_icon 'group' %} Everyone</span>
                     </td>
                     <td>{% render_boolean True "Everyone can view this surface" %}</td>
                     <td>{% render_boolean False "No can view this surface" %}</td>
@@ -156,7 +156,7 @@
                       {% for cell_content, cell_title in row %}
                         <td>
                           {% if forloop.first %}
-                            <span title="Click to view profile">{% fontawesome_icon 'user' %}
+                            <span title="Click to view profile">{% fa5_icon 'user' %}
                               <a href="{{ cell_title }}">{{ cell_content }}</a>
                               {# a bit of a hack: cell_title is used to pass a link here #}
                             </span>
@@ -186,7 +186,7 @@
                     <th scope="row">Description</th>
                     <td>
                       <a class="alert-link" href="{{ license_info.description_url }}" target="_blank">
-                        {% fontawesome_icon 'external-link' %} {{ license_info.description_url }}
+                        {% fa5_icon 'external-link' %} {{ license_info.description_url }}
                       </a>
                     </td>
                   </tr>
@@ -194,7 +194,7 @@
                     <th scope="row">Legal Code</th>
                     <td>
                       <a class="alert-link" href="{{ license_info.legal_code_url }}" target="_blank">
-                        {% fontawesome_icon 'external-link' %} {{ license_info.legal_code_url }}
+                        {% fa5_icon 'external-link' %} {{ license_info.legal_code_url }}
                       </a>
                     </td>
                   </tr>
@@ -266,43 +266,43 @@
 
               {% if surface.num_topographies > 0 %}
                 <a href="{% url 'analysis:surface' surface.id %}" class="btn btn-default btn-block btn-lg">
-                    {% fontawesome_icon 'area-chart' %} Analyze this surface
+                    {% fa5_icon 'chart-area' %} Analyze this surface
                 </a>
               {% endif %}
 
               {% if "change_surface" in surface_perms %}
                 <a href="{% url 'manager:surface-update' surface.id %}" class="btn btn-default btn-block btn-lg">
-                  {% fontawesome_icon 'edit' %} Edit meta data
+                  {% fa5_icon 'edit' %} Edit meta data
                 </a>
               {% endif %}
 
               {% if "change_surface" in surface_perms %}
                 <a href="{% url 'manager:topography-create' surface.id %}?redirect={{ request.path }}" class="btn btn-default btn-block btn-lg">
-                  {% fontawesome_icon 'plus-square-o' %} Add measurement
+                  {% fa5_icon 'plus-square' 'far' %} Add measurement
                 </a>
               {% endif %}
 
               <a href="{% url 'manager:surface-download' surface.id %}" class="btn btn-default btn-block btn-lg">
-                {% fontawesome_icon 'download' %} Download
+                {% fa5_icon 'download' %} Download
               </a>
 
               {% if "share_surface" in surface_perms %}
                 <a href="{% url 'manager:surface-share' surface.id %}" class="btn btn-default btn-block btn-lg">
-                  {% fontawesome_icon 'share-alt' %} Share
+                  {% fa5_icon 'share-alt' %} Share
                 </a>
               {% endif %}
 
               {% if not surface.is_published and "publish_surface" in surface_perms %}
                 <a href="{% url 'manager:surface-publish' surface.id %}"
                    class="btn btn-outline-success btn-block btn-lg">
-                  {% fontawesome_icon 'bullhorn' %} Publish
+                  {% fa5_icon 'bullhorn' %} Publish
                 </a>
               {% endif %}
 
               {% if "delete_surface" in surface_perms %}
                 <a href="{% url 'manager:surface-delete' surface.id %}"
                    class="btn btn-outline-danger btn-block btn-lg">
-                  {% fontawesome_icon 'trash' %} Delete
+                  {% fa5_icon 'trash' %} Delete
                 </a>
               {% endif %}
             </div>

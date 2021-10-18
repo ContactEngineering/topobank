@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 {% load static i18n %}
-{% load fontawesome %}
+{% load fontawesome_5 %}
 {% load socialaccount %}
 {% load terms_tags %}
 {% load tabnav_tags %}
@@ -28,7 +28,7 @@
 
     <link href="{% static 'tagulous/lib/select2-4/css/select2.min.css' %}" rel="stylesheet">
 
-    {% fontawesome_stylesheet %}
+    {% fontawesome_5_static %}
     <!-- This file stores project-specific CSS -->
     <link href="{% static 'css/project.css' %}" rel="stylesheet">
 
@@ -54,14 +54,17 @@
       <div class="collapse navbar-collapse" id="navbar_supported_content">
 
       {# Search Bar #}
-      <div class="col-4">
+      <div class="col-5">
       <form class="form-inline" action="{% url 'search' %}" method="get">
         <div class="input-group" id="global-search">
           <label class="sr-only" for="global-search-input">Search Term</label>
           <input class="form-control" type="search" id="global-search-input"
                  placeholder="Search names, descriptions, and tags" name="search">
           <div class="input-group-append">
-            <button class="btn btn-outline-secondary" type="submit">{% fontawesome_icon 'search' %}</button>
+            <button class="btn btn-outline-secondary" type="submit">{% fa5_icon 'search' %}</button>
+            <button class="btn btn-outline-secondary" type="button"
+                    data-toggle="modal" data-target="#searchHelpModal"
+                    title="Tipps for searching">{% fa5_icon 'info-circle' %}</button>
           </div>
         </div>
       </form>
@@ -93,6 +96,7 @@
             <i class="fa fa-info-circle fa-fw"></i>
           </a>
           <div class="dropdown-menu dropdown-menu-right help-dropdown" aria-labelledby="helpDropdown">
+            <a class="dropdown-item" target="_blank" href="https://github.com/ContactEngineering/TopoBank/discussions">Feedback</a>
             <a class="dropdown-item" href="#" data-toggle="modal" data-target="#versionModal">Version Information</a>
             <a class="dropdown-item" href="{% url 'terms' %}">Terms &amp; Conditions</a>
             <div class="dropdown-divider"></div>
@@ -261,8 +265,9 @@
             <p>We would like to hear from you. Please contact us, if you have any comments, suggestions, or bug reports!</p>
             <div>
               <ul>
-               <li>Drop us an <a href="mailto:{{ contact_email_address }}">email</a> or</li>
-               <li>open an <a href="https://github.com/ComputationalMechanics/TopoBank/issues" target="_blank">issue on GitHub</a>.</li>
+               <li>Participate at <a href="https://github.com/ComputationalMechanics/TopoBank/discussions" target="_blank">discussions on GitHub</a>, or</li>
+               <li>open an <a href="https://github.com/ComputationalMechanics/TopoBank/issues" target="_blank">issue on GitHub</a>, or</li>
+               <li>drop us an <a href="mailto:{{ contact_email_address }}">email</a>.</li>
               </ul>
             </div>
             <p>Thank you! The TopoBank development team.</p>
@@ -283,6 +288,79 @@
         </div>
       </div>
     </div>
+
+    <!-- Search Help Modal-->
+    <div class="modal fade" id="searchHelpModal" tabindex="-1" role="dialog" aria-labelledby="searchHelpModalLabel"
+         aria-hidden="true">
+      <div class="modal-dialog modal-xl" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="searchHelpModalLabel">Tips for Searching</h5>
+            <button class="close" type="button" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">×</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <p>Searching is performed over these fields:</p>
+            <ul>
+              <li>Names of surface and measurements</li>
+              <li>Names of tags</li>
+              <li>Descriptions of surfaces and measurements</li>
+            </ul>
+
+            <p>All texts in these fields are split into a vector of tokens. Searching means to find matches
+              of the search expression among these tokens. You can build search expression from search terms
+              as follows:</p>
+
+            <table class="table table-bordered table-condensed">
+              <thead class="thead-light">
+                <th>Search result should list items with</th>
+                <th>Search expression</th>
+                <th>Comment</th>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>both <em>AFM</em> and <em>surface</em></td>
+                  <td><input type="text" value="AFM surface" size="40" readonly></td>
+                  <td>text not inside quote marks will be interpreted as AND</td>
+                </tr>
+                <tr>
+                  <td>either <em>AFM</em> or <em>surface</em> or both</td>
+                  <td><input type="text" value="AFM OR surface" size="40" readonly></td>
+                  <td>logical OR, least precedence</td>
+                </tr>
+                <tr>
+                  <td><em>AFM</em> but not <em>surface</em></td>
+                  <td><input type="text" value="AFM -surface" size="40" readonly></td>
+                  <td>the logical not operator is written by using -, has highest precedence</td>
+                </tr>
+                <tr>
+                  <td>the phrase <em>AFM Surface</em></td>
+                  <td><input type="text" value='"AFM surface"' size="40" readonly></td>
+                  <td><em>AFM</em> and <em>surface</em> are found if next to each other</td>
+                </tr>
+                <tr>
+                  <td><em>AFM Surface</em> as a phrase and <em>imported</em> somewhere else</td>
+                  <td><input type="text" value='"AFM surface" imported' size="40" readonly></td>
+                  <td></td>
+                </tr>
+                <tr>
+                  <td><em>AFM Surface</em> as a phrase and <em>imported</em> but not <em>material</em></td>
+                  <td><input type="text" value='"AFM surface" imported -material' size="40" readonly></td>
+                  <td>The above can also be combined. Parentheses are not allowed, all entries
+                  are valid search expressions.</td>
+                </tr>
+              </tbody>
+
+            </table>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-primary" type="button" data-dismiss="modal">Ok</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
 
     <!-- Core JavaScript packages -->
     <script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>

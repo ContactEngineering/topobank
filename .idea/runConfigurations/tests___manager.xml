@@ -5,7 +5,7 @@
     <option name="PARENT_ENVS" value="true" />
     <envs>
       <env name="DJANGO_SETTINGS_MODULE" value="config.settings.test" />
-      <env name="DATABASE_URL" value="sqlite:///topobank.db" />
+      <env name="DATABASE_URL" value="postgres:///topobank" />
       <env name="FIREFOX_BINARY_PATH" value="/usr/bin/firefox" />
       <env name="GECKODRIVER_PATH" value="/usr/bin/geckodriver" />
     </envs>

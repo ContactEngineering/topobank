@@ -1,10 +1,10 @@
 {# Renders a symbol for yes or no #}
-{% load fontawesome %}
+{% load fontawesome_5 %}
 {% if boolean_value %}
-  {% fontawesome_icon 'check' title=title %}
+  {% fa5_icon 'check' title=title %}
 {% else %}
   {% if show_false %}
-    {% fontawesome_icon 'times' title=title %}
+    {% fa5_icon 'times' title=title %}
   {% endif %}
 {% endif %}
 <span class="sr-only">{{ title }}</span>

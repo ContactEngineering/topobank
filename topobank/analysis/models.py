@@ -175,7 +175,7 @@ class AnalysisFunction(models.Model):
 
     Examples:
         - name: 'Height distribution', card_view_flavor='plot'
-        - name: 'Contact Mechanics', card_view_flavor='contact mechanics'
+        - name: 'Contact mechanics', card_view_flavor='contact mechanics'
 
     These functions are referenced by the analyses. Each function "knows"
     how to find the appropriate implementation for given arguments.

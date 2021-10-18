@@ -1,4 +1,4 @@
-from django.contrib.staticfiles.templatetags.staticfiles import static
+from django.templatetags.static import static
 from django.conf import settings
 from django.shortcuts import reverse
 import django
@@ -22,8 +22,8 @@ def versions_processor(request):
     versions = [
         dict(module='TopoBank',
              version=settings.TOPOBANK_VERSION,
-             links={'Website':'https://github.com/ComputationalMechanics/TopoBank',
-                    'Changelog': static('other/CHANGELOG.md')}), # needs 'manage.py collectstatic' before!
+             links={'Website': 'https://github.com/ComputationalMechanics/TopoBank',
+                    'Changelog': static('other/CHANGELOG.md')}),  # needs 'manage.py collectstatic' before!
         dict(module='SurfaceTopography',
              version=SurfaceTopography.__version__,
              links={'Website': 'https://github.com/ComputationalMechanics/SurfaceTopography',

@@ -123,15 +123,32 @@ class Command(BaseCommand):
             surface=surface,
             size_x=size_x,
             size_y=size_y,
-            height_scale=topo_dict['height_scale'],
             measurement_date=topo_dict['measurement_date'],
             description=topo_dict['description'],
             data_source=topo_dict['data_source'],
             unit=topo_dict['unit'],
             tags=topo_dict['tags'],
             detrend_mode=topo_dict['detrend_mode'],
-            is_periodic=topo_dict['is_periodic']
+            is_periodic=topo_dict['is_periodic'],
         )
+
+        try:
+            topo_kwargs.update(dict(
+                instrument_name=topo_dict['instrument']['name'],
+                instrument_type=topo_dict['instrument']['type'],
+                instrument_parameters=topo_dict['instrument']['parameters'],
+            ))
+        except KeyError:
+            # Metadata does not contain instrument information
+            pass
+
+        try:
+            topo_kwargs['height_scale'] = topo_dict['height_scale']
+        except KeyError:
+            # If height_scale is not included, it will probably already
+            # applied because of file contents while loading
+            pass
+
 
         # saving topo file in backend
         new_topo_file_path = os.path.join(user.get_media_path(), os.path.basename(topo_name))

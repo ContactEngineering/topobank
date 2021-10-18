@@ -1,5 +1,4 @@
 from django.shortcuts import reverse
-from django.db.models import Q
 
 from rest_framework import serializers
 from guardian.shortcuts import get_perms
@@ -7,7 +6,7 @@ from guardian.shortcuts import get_perms
 import logging
 
 from .models import Surface, Topography, TagModel
-from .utils import get_search_term, get_category, get_sharing_status
+from .utils import get_search_term, filtered_topographies
 
 _log = logging.getLogger(__name__)
 
@@ -29,6 +28,7 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
     tags = serializers.SerializerMethodField()
     type = serializers.CharField(default='topography')
     version = serializers.CharField(default='')
+    publication_authors = serializers.CharField(default='')
     publication_date = serializers.CharField(default='')
 
     def get_urls(self, obj):
@@ -77,13 +77,12 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Topography
         fields = ['pk', 'type', 'name', 'creator', 'description', 'tags',
-                  'urls', 'selected', 'key', 'surface_key', 'title', 'folder', 'version', 'publication_date']
+                  'urls', 'selected', 'key', 'surface_key', 'title', 'folder', 'version',
+                  'publication_date', 'publication_authors']
 
 
 class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
     title = serializers.CharField(source='name')
-    # children = TopographySerializer(source='filtered_topographies', many=True, read_only=True)
-    # children = TopographySerializer(source='topography_set', many=True, read_only=True)
     children = serializers.SerializerMethodField()
 
     creator = serializers.HyperlinkedRelatedField(
@@ -101,30 +100,35 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
     type = serializers.CharField(default='surface')
     version = serializers.SerializerMethodField()
     publication_date = serializers.SerializerMethodField()
+    publication_authors = serializers.SerializerMethodField()
+    topography_count = serializers.SerializerMethodField()
 
     def get_children(self, obj):
+        """Get serialized topographies for given surface.
+
+        Parameters
+        ----------
+        obj : Surface
+
+        Returns
+        -------
+
+        """
         #
         # We only want topographies as children which match the given search term,
-        # if no search term is given, all topographies should be included, same, if the surface
-        # itself matches
+        # if no search term is given, all topographies should be included
         #
         request = self.context['request']
         search_term = get_search_term(request)
         search_term_given = len(search_term) > 0
-        search_term_lower = None if search_term is None else search_term.lower()
-        topographies = obj.topography_set.all()
-
-        obj_match = (not search_term_given) or (search_term_lower in obj.name.lower()) or \
-                    (search_term_lower in obj.description.lower()) or \
-                    (obj.tags.filter(name__icontains=search_term).count() > 0)
 
         # only filter topographies by search term if surface does not match search term
-        if search_term_given and not obj_match:
-            topographies = topographies.filter(Q(name__icontains=search_term) |
-                                               Q(description__icontains=search_term) |
-                                               Q(tags__name__icontains=search_term)).distinct()
+        # otherwise list all topographies
+        if search_term_given:
+            topographies = filtered_topographies(request, [obj])
+        else:
+            topographies = obj.topography_set.all()
         return TopographySerializer(topographies, many=True, context=self.context).data
-        # TODO can filtered_topographies be used here instead?
 
     def get_urls(self, obj):
 
@@ -188,10 +192,17 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
     def get_publication_date(self, obj):
         return obj.publication.datetime.date() if obj.is_published else ''
 
+    def get_publication_authors(self, obj):
+        return obj.publication.authors if obj.is_published else ''
+
+    def get_topography_count(self, obj):
+        return obj.topography_set.count()
+
     class Meta:
         model = Surface
         fields = ['pk', 'type', 'name', 'creator', 'description', 'category', 'tags', 'children',
-                  'sharing_status', 'urls', 'selected', 'key', 'title', 'folder', 'version', 'publication_date']
+                  'sharing_status', 'urls', 'selected', 'key', 'title', 'folder', 'version', 'publication_date',
+                  'publication_authors', 'topography_count']
 
 
 class TagSerializer(serializers.ModelSerializer):
@@ -204,12 +215,13 @@ class TagSerializer(serializers.ModelSerializer):
     selected = serializers.SerializerMethodField()
     type = serializers.CharField(default='tag')
     version = serializers.CharField(default='')
+    publication_authors = serializers.CharField(default='')
     publication_date = serializers.CharField(default='')
 
     class Meta:
         model = TagModel
         fields = ['pk', 'key', 'type', 'title', 'name', 'children',
-                  'folder', 'urls', 'selected', 'version', 'publication_date']
+                  'folder', 'urls', 'selected', 'version', 'publication_date', 'publication_authors']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -237,8 +249,8 @@ class TagSerializer(serializers.ModelSerializer):
         #
         # Assume that all surfaces and topographies given in the context are already filtered
         #
-        surfaces = self.context['surfaces'].filter(tags__pk=obj.pk).order_by('name')
-        topographies = self.context['topographies'].filter(tags__pk=obj.pk).order_by('name')
+        surfaces = self.context['surfaces'].filter(tags__pk=obj.pk)  #  .order_by('name')
+        topographies = self.context['topographies'].filter(tags__pk=obj.pk)  # .order_by('name')
         tags = [x for x in obj.children.all() if x in self.context['tags_for_user']]
 
         #

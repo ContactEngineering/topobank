@@ -4,6 +4,7 @@ volumes:
   local_postgres_data: {}
   local_postgres_data_backups: {}
   minio_data: {}
+  exchange_data: {}
 
 services:
   django: &django
@@ -17,6 +18,7 @@ services:
       - mailhog
     volumes:
       - .:/app
+      - exchange_data:/tmp/exchange
     env_file:
       - ./.envs/.local/.django
       - ./.envs/.local/.postgres

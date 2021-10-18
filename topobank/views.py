@@ -52,21 +52,22 @@ class TermsView(TemplateView):
         if not self.request.user.is_anonymous:
             context['agreed_terms'] = TermsAndConditions.objects.filter(
                     userterms__date_accepted__isnull=False,
-                    userterms__user=self.request.user).order_by('optional')
+                    userterms__user=self.request.user).order_by('date_created')
 
             context['not_agreed_terms'] = active_terms.filter(
                 Q(userterms=None) | \
                 (Q(userterms__date_accepted__isnull=True) & Q(userterms__user=self.request.user)))\
-                .order_by('optional')
+                .order_by('date_created')
         else:
-            context['active_terms'] = active_terms.order_by('optional')
+            context['active_terms'] = active_terms.order_by('date_created')
 
         context['extra_tabs'] = [{
             'login_required': False,
-            'icon': 'legal',
+            'icon': 'file-contract',
             'title': "Terms and Conditions",
             'active': True,
         }]
+        context['connect_fixed_tabs_with_extra_tabs'] = False
 
         return context
 
@@ -108,14 +109,14 @@ def tabs_for_terms(terms, request_path):
 
     return [
         {
-            'icon': 'legal',
+            'icon': 'file-contract',
             'title': "Terms and Conditions",
             'href': reverse('terms'),
             'active': False,
             'login_required': False,
         },
         {
-            'icon': 'legal',
+            'icon': 'file-contract',
             'title': tab_title,
             'href': request_path,
             'active': True,
@@ -128,6 +129,7 @@ class TabbedTermsMixin:
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['extra_tabs'] = tabs_for_terms(self.get_terms(self.kwargs), self.request.path)
+        context['connect_fixed_tabs_with_extra_tabs'] = False
         return context
 
 

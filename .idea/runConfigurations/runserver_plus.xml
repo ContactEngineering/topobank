@@ -1,5 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="runserver_plus" type="Python.DjangoServer" factoryName="Django server" singleton="true">
+    <log_file alias="geckodriver" path="$PROJECT_DIR$/geckodriver.log" />
     <module name="topobank" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />

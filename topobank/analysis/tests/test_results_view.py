@@ -333,9 +333,11 @@ def test_warnings_for_different_arguments(client, handle_usage_statistics):
     assert response.status_code == 200
 
     assert_in_content(response,
-                      "Arguments for this analysis function differ among chosen subjects of type 'topography'")
+                      "Arguments for this analysis function differ among chosen "
+                      "subjects of type 'manager | topography'")
     assert_in_content(response,
-                      "Arguments for this analysis function differ among chosen subjects of type 'surface'")
+                      "Arguments for this analysis function differ among chosen "
+                      "subjects of type 'manager | surface'")
 
     # arguments should be visible in output
     #
@@ -536,7 +538,7 @@ def test_roughness_params_download_as_txt(client, two_topos, file_format, handle
     # This is only a simple test which checks whether the file can be downloaded
     t1, t2 = two_topos
 
-    func = AnalysisFunction.objects.get(name='Roughness Parameters')
+    func = AnalysisFunction.objects.get(name='Roughness parameters')
 
     import pickle
     pickled_kwargs = pickle.dumps({})
@@ -562,7 +564,7 @@ def test_roughness_params_download_as_txt(client, two_topos, file_format, handle
     if file_format == 'txt':
         txt = response.content.decode()
 
-        assert "Roughness Parameters" in txt  # function name should be in there
+        assert "Roughness parameters" in txt  # function name should be in there
         assert "RMS height" in txt
         assert "RMS slope" in txt
         assert "RMS curvature" in txt
@@ -578,7 +580,7 @@ def test_roughness_params_download_as_txt(client, two_topos, file_format, handle
 
         assert len(xlsx.worksheets) == 2
 
-        ws = xlsx.get_sheet_by_name("Roughness Parameters")
+        ws = xlsx.get_sheet_by_name("Roughness parameters")
 
         all_values_list = list(np.array(list(ws.values)).flatten())
 
@@ -640,7 +642,7 @@ def test_roughness_params_rounded(rf, mocker):
 
     topo = Topography2DFactory(size_x=1, size_y=1)
 
-    func = AnalysisFunction.objects.get(name='Roughness Parameters')
+    func = AnalysisFunction.objects.get(name='Roughness parameters')
     TopographyAnalysisFactory(subject=topo, function=func)
 
     request = rf.post(reverse('analysis:card'), data={

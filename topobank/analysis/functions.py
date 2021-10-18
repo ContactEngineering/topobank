@@ -3,6 +3,8 @@ Implementations of analysis functions for topographies and surfaces.
 
 The first argument is either a Topography or Surface instance (model).
 """
+import collections
+
 from django.core.files.storage import default_storage
 from django.core.files import File
 from django.conf import settings
@@ -14,7 +16,11 @@ from pint import UnitRegistry, UndefinedUnitError
 from scipy.interpolate import interp1d
 import scipy.stats
 
-from SurfaceTopography import Topography, PlasticTopography
+from SurfaceTopography import PlasticTopography
+from SurfaceTopography.Container.common import bandwidth, suggest_length_unit
+from SurfaceTopography.Container.Averaging import log_average
+from SurfaceTopography.Container.ScaleDependentStatistics import scale_dependent_statistical_property
+from SurfaceTopography.Exceptions import CannotPerformAnalysisError
 from ContactMechanics import PeriodicFFTElasticHalfSpace, FreeFFTElasticHalfSpace, make_system
 
 import topobank.manager.models  # will be used to evaluate model classes
@@ -49,6 +55,26 @@ def register_implementation(card_view_flavor="simple", name=None):
     return register_decorator
 
 
+class ContainerProxy(collections.abc.Iterator):
+    """
+    Proxy class that emulates a SurfaceTopography `Container` and can be used
+    to iterate over native SurfaceTopography objects.
+    """
+
+    def __init__(self, obj):
+        self._obj = obj
+        self._iter = iter(obj)
+
+    def __len__(self):
+        return len(self._obj)
+
+    def __iter__(self):
+        return ContainerProxy(self._obj)
+
+    def __next__(self):
+        return next(self._iter).topography()
+
+
 def _reasonable_bins_argument(topography):
     """Returns a reasonable 'bins' argument for np.histogram for given topography's heights.
 
@@ -60,6 +86,13 @@ def _reasonable_bins_argument(topography):
     else:
         return int(np.sqrt(np.prod(len(topography.positions()))) + 1.0)  # TODO discuss whether auto or this
         # return 'auto'
+
+
+def _logspace_full_decades(minval, maxval, points_per_decade=5):
+    log_minval = int(np.floor(np.log10(minval)))
+    log_maxval = int(np.ceil(np.log10(maxval)))
+    s = np.logspace(log_minval, log_maxval, points_per_decade * (log_maxval - log_minval) + 1)
+    return s[np.logical_and(s >= minval, s <= maxval)]
 
 
 class IncompatibleTopographyException(Exception):
@@ -79,6 +112,7 @@ class ReentrantTopographyException(IncompatibleTopographyException):
     """
     pass
 
+
 #
 # Use this during development if you need a long running task with failures
 #
@@ -96,7 +130,7 @@ class ReentrantTopographyException(IncompatibleTopographyException):
 #     return dict(message="done", physical_sizes=topography.physical_sizes, n=n)
 
 
-@register_implementation(name="Height Distribution", card_view_flavor='plot')
+@register_implementation(name="Height distribution", card_view_flavor='plot')
 def height_distribution(topography, bins=None, wfac=5, progress_recorder=None, storage_prefix=None):
     # Get low level topography from SurfaceTopography model
     topography = topography.topography()
@@ -117,7 +151,7 @@ def height_distribution(topography, bins=None, wfac=5, progress_recorder=None, s
     y_gauss = np.exp(-(x_gauss - mean_height) ** 2 / (2 * rms_height ** 2)) / (np.sqrt(2 * np.pi) * rms_height)
 
     try:
-        unit = topography.info['unit']
+        unit = topography.unit
     except:
         unit = None
 
@@ -198,12 +232,13 @@ def _moments_histogram_gaussian(arr, bins, topography, wfac, quantity, label, un
     try:
         hist, bin_edges = np.histogram(arr, bins=bins, density=True,
                                        range=_reasonable_histogram_range(arr))
-    except ValueError as exc:
+    except (ValueError, RuntimeError) as exc:
         # Workaround for GH #683 in order to recognize reentrant measurements.
         # Replace with catching of specific exception when
         # https://github.com/ContactEngineering/SurfaceTopography/issues/108 is implemented.
-        if (len(exc.args) > 0) and (exc.args[0] == 'supplied range of [0.0, inf] is not finite'):
-            raise ReentrantTopographyException(f"Cannot compute {quantity} statistics for reentrant surfaces.")
+        if (len(exc.args) > 0) and \
+           ((exc.args[0] == 'supplied range of [0.0, inf] is not finite') or ('is reentrant' in exc.args[0])):
+            raise ReentrantTopographyException("Cannot calculate curvature distribution for reentrant measurements.")
         raise
 
     scalars = {
@@ -231,11 +266,15 @@ def _moments_histogram_gaussian(arr, bins, topography, wfac, quantity, label, un
     return scalars, series
 
 
-@register_implementation(name="Slope Distribution", card_view_flavor='plot')
+@register_implementation(name="Slope distribution", card_view_flavor='plot')
 def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, storage_prefix=None):
     """Calculates slope distribution for given topography."""
     # Get low level topography from SurfaceTopography model
     topography = topography.topography()
+
+    if topography.is_reentrant:
+        raise ReentrantTopographyException(
+            'Slope distribution: Cannot calculate analysis function for reentrant measurements.')
 
     if bins is None:
         bins = _reasonable_bins_argument(topography)
@@ -304,10 +343,14 @@ def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, st
     return result
 
 
-@register_implementation(name="Curvature Distribution", card_view_flavor='plot')
+@register_implementation(name="Curvature distribution", card_view_flavor='plot')
 def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None, storage_prefix=None):
     # Get low level topography from SurfaceTopography model
     topography = topography.topography()
+
+    if topography.is_reentrant:
+        raise ReentrantTopographyException(
+            'Curvature distribution: Cannot calculate analysis function for reentrant measurements.')
 
     if bins is None:
         bins = _reasonable_bins_argument(topography)
@@ -331,11 +374,12 @@ def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None
         hist, bin_edges = np.histogram(hist_arr, bins=bins,
                                        range=_reasonable_histogram_range(hist_arr),
                                        density=True)
-    except ValueError as exc:
+    except (ValueError, RuntimeError) as exc:
         # Workaround for GH #683 in order to recognize reentrant measurements.
         # Replace with catching of specific exception when
         # https://github.com/ContactEngineering/SurfaceTopography/issues/108 is implemented.
-        if (len(exc.args) > 0) and (exc.args[0] == 'supplied range of [-inf, inf] is not finite'):
+        if (len(exc.args) > 0) and \
+           ((exc.args[0] == 'supplied range of [-inf, inf] is not finite') or ('is reentrant' in exc.args[0])):
             raise ReentrantTopographyException("Cannot calculate curvature distribution for reentrant measurements.")
         raise
 
@@ -344,7 +388,7 @@ def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None
     x_gauss = np.linspace(minval, maxval, 1001)
     y_gauss = np.exp(-(x_gauss - mean_curv) ** 2 / (2 * rms_curv ** 2)) / (np.sqrt(2 * np.pi) * rms_curv)
 
-    unit = topography.info['unit']
+    unit = topography.unit
     inverse_unit = '{}⁻¹'.format(unit)
 
     return dict(
@@ -370,477 +414,479 @@ def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None
     )
 
 
-@register_implementation(name="Power Spectrum", card_view_flavor='plot')
-def power_spectrum(topography, window=None, tip_radius=None, progress_recorder=None, storage_prefix=None):
-    """Calculate Power Spectrum for given topography."""
-    # Get low level topography from SurfaceTopography model
-    topography = topography.topography()
-
-    if window == 'None':
-        window = None
-
-    try:
-        q_1D, C_1D = topography.power_spectrum_from_profile(window=window)
-    except RuntimeError as exc:
-        # Workaround: Raise a special exception in case it is probably
-        # because of an reentrant measurement, see GH #683
-        if (len(exc.args) > 0) and (exc.args[0] == 'Positions not sorted.'):  # use exact arguments here
-            raise ReentrantTopographyException("Cannot compute PSD for reentrant surfaces.")
-        # Better: Catch specific exception
-        # when https://github.com/ContactEngineering/SurfaceTopography/issues/108 is implemented
-
-        raise
-
-
-    # Remove NaNs and Infs
-    q_1D = q_1D[np.isfinite(C_1D)]
-    C_1D = C_1D[np.isfinite(C_1D)]
-
-    unit = topography.info['unit']
-
-    result = dict(
-        name='Power-spectral density (PSD)',
-        xlabel='Wavevector',
-        ylabel='PSD',
-        xunit='{}⁻¹'.format(unit),
-        yunit='{}³'.format(unit),
-        xscale='log',
-        yscale='log',
-        series=[
-            dict(name='1D PSD along x',
-                 x=q_1D[1:],
-                 y=C_1D[1:],
-                 ),
-        ]
-    )
-
-    if topography.dim == 2:
-        #
-        # Add two more series with power spectra
-        #
-        sx, sy = topography.physical_sizes
-        transposed_topography = Topography(topography.heights().T, (sy, sx))
-        q_1D_T, C_1D_T = transposed_topography.power_spectrum_from_profile(window=window)
-        q_2D, C_2D = topography.power_spectrum_from_area(window=window,
-                                                         nbins=len(q_1D) - 1)
-        # Remove NaNs and Infs
-        q_1D_T = q_1D_T[np.isfinite(C_1D_T)]
-        C_1D_T = C_1D_T[np.isfinite(C_1D_T)]
-        q_2D = q_2D[np.isfinite(C_2D)]
-        C_2D = C_2D[np.isfinite(C_2D)]
-
-        result['series'] = [
-            dict(name='q/π × 2D PSD',
-                 x=q_2D[1:],
-                 y=q_2D[1:] * C_2D[1:] / np.pi,
-                 ),
-            result['series'][0],
-            dict(name='1D PSD along y',
-                 x=q_1D_T[1:],
-                 y=C_1D_T[1:],
-                 )
-        ]
-
-    return result
-
-
-def average_series_list(series_list, num_points=100, xscale='linear'):
-    """Given a list of series dicts, return a dict for an average series.
+def make_alert_entry(level, subject_name, subject_url, data_series_name, detail_mesg):
+    """Build string with alert message often used in the functions.
 
     Parameters
     ----------
-    series_list: list of dicts
+    level: str
+        One of ['info', 'warning', 'danger'], see also alert classes in bootstrap 4
+    subject_name: str
+        Name of the subject.
+    subject_url: str
+        URL of the subject
+    data_series_name: str
+        Name of the data series this applies to.
+    detail_mesg: str
+        Details about the alert.
 
-                Each dict represents a function and should have the following keys:
-
-                {
-                    'name': str, name of series, must be equal for all given series!
-                    'subject': Topography/Surface instance, these values are related to
-                    'x': np.array with x values, 1D
-                    'y': np.array with y values, same length as 'x'
-                }
-
-                All numbers must be given in the same units.
-    num_points: int
-                Number of points in results
-    xscale: str
-                Scaling of x axis on which the sampling is done. Can be 'linear' or 'log'.
-                If given 'log', the incoming data is filtered such that x values are always
-                positive.
-
-    Result
-    ------
-
-    Also a series dict
-
-    {
-        'name': str, common name of all series
-        'x': np.array, points spanning range of all x points in input series (only positive if xscale=='log')
-        'y': np.array, average values for all relevant points in input series when using linear interpolation
-    }
-
+    Returns
+    -------
+    str
     """
-    if len(series_list) == 0:
-        raise ValueError("At least one series must be given for averaging!")
+    link = f'<a class="alert-link" href="{subject_url}">{subject_name}</a>'
+    message = f"Failure for measurement {link}, data series '{data_series_name}': {detail_mesg}"
+    return dict(alert_class=f"alert-{level}", message=message)
 
-    # Check for common name
-    name_set = set(s['name'] for s in series_list)
-    if len(name_set) > 1:
-        raise ValueError("Series names must be unique!")
-    common_name = name_set.pop()
 
-    # x values must not be empty
-    for s in series_list:
-        if s['x'].size == 0:
-            raise ValueError("Empty series given for averaging!")
+def analysis_function(topography, funcname_profile, funcname_area, name, xlabel, ylabel, xname, yname, aname, xunit,
+                      yunit, **kwargs):
 
-    #
-    # If xscale not 'linear', the sampling for interpolation
-    # is done on another scale, e.g. log scale. For log scale, only
-    # positive x values are allowed.
-    #
-    spacing_funcs = {
-        'linear': np.linspace,
-        'log': np.geomspace
-    }
+    topography_name = topography.name
+    topography_url = topography.get_absolute_url()
 
-    if xscale == 'log':
-        for s in series_list:
-            positive_idx = s['x'] > 0
-            s['x'] = s['x'][positive_idx]
-            s['y'] = s['y'][positive_idx]
+    # Switch to low level topography from SurfaceTopography model
+    topography = topography.topography()
 
-    #
-    # Find out range of x values for result
-    #
-    min_x = min(min(s['x']) for s in series_list)
-    max_x = max(max(s['x']) for s in series_list)
+    if topography.is_reentrant:
+        raise ReentrantTopographyException(
+            '{}: Cannot calculate analysis function for reentrant measurements.'.format(name))
+
+    alerts = []  # list of dicts with keys 'alert_class', 'message'
+    series = []  # list of dicts with series data, keys: 'name', 'x', 'y', 'visible'
+
+    func = getattr(topography, funcname_profile)
 
     try:
-        av_x = spacing_funcs[xscale](min_x, max_x, num_points)
-    except KeyError:
-        raise ValueError(f"Averaging for xscale '{xscale}' not yet implemented.")
+        r, A = func(**kwargs)
+        # Remove NaNs
+        r = r[np.isfinite(A)]
+        A = A[np.isfinite(A)]
 
-    # do linear interpolation for each series and average y values of all relevant series
-    interpol_y_list = []
-    for s in series_list:
-        # we interpolate in the scale of original data (not log scale)
+        series += [
+            dict(name=xname,
+                 x=r,
+                 y=A,
+                 ),
+        ]
+    except CannotPerformAnalysisError as exc:
+        alerts.append(make_alert_entry('warning', topography_name, topography_url, xname, str(exc)))
+
+    # Create dataset with unreliable data
+    ru, Au = func(reliable=False, **kwargs)
+
+    # Remove NaNs
+    ru = ru[np.isfinite(Au)]
+    Au = Au[np.isfinite(Au)]
+
+    if topography.dim == 2:
+
+        transpose_func = getattr(topography.transpose(), funcname_profile)
+        areal_func = getattr(topography, funcname_area)
+
         try:
-            interpol = interp1d(s['x'], s['y'], bounds_error=False)  # inserts NaN outside of boundaries
-        except ValueError as exc:
-            msg = f"Could not compute interpolation function for intermediate results of '{s['subject'].name}', "
-            msg += f"so we can't do the averaging. Reason: {exc}"
-            raise IncompatibleTopographyException(msg) from exc
-        interp_y = interpol(av_x)
-        interpol_y_list.append(interp_y)
+            r_T, A_T = transpose_func(**kwargs)
+            # Remove NaNs
+            r_T = r_T[np.isfinite(A_T)]
+            A_T = A_T[np.isfinite(A_T)]
+            series += [
+                dict(name=yname,
+                     x=r_T,
+                     y=A_T,
+                     visible=False,  # We hide everything by default except for the first data series
+                     ),
+            ]
+        except CannotPerformAnalysisError as exc:
+            alerts.append(make_alert_entry('warning', topography_name, topography_url, yname, str(exc)))
 
-    av_y = np.nanmean(interpol_y_list, axis=0)  # ignores NaNs generated by interpolation
-    std_err_y = scipy.stats.sem(interpol_y_list, nan_policy='omit')
-    # a masked value in result of sem() only appears if there is for a given index only one
-    # number (others are nan).
+        try:
+            r_2D, A_2D = areal_func(**kwargs)
+            # Remove NaNs
+            r_2D = r_2D[np.isfinite(A_2D)]
+            A_2D = A_2D[np.isfinite(A_2D)]
+            series += [
+                dict(name=aname,
+                     x=r_2D,
+                     y=A_2D,
+                     visible=False,
+                     ),
+            ]
+        except CannotPerformAnalysisError as exc:
+            alerts.append(make_alert_entry('warning', topography_name, topography_url, aname, str(exc)))
 
-    return {
-        'name': common_name,
-        'x': av_x,
-        'y': av_y,
-        'std_err_y': std_err_y
-    }
+        ru_T, Au_T = transpose_func(reliable=False, **kwargs)
+        ru_2D, Au_2D = areal_func(reliable=False, **kwargs)
 
-
-def average_results_for_surface(surface, topo_analysis_func, num_points=100,
-                                progress_recorder=None, storage_prefix=None, **kwargs):
-    """Generic analysis function for average over topographies
-
-    Parameters
-        surface: Surface instance
-        topo_analysis_func: function
-            analysis function which should be called on each topography
-            using the **kwargs arguments.
-        progress_recorder: ProgressRecorder instance
-            currently used only on top level, not passed to topography analysis
-        storage_prefix:
-            also passed to topo_analysis_func
-        kwargs: dict
-            other keyword arguments passed to topo_analysis_func
-    Returns:
-        dict with
-
-        {
-            'xunit': str,
-            'yunit': str,
-            'series': sequence of series with results
-        }
-
-        This dict can be used to build the full result dict
-
-    Currently this only meant to be used with function returning results for xscale='log'
-    like power_spectrum or autocorrelation (could be generalized).
-    """
-    topographies = surface.topography_set
-    num_topographies = topographies.count()
-
-    topo_result_series = {}  # key: series name, value: list of dicts, one for each result series
-
-    ureg = UnitRegistry()
-    xunit = None
-    yunit = None
-
-    num_steps = num_topographies + 1  # averaging counted as extra step
+        # Remove NaNs
+        ru_T = ru_T[np.isfinite(Au_T)]
+        Au_T = Au_T[np.isfinite(Au_T)]
+        ru_2D = ru_2D[np.isfinite(Au_2D)]
+        Au_2D = Au_2D[np.isfinite(Au_2D)]
 
     #
-    # We have to process each series name individually, so we first collect the series
-    # for each series name. Each series is also scaled, in order to use common units.
-    # When scaling the series, we have to take into account that the
-    # series might already been scaled because of a log-log plot.
+    # Add series with unreliable data
     #
-    for topo_idx, topo in enumerate(topographies.all()):
-        topo_result = topo_analysis_func(topo, storage_prefix=storage_prefix, **kwargs)
-
-        if xunit is None:
-            xunit = topo_result['xunit']
-            yunit = topo_result['yunit']
-            xunit_factor = 1
-            yunit_factor = 1
-        else:
-            xunit_factor = ureg.convert(1, topo_result['xunit'], xunit)
-            yunit_factor = ureg.convert(1, topo_result['yunit'], yunit)
-
-        for s in topo_result['series']:
-            series_name = s['name']
-            if series_name not in topo_result_series:
-                topo_result_series[series_name] = []
-            scaled_series = {
-                'name': s['name'],
-                'subject': topo,  # for documentation purposes on failures
-                'x': s['x'] * xunit_factor,
-                'y': s['y'] * yunit_factor,
-            }
-            topo_result_series[series_name].append(scaled_series)
-        if progress_recorder:
-            progress_recorder.set_progress(topo_idx + 1, num_steps)
-
-    result_series = []
-
-    for series_list in topo_result_series.values():
-        result_series.append(average_series_list(series_list, num_points=num_points, xscale='log'))
-    if progress_recorder:
-        progress_recorder.set_progress(num_steps, num_steps)
-
-    return dict(
-        xunit=xunit,
-        yunit=yunit,
-        series=result_series
-    )
-
-
-@register_implementation(name="Power Spectrum", card_view_flavor='plot')
-def power_spectrum_for_surface(surface, window=None, tip_radius=None, num_points=100,
-                               progress_recorder=None, storage_prefix=None):
-    """Calculate average power spectrum for a surface."""
-
-    func_kwargs = dict(
-        window=window,
-        tip_radius=tip_radius,
-        storage_prefix=storage_prefix
-    )
-    result = average_results_for_surface(surface, topo_analysis_func=power_spectrum,
-                                         num_points=num_points, progress_recorder=progress_recorder,
-                                         **func_kwargs)
-
-    result.update(dict(
-        name='Power-spectral density (PSD)',
-        xlabel='Wavevector',
-        ylabel='PSD',
-        xscale='log',
-        yscale='log',
-    ))
-
-    return result
-
-
-@register_implementation(name="Autocorrelation", card_view_flavor='plot')
-def autocorrelation(topography, progress_recorder=None, storage_prefix=None):
-    # Get low level topography from SurfaceTopography model
-    topography = topography.topography()
+    series += [
+        dict(name='{} (incl. unreliable data)'.format(xname),
+             x=ru,
+             y=Au,
+             visible=False,
+             ),
+    ]
 
     if topography.dim == 2:
-        sx, sy = topography.physical_sizes
-        transposed_topography = Topography(topography.heights().T, physical_sizes=(sy, sx),
-                                           periodic=topography.is_periodic)
-        r_T, A_T = transposed_topography.autocorrelation_from_profile()
-        r_2D, A_2D = topography.autocorrelation_from_area()
-
-        # Truncate ACF at half the system size
-        s = min(sx, sy) / 2
-    else:
-        s, = topography.physical_sizes
-
-    if topography.is_uniform:
-        r, A = topography.autocorrelation_from_profile()
-    else:
-        # Work around. The implementation for non-uniform line scans is very slow. Map onto a uniform grid.
-        x, h = topography.positions_and_heights()
-        min_dist = np.min(np.diff(x))
-        if min_dist <= 0:
-            raise ReentrantTopographyException('Cannot calculate autocorrelation for nonuniform reentrant measurements')
-        else:
-            n = min(100000, 10 * int(s / min_dist))
-        r, A = topography.to_uniform(n, 0).autocorrelation_from_profile()
-        r = r[::10]
-        A = A[::10]
-
-    A = A[r < s]
-    r = r[r < s]
-    # Remove NaNs and Infs
-    r = r[np.isfinite(A)]
-    A = A[np.isfinite(A)]
-
-    if topography.dim == 2:
-        A_T = A_T[r_T < s]
-        r_T = r_T[r_T < s]
-        A_2D = A_2D[r_2D < s]
-        r_2D = r_2D[r_2D < s]
-
-        # Remove NaNs and Infs
-        r_T = r_T[np.isfinite(A_T)]
-        A_T = A_T[np.isfinite(A_T)]
-        r_2D = r_2D[np.isfinite(A_2D)]
-        A_2D = A_2D[np.isfinite(A_2D)]
-
-    unit = topography.info['unit']
-
-    #
-    # Build series
-    #
-    series = [dict(name='Along x',
-                   x=r,
-                   y=A,
-                   )]
-
-    if topography.dim == 2:
-        series = [
-            dict(name='Radial average',
-                 x=r_2D,
-                 y=A_2D,
+        series += [
+            dict(name='{} (incl. unreliable data)'.format(yname),
+                 x=ru_T,
+                 y=Au_T,
+                 visible=False,
                  ),
-            series[0],
-            dict(name='Along y',
-                 x=r_T,
-                 y=A_T,
-                 )
-        ]
-
-    return dict(
-        name='Height-difference autocorrelation function (ACF)',
-        xlabel='Distance',
-        ylabel='ACF',
-        xunit=unit,
-        yunit='{}²'.format(unit),
-        xscale='log',
-        yscale='log',
-        series=series)
-
-
-@register_implementation(name="Autocorrelation", card_view_flavor='plot')
-def autocorrelation_for_surface(surface, num_points=100,
-                                progress_recorder=None, storage_prefix=None):
-    """Calculate average autocorrelation for a surface."""
-    result = average_results_for_surface(surface, topo_analysis_func=autocorrelation,
-                                         num_points=num_points, progress_recorder=progress_recorder,
-                                         storage_prefix=storage_prefix)
-
-    result.update(dict(
-        name='Height-difference autocorrelation function (ACF)',
-        xlabel='Distance',
-        ylabel='ACF',
-        xscale='log',
-        yscale='log',
-    ))
-
-    return result
-
-
-@register_implementation(name="Scale-dependent Slope", card_view_flavor='plot')
-def scale_dependent_slope(topography, progress_recorder=None, storage_prefix=None):
-    return_dict = autocorrelation(topography, progress_recorder=progress_recorder,
-                                  storage_prefix=storage_prefix)
-
-    for dataset in return_dict['series']:
-        x = dataset['x']
-        y = dataset['y']
-        dataset['x'] = x[1:]
-        dataset['y'] = np.sqrt(2 * y[1:]) / x[1:]
-    return_dict['name'] = 'Scale-dependent slope'
-    return_dict['ylabel'] = 'Slope'
-    return_dict['yunit'] = '1'
-
-    return return_dict
-
-
-@register_implementation(name="Scale-dependent Slope", card_view_flavor='plot')
-def scale_dependent_slope_for_surface(surface, num_points=100,
-                                      progress_recorder=None, storage_prefix=None):
-    """Calculate average autocorrelation for a surface."""
-    result = average_results_for_surface(surface, topo_analysis_func=scale_dependent_slope,
-                                         num_points=num_points, progress_recorder=progress_recorder,
-                                         storage_prefix=storage_prefix)
-
-    result.update(dict(
-        name='Scale-dependent Slope',
-        xlabel='Distance',
-        ylabel='Slope',
-        xscale='log',
-        yscale='log',
-    ))
-
-    return result
-
-
-@register_implementation(name="Variable Bandwidth", card_view_flavor='plot')
-def variable_bandwidth(topography, progress_recorder=None, storage_prefix=None):
-    # Get low level topography from SurfaceTopography model
-    topography = topography.topography()
-
-    if topography.dim == 2:
-        magnifications, bandwidths, rms_heights = topography.variable_bandwidth_from_area()
-    else:
-        magnifications, bandwidths, rms_heights = topography.variable_bandwidth_from_profile()
-
-    unit = topography.info['unit']
-
-    return dict(
-        name='Variable-bandwidth analysis',
-        xlabel='Bandwidth',
-        ylabel='RMS Height',
-        xunit=unit,
-        yunit=unit,
-        xscale='log',
-        yscale='log',
-        series=[
-            dict(name='Variable-bandwidth analysis',
-                 x=bandwidths,
-                 y=rms_heights,
+            dict(name='{} (incl. unreliable data)'.format(aname),
+                 x=ru_2D,
+                 y=Au_2D,
+                 visible=False,
                  ),
         ]
-    )
+
+    unit = topography.unit
+
+    return dict(
+        name=name,
+        xlabel=xlabel,
+        ylabel=ylabel,
+        xunit=xunit.format(unit),
+        yunit=yunit.format(unit),
+        xscale='log',
+        yscale='log',
+        series=series,
+        alerts=alerts)
 
 
-@register_implementation(name="Variable Bandwidth", card_view_flavor='plot')
-def variable_bandwidth_for_surface(surface, num_points=100,
-                                   progress_recorder=None, storage_prefix=None):
+def analysis_function_for_surface(surface, progress_recorder, funcname_profile, name, xlabel, ylabel, xname, xunit,
+                                  yunit, **kwargs):
     """Calculate average variable bandwidth for a surface."""
-    result = average_results_for_surface(surface, topo_analysis_func=variable_bandwidth,
-                                         num_points=num_points, progress_recorder=progress_recorder,
-                                         storage_prefix=storage_prefix)
-    result.update(dict(
-        name='Variable-bandwidth analysis',
-        xlabel='Bandwidth',
-        ylabel='RMS Height',
+    topographies = ContainerProxy(surface.topography_set.all())
+    unit = suggest_length_unit(topographies)
+
+    series = []
+    alerts = []
+
+    progress_callback = None if progress_recorder is None else lambda i, n: progress_recorder.set_progress(i + 1, n)
+
+    try:
+        r, A = log_average(topographies, funcname_profile, unit, progress_callback=progress_callback, **kwargs)
+
+        # Remove NaNs
+        r = r[np.isfinite(A)]
+        A = A[np.isfinite(A)]
+
+        #
+        # Build series
+        #
+        series += [dict(name=xname,
+                        x=r,
+                        y=A,
+                        )]
+    except CannotPerformAnalysisError as exc:
+        alerts.append(make_alert_entry('warning', surface.name, surface.get_absolute_url(),
+                                       xname, str(exc)))
+
+    result = dict(
+        name=name,
+        xlabel=xlabel,
+        ylabel=ylabel,
+        xunit=xunit.format(unit),
+        yunit=yunit.format(unit),
         xscale='log',
         yscale='log',
-    ))
+        series=series,
+        alerts=alerts)
 
     return result
+
+
+@register_implementation(name="Power spectrum", card_view_flavor='plot')
+def power_spectrum(topography, progress_recorder=None, storage_prefix=None, window=None,
+                   nb_points_per_decade=10):
+    """Calculate Power Spectrum for given topography."""
+    # Get low level topography from SurfaceTopography model
+    return analysis_function(topography,
+                             'power_spectrum_from_profile',
+                             'power_spectrum_from_area',
+                             'Power-spectral density (PSD)',
+                             'Wavevector',
+                             'PSD',
+                             '1D PSD along x',
+                             '1D PSD along y',
+                             'q/π × 2D PSD',
+                             '{}⁻¹',
+                             '{}³',
+                             window=window,
+                             nb_points_per_decade=nb_points_per_decade)
+
+
+@register_implementation(name="Power spectrum", card_view_flavor='plot')
+def power_spectrum_for_surface(surface, progress_recorder=None, storage_prefix=None, window=None,
+                               nb_points_per_decade=10):
+    """Calculate Power Spectrum for given topography."""
+    # Get low level topography from SurfaceTopography model
+
+    return analysis_function_for_surface(surface,
+                                         progress_recorder,
+                                         'power_spectrum_from_profile',
+                                         'Power-spectral density (PSD)',
+                                         'Wavevector',
+                                         'PSD',
+                                         '1D PSD along x',
+                                         '{}⁻¹',
+                                         '{}³',
+                                         window=window,
+                                         nb_points_per_decade=nb_points_per_decade)
+
+
+@register_implementation(name="Autocorrelation", card_view_flavor='plot')
+def autocorrelation(topography, progress_recorder=None, storage_prefix=None, nb_points_per_decade=10):
+    return analysis_function(topography,
+                             'autocorrelation_from_profile',
+                             'autocorrelation_from_area',
+                             'Height-difference autocorrelation function (ACF)',
+                             'Distance',
+                             'ACF',
+                             'Along x',
+                             'Along y',
+                             'Radial average',
+                             '{}',
+                             '{}²',
+                             nb_points_per_decade=nb_points_per_decade)
+
+
+@register_implementation(name="Autocorrelation", card_view_flavor='plot')
+def autocorrelation_for_surface(surface, progress_recorder=None, storage_prefix=None, nb_points_per_decade=10):
+    return analysis_function_for_surface(surface,
+                                         progress_recorder,
+                                         'autocorrelation_from_profile',
+                                         'Height-difference autocorrelation function (ACF)',
+                                         'Distance',
+                                         'ACF',
+                                         'Along x',
+                                         '{}',
+                                         '{}²',
+                                         nb_points_per_decade=nb_points_per_decade)
+
+
+@register_implementation(name="Variable bandwidth", card_view_flavor='plot')
+def variable_bandwidth(topography, progress_recorder=None, storage_prefix=None):
+    return analysis_function(topography,
+                             'variable_bandwidth_from_profile',
+                             'variable_bandwidth_from_area',
+                             'Variable-bandwidth analysis',
+                             'Bandwidth',
+                             'RMS height',
+                             'Profile decomposition along x',
+                             'Profile decomposition along y',
+                             'Areal decomposition',
+                             '{}',
+                             '{}')
+
+
+@register_implementation(name="Variable bandwidth", card_view_flavor='plot')
+def variable_bandwidth_for_surface(surface, progress_recorder=None, storage_prefix=None, nb_points_per_decade=10):
+    return analysis_function_for_surface(surface,
+                                         progress_recorder,
+                                         'variable_bandwidth_from_profile',
+                                         'Variable-bandwidth analysis',
+                                         'Bandwidth',
+                                         'RMS height',
+                                         'Profile decomposition along x',
+                                         '{}',
+                                         '{}',
+                                         nb_points_per_decade=nb_points_per_decade)
+
+
+def scale_dependent_roughness_parameter(topography, progress_recorder, order_of_derivative, name, ylabel, xname, yname,
+                                        xyfunc, xyname, yunit, **kwargs):
+
+    topography_name = topography.name
+    topography_url = topography.get_absolute_url()
+
+    topography = topography.topography()
+
+    series = []
+    alerts = []
+
+    if topography.is_reentrant:
+        raise ReentrantTopographyException(
+            '{}: Cannot calculate analysis function for reentrant measurements.'.format(name))
+
+    if topography.dim == 2:
+        fac = 3
+    else:
+        fac = 1
+
+    def process_series_reliable_unreliable(series_name, func_kwargs, is_reliable_visible=False):
+        """Add series for reliable and unreliable data.
+
+        Series with reliable data is only added if there is some reliable data.
+        Series are added to `series` from out scope.
+
+        Parameters
+        ----------
+        series_name: str
+            name of the series
+        func_kwargs: dict
+            arguments for `topography.scale_dependent_statistical_property`
+        is_reliable_visible: bool
+            If True, the series for 'reliable=True' should be visible in the UI.
+            Default is False.
+        """
+        nonlocal series
+        try:
+            distances, rms_values_sq = topography.scale_dependent_statistical_property(**func_kwargs)
+            series += [dict(name=series_name,
+                            x=distances,
+                            y=np.sqrt(rms_values_sq),
+                            visible=is_reliable_visible)]
+        except CannotPerformAnalysisError as exc:
+            alerts.append(make_alert_entry('warning', topography_name, topography_url, series_name, str(exc)))
+
+        distances, rms_values_sq = topography.scale_dependent_statistical_property(reliable=False, **func_kwargs)
+        series += [dict(name=series_name + ' (incl. unreliable data)',
+                        x=distances,
+                        y=np.sqrt(rms_values_sq),
+                        visible=False),
+                   ]
+
+    progress_callback = None if progress_recorder is None else \
+        lambda i, n: progress_recorder.set_progress(i + 1, fac * n)
+
+    x_kwargs = dict(func=lambda x, y=None: np.mean(x * x),
+                    n=order_of_derivative,
+                    progress_callback=progress_callback, **kwargs)
+
+    process_series_reliable_unreliable(xname, x_kwargs, is_reliable_visible=True)
+
+    if topography.dim == 2:
+        progress_callback = None if progress_recorder is None else \
+            lambda i, n: progress_recorder.set_progress(n + i + 1, 3 * n)
+
+        y_kwargs = dict(func=lambda x, y=None: np.mean(x * x),
+                        n=order_of_derivative,
+                        progress_callback=progress_callback, **kwargs)
+
+        process_series_reliable_unreliable(yname, y_kwargs)
+
+        progress_callback = None if progress_recorder is None else \
+            lambda i, n: progress_recorder.set_progress(2 * n + i + 1, 3 * n)
+
+        xy_kwargs = dict(func=lambda x, y: np.mean(xyfunc(x, y)),
+                         n=order_of_derivative,
+                         progress_callback=progress_callback, **kwargs)
+
+        process_series_reliable_unreliable(xyname, xy_kwargs)
+
+    unit = topography.unit
+    return dict(
+        name=name,
+        xlabel='Distance',
+        ylabel=ylabel,
+        xunit=unit,
+        yunit=yunit.format(unit),
+        xscale='log',
+        yscale='log',
+        series=series,
+        alerts=alerts)
+
+
+def scale_dependent_roughness_parameter_for_surface(surface, progress_recorder, order_of_derivative, name, ylabel,
+                                                    xname, yunit, **kwargs):
+    topographies = ContainerProxy(surface.topography_set.all())
+    unit = suggest_length_unit(topographies)
+
+    series = []
+    alerts = []
+
+    # Factor of two for curvature
+    progress_callback = None if progress_recorder is None else lambda i, n: progress_recorder.set_progress(i + 1, n)
+
+    try:
+        distances, rms_values_sq = scale_dependent_statistical_property(
+            topographies, lambda x, y=None: np.mean(x * x), n=order_of_derivative, unit=unit,
+            progress_callback=progress_callback, **kwargs)
+        series = [dict(name=xname,
+                       x=distances,
+                       y=np.sqrt(rms_values_sq),
+                       )]
+    except CannotPerformAnalysisError as exc:
+        alerts.append(make_alert_entry('warning', surface.name, surface.get_absolute_url(), xname, str(exc)))
+
+    return dict(
+        name=name,
+        xlabel='Distance',
+        ylabel=ylabel,
+        xunit=unit,
+        yunit=yunit.format(unit),
+        xscale='log',
+        yscale='log',
+        series=series,
+        alerts=alerts)
+
+
+@register_implementation(name="Scale-dependent slope", card_view_flavor='plot')
+def scale_dependent_slope(topography, progress_recorder=None, storage_prefix=None, nb_points_per_decade=10):
+    return scale_dependent_roughness_parameter(
+        topography,
+        progress_recorder,
+        1,
+        'Scale-dependent slope',
+        'Slope',
+        'Slope in x-direction',
+        'Slope in y-direction',
+        lambda x, y: x * x + y * y,
+        'Gradient',
+        '1',
+        nb_points_per_decade=nb_points_per_decade)
+
+
+@register_implementation(name="Scale-dependent slope", card_view_flavor='plot')
+def scale_dependent_slope_for_surface(surface, progress_recorder=None, storage_prefix=None, nb_points_per_decade=10):
+    return scale_dependent_roughness_parameter_for_surface(
+        surface,
+        progress_recorder,
+        1,
+        'Scale-dependent slope',
+        'Slope',
+        'Slope in x-direction',
+        '1',
+        nb_points_per_decade=nb_points_per_decade)
+
+
+@register_implementation(name="Scale-dependent curvature", card_view_flavor='plot')
+def scale_dependent_curvature(topography, progress_recorder=None, storage_prefix=None, nb_points_per_decade=10):
+    return scale_dependent_roughness_parameter(
+        topography,
+        progress_recorder,
+        2,
+        'Scale-dependent curvature',
+        'Curvature',
+        'Curvature in x-direction',
+        'Curvature in y-direction',
+        lambda x, y: (x + y) ** 2 / 4,
+        '1/2 Laplacian',
+        '{}⁻¹',
+        nb_points_per_decade=nb_points_per_decade)
+
+
+@register_implementation(name="Scale-dependent curvature", card_view_flavor='plot')
+def scale_dependent_curvature_for_surface(surface, progress_recorder=None, storage_prefix=None, nb_points_per_decade=10):
+    return scale_dependent_roughness_parameter_for_surface(
+        surface,
+        progress_recorder,
+        2,
+        'Scale-dependent curvature',
+        'Curvature',
+        'Curvature in x-direction',
+        '{}⁻¹',
+        nb_points_per_decade=nb_points_per_decade)
 
 
 def _next_contact_step(system, history=None, pentol=None, maxiter=None):
@@ -1006,7 +1052,7 @@ def _contact_at_given_load(system, external_force, history=None, pentol=None, ma
            (mean_displacements, mean_gaps, mean_pressures, total_contact_areas, converged)
 
 
-@register_implementation(name="Contact Mechanics", card_view_flavor='contact mechanics')
+@register_implementation(name="Contact mechanics", card_view_flavor='contact mechanics')
 def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
                       pressures=None, maxiter=100, progress_recorder=None, storage_prefix=None):
     """
@@ -1164,7 +1210,7 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
     )
 
 
-@register_implementation(name="Roughness Parameters", card_view_flavor='roughness parameters')
+@register_implementation(name="Roughness parameters", card_view_flavor='roughness parameters')
 def roughness_parameters(topography, progress_recorder=None, storage_prefix=None):
     """Calculate roughness parameters for given topography.
 
@@ -1191,7 +1237,7 @@ def roughness_parameters(topography, progress_recorder=None, storage_prefix=None
 
     # noinspection PyBroadException
     try:
-        unit = topography.info['unit']
+        unit = topography.unit
         inverse_unit = '{}⁻¹'.format(unit)
     except KeyError:
         unit = None
@@ -1335,7 +1381,15 @@ def topography_analysis_function_for_tests(topography, a=1, b="foo"):
             'yunit': 'm',
             'xlabel': 'x',
             'ylabel': 'y',
-            'series': [],
+            'series': [
+                dict(
+                    name='Fibonacci series',
+                    x=np.array((1, 2, 3, 4, 5, 6, 7, 8)),
+                    y=np.array((0, 1, 1, 2, 3, 5, 8, 13)),
+                    std_err_y=np.zeros(8),
+                )
+            ],
+            'alerts': [dict(alert_class='alert-info', message="This is a test for a measurement alert.")],
             'comment': f"a is {a} and b is {b}"}
 
 
@@ -1347,4 +1401,5 @@ def surface_analysis_function_for_tests(surface, a=1, c="bar"):
             'xlabel': 'x',
             'ylabel': 'y',
             'series': [],
+            'alerts': [dict(alert_class='alert-info', message="This is a test for a surface alert.")],
             'comment': f"a is {a} and c is {c}"}

@@ -170,7 +170,7 @@ LOGGING = {
             'class': 'django.utils.log.AdminEmailHandler'
         },
         'console': {
-            'level': 'DEBUG',
+            'level': 'INFO',
             'class': 'logging.StreamHandler',
             'formatter': 'verbose',
         },
@@ -187,7 +187,7 @@ LOGGING = {
             'propagate': True
         },
         'topobank': {
-            'level': 'DEBUG',
+            'level': 'INFO',
             'handlers': ['console'],
             'propagate': True
         }

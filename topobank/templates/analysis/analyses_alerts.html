@@ -1,4 +1,4 @@
-{% load fontawesome %}
+{% load fontawesome_5 %}
 
 {% if analyses_unready %}
   {# If there are still unfinished analyses, show progress bars for all analyses involved in this card  #}
@@ -64,29 +64,35 @@
     {# Show info bar if there are analyses which failed #}
     {% if analyses_failure %}
     <div class="alert alert-warning">
-      {% fontawesome_icon 'exclamation-circle' %}
+      {% fa5_icon 'exclamation-circle' %}
       Analysis for {{ analyses_failure|length }} subject{{ analyses_failure|length|pluralize }} failed.
       See tab "Warnings" for details.
+    </div>
+    {% endif %}
+    {% if extra_warnings %}
+    <div class="alert alert-info">
+      {% fa5_icon 'exclamation-circle' %}
+      Please see tab "Warnings" for additional information about these results.
     </div>
     {% endif %}
 {% endif %}
 
 {% if not analyses_available %}
   <div class="alert alert-info">
-      {% fontawesome_icon 'exclamation-circle' %}
+      {% fa5_icon 'exclamation-circle' %}
       {% if num_basket_items %}
         You have chosen subjects for analyses, but no analyses are available yet.
       {% else %}
         You haven't chosen anything to analyze yet. You can do this with the checkboxes on the
         <a class="alert-link" href="{% url 'manager:select' %}">
-        <b><i class="fa fa-fw fa-check-square-o"></i>Select</b></a> tab.
+        <b>{% fa5_icon 'square-check' 'far' %} Select</b></a> tab.
       {% endif %}
   </div>
 {% else %}
   {% for subject_type, unique_kwargs_for_type in unique_kwargs.items %}
     {% if unique_kwargs_for_type is None %}
       <div class="alert alert-warning">
-          {% fontawesome_icon 'exclamation-circle' %}
+          {% fa5_icon 'exclamation-circle' %}
           Arguments for this analysis function differ among chosen subjects of type '{{ subject_type }}'.
           See <a href="#" data-toggle="modal" data-target="#statusesModal-{{ card_id }}">task information</a> for details.
           You may trigger a recalculation with common arguments.

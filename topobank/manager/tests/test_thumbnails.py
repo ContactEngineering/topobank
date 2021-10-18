@@ -4,7 +4,6 @@ Tests related to thumbnails.
 import pytest
 
 from django.shortcuts import reverse
-from django_capture_on_commit_callbacks import capture_on_commit_callbacks
 from topobank.manager.tests.utils import Topography2DFactory, UserFactory, SurfaceFactory, Topography1DFactory
 from topobank.utils import assert_no_form_errors
 
@@ -17,7 +16,7 @@ def test_thumbnail_exists_for_new_topography():
 
 
 @pytest.mark.django_db
-def test_renewal_on_topography_detrend_mode_change(client, mocker):
+def test_renewal_on_topography_detrend_mode_change(client, mocker, django_capture_on_commit_callbacks):
     """Check whether thumbnail is renewed if detrend mode changes for a topography
     """
 
@@ -32,7 +31,7 @@ def test_renewal_on_topography_detrend_mode_change(client, mocker):
 
     client.force_login(user)
 
-    with capture_on_commit_callbacks(execute=True) as callbacks:
+    with django_capture_on_commit_callbacks(execute=True) as callbacks:
         response = client.post(reverse('manager:topography-update', kwargs=dict(pk=topo.pk)),
                                data={
                                    'save-stay': 1,  # we want to save, but stay on page

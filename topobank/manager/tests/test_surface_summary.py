@@ -17,12 +17,12 @@ def two_topos_mock(mocker):
     @dataclass  # new feature in Python 3.7
     class STTopoStub:  # ST: from module SurfaceTopography
         bandwidth: tuple
-        info: dict
+        unit: str
 
     topography_method_mock = mocker.patch('topobank.manager.models.Topography.topography')
     topography_method_mock.side_effect = [
-        STTopoStub(bandwidth=lambda: (6, 600), info=dict(unit='nm')),
-        STTopoStub(bandwidth=lambda: (5, 100), info=dict(unit='µm')),
+        STTopoStub(bandwidth=lambda: (6, 600), unit='nm'),
+        STTopoStub(bandwidth=lambda: (5, 100), unit='µm'),
     ]
     mocker.patch('topobank.manager.models.Topography', autospec=True)
 
@@ -81,6 +81,8 @@ def test_bandwidth_error_message_in_dict_when_problems_while_loading(topography_
 
     topo1 = topography_loaded_from_broken_file
     topo2 = Topography1DFactory()
+    assert topo2.unit == 'nm'
+
     bd = bandwidths_data([topo1, topo2])
     assert len(bd) == 2
 
@@ -94,7 +96,7 @@ def test_bandwidth_error_message_in_dict_when_problems_while_loading(topography_
     assert bd1['lower_bound'] is None
     assert bd1['upper_bound'] is None
 
-    # first one should be okay (no errors)
+    # second one should be okay (no errors)
     assert bd2['topography'] == topo2
     assert bd2['error_message'] is None  # No error
     assert bd2['lower_bound'] is not None

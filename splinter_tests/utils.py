@@ -162,6 +162,12 @@ def press_view_for_item_by_name(browser, name):
     assert name in active_tab_title(browser)
 
 
+def double_click_on_item_by_name(browser, name):
+    item_row = row_for_item_by_name(browser, name)
+    first_cell = item_row.find_by_css("td").first
+    first_cell.double_click()
+
+
 def data_of_item_by_name(browser, name):
     """Returns dict with data from select table's row.
 
@@ -176,15 +182,17 @@ def data_of_item_by_name(browser, name):
     -------
         dict
 
-        { "version": <str, version of item or empty string>,
+        { "version": <str> # version of item or empty string,
+          "authors": <str>
           "description": <str>
         }
     """
     item_row = row_for_item_by_name(browser, name)
     item_row_texts = [td.text for td in item_row.find_by_css('td')]
-    assert len(item_row_texts) == 4
-    return dict(version=item_row_texts[1],
-                description=item_row_texts[2])
+    assert len(item_row_texts) == 6
+    return dict(version=item_row_texts[2],
+                authors=item_row_texts[3],
+                description=item_row_texts[4])
 
 
 def select_item_by_name(browser, name):

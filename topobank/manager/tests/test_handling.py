@@ -49,7 +49,6 @@ def test_empty_surface_selection(client, handle_usage_statistics):
 
 @pytest.mark.django_db
 def test_download_selection(client, mocker, handle_usage_statistics):
-
     record_mock = mocker.patch('trackstats.models.StatisticByDateAndObject.objects.record')
 
     user = UserFactory()
@@ -425,12 +424,167 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
     assert exp_resolution_x == t.resolution_x
     assert exp_resolution_y == t.resolution_y
     assert t.datafile_format == exp_datafile_format
+    assert t.instrument_type == Topography.INSTRUMENT_TYPE_UNDEFINED
+    assert t.instrument_parameters == {}
 
     #
     # Also check some properties of the SurfaceTopography.Topography
     #
     st_topo = t.topography(allow_cache=False, allow_squeezed=False)
     assert st_topo.physical_sizes == exp_physical_sizes
+
+
+@pytest.mark.parametrize("instrument_type,resolution_value,resolution_unit,tip_radius_value,tip_radius_unit",
+                         [
+                             (Topography.INSTRUMENT_TYPE_UNDEFINED, '', '', '', ''),  # empty instrument params
+                             (Topography.INSTRUMENT_TYPE_UNDEFINED, 10.0, 'km', 2.0, 'nm'),  # also empty params
+                             (Topography.INSTRUMENT_TYPE_MICROSCOPE_BASED, 10.0, 'nm', '', ''),
+                             (Topography.INSTRUMENT_TYPE_MICROSCOPE_BASED, '', 'nm', '', ''),  # no value! -> also empty
+                             (Topography.INSTRUMENT_TYPE_CONTACT_BASED, '', '', 1.0, 'mm'),
+                             (Topography.INSTRUMENT_TYPE_CONTACT_BASED, '', '', '', 'mm'),  # no value! -> also empty
+                         ])
+@pytest.mark.django_db
+def test_upload_topography_instrument_parameters(client, django_user_model,
+                                                 instrument_type, resolution_value,
+                                                 resolution_unit, tip_radius_value, tip_radius_unit,
+                                                 handle_usage_statistics):
+    input_file_path = Path(FIXTURE_DIR + "/10x10.txt")
+    expected_toponame = input_file_path.name
+
+    description = "test description"
+
+    username = 'testuser'
+    password = 'abcd$1234'
+
+    instrument_name = "My Profilometer"
+
+    user = django_user_model.objects.create_user(username=username, password=password)
+
+    assert client.login(username=username, password=password)
+
+    # first create a surface
+    response = client.post(reverse('manager:surface-create'),
+                           data={
+                               'name': 'surface1',
+                               'creator': user.id,
+                               'category': 'sim'
+                           }, follow=True)
+
+    assert_no_form_errors(response)   # it should be allowed to leave out values within instrument
+    assert response.status_code == 200
+
+    surface = Surface.objects.get(name='surface1')
+
+    #
+    # open first step of wizard: file upload
+    #
+    with input_file_path.open(mode='rb') as fp:
+
+        response = client.post(reverse('manager:topography-create',
+                                       kwargs=dict(surface_id=surface.id)),
+                               data={
+                                   'topography_create_wizard-current_step': 'upload',
+                                   'upload-datafile': fp,
+                                   'upload-surface': surface.id,
+                               }, follow=True)
+
+    assert response.status_code == 200
+    assert_no_form_errors(response)
+
+    #
+    # check contents of second page
+    #
+
+    # now we should be on the page with second step
+    assert b"Step 2 of 3" in response.content, "Errors:" + str(response.context['form'].errors)
+
+    assert_in_content(response, '<option value="0">Default</option>')
+
+    assert response.context['form'].initial['name'] == expected_toponame
+
+    #
+    # Send data for second page
+    #
+    response = client.post(reverse('manager:topography-create',
+                                   kwargs=dict(surface_id=surface.id)),
+                           data={
+                               'topography_create_wizard-current_step': 'metadata',
+                               'metadata-name': 'topo1',
+                               'metadata-measurement_date': '2018-06-21',
+                               'metadata-data_source': 0,
+                               'metadata-description': description,
+                           })
+
+    assert response.status_code == 200
+    assert_no_form_errors(response)
+    assert_in_content(response, "Step 3 of 3")
+
+    #
+    # Send data for third page
+    #
+    response = client.post(reverse('manager:topography-create',
+                                   kwargs=dict(surface_id=surface.id)),
+                           data={
+                               'topography_create_wizard-current_step': "units",
+                               'units-size_editable': True,  # would be sent when initialize form
+                               'units-unit_editable': True,  # would be sent when initialize form
+                               'units-size_x': 1,
+                               'units-size_y': 1,
+                               'units-unit': 'nm',
+                               'units-height_scale': 1,
+                               'units-detrend_mode': 'height',
+                               'units-resolution_x': 10,
+                               'units-resolution_y': 10,
+                               'units-instrument_name': instrument_name,
+                               'units-instrument_type': instrument_type,
+                               'units-resolution_value': resolution_value,
+                               'units-resolution_unit': resolution_unit,
+                               'units-tip_radius_value': tip_radius_value,
+                               'units-tip_radius_unit': tip_radius_unit,
+                           }, follow=True)
+
+    assert response.status_code == 200
+    assert_no_form_errors(response)
+
+    surface = Surface.objects.get(name='surface1')
+    topos = surface.topography_set.all()
+
+    assert len(topos) == 1
+
+    t = topos[0]
+
+    assert t.measurement_date == datetime.date(2018, 6, 21)
+    assert t.description == description
+    assert input_file_path.stem in t.datafile.name
+    assert t.instrument_type == instrument_type
+    if instrument_type == Topography.INSTRUMENT_TYPE_UNDEFINED \
+       or (instrument_type == Topography.INSTRUMENT_TYPE_MICROSCOPE_BASED and resolution_value == '') \
+       or (instrument_type == Topography.INSTRUMENT_TYPE_CONTACT_BASED and tip_radius_value == ''):
+        expected_instrument_parameters = {}
+    elif instrument_type == Topography.INSTRUMENT_TYPE_MICROSCOPE_BASED:
+        expected_instrument_parameters = {
+            "resolution": {
+                "value": resolution_value,
+                "unit": resolution_unit,
+            }
+        }
+    elif instrument_type == Topography.INSTRUMENT_TYPE_CONTACT_BASED:
+        expected_instrument_parameters = {
+            "tip_radius": {
+                "value": tip_radius_value,
+                "unit": tip_radius_unit,
+            }
+        }
+
+    assert t.instrument_parameters == expected_instrument_parameters
+
+    #
+    # Also check some properties of the SurfaceTopography.Topography
+    #
+    st_topo = t.topography(allow_cache=False, allow_squeezed=False)
+    assert st_topo.info["instrument"] == {'name': instrument_name,
+                                          'parameters': expected_instrument_parameters,
+                                          'type': instrument_type}
 
 
 @pytest.mark.django_db
@@ -1049,6 +1203,60 @@ def test_edit_topography_only_detrend_center_when_periodic(client, django_user_m
     assert_form_error(response, "When enabling periodicity only detrend mode", "detrend_mode")
 
 
+@pytest.mark.parametrize("kind", ["resolution", "tip_radius"])
+@pytest.mark.django_db
+def test_instrument_parameters_empty_if_no_value_on_topography_change(client, handle_usage_statistics, kind):
+    """Check whether instrument parameters are empty if no value was given
+    """
+    user = UserFactory()
+    surface = SurfaceFactory(creator=user)
+    topo = Topography2DFactory(surface=surface, size_x=1, size_y=1, size_editable=True,
+                               instrument_type=Topography.INSTRUMENT_TYPE_CONTACT_BASED,
+                               instrument_parameters={
+                                   kind: {
+                                       "value": 1.0,
+                                       "unit": "mm"
+                                   }
+                               })
+    client.force_login(user)
+
+    changed_data_for_post = {
+        'save-stay': 'Save and keep editing',  # we want to save, but stay on page
+        'surface': str(surface.pk),
+        'data_source': str(topo.data_source),
+        'description': topo.description,
+        'name': topo.name,
+        'size_x': str(topo.size_x),
+        'size_y': str(topo.size_y),
+        'size_editable': "True",
+        'unit': topo.unit,
+        'unit_editable': "True",
+        'height_scale': str(topo.height_scale),
+        'height_scale_editable': "True",
+        'detrend_mode': 'center',
+        'measurement_date': format(topo.measurement_date, '%Y-%m-%d'),
+        'tags': '',
+        'instrument_name': '',
+        'instrument_type': topo.instrument_type,
+        'instrument_parameters': f'{{"{kind}": {{ "value": 1.0, "unit": "mm"}} }}',
+        # add some helper fields which have been added to the form, such that
+        # the POST request has all parameters as the original HTML form
+        'tip_radius_value': '',  # No value
+        'tip_radius_unit': 'mm',
+    }
+
+    #
+    # we post the changed data, instrument parameters should saved as empty
+    #
+    response = client.post(reverse('manager:topography-update', kwargs=dict(pk=topo.pk)),
+                           data=changed_data_for_post, follow=True)
+    assert_no_form_errors(response)
+    assert response.status_code == 200
+
+    changed_topo = Topography.objects.get(pk=topo.pk)
+    assert changed_topo.instrument_parameters == {}
+
+
 @pytest.mark.django_db
 def test_topography_detail(client, two_topos, django_user_model, topo_example4, handle_usage_statistics):
     username = 'testuser'
@@ -1363,4 +1571,3 @@ def test_usage_of_cached_container_on_download_of_published_surface(client, exam
 
     # no extra call of write_container because it is a published surface
     assert write_container_mock.call_count == 1
-

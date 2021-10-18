@@ -276,10 +276,14 @@ def download_plot_analyses_to_txt(request, analyses):
 
         for series in result['series']:
             series_data = [series['x'], series['y']]
-            try:
-                series_data.append(series['std_err_y'].filled(np.nan))
-            except KeyError:
-                pass
+            if std_err_y_in_series:
+                try:
+                    std_err_y = series['std_err_y']
+                    if hasattr(std_err_y, 'filled'):
+                        std_err_y = std_err_y.filled(np.nan)
+                    series_data.append(std_err_y)
+                except KeyError:
+                    pass
             np.savetxt(f, np.transpose(series_data),
                        header='{}\n{}\n{}'.format(series['name'], '-' * len(series['name']), header))
             f.write('\n')
@@ -581,7 +585,7 @@ def download_roughness_parameters_to_xlsx(request, analyses):
     roughness_df = pd.DataFrame(data, columns=['surface', 'measurement', 'quantity', 'direction',
                                                'from', 'symbol', 'value', 'unit'])
     roughness_df.replace(r'&Delta;', 'Δ', inplace=True, regex=True)  # we want a real greek delta
-    roughness_df.to_excel(excel, sheet_name="Roughness Parameters", index=False)
+    roughness_df.to_excel(excel, sheet_name="Roughness parameters", index=False)
     info_df = _analyses_meta_data_dataframe(analyses, request)
     info_df.to_excel(excel, sheet_name='INFORMATION', index=False)
     excel.close()

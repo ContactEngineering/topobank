@@ -106,19 +106,19 @@ Vue.component('basket-element', {
     delimiters: ['[[', ']]'],
     template: `
            <span v-if="elem.type=='surface'" class="badge badge-pill badge-primary mr-1 basket-element">
-                <span class="fa fa-diamond"></span>
+                <span class="far fa-gem"></span>
                 [[ elem.label ]]
-                <span class="fa fa-close" v-on:click="handle_close"></span>
+                <span class="fas fa-times" v-on:click="handle_close"></span>
            </span>
            <span v-else-if="elem.type=='tag'" class="badge badge-pill badge-info mr-1 basket-element">
-                <span class="fa fa-tag"></span>
+                <span class="fas fa-tag"></span>
                 [[ elem.label ]]
-                <span class="fa fa-close" v-on:click="handle_close"></span>
+                <span class="fas fa-times" v-on:click="handle_close"></span>
            </span>
            <span v-else class="badge badge-pill badge-secondary mr-1 basket-element">
-                <span class="fa fa-file"></span>
+                <span class="far fa-file"></span>
                 [[ elem.label ]]
-                <span class="fa fa-close" v-on:click="handle_close"></span>
+                <span class="fas fa-times" v-on:click="handle_close"></span>
            </span>
          `,
     methods: {

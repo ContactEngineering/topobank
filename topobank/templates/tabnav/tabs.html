@@ -1,11 +1,13 @@
+{% load fontawesome_5 %}
+
 <ul role="tablist" class="nav nav-tabs lined-tabs flex-column flex-sm-row bg-light w-100 shadow">
   {% for tab in tabs %}
     <li class="nav-item" title="{{ tab.tooltip }}">
       <a class="nav-link {% if tab.active %}active{% endif %}" href="{% if tab.href %}{{ tab.href }}{% else %}{{ request.path }}{% endif %}">
-        <i class="fa fa-fw fa-{{ tab.icon}}"></i> {{ tab.title|truncatechars:50 }}
+        <i class="{{ tab.icon_style_prefix|default:"fas" }} fa-{{ tab.icon}}"></i> {{ tab.title|truncatechars:50 }}
         {% if not forloop.last and forloop.counter >= min_num_tabs %}
-          {# we only want the double angle for all tabs which could be the last but or not #}
-          <i class="fa fa-angle-double-right"></i>
+          {# we only want the double angle for all tabs which could be the last but are not #}
+        {% fa5_icon 'angle-double-right' %}
         {% endif %}
       </a>
     </li>
@@ -13,7 +15,7 @@
   {% if error %}
     <li class="nav-item">
       <a class="nav-link active">
-        <i class="fa fa-fw fa-flash"></i> Error
+        {% fa5_icon 'bolt' %} Error
       </a>
     </li>
   {% endif %}
@@ -26,22 +28,22 @@
         <div v-if="keys.length">
           <basket-element v-for="key in keys" v-bind:elem="get_element(key)" v-bind:key="key"></basket-element>
           <a class="btn btn-sm btn-outline-success" href="{% url 'analysis:list' %}">
-            <i class="fa fa-fw fa-area-chart"></i>Analyze
+            {% fa5_icon 'chart-area' %} Analyze
           </a>
-          <div class="btn-group btn-group-sm pull-right" role="group" aria-label="Actions on current selection">
+          <div class="btn-group btn-group-sm float-right" role="group" aria-label="Actions on current selection">
             <button class="btn btn-sm btn-outline-secondary" v-on:click="unselect_all" id="unselect-all">
-              <i class="fa fa-times"></i> Clear selection
+              {% fa5_icon 'times' %} Clear selection
             </button>
             <a class="btn btn-sm btn-outline-secondary"
                href="{% url 'manager:download-selection' %}"
                type="button"
                id="download-selection">
-              <i class="fa fa-download"></i> Download surfaces
+              {% fa5_icon 'download' %} Download surfaces
             </a>
           </div>
         </div>
         <div class="m-1" v-else>No items selected yet. In order to select, please use the checkboxes on the
-          <a class="text-dark" href="{% url 'manager:select' %}"><i class="fa fa-fw fa-check-square-o"></i>Select</a> tab.
+          <a class="text-dark" href="{% url 'manager:select' %}">{% fa5_icon 'check-square' 'far' %} Find & Select</a> tab.
         </div>
       </div>
     </div>

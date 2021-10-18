@@ -6,7 +6,7 @@ from django.shortcuts import reverse
 from topobank.manager.tests.utils import SurfaceFactory, Topography2DFactory
 from splinter_tests.utils import goto_select_page, goto_publications_page, \
     select_sharing_status, press_view_for_item_by_name, num_items_in_result_table, \
-    data_of_item_by_name
+    data_of_item_by_name, double_click_on_item_by_name
 
 
 def press_yes_publish(browser):
@@ -195,7 +195,7 @@ def test_publishing_form_multiple_authors(user_alice_logged_in, handle_usage_sta
     assert browser.is_text_present("Queen of Hearts")
 
 
-@freezegun.freeze_time('2021-07-12')
+@freezegun.freeze_time('2021-07-12', tick=True)  # tick needed for selenium tests if text not present
 @pytest.mark.django_db
 def test_see_published_by_others(user_alice_logged_in, user_bob, handle_usage_statistics, settings):
     browser, user_alice = user_alice_logged_in
@@ -356,8 +356,11 @@ def test_how_to_cite(user_alice_logged_in, handle_usage_statistics):
     # Alice has a surface and publishes it
     #
     surface_name = "Diamond Structure"
+    topo_name = "Diamond Cut"
+    topo_description = "My nice measurement"
+
     surface = SurfaceFactory(creator=user_alice, name=surface_name)
-    topo = Topography2DFactory(surface=surface)
+    topo = Topography2DFactory(surface=surface, name=topo_name, description=topo_description)
     publication = surface.publish('cc0-1.0', 'Famous Scientist')
 
     # Alice filters for published surfaces - enters
@@ -373,6 +376,13 @@ def test_how_to_cite(user_alice_logged_in, handle_usage_statistics):
 
     data = data_of_item_by_name(browser, surface_name)
     assert data['version'] == "1 (2021-07-12)"
+    assert data['authors'] == 'Famous Scientist'
+
+    double_click_on_item_by_name(browser, surface_name)
+    data = data_of_item_by_name(browser, topo_name)
+    assert data['version'] == ""
+    assert data['authors'] == ''
+    assert data['description'] == topo_description
 
     # Alice opens the properties and sees
     # the "published by yo" badge.
