@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-## 0.16.0 (not published yet)
+## 0.16.0 (2021-10-18)
 
 - ENH: Enhanced search by supporting "weblike" search 
   expressions; now the search term is interpreted as
