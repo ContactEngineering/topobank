@@ -186,14 +186,16 @@ let search_results_vm = new Vue({
                           $tdList.eq(1).html(topo_count_html);
                       }
 
-                      // Set column with version
+                      // Set columns with version and authors
                       if (node.data.version !== undefined) {
                           let version_html = node.data.version;
+                          let authors_html = node.data.publication_authors;
+
                           if (node.data.publication_date.length > 0) {
                               version_html += " (" + node.data.publication_date +  ")";
                           }
 
-                          version_html = "<div class='version-column'>" + version_html + "</div>"
+                          version_html = "<div class='version-column'>" + version_html + "</div>";
                           $tdList
                               .eq(2)
                               .html(version_html);
@@ -203,6 +205,11 @@ let search_results_vm = new Vue({
                               published_html = "<span class='badge badge-info mr-1'>published</span>";
                               $tdList.eq(0).find('.fancytree-title').after(published_html);
                           }
+
+                          $tdList
+                              .eq(3)
+                              .html(authors_html);
+
                       }
 
                       // Set column with description
@@ -212,7 +219,7 @@ let search_results_vm = new Vue({
                           const btn_id = descr_id+"-btn";
                           let first_nl_index = descr.indexOf("\n");  // -1 if no found
 
-                          // console.log("Key: "+node.key+" ID: "+descr_id);
+                          // console.log("Description: "+descr.substring(0,10)+" Key: "+node.key+" descr ID: "+descr_id+"\n");
                           let description_html = "<div class='description-column'>";
                           if (first_nl_index === -1) {
                               description_html += descr;
@@ -233,7 +240,7 @@ let search_results_vm = new Vue({
 
                           description_html += "</div>";
                           $tdList
-                              .eq(3)
+                              .eq(4)
                               .html(description_html);
 
                           $('#'+btn_id).on("click", function() {
@@ -246,7 +253,6 @@ let search_results_vm = new Vue({
                           });
                       }
 
-
                       // Set columns with buttons:
                       if (node.type !== "tag") {
                           const actions_html = `
@@ -255,7 +261,7 @@ let search_results_vm = new Vue({
                             </div>
                           `;
                           $tdList
-                              .eq(4)
+                              .eq(5)
                               .html(actions_html);
                       }
 

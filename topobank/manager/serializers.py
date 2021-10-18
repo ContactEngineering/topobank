@@ -28,6 +28,7 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
     tags = serializers.SerializerMethodField()
     type = serializers.CharField(default='topography')
     version = serializers.CharField(default='')
+    publication_authors = serializers.CharField(default='')
     publication_date = serializers.CharField(default='')
 
     def get_urls(self, obj):
@@ -76,7 +77,8 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Topography
         fields = ['pk', 'type', 'name', 'creator', 'description', 'tags',
-                  'urls', 'selected', 'key', 'surface_key', 'title', 'folder', 'version', 'publication_date']
+                  'urls', 'selected', 'key', 'surface_key', 'title', 'folder', 'version',
+                  'publication_date', 'publication_authors']
 
 
 class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
@@ -98,6 +100,7 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
     type = serializers.CharField(default='surface')
     version = serializers.SerializerMethodField()
     publication_date = serializers.SerializerMethodField()
+    publication_authors = serializers.SerializerMethodField()
     topography_count = serializers.SerializerMethodField()
 
     def get_children(self, obj):
@@ -189,6 +192,9 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
     def get_publication_date(self, obj):
         return obj.publication.datetime.date() if obj.is_published else ''
 
+    def get_publication_authors(self, obj):
+        return obj.publication.authors if obj.is_published else ''
+
     def get_topography_count(self, obj):
         return obj.topography_set.count()
 
@@ -196,7 +202,7 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
         model = Surface
         fields = ['pk', 'type', 'name', 'creator', 'description', 'category', 'tags', 'children',
                   'sharing_status', 'urls', 'selected', 'key', 'title', 'folder', 'version', 'publication_date',
-                  'topography_count']
+                  'publication_authors', 'topography_count']
 
 
 class TagSerializer(serializers.ModelSerializer):
@@ -209,12 +215,13 @@ class TagSerializer(serializers.ModelSerializer):
     selected = serializers.SerializerMethodField()
     type = serializers.CharField(default='tag')
     version = serializers.CharField(default='')
+    publication_authors = serializers.CharField(default='')
     publication_date = serializers.CharField(default='')
 
     class Meta:
         model = TagModel
         fields = ['pk', 'key', 'type', 'title', 'name', 'children',
-                  'folder', 'urls', 'selected', 'version', 'publication_date']
+                  'folder', 'urls', 'selected', 'version', 'publication_date', 'publication_authors']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

@@ -11,6 +11,7 @@
 - ENH: Reliability analysis for scanning probe data (#83)
 - ENH: Scale-dependent curvature (#586)
 - ENH: Added links to GitHub discussions (#722)
+- ENH: Show publication authors on Find&Select page (#733)
 - BUG: Scale-dependent slope is now computed using the
   brute force approach (#687)
 - BUG: Fixed issue while downloading analysis results
