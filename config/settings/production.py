@@ -70,10 +70,6 @@ X_FRAME_OPTIONS = 'DENY'
 # https://django-storages.readthedocs.io/en/latest/#installation
 # Storage settings have been already added to base.py
 
-# STATIC
-# ------------------------
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-
 # MEDIA
 # ------------------------------------------------------------------------------
 # DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
@@ -134,12 +130,6 @@ vars().update(EMAIL_CONFIG)  # this sets all variables needed by Django
 # Gunicorn
 # ------------------------------------------------------------------------------
 INSTALLED_APPS += ['gunicorn']  # noqa F405
-
-# WhiteNoise
-# ------------------------------------------------------------------------------
-# http://whitenoise.evans.io/en/latest/django.html#enable-whitenoise
-MIDDLEWARE = ['whitenoise.middleware.WhiteNoiseMiddleware'] + MIDDLEWARE  # noqa F405
-
 
 # LOGGING
 # ------------------------------------------------------------------------------

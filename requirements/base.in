@@ -1,8 +1,8 @@
 pytz  # https://github.com/stub42/pytz
 python-slugify  # https://github.com/un33k/python-slugify
 argon2-cffi  # https://github.com/hynek/argon2_cffi
-whitenoise  # https://github.com/evansd/whitenoise
-psycopg2-binary>=2.8,<2.9  # https://github.com/psycopg/psycopg2
+whitenoise>=5.2, <6  # https://github.com/evansd/whitenoise
+psycopg2-binary>=2.8, <2.9  # https://github.com/psycopg/psycopg2
 
 # Django
 # ------------------------------------------------------------------------------
@@ -26,7 +26,7 @@ git+http://git@github.com/mcrot/django-fontawesome-5.git@fix_circular_dependency
 # see https://github.com/BenjjinF/django-fontawesome-5/issues/15
 
 # progressbar for upload
-# django-progressbarupload>=0.1.7<0.2
+# django-progressbarupload>=0.1.7, <0.2
 # git+http://github.com/IMTEK-Simulation/django-progressbarupload.git
 git+http://github.com/ContactEngineering/django-progressbarupload.git
 # we use a forked version, because so far there is no published release
@@ -36,7 +36,7 @@ git+http://github.com/ContactEngineering/django-progressbarupload.git
 django-filter
 
 # tagging support
-django-tagulous>=1.3.0<2.0
+django-tagulous>=1.3.0, <2.0
 
 # statistics
 # django-statsy  # cannot be used currently because of fixed version in requirements
@@ -49,17 +49,17 @@ boto3 # S3
 django-storages
 
 # Permissions on object level
-django-guardian>=2.4.0<3
+django-guardian>=2.4.0, <3
 
 # Celery
 # django-kombu # is this still needed? See https://pypi.org/project/django-kombu/
-celery>=5.0,<6.0
+celery>=5.0, <6.0
 # pylibmc is also used for memcached in production
 pylibmc
 # librabbitmq>=2.0
 # problems while compiling librabbitmq
 flower==1.0.0
-# tornado>=4.2.0,<6.0.0
+# tornado>=4.2.0, <6.0.0
 
 # progress bars for celery tasks, served by Django
 celery-progress
@@ -71,8 +71,8 @@ bleach>=3.3.0
 # Contact Mechanics
 #
 muFFT>=0.11.1
-SurfaceTopography>=0.98.1   <1.0
-ContactMechanics>=0.91.0<1.0
+SurfaceTopography>=0.98.1, <1.0
+ContactMechanics>=0.91.0, <1.0
 
 # plotting
 bokeh==2.2.3

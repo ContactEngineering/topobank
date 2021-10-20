@@ -121,7 +121,7 @@ django-environ==0.4.5
     # via -r ./base.txt
 django-filter==2.4.0
     # via -r ./base.txt
-django-fontawesome-5==1.0.18
+git+http://git@github.com/mcrot/django-fontawesome-5.git@fix_circular_dependency_in_collectstatic_issue_14
     # via -r ./base.txt
 django-formtools==2.3
     # via -r ./base.txt
