@@ -21,7 +21,9 @@ djangorestframework  # https://github.com/encode/django-rest-framework
 # coreapi  # https://github.com/core-api/python-client
 
 # Icons
-django-fontawesome-5
+# django-fontawesome-5
+git+http://git@github.com/mcrot/django-fontawesome-5.git@fix_circular_dependency_in_collectstatic_issue_14
+# see https://github.com/BenjjinF/django-fontawesome-5/issues/15
 
 # progressbar for upload
 # django-progressbarupload>=0.1.7<0.2
@@ -69,7 +71,7 @@ bleach>=3.3.0
 # Contact Mechanics
 #
 muFFT>=0.11.1
-SurfaceTopography>=0.98.1<1.0
+SurfaceTopography>=0.98.1   <1.0
 ContactMechanics>=0.91.0<1.0
 
 # plotting
