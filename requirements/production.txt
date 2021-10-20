@@ -93,7 +93,6 @@ django==3.2.7
     #   django-appconf
     #   django-bootstrap-datepicker-plus
     #   django-filter
-    #   django-fontawesome-5
     #   django-formtools
     #   django-fullurl
     #   django-guardian
@@ -120,8 +119,6 @@ django-crispy-forms==1.12.0
 django-environ==0.4.5
     # via -r ./base.txt
 django-filter==2.4.0
-    # via -r ./base.txt
-git+http://git@github.com/mcrot/django-fontawesome-5.git@fix_circular_dependency_in_collectstatic_issue_14
     # via -r ./base.txt
 django-formtools==2.3
     # via -r ./base.txt
@@ -156,6 +153,8 @@ et-xmlfile==1.1.0
     #   -r ./base.txt
     #   openpyxl
 flower==1.0.0
+    # via -r ./base.txt
+fontawesomefree==5.15.4
     # via -r ./base.txt
 gevent==21.1.2
     # via

@@ -22,8 +22,11 @@ djangorestframework  # https://github.com/encode/django-rest-framework
 
 # Icons
 # django-fontawesome-5
-git+http://git@github.com/mcrot/django-fontawesome-5.git@fix_circular_dependency_in_collectstatic_issue_14
+# git+http://git@github.com/mcrot/django-fontawesome-5.git@fix_circular_dependency_in_collectstatic_issue_14
 # see https://github.com/BenjjinF/django-fontawesome-5/issues/15
+
+# official plugin from fontawesome
+fontawesomefree==5.15.4
 
 # progressbar for upload
 # django-progressbarupload>=0.1.7, <0.2

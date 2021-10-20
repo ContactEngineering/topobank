@@ -72,7 +72,7 @@ THIRD_PARTY_APPS = [
     'allauth.socialaccount',
     'allauth.socialaccount.providers.orcid',
     'rest_framework',
-    'fontawesome_5',
+    'fontawesomefree',
     'formtools',
     'bokeh',
     'termsandconditions',
