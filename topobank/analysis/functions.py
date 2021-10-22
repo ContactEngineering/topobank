@@ -440,7 +440,7 @@ def make_alert_entry(level, subject_name, subject_url, data_series_name, detail_
 
 
 def analysis_function(topography, funcname_profile, funcname_area, name, xlabel, ylabel, xname, yname, aname, xunit,
-                      yunit, **kwargs):
+                      yunit, conv_2d_fac=1.0, conv_2d_exponent=0, **kwargs):
 
     topography_name = topography.name
     topography_url = topography.get_absolute_url()
@@ -507,7 +507,7 @@ def analysis_function(topography, funcname_profile, funcname_area, name, xlabel,
             series += [
                 dict(name=aname,
                      x=r_2D,
-                     y=A_2D,
+                     y=conv_2d_fac * A_2D if conv_2d_exponent == 0 else conv_2d_fac * r_2D ** conv_2d_exponent * A_2D,
                      visible=False,
                      ),
             ]
@@ -543,7 +543,7 @@ def analysis_function(topography, funcname_profile, funcname_area, name, xlabel,
                  ),
             dict(name='{} (incl. unreliable data)'.format(aname),
                  x=ru_2D,
-                 y=Au_2D,
+                 y=conv_2d_fac * Au_2D if conv_2d_exponent == 0 else conv_2d_fac * ru_2D ** conv_2d_exponent * Au_2D,
                  visible=False,
                  ),
         ]
@@ -621,6 +621,8 @@ def power_spectrum(topography, progress_recorder=None, storage_prefix=None, wind
                              'q/π × 2D PSD',
                              '{}⁻¹',
                              '{}³',
+                             conv_2d_fac=1/np.pi,
+                             conv_2d_exponent=1,
                              window=window,
                              nb_points_per_decade=nb_points_per_decade)
 
