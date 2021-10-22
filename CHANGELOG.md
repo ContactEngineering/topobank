@@ -12,6 +12,8 @@
   command "notify_users" (#736)
 - BUG: Fixes alignment of 2D PSD data to 1D PSD 
   data (#738)
+- BUG: Improved error message in case of server 
+  error in analysis result (#746)
 
 ## 0.16.0 (2021-10-18)
 
