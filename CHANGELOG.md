@@ -8,6 +8,8 @@
 - BUG: Fixes error messages in special cases of successful
   surface analysis but no successful analysis for 
   measurements (#739)
+- BUG: Fixes wrong import which broke management
+  command "notify_users" (#736)
 
 ## 0.16.0 (2021-10-18)
 
