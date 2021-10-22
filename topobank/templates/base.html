@@ -34,7 +34,10 @@
     {% block extra_css %}{% endblock extra_css %}
 
     {# Using the offical plugin for fontawesome 5 icons #}
-    <script src="{% static 'fontawesomefree/js/all.min.js' %}"></script>
+    <link href="{% static 'fontawesomefree/css/all.min.css' %}" rel="stylesheet" type="text/css">
+    {# Use the following if you want SVG icons, but this may cause problems with the layout of fancytree trees, #}
+    {# and also with display of the correct symbol for checked and unchecked boxes (don't know why) #}
+    <!-- script src="{% static 'fontawesomefree/js/all.min.js' %}"></script -->
 </head>
 
 <body id="page-top">
