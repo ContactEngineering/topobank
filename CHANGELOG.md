@@ -10,6 +10,8 @@
   measurements (#739)
 - BUG: Fixes wrong import which broke management
   command "notify_users" (#736)
+- BUG: Fixes alignment of 2D PSD data to 1D PSD 
+  data (#738)
 
 ## 0.16.0 (2021-10-18)
 
