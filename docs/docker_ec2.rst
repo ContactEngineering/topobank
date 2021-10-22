@@ -111,7 +111,7 @@ Running `sudo docker-compose -f production.yml build` will follow the instructio
 
 Both are set to run on port `0.0.0.0:8000`, which is where the Docker daemon will discover it. You can now run `sudo docker-compose -f production.yml up` and browse to `localhost:8000` to see your application running.
 
-To run the management tool, execute `docker-compose -f local.yaml run --rm django python manage.py -h`.
+To run the management tool, execute `docker-compose -f local.yml run --rm django python manage.py -h`.
 
 Deployment
 ^^^^^^^^^^
