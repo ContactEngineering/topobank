@@ -1,5 +1,14 @@
 # Changelog for *TopoBank*
 
+## 0.16.1 (not published yet)
+
+- BUG: Missing manifest entry problem during installation
+  fixed by using another package for fontawesone 5 
+  icons (#740)
+- BUG: Fixes error messages in special cases of successful
+  surface analysis but no successful analysis for 
+  measurements (#739)
+
 ## 0.16.0 (2021-10-18)
 
 - ENH: Enhanced search by supporting "weblike" search 
