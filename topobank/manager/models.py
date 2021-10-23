@@ -925,7 +925,22 @@ class Topography(models.Model, SubjectMixin):
 
         if generate_driver:
             driver.close()  # important to free memory
-        pass
+
+        _log.info(f'Renewing deep zoom image files for topography {self.id}..')
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            topography = self.topography()
+            storage_path, base = os.path.split(self.datafile.name)
+            orig_stem, orig_ext = os.path.splitext(base)
+            deepzoom_name = f'{orig_stem}-deepzoom'
+            _log.info(f'{storage_path}, {base}, {deepzoom_name}, {tmpdirname}')
+            filenames = topography.to_dzi(deepzoom_name, tmpdirname)
+            for filename in filenames:
+                # Strip tmp directory
+                storage_filename = filename[len(tmpdirname)+1:]
+                # Upload to S3
+                _log.info(f'Uploading DZI file: {storage_path}/{storage_filename}')
+                default_storage.save(f'{storage_path}/{storage_filename}', File(open(filename, mode='rb')))
+
 
     def renew_thumbnail(self, driver=None, none_on_error=True):
         """Renew thumbnail field.
@@ -969,4 +984,3 @@ class Topography(models.Model, SubjectMixin):
             squeezed_name = f"{orig_stem}-squeezed.nc"
             self.squeezed_datafile = default_storage.save(squeezed_name, File(open(tmp.name, mode='rb')))
             self.save()
-
