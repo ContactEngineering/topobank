@@ -674,6 +674,7 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
 
         topo = self.object
 
+        context['pixels_per_meter'] = 1 / np.mean(topo.topography().to_unit('m').pixel_size)
 
         try:
             context['topography_next'] = topo.get_next_by_measurement_date(surface=topo.surface).id
@@ -1953,3 +1954,72 @@ def thumbnail(request, pk):
             response.write(img_file.read())
 
     return response
+
+
+def deepzoom_xml(request, pk):
+    """Returns deepzoom image data for a topography
+
+    Parameters
+    ----------
+    request
+
+    Returns
+    -------
+    HTML Response with image data
+    """
+    try:
+        pk = int(pk)
+    except ValueError:
+        raise Http404()
+
+    try:
+        topo = Topography.objects.get(pk=pk)
+    except Topography.DoesNotExist:
+        raise Http404()
+
+    if not request.user.has_perm('view_surface', topo.surface):
+        raise PermissionDenied()
+
+    # okay, we have a valid topography and the user is allowed to see it
+
+    storage_path, base = os.path.split(topo.datafile.name)
+    orig_stem, orig_ext = os.path.splitext(base)
+    name = f'{storage_path}/{orig_stem}-deepzoom.xml'
+    return redirect(default_storage.url(name))
+
+
+def deepzoom_file(request, pk, storage_filename):
+    """Returns deepzoom image data for a topography
+
+    Parameters
+    ----------
+    request
+
+    Returns
+    -------
+    HTML Response with image data
+    """
+    try:
+        pk = int(pk)
+    except ValueError:
+        raise Http404()
+
+    try:
+        topo = Topography.objects.get(pk=pk)
+    except Topography.DoesNotExist:
+        raise Http404()
+
+    if not request.user.has_perm('view_surface', topo.surface):
+        raise PermissionDenied()
+
+    # okay, we have a valid topography and the user is allowed to see it
+
+    storage_path, base = os.path.split(topo.datafile.name)
+    orig_stem, orig_ext = os.path.splitext(base)
+    name = f'{storage_path}/{orig_stem}-deepzoom_files/{storage_filename}'
+    _log.info(name)
+
+    url = default_storage.url(name)
+    _log.info(url)
+
+    return redirect(url)

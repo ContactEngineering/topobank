@@ -36,11 +36,40 @@
 
           {# Plot #}
           <div class="tab-pane fade active show" id="plot" role="tabpanel" aria-labelledby="plot-tab">
-            <div id="topography-plot-content">
-              <span class="spinner"></span> Generating and loading plot with
-              {{ topography.resolution_x }} {% if topography.resolution_y %} x {{ topography.resolution_y }} {% endif %}
-              points, please wait...
-            </div>
+            <div id="openseadragon1" style="width: 100%; height: 800px;"></div>
+            <script src="/static/js/openseadragon.min.js"></script>
+            <script src="/static/js/openseadragon-scalebar.js"></script>
+            <script type="text/javascript">
+              viewer = new OpenSeadragon.Viewer({
+                id: "openseadragon1",
+                prefixUrl: "/manager/topography/{{ topography.id }}/",
+                prefixUrl: "/manager/topography/{{ topography.id }}/",
+                tileSources: [
+                  "/manager/topography/{{ topography.id }}/deepzoom/deepzoom.xml"
+                ],
+                showNavigator: true,
+                navigatorSizeRatio: 0.1,
+                showNavigationControl: false,
+                wrapHorizontal: false,
+                wrapVertical: false,
+                minZoomImageRatio: 0.5,
+                maxZoomPixelRatio: 5.0,
+              });
+              viewer.scalebar({
+                type: OpenSeadragon.ScalebarType.MICROSCOPY,
+                pixelsPerMeter: {{ pixels_per_meter }},
+                minWidth: "75px",
+                location: OpenSeadragon.ScalebarLocation.BOTTOM_LEFT,
+                xOffset: 10,
+                yOffset: 10,
+                stayInsideImage: true,
+                color: "rgb(150, 150, 150)",
+                fontColor: "rgb(100, 100, 100)",
+                backgroundColor: "rgba(255, 255, 255, 0.5)",
+                fontSize: "small",
+                barThickness: 2
+              });
+            </script>
           </div>
 
           {# Properties #}
@@ -210,45 +239,6 @@
 
   {# Some JSON code to define JS variables from Django context #}
   {{ category_filter_choices | json_script:"category-filter-choices" }}
-
-  <script>
-    $(document).ready(function () {
-      /** Triggering loading of bokeh plot */
-      console.log("Requesting plot via AJAX call..");
-      $.ajax({
-        url: "{% url 'manager:topography-plot' topography.pk %}",
-        type: 'get',
-        success: function (data) {
-          // server returns rendered "topography_plot.html"
-          // which is just pure html, use this to replace the existing
-          // html within the "plot content" div
-          console.log("Plot data received. Inserting plot..");
-          $('#topography-plot-content').html(data);
-          console.log("Plot inserted.")
-        },
-        error: function (xhr, textStatus, errorThrown) {
-          /**
-           * If an error occurs *not* because of XMLHttpRequest.abort(), show an
-           * error message. Do not show error on .abort(). See also
-           * https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/abort
-           * */
-          if (xhr.status == 0) {
-            console.log("Canceled plot generation.");
-            $('#topography-plot-content').html(`
-                  Canceled loading of plot.
-                `)
-          } else {
-            console.error("Could not create plot: " + errorThrown + " " + xhr.status + " " + xhr.responseText);
-            $('#topography-plot-content').html(`
-                  <div class='alert alert-danger'>
-                      Could not request plot data. Error: ${errorThrown}
-                  </div>
-                `);
-          }
-        }
-      });
-    });
-  </script>
 
 {% endblock %}
 
