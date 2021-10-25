@@ -674,7 +674,22 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
 
         topo = self.object
 
-        context['pixels_per_meter'] = 1 / np.mean(topo.topography().to_unit('m').pixel_size)
+        t = topo.topography()
+        context['pixels_per_meter'] = 1 / np.mean(t.to_unit('m').pixel_size)
+
+        #
+        # Some heuristics to determine colorbar ticks
+        #
+        mx, mn = t.max(), t.min()
+        tick_dist = 10 ** (int(np.round(np.log10(mx - mn))) - 1)
+        tick_values = int(mn / tick_dist) * tick_dist + tick_dist * np.arange(10)
+
+        ticks = []
+        for v in tick_values[::-1]:
+            relpos = (mx - v) / (mx - mn)
+            if relpos > 0 and relpos < 1:
+                ticks += [(f'{relpos * 100}%', f'{v} {t.unit}')]
+        context['colorbar_ticks'] = ticks
 
         try:
             context['topography_next'] = topo.get_next_by_measurement_date(surface=topo.surface).id

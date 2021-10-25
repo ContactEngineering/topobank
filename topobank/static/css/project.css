@@ -315,3 +315,32 @@ section[title="Terms and Conditions"] div.toc-container, #tc-terms-html {
 .bk-btn {
   font-size: 1rem !important;
 }
+
+.zoom-colorbar {
+  margin-left: 5px;
+  width: 20px;
+  height: 300px;
+  float: left;
+  position: relative;
+}
+
+.background-viridis {
+  background: linear-gradient(to top, #440154, #48186a, #472d7b, #424086, #3b528b, #33638d, #2c728e, #26818e, #21908c, #1f9f88, #28ae80, #3ebc74, #5dc963, #82d34c, #abdc32, #d5e21a, #fde725);
+}
+
+.zoom-colorbar-tick {
+  background: black;
+  height: 1px;
+  width: 5px;
+  right: 0px;
+  position: absolute;
+  transform: translateY(-50%);
+}
+
+.zoom-colorbar-text {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: absolute;
+  transform: translateY(-50%);
+}
