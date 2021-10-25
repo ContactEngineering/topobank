@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-## 0.17.0 (no published yet)
+## 0.17.0 (not published yet)
 
 - BUG: Missing permissions in Docker container to
   start Postgres server (#756)
