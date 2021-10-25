@@ -12,8 +12,11 @@
   command "notify_users" (#736)
 - BUG: Fixes alignment of 2D PSD data to 1D PSD 
   data (#738)
+- BUG: Fixes that reliability cutoff removed entire
+  measurement (#747)
 - BUG: Improved error message in case of server 
   error in analysis result (#746)
+- MAINT: Upgrade to SurfaceTopography 0.98.2 (#751)
 
 ## 0.16.0 (2021-10-18)
 
