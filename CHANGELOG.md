@@ -1,5 +1,10 @@
 # Changelog for *TopoBank*
 
+## 0.17.0 (no published yet)
+
+- BUG: Missing permissions in Docker container to
+  start Postgres server (#756)
+
 ## 0.16.1 (2021-10-25)
 
 - BUG: Missing manifest entry problem during installation
