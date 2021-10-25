@@ -108,10 +108,9 @@ input.checkbox-color-design:checked+span:after {
 }
 
 /** make chevrons for showing topographies in surface list tree larger, GH #381 */
-
 span.fancytree-node > span.fancytree-expander {
-  font-size: x-large;
-  /** vertical-align: top; */
+  font-size: large;
+  vertical-align: baseline;
   margin-right: 20px;
 }
 

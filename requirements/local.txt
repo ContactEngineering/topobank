@@ -112,7 +112,6 @@ django==3.2.7
     #   django-debug-toolbar
     #   django-extensions
     #   django-filter
-    #   django-fontawesome-5
     #   django-formtools
     #   django-fullurl
     #   django-guardian
@@ -149,8 +148,6 @@ django-environ==0.4.5
 django-extensions==3.1.3
     # via -r local.in
 django-filter==2.4.0
-    # via -r ./base.txt
-django-fontawesome-5==1.0.18
     # via -r ./base.txt
 django-formtools==2.3
     # via -r ./base.txt
@@ -197,6 +194,8 @@ faker==8.10.0
 flake8==3.9.2
     # via -r local.in
 flower==1.0.0
+    # via -r ./base.txt
+fontawesomefree==5.15.4
     # via -r ./base.txt
 h5netcdf==0.11.0
     # via -r ./base.txt
@@ -474,7 +473,7 @@ sqlparse==0.4.2
     #   -r ./base.txt
     #   django
     #   django-debug-toolbar
-surfacetopography==0.98.1
+surfacetopography==0.98.2
     # via
     #   -r ./base.txt
     #   contactmechanics
@@ -531,7 +530,7 @@ werkzeug==2.0.1
     # via -r local.in
 wheel==0.36.2
     # via pip-tools
-whitenoise==5.2.0
+whitenoise==5.3.0
     # via -r ./base.txt
 xarray==0.18.2
     # via -r ./base.txt

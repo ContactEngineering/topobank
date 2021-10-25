@@ -354,18 +354,6 @@ class PlotCardView(SimpleCardView):
 
         analyses_success = context['analyses_success']
 
-        if len(analyses_success) == 0:
-            #
-            # Prepare plot, controls, and table with special values..
-            #
-            context.update(
-                dict(plot_script="",
-                     plot_div="No successfully finished analyses available",
-                     special_values=[],
-                     topography_colors=json.dumps(list()),
-                     series_dashes=json.dumps(list())))
-            return context
-
         #
         # order analyses such that surface analyses are coming last (plotted on top)
         #
@@ -377,6 +365,23 @@ class PlotCardView(SimpleCardView):
             if surface_analysis.subject.num_topographies() > 1:
                 # only show average for surface if more than one topography
                 analyses_success_list.append(surface_analysis)
+
+        # Special case: It can happen that there is one surface with a successful analysis
+        # but the only measurement's analysis has no success. In this case there is also
+        # no successful analysis to display because the surface has only one measurement.
+
+        if len(analyses_success_list) == 0:
+            #
+            # Prepare plot, controls, and table with special values..
+            #
+            context.update(
+                dict(plot_script="",
+                     plot_div="No successfully finished analyses available",
+                     special_values=[],
+                     topography_colors=json.dumps(list()),
+                     series_dashes=json.dumps(list())))
+            return context
+
 
         #
         # Build order of subjects such that surfaces are first (used for checkbox on subjects)
@@ -407,6 +412,7 @@ class PlotCardView(SimpleCardView):
             num_surface_subjects = len(subject_checkbox_groups[surface_ct])
         else:
             num_surface_subjects = 0
+        has_at_least_one_topography_subject = topography_ct in subject_checkbox_groups.keys()
 
         #
         # Use first analysis to determine some properties for the whole plot
@@ -736,11 +742,14 @@ class PlotCardView(SimpleCardView):
         else:
             surface_btn_group = Div(visible=False)
 
-        topography_btn_group = CheckboxGroup(
-                labels=subject_checkbox_groups[topography_ct],
-                css_classes=["topobank-subject-checkbox", "topobank-topography-checkbox"],
-                visible=False,
-                active=list(range(len(subject_checkbox_groups[topography_ct]))))
+        if has_at_least_one_topography_subject:
+            topography_btn_group = CheckboxGroup(
+                    labels=subject_checkbox_groups[topography_ct],
+                    css_classes=["topobank-subject-checkbox", "topobank-topography-checkbox"],
+                    visible=False,
+                    active=list(range(len(subject_checkbox_groups[topography_ct]))))
+        else:
+            topography_btn_group = Div(visible=False)
 
         subject_select_all_btn = Button(label="Select all",
                                         width_policy='min',

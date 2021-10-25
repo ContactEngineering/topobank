@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 {% load static i18n %}
-{% load fontawesome_5 %}
+{% load icon_tags %}
 {% load socialaccount %}
 {% load terms_tags %}
 {% load tabnav_tags %}
@@ -28,12 +28,16 @@
 
     <link href="{% static 'tagulous/lib/select2-4/css/select2.min.css' %}" rel="stylesheet">
 
-    {% fontawesome_5_static %}
     <!-- This file stores project-specific CSS -->
     <link href="{% static 'css/project.css' %}" rel="stylesheet">
 
     {% block extra_css %}{% endblock extra_css %}
 
+    {# Using the offical plugin for fontawesome 5 icons #}
+    <link href="{% static 'fontawesomefree/css/all.min.css' %}" rel="stylesheet" type="text/css">
+    {# Use the following if you want SVG icons, but this may cause problems with the layout of fancytree trees, #}
+    {# and also with display of the correct symbol for checked and unchecked boxes (don't know why) #}
+    <!-- script src="{% static 'fontawesomefree/js/all.min.js' %}"></script -->
 </head>
 
 <body id="page-top">

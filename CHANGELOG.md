@@ -1,5 +1,23 @@
 # Changelog for *TopoBank*
 
+## 0.16.1 (2021-10-25)
+
+- BUG: Missing manifest entry problem during installation
+  fixed by using another package for fontawesone 5 
+  icons (#740)
+- BUG: Fixes error messages in special cases of successful
+  surface analysis but no successful analysis for 
+  measurements (#739)
+- BUG: Fixes wrong import which broke management
+  command "notify_users" (#736)
+- BUG: Fixes alignment of 2D PSD data to 1D PSD 
+  data (#738)
+- BUG: Fixes that reliability cutoff removed entire
+  measurement (#747)
+- BUG: Improved error message in case of server 
+  error in analysis result (#746)
+- MAINT: Upgrade to SurfaceTopography 0.98.2 (#751)
+
 ## 0.16.0 (2021-10-18)
 
 - ENH: Enhanced search by supporting "weblike" search 
