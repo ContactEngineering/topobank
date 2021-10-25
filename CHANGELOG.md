@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-## 0.16.1 (not published yet)
+## 0.16.1 (2021-10-25)
 
 - BUG: Missing manifest entry problem during installation
   fixed by using another package for fontawesone 5 
