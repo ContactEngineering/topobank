@@ -31,12 +31,12 @@
       </div>
 
       {# Second column: Content for pill selection (first column) #}
-      <div class="col-xs-12 col shadow">
+      <div class="col-xs-12 col shadow zoom-pane">
         <div class="tab-content mt-2">
 
           {# Plot #}
           <div class="tab-pane fade active show" id="plot" role="tabpanel" aria-labelledby="plot-tab">
-            <div id="openseadragon1" style="width: 80%; height: 800px; float: left;"></div>
+            <div id="openseadragon1" class="zoom-view"></div>
             <script src={% static "js/openseadragon.min.js" %}></script>
             <script src={% static "js/openseadragon-scalebar.js" %}></script>
             <script type="text/javascript">
@@ -71,17 +71,20 @@
                 barThickness: 2
               });
             </script>
-          </div>
-          <div>
-            <div class="zoom-colorbar background-viridis">
-              {% for colorbar_tick in colorbar_ticks %}
-              <div class="zoom-colorbar-tick" style="top: {{ colorbar_tick.0 }};"></div>
-              {% endfor %}
-            </div>
-            <div class="zoom-colorbar" style="width: 80px;">
-              {% for colorbar_tick in colorbar_ticks %}
-              <div class="zoom-colorbar-text" style="top: {{ colorbar_tick.0 }};">{{ colorbar_tick.1 }}</div>
-              {% endfor %}
+            <div class="zoom-colorbar-container">
+              <div class="zoom-colorbar-title">
+                Height ({{ height_unit }})
+              </div>
+              <div class="zoom-colorbar background-viridis">
+                {% for colorbar_tick in colorbar_ticks %}
+                <div class="zoom-colorbar-tick" style="top: {{ colorbar_tick.0 }};"></div>
+                {% endfor %}
+              </div>
+              <div class="zoom-colorbar" style="width: 80px;">
+                {% for colorbar_tick in colorbar_ticks %}
+                <div class="zoom-colorbar-text" style="top: {{ colorbar_tick.0 }};">{{ colorbar_tick.1 }}</div>
+                {% endfor %}
+              </div>
             </div>
           </div>
 

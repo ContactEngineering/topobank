@@ -57,6 +57,8 @@ from ..publication.models import Publication, MAX_LEN_AUTHORS_FIELD
 from .containers import write_surface_container
 from ..taskapp.tasks import renew_squeezed_datafile, renew_topography_thumbnail, renew_analyses_related_to_topography
 
+from SurfaceTopography.UnitConversion import suggest_length_unit
+
 # create dicts with labels and option values for Select tab
 CATEGORY_FILTER_CHOICES = {'all': 'All categories',
                            **{cc[0]: cc[1] + " only" for cc in Surface.CATEGORY_CHOICES}}
@@ -675,20 +677,27 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
         topo = self.object
 
         t = topo.topography()
-        context['pixels_per_meter'] = 1 / np.mean(t.to_unit('m').pixel_size)
+        t_in_meters = t.to_unit('m')
+        mn, mx = t_in_meters.min(), t_in_meters.max()
+        unit = suggest_length_unit(min(abs(mn), abs(mx)), max(abs(mn), abs(mx)))
+        context['height_unit'] = unit
+        context['pixels_per_meter'] = 1 / np.mean(t_in_meters.pixel_size)
 
         #
         # Some heuristics to determine colorbar ticks
         #
-        mx, mn = t.max(), t.min()
+        t_in_suggested_unit = t.to_unit(unit)
+        mn, mx = t_in_suggested_unit.min(), t_in_suggested_unit.max()
         tick_dist = 10 ** (int(np.round(np.log10(mx - mn))) - 1)
-        tick_values = int(mn / tick_dist) * tick_dist + tick_dist * np.arange(10)
+        tick_values = int(mn / tick_dist) * tick_dist + tick_dist * np.arange(int((mx - mn) / tick_dist) + 1)
+
+        _log.info(f'{mn} {mx} {tick_values}')
 
         ticks = []
         for v in tick_values[::-1]:
             relpos = (mx - v) / (mx - mn)
             if relpos > 0 and relpos < 1:
-                ticks += [(f'{relpos * 100}%', f'{v} {t.unit}')]
+                ticks += [(f'{relpos * 100}%', f'{v:.3g}')]
         context['colorbar_ticks'] = ticks
 
         try:

@@ -316,6 +316,12 @@ section[title="Terms and Conditions"] div.toc-container, #tc-terms-html {
   font-size: 1rem !important;
 }
 
+.zoom-colorbar-container {
+  width: 7em;
+  margin-left: 5px;
+  float: right;
+}
+
 .zoom-colorbar {
   margin-left: 5px;
   width: 20px;
@@ -326,6 +332,12 @@ section[title="Terms and Conditions"] div.toc-container, #tc-terms-html {
 
 .background-viridis {
   background: linear-gradient(to top, #440154, #48186a, #472d7b, #424086, #3b528b, #33638d, #2c728e, #26818e, #21908c, #1f9f88, #28ae80, #3ebc74, #5dc963, #82d34c, #abdc32, #d5e21a, #fde725);
+}
+
+.zoom-view {
+  width: calc(100% - 8em);
+  height: 800px;
+  float: left;
 }
 
 .zoom-colorbar-tick {
@@ -343,4 +355,13 @@ section[title="Terms and Conditions"] div.toc-container, #tc-terms-html {
   align-items: center;
   position: absolute;
   transform: translateY(-50%);
+}
+
+.zoom-colorbar-title {
+  align-content: center;
+  font-weight: bold;
+}
+
+.zoom-pane {
+  padding-bottom: 7px;
 }
