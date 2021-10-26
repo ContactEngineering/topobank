@@ -3,6 +3,7 @@ Implementations of analysis functions for topographies and surfaces.
 
 The first argument is either a Topography or Surface instance (model).
 """
+
 import collections
 
 from django.core.files.storage import default_storage
@@ -12,9 +13,6 @@ from django.conf import settings
 import xarray as xr
 import numpy as np
 import tempfile
-from pint import UnitRegistry, UndefinedUnitError
-from scipy.interpolate import interp1d
-import scipy.stats
 
 from SurfaceTopography import PlasticTopography
 from SurfaceTopography.Container.common import bandwidth, suggest_length_unit
@@ -24,6 +22,7 @@ from SurfaceTopography.Exceptions import CannotPerformAnalysisError
 from ContactMechanics import PeriodicFFTElasticHalfSpace, FreeFFTElasticHalfSpace, make_system
 
 import topobank.manager.models  # will be used to evaluate model classes
+from topobank.manager.utils import make_dzi
 from .registry import AnalysisFunctionRegistry
 
 GAUSSIAN_FIT_SERIES_NAME = 'Gaussian fit'
@@ -1170,13 +1169,17 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
         if hardness:
             dataset.attrs['hardness'] = hardness  # TODO how to save hardness=None? Not possible in netCDF
 
+        storage_path = storage_prefix + "result-step-{}.nc".format(i)
         with tempfile.NamedTemporaryFile(prefix='analysis-') as tmpfile:
             dataset.to_netcdf(tmpfile.name, format=netcdf_format)
-
-            storage_path = storage_prefix + "result-step-{}.nc".format(i)
             tmpfile.seek(0)
             storage_path = default_storage.save(storage_path, File(tmpfile))
             data_paths.append(storage_path)
+
+        make_dzi(pressure_xy.data, storage_path + '-pressure')
+        make_dzi(contacting_points_xy.data.astype(np.int), storage_path + '-contacting_points')
+        make_dzi(gap_xy.data, storage_path + '-gap')
+        make_dzi(displacement_xy.data, storage_path + '-displacement')
 
         progress_recorder.set_progress(i + 1, nsteps)
 

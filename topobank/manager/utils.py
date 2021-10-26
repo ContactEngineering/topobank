@@ -23,6 +23,7 @@ from selenium.webdriver.firefox.firefox_binary import FirefoxBinary
 
 from SurfaceTopography import open_topography
 from SurfaceTopography.IO import readers as surface_topography_readers
+from SurfaceTopography.IO.DZI import write_dzi
 
 _log = logging.getLogger(__name__)
 
@@ -970,7 +971,12 @@ def make_dzi(data, datafile_name):
         storage_path, base = os.path.split(datafile_name)
         deepzoom_name = f'{base}-dzi'
         _log.info(f'{storage_path}, {base}, {deepzoom_name}, {tmpdirname}')
-        filenames = data.to_dzi(deepzoom_name, tmpdirname)
+        try:
+            # This is Topography
+            filenames = data.to_dzi(deepzoom_name, tmpdirname)
+        except AttributeError:
+            # This is likely just a numpy array
+            filenames = write_dzi(data, deepzoom_name, tmpdirname)
         for filename in filenames:
             # Strip tmp directory
             storage_filename = filename[len(tmpdirname) + 1:]
