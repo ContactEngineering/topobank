@@ -33,59 +33,15 @@
       {# Second column: Content for pill selection (first column) #}
       <div class="col-xs-12 col shadow zoom-pane">
         <div class="tab-content mt-2">
-
           {# Plot #}
           <div class="tab-pane fade active show" id="plot" role="tabpanel" aria-labelledby="plot-tab">
-            <div id="openseadragon1" class="zoom-view"></div>
-            <script src={% static "js/openseadragon.min.js" %}></script>
-            <script src={% static "js/openseadragon-scalebar.js" %}></script>
-            <script type="text/javascript">
-              viewer = new OpenSeadragon.Viewer({
-                id: "openseadragon1",
-                prefixUrl: "/manager/topography/{{ topography.id }}/",
-                prefixUrl: "/manager/topography/{{ topography.id }}/",
-                tileSources: [
-                  "/manager/topography/{{ topography.id }}/deepzoom/deepzoom.xml"
-                ],
-                showNavigator: true,
-                navigatorPosition: 'TOP_LEFT',
-                navigatorSizeRatio: 0.1,
-                showNavigationControl: false,
-                wrapHorizontal: false,
-                wrapVertical: false,
-                minZoomImageRatio: 0.5,
-                maxZoomPixelRatio: 5.0,
-              });
-              viewer.scalebar({
-                type: OpenSeadragon.ScalebarType.MICROSCOPY,
-                pixelsPerMeter: {{ pixels_per_meter }},
-                minWidth: "75px",
-                location: OpenSeadragon.ScalebarLocation.BOTTOM_LEFT,
-                xOffset: 10,
-                yOffset: 10,
-                stayInsideImage: true,
-                color: "black",
-                fontColor: "black",
-                backgroundColor: "rgba(255, 255, 255, 0.5)",
-                fontSize: "small",
-                barThickness: 2
-              });
-            </script>
-            <div class="zoom-colorbar-container">
-              <div class="zoom-colorbar-title">
-                Height ({{ height_unit }})
+            {% if topography.size_y %}
+              {% include 'visualization/dzi.html' %}
+            {% else %}
+              <div id="topography-plot-content">
+                <span class="spinner"></span> Generating and loading plot, please wait...
               </div>
-              <div class="zoom-colorbar background-viridis">
-                {% for colorbar_tick in colorbar_ticks %}
-                <div class="zoom-colorbar-tick" style="top: {{ colorbar_tick.0 }};"></div>
-                {% endfor %}
-              </div>
-              <div class="zoom-colorbar" style="width: 80px;">
-                {% for colorbar_tick in colorbar_ticks %}
-                <div class="zoom-colorbar-text" style="top: {{ colorbar_tick.0 }};">{{ colorbar_tick.1 }}</div>
-                {% endfor %}
-              </div>
-            </div>
+            {% endif %}
           </div>
 
           {# Properties #}
@@ -255,6 +211,47 @@
 
   {# Some JSON code to define JS variables from Django context #}
   {{ category_filter_choices | json_script:"category-filter-choices" }}
+
+  {% if not topography.resolution_y %}
+    <script>
+      $(document).ready(function () {
+        /** Triggering loading of bokeh plot */
+        console.log("Requesting plot via AJAX call..");
+        $.ajax({
+          url: "{% url 'manager:topography-plot' topography.pk %}",
+          type: 'get',
+          success: function (data) {
+            // server returns rendered "topography_plot.html"
+            // which is just pure html, use this to replace the existing
+            // html within the "plot content" div
+            console.log("Plot data received. Inserting plot..");
+            $('#topography-plot-content').html(data);
+            console.log("Plot inserted.")
+          },
+          error: function (xhr, textStatus, errorThrown) {
+            /**
+             * If an error occurs *not* because of XMLHttpRequest.abort(), show an
+             * error message. Do not show error on .abort(). See also
+             * https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/abort
+             * */
+            if (xhr.status == 0) {
+              console.log("Canceled plot generation.");
+              $('#topography-plot-content').html(`
+                    Canceled loading of plot.
+                  `)
+            } else {
+              console.error("Could not create plot: " + errorThrown + " " + xhr.status + " " + xhr.responseText);
+              $('#topography-plot-content').html(`
+                    <div class='alert alert-danger'>
+                        Could not request plot data. Error: ${errorThrown}
+                    </div>
+                  `);
+            }
+          }
+        });
+      });
+    </script>
+  {% endif %}
 
 {% endblock %}
 
