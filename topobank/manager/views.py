@@ -1984,8 +1984,7 @@ def deepzoom_xml(request, pk):
     # okay, we have a valid topography and the user is allowed to see it
 
     storage_path, base = os.path.split(topo.datafile.name)
-    orig_stem, orig_ext = os.path.splitext(base)
-    name = f'{storage_path}/{orig_stem}-deepzoom.xml'
+    name = f'{storage_path}/{base}-dzi.xml'
     return redirect(default_storage.url(name))
 
 
@@ -2017,7 +2016,7 @@ def deepzoom_file(request, pk, storage_filename):
 
     storage_path, base = os.path.split(topo.datafile.name)
     orig_stem, orig_ext = os.path.splitext(base)
-    name = f'{storage_path}/{orig_stem}-deepzoom_files/{storage_filename}'
+    name = f'{storage_path}/{base}-dzi_files/{storage_filename}'
     _log.info(name)
 
     url = default_storage.url(name)

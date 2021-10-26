@@ -4,6 +4,8 @@ from django.conf import settings
 from django.db.models import Q, Value
 from django.db.models.functions import Replace
 from django.core.exceptions import PermissionDenied
+from django.core.files import File
+from django.core.files.storage import default_storage
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.search import SearchVector, SearchQuery
 
@@ -12,6 +14,8 @@ from os.path import devnull
 import traceback
 import logging
 import json
+import tempfile
+import os
 
 from selenium import webdriver
 from selenium.webdriver.remote.webdriver import WebDriver
@@ -960,3 +964,16 @@ def get_permission_table_data(instance, request_user, actions=['view', 'change',
 
     return perms_table
 
+
+def make_dzi(data, datafile_name):
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        storage_path, base = os.path.split(datafile_name)
+        deepzoom_name = f'{base}-dzi'
+        _log.info(f'{storage_path}, {base}, {deepzoom_name}, {tmpdirname}')
+        filenames = data.to_dzi(deepzoom_name, tmpdirname)
+        for filename in filenames:
+            # Strip tmp directory
+            storage_filename = filename[len(tmpdirname) + 1:]
+            # Upload to S3
+            _log.info(f'Uploading DZI file: {storage_path}/{storage_filename}')
+            default_storage.save(f'{storage_path}/{storage_filename}', File(open(filename, mode='rb')))

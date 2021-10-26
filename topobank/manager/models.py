@@ -35,6 +35,7 @@ from topobank.publication.models import Publication
 from topobank.users.utils import get_default_group
 from topobank.analysis.models import Analysis
 from topobank.analysis.utils import renew_analyses_for_subject
+from topobank.manager.utils import make_dzi
 
 from SurfaceTopography.UnitConversion import suggest_length_unit
 
@@ -962,21 +963,7 @@ class Topography(models.Model, SubjectMixin):
         if generate_driver:
             driver.close()  # important to free memory
 
-        _log.info(f'Renewing deep zoom image files for topography {self.id}..')
-        with tempfile.TemporaryDirectory() as tmpdirname:
-            topography = self.topography()
-            storage_path, base = os.path.split(self.datafile.name)
-            orig_stem, orig_ext = os.path.splitext(base)
-            deepzoom_name = f'{orig_stem}-deepzoom'
-            _log.info(f'{storage_path}, {base}, {deepzoom_name}, {tmpdirname}')
-            filenames = topography.to_dzi(deepzoom_name, tmpdirname)
-            for filename in filenames:
-                # Strip tmp directory
-                storage_filename = filename[len(tmpdirname)+1:]
-                # Upload to S3
-                _log.info(f'Uploading DZI file: {storage_path}/{storage_filename}')
-                default_storage.save(f'{storage_path}/{storage_filename}', File(open(filename, mode='rb')))
-
+        make_dzi(self.topography(), self.datafile.name)
 
     def renew_thumbnail(self, driver=None, none_on_error=True):
         """Renew thumbnail field.
