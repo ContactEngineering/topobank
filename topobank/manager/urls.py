@@ -45,14 +45,9 @@ urlpatterns = [
         name='topography-thumbnail'
     ),
     url(
-        regex=r'topography/(?P<pk>\d+)/deepzoom/deepzoom.xml$',
-        view=login_required(views.deepzoom_xml),
-        name='topography-deepzoom-xml'
-    ),
-    url(
-        regex=r'topography/(?P<pk>\d+)/deepzoom/deepzoom_files/(?P<storage_filename>.*)(|/)$',
-        view=login_required(views.deepzoom_file),
-        name='topography-deepzoom-file'
+        regex=r'topography/(?P<pk>\d+)/dzi/(?P<dzi_filename>.*)$',
+        view=login_required(views.dzi),
+        name='topography-dzi'
     ),
     url(
         regex=r'topography/(?P<pk>\d+)/plot/$',

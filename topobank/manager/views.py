@@ -1957,7 +1957,7 @@ def thumbnail(request, pk):
     return response
 
 
-def deepzoom_xml(request, pk):
+def dzi(request, pk, dzi_filename):
     """Returns deepzoom image data for a topography
 
     Parameters
@@ -1983,43 +1983,5 @@ def deepzoom_xml(request, pk):
 
     # okay, we have a valid topography and the user is allowed to see it
 
-    storage_path, base = os.path.split(topo.datafile.name)
-    name = f'{storage_path}/{base}-dzi.xml'
+    name = f'{topo.datafile.name}-{dzi_filename}'
     return redirect(default_storage.url(name))
-
-
-def deepzoom_file(request, pk, storage_filename):
-    """Returns deepzoom image data for a topography
-
-    Parameters
-    ----------
-    request
-
-    Returns
-    -------
-    HTML Response with image data
-    """
-    try:
-        pk = int(pk)
-    except ValueError:
-        raise Http404()
-
-    try:
-        topo = Topography.objects.get(pk=pk)
-    except Topography.DoesNotExist:
-        raise Http404()
-
-    if not request.user.has_perm('view_surface', topo.surface):
-        raise PermissionDenied()
-
-    # okay, we have a valid topography and the user is allowed to see it
-
-    storage_path, base = os.path.split(topo.datafile.name)
-    orig_stem, orig_ext = os.path.splitext(base)
-    name = f'{storage_path}/{base}-dzi_files/{storage_filename}'
-    _log.info(name)
-
-    url = default_storage.url(name)
-    _log.info(url)
-
-    return redirect(url)

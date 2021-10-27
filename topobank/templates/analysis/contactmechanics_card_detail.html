@@ -12,6 +12,9 @@
 
 {% block card_body %}
 
+<script src={% static "js/openseadragon.min.js" %}></script>
+<script src={% static "js/openseadragon-scalebar.js" %}></script>
+
   <div class="row">
 
       <div class="col-12 col-sm-4 col-md-3 col-lg-2">
@@ -258,7 +261,7 @@
         <a class="nav-link mb-3 p-3 shadow active" data-toggle="pill" href="#contact-geometry-tab" role="tab" aria-selected="true">
           Contact geometry
         </a>
-        <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#contact-pressure-tab" role="tab" aria-selected="false">
+        <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#pressure-tab" role="tab" aria-selected="false">
           Contact pressure
         </a>
         <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#pressure-distribution-tab" role="tab" aria-selected="false">
@@ -289,8 +292,9 @@
         <div class="tab-pane fade active show" id="contact-geometry-tab">
           <div id="contact-geometry" class="alert alert-info">For contact geometry, select a point in the graphs on the top!</div>
         </div>
-        <div class="tab-pane fade" id="contact-pressure-tab">
-          <div id="contact-pressure" class="alert alert-info">For contact pressure, select a point in the graphs on the top!</div>
+        <div class="tab-pane fade" id="pressure-tab">
+          <div id="pressure" class="alert alert-info">For contact pressure, select a point in the graphs on the top!</div>
+          <div id="openseadragon1"></div>
         </div>
         <div class="tab-pane fade" id="pressure-distribution-tab">
           <div id="pressure-distribution" class="alert alert-info">For pressure distribution, select a point in the graphs on the top!</div>
@@ -379,7 +383,8 @@
      * Trigger loading of extra data by using analysis id and index of point
      */
 
-    var tab_names = ['contact-geometry', 'contact-pressure', 'displacement', 'gap',
+    var dzi_names = ['pressure'];
+    var tab_names = ['contact-geometry', 'displacement', 'gap',
                      'pressure-distribution', 'gap-distribution', 'cluster-size-distribution'];
 
     tab_names.forEach(function(tn){
@@ -427,6 +432,37 @@
           }
         });
 
+    dzi_names.forEach(function (tn) {
+      prefix_url = "{% url 'analysis:contact-mechanics-dzi' pk=0 index=1 quantity='quantity' dzi_filename='' %}"
+        .replace('0/1/dzi/quantity/', analysis_id + '/' + index + '/dzi/' + tn)
+      viewer = new OpenSeadragon.Viewer({
+        id: 'openseadragon1',
+        prefixUrl: prefix_url,
+        tileSources: [prefix_url + '/dzi.xml'],
+        showNavigator: true,
+        navigatorPosition: 'TOP_LEFT',
+        navigatorSizeRatio: 0.1,
+        showNavigationControl: false,
+        wrapHorizontal: false,
+        wrapVertical: false,
+        minZoomImageRatio: 0.5,
+        maxZoomPixelRatio: 5.0,
+      });
+      viewer.scalebar({
+        type: OpenSeadragon.ScalebarType.MICROSCOPY,
+        {#pixelsPerMeter: {{ dzi_pixels_per_meter }},#}
+        minWidth: "75px",
+        location: OpenSeadragon.ScalebarLocation.BOTTOM_LEFT,
+        xOffset: 10,
+        yOffset: 10,
+        stayInsideImage: true,
+        color: "black",
+        fontColor: "black",
+        backgroundColor: "rgba(255, 255, 255, 0.5)",
+        fontSize: "small",
+        barThickness: 2
+      });
+    });
 
   }
 

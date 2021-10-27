@@ -1,5 +1,6 @@
 import pickle
 import json
+import os
 from typing import Optional, Dict, Any
 
 import numpy as np
@@ -16,7 +17,7 @@ from django import template
 from django.core.files.storage import default_storage
 from django.core.cache import cache  # default cache
 from django.core.exceptions import PermissionDenied
-from django.shortcuts import reverse
+from django.shortcuts import redirect, reverse
 from django.conf import settings
 
 import django_tables2 as tables
@@ -1467,6 +1468,31 @@ def contact_mechanics_data(request):
         return JsonResponse(plots_json, status=200)
     else:
         return JsonResponse({}, status=403)
+
+
+def contact_mechanics_dzi(request, pk, index, quantity, dzi_filename):
+    try:
+        pk = int(pk)
+    except ValueError:
+        raise Http404()
+
+    try:
+        index = int(index)
+    except ValueError:
+        raise Http404()
+
+    analysis = Analysis.objects.get(id=pk)
+
+    if not request.user.has_perm('view_surface', analysis.related_surface):
+        raise PermissionDenied()
+
+    # okay, we have a valid topography and the user is allowed to see it
+
+    data_path = analysis.result_obj['data_paths'][index]
+    name = f'{data_path}-{quantity}-{dzi_filename}'
+    url = default_storage.url(name)
+    _log.info(url)
+    return redirect(url)
 
 
 def extra_tabs_if_single_item_selected(topographies, surfaces):
