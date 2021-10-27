@@ -6,9 +6,9 @@
 <script type="text/javascript">
   viewer = new OpenSeadragon.Viewer({
     id: "openseadragon1",
-    prefixUrl: "/manager/topography/{{ topography.id }}/",
+    prefixUrl: "{% url 'manager:topography-deepzoom-xml' topography.id|cut:'deepzoom/deepzoom.xml' %}",
     tileSources: [
-      "/manager/topography/{{ topography.id }}/deepzoom/deepzoom.xml"
+      "{% url 'manager:topography-deepzoom-xml' topography.id %}"
     ],
     showNavigator: true,
     navigatorPosition: 'TOP_LEFT',
