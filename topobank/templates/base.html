@@ -376,6 +376,10 @@
     <!-- D3  -->
     <script src="https://d3js.org/d3.v5.min.js"></script>
 
+    <!-- OpenSeadragon -->
+    <script src={% static "js/openseadragon.min.js" %}></script>
+    <script src={% static "js/openseadragon-scalebar.js" %}></script>
+
     <!-- show new notifications immediately -->
     <script src="{% static 'notifications/notify.js' %}" type="text/javascript"></script>
     <script>
@@ -487,6 +491,7 @@
 
     <!-- Custom scripts for all pages -->
     <script src="{% static 'js/project.js' %}"></script>
+    <script src="{% static 'js/dzi.js' %}"></script>
 
     {% block javascript %}{% endblock javascript %}
 

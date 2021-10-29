@@ -36,7 +36,8 @@
           {# Plot #}
           <div class="tab-pane fade active show" id="plot" role="tabpanel" aria-labelledby="plot-tab">
             {% if topography.size_y %}
-              {% include 'visualization/dzi.html' %}
+              <div id="topography-view" class="zoom-view"></div>
+              <div id="topography-colorbar" class="zoom-colorbar-container"></div>
             {% else %}
               <div id="topography-plot-content">
                 <span class="spinner"></span>Generating and loading plot, please wait...
@@ -215,40 +216,22 @@
   {% if not topography.resolution_y %}
     <script>
       $(document).ready(function () {
-        /** Triggering loading of bokeh plot */
-        console.log("Requesting plot via AJAX call..");
-        $.ajax({
-          url: "{% url 'manager:topography-plot' topography.pk %}",
-          type: 'get',
-          success: function (data) {
-            // server returns rendered "topography_plot.html"
-            // which is just pure html, use this to replace the existing
-            // html within the "plot content" div
-            console.log("Plot data received. Inserting plot..");
-            $('#topography-plot-content').html(data);
-            console.log("Plot inserted.")
-          },
-          error: function (xhr, textStatus, errorThrown) {
-            /**
-             * If an error occurs *not* because of XMLHttpRequest.abort(), show an
-             * error message. Do not show error on .abort(). See also
-             * https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/abort
-             * */
-            if (xhr.status == 0) {
-              console.log("Canceled plot generation.");
-              $('#topography-plot-content').html(`
-                    Canceled loading of plot.
-                  `)
-            } else {
-              console.error("Could not create plot: " + errorThrown + " " + xhr.status + " " + xhr.responseText);
-              $('#topography-plot-content').html(`
-                    <div class='alert alert-danger'>
-                        Could not request plot data. Error: ${errorThrown}
-                    </div>
-                  `);
-            }
+        // Create array with tick information
+        var ticks = [];
+        {% for colorbar_tick in dzi_colorbar_ticks %}
+        ticks.push({ position: '{{ colorbar_tick.0 }}', label: '{{ colorbar_tick.1 }}' });
+        {% endfor %}
+
+        // Visualize topography map
+        visualizeMap(
+          'topography-view',
+          "{% url 'manager:topography-dzi' pk=topography.id dzi_filename='' %}",
+          { pixelsPerMeter: {{ dzi_pixels_per_meter }} },
+          { id: 'topography-colorbar',
+            title: '{{ dzi_colorbar_title }}',
+            ticks: ticks
           }
-        });
+        );
       });
     </script>
   {% endif %}
