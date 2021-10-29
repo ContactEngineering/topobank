@@ -219,15 +219,16 @@
         // Create array with tick information
         var ticks = [];
         {% for colorbar_tick in dzi_colorbar_ticks %}
-        ticks.push({ position: '{{ colorbar_tick.0 }}', label: '{{ colorbar_tick.1 }}' });
+          ticks.push({position: '{{ colorbar_tick.0 }}', label: '{{ colorbar_tick.1 }}'});
         {% endfor %}
 
         // Visualize topography map
         visualizeMap(
           'topography-view',
           "{% url 'manager:topography-dzi' pk=topography.id dzi_filename='' %}",
-          { pixelsPerMeter: {{ dzi_pixels_per_meter }} },
-          { id: 'topography-colorbar',
+          {pixelsPerMeter: {{ dzi_pixels_per_meter }}},
+          {
+            id: 'topography-colorbar',
             title: '{{ dzi_colorbar_title }}',
             ticks: ticks
           }
