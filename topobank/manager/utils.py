@@ -966,17 +966,17 @@ def get_permission_table_data(instance, request_user, actions=['view', 'change',
     return perms_table
 
 
-def make_dzi(data, datafile_name):
+def make_dzi(data, datafile_name, quality=95):
     with tempfile.TemporaryDirectory() as tmpdirname:
         storage_path, base = os.path.split(datafile_name)
         deepzoom_name = f'{base}-dzi'
         _log.info(f'{storage_path}, {base}, {deepzoom_name}, {tmpdirname}')
         try:
             # This is Topography
-            filenames = data.to_dzi(deepzoom_name, tmpdirname)
+            filenames = data.to_dzi(deepzoom_name, tmpdirname, quality=quality)
         except AttributeError:
             # This is likely just a numpy array
-            filenames = write_dzi(data, deepzoom_name, tmpdirname)
+            filenames = write_dzi(data, deepzoom_name, tmpdirname, quality=quality)
         for filename in filenames:
             # Strip tmp directory
             storage_filename = filename[len(tmpdirname) + 1:]

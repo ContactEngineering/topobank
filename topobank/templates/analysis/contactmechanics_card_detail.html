@@ -258,7 +258,7 @@
     <div class="col-12 col-sm-4 col-md-3 col-lg-2">
 
       <div class="nav nav-pills nav-pills-custom flex-column" aria-orientation="vertical">
-        <a class="nav-link mb-3 p-3 shadow active" data-toggle="pill" href="#contact-geometry-tab" role="tab" aria-selected="true">
+        <a class="nav-link mb-3 p-3 shadow active" data-toggle="pill" href="#contacting_points-tab" role="tab" aria-selected="true">
           Contact geometry
         </a>
         <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#pressure-tab" role="tab" aria-selected="false">
@@ -289,21 +289,36 @@
       {# Tab contents on right side #}
       <div class="tab-content mt-3">
         {% if not analyses_unready %}
-        <div class="tab-pane fade active show" id="contact-geometry-tab">
-          <div id="contact-geometry" class="alert alert-info">For contact geometry, select a point in the graphs on the top!</div>
+        <div class="tab-pane fade active show" id="contacting_points-tab">
+          <div id="contacting_points" class="alert alert-info">For contact geometry, select a point in the graphs on the top!</div>
+          <div id="contacting_points-container" class="dzi-container" style="min-height: 600px;">
+            <div id="contacting_points-view" class="dzi-view"></div>
+            <div id="contacting_points-colorbar" class="dzi-colorbar"></div>
+          </div>
         </div>
         <div class="tab-pane fade" id="pressure-tab">
           <div id="pressure" class="alert alert-info">For contact pressure, select a point in the graphs on the top!</div>
-          <div id="openseadragon1"></div>
+          <div id="pressure-container" class="dzi-container" style="min-height: 600px;">
+            <div id="pressure-view" class="dzi-view"></div>
+            <div id="pressure-colorbar" class="dzi-colorbar"></div>
+          </div>
         </div>
         <div class="tab-pane fade" id="pressure-distribution-tab">
           <div id="pressure-distribution" class="alert alert-info">For pressure distribution, select a point in the graphs on the top!</div>
         </div>
         <div class="tab-pane fade" id="displacement-tab">
           <div id="displacement" class="alert alert-info">For displacement, select a point in the graphs on the top!</div>
+          <div id="displacement-container" class="dzi-container" style="min-height: 600px;">
+            <div id="displacement-view" class="dzi-view"></div>
+            <div id="displacement-colorbar" class="dzi-colorbar"></div>
+          </div>
         </div>
         <div class="tab-pane fade" id="gap-tab">
           <div id="gap" class="alert alert-info">For gap, select a point in the graphs on the top!</div>
+          <div id="gap-container" class="dzi-container" style="min-height: 600px;">
+            <div id="gap-view" class="dzi-view"></div>
+            <div id="gap-colorbar" class="dzi-colorbar"></div>
+          </div>
         </div>
         <div class="tab-pane fade" id="gap-distribution-tab">
           <div id="gap-distribution" class="alert alert-info">For gap distribution, select a point in the graphs on the top!</div>
@@ -383,9 +398,8 @@
      * Trigger loading of extra data by using analysis id and index of point
      */
 
-    var dzi_names = ['pressure'];
-    var tab_names = ['contact-geometry', 'displacement', 'gap',
-                     'pressure-distribution', 'gap-distribution', 'cluster-size-distribution'];
+    var dzi_names = ['contacting_points', 'pressure', 'displacement', 'gap'];
+    var tab_names = ['pressure-distribution', 'gap-distribution', 'cluster-size-distribution'];
 
     tab_names.forEach(function(tn){
       var div = $('#'+tn);
@@ -394,7 +408,7 @@
     });
 
     if (is_pill_activated('tools-pill')) {
-      activate_pill('contact-geometry-pill');
+      activate_pill('contacting_points-pill');
     }
 
     $.ajax({
@@ -434,34 +448,14 @@
 
     dzi_names.forEach(function (tn) {
       prefix_url = "{% url 'analysis:contact-mechanics-dzi' pk=0 index=1 quantity='quantity' dzi_filename='' %}"
-        .replace('0/1/dzi/quantity/', analysis_id + '/' + index + '/dzi/' + tn)
-      viewer = new OpenSeadragon.Viewer({
-        id: 'openseadragon1',
-        prefixUrl: prefix_url,
-        tileSources: [prefix_url + '/dzi.xml'],
-        showNavigator: true,
-        navigatorPosition: 'TOP_LEFT',
-        navigatorSizeRatio: 0.1,
-        showNavigationControl: false,
-        wrapHorizontal: false,
-        wrapVertical: false,
-        minZoomImageRatio: 0.5,
-        maxZoomPixelRatio: 5.0,
-      });
-      viewer.scalebar({
-        type: OpenSeadragon.ScalebarType.MICROSCOPY,
-        {#pixelsPerMeter: {{ dzi_pixels_per_meter }},#}
-        minWidth: "75px",
-        location: OpenSeadragon.ScalebarLocation.BOTTOM_LEFT,
-        xOffset: 10,
-        yOffset: 10,
-        stayInsideImage: true,
-        color: "black",
-        fontColor: "black",
-        backgroundColor: "rgba(255, 255, 255, 0.5)",
-        fontSize: "small",
-        barThickness: 2
-      });
+      console.log(prefix_url);
+
+      // Visualize result
+      $('#' + tn).remove();
+      visualizeMap(
+        tn + '-view',
+        prefix_url.replace('0/1/dzi/quantity/', analysis_id + '/' + index + '/dzi/' + tn + '/')
+      );
     });
 
   }

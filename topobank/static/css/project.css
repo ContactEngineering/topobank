@@ -320,7 +320,6 @@ section[title="Terms and Conditions"] div.toc-container, #tc-terms-html {
 /** Container for deep zoom images */
 
 .dzi-container {
-  min-height: calc(100vh - 240px);
   display: flex;
   align-items: stretch;
   flex-direction: row;
