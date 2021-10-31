@@ -4,6 +4,8 @@
  */
 
 function visualizeMap(id, prefixUrl, scaleBar = null, colorBar = null) {
+    $('#' + id).empty();
+
     viewer = new OpenSeadragon.Viewer({
         id: id,
         prefixUrl: prefixUrl,
@@ -41,23 +43,23 @@ function visualizeMap(id, prefixUrl, scaleBar = null, colorBar = null) {
         var div = $('#' + colorBar.id);
         div.empty();
         div.append($('<div/>', {
-            class: 'zoom-colorbar-title',
+            class: 'dzi-colorbar-title',
             html: colorBar.title
         }));
         var tickDiv = $('<div/>', {
-            class: 'zoom-colorbar background-viridis'
+            class: 'dzi-colorbar-column background-viridis'
         });
         var tickLabelDiv = $('<div/>', {
-            class: 'zoom-colorbar'
+            class: 'dzi-colorbar-column'
         });
         for (const tick of colorBar.ticks) {
             console.log(tick);
             tickDiv.append($('<div/>', {
-                class: 'zoom-colorbar-tick',
+                class: 'dzi-colorbar-tick',
                 style: 'top: ' + tick.position + ';'
             }));
             tickLabelDiv.append($('<div/>', {
-                class: 'zoom-colorbar-text',
+                class: 'dzi-colorbar-text',
                 style: 'top: ' + tick.position + ';',
                 html: tick.label
             }));

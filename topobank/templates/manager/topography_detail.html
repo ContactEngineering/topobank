@@ -31,13 +31,15 @@
       </div>
 
       {# Second column: Content for pill selection (first column) #}
-      <div class="col-xs-12 col shadow zoom-pane">
+      <div class="col-xs-12 col">
         <div class="tab-content mt-2">
           {# Plot #}
           <div class="tab-pane fade active show" id="plot" role="tabpanel" aria-labelledby="plot-tab">
             {% if topography.size_y %}
-              <div id="topography-view" class="zoom-view"></div>
-              <div id="topography-colorbar" class="zoom-colorbar-container"></div>
+              <div id="topography-container" class="dzi-container">
+                <div id="topography-view" class="dzi-view"></div>
+                <div id="topography-colorbar" class="dzi-colorbar"></div>
+              </div>
             {% else %}
               <div id="topography-plot-content">
                 <span class="spinner"></span>Generating and loading plot, please wait...
