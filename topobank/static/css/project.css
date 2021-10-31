@@ -2,10 +2,6 @@
   TODO Use sass or remove sass files.
 */
 
-body {
-	min-height: 100vh;
-}
-
 .alert-debug {
   color: black;
   background-color: white;
