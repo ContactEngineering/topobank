@@ -454,7 +454,13 @@
       $('#' + tn).remove();
       visualizeMap(
         tn + '-view',
-        prefix_url.replace('0/1/dzi/quantity/', analysis_id + '/' + index + '/dzi/' + tn + '/')
+        prefix_url.replace('0/1/dzi/quantity/', analysis_id + '/' + index + '/dzi/' + tn + '/'),
+        {pixelsPerMeter: {{ dzi_pixels_per_meter }}},
+        {
+          id: 'topography-colorbar',
+          title: '{{ dzi_colorbar_title }}',
+          ticks: ticks
+        }
       );
     });
 

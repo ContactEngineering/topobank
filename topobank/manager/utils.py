@@ -197,9 +197,9 @@ def filtered_surfaces(request):
         # are changed so that the tokenizer splits the names into multiple words
         qs = qs.annotate(
             tag_names_for_search=Replace(
-                Replace('tags__name', Value('.'), Value(' ')),   # replace . with space
-                Value('/'), Value(' ')),                         # replace / with space
-            topography_tag_names_for_search=Replace(             # same for the topographies
+                Replace('tags__name', Value('.'), Value(' ')),  # replace . with space
+                Value('/'), Value(' ')),  # replace / with space
+            topography_tag_names_for_search=Replace(  # same for the topographies
                 Replace('topography__tags__name', Value('.'), Value(' ')),
                 Value('/'), Value(' ')),
             topography_name_for_search=Replace('topography__name', Value('.'), Value(' '))  # often there are filenames
@@ -234,7 +234,7 @@ def filtered_topographies(request, surfaces):
         topographies = topographies.annotate(
             tag_names_for_search=Replace(
                 Replace('tags__name', Value('.'), Value(' ')),  # replace . with space
-                Value('/'), Value(' ')),                        # replace / with space
+                Value('/'), Value(' ')),  # replace / with space
             name_for_search=Replace('name', Value('.'), Value(' '))
         ).distinct('id').order_by('id')
         topographies = filter_queryset_by_search_term(topographies, search_term, [
@@ -966,17 +966,18 @@ def get_permission_table_data(instance, request_user, actions=['view', 'change',
     return perms_table
 
 
-def make_dzi(data, datafile_name, quality=95):
+def make_dzi(data, datafile_name, physical_sizes=None, unit=None, quality=95):
     with tempfile.TemporaryDirectory() as tmpdirname:
         storage_path, base = os.path.split(datafile_name)
         deepzoom_name = f'{base}-dzi'
         _log.info(f'{storage_path}, {base}, {deepzoom_name}, {tmpdirname}')
         try:
-            # This is Topography
-            filenames = data.to_dzi(deepzoom_name, tmpdirname, quality=quality)
+            # This is a Topography
+            filenames = data.to_dzi(deepzoom_name, tmpdirname, meta_format='json', quality=quality)
         except AttributeError:
             # This is likely just a numpy array
-            filenames = write_dzi(data, deepzoom_name, tmpdirname, quality=quality)
+            filenames = write_dzi(data, deepzoom_name, tmpdirname, physical_sizes, unit, meta_format='json',
+                                  quality=quality)
         for filename in filenames:
             # Strip tmp directory
             storage_filename = filename[len(tmpdirname) + 1:]

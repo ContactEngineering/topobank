@@ -31,7 +31,7 @@
       </div>
 
       {# Second column: Content for pill selection (first column) #}
-      <div class="col-xs-12 col">
+      <div class="col-xs-12 col shadow" style="padding-bottom: 7px;">
         <div class="tab-content mt-2">
           {# Plot #}
           <div class="tab-pane fade active show" id="plot" role="tabpanel" aria-labelledby="plot-tab">
@@ -71,7 +71,8 @@
               <tr>
                 <th scope="row">Physical size</th>
                 <td>
-                  {{ topography.size_x }} {{ topography.unit }}{% if topography.size_y %} x {{ topography.size_y }} {{ topography.unit }} {% endif %}
+                  {{ topography.size_x }} {{ topography.unit }}{% if topography.size_y %} x {{ topography.size_y }}
+                  {{ topography.unit }} {% endif %}
                   ({% if topography.size_editable %}given by user{% else %}fixed by file contents{% endif %})
                 </td>
               </tr>
@@ -83,7 +84,8 @@
               </tr>
               <tr>
                 <th scope="row">Height conversion factor</th>
-                <td>{{ topography.height_scale }} {{ topography.unit }} ({% if topography.height_scale_editable %}given by user{% else %}fixed by file contents{% endif %})
+                <td>{{ topography.height_scale }} {{ topography.unit }} ({% if topography.height_scale_editable %}given
+                  by user{% else %}fixed by file contents{% endif %})
                 </td>
               </tr>
               <tr>
@@ -228,13 +230,7 @@
         visualizeMap(
           'topography-view',
           "{% url 'manager:topography-dzi' pk=topography.id dzi_filename='' %}",
-          {pixelsPerMeter: {{ dzi_pixels_per_meter }}},
-          {
-            id: 'topography-colorbar',
-            title: '{{ dzi_colorbar_title }}',
-            ticks: ticks
-          }
-        );
+          'topography-colorbar');
       });
     </script>
   {% endif %}

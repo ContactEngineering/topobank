@@ -37,7 +37,7 @@ from topobank.analysis.models import Analysis
 from topobank.analysis.utils import renew_analyses_for_subject
 from topobank.manager.utils import make_dzi
 
-from SurfaceTopography.UnitConversion import suggest_length_unit
+from SurfaceTopography.Support.UnitConversion import suggest_length_unit
 
 _log = logging.getLogger(__name__)
 
@@ -963,7 +963,9 @@ class Topography(models.Model, SubjectMixin):
         if generate_driver:
             driver.close()  # important to free memory
 
-        make_dzi(self.topography(), self.datafile.name)
+        if self.size_y is not None:
+            # This is a topography (map), we need to create a Deep Zoom Image
+            make_dzi(self.topography(), self.datafile.name)
 
     def renew_thumbnail(self, driver=None, none_on_error=True):
         """Renew thumbnail field.
