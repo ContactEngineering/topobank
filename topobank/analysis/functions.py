@@ -15,9 +15,10 @@ import numpy as np
 import tempfile
 
 from SurfaceTopography import PlasticTopography
-from SurfaceTopography.Container.common import bandwidth, suggest_length_unit
 from SurfaceTopography.Container.Averaging import log_average
 from SurfaceTopography.Container.ScaleDependentStatistics import scale_dependent_statistical_property
+from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor, suggest_length_unit, \
+    suggest_length_unit_for_data
 from SurfaceTopography.Exceptions import CannotPerformAnalysisError
 from ContactMechanics import PeriodicFFTElasticHalfSpace, FreeFFTElasticHalfSpace, make_system
 
@@ -85,13 +86,6 @@ def _reasonable_bins_argument(topography):
     else:
         return int(np.sqrt(np.prod(len(topography.positions()))) + 1.0)  # TODO discuss whether auto or this
         # return 'auto'
-
-
-def _logspace_full_decades(minval, maxval, points_per_decade=5):
-    log_minval = int(np.floor(np.log10(minval)))
-    log_maxval = int(np.ceil(np.log10(maxval)))
-    s = np.logspace(log_minval, log_maxval, points_per_decade * (log_maxval - log_minval) + 1)
-    return s[np.logical_and(s >= minval, s <= maxval)]
 
 
 class IncompatibleTopographyException(Exception):
@@ -1176,10 +1170,23 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
             storage_path = default_storage.save(storage_path, File(tmpfile))
             data_paths.append(storage_path)
 
-        make_dzi(pressure_xy.data, storage_path + '-pressure')
-        make_dzi(contacting_points_xy.data.astype(np.int), storage_path + '-contacting_points')
-        make_dzi(gap_xy.data, storage_path + '-gap')
-        make_dzi(displacement_xy.data, storage_path + '-displacement')
+        make_dzi(pressure_xy.data, storage_path + '-pressure',
+                 physical_sizes=topography.physical_sizes, unit=topography.unit,
+                 colorbar_title='Pressure (E*)')
+        make_dzi(contacting_points_xy.data.astype(np.int), storage_path + '-contacting_points',
+                 physical_sizes=topography.physical_sizes, unit=topography.unit)
+
+        unit = suggest_length_unit_for_data(gap_xy.data, topography.unit)
+        make_dzi(gap_xy.data * get_unit_conversion_factor(topography.unit, unit),
+                 storage_path + '-gap',
+                 physical_sizes=topography.to_unit(unit).physical_sizes, unit=unit,
+                 colorbar_title=f'Gap ({unit})')
+
+        unit = suggest_length_unit_for_data(displacement_xy.data, topography.unit)
+        make_dzi(displacement_xy.data * get_unit_conversion_factor(topography.unit, unit),
+                 storage_path + '-displacement',
+                 physical_sizes=topography.to_unit(unit).physical_sizes, unit=unit,
+                 colorbar_title=f'Displacement ({unit})')
 
         progress_recorder.set_progress(i + 1, nsteps)
 

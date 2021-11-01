@@ -76,8 +76,8 @@ function visualizeMap(id, prefixUrl, colorBar = null) {
                     }));
                 }
             }
+            div.append(tickDiv);
+            div.append(tickLabelDiv);
         }
-        div.append(tickDiv);
-        div.append(tickLabelDiv);
     });
 }
