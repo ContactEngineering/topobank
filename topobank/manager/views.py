@@ -673,10 +673,6 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
         context = super().get_context_data(**kwargs)
 
         topo = self.object
-        if topo.size_y is not None:
-            # We are rendering with OpenSeadragon
-            context.update(topo.get_dzi_context())
-
         try:
             context['topography_next'] = topo.get_next_by_measurement_date(surface=topo.surface).id
         except Topography.DoesNotExist:

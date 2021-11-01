@@ -6,7 +6,6 @@ from django.shortcuts import reverse
 from django.utils import timezone
 from django.conf import settings
 from django.core.cache import cache
-from django.db import transaction
 from django.core.files.storage import default_storage
 from django.core.files import File
 from django.core.files.base import ContentFile
@@ -36,8 +35,6 @@ from topobank.users.utils import get_default_group
 from topobank.analysis.models import Analysis
 from topobank.analysis.utils import renew_analyses_for_subject
 from topobank.manager.utils import make_dzi
-
-from SurfaceTopography.Support.UnitConversion import suggest_length_unit
 
 _log = logging.getLogger(__name__)
 
@@ -746,40 +743,6 @@ class Topography(models.Model, SubjectMixin):
             raise PlotTopographyException("Can only plot 1D or 2D topographies, this has {} dimensions.".format(
                 st_topo.dim
             ))
-
-    def get_dzi_context(self):
-        """Return context for rendering of DZI with OpenSeadragon
-
-        Returns
-        -------
-        context : dict
-            Context dictionary
-        """
-        context = {}
-
-        topography = self.topography()
-        t_in_meters = topography.to_unit('m')
-        mn, mx = t_in_meters.min(), t_in_meters.max()
-        unit = suggest_length_unit(min(abs(mn), abs(mx)), max(abs(mn), abs(mx)))
-        context['dzi_colorbar_title'] = f'Height ({unit})'
-        context['dzi_pixels_per_meter'] = 1 / np.mean(t_in_meters.pixel_size)
-
-        #
-        # Some heuristics to determine colorbar ticks
-        #
-        t_in_suggested_unit = topography.to_unit(unit)
-        mn, mx = t_in_suggested_unit.min(), t_in_suggested_unit.max()
-        tick_dist = 10 ** (int(np.round(np.log10(mx - mn))) - 1)
-        tick_values = int(mn / tick_dist) * tick_dist + tick_dist * np.arange(int((mx - mn) / tick_dist) + 1)
-
-        ticks = []
-        for v in tick_values[::-1]:
-            relpos = (mx - v) / (mx - mn)
-            if relpos > 0 and relpos < 1:
-                ticks += [(f'{relpos * 100}%', f'{v:.3g}')]
-        context['dzi_colorbar_ticks'] = ticks
-
-        return context
 
     def _get_1d_plot(self, st_topo, reduced=False):
         """Calculate 1D line plot of topography (line scan).
