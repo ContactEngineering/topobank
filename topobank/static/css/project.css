@@ -327,7 +327,7 @@ section[title="Terms and Conditions"] div.toc-container, #tc-terms-html {
 
 .dzi-view {
   float: left;
-  width: calc(100% - 8em);
+  width: calc(100% - 1em);
 }
 
 .dzi-colorbar {
