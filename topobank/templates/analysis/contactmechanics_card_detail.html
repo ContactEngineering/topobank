@@ -29,37 +29,38 @@
 
     </div>
 
+    {% if not analyses_unready %}
     {# Middle with group of tabs #}
     <div class="col-2 col-sm-2 col-md-2 col-lg-2">
 
       <div class="nav nav-pills nav-pills-custom flex-column" aria-orientation="vertical">
-        <a class="nav-link mb-3 p-3 shadow active" data-toggle="pill" href="#contacting_points-tab" role="tab" aria-selected="true">
+        <a class="nav-link mb-3 p-3 active" data-toggle="pill" href="#contacting_points-tab" role="tab" aria-selected="true">
           Contact geometry
         </a>
-        <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#pressure-tab" role="tab" aria-selected="false">
+        <a class="nav-link mb-3 p-3" data-toggle="pill" href="#pressure-tab" role="tab" aria-selected="false">
           Contact pressure
         </a>
-        <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#pressure-distribution-tab" role="tab" aria-selected="false">
+        <a class="nav-link mb-3 p-3" data-toggle="pill" href="#pressure-distribution-tab" role="tab" aria-selected="false">
           Pressure distribution
         </a>
-        <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#displacement-tab" role="tab" aria-selected="false">
+        <a class="nav-link mb-3 p-3" data-toggle="pill" href="#displacement-tab" role="tab" aria-selected="false">
           Displacement
         </a>
-        <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#gap-tab" role="tab" aria-selected="false">
+        <a class="nav-link mb-3 p-3" data-toggle="pill" href="#gap-tab" role="tab" aria-selected="false">
           Gap
         </a>
-        <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#gap-distribution-tab" role="tab" aria-selected="false">
+        <a class="nav-link mb-3 p-3" data-toggle="pill" href="#gap-distribution-tab" role="tab" aria-selected="false">
           Gap distribution
         </a>
-        <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#cluster-size-distribution-tab" role="tab" aria-selected="false">
+        <a class="nav-link mb-3 p-3" data-toggle="pill" href="#cluster-size-distribution-tab" role="tab" aria-selected="false">
           Cluster size distribution
         </a>
         <hr>
-        <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#actions-tab" role="tab" aria-selected="false">
+        <a class="nav-link mb-3 p-3" data-toggle="pill" href="#actions-tab" role="tab" aria-selected="false">
           Actions
         </a>
         {% if analyses_failure or extra_warnings %}
-          <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#warnings-tab-{{ card_id }}" role="tab" aria-selected="false">
+          <a class="nav-link mb-3 p-3" data-toggle="pill" href="#warnings-tab-{{ card_id }}" role="tab" aria-selected="false">
             Warnings
           </a>
         {% endif %}
@@ -305,6 +306,7 @@
         {% include 'analysis/analyses_warnings_tab_pane.html' %}
       </div>
     </div>
+    {% endif %}
 
   </div>
 

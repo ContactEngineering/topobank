@@ -559,7 +559,7 @@ def analysis_function_for_surface(surface, progress_recorder, funcname_profile, 
                                   yunit, **kwargs):
     """Calculate average variable bandwidth for a surface."""
     topographies = ContainerProxy(surface.topography_set.all())
-    unit = suggest_length_unit(topographies)
+    unit = suggest_length_unit(topographies, 'log')
 
     series = []
     alerts = []
@@ -795,7 +795,7 @@ def scale_dependent_roughness_parameter(topography, progress_recorder, order_of_
 def scale_dependent_roughness_parameter_for_surface(surface, progress_recorder, order_of_derivative, name, ylabel,
                                                     xname, yunit, **kwargs):
     topographies = ContainerProxy(surface.topography_set.all())
-    unit = suggest_length_unit(topographies)
+    unit = suggest_length_unit(topographies, 'log')
 
     series = []
     alerts = []
@@ -1174,15 +1174,15 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
                  physical_sizes=topography.physical_sizes, unit=topography.unit,
                  colorbar_title='Pressure (E*)')
         make_dzi(contacting_points_xy.data.astype(np.int), storage_path + '-contacting_points',
-                 physical_sizes=topography.physical_sizes, unit=topography.unit)
+                 physical_sizes=topography.physical_sizes, unit=topography.unit, cmap='magma')
 
-        unit = suggest_length_unit_for_data(gap_xy.data, topography.unit)
+        unit = suggest_length_unit_for_data('linear', gap_xy.data, topography.unit)
         make_dzi(gap_xy.data * get_unit_conversion_factor(topography.unit, unit),
                  storage_path + '-gap',
                  physical_sizes=topography.to_unit(unit).physical_sizes, unit=unit,
                  colorbar_title=f'Gap ({unit})')
 
-        unit = suggest_length_unit_for_data(displacement_xy.data, topography.unit)
+        unit = suggest_length_unit_for_data('linear', displacement_xy.data, topography.unit)
         make_dzi(displacement_xy.data * get_unit_conversion_factor(topography.unit, unit),
                  storage_path + '-displacement',
                  physical_sizes=topography.to_unit(unit).physical_sizes, unit=unit,

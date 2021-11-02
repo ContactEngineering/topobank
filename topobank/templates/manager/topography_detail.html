@@ -18,13 +18,13 @@
       {# First column: Navigation pills #}
       <div class="col-12 col-sm-4 col-md-3 col-lg-2">
         <div class="nav nav-pills nav-pills-custom flex-column" role="tablist" aria-orientation="vertical">
-          <a class="nav-link mb-3 p-3 shadow active" data-toggle="pill" href="#plot" role="tab" aria-selected="true">
+          <a class="nav-link mb-3 p-3 active" data-toggle="pill" href="#plot" role="tab" aria-selected="true">
             Plot
           </a>
-          <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#properties" role="tab" aria-selected="false">
+          <a class="nav-link mb-3 p-3" data-toggle="pill" href="#properties" role="tab" aria-selected="false">
             Properties
           </a>
-          <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#instrument" role="tab" aria-selected="false">
+          <a class="nav-link mb-3 p-3" data-toggle="pill" href="#instrument" role="tab" aria-selected="false">
             Instrument
           </a>
         </div>
@@ -167,7 +167,7 @@
         {# Badges and tags in a card #}
         <div class="row p-3">
           <div class="col">
-            <div class="card shadow-sm">
+            <div class="card-sm">
               <div class="card-body">
                 {% render_uploaded_by_badge request topography %}
                 {% for tag in topography.tags.all %}
