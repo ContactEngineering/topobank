@@ -371,3 +371,8 @@ section[title="Terms and Conditions"] div.toc-container, #tc-terms-html {
   align-content: center;
   font-weight: bold;
 }
+
+.card-header {
+  background-color: unset;
+  border-bottom: unset;
+}
