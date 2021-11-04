@@ -13,6 +13,7 @@ from django.conf import settings
 import xarray as xr
 import numpy as np
 import tempfile
+import logging
 
 from SurfaceTopography import PlasticTopography
 from SurfaceTopography.Container.Averaging import log_average
@@ -25,6 +26,8 @@ from ContactMechanics import PeriodicFFTElasticHalfSpace, FreeFFTElasticHalfSpac
 import topobank.manager.models  # will be used to evaluate model classes
 from topobank.manager.utils import make_dzi
 from .registry import AnalysisFunctionRegistry
+
+_log = logging.getLogger(__name__)
 
 GAUSSIAN_FIT_SERIES_NAME = 'Gaussian fit'
 
@@ -230,7 +233,7 @@ def _moments_histogram_gaussian(arr, bins, topography, wfac, quantity, label, un
         # Replace with catching of specific exception when
         # https://github.com/ContactEngineering/SurfaceTopography/issues/108 is implemented.
         if (len(exc.args) > 0) and \
-           ((exc.args[0] == 'supplied range of [0.0, inf] is not finite') or ('is reentrant' in exc.args[0])):
+            ((exc.args[0] == 'supplied range of [0.0, inf] is not finite') or ('is reentrant' in exc.args[0])):
             raise ReentrantTopographyException("Cannot calculate curvature distribution for reentrant measurements.")
         raise
 
@@ -372,7 +375,7 @@ def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None
         # Replace with catching of specific exception when
         # https://github.com/ContactEngineering/SurfaceTopography/issues/108 is implemented.
         if (len(exc.args) > 0) and \
-           ((exc.args[0] == 'supplied range of [-inf, inf] is not finite') or ('is reentrant' in exc.args[0])):
+            ((exc.args[0] == 'supplied range of [-inf, inf] is not finite') or ('is reentrant' in exc.args[0])):
             raise ReentrantTopographyException("Cannot calculate curvature distribution for reentrant measurements.")
         raise
 
@@ -434,7 +437,6 @@ def make_alert_entry(level, subject_name, subject_url, data_series_name, detail_
 
 def analysis_function(topography, funcname_profile, funcname_area, name, xlabel, ylabel, xname, yname, aname, xunit,
                       yunit, conv_2d_fac=1.0, conv_2d_exponent=0, **kwargs):
-
     topography_name = topography.name
     topography_url = topography.get_absolute_url()
 
@@ -614,7 +616,7 @@ def power_spectrum(topography, progress_recorder=None, storage_prefix=None, wind
                              'q/π × 2D PSD',
                              '{}⁻¹',
                              '{}³',
-                             conv_2d_fac=1/np.pi,
+                             conv_2d_fac=1 / np.pi,
                              conv_2d_exponent=1,
                              window=window,
                              nb_points_per_decade=nb_points_per_decade)
@@ -700,7 +702,6 @@ def variable_bandwidth_for_surface(surface, progress_recorder=None, storage_pref
 
 def scale_dependent_roughness_parameter(topography, progress_recorder, order_of_derivative, name, ylabel, xname, yname,
                                         xyfunc, xyname, yunit, **kwargs):
-
     topography_name = topography.name
     topography_url = topography.get_absolute_url()
 
@@ -872,7 +873,8 @@ def scale_dependent_curvature(topography, progress_recorder=None, storage_prefix
 
 
 @register_implementation(name="Scale-dependent curvature", card_view_flavor='plot')
-def scale_dependent_curvature_for_surface(surface, progress_recorder=None, storage_prefix=None, nb_points_per_decade=10):
+def scale_dependent_curvature_for_surface(surface, progress_recorder=None, storage_prefix=None,
+                                          nb_points_per_decade=10):
     return scale_dependent_roughness_parameter_for_surface(
         surface,
         progress_recorder,
@@ -1163,28 +1165,27 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
         if hardness:
             dataset.attrs['hardness'] = hardness  # TODO how to save hardness=None? Not possible in netCDF
 
-        storage_path = storage_prefix + "result-step-{}.nc".format(i)
+        storage_path = storage_prefix + f'step-{i}'
+        data_paths.append(storage_path)
         with tempfile.NamedTemporaryFile(prefix='analysis-') as tmpfile:
             dataset.to_netcdf(tmpfile.name, format=netcdf_format)
             tmpfile.seek(0)
-            storage_path = default_storage.save(storage_path, File(tmpfile))
-            data_paths.append(storage_path)
+            default_storage.save(f'{storage_path}/nc/results.nc', File(tmpfile))
 
-        make_dzi(pressure_xy.data, storage_path + '-pressure',
+        make_dzi(pressure_xy.data, f'{storage_path}/dzi/pressure/dzi',
                  physical_sizes=topography.physical_sizes, unit=topography.unit,
                  colorbar_title='Pressure (E*)')
-        make_dzi(contacting_points_xy.data.astype(np.int), storage_path + '-contacting_points',
+        make_dzi(contacting_points_xy.data.astype(np.int), f'{storage_path}/dzi/contacting-points/dzi',
                  physical_sizes=topography.physical_sizes, unit=topography.unit, cmap='magma')
 
         unit = suggest_length_unit_for_data('linear', gap_xy.data, topography.unit)
-        make_dzi(gap_xy.data * get_unit_conversion_factor(topography.unit, unit),
-                 storage_path + '-gap',
+        make_dzi(gap_xy.data * get_unit_conversion_factor(topography.unit, unit), f'{storage_path}/dzi/gap/dzi',
                  physical_sizes=topography.to_unit(unit).physical_sizes, unit=unit,
                  colorbar_title=f'Gap ({unit})')
 
         unit = suggest_length_unit_for_data('linear', displacement_xy.data, topography.unit)
         make_dzi(displacement_xy.data * get_unit_conversion_factor(topography.unit, unit),
-                 storage_path + '-displacement',
+                 f'{storage_path}/dzi/displacement/dzi',
                  physical_sizes=topography.to_unit(unit).physical_sizes, unit=unit,
                  colorbar_title=f'Displacement ({unit})')
 

@@ -968,8 +968,7 @@ def get_permission_table_data(instance, request_user, actions=['view', 'change',
 
 def make_dzi(data, datafile_name, physical_sizes=None, unit=None, quality=95, colorbar_title=None, cmap=None):
     with tempfile.TemporaryDirectory() as tmpdirname:
-        storage_path, base = os.path.split(datafile_name)
-        deepzoom_name = f'{base}-dzi'
+        storage_path, deepzoom_name = os.path.split(datafile_name)
         try:
             # This is a Topography
             filenames = data.to_dzi(deepzoom_name, root_directory=tmpdirname, meta_format='json', quality=quality,

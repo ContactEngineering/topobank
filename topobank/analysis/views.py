@@ -1376,7 +1376,7 @@ def contact_mechanics_data(request):
             #
             data_path = analysis.result_obj['data_paths'][index]
 
-            data = default_storage.open(data_path)
+            data = default_storage.open(f'{data_path}/nc/results.nc')
             ds = xr.load_dataset(data.open(mode='rb'), engine="h5netcdf")
             # "engine" argument needed after version updates for TopoBank 0.15.0
 
@@ -1489,7 +1489,7 @@ def contact_mechanics_dzi(request, pk, index, quantity, dzi_filename):
     # okay, we have a valid topography and the user is allowed to see it
 
     data_path = analysis.result_obj['data_paths'][index]
-    name = f'{data_path}-{quantity}-{dzi_filename}'
+    name = f'{data_path}/dzi/{quantity}/{dzi_filename}'
     url = default_storage.url(name)
     _log.info(url)
     return redirect(url)

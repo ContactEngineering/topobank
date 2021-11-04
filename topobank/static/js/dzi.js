@@ -72,7 +72,7 @@ function visualizeMap(id, prefixUrl, colorBar = null) {
                     tickLabelDiv.append($('<div/>', {
                         class: 'dzi-colorbar-text',
                         style: 'top: ' + relpos + '%;',
-                        html: v.toPrecision(2)
+                        html: v.toPrecision(3)
                     }));
                 }
             }
