@@ -16,10 +16,10 @@ import tempfile
 import logging
 
 from SurfaceTopography import PlasticTopography
+from SurfaceTopography.Container.common import suggest_length_unit
 from SurfaceTopography.Container.Averaging import log_average
 from SurfaceTopography.Container.ScaleDependentStatistics import scale_dependent_statistical_property
-from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor, suggest_length_unit, \
-    suggest_length_unit_for_data
+from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor, suggest_length_unit_for_data
 from SurfaceTopography.Exceptions import CannotPerformAnalysisError
 from ContactMechanics import PeriodicFFTElasticHalfSpace, FreeFFTElasticHalfSpace, make_system
 
