@@ -61,6 +61,12 @@ function visualizeMap(id, prefixUrl, colorBar = null) {
 
             tick_dist = 10 ** (Math.round(Math.log10(mx - mn)) - 1);
             nb_ticks = Math.trunc((mx - mn) / tick_dist) + 1;
+
+            while (nb_ticks > 15) {
+                tick_dist *= 2;
+                nb_ticks = Math.trunc((mx - mn) / tick_dist) + 1;
+            }
+
             for (let i = 0; i < nb_ticks; i++) {
                 v = Math.trunc(mn / tick_dist) * tick_dist + tick_dist * i;
                 relpos = (mx - v) * 100 / (mx - mn);
@@ -72,7 +78,7 @@ function visualizeMap(id, prefixUrl, colorBar = null) {
                     tickLabelDiv.append($('<div/>', {
                         class: 'dzi-colorbar-text',
                         style: 'top: ' + relpos + '%;',
-                        html: v.toPrecision(3)
+                        html: v.toFixed(0)
                     }));
                 }
             }
