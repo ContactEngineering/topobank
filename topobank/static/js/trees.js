@@ -219,11 +219,11 @@ let search_results_vm = new Vue({
                         description_html += `<p class='badge badge-secondary mr-1'>${node.data.category_name}</p>`
                     }
 
-                    /*
-                    if (node.data.sharing_status) {
-                        description_html += `<p class='badge badge-secondary mr-1'>${node.data.sharing_status}</p>`
+                    if (node.data.sharing_status == "own") {
+                        description_html += `<p class='badge badge-info mr-1'>Created by you</p>`
+                    } else if (node.data.sharing_status == "shared") {
+                        description_html += `<p class='badge badge-info mr-1'>Shared by ${node.data.creator_name}</p>`
                     }
-                    */
 
                     if (node.data.tags !== undefined) {
                         node.data.tags.forEach(function (tag) {
@@ -237,9 +237,6 @@ let search_results_vm = new Vue({
                     } else {
                         if (node.type == "surface") {
                             publication_info += `This dataset is unpublished.`;
-                            if (node.data.creator) {
-                                publication_info += ` It is owned by <a href="${node.data.creator}">${node.data.creator_name}</a>.`;
-                            }
                         }
                     }
                     if (publication_info) {
