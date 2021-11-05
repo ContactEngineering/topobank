@@ -133,7 +133,7 @@ span.fancytree-checkbox {
 }
 
 tr.fancytree-active  {
-  background-color: var(--primary) !important;
+  background-color: var(--secondary) !important;
   color: white !important;
 }
 
