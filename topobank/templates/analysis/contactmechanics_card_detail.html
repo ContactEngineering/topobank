@@ -380,7 +380,7 @@
     tab_names.forEach(function(tn){
       var div = $('#'+tn);
       div.addClass('alert alert-info');
-      div.html("<span class='spinner'></span>Getting data, please wait.."); // Delete all old contents
+      div.html("<span class='spinner'></span>Please wait..."); // Delete all old contents
     });
 
     if (is_pill_activated('tools-pill')) {
@@ -588,7 +588,7 @@
                                 'nsteps': nsteps, 'pressures': pressures, 'maxiter': maxiter};
 
         $(this).attr("disabled", true);
-        $(this).html("Please wait..");
+        $(this).html("Please wait...");
         $.ajax({
           type: "POST",
           url: "{% url 'analysis:card-submit' %}",

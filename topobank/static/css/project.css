@@ -133,20 +133,8 @@ span.fancytree-checkbox {
 }
 
 tr.fancytree-active  {
-  background-color: #007bff !important; /** bootstrap "primary" color */
-  /** background-color: rgba(0,0,0,0.03) !important; */ /** bootstrap "card header" color */
-}
-
-tr.fancytree-active span.fancytree-node {
-   color: white; /** for some reason, this does not affect the title, so there is an extra rule below */
-}
-
-tr.fancytree-active span.fancytree-title, tr.fancytree-active div.description-column {
-   color: white;
-}
-
-div.version-column {
-  text-align: left;
+  background-color: var(--primary) !important;
+  color: white !important;
 }
 
 /**
@@ -376,3 +364,44 @@ section[title="Terms and Conditions"] div.toc-container, #tc-terms-html {
   background-color: unset;
   border-bottom: unset;
 }
+
+.select-tree-title {
+  font-size: medium;
+  font-weight: bold;
+}
+
+.select-tree-authors {
+  font-size: medium;
+  color: var(--secondary);
+}
+
+.fancytree-active .select-tree-authors {
+  font-size: medium;
+  color: white;
+}
+
+.fancytree-active .select-tree-authors a {
+  font-size: medium;
+  color: white;
+}
+
+.select-tree-info {
+  color: var(--secondary);
+}
+
+.fancytree-active .select-tree-info {
+  color: white;
+}
+
+.surface-tree thead {
+  display: none;
+}
+
+.create-twin-button {
+  width: 100em;
+}
+
+.surface-tree {
+  table-layout: fixed;
+}
+
