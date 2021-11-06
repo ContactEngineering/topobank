@@ -163,7 +163,7 @@ class Command(BaseCommand):
             topography.save()
             self.stdout.write(self.style.SUCCESS(f"Topography '{topo_name}' saved in database."))
             if not skip_thumbnails:
-                topography.renew_thumbnail()
+                topography.renew_images()
             if trigger_analyses:
                 topography.renew_analyses()
 

@@ -884,8 +884,8 @@ class Topography(models.Model, SubjectMixin):
 
         return plot
 
-    def _renew_thumbnail(self, driver=None):
-        """Renew thumbnail field.
+    def _renew_images(self, driver=None):
+        """Renew thumbnail and deep zoom images.
 
         Parameters
         ----------
@@ -930,7 +930,7 @@ class Topography(models.Model, SubjectMixin):
             # This is a topography (map), we need to create a Deep Zoom Image
             make_dzi(self.topography(), self.datafile.name)
 
-    def renew_thumbnail(self, driver=None, none_on_error=True):
+    def renew_images(self, driver=None, none_on_error=True):
         """Renew thumbnail field.
 
         Parameters
@@ -952,7 +952,7 @@ class Topography(models.Model, SubjectMixin):
         ThumbnailGenerationException
         """
         try:
-            self._renew_thumbnail(driver=driver)
+            self._renew_images(driver=driver)
         except Exception as exc:
             if none_on_error:
                 self.thumbnail = None

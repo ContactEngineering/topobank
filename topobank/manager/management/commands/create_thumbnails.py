@@ -8,9 +8,9 @@ _log = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
-    help = """Create thumbnails for topographies.
+    help = """Create thumbnails and deep zoom images for topographies.
 
-    Ensures that all topographies have a thumbnail.
+    Ensures that all topographies have a thumbnail and that 2D maps have deep zoom images.
     """
 
     def add_arguments(self, parser):
@@ -36,7 +36,7 @@ class Command(BaseCommand):
             _log.info(f"Creating thumbnail for '{topo.name}', id {topo.id}, size {size_str}..")
             if not options['dry_run']:
                 try:
-                    topo.renew_thumbnail(driver=driver)
+                    topo.renew_images(driver=driver)
                     num_okay += 1
                 except Exception as exc:
                     _log.warning(f"Cannot create thumbnail for topography {topo.id}, reason: {exc}")

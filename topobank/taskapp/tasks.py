@@ -291,7 +291,7 @@ def renew_topography_thumbnail(topography_id):
     _log.debug(f"Renewing thumbnail for topography id {topography_id}..")
     try:
         topography = Topography.objects.get(id=topography_id)
-        topography.renew_thumbnail()
+        topography.renew_images()
     except Topography.DoesNotExist:
         _log.error(f"Couldn't find topography with id {topography_id}. Cannot renew thumbnail.")
 
