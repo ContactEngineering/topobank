@@ -133,8 +133,8 @@ span.fancytree-checkbox {
 }
 
 tr.fancytree-active  {
-  background-color: var(--secondary) !important;
-  color: white !important;
+  background-color: var(--light) !important;
+  /*color: white !important;*/
 }
 
 /**
@@ -377,12 +377,12 @@ section[title="Terms and Conditions"] div.toc-container, #tc-terms-html {
 
 .fancytree-active .select-tree-authors {
   font-size: medium;
-  color: white;
+  /* color: white; */
 }
 
 .fancytree-active .select-tree-authors a {
   font-size: medium;
-  color: white;
+  /* color: white; */
 }
 
 .select-tree-info {
@@ -390,7 +390,7 @@ section[title="Terms and Conditions"] div.toc-container, #tc-terms-html {
 }
 
 .fancytree-active .select-tree-info {
-  color: white;
+  /* color: white; */
 }
 
 .surface-tree thead {

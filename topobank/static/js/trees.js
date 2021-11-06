@@ -211,29 +211,34 @@ let search_results_vm = new Vue({
 
                     let description_html = "";
 
-                    // Title
-                    description_html += `<p class="select-tree-title">${node.data.name}</p>`;
+                    // License image
+                    if (node.data.publication_license) {
+                        description_html += `<img src="/static/images/cc/${node.data.publication_license}.svg" title="Dataset can be reused under the terms of a Creative Commons license." style="float:right">`;
+                    }
 
                     // Tags
                     if (node.data.category) {
-                        description_html += `<p class='badge badge-secondary mr-1'>${node.data.category_name}</p>`
+                        description_html += `<p class='badge badge-secondary mr-1'>${node.data.category_name}</p>`;
                     }
 
                     if (node.data.sharing_status == "own") {
-                        description_html += `<p class='badge badge-info mr-1'>Created by you</p>`
+                        description_html += `<p class='badge badge-info mr-1'>Created by you</p>`;
                     } else if (node.data.sharing_status == "shared") {
-                        description_html += `<p class='badge badge-info mr-1'>Shared by ${node.data.creator_name}</p>`
+                        description_html += `<p class='badge badge-info mr-1'>Shared by ${node.data.creator_name}</p>`;
                     }
 
                     if (node.data.tags !== undefined) {
                         node.data.tags.forEach(function (tag) {
-                            description_html += "<p class='badge badge-success mr-1'>" + tag + "</p>"
+                            description_html += "<p class='badge badge-success mr-1'>" + tag + "</p>";
                         });
                     }
 
+                    // Title
+                    description_html += `<p class="select-tree-title">${node.data.name}</p>`;
+
                     publication_info = "";
                     if (node.data.publication_authors) {
-                        publication_info += `${node.data.publication_authors} (published ${node.data.publication_date})`
+                        publication_info += `${node.data.publication_authors} (published ${node.data.publication_date})`;
                     } else {
                         if (node.type == "surface") {
                             publication_info += `This dataset is unpublished.`;
