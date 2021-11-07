@@ -916,10 +916,15 @@ class Topography(models.Model, SubjectMixin):
         image.save(image_file, 'PNG')
 
         #
+        # Remove old thumbnail
+        #
+        self.thumbnail.delete()
+
+        #
         # Save the contents of in-memory file in Django image field
         #
         self.thumbnail.save(
-            f'thumbnail_topography_{self.id}.png',
+            f'{self.id}/thumbnail.png',
             ContentFile(image_file.getvalue()),
         )
 
@@ -968,8 +973,11 @@ class Topography(models.Model, SubjectMixin):
         with tempfile.NamedTemporaryFile() as tmp:
             st_topo = self.topography(allow_cache=False, allow_squeezed=False)  # really reread from original file
             st_topo.to_netcdf(tmp.name)
-            orig_stem, orig_ext = os.path.splitext(self.datafile.name)
-            squeezed_name = f"{orig_stem}-squeezed.nc"
-            default_storage.delete(squeezed_name)
+            # Delete old squeezed file
+            default_storage.delete(self.squeezed_datafile.name)
+            # Upload new squeezed file
+            dirname, basename = os.path.split(self.datafile.name)
+            orig_stem, orig_ext = os.path.splitext(basename)
+            squeezed_name = user_directory_path(self, f'{self.id}/{orig_stem}-squeezed.nc')
             self.squeezed_datafile = default_storage.save(squeezed_name, File(open(tmp.name, mode='rb')))
             self.save()
