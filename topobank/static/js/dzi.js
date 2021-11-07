@@ -59,7 +59,9 @@ function visualizeMap(id, prefixUrl, colorBar = null) {
             mn = meta.Image.ColorbarRange.Minimum;
             mx = meta.Image.ColorbarRange.Maximum;
 
-            tick_dist = 10 ** (Math.round(Math.log10(mx - mn)) - 1);
+            log10_tick_dist = (Math.round(Math.log10(mx - mn)) - 1);
+            fraction_digits = log10_tick_dist > 0 ? 0 : -log10_tick_dist;
+            tick_dist = 10 ** log10_tick_dist;
             nb_ticks = Math.trunc((mx - mn) / tick_dist) + 1;
 
             while (nb_ticks > 15) {
@@ -78,7 +80,7 @@ function visualizeMap(id, prefixUrl, colorBar = null) {
                     tickLabelDiv.append($('<div/>', {
                         class: 'dzi-colorbar-text',
                         style: 'top: ' + relpos + '%;',
-                        html: v.toFixed(0)
+                        html: v.toFixed(fraction_digits)
                     }));
                 }
             }
