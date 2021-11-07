@@ -966,21 +966,24 @@ def get_permission_table_data(instance, request_user, actions=['view', 'change',
     return perms_table
 
 
-def make_dzi(data, datafile_name, physical_sizes=None, unit=None, quality=95, colorbar_title=None, cmap=None):
+def make_dzi(data, path_prefix, physical_sizes=None, unit=None, quality=95, colorbar_title=None, cmap=None):
     with tempfile.TemporaryDirectory() as tmpdirname:
-        storage_path, deepzoom_name = os.path.split(datafile_name)
         try:
             # This is a Topography
-            filenames = data.to_dzi(deepzoom_name, root_directory=tmpdirname, meta_format='json', quality=quality,
-                                    cmap=cmap)
+            filenames = data.to_dzi('dzi', root_directory=tmpdirname, meta_format='json', quality=quality, cmap=cmap)
         except AttributeError:
             # This is likely just a numpy array
             if physical_sizes is None or unit is None:
                 raise ValueError('You need to provide `physical_sizes` and `unit` when visualizing numpy arrays.')
-            filenames = write_dzi(data, deepzoom_name, physical_sizes, unit, root_directory=tmpdirname,
+            filenames = write_dzi(data, 'dzi', physical_sizes, unit, root_directory=tmpdirname,
                                   meta_format='json', quality=quality, colorbar_title=colorbar_title, cmap=cmap)
         for filename in filenames:
             # Strip tmp directory
             storage_filename = filename[len(tmpdirname) + 1:]
+            # Delete (possibly existing) old data files
+            target_name = f'{path_prefix}/{storage_filename}'
+            default_storage.delete(target_name)
             # Upload to S3
-            default_storage.save(f'{storage_path}/{storage_filename}', File(open(filename, mode='rb')))
+            _log.info(f'Uploading {filename} to {target_name}...')
+            uploded_name = default_storage.save(target_name, File(open(filename, mode='rb')))
+            assert uploded_name == target_name

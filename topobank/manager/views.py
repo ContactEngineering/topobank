@@ -8,7 +8,7 @@ import django_tables2 as tables
 import numpy as np
 
 from bokeh.embed import components
-from bokeh.models import DataRange1d, LinearColorMapper, ColorBar, LabelSet, FuncTickFormatter, TapTool, OpenURL
+from bokeh.models import FuncTickFormatter, TapTool, OpenURL
 from bokeh.plotting import figure, ColumnDataSource
 
 from django.conf import settings
@@ -31,20 +31,19 @@ from django.contrib.staticfiles.storage import staticfiles_storage
 
 from formtools.wizard.views import SessionWizardView
 from guardian.decorators import permission_required_or_403
-from guardian.shortcuts import get_users_with_perms, get_objects_for_user, get_anonymous_user
+from guardian.shortcuts import get_users_with_perms, get_objects_for_user
 from notifications.signals import notify
 from rest_framework.decorators import api_view
-from rest_framework.generics import ListAPIView, RetrieveAPIView
+from rest_framework.generics import ListAPIView
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
-from rest_framework.renderers import JSONRenderer
 from rest_framework.utils.urls import remove_query_param, replace_query_param
 from trackstats.models import Metric, Period
 
-from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm, DEFAULT_LICENSE
+from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm
 from .forms import TopographyForm, SurfaceForm, SurfaceShareForm, SurfacePublishForm
-from .models import Topography, Surface, TagModel, \
-    NewPublicationTooFastException, LoadTopographyException, PlotTopographyException
+from .models import Topography, Surface, TagModel, NewPublicationTooFastException, LoadTopographyException, \
+    PlotTopographyException, user_directory_path
 from .serializers import SurfaceSerializer, TagSerializer
 from .utils import selected_instances, bandwidths_data, get_topography_reader, tags_for_user, get_reader_infos, \
     mailto_link_for_reporting_an_error, current_selection_as_basket_items, filtered_surfaces, \
@@ -52,10 +51,9 @@ from .utils import selected_instances, bandwidths_data, get_topography_reader, t
     get_permission_table_data
 from ..usage_stats.utils import increase_statistics_by_date, increase_statistics_by_date_and_object
 from ..users.models import User
-from ..users.utils import get_default_group
 from ..publication.models import Publication, MAX_LEN_AUTHORS_FIELD
 from .containers import write_surface_container
-from ..taskapp.tasks import renew_squeezed_datafile, renew_topography_thumbnail, renew_analyses_related_to_topography
+from ..taskapp.tasks import renew_topography_thumbnail, renew_analyses_related_to_topography
 
 # create dicts with labels and option values for Select tab
 CATEGORY_FILTER_CHOICES = {'all': 'All categories',
@@ -1979,5 +1977,4 @@ def dzi(request, pk, dzi_filename):
 
     # okay, we have a valid topography and the user is allowed to see it
 
-    name = f'{topo.datafile.name}-{dzi_filename}'
-    return redirect(default_storage.url(name))
+    return redirect(default_storage.url(user_directory_path(topo, f'{topo.id}/dzi/{dzi_filename}')))

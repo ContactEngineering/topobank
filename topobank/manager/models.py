@@ -928,7 +928,7 @@ class Topography(models.Model, SubjectMixin):
 
         if self.size_y is not None:
             # This is a topography (map), we need to create a Deep Zoom Image
-            make_dzi(self.topography(), f'{self.datafile.name}-dzi')
+            make_dzi(self.topography(), user_directory_path(self, f'{self.id}/dzi'))
 
     def renew_images(self, driver=None, none_on_error=True):
         """Renew thumbnail field.
@@ -970,5 +970,6 @@ class Topography(models.Model, SubjectMixin):
             st_topo.to_netcdf(tmp.name)
             orig_stem, orig_ext = os.path.splitext(self.datafile.name)
             squeezed_name = f"{orig_stem}-squeezed.nc"
+            default_storage.delete(squeezed_name)
             self.squeezed_datafile = default_storage.save(squeezed_name, File(open(tmp.name, mode='rb')))
             self.save()

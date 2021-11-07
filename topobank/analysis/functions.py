@@ -559,7 +559,7 @@ def analysis_function(topography, funcname_profile, funcname_area, name, xlabel,
 
 def analysis_function_for_surface(surface, progress_recorder, funcname_profile, name, xlabel, ylabel, xname, xunit,
                                   yunit, **kwargs):
-    """Calculate average variable bandwidth for a surface."""
+    """Calculate average analysis result for a surface."""
     topographies = ContainerProxy(surface.topography_set.all())
     unit = suggest_length_unit(topographies, 'log')
 
@@ -1172,20 +1172,20 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
             tmpfile.seek(0)
             default_storage.save(f'{storage_path}/nc/results.nc', File(tmpfile))
 
-        make_dzi(pressure_xy.data, f'{storage_path}/dzi/pressure/dzi',
+        make_dzi(pressure_xy.data, f'{storage_path}/dzi/pressure',
                  physical_sizes=topography.physical_sizes, unit=topography.unit,
                  colorbar_title='Pressure (E*)')
-        make_dzi(contacting_points_xy.data.astype(np.int), f'{storage_path}/dzi/contacting-points/dzi',
+        make_dzi(contacting_points_xy.data.astype(np.int), f'{storage_path}/dzi/contacting-points',
                  physical_sizes=topography.physical_sizes, unit=topography.unit, cmap='magma')
 
         unit = suggest_length_unit_for_data('linear', gap_xy.data, topography.unit)
-        make_dzi(gap_xy.data * get_unit_conversion_factor(topography.unit, unit), f'{storage_path}/dzi/gap/dzi',
+        make_dzi(gap_xy.data * get_unit_conversion_factor(topography.unit, unit), f'{storage_path}/dzi/gap',
                  physical_sizes=topography.to_unit(unit).physical_sizes, unit=unit,
                  colorbar_title=f'Gap ({unit})')
 
         unit = suggest_length_unit_for_data('linear', displacement_xy.data, topography.unit)
         make_dzi(displacement_xy.data * get_unit_conversion_factor(topography.unit, unit),
-                 f'{storage_path}/dzi/displacement/dzi',
+                 f'{storage_path}/dzi/displacement',
                  physical_sizes=topography.to_unit(unit).physical_sizes, unit=unit,
                  colorbar_title=f'Displacement ({unit})')
 

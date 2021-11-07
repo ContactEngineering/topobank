@@ -6,7 +6,7 @@
 function visualizeMap(id, prefixUrl, colorBar = null) {
     $('#' + id).empty();
 
-    $.getJSON(prefixUrl + 'dzi.dzi', function (meta) {
+    $.getJSON(prefixUrl + 'dzi.json', function (meta) {
         meta.Image.Url = prefixUrl + 'dzi_files/';
 
         viewer = new OpenSeadragon.Viewer({
