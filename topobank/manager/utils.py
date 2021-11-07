@@ -984,6 +984,5 @@ def make_dzi(data, path_prefix, physical_sizes=None, unit=None, quality=95, colo
             target_name = f'{path_prefix}/{storage_filename}'
             default_storage.delete(target_name)
             # Upload to S3
-            _log.info(f'Uploading {filename} to {target_name}...')
             uploded_name = default_storage.save(target_name, File(open(filename, mode='rb')))
             assert uploded_name == target_name
