@@ -1,6 +1,7 @@
 from django.db.models.signals import pre_delete, post_delete, pre_save, post_save
 from django.dispatch import receiver
 from django.core.cache import cache
+from django.core.files.storage import default_storage
 from guardian.shortcuts import assign_perm
 from notifications.models import Notification
 from django.contrib.contenttypes.models import ContentType
@@ -29,19 +30,24 @@ def grant_surface_permissions_to_owner(sender, instance, created, **kwargs):
 
 @receiver(pre_delete, sender=Topography)
 def remove_files(sender, instance, **kwargs):
-    """Remove files associated with a topography instance before removal of teh topography."""
+    """Remove files associated with a topography instance before removal of the topography."""
 
     # ideally, we would reuse datafiles if possible, e.g. for
     # the example topographies. Currently I'm not sure how
     # to do it, because the file storage API always ensures to
     # have unique filenames for every new stored file.
 
-    def delete_datafile(datafile_attr_name):
+    def delete_datafile(datafile_attr_name, suffix=None):
         """Delete datafile attached to the given attribute name."""
         try:
             datafile = getattr(instance, datafile_attr_name)
-            datafile.delete()
-            _log.info("Removed datafile '%s'.", datafile.name)
+            if suffix is None:
+                _log.info(f'Deleting {datafile.name}...')
+                datafile.delete()
+            else:
+                name = f'{datafile.name}{suffix}'
+                _log.info(f'Deleting {name}...')
+                default_storage.delete(name)
         except Exception as exc:
             _log.warning("Topography id %d, attribute '%s': Cannot delete data file '%s', reason: %s",
                          instance.id, datafile_attr_name, datafile.name, str(exc))
@@ -49,6 +55,11 @@ def remove_files(sender, instance, **kwargs):
     delete_datafile('datafile')
     if instance.has_squeezed_datafile:
         delete_datafile('squeezed_datafile')
+    if instance.size_y is not None:
+        # Delete Deep Zoom Image files
+        delete_datafile('datafile', '-dzi.json')
+        delete_datafile('datafile', '-dzi_files')
+
 
 
 @receiver(post_delete, sender=Topography)

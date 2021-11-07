@@ -33,13 +33,13 @@ class Command(BaseCommand):
             if topo.size_y:
                 size_str += f" x {topo.size_y} {topo.unit}"
 
-            _log.info(f"Creating thumbnail for '{topo.name}', id {topo.id}, size {size_str}..")
+            _log.info(f"Creating images for '{topo.name}', id {topo.id}, size {size_str}..")
             if not options['dry_run']:
                 try:
                     topo.renew_images(driver=driver)
                     num_okay += 1
                 except Exception as exc:
-                    _log.warning(f"Cannot create thumbnail for topography {topo.id}, reason: {exc}")
+                    _log.warning(f"Cannot create images for topography {topo.id}, reason: {exc}")
                     num_failed += 1
 
         self.stdout.write(self.style.SUCCESS(f"Statistics: #ok: {num_okay}, #failed: {num_failed}"))

@@ -928,7 +928,7 @@ class Topography(models.Model, SubjectMixin):
 
         if self.size_y is not None:
             # This is a topography (map), we need to create a Deep Zoom Image
-            make_dzi(self.topography(), self.datafile.name)
+            make_dzi(self.topography(), f'{self.datafile.name}-dzi')
 
     def renew_images(self, driver=None, none_on_error=True):
         """Renew thumbnail field.
