@@ -42,10 +42,10 @@ function visualizeMap(id, prefixUrl, colorBar = null, downloadButton = null) {
         }
 
         // Add a color bar
-        if (meta.Image.ColorbarRange && meta.Image.ColorbarTitle && meta.Image.Colormap) {
-            var div = $('#' + colorBar);
-            div.empty();
-            div.append($('<div/>', {
+        if (colorBar && meta.Image.ColorbarRange && meta.Image.ColorbarTitle && meta.Image.Colormap) {
+            var colorBarDiv = $('#' + colorBar);
+            colorBarDiv.empty();
+            colorBarDiv.append($('<div/>', {
                 class: 'dzi-colorbar-title',
                 html: meta.Image.ColorbarTitle
             }));
@@ -84,8 +84,8 @@ function visualizeMap(id, prefixUrl, colorBar = null, downloadButton = null) {
                     }));
                 }
             }
-            div.append(tickDiv);
-            div.append(tickLabelDiv);
+            colorBarDiv.append(tickDiv);
+            colorBarDiv.append(tickLabelDiv);
         }
 
         // Image download
@@ -102,9 +102,9 @@ function visualizeMap(id, prefixUrl, colorBar = null, downloadButton = null) {
 
                 ctx.drawImage(scalebarCanvas, location.x, location.y);
 
-				canvas.toBlob(function(blob){
-    				saveAs(blob, "screenshot.png");
-				});
+                imgCanvas.toBlob(function (blob) {
+                    saveAs(blob, "screenshot.png");
+                });
             });
         }
     });
