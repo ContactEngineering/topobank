@@ -3,7 +3,7 @@
  * Deep Zoom Image files and OpenSeadragon.
  */
 
-function visualizeMap(id, prefixUrl, colorBar = null) {
+function visualizeMap(id, prefixUrl, colorBar = null, downloadButton = null) {
     $('#' + id).empty();
 
     $.getJSON(prefixUrl + 'dzi.json', function (meta) {
@@ -11,16 +11,16 @@ function visualizeMap(id, prefixUrl, colorBar = null) {
 
         viewer = new OpenSeadragon.Viewer({
             id: id,
-            prefixUrl: prefixUrl,
             tileSources: meta,
             showNavigator: true,
             navigatorPosition: 'TOP_LEFT',
             navigatorSizeRatio: 0.1,
-            showNavigationControl: false,
             wrapHorizontal: false,
             wrapVertical: false,
             minZoomImageRatio: 0.5,
             maxZoomPixelRatio: 5.0,
+            crossOriginPolicy: "Anonymous",
+            showNavigationControl: false
         });
 
         // Add a scale bar
@@ -86,6 +86,26 @@ function visualizeMap(id, prefixUrl, colorBar = null) {
             }
             div.append(tickDiv);
             div.append(tickLabelDiv);
+        }
+
+        // Image download
+        if (downloadButton) {
+            $('#' + downloadButton).on('click', function () {
+                var imgCanvas = viewer.drawer.canvas;
+                var canvas = document.createElement("canvas");
+                canvas.width = imgCanvas.width;
+                canvas.height = imgCanvas.height;
+                var ctx = canvas.getContext('2d');
+                ctx.drawImage(imgCanvas, 0, 0);
+                var scalebarCanvas = viewer.scalebarInstance.getAsCanvas();
+                var location = viewer.scalebarInstance.getScalebarLocation();
+
+                ctx.drawImage(scalebarCanvas, location.x, location.y);
+
+				canvas.toBlob(function(blob){
+    				saveAs(blob, "screenshot.png");
+				});
+            });
         }
     });
 }

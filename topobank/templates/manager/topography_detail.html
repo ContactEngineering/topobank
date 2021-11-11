@@ -188,7 +188,13 @@
                  class="btn btn-default btn-block btn-lg">
                 {% fa5_icon 'edit' %} Edit
               </a>
+            {% endif %}
 
+            <a id="topography-download" href="#" class="btn btn-default btn-block btn-lg">
+              {% fa5_icon 'download' %} Download as PNG
+            </a>
+
+            {% if "change_surface" in surface_perms %}
               <a href="{% url 'manager:topography-delete' topography.id %}"
                  class="btn btn-outline-danger btn-block btn-lg">
                 {% fa5_icon 'trash' %} Delete
@@ -202,7 +208,6 @@
 
 
   </div>
-
 
 
 {% endblock content %}
@@ -230,7 +235,8 @@
         visualizeMap(
           'topography-view',
           "{% url 'manager:topography-dzi' pk=topography.id dzi_filename='' %}",
-          'topography-colorbar');
+          'topography-colorbar',
+          'topography-download');
       });
     </script>
   {% endif %}
