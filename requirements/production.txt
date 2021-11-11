@@ -132,7 +132,7 @@ django-model-utils==4.1.1
     #   django-notifications-hq
 django-notifications-hq==1.6.0
     # via -r ./base.txt
-git+http://github.com/ContactEngineering/django-progressbarupload.git
+django-progressbarupload @ git+http://github.com/ContactEngineering/django-progressbarupload.git
     # via -r ./base.txt
 django-select2==7.7.1
     # via -r ./base.txt
@@ -218,6 +218,10 @@ matplotlib==3.4.2
     # via
     #   -r ./base.txt
     #   surfacetopography
+mpi4py==3.1.2
+    # via
+    #   -r ./base.txt
+    #   mufft
 mufft==0.18.1
     # via
     #   -r ./base.txt
