@@ -137,26 +137,46 @@ function submit_analyses_card_ajax(card_url, card_element_id, template_flavor, f
         },
         success : function(data, textStatus, xhr) {
 
-          if ((0 == call_count) || (200 == xhr.status) ) {
+          if ((0 === call_count) || (200 === xhr.status) ) {
             $(jquery_card_selector).html(data); // insert resulting HTML code
             // We want to only insert cards on first and last call and
             // only once if there is only one call.
           }
-          if (202 == xhr.status) {
-            // Not all analyses are ready, retrigger AJAX call
-            console.log("Analyses for card with element id '"+card_element_id+"' not ready. Retrying..");
-            setTimeout(function () {
-              submit_analyses_card_ajax(card_url, card_element_id, template_flavor, function_id,
-                                        subjects_ids, call_count+1);
-            }, 1000); // TODO limit number of retries?
+          if (202 === xhr.status) {
+              // Not all analyses are ready, retrigger AJAX call
+              console.log("Analyses for card with element id '" + card_element_id + "' not ready. Retrying..");
+              setTimeout(function () {
+                  submit_analyses_card_ajax(card_url, card_element_id, template_flavor, function_id,
+                      subjects_ids, call_count + 1);
+              }, 1000);
           }
         },
         error: function(xhr, textStatus, errorThrown) {
-          // console.log("Error receiving response for card '"+card_element_id+"'. Status: "+xhr.status
-          //            +" Response: "+xhr.responseText)
-          if ("abort" != errorThrown) {
-              $(jquery_card_selector).html("Please report this error: " + errorThrown + " " + xhr.status + " " + xhr.responseText);
-              $(jquery_card_selector).addClass("alert alert-danger");
+          // console.error("Error receiving response for card '"+card_element_id+"'. Status: "+xhr.status
+          //               +" Response: "+xhr.responseText);
+          if ("abort" !== errorThrown) {
+
+              let details = {
+                  error_thrown: errorThrown,
+                  response_status: xhr.status,
+                  card_url: card_url,
+                  card_element_id: card_element_id,
+                  template_flavor: template_flavor,
+                  function_id: function_id,
+                  subjects_ids: subjects_ids,
+                  call_count: call_count
+              };
+              let message = `
+              <div class="alert alert-error" role="alert">
+                Oops, something went wrong! We're sorry.
+                <p>We track these errors automatically, but if the problem persists please
+                <a href="#" data-toggle="modal" data-target="#contactModal">contact us</a>
+                and include the following details. Thank you.</p>
+                <details>${ JSON.stringify(details) }</details>
+              </div>
+              `;
+              $(jquery_card_selector).html(message);
+              $(jquery_card_selector).addClass("alert alert-error");
           }
         }
       });

@@ -60,6 +60,7 @@ DJANGO_APPS = [
     'django.contrib.sessions',
     'django.contrib.sites',
     'django.contrib.messages',
+    'whitenoise.runserver_nostatic',  # also use whitenoise with runserver
     'django.contrib.staticfiles',
     # 'django.contrib.humanize', # Handy template tags
     'django.contrib.admin',
@@ -192,6 +193,8 @@ STATICFILES_FINDERS = [
     'django.contrib.staticfiles.finders.AppDirectoriesFinder',
 ]
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+# STATICFILES_STORAGE = 'whitenoise.storage.ManifestStaticFilesStorage'
+# test whether slow collect static comes from WhiteNoise
 
 # MEDIA
 # ------------------------------------------------------------------------------

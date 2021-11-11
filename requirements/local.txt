@@ -473,7 +473,7 @@ sqlparse==0.4.2
     #   -r ./base.txt
     #   django
     #   django-debug-toolbar
-surfacetopography==0.98.1
+surfacetopography==0.98.2
     # via
     #   -r ./base.txt
     #   contactmechanics
@@ -530,7 +530,7 @@ werkzeug==2.0.1
     # via -r local.in
 wheel==0.36.2
     # via pip-tools
-whitenoise==5.2.0
+whitenoise==5.3.0
     # via -r ./base.txt
 xarray==0.18.2
     # via -r ./base.txt
