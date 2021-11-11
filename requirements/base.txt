@@ -162,8 +162,6 @@ markupsafe==2.0.1
     # via jinja2
 matplotlib==3.4.2
     # via surfacetopography
-mpi4py==3.1.2
-    # via mufft
 mufft==0.18.1
     # via
     #   -r base.in

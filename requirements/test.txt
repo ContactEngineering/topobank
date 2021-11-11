@@ -238,10 +238,6 @@ matplotlib==3.4.2
     #   surfacetopography
 mccabe==0.6.1
     # via flake8
-mpi4py==3.1.2
-    # via
-    #   -r base.txt
-    #   mufft
 mufft==0.18.1
     # via
     #   -r base.txt
