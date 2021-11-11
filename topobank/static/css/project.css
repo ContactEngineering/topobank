@@ -365,6 +365,10 @@ section[title="Terms and Conditions"] div.toc-container, #tc-terms-html {
   border-bottom: unset;
 }
 
+/**
+ * Settings for the Find & select results tree
+ */
+
 .select-tree-title {
   font-size: medium;
   font-weight: bold;
@@ -375,6 +379,14 @@ section[title="Terms and Conditions"] div.toc-container, #tc-terms-html {
   color: var(--secondary);
 }
 
+/* The following cuts the description text after 3 display lines */
+.select-tree-description {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .fancytree-active .select-tree-authors {
   font-size: medium;
   /* color: white; */
@@ -383,6 +395,10 @@ section[title="Terms and Conditions"] div.toc-container, #tc-terms-html {
 .fancytree-active .select-tree-authors a {
   font-size: medium;
   /* color: white; */
+}
+
+.select-tree-item p {
+  margin-bottom: 0.3rem;
 }
 
 .select-tree-info {

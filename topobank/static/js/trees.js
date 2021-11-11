@@ -164,50 +164,11 @@ let search_results_vm = new Vue({
                         tag: ['font-italic']
                     };
 
+                    node.addClass('select-tree-item')
+
                     extra_classes[node.type].forEach(function (c) {
                         node.addClass(c);
                     });
-
-
-                    /**
-                     * Render columns
-                     */
-
-                    // Set column with number of measurements
-                    /*
-                    if (node.data.topography_count !== undefined) {
-                        let topo_count_html='<div class="text-right">'+node.data.topography_count+'</div>';
-                        $tdList.eq(1).html(topo_count_html);
-                    }
-                    */
-
-                    // Set columns with version and authors
-                    /*
-                    if (node.data.version !== undefined) {
-                        let version_html = node.data.version;
-                        let authors_html = node.data.publication_authors;
-
-                        if (node.data.publication_date.length > 0) {
-                            version_html += " (" + node.data.publication_date +  ")";
-                        }
-
-                        version_html = "<div class='version-column'>" + version_html + "</div>";
-                        $tdList
-                            .eq(2)
-                            .html(version_html);
-
-                        // Also add badge for "published" to first column
-                        if (node.data.version.toString().length > 0) {
-                            published_html = "<span class='badge badge-info mr-1'>published</span>";
-                            $tdList.eq(0).find('.fancytree-title').after(published_html);
-                        }
-
-                        $tdList
-                            .eq(3)
-                            .html(authors_html);
-
-                    }
-                    */
 
                     let description_html = "";
 
@@ -250,19 +211,7 @@ let search_results_vm = new Vue({
 
                     // Set column with description
                     if (node.data.description !== undefined) {
-                        const descr = node.data.description;
-                        const descr_id = "description-" + node.key;
-                        let first_nl_index = descr.indexOf("\n");  // -1 if no found
-
-                        // console.log("Description: "+descr.substring(0,10)+" Key: "+node.key+" descr ID: "+descr_id+"\n");
-                        description_html += "<p class='description-column'>";
-                        if (first_nl_index === -1) {
-                            description_html += descr;
-                        } else {
-                            description_html += `${descr.substring(0, first_nl_index)}...`;
-                        }
-
-                        description_html += "</p>";
+                        description_html += `<p class='select-tree-description'>${node.data.description}</p>`;
                     }
 
                     info_footer = "";
@@ -292,10 +241,6 @@ let search_results_vm = new Vue({
                             .eq(2)
                             .html(actions_html);
                     }
-
-                    // Static markup (more efficiently defined as html row template):
-                    // $tdList.eq(3).html("<input type='input' value='" + "" + "'>");
-                    // ...
                 },
             }); // fancytree()
         vm.set_loading_indicator();
