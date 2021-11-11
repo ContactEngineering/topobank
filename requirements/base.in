@@ -74,7 +74,7 @@ bleach>=3.3.0
 # Contact Mechanics
 #
 muFFT>=0.11.1
-SurfaceTopography>=0.98.1, <1.0
+SurfaceTopography>=0.99.0, <1.0
 ContactMechanics>=0.91.0, <1.0
 
 # plotting

@@ -1491,7 +1491,6 @@ def contact_mechanics_dzi(request, pk, index, quantity, dzi_filename):
     data_path = analysis.result_obj['data_paths'][index]
     name = f'{data_path}/dzi/{quantity}/{dzi_filename}'
     url = default_storage.url(name)
-    _log.info(url)
     return redirect(url)
 
 
