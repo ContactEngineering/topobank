@@ -60,7 +60,7 @@ def test_welcome_page_statistics(client, test_instances, with_publication, handl
     assert_in_content(response, '<div class="welcome-page-statistics">2</div> digital surface twins')
     assert_in_content(response, '<div class="welcome-page-statistics">1</div> individual measurements')
     assert_in_content(response, '<div class="welcome-page-statistics">1</div> computed analyses')
-    assert_in_content(response, '<div class="welcome-page-statistics">0</div> surfaces of other users')
+    assert_in_content(response, '<div class="welcome-page-statistics">0</div> digital twins of other users')
 
     client.logout()
 
@@ -77,7 +77,7 @@ def test_welcome_page_statistics(client, test_instances, with_publication, handl
         num_access = 2
     else:
         num_access = 1
-    assert_in_content(response, f'<div class="welcome-page-statistics">{num_access}</div> surfaces of other users')
+    assert_in_content(response, f'<div class="welcome-page-statistics">{num_access}</div> digital twins of other users')
 
     client.logout()
 
