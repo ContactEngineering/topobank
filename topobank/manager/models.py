@@ -974,7 +974,7 @@ class Topography(models.Model, SubjectMixin):
             st_topo = self.topography(allow_cache=False, allow_squeezed=False)  # really reread from original file
             st_topo.to_netcdf(tmp.name)
             # Delete old squeezed file
-            default_storage.delete(self.squeezed_datafile.name)
+            self.squeezed_datafile.delete()
             # Upload new squeezed file
             dirname, basename = os.path.split(self.datafile.name)
             orig_stem, orig_ext = os.path.splitext(basename)
