@@ -566,7 +566,7 @@ def analysis_function_for_surface(surface, progress_recorder, funcname_profile, 
                                   yunit, **kwargs):
     """Calculate average variable bandwidth for a surface."""
     topographies = ContainerProxy(surface.topography_set.all())
-    unit = suggest_length_unit(topographies)
+    unit = suggest_length_unit(topographies, 'log')
 
     series = []
     alerts = []
@@ -802,7 +802,7 @@ def scale_dependent_roughness_parameter(topography, progress_recorder, order_of_
 def scale_dependent_roughness_parameter_for_surface(surface, progress_recorder, order_of_derivative, name, ylabel,
                                                     xname, yunit, **kwargs):
     topographies = ContainerProxy(surface.topography_set.all())
-    unit = suggest_length_unit(topographies)
+    unit = suggest_length_unit(topographies, 'log')
 
     series = []
     alerts = []
