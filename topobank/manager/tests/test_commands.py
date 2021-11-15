@@ -85,6 +85,25 @@ def test_fix_sizes(two_topos):
     assert math.isclose(new_topo.size_y, 1e4, abs_tol=1e-8)
 
 
+@pytest.mark.django_db
+def test_fix_height_scale(two_topos):
+    topo = two_topos[0]
+    assert topo.name == 'Example 3 - ZSensor'
+    # this file comes from a DI file where height scales are fixed
+
+    # let's save wrong values to fix it
+    topo.height_scale_editable = True   # this is wrong
+    topo.height_scale = 9999.  # also wrong
+    topo.save()
+
+    call_command('fix_height_scale')
+
+    # Reload topography from database
+    new_topo = Topography.objects.get(id=topo.id)
+    assert not new_topo.height_scale_editable
+    assert math.isclose(new_topo.height_scale, 0.296382712790741, abs_tol=1e-8)
+
+
 
 
 

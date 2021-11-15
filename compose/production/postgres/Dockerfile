@@ -7,4 +7,8 @@ FROM postgres:13.4
 COPY ./compose/production/postgres/maintenance /usr/local/bin/maintenance
 RUN chmod +x /usr/local/bin/maintenance/*
 RUN mv /usr/local/bin/maintenance/* /usr/local/bin \
-    && rmdir /usr/local/bin/maintenance
+    && rmdir /usr/local/bin/maintenance \
+
+# Needed, otherwise error "exec: \docker-entrypoint.sh\: executable file not found in $PATH"
+RUN chmod 777 /usr/local/bin/docker-entrypoint.sh \
+    && ln -s /usr/local/bin/docker-entrypoint.sh /

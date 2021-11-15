@@ -1,5 +1,14 @@
 # Changelog for *TopoBank*
 
+## 0.16.2 (2021-11-15)
+
+- BUG: Fixed unicode conversion issue in OPDx reader (#761)
+- BUG: Fixed wrong condition in management command
+  fix_height_scale (#763)
+- BUG: Missing permissions in Docker container to
+  start Postgres server (#756)
+- MAINT: Upgrade to SurfaceTopography 0.99.1
+
 ## 0.16.1 (2021-10-25)
 
 - BUG: Missing manifest entry problem during installation
