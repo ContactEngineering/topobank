@@ -1,0 +1,83 @@
+
+---
+- name: Prepare analyses host
+  hosts: bwcloud-analyses
+  remote_user: ubuntu
+  become: yes
+  tasks:
+  - name: Update packages
+    apt: 
+      update_cache: yes
+      upgrade: yes
+
+  - name: Install packages
+    apt:
+      pkg:
+      - python3-pip
+      - docker.io
+      - docker-compose
+
+  - name: Start docker
+    service:
+      name: docker
+      state: started
+
+  - name: Create 'topobank' user
+    ansible.builtin.user:
+      name: topobank
+      comment: User running the analyses
+      shell: /bin/bash
+      groups: docker
+
+  - name: Add public key
+    ansible.posix.authorized_key:
+      user: topobank
+      state: present
+      key: "{{ lookup('file', '/home/michael/.ssh/id_rsa.pub') }}"
+
+# - name: Prepare containers
+#   hosts: bwcloud-analyses
+#   remote_user: topobank
+#   tasks:
+#     - name: GitHub checkout
+#       ansible.builtin.git:
+#         repo: https://github.com/ContactEngineering/TopoBank.git
+#         dest: /home/topobank/topobank
+#         version: 0.16.1
+#     # - name: Install docker
+#     #   ansible.builtin.pip:
+#     #     name: docker
+#     # - name: Install docker-compose
+#     #   ansible.builtin.pip:
+#     #     name: docker-compose
+#     - name: Copy environment files
+#       copy:
+#         src: ../.envs
+#         dest: /home/topobank/topobank/
+#         owner: topobank
+#         mode: u=rw,g=,o=
+#     - name: Build celery docker container
+#       community.docker.docker_compose:
+#         #project_src: /home/topobank/topobank
+#         #files: local.yml
+#         # files: production.yml
+#         # build: yes
+#         remove_orphans: yes
+#         state: present
+#         project_name: topobank-celery
+#         services: celeryworker
+#         definition:
+#           version: '3'
+#           services:
+#             celeryworker:      
+#               image: topobank_celeryworker
+#               ports: []
+#               command: /start-celeryworker
+#               build:
+#                 context: .
+#                 dockerfile: ./compose/local/django/Dockerfile
+#               env_file:
+#                 - ./.envs/.local/.django
+#                 - ./.envs/.local/.postgres  
+# 
+# 
