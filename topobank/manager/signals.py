@@ -8,7 +8,7 @@ from django.contrib.contenttypes.models import ContentType
 from allauth.account.signals import user_logged_in
 import logging
 
-from .models import Topography, Surface
+from .models import Topography, Surface, user_directory_path
 from .views import DEFAULT_SELECT_TAB_STATE
 
 _log = logging.getLogger(__name__)
@@ -37,20 +37,26 @@ def remove_files(sender, instance, **kwargs):
     # to do it, because the file storage API always ensures to
     # have unique filenames for every new stored file.
 
-    def delete_datafile(datafile_attr_name, suffix=None):
+    def delete_datafile(datafile_attr_name):
         """Delete datafile attached to the given attribute name."""
         try:
             datafile = getattr(instance, datafile_attr_name)
-            if suffix is None:
-                _log.info(f'Deleting {datafile.name}...')
-                datafile.delete()
-            else:
-                name = f'{datafile.name}{suffix}'
-                _log.info(f'Deleting {name}...')
-                default_storage.delete(name)
+            _log.info(f'Deleting {datafile.name}...')
+            datafile.delete()
         except Exception as exc:
             _log.warning("Topography id %d, attribute '%s': Cannot delete data file '%s', reason: %s",
                          instance.id, datafile_attr_name, datafile.name, str(exc))
+
+    def delete_auxiliary(path):
+        fullname = user_directory_path(instance, f'{instance.id}/{path}')
+        _log.info(f'Deleting {fullname}...')
+        default_storage.delete(fullname)
+        if hasattr(default_storage, 'bucket'):
+            # This is an S3Boto3Storage object... it cannot delete
+            # "directories" (which do not exist on S3)
+            normalized_name = default_storage._normalize_name(default_storage._clean_name(fullname))
+            # The directory needs to be treated as a prefix
+            default_storage.bucket.objects.filter(Prefix=normalized_name).delete()
 
     delete_datafile('datafile')
     if instance.has_squeezed_datafile:
@@ -59,9 +65,7 @@ def remove_files(sender, instance, **kwargs):
         delete_datafile('thumbnail')
     if instance.size_y is not None:
         # Delete Deep Zoom Image files
-        delete_datafile('datafile', '-dzi.json')
-        delete_datafile('datafile', '-dzi_files')
-
+        delete_auxiliary('dzi/')
 
 
 @receiver(post_delete, sender=Topography)

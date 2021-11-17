@@ -15,7 +15,7 @@ import yaml
 
 from .utils import FIXTURE_DIR, SurfaceFactory, Topography1DFactory, Topography2DFactory, UserFactory, \
     two_topos, one_line_scan, user_three_topographies_three_surfaces_three_tags
-from ..models import Topography, Surface, MAX_LENGTH_DATAFILE_FORMAT
+from ..models import Topography, Surface, MAX_LENGTH_DATAFILE_FORMAT, user_directory_path
 from ..forms import TopographyForm, TopographyWizardUnitsForm, SurfaceForm
 
 from topobank.utils import assert_in_content, \
@@ -1302,11 +1302,14 @@ def test_delete_topography(client, two_topos, django_user_model, topo_example3, 
     topo_datafile_name = topo.datafile.name
     squeezed_datafile_name = topo.squeezed_datafile.name
     thumbnail_name = topo.thumbnail.name
+    dzi_name = user_directory_path(topo, f'{topo.id}/dzi')
 
     # check that files actually exist
     assert default_storage.exists(topo_datafile_name)
     assert default_storage.exists(squeezed_datafile_name)
     assert default_storage.exists(thumbnail_name)
+    assert default_storage.exists(f'{dzi_name}/dzi.json')
+    assert default_storage.exists(f'{dzi_name}/dzi_files/0/0_0.jpg')
 
     assert client.login(username=username, password=password)
 
@@ -1327,8 +1330,8 @@ def test_delete_topography(client, two_topos, django_user_model, topo_example3, 
     assert not default_storage.exists(topo_datafile_name)
     assert not default_storage.exists(squeezed_datafile_name)
     assert not default_storage.exists(thumbnail_name)
-
-    print(pk, topo_datafile_name, squeezed_datafile_name)
+    assert not default_storage.exists(f'{dzi_name}/dzi.json')
+    assert not default_storage.exists(f'{dzi_name}/dzi_files/0/0_0.jpg')
 
 
 @pytest.mark.skip("Cannot be implemented up to now, because don't know how to reuse datafile")
