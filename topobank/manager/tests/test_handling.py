@@ -1295,6 +1295,7 @@ def test_delete_topography(client, two_topos, django_user_model, topo_example3, 
 
     # store names of files in storage system
     topo_datafile_name = topo.datafile.name
+    squeezed_datafile_name = topo.squeezed_datafile.name
 
     assert client.login(username=username, password=password)
 
@@ -1313,6 +1314,7 @@ def test_delete_topography(client, two_topos, django_user_model, topo_example3, 
 
     # topography file should also be deleted
     assert not default_storage.exists(topo_datafile_name)
+    assert not default_storage.exists(squeezed_datafile_name)
 
 
 @pytest.mark.skip("Cannot be implemented up to now, because don't know how to reuse datafile")
