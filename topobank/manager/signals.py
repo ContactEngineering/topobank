@@ -48,14 +48,15 @@ def remove_files(sender, instance, **kwargs):
                          instance.id, datafile_attr_name, datafile.name, str(exc))
 
     def _delete_directory(path):
-        directories, filenames = default_storage.listdir(path)
-        for filename in filenames:
-            _log.info(f'Deleting file {path}/{filename}...')
-            default_storage.delete(f'{path}/{filename}')
-        for directory in directories:
-            _log.info(f'Deleting directory {path}/{directory}...')
-            _delete_directory(f'{path}/{directory}')
-            default_storage.delete(f'{path}/{directory}')
+        if default_storage.exists(path):
+            directories, filenames = default_storage.listdir(path)
+            for filename in filenames:
+                _log.info(f'Deleting file {path}/{filename}...')
+                default_storage.delete(f'{path}/{filename}')
+            for directory in directories:
+                _log.info(f'Deleting directory {path}/{directory}...')
+                _delete_directory(f'{path}/{directory}')
+                default_storage.delete(f'{path}/{directory}')
 
     def delete_directory(path):
         fullname = user_directory_path(instance, f'{instance.id}/{path}')
