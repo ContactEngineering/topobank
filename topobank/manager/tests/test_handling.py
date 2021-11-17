@@ -1,5 +1,5 @@
 from django.shortcuts import reverse
-from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.files.storage import default_storage
 from rest_framework.test import APIRequestFactory
 
 from trackstats.models import Metric, Period
@@ -1293,7 +1293,8 @@ def test_delete_topography(client, two_topos, django_user_model, topo_example3, 
     topo = topo_example3
     surface = topo.surface
 
-    topo_datafile_path = topo.datafile.path
+    # store names of files in storage system
+    topo_datafile_name = topo.datafile.name
 
     assert client.login(username=username, password=password)
 
@@ -1311,7 +1312,7 @@ def test_delete_topography(client, two_topos, django_user_model, topo_example3, 
     assert not Topography.objects.filter(pk=topo.pk).exists()
 
     # topography file should also be deleted
-    assert not os.path.exists(topo_datafile_path)
+    assert not default_storage.exists(topo_datafile_name)
 
 
 @pytest.mark.skip("Cannot be implemented up to now, because don't know how to reuse datafile")
