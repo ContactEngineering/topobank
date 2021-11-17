@@ -47,16 +47,19 @@ def remove_files(sender, instance, **kwargs):
             _log.warning("Topography id %d, attribute '%s': Cannot delete data file '%s', reason: %s",
                          instance.id, datafile_attr_name, datafile.name, str(exc))
 
-    def delete_auxiliary(path):
+    def _delete_directory(path):
+        directories, filenames = default_storage.listdir(path)
+        for filename in filenames:
+            _log.info(f'Deleting file {path}/{filename}...')
+            default_storage.delete(f'{path}/{filename}')
+        for directory in directories:
+            _log.info(f'Deleting directory {path}/{directory}...')
+            _delete_directory(f'{path}/{directory}')
+            default_storage.delete(f'{path}/{directory}')
+
+    def delete_directory(path):
         fullname = user_directory_path(instance, f'{instance.id}/{path}')
-        _log.info(f'Deleting {fullname}...')
-        default_storage.delete(fullname)
-        if hasattr(default_storage, 'bucket'):
-            # This is an S3Boto3Storage object... it cannot delete
-            # "directories" (which do not exist on S3)
-            normalized_name = default_storage._normalize_name(default_storage._clean_name(fullname))
-            # The directory needs to be treated as a prefix
-            default_storage.bucket.objects.filter(Prefix=normalized_name).delete()
+        _delete_directory(fullname)
 
     delete_datafile('datafile')
     if instance.has_squeezed_datafile:
@@ -65,7 +68,7 @@ def remove_files(sender, instance, **kwargs):
         delete_datafile('thumbnail')
     if instance.size_y is not None:
         # Delete Deep Zoom Image files
-        delete_auxiliary('dzi/')
+        delete_directory('dzi')
 
 
 @receiver(post_delete, sender=Topography)
