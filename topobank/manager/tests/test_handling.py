@@ -1293,28 +1293,42 @@ def test_delete_topography(client, two_topos, django_user_model, topo_example3, 
     topo = topo_example3
     surface = topo.surface
 
+    # make squeezed datafile
+    topo.renew_squeezed_datafile()
+    topo.renew_images()
+
     # store names of files in storage system
+    pk = topo.pk
     topo_datafile_name = topo.datafile.name
     squeezed_datafile_name = topo.squeezed_datafile.name
+    thumbnail_name = topo.thumbnail.name
+
+    # check that files actually exist
+    assert default_storage.exists(topo_datafile_name)
+    assert default_storage.exists(squeezed_datafile_name)
+    assert default_storage.exists(thumbnail_name)
 
     assert client.login(username=username, password=password)
 
-    response = client.get(reverse('manager:topography-delete', kwargs=dict(pk=topo.pk)))
+    response = client.get(reverse('manager:topography-delete', kwargs=dict(pk=pk)))
 
     # user should be asked if he/she is sure
     assert b'Are you sure' in response.content
 
-    response = client.post(reverse('manager:topography-delete', kwargs=dict(pk=topo.pk)))
+    response = client.post(reverse('manager:topography-delete', kwargs=dict(pk=pk)))
 
     # user should be redirected to surface details
     assert reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)) == response.url
 
     # topography topo_id is no more in database
-    assert not Topography.objects.filter(pk=topo.pk).exists()
+    assert not Topography.objects.filter(pk=pk).exists()
 
     # topography file should also be deleted
     assert not default_storage.exists(topo_datafile_name)
     assert not default_storage.exists(squeezed_datafile_name)
+    assert not default_storage.exists(thumbnail_name)
+
+    print(pk, topo_datafile_name, squeezed_datafile_name)
 
 
 @pytest.mark.skip("Cannot be implemented up to now, because don't know how to reuse datafile")

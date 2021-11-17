@@ -513,6 +513,11 @@ class Topography(models.Model, SubjectMixin):
         """If True, a squeezed data file can be retrieved via self.squeezed_datafile"""
         return bool(self.squeezed_datafile)
 
+    @property
+    def has_thumbnail(self):
+        """If True, a thumbnail can be retrieved via self.thumbnail"""
+        return bool(self.thumbnail)
+
     def get_absolute_url(self):
         """URL of detail page for this topography."""
         return reverse('manager:topography-detail', kwargs=dict(pk=self.pk))

@@ -55,6 +55,8 @@ def remove_files(sender, instance, **kwargs):
     delete_datafile('datafile')
     if instance.has_squeezed_datafile:
         delete_datafile('squeezed_datafile')
+    if instance.has_thumbnail:
+        delete_datafile('thumbnail')
     if instance.size_y is not None:
         # Delete Deep Zoom Image files
         delete_datafile('datafile', '-dzi.json')
