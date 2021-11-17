@@ -444,7 +444,7 @@ sqlparse==0.4.2
     # via
     #   -r base.txt
     #   django
-surfacetopography==0.99.0
+surfacetopography==0.99.3
     # via
     #   -r base.txt
     #   contactmechanics
