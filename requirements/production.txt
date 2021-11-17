@@ -225,7 +225,7 @@ mufft==0.18.1
     #   surfacetopography
 netcdf4==1.5.7
     # via -r ./base.txt
-numpi==0.1.6
+numpi==0.3.0
     # via
     #   -r ./base.txt
     #   contactmechanics
@@ -308,6 +308,7 @@ python-dateutil==2.8.1
     #   botocore
     #   matplotlib
     #   pandas
+    #   surfacetopography
 python-memcached==1.59
     # via -r production.in
 python-slugify==5.0.2
@@ -365,7 +366,7 @@ sqlparse==0.4.2
     # via
     #   -r ./base.txt
     #   django
-surfacetopography==0.98.2
+surfacetopography==0.99.3
     # via
     #   -r ./base.txt
     #   contactmechanics

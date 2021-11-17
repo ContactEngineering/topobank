@@ -42,6 +42,7 @@ RUN pip install --upgrade pip
 #
 COPY ./requirements /requirements
 WORKDIR /
+RUN pip install --upgrade setuptools
 RUN pip install --no-cache-dir -r /requirements/production.txt --ignore-installed && rm -Rf /requirements
 
 COPY ./compose/production/django/entrypoint /entrypoint
