@@ -17,7 +17,7 @@ RUN apt-get update \
   # Pillow requirements
   && apt-get install --yes libjpeg-dev zlib1g-dev libfreetype6-dev liblcms2-dev libtiff-dev tk-dev tcl-dev librabbitmq-dev \
   # NetCDF requirements
-  && apt-get install --yes libnetcdf-dev
+  && apt-get install --yes libnetcdf-dev \
   # Memcached requirements
   && apt-get install --yes libmemcached-dev
 
