@@ -38,11 +38,10 @@
 #      key: "{{ lookup('file', '/home/michael/.ssh/id_rsa.pub') }}"
 #
 ##############
-## plus (not coded yet)
+## plus (not coded yet, really needed?)
 ##############
 # Add a line to /etc/hosts
 # 127.0.1.1 conengrk conengrk.vm.privat
-#
 ############
 
  - name: Prepare containers
@@ -66,6 +65,13 @@
          remote_src: True
          src: /home/topobank/topobank/.envs/.production/.django.testserver
          dest: /home/topobank/topobank/.envs/.production/.django
+         owner: topobank
+         mode: u=rw,g=,o=
+     - name: Copy caddy config file for testserver
+       copy:
+         remote_src: True
+         src: /home/topobank/topobank/.envs/.production/.caddy.testserver
+         dest: /home/topobank/topobank/.envs/.production/.caddy
          owner: topobank
          mode: u=rw,g=,o=
      - name: Build docker containers with docker compose
