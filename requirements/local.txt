@@ -473,7 +473,7 @@ sqlparse==0.4.2
     #   -r ./base.txt
     #   django
     #   django-debug-toolbar
-surfacetopography==0.99.1
+surfacetopography==0.100.0
     # via
     #   -r ./base.txt
     #   contactmechanics

@@ -261,6 +261,11 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
             initial['height_scale'] = 1 if height_scale_factor_missing else channel_info.height_scale_factor
 
             #
+            # Set initial undefined data
+            #
+            initial['fill_undefined_data_mode'] = 'do-not-fill'
+
+            #
             # Set initial detrend mode
             #
             initial['detrend_mode'] = 'center'
@@ -529,7 +534,7 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
         _log.debug("These fields have been changed according to form: %s", changed_fields)
 
         significant_fields = {'size_x', 'size_y', 'unit', 'is_periodic', 'height_scale',
-                              'detrend_mode', 'datafile', 'data_source',
+                              'fill_undefined_data_mode', 'detrend_mode', 'datafile', 'data_source',
                               'instrument_type',  # , 'instrument_parameters'
                               # 'tip_radius_value', 'tip_radius_unit',
                              }

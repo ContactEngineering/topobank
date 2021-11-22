@@ -254,7 +254,7 @@ def make_is_periodic_field():
                               help_text="""<b>Can only be enabled for 2D topographies and if no sizes were given in
                                     original file.</b>
                                     When enabled, this affects analysis results like PSD or ACF.
-                                    No detrending can be used for periodic topographies, except of
+                                    No detrending can be used for periodic topographies, except
                                     substracting the mean height.
                                     Additionally, the default calculation type for contact mechanics
                                     will be set to 'periodic'. """)
@@ -299,6 +299,7 @@ class TopographyUnitsForm(forms.ModelForm):
             'size_y': "Please check physical size in y direction and change it, if needed.",
             'unit': "Please select the correct unit for the size and height values.",
             'height_scale': "Please enter the correct height scale factor such that heights match the given unit.",
+            'fill_undefined_data_mode': "Select a procedure for filling (imputation of) undefined/missing data points.",
             'detrend_mode': "The detrending is applied on topography data after reading from data file."
         }
 
@@ -452,7 +453,7 @@ class TopographyWizardUnitsForm(TopographyUnitsForm):
                   'height_scale_editable',
                   'size_x', 'size_y',
                   'unit', 'is_periodic',
-                  'height_scale', 'detrend_mode',
+                  'height_scale', 'fill_undefined_data_mode', 'detrend_mode',
                   'resolution_x', 'resolution_y',
                   'instrument_name', 'instrument_type', 'instrument_parameters')
 
@@ -488,7 +489,9 @@ class TopographyWizardUnitsForm(TopographyUnitsForm):
                 Fieldset(*size_fieldset_args),
                 Fieldset('Height Conversion',
                          Field('height_scale')),
-                Field('detrend_mode'),
+                Fieldset('Filters',
+                         Field('fill_undefined_data_mode'),
+                         Field('detrend_mode')),
                 InstrumentLayout(),
                 *self.editable_fields,
                 *resolution_fieldset_args,
@@ -519,7 +522,9 @@ class TopographyForm(CleanVulnerableFieldsMixin, TopographyUnitsForm):
                   'datafile', 'data_source',
                   'size_x', 'size_y',
                   'unit', 'is_periodic',
-                  'height_scale', 'detrend_mode',
+                  'height_scale',
+                  'fill_undefined_data_mode',
+                  'detrend_mode',
                   'instrument_name',
                   'instrument_type',
                   'instrument_parameters',
@@ -564,7 +569,9 @@ class TopographyForm(CleanVulnerableFieldsMixin, TopographyUnitsForm):
                 Fieldset(*size_fieldset_args),
                 Fieldset('Height Conversion',
                          Field('height_scale')),
-                Field('detrend_mode'),
+                Fieldset('Filters',
+                         Field('fill_undefined_data_mode'),
+                         Field('detrend_mode')),
                 InstrumentLayout(),
                 *self.editable_fields,
             ),

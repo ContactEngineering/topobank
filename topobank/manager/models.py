@@ -415,6 +415,11 @@ class Topography(models.Model, SubjectMixin):
         ('Å', 'angstrom'),
     ]
 
+    FILL_UNDEFINED_DATA_MODE_CHOICES = [
+        ('do-not-fill', 'Do not fill undefined data points'),
+        ('harmonic', 'Interpolate undefined data points with harmonic functions'),
+    ]
+
     DETREND_MODE_CHOICES = [
         ('center', 'No detrending, but substract mean height'),
         ('height', 'Remove tilt'),
@@ -476,6 +481,8 @@ class Topography(models.Model, SubjectMixin):
 
     height_scale_editable = models.BooleanField(default=False)
     height_scale = models.FloatField(default=1)
+
+    fill_undefined_data_mode = models.TextField(choices=FILL_UNDEFINED_DATA_MODE_CHOICES, default='do-not-fill')
 
     detrend_mode = models.TextField(choices=DETREND_MODE_CHOICES, default='center')
 
@@ -644,6 +651,9 @@ class Topography(models.Model, SubjectMixin):
 
                 # Eventually get topography from module "SurfaceTopography" using the given keywords
                 topo = toporeader.topography(**topography_kwargs)
+                _log.info(self.fill_undefined_data_mode)
+                if self.fill_undefined_data_mode != 'do-not-fill':
+                    topo = topo.interpolate_undefined_data(self.fill_undefined_data_mode)
                 topo = topo.detrend(detrend_mode=self.detrend_mode)
 
             cache.set(cache_key, topo)
@@ -666,6 +676,7 @@ class Topography(models.Model, SubjectMixin):
                       'squeezed-netcdf': self.squeezed_datafile.name,
                   },
                   'data_source': self.data_source,
+                  'fill_undefined_data_mode': self.fill_undefined_data_mode,
                   'detrend_mode': self.detrend_mode,
                   'is_periodic': self.is_periodic,
                   'creator': {'name': self.creator.name, 'orcid': self.creator.orcid_id},
