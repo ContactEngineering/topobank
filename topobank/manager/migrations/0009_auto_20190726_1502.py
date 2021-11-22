@@ -13,6 +13,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='topography',
             name='detrend_mode',
-            field=models.TextField(choices=[('center', 'No detrending, but substract mean height'), ('height', 'Remove tilt'), ('curvature', 'Remove curvature')], default='center'),
+            field=models.TextField(choices=[('center', 'No detrending, but subtract mean height'), ('height', 'Remove tilt'), ('curvature', 'Remove curvature')], default='center'),
         ),
     ]

@@ -421,7 +421,7 @@ class Topography(models.Model, SubjectMixin):
     ]
 
     DETREND_MODE_CHOICES = [
-        ('center', 'No detrending, but substract mean height'),
+        ('center', 'No detrending, but subtract mean height'),
         ('height', 'Remove tilt'),
         ('curvature', 'Remove curvature and tilt'),
     ]

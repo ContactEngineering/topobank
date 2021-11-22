@@ -255,7 +255,7 @@ def make_is_periodic_field():
                                     original file.</b>
                                     When enabled, this affects analysis results like PSD or ACF.
                                     No detrending can be used for periodic topographies, except
-                                    substracting the mean height.
+                                    subtracting the mean height.
                                     Additionally, the default calculation type for contact mechanics
                                     will be set to 'periodic'. """)
 
