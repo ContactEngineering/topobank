@@ -12,6 +12,11 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddField(
             model_name='topography',
+            name='has_undefined_data',
+            field=models.BooleanField(null=True, default=None),
+        ),
+        migrations.AddField(
+            model_name='topography',
             name='fill_undefined_data_mode',
             field=models.TextField(choices=[('do-not-fill', 'Do not fill undefined data points'), ('harmonic', 'Interpolate undefined data points with harmonic functions')], default='do-not-fill'),
         ),

@@ -299,8 +299,15 @@ class TopographyUnitsForm(forms.ModelForm):
             'size_y': "Please check physical size in y direction and change it, if needed.",
             'unit': "Please select the correct unit for the size and height values.",
             'height_scale': "Please enter the correct height scale factor such that heights match the given unit.",
-            'fill_undefined_data_mode': "Select a procedure for filling (imputation of) undefined/missing data points.",
-            'detrend_mode': "The detrending is applied on topography data after reading from data file."
+            'fill_undefined_data_mode':
+                "Select a procedure for filling (imputation of) undefined/missing data points. " +
+                ("(We could not (yet) determine whether there are undefined/missing data points.)"
+                 if self.initial['has_undefined_data'] is None else
+                 "(The dataset has undefined/missing data points.)"
+                 if self.initial['has_undefined_data'] else
+                 "(No undefined/missing data found.)"),
+            'detrend_mode': "Detrending is applied to the data after reading and potentially filling undefined data "
+                            "points."
         }
 
         #
@@ -523,7 +530,7 @@ class TopographyForm(CleanVulnerableFieldsMixin, TopographyUnitsForm):
                   'size_x', 'size_y',
                   'unit', 'is_periodic',
                   'height_scale',
-                  'fill_undefined_data_mode',
+                  'has_undefined_data', 'fill_undefined_data_mode',
                   'detrend_mode',
                   'instrument_name',
                   'instrument_type',

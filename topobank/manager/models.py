@@ -415,6 +415,12 @@ class Topography(models.Model, SubjectMixin):
         ('Å', 'angstrom'),
     ]
 
+    HAS_UNDEFINED_DATA_DESCRIPTION = {
+        None: 'contact.engineering could not (yet) determine if this topography has undefined data points.',
+        True: 'The dataset has undefined/missing data points.',
+        False: 'No undefined/missing data found.'
+    }
+
     FILL_UNDEFINED_DATA_MODE_CHOICES = [
         ('do-not-fill', 'Do not fill undefined data points'),
         ('harmonic', 'Interpolate undefined data points with harmonic functions'),
@@ -482,6 +488,7 @@ class Topography(models.Model, SubjectMixin):
     height_scale_editable = models.BooleanField(default=False)
     height_scale = models.FloatField(default=1)
 
+    has_undefined_data = models.BooleanField(null=True, default=None)  # default is undefined
     fill_undefined_data_mode = models.TextField(choices=FILL_UNDEFINED_DATA_MODE_CHOICES, default='do-not-fill')
 
     detrend_mode = models.TextField(choices=DETREND_MODE_CHOICES, default='center')
@@ -651,7 +658,6 @@ class Topography(models.Model, SubjectMixin):
 
                 # Eventually get topography from module "SurfaceTopography" using the given keywords
                 topo = toporeader.topography(**topography_kwargs)
-                _log.info(self.fill_undefined_data_mode)
                 if self.fill_undefined_data_mode != 'do-not-fill':
                     topo = topo.interpolate_undefined_data(self.fill_undefined_data_mode)
                 topo = topo.detrend(detrend_mode=self.detrend_mode)
@@ -676,6 +682,7 @@ class Topography(models.Model, SubjectMixin):
                       'squeezed-netcdf': self.squeezed_datafile.name,
                   },
                   'data_source': self.data_source,
+                  'has_undefined_data': self.has_undefined_data,
                   'fill_undefined_data_mode': self.fill_undefined_data_mode,
                   'detrend_mode': self.detrend_mode,
                   'is_periodic': self.is_periodic,
@@ -974,10 +981,28 @@ class Topography(models.Model, SubjectMixin):
         """Renew squeezed datafile file."""
         _log.info(f"Renewing squeezed datafile for topography {self.id}..")
         with tempfile.NamedTemporaryFile() as tmp:
-            st_topo = self.topography(allow_cache=False, allow_squeezed=False)  # really reread from original file
+            # Reread topography from original file
+            st_topo = self.topography(allow_cache=False, allow_squeezed=False)
+
+            # Check whether original data file has undefined data point and update database accordingly.
+            # (We never load the topography so we don't know this until here. `has_undefined_data` can be
+            # undefined.)
+            parent_topo = st_topo
+            while hasattr(parent_topo, 'parent_topography'):
+                parent_topo = parent_topo.parent_topography
+            self.has_undefined_data = parent_topo.has_undefined_data
+
+            # Write and upload NetCDF file
             st_topo.to_netcdf(tmp.name)
             orig_stem, orig_ext = os.path.splitext(self.datafile.name)
             squeezed_name = f"{orig_stem}-squeezed.nc"
             self.squeezed_datafile = default_storage.save(squeezed_name, File(open(tmp.name, mode='rb')))
             self.save()
 
+    def get_undefined_data_status(self):
+        s = self.HAS_UNDEFINED_DATA_DESCRIPTION[self.has_undefined_data]
+        if self.fill_undefined_data_mode == 'do-not-fill':
+            s += ' No correction of undefined data is performed.'
+        elif self.fill_undefined_data_mode == 'harmonic':
+            s += ' Undefined/missing values are filled in with values obtained from a harmonic interpolation.'
+        return s

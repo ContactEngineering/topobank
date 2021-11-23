@@ -261,8 +261,11 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
             initial['height_scale'] = 1 if height_scale_factor_missing else channel_info.height_scale_factor
 
             #
-            # Set initial undefined data
+            # Set initial undefined data; note that we do not know at this point if there is undefined data since
+            # the file has never been read fully. We here only read headers; the file is only fully read in Celery
+            # tasks. This is to limit memory usage of the main Django server.
             #
+            initial['has_undefined_data'] = None
             initial['fill_undefined_data_mode'] = 'do-not-fill'
 
             #

@@ -84,7 +84,7 @@
               </tr>
               <tr>
                 <th scope="row">Undefined/missing data</th>
-                <td>{% if topography.has_undefined_data %}The dataset has undefined/missing data points. {{ topography.fill_undefined_data_mode }}{% else %}No undefined/missing data found.{% endif %}</td>
+                <td>{{ topography.get_undefined_data_status }}</td>
               </tr>
               <tr>
                 <th scope="row">Detrending mode</th>
