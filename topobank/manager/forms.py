@@ -491,6 +491,12 @@ class TopographyWizardUnitsForm(TopographyUnitsForm):
         size_fieldset_args.append(Field('unit'))
         size_fieldset_args.append(Field('is_periodic'))
 
+        filters_fieldset_args = ['Filters']
+        if self.instance.has_undefined_data is None or self.instance.has_undefined_data:
+            # If there is no undefined data, we do not offer the option to correct it
+            filters_fieldset_args += [Field('fill_undefined_data_mode')]
+        filters_fieldset_args += [Field('detrend_mode')]
+
         self.fields['instrument_name'].label = "Name"
         self.fields['instrument_type'].label = "Type"
 
@@ -499,9 +505,7 @@ class TopographyWizardUnitsForm(TopographyUnitsForm):
                 Fieldset(*size_fieldset_args),
                 Fieldset('Height Conversion',
                          Field('height_scale')),
-                Fieldset('Filters',
-                         Field('fill_undefined_data_mode'),
-                         Field('detrend_mode')),
+                Fieldset(*filters_fieldset_args),
                 InstrumentLayout(),
                 *self.editable_fields,
                 *resolution_fieldset_args,

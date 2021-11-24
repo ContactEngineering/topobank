@@ -310,8 +310,8 @@ def test_renewal_on_topography_creation(client, mocker, handle_usage_statistics,
                                    'units-resolution_x': 2,
                                    'units-resolution_y': 2,
                                    'units-instrument_type': 'undefined',
-                                   'unit-has_undefined_data': False,
-                                   'unit-fill_undefined_data_mode': 'do-not-fill',
+                                   'units-has_undefined_data': False,
+                                   'units-fill_undefined_data_mode': 'do-not-fill',
                                }, follow=True)
 
     assert_no_form_errors(response)
