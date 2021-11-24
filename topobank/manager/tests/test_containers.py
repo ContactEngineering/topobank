@@ -25,6 +25,8 @@ def test_surface_container():
             'unit': 'µm',
         }
     }
+    has_undefined_data = False
+    fill_undefined_data_mode = 'do-not-fill'
 
     user = UserFactory()
     tag1 = TagModelFactory(name='apple')
@@ -48,7 +50,9 @@ def test_surface_container():
                                  size_x=10, size_y=5,
                                  instrument_name=instrument_name,
                                  instrument_type=instrument_type,
-                                 instrument_parameters=instrument_params)
+                                 instrument_parameters=instrument_params,
+                                 has_undefined_data=has_undefined_data,
+                                 fill_undefined_data_mode=fill_undefined_data_mode)
     # surface 3 is empty
 
     # surface 2 is published
@@ -137,6 +141,11 @@ def test_surface_container():
         topo1b_meta = meta_surfaces[0]['topographies'][1]
         assert topo1b_meta['name'] == topo1b.name
         assert 'height_scale' not in topo1b_meta
+
+        assert 'fill_undefined_data_mode' in topo1a_meta
+        assert 'fill_undefined_data_mode' in topo1b_meta
+        assert 'has_undefined_data' in topo1a_meta
+        assert 'has_undefined_data' in topo1b_meta
 
     os.remove(outfile.name)
 

@@ -294,18 +294,21 @@ class TopographyUnitsForm(forms.ModelForm):
         #
         # Setting defaults for help texts
         #
+        fill_undefined_data_mode_help = "Select a procedure for filling (imputation of) undefined/missing data points."
+        if 'has_undefined_data' in self.initial:
+            if self.initial['has_undefined_data'] is None:
+                fill_undefined_data_mode_help += " (We could not (yet) determine whether there are undefined/missing " \
+                                                 "data points.)"
+            elif self.initial['has_undefined_data']:
+                fill_undefined_data_mode_help += " (The dataset has undefined/missing data points.)"
+            else:
+                fill_undefined_data_mode_help += " (No undefined/missing data found.)"
         help_texts = {
             'size_x': "Please check physical size in x direction and change it, if needed.",
             'size_y': "Please check physical size in y direction and change it, if needed.",
             'unit': "Please select the correct unit for the size and height values.",
             'height_scale': "Please enter the correct height scale factor such that heights match the given unit.",
-            'fill_undefined_data_mode':
-                "Select a procedure for filling (imputation of) undefined/missing data points. " +
-                ("(We could not (yet) determine whether there are undefined/missing data points.)"
-                 if self.initial['has_undefined_data'] is None else
-                 "(The dataset has undefined/missing data points.)"
-                 if self.initial['has_undefined_data'] else
-                 "(No undefined/missing data found.)"),
+            'fill_undefined_data_mode': fill_undefined_data_mode_help,
             'detrend_mode': "Detrending is applied to the data after reading and potentially filling undefined data "
                             "points."
         }

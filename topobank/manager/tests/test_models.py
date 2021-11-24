@@ -130,6 +130,8 @@ def test_topography_to_dict():
         'is_periodic': is_periodic,
         'tags': tags,
         'instrument': instrument,
+        'fill_undefined_data_mode': 'do-not-fill',
+        'has_undefined_data': None,
     }
 
 
