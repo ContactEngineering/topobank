@@ -335,8 +335,6 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
             kwargs['allow_periodic'] = has_2_dim and no_sizes_given  # TODO simplify in 'no_sizes_given'?
             kwargs['has_size_y'] = has_2_dim  # TODO find common term, now we have 'has_size_y' and 'has_2_dim'
             kwargs['has_undefined_data'] = channel_info.has_undefined_data
-            _log.info(f'{kwargs}')
-            _log.info(f"{kwargs['has_undefined_data']}")
 
         return kwargs
 

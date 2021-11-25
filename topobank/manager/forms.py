@@ -176,7 +176,6 @@ class TopographyFileUploadForm(forms.ModelForm):
         # "channel_infos" is not part of the model, but will be added
         # as extra data in order to avoid reloading the file later
         # several times just for channel infos
-        _log.info(f'From form: {toporeader.channels[0].has_undefined_data}')
         cleaned_data['channel_infos'] = list(toporeader.channels)
 
         return cleaned_data
