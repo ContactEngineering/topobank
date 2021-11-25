@@ -1,5 +1,4 @@
 from django.shortcuts import reverse
-from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APIRequestFactory
 
 from trackstats.models import Metric, Period
@@ -375,6 +374,7 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
     assert response.status_code == 200
     assert_no_form_errors(response)
     assert_in_content(response, "Step 3 of 3")
+    assert_in_content(response, 'Fill undefined data mode')
 
     #
     # Send data for third page
@@ -1008,6 +1008,7 @@ def test_edit_topography(client, django_user_model, topo_example3, handle_usage_
                            }, follow=True)
 
     assert_no_form_errors(response)
+    assert_in_content(response, 'Fill undefined data mode')
 
     # we should stay on the update page for this topography
     assert_redirects(response, reverse('manager:topography-update', kwargs=dict(pk=topo_example3.pk)))
@@ -1530,15 +1531,15 @@ def test_topography_form_field_is_periodic():
         'resolution_x': '1',
     }
 
-    form = TopographyWizardUnitsForm(initial=data, allow_periodic=False, has_size_y=False)
+    form = TopographyWizardUnitsForm(initial=data, allow_periodic=False, has_size_y=False, has_undefined_data=None)
     assert form.fields['is_periodic'].disabled
 
     data['size_y'] = 1
 
-    form = TopographyWizardUnitsForm(initial=data, allow_periodic=False, has_size_y=True)
+    form = TopographyWizardUnitsForm(initial=data, allow_periodic=False, has_size_y=True, has_undefined_data=None)
     assert form.fields['is_periodic'].disabled
 
-    form = TopographyWizardUnitsForm(initial=data, allow_periodic=True, has_size_y=True)
+    form = TopographyWizardUnitsForm(initial=data, allow_periodic=True, has_size_y=True, has_undefined_data=None)
     assert not form.fields['is_periodic'].disabled
 
     form = TopographyForm(initial=data, has_size_y=True, allow_periodic=True, autocomplete_tags=[])

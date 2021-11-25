@@ -659,6 +659,7 @@ class Topography(models.Model, SubjectMixin):
                 # Eventually get topography from module "SurfaceTopography" using the given keywords
                 topo = toporeader.topography(**topography_kwargs)
                 if self.fill_undefined_data_mode != 'do-not-fill':
+                    _log.info(f'fill undefined data mode = {self.fill_undefined_data_mode}')
                     topo = topo.interpolate_undefined_data(self.fill_undefined_data_mode)
                 topo = topo.detrend(detrend_mode=self.detrend_mode)
 

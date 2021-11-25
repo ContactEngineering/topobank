@@ -265,7 +265,7 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
             # the file has never been read fully. We here only read headers; the file is only fully read in Celery
             # tasks. This is to limit memory usage of the main Django server.
             #
-            initial['has_undefined_data'] = None
+            initial['has_undefined_data'] = channel_info.has_undefined_data
             initial['fill_undefined_data_mode'] = 'do-not-fill'
 
             #
@@ -334,6 +334,9 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
             # only allow periodic topographies in case of 2 dimension
             kwargs['allow_periodic'] = has_2_dim and no_sizes_given  # TODO simplify in 'no_sizes_given'?
             kwargs['has_size_y'] = has_2_dim  # TODO find common term, now we have 'has_size_y' and 'has_2_dim'
+            kwargs['has_undefined_data'] = channel_info.has_undefined_data
+            _log.info(f'{kwargs}')
+            _log.info(f"{kwargs['has_undefined_data']}")
 
         return kwargs
 

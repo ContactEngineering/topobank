@@ -176,6 +176,7 @@ class TopographyFileUploadForm(forms.ModelForm):
         # "channel_infos" is not part of the model, but will be added
         # as extra data in order to avoid reloading the file later
         # several times just for channel infos
+        _log.info(f'From form: {toporeader.channels[0].has_undefined_data}')
         cleaned_data['channel_infos'] = list(toporeader.channels)
 
         return cleaned_data
@@ -469,12 +470,20 @@ class TopographyWizardUnitsForm(TopographyUnitsForm):
 
     def __init__(self, *args, **kwargs):
         has_size_y = kwargs.pop('has_size_y')
+        has_undefined_data = kwargs.pop('has_undefined_data')
 
+        # If the form has been submitted, populate the disabled field
+        # From: https://stackoverflow.com/questions/4662848/disabled-field-is-not-passed-through-workaround-needed
+        if 'data' in kwargs and kwargs['data'] is not None:
+            data = kwargs['data'].copy()
+            self.prefix = kwargs.get('prefix')
+            data[self.add_prefix('fill_undefined_data_mode')] = 'do-not-fill'
+            kwargs['data'] = data
         super().__init__(*args, **kwargs)
 
         self.helper.form_tag = True
 
-        size_fieldset_args = ['Physical Size',
+        size_fieldset_args = ['Physical size',
                               Field('size_x')]
         resolution_fieldset_args = [Field('resolution_x', type="hidden")]
         # resolution is handled here only in order to have the data in wizard's .done() method
@@ -492,9 +501,11 @@ class TopographyWizardUnitsForm(TopographyUnitsForm):
         size_fieldset_args.append(Field('is_periodic'))
 
         filters_fieldset_args = ['Filters']
-        if self.instance.has_undefined_data is None or self.instance.has_undefined_data:
-            # If there is no undefined data, we do not offer the option to correct it
+        if has_undefined_data is None or has_undefined_data:
+            # If there is clearly no undefined data, we do not offer the option to correct it
             filters_fieldset_args += [Field('fill_undefined_data_mode')]
+        else:
+            filters_fieldset_args += [Field('fill_undefined_data_mode', disabled=True)]
         filters_fieldset_args += [Field('detrend_mode')]
 
         self.fields['instrument_name'].label = "Name"
@@ -503,7 +514,7 @@ class TopographyWizardUnitsForm(TopographyUnitsForm):
         self.helper.layout = Layout(
             Div(
                 Fieldset(*size_fieldset_args),
-                Fieldset('Height Conversion',
+                Fieldset('Height conversion',
                          Field('height_scale')),
                 Fieldset(*filters_fieldset_args),
                 InstrumentLayout(),
@@ -537,7 +548,7 @@ class TopographyForm(CleanVulnerableFieldsMixin, TopographyUnitsForm):
                   'size_x', 'size_y',
                   'unit', 'is_periodic',
                   'height_scale',
-                  'has_undefined_data', 'fill_undefined_data_mode',
+                  'fill_undefined_data_mode',
                   'detrend_mode',
                   'instrument_name',
                   'instrument_type',
@@ -547,6 +558,14 @@ class TopographyForm(CleanVulnerableFieldsMixin, TopographyUnitsForm):
     def __init__(self, *args, **kwargs):
         has_size_y = kwargs.pop('has_size_y')
         autocomplete_tags = kwargs.pop('autocomplete_tags')
+
+        # If the form has been submitted, populate the disabled field
+        # From: https://stackoverflow.com/questions/4662848/disabled-field-is-not-passed-through-workaround-needed
+        if 'data' in kwargs:
+            data = kwargs['data'].copy()
+            self.prefix = kwargs.get('prefix')
+            data[self.add_prefix('fill_undefined_data_mode')] = 'do-not-fill'
+            kwargs['data'] = data
         super().__init__(*args, **kwargs)
 
         for fn in ['surface', 'data_source']:
@@ -566,6 +585,14 @@ class TopographyForm(CleanVulnerableFieldsMixin, TopographyUnitsForm):
         size_fieldset_args.append(Field('unit'))
         size_fieldset_args.append(Field('is_periodic'))
 
+        filters_fieldset_args = ['Filters']
+        if self.instance.has_undefined_data is None or self.instance.has_undefined_data:
+            # If there is no undefined data, we do not offer the option to correct it
+            filters_fieldset_args += [Field('fill_undefined_data_mode')]
+        else:
+            filters_fieldset_args += [Field('fill_undefined_data_mode', disabled=True)]
+        filters_fieldset_args += [Field('detrend_mode')]
+
         self.fields['instrument_name'].label = "Name"
         self.fields['instrument_type'].label = "Type"
 
@@ -581,11 +608,9 @@ class TopographyForm(CleanVulnerableFieldsMixin, TopographyUnitsForm):
                 Field('description'),
                 Field('tags'),
                 Fieldset(*size_fieldset_args),
-                Fieldset('Height Conversion',
+                Fieldset('Height conversion',
                          Field('height_scale')),
-                Fieldset('Filters',
-                         Field('fill_undefined_data_mode'),
-                         Field('detrend_mode')),
+                Fieldset(*filters_fieldset_args),
                 InstrumentLayout(),
                 *self.editable_fields,
             ),
