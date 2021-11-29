@@ -1,0 +1,144 @@
+version: '3'
+
+volumes:
+  production_postgres_data: {}
+  production_postgres_data_backups: {}
+  production_caddy: {}
+  production_media: {}
+  # The media is used to save the topography files, will probably be replaced later by S3
+
+networks:
+  topobank:
+    internal: true
+    driver: overlay
+    driver_opts:
+      encrypted: ""
+      # not working yet?!
+
+services:
+  django: &django
+    build:
+      context: .
+      dockerfile: ./compose/production/django/Dockerfile
+    shm_size: '2gb'
+    image: localhost:5000/topobank_production_django
+    depends_on:
+      - postgres
+      - rabbitmq
+      - memcached
+    volumes:
+      - production_media:/app/media
+    env_file:
+      - ./.envs/.production/.django
+      - ./.envs/.production/.postgres
+    command: /start
+    deploy:
+      placement:
+        constraints:
+          - node.role==manager
+    networks:
+     - topobank
+
+  postgres:
+    build:
+      context: .
+      dockerfile: ./compose/production/postgres/Dockerfile
+    image: localhost:5000/topobank_production_postgres
+    volumes:
+      - production_postgres_data:/var/lib/postgresql/data
+      - production_postgres_data_backups:/backups
+    env_file:
+      - ./.envs/.production/.postgres
+    entrypoint: /docker-entrypoint.sh -c "shared_buffers=2GB" -c "max_connections=2000"
+    deploy:
+      placement:
+        constraints:
+          - node.role==manager
+    networks:
+     - topobank
+
+  dbbackup:
+    build:
+      context: .
+      dockerfile: ./compose/production/dbbackup/Dockerfile
+    image: localhost:5000/topobank_production_dbbackup
+    depends_on:
+      - postgres
+    env_file:
+      - ./.envs/.production/.django
+      - ./.envs/.production/.postgres
+    entrypoint: /entrypoint
+    deploy:
+      placement:
+        constraints:
+          - node.role==manager
+    networks:
+     - topobank
+
+  caddy:
+    build:
+      context: .
+      dockerfile: ./compose/production/caddy/Dockerfile
+    image: localhost:5000/topobank_production_caddy
+    depends_on:
+      - django
+    volumes:
+      - production_caddy:/root/.caddy
+    env_file:
+      - ./.envs/.production/.caddy
+    ports:
+      # - "0.0.0.0:80:80"
+      - "0.0.0.0:443:443"
+    deploy:
+      placement:
+        constraints:
+          - node.role==manager
+    networks:
+     - topobank
+
+  memcached:
+    image: memcached:1.5-alpine
+    volumes:
+      - production_media:/app/media
+    deploy:
+      replicas: 2
+    networks:
+     - topobank
+
+  rabbitmq:
+    image: rabbitmq:3.7-alpine
+    networks:
+     - topobank
+
+  celeryworker:
+    <<: *django
+    image: localhost:5000/topobank_production_celeryworker
+    command: /start-celeryworker
+    deploy:
+      placement:
+        constraints:
+          - node.role==worker
+    networks:
+     - topobank
+
+  celerybeat:
+    <<: *django
+    image: localhost:5000/topobank_production_celerybeat
+    command: /start-celerybeat
+    deploy:
+      placement:
+        constraints:
+          - node.role==worker
+    networks:
+     - topobank
+
+  flower:
+    <<: *django
+    image: localhost:5000/topobank_production_flower
+    command: /start-flower
+    deploy:
+      placement:
+        constraints:
+          - node.role==manager
+    networks:
+     - topobank
