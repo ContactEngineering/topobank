@@ -81,6 +81,8 @@ def test_renewal_on_topography_change(client, mocker, django_capture_on_commit_c
         # the POST request has all parameters as the original HTML form
         'tip_radius_value': '1.0',  # no change so far
         'tip_radius_unit': 'mm',  # no change so far
+        'fill_undefined_data_mode': 'do-not-fill',
+        'has_undefined_data': False,
     }
 
     # also pass that? seems to be included in POST data on actual page
@@ -181,6 +183,8 @@ def test_form_changed_when_input_changes(changed_values_dict):
         'resolution_unit': '',
         'tip_radius_value': 1,  # no change so far
         'tip_radius_unit': 'mm',  # no change so far
+        'fill_undefined_data_mode': 'do-not-fill',
+        'has_undefined_data': False,
     }
 
     # if the initial data is passed as data, nothing has been changed
@@ -306,7 +310,8 @@ def test_renewal_on_topography_creation(client, mocker, handle_usage_statistics,
                                    'units-resolution_x': 2,
                                    'units-resolution_y': 2,
                                    'units-instrument_type': 'undefined',
-
+                                   'units-has_undefined_data': False,
+                                   'units-fill_undefined_data_mode': 'do-not-fill',
                                }, follow=True)
 
     assert_no_form_errors(response)

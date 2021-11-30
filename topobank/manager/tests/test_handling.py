@@ -1,5 +1,4 @@
 from django.shortcuts import reverse
-from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APIRequestFactory
 
 from trackstats.models import Metric, Period
@@ -182,6 +181,7 @@ def test_upload_topography_di(client, handle_usage_statistics):
                                'units-resolution_x': 256,
                                'units-resolution_y': 256,
                                'units-instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
+                               'units-fill_undefined_data_mode': 'do-not-fill',
                            }, follow=True)
 
     assert response.status_code == 200
@@ -270,6 +270,7 @@ def test_upload_topography_npy(client):
                                'units-resolution_x': 2,
                                'units-resolution_y': 2,
                                'units-instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
+                               'units-fill_undefined_data_mode': 'do-not-fill',
                            }, follow=True)
 
     assert response.status_code == 200
@@ -373,6 +374,7 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
     assert response.status_code == 200
     assert_no_form_errors(response)
     assert_in_content(response, "Step 3 of 3")
+    assert_in_content(response, 'Fill undefined data mode')
 
     #
     # Send data for third page
@@ -390,6 +392,7 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
                                    'units-detrend_mode': 'height',
                                    'units-resolution_x': exp_resolution_x,
                                    'units-instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
+                                   'units-fill_undefined_data_mode': 'do-not-fill',
                                }, follow=True)
     else:
         response = client.post(reverse('manager:topography-create',
@@ -406,6 +409,7 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
                                    'units-resolution_x': exp_resolution_x,
                                    'units-resolution_y': exp_resolution_y,
                                    'units-instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
+                                   'units-fill_undefined_data_mode': 'do-not-fill',
                                }, follow=True)
 
     assert response.status_code == 200
@@ -541,6 +545,7 @@ def test_upload_topography_instrument_parameters(client, django_user_model,
                                'units-resolution_unit': resolution_unit,
                                'units-tip_radius_value': tip_radius_value,
                                'units-tip_radius_unit': tip_radius_unit,
+                               'units-fill_undefined_data_mode': 'do-not-fill',
                            }, follow=True)
 
     assert response.status_code == 200
@@ -798,6 +803,7 @@ def test_trying_upload_of_corrupted_topography_file(client, django_user_model):
                                'units-resolution_x': 256,
                                'units-resolution_y': 256,
                                'units-instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
+                               'units-fill_undefined_data_mode': 'do-not-fill',
                            }, follow=True)
 
     assert response.status_code == 200
@@ -843,7 +849,7 @@ def test_upload_opd_file_check(client, handle_usage_statistics):
     # now we should be on the page with second step
     #
     assert_in_content(response, "Step 2 of 3")
-    assert_in_content(response, '<option value="0">Default</option>')
+    assert_in_content(response, '<option value="0">Raw</option>')
     assert response.context['form'].initial['name'] == 'example.opd'
 
     #
@@ -883,6 +889,7 @@ def test_upload_opd_file_check(client, handle_usage_statistics):
                                'units-resolution_x': 199,
                                'units-resolution_y': 201,
                                'units-instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
+                               'units-fill_undefined_data_mode': 'do-not-fill',
                            }, follow=True)
 
     assert response.status_code == 200
@@ -996,9 +1003,12 @@ def test_edit_topography(client, django_user_model, topo_example3, handle_usage_
                                'detrend_mode': 'height',
                                'tags': 'ab, bc',  # needs a string
                                'instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
+                               'fill_undefined_data_mode': 'do-not-fill',
+                               'has_undefined_data': False,
                            }, follow=True)
 
     assert_no_form_errors(response)
+    assert_in_content(response, 'Fill undefined data mode')
 
     # we should stay on the update page for this topography
     assert_redirects(response, reverse('manager:topography-update', kwargs=dict(pk=topo_example3.pk)))
@@ -1077,6 +1087,8 @@ def test_edit_line_scan(client, one_line_scan, django_user_model, handle_usage_s
                                'height_scale': 0.1,
                                'detrend_mode': 'height',
                                'instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
+                               'fill_undefined_data_mode': 'do-not-fill',
+                               'has_undefined_data': False,
                            })
 
     assert response.context is None, "Errors in form: {}".format(response.context['form'].errors)
@@ -1161,6 +1173,7 @@ def test_edit_topography_only_detrend_center_when_periodic(client, django_user_m
                                'units-instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
                                'units-instrument_name': '',
                                'units-instrument_parameters': {},
+                               'units-fill_undefined_data_mode': 'do-not-fill',
                            })
 
     assert response.status_code == 302
@@ -1195,6 +1208,8 @@ def test_edit_topography_only_detrend_center_when_periodic(client, django_user_m
                                'instrument_type': Topography.INSTRUMENT_TYPE_MICROSCOPE_BASED,
                                'instrument_parameters': "{'resolution': { 'value': 1, 'unit':'mm'}}",
                                'instrument_name': 'AFM',
+                               'fill_undefined_data_mode': 'do-not-fill',
+                               'has_undefined_data': False,
                            }, follow=True)
 
     assert Topography.DETREND_MODE_CHOICES[0][0] == 'center'
@@ -1243,6 +1258,7 @@ def test_instrument_parameters_empty_if_no_value_on_topography_change(client, ha
         # the POST request has all parameters as the original HTML form
         'tip_radius_value': '',  # No value
         'tip_radius_unit': 'mm',
+        'fill_undefined_data_mode': 'do-not-fill',
     }
 
     #
@@ -1515,15 +1531,15 @@ def test_topography_form_field_is_periodic():
         'resolution_x': '1',
     }
 
-    form = TopographyWizardUnitsForm(initial=data, allow_periodic=False, has_size_y=False)
+    form = TopographyWizardUnitsForm(initial=data, allow_periodic=False, has_size_y=False, has_undefined_data=None)
     assert form.fields['is_periodic'].disabled
 
     data['size_y'] = 1
 
-    form = TopographyWizardUnitsForm(initial=data, allow_periodic=False, has_size_y=True)
+    form = TopographyWizardUnitsForm(initial=data, allow_periodic=False, has_size_y=True, has_undefined_data=None)
     assert form.fields['is_periodic'].disabled
 
-    form = TopographyWizardUnitsForm(initial=data, allow_periodic=True, has_size_y=True)
+    form = TopographyWizardUnitsForm(initial=data, allow_periodic=True, has_size_y=True, has_undefined_data=None)
     assert not form.fields['is_periodic'].disabled
 
     form = TopographyForm(initial=data, has_size_y=True, allow_periodic=True, autocomplete_tags=[])

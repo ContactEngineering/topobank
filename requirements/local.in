@@ -45,3 +45,6 @@ pip-tools>=5.5.0
 # ------------------------------------------------------------------------------
 django-debug-toolbar-request-history
 # this allows to see context/requests of AJAX calls in debug toolbar
+
+# Speed up collecting static files
+Collectfast

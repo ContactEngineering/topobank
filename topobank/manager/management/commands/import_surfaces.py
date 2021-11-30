@@ -21,6 +21,7 @@ _log = logging.getLogger(__name__)
 
 TOPOGRAPHY_DEFAULT_ATTR_VALUES = {
     'tags': [],
+    'fill_undefined_data_mode': 'do-not-fill',
     'detrend_mode': 'center',
     'is_periodic': False,
     'height_scale': 1.,
@@ -128,6 +129,7 @@ class Command(BaseCommand):
             data_source=topo_dict['data_source'],
             unit=topo_dict['unit'],
             tags=topo_dict['tags'],
+            fill_undefined_data_mode=topo_dict['fill_undefined_data_mode'],
             detrend_mode=topo_dict['detrend_mode'],
             is_periodic=topo_dict['is_periodic'],
         )
