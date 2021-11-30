@@ -17,6 +17,23 @@
       <excludeFolder url="file://$MODULE_DIR$/node_modules" />
       <excludeFolder url="file://$MODULE_DIR$/staticfiles" />
       <excludeFolder url="file://$MODULE_DIR$/venv" />
+      <excludeFolder url="file://$MODULE_DIR$/.idea/dataSources" />
+      <excludeFolder url="file://$MODULE_DIR$/.idea/dictionaries" />
+      <excludeFolder url="file://$MODULE_DIR$/docs/_build" />
+      <excludeFolder url="file://$MODULE_DIR$/media/analyses" />
+      <excludeFolder url="file://$MODULE_DIR$/media/publications" />
+      <excludeFolder url="file://$MODULE_DIR$/media/test" />
+      <excludeFolder url="file://$MODULE_DIR$/media/topographies" />
+      <excludeFolder url="file://$MODULE_DIR$/splinter_tests/splinter_tests.test_publishing" />
+      <excludeFolder url="file://$MODULE_DIR$/.cache" />
+      <excludeFolder url="file://$MODULE_DIR$/.ipynb_checkpoints" />
+      <excludeFolder url="file://$MODULE_DIR$/.pytest_cache" />
+      <excludeFolder url="file://$MODULE_DIR$/htmlcov" />
+      <excludeFolder url="file://$MODULE_DIR$/splinter_tests.test_publishing" />
+      <excludeFolder url="file://$MODULE_DIR$/splinter_tests.test_select_filters" />
+      <excludeFolder url="file://$MODULE_DIR$/splinter_tests.test_selection" />
+      <excludeFolder url="file://$MODULE_DIR$/splinter_tests.test_surface_creation" />
+      <excludeFolder url="file://$MODULE_DIR$/splinter_tests.test_xss_attacks" />
     </content>
     <orderEntry type="jdk" jdkName="topobank" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />

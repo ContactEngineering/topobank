@@ -37,6 +37,15 @@ EMAIL_HOST = env('EMAIL_HOST', default='mailhog')
 # https://docs.djangoproject.com/en/dev/ref/settings/#email-port
 EMAIL_PORT = 1025
 
+# STATIC FILES
+# ------------------------------------------------------------------------------
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+#STATICFILES_STORAGE = 'whitenoise.storage.ManifestStaticFilesStorage'
+# with 'whitenoise.storage.CompressedManifestStaticFilesStorage', collect static is
+# very slow in development, not sure why - with production settings, it's fast
+
+
+
 # django-debug-toolbar
 # ------------------------------------------------------------------------------
 # https://django-debug-toolbar.readthedocs.io/en/latest/installation.html#prerequisites

@@ -343,6 +343,7 @@ topobank.db
 # The following files contain password and should be generated manally from .template files
 .envs/.local/.django
 .envs/.production/.django
+.envs/.production/.django.testserver
 .envs/.production/.postgres
 orcid.yaml
 
