@@ -265,7 +265,6 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
             # the file has never been read fully. We here only read headers; the file is only fully read in Celery
             # tasks. This is to limit memory usage of the main Django server.
             #
-            initial['has_undefined_data'] = channel_info.has_undefined_data
             initial['fill_undefined_data_mode'] = Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING
 
             #
@@ -521,6 +520,7 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
         no_sizes_given = channel_info.physical_sizes is None
 
         kwargs['allow_periodic'] = has_2_dim and no_sizes_given
+        kwargs['has_undefined_data'] = topo.has_undefined_data
         return kwargs
 
     def form_valid(self, form):

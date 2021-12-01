@@ -12,7 +12,7 @@ from django.conf import settings
 from .utils import SurfaceFactory, Topography2DFactory, Topography1DFactory, TagModelFactory, UserFactory, FIXTURE_DIR
 
 from ..containers import write_surface_container
-
+from ..models import Topography
 
 @pytest.mark.django_db
 def test_surface_container():

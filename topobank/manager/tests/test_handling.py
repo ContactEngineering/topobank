@@ -1542,10 +1542,12 @@ def test_topography_form_field_is_periodic():
     form = TopographyWizardUnitsForm(initial=data, allow_periodic=True, has_size_y=True, has_undefined_data=None)
     assert not form.fields['is_periodic'].disabled
 
-    form = TopographyForm(initial=data, has_size_y=True, allow_periodic=True, autocomplete_tags=[])
+    form = TopographyForm(initial=data, has_size_y=True, allow_periodic=True, autocomplete_tags=[],
+                          has_undefined_data=None)
     assert not form.fields['is_periodic'].disabled
 
-    form = TopographyForm(initial=data, has_size_y=True, allow_periodic=False, autocomplete_tags=[])
+    form = TopographyForm(initial=data, has_size_y=True, allow_periodic=False, autocomplete_tags=[],
+                          has_undefined_data=None)
     assert form.fields['is_periodic'].disabled
 
 

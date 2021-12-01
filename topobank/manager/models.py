@@ -995,6 +995,8 @@ class Topography(models.Model, SubjectMixin):
             while hasattr(parent_topo, 'parent_topography'):
                 parent_topo = parent_topo.parent_topography
             self.has_undefined_data = parent_topo.has_undefined_data
+            if not self.has_undefined_data:
+                self.fill_undefined_data_mode = Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING
 
             # Write and upload NetCDF file
             st_topo.to_netcdf(tmp.name)
@@ -1004,6 +1006,7 @@ class Topography(models.Model, SubjectMixin):
             self.save()
 
     def get_undefined_data_status(self):
+        """Get human-readable description about status of undefined data as string."""
         s = self.HAS_UNDEFINED_DATA_DESCRIPTION[self.has_undefined_data]
         if self.fill_undefined_data_mode == Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING:
             s += ' No correction of undefined data is performed.'
