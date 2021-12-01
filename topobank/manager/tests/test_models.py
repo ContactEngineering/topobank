@@ -115,7 +115,7 @@ def test_topography_to_dict():
 
     assert topo.to_dict() == {
         'name': name,
-        'size': (size_x, size_y),
+        'size': [size_x, size_y],
         'height_scale': height_scale,
         'detrend_mode': detrend_mode,
         'datafile': {

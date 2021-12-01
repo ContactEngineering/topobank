@@ -192,8 +192,7 @@ class Command(BaseCommand):
             If True, do not create thumbnails for topographies.
         """
         with surface_zip.open('meta.yml', mode='r') as meta_file:
-            meta = yaml.load(meta_file, Loader=yaml.FullLoader)
-            # FullLoader needed for the current download format
+            meta = yaml.safe_load(meta_file)
 
             for surface_dict in meta['surfaces']:
 

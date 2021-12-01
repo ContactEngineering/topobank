@@ -1,5 +1,11 @@
 # Changelog for *TopoBank*
 
+## 0.17.0 (2021-12-01)
+
+- MAINT: In the download's meta.yaml, changed type of
+  measurement size from tuple to list such that a 
+  safe yaml lodaer can be used to load surfaces (#668)
+
 ## 0.16.2 (2021-11-15)
 
 - BUG: Fixed unicode conversion issue in OPDx reader (#761)

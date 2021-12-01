@@ -690,7 +690,7 @@ class Topography(models.Model, SubjectMixin):
                   'measurement_date': self.measurement_date,
                   'description': self.description,
                   'unit': self.unit,
-                  'size': (self.size_x,) if self.size_y is None else (self.size_x, self.size_y),
+                  'size': [self.size_x] if self.size_y is None else [self.size_x, self.size_y],
                   'tags': [t.name for t in self.tags.order_by('name')],
                   'instrument': {
                       'name': self.instrument_name,

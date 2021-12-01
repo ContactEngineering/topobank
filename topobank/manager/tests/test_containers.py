@@ -75,7 +75,7 @@ def test_surface_container():
     # reopen and check contents
     with zipfile.ZipFile(outfile.name, mode='r') as zf:
         meta_file = zf.open('meta.yml')
-        meta = yaml.load(meta_file)
+        meta = yaml.safe_load(meta_file)
 
         meta_surfaces = meta['surfaces']
 
@@ -121,7 +121,7 @@ def test_surface_container():
         for field in ['is_periodic', 'description', 'detrend_mode',
                       'data_source', 'measurement_date', 'name', 'unit']:
             assert topo_meta[field] == getattr(topo2a, field)
-        assert topo_meta['size'] == (topo2a.size_x, topo2a.size_y)
+        assert topo_meta['size'] == [topo2a.size_x, topo2a.size_y]
 
         assert topo_meta['instrument'] == {
             'name': instrument_name,
