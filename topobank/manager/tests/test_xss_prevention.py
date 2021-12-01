@@ -56,7 +56,7 @@ def test_topography_description_is_safe_on_update():
         'height_scale_editable': False,
         'instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
         'has_undefined_data': None,
-        'fill_undefined_data_mode': 'do-not-fill',
+        'fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
     }
     form_kwargs = {
         'has_size_y': topography.size_y is not None,
@@ -160,7 +160,7 @@ def test_topography_tag_is_safe_on_update():
         'instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
         'instrument_parameters': '{}',
         'has_undefined_data': None,
-        'fill_undefined_data_mode': 'do-not-fill',
+        'fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
     }
     form_kwargs = {
         'has_size_y': topography.size_y is not None,
@@ -261,7 +261,7 @@ def test_topography_name_is_safe_on_update():
         'instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
         'instrument_parameters': '{}',
         'has_undefined_data': None,
-        'fill_undefined_data_mode': 'do-not-fill',
+        'fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
     }
     form_kwargs = {
         'has_size_y': topography.size_y is not None,

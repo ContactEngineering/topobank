@@ -21,7 +21,7 @@ _log = logging.getLogger(__name__)
 
 TOPOGRAPHY_DEFAULT_ATTR_VALUES = {
     'tags': [],
-    'fill_undefined_data_mode': 'do-not-fill',
+    'fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
     'detrend_mode': 'center',
     'is_periodic': False,
     'height_scale': 1.,

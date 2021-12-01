@@ -181,7 +181,7 @@ def test_upload_topography_di(client, handle_usage_statistics):
                                'units-resolution_x': 256,
                                'units-resolution_y': 256,
                                'units-instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
-                               'units-fill_undefined_data_mode': 'do-not-fill',
+                               'units-fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
                            }, follow=True)
 
     assert response.status_code == 200
@@ -270,7 +270,7 @@ def test_upload_topography_npy(client):
                                'units-resolution_x': 2,
                                'units-resolution_y': 2,
                                'units-instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
-                               'units-fill_undefined_data_mode': 'do-not-fill',
+                               'units-fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
                            }, follow=True)
 
     assert response.status_code == 200
@@ -392,7 +392,7 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
                                    'units-detrend_mode': 'height',
                                    'units-resolution_x': exp_resolution_x,
                                    'units-instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
-                                   'units-fill_undefined_data_mode': 'do-not-fill',
+                                   'units-fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
                                }, follow=True)
     else:
         response = client.post(reverse('manager:topography-create',
@@ -409,7 +409,7 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
                                    'units-resolution_x': exp_resolution_x,
                                    'units-resolution_y': exp_resolution_y,
                                    'units-instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
-                                   'units-fill_undefined_data_mode': 'do-not-fill',
+                                   'units-fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
                                }, follow=True)
 
     assert response.status_code == 200
@@ -545,7 +545,7 @@ def test_upload_topography_instrument_parameters(client, django_user_model,
                                'units-resolution_unit': resolution_unit,
                                'units-tip_radius_value': tip_radius_value,
                                'units-tip_radius_unit': tip_radius_unit,
-                               'units-fill_undefined_data_mode': 'do-not-fill',
+                               'units-fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
                            }, follow=True)
 
     assert response.status_code == 200
@@ -803,7 +803,7 @@ def test_trying_upload_of_corrupted_topography_file(client, django_user_model):
                                'units-resolution_x': 256,
                                'units-resolution_y': 256,
                                'units-instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
-                               'units-fill_undefined_data_mode': 'do-not-fill',
+                               'units-fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
                            }, follow=True)
 
     assert response.status_code == 200
@@ -889,7 +889,7 @@ def test_upload_opd_file_check(client, handle_usage_statistics):
                                'units-resolution_x': 199,
                                'units-resolution_y': 201,
                                'units-instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
-                               'units-fill_undefined_data_mode': 'do-not-fill',
+                               'units-fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
                            }, follow=True)
 
     assert response.status_code == 200
@@ -1003,7 +1003,7 @@ def test_edit_topography(client, django_user_model, topo_example3, handle_usage_
                                'detrend_mode': 'height',
                                'tags': 'ab, bc',  # needs a string
                                'instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
-                               'fill_undefined_data_mode': 'do-not-fill',
+                               'fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
                                'has_undefined_data': False,
                            }, follow=True)
 
@@ -1087,7 +1087,7 @@ def test_edit_line_scan(client, one_line_scan, django_user_model, handle_usage_s
                                'height_scale': 0.1,
                                'detrend_mode': 'height',
                                'instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
-                               'fill_undefined_data_mode': 'do-not-fill',
+                               'fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
                                'has_undefined_data': False,
                            })
 
@@ -1173,7 +1173,7 @@ def test_edit_topography_only_detrend_center_when_periodic(client, django_user_m
                                'units-instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
                                'units-instrument_name': '',
                                'units-instrument_parameters': {},
-                               'units-fill_undefined_data_mode': 'do-not-fill',
+                               'units-fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
                            })
 
     assert response.status_code == 302
@@ -1208,7 +1208,7 @@ def test_edit_topography_only_detrend_center_when_periodic(client, django_user_m
                                'instrument_type': Topography.INSTRUMENT_TYPE_MICROSCOPE_BASED,
                                'instrument_parameters': "{'resolution': { 'value': 1, 'unit':'mm'}}",
                                'instrument_name': 'AFM',
-                               'fill_undefined_data_mode': 'do-not-fill',
+                               'fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
                                'has_undefined_data': False,
                            }, follow=True)
 
@@ -1258,7 +1258,7 @@ def test_instrument_parameters_empty_if_no_value_on_topography_change(client, ha
         # the POST request has all parameters as the original HTML form
         'tip_radius_value': '',  # No value
         'tip_radius_unit': 'mm',
-        'fill_undefined_data_mode': 'do-not-fill',
+        'fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
     }
 
     #

@@ -81,7 +81,7 @@ def test_renewal_on_topography_change(client, mocker, django_capture_on_commit_c
         # the POST request has all parameters as the original HTML form
         'tip_radius_value': '1.0',  # no change so far
         'tip_radius_unit': 'mm',  # no change so far
-        'fill_undefined_data_mode': 'do-not-fill',
+        'fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
         'has_undefined_data': False,
     }
 
@@ -183,7 +183,7 @@ def test_form_changed_when_input_changes(changed_values_dict):
         'resolution_unit': '',
         'tip_radius_value': 1,  # no change so far
         'tip_radius_unit': 'mm',  # no change so far
-        'fill_undefined_data_mode': 'do-not-fill',
+        'fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
         'has_undefined_data': False,
     }
 
@@ -311,7 +311,7 @@ def test_renewal_on_topography_creation(client, mocker, handle_usage_statistics,
                                    'units-resolution_y': 2,
                                    'units-instrument_type': 'undefined',
                                    'units-has_undefined_data': False,
-                                   'units-fill_undefined_data_mode': 'do-not-fill',
+                                   'units-fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
                                }, follow=True)
 
     assert_no_form_errors(response)

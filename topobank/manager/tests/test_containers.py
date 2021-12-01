@@ -26,7 +26,7 @@ def test_surface_container():
         }
     }
     has_undefined_data = False
-    fill_undefined_data_mode = 'do-not-fill'
+    fill_undefined_data_mode = Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING
 
     user = UserFactory()
     tag1 = TagModelFactory(name='apple')

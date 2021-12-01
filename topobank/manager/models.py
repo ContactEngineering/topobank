@@ -421,9 +421,12 @@ class Topography(models.Model, SubjectMixin):
         False: 'No undefined/missing data found.'
     }
 
+    FILL_UNDEFINED_DATA_MODE_NOFILLING = 'do-not-fill'
+    FILL_UNDEFINED_DATA_MODE_HARMONIC = 'harmonic'
+
     FILL_UNDEFINED_DATA_MODE_CHOICES = [
-        ('do-not-fill', 'Do not fill undefined data points'),
-        ('harmonic', 'Interpolate undefined data points with harmonic functions'),
+        (FILL_UNDEFINED_DATA_MODE_NOFILLING, 'Do not fill undefined data points'),
+        (FILL_UNDEFINED_DATA_MODE_HARMONIC, 'Interpolate undefined data points with harmonic functions'),
     ]
 
     DETREND_MODE_CHOICES = [
@@ -489,7 +492,8 @@ class Topography(models.Model, SubjectMixin):
     height_scale = models.FloatField(default=1)
 
     has_undefined_data = models.BooleanField(null=True, default=None)  # default is undefined
-    fill_undefined_data_mode = models.TextField(choices=FILL_UNDEFINED_DATA_MODE_CHOICES, default='do-not-fill')
+    fill_undefined_data_mode = models.TextField(choices=FILL_UNDEFINED_DATA_MODE_CHOICES,
+                                                default=FILL_UNDEFINED_DATA_MODE_NOFILLING)
 
     detrend_mode = models.TextField(choices=DETREND_MODE_CHOICES, default='center')
 
@@ -658,7 +662,7 @@ class Topography(models.Model, SubjectMixin):
 
                 # Eventually get topography from module "SurfaceTopography" using the given keywords
                 topo = toporeader.topography(**topography_kwargs)
-                if self.fill_undefined_data_mode != 'do-not-fill':
+                if self.fill_undefined_data_mode != Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING:
                     topo = topo.interpolate_undefined_data(self.fill_undefined_data_mode)
                 topo = topo.detrend(detrend_mode=self.detrend_mode)
 
@@ -1001,8 +1005,8 @@ class Topography(models.Model, SubjectMixin):
 
     def get_undefined_data_status(self):
         s = self.HAS_UNDEFINED_DATA_DESCRIPTION[self.has_undefined_data]
-        if self.fill_undefined_data_mode == 'do-not-fill':
+        if self.fill_undefined_data_mode == Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING:
             s += ' No correction of undefined data is performed.'
-        elif self.fill_undefined_data_mode == 'harmonic':
+        elif self.fill_undefined_data_mode == Topography.FILL_UNDEFINED_DATA_MODE_HARMONIC:
             s += ' Undefined/missing values are filled in with values obtained from a harmonic interpolation.'
         return s

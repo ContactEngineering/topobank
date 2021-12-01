@@ -266,7 +266,7 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
             # tasks. This is to limit memory usage of the main Django server.
             #
             initial['has_undefined_data'] = channel_info.has_undefined_data
-            initial['fill_undefined_data_mode'] = 'do-not-fill'
+            initial['fill_undefined_data_mode'] = Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING
 
             #
             # Set initial detrend mode
