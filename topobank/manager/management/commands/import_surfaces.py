@@ -151,7 +151,6 @@ class Command(BaseCommand):
             # applied because of file contents while loading
             pass
 
-
         # saving topo file in backend
         new_topo_file_path = os.path.join(user.get_media_path(), os.path.basename(topo_name))
         self.stdout.write(self.style.NOTICE(f"  Path got topography file in backend: {new_topo_file_path}"))
