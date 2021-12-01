@@ -199,6 +199,8 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # for faster collection of static files
 COLLECTFAST_STRATEGY = "collectfast.strategies.filesystem.FileSystemStrategy"
+# we first keep using filesystem storage, may try S3 later
+
 
 # MEDIA
 # ------------------------------------------------------------------------------

@@ -8,7 +8,7 @@ amqp==5.0.6
     # via
     #   -r ./base.txt
     #   kombu
-argon2-cffi==20.1.0
+argon2-cffi==21.1.0
     # via -r ./base.txt
 asgiref==3.4.1
     # via
@@ -18,48 +18,48 @@ billiard==3.6.4.0
     # via
     #   -r ./base.txt
     #   celery
-bleach==3.3.0
+bleach==4.1.0
     # via -r ./base.txt
 bokeh==2.2.3
     # via -r ./base.txt
-boto3==1.17.109
+boto3==1.20.16
     # via -r ./base.txt
-botocore==1.20.109
+botocore==1.23.16
     # via
     #   -r ./base.txt
     #   boto3
     #   s3transfer
-celery==5.1.2
+celery==5.2.1
     # via
     #   -r ./base.txt
     #   flower
 celery-progress==0.1.1
     # via -r ./base.txt
-certifi==2021.5.30
+certifi==2021.10.8
     # via
     #   -r ./base.txt
     #   requests
-cffi==1.14.6
+cffi==1.15.0
     # via
     #   -r ./base.txt
     #   argon2-cffi
     #   cryptography
-cftime==1.5.0
+cftime==1.5.1.1
     # via
     #   -r ./base.txt
     #   netcdf4
-chardet==4.0.0
+charset-normalizer==2.0.8
     # via
     #   -r ./base.txt
     #   requests
-click==7.1.2
+click==8.0.3
     # via
     #   -r ./base.txt
     #   celery
     #   click-didyoumean
     #   click-plugins
     #   click-repl
-click-didyoumean==0.0.3
+click-didyoumean==0.3.0
     # via
     #   -r ./base.txt
     #   celery
@@ -71,13 +71,15 @@ click-repl==0.2.0
     # via
     #   -r ./base.txt
     #   celery
+collectfast==2.2.0
+    # via -r ./base.txt
 contactmechanics==0.91.0
     # via -r ./base.txt
-cryptography==3.4.7
+cryptography==36.0.0
     # via
     #   -r ./base.txt
     #   pyjwt
-cycler==0.10.0
+cycler==0.11.0
     # via
     #   -r ./base.txt
     #   matplotlib
@@ -89,6 +91,7 @@ defusedxml==0.7.1
 django==3.2.7
     # via
     #   -r ./base.txt
+    #   collectfast
     #   django-allauth
     #   django-appconf
     #   django-bootstrap-datepicker-plus
@@ -106,43 +109,45 @@ django==3.2.7
     #   django-trackstats
     #   djangorestframework
     #   jsonfield
-django-allauth==0.45.0
+django-allauth==0.46.0
     # via -r ./base.txt
-django-appconf==1.0.4
+django-appconf==1.0.5
     # via
     #   -r ./base.txt
     #   django-select2
 django-bootstrap-datepicker-plus==3.0.5
     # via -r ./base.txt
-django-crispy-forms==1.12.0
+django-crispy-forms==1.13.0
     # via -r ./base.txt
-django-environ==0.4.5
+django-environ==0.8.1
     # via -r ./base.txt
-django-filter==2.4.0
+django-filter==21.1
     # via -r ./base.txt
 django-formtools==2.3
     # via -r ./base.txt
-django-fullurl==1.1
+django-fullurl==1.2
     # via -r ./base.txt
 django-guardian==2.4.0
     # via -r ./base.txt
-django-model-utils==4.1.1
+django-model-utils==4.2.0
     # via
     #   -r ./base.txt
     #   django-notifications-hq
 django-notifications-hq==1.6.0
     # via -r ./base.txt
-django-progressbarupload @ git+http://github.com/ContactEngineering/django-progressbarupload.git
+git+http://github.com/ContactEngineering/django-progressbarupload.git
     # via -r ./base.txt
-django-select2==7.7.1
+django-select2==7.9.0
     # via -r ./base.txt
-django-storages==1.11.1
-    # via -r ./base.txt
-django-tables2==2.4.0
+django-storages==1.12.3
+    # via
+    #   -r ./base.txt
+    #   collectfast
+django-tables2==2.4.1
     # via -r ./base.txt
 django-tagulous==1.3.0
     # via -r ./base.txt
-django-termsandconditions==2.0.8
+django-termsandconditions==2.0.9
     # via -r ./base.txt
 django-trackstats==0.5.0
     # via -r ./base.txt
@@ -156,11 +161,15 @@ flower==1.0.0
     # via -r ./base.txt
 fontawesomefree==5.15.4
     # via -r ./base.txt
-gevent==21.1.2
+fonttools==4.28.2
+    # via
+    #   -r ./base.txt
+    #   matplotlib
+gevent==21.8.0
     # via
     #   -r production.in
     #   gunicorn
-greenlet==1.1.0
+greenlet==1.1.2
     # via
     #   -r production.in
     #   gevent
@@ -168,16 +177,16 @@ gunicorn[gevent]==20.1.0
     # via -r production.in
 h5netcdf==0.11.0
     # via -r ./base.txt
-h5py==3.3.0
+h5py==3.6.0
     # via
     #   -r ./base.txt
     #   h5netcdf
     #   surfacetopography
-humanize==3.10.0
+humanize==3.13.1
     # via
     #   -r ./base.txt
     #   flower
-idna==2.10
+idna==3.3
     # via
     #   -r ./base.txt
     #   requests
@@ -185,7 +194,7 @@ igor==0.3
     # via
     #   -r ./base.txt
     #   surfacetopography
-jinja2==3.0.1
+jinja2==3.0.3
     # via
     #   -r ./base.txt
     #   bokeh
@@ -198,23 +207,23 @@ jsonfield==3.1.0
     # via
     #   -r ./base.txt
     #   django-notifications-hq
-kiwisolver==1.3.1
+kiwisolver==1.3.2
     # via
     #   -r ./base.txt
     #   matplotlib
-kombu==5.1.0
+kombu==5.2.2
     # via
     #   -r ./base.txt
     #   celery
-lxml==4.6.3
+lxml==4.6.4
     # via -r ./base.txt
-markdown2==2.4.0
+markdown2==2.4.1
     # via -r ./base.txt
 markupsafe==2.0.1
     # via
     #   -r ./base.txt
     #   jinja2
-matplotlib==3.4.2
+matplotlib==3.5.0
     # via
     #   -r ./base.txt
     #   surfacetopography
@@ -223,14 +232,14 @@ mufft==0.18.1
     #   -r ./base.txt
     #   contactmechanics
     #   surfacetopography
-netcdf4==1.5.7
+netcdf4==1.5.8
     # via -r ./base.txt
 numpi==0.3.0
     # via
     #   -r ./base.txt
     #   contactmechanics
     #   surfacetopography
-numpy==1.21.0
+numpy==1.21.4
     # via
     #   -r ./base.txt
     #   bokeh
@@ -254,54 +263,56 @@ oauthlib==3.1.1
     # via
     #   -r ./base.txt
     #   requests-oauthlib
-openpyxl==3.0.7
+openpyxl==3.0.9
     # via -r ./base.txt
-packaging==21.0
+packaging==21.3
     # via
     #   -r ./base.txt
     #   bleach
     #   bokeh
+    #   matplotlib
     #   pint
-pandas==1.3.0
+    #   setuptools-scm
+pandas==1.3.4
     # via
     #   -r ./base.txt
     #   xarray
-pillow==8.3.2
+pillow==8.4.0
     # via
     #   -r ./base.txt
     #   bokeh
     #   matplotlib
     #   surfacetopography
-pint==0.17
+pint==0.18
     # via -r ./base.txt
-prometheus-client==0.11.0
+prometheus-client==0.12.0
     # via
     #   -r ./base.txt
     #   flower
-prompt-toolkit==3.0.19
+prompt-toolkit==3.0.23
     # via
     #   -r ./base.txt
     #   click-repl
 psycopg2-binary==2.8.6
     # via -r ./base.txt
-pycparser==2.20
+pycparser==2.21
     # via
     #   -r ./base.txt
     #   cffi
-pygments==2.9.0
+pygments==2.10.0
     # via -r ./base.txt
-pyjwt[crypto]==2.1.0
+pyjwt[crypto]==2.3.0
     # via
     #   -r ./base.txt
     #   django-allauth
 pylibmc==1.6.1
     # via -r ./base.txt
-pyparsing==2.4.7
+pyparsing==3.0.6
     # via
     #   -r ./base.txt
     #   matplotlib
     #   packaging
-python-dateutil==2.8.1
+python-dateutil==2.8.2
     # via
     #   -r ./base.txt
     #   bokeh
@@ -317,7 +328,7 @@ python3-openid==3.2.0
     # via
     #   -r ./base.txt
     #   django-allauth
-pytz==2021.1
+pytz==2021.3
     # via
     #   -r ./base.txt
     #   celery
@@ -326,12 +337,12 @@ pytz==2021.1
     #   django-trackstats
     #   flower
     #   pandas
-pyyaml==5.4.1
+pyyaml==6.0
     # via
     #   -r ./base.txt
     #   bokeh
     #   surfacetopography
-requests==2.25.1
+requests==2.26.0
     # via
     #   -r ./base.txt
     #   django-allauth
@@ -341,25 +352,27 @@ requests-oauthlib==1.3.0
     # via
     #   -r ./base.txt
     #   django-allauth
-s3transfer==0.4.2
+s3transfer==0.5.0
     # via
     #   -r ./base.txt
     #   boto3
-scipy==1.7.0
+scipy==1.7.3
     # via
     #   -r ./base.txt
     #   numpi
 selenium==3.141.0
     # via -r ./base.txt
+setuptools-scm==6.3.2
+    # via
+    #   -r ./base.txt
+    #   matplotlib
 short-url==1.2.2
     # via -r ./base.txt
 six==1.16.0
     # via
     #   -r ./base.txt
-    #   argon2-cffi
     #   bleach
     #   click-repl
-    #   cycler
     #   python-dateutil
     #   python-memcached
 sqlparse==0.4.2
@@ -370,7 +383,7 @@ surfacetopography==0.101.1
     # via
     #   -r ./base.txt
     #   contactmechanics
-swapper==1.1.2.post1
+swapper==1.3.0
     # via
     #   -r ./base.txt
     #   django-notifications-hq
@@ -378,16 +391,21 @@ text-unidecode==1.3
     # via
     #   -r ./base.txt
     #   python-slugify
+tomli==1.2.2
+    # via
+    #   -r ./base.txt
+    #   setuptools-scm
 tornado==6.1
     # via
     #   -r ./base.txt
     #   bokeh
     #   flower
-typing-extensions==3.10.0.0
+typing-extensions==4.0.0
     # via
     #   -r ./base.txt
     #   bokeh
-urllib3==1.26.6
+    #   collectfast
+urllib3==1.26.7
     # via
     #   -r ./base.txt
     #   botocore
@@ -409,7 +427,7 @@ webencodings==0.5.1
     #   bleach
 whitenoise==5.3.0
     # via -r ./base.txt
-xarray==0.18.2
+xarray==0.20.1
     # via -r ./base.txt
 zope.event==4.5.0
     # via gevent
