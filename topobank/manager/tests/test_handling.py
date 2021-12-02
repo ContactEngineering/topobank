@@ -1551,6 +1551,50 @@ def test_topography_form_field_is_periodic():
     assert form.fields['is_periodic'].disabled
 
 
+@pytest.mark.parametrize('form_class', [TopographyWizardUnitsForm, TopographyForm])
+def test_topography_form_field_fill_undefined_data_mode(form_class):
+    data = {
+        'size_editable': True,
+        'unit_editable': True,
+        'height_scale_editable': True,
+        'size_x': 1,
+        'unit': 'm',
+        'is_periodic': False,
+        'height_scale': 1,
+        'detrend_mode': 'center',
+        'resolution_x': '1',
+    }
+
+    form_default_kwargs = dict(initial=data, allow_periodic=False, has_size_y=False)
+
+    if form_class == TopographyForm:
+        form_default_kwargs['autocomplete_tags'] = []  # the wizard has the tags already on the previous page
+
+    #
+    # Case 1: Data has no undefined points for sure
+    #
+    form = form_class(has_undefined_data=False, **form_default_kwargs)
+    mode_field = form.fields['fill_undefined_data_mode']
+    assert mode_field.disabled
+    assert "No undefined/missing data found" in mode_field.help_text
+
+    #
+    # Case 2: Data has undefined points for sure
+    #
+    form = form_class(has_undefined_data=True, **form_default_kwargs)
+    mode_field = form.fields['fill_undefined_data_mode']
+    assert not mode_field.disabled
+    assert "The dataset has undefined/missing data points" in mode_field.help_text
+
+    #
+    # Case 3: Not sure whether data has undefined points or not
+    #
+    form = form_class(has_undefined_data=None, **form_default_kwargs)
+    mode_field = form.fields['fill_undefined_data_mode']
+    assert not mode_field.disabled  # user should choose, this is a suggestion
+    assert "We could not (yet) determine whether there are undefined/missing data points" in mode_field.help_text
+
+
 @pytest.mark.django_db
 def test_usage_of_cached_container_on_download_of_published_surface(client, example_pub, mocker,
                                                                     handle_usage_statistics):
