@@ -283,6 +283,7 @@ class TopographyUnitsForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         self._allow_periodic = kwargs.pop('allow_periodic')
         self._has_undefined_data = kwargs.pop('has_undefined_data')
+        self._has_size_y = kwargs.pop('has_size_y')
 
         super().__init__(*args, **kwargs)
 
@@ -323,8 +324,7 @@ class TopographyUnitsForm(forms.ModelForm):
             help_texts['size_x'] = "Physical size in x direction was given in data file and is fixed."
             help_texts['size_y'] = "Physical size in y direction was given in data file and is fixed."
             self.fields['size_x'].disabled = True
-            if "size_y" in self.fields:
-                self.fields['size_y'].disabled = True
+            self.fields['size_y'].disabled = True
 
         if not self.initial['unit_editable']:
             help_texts['unit'] = "The unit of the physical size and height scale was given in the " + \
@@ -348,9 +348,29 @@ class TopographyUnitsForm(forms.ModelForm):
         ]
 
         #
+        # Prepare arguments for a Fieldset instance in Layout
+        #
+        size_fieldset_args = ['Physical Size',
+                              Field('size_x')]
+        if self._has_size_y:
+            size_fieldset_args.append(Field('size_y'))
+        else:
+            del self.fields['size_y']
+
+        size_fieldset_args.append(Field('unit'))
+        size_fieldset_args.append(Field('is_periodic'))
+        self._size_fieldset_args = size_fieldset_args
+
+        #
         # For certain cases like line scans we need to disable the periodic checkbox
         #
         self.fields['is_periodic'].disabled = not self._allow_periodic
+
+        #
+        # Change labels of instrument fields
+        #
+        self.fields['instrument_name'].label = "Name"
+        self.fields['instrument_type'].label = "Type"
 
         #
         # Additional help texts for instrument parameters
@@ -378,6 +398,9 @@ class TopographyUnitsForm(forms.ModelForm):
 
     def clean_size_x(self):
         return self._clean_size_element('x')
+
+    def clean_size_y(self):
+        return self._clean_size_element('y')
 
     def clean_detrend_mode(self):
         #
@@ -478,38 +501,20 @@ class TopographyWizardUnitsForm(TopographyUnitsForm):
                   'instrument_name', 'instrument_type', 'instrument_parameters')
 
     def __init__(self, *args, **kwargs):
-        has_size_y = kwargs.pop('has_size_y')
-
         super().__init__(*args, **kwargs)
 
-        self.helper.form_tag = True
-
-        size_fieldset_args = ['Physical size',
-                              Field('size_x')]
         resolution_fieldset_args = [Field('resolution_x', type="hidden")]
         # resolution is handled here only in order to have the data in wizard's .done() method
 
-        if has_size_y:
-            size_fieldset_args.append(Field('size_y'))
-            if not self.initial['size_editable']:
-                self.fields['size_y'].disabled = True
+        if self._has_size_y:
             resolution_fieldset_args.append(Field('resolution_y', type="hidden"))
         else:
-            del self.fields['size_y']
             del self.fields['resolution_y']
 
-        size_fieldset_args.append(Field('unit'))
-        size_fieldset_args.append(Field('is_periodic'))
-
-        #
-        # Add instrument fields
-        #
-        self.fields['instrument_name'].label = "Name"
-        self.fields['instrument_type'].label = "Type"
-
+        self.helper.form_tag = True
         self.helper.layout = Layout(
             Div(
-                Fieldset(*size_fieldset_args),
+                Fieldset(*self._size_fieldset_args),
                 Fieldset('Height conversion',
                          Field('height_scale')),
                 Fieldset('Filters',
@@ -525,9 +530,6 @@ class TopographyWizardUnitsForm(TopographyUnitsForm):
             ),
             ASTERISK_HELP_HTML
         )
-
-    def clean_size_y(self):
-        return self._clean_size_element('y')
 
 
 class TopographyForm(CleanVulnerableFieldsMixin, TopographyUnitsForm):
@@ -554,7 +556,6 @@ class TopographyForm(CleanVulnerableFieldsMixin, TopographyUnitsForm):
                   'surface')
 
     def __init__(self, *args, **kwargs):
-        has_size_y = kwargs.pop('has_size_y')
         autocomplete_tags = kwargs.pop('autocomplete_tags')
 
         super().__init__(*args, **kwargs)
@@ -563,22 +564,6 @@ class TopographyForm(CleanVulnerableFieldsMixin, TopographyUnitsForm):
             self.fields[fn].label = False
 
         self.helper.form_tag = True
-
-        size_fieldset_args = ['Physical Size',
-                              Field('size_x')]
-        if has_size_y:
-            size_fieldset_args.append(Field('size_y'))
-            if not self.initial['size_editable']:
-                self.fields['size_y'].disabled = True
-        else:
-            del self.fields['size_y']
-
-        size_fieldset_args.append(Field('unit'))
-        size_fieldset_args.append(Field('is_periodic'))
-
-        self.fields['instrument_name'].label = "Name"
-        self.fields['instrument_type'].label = "Type"
-
         self.helper.form_method = 'POST'
         self.helper.form_show_errors = False  # crispy forms has nicer template code for errors
 
@@ -590,7 +575,7 @@ class TopographyForm(CleanVulnerableFieldsMixin, TopographyUnitsForm):
                 Field('measurement_date'),
                 Field('description'),
                 Field('tags'),
-                Fieldset(*size_fieldset_args),
+                Fieldset(*self._size_fieldset_args),
                 Fieldset('Height conversion',
                          Field('height_scale')),
                 Fieldset('Filters',
@@ -621,9 +606,6 @@ class TopographyForm(CleanVulnerableFieldsMixin, TopographyUnitsForm):
     description = forms.Textarea()
 
     is_periodic = make_is_periodic_field()
-
-    def clean_size_y(self):
-        return self._clean_size_element('y')
 
 
 class SurfaceForm(CleanVulnerableFieldsMixin, forms.ModelForm):
