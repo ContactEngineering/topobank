@@ -490,13 +490,15 @@ from environment variables:
 .. code:: bash
 
     docker-compose -f production.yml run --rm django envsubst < orcid.yaml.template > orcid.yaml
-    docker-compose -f production.yml run --rm django python manage.py loaddata orcid.yaml
+    docker-compose -f production.yml run --rm django python manage.py loaddata - --format yaml < orcid.yaml
+
+Here the orcid.yaml file is created outside of containers and imported back using stdin.
 
 Then import terms and conditions:
 
 .. code:: bash
 
-    docker-compose -f production.yml run --rm django python manage.py import_terms site-terms 1.0 topobank/static/other/TermsConditions.md
+    docker-compose -f production.yml run --rm django python manage.py import_terms site-terms 2.0 topobank/static/other/TermsConditions-2.0.md
 
 After these conditions are installed, they are active (default activation time is installation time) and
 the user is asked when signing in. The terms and conditions (with slug "site-terms") must be accepted in order to

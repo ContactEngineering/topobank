@@ -46,6 +46,8 @@ def test_renewal_on_topography_detrend_mode_change(client, mocker, django_captur
                                    'height_scale': 1,
                                    'detrend_mode': 'height',
                                    'instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
+                                   'has_undefined_data': False,
+                                   'fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
                                }, follow=True)
 
     # we just check here that the form is filled completely, otherwise the thumbnail would not be recreated too

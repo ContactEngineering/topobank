@@ -517,6 +517,8 @@ def test_notification_when_editing_shared_stuff(client, handle_usage_statistics)
         'height_scale': 0.1,  # we also change a significant value here -> recalculate
         'detrend_mode': 'height',
         'instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
+        'has_undefined_data': False,
+        'fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
     }, follow=True)
     assert response.status_code == 200
     assert_no_form_errors(response)
@@ -644,6 +646,7 @@ def test_upload_topography_for_shared_surface(client, handle_usage_statistics):
                                'units-resolution_x': 256,
                                'units-resolution_y': 256,
                                'units-instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
+                               'units-fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
                            }, follow=True)
 
     assert response.status_code == 200

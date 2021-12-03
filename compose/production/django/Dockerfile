@@ -3,6 +3,8 @@ FROM continuumio/miniconda3
 #FROM python:3.7-alpine
 
 ENV PYTHONUNBUFFERED 1
+ENV CFLAGS "-I/usr/include/eigen3/"
+# This is a workaround for https://gitlab.com/muspectre/muspectre/-/issues/144
 
 #
 # System dependencies for Python + Django
@@ -10,10 +12,14 @@ ENV PYTHONUNBUFFERED 1
 RUN apt-get update \
   && apt-get install --yes apt-utils \
   && apt-get install --yes libfftw3-3 libfftw3-dev libopenblas-dev libpq-dev gcc g++ gettext \
+  # Curl is needed to download pybind11 and Eigen3
+  && apt-get install --yes curl \
   # Pillow requirements
   && apt-get install --yes libjpeg-dev zlib1g-dev libfreetype6-dev liblcms2-dev libtiff-dev tk-dev tcl-dev librabbitmq-dev \
   # NetCDF requirements
-  && apt-get install --yes libnetcdf-dev
+  && apt-get install --yes libnetcdf-dev \
+  # Memcached requirements
+  && apt-get install --yes libmemcached-dev
 
 # clean up image
 RUN apt-get -qy autoremove
@@ -42,6 +48,7 @@ RUN pip install --upgrade pip
 #
 COPY ./requirements /requirements
 WORKDIR /
+RUN pip install --upgrade setuptools
 RUN pip install --no-cache-dir -r /requirements/production.txt --ignore-installed && rm -Rf /requirements
 
 COPY ./compose/production/django/entrypoint /entrypoint

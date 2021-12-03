@@ -12,7 +12,7 @@ from django.conf import settings
 from .utils import SurfaceFactory, Topography2DFactory, Topography1DFactory, TagModelFactory, UserFactory, FIXTURE_DIR
 
 from ..containers import write_surface_container
-
+from ..models import Topography
 
 @pytest.mark.django_db
 def test_surface_container():
@@ -25,6 +25,8 @@ def test_surface_container():
             'unit': 'µm',
         }
     }
+    has_undefined_data = False
+    fill_undefined_data_mode = Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING
 
     user = UserFactory()
     tag1 = TagModelFactory(name='apple')
@@ -48,7 +50,9 @@ def test_surface_container():
                                  size_x=10, size_y=5,
                                  instrument_name=instrument_name,
                                  instrument_type=instrument_type,
-                                 instrument_parameters=instrument_params)
+                                 instrument_parameters=instrument_params,
+                                 has_undefined_data=has_undefined_data,
+                                 fill_undefined_data_mode=fill_undefined_data_mode)
     # surface 3 is empty
 
     # surface 2 is published
@@ -71,7 +75,7 @@ def test_surface_container():
     # reopen and check contents
     with zipfile.ZipFile(outfile.name, mode='r') as zf:
         meta_file = zf.open('meta.yml')
-        meta = yaml.load(meta_file)
+        meta = yaml.safe_load(meta_file)
 
         meta_surfaces = meta['surfaces']
 
@@ -117,7 +121,7 @@ def test_surface_container():
         for field in ['is_periodic', 'description', 'detrend_mode',
                       'data_source', 'measurement_date', 'name', 'unit']:
             assert topo_meta[field] == getattr(topo2a, field)
-        assert topo_meta['size'] == (topo2a.size_x, topo2a.size_y)
+        assert topo_meta['size'] == [topo2a.size_x, topo2a.size_y]
 
         assert topo_meta['instrument'] == {
             'name': instrument_name,
@@ -137,6 +141,11 @@ def test_surface_container():
         topo1b_meta = meta_surfaces[0]['topographies'][1]
         assert topo1b_meta['name'] == topo1b.name
         assert 'height_scale' not in topo1b_meta
+
+        assert 'fill_undefined_data_mode' in topo1a_meta
+        assert 'fill_undefined_data_mode' in topo1b_meta
+        assert 'has_undefined_data' in topo1a_meta
+        assert 'has_undefined_data' in topo1b_meta
 
     os.remove(outfile.name)
 
