@@ -1,12 +1,12 @@
 # Changelog for *TopoBank*
 
-## 0.17.0 (2021-12-01)
+## 0.17.0 (2021-12-03)
 
 - ENH: Detection and optional filling of missing data 
   points (#321)
 - MAINT: In the download's meta.yaml, changed type of
   measurement size from tuple to list such that a 
-  safe yaml lodaer can be used to load surfaces (#668)
+  safe yaml loader can be used to load surfaces (#668)
 - MAINT: Upgrade of reverse proxy caddy in 
   production (#767)
 - MAINT: Preparations for running on Docker Swarm 
