@@ -15,7 +15,9 @@ set -o nounset
 #envsubst < orcid.yaml.template > orcid.yaml
 #python manage.py loaddata -v 2 orcid.yaml
 
+echo "-> collecting static files, please wait"
 python /app/manage.py collectstatic --noinput
+echo "-> done, starting gunicorn"
 
 # This location for gunicorn is used with miniconda as image
 GUNICORN=/opt/conda/bin/gunicorn
