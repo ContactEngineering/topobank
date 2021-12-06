@@ -8,6 +8,7 @@ from django.shortcuts import reverse
 from django.contrib.contenttypes.models import ContentType
 
 from .utils import FIXTURE_DIR, Topography1DFactory, SurfaceFactory, UserFactory
+from ..models import Topography
 from topobank.analysis.tests.utils import SurfaceAnalysisFactory, AnalysisFunctionFactory, \
     AnalysisFunctionImplementationFactory, TopographyAnalysisFactory, Topography2DFactory
 from topobank.utils import assert_in_content, assert_no_form_errors
@@ -81,6 +82,8 @@ def test_renewal_on_topography_change(client, mocker, django_capture_on_commit_c
         # the POST request has all parameters as the original HTML form
         'tip_radius_value': '1.0',  # no change so far
         'tip_radius_unit': 'mm',  # no change so far
+        'fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
+        'has_undefined_data': False,
     }
 
     # also pass that? seems to be included in POST data on actual page
@@ -149,7 +152,10 @@ def test_renewal_on_topography_change(client, mocker, django_capture_on_commit_c
     },
     {
         "tip_radius_unit": 'nm',  # unit changed
-    }
+    },
+    {
+        "fill_undefined_data_mode": Topography.FILL_UNDEFINED_DATA_MODE_HARMONIC,  # now harmonic
+    },
 ])
 @pytest.mark.django_db
 def test_form_changed_when_input_changes(changed_values_dict):
@@ -181,12 +187,13 @@ def test_form_changed_when_input_changes(changed_values_dict):
         'resolution_unit': '',
         'tip_radius_value': 1,  # no change so far
         'tip_radius_unit': 'mm',  # no change so far
+        'fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
     }
 
     # if the initial data is passed as data, nothing has been changed
     form = TopographyForm(initial_data, initial=initial_data,
                           has_size_y=True, autocomplete_tags=[],
-                          allow_periodic=False)
+                          allow_periodic=False, has_undefined_data=None)
     assert form.is_valid(), form.errors
     # assert not form.has_changed(), (form.changed_data,
     #                                 [(form.data[k], form.initial[k], form.data[k] == form.initial[k])
@@ -199,7 +206,7 @@ def test_form_changed_when_input_changes(changed_values_dict):
     form_data.update(changed_values_dict)  # here is a change at least  (besides 'instrument_parameters', see above)
     form = TopographyForm(form_data, initial=initial_data,
                           has_size_y=True, autocomplete_tags=[],
-                          allow_periodic=False)
+                          allow_periodic=False, has_undefined_data=None)
 
     assert form.is_valid(), form.errors
     assert set(changed_values_dict.keys()).intersection(form.changed_data) == set(changed_values_dict.keys())
@@ -306,7 +313,8 @@ def test_renewal_on_topography_creation(client, mocker, handle_usage_statistics,
                                    'units-resolution_x': 2,
                                    'units-resolution_y': 2,
                                    'units-instrument_type': 'undefined',
-
+                                   'units-has_undefined_data': False,
+                                   'units-fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
                                }, follow=True)
 
     assert_no_form_errors(response)

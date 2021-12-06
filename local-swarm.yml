@@ -1,0 +1,121 @@
+version: '3'
+
+volumes:
+  local_postgres_data: {}
+  local_postgres_data_backups: {}
+  minio_data: {}
+  exchange_data: {}
+
+services:
+  django: &django
+    build:
+      context: .
+      dockerfile: ./compose/local/django/Dockerfile
+    shm_size: '2gb'
+    image: localhost:5000/topobank_local_django
+    depends_on:
+      - postgres
+      - mailhog
+    volumes:
+      - .:/app
+      - exchange_data:/tmp/exchange
+    env_file:
+      - ./.envs/.local/.django
+      - ./.envs/.local/.postgres
+    ports:
+      - "8000:8000"
+    command: /start
+
+  postgres:
+    build:
+      context: .
+      dockerfile: ./compose/production/postgres/Dockerfile
+    image: localhost:5000/topobank_production_postgres
+    volumes:
+      - local_postgres_data:/var/lib/postgresql/data
+      - local_postgres_data_backups:/backups
+    env_file:
+      - ./.envs/.local/.postgres
+    ports:
+      - "5433:5432"
+
+#  dbbackup:
+#    build:
+#      context: .
+#      dockerfile: ./compose/production/dbbackup/Dockerfile
+#    image: topobank_local_dbbackup
+#    depends_on:
+#      - postgres
+#      - minio
+#    env_file:
+#      - ./.envs/.local/.django
+#      - ./.envs/.local/.postgres
+#    entrypoint: /entrypoint
+
+  mailhog:
+    image: mailhog/mailhog:v1.0.0
+    ports:
+      - "8025:8025"
+
+  memcached:
+    image: memcached:1.5-alpine
+
+  rabbitmq:
+    image: rabbitmq:3.7-alpine
+
+  celeryworker:
+    <<: *django
+    image: localhost:5000/topobank_local_celeryworker
+    depends_on:
+      - postgres
+      - rabbitmq
+      - memcached
+      - mailhog
+    ports: [] # overwrites ports from django entry
+    command: /start-celeryworker
+
+  celerybeat:
+    <<: *django
+    image: localhost:5000/topobank_local_celerybeat
+    depends_on:
+      - postgres
+      - rabbitmq
+      - memcached
+      - mailhog
+    ports: [] # overwrites ports from django entry
+    command: /start-celerybeat
+
+  flower:
+    <<: *django
+    image: localhost:5000/topobank_local_flower
+    ports:
+      - "5555:5555"
+    command: /start-flower
+
+  #
+  # use can this built-in S3 server for development if you don't have an external one
+  #
+  minio:
+    image: minio/minio
+    ports:
+      - "9000:9000"
+    volumes:
+      - minio_data:/data
+    environment:
+      - MINIO_ACCESS_KEY=admin
+      - MINIO_SECRET_KEY=secret12
+    command: server /data
+
+#
+#  pgbackup:
+#    image: docker-postgres-s3-backup
+#    links:
+#      - postgres
+#    env_file:
+#      - ./.envs/.local/.postgres
+#    environment:
+#      - SCHEDULE=* * * * * *
+#      - DBNAME=${POSTGRES_DB}
+#      - AWS_S3_PATH=${AWS_S3_ENDPOINT_URL}/${AWS_STORAGE_BUCKET_NAME}
+#      - AWS_KEY=${AWS_ACCESS_KEY_ID}
+#      - AWS_SECERT=${AWS_SECRET_ACCESS_KEY}

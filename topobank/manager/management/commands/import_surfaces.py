@@ -21,6 +21,7 @@ _log = logging.getLogger(__name__)
 
 TOPOGRAPHY_DEFAULT_ATTR_VALUES = {
     'tags': [],
+    'fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
     'detrend_mode': 'center',
     'is_periodic': False,
     'height_scale': 1.,
@@ -128,6 +129,7 @@ class Command(BaseCommand):
             data_source=topo_dict['data_source'],
             unit=topo_dict['unit'],
             tags=topo_dict['tags'],
+            fill_undefined_data_mode=topo_dict['fill_undefined_data_mode'],
             detrend_mode=topo_dict['detrend_mode'],
             is_periodic=topo_dict['is_periodic'],
         )
@@ -148,7 +150,6 @@ class Command(BaseCommand):
             # If height_scale is not included, it will probably already
             # applied because of file contents while loading
             pass
-
 
         # saving topo file in backend
         new_topo_file_path = os.path.join(user.get_media_path(), os.path.basename(topo_name))
@@ -190,8 +191,7 @@ class Command(BaseCommand):
             If True, do not create thumbnails for topographies.
         """
         with surface_zip.open('meta.yml', mode='r') as meta_file:
-            meta = yaml.load(meta_file, Loader=yaml.FullLoader)
-            # FullLoader needed for the current download format
+            meta = yaml.safe_load(meta_file)
 
             for surface_dict in meta['surfaces']:
 

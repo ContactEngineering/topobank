@@ -431,7 +431,7 @@ def make_alert_entry(level, subject_name, subject_url, data_series_name, detail_
     str
     """
     link = f'<a class="alert-link" href="{subject_url}">{subject_name}</a>'
-    message = f"Failure for measurement {link}, data series '{data_series_name}': {detail_mesg}"
+    message = f"Failure for digital surface twin {link}, data series '{data_series_name}': {detail_mesg}"
     return dict(alert_class=f"alert-{level}", message=message)
 
 

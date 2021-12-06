@@ -259,6 +259,13 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
             initial['height_scale'] = 1 if height_scale_factor_missing else channel_info.height_scale_factor
 
             #
+            # Set initial undefined data; note that we do not know at this point if there is undefined data since
+            # the file has never been read fully. We here only read headers; the file is only fully read in Celery
+            # tasks. This is to limit memory usage of the main Django server.
+            #
+            initial['fill_undefined_data_mode'] = Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING
+
+            #
             # Set initial detrend mode
             #
             initial['detrend_mode'] = 'center'
@@ -324,6 +331,7 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
             # only allow periodic topographies in case of 2 dimension
             kwargs['allow_periodic'] = has_2_dim and no_sizes_given  # TODO simplify in 'no_sizes_given'?
             kwargs['has_size_y'] = has_2_dim  # TODO find common term, now we have 'has_size_y' and 'has_2_dim'
+            kwargs['has_undefined_data'] = channel_info.has_undefined_data
 
         return kwargs
 
@@ -510,6 +518,7 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
         no_sizes_given = channel_info.physical_sizes is None
 
         kwargs['allow_periodic'] = has_2_dim and no_sizes_given
+        kwargs['has_undefined_data'] = topo.has_undefined_data
         return kwargs
 
     def form_valid(self, form):
@@ -527,7 +536,7 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
         _log.debug("These fields have been changed according to form: %s", changed_fields)
 
         significant_fields = {'size_x', 'size_y', 'unit', 'is_periodic', 'height_scale',
-                              'detrend_mode', 'datafile', 'data_source',
+                              'fill_undefined_data_mode', 'detrend_mode', 'datafile', 'data_source',
                               'instrument_type',  # , 'instrument_parameters'
                               # 'tip_radius_value', 'tip_radius_unit',
                              }

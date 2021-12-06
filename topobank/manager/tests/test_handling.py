@@ -72,7 +72,7 @@ def test_download_selection(client, mocker, handle_usage_statistics):
     # open zip file and look into meta file, there should be two surfaces and three topographies
     with zipfile.ZipFile(BytesIO(response.content)) as zf:
         meta_file = zf.open('meta.yml')
-        meta = yaml.load(meta_file)
+        meta = yaml.safe_load(meta_file)
         assert len(meta['surfaces']) == 2
         assert len(meta['surfaces'][0]['topographies']) == 2
         assert len(meta['surfaces'][1]['topographies']) == 1
@@ -182,6 +182,7 @@ def test_upload_topography_di(client, handle_usage_statistics):
                                'units-resolution_x': 256,
                                'units-resolution_y': 256,
                                'units-instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
+                               'units-fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
                            }, follow=True)
 
     assert response.status_code == 200
@@ -270,6 +271,7 @@ def test_upload_topography_npy(client):
                                'units-resolution_x': 2,
                                'units-resolution_y': 2,
                                'units-instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
+                               'units-fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
                            }, follow=True)
 
     assert response.status_code == 200
@@ -373,6 +375,7 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
     assert response.status_code == 200
     assert_no_form_errors(response)
     assert_in_content(response, "Step 3 of 3")
+    assert_in_content(response, 'Fill undefined data mode')
 
     #
     # Send data for third page
@@ -390,6 +393,7 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
                                    'units-detrend_mode': 'height',
                                    'units-resolution_x': exp_resolution_x,
                                    'units-instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
+                                   'units-fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
                                }, follow=True)
     else:
         response = client.post(reverse('manager:topography-create',
@@ -406,6 +410,7 @@ def test_upload_topography_txt(client, django_user_model, input_filename,
                                    'units-resolution_x': exp_resolution_x,
                                    'units-resolution_y': exp_resolution_y,
                                    'units-instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
+                                   'units-fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
                                }, follow=True)
 
     assert response.status_code == 200
@@ -541,6 +546,7 @@ def test_upload_topography_instrument_parameters(client, django_user_model,
                                'units-resolution_unit': resolution_unit,
                                'units-tip_radius_value': tip_radius_value,
                                'units-tip_radius_unit': tip_radius_unit,
+                               'units-fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
                            }, follow=True)
 
     assert response.status_code == 200
@@ -798,6 +804,7 @@ def test_trying_upload_of_corrupted_topography_file(client, django_user_model):
                                'units-resolution_x': 256,
                                'units-resolution_y': 256,
                                'units-instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
+                               'units-fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
                            }, follow=True)
 
     assert response.status_code == 200
@@ -843,7 +850,7 @@ def test_upload_opd_file_check(client, handle_usage_statistics):
     # now we should be on the page with second step
     #
     assert_in_content(response, "Step 2 of 3")
-    assert_in_content(response, '<option value="0">Default</option>')
+    assert_in_content(response, '<option value="0">Raw</option>')
     assert response.context['form'].initial['name'] == 'example.opd'
 
     #
@@ -883,6 +890,7 @@ def test_upload_opd_file_check(client, handle_usage_statistics):
                                'units-resolution_x': 199,
                                'units-resolution_y': 201,
                                'units-instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
+                               'units-fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
                            }, follow=True)
 
     assert response.status_code == 200
@@ -996,9 +1004,12 @@ def test_edit_topography(client, django_user_model, topo_example3, handle_usage_
                                'detrend_mode': 'height',
                                'tags': 'ab, bc',  # needs a string
                                'instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
+                               'fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
+                               'has_undefined_data': False,
                            }, follow=True)
 
     assert_no_form_errors(response)
+    assert_in_content(response, 'Fill undefined data mode')
 
     # we should stay on the update page for this topography
     assert_redirects(response, reverse('manager:topography-update', kwargs=dict(pk=topo_example3.pk)))
@@ -1077,6 +1088,8 @@ def test_edit_line_scan(client, one_line_scan, django_user_model, handle_usage_s
                                'height_scale': 0.1,
                                'detrend_mode': 'height',
                                'instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
+                               'fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
+                               'has_undefined_data': False,
                            })
 
     assert response.context is None, "Errors in form: {}".format(response.context['form'].errors)
@@ -1161,6 +1174,7 @@ def test_edit_topography_only_detrend_center_when_periodic(client, django_user_m
                                'units-instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
                                'units-instrument_name': '',
                                'units-instrument_parameters': {},
+                               'units-fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
                            })
 
     assert response.status_code == 302
@@ -1195,6 +1209,8 @@ def test_edit_topography_only_detrend_center_when_periodic(client, django_user_m
                                'instrument_type': Topography.INSTRUMENT_TYPE_MICROSCOPE_BASED,
                                'instrument_parameters': "{'resolution': { 'value': 1, 'unit':'mm'}}",
                                'instrument_name': 'AFM',
+                               'fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
+                               'has_undefined_data': False,
                            }, follow=True)
 
     assert Topography.DETREND_MODE_CHOICES[0][0] == 'center'
@@ -1243,6 +1259,7 @@ def test_instrument_parameters_empty_if_no_value_on_topography_change(client, ha
         # the POST request has all parameters as the original HTML form
         'tip_radius_value': '',  # No value
         'tip_radius_unit': 'mm',
+        'fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
     }
 
     #
@@ -1535,22 +1552,68 @@ def test_topography_form_field_is_periodic():
         'resolution_x': '1',
     }
 
-    form = TopographyWizardUnitsForm(initial=data, allow_periodic=False, has_size_y=False)
+    form = TopographyWizardUnitsForm(initial=data, allow_periodic=False, has_size_y=False, has_undefined_data=None)
     assert form.fields['is_periodic'].disabled
 
     data['size_y'] = 1
 
-    form = TopographyWizardUnitsForm(initial=data, allow_periodic=False, has_size_y=True)
+    form = TopographyWizardUnitsForm(initial=data, allow_periodic=False, has_size_y=True, has_undefined_data=None)
     assert form.fields['is_periodic'].disabled
 
-    form = TopographyWizardUnitsForm(initial=data, allow_periodic=True, has_size_y=True)
+    form = TopographyWizardUnitsForm(initial=data, allow_periodic=True, has_size_y=True, has_undefined_data=None)
     assert not form.fields['is_periodic'].disabled
 
-    form = TopographyForm(initial=data, has_size_y=True, allow_periodic=True, autocomplete_tags=[])
+    form = TopographyForm(initial=data, has_size_y=True, allow_periodic=True, autocomplete_tags=[],
+                          has_undefined_data=None)
     assert not form.fields['is_periodic'].disabled
 
-    form = TopographyForm(initial=data, has_size_y=True, allow_periodic=False, autocomplete_tags=[])
+    form = TopographyForm(initial=data, has_size_y=True, allow_periodic=False, autocomplete_tags=[],
+                          has_undefined_data=None)
     assert form.fields['is_periodic'].disabled
+
+
+@pytest.mark.parametrize('form_class', [TopographyWizardUnitsForm, TopographyForm])
+def test_topography_form_field_fill_undefined_data_mode(form_class):
+    data = {
+        'size_editable': True,
+        'unit_editable': True,
+        'height_scale_editable': True,
+        'size_x': 1,
+        'unit': 'm',
+        'is_periodic': False,
+        'height_scale': 1,
+        'detrend_mode': 'center',
+        'resolution_x': '1',
+    }
+
+    form_default_kwargs = dict(initial=data, allow_periodic=False, has_size_y=False)
+
+    if form_class == TopographyForm:
+        form_default_kwargs['autocomplete_tags'] = []  # the wizard has the tags already on the previous page
+
+    #
+    # Case 1: Data has no undefined points for sure
+    #
+    form = form_class(has_undefined_data=False, **form_default_kwargs)
+    mode_field = form.fields['fill_undefined_data_mode']
+    assert mode_field.disabled
+    assert "No undefined/missing data found" in mode_field.help_text
+
+    #
+    # Case 2: Data has undefined points for sure
+    #
+    form = form_class(has_undefined_data=True, **form_default_kwargs)
+    mode_field = form.fields['fill_undefined_data_mode']
+    assert not mode_field.disabled
+    assert "The dataset has undefined/missing data points" in mode_field.help_text
+
+    #
+    # Case 3: Not sure whether data has undefined points or not
+    #
+    form = form_class(has_undefined_data=None, **form_default_kwargs)
+    mode_field = form.fields['fill_undefined_data_mode']
+    assert not mode_field.disabled  # user should choose, this is a suggestion
+    assert "We could not (yet) determine whether there are undefined/missing data points" in mode_field.help_text
 
 
 @pytest.mark.django_db

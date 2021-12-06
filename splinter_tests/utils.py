@@ -58,7 +58,7 @@ def is_text_present_in_result_table(browser, s):
 def num_items_in_result_table(browser):
     tree_element = browser.find_by_id('surface-tree')
     rows = tree_element.find_by_css('tr')
-    return len(rows) - 1  # substract 1 for header row
+    return len(rows) - 1  # subtract 1 for header row
 
 
 def active_page_number(browser):

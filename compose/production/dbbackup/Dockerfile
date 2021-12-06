@@ -1,4 +1,4 @@
-FROM codestation/postgres-s3-backup
+FROM codestation/go-s3-backup
 
 ARG RESTORE_DATABASE=0
 ENV RESTORE_DATABASE=$RESTORE_DATABASE
