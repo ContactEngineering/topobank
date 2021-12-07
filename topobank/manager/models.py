@@ -1,6 +1,9 @@
 """
 Basic models for the web app for handling topography data.
 """
+
+import sys
+
 from django.db import models
 from django.shortcuts import reverse
 from django.utils import timezone
@@ -41,6 +44,11 @@ _log = logging.getLogger(__name__)
 MAX_LENGTH_DATAFILE_FORMAT = 15  # some more characters than currently needed, we may have sub formats in future
 MAX_NUM_POINTS_FOR_SYMBOLS_IN_LINE_SCAN_PLOT = 100
 SQUEEZED_DATAFILE_FORMAT = 'nc'
+
+
+# Detect whether we are running within a Celery worker. This solution was suggested here:
+# https://stackoverflow.com/questions/39003282/how-can-i-detect-whether-im-running-in-a-celery-worker
+_IN_CELERY_WORKER_PROCESS = sys.argv and sys.argv[0].endswith('celery') and 'worker' in sys.argv
 
 
 def user_directory_path(instance, filename):
@@ -588,6 +596,11 @@ class Topography(models.Model, SubjectMixin):
             from a squeezed datafile which is not the original datafile.
             This is often faster then the original file format.
         """
+        if not _IN_CELERY_WORKER_PROCESS:
+            _log.warning('You are requesting to load a topography and you are not within in a Celery worker process. '
+                         'This operation is potentially slow and may require a lot of memory - do not use '
+                         '`Topography.topography` within the main Django server!')
+
         cache_key = self.cache_key()
 
         #
