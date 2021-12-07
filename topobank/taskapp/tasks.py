@@ -275,7 +275,7 @@ def renew_squeezed_datafile(topography_id):
 
 
 @app.task
-def renew_topography_thumbnail(topography_id):
+def renew_topography_images(topography_id):
     """Renew thumbnail for given topography,
 
     Parameters
@@ -288,12 +288,12 @@ def renew_topography_thumbnail(topography_id):
     -------
     None
     """
-    _log.debug(f"Renewing thumbnail for topography id {topography_id}..")
+    _log.debug(f"Renewing images for topography id {topography_id}..")
     try:
         topography = Topography.objects.get(id=topography_id)
         topography.renew_images()
     except Topography.DoesNotExist:
-        _log.error(f"Couldn't find topography with id {topography_id}. Cannot renew thumbnail.")
+        _log.error(f"Couldn't find topography with id {topography_id}. Cannot renew images.")
 
 
 @app.task
