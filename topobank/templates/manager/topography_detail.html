@@ -237,7 +237,7 @@
         // Visualize topography map
         visualizeMap(
           'topography-view',
-          "{% url 'manager:topography-dzi' pk=topography.id dzi_filename='' %}",
+          "{% url 'manager:topography-dzi' pk=topography.pk dzi_filename='' %}",
           'topography-colorbar',
           'topography-download');
       });
