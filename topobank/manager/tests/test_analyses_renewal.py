@@ -130,8 +130,8 @@ def test_renewal_on_topography_change(client, mocker, django_capture_on_commit_c
     assert_no_form_errors(response)
     assert response.status_code == 200
 
-    assert len(callbacks) == 2
-    # two callbacks on commit expected, see view
+    assert len(callbacks) == 1
+    # one (chain) callback on commit expected, see view
 
     assert renew_squeezed_method_mock.called
     assert renew_topo_analyses_mock.called
@@ -319,6 +319,6 @@ def test_renewal_on_topography_creation(client, mocker, handle_usage_statistics,
 
     assert_no_form_errors(response)
 
-    assert len(callbacks) == 2  # for thumbnail and for analyses
+    assert len(callbacks) == 1  # single chain for squeezed file, thumbnail and for analyses
     assert renew_topo_analyses_mock.called
     assert renew_topo_images_mock.called
