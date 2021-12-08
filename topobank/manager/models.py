@@ -596,9 +596,9 @@ class Topography(models.Model, SubjectMixin):
             from a squeezed datafile which is not the original datafile.
             This is often faster then the original file format.
         """
-        if not _IN_CELERY_WORKER_PROCESS:
-            _log.warning('You are requesting to load a topography and you are not within in a Celery worker process. '
-                         'This operation is potentially slow and may require a lot of memory - do not use '
+        if not _IN_CELERY_WORKER_PROCESS and self.size_y is not None:
+            _log.warning('You are requesting to load a (2D) topography and you are not within in a Celery worker '
+                         'process. This operation is potentially slow and may require a lot of memory - do not use '
                          '`Topography.topography` within the main Django server!')
 
         cache_key = self.cache_key()
