@@ -225,7 +225,7 @@
   {# Some JSON code to define JS variables from Django context #}
   {{ category_filter_choices | json_script:"category-filter-choices" }}
 
-  {% if not topography.resolution_y %}
+  {% if topography.size_y %}
     <script>
       $(document).ready(function () {
         // Create array with tick information
@@ -240,6 +240,45 @@
           "{% url 'manager:topography-dzi' pk=topography.id dzi_filename='' %}",
           'topography-colorbar',
           'topography-download');
+      });
+    </script>
+  {% else %}
+    <script>
+      $(document).ready(function () {
+        /** Triggering loading of bokeh plot */
+        console.log("Requesting plot via AJAX call..");
+        $.ajax({
+          url: "{% url 'manager:topography-plot' topography.pk %}",
+          type: 'get',
+          success: function (data) {
+            // server returns rendered "topography_plot.html"
+            // which is just pure html, use this to replace the existing
+            // html within the "plot content" div
+            console.log("Plot data received. Inserting plot..");
+            $('#topography-plot-content').html(data);
+            console.log("Plot inserted.")
+          },
+          error: function (xhr, textStatus, errorThrown) {
+            /**
+             * If an error occurs *not* because of XMLHttpRequest.abort(), show an
+             * error message. Do not show error on .abort(). See also
+             * https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/abort
+             * */
+            if (xhr.status == 0) {
+              console.log("Canceled plot generation.");
+              $('#topography-plot-content').html(`
+                    Canceled loading of plot.
+                  `)
+            } else {
+              console.error("Could not create plot: " + errorThrown + " " + xhr.status + " " + xhr.responseText);
+              $('#topography-plot-content').html(`
+                    <div class='alert alert-danger'>
+                        Could not request plot data. Error: ${errorThrown}
+                    </div>
+                  `);
+            }
+          }
+        });
       });
     </script>
   {% endif %}
