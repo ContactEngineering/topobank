@@ -41,11 +41,31 @@ class Command(BaseCommand):
             help='Just list analysis functions with ids and exit.',
         )
 
-    def parse_item(self, item):
+        parser.add_argument(
+            '-d',
+            '--default-kwargs',
+            action='store_true',
+            dest='use_default_kwargs',
+            help='Use default kwargs of the corresponding analysis function instead of the keyword arguments'
+            ' saved for this analysis in the database.',
+        )
+
+    def parse_item(self, item, use_default_kwargs=False):
         """Parse one item and trigger analyses.
 
-        :param item: str with an item from command line
-        :return: list of TriggerCommand instances
+        Parameters
+        ----------
+
+            item: str
+                Item from command line, see help text.
+            use_default_kwargs: bool
+                If True, use default keyword arguments from analysis function instead of those from the analysis,
+                but only for "analysis" items, not for "subject" items starting with 's', 't', 'f' + number.
+
+        Returns
+        -------
+        list of TriggerCommand instances
+
 
         The parameter item can be
 
@@ -61,7 +81,7 @@ class Command(BaseCommand):
             task_state = item[:2]
             analyses = Analysis.objects.filter(task_state=task_state)
             for a in analyses:
-                renew_analysis(a)
+                renew_analysis(a, use_default_kwargs=use_default_kwargs)
             self.stdout.write(
                 self.style.SUCCESS(f"Found {len(analyses)} analyses with task state '{task_state}'.")
             )
@@ -88,7 +108,7 @@ class Command(BaseCommand):
                     self.style.SUCCESS(f"Renewed analyses for subject '{obj}'.")
                 )
             elif ct.name == "analysis":
-                renew_analysis(obj)
+                renew_analysis(obj, use_default_kwargs=use_default_kwargs)
                 self.stdout.write(
                     self.style.SUCCESS(f"Renewed analysis '{obj}'.")
                 )
@@ -110,7 +130,6 @@ class Command(BaseCommand):
             else:
                 self.stdout.write(self.style.WARNING(f"Don't know how to handle contenttype '{ct.name}'."))
 
-
     def handle(self, *args, **options):
 
         if options['list_funcs']:
@@ -121,4 +140,4 @@ class Command(BaseCommand):
             sys.exit(0)
 
         for item in options['item']:
-            self.parse_item(item)
+            self.parse_item(item, use_default_kwargs=options['use_default_kwargs'])
