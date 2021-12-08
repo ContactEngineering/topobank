@@ -21,7 +21,7 @@ def test_renewal_on_topography_detrend_mode_change(client, mocker, django_captur
     """
 
     from ..models import Topography
-    renew_squeezed_method_mock = mocker.patch('topobank.manager.views.renew_squeezed_datafile.si')
+    renew_squeezed_mock = mocker.patch('topobank.manager.views.renew_squeezed_datafile.si')
     renew_topo_analyses_mock = mocker.patch('topobank.manager.views.renew_analyses_related_to_topography.si')
     renew_topo_images_mock = mocker.patch('topobank.manager.views.renew_topography_images.si')
 
