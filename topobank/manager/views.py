@@ -434,9 +434,9 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
         # already been opened by the form.
         # Trigger some calculations in background.
         #
-        transaction.on_commit(
-            lambda: chain(renew_squeezed_datafile.si(instance.id), renew_topography_images.si(instance.id),
-                          renew_analyses_related_to_topography.si(instance.id)).apply_async())
+        _log.info("Creating squeezed datafile, images and analyses...")
+        transaction.on_commit(chain(renew_squeezed_datafile.si(instance.id), renew_topography_images.si(instance.id),
+                                    renew_analyses_related_to_topography.si(instance.id)).delay)
 
         #
         # Notify other others with access to the topography
@@ -540,8 +540,8 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
                       f"{significant_fields_with_changes}.")
             _log.info("Renewing squeezed datafile, images and analyses...")
             # Images and analyses can only be computed after the squeezed file has been renewed
-            transaction.on_commit(lambda: chain(renew_squeezed_datafile.si(topo.id), renew_topography_images.si(topo.id),
-                                                renew_analyses_related_to_topography.si(topo.id)).apply_async())
+            transaction.on_commit(chain(renew_squeezed_datafile.si(topo.id), renew_topography_images.si(topo.id),
+                                        renew_analyses_related_to_topography.si(topo.id)).delay)
             notification_msg += f"\nBecause significant fields have changed, all related analyses are recalculated now."
         else:
             _log.info("Changes not significant for renewal of thumbnails or analysis results.")
