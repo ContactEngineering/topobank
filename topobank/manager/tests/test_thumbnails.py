@@ -53,7 +53,7 @@ def test_renewal_on_topography_detrend_mode_change(client, mocker, django_captur
     # we just check here that the form is filled completely, otherwise the thumbnail would not be recreated too
     assert_no_form_errors(response)
     assert response.status_code == 200
-    assert len(callbacks) == 1  # call for renewal of thumbnail, and analyses after commit
+    assert len(callbacks) == 1  # single chain for squeezed file, thumbnail and for analyses
     assert renew_topo_images_mock.called
     assert renew_topo_analyses_mock.called
     assert renew_squeezed_mock.called  # was directly called, not as callback from commit
