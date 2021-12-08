@@ -35,16 +35,11 @@ def test_renewal_on_topography_change(client, mocker, django_capture_on_commit_c
                                       changed_values_dict):
     """Check whether methods for renewal are called on significant topography change.
     """
-    renew_topo_analyses_mock = mocker.patch('topobank.manager.views.renew_analyses_related_to_topography.delay')
-    renew_topo_images_mock = mocker.patch('topobank.manager.views.renew_topography_images.delay')
+    renew_squeezed_method_mock = mocker.patch('topobank.manager.views.renew_squeezed_datafile.si')
+    renew_topo_analyses_mock = mocker.patch('topobank.manager.views.renew_analyses_related_to_topography.si')
+    renew_topo_images_mock = mocker.patch('topobank.manager.views.renew_topography_images.si')
 
-    # The mock for renewing the squeezed datafile does not aim at the background task,
-    # but directly to the method of the topography because this has to be done in foreground,
-    # because the other steps (thumbnail, analyses) depend on the squeezed datafile
     from ..models import Topography
-    renew_squeezed_method_mock = mocker.patch.object(Topography, 'renew_squeezed_datafile', return_value='patched')
-    # we must mock the class not the topo object, because in the view another topography instance is created,
-    # which is different from this one
 
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
@@ -251,8 +246,8 @@ def test_analysis_removal_on_topography_deletion(client, handle_usage_statistics
 
 @pytest.mark.django_db
 def test_renewal_on_topography_creation(client, mocker, handle_usage_statistics, django_capture_on_commit_callbacks):
-    renew_topo_analyses_mock = mocker.patch('topobank.manager.views.renew_analyses_related_to_topography.delay')
-    renew_topo_images_mock = mocker.patch('topobank.manager.views.renew_topography_images.delay')
+    renew_topo_analyses_mock = mocker.patch('topobank.manager.views.renew_analyses_related_to_topography.si')
+    renew_topo_images_mock = mocker.patch('topobank.manager.views.renew_topography_images.si')
 
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
