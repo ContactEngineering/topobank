@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 0.18.0 (not published yet)
+
+- BUG: Fixed scheduled postgres backups (#766)
+
 ## 0.17.0 (2021-12-03)
 
 - ENH: Detection and optional filling of missing data 
