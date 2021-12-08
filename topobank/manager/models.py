@@ -821,8 +821,8 @@ class Topography(models.Model, SubjectMixin):
             toolbar_location = 'above'
 
         plot = figure(x_range=x_range, y_range=y_range,
-                      x_axis_label=f'x ({self.unit})',
-                      y_axis_label=f'height ({self.unit})',
+                      x_axis_label=f'Position ({self.unit})',
+                      y_axis_label=f'Height ({self.unit})',
                       tooltips=TOOLTIPS,
                       toolbar_location=toolbar_location)
 
