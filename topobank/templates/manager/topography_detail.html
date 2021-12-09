@@ -37,12 +37,14 @@
           <div class="tab-pane fade active show" id="plot" role="tabpanel" aria-labelledby="plot-tab">
             {% if topography.size_y %}
               <div id="topography-container" class="dzi-container" style="min-height: calc(100vh - 240px);">
-                <div id="topography-view" class="dzi-view"></div>
+                <div id="topography-view" class="dzi-view">
+                  <span class="spinner"></span>Creating zoomable image, please wait...
+                </div>
                 <div id="topography-colorbar" class="dzi-colorbar"></div>
               </div>
             {% else %}
               <div id="topography-plot-content">
-                <span class="spinner"></span>Please wait...
+                <span class="spinner"></span>Creating plot, please wait...
               </div>
             {% endif %}
           </div>
