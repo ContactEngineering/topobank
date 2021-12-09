@@ -762,56 +762,8 @@ def test_trying_upload_of_corrupted_topography_file(client, django_user_model):
 
     assert response.status_code == 200
 
-    #
-    # check contents of second page
-    #
-
-    # now we should be on the page with second step
-    assert b"Step 2 of 3" in response.content, "Errors:" + str(response.context['form'].errors)
-
-    assert_in_content(response, '<option value="2">Height</option>')
-
-    assert response.context['form'].initial['name'] == 'example3_corrupt.di'
-
-    #
-    # Send data for second page
-    #
-    response = client.post(reverse('manager:topography-create',
-                                   kwargs=dict(surface_id=surface.id)),
-                           data={
-                               'topography_create_wizard-current_step': 'metadata',
-                               'metadata-name': 'topo1',
-                               'metadata-measurement_date': '2018-06-21',
-                               'metadata-data_source': 2,
-                               'metadata-description': description,
-                           })
-
-    assert response.status_code == 200
-    assert b"Step 3 of 3" in response.content, "Errors:" + str(response.context['form'].errors)
-
-    #
-    # Send data for third page
-    #
-    response = client.post(reverse('manager:topography-create',
-                                   kwargs=dict(surface_id=surface.id)),
-                           data={
-                               'topography_create_wizard-current_step': 'units',
-                               'units-size_x': '9000',
-                               'units-size_y': '9000',
-                               'units-unit': 'nm',
-                               'units-height_scale': 0.3,
-                               'units-detrend_mode': 'height',
-                               'units-resolution_x': 256,
-                               'units-resolution_y': 256,
-                               'units-instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
-                               'units-fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
-                           }, follow=True)
-
-    assert response.status_code == 200
-
-    assert_in_content(response, 'seems to be corrupted')
-    # assert_in_content(response, 'example3_corrupted.di')
-    # don't know yet how to pass the filename
+    # This should yield an error
+    assert b"Cannot determine file format of file" in response.content, "Errors:" + str(response.context['form'].errors)
 
     #
     # Topography has not been saved
