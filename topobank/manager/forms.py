@@ -79,7 +79,7 @@ class TopographyFileUploadForm(forms.ModelForm):
 
     helper.layout = Layout(
         Div(
-            HTML('You are about to add a measurement to digital surface twin <em>{{ surface.name }}</em>.'),
+            HTML('You are about to add a measurement to the digital surface twin <em>{{ surface.name }}</em>.'),
             Field('datafile'),
             Field('datafile_format', type='hidden'),  # in order to have data later in wizard's done() method
             Field('surface', type='hidden'),  # in order to have data later in wizard's done() method
