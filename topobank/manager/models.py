@@ -1012,6 +1012,15 @@ class Topography(models.Model, SubjectMixin):
             else:
                 raise ThumbnailGenerationException from exc
 
+    def _renew_bandwidth_cache(self, st_topo=None):
+        if st_topo is None:
+            st_topo = self.topography()
+        if st_topo.unit is not None:
+            bandwidth_lower, bandwidth_upper = st_topo.bandwidth()
+            fac = get_unit_conversion_factor(st_topo.unit, 'm')
+            self.bandwidth_lower = fac * bandwidth_lower
+            self.bandwidth_upper = fac * bandwidth_upper
+
     def renew_squeezed_datafile(self):
         """Renew squeezed datafile file."""
         _log.info(f"Renewing squeezed datafile for topography {self.id}..")
@@ -1030,11 +1039,7 @@ class Topography(models.Model, SubjectMixin):
                 self.fill_undefined_data_mode = Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING
 
             # Cache bandwidth for bandwidth plot in database. Data is stored in units of meter.
-            if st_topo.unit is not None:
-                bandwidth_lower, bandwidth_upper = st_topo.bandwidth()
-                fac = get_unit_conversion_factor(st_topo.unit, 'm')
-                self.bandwidth_lower = fac * bandwidth_lower
-                self.bandwidth_upper = fac * bandwidth_upper
+            self._renew_bandwidth_cache(st_topo)
 
             # Write and upload NetCDF file
             st_topo.to_netcdf(tmp.name)

@@ -14,6 +14,7 @@ from os.path import devnull
 import logging
 import json
 import tempfile
+import traceback
 
 from selenium import webdriver
 from selenium.webdriver.remote.webdriver import WebDriver
@@ -705,13 +706,19 @@ def _bandwidths_data_entry(topo):
 
     err_message = None
     if lower_bound is None or upper_bound is None:
-        err_message = f'Bandwidth for measurement {topo.name} is not yet available.'
+        err_message = f"Bandwidth for measurement '{topo.name}' is not yet available."
+        link = mailto_link_for_reporting_an_error(f"Failure determining bandwidth (id: {topo.id})",
+                                                  "Bandwidth data calculation",
+                                                  err_message,
+                                                  traceback.format_exc())
+    else:
+        link = reverse('manager:topography-detail', kwargs=dict(pk=topo.pk))
 
     return {
         'lower_bound': lower_bound,
         'upper_bound': upper_bound,
         'topography': topo,
-        'link': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
+        'link': link,
         'error_message': err_message
     }
 
