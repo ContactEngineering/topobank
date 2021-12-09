@@ -39,6 +39,8 @@ from topobank.analysis.models import Analysis
 from topobank.analysis.utils import renew_analyses_for_subject
 from topobank.manager.utils import make_dzi
 
+from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
+
 _log = logging.getLogger(__name__)
 
 MAX_LENGTH_DATAFILE_FORMAT = 15  # some more characters than currently needed, we may have sub formats in future
@@ -507,6 +509,9 @@ class Topography(models.Model, SubjectMixin):
 
     resolution_x = models.IntegerField(null=True)  # null for line scans TODO really?
     resolution_y = models.IntegerField(null=True)  # null for line scans
+
+    bandwidth_lower = models.FloatField(null=True, default=None)  # in meters
+    bandwidth_upper = models.FloatField(null=True, default=None)  # in meters
 
     is_periodic = models.BooleanField(default=False)
 
@@ -1023,6 +1028,13 @@ class Topography(models.Model, SubjectMixin):
             self.has_undefined_data = parent_topo.has_undefined_data
             if not self.has_undefined_data:
                 self.fill_undefined_data_mode = Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING
+
+            # Cache bandwidth for bandwidth plot in database. Data is stored in units of meter.
+            if st_topo.unit is not None:
+                bandwidth_lower, bandwidth_upper = st_topo.bandwidth()
+                fac = get_unit_conversion_factor(st_topo.unit, 'm')
+                self.bandwidth_lower = fac * bandwidth_lower
+                self.bandwidth_upper = fac * bandwidth_upper
 
             # Write and upload NetCDF file
             st_topo.to_netcdf(tmp.name)

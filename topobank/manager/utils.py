@@ -11,11 +11,9 @@ from django.contrib.postgres.search import SearchVector, SearchQuery
 
 import markdown2
 from os.path import devnull
-import traceback
 import logging
 import json
 import tempfile
-import os
 
 from selenium import webdriver
 from selenium.webdriver.remote.webdriver import WebDriver
@@ -28,8 +26,6 @@ from SurfaceTopography.IO.DZI import write_dzi
 _log = logging.getLogger(__name__)
 
 DEFAULT_DATASOURCE_NAME = 'Default'
-UNIT_TO_METERS = {'Å': 1e-10, 'nm': 1e-9, 'µm': 1e-6, 'mm': 1e-3, 'm': 1.0, 'km': 1000.0,
-                  'unknown': 1.0}
 MAX_LEN_SEARCH_TERM = 200
 SELECTION_SESSION_VARNAME = 'selection'
 
@@ -704,61 +700,16 @@ def _bandwidths_data_entry(topo):
     :return: dict
     """
 
+    lower_bound = topo.bandwidth_lower
+    upper_bound = topo.bandwidth_upper
+
     err_message = None
-
-    try:
-        st_topo = topo.topography()  # st_: from SurfaceTopography
-    except Exception:
-        err_message = "Topography '{}' (id: {}) cannot be loaded unexpectedly.".format(
-            topo.name, topo.id)
-        _log.error(err_message + "\n" + traceback.format_exc())
-
-        link = mailto_link_for_reporting_an_error(f"Failure loading topography (id: {topo.id})",
-                                                  "Bandwidth data calculation",
-                                                  err_message,
-                                                  traceback.format_exc())
-
-        return {
-            'lower_bound': None,
-            'upper_bound': None,
-            'topography': topo,
-            'link': link,
-            'error_message': err_message
-        }
-
-    try:
-        unit = st_topo.unit
-    except KeyError:
-        unit = None
-
-    if unit is None:
-        _log.warning("No unit given for topography {}. Cannot calculate bandwidth.".format(topo.name))
-        err_message = 'No unit given for topography, cannot calculate bandwidth.'
-    elif unit not in UNIT_TO_METERS:
-        _log.warning("Unknown unit {} given for topography {}. Cannot calculate bandwidth.".format(
-            unit, topo.name))
-        err_message = "Unknown unit {} given for topography {}. Cannot calculate bandwidth.".format(
-            unit, topo.name)
-    else:
-        meter_factor = UNIT_TO_METERS[unit]
-
-    if err_message is None:
-
-        lower_bound, upper_bound = st_topo.bandwidth()
-        # Workaround for https://github.com/pastewka/PyCo/issues/55
-        if isinstance(upper_bound, tuple):
-            upper_bound = upper_bound[0]
-
-        lower_bound_meters = lower_bound * meter_factor
-        upper_bound_meters = upper_bound * meter_factor
-
-    else:
-        lower_bound_meters = None
-        upper_bound_meters = None
+    if lower_bound is None or upper_bound is None:
+        err_message = f'Bandwidth for measurement {topo.name} is not yet available.'
 
     return {
-        'lower_bound': lower_bound_meters,
-        'upper_bound': upper_bound_meters,
+        'lower_bound': lower_bound,
+        'upper_bound': upper_bound,
         'topography': topo,
         'link': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
         'error_message': err_message
