@@ -319,7 +319,7 @@ section[title="Terms and Conditions"] div.toc-container, #tc-terms-html {
 }
 
 .dzi-colorbar {
-  width: 7em;
+  width: 8em;
   margin-left: 5px;
   float: right;
 }
@@ -357,7 +357,6 @@ section[title="Terms and Conditions"] div.toc-container, #tc-terms-html {
 
 .dzi-colorbar-title {
   align-content: center;
-  font-weight: bold;
 }
 
 .card-header {
