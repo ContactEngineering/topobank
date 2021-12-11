@@ -1391,7 +1391,7 @@ def contact_mechanics_data(request):
             # calculate contact areas
             #
 
-            patch_ids = assign_patch_numbers(contacting_points)[1]
+            patch_ids = assign_patch_numbers(contacting_points, ds.attrs['type'] == 'periodic')[1]
             contact_areas = patch_areas(patch_ids) * analysis.result_obj['area_per_pt']
 
             #
