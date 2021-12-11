@@ -4,6 +4,8 @@
  */
 
 function visualizeMap(id, prefixUrl, colorBar = null, downloadButton = null, retryDelay = 5000) {
+    $('#' + id).empty();
+    $('#' + id).html('<span class="spinner"></span>Creating and loading zoomable image, please wait...')
     var requestDzi = function() {
         $.ajax({
             url: prefixUrl + 'dzi.json',
