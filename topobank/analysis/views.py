@@ -969,7 +969,8 @@ class ContactMechanicsCardView(SimpleCardView):
                                        y_axis_label=area_axis_label,
                                        x_axis_type="log",
                                        y_axis_type="log",
-                                       tools=tools)
+                                       tools=tools,
+                                       output_backend='svg')
 
             load_plot = figure(title=None,
                                plot_height=400,
@@ -977,7 +978,8 @@ class ContactMechanicsCardView(SimpleCardView):
                                x_axis_label=disp_axis_label,
                                y_axis_label=load_axis_label,
                                x_axis_type="linear",
-                               y_axis_type="log", tools=tools)
+                               y_axis_type="log", tools=tools,
+                               output_backend='svg')
 
             for source, label in zip(sources, labels):
                 curr_color = next(color_cycle)
@@ -1279,7 +1281,8 @@ def _contact_mechanics_geometry_figure(values, frame_width, frame_height, topo_u
                x_axis_label="Position x ({})".format(topo_unit),
                y_axis_label="Position y ({})".format(topo_unit),
                match_aspect=True,
-               toolbar_location="above")
+               toolbar_location="above",
+               output_backend='svg')
 
     if boolean_values:
         color_mapper = LinearColorMapper(palette=["black", "white"], low=0, high=1)
@@ -1320,7 +1323,8 @@ def _contact_mechanics_distribution_figure(values, x_axis_label, y_axis_label,
                y_axis_label=y_axis_label,
                x_axis_type=x_axis_type,
                y_axis_type=y_axis_type,
-               toolbar_location="above")
+               toolbar_location="above",
+               output_backend='svg')
 
     p.step(edges[:-1], hist, mode="before", line_width=2)
 
