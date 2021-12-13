@@ -20,7 +20,7 @@ billiard==3.6.4.0
     #   celery
 bleach==4.1.0
     # via -r ./base.txt
-bokeh==2.2.3
+bokeh==2.4.2
     # via -r ./base.txt
 boto3==1.20.16
     # via -r ./base.txt
@@ -315,7 +315,6 @@ pyparsing==3.0.6
 python-dateutil==2.8.2
     # via
     #   -r ./base.txt
-    #   bokeh
     #   botocore
     #   matplotlib
     #   pandas
