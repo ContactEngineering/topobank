@@ -20,9 +20,7 @@ from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect, reverse
 from django.conf import settings
 
-import django_tables2 as tables
-
-from bokeh.layouts import row, column, grid, layout
+from bokeh.layouts import column, grid, layout
 from bokeh.models import ColumnDataSource, CustomJS, TapTool, Circle, HoverTool
 from bokeh.palettes import Category10
 from bokeh.models.ranges import DataRange1d
@@ -31,20 +29,21 @@ from bokeh.embed import components, json_item
 from bokeh.models.widgets import CheckboxGroup, Tabs, Panel, Toggle, Div, Slider, Button
 from bokeh.models import LinearColorMapper, ColorBar
 from bokeh.models.formatters import FuncTickFormatter
+from bokeh.io.export import get_screenshot_as_png
 
 import xarray as xr
 
 from pint import UnitRegistry, UndefinedUnitError
 
-from guardian.shortcuts import get_objects_for_user, get_anonymous_user
+from guardian.shortcuts import get_objects_for_user
 
 from trackstats.models import Metric
 
 from ContactMechanics.Tools.ContactAreaAnalysis import patch_areas, assign_patch_numbers
 
 from ..manager.models import Topography, Surface
-from ..manager.utils import selected_instances, instances_to_selection, instances_to_topographies, \
-    selection_to_subjects_json, subjects_from_json, subjects_to_json
+from ..manager.utils import instances_to_selection, selection_to_subjects_json, subjects_from_json, subjects_to_json, \
+    get_firefox_webdriver
 from ..usage_stats.utils import increase_statistics_by_date_and_object
 from ..plots import configure_plot
 from .models import Analysis, AnalysisFunction, AnalysisCollection, CARD_VIEW_FLAVORS, ImplementationMissingException
@@ -452,7 +451,8 @@ class PlotCardView(SimpleCardView):
                       y_axis_label=y_axis_label,
                       x_axis_type=get_axis_type('xscale'),
                       y_axis_type=get_axis_type('yscale'),
-                      tools="pan,reset,save,wheel_zoom,box_zoom,hover")
+                      tools="pan,reset,save,wheel_zoom,box_zoom,hover",
+                      output_backend='svg')
 
         #
         # Configure hover tool
