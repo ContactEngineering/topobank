@@ -139,7 +139,7 @@ class Analysis(models.Model):
         If storage is on filesystem, the prefix should correspond
         to a real directory.
         """
-        return "analyses/{}/".format(self.id)
+        return "analyses/{}".format(self.id)
 
     @property
     def related_surface(self):

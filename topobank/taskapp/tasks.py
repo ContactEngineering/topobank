@@ -1,8 +1,13 @@
 """
 Definition of celery tasks used in TopoBank.
 """
+
+import io
+import json
 import pickle
 import traceback
+
+from numpyencoder import NumpyEncoder
 
 from django.utils import timezone
 from django.db.utils import IntegrityError
@@ -26,9 +31,9 @@ from topobank.analysis.models import Analysis, Configuration, AnalysisCollection
 from topobank.manager.models import Topography, Surface
 from topobank.users.models import User
 from topobank.analysis.functions import IncompatibleTopographyException
-from topobank.usage_stats.utils import increase_statistics_by_date, increase_statistics_by_date_and_object,\
-                                        current_statistics
-
+from topobank.usage_stats.utils import increase_statistics_by_date, increase_statistics_by_date_and_object, \
+    current_statistics
+from topobank.manager.utils import default_storage_replace
 
 EXCEPTION_CLASSES_FOR_INCOMPATIBILITIES = (IncompatibleTopographyException, IncompatibleFormulationError,
                                            CannotPerformAnalysisError)
@@ -110,6 +115,8 @@ def perform_analysis(self, analysis_id):
     def save_result(result, task_state):
         _log.debug("Saving analysis result..")
         analysis.task_state = task_state
+        default_storage_replace(f'{analysis.storage_prefix}/result.json',
+                                io.BytesIO(json.dumps(result, cls=NumpyEncoder).encode('utf-8')))
         analysis.result = pickle.dumps(result)  # can also be an exception in case of errors!
         analysis.end_time = timezone.now()  # with timezone
         if 'effective_kwargs' in result:
@@ -126,8 +133,8 @@ def perform_analysis(self, analysis_id):
         subject = analysis.subject
         kwargs['progress_recorder'] = progress_recorder
         kwargs['storage_prefix'] = analysis.storage_prefix
-        _log.debug("Evaluating analysis function '%s' on subject '%s' ..",
-                   analysis.function.name, subject)
+        _log.debug("Evaluating analysis function '%s' on subject '%s' (storage prefix '%s')...",
+                   analysis.function.name, subject, analysis.storage_prefix)
         result = analysis.function.eval(subject, **kwargs)
         save_result(result, Analysis.SUCCESS)
     except (Topography.DoesNotExist, Surface.DoesNotExist, IntegrityError) as exc:
@@ -161,13 +168,13 @@ def perform_analysis(self, analysis_id):
             #
             from trackstats.models import Metric
 
-            td = analysis.end_time-analysis.start_time
+            td = analysis.end_time - analysis.start_time
             increase_statistics_by_date(metric=Metric.objects.TOTAL_ANALYSIS_CPU_MS,
-                                        increment=1000*td.total_seconds())
-            increase_statistics_by_date_and_object(
-                                        metric=Metric.objects.TOTAL_ANALYSIS_CPU_MS,
-                                        obj=analysis.function,
                                         increment=1000 * td.total_seconds())
+            increase_statistics_by_date_and_object(
+                metric=Metric.objects.TOTAL_ANALYSIS_CPU_MS,
+                obj=analysis.function,
+                increment=1000 * td.total_seconds())
 
         except Analysis.DoesNotExist:
             # Analysis was deleted, e.g. because topography or surface was missing
@@ -185,7 +192,7 @@ def check_analysis_collection(collection_id):
     collection = AnalysisCollection.objects.get(id=collection_id)
 
     analyses = collection.analyses.all()
-    task_states = [analysis.task_state for analysis in analyses ]
+    task_states = [analysis.task_state for analysis in analyses]
 
     has_started = any(ts not in ['pe'] for ts in task_states)
     has_failure = any(ts in ['fa'] for ts in task_states)
@@ -201,7 +208,7 @@ def check_analysis_collection(collection_id):
             href = reverse('analysis:collection', kwargs=dict(collection_id=collection.id))
 
             notify.send(sender=collection, recipient=collection.owner, verb="finished",
-                        description="Tasks finished: "+collection.name,
+                        description="Tasks finished: " + collection.name,
                         href=href)
 
         else:

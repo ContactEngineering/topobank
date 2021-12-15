@@ -5,8 +5,11 @@ The first argument is either a Topography or Surface instance (model).
 """
 
 import collections
+import io
+import json
 
-from django.core.files.storage import default_storage
+from numpyencoder import NumpyEncoder
+
 from django.core.files import File
 from django.conf import settings
 
@@ -24,7 +27,7 @@ from SurfaceTopography.Exceptions import CannotPerformAnalysisError
 from ContactMechanics import PeriodicFFTElasticHalfSpace, FreeFFTElasticHalfSpace, make_system
 
 import topobank.manager.models  # will be used to evaluate model classes
-from topobank.manager.utils import make_dzi
+from topobank.manager.utils import default_storage_replace, make_dzi
 from .registry import AnalysisFunctionRegistry
 
 _log = logging.getLogger(__name__)
@@ -435,8 +438,19 @@ def make_alert_entry(level, subject_name, subject_url, data_series_name, detail_
     return dict(alert_class=f"alert-{level}", message=message)
 
 
+def _save_series(storage_prefix, series):
+    """Save series data into a JSON and remove it from the series dictionary"""
+    if storage_prefix is None:
+        raise ValueError('Please specify a storage prefix')
+    for i, s in enumerate(series):
+        default_storage_replace(f'{storage_prefix}/{i}.json',
+                                io.BytesIO(json.dumps(s, cls=NumpyEncoder).encode('utf-8')))
+        s['x'] = len(s['x'])
+        s['y'] = len(s['y'])
+
+
 def analysis_function(topography, funcname_profile, funcname_area, name, xlabel, ylabel, xname, yname, aname, xunit,
-                      yunit, conv_2d_fac=1.0, conv_2d_exponent=0, **kwargs):
+                      yunit, conv_2d_fac=1.0, conv_2d_exponent=0, storage_prefix=None, **kwargs):
     topography_name = topography.name
     topography_url = topography.get_absolute_url()
 
@@ -545,6 +559,10 @@ def analysis_function(topography, funcname_profile, funcname_area, name, xlabel,
 
     unit = topography.unit
 
+    # Store series data in individual JSON files for use with Bokeh's AjaxDataSource
+    _save_series(storage_prefix, series)
+
+    # Return metadata for results as a dictionary (to be stored in the postgres database)
     return dict(
         name=name,
         xlabel=xlabel,
@@ -558,7 +576,7 @@ def analysis_function(topography, funcname_profile, funcname_area, name, xlabel,
 
 
 def analysis_function_for_surface(surface, progress_recorder, funcname_profile, name, xlabel, ylabel, xname, xunit,
-                                  yunit, **kwargs):
+                                  yunit, storage_prefix=None, **kwargs):
     """Calculate average analysis result for a surface."""
     topographies = ContainerProxy(surface.topography_set.all())
     unit = suggest_length_unit(topographies, 'log')
@@ -586,6 +604,10 @@ def analysis_function_for_surface(surface, progress_recorder, funcname_profile, 
         alerts.append(make_alert_entry('warning', surface.name, surface.get_absolute_url(),
                                        xname, str(exc)))
 
+    # Store series data in individual JSON files for use with Bokeh's AjaxDataSource
+    _save_series(storage_prefix, series)
+
+    # Return metadata for results as a dictionary (to be stored in the postgres database)
     result = dict(
         name=name,
         xlabel=xlabel,
@@ -619,7 +641,8 @@ def power_spectrum(topography, progress_recorder=None, storage_prefix=None, wind
                              conv_2d_fac=1 / np.pi,
                              conv_2d_exponent=1,
                              window=window,
-                             nb_points_per_decade=nb_points_per_decade)
+                             nb_points_per_decade=nb_points_per_decade,
+                             storage_prefix=storage_prefix)
 
 
 @register_implementation(name="Power spectrum", card_view_flavor='plot')
@@ -638,7 +661,8 @@ def power_spectrum_for_surface(surface, progress_recorder=None, storage_prefix=N
                                          '{}⁻¹',
                                          '{}³',
                                          window=window,
-                                         nb_points_per_decade=nb_points_per_decade)
+                                         nb_points_per_decade=nb_points_per_decade,
+                                         storage_prefix=storage_prefix)
 
 
 @register_implementation(name="Autocorrelation", card_view_flavor='plot')
@@ -654,7 +678,8 @@ def autocorrelation(topography, progress_recorder=None, storage_prefix=None, nb_
                              'Radial average',
                              '{}',
                              '{}²',
-                             nb_points_per_decade=nb_points_per_decade)
+                             nb_points_per_decade=nb_points_per_decade,
+                             storage_prefix=storage_prefix)
 
 
 @register_implementation(name="Autocorrelation", card_view_flavor='plot')
@@ -668,7 +693,8 @@ def autocorrelation_for_surface(surface, progress_recorder=None, storage_prefix=
                                          'Along x',
                                          '{}',
                                          '{}²',
-                                         nb_points_per_decade=nb_points_per_decade)
+                                         nb_points_per_decade=nb_points_per_decade,
+                                         storage_prefix=storage_prefix)
 
 
 @register_implementation(name="Variable bandwidth", card_view_flavor='plot')
@@ -683,7 +709,8 @@ def variable_bandwidth(topography, progress_recorder=None, storage_prefix=None):
                              'Profile decomposition along y',
                              'Areal decomposition',
                              '{}',
-                             '{}')
+                             '{}',
+                             storage_prefix=storage_prefix)
 
 
 @register_implementation(name="Variable bandwidth", card_view_flavor='plot')
@@ -697,11 +724,12 @@ def variable_bandwidth_for_surface(surface, progress_recorder=None, storage_pref
                                          'Profile decomposition along x',
                                          '{}',
                                          '{}',
-                                         nb_points_per_decade=nb_points_per_decade)
+                                         nb_points_per_decade=nb_points_per_decade,
+                                         storage_prefix=storage_prefix)
 
 
 def scale_dependent_roughness_parameter(topography, progress_recorder, order_of_derivative, name, ylabel, xname, yname,
-                                        xyfunc, xyname, yunit, **kwargs):
+                                        xyfunc, xyname, yunit, storage_prefix=None, **kwargs):
     topography_name = topography.name
     topography_url = topography.get_absolute_url()
 
@@ -776,6 +804,9 @@ def scale_dependent_roughness_parameter(topography, progress_recorder, order_of_
 
         process_series_reliable_unreliable(xyname, xy_kwargs)
 
+    # Store series data in individual JSON files for use with Bokeh's AjaxDataSource
+    _save_series(storage_prefix, series)
+
     unit = topography.unit
     return dict(
         name=name,
@@ -790,7 +821,7 @@ def scale_dependent_roughness_parameter(topography, progress_recorder, order_of_
 
 
 def scale_dependent_roughness_parameter_for_surface(surface, progress_recorder, order_of_derivative, name, ylabel,
-                                                    xname, yunit, **kwargs):
+                                                    xname, yunit, storage_prefix=None, **kwargs):
     topographies = ContainerProxy(surface.topography_set.all())
     unit = suggest_length_unit(topographies, 'log')
 
@@ -810,6 +841,9 @@ def scale_dependent_roughness_parameter_for_surface(surface, progress_recorder, 
                        )]
     except CannotPerformAnalysisError as exc:
         alerts.append(make_alert_entry('warning', surface.name, surface.get_absolute_url(), xname, str(exc)))
+
+    # Store series data in individual JSON files for use with Bokeh's AjaxDataSource
+    _save_series(storage_prefix, series)
 
     return dict(
         name=name,
@@ -836,7 +870,8 @@ def scale_dependent_slope(topography, progress_recorder=None, storage_prefix=Non
         lambda x, y: x * x + y * y,
         'Gradient',
         '1',
-        nb_points_per_decade=nb_points_per_decade)
+        nb_points_per_decade=nb_points_per_decade,
+        storage_prefix=storage_prefix)
 
 
 @register_implementation(name="Scale-dependent slope", card_view_flavor='plot')
@@ -849,7 +884,8 @@ def scale_dependent_slope_for_surface(surface, progress_recorder=None, storage_p
         'Slope',
         'Slope in x-direction',
         '1',
-        nb_points_per_decade=nb_points_per_decade)
+        nb_points_per_decade=nb_points_per_decade,
+        storage_prefix=storage_prefix)
 
 
 @register_implementation(name="Scale-dependent curvature", card_view_flavor='plot')
@@ -865,7 +901,8 @@ def scale_dependent_curvature(topography, progress_recorder=None, storage_prefix
         lambda x, y: (x + y) ** 2 / 4,
         '1/2 Laplacian',
         '{}⁻¹',
-        nb_points_per_decade=nb_points_per_decade)
+        nb_points_per_decade=nb_points_per_decade,
+        storage_prefix=storage_prefix)
 
 
 @register_implementation(name="Scale-dependent curvature", card_view_flavor='plot')
@@ -879,7 +916,8 @@ def scale_dependent_curvature_for_surface(surface, progress_recorder=None, stora
         'Curvature',
         'Curvature in x-direction',
         '{}⁻¹',
-        nb_points_per_decade=nb_points_per_decade)
+        nb_points_per_decade=nb_points_per_decade,
+        storage_prefix=storage_prefix)
 
 
 def _next_contact_step(system, history=None, pentol=None, maxiter=None):
@@ -1166,7 +1204,7 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
         with tempfile.NamedTemporaryFile(prefix='analysis-') as tmpfile:
             dataset.to_netcdf(tmpfile.name, format=netcdf_format)
             tmpfile.seek(0)
-            default_storage.save(f'{storage_path}/nc/results.nc', File(tmpfile))
+            default_storage_replace(f'{storage_path}/nc/results.nc', File(tmpfile))
 
         make_dzi(pressure_xy.data, f'{storage_path}/dzi/pressure',
                  physical_sizes=topography.physical_sizes, unit=topography.unit,

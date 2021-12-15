@@ -60,6 +60,27 @@ class TopographyFileReadingException(TopographyFileException):
         return self._message
 
 
+def default_storage_replace(name, content):
+    """
+    Write a file to the default storage, but replacing a potentially existing
+    file. This is necessary because Django will rename the newly uploaded file
+    if an object of the same name already exists. The function raises an error
+    if Django deviates from the given name.
+
+    Parameters
+    ----------
+    name : str
+        Name of the file.
+    content : stream
+        Contents of the file.
+    """
+    default_storage.delete(name)  # will *not* raise exception if file does not exist
+    actual_name = default_storage.save(name, content)
+    if actual_name != name:
+        raise IOError(f"Trying to store file with name '{name}', but Django "
+                      f"storage renamed this file to '{actual_name}'.")
+
+
 def get_reader_infos():
     reader_infos = []
     for reader_class in surface_topography_readers:
@@ -972,7 +993,5 @@ def make_dzi(data, path_prefix, physical_sizes=None, unit=None, quality=95, colo
             storage_filename = filename[len(tmpdirname) + 1:]
             # Delete (possibly existing) old data files
             target_name = f'{path_prefix}/{storage_filename}'
-            default_storage.delete(target_name)
             # Upload to S3
-            uploded_name = default_storage.save(target_name, File(open(filename, mode='rb')))
-            assert uploded_name == target_name
+            default_storage_replace(target_name, File(open(filename, mode='rb')))

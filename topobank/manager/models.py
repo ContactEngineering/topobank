@@ -907,8 +907,8 @@ class Topography(models.Model, SubjectMixin):
 
         configure_plot(plot)
         if reduced:
-            plot.xaxis.visible = None
-            plot.yaxis.visible = None
+            plot.xaxis.visible = False
+            plot.yaxis.visible = False
 
         # we need to rotate the height data in order to be compatible with image in Gwyddion
         plot.image([np.rot90(heights)], x=0, y=topo_size[1],

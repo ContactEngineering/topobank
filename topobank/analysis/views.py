@@ -20,16 +20,15 @@ from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect, reverse
 from django.conf import settings
 
+import bokeh.palettes as palettes
 from bokeh.layouts import column, grid, layout
-from bokeh.models import ColumnDataSource, CustomJS, TapTool, Circle, HoverTool
-from bokeh.palettes import Category10
+from bokeh.models import AjaxDataSource, ColumnDataSource, CustomJS, TapTool, Circle, HoverTool
 from bokeh.models.ranges import DataRange1d
 from bokeh.plotting import figure
 from bokeh.embed import components, json_item
 from bokeh.models.widgets import CheckboxGroup, Tabs, Panel, Toggle, Div, Slider, Button
 from bokeh.models import LinearColorMapper, ColorBar
 from bokeh.models.formatters import FuncTickFormatter
-from bokeh.io.export import get_screenshot_as_png
 
 import xarray as xr
 
@@ -42,11 +41,10 @@ from trackstats.models import Metric
 from ContactMechanics.Tools.ContactAreaAnalysis import patch_areas, assign_patch_numbers
 
 from ..manager.models import Topography, Surface
-from ..manager.utils import instances_to_selection, selection_to_subjects_json, subjects_from_json, subjects_to_json, \
-    get_firefox_webdriver
+from ..manager.utils import instances_to_selection, selection_to_subjects_json, subjects_from_json, subjects_to_json
 from ..usage_stats.utils import increase_statistics_by_date_and_object
 from ..plots import configure_plot
-from .models import Analysis, AnalysisFunction, AnalysisCollection, CARD_VIEW_FLAVORS, ImplementationMissingException
+from .models import Analysis, AnalysisFunction, AnalysisCollection, CARD_VIEW_FLAVORS
 from .forms import FunctionSelectForm
 from .utils import get_latest_analyses, round_to_significant_digits, request_analysis
 
@@ -78,6 +76,27 @@ def card_view_class(card_view_flavor):
 
     class_name = card_view_flavor.title().replace(' ', '') + "CardView"
     return globals()[class_name]
+
+
+def analysis_result(request, pk):
+    """Return result.json for a specific analysis.
+
+    :param request: Request object
+    :param pk: Analysis id
+    :return: HTTPResponse
+    """
+    try:
+        pk = int(pk)
+    except ValueError:
+        raise Http404()
+
+    analysis = Analysis.objects.get(id=pk)
+
+    if not request.user.has_perm('view_surface', analysis.related_surface):
+        raise PermissionDenied()
+
+    url = default_storage.url(f'{analysis.storage_prefix}/result.json')
+    return redirect(url)
 
 
 def switch_card_view(request):
@@ -467,7 +486,8 @@ class PlotCardView(SimpleCardView):
         #
         # Prepare helpers for dashes and colors
         #
-        color_cycle = itertools.cycle(Category10[10])
+        surface_color_palette = palettes.Greys256  # surfaces are shown in black/grey
+        topography_color_palette = palettes.Plasma256  # does not have black/gray, which is reserved for averages
         dash_cycle = itertools.cycle(['solid', 'dashed', 'dotted', 'dotdash', 'dashdot'])
         # symbol_cycle = itertools.cycle(['circle', 'triangle', 'diamond', 'square', 'asterisk'])
         # TODO remove code for toggling symbols if not needed
@@ -475,8 +495,6 @@ class PlotCardView(SimpleCardView):
         subject_colors = OrderedDict()  # key: subject instance, value: color
 
         series_dashes = OrderedDict()  # key: series name
-        series_names = []
-        series_visible = set()  # names of visible series on initial load, needed for checkboxes
 
         DEFAULT_ALPHA_FOR_TOPOGRAPHIES = 0.3 if has_at_least_one_surface_subject else 1.0
 
@@ -499,20 +517,22 @@ class PlotCardView(SimpleCardView):
         # checkboxes to glyphs.
         #
         series_names = set()
+        nb_surfaces = 0  # Total number of averages/surfaces shown
+        nb_topographies = 0  # Total number of topography results shown
         for analysis in analyses_success_list:
-            analysis_result = analysis.result_obj
+            print('A', analysis)
             #
             # handle task state
             #
-            if analysis.task_state == analysis.FAILURE:
+            if analysis.task_state != analysis.SUCCESS:
                 continue  # should not happen if only called with successful analyses
-            elif analysis.task_state == analysis.SUCCESS:
-                series = analysis.result_obj['series']
+
+            series_names.update([s['name'] for s in analysis.result_obj['series']])
+
+            if isinstance(analysis.subject, Surface):
+                nb_surfaces += 1
             else:
-                # not ready yet
-                continue  # should not happen if only called with successful analyses
-            for s in series:
-                series_names.add(s['name'])
+                nb_topographies += 1
 
         series_names = sorted(list(series_names))  # index of a name in this list is the "series_idx"
         series_visible = set()  # elements: series indices, decides whether a series is visible
@@ -521,17 +541,28 @@ class PlotCardView(SimpleCardView):
         #
         # Second traversal: do the plotting
         #
+        surface_index = -1
+        topography_index = -1
         for analysis in analyses_success_list:
-
+            print('B', analysis)
             #
             # Define some helper variables
             #
             subject = analysis.subject
             subject_idx = subjects.index(subject)  # unique identifier within the plot
-            subject_colors[subject] = next(color_cycle)
 
             is_surface_analysis = isinstance(subject, Surface)
             is_topography_analysis = isinstance(subject, Topography)
+
+            if is_surface_analysis:
+                # Surface results are plotted in black/grey
+                surface_index += 1
+                subject_colors[subject] = \
+                    surface_color_palette[surface_index * len(surface_color_palette) // nb_surfaces]
+            else:
+                topography_index += 1
+                subject_colors[subject] = \
+                    topography_color_palette[topography_index * len(topography_color_palette) // nb_topographies]
 
             subject_display_name = subject_names_for_plot[subject_idx]
             if is_topography_analysis:
@@ -574,33 +605,25 @@ class PlotCardView(SimpleCardView):
                     continue
                     # TODO How to handle such an error here? Notification? Message in analysis box?
 
-            for s in series:
-                # One could use AjaxDataSource for retrieving the results, but useful if we are already in AJAX call?
-                xarr = np.array(s['x'])
-                yarr = np.array(s['y'])
+            for s_index, s in enumerate(series):
+                # We need to convert the data to the right unit in the client
+                adapter = CustomJS(code=f'''
+                    return {{
+                        x: cb_data.response.x.map(value => {analysis_xscale} * value),
+                        y: cb_data.response.y.map(value => {analysis_yscale} * value),
+                    }};
+                ''')
 
-                # if logplot, filter all zero values
-                mask = np.zeros(xarr.shape, dtype=bool)
-                if get_axis_type('xscale') == 'log':
-                    mask |= np.isclose(xarr, 0, atol=SMALLEST_ABSOLUT_NUMBER_IN_LOGPLOTS)
-                    mask |= np.isnan(xarr)  # sometimes nan is a problem here
-                if get_axis_type('yscale') == 'log':
-                    mask |= np.isclose(yarr, 0, atol=SMALLEST_ABSOLUT_NUMBER_IN_LOGPLOTS)
-                    mask |= np.isnan(yarr)  # sometimes nan is a problem here
-
-                series_name = s['name']
-                source_data = dict(x=analysis_xscale * xarr[~mask],
-                                   y=analysis_yscale * yarr[~mask],
-                                   series=(series_name,) * len(xarr[~mask]))
-
-                source = ColumnDataSource(data=source_data)
-                # it's a little dirty to add the same value for series for every point
-                # but I don't know to a have a second field next to "name", which
-                # is used for the subject here
+                # By default, Bokeh sends a 'Content-Type: application/json' header, but that leads to a 403 Forbidden
+                # response from the S3 which expects no 'Content-Type' header. (The 'Content-Type' is part of the
+                # presigned URL but can apparently not be controlled from Django S3/Boto3.)
+                source = AjaxDataSource(data_url=default_storage.url(f'{analysis.storage_prefix}/{s_index}.json'),
+                                        method='GET', content_type='', syncable=False, adapter=adapter)
 
                 #
                 # Collect data for visibility of the corresponding series
                 #
+                series_name = s['name']
                 is_visible = s['visible'] if 'visible' in s else True
                 series_idx = series_names.index(series_name)
                 if is_visible:
@@ -618,7 +641,7 @@ class PlotCardView(SimpleCardView):
                 #
                 # Actually plot the line
                 #
-                show_symbols = np.count_nonzero(~mask) <= MAX_NUM_POINTS_FOR_SYMBOLS
+                show_symbols = s['x'] <= MAX_NUM_POINTS_FOR_SYMBOLS
 
                 legend_entry = subject_display_name + ": " + series_name
 
@@ -629,6 +652,7 @@ class PlotCardView(SimpleCardView):
                 # hover_name = "{} for '{}'".format(series_name, topography_name)
                 line_width = LINEWIDTH_FOR_SURFACE_AVERAGE if is_surface_analysis else 1
                 topo_alpha = DEFAULT_ALPHA_FOR_TOPOGRAPHIES if is_topography_analysis else 1.
+
                 line_glyph = plot.line('x', 'y', source=source, legend_label=legend_entry,
                                        line_color=curr_color,
                                        line_dash=curr_dash,
@@ -704,6 +728,8 @@ class PlotCardView(SimpleCardView):
                 alerts.extend(analysis_result['alerts'])
             except KeyError:
                 pass
+
+        print('C')
 
         #
         # Adjust visibility of glyphs depending on visibility of series
@@ -897,7 +923,7 @@ class ContactMechanicsCardView(SimpleCardView):
             #
             # Prepare helper variables
             #
-            color_cycle = itertools.cycle(Category10[10])
+            color_cycle = itertools.cycle(palettes.Category10_10)
             topography_colors = OrderedDict()  # key: Topography instance
             topography_names = []
             js_code = ""
@@ -942,7 +968,7 @@ class ContactMechanicsCardView(SimpleCardView):
             area_axis_label = "Fractional contact area A/A0"
             disp_axis_label = "Normalized mean gap u/h_rms"
 
-            color_cycle = itertools.cycle(Category10[10])
+            color_cycle = itertools.cycle(palettes.Category10_10)
 
             select_callback = CustomJS(args=dict(sources=sources), code="selection_handler(cb_obj, cb_data, sources);")
             tap = TapTool(behavior='select', callback=select_callback)
@@ -1348,7 +1374,7 @@ def contact_mechanics_data(request):
     try:
         analysis_id = int(request_method.get('analysis_id'))
         index = int(request_method.get('index'))
-    except (KeyError, ValueError, TypeError):
+    except ValueError:
         return JsonResponse({'error': 'error in request data'}, status=400)
 
     #
