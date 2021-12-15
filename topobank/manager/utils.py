@@ -925,6 +925,38 @@ def get_permission_table_data(instance, request_user, actions=['view', 'change',
 
 
 def make_dzi(data, path_prefix, physical_sizes=None, unit=None, quality=95, colorbar_title=None, cmap=None):
+    """
+    Make JPG Deep Zoom Image (DZI) files given data on a two-dimensional grid.
+
+    The DZI format specifies multiple files:
+        1. A JSON file containing structural information on the file
+        2. A set of image files at different zoom levels
+
+    Parameters
+    ----------
+    data : :obj:SurfaceTopography.Topogaphy or :obj:numpy.ndarray
+        Data container holding the 2D data set.
+    path_prefix : str
+        Prefix for creating the Deep Zoom Image files. In particular, the
+        writer will use '{path_prefix}/dzi.json' for structural metadata and
+        store the image files under the prefix '{path_prefix}/dzi_files/'.
+    physical_sizes : tuple of float, optional
+        Physical sizes of the two-dimensional map, if not specified by `data`.
+        (Default: None)
+    unit : str, optional
+        Length unit of the physical sizes, if not specified by `data`.
+        (Default: None)
+    quality : int, optional
+        Quality of JPG, passed to Pillow's `save` function.
+    colorbar_title : str, optional
+        Title of colorbar; this information is dumped into the metadata json
+        and a proprietary extension to the official DZI format.
+        (Default: None)
+    cmap : str, optional
+        Name of colormap; this information is dumped into the metadata json
+        and a proprietary extension to the official DZI format.
+        (Default: None)
+   """
     with tempfile.TemporaryDirectory() as tmpdirname:
         try:
             # This is a Topography
