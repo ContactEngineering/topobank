@@ -520,7 +520,6 @@ class PlotCardView(SimpleCardView):
         nb_surfaces = 0  # Total number of averages/surfaces shown
         nb_topographies = 0  # Total number of topography results shown
         for analysis in analyses_success_list:
-            print('A', analysis)
             #
             # handle task state
             #
@@ -544,7 +543,6 @@ class PlotCardView(SimpleCardView):
         surface_index = -1
         topography_index = -1
         for analysis in analyses_success_list:
-            print('B', analysis)
             #
             # Define some helper variables
             #
@@ -728,8 +726,6 @@ class PlotCardView(SimpleCardView):
                 alerts.extend(analysis_result['alerts'])
             except KeyError:
                 pass
-
-        print('C')
 
         #
         # Adjust visibility of glyphs depending on visibility of series
