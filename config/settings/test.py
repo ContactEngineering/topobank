@@ -111,3 +111,10 @@ LOGGING = {
 DATABASES = {
     'default': env.db('DATABASE_URL', default='postgres:///topobank-test'),
 }
+
+# Bokeh output backend. Possibilities are:
+# - 'canvas': The default
+# - 'svg': Render using SVG. Plot will download as SVG if this is enabled while they download as PNG in the 'canvas'
+#   backend. SVG has problems with zooming plots.
+# - 'webgl': Accelerates some plots using WebGL
+BOKEH_OUTPUT_BACKEND = 'canvas'
