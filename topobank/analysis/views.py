@@ -1370,7 +1370,7 @@ def contact_mechanics_data(request):
     try:
         analysis_id = int(request_method.get('analysis_id'))
         index = int(request_method.get('index'))
-    except ValueError:
+    except (KeyError, ValueError, TypeError):
         return JsonResponse({'error': 'error in request data'}, status=400)
 
     #
