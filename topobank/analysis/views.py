@@ -8,6 +8,7 @@ import math
 import itertools
 from collections import OrderedDict, defaultdict
 
+from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.http import HttpResponse, Http404, JsonResponse
 from django.views.generic import DetailView, FormView, TemplateView
@@ -471,7 +472,7 @@ class PlotCardView(SimpleCardView):
                       x_axis_type=get_axis_type('xscale'),
                       y_axis_type=get_axis_type('yscale'),
                       tools="pan,reset,save,wheel_zoom,box_zoom,hover",
-                      output_backend='svg')
+                      output_backend=settings.BOKEH_OUTPUT_BACKEND)
 
         #
         # Configure hover tool
@@ -992,7 +993,7 @@ class ContactMechanicsCardView(SimpleCardView):
                                        x_axis_type="log",
                                        y_axis_type="log",
                                        tools=tools,
-                                       output_backend='svg')
+                                       output_backend=settings.BOKEH_OUTPUT_BACKEND)
 
             load_plot = figure(title=None,
                                plot_height=400,
@@ -1001,7 +1002,7 @@ class ContactMechanicsCardView(SimpleCardView):
                                y_axis_label=load_axis_label,
                                x_axis_type="linear",
                                y_axis_type="log", tools=tools,
-                               output_backend='svg')
+                               output_backend=settings.BOKEH_OUTPUT_BACKEND)
 
             for source, label in zip(sources, labels):
                 curr_color = next(color_cycle)
@@ -1304,7 +1305,7 @@ def _contact_mechanics_geometry_figure(values, frame_width, frame_height, topo_u
                y_axis_label="Position y ({})".format(topo_unit),
                match_aspect=True,
                toolbar_location="above",
-               output_backend='svg')
+               output_backend=settings.BOKEH_OUTPUT_BACKEND)
 
     if boolean_values:
         color_mapper = LinearColorMapper(palette=["black", "white"], low=0, high=1)
@@ -1346,7 +1347,7 @@ def _contact_mechanics_distribution_figure(values, x_axis_label, y_axis_label,
                x_axis_type=x_axis_type,
                y_axis_type=y_axis_type,
                toolbar_location="above",
-               output_backend='svg')
+               output_backend=settings.BOKEH_OUTPUT_BACKEND)
 
     p.step(edges[:-1], hist, mode="before", line_width=2)
 
