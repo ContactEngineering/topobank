@@ -440,8 +440,6 @@ def make_alert_entry(level, subject_name, subject_url, data_series_name, detail_
 
 def _save_series(storage_prefix, series):
     """Save series data into a JSON and remove it from the series dictionary"""
-    if storage_prefix is None:
-        raise ValueError('Please specify a storage prefix')
     for i, s in enumerate(series):
         default_storage_replace(f'{storage_prefix}/{i}.json',
                                 io.BytesIO(json.dumps(s, cls=NumpyEncoder).encode('utf-8')))
