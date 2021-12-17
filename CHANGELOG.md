@@ -13,8 +13,6 @@
   caching in database (#421, #605)
 - BUG: Fixes progress meter flaws for slope-dependent 
   properties (#755)
-- BUG: Fixes unexpected keyword in autocorrelation for
-  surfaces (#772)
 - BUG: Fixes insufficient number of arguments for
   contact mechanics calculation (#777)
 - BUG: Fixed scheduled postgres backups (#766)  
