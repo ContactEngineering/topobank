@@ -35,16 +35,11 @@ def test_renewal_on_topography_change(client, mocker, django_capture_on_commit_c
                                       changed_values_dict):
     """Check whether methods for renewal are called on significant topography change.
     """
-    renew_topo_analyses_mock = mocker.patch('topobank.manager.views.renew_analyses_related_to_topography.delay')
-    renew_topo_thumbnail_mock = mocker.patch('topobank.manager.views.renew_topography_thumbnail.delay')
+    renew_squeezed_method_mock = mocker.patch('topobank.manager.views.renew_squeezed_datafile.si')
+    renew_topo_analyses_mock = mocker.patch('topobank.manager.views.renew_analyses_related_to_topography.si')
+    renew_topo_images_mock = mocker.patch('topobank.manager.views.renew_topography_images.si')
 
-    # The mock for renewing the squeezed datafile does not aim at the background task,
-    # but directly to the method of the topography because this has to be done in foreground,
-    # because the other steps (thumbnail, analyses) depend on the squeezed datafile
     from ..models import Topography
-    renew_squeezed_method_mock = mocker.patch.object(Topography, 'renew_squeezed_datafile', return_value='patched')
-    # we must mock the class not the topo object, because in the view another topography instance is created,
-    # which is different from this one
 
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
@@ -119,7 +114,7 @@ def test_renewal_on_topography_change(client, mocker, django_capture_on_commit_c
 
     assert not renew_squeezed_method_mock.called
     assert not renew_topo_analyses_mock.called
-    assert not renew_topo_thumbnail_mock.called
+    assert not renew_topo_images_mock.called
 
     #
     # now we post the changed data, some action (=callbacks) should be triggered
@@ -130,12 +125,12 @@ def test_renewal_on_topography_change(client, mocker, django_capture_on_commit_c
     assert_no_form_errors(response)
     assert response.status_code == 200
 
-    assert len(callbacks) == 2
-    # two callbacks on commit expected, see view
+    assert len(callbacks) == 1
+    # one (chain) callback on commit expected, see view
 
     assert renew_squeezed_method_mock.called
     assert renew_topo_analyses_mock.called
-    assert renew_topo_thumbnail_mock.called
+    assert renew_topo_images_mock.called
 
 
 @pytest.mark.parametrize("changed_values_dict", [
@@ -251,8 +246,8 @@ def test_analysis_removal_on_topography_deletion(client, handle_usage_statistics
 
 @pytest.mark.django_db
 def test_renewal_on_topography_creation(client, mocker, handle_usage_statistics, django_capture_on_commit_callbacks):
-    renew_topo_analyses_mock = mocker.patch('topobank.manager.views.renew_analyses_related_to_topography.delay')
-    renew_topo_thumbnail_mock = mocker.patch('topobank.manager.views.renew_topography_thumbnail.delay')
+    renew_topo_analyses_mock = mocker.patch('topobank.manager.views.renew_analyses_related_to_topography.si')
+    renew_topo_images_mock = mocker.patch('topobank.manager.views.renew_topography_images.si')
 
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
@@ -319,6 +314,6 @@ def test_renewal_on_topography_creation(client, mocker, handle_usage_statistics,
 
     assert_no_form_errors(response)
 
-    assert len(callbacks) == 2  # for thumbnail and for analyses
+    assert len(callbacks) == 1  # single chain for squeezed file, thumbnail and for analyses
     assert renew_topo_analyses_mock.called
-    assert renew_topo_thumbnail_mock.called
+    assert renew_topo_images_mock.called

@@ -43,6 +43,7 @@ def test_surface_serializer(rf):
     assert result[0] == {
 
         'category': None,
+        'category_name': None,
         'children': [
             {'creator': user_url,
              'description': '',
@@ -87,6 +88,7 @@ def test_surface_serializer(rf):
 
         ],
         'creator': user_url,
+        'creator_name': user.name,
         'description': '',
         'folder': True,
         'key': f'surface-{surface1.pk}',
@@ -94,6 +96,7 @@ def test_surface_serializer(rf):
         'pk': surface1.pk,
         'publication_authors': '',
         'publication_date': '',
+        'publication_license': '',
         'selected': False,
         'sharing_status': 'own',
         'tags': ['bike', 'train/tgv'],
