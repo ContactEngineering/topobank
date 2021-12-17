@@ -17,6 +17,7 @@
   surfaces (#772)
 - BUG: Fixes insufficient number of arguments for
   contact mechanics calculation (#777)
+- BUG: Fixed scheduled postgres backups (#766)  
 - MAINT: Avoid loading full measurement in Django Server
   which allows working with larger measurements (#769)
 - MAINT: A "surface" is now called "digital surface twin"

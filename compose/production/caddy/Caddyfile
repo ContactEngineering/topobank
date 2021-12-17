@@ -3,9 +3,9 @@
 #}
 
 # enable this for test with local certificates
-{
-	local_certs
-}
+#{
+#	local_certs
+#}
 
 
 {$DOMAIN_NAME} {
