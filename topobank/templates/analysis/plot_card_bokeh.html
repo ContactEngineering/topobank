@@ -23,7 +23,12 @@
 
     {% for data_source in data_sources %}
       {
-        const code = "return { x: cb_data.response.x.map(value => {{ data_source.xscale }} * value), y: cb_data.response.y.map(value => {{ data_source.yscale }} * value) };";
+        const code = `
+          return {
+            x: cb_data.response.x.map(value => {{ data_source.xscale }} * value),
+            y: cb_data.response.y.map(value => {{ data_source.yscale }} * value)
+          };
+        `;
 
         const source = new Bokeh.AjaxDataSource({
           data_url: "{{ data_source.url|safe }}",
