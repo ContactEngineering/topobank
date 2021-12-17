@@ -42,6 +42,9 @@ def two_topos_mock(mocker):
 
 def test_bandwidths_data(two_topos_mock):
 
+    for topo in two_topos_mock:
+        topo._renew_bandwidth_cache(topo.topography())
+
     bd = bandwidths_data(two_topos_mock)
 
     topoB, topoA = two_topos_mock
@@ -81,6 +84,7 @@ def test_bandwidth_error_message_in_dict_when_problems_while_loading(topography_
 
     topo1 = topography_loaded_from_broken_file
     topo2 = Topography1DFactory()
+    topo2._renew_bandwidth_cache()  # topo2 has bandwidth information
     assert topo2.unit == 'nm'
 
     bd = bandwidths_data([topo1, topo2])
@@ -90,8 +94,8 @@ def test_bandwidth_error_message_in_dict_when_problems_while_loading(topography_
 
     # first one should indicate that there is an error
     assert bd1['topography'] == topo1
-    assert bd1['error_message'] == f"Topography '{topo1.name}' (id: {topo1.id}) cannot be loaded unexpectedly."
-    assert 'Failure loading' in bd1['link']
+    assert bd1['error_message'] == f"Bandwidth for measurement '{topo1.name}' is not yet available."
+    assert 'Failure determining' in bd1['link']
     assert "id: {}".format(topo1.id) in bd1['link']
     assert bd1['lower_bound'] is None
     assert bd1['upper_bound'] is None
@@ -122,5 +126,5 @@ def test_bandwidth_error_message_in_UI_when_problems_while_loading(client, topog
     assert response.status_code == 200
 
     assert_in_content(response, f"{topography_loaded_from_broken_file.name}")
-    assert_in_content(response, f"(id: {topography_loaded_from_broken_file.id}) cannot be loaded unexpectedly.")
+    assert_in_content(response, "is not yet available.")
     assert_in_content(response, "send us an e-mail about this issue")

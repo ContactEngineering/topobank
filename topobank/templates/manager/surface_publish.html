@@ -9,20 +9,20 @@
   <div class="tab-content mt-2">
 
     <div class="alert alert-primary">
-      <h2 class="alert-heading">You are about to publish your surface <em>{{ surface.name }}</em></h2>
-      <p>By publishing, you create an immutable copy of this surface as a snapshot with all its data.</p>
+      <h2 class="alert-heading">You are about to publish your digital surface twin <em>{{ surface.name }}</em></h2>
+      <p>By publishing, you create an immutable copy of this digital twin as a snapshot with all its data.</p>
       <p>This snapshot has a version number and a unique URL for citations and it is visible
          and usable for everyone.</p>
     </div>
     <div class="alert alert-success">
       <h2 class="alert-heading">Implications of publishing</h2>
       <ul>
-        <li>The surface and all measurements will be <b>visible by everyone</b>,
+        <li>The digital twin and all measurements will be <b>visible by everyone</b>,
           registered or anonymous users, now and in future.</li>
         <li>The related data (raw data, descriptions, ..) <b>will be downloadable by everyone</b>.</li>
         <li>Every user can perform analyses on your data.</li>
         <li>You choose a license for your data - the choice of the license is irrevocable.</li>
-        <li>If you have assigned tags to the surface or its measurements, these tags are also
+        <li>If you have assigned tags to the digital twin or its measurements, these tags are also
         part of the publication.</li>
         <li>Your ORCID iD will saved along with your publication.</li>
       </ul>
@@ -33,15 +33,15 @@
       <p>
       Since a copy is made, you can still work on your
       original data as before the publication.
-      You may also publish an updated version of this surface later.
+      You may also publish an updated version of this digital surface twin later.
       </p>
     </div>
 
     <div class="alert alert-secondary">
       <h2 class="alert-heading">Alternative to publication: Sharing</h2>
-      <p>If you want to share this surface with a few users for <b>collaboration</b>,
-      please consider <a href="{% url 'manager:surface-share' surface.id %}">sharing this surface</a> instead.</p>
-      <p>Unlike publishing this means, that the surface and all related measurements
+      <p>If you want to share this digital surface twin with a few users for <b>collaboration</b>,
+      please consider <a href="{% url 'manager:surface-share' surface.id %}">sharing this digital twin</a> instead.</p>
+      <p>Unlike publishing this means, that the digital twin and all related measurements
         are only visible for <b>selected users</b>, not for everyone.
         No snapshot is created.
       </p>
@@ -49,11 +49,11 @@
 
     {% if surface.topography_set.count == 0 %}
       <div class="alert alert-error">
-        <h2 class="alert-heading">This surface has no measurements yet</h2>
+        <h2 class="alert-heading">This digital surface twin has no measurements yet</h2>
         <div class="row">
           <div class="col">
             <p>
-              If you'd like to publish this surface, please add at least one measurement to it.
+              If you'd like to publish this digitial surface twin, please add at least one measurement to it.
               You can do this by pressing the button on the right or on the previous tab.
             </p>
           </div>
@@ -120,7 +120,7 @@
     let cancel_btn = $('#cancel-btn');
     cancel_btn.hide();
     save_btn.attr("disabled", true);
-    save_btn.val("Please wait..");
+    save_btn.val("Please wait...");
   }
 
  /**

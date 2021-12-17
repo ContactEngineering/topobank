@@ -101,7 +101,10 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
     version = serializers.SerializerMethodField()
     publication_date = serializers.SerializerMethodField()
     publication_authors = serializers.SerializerMethodField()
+    publication_license = serializers.SerializerMethodField()
     topography_count = serializers.SerializerMethodField()
+    category_name = serializers.SerializerMethodField()
+    creator_name = serializers.SerializerMethodField()
 
     def get_children(self, obj):
         """Get serialized topographies for given surface.
@@ -195,14 +198,23 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
     def get_publication_authors(self, obj):
         return obj.publication.authors if obj.is_published else ''
 
+    def get_publication_license(self, obj):
+        return obj.publication.license if obj.is_published else ''
+
     def get_topography_count(self, obj):
         return obj.topography_set.count()
 
+    def get_category_name(self, obj):
+        return obj.get_category_display()
+
+    def get_creator_name(self, obj):
+        return obj.creator.name
+
     class Meta:
         model = Surface
-        fields = ['pk', 'type', 'name', 'creator', 'description', 'category', 'tags', 'children',
-                  'sharing_status', 'urls', 'selected', 'key', 'title', 'folder', 'version', 'publication_date',
-                  'publication_authors', 'topography_count']
+        fields = ['pk', 'type', 'name', 'creator', 'creator_name', 'description', 'category', 'category_name', 'tags',
+                  'children', 'sharing_status', 'urls', 'selected', 'key', 'title', 'folder', 'version',
+                  'publication_date', 'publication_authors', 'publication_license', 'topography_count']
 
 
 class TagSerializer(serializers.ModelSerializer):

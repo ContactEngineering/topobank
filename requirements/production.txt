@@ -135,7 +135,7 @@ django-model-utils==4.2.0
     #   django-notifications-hq
 django-notifications-hq==1.6.0
     # via -r ./base.txt
-git+http://github.com/ContactEngineering/django-progressbarupload.git
+django-progressbarupload @ git+http://github.com/ContactEngineering/django-progressbarupload.git
     # via -r ./base.txt
 django-select2==7.9.0
     # via -r ./base.txt
@@ -379,7 +379,7 @@ sqlparse==0.4.2
     # via
     #   -r ./base.txt
     #   django
-surfacetopography==0.101.1
+surfacetopography==0.101.2
     # via
     #   -r ./base.txt
     #   contactmechanics

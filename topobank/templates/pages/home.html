@@ -44,7 +44,7 @@
                       </div>
                       <div class="mr-2">
                       {% if not is_anonymous %}You have{% endif %}
-                        <div class="welcome-page-statistics">{{ num_surfaces }}</div> surfaces in the database.
+                        <div class="welcome-page-statistics">{{ num_surfaces }}</div> digital surface twins.
                       </div>
                     </div>
                   </div>
@@ -93,7 +93,7 @@
                       </div>
                       <div class="mr-2">
                         You have access to
-                        <div class="welcome-page-statistics">{{ num_shared_surfaces }}</div> surfaces of other users.
+                        <div class="welcome-page-statistics">{{ num_shared_surfaces }}</div> digital twins of other users.
                       </div>
                     </div>
                   </div>
@@ -112,16 +112,17 @@
         <div class="row">
           {% if not request.user.is_anonymous %}
           <div class="col-md-3">
-            <h2>Surfaces</h2>
-            <p>A <em>surface</em> represents the real-life surface you are measuring, together with its descriptive
-              metadata. If you make multiple measurements on the same real-world surface (even using different
-              techniques), you can collect all the topography <em>measurements</em> together in a single <em>surface</em>.
+            <h3>Digital surface twins</h3>
+            <p>A <em>digital surface twin</em> represents the real-life surface you are measuring, together with its
+              descriptive metadata. If you make multiple measurements on the same real-world surface (even using
+              different techniques), you can collect all the <em>measurements</em> together in a single <em>digital
+                surface twin</em>.
             </p>
             <p><a class="btn btn-secondary" href="{% url 'manager:surface-create' %}" role="button">Create a surface
               &raquo;</a></p>
           </div>
           <div class="col-md-3">
-            <h2>Measurements</h2>
+            <h3>Measurements</h3>
             <p>For each <em>surface</em>, you must upload one or more <em>measurements</em>. These represent each
               individual measurement you performed. You can save metadata for each one, and perform basic pre-analysis.
             </p>
@@ -129,22 +130,22 @@
               &raquo;</a></p>
           </div>
           <div class="col-md-3">
-            <h2>Analyses</h2>
+            <h3>Analyses</h3>
             <p>A number <em>analyses</em>, such as computing the power-spectral density or the real area of contact, are
             automatically performed on all uploaded <em>measurements</em>.
             These analyses are stored, can be retriggered, visualized or compared.</p>
             <p><a class="btn btn-secondary" href="{% url 'analysis:list' %}" role="button">Show analyses &raquo;</a></p>
           </div>
            <div class="col-md-3">
-            <h2>Sharing</h2>
-             <p><em>Surfaces</em> can be <em>shared</em> with others for collaboration. You decide whether your
-               collaborators can modify them or not.</p>
-             <p>Surfaces can also be <em>published</em> to make them citable and accessible for everyone.</p>
+            <h3>Sharing</h3>
+             <p><em>Digital surface twins</em> can be <em>shared</em> with others for collaboration. You decide whether
+               your collaborators can modify them or not.</p>
+             <p>Digital surface twins can also be <em>published</em> to make them citable and accessible for everyone.</p>
           <p><a class="btn btn-secondary" href="{% url 'manager:sharing-info' %}" role="button">Show sharing info &raquo;</a></p>
           </div>
           {% else %}
           <div class="col-md-12">
-            <h2>Login via ORCID.</h2>
+            <h2>Login via ORCID</h2>
             <p>
               Please allow the ORCID site to authenticate yourself to contact.engineering.
               If you don't have an ORCID account yet, you will be able to register.

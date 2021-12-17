@@ -8,7 +8,7 @@ import django_tables2 as tables
 import numpy as np
 
 from bokeh.embed import components
-from bokeh.models import DataRange1d, LinearColorMapper, ColorBar, LabelSet, FuncTickFormatter, TapTool, OpenURL
+from bokeh.models import FuncTickFormatter, TapTool, OpenURL
 from bokeh.plotting import figure, ColumnDataSource
 
 from django.conf import settings
@@ -31,20 +31,21 @@ from django.contrib.staticfiles.storage import staticfiles_storage
 
 from formtools.wizard.views import SessionWizardView
 from guardian.decorators import permission_required_or_403
-from guardian.shortcuts import get_users_with_perms, get_objects_for_user, get_anonymous_user
+from guardian.shortcuts import get_users_with_perms, get_objects_for_user
 from notifications.signals import notify
 from rest_framework.decorators import api_view
-from rest_framework.generics import ListAPIView, RetrieveAPIView
+from rest_framework.generics import ListAPIView
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
-from rest_framework.renderers import JSONRenderer
 from rest_framework.utils.urls import remove_query_param, replace_query_param
 from trackstats.models import Metric, Period
 
-from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm, DEFAULT_LICENSE
+from celery import chain
+
+from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm
 from .forms import TopographyForm, SurfaceForm, SurfaceShareForm, SurfacePublishForm
-from .models import Topography, Surface, TagModel, \
-    NewPublicationTooFastException, LoadTopographyException, PlotTopographyException
+from .models import Topography, Surface, TagModel, NewPublicationTooFastException, LoadTopographyException, \
+    PlotTopographyException, user_directory_path
 from .serializers import SurfaceSerializer, TagSerializer
 from .utils import selected_instances, bandwidths_data, get_topography_reader, tags_for_user, get_reader_infos, \
     mailto_link_for_reporting_an_error, current_selection_as_basket_items, filtered_surfaces, \
@@ -52,10 +53,9 @@ from .utils import selected_instances, bandwidths_data, get_topography_reader, t
     get_permission_table_data
 from ..usage_stats.utils import increase_statistics_by_date, increase_statistics_by_date_and_object
 from ..users.models import User
-from ..users.utils import get_default_group
 from ..publication.models import Publication, MAX_LEN_AUTHORS_FIELD
 from .containers import write_surface_container
-from ..taskapp.tasks import renew_squeezed_datafile, renew_topography_thumbnail, renew_analyses_related_to_topography
+from ..taskapp.tasks import renew_squeezed_datafile, renew_topography_images, renew_analyses_related_to_topography
 
 # create dicts with labels and option values for Select tab
 CATEGORY_FILTER_CHOICES = {'all': 'All categories',
@@ -429,35 +429,19 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
         # we save once so the member variables like "data_source"
         # have the correct type for the next step
 
-        # try to load topography once in order to
-        # check whether it can be loaded - we don't want a corrupt
-        # topography file in the system:
-        topo = Topography.objects.get(id=instance.id)
-        try:
-            # While loading we're also saving a squeezed form, so it
-            # can be loaded faster the next time
-            topo.renew_squeezed_datafile()
-        except Exception as exc:
-            _log.warning("Cannot read topography from file '{}', exception: {}".format(
-                d['datafile'], str(exc)
-            ))
-            _log.warning("Topography {} was created, but will be deleted now.".format(topo.id))
-            topo.delete()
-            #
-            # Redirect to an error page
-            #
-            return redirect('manager:topography-corrupted', surface_id=surface.id)
-
         #
-        # Ok, we can work with this data.
+        # Note that we do not need to read the file, since it has
+        # already been opened by the form.
         # Trigger some calculations in background.
         #
-        transaction.on_commit(lambda: renew_topography_thumbnail.delay(topo.id))
-        transaction.on_commit(lambda: renew_analyses_related_to_topography.delay(topo.id))
+        _log.info("Creating squeezed datafile, images and analyses...")
+        transaction.on_commit(chain(renew_squeezed_datafile.si(instance.id), renew_topography_images.si(instance.id),
+                                    renew_analyses_related_to_topography.si(instance.id)).delay)
 
         #
         # Notify other others with access to the topography
         #
+        topo = Topography.objects.get(id=instance.id)
         other_users = get_users_with_perms(topo.surface).filter(~Q(id=self.request.user.id))
         for u in other_users:
             notify.send(sender=self.request.user, verb='create', target=topo, recipient=u,
@@ -554,12 +538,10 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
         if len(significant_fields_with_changes) > 0:
             _log.info(f"During edit of topography id={topo.id} some significant fields changed: " +
                       f"{significant_fields_with_changes}.")
-            _log.info("Renewing squeezed datafile...")
-            topo.renew_squeezed_datafile()  # cannot be done in background, other steps depend on this, see GH #590
-            _log.info("Triggering renewal of thumbnail in background...")
-            transaction.on_commit(lambda: renew_topography_thumbnail.delay(topo.id))
-            _log.info("Triggering renewal of analyses in background...")
-            transaction.on_commit(lambda: renew_analyses_related_to_topography.delay(topo.id))
+            _log.info("Renewing squeezed datafile, images and analyses...")
+            # Images and analyses can only be computed after the squeezed file has been renewed
+            transaction.on_commit(chain(renew_squeezed_datafile.si(topo.id), renew_topography_images.si(topo.id),
+                                        renew_analyses_related_to_topography.si(topo.id)).delay)
             notification_msg += f"\nBecause significant fields have changed, all related analyses are recalculated now."
         else:
             _log.info("Changes not significant for renewal of thumbnails or analysis results.")
@@ -682,8 +664,6 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
         context = super().get_context_data(**kwargs)
 
         topo = self.object
-
-
         try:
             context['topography_next'] = topo.get_next_by_measurement_date(surface=topo.surface).id
         except Topography.DoesNotExist:
@@ -1962,3 +1942,32 @@ def thumbnail(request, pk):
             response.write(img_file.read())
 
     return response
+
+
+def dzi(request, pk, dzi_filename):
+    """Returns deepzoom image data for a topography
+
+    Parameters
+    ----------
+    request
+
+    Returns
+    -------
+    HTML Response with image data
+    """
+    try:
+        pk = int(pk)
+    except ValueError:
+        raise Http404()
+
+    try:
+        topo = Topography.objects.get(pk=pk)
+    except Topography.DoesNotExist:
+        raise Http404()
+
+    if not request.user.has_perm('view_surface', topo.surface):
+        raise PermissionDenied()
+
+    # okay, we have a valid topography and the user is allowed to see it
+
+    return redirect(default_storage.url(user_directory_path(topo, f'{topo.id}/dzi/{dzi_filename}')))

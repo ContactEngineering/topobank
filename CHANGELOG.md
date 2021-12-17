@@ -2,7 +2,25 @@
 
 ## 0.18.0 (not published yet)
 
-- BUG: Fixed scheduled postgres backups (#766)
+- ENH: Improved performance of visualization of image maps
+  for displaying 2D measurements and in contact mechanics,
+  now images of different details levels are calculated 
+  in advance using DeepZoom (#679)
+- ENH: Improved layout of surface list of Find&Select tab
+  (#757)
+- ENH: Improved layout of contact mechanics analyses
+- ENH: Faster access to bandwidths of measurements due to
+  caching in database (#421, #605)
+- BUG: Fixes progress meter flaws for slope-dependent 
+  properties (#755)
+- BUG: Fixes unexpected keyword in autocorrelation for
+  surfaces (#772)
+- BUG: Fixes insufficient number of arguments for
+  contact mechanics calculation (#777)
+- BUG: Fixed scheduled postgres backups (#766)  
+- MAINT: Avoid loading full measurement in Django Server
+  which allows working with larger measurements (#769)
+- MAINT: A "surface" is now called "digital surface twin"
 
 ## 0.17.0 (2021-12-03)
 

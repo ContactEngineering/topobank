@@ -4,14 +4,17 @@ from django.conf import settings
 from django.db.models import Q, Value
 from django.db.models.functions import Replace
 from django.core.exceptions import PermissionDenied
+from django.core.files import File
+from django.core.files.storage import default_storage
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.search import SearchVector, SearchQuery
 
 import markdown2
 from os.path import devnull
-import traceback
 import logging
 import json
+import tempfile
+import traceback
 
 from selenium import webdriver
 from selenium.webdriver.remote.webdriver import WebDriver
@@ -19,12 +22,11 @@ from selenium.webdriver.firefox.firefox_binary import FirefoxBinary
 
 from SurfaceTopography import open_topography
 from SurfaceTopography.IO import readers as surface_topography_readers
+from SurfaceTopography.IO.DZI import write_dzi
 
 _log = logging.getLogger(__name__)
 
 DEFAULT_DATASOURCE_NAME = 'Default'
-UNIT_TO_METERS = {'Å': 1e-10, 'nm': 1e-9, 'µm': 1e-6, 'mm': 1e-3, 'm': 1.0, 'km': 1000.0,
-                  'unknown': 1.0}
 MAX_LEN_SEARCH_TERM = 200
 SELECTION_SESSION_VARNAME = 'selection'
 
@@ -192,9 +194,9 @@ def filtered_surfaces(request):
         # are changed so that the tokenizer splits the names into multiple words
         qs = qs.annotate(
             tag_names_for_search=Replace(
-                Replace('tags__name', Value('.'), Value(' ')),   # replace . with space
-                Value('/'), Value(' ')),                         # replace / with space
-            topography_tag_names_for_search=Replace(             # same for the topographies
+                Replace('tags__name', Value('.'), Value(' ')),  # replace . with space
+                Value('/'), Value(' ')),  # replace / with space
+            topography_tag_names_for_search=Replace(  # same for the topographies
                 Replace('topography__tags__name', Value('.'), Value(' ')),
                 Value('/'), Value(' ')),
             topography_name_for_search=Replace('topography__name', Value('.'), Value(' '))  # often there are filenames
@@ -229,7 +231,7 @@ def filtered_topographies(request, surfaces):
         topographies = topographies.annotate(
             tag_names_for_search=Replace(
                 Replace('tags__name', Value('.'), Value(' ')),  # replace . with space
-                Value('/'), Value(' ')),                        # replace / with space
+                Value('/'), Value(' ')),  # replace / with space
             name_for_search=Replace('name', Value('.'), Value(' '))
         ).distinct('id').order_by('id')
         topographies = filter_queryset_by_search_term(topographies, search_term, [
@@ -699,63 +701,24 @@ def _bandwidths_data_entry(topo):
     :return: dict
     """
 
+    lower_bound = topo.bandwidth_lower
+    upper_bound = topo.bandwidth_upper
+
     err_message = None
-
-    try:
-        st_topo = topo.topography()  # st_: from SurfaceTopography
-    except Exception:
-        err_message = "Topography '{}' (id: {}) cannot be loaded unexpectedly.".format(
-            topo.name, topo.id)
-        _log.error(err_message + "\n" + traceback.format_exc())
-
-        link = mailto_link_for_reporting_an_error(f"Failure loading topography (id: {topo.id})",
+    if lower_bound is None or upper_bound is None:
+        err_message = f"Bandwidth for measurement '{topo.name}' is not yet available."
+        link = mailto_link_for_reporting_an_error(f"Failure determining bandwidth (id: {topo.id})",
                                                   "Bandwidth data calculation",
                                                   err_message,
                                                   traceback.format_exc())
-
-        return {
-            'lower_bound': None,
-            'upper_bound': None,
-            'topography': topo,
-            'link': link,
-            'error_message': err_message
-        }
-
-    try:
-        unit = st_topo.unit
-    except KeyError:
-        unit = None
-
-    if unit is None:
-        _log.warning("No unit given for topography {}. Cannot calculate bandwidth.".format(topo.name))
-        err_message = 'No unit given for topography, cannot calculate bandwidth.'
-    elif unit not in UNIT_TO_METERS:
-        _log.warning("Unknown unit {} given for topography {}. Cannot calculate bandwidth.".format(
-            unit, topo.name))
-        err_message = "Unknown unit {} given for topography {}. Cannot calculate bandwidth.".format(
-            unit, topo.name)
     else:
-        meter_factor = UNIT_TO_METERS[unit]
-
-    if err_message is None:
-
-        lower_bound, upper_bound = st_topo.bandwidth()
-        # Workaround for https://github.com/pastewka/PyCo/issues/55
-        if isinstance(upper_bound, tuple):
-            upper_bound = upper_bound[0]
-
-        lower_bound_meters = lower_bound * meter_factor
-        upper_bound_meters = upper_bound * meter_factor
-
-    else:
-        lower_bound_meters = None
-        upper_bound_meters = None
+        link = reverse('manager:topography-detail', kwargs=dict(pk=topo.pk))
 
     return {
-        'lower_bound': lower_bound_meters,
-        'upper_bound': upper_bound_meters,
+        'lower_bound': lower_bound,
+        'upper_bound': upper_bound,
         'topography': topo,
-        'link': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
+        'link': link,
         'error_message': err_message
     }
 
@@ -960,3 +923,26 @@ def get_permission_table_data(instance, request_user, actions=['view', 'change',
 
     return perms_table
 
+
+def make_dzi(data, path_prefix, physical_sizes=None, unit=None, quality=95, colorbar_title=None, cmap=None):
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        _log.debug(f"Making DZI files for '{data}' under path prefix {path_prefix} using temp dir {tmpdirname}..")
+        try:
+            # This is a Topography
+            filenames = data.to_dzi('dzi', root_directory=tmpdirname, meta_format='json', quality=quality, cmap=cmap)
+        except AttributeError:
+            # This is likely just a numpy array
+            if physical_sizes is None or unit is None:
+                raise ValueError('You need to provide `physical_sizes` and `unit` when visualizing numpy arrays.')
+            filenames = write_dzi(data, 'dzi', physical_sizes, unit, root_directory=tmpdirname,
+                                  meta_format='json', quality=quality, colorbar_title=colorbar_title, cmap=cmap)
+        for filename in filenames:
+            # Strip tmp directory
+            storage_filename = filename[len(tmpdirname) + 1:]
+            # Delete (possibly existing) old data files
+            target_name = f'{path_prefix}/{storage_filename}'
+            default_storage.delete(target_name)
+            # Upload to S3
+            uploded_name = default_storage.save(target_name, File(open(filename, mode='rb')))
+            assert uploded_name == target_name

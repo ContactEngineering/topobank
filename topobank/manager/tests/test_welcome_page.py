@@ -47,7 +47,7 @@ def test_welcome_page_statistics(client, test_instances, with_publication, handl
     response = client.get(reverse('home'))
 
     assert_in_content(response, '<div class="welcome-page-statistics">2</div> registered users')
-    assert_in_content(response, '<div class="welcome-page-statistics">2</div> surfaces in the database')
+    assert_in_content(response, '<div class="welcome-page-statistics">2</div> digital surface twins')
     assert_in_content(response, '<div class="welcome-page-statistics">1</div> individual measurements')
     assert_in_content(response, '<div class="welcome-page-statistics">1</div> computed analyses')
 
@@ -57,10 +57,10 @@ def test_welcome_page_statistics(client, test_instances, with_publication, handl
     client.force_login(user_1)
     response = client.get(reverse('home'))
 
-    assert_in_content(response, '<div class="welcome-page-statistics">2</div> surfaces in the database')
+    assert_in_content(response, '<div class="welcome-page-statistics">2</div> digital surface twins')
     assert_in_content(response, '<div class="welcome-page-statistics">1</div> individual measurements')
     assert_in_content(response, '<div class="welcome-page-statistics">1</div> computed analyses')
-    assert_in_content(response, '<div class="welcome-page-statistics">0</div> surfaces of other users')
+    assert_in_content(response, '<div class="welcome-page-statistics">0</div> digital twins of other users')
 
     client.logout()
 
@@ -70,14 +70,14 @@ def test_welcome_page_statistics(client, test_instances, with_publication, handl
     client.force_login(user_2)
     response = client.get(reverse('home'))
 
-    assert_in_content(response, '<div class="welcome-page-statistics">0</div> surfaces in the database')
+    assert_in_content(response, '<div class="welcome-page-statistics">0</div> digital surface twins')
     assert_in_content(response, '<div class="welcome-page-statistics">0</div> individual measurements')
     assert_in_content(response, '<div class="welcome-page-statistics">0</div> computed analyses')
     if with_publication:
         num_access = 2
     else:
         num_access = 1
-    assert_in_content(response, f'<div class="welcome-page-statistics">{num_access}</div> surfaces of other users')
+    assert_in_content(response, f'<div class="welcome-page-statistics">{num_access}</div> digital twins of other users')
 
     client.logout()
 

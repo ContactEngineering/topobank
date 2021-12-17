@@ -1,5 +1,6 @@
 """Test related to searching"""
 import pytest
+from unittest import TestCase
 
 from django.shortcuts import reverse
 from rest_framework.test import APIRequestFactory
@@ -7,6 +8,29 @@ from rest_framework.test import APIRequestFactory
 from ..views import SurfaceSearchPaginator, SurfaceListView, TagTreeView
 from .utils import ordereddicts_to_dicts, Topography1DFactory, UserFactory, SurfaceFactory
 from ..models import TagModel
+
+
+def assert_dict_equal(a, b):
+    try:
+        keys_a = set(a.keys())
+        keys_b = set(b.keys())
+    except AttributeError:
+        assert a == b
+        return
+
+    assert keys_a == keys_b, f'The following keys are not present in both dictionaries: {keys_a ^ keys_b}'
+    for key in keys_a:
+        if isinstance(a[key], dict):
+            assert_dict_equal(a[key], b[key])
+        elif isinstance(a[key], list):
+            assert_dicts_equal(a[key], b[key])
+        else:
+            assert a[key] == b[key], f'The value of the following key differs: {key}'
+
+
+def assert_dicts_equal(a, b):
+    for x, y in zip(a, b):
+        assert_dict_equal(x, y)
 
 
 @pytest.fixture
@@ -81,6 +105,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
     expected_dicts = [
         {
             'category': 'exp',
+            'category_name': 'Experimental data',
             'children': [
                 {'creator': user_url,
                  'description': '',
@@ -125,6 +150,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
 
             ],
             'creator': user_url,
+            'creator_name': user.name,
             'description': '',
             'folder': True,
             'key': f'surface-{surface1.pk}',
@@ -132,6 +158,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
             'pk': surface1.pk,
             'publication_authors': '',
             'publication_date': '',
+            'publication_license': '',
             'selected': False,
             'sharing_status': 'own',
             'tags': ['bike', 'train/tgv'],
@@ -152,6 +179,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
         },
         {
             'category': 'sim',
+            'category_name': 'Simulated data',
             'children': [
                 {'creator': user_url,
                  'description': '',
@@ -196,6 +224,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
 
             ],
             'creator': user_url,
+            'creator_name': user.name,
             'description': '',
             'folder': True,
             'key': f'surface-{surface2.pk}',
@@ -203,6 +232,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
             'pk': surface2.pk,
             'publication_authors': '',
             'publication_date': '',
+            'publication_license': '',
             'selected': True,
             'sharing_status': 'own',
             'tags': [],
@@ -223,8 +253,10 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
         },
         {
             'category': 'dum',
+            'category_name': 'Dummy data',
             'children': [],
             'creator': user_url,
+            'creator_name': user.name,
             'description': '',
             'folder': True,
             'key': f'surface-{surface3.pk}',
@@ -232,6 +264,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
             'pk': surface3.pk,
             'publication_authors': '',
             'publication_date': '',
+            'publication_license': '',
             'selected': True,
             'sharing_status': 'own',
             'tags': [],
@@ -252,7 +285,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
         },
     ]
 
-    assert ordereddicts_to_dicts(response.data['page_results']) == expected_dicts
+    assert_dicts_equal(ordereddicts_to_dicts(response.data['page_results']), expected_dicts)
 
     #
     # Do a search and check for reduced results because search for "topo2a"
@@ -271,6 +304,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
     expected_dicts = [
         {
             'category': 'sim',
+            'category_name': 'Simulated data',
             'children': [
                 {'creator': user_url,
                  'description': '',
@@ -294,6 +328,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                           'update': topo2a_prefix + 'update/'}},
             ],
             'creator': user_url,
+            'creator_name': user.name,
             'description': '',
             'folder': True,
             'key': f'surface-{surface2.pk}',
@@ -301,6 +336,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
             'pk': surface2.pk,
             'publication_authors': '',
             'publication_date': '',
+            'publication_license': '',
             'selected': True,
             'sharing_status': 'own',
             'tags': [],
@@ -322,7 +358,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
     ]
 
     resulted_dicts = ordereddicts_to_dicts(response.data['page_results'], sorted_by='title')
-    assert resulted_dicts == expected_dicts
+    assert_dicts_equal(resulted_dicts, expected_dicts)
 
     #
     # Do a search and check for reduced results because search for category "exp"
@@ -341,6 +377,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
     expected_dicts = [
         {
             'category': 'exp',
+            'category_name': 'Experimental data',
             'children': [
                 {'creator': user_url,
                  'description': '',
@@ -385,6 +422,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
 
             ],
             'creator': user_url,
+            'creator_name': user.name,
             'description': '',
             'folder': True,
             'key': f'surface-{surface1.pk}',
@@ -392,6 +430,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
             'pk': surface1.pk,
             'publication_authors': '',
             'publication_date': '',
+            'publication_license': '',
             'selected': False,
             'sharing_status': 'own',
             'tags': ['bike', 'train/tgv'],
@@ -413,7 +452,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
     ]
 
     resulted_dicts = ordereddicts_to_dicts(response.data['page_results'], sorted_by='title')
-    assert resulted_dicts == expected_dicts
+    assert_dicts_equal(resulted_dicts, expected_dicts)
 
 
 @pytest.mark.django_db
@@ -559,8 +598,10 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
 
     expected_dict_surface1 = {
         'category': 'exp',
+        'category_name': 'Experimental data',
         'children': [expected_dict_topo1a, expected_dict_topo1b],
         'creator': user_url,
+        'creator_name': user.name,
         'description': '',
         'folder': True,
         'key': f'surface-{surface1.pk}',
@@ -568,6 +609,7 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
         'pk': surface1.pk,
         'publication_authors': '',
         'publication_date': '',
+        'publication_license': '',
         'selected': False,
         'sharing_status': 'own',
         'tags': ['bike', 'train/tgv'],
@@ -703,7 +745,7 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
     ]
 
     resulted_dicts = ordereddicts_to_dicts(response.data['page_results'], sorted_by='title')
-    assert resulted_dicts == expected_dicts
+    assert_dicts_equal(resulted_dicts, expected_dicts)
 
     #
     # Now restrict result by query parameters, search for "topo2a"
@@ -784,7 +826,7 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
 
     ]
     resulted_dicts = ordereddicts_to_dicts(response.data['page_results'], sorted_by='title')
-    assert resulted_dicts == expected_dicts
+    assert_dicts_equal(resulted_dicts, expected_dicts)
 
     #
     # Now restrict result by query parameters, search for category 'dum'

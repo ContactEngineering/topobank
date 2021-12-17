@@ -1,12 +1,14 @@
 """
 Basic models for the web app for handling topography data.
 """
+
+import sys
+
 from django.db import models
 from django.shortcuts import reverse
 from django.utils import timezone
 from django.conf import settings
 from django.core.cache import cache
-from django.db import transaction
 from django.core.files.storage import default_storage
 from django.core.files import File
 from django.core.files.base import ContentFile
@@ -35,12 +37,20 @@ from topobank.publication.models import Publication
 from topobank.users.utils import get_default_group
 from topobank.analysis.models import Analysis
 from topobank.analysis.utils import renew_analyses_for_subject
+from topobank.manager.utils import make_dzi
+
+from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 
 _log = logging.getLogger(__name__)
 
 MAX_LENGTH_DATAFILE_FORMAT = 15  # some more characters than currently needed, we may have sub formats in future
 MAX_NUM_POINTS_FOR_SYMBOLS_IN_LINE_SCAN_PLOT = 100
 SQUEEZED_DATAFILE_FORMAT = 'nc'
+
+
+# Detect whether we are running within a Celery worker. This solution was suggested here:
+# https://stackoverflow.com/questions/39003282/how-can-i-detect-whether-im-running-in-a-celery-worker
+_IN_CELERY_WORKER_PROCESS = sys.argv and sys.argv[0].endswith('celery') and 'worker' in sys.argv
 
 
 def user_directory_path(instance, filename):
@@ -500,6 +510,9 @@ class Topography(models.Model, SubjectMixin):
     resolution_x = models.IntegerField(null=True)  # null for line scans TODO really?
     resolution_y = models.IntegerField(null=True)  # null for line scans
 
+    bandwidth_lower = models.FloatField(null=True, default=None)  # in meters
+    bandwidth_upper = models.FloatField(null=True, default=None)  # in meters
+
     is_periodic = models.BooleanField(default=False)
 
     #
@@ -530,6 +543,11 @@ class Topography(models.Model, SubjectMixin):
     def has_squeezed_datafile(self):
         """If True, a squeezed data file can be retrieved via self.squeezed_datafile"""
         return bool(self.squeezed_datafile)
+
+    @property
+    def has_thumbnail(self):
+        """If True, a thumbnail can be retrieved via self.thumbnail"""
+        return bool(self.thumbnail)
 
     def get_absolute_url(self):
         """URL of detail page for this topography."""
@@ -583,6 +601,11 @@ class Topography(models.Model, SubjectMixin):
             from a squeezed datafile which is not the original datafile.
             This is often faster then the original file format.
         """
+        if not _IN_CELERY_WORKER_PROCESS and self.size_y is not None:
+            _log.warning('You are requesting to load a (2D) topography and you are not within in a Celery worker '
+                         'process. This operation is potentially slow and may require a lot of memory - do not use '
+                         '`Topography.topography` within the main Django server!')
+
         cache_key = self.cache_key()
 
         #
@@ -803,8 +826,8 @@ class Topography(models.Model, SubjectMixin):
             toolbar_location = 'above'
 
         plot = figure(x_range=x_range, y_range=y_range,
-                      x_axis_label=f'x ({self.unit})',
-                      y_axis_label=f'height ({self.unit})',
+                      x_axis_label=f'Position ({self.unit})',
+                      y_axis_label=f'Height ({self.unit})',
                       tooltips=TOOLTIPS,
                       toolbar_location=toolbar_location)
 
@@ -906,8 +929,8 @@ class Topography(models.Model, SubjectMixin):
 
         return plot
 
-    def _renew_thumbnail(self, driver=None):
-        """Renew thumbnail field.
+    def _renew_images(self, driver=None):
+        """Renew thumbnail and deep zoom images.
 
         Parameters
         ----------
@@ -938,18 +961,26 @@ class Topography(models.Model, SubjectMixin):
         image.save(image_file, 'PNG')
 
         #
+        # Remove old thumbnail
+        #
+        self.thumbnail.delete()
+
+        #
         # Save the contents of in-memory file in Django image field
         #
         self.thumbnail.save(
-            f'thumbnail_topography_{self.id}.png',
+            f'{self.id}/thumbnail.png',
             ContentFile(image_file.getvalue()),
         )
 
         if generate_driver:
             driver.close()  # important to free memory
-        pass
 
-    def renew_thumbnail(self, driver=None, none_on_error=True):
+        if self.size_y is not None:
+            # This is a topography (map), we need to create a Deep Zoom Image
+            make_dzi(self.topography(), user_directory_path(self, f'{self.id}/dzi'))
+
+    def renew_images(self, driver=None, none_on_error=True):
         """Renew thumbnail field.
 
         Parameters
@@ -971,7 +1002,7 @@ class Topography(models.Model, SubjectMixin):
         ThumbnailGenerationException
         """
         try:
-            self._renew_thumbnail(driver=driver)
+            self._renew_images(driver=driver)
         except Exception as exc:
             if none_on_error:
                 self.thumbnail = None
@@ -980,6 +1011,15 @@ class Topography(models.Model, SubjectMixin):
                              "Saving <None> instead.")
             else:
                 raise ThumbnailGenerationException from exc
+
+    def _renew_bandwidth_cache(self, st_topo=None):
+        if st_topo is None:
+            st_topo = self.topography()
+        if st_topo.unit is not None:
+            bandwidth_lower, bandwidth_upper = st_topo.bandwidth()
+            fac = get_unit_conversion_factor(st_topo.unit, 'm')
+            self.bandwidth_lower = fac * bandwidth_lower
+            self.bandwidth_upper = fac * bandwidth_upper
 
     def renew_squeezed_datafile(self):
         """Renew squeezed datafile file."""
@@ -998,10 +1038,17 @@ class Topography(models.Model, SubjectMixin):
             if not self.has_undefined_data:
                 self.fill_undefined_data_mode = Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING
 
+            # Cache bandwidth for bandwidth plot in database. Data is stored in units of meter.
+            self._renew_bandwidth_cache(st_topo)
+
             # Write and upload NetCDF file
             st_topo.to_netcdf(tmp.name)
-            orig_stem, orig_ext = os.path.splitext(self.datafile.name)
-            squeezed_name = f"{orig_stem}-squeezed.nc"
+            # Delete old squeezed file
+            self.squeezed_datafile.delete()
+            # Upload new squeezed file
+            dirname, basename = os.path.split(self.datafile.name)
+            orig_stem, orig_ext = os.path.splitext(basename)
+            squeezed_name = user_directory_path(self, f'{self.id}/{orig_stem}-squeezed.nc')
             self.squeezed_datafile = default_storage.save(squeezed_name, File(open(tmp.name, mode='rb')))
             self.save()
 
