@@ -113,7 +113,7 @@ def perform_analysis(self, analysis_id):
     analysis.save()
 
     def save_result(result, task_state):
-        _log.debug("Saving analysis result..")
+        _log.debug("Saving analysis result...")
         analysis.task_state = task_state
         default_storage_replace(f'{analysis.storage_prefix}/result.json',
                                 io.BytesIO(json.dumps(result, cls=NumpyEncoder).encode('utf-8')))
@@ -138,7 +138,7 @@ def perform_analysis(self, analysis_id):
         result = analysis.function.eval(subject, **kwargs)
         save_result(result, Analysis.SUCCESS)
     except (Topography.DoesNotExist, Surface.DoesNotExist, IntegrityError) as exc:
-        _log.warning("Subject for analysis %s doesn't exist any more, so that analysis will be deleted..",
+        _log.warning("Subject for analysis %s doesn't exist any more, so that analysis will be deleted...",
                      analysis.id)
         analysis.delete()
         # we want a real exception here so celery's flower can show the task as failure

@@ -386,6 +386,8 @@ class PlotCardView(SimpleCardView):
                 # only show average for surface if more than one topography
                 analyses_success_list.append(surface_analysis)
 
+        data_sources_dict = []
+
         # Special case: It can happen that there is one surface with a successful analysis
         # but the only measurement's analysis has no success. In this case there is also
         # no successful analysis to display because the surface has only one measurement.
@@ -402,7 +404,6 @@ class PlotCardView(SimpleCardView):
                      series_dashes=json.dumps(list())))
             return context
 
-
         #
         # Build order of subjects such that surfaces are first (used for checkbox on subjects)
         #
@@ -413,7 +414,7 @@ class PlotCardView(SimpleCardView):
         # Build subject groups by content type, so each content type gets its
         # one checkbox group
 
-        subject_checkbox_groups = {}   # key: ContentType, value: list of subject names to display
+        subject_checkbox_groups = {}  # key: ContentType, value: list of subject names to display
 
         for s in subjects:
             subject_ct = s.get_content_type()
@@ -444,11 +445,11 @@ class PlotCardView(SimpleCardView):
 
         ureg = UnitRegistry()  # for unit conversion for each analysis individually, see below
 
-        #
-        # set xrange, yrange -> automatic bounds for zooming
-        #
-        x_range = DataRange1d(bounds='auto')  # if min+max not given, calculate from data of render
-        y_range = DataRange1d(bounds='auto')
+        # #
+        # # set xrange, yrange -> automatic bounds for zooming
+        # #
+        # x_range = DataRange1d(bounds='auto')  # if min+max not given, calculate from data of render
+        # y_range = DataRange1d(bounds='auto')
 
         def get_axis_type(key):
             return first_analysis_result.get(key) or "linear"
@@ -463,26 +464,20 @@ class PlotCardView(SimpleCardView):
         #
         # Create the plot figure
         #
-        plot = figure(plot_height=300,
-                      sizing_mode='scale_width',
-                      x_range=x_range,
-                      y_range=y_range,
-                      x_axis_label=x_axis_label,
-                      y_axis_label=y_axis_label,
-                      x_axis_type=get_axis_type('xscale'),
-                      y_axis_type=get_axis_type('yscale'),
-                      tools="pan,reset,save,wheel_zoom,box_zoom,hover",
-                      output_backend=settings.BOKEH_OUTPUT_BACKEND)
+        context.update(dict(
+            x_axis_label=x_axis_label,
+            y_axis_label=y_axis_label,
+            output_backend=settings.BOKEH_OUTPUT_BACKEND))
 
         #
         # Configure hover tool
         #
-        plot.hover.tooltips = [
-            ("subject name", "$name"),
-            ("series", "@series"),
-            (x_axis_label, "@x"),
-            (y_axis_label, "@y"),
-        ]
+        # plot.hover.tooltips = [
+        #     ("subject name", "$name"),
+        #     ("series", "@series"),
+        #     (x_axis_label, "@x"),
+        #     (y_axis_label, "@y"),
+        # ]
 
         #
         # Prepare helpers for dashes and colors
@@ -606,18 +601,18 @@ class PlotCardView(SimpleCardView):
 
             for s_index, s in enumerate(series):
                 # We need to convert the data to the right unit in the client
-                adapter = CustomJS(code=f'''
-                    return {{
-                        x: cb_data.response.x.map(value => {analysis_xscale} * value),
-                        y: cb_data.response.y.map(value => {analysis_yscale} * value),
-                    }};
-                ''')
+                # adapter = CustomJS(code=f'''
+                #     return {{
+                #         x: cb_data.response.x.map(value => {analysis_xscale} * value),
+                #         y: cb_data.response.y.map(value => {analysis_yscale} * value),
+                #     }};
+                # ''')
 
                 # By default, Bokeh sends a 'Content-Type: application/json' header, but that leads to a 403 Forbidden
                 # response from the S3 which expects no 'Content-Type' header. (The 'Content-Type' is part of the
                 # presigned URL but can apparently not be controlled from Django S3/Boto3.)
-                source = AjaxDataSource(data_url=default_storage.url(f'{analysis.storage_prefix}/{s_index}.json'),
-                                        method='GET', content_type='', syncable=False, adapter=adapter)
+                # source = AjaxDataSource(data_url=default_storage.url(f'{analysis.storage_prefix}/{s_index}.json'),
+                #                        method='GET', content_type='', syncable=False, adapter=adapter)
 
                 #
                 # Collect data for visibility of the corresponding series
@@ -652,246 +647,261 @@ class PlotCardView(SimpleCardView):
                 line_width = LINEWIDTH_FOR_SURFACE_AVERAGE if is_surface_analysis else 1
                 topo_alpha = DEFAULT_ALPHA_FOR_TOPOGRAPHIES if is_topography_analysis else 1.
 
-                line_glyph = plot.line('x', 'y', source=source, legend_label=legend_entry,
-                                       line_color=curr_color,
-                                       line_dash=curr_dash,
-                                       line_width=line_width,
-                                       line_alpha=topo_alpha,
-                                       name=subject_display_name)
+                data_sources_dict += [dict(
+                    name=subject_display_name,
+                    xscale=analysis_xscale,
+                    yscale=analysis_yscale,
+                    url=default_storage.url(f'{analysis.storage_prefix}/{s_index}.json'),
+                    color=curr_color,
+                    dash=curr_dash,
+                    width=line_width,
+                    alpha=topo_alpha,
+                    show_symbols=show_symbols,
+                    visible=series_idx in series_visible
+                )]
 
-                series_glyphs[series_idx].append(line_glyph)
-
-                if show_symbols:
-                    symbol_glyph = plot.scatter('x', 'y', source=source,
-                                                legend_label=legend_entry,
-                                                marker='circle',
-                                                size=10,
-                                                line_alpha=topo_alpha,
-                                                fill_alpha=topo_alpha,
-                                                line_color=curr_color,
-                                                line_dash=curr_dash,
-                                                fill_color=curr_color,
-                                                name=subject_display_name)
-                    series_glyphs[series_idx].append(symbol_glyph)
-
-                #
-                # Prepare JS code to toggle visibility
-                #
-                # prepare unique id for this line
-                glyph_id = f"glyph_{subject_idx}_{series_idx}_line"
-                js_args[glyph_id] = line_glyph  # mapping from Python to JS
-
-                # only indices of visible glyphs appear in "active" lists of both button groups
-                js_code_toggle_callback += f"{glyph_id}.visible = series_btn_group.active.includes({series_idx}) "
-                if is_surface_analysis:
-                    js_code_toggle_callback += f"&& surface_btn_group.active.includes({subject_idx});"
-                elif is_topography_analysis:
-                    js_code_toggle_callback += f"&& topography_btn_group.active.includes({subject_idx - num_surface_subjects});"
-                # Opaqueness of topography lines should be changeable
-                if is_topography_analysis:
-                    js_code_alpha_callback += f"{glyph_id}.glyph.line_alpha = topography_alpha_slider.value;"
-
-                if show_symbols:
-                    # prepare unique id for this symbols
-                    glyph_id = f"glyph_{subject_idx}_{series_idx}_symbol"
-                    js_args[glyph_id] = symbol_glyph  # mapping from Python to JS
-
-                    # only indices of visible glyphs appear in "active" lists of both button groups
-                    js_code_toggle_callback += f"{glyph_id}.visible = series_btn_group.active.includes({series_idx}) "
-                    if is_surface_analysis:
-                        js_code_toggle_callback += f"&& surface_btn_group.active.includes({subject_idx});"
-                    elif is_topography_analysis:
-                        js_code_toggle_callback += f"&& topography_btn_group.active.includes({subject_idx - num_surface_subjects});"
-                        js_code_alpha_callback += f"{glyph_id}.glyph.line_alpha = topography_alpha_slider.value;"
-                        js_code_alpha_callback += f"{glyph_id}.glyph.fill_alpha = topography_alpha_slider.value;"
-
+            #     line_glyph = plot.line('x', 'y', source=source, legend_label=legend_entry,
+            #                            line_color=curr_color,
+            #                            line_dash=curr_dash,
+            #                            line_width=line_width,
+            #                            line_alpha=topo_alpha,
+            #                            name=subject_display_name)
             #
-            # Collect special values to be shown in the result card
+            #     series_glyphs[series_idx].append(line_glyph)
             #
-            if 'scalars' in analysis_result:
-                for scalar_name, scalar_dict in analysis.result_obj['scalars'].items():
-                    try:
-                        scalar_unit = scalar_dict['unit']
-                        if scalar_unit == '1':
-                            scalar_unit = ''  # we don't want to display '1' as unit
-                        special_values.append((subject, scalar_name,
-                                               scalar_dict['value'], scalar_unit))
-                    except (KeyError, IndexError):
-                        _log.warning("Cannot display scalar '%s' given as '%s'. Skipping.", scalar_name, scalar_dict)
-                        special_values.append((subject, scalar_name, str(scalar_dict), ''))
-
+            #     if show_symbols:
+            #         symbol_glyph = plot.scatter('x', 'y', source=source,
+            #                                     legend_label=legend_entry,
+            #                                     marker='circle',
+            #                                     size=10,
+            #                                     line_alpha=topo_alpha,
+            #                                     fill_alpha=topo_alpha,
+            #                                     line_color=curr_color,
+            #                                     line_dash=curr_dash,
+            #                                     fill_color=curr_color,
+            #                                     name=subject_display_name)
+            #         series_glyphs[series_idx].append(symbol_glyph)
             #
-            # Collect alert messages from analysis results
+            #     #
+            #     # Prepare JS code to toggle visibility
+            #     #
+            #     # prepare unique id for this line
+            #     glyph_id = f"glyph_{subject_idx}_{series_idx}_line"
+            #     js_args[glyph_id] = line_glyph  # mapping from Python to JS
             #
-            try:
-                alerts.extend(analysis_result['alerts'])
-            except KeyError:
-                pass
+            #     # only indices of visible glyphs appear in "active" lists of both button groups
+            #     js_code_toggle_callback += f"{glyph_id}.visible = series_btn_group.active.includes({series_idx}) "
+            #     if is_surface_analysis:
+            #         js_code_toggle_callback += f"&& surface_btn_group.active.includes({subject_idx});"
+            #     elif is_topography_analysis:
+            #         js_code_toggle_callback += f"&& topography_btn_group.active.includes({subject_idx - num_surface_subjects});"
+            #     # Opaqueness of topography lines should be changeable
+            #     if is_topography_analysis:
+            #         js_code_alpha_callback += f"{glyph_id}.glyph.line_alpha = topography_alpha_slider.value;"
+            #
+            #     if show_symbols:
+            #         # prepare unique id for this symbols
+            #         glyph_id = f"glyph_{subject_idx}_{series_idx}_symbol"
+            #         js_args[glyph_id] = symbol_glyph  # mapping from Python to JS
+            #
+            #         # only indices of visible glyphs appear in "active" lists of both button groups
+            #         js_code_toggle_callback += f"{glyph_id}.visible = series_btn_group.active.includes({series_idx}) "
+            #         if is_surface_analysis:
+            #             js_code_toggle_callback += f"&& surface_btn_group.active.includes({subject_idx});"
+            #         elif is_topography_analysis:
+            #             js_code_toggle_callback += f"&& topography_btn_group.active.includes({subject_idx - num_surface_subjects});"
+            #             js_code_alpha_callback += f"{glyph_id}.glyph.line_alpha = topography_alpha_slider.value;"
+            #             js_code_alpha_callback += f"{glyph_id}.glyph.fill_alpha = topography_alpha_slider.value;"
+            #
+            # #
+            # # Collect special values to be shown in the result card
+            # #
+            # if 'scalars' in analysis_result:
+            #     for scalar_name, scalar_dict in analysis.result_obj['scalars'].items():
+            #         try:
+            #             scalar_unit = scalar_dict['unit']
+            #             if scalar_unit == '1':
+            #                 scalar_unit = ''  # we don't want to display '1' as unit
+            #             special_values.append((subject, scalar_name,
+            #                                    scalar_dict['value'], scalar_unit))
+            #         except (KeyError, IndexError):
+            #             _log.warning("Cannot display scalar '%s' given as '%s'. Skipping.", scalar_name, scalar_dict)
+            #             special_values.append((subject, scalar_name, str(scalar_dict), ''))
+            #
+            # #
+            # # Collect alert messages from analysis results
+            # #
+            # try:
+            #     alerts.extend(analysis_result['alerts'])
+            # except KeyError:
+            #     pass
 
+        # #
+        # # Adjust visibility of glyphs depending on visibility of series
+        # #
+        # for series_idx, glyphs in series_glyphs.items():
+        #     visible = series_idx in series_visible
+        #     for glyph in glyphs:
+        #         glyph.visible = visible
         #
-        # Adjust visibility of glyphs depending on visibility of series
+        # #
+        # # Final configuration of the plot
+        # #
         #
-        for series_idx, glyphs in series_glyphs.items():
-            visible = series_idx in series_visible
-            for glyph in glyphs:
-                glyph.visible = visible
-
+        # configure_plot(plot)
         #
-        # Final configuration of the plot
+        # # plot.legend.click_policy = "hide" # can be used to disable lines by clicking on legend
+        # plot.legend.visible = False  # we have extra widgets to disable lines
+        # plot.toolbar.active_inspect = None
         #
-
-        configure_plot(plot)
-
-        # plot.legend.click_policy = "hide" # can be used to disable lines by clicking on legend
-        plot.legend.visible = False  # we have extra widgets to disable lines
-        plot.toolbar.active_inspect = None
-
+        # #
+        # # Adding widgets for switching lines on/off
+        # #
+        # # ensure a fixed order of the existing series
+        # series_button_group = CheckboxGroup(
+        #     labels=series_names,
+        #     css_classes=["topobank-series-checkbox"],
+        #     visible=False,
+        #     active=list(series_visible))  # active must be list of ints which are indexes in 'labels'
         #
-        # Adding widgets for switching lines on/off
+        # # create list of checkbox group, one checkbox group for each subject type
+        # if has_at_least_one_surface_subject:
+        #     surface_btn_group = CheckboxGroup(
+        #             labels=subject_checkbox_groups[surface_ct],
+        #             css_classes=["topobank-subject-checkbox", "topobank-surface-checkbox"],
+        #             visible=False,
+        #             active=list(range(len(subject_checkbox_groups[surface_ct]))))  # all indices included -> all active
+        # else:
+        #     surface_btn_group = Div(visible=False)
         #
-        # ensure a fixed order of the existing series
-        series_button_group = CheckboxGroup(
-            labels=series_names,
-            css_classes=["topobank-series-checkbox"],
-            visible=False,
-            active=list(series_visible))  # active must be list of ints which are indexes in 'labels'
-
-        # create list of checkbox group, one checkbox group for each subject type
-        if has_at_least_one_surface_subject:
-            surface_btn_group = CheckboxGroup(
-                    labels=subject_checkbox_groups[surface_ct],
-                    css_classes=["topobank-subject-checkbox", "topobank-surface-checkbox"],
-                    visible=False,
-                    active=list(range(len(subject_checkbox_groups[surface_ct]))))  # all indices included -> all active
-        else:
-            surface_btn_group = Div(visible=False)
-
-        if has_at_least_one_topography_subject:
-            topography_btn_group = CheckboxGroup(
-                    labels=subject_checkbox_groups[topography_ct],
-                    css_classes=["topobank-subject-checkbox", "topobank-topography-checkbox"],
-                    visible=False,
-                    active=list(range(len(subject_checkbox_groups[topography_ct]))))
-        else:
-            topography_btn_group = Div(visible=False)
-
-        subject_select_all_btn = Button(label="Select all",
-                                        width_policy='min',
-                                        visible=False)
-        subject_deselect_all_btn = Button(label="Deselect all",
-                                          width_policy='min',
-                                          visible=False)
-
-        subject_btn_group_toggle_button_label = "Measurements"
-        if has_at_least_one_surface_subject:
-            subject_btn_group_toggle_button_label = "Average / "+subject_btn_group_toggle_button_label
-        subject_btn_group_toggle_button = Toggle(label=subject_btn_group_toggle_button_label,
-                                                 button_type='primary')
-        series_btn_group_toggle_button = Toggle(label="Data series",
-                                                button_type='primary')
-        options_group_toggle_button = Toggle(label="Plot options",
-                                             button_type='primary')
-
-        topography_alpha_slider = Slider(start=0, end=1, title="Opacity of measurement lines",
-                                         value=DEFAULT_ALPHA_FOR_TOPOGRAPHIES
-                                         if has_at_least_one_surface_subject else 1.0,
-                                         sizing_mode='scale_width',
-                                         step=0.1, visible=False)
-        options_group = column([topography_alpha_slider])
-
+        # if has_at_least_one_topography_subject:
+        #     topography_btn_group = CheckboxGroup(
+        #             labels=subject_checkbox_groups[topography_ct],
+        #             css_classes=["topobank-subject-checkbox", "topobank-topography-checkbox"],
+        #             visible=False,
+        #             active=list(range(len(subject_checkbox_groups[topography_ct]))))
+        # else:
+        #     topography_btn_group = Div(visible=False)
         #
-        # extend mapping of Python to JS objects
+        # subject_select_all_btn = Button(label="Select all",
+        #                                 width_policy='min',
+        #                                 visible=False)
+        # subject_deselect_all_btn = Button(label="Deselect all",
+        #                                   width_policy='min',
+        #                                   visible=False)
         #
-        js_args['surface_btn_group'] = surface_btn_group
-        js_args['topography_btn_group'] = topography_btn_group
-        js_args['subject_select_all_btn'] = subject_select_all_btn
-        js_args['subject_deselect_all_btn'] = subject_deselect_all_btn
+        # subject_btn_group_toggle_button_label = "Measurements"
+        # if has_at_least_one_surface_subject:
+        #     subject_btn_group_toggle_button_label = "Average / "+subject_btn_group_toggle_button_label
+        # subject_btn_group_toggle_button = Toggle(label=subject_btn_group_toggle_button_label,
+        #                                          button_type='primary')
+        # series_btn_group_toggle_button = Toggle(label="Data series",
+        #                                         button_type='primary')
+        # options_group_toggle_button = Toggle(label="Plot options",
+        #                                      button_type='primary')
+        #
+        # topography_alpha_slider = Slider(start=0, end=1, title="Opacity of measurement lines",
+        #                                  value=DEFAULT_ALPHA_FOR_TOPOGRAPHIES
+        #                                  if has_at_least_one_surface_subject else 1.0,
+        #                                  sizing_mode='scale_width',
+        #                                  step=0.1, visible=False)
+        # options_group = column([topography_alpha_slider])
+        #
+        # #
+        # # extend mapping of Python to JS objects
+        # #
+        # js_args['surface_btn_group'] = surface_btn_group
+        # js_args['topography_btn_group'] = topography_btn_group
+        # js_args['subject_select_all_btn'] = subject_select_all_btn
+        # js_args['subject_deselect_all_btn'] = subject_deselect_all_btn
+        #
+        # js_args['series_btn_group'] = series_button_group
+        # js_args['topography_alpha_slider'] = topography_alpha_slider
+        #
+        # js_args['subject_btn_group_toggle_btn'] = subject_btn_group_toggle_button
+        # js_args['series_btn_group_toggle_btn'] = series_btn_group_toggle_button
+        # js_args['options_group_toggle_btn'] = options_group_toggle_button
+        #
+        # #
+        # # Toggling visibility of the buttons / checkboxes
+        # #
+        # toggle_lines_callback = CustomJS(args=js_args, code=js_code_toggle_callback)
+        # toggle_subject_checkboxes = CustomJS(args=js_args, code="""
+        #     surface_btn_group.visible = subject_btn_group_toggle_btn.active;
+        #     topography_btn_group.visible = subject_btn_group_toggle_btn.active;
+        #     subject_select_all_btn.visible = subject_btn_group_toggle_btn.active;
+        #     subject_deselect_all_btn.visible = subject_btn_group_toggle_btn.active;
+        # """)
+        # toggle_series_checkboxes = CustomJS(args=js_args, code="""
+        #     series_btn_group.visible = series_btn_group_toggle_btn.active;
+        # """)
+        # toggle_options = CustomJS(args=js_args, code="""
+        #     topography_alpha_slider.visible = options_group_toggle_btn.active;
+        # """)
+        #
+        # subject_btn_groups = layout([subject_select_all_btn, subject_deselect_all_btn],
+        #                             [surface_btn_group],
+        #                             [topography_btn_group])
+        #
+        # series_button_group.js_on_click(toggle_lines_callback)
+        # if has_at_least_one_surface_subject:
+        #     surface_btn_group.js_on_click(toggle_lines_callback)
+        # topography_btn_group.js_on_click(toggle_lines_callback)
+        # subject_btn_group_toggle_button.js_on_click(toggle_subject_checkboxes)
+        # series_btn_group_toggle_button.js_on_click(toggle_series_checkboxes)
+        # options_group_toggle_button.js_on_click(toggle_options)
+        #
+        # #
+        # # Callback for changing opaqueness of measurement lines
+        # #
+        # topography_alpha_slider.js_on_change('value', CustomJS(args=js_args,
+        #                                                        code=js_code_alpha_callback))
+        #
+        # #
+        # # Callback for toggling lines
+        # #
+        # subject_select_all_btn.js_on_click(CustomJS(args=js_args, code="""
+        #     let all_topo_idx = [];
+        #     for (let i=0; i<topography_btn_group.labels.length; i++) {
+        #         all_topo_idx.push(i);
+        #     }
+        #     topography_btn_group.active = all_topo_idx;
+        #
+        #     /** surface_btn_group may just be a div if no averages defined */
+        #     if ('labels' in surface_btn_group) {
+        #         let all_surf_idx = [];
+        #         for (let i=0; i<surface_btn_group.labels.length; i++) {
+        #             all_surf_idx.push(i);
+        #         }
+        #         surface_btn_group.active = all_surf_idx;
+        #     }
+        # """))
+        # subject_deselect_all_btn.js_on_click(CustomJS(args=js_args, code="""
+        #     surface_btn_group.active = [];
+        #     topography_btn_group.active = [];
+        # """))
+        # #
+        # # Build layout for buttons underneath plot
+        # #
+        # widgets = grid([
+        #     [subject_btn_group_toggle_button, series_btn_group_toggle_button, options_group_toggle_button],
+        #     [subject_btn_groups, series_button_group, options_group],
+        # ])
+        #
+        # #
+        # # Convert plot and widgets to HTML, add meta data for template
+        # #
+        # script, div = components(column(plot, widgets, sizing_mode='scale_width'))
+        #
+        # context.update(dict(
+        #     plot_script=script,
+        #     plot_div=div,
+        #     special_values=special_values,
+        #     extra_warnings=alerts,
+        #     topography_colors=json.dumps(list(subject_colors.values())),
+        #         series_dashes=json.dumps(list(series_dashes.values()))))
 
-        js_args['series_btn_group'] = series_button_group
-        js_args['topography_alpha_slider'] = topography_alpha_slider
-
-        js_args['subject_btn_group_toggle_btn'] = subject_btn_group_toggle_button
-        js_args['series_btn_group_toggle_btn'] = series_btn_group_toggle_button
-        js_args['options_group_toggle_btn'] = options_group_toggle_button
-
-        #
-        # Toggling visibility of the buttons / checkboxes
-        #
-        toggle_lines_callback = CustomJS(args=js_args, code=js_code_toggle_callback)
-        toggle_subject_checkboxes = CustomJS(args=js_args, code="""
-            surface_btn_group.visible = subject_btn_group_toggle_btn.active;
-            topography_btn_group.visible = subject_btn_group_toggle_btn.active;
-            subject_select_all_btn.visible = subject_btn_group_toggle_btn.active;
-            subject_deselect_all_btn.visible = subject_btn_group_toggle_btn.active;
-        """)
-        toggle_series_checkboxes = CustomJS(args=js_args, code="""
-            series_btn_group.visible = series_btn_group_toggle_btn.active;
-        """)
-        toggle_options = CustomJS(args=js_args, code="""
-            topography_alpha_slider.visible = options_group_toggle_btn.active;
-        """)
-
-        subject_btn_groups = layout([subject_select_all_btn, subject_deselect_all_btn],
-                                    [surface_btn_group],
-                                    [topography_btn_group])
-
-        series_button_group.js_on_click(toggle_lines_callback)
-        if has_at_least_one_surface_subject:
-            surface_btn_group.js_on_click(toggle_lines_callback)
-        topography_btn_group.js_on_click(toggle_lines_callback)
-        subject_btn_group_toggle_button.js_on_click(toggle_subject_checkboxes)
-        series_btn_group_toggle_button.js_on_click(toggle_series_checkboxes)
-        options_group_toggle_button.js_on_click(toggle_options)
-
-        #
-        # Callback for changing opaqueness of measurement lines
-        #
-        topography_alpha_slider.js_on_change('value', CustomJS(args=js_args,
-                                                               code=js_code_alpha_callback))
-
-        #
-        # Callback for toggling lines
-        #
-        subject_select_all_btn.js_on_click(CustomJS(args=js_args, code="""
-            let all_topo_idx = [];
-            for (let i=0; i<topography_btn_group.labels.length; i++) {
-                all_topo_idx.push(i);
-            }
-            topography_btn_group.active = all_topo_idx;
-
-            /** surface_btn_group may just be a div if no averages defined */
-            if ('labels' in surface_btn_group) {
-                let all_surf_idx = [];
-                for (let i=0; i<surface_btn_group.labels.length; i++) {
-                    all_surf_idx.push(i);
-                }
-                surface_btn_group.active = all_surf_idx;
-            }
-        """))
-        subject_deselect_all_btn.js_on_click(CustomJS(args=js_args, code="""
-            surface_btn_group.active = [];
-            topography_btn_group.active = [];
-        """))
-        #
-        # Build layout for buttons underneath plot
-        #
-        widgets = grid([
-            [subject_btn_group_toggle_button, series_btn_group_toggle_button, options_group_toggle_button],
-            [subject_btn_groups, series_button_group, options_group],
-        ])
-
-        #
-        # Convert plot and widgets to HTML, add meta data for template
-        #
-        script, div = components(column(plot, widgets, sizing_mode='scale_width'))
-
-        context.update(dict(
-            plot_script=script,
-            plot_div=div,
-            special_values=special_values,
-            extra_warnings=alerts,
-            topography_colors=json.dumps(list(subject_colors.values())),
-            series_dashes=json.dumps(list(series_dashes.values()))))
+        context['data_sources'] = data_sources_dict
 
         return context
 
