@@ -14,7 +14,7 @@ billiard==3.6.4.0
     # via celery
 bleach==4.1.0
     # via -r base.in
-bokeh==2.4.2
+bokeh==3.0.0.dev2
     # via -r base.in
 boto3==1.20.16
     # via -r base.in
@@ -325,6 +325,8 @@ whitenoise==5.3.0
     # via -r base.in
 xarray==0.20.1
     # via -r base.in
+xyzservices==2021.11.0
+    # via bokeh
 
 # The following packages are considered to be unsafe in a requirements file:
 # setuptools
