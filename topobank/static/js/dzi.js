@@ -6,46 +6,45 @@
 function visualizeMap(id, prefixUrl, colorBar = null, downloadButton = null, retryDelay = 5000) {
     $('#' + id).empty();
     $('#' + id).html('<span class="spinner"></span>Creating and loading zoomable image, please wait...')
-    var requestDzi = function () {
-            $.ajax({
-                url: prefixUrl + 'dzi.json',
-                type: 'get',
-                success: function (meta) {
-                    $('#' + id).empty();
+    var requestDzi = function() {
+        $.ajax({
+            url: prefixUrl + 'dzi.json',
+            type: 'get',
+            success: function (meta) {
+                $('#' + id).empty();
+                meta.Image.Url = prefixUrl + 'dzi_files/';
 
-                    meta.Image.Url = prefixUrl + 'dzi_files/';
+                let viewer = new OpenSeadragon.Viewer({
+                    id: id,
+                    tileSources: meta,
+                    showNavigator: true,
+                    navigatorPosition: 'TOP_LEFT',
+                    navigatorSizeRatio: 0.1,
+                    wrapHorizontal: false,
+                    wrapVertical: false,
+                    minZoomImageRatio: 0.5,
+                    maxZoomPixelRatio: 5.0,
+                    crossOriginPolicy: "Anonymous",
+                    showNavigationControl: false
+                });
 
-                    viewer = new OpenSeadragon.Viewer({
-                        id: id,
-                        tileSources: meta,
-                        showNavigator: true,
-                        navigatorPosition: 'TOP_LEFT',
-                        navigatorSizeRatio: 0.1,
-                        wrapHorizontal: false,
-                        wrapVertical: false,
-                        minZoomImageRatio: 0.5,
-                        maxZoomPixelRatio: 5.0,
-                        crossOriginPolicy: "Anonymous",
-                        showNavigationControl: false
+                // Add a scale bar
+                if (meta.Image.PixelsPerMeter) {
+                    viewer.scalebar({
+                        type: OpenSeadragon.ScalebarType.MICROSCOPY,
+                        pixelsPerMeter: (meta.Image.PixelsPerMeter.Width + meta.Image.PixelsPerMeter.Height) / 2,
+                        minWidth: "75px",
+                        location: OpenSeadragon.ScalebarLocation.BOTTOM_LEFT,
+                        xOffset: 10,
+                        yOffset: 10,
+                        stayInsideImage: true,
+                        color: "black",
+                        fontColor: "black",
+                        backgroundColor: "rgba(255, 255, 255, 0.5)",
+                        fontSize: "medium",
+                        barThickness: 2
                     });
-
-                    // Add a scale bar
-                    if (meta.Image.PixelsPerMeter) {
-                        viewer.scalebar({
-                            type: OpenSeadragon.ScalebarType.MICROSCOPY,
-                            pixelsPerMeter: (meta.Image.PixelsPerMeter.Width + meta.Image.PixelsPerMeter.Height) / 2,
-                            minWidth: "75px",
-                            location: OpenSeadragon.ScalebarLocation.BOTTOM_LEFT,
-                            xOffset: 10,
-                            yOffset: 10,
-                            stayInsideImage: true,
-                            color: "black",
-                            fontColor: "black",
-                            backgroundColor: "rgba(255, 255, 255, 0.5)",
-                            fontSize: "large",
-                            barThickness: 2
-                        });
-                    }
+                }
 
                     // Add a color bar
                     if (colorBar && meta.Image.ColorbarRange && meta.Image.ColorbarTitle && meta.Image.Colormap) {

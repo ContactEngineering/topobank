@@ -98,7 +98,7 @@ def perform_analysis(self, analysis_id):
     - task_state
     - current configuration (link to versions of installed dependencies)
     """
-
+    _log.debug(f"Starting task {self.request.id} for analysis {analysis_id}..")
     progress_recorder = ProgressRecorder(self)
 
     #
@@ -113,7 +113,7 @@ def perform_analysis(self, analysis_id):
     analysis.save()
 
     def save_result(result, task_state):
-        _log.debug("Saving analysis result...")
+        _log.debug(f"Saving result of analysis {analysis_id}...")
         analysis.task_state = task_state
         default_storage_replace(f'{analysis.storage_prefix}/result.json',
                                 io.BytesIO(json.dumps(result, cls=NumpyEncoder).encode('utf-8')))
@@ -122,7 +122,7 @@ def perform_analysis(self, analysis_id):
         if 'effective_kwargs' in result:
             analysis.kwargs = pickle.dumps(result['effective_kwargs'])
         analysis.save()
-        _log.debug("Done saving result.")
+        _log.debug("Done saving analysis result.")
 
     #
     # actually perform analysis
@@ -133,8 +133,8 @@ def perform_analysis(self, analysis_id):
         subject = analysis.subject
         kwargs['progress_recorder'] = progress_recorder
         kwargs['storage_prefix'] = analysis.storage_prefix
-        _log.debug("Evaluating analysis function '%s' on subject '%s' (storage prefix '%s')...",
-                   analysis.function.name, subject, analysis.storage_prefix)
+        _log.debug("Evaluating analysis function '%s' on subject '%s' with kwargs %s and storage prefix '%s'...",
+                   analysis.function.name, subject, kwargs, analysis.storage_prefix)
         result = analysis.function.eval(subject, **kwargs)
         save_result(result, Analysis.SUCCESS)
     except (Topography.DoesNotExist, Surface.DoesNotExist, IntegrityError) as exc:
@@ -145,6 +145,7 @@ def perform_analysis(self, analysis_id):
         raise
     except Exception as exc:
         is_incompatible = isinstance(exc, EXCEPTION_CLASSES_FOR_INCOMPATIBILITIES)
+        _log.warning(f"Exception while performing analysis {analysis_id} (compatible? {is_incompatible}): {exc}")
         save_result(dict(message=str(exc),
                          traceback=traceback.format_exc(),
                          is_incompatible=is_incompatible),
@@ -177,8 +178,10 @@ def perform_analysis(self, analysis_id):
                 increment=1000 * td.total_seconds())
 
         except Analysis.DoesNotExist:
+            _log.debug(f"Analysis with {analysis_id} does not exist.")
             # Analysis was deleted, e.g. because topography or surface was missing
             pass
+    _log.debug(f"Done with task {self.request.id}.")
 
 
 @app.task
@@ -220,7 +223,7 @@ def check_analysis_collection(collection_id):
 @app.task
 def save_landing_page_statistics():
     from trackstats.models import Metric, Period, StatisticByDate
-
+    _log.debug("Saving landing page statistics..")
     #
     # Number of users
     #
@@ -279,6 +282,7 @@ def renew_squeezed_datafile(topography_id):
         topography.renew_squeezed_datafile()
     except Topography.DoesNotExist:
         _log.error(f"Couldn't find topography with id {topography_id}. Cannot renew squeezed datafile.")
+    _log.debug(f"Done - renewed squeezed datafile for topography id {topography_id}.")
 
 
 @app.task
@@ -301,6 +305,7 @@ def renew_topography_images(topography_id):
         topography.renew_images()
     except Topography.DoesNotExist:
         _log.error(f"Couldn't find topography with id {topography_id}. Cannot renew images.")
+    _log.debug(f"Done - renewed images for topography id {topography_id}.")
 
 
 @app.task

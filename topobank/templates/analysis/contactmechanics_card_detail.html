@@ -78,6 +78,11 @@
           <div id="contacting-points-container" class="dzi-container" style="min-height: 600px;">
             <div id="contacting-points-view" class="dzi-view"></div>
             <div id="contacting-points-colorbar" class="dzi-colorbar"></div>
+            <div class="pull-right">
+              <a id="contacting-points-download" href="#" class="btn btn-default">
+                {% fa5_icon 'download' %} Download as PNG
+              </a>
+            </div>
           </div>
         </div>
         <div class="tab-pane fade" id="pressure-tab">
@@ -85,6 +90,11 @@
           <div id="pressure-container" class="dzi-container" style="min-height: 600px;">
             <div id="pressure-view" class="dzi-view"></div>
             <div id="pressure-colorbar" class="dzi-colorbar"></div>
+            <div class="pull-right">
+              <a id="pressure-download" href="#" class="btn btn-default">
+                {% fa5_icon 'download' %} Download as PNG
+              </a>
+            </div>
           </div>
         </div>
         <div class="tab-pane fade" id="pressure-distribution-tab">
@@ -95,6 +105,11 @@
           <div id="displacement-container" class="dzi-container" style="min-height: 600px;">
             <div id="displacement-view" class="dzi-view"></div>
             <div id="displacement-colorbar" class="dzi-colorbar"></div>
+            <div class="pull-right">
+              <a id="displacement-download" href="#" class="btn btn-default">
+                {% fa5_icon 'download' %} Download as PNG
+              </a>
+            </div>
           </div>
         </div>
         <div class="tab-pane fade" id="gap-tab">
@@ -102,6 +117,11 @@
           <div id="gap-container" class="dzi-container" style="min-height: 600px;">
             <div id="gap-view" class="dzi-view"></div>
             <div id="gap-colorbar" class="dzi-colorbar"></div>
+            <div class="pull-right">
+              <a id="gap-download" href="#" class="btn btn-default">
+                {% fa5_icon 'download' %} Download as PNG
+              </a>
+            </div>
           </div>
         </div>
         <div class="tab-pane fade" id="gap-distribution-tab">
@@ -431,7 +451,8 @@
       visualizeMap(
         tn + '-view',
         prefix_url.replace('0/1/dzi/quantity/', analysis_id + '/' + index + '/dzi/' + tn + '/'),
-        tn + '-colorbar'
+        tn + '-colorbar',
+        tn + '-download'
       );
     });
 

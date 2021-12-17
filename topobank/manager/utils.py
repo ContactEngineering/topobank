@@ -977,8 +977,9 @@ def make_dzi(data, path_prefix, physical_sizes=None, unit=None, quality=95, colo
         Name of colormap; this information is dumped into the metadata json
         and a proprietary extension to the official DZI format.
         (Default: None)
-   """
+    """
     with tempfile.TemporaryDirectory() as tmpdirname:
+        _log.debug(f"Making DZI files for '{data}' under path prefix {path_prefix} using temp dir {tmpdirname}..")
         try:
             # This is a Topography
             filenames = data.to_dzi('dzi', root_directory=tmpdirname, meta_format='json', quality=quality, cmap=cmap)
