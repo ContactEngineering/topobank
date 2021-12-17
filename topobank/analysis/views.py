@@ -421,7 +421,7 @@ class PlotCardView(SimpleCardView):
             subject_ct = s.get_content_type()
             subject_name = s.label
             if subject_ct == surface_ct:
-                subject_name = f"Average of {subject_name}"
+                subject_name = f"Average of »{subject_name}«"
             subject_names_for_plot.append(subject_name)
 
             if subject_ct not in subject_checkbox_groups.keys():
@@ -468,6 +468,8 @@ class PlotCardView(SimpleCardView):
         context.update(dict(
             x_axis_label=x_axis_label,
             y_axis_label=y_axis_label,
+            x_axis_type=get_axis_type('xscale'),
+            y_axis_type=get_axis_type('yscale'),
             output_backend=settings.BOKEH_OUTPUT_BACKEND))
 
         #
@@ -539,7 +541,7 @@ class PlotCardView(SimpleCardView):
         #
         surface_index = -1
         topography_index = -1
-        for analysis in analyses_success_list:
+        for a_index, analysis in enumerate(analyses_success_list):
             #
             # Define some helper variables
             #
@@ -658,6 +660,8 @@ class PlotCardView(SimpleCardView):
                     width=line_width,
                     alpha=topo_alpha,
                     show_symbols=show_symbols,
+                    subject_index=a_index,
+                    series_index=series_idx,
                     visible=series_idx in series_visible
                 )]
 

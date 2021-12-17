@@ -36,13 +36,8 @@
 
       <div class="tab-content mt-3">
 
-        <div class="tab-pane show active" id="plot" role="tabpanel" aria-labelledby="card-tab">
-          {% include 'analysis/analyses_alerts.html' %}
-          {% if analyses_success %}
-            {# Show all analyses for which we have results #}
-            <div id="bokeh-plot"></div>
-          {% endif %}
-        </div>
+        {% include 'analysis/plot_card_plot.html' %}
+
         {% if special_values %}
           <div class="tab-pane fade" id="values" role="tabpanel" aria-labelledby="values-tab">
             <table class="table table-striped table-bordered">
@@ -105,76 +100,7 @@
 {% endblock card_body %}
 
 {% block card_javascript %}
-
-  {% if not analyses_unready and analyses_success %}
-    {# Insert the script code needed for the plot #}
-    {{ plot_script | safe }}
+  {% if analyses_success %}
+    {% include 'analysis/plot_card_bokeh.html' %}
   {% endif %}
-
-  {# Additonal code for initialization #}
-  <script>
-
-    /** THIS CODE MAYBE USEFUL WHEN ADDING STYLING IN BOKEH CODE, SEE VIEW
-     // Apply given colors to labels
-     function style_checkbox_labels(card_idx) {
-      var topography_colors = {{ topography_colors|safe }};
-      var card_selector='#card-'+card_idx;
-      var topography_checkbox_labels = $(card_selector+" .subject-topography-checkbox label");
-      // console.log(card_idx, card_selector,topography_checkbox_labels);
-      topography_checkbox_labels.each(function (idx) {
-           // console.log("CSS "+idx);
-           $(this).css('background-color', topography_colors[idx]);
-      });
-    }
-     */
-    // $('.bk-widget-box:first label').each(function(idx){$(this).css('background-color', topography_colors[idx]);})
-
-    $(document).ready(function () {
-      const plot = new Bokeh.Plotting.Figure({
-        height: 300,
-        sizing_mode: "scale_width",
-        x_axis_label: "{{ x_axis_label }}",
-        y_axis_label: "{{ y_axis_label }}",
-        x_axis_type: "log",
-        y_axis_type: "log",
-        tools: "pan,reset,save,wheel_zoom,box_zoom,hover",
-        output_backend: "{{ output_backend }}"
-      });
-
-      // This should become a Bokeh theme (supported in BokehJS with 3.0 - but I cannot find the `use_theme` method)
-      plot.xaxis.axis_label_text_font_style = "normal";
-      plot.yaxis.axis_label_text_font_style = "normal";
-      plot.xaxis.major_label_text_font_size = "16px";
-      plot.yaxis.major_label_text_font_size = "16px";
-      plot.xaxis.axis_label_text_font_size = "16px";
-      plot.yaxis.axis_label_text_font_size = "16px";
-
-      {% for data_source in data_sources %}
-        {
-          const code = "return { x: cb_data.response.x.map(value => {{ data_source.xscale }} * value), y: cb_data.response.y.map(value => {{ data_source.yscale }} * value) };";
-
-          const source = new Bokeh.AjaxDataSource({
-            data_url: "{{ data_source.url|safe }}",
-            method: "GET",
-            content_type: "",
-            syncable: false,
-            adapter: new Bokeh.CustomJS({code})
-          });
-          attrs = {
-            source: source,
-            visible: {% if data_source.visible %} true {% else %} false {% endif %},
-            color: "{{ data_source.color }}",
-            alpha: {{ data_source.alpha }}
-          }
-          plot.line({field: "x"}, {field: "y"}, {...attrs, ...{width: {{ data_source.width }}}});
-          {% if data_source.show_symbols %}
-            plot.circle({field: "x"}, {field: "y"}, {...attrs, ...{size: 10}});
-          {% endif %}
-        }
-      {% endfor %}
-
-      Bokeh.Plotting.show(plot, "#bokeh-plot");
-    })
-    ;
-  </script>
 {% endblock card_javascript %}

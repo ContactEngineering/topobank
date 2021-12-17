@@ -146,12 +146,12 @@ LOGGING = {
             'propagate': True
         },
         'topobank': {
-            'level': 'INFO',
+            'level': 'DEBUG',
             'handlers': ['console'],
             'propagate': True
         },
         'topobank.taskapp.tasks': {
-            'level': 'INFO',
+            'level': 'DEBUG',
             'handlers': ['console'],
             'propagate': True
         },

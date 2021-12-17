@@ -41,13 +41,7 @@
       {% endif %}
 
       <div class="tab-content">
-        <div class="tab-pane fade show active" id="plot-tab-{{ card_id }}" role="tabpanel">
-          {% include 'analysis/analyses_alerts.html' %}
-          {% if not analyses_unready and analyses_success %}
-           {# Show all analyses for which we have results #}
-           {{ plot_div | safe }}
-          {% endif %}
-        </div>
+        {% include 'analysis/plot_card_plot.html' %}
         {% include 'analysis/analyses_warnings_tab_pane.html' %}
       </div>
     </div>
@@ -58,7 +52,6 @@
 
 {% block card_javascript %}
   {% if analyses_success %}
-    {# Insert the script code needed for the plot #}
-    {{ plot_script | safe }}
+    {% include 'analysis/plot_card_bokeh.html' %}
   {% endif %}
 {% endblock card_javascript %}
