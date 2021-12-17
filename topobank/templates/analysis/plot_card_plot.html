@@ -5,35 +5,35 @@
     <div id="bokeh-plot-{{ card_id }}"></div>
     <div class="accordion plot-controls-accordion" id="plot-controls-accordion-{{ card_id }}">
       <div class="card plot-controls-card">
-        <div id="heading-measurements-{{ card_id }}" class="card-header plot-controls-card-header">
+        <div id="heading-subjects-{{ card_id }}" class="card-header plot-controls-card-header">
           <h2 class="mb-0">
             <button class="btn btn-link btn-block text-left" type="button" data-toggle="collapse"
-                    data-target="#collapse-measurements-{{ card_id }}" aria-expanded="false"
-                    aria-controls="collapse-measurements-{{ card_id }}">
+                    data-target="#collapse-subjects-{{ card_id }}" aria-expanded="false"
+                    aria-controls="collapse-subjects-{{ card_id }}">
               Averages / Measurements
             </button>
           </h2>
         </div>
-        <div id="collapse-measurements-{{ card_id }}" class="collapse" aria-labelledby="heading-measurements"
+        <div id="collapse-subjects-{{ card_id }}" class="collapse" aria-labelledby="heading-subjects"
              data-parent="#plot-controls-accordion-{{ card_id }}">
-          <div id="card-measurements-{{ card_id }}" class="card-body plot-controls-card-body">
+          <div id="card-subjects-{{ card_id }}" class="card-body plot-controls-card-body">
           </div>
         </div>
       </div>
 
       <div class="card">
-        <div id="heading-data-series-{{ card_id }}" class="card-header plot-controls-card-header">
+        <div id="heading-series-{{ card_id }}" class="card-header plot-controls-card-header">
           <h2 class="mb-0">
             <button class="btn btn-link btn-block text-left collapsed" type="button" data-toggle="collapse"
-                    data-target="#collapse-data-series-{{ card_id }}" aria-expanded="false"
-                    aria-controls="collapse-data-series-{{ card_id }}">
+                    data-target="#collapse-series-{{ card_id }}" aria-expanded="false"
+                    aria-controls="collapse-series-{{ card_id }}">
               Data series
             </button>
           </h2>
         </div>
-        <div id="collapse-data-series-{{ card_id }}" class="collapse" aria-labelledby="heading-data-series"
+        <div id="collapse-series-{{ card_id }}" class="collapse" aria-labelledby="heading-series"
              data-parent="#plot-controls-accordion-{{ card_id }}">
-          <div id="card-data-series-{{ card_id }}" class="card-body plot-controls-card-body">
+          <div id="card-series-{{ card_id }}" class="card-body plot-controls-card-body">
           </div>
         </div>
       </div>

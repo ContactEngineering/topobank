@@ -1,5 +1,40 @@
 <script>
+  function update_visibility(viz) {
+    visible = viz.subject_visible && viz.series_visible;
+    viz.line.visible = visible;
+    if (viz.symbols) {
+      viz.symbols.visible = visible;
+    }
+  }
+
+  function on_subject_clicked(cb) {
+    data_viz = $("#bokeh-plot-{{ card_id }}").data("viz");
+    subject = $(cb).data("subject");
+
+    for (let i = 0; i < {{ nb_series }}; i++) {
+      viz = data_viz["subject_" + subject + "_series_" + i];
+      if (viz) {
+        viz.subject_visible = cb.checked;
+        update_visibility(viz);
+      }
+    }
+  }
+
+  function on_series_clicked(cb) {
+    data_viz = $("#bokeh-plot-{{ card_id }}").data("viz");
+    series = $(cb).data("series");
+
+    for (let i = 0; i < {{ nb_subjects }}; i++) {
+      viz = data_viz["subject_" + i + "_series_" + series];
+      if (viz) {
+        viz.series_visible = cb.checked;
+        update_visibility(viz);
+      }
+    }
+  }
+
   $(document).ready(function () {
+    /* Create and style figure */
     const plot = new Bokeh.Plotting.Figure({
       height: 300,
       sizing_mode: "scale_width",
@@ -19,10 +54,11 @@
     plot.xaxis.axis_label_text_font_size = "16px";
     plot.yaxis.axis_label_text_font_size = "16px";
 
-    per_subject = {}
+    data_viz = {}
 
     {% for data_source in data_sources %}
       {
+        /* Rescale data to the same units */
         const code = `
           return {
             x: cb_data.response.x.map(value => {{ data_source.xscale }} * value),
@@ -30,6 +66,7 @@
           };
         `;
 
+        /* Data source: AJAX GET request to storage system retrieving a JSON */
         const source = new Bokeh.AjaxDataSource({
           data_url: "{{ data_source.url|safe }}",
           method: "GET",
@@ -37,34 +74,67 @@
           syncable: false,
           adapter: new Bokeh.CustomJS({code})
         });
+
+        /* Common attributes of lines and symbols */
         attrs = {
           source: source,
-          visible: {% if data_source.visible %} true {% else %} false {% endif %},
+          visible: {{ data_source.visible|yesno:"true,false" }},
           color: "{{ data_source.color }}",
           alpha: {{ data_source.alpha }}
         }
-        line = plot.line({field: "x"}, {field: "y"}, {...attrs, ...{width: {{ data_source.width }}}});
+
+        /* Create lines and symbols */
+        line = plot.line(
+          {field: "x"},
+          {field: "y"},
+          {...attrs, ...{width: {{ data_source.width }}}}
+        );
         {% if data_source.show_symbols %}
-          symbols = plot.circle({field: "x"}, {field: "y"}, {...attrs, ...{size: 10}});
+          symbols = plot.circle(
+            {field: "x"},
+            {field: "y"},
+            {...attrs, ...{size: 10, visible: {{ data_source.visible|yesno:"true,false" }}}}
+          );
         {% else %}
           symbols = null;
         {% endif %}
 
-        if (!("subject_{{ data_source.subject_index }}" in per_subject)) {
-          per_subject.subject_{{ data_source.subject_index }} = [];
-        }
-        per_subject.subject_{{ data_source.subject_index }}.push({line: line, symbols: symbols});
+        /* Dictionary that contains information on the state of each line/symbol */
+        data_viz.subject_{{ data_source.subject_index }}_series_{{ data_source.series_index }} = {
+          line: line,
+          symbols: symbols,
+          subject_visible: true,
+          series_visible: {{ data_source.visible|yesno:"true,false" }}
+        };
 
-        if ($('#card-measurements-{{ card_id }}').find('#measurement-{{ card_id }}-{{ data_source.subject_index }}').length == 0) {
-          /* Only create new checkbox if this series has not yet shown up in the data sources */
-          $('#card-measurements-{{ card_id }}').prepend(`
-            <div id="measurement-{{ card_id }}-{{ data_source.subject_index }}" class="custom-control custom-checkbox">
-              <input id="measurement-switch-{{ card_id }}-{{ data_source.subject_index }}" type="checkbox" class="custom-control-input"
-               style="::before{ background-color:black; }"
+        /* Create list of subjects with buttons to turn them on and off */
+        if ($('#card-subjects-{{ card_id }}').find('#subject-{{ card_id }}-{{ data_source.subject_index }}').length == 0) {
+          /* Only create new checkbox if this subject has not yet shown up in the data sources */
+          $('#card-subjects-{{ card_id }}').prepend(`
+            <div id="subject-{{ card_id }}-{{ data_source.subject_index }}" class="custom-control custom-checkbox">
+              <input id="subjects-switch-{{ card_id }}-{{ data_source.subject_index }}"
+               type="checkbox" class="custom-control-input" onclick="on_subject_clicked(this)"
+               data-subject="{{ data_source.subject_index }}"
                checked>
-              <label class="custom-control-label" for="measurement-switch-{{ card_id }}-{{ data_source.subject_index }}">
+              <label class="custom-control-label" for="subjects-switch-{{ card_id }}-{{ data_source.subject_index }}">
                 <span class="dot" style="background-color: {{ data_source.color }}"></span>
                 {{ data_source.name }}
+              </label>
+            </div>
+          `);
+        }
+
+        /* Create list of series with buttons to turn them on and off */
+        if ($('#card-series-{{ card_id }}').find('#series-{{ card_id }}-{{ data_source.series_index }}').length == 0) {
+          /* Only create new checkbox if this series has not yet shown up in the data sources */
+          $('#card-series-{{ card_id }}').prepend(`
+            <div id="series-{{ card_id }}-{{ data_source.series_index }}" class="custom-control custom-checkbox">
+              <input id="series-switch-{{ card_id }}-{{ data_source.series_index }}"
+               type="checkbox" class="custom-control-input" onclick="on_series_clicked(this)"
+               data-series="{{ data_source.series_index }}"
+               checked>
+              <label class="custom-control-label" for="series-switch-{{ card_id }}-{{ data_source.series_index }}">
+                {{ data_source.series }}
               </label>
             </div>
           `);
@@ -72,6 +142,10 @@
       }
     {% endfor %}
 
+    /* Render figure to HTML div */
     Bokeh.Plotting.show(plot, "#bokeh-plot-{{ card_id }}");
+
+    /* Attach our information on the state of the visualization to the div */
+    $("#bokeh-plot-{{ card_id }}").data("viz", data_viz);
   });
 </script>

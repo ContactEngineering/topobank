@@ -393,7 +393,8 @@ class PlotCardView(SimpleCardView):
         # but the only measurement's analysis has no success. In this case there is also
         # no successful analysis to display because the surface has only one measurement.
 
-        if len(analyses_success_list) == 0:
+        nb_analyses = len(analyses_success_list)
+        if nb_analyses == 0:
             #
             # Prepare plot, controls, and table with special values..
             #
@@ -446,12 +447,6 @@ class PlotCardView(SimpleCardView):
 
         ureg = UnitRegistry()  # for unit conversion for each analysis individually, see below
 
-        # #
-        # # set xrange, yrange -> automatic bounds for zooming
-        # #
-        # x_range = DataRange1d(bounds='auto')  # if min+max not given, calculate from data of render
-        # y_range = DataRange1d(bounds='auto')
-
         def get_axis_type(key):
             return first_analysis_result.get(key) or "linear"
 
@@ -463,7 +458,7 @@ class PlotCardView(SimpleCardView):
             y_axis_label += f' ({yunit})'
 
         #
-        # Create the plot figure
+        # Context information for the figure
         #
         context.update(dict(
             x_axis_label=x_axis_label,
@@ -603,20 +598,6 @@ class PlotCardView(SimpleCardView):
                     # TODO How to handle such an error here? Notification? Message in analysis box?
 
             for s_index, s in enumerate(series):
-                # We need to convert the data to the right unit in the client
-                # adapter = CustomJS(code=f'''
-                #     return {{
-                #         x: cb_data.response.x.map(value => {analysis_xscale} * value),
-                #         y: cb_data.response.y.map(value => {analysis_yscale} * value),
-                #     }};
-                # ''')
-
-                # By default, Bokeh sends a 'Content-Type: application/json' header, but that leads to a 403 Forbidden
-                # response from the S3 which expects no 'Content-Type' header. (The 'Content-Type' is part of the
-                # presigned URL but can apparently not be controlled from Django S3/Boto3.)
-                # source = AjaxDataSource(data_url=default_storage.url(f'{analysis.storage_prefix}/{s_index}.json'),
-                #                        method='GET', content_type='', syncable=False, adapter=adapter)
-
                 #
                 # Collect data for visibility of the corresponding series
                 #
@@ -650,8 +631,12 @@ class PlotCardView(SimpleCardView):
                 line_width = LINEWIDTH_FOR_SURFACE_AVERAGE if is_surface_analysis else 1
                 topo_alpha = DEFAULT_ALPHA_FOR_TOPOGRAPHIES if is_topography_analysis else 1.
 
+                #
+                # Context information for this data source
+                #
                 data_sources_dict += [dict(
                     name=subject_display_name,
+                    series=series_name,
                     xscale=analysis_xscale,
                     yscale=analysis_yscale,
                     url=default_storage.url(f'{analysis.storage_prefix}/{s_index}.json'),
@@ -665,28 +650,6 @@ class PlotCardView(SimpleCardView):
                     visible=series_idx in series_visible
                 )]
 
-            #     line_glyph = plot.line('x', 'y', source=source, legend_label=legend_entry,
-            #                            line_color=curr_color,
-            #                            line_dash=curr_dash,
-            #                            line_width=line_width,
-            #                            line_alpha=topo_alpha,
-            #                            name=subject_display_name)
-            #
-            #     series_glyphs[series_idx].append(line_glyph)
-            #
-            #     if show_symbols:
-            #         symbol_glyph = plot.scatter('x', 'y', source=source,
-            #                                     legend_label=legend_entry,
-            #                                     marker='circle',
-            #                                     size=10,
-            #                                     line_alpha=topo_alpha,
-            #                                     fill_alpha=topo_alpha,
-            #                                     line_color=curr_color,
-            #                                     line_dash=curr_dash,
-            #                                     fill_color=curr_color,
-            #                                     name=subject_display_name)
-            #         series_glyphs[series_idx].append(symbol_glyph)
-            #
             #     #
             #     # Prepare JS code to toggle visibility
             #     #
@@ -752,8 +715,6 @@ class PlotCardView(SimpleCardView):
         # #
         # # Final configuration of the plot
         # #
-        #
-        # configure_plot(plot)
         #
         # # plot.legend.click_policy = "hide" # can be used to disable lines by clicking on legend
         # plot.legend.visible = False  # we have extra widgets to disable lines
@@ -906,6 +867,8 @@ class PlotCardView(SimpleCardView):
         #     topography_colors=json.dumps(list(subject_colors.values())),
         #         series_dashes=json.dumps(list(series_dashes.values()))))
 
+        context['nb_subjects'] = nb_analyses
+        context['nb_series'] = len(series_names)
         context['data_sources'] = data_sources_dict
 
         return context
