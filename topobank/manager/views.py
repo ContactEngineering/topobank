@@ -8,7 +8,7 @@ import django_tables2 as tables
 import numpy as np
 
 from bokeh.embed import components
-from bokeh.models import FuncTickFormatter, TapTool, OpenURL
+from bokeh.models import TapTool, OpenURL
 from bokeh.plotting import figure, ColumnDataSource
 
 from django.conf import settings
@@ -920,7 +920,6 @@ class SurfaceDetailView(DetailView):
             plot.yaxis.visible = False
             plot.grid.visible = False
             plot.outline_line_color = None
-            plot.xaxis.formatter = FuncTickFormatter(code="return siSuffixMeters(2)(tick)")
 
             # make that 1 single topography does not look like a block
             if len(bw_data_without_errors) == 1:

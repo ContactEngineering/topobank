@@ -21,15 +21,15 @@ from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect, reverse
 from django.conf import settings
 
+import bokeh
 import bokeh.palettes as palettes
 from bokeh.layouts import column, grid, layout
-from bokeh.models import AjaxDataSource, ColumnDataSource, CustomJS, TapTool, Circle, HoverTool
+from bokeh.models import ColumnDataSource, CustomJS, TapTool, Circle, HoverTool
 from bokeh.models.ranges import DataRange1d
 from bokeh.plotting import figure
 from bokeh.embed import components, json_item
-from bokeh.models.widgets import CheckboxGroup, Tabs, Panel, Toggle, Div, Slider, Button
+from bokeh.models.widgets import CheckboxGroup, Tabs, Panel, Toggle, Button
 from bokeh.models import LinearColorMapper, ColorBar
-from bokeh.models.formatters import FuncTickFormatter
 
 import xarray as xr
 
@@ -322,6 +322,7 @@ class SimpleCardView(TemplateView):
         # comprise context for analysis result card
         #
         context.update(dict(
+            bokeh_version=bokeh.__version__,  # is there a way to inject this globally?
             card_id=card_id,
             title=function.name,
             function=function,
@@ -1333,7 +1334,6 @@ def _contact_mechanics_geometry_figure(values, frame_width, frame_height, topo_u
                             width=COLORBAR_WIDTH,
                             location=(0, 0),
                             title=f"{colorbar_title} ({value_unit})")
-        colorbar.formatter = FuncTickFormatter(code="return format_exponential(tick);")
         p.add_layout(colorbar, "right")
 
     configure_plot(p)
