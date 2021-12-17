@@ -12,10 +12,9 @@ function visualizeMap(id, prefixUrl, colorBar = null, downloadButton = null, ret
             type: 'get',
             success: function (meta) {
                 $('#' + id).empty();
-
                 meta.Image.Url = prefixUrl + 'dzi_files/';
 
-                viewer = new OpenSeadragon.Viewer({
+                let viewer = new OpenSeadragon.Viewer({
                     id: id,
                     tileSources: meta,
                     showNavigator: true,
