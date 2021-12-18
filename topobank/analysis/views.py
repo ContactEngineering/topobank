@@ -867,9 +867,9 @@ class PlotCardView(SimpleCardView):
         #     topography_colors=json.dumps(list(subject_colors.values())),
         #         series_dashes=json.dumps(list(series_dashes.values()))))
 
-        context['nb_subjects'] = nb_analyses
-        context['nb_series'] = len(series_names)
-        context['data_sources'] = data_sources_dict
+        context['subjects'] = [dict(name=name, color=color) for name, color in subject_colors.items()]
+        context['series'] = [dict(name=name, visible=(i in series_visible)) for i, name in enumerate(series_names)]
+        context['data_sources'] = json.dumps(data_sources_dict)
 
         return context
 

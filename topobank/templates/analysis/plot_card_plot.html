@@ -17,6 +17,17 @@
         <div id="collapse-subjects-{{ card_id }}" class="collapse" aria-labelledby="heading-subjects"
              data-parent="#plot-controls-accordion-{{ card_id }}">
           <div id="card-subjects-{{ card_id }}" class="card-body plot-controls-card-body">
+            {% for subject in subjects %}
+              <div id="subject-{{ card_id }}-{{ forloop.counter0 }}" class="custom-control custom-checkbox">
+                <input id="subjects-switch-{{ card_id }}-{{ forloop.counter0 }}"
+                       class="custom-control-input"
+                       type="checkbox" value="{{ forloop.counter0 }}" v-model="subjects">
+                <label class="custom-control-label" for="subjects-switch-{{ card_id }}-{{ forloop.counter0 }}">
+                  <span class="dot" style="background-color: {{ subject.color }}"></span>
+                  {{ subject.name }}
+                </label>
+              </div>
+            {% endfor %}
           </div>
         </div>
       </div>
@@ -34,6 +45,16 @@
         <div id="collapse-series-{{ card_id }}" class="collapse" aria-labelledby="heading-series"
              data-parent="#plot-controls-accordion-{{ card_id }}">
           <div id="card-series-{{ card_id }}" class="card-body plot-controls-card-body">
+            {% for ser in series %}
+              <div id="series-{{ card_id }}-{{ forloop.counter0 }}" class="custom-control custom-checkbox">
+                <input id="series-switch-{{ card_id }}-{{ forloop.counter0 }}"
+                       class="custom-control-input"
+                       type="checkbox" value="{{ forloop.counter0 }}" v-model="series">
+                <label class="custom-control-label" for="series-switch-{{ card_id }}-{{ forloop.counter0 }}">
+                  {{ ser.name }}
+                </label>
+              </div>
+            {% endfor %}
           </div>
         </div>
       </div>
