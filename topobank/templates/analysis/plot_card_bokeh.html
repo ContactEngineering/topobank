@@ -53,33 +53,16 @@
           }
 
           /* Create lines and symbols */
-          line = plot.line(
+          data_source.line = plot.line(
             {field: "x"},
             {field: "y"},
             {...attrs, ...{width: data_source.width}}
           );
-          if (data_source.show_symbols) {
-            symbols = plot.circle(
-              {field: "x"},
-              {field: "y"},
-              {...attrs, ...{size: 10, visible: data_source.visible}}
-            );
-          } else {
-            symbols = null;
-          }
-
-          /* Two-dimensional array that contains information on the state of each line/symbol */
-          while (this.data_viz.length <= data_source.subject_index + 1) {
-            this.data_viz.push([]);
-          }
-          subject_viz = this.data_viz[data_source.subject_index];
-          while (subject_viz.length <= data_source.series_index + 1) {
-            subject_viz.push(null);
-          }
-          subject_viz[data_source.series_index] = {
-            line: line,
-            symbols: symbols
-          };
+          data_source.symbols = plot.circle(
+            {field: "x"},
+            {field: "y"},
+            {...attrs, ...{size: 10, visible: data_source.visible && data_source.show_symbols}}
+          );
         }
 
         /* Render figure to HTML div */
@@ -94,29 +77,32 @@
         x_axis_type: "{{ x_axis_type }}",
         y_axis_type: "{{ y_axis_type }}",
         output_backend: "{{ output_backend }}",
+        data_viz: [],
         subjects: [...Array({{ subjects|length }}).keys()],
         series: visible_series,
-        data_viz: []
+        opacity: 0.4
       },
       watch: {
-        subjects: function (subjects) {
-          this.updateVisibility();
+        subjects: function () {
+          this.refreshPlot();
         },
-        series: function (subjects) {
-          this.updateVisibility();
+        series: function () {
+          this.refreshPlot();
+        },
+        opacity: function () {
+          this.refreshPlot();
         }
       },
       methods: {
-        updateVisibility() {
-          for (const [index1, element1] of this.data_viz.entries()) {
-            for (const [index2, element2] of element1.entries()) {
-              if (element2 !== null) {
-                visible = index1 in this.subjects && index2 in this.series;
-                  element2.line.visible = visible;
-                  if (element2.symbols !== null) {
-                    element2.symbols.visible = visible;
-                }
-              }
+        refreshPlot() {
+          for (const data_source of this.data_sources) {
+            visible = data_source.subject_index in this.subjects && data_source.series_index in this.series;
+            data_source.line.visible = visible;
+            data_source.symbols.visible = visible && data_source.show_symbols;
+            console.log(data_source.is_topography_analysis, this.opacity);
+            if (data_source.is_topography_analysis) {
+              data_source.line.alpha = this.opacity;
+              data_source.symbols.alpha = this.opacity;
             }
           }
         }

@@ -71,6 +71,10 @@
         <div id="collapse-plot-options-{{ card_id }}" class="collapse" aria-labelledby="heading-plot-options"
              data-parent="#plot-controls-accordion-{{ card_id }}">
           <div id="card-plot-options-{{ card_id }}" class="card-body plot-controls-card-body">
+              <div class="form-group">
+                <label for="opacity-slider">Opacity of measurement lines: {% verbatim %}{{ opacity }}{% endverbatim %}</label>
+                <input type="range" min="0" max="1" step="0.1" class="form-control-range" id="opacity-slider" v-model="opacity">
+              </div>
           </div>
         </div>
       </div>

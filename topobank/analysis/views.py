@@ -647,7 +647,9 @@ class PlotCardView(SimpleCardView):
                     show_symbols=show_symbols,
                     subject_index=a_index,
                     series_index=series_idx,
-                    visible=series_idx in series_visible
+                    visible=series_idx in series_visible,
+                    is_surface_analysis=is_surface_analysis,
+                    is_topography_analysis=is_topography_analysis
                 )]
 
             #     #
