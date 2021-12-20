@@ -1,6 +1,6 @@
 {% load icon_tags %}
 
-<ul role="tablist" class="nav nav-tabs lined-tabs flex-column flex-sm-row bg-light w-100 shadow">
+<ul role="tablist" class="nav nav-tabs lined-tabs flex-column flex-sm-row bg-light w-100 shadow fixed-top fixed-top-2">
   {% for tab in tabs %}
     <li class="nav-item" title="{{ tab.tooltip }}">
       <a class="nav-link {% if tab.active %}active{% endif %}" href="{% if tab.href %}{{ tab.href }}{% else %}{{ request.path }}{% endif %}">
@@ -20,7 +20,6 @@
     </li>
   {% endif %}
 </ul>
-
 {% if active_tab.show_basket %}
     {# display selected items in session #}
     <div id="basket-container" class="container-fluid bg-light shadow border-bottom py-2">
@@ -42,10 +41,10 @@
             </a>
           </div>
         </div>
-        <div class="m-1" v-else>No items selected yet. In order to select, please use the checkboxes on the
+        <div class="m-1" v-else>No items selected yet. In order to select for <em>comparative studies</em>,
+          please check individual items on the
           <a class="text-dark" href="{% url 'manager:select' %}">{% fa5_icon 'check-square' 'far' %} Find & select</a> tab.
         </div>
       </div>
     </div>
 {% endif %}
-
