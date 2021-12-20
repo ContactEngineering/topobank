@@ -11,6 +11,8 @@
 - ENH: Improved layout of contact mechanics analyses
 - ENH: Faster access to bandwidths of measurements due to
   caching in database (#421, #605)
+- ENH: Creation of images for measurements can be triggered
+  in background via management command (#778)
 - BUG: Fixes progress meter flaws for slope-dependent 
   properties (#755)
 - BUG: Fixes insufficient number of arguments for
