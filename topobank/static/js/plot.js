@@ -1,7 +1,7 @@
 Vue.component("bokeh-plot", {
   template: `
     <div>
-      <div :id='"bokeh-plot-"+uniquePrefix'></div>
+      <div :id='"bokeh-plot-"+uniquePrefix' ref="bokehPlot"></div>
       <div :id='"plot-controls-accordion-"+uniquePrefix' class="accordion plot-controls-accordion">
         <div v-for="category in categoryElements" class="card">
           <div :id='"heading-"+uniquePrefix+"-"+category.name' class="card-header plot-controls-card-header">
@@ -54,10 +54,47 @@ Vue.component("bokeh-plot", {
                class="collapse"
                :aria-labelledby='"heading-plot-options-"+uniquePrefix'
                :data-parent='"#plot-controls-accordion-"+uniquePrefix'>
+
+
             <div class="card-body plot-controls-card-body">
               <div class="form-group">
-                <label :for='"opacity-slider"+uniquePrefix'>Opacity of measurement lines: {{ opacity }}</label>
-                <input :id='"opacity-slider"+uniquePrefix'
+                <label :for='"plot-layout-"+uniquePrefix' hidden>Plot layout:</label>
+                <select class="form-control"
+                       :id='"plot-layout-"+uniquePrefix'
+                       v-model="layout">
+                  <option value="web">Optimize plot for web (plot scales with window size)</option>
+                  <option value="print-single">Optimize plot for print (single-column layout)</option>
+                  <option value="print-double">Optimize plot for print (two-column layout)</option>
+                </select>
+              </div>
+
+<!-- Adjusting line width does not work
+              <div class="form-group">
+                <label :for='"line-width-slider-"+uniquePrefix'>Line width: <b>{{ lineWidth }}</b></label>
+                <input :id='"line-width-slider-"+uniquePrefix'
+                       type="range"
+                       min="0.1"
+                       max="2.0"
+                       step="0.1"
+                       class="form-control-range"
+                       v-model="lineWidth">
+              </div>
+-->
+
+              <div class="form-group">
+                <label :for='"symbol-size-slider-"+uniquePrefix'>Symbol size: <b>{{ symbolSize }}</b></label>
+                <input :id='"symbol-size-slider-"+uniquePrefix'
+                       type="range"
+                       min="1"
+                       max="20"
+                       step="1"
+                       class="form-control-range"
+                       v-model="symbolSize">
+              </div>
+
+              <div class="form-group">
+                <label :for='"opacity-slider-"+uniquePrefix'>Opacity of lines/symbols (measurements only): <b>{{ opacity }}</b></label>
+                <input :id='"opacity-slider-"+uniquePrefix'
                        type="range"
                        min="0"
                        max="1"
@@ -65,6 +102,7 @@ Vue.component("bokeh-plot", {
                        class="form-control-range"
                        v-model="opacity">
               </div>
+
             </div>
           </div>
         </div>
@@ -84,6 +122,10 @@ Vue.component("bokeh-plot", {
       type: Number,
       default: 300
     },
+    width: {
+      type: Number,
+      default: null
+    },
     sizingMode: {
       type: String,
       default: "scale_width"
@@ -95,7 +137,10 @@ Vue.component("bokeh-plot", {
   },
   data: function () {
     return {
+      layout: "web",
       opacity: 0.4,
+      lineWidth: 1,
+      symbolSize: 10,
       categoryElements: []
     };
   },
@@ -133,67 +178,7 @@ Vue.component("bokeh-plot", {
     }
   },
   mounted: function () {
-    /* Create and style figure */
-    const plot = new Bokeh.Plotting.Figure({
-      height: this.height,
-      sizing_mode: this.sizingMode,
-      x_axis_label: this.xAxisLabel,
-      y_axis_label: this.yAxisLabel,
-      x_axis_type: this.xAxisType,
-      y_axis_type: this.yAxisType,
-      tools: this.tools,
-      output_backend: this.outputBackend
-    });
-
-    /* This should become a Bokeh theme
-       (supported in BokehJS with 3.0 - but I cannot find the `use_theme` method) */
-    plot.xaxis.axis_label_text_font_style = "normal";
-    plot.yaxis.axis_label_text_font_style = "normal";
-    plot.xaxis.major_label_text_font_size = "16px";
-    plot.yaxis.major_label_text_font_size = "16px";
-    plot.xaxis.axis_label_text_font_size = "16px";
-    plot.yaxis.axis_label_text_font_size = "16px";
-
-    /* We iterate in reverse order because we want to the first element to appear on top of the plot */
-    for (const dataSource of this.dataSources.reverse()) {
-      /* Rescale all data to identical units */
-      const code = "return { x: cb_data.response.x.map(value => " + dataSource.xscale + " * value), " +
-        "y: cb_data.response.y.map(value => " + dataSource.yscale + " * value) };";
-
-      /* Data source: AJAX GET request to storage system retrieving a JSON */
-      const source = new Bokeh.AjaxDataSource({
-        data_url: dataSource.url,
-        method: "GET",
-        content_type: "",
-        syncable: false,
-        adapter: new Bokeh.CustomJS({code})
-      });
-
-      /* Common attributes of lines and symbols */
-      attrs = {
-        source: source,
-        visible: dataSource.visible,
-        color: dataSource.color,
-        alpha: dataSource.alpha
-      }
-
-      /* Create lines and symbols */
-      dataSource.line = plot.line(
-        {field: "x"},
-        {field: "y"},
-        {...attrs, ...{width: dataSource.width}}
-      );
-      dataSource.symbols = plot.circle(
-        {field: "x"},
-        {field: "y"},
-        {...attrs, ...{size: 10, visible: dataSource.visible && dataSource.show_symbols}}
-      );
-    }
-
-    /* Render figure to HTML div */
-    Bokeh.Plotting.show(plot, "#bokeh-plot-" + this.uniquePrefix);
-
-    this.plot = plot;
+    this.buildPlot();
   },
   watch: {
     categoryElements: {
@@ -202,11 +187,105 @@ Vue.component("bokeh-plot", {
       },
       deep: true
     },
+    layout: function (layout) {
+      /* Predefined layouts */
+      switch (layout) {
+        case 'web':
+          this.plot.sizing_mode = "scale_width";
+          this.plot.width = null;
+          this.plot.height = 300;
+          this.symbolSize = 10;
+          break;
+        case 'print-single':
+          this.plot.sizing_mode = "fixed";
+          this.plot.width = 600;
+          this.plot.height = 300;
+          this.symbolSize = 5;
+          break;
+        case 'print-double':
+          this.plot.sizing_mode = "fixed";
+          this.plot.width = 400;
+          this.plot.height = 250;
+          this.symbolSize = 5;
+          break;
+      }
+
+      this.refreshPlot();
+    },
     opacity: function () {
+      this.refreshPlot();
+    },
+    symbolSize: function () {
       this.refreshPlot();
     }
   },
   methods: {
+    buildPlot() {
+      for (const child of this.$refs.bokehPlot.children) {
+        this.$refs.bokehPlot.removeChild(child);
+      }
+
+      /* Create and style figure */
+      const plot = new Bokeh.Plotting.Figure({
+        height: this.height,
+        sizing_mode: this.sizingMode,
+        x_axis_label: this.xAxisLabel,
+        y_axis_label: this.yAxisLabel,
+        x_axis_type: this.xAxisType,
+        y_axis_type: this.yAxisType,
+        tools: this.tools,
+        output_backend: this.outputBackend
+      });
+
+      /* This should become a Bokeh theme
+         (supported in BokehJS with 3.0 - but I cannot find the `use_theme` method) */
+      plot.xaxis.axis_label_text_font_style = "normal";
+      plot.yaxis.axis_label_text_font_style = "normal";
+      plot.xaxis.major_label_text_font_size = "16px";
+      plot.yaxis.major_label_text_font_size = "16px";
+      plot.xaxis.axis_label_text_font_size = "16px";
+      plot.yaxis.axis_label_text_font_size = "16px";
+
+      /* We iterate in reverse order because we want to the first element to appear on top of the plot */
+      for (const dataSource of this.dataSources.reverse()) {
+        /* Rescale all data to identical units */
+        const code = "return { x: cb_data.response.x.map(value => " + dataSource.xscale + " * value), " +
+          "y: cb_data.response.y.map(value => " + dataSource.yscale + " * value) };";
+
+        /* Data source: AJAX GET request to storage system retrieving a JSON */
+        const source = new Bokeh.AjaxDataSource({
+          data_url: dataSource.url,
+          method: "GET",
+          content_type: "",
+          syncable: false,
+          adapter: new Bokeh.CustomJS({code})
+        });
+
+        /* Common attributes of lines and symbols */
+        attrs = {
+          source: source,
+          visible: dataSource.visible,
+          color: dataSource.color,
+          alpha: dataSource.alpha
+        }
+
+        /* Create lines and symbols */
+        dataSource.line = plot.line(
+          {field: "x"},
+          {field: "y"},
+          {...attrs, ...{width: Number(this.lineWidth) * dataSource.width}}
+        );
+        dataSource.symbols = plot.circle(
+          {field: "x"},
+          {field: "y"},
+          {...attrs, ...{size: Number(this.symbolSize), visible: dataSource.visible && dataSource.show_symbols}}
+        );
+      }
+
+      /* Render figure to HTML div */
+      this.element = Bokeh.Plotting.show(plot, "#bokeh-plot-" + this.uniquePrefix);
+      this.plot = plot;
+    },
     refreshPlot() {
       for (const dataSource of this.dataSources) {
         visible = true;
@@ -215,9 +294,13 @@ Vue.component("bokeh-plot", {
         }
         dataSource.line.visible = visible;
         dataSource.symbols.visible = visible && dataSource.show_symbols;
+        console.log(dataSource.line.glyph);
+        console.log(dataSource.symbols.glyph);
+        dataSource.line.glyph.line_width = Number(this.lineWidth) * dataSource.width;
+        dataSource.symbols.glyph.size = Number(this.symbolSize);
         if (dataSource.is_topography_analysis) {
-          dataSource.line.alpha = this.opacity;
-          dataSource.symbols.alpha = this.opacity;
+          dataSource.line.glyph.line_alpha = Number(this.opacity);
+          dataSource.symbols.glyph.line_alpha = Number(this.opacity);
         }
       }
     }
