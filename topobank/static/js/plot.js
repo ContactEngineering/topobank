@@ -80,6 +80,18 @@ Vue.component("bokeh-plot", {
     xAxisType: String,
     yAxisType: String,
     outputBackend: String,
+    height: {
+      type: Number,
+      default: 300
+    },
+    sizingMode: {
+      type: String,
+      default: "scale_width"
+    },
+    tools: {
+      type: Array,
+      default: function() { return ["pan", "reset", "save", "wheel_zoom", "box_zoom", "hover"]; }
+    }
   },
   data: function () {
     return {
@@ -123,13 +135,13 @@ Vue.component("bokeh-plot", {
   mounted: function () {
     /* Create and style figure */
     const plot = new Bokeh.Plotting.Figure({
-      height: 300,
-      sizing_mode: "scale_width",
+      height: this.height,
+      sizing_mode: this.sizingMode,
       x_axis_label: this.xAxisLabel,
       y_axis_label: this.yAxisLabel,
       x_axis_type: this.xAxisType,
       y_axis_type: this.yAxisType,
-      tools: "pan,reset,save,wheel_zoom,box_zoom,hover",
+      tools: this.tools,
       output_backend: this.outputBackend
     });
 
@@ -180,6 +192,8 @@ Vue.component("bokeh-plot", {
 
     /* Render figure to HTML div */
     Bokeh.Plotting.show(plot, "#bokeh-plot-" + this.uniquePrefix);
+
+    this.plot = plot;
   },
   watch: {
     categoryElements: {
