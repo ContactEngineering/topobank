@@ -12,22 +12,25 @@ Vue.component("bokeh-plot", {
                       :data-target='"#collapse-"+uniquePrefix+"-"+category.name'
                       aria-expanded="false"
                       :aria-controls='"collapse-"+uniquePrefix+"-"+category.name'>
-                {{ category.title }}
+                [[ category.title ]]
               </button>
             </h2>
           </div>
-<!--                  <span class="dot" style="background-color: {{ subject.color }}"></span>   -->
           <div :id='"collapse-"+uniquePrefix+"-"+category.name'
                class="collapse"
                :aria-labelledby='"heading-"+uniquePrefix+"-"+category.name'
                :data-parent='"#plot-controls-accordion-"+uniquePrefix'>
             <div :id='"card-subjects"+uniquePrefix' class="card-body plot-controls-card-body">
-              <div v-for="(title, index) in category.titles" class="custom-control custom-checkbox"> <!--:id='"subject-"+uniquePrefix+"-"+index'-->
+              <div v-for="(element, index) in category.elements" class="custom-control custom-checkbox"> <!--:id='"subject-"+uniquePrefix+"-"+index'-->
                 <input :id='"switch-"+uniquePrefix+"-"+category.name+"-"+index'
                        class="custom-control-input"
-                       type="checkbox" :value="index" v-model="category.selection">
-                <label class="custom-control-label" :for='"switch-"+uniquePrefix+"-"+category.name+"-"+index'>
-                  {{ title }}
+                       type="checkbox"
+                       :value="index"
+                       v-model="category.selection">
+                <label class="custom-control-label"
+                       :for='"switch-"+uniquePrefix+"-"+category.name+"-"+index'>
+                  <span class="dot" v-if="element.color !== null" :style='"background-color: "+element.color'></span>
+                  [[ element.title ]]
                 </label>
               </div>
             </div>
@@ -52,16 +55,16 @@ Vue.component("bokeh-plot", {
                :aria-labelledby='"heading-plot-options-"+uniquePrefix'
                :data-parent='"#plot-controls-accordion-"+uniquePrefix'>
             <div class="card-body plot-controls-card-body">
-                <div class="form-group">
-                  <label :for='"opacity-slider"+uniquePrefix'>Opacity of measurement lines: {{ opacity }}</label>
-                  <input :id='"opacity-slider"+uniquePrefix'
-                         type="range"
-                         min="0"
-                         max="1"
-                         step="0.1"
-                         class="form-control-range"
-                         v-model="opacity">
-                </div>
+              <div class="form-group">
+                <label :for='"opacity-slider"+uniquePrefix'>Opacity of measurement lines: [[ opacity ]]</label>
+                <input :id='"opacity-slider"+uniquePrefix'
+                       type="range"
+                       min="0"
+                       max="1"
+                       step="0.1"
+                       class="form-control-range"
+                       v-model="opacity">
+              </div>
             </div>
           </div>
         </div>
@@ -78,6 +81,7 @@ Vue.component("bokeh-plot", {
     yAxisType: String,
     outputBackend: String,
   },
+  delimiters: ['[[', ']]'],
   data: function () {
     data = {
       opacity: 0.4
@@ -85,25 +89,30 @@ Vue.component("bokeh-plot", {
 
     /* For each category, check which options there are and create an empty array */
     for (const category of this.categories) {
-      console.log(category.name);
       category.selection = [];  /* Stores selection */
-      category.titles = new Set();  /* Store titles */
+      category.titles = new Set();  /* Unique titles */
+      category.elements = [];  /* Titles and colors */
     }
 
     return data;
   },
-  created() {
+  created: function () {
     /* For each category, create a list of unique entries */
-    for (const category of this.categories) {
+    for (const [index, category] of this.categories.entries()) {
       for (const dataSource of this.dataSources) {
         if (!(category.name in dataSource)) {
           throw new Error("Key '" + category.name + "' not found in data source '" + dataSource.name + "'.");
         }
-        category.titles.add(dataSource[category.name]);
+        title = dataSource[category.name];
+        if (!(category.titles.has(title))) {
+          color = index == 0 ? dataSource.color : null;
+          category.titles.add(title);
+          category.elements.push({title: title, color: color});
+        }
       }
     }
   },
-  mounted() {
+  mounted: function () {
     /* Create and style figure */
     const plot = new Bokeh.Plotting.Figure({
       height: 300,
@@ -164,10 +173,8 @@ Vue.component("bokeh-plot", {
     Bokeh.Plotting.show(plot, "#bokeh-plot-" + this.uniquePrefix);
   },
   watch: {
-    subjects: function () {
-      this.refreshPlot();
-    },
-    series: function () {
+    categories: function (val) {
+      console.log(val);
       this.refreshPlot();
     },
     opacity: function (val) {
