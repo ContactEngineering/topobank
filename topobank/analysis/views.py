@@ -385,7 +385,7 @@ class PlotCardView(SimpleCardView):
         for surface_analysis in analyses_success.filter(subject_type=surface_ct):
             if surface_analysis.subject.num_topographies() > 1:
                 # only show average for surface if more than one topography
-                analyses_success_list.append(surface_analysis)
+                analyses_success_list.insert(0, surface_analysis)
 
         data_sources_dict = []
 

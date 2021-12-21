@@ -142,7 +142,8 @@ Vue.component("bokeh-plot", {
     plot.xaxis.axis_label_text_font_size = "16px";
     plot.yaxis.axis_label_text_font_size = "16px";
 
-    for (const dataSource of this.dataSources) {
+    /* We iterate in reverse order because we want to the first element to appear on top of the plot */
+    for (const dataSource of this.dataSources.reverse()) {
       /* Rescale all data to identical units */
       const code = "return { x: cb_data.response.x.map(value => " + dataSource.xscale + " * value), " +
         "y: cb_data.response.y.map(value => " + dataSource.yscale + " * value) };";
