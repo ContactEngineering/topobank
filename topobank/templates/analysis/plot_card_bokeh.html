@@ -1,112 +1,19 @@
+<div class="tab-pane show active" id="plot-{{ card_id }}" role="tabpanel" aria-labelledby="card-tab">
+  {% include 'analysis/analyses_alerts.html' %}
+  {% if analyses_success %}
+    {# Show all analyses for which we have results #}
+    <bokeh-plot unique-prefix="bokeh-{{ card_id }}"
+                :data-sources='{{ data_sources|safe }}'
+                :categories='[{name:"name", title:"Averages / Measurements"},{name:"series", title:"Data series"}]'
+                x-axis-label="{{ x_axis_label }}"
+                y-axis-label="{{ y_axis_label }}"
+                x-axis-type="{{ x_axis_type }}"
+                y-axis-type="{{ y_axis_type }}"
+                output-backend="{{ output_backend }}">
+    </bokeh-plot>
+  {% endif %}
+</div>
+
 <script>
-  $(document).ready(function () {
-    visible_series = [];
-    {% for ser in series %}
-      {% if ser.visible %}
-        visible_series.push("{{ forloop.counter0 }}");
-      {% endif %}
-    {% endfor %}
-
-    new Vue({
-      mounted() {
-        /* Create and style figure */
-        const plot = new Bokeh.Plotting.Figure({
-          height: 300,
-          sizing_mode: "scale_width",
-          x_axis_label: this.x_axis_label,
-          y_axis_label: this.y_axis_label,
-          x_axis_type: this.x_axis_type,
-          y_axis_type: this.y_axis_type,
-          tools: "pan,reset,save,wheel_zoom,box_zoom,hover",
-          output_backend: this.output_backend
-        });
-
-        /* This should become a Bokeh theme
-           (supported in BokehJS with 3.0 - but I cannot find the `use_theme` method) */
-        plot.xaxis.axis_label_text_font_style = "normal";
-        plot.yaxis.axis_label_text_font_style = "normal";
-        plot.xaxis.major_label_text_font_size = "16px";
-        plot.yaxis.major_label_text_font_size = "16px";
-        plot.xaxis.axis_label_text_font_size = "16px";
-        plot.yaxis.axis_label_text_font_size = "16px";
-
-        for (const data_source of this.data_sources) {
-          /* Rescale all data to identical units */
-          const code = "return { x: cb_data.response.x.map(value => " + data_source.xscale + " * value), " +
-            "y: cb_data.response.y.map(value => " + data_source.yscale + " * value) };";
-
-          /* Data source: AJAX GET request to storage system retrieving a JSON */
-          const source = new Bokeh.AjaxDataSource({
-            data_url: data_source.url,
-            method: "GET",
-            content_type: "",
-            syncable: false,
-            adapter: new Bokeh.CustomJS({code})
-          });
-
-          /* Common attributes of lines and symbols */
-          attrs = {
-            source: source,
-            visible: data_source.visible,
-            color: data_source.color,
-            alpha: data_source.alpha
-          }
-
-          /* Create lines and symbols */
-          data_source.line = plot.line(
-            {field: "x"},
-            {field: "y"},
-            {...attrs, ...{width: data_source.width}}
-          );
-          data_source.symbols = plot.circle(
-            {field: "x"},
-            {field: "y"},
-            {...attrs, ...{size: 10, visible: data_source.visible && data_source.show_symbols}}
-          );
-        }
-
-        /* Render figure to HTML div */
-        Bokeh.Plotting.show(plot, this.bokeh_el);
-      },
-      el: "#plot-{{ card_id }}",
-      data: {
-        bokeh_el: "#bokeh-plot-{{ card_id }}",
-        data_sources: {{ data_sources|safe }},
-        x_axis_label: "{{ x_axis_label }}",
-        y_axis_label: "{{ y_axis_label }}",
-        x_axis_type: "{{ x_axis_type }}",
-        y_axis_type: "{{ y_axis_type }}",
-        output_backend: "{{ output_backend }}",
-        data_viz: [],
-        subjects: [...Array({{ subjects|length }}).keys()],
-        series: visible_series,
-        opacity: 0.4
-      },
-      watch: {
-        subjects: function () {
-          this.refreshPlot();
-        },
-        series: function () {
-          this.refreshPlot();
-        },
-        opacity: function () {
-          this.refreshPlot();
-        }
-      },
-      methods: {
-        refreshPlot() {
-          for (const data_source of this.data_sources) {
-            visible = data_source.subject_index in this.subjects && data_source.series_index in this.series;
-            data_source.line.visible = visible;
-            data_source.symbols.visible = visible && data_source.show_symbols;
-            console.log(data_source.is_topography_analysis, this.opacity);
-            if (data_source.is_topography_analysis) {
-              data_source.line.alpha = this.opacity;
-              data_source.symbols.alpha = this.opacity;
-            }
-          }
-        }
-      }
-    })
-  });
+  new Vue({el: "#plot-{{ card_id }}"});
 </script>
