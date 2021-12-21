@@ -48,10 +48,3 @@
 </div>
 
 {% include 'analysis/task_info_modal.html' %}
-
-
-{% block card_javascript %}
-  {% if analyses_success %}
-    {% include 'analysis/plot_card_bokeh.html' %}
-  {% endif %}
-{% endblock card_javascript %}
