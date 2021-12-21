@@ -385,7 +385,7 @@ class PlotCardView(SimpleCardView):
         for surface_analysis in analyses_success.filter(subject_type=surface_ct):
             if surface_analysis.subject.num_topographies() > 1:
                 # only show average for surface if more than one topography
-                analyses_success_list.insert(0, surface_analysis)
+                analyses_success_list.append(surface_analysis)
 
         data_sources_dict = []
 
@@ -636,7 +636,9 @@ class PlotCardView(SimpleCardView):
                 #
                 data_sources_dict += [dict(
                     name=subject_display_name,
+                    name_index=a_index,
                     series=series_name,
+                    series_index=series_idx,
                     xscale=analysis_xscale,
                     yscale=analysis_yscale,
                     url=default_storage.url(f'{analysis.storage_prefix}/{s_index}.json'),
@@ -645,8 +647,6 @@ class PlotCardView(SimpleCardView):
                     width=line_width,
                     alpha=topo_alpha,
                     show_symbols=show_symbols,
-                    subject_index=a_index,
-                    series_index=series_idx,
                     visible=series_idx in series_visible,
                     is_surface_analysis=is_surface_analysis,
                     is_topography_analysis=is_topography_analysis

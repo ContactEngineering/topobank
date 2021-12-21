@@ -3,7 +3,7 @@ Vue.component("bokeh-plot", {
     <div>
       <div :id='"bokeh-plot-"+uniquePrefix'></div>
       <div :id='"plot-controls-accordion-"+uniquePrefix' class="accordion plot-controls-accordion">
-        <div v-for="category in categories" class="card">
+        <div v-for="category in categoryElements" class="card">
           <div :id='"heading-"+uniquePrefix+"-"+category.name' class="card-header plot-controls-card-header">
             <h2 class="mb-0">
               <button class="btn btn-link btn-block text-left collapsed"
@@ -12,7 +12,7 @@ Vue.component("bokeh-plot", {
                       :data-target='"#collapse-"+uniquePrefix+"-"+category.name'
                       aria-expanded="false"
                       :aria-controls='"collapse-"+uniquePrefix+"-"+category.name'>
-                [[ category.title ]]
+                {{ category.title }}
               </button>
             </h2>
           </div>
@@ -21,7 +21,7 @@ Vue.component("bokeh-plot", {
                :aria-labelledby='"heading-"+uniquePrefix+"-"+category.name'
                :data-parent='"#plot-controls-accordion-"+uniquePrefix'>
             <div :id='"card-subjects"+uniquePrefix' class="card-body plot-controls-card-body">
-              <div v-for="(element, index) in category.elements" class="custom-control custom-checkbox"> <!--:id='"subject-"+uniquePrefix+"-"+index'-->
+              <div v-for="(element, index) in category.elements" class="custom-control custom-checkbox">
                 <input :id='"switch-"+uniquePrefix+"-"+category.name+"-"+index'
                        class="custom-control-input"
                        type="checkbox"
@@ -30,7 +30,7 @@ Vue.component("bokeh-plot", {
                 <label class="custom-control-label"
                        :for='"switch-"+uniquePrefix+"-"+category.name+"-"+index'>
                   <span class="dot" v-if="element.color !== null" :style='"background-color: "+element.color'></span>
-                  [[ element.title ]]
+                  {{ element.title }}
                 </label>
               </div>
             </div>
@@ -56,7 +56,7 @@ Vue.component("bokeh-plot", {
                :data-parent='"#plot-controls-accordion-"+uniquePrefix'>
             <div class="card-body plot-controls-card-body">
               <div class="form-group">
-                <label :for='"opacity-slider"+uniquePrefix'>Opacity of measurement lines: [[ opacity ]]</label>
+                <label :for='"opacity-slider"+uniquePrefix'>Opacity of measurement lines: {{ opacity }}</label>
                 <input :id='"opacity-slider"+uniquePrefix'
                        type="range"
                        min="0"
@@ -81,35 +81,43 @@ Vue.component("bokeh-plot", {
     yAxisType: String,
     outputBackend: String,
   },
-  delimiters: ['[[', ']]'],
   data: function () {
-    data = {
-      opacity: 0.4
+    return {
+      opacity: 0.4,
+      categoryElements: []
     };
-
-    /* For each category, check which options there are and create an empty array */
-    for (const category of this.categories) {
-      category.selection = [];  /* Stores selection */
-      category.titles = new Set();  /* Unique titles */
-      category.elements = [];  /* Titles and colors */
-    }
-
-    return data;
   },
   created: function () {
     /* For each category, create a list of unique entries */
     for (const [index, category] of this.categories.entries()) {
+      let titles = new Set();
+      let elements = [];
+      let selection = [];
+
       for (const dataSource of this.dataSources) {
+
         if (!(category.name in dataSource)) {
           throw new Error("Key '" + category.name + "' not found in data source '" + dataSource.name + "'.");
         }
+
         title = dataSource[category.name];
-        if (!(category.titles.has(title))) {
-          color = index == 0 ? dataSource.color : null;
-          category.titles.add(title);
-          category.elements.push({title: title, color: color});
+        if (!(titles.has(title))) {
+          color = index == 0 ? dataSource.color : null;  // The first category defines the color
+          titles.add(title);
+          elements.push({title: title, color: color});
+          if (dataSource.visible) {
+            selection.push(dataSource[category.name+'_index']);
+          }
         }
+
       }
+
+      this.categoryElements.push({
+        name: category.name,
+        title: category.title,
+        elements: elements,
+        selection: selection
+      });
     }
   },
   mounted: function () {
@@ -173,22 +181,25 @@ Vue.component("bokeh-plot", {
     Bokeh.Plotting.show(plot, "#bokeh-plot-" + this.uniquePrefix);
   },
   watch: {
-    categories: function (val) {
-      console.log(val);
-      this.refreshPlot();
+    categoryElements: {
+      handler: function () {
+        this.refreshPlot();
+      },
+      deep: true
     },
-    opacity: function (val) {
-      console.log(val);
+    opacity: function () {
       this.refreshPlot();
     }
   },
   methods: {
     refreshPlot() {
       for (const dataSource of this.dataSources) {
-        visible = dataSource.subject_index in this.subjects && dataSource.series_index in this.series;
+        visible = true;
+        for (const category of this.categoryElements) {
+          visible = visible && category.selection.includes(dataSource[category.name+'_index']);
+        }
         dataSource.line.visible = visible;
         dataSource.symbols.visible = visible && dataSource.show_symbols;
-        console.log(dataSource.is_topography_analysis, this.opacity);
         if (dataSource.is_topography_analysis) {
           dataSource.line.alpha = this.opacity;
           dataSource.symbols.alpha = this.opacity;
