@@ -107,22 +107,7 @@ function format_exponential(d, maxNumberOfDecimalPlaces) {
  */
 function submit_analyses_card_ajax(card_url, card_element_id, template_flavor, function_id,
                                    subjects_ids, call_count) {
-
-    // console.log("submit_analyses_card_ajax:")
-    // console.log(card_url, card_element_id, template_flavor, function_id, call_count);
-    // console.log("subjects_ids:", subjects_ids);
-
     const jquery_card_selector = "#" + card_element_id;
-    const jquery_indicator_selector = jquery_card_selector+"-wait-text"; // for increasing number of dots after each ajax call
-      // see GH 236
-
-      if (call_count === undefined) {
-          call_count = 0; // first call
-      }
-
-      // Provide effect of growing list of dots as long as background task is not finished (see #236)
-      var dots = '.'.repeat((call_count % 9)+1);
-      $(jquery_indicator_selector).text('Please wait'+dots);
 
       $.ajax({
         type: "POST",
