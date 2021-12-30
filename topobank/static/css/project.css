@@ -463,3 +463,8 @@ section[title="Terms and Conditions"] div.toc-container, #tc-terms-html {
 .accordion-button[aria-expanded='true']::before {
     content: '\f106';
 }
+
+.accordion-header-control {
+  position: absolute;
+  top: 0.35rem;
+}
