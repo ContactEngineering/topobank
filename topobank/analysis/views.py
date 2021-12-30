@@ -379,12 +379,21 @@ class PlotCardView(SimpleCardView):
         # order analyses such that surface analyses are coming last (plotted on top)
         #
         surface_ct = ContentType.objects.get_for_model(Surface)
-        analyses_success_list = list(analyses_success.filter(~Q(subject_type=surface_ct)))
-
+        analyses_success_list = []
         for surface_analysis in analyses_success.filter(subject_type=surface_ct):
             if surface_analysis.subject.num_topographies() > 1:
                 # only show average for surface if more than one topography
-                analyses_success_list.insert(0, surface_analysis)
+                analyses_success_list.append(surface_analysis)
+        for topography_analysis in analyses_success.filter(~Q(subject_type=surface_ct)):
+            try:
+                surface_analysis = analyses_success.get(subject_id=topography_analysis.subject.surface.id,
+                                                        subject_type=surface_ct)
+                i = [s.subject.id if s.subject_type == surface_ct else None for s in analyses_success_list] \
+                    .index(surface_analysis.subject.id)
+            except Analysis.DoesNotExist:
+                analyses_success_list.append(topography_analysis)
+            else:
+                analyses_success_list.insert(i + 1, topography_analysis)
 
         data_sources_dict = []
 
@@ -530,6 +539,14 @@ class PlotCardView(SimpleCardView):
             is_surface_analysis = isinstance(subject, Surface)
             is_topography_analysis = isinstance(subject, Topography)
 
+            if is_topography_analysis:
+                try:
+                    analyses_success.get(subject_id=analysis.subject.surface.id, subject_type=surface_ct)
+                except Analysis.DoesNotExist:
+                    has_parent = False
+                else:
+                    has_parent = True
+
             if is_surface_analysis:
                 # Surface results are plotted in black/grey
                 surface_index += 1
@@ -543,8 +560,8 @@ class PlotCardView(SimpleCardView):
                         topography_index * len(topography_color_palette) // nb_topographies]
 
             subject_display_name = subject_names_for_plot[subject_idx]
-            if is_topography_analysis:
-                subject_display_name += f", surface: {subject.surface.name}"
+            if is_topography_analysis and has_parent:
+                subject_display_name = f"└─ {subject_display_name}"
 
             #
             # handle task state
