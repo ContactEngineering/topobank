@@ -538,7 +538,9 @@ class PlotCardView(SimpleCardView):
             else:
                 topography_index += 1
                 subject_colors[subject] = \
-                    topography_color_palette[topography_index * len(topography_color_palette) // nb_topographies]
+                    topography_color_palette[
+                        len(topography_color_palette) - 1 -
+                        topography_index * len(topography_color_palette) // nb_topographies]
 
             subject_display_name = subject_names_for_plot[subject_idx]
             if is_topography_analysis:

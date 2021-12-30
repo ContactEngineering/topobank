@@ -6,7 +6,7 @@ Vue.component("bokeh-plot", {
         <div v-for="category in categoryElements" class="card">
           <div :id='"heading-"+uniquePrefix+"-"+category.name' class="card-header plot-controls-card-header">
             <h2 class="mb-0">
-              <button class="btn btn-link btn-block text-left collapsed"
+              <button class="btn btn-link btn-block text-left accordion-button collapsed"
                       type="button"
                       data-toggle="collapse"
                       :data-target='"#collapse-"+uniquePrefix+"-"+category.name'
@@ -40,7 +40,7 @@ Vue.component("bokeh-plot", {
         <div class="card">
           <div :id='"heading-plot-options-"+uniquePrefix' class="card-header plot-controls-card-header">
             <h2 class="mb-0">
-              <button class="btn btn-link btn-block text-left collapsed"
+              <button class="btn btn-link btn-block text-left accordion-button collapsed"
                       type="button"
                       data-toggle="collapse"
                       :data-target='"#collapse-plot-options-"+uniquePrefix'

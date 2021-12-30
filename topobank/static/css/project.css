@@ -442,3 +442,24 @@ section[title="Terms and Conditions"] div.toc-container, #tc-terms-html {
 .plot-controls-card-body {
   padding: 3px 12px;
 }
+
+.accordion-button {
+    width: 100%;
+    position: relative;
+    text-align: left;
+}
+
+.accordion-button::before {
+    content: '\f107';
+    position: absolute;
+    top: 50%;
+    right: 0.8rem;
+    transform: translateY(-50%);
+    display: block;
+    font-family: 'FontAwesome';
+    font-size: 1.1rem;
+}
+
+.accordion-button[aria-expanded='true']::before {
+    content: '\f106';
+}
