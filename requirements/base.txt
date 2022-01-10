@@ -4,7 +4,7 @@
 #
 #    pip-compile --output-file=base.txt base.in
 #
-amqp==5.0.6
+amqp==5.0.9
     # via kombu
 argon2-cffi==21.1.0
     # via -r base.in
@@ -22,7 +22,7 @@ botocore==1.23.16
     # via
     #   boto3
     #   s3transfer
-celery==5.2.1
+celery==5.2.3
     # via
     #   -r base.in
     #   flower
@@ -64,7 +64,7 @@ defusedxml==0.7.1
     # via
     #   python3-openid
     #   surfacetopography
-django==3.2.7
+django==3.2.10
     # via
     #   -r base.in
     #   collectfast
@@ -159,9 +159,9 @@ jsonfield==3.1.0
     # via django-notifications-hq
 kiwisolver==1.3.2
     # via matplotlib
-kombu==5.2.2
+kombu==5.2.3
     # via celery
-lxml==4.6.4
+lxml==4.7.1
     # via -r base.in
 markdown2==2.4.1
     # via -r base.in

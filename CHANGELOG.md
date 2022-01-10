@@ -22,6 +22,8 @@
 - MAINT: Avoid loading full measurement in Django Server
   which allows working with larger measurements (#769)
 - MAINT: A "surface" is now called "digital surface twin"
+- MAINT: Upgrade of multiple packages because of CVEs 
+  (Django, celery, lxml)
 
 ## 0.17.0 (2021-12-03)
 
