@@ -134,9 +134,10 @@ django-bootstrap-datepicker-plus
 # fix muspectre version because of a bug/incompatibility in later versions
 # git+https://gitlab.com/muspectre/muspectre.git@654a508babf97564c3e3144ca11686431fe45c39#egg=mufft
 
-# for publication URLs
+# for publications
 short_url
 django-fullurl
+datacite
 
 # some other constraints due to security concers
 lxml>=4.6.3
