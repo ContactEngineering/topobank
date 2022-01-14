@@ -1,6 +1,11 @@
 # Changelog for *TopoBank*
 
-## 0.18.0 (not published yet)
+## 0.18.1 (2022-01-14)
+
+- MAINT: Added missing changes in order to get running
+  with new certificate and using a local Docker repository
+
+## 0.18.0 (2022-01-14)
 
 - ENH: Improved performance of visualization of image maps
   for displaying 2D measurements and in contact mechanics,
@@ -22,6 +27,8 @@
 - MAINT: Avoid loading full measurement in Django Server
   which allows working with larger measurements (#769)
 - MAINT: A "surface" is now called "digital surface twin"
+- MAINT: Upgrade of multiple packages because of CVEs 
+  (Django, celery, lxml, Pillow)
 
 ## 0.17.0 (2021-12-03)
 

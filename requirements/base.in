@@ -6,7 +6,7 @@ psycopg2-binary>=2.8, <2.9  # https://github.com/psycopg/psycopg2
 
 # Django
 # ------------------------------------------------------------------------------
-django==3.2.7  #  does this work with pyup?  # https://www.djangoproject.com/
+django==3.2.11  #  does this work with pyup?  # https://www.djangoproject.com/
 django-environ  # https://github.com/joke2k/django-environ
 django-model-utils  # https://github.com/jazzband/django-model-utils
 django-allauth  # https://github.com/pennersr/django-allauth
@@ -59,7 +59,7 @@ django-guardian>=2.4.0, <3
 
 # Celery
 # django-kombu # is this still needed? See https://pypi.org/project/django-kombu/
-celery>=5.0, <6.0
+celery>=5.2.2, <6.0
 # pylibmc is also used for memcached in production
 pylibmc
 # librabbitmq>=2.0
@@ -139,11 +139,11 @@ short_url
 django-fullurl
 datacite
 
-# some other constraints due to security concers
-lxml>=4.6.3
+# some other constraints due to security concerns
+lxml>=4.6.5
 jinja2>=2.11.3  # because of CVE-2020-28493
 
-Pillow>=8.3.2  # because of several CVEs
+Pillow>=9.0.0  # because of several CVEs
 PyYAML>=5.4  # CVE-2020-14343
 sqlparse>=0.4.2  # CVE-2021-32839
 
