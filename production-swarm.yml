@@ -21,7 +21,7 @@ services:
       context: .
       dockerfile: ./compose/production/django/Dockerfile
     shm_size: '2gb'
-    image: localhost:5000/topobank_production_django
+    image: contact.engineering:5000/topobank_production_django
     depends_on:
       - postgres
       - rabbitmq
@@ -41,7 +41,7 @@ services:
     build:
       context: .
       dockerfile: ./compose/production/postgres/Dockerfile
-    image: localhost:5000/topobank_production_postgres
+    image: contact.engineering:5000/topobank_production_postgres
     volumes:
       - production_postgres_data:/var/lib/postgresql/data
       - production_postgres_data_backups:/backups
@@ -57,7 +57,7 @@ services:
     build:
       context: .
       dockerfile: ./compose/production/dbbackup/Dockerfile
-    image: localhost:5000/topobank_production_dbbackup
+    image: contact.engineering:5000/topobank_production_dbbackup
     depends_on:
       - postgres
     env_file:
@@ -73,7 +73,7 @@ services:
     build:
       context: .
       dockerfile: ./compose/production/caddy/Dockerfile
-    image: localhost:5000/topobank_production_caddy
+    image: contact.engineering:5000/topobank_production_caddy
     depends_on:
       - django
     volumes:
@@ -88,19 +88,28 @@ services:
         constraints:
           - node.role==manager
 
+  #
+  # memcached and rabbitmq should run only once on manager
+  #
   memcached:
     image: memcached:1.5-alpine
     volumes:
       - production_media:/app/media
     deploy:
-      replicas: 2
+      placement:
+        constraints:
+          - node.role==manager
 
   rabbitmq:
     image: rabbitmq:3.7-alpine
+    deploy:
+      placement:
+        constraints:
+          - node.role==manager
 
   celeryworker:
     <<: *django
-    image: localhost:5000/topobank_production_celeryworker
+    image: contact.engineering:5000/topobank_production_celeryworker
     command: /start-celeryworker
     deploy:
       placement:
@@ -109,7 +118,7 @@ services:
 
   celerybeat:
     <<: *django
-    image: localhost:5000/topobank_production_celerybeat
+    image: contact.engineering:5000/topobank_production_celerybeat
     command: /start-celerybeat
     deploy:
       placement:
@@ -118,7 +127,7 @@ services:
 
   flower:
     <<: *django
-    image: localhost:5000/topobank_production_flower
+    image: contact.engineering:5000/topobank_production_flower
     command: /start-flower
     deploy:
       placement:
