@@ -15,18 +15,7 @@
   <div class="row">
     {# Left side with simulation results #}
     <div class="col-sm-5">
-
-        {% include 'analysis/analyses_alerts.html' %}
-
-        {% if not analyses_unready %}
-        <div class="tab-pane fade active show" id="area-load-displacement-tab">
-            {% if not analyses_unready and analyses_success %}
-              {# Show all analyses for which we have results #}
-              {{ plot_div | safe }}
-            {% endif %}
-        </div>
-        {% endif %}
-
+      {% include 'analysis/contactmechanics_card_bokeh.html' %}
     </div>
 
     {% if not analyses_unready %}
@@ -333,13 +322,6 @@
 {% endblock card_body %}
 
 {% block card_javascript %}
-
-  {% if not analyses_unready and analyses_success %}
-    {# Insert the script code needed for the plot #}
-    {{ plot_script | safe }}
-{#    {{ load_plot_script | safe }}#}
-  {% endif %}
-
   <script src="{% static 'tagulous/lib/select2-4/js/select2.min.js' %}"></script>
 
   {# Additonal code for initialization #}

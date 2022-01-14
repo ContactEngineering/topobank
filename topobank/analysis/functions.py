@@ -1197,7 +1197,7 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
         if hardness:
             dataset.attrs['hardness'] = hardness  # TODO how to save hardness=None? Not possible in netCDF
 
-        storage_path = storage_prefix + f'step-{i}'
+        storage_path = storage_prefix + f'/step-{i}'
         data_paths.append(storage_path)
         with tempfile.NamedTemporaryFile(prefix='analysis-') as tmpfile:
             dataset.to_netcdf(tmpfile.name, format=netcdf_format)

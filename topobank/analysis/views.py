@@ -677,21 +677,33 @@ class ContactMechanicsCardView(SimpleCardView):
             )
         else:
 
+            data_sources_dict = []
+
             #
             # Prepare helper variables
             #
             color_cycle = itertools.cycle(palettes.Category10_10)
             topography_colors = OrderedDict()  # key: Topography instance
             topography_names = []
-            js_code = ""
-            js_args = {}
+
+            color_cycle = itertools.cycle(palettes.Category10_10)
+
+            #
+            # Context information for the figure
+            #
+            context.update(dict(
+                #x_axis_label=x_axis_label,
+                #y_axis_label=y_axis_label,
+                #x_axis_type=get_axis_type('xscale'),
+                #y_axis_type=get_axis_type('yscale'),
+                output_backend=settings.BOKEH_OUTPUT_BACKEND))
 
             #
             # Generate two plots in two tabs based on same data sources
             #
             sources = []
             labels = []
-            for analysis in analyses_success:
+            for a_index, analysis in enumerate(analyses_success):
                 analysis_result = analysis.result_obj
                 # subject is always a topography for contact analyses so far,
                 # so there is a surface
@@ -709,168 +721,87 @@ class ContactMechanicsCardView(SimpleCardView):
 
                 # the name of the data source is used in javascript in
                 # order to find out the analysis id
-                source = ColumnDataSource(data, name="analysis-{}".format(analysis.id))
+                #source = ColumnDataSource(data, name="analysis-{}".format(analysis.id))
 
-                sources.append(source)
-                labels.append(analysis.subject.name)
+                #sources.append(source)
+                #labels.append(analysis.subject.name)
 
                 #
                 # find out colors for topographies
                 #
-                if analysis.subject not in topography_colors:
-                    topography_colors[analysis.subject] = next(color_cycle)
-                    topography_names.append(analysis.subject.name)
+                #if analysis.subject not in topography_colors:
+                #    topography_colors[analysis.subject] = next(color_cycle)
+                #    topography_names.append(analysis.subject.name)
 
-            load_axis_label = "Normalized pressure p/E*"
-            area_axis_label = "Fractional contact area A/A0"
-            disp_axis_label = "Normalized mean gap u/h_rms"
+                curr_color = next(color_cycle)
 
-            color_cycle = itertools.cycle(palettes.Category10_10)
+                #
+                # Context information for this data source
+                #
+                data_sources_dict += [dict(
+                    name=analysis.subject.name,
+                    name_index=a_index,
+                    #series=series_name,
+                    #series_index=series_idx,
+                    #xscale=analysis_xscale,
+                    #yscale=analysis_yscale,
+                    url=default_storage.url(f'{analysis.storage_prefix}/result.json'),
+                    color=curr_color,
+                    #dash=curr_dash,
+                    #width=line_width,
+                    #alpha=topo_alpha,
+                    #show_symbols=show_symbols,
+                    #visible=series_idx in series_visible,
+                    #is_surface_analysis=is_surface_analysis,
+                    #is_topography_analysis=is_topography_analysis
+                )]
 
-            select_callback = CustomJS(args=dict(sources=sources), code="selection_handler(cb_obj, cb_data, sources);")
-            tap = TapTool(behavior='select', callback=select_callback)
+            # load_axis_label = "Normalized pressure p/E*"
+            # area_axis_label = "Fractional contact area A/A0"
+            # disp_axis_label = "Normalized mean gap u/h_rms"
+
 
             #
             # Configure tooltips
             #
-            tooltips = [
-                ("topography", "@topography_name"),
-                ("surface", "@surface_name"),
-                (load_axis_label, "@mean_pressure"),
-                (area_axis_label, "@total_contact_area"),
-                (disp_axis_label, "@mean_gap"),
-                ("properly converged", "@converged_info")
-            ]
-            hover = HoverTool(tooltips=tooltips)
+            # tooltips = [
+            #     ("topography", "@topography_name"),
+            #     ("surface", "@surface_name"),
+            #     (load_axis_label, "@mean_pressure"),
+            #     (area_axis_label, "@total_contact_area"),
+            #     (disp_axis_label, "@mean_gap"),
+            #     ("properly converged", "@converged_info")
+            # ]
+            # hover = HoverTool(tooltips=tooltips)
 
-            tools = ["pan", "reset", "save", "wheel_zoom", "box_zoom", tap, hover]
-
-            contact_area_plot = figure(title=None,
-                                       plot_height=400,
-                                       sizing_mode='scale_width',
-                                       x_axis_label=load_axis_label,
-                                       y_axis_label=area_axis_label,
-                                       x_axis_type="log",
-                                       y_axis_type="log",
-                                       tools=tools,
-                                       output_backend=settings.BOKEH_OUTPUT_BACKEND)
-
-            load_plot = figure(title=None,
-                               plot_height=400,
-                               sizing_mode='scale_width',
-                               x_axis_label=disp_axis_label,
-                               y_axis_label=load_axis_label,
-                               x_axis_type="linear",
-                               y_axis_type="log", tools=tools,
-                               output_backend=settings.BOKEH_OUTPUT_BACKEND)
-
-            for source, label in zip(sources, labels):
-                curr_color = next(color_cycle)
-                r1 = contact_area_plot.circle('mean_pressure', 'total_contact_area',
-                                              source=source,
-                                              fill_alpha='fill_alpha',  # to indicate if converged or not
-                                              fill_color=curr_color,
-                                              line_color=None,
-                                              size=12)
-                r2 = load_plot.circle('mean_gap', 'mean_pressure',
-                                      source=source,
-                                      fill_alpha='fill_alpha',  # to indicate if converged or not
-                                      fill_color=curr_color,
-                                      line_color=None,
-                                      size=12)
-
-                selected_circle = Circle(fill_alpha='fill_alpha', fill_color=curr_color,
-                                         line_color="black", line_width=4)
-                nonselected_circle = Circle(fill_alpha='fill_alpha', fill_color=curr_color,
-                                            line_color=None)
-
-                for renderer in [r1, r2]:
-                    renderer.selection_glyph = selected_circle
-                    renderer.nonselection_glyph = nonselected_circle
-
-                #
-                # Prepare JS code to toggle visibility
-                #
-                topography_idx = topography_names.index(label)
-
-                # prepare unique ids for this symbols (one for each plot)
-                glyph_id_area_plot = f"glyph_{topography_idx}_area_symbol"
-                glyph_id_load_plot = f"glyph_{topography_idx}_load_symbol"
-                js_args[glyph_id_area_plot] = r1  # mapping from Python to JS
-                js_args[glyph_id_load_plot] = r2  # mapping from Python to JS
-
-                # only indices of visible glyphs appear in "active" lists of both button groups
-                js_code += f"{glyph_id_area_plot}.visible = topography_btn_group.active.includes({topography_idx});"
-                js_code += f"{glyph_id_load_plot}.visible = topography_btn_group.active.includes({topography_idx});"
-
-            configure_plot(contact_area_plot)
-            configure_plot(load_plot)
-
+            # for source, label in zip(sources, labels):
             #
-            # Adding widgets for switching symbols on/off
+            #     r1 = contact_area_plot.circle('mean_pressure', 'total_contact_area',
+            #                                   source=source,
+            #                                   fill_alpha='fill_alpha',  # to indicate if converged or not
+            #                                   fill_color=curr_color,
+            #                                   line_color=None,
+            #                                   size=12)
+            #     r2 = load_plot.circle('mean_gap', 'mean_pressure',
+            #                           source=source,
+            #                           fill_alpha='fill_alpha',  # to indicate if converged or not
+            #                           fill_color=curr_color,
+            #                           line_color=None,
+            #                           size=12)
             #
-            topography_button_group = CheckboxGroup(
-                labels=topography_names,
-                css_classes=["topobank-subject-checkbox"],
-                visible=False,
-                active=list(range(len(topography_names))))  # all active
-
-            topography_btn_group_toggle_button = Toggle(label="Measurements", button_type='primary')
-
-            subject_select_all_btn = Button(label="Select all",
-                                            width_policy='min',
-                                            visible=False)
-            subject_deselect_all_btn = Button(label="Deselect all",
-                                              width_policy='min',
-                                              visible=False)
-
-            # extend mapping of Python to JS objects
-            js_args['topography_btn_group'] = topography_button_group
-            js_args['topography_btn_group_toggle_btn'] = topography_btn_group_toggle_button
-            js_args['subject_select_all_btn'] = subject_select_all_btn
-            js_args['subject_deselect_all_btn'] = subject_deselect_all_btn
-
-            toggle_lines_callback = CustomJS(args=js_args, code=js_code)
-            toggle_topography_checkboxes = CustomJS(args=js_args, code="""
-                topography_btn_group.visible = topography_btn_group_toggle_btn.active;
-                subject_select_all_btn.visible = topography_btn_group_toggle_btn.active;
-                subject_deselect_all_btn.visible = topography_btn_group_toggle_btn.active;
-            """)
-
-            widgets = grid([
-                [topography_btn_group_toggle_button],
-                layout([subject_select_all_btn, subject_deselect_all_btn],
-                       [topography_button_group])
-            ])
-            topography_button_group.js_on_click(toggle_lines_callback)
-            topography_btn_group_toggle_button.js_on_click(toggle_topography_checkboxes)
-
+            #     selected_circle = Circle(fill_alpha='fill_alpha', fill_color=curr_color,
+            #                              line_color="black", line_width=4)
+            #     nonselected_circle = Circle(fill_alpha='fill_alpha', fill_color=curr_color,
+            #                                 line_color=None)
             #
-            # Callback for toggling lines
+            #     for renderer in [r1, r2]:
+            #         renderer.selection_glyph = selected_circle
+            #         renderer.nonselection_glyph = nonselected_circle
             #
-            subject_select_all_btn.js_on_click(CustomJS(args=js_args, code="""
-                let all_topo_idx = [];
-                for (let i=0; i<topography_btn_group.labels.length; i++) {
-                    all_topo_idx.push(i);
-                }
-                topography_btn_group.active = all_topo_idx;
-            """))
-            subject_deselect_all_btn.js_on_click(CustomJS(args=js_args, code="""
-                topography_btn_group.active = [];
-            """))
+            # configure_plot(contact_area_plot)
+            # configure_plot(load_plot)
 
-            #
-            # Layout plot
-            #
-            contact_area_tab = Panel(child=contact_area_plot, title="Contact area versus load")
-            load_tab = Panel(child=load_plot, title="Load versus displacement")
-
-            tabs = Tabs(tabs=[contact_area_tab, load_tab])
-            col = column(tabs, widgets, sizing_mode='scale_width')
-
-            plot_script, plot_div = components(col)
-
-            context.update(plot_script=plot_script, plot_div=plot_div)
+            context['data_sources'] = json.dumps(data_sources_dict)
 
         #
         # Calculate initial values for the parameter form on the page

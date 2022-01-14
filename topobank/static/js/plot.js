@@ -1,3 +1,10 @@
+/*
+ * Vue component that wraps a Bokeh plot and adds elements for controlling that plots appearance.
+ * - Categories: Each dataset can be assigned multiple *categories*. Each category receives an accordion that allows to
+ *   show/hide all datasets belonging to a specific value of this category. These categories are for example the names
+ *   of a measurement and the data series (1D PSD, 2D PSD, etc.).
+ */
+
 Vue.component("bokeh-plot", {
   template: `
     <div>
@@ -123,12 +130,41 @@ Vue.component("bokeh-plot", {
   `,
   props: {
     uniquePrefix: String,  // This makes ids here unique - there should be a more elegant way to achieve this
-    dataSources: Array,
-    categories: Array,
-    xAxisLabel: String,
-    yAxisLabel: String,
-    xAxisType: String,
-    yAxisType: String,
+    categories: {
+      // Defining selection categories. For each category, there will be an accordion with the possibility to show/hide
+      // all curves that correspond to a specific value of that category.
+      // List of dictionaries with keys:
+      //   name: Name of dataset key that defines this category, i.e. if we have add a category with name "person",
+      //         the code will expect a "person" key in the dataset, that specifies the value for this category.
+      //   title: Title of this category.
+      type: Array, default: []
+    },
+    plots: {
+      // Define the plots to show. Each plot will display in its own tab if there is more than one.
+      type: Array, default: [{title: "default", x: "x", y: "y"}]
+    },
+    dataSources: {
+      // Defining data sources.
+      // List of dictionaries with keys:
+      //   [category-name]: Value of the specific category. For each category, there must be a key-value pair.
+      //   url: URL to JSON that contains the data.
+      //   color: Line and symbol color.
+      //   show_symbols (optional): Show symbols for this data source?
+      //   visible (optional): Initial visibility (can be triggered by user).
+      type: Array, default: []
+    },
+    xAxisLabel: {
+      type: String, default: "Please specify x-axis label"
+    },
+    yAxisLabel: {
+      type: String, default: "Please specify y-axis label"
+    },
+    xAxisType: {
+      type: String, default: "linear"
+    },
+    yAxisType: {
+      type: String, default: "linear"
+    },
     outputBackend: String,
     height: {
       type: Number, default: 300
@@ -147,7 +183,7 @@ Vue.component("bokeh-plot", {
   },
   data: function () {
     return {
-      layout: "web", opacity: 0.4, lineWidth: 1, symbolSize: 10, categoryElements: []
+      layout: "web", opacity: 0.4, lineWidth: 1, symbolSize: 10, categoryElements: [], bokehPlots: []
     };
   },
   created: function () {
@@ -168,7 +204,8 @@ Vue.component("bokeh-plot", {
           color = index == 0 ? dataSource.color : null;  // The first category defines the color
           titles.add(title);
           elements.push({title: title, color: color});
-          if (dataSource.visible) {
+          // Default to showing a data source if it has no 'visible' attribute
+          if (dataSource.visible === undefined || dataSource.visible) {
             selection.push(dataSource[category.name + '_index']);
           }
         }
@@ -198,21 +235,27 @@ Vue.component("bokeh-plot", {
       /* Predefined layouts */
       switch (layout) {
         case 'web':
-          this.plot.sizing_mode = "scale_width";
-          this.plot.width = null;
-          this.plot.height = 300;
+          for (const plot of this.bokehPlots) {
+            plot.sizing_mode = "scale_width";
+            plot.width = null;
+            plot.height = 300;
+          }
           this.symbolSize = 10;
           break;
         case 'print-single':
-          this.plot.sizing_mode = "fixed";
-          this.plot.width = 600;
-          this.plot.height = 300;
+          for (const plot of this.bokehPlots) {
+            plot.sizing_mode = "fixed";
+            plot.width = 600;
+            plot.height = 300;
+          }
           this.symbolSize = 5;
           break;
         case 'print-double':
-          this.plot.sizing_mode = "fixed";
-          this.plot.width = 400;
-          this.plot.height = 250;
+          for (const plot of this.bokehPlots) {
+            plot.sizing_mode = "fixed";
+            plot.width = 400;
+            plot.height = 250;
+          }
           this.symbolSize = 5;
           break;
       }
@@ -227,35 +270,42 @@ Vue.component("bokeh-plot", {
     }
   }, methods: {
     buildPlot() {
+      /* Clear any plot that may still be in this DOM element */
       for (const child of this.$refs.bokehPlot.children) {
         this.$refs.bokehPlot.removeChild(child);
       }
 
-      /* Create and style figure */
-      const plot = new Bokeh.Plotting.Figure({
-        height: this.height,
-        sizing_mode: this.sizingMode,
-        x_axis_label: this.xAxisLabel,
-        y_axis_label: this.yAxisLabel,
-        x_axis_type: this.xAxisType,
-        y_axis_type: this.yAxisType,
-        tools: this.tools,
-        output_backend: this.outputBackend
-      });
+      for (const p of this.plots) {
+        /* Create and style figure */
+        const plot = new Bokeh.Plotting.Figure({
+          height: this.height,
+          sizing_mode: this.sizingMode,
+          x_axis_label: p.xAxisLabel === undefined ? "x" : p.xAxisLabel,
+          y_axis_label: p.yAxisLabel === undefined ? "y" : p.yAxisLabel,
+          x_axis_type: p.xAxisType === undefined ? "linear" : p.xAxisType,
+          y_axis_type: p.yAxisType === undefined ? "linear" : p.yAxisType,
+          tools: this.tools,
+          output_backend: this.outputBackend
+        });
 
-      /* This should become a Bokeh theme
-         (supported in BokehJS with 3.0 - but I cannot find the `use_theme` method) */
-      plot.xaxis.axis_label_text_font_style = "normal";
-      plot.yaxis.axis_label_text_font_style = "normal";
-      plot.xaxis.major_label_text_font_size = "16px";
-      plot.yaxis.major_label_text_font_size = "16px";
-      plot.xaxis.axis_label_text_font_size = "16px";
-      plot.yaxis.axis_label_text_font_size = "16px";
+        /* This should become a Bokeh theme (supported in BokehJS with 3.0 - but I cannot find the `use_theme` method) */
+        plot.xaxis.axis_label_text_font_style = "normal";
+        plot.yaxis.axis_label_text_font_style = "normal";
+        plot.xaxis.major_label_text_font_size = "16px";
+        plot.yaxis.major_label_text_font_size = "16px";
+        plot.xaxis.axis_label_text_font_size = "16px";
+        plot.yaxis.axis_label_text_font_size = "16px";
+
+        this.bokehPlots.push(plot);
+      }
 
       /* We iterate in reverse order because we want to the first element to appear on top of the plot */
       for (const dataSource of this.dataSources.reverse()) {
+        xscale = dataSource.xscale === undefined ? 1 : dataSource.xscale;
+        yscale = dataSource.yscale === undefined ? 1 : dataSource.yscale;
+
         /* Rescale all data to identical units */
-        const code = "return { x: cb_data.response.x.map(value => " + dataSource.xscale + " * value), " + "y: cb_data.response.y.map(value => " + dataSource.yscale + " * value) };";
+        const code = "return { x: cb_data.response.x.map(value => " + xscale + " * value), " + "y: cb_data.response.y.map(value => " + yscale + " * value) };";
 
         /* Data source: AJAX GET request to storage system retrieving a JSON */
         const source = new Bokeh.AjaxDataSource({
@@ -272,18 +322,33 @@ Vue.component("bokeh-plot", {
         }
 
         /* Create lines and symbols */
-        dataSource.line = plot.line({field: "x"}, {field: "y"}, {...attrs, ...{width: Number(this.lineWidth) * dataSource.width}});
-        dataSource.symbols = plot.circle({field: "x"}, {field: "y"}, {
-          ...attrs, ...{
-            size: Number(this.symbolSize),
-            visible: dataSource.visible && dataSource.show_symbols
-          }
-        });
+        for (const [index, plot] of this.plots.entries()) {
+          const bokehPlot = this.bokehPlots[index];
+          dataSource.line = bokehPlot.line(
+            {field: plot.x},
+            {field: plot.y},
+            {
+              ...attrs,
+              ...{
+                width: Number(this.lineWidth) * dataSource.width
+              }
+            });
+          dataSource.symbols = bokehPlot.circle(
+            {field: plot.x},
+            {field: plot.y},
+            {
+              ...attrs,
+              ...{
+                size: Number(this.symbolSize),
+                visible: (dataSource.visible === undefined || dataSource.visible) &&
+                  (dataSource.show_symbols === undefined || dataSource.show_symbols)
+              }
+            });
+        }
       }
 
       /* Render figure to HTML div */
-      this.element = Bokeh.Plotting.show(plot, "#bokeh-plot-" + this.uniquePrefix);
-      this.plot = plot;
+      this.element = Bokeh.Plotting.show(this.bokehPlots[0], "#bokeh-plot-" + this.uniquePrefix);
     },
     refreshPlot() {
       for (const dataSource of this.dataSources) {
@@ -292,7 +357,7 @@ Vue.component("bokeh-plot", {
           visible = visible && category.selection.includes(dataSource[category.name + '_index']);
         }
         dataSource.line.visible = visible;
-        dataSource.symbols.visible = visible && dataSource.show_symbols;
+        dataSource.symbols.visible = visible && (dataSource.show_symbols == undefined || dataSource.show_symbols);
         dataSource.line.glyph.line_width = Number(this.lineWidth) * dataSource.width;
         dataSource.symbols.glyph.size = Number(this.symbolSize);
         if (dataSource.is_topography_analysis) {
