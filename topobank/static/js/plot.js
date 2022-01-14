@@ -275,58 +275,61 @@ Vue.component("bokeh-plot", {
         this.$refs.bokehPlot.removeChild(child);
       }
 
-      for (const p of this.plots) {
+      for (const plot of this.plots) {
         /* Create and style figure */
-        const plot = new Bokeh.Plotting.Figure({
+        const bokehPlot = new Bokeh.Plotting.Figure({
           height: this.height,
           sizing_mode: this.sizingMode,
-          x_axis_label: p.xAxisLabel === undefined ? "x" : p.xAxisLabel,
-          y_axis_label: p.yAxisLabel === undefined ? "y" : p.yAxisLabel,
-          x_axis_type: p.xAxisType === undefined ? "linear" : p.xAxisType,
-          y_axis_type: p.yAxisType === undefined ? "linear" : p.yAxisType,
+          x_axis_label: plot.xAxisLabel === undefined ? "x" : plot.xAxisLabel,
+          y_axis_label: plot.yAxisLabel === undefined ? "y" : plot.yAxisLabel,
+          x_axis_type: plot.xAxisType === undefined ? "linear" : plot.xAxisType,
+          y_axis_type: plot.yAxisType === undefined ? "linear" : plot.yAxisType,
           tools: this.tools,
           output_backend: this.outputBackend
         });
 
         /* This should become a Bokeh theme (supported in BokehJS with 3.0 - but I cannot find the `use_theme` method) */
-        plot.xaxis.axis_label_text_font_style = "normal";
-        plot.yaxis.axis_label_text_font_style = "normal";
-        plot.xaxis.major_label_text_font_size = "16px";
-        plot.yaxis.major_label_text_font_size = "16px";
-        plot.xaxis.axis_label_text_font_size = "16px";
-        plot.yaxis.axis_label_text_font_size = "16px";
+        bokehPlot.xaxis.axis_label_text_font_style = "normal";
+        bokehPlot.yaxis.axis_label_text_font_style = "normal";
+        bokehPlot.xaxis.major_label_text_font_size = "16px";
+        bokehPlot.yaxis.major_label_text_font_size = "16px";
+        bokehPlot.xaxis.axis_label_text_font_size = "16px";
+        bokehPlot.yaxis.axis_label_text_font_size = "16px";
 
-        this.bokehPlots.push(plot);
+        this.bokehPlots.push(bokehPlot);
       }
 
       /* We iterate in reverse order because we want to the first element to appear on top of the plot */
       for (const dataSource of this.dataSources.reverse()) {
-        xscale = dataSource.xscale === undefined ? 1 : dataSource.xscale;
-        yscale = dataSource.yscale === undefined ? 1 : dataSource.yscale;
-
-        /* Rescale all data to identical units */
-        const code = "return { x: cb_data.response.x.map(value => " + xscale + " * value), " + "y: cb_data.response.y.map(value => " + yscale + " * value) };";
-
-        /* Data source: AJAX GET request to storage system retrieving a JSON */
-        const source = new Bokeh.AjaxDataSource({
-          data_url: dataSource.url,
-          method: "GET",
-          content_type: "",
-          syncable: false,
-          adapter: new Bokeh.CustomJS({code})
-        });
-
-        /* Common attributes of lines and symbols */
-        attrs = {
-          source: source, visible: dataSource.visible, color: dataSource.color, alpha: dataSource.alpha
-        }
-
-        /* Create lines and symbols */
         for (const [index, plot] of this.plots.entries()) {
+          /* Get scale factors */
+          xscale_key = plot.x + "_scale";
+          yscale_key = plot.y + "_scale";
+          xscale = dataSource[xscale_key] === undefined ? 1 : dataSource[xscale_key];
+          yscale = dataSource[yscale_key] === undefined ? 1 : dataSource[yscale_key];
+
+          /* Get appropriate xy data and apply scale factors */
+          const code = "return { x: cb_data.response." + plot.x + ".map(value => " + xscale + " * value), " + "y: cb_data.response." + plot.y + ".map(value => " + yscale + " * value) }";
+
+          /* Data source: AJAX GET request to storage system retrieving a JSON */
+          const source = new Bokeh.AjaxDataSource({
+            data_url: dataSource.url,
+            method: "GET",
+            content_type: "",
+            syncable: false,
+            adapter: new Bokeh.CustomJS({code})
+          });
+
+          /* Common attributes of lines and symbols */
+          attrs = {
+            source: source, visible: dataSource.visible, color: dataSource.color, alpha: dataSource.alpha
+          }
+
+          /* Create lines and symbols */
           const bokehPlot = this.bokehPlots[index];
           dataSource.line = bokehPlot.line(
-            {field: plot.x},
-            {field: plot.y},
+            {field: "x"},
+            {field: "y"},
             {
               ...attrs,
               ...{
@@ -334,8 +337,8 @@ Vue.component("bokeh-plot", {
               }
             });
           dataSource.symbols = bokehPlot.circle(
-            {field: plot.x},
-            {field: plot.y},
+            {field: "x"},
+            {field: "y"},
             {
               ...attrs,
               ...{

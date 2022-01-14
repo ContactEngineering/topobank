@@ -3,8 +3,9 @@
   {% if analyses_success %}
     {# Show all analyses for which we have results #}
     <bokeh-plot unique-prefix="bokeh-{{ card_id }}"
-                :data-sources='{{ data_sources|safe }}'
+                :plots='[{title:"default", x:"mean_pressures", y:"total_contact_areas", xAxisLabel:"Normalized pressure p/E*", yAxisLabel:"Fractional contact area A/A0", xAxisType:"log", yAxisType:"log"}]'
                 :categories='[{name:"name", title:"Measurements"}]'
+                :data-sources='{{ data_sources|safe }}'
                 output-backend="{{ output_backend }}">
     </bokeh-plot>
   {% endif %}
