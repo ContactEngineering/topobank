@@ -180,7 +180,22 @@ div.bk-btn-group button.bk-btn-primary:hover {
 
 /** Extra (dynamic) tabs */
 .nav-tabs {
-  /* border-bottom:none; */
+  z-index: 1000;
+}
+
+.fixed-top-2 {
+  margin-top: 56px;
+  z-index: 1000;
+}
+
+/*
+.fixed-top-3 {
+  margin-top: 98px;
+  z-index: 1000;
+}
+*/
+body {
+  padding-top: 105px; /* choose sth like 162px when using fix-top-3 */
 }
 
 /** Animate search bar */

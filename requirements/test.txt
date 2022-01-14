@@ -4,7 +4,7 @@
 #
 #    pip-compile --output-file=test.txt test.in
 #
-amqp==5.0.6
+amqp==5.0.9
     # via
     #   -r base.txt
     #   kombu
@@ -33,7 +33,7 @@ botocore==1.23.16
     #   -r base.txt
     #   boto3
     #   s3transfer
-celery==5.2.1
+celery==5.2.3
     # via
     #   -r base.txt
     #   flower
@@ -99,7 +99,7 @@ defusedxml==0.7.1
     #   -r base.txt
     #   python3-openid
     #   surfacetopography
-django==3.2.7
+django==3.2.11
     # via
     #   -r base.txt
     #   collectfast
@@ -227,11 +227,11 @@ kiwisolver==1.3.2
     # via
     #   -r base.txt
     #   matplotlib
-kombu==5.2.2
+kombu==5.2.3
     # via
     #   -r base.txt
     #   celery
-lxml==4.6.4
+lxml==4.7.1
     # via
     #   -r base.txt
     #   splinter
@@ -299,7 +299,7 @@ pandas==1.3.4
     # via
     #   -r base.txt
     #   xarray
-pillow==8.4.0
+pillow==9.0.0
     # via
     #   -r base.txt
     #   bokeh

@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-## 0.18.0 (not published yet)
+## 0.18.0 (2022-01-14)
 
 - ENH: Improved performance of visualization of image maps
   for displaying 2D measurements and in contact mechanics,
@@ -11,16 +11,19 @@
 - ENH: Improved layout of contact mechanics analyses
 - ENH: Faster access to bandwidths of measurements due to
   caching in database (#421, #605)
+- ENH: Creation of images for measurements can be triggered
+  in background via management command (#778)
+- ENH: Fixed second navigation bar (#779)
 - BUG: Fixes progress meter flaws for slope-dependent 
   properties (#755)
-- BUG: Fixes unexpected keyword in autocorrelation for
-  surfaces (#772)
 - BUG: Fixes insufficient number of arguments for
   contact mechanics calculation (#777)
 - BUG: Fixed scheduled postgres backups (#766)  
 - MAINT: Avoid loading full measurement in Django Server
   which allows working with larger measurements (#769)
 - MAINT: A "surface" is now called "digital surface twin"
+- MAINT: Upgrade of multiple packages because of CVEs 
+  (Django, celery, lxml, Pillow)
 
 ## 0.17.0 (2021-12-03)
 

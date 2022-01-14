@@ -3,6 +3,7 @@ import logging
 
 from topobank.manager.models import Topography
 from topobank.manager.utils import get_firefox_webdriver
+from topobank.taskapp.tasks import renew_topography_images
 
 _log = logging.getLogger(__name__)
 
@@ -16,6 +17,14 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
 
         parser.add_argument(
+            '-b',
+            '--background',
+            action='store_true',
+            dest='background',
+            help='Trigger creation of images in background (task queue).',
+        )
+
+        parser.add_argument(
             '--dry-run',
             action='store_true',
             dest='dry_run',
@@ -27,6 +36,7 @@ class Command(BaseCommand):
         driver = get_firefox_webdriver()
         num_failed = 0
         num_okay = 0
+        num_background = 0
 
         for topo in Topography.objects.all():
             size_str = f"{topo.size_x} {topo.unit}"
@@ -36,13 +46,18 @@ class Command(BaseCommand):
             _log.info(f"Creating images for '{topo.name}', id {topo.id}, size {size_str}..")
             if not options['dry_run']:
                 try:
-                    topo.renew_images(driver=driver)
-                    num_okay += 1
+                    if options['background']:
+                        renew_topography_images.delay(topo.id)
+                        num_background += 1
+                    else:
+                        topo.renew_images(driver=driver)
+                        num_okay += 1
                 except Exception as exc:
                     _log.warning(f"Cannot create images for topography {topo.id}, reason: {exc}")
                     num_failed += 1
 
-        self.stdout.write(self.style.SUCCESS(f"Statistics: #ok: {num_okay}, #failed: {num_failed}"))
+        self.stdout.write(self.style.SUCCESS(f"Statistics: #ok: {num_okay}, #failed: {num_failed}, "
+                                             f"#background: {num_background}"))
 
         if options['dry_run']:
             self.stdout.write(self.style.WARNING("This was a dry run, nothing has been changed."))
