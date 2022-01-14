@@ -1,13 +1,14 @@
 from django.db.models.signals import pre_delete, post_delete, pre_save, post_save
 from django.dispatch import receiver
 from django.core.cache import cache
+from django.core.files.storage import default_storage
 from guardian.shortcuts import assign_perm
 from notifications.models import Notification
 from django.contrib.contenttypes.models import ContentType
 from allauth.account.signals import user_logged_in
 import logging
 
-from .models import Topography, Surface
+from .models import Topography, Surface, user_directory_path
 from .views import DEFAULT_SELECT_TAB_STATE
 
 _log = logging.getLogger(__name__)
@@ -29,7 +30,7 @@ def grant_surface_permissions_to_owner(sender, instance, created, **kwargs):
 
 @receiver(pre_delete, sender=Topography)
 def remove_files(sender, instance, **kwargs):
-    """Remove files associated with a topography instance before removal of teh topography."""
+    """Remove files associated with a topography instance before removal of the topography."""
 
     # ideally, we would reuse datafiles if possible, e.g. for
     # the example topographies. Currently I'm not sure how
@@ -40,15 +41,35 @@ def remove_files(sender, instance, **kwargs):
         """Delete datafile attached to the given attribute name."""
         try:
             datafile = getattr(instance, datafile_attr_name)
+            _log.info(f'Deleting {datafile.name}...')
             datafile.delete()
-            _log.info("Removed datafile '%s'.", datafile.name)
         except Exception as exc:
             _log.warning("Topography id %d, attribute '%s': Cannot delete data file '%s', reason: %s",
                          instance.id, datafile_attr_name, datafile.name, str(exc))
 
+    def _delete_directory(path):
+        if default_storage.exists(path):
+            directories, filenames = default_storage.listdir(path)
+            for filename in filenames:
+                _log.info(f'Deleting file {path}/{filename}...')
+                default_storage.delete(f'{path}/{filename}')
+            for directory in directories:
+                _log.info(f'Deleting directory {path}/{directory}...')
+                _delete_directory(f'{path}/{directory}')
+                default_storage.delete(f'{path}/{directory}')
+
+    def delete_directory(path):
+        fullname = user_directory_path(instance, f'{instance.id}/{path}')
+        _delete_directory(fullname)
+
     delete_datafile('datafile')
     if instance.has_squeezed_datafile:
         delete_datafile('squeezed_datafile')
+    if instance.has_thumbnail:
+        delete_datafile('thumbnail')
+    if instance.size_y is not None:
+        # Delete Deep Zoom Image files
+        delete_directory('dzi')
 
 
 @receiver(post_delete, sender=Topography)

@@ -95,16 +95,22 @@ services:
   #
   # use can this built-in S3 server for development if you don't have an external one
   #
+  # The setting
+  #   MINIO_API_CORS_ALLOW_ORIGIN=localhost:8000
+  # enables fetching data from S3 while coming from localhost:8000.
+  # Basically, it sets the header "Access-Control-Allow-Origin" in HTTP responses.
+  # For more information search for "CORS" or see here: https://web.dev/cross-origin-resource-sharing/
   minio:
     image: minio/minio
     ports:
       - "9000:9000"
+      - "9001:9001"
     volumes:
       - minio_data:/data
     environment:
-      - MINIO_ACCESS_KEY=admin
-      - MINIO_SECRET_KEY=secret12
-    command: server /data
+      - MINIO_ROOT_USER=admin
+      - MINIO_ROOT_PASSWORD=secret12
+    command: server /data --console-address ":9001"
 
 #
 #  pgbackup:

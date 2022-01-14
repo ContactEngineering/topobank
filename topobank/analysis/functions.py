@@ -3,6 +3,7 @@ Implementations of analysis functions for topographies and surfaces.
 
 The first argument is either a Topography or Surface instance (model).
 """
+
 import collections
 
 from django.core.files.storage import default_storage
@@ -12,19 +13,21 @@ from django.conf import settings
 import xarray as xr
 import numpy as np
 import tempfile
-from pint import UnitRegistry, UndefinedUnitError
-from scipy.interpolate import interp1d
-import scipy.stats
+import logging
 
 from SurfaceTopography import PlasticTopography
-from SurfaceTopography.Container.common import bandwidth, suggest_length_unit
+from SurfaceTopography.Container.common import suggest_length_unit
 from SurfaceTopography.Container.Averaging import log_average
 from SurfaceTopography.Container.ScaleDependentStatistics import scale_dependent_statistical_property
+from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor, suggest_length_unit_for_data
 from SurfaceTopography.Exceptions import CannotPerformAnalysisError
 from ContactMechanics import PeriodicFFTElasticHalfSpace, FreeFFTElasticHalfSpace, make_system
 
 import topobank.manager.models  # will be used to evaluate model classes
+from topobank.manager.utils import make_dzi
 from .registry import AnalysisFunctionRegistry
+
+_log = logging.getLogger(__name__)
 
 GAUSSIAN_FIT_SERIES_NAME = 'Gaussian fit'
 
@@ -86,13 +89,6 @@ def _reasonable_bins_argument(topography):
     else:
         return int(np.sqrt(np.prod(len(topography.positions()))) + 1.0)  # TODO discuss whether auto or this
         # return 'auto'
-
-
-def _logspace_full_decades(minval, maxval, points_per_decade=5):
-    log_minval = int(np.floor(np.log10(minval)))
-    log_maxval = int(np.ceil(np.log10(maxval)))
-    s = np.logspace(log_minval, log_maxval, points_per_decade * (log_maxval - log_minval) + 1)
-    return s[np.logical_and(s >= minval, s <= maxval)]
 
 
 class IncompatibleTopographyException(Exception):
@@ -237,7 +233,7 @@ def _moments_histogram_gaussian(arr, bins, topography, wfac, quantity, label, un
         # Replace with catching of specific exception when
         # https://github.com/ContactEngineering/SurfaceTopography/issues/108 is implemented.
         if (len(exc.args) > 0) and \
-           ((exc.args[0] == 'supplied range of [0.0, inf] is not finite') or ('is reentrant' in exc.args[0])):
+            ((exc.args[0] == 'supplied range of [0.0, inf] is not finite') or ('is reentrant' in exc.args[0])):
             raise ReentrantTopographyException("Cannot calculate curvature distribution for reentrant measurements.")
         raise
 
@@ -379,7 +375,7 @@ def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None
         # Replace with catching of specific exception when
         # https://github.com/ContactEngineering/SurfaceTopography/issues/108 is implemented.
         if (len(exc.args) > 0) and \
-           ((exc.args[0] == 'supplied range of [-inf, inf] is not finite') or ('is reentrant' in exc.args[0])):
+            ((exc.args[0] == 'supplied range of [-inf, inf] is not finite') or ('is reentrant' in exc.args[0])):
             raise ReentrantTopographyException("Cannot calculate curvature distribution for reentrant measurements.")
         raise
 
@@ -441,7 +437,6 @@ def make_alert_entry(level, subject_name, subject_url, data_series_name, detail_
 
 def analysis_function(topography, funcname_profile, funcname_area, name, xlabel, ylabel, xname, yname, aname, xunit,
                       yunit, conv_2d_fac=1.0, conv_2d_exponent=0, **kwargs):
-
     topography_name = topography.name
     topography_url = topography.get_absolute_url()
 
@@ -564,7 +559,7 @@ def analysis_function(topography, funcname_profile, funcname_area, name, xlabel,
 
 def analysis_function_for_surface(surface, progress_recorder, funcname_profile, name, xlabel, ylabel, xname, xunit,
                                   yunit, **kwargs):
-    """Calculate average variable bandwidth for a surface."""
+    """Calculate average analysis result for a surface."""
     topographies = ContainerProxy(surface.topography_set.all())
     unit = suggest_length_unit(topographies, 'log')
 
@@ -621,7 +616,7 @@ def power_spectrum(topography, progress_recorder=None, storage_prefix=None, wind
                              'q/π × 2D PSD',
                              '{}⁻¹',
                              '{}³',
-                             conv_2d_fac=1/np.pi,
+                             conv_2d_fac=1 / np.pi,
                              conv_2d_exponent=1,
                              window=window,
                              nb_points_per_decade=nb_points_per_decade)
@@ -707,7 +702,6 @@ def variable_bandwidth_for_surface(surface, progress_recorder=None, storage_pref
 
 def scale_dependent_roughness_parameter(topography, progress_recorder, order_of_derivative, name, ylabel, xname, yname,
                                         xyfunc, xyname, yunit, **kwargs):
-
     topography_name = topography.name
     topography_url = topography.get_absolute_url()
 
@@ -721,9 +715,12 @@ def scale_dependent_roughness_parameter(topography, progress_recorder, order_of_
             '{}: Cannot calculate analysis function for reentrant measurements.'.format(name))
 
     if topography.dim == 2:
-        fac = 3
+        fac = 6
     else:
-        fac = 1
+        fac = 2
+    progress_offset = 0
+    progress_callback = None if progress_recorder is None else \
+        lambda i, n: progress_recorder.set_progress(progress_offset + i + 1, fac * n)
 
     def process_series_reliable_unreliable(series_name, func_kwargs, is_reliable_visible=False):
         """Add series for reliable and unreliable data.
@@ -741,7 +738,7 @@ def scale_dependent_roughness_parameter(topography, progress_recorder, order_of_
             If True, the series for 'reliable=True' should be visible in the UI.
             Default is False.
         """
-        nonlocal series
+        nonlocal series, progress_offset
         try:
             distances, rms_values_sq = topography.scale_dependent_statistical_property(**func_kwargs)
             series += [dict(name=series_name,
@@ -750,6 +747,7 @@ def scale_dependent_roughness_parameter(topography, progress_recorder, order_of_
                             visible=is_reliable_visible)]
         except CannotPerformAnalysisError as exc:
             alerts.append(make_alert_entry('warning', topography_name, topography_url, series_name, str(exc)))
+        progress_offset += len(distances)
 
         distances, rms_values_sq = topography.scale_dependent_statistical_property(reliable=False, **func_kwargs)
         series += [dict(name=series_name + ' (incl. unreliable data)',
@@ -757,9 +755,7 @@ def scale_dependent_roughness_parameter(topography, progress_recorder, order_of_
                         y=np.sqrt(rms_values_sq),
                         visible=False),
                    ]
-
-    progress_callback = None if progress_recorder is None else \
-        lambda i, n: progress_recorder.set_progress(i + 1, fac * n)
+        progress_offset += len(distances)
 
     x_kwargs = dict(func=lambda x, y=None: np.mean(x * x),
                     n=order_of_derivative,
@@ -768,17 +764,11 @@ def scale_dependent_roughness_parameter(topography, progress_recorder, order_of_
     process_series_reliable_unreliable(xname, x_kwargs, is_reliable_visible=True)
 
     if topography.dim == 2:
-        progress_callback = None if progress_recorder is None else \
-            lambda i, n: progress_recorder.set_progress(n + i + 1, 3 * n)
-
         y_kwargs = dict(func=lambda x, y=None: np.mean(x * x),
                         n=order_of_derivative,
                         progress_callback=progress_callback, **kwargs)
 
         process_series_reliable_unreliable(yname, y_kwargs)
-
-        progress_callback = None if progress_recorder is None else \
-            lambda i, n: progress_recorder.set_progress(2 * n + i + 1, 3 * n)
 
         xy_kwargs = dict(func=lambda x, y: np.mean(xyfunc(x, y)),
                          n=order_of_derivative,
@@ -879,7 +869,8 @@ def scale_dependent_curvature(topography, progress_recorder=None, storage_prefix
 
 
 @register_implementation(name="Scale-dependent curvature", card_view_flavor='plot')
-def scale_dependent_curvature_for_surface(surface, progress_recorder=None, storage_prefix=None, nb_points_per_decade=10):
+def scale_dependent_curvature_for_surface(surface, progress_recorder=None, storage_prefix=None,
+                                          nb_points_per_decade=10):
     return scale_dependent_roughness_parameter_for_surface(
         surface,
         progress_recorder,
@@ -1170,13 +1161,29 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
         if hardness:
             dataset.attrs['hardness'] = hardness  # TODO how to save hardness=None? Not possible in netCDF
 
+        storage_path = storage_prefix + f'step-{i}'
+        data_paths.append(storage_path)
         with tempfile.NamedTemporaryFile(prefix='analysis-') as tmpfile:
             dataset.to_netcdf(tmpfile.name, format=netcdf_format)
-
-            storage_path = storage_prefix + "result-step-{}.nc".format(i)
             tmpfile.seek(0)
-            storage_path = default_storage.save(storage_path, File(tmpfile))
-            data_paths.append(storage_path)
+            default_storage.save(f'{storage_path}/nc/results.nc', File(tmpfile))
+
+        make_dzi(pressure_xy.data, f'{storage_path}/dzi/pressure',
+                 physical_sizes=topography.physical_sizes, unit=topography.unit,
+                 colorbar_title='Pressure (E*)')
+        make_dzi(contacting_points_xy.data.astype(np.int), f'{storage_path}/dzi/contacting-points',
+                 physical_sizes=topography.physical_sizes, unit=topography.unit, cmap='magma')
+
+        unit = suggest_length_unit_for_data('linear', gap_xy.data, topography.unit)
+        make_dzi(gap_xy.data * get_unit_conversion_factor(topography.unit, unit), f'{storage_path}/dzi/gap',
+                 physical_sizes=topography.to_unit(unit).physical_sizes, unit=unit,
+                 colorbar_title=f'Gap ({unit})')
+
+        unit = suggest_length_unit_for_data('linear', displacement_xy.data, topography.unit)
+        make_dzi(displacement_xy.data * get_unit_conversion_factor(topography.unit, unit),
+                 f'{storage_path}/dzi/displacement',
+                 physical_sizes=topography.to_unit(unit).physical_sizes, unit=unit,
+                 colorbar_title=f'Displacement ({unit})')
 
         progress_recorder.set_progress(i + 1, nsteps)
 

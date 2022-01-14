@@ -49,14 +49,14 @@
             <div class="tab-pane fade active show" id="topographies">
               {% if surface.num_topographies == 0 %}
                 <div class="alert alert-info">
-                  This surface has no measurements yet.
+                  This digital surface twin has no measurements yet.
                   You can add measurements by pressing the
                   <b>{% fa5_icon 'plus-square-o' %} Add measurement</b> button.
                 </div>
               {% else %}
                 <div class="alert alert-secondary">
-                  A surface is a container for multiple measurements of the same specimen or
-                  material. This surface contains {{ surface.num_topographies }} individual
+                  A digital surface twin is a container for multiple measurements of the same specimen or
+                  material. This digital surface twin contains {{ surface.num_topographies }} individual
                   measurement{{ surface.num_topographies|pluralize }}. The gallery below cycles
                   through visualizations of those measurements. Move mouse next to a picture to stop the animation.
                   Click on a picture to open the corresponding measurement.
@@ -108,8 +108,8 @@
                 </div>
               {% else %}
                 <div class="alert alert-secondary">
-                  This bandwidth plot shows the range of length scales that have been measured for this surface.
-                  Each of the blocks below represents one measurement.
+                  This bandwidth plot shows the range of length scales that have been measured for this digital surface
+                  twin. Each of the blocks below represents one measurement.
                 </div>
               {% endif %}
               {% for bw_err in bandwidths_data_with_errors %}
@@ -124,7 +124,6 @@
                 click to open the corresponding measurement.</caption>
             </div>
 
-
             <div class="tab-pane p-2 fade" id="description">
               {{ surface.description|default:"(no description)" }}
             </div>
@@ -132,7 +131,7 @@
             <div class="tab-pane p-2 fade" id="permissions">
 
               <table class="table table-responsive">
-                <caption>Users having permissions regarding this surface.
+                <caption>This table lists users that can view, change, delete or share this digital surface twin.
                   Click <a href="{% url 'manager:sharing-info' %}">here</a> for information which surfaces are
                   shared with you or by you.
                 </caption>
@@ -239,7 +238,7 @@
           {# Badges and tags in a card #}
           <div class="row p-3">
             <div class="col">
-              <div class="card shadow">
+              <div class="card">
                 <div class="card-body">
                   <div>
                     <span class="badge badge-secondary surface-category-headline">

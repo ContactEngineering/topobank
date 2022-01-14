@@ -21,9 +21,9 @@ def test_renewal_on_topography_detrend_mode_change(client, mocker, django_captur
     """
 
     from ..models import Topography
-    renew_squeezed_mock = mocker.patch.object(Topography, 'renew_squeezed_datafile')
-    renew_topo_analyses_mock = mocker.patch('topobank.manager.views.renew_analyses_related_to_topography.delay')
-    renew_topo_thumbnail_mock = mocker.patch('topobank.manager.views.renew_topography_thumbnail.delay')
+    renew_squeezed_mock = mocker.patch('topobank.manager.views.renew_squeezed_datafile.si')
+    renew_topo_analyses_mock = mocker.patch('topobank.manager.views.renew_analyses_related_to_topography.si')
+    renew_topo_images_mock = mocker.patch('topobank.manager.views.renew_topography_images.si')
 
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
@@ -53,7 +53,7 @@ def test_renewal_on_topography_detrend_mode_change(client, mocker, django_captur
     # we just check here that the form is filled completely, otherwise the thumbnail would not be recreated too
     assert_no_form_errors(response)
     assert response.status_code == 200
-    assert len(callbacks) == 2  # call for renewal of thumbnail, and analyses after commit
-    assert renew_topo_thumbnail_mock.called
+    assert len(callbacks) == 1  # single chain for squeezed file, thumbnail and for analyses
+    assert renew_topo_images_mock.called
     assert renew_topo_analyses_mock.called
     assert renew_squeezed_mock.called  # was directly called, not as callback from commit

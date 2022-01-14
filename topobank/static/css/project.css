@@ -133,20 +133,8 @@ span.fancytree-checkbox {
 }
 
 tr.fancytree-active  {
-  background-color: #007bff !important; /** bootstrap "primary" color */
-  /** background-color: rgba(0,0,0,0.03) !important; */ /** bootstrap "card header" color */
-}
-
-tr.fancytree-active span.fancytree-node {
-   color: white; /** for some reason, this does not affect the title, so there is an extra rule below */
-}
-
-tr.fancytree-active span.fancytree-title, tr.fancytree-active div.description-column {
-   color: white;
-}
-
-div.version-column {
-  text-align: left;
+  background-color: var(--light) !important;
+  /*color: white !important;*/
 }
 
 /**
@@ -192,7 +180,22 @@ div.bk-btn-group button.bk-btn-primary:hover {
 
 /** Extra (dynamic) tabs */
 .nav-tabs {
-  /* border-bottom:none; */
+  z-index: 1000;
+}
+
+.fixed-top-2 {
+  margin-top: 56px;
+  z-index: 1000;
+}
+
+/*
+.fixed-top-3 {
+  margin-top: 98px;
+  z-index: 1000;
+}
+*/
+body {
+  padding-top: 105px; /* choose sth like 162px when using fix-top-3 */
 }
 
 /** Animate search bar */
@@ -315,3 +318,120 @@ section[title="Terms and Conditions"] div.toc-container, #tc-terms-html {
 .bk-btn {
   font-size: 1rem !important;
 }
+
+
+/** Container for deep zoom images */
+
+.dzi-container {
+  display: flex;
+  align-items: stretch;
+  flex-direction: row;
+}
+
+.dzi-view {
+  float: left;
+  width: calc(100% - 1em);
+}
+
+.dzi-colorbar {
+  width: 8em;
+  margin-left: 5px;
+  float: right;
+}
+
+
+/** Color bars for deep zoom image views */
+
+.dzi-colorbar-column {
+  margin-left: 5px;
+  width: 20px;
+  height: 300px;
+  float: left;
+  position: relative;
+}
+
+.background-viridis {
+  background: linear-gradient(to top, #440154, #48186a, #472d7b, #424086, #3b528b, #33638d, #2c728e, #26818e, #21908c, #1f9f88, #28ae80, #3ebc74, #5dc963, #82d34c, #abdc32, #d5e21a, #fde725);
+}
+
+.dzi-colorbar-tick {
+  background: black;
+  height: 1px;
+  width: 5px;
+  right: 0px;
+  position: absolute;
+  transform: translateY(-50%);
+}
+
+.dzi-colorbar-text {
+  justify-content: center;
+  align-items: center;
+  position: absolute;
+  transform: translateY(-50%);
+}
+
+.dzi-colorbar-title {
+  align-content: center;
+}
+
+.card-header {
+  background-color: unset;
+  border-bottom: unset;
+}
+
+/**
+ * Settings for the Find & select results tree
+ */
+
+.select-tree-title {
+  font-size: medium;
+  font-weight: bold;
+}
+
+.select-tree-authors {
+  font-size: medium;
+  color: var(--secondary);
+}
+
+/* The following cuts the description text after 3 display lines */
+.select-tree-description {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.fancytree-active .select-tree-authors {
+  font-size: medium;
+  /* color: white; */
+}
+
+.fancytree-active .select-tree-authors a {
+  font-size: medium;
+  /* color: white; */
+}
+
+.select-tree-item p {
+  margin-bottom: 0.3rem;
+}
+
+.select-tree-info {
+  color: var(--secondary);
+}
+
+.fancytree-active .select-tree-info {
+  /* color: white; */
+}
+
+.surface-tree thead {
+  display: none;
+}
+
+.create-twin-button {
+  width: 100em;
+}
+
+.surface-tree {
+  table-layout: fixed;
+}
+
