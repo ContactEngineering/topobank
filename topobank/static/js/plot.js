@@ -7,9 +7,25 @@
 
 Vue.component("bokeh-plot", {
   template: `
-    <div>
-      <div :id='"bokeh-plot-"+uniquePrefix' ref="bokehPlot"></div>
+    <ul>
+      <div class="tab-content">
+        <div v-for="(plot, index) in plots" :class="(index == 0)?'tab-pane fade show active':'tab-pane fade'" :id="'plot-'+uniquePrefix+'-'+index" role="tabpanel" :aria-labelledby="'plot-tab-'+uniquePrefix+'-'+index">
+          <div :id='"bokeh-plot-"+uniquePrefix+"-"+index' ref="bokehPlot"></div>
+        </div>
+      </div>
       <div :id='"plot-controls-accordion-"+uniquePrefix' class="accordion plot-controls-accordion">
+        <div v-if="plots.length > 1" class="card">
+          <div class="card-header plot-controls-card-header">
+            <h6 class="m-1">
+              <!-- Navigation pills for each individual plot, but only if there is more than one -->
+              <ul v-if="plots.length > 1" class="nav nav-pills">
+                <li v-for="(plot, index) in plots" class="nav-item">
+                  <a :class="(index == 0)?'nav-link active':'nav-link'" :id="'plot-tab-'+uniquePrefix+'-'+index" :href="'#plot-'+uniquePrefix+'-'+index" data-toggle="tab" role="tab" :aria-controls="'plot-'+uniquePrefix+'-'+index" :aria-selected="index == 0">{{ plot.title }}</a>
+                </li>
+              </ul>
+            </h6>
+          </div>
+        </div>
         <div v-for="category in categoryElements" class="card">
           <div :id='"heading-"+uniquePrefix+"-"+category.name' class="card-header plot-controls-card-header">
             <h2 class="mb-0">
@@ -270,11 +286,6 @@ Vue.component("bokeh-plot", {
     }
   }, methods: {
     buildPlot() {
-      /* Clear any plot that may still be in this DOM element */
-      for (const child of this.$refs.bokehPlot.children) {
-        this.$refs.bokehPlot.removeChild(child);
-      }
-
       for (const plot of this.plots) {
         /* Create and style figure */
         const bokehPlot = new Bokeh.Plotting.Figure({
@@ -301,6 +312,8 @@ Vue.component("bokeh-plot", {
 
       /* We iterate in reverse order because we want to the first element to appear on top of the plot */
       for (const dataSource of this.dataSources.reverse()) {
+        dataSource.lines = []
+        dataSource.symbols = []
         for (const [index, plot] of this.plots.entries()) {
           /* Get scale factors */
           xscale_key = plot.x + "_scale";
@@ -327,7 +340,7 @@ Vue.component("bokeh-plot", {
 
           /* Create lines and symbols */
           const bokehPlot = this.bokehPlots[index];
-          dataSource.line = bokehPlot.line(
+          dataSource.lines.push(bokehPlot.line(
             {field: "x"},
             {field: "y"},
             {
@@ -335,8 +348,8 @@ Vue.component("bokeh-plot", {
               ...{
                 width: Number(this.lineWidth) * dataSource.width
               }
-            });
-          dataSource.symbols = bokehPlot.circle(
+            }));
+          dataSource.symbols.push(bokehPlot.circle(
             {field: "x"},
             {field: "y"},
             {
@@ -346,26 +359,36 @@ Vue.component("bokeh-plot", {
                 visible: (dataSource.visible === undefined || dataSource.visible) &&
                   (dataSource.show_symbols === undefined || dataSource.show_symbols)
               }
-            });
+            }));
         }
       }
 
-      /* Render figure to HTML div */
-      this.element = Bokeh.Plotting.show(this.bokehPlots[0], "#bokeh-plot-" + this.uniquePrefix);
+      /* Render figure(s) to HTML div */
+      for (const [index, bokehPlot] of this.bokehPlots.entries()) {
+        Bokeh.Plotting.show(bokehPlot, "#bokeh-plot-" + this.uniquePrefix + "-" + index);
+      }
     },
     refreshPlot() {
       for (const dataSource of this.dataSources) {
-        visible = true;
+        let visible = true;
         for (const category of this.categoryElements) {
           visible = visible && category.selection.includes(dataSource[category.name + '_index']);
         }
-        dataSource.line.visible = visible;
-        dataSource.symbols.visible = visible && (dataSource.show_symbols == undefined || dataSource.show_symbols);
-        dataSource.line.glyph.line_width = Number(this.lineWidth) * dataSource.width;
-        dataSource.symbols.glyph.size = Number(this.symbolSize);
-        if (dataSource.is_topography_analysis) {
-          dataSource.line.glyph.line_alpha = Number(this.opacity);
-          dataSource.symbols.glyph.line_alpha = Number(this.opacity);
+
+        for (const line of dataSource.lines) {
+          line.visible = visible;
+          line.glyph.line_width = Number(this.lineWidth) * dataSource.width;
+          if (dataSource.is_topography_analysis) {
+            line.glyph.line_alpha = Number(this.opacity);
+          }
+        }
+
+        for (const symbols of dataSource.symbols) {
+          symbols.visible = visible && (dataSource.show_symbols == undefined || dataSource.show_symbols);
+          symbols.glyph.size = Number(this.symbolSize);
+          if (dataSource.is_topography_analysis) {
+            symbols.glyph.line_alpha = Number(this.opacity);
+          }
         }
       }
       for (const category of this.categoryElements) {
