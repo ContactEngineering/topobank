@@ -64,7 +64,7 @@ defusedxml==0.7.1
     # via
     #   python3-openid
     #   surfacetopography
-django==3.2.10
+django==3.2.11
     # via
     #   -r base.in
     #   collectfast
