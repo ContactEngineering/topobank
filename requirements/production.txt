@@ -88,7 +88,7 @@ defusedxml==0.7.1
     #   -r ./base.txt
     #   python3-openid
     #   surfacetopography
-django==3.2.10
+django==3.2.11
     # via
     #   -r ./base.txt
     #   collectfast
