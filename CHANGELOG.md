@@ -1,5 +1,10 @@
 # Changelog for *TopoBank*
 
+## 0.18.1 (2022-01-14)
+
+- MAINT: Added missing changes in order to get running
+  with new certificate and using a local Docker repository
+
 ## 0.18.0 (2022-01-14)
 
 - ENH: Improved performance of visualization of image maps
