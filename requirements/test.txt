@@ -99,10 +99,13 @@ defusedxml==0.7.1
     #   -r base.txt
     #   python3-openid
     #   surfacetopography
+dj-inmemorystorage==2.1.0
+    # via -r test.in
 django==3.2.11
     # via
     #   -r base.txt
     #   collectfast
+    #   dj-inmemorystorage
     #   django-allauth
     #   django-appconf
     #   django-bootstrap-datepicker-plus
@@ -444,6 +447,7 @@ six==1.16.0
     #   -r base.txt
     #   bleach
     #   click-repl
+    #   dj-inmemorystorage
     #   django-coverage-plugin
     #   python-dateutil
     #   splinter
@@ -458,7 +462,7 @@ sqlparse==0.4.2
     # via
     #   -r base.txt
     #   django
-surfacetopography==0.101.2
+surfacetopography==0.101.3
     # via
     #   -r base.txt
     #   contactmechanics

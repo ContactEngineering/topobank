@@ -30,6 +30,8 @@ from .registry import AnalysisFunctionRegistry
 _log = logging.getLogger(__name__)
 
 GAUSSIAN_FIT_SERIES_NAME = 'Gaussian fit'
+CONTACT_MECHANICS_MAX_MB_GRID_PTS_PRODUCT = 100000000
+CONTACT_MECHANICS_MAX_MB_GRID_PTS_PER_DIM = 10000
 
 
 def register_implementation(card_view_flavor="simple", name=None):
@@ -1046,7 +1048,7 @@ def _contact_at_given_load(system, external_force, history=None, pentol=None, ma
 
 
 @register_implementation(name="Contact mechanics", card_view_flavor='contact mechanics')
-def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
+def contact_mechanics(topography, substrate_str="nonperiodic", hardness=None, nsteps=10,
                       pressures=None, maxiter=100, progress_recorder=None, storage_prefix=None):
     """
     Note that `loads` is a list of pressures if the substrate is periodic and a list of forces otherwise.
@@ -1060,13 +1062,39 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
     :param progress_recorder:
     :param storage_prefix:
     :return:
+
+    The default argument of `substrate_str` was changed to `"nonperiodic"` because of problems
+    when requesting the results, when using `None`. See GH issue #788.
     """
+    # Check whether function is called with the right substrate_str and issue a warning if not
+    alerts = []  # list of dicts with keys 'alert_class', 'message'
+    if topography.is_periodic != (substrate_str == 'periodic'):
+        alert_link = f'<a class="alert-link" href="{topography.get_absolute_url()}">{topography.name}</a>'
+        alert_message = f"Measurement {alert_link} is "
+        if topography.is_periodic:
+            alert_message += "periodic, but the analysis is configured for free boundaries."
+        else:
+            alert_message += "not periodic, but the analysis is configured for periodic boundaries."
+        alerts.append(dict(alert_class=f"alert-warning", message=alert_message))
+        _log.warning(alert_message+" The user should have been informed in the UI.")
 
     # Get low level topography from SurfaceTopography model
     topography = topography.topography()
 
     if topography.dim == 1:
         raise IncompatibleTopographyException("Contact mechanics not implemented for line scans.")
+
+    # Limit size of topographies for which this calculation is possible
+    nb_grid_pts_x, nb_grid_pts_y = topography.nb_grid_pts
+    if nb_grid_pts_x * nb_grid_pts_y > CONTACT_MECHANICS_MAX_MB_GRID_PTS_PRODUCT:
+        raise IncompatibleTopographyException(f"Topography has ({nb_grid_pts_x}, {nb_grid_pts_y}) points, "
+                                              f"which are more than {CONTACT_MECHANICS_MAX_MB_GRID_PTS_PRODUCT} - "
+                                              "this is currently too large for a Contact mechanics calculation.")
+    if max(nb_grid_pts_x, nb_grid_pts_y) > CONTACT_MECHANICS_MAX_MB_GRID_PTS_PER_DIM:
+        raise IncompatibleTopographyException(f"Topography has ({nb_grid_pts_x}, {nb_grid_pts_y}) points, "
+                                              f"so more than {CONTACT_MECHANICS_MAX_MB_GRID_PTS_PER_DIM} points "
+                                              "in one direction - this is currently too large for a "
+                                              "Contact mechanics calculation.")
 
     #
     # Choose substrate str from 'is_periodic' flag, if not given
@@ -1215,7 +1243,8 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
             nsteps=nsteps,
             pressures=pressures,
             maxiter=maxiter,
-        )
+        ),
+        alerts=alerts,
     )
 
 

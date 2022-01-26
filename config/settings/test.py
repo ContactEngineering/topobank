@@ -53,6 +53,8 @@ EMAIL_PORT = 1025
 
 # Your stuff...
 
+# We want to use a storage driver in memory in order to be able to use it in tests
+DEFAULT_FILE_STORAGE = 'inmemorystorage.InMemoryStorage'
 
 # ------------------------------------------------------------------------------
 # LOGGING

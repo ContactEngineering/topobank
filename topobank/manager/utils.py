@@ -942,7 +942,8 @@ def make_dzi(data, path_prefix, physical_sizes=None, unit=None, quality=95, colo
             storage_filename = filename[len(tmpdirname) + 1:]
             # Delete (possibly existing) old data files
             target_name = f'{path_prefix}/{storage_filename}'
-            default_storage.delete(target_name)
+            if default_storage.exists(target_name):  # needed at least when using dj-inmemorystorage for tests
+                default_storage.delete(target_name)
             # Upload to S3
             uploded_name = default_storage.save(target_name, File(open(filename, mode='rb')))
             assert uploded_name == target_name
