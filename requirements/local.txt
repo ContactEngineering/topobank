@@ -506,7 +506,7 @@ sqlparse==0.4.2
     #   django-debug-toolbar
 stack-data==0.1.4
     # via ipython
-surfacetopography==0.101.2
+surfacetopography==0.101.3
     # via
     #   -r ./base.txt
     #   contactmechanics
