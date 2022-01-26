@@ -46,7 +46,7 @@ services:
       placement:
         constraints:
           - node.role==manager
-    networks: 
+    networks:
       - topobank_net
 
   postgres:
@@ -72,7 +72,7 @@ services:
       - net.ipv4.tcp_keepalive_intvl=600
       - net.ipv4.tcp_keepalive_probes=9
       - net.ipv4.tcp_keepalive_time=600
-    networks: 
+    networks:
       - topobank_net
 
   dbbackup:
@@ -90,7 +90,7 @@ services:
       placement:
         constraints:
           - node.role==manager
-    networks: 
+    networks:
       - topobank_net
 
   caddy:
@@ -111,7 +111,7 @@ services:
       placement:
         constraints:
           - node.role==manager
-    networks: 
+    networks:
       - topobank_net
 
   #
@@ -135,7 +135,7 @@ services:
       - net.ipv4.tcp_keepalive_intvl=600
       - net.ipv4.tcp_keepalive_probes=9
       - net.ipv4.tcp_keepalive_time=600
-    networks: 
+    networks:
       - topobank_net
 
   rabbitmq:
@@ -155,7 +155,7 @@ services:
       - net.ipv4.tcp_keepalive_intvl=600
       - net.ipv4.tcp_keepalive_probes=9
       - net.ipv4.tcp_keepalive_time=600
-    networks: 
+    networks:
       - topobank_net
 
   celeryworker:
