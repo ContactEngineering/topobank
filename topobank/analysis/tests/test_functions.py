@@ -33,6 +33,7 @@ class FakeTopographyModel:
     """
     t: Topography
     name: str = "mytopo"
+    is_periodic: bool = False
 
     def topography(self):
         """Return low level topography.
@@ -42,6 +43,11 @@ class FakeTopographyModel:
     def get_absolute_url(self):
         return "some/url/"
 
+
+class DummyProgressRecorder:
+    def set_progress(self, a, nsteps):
+        """Do nothing."""
+        pass  # dummy
 
 ###############################################################################
 # Tests for line scans
@@ -460,15 +466,12 @@ def test_contact_mechanics_incompatible_topography():
 
 
 def test_contact_mechanics_whether_given_pressures_in_result(simple_linear_2d_topography):
-    class ProgressRecorder:
-        def set_progress(self, a, nsteps):
-            pass  # dummy
 
     given_pressures = [2e-3, 1e-2]
     topography = FakeTopographyModel(simple_linear_2d_topography)
     result = contact_mechanics(topography,
                                nsteps=None, pressures=given_pressures, storage_prefix='test/',
-                               progress_recorder=ProgressRecorder())
+                               progress_recorder=DummyProgressRecorder())
 
     np.testing.assert_almost_equal(result['mean_pressures'], given_pressures)
 
@@ -483,13 +486,9 @@ def test_contact_mechanics_effective_kwargs_in_result(periodic):
     info = dict(unit='nm')
     t = Topography(arr, (10, 5), info=info, periodic=periodic).detrend('center')
 
-    class ProgressRecorder:
-        def set_progress(self, a, nsteps):
-            pass  # dummy
-
     topography = FakeTopographyModel(t)
-    result = contact_mechanics(topography, nsteps=10, storage_prefix='test/',
-                               progress_recorder=ProgressRecorder())
+    result = contact_mechanics(topography, substrate_str=None, nsteps=10, storage_prefix='test/',
+                               progress_recorder=DummyProgressRecorder())
 
     exp_effective_kwargs = dict(
         substrate_str=('' if periodic else 'non') + 'periodic',
@@ -805,3 +804,16 @@ def test_exception_topography_too_large_for_contact_mechanics(x_dim, y_dim, mock
     with pytest.raises(IncompatibleTopographyException):
         contact_mechanics(topo, storage_prefix='test')
 
+
+@pytest.mark.parametrize(["topo_is_periodic", "substrate_str", "exp_num_alerts"], [
+    [False, 'nonperiodic', 0],
+    [False, 'periodic', 1],
+    [True, 'nonperiodic', 1],
+    [True, 'periodic', 0],
+])
+def test_alert_if_topographys_periodicity_does_not_match(simple_linear_2d_topography,
+                                                         topo_is_periodic, substrate_str, exp_num_alerts):
+    topo = FakeTopographyModel(simple_linear_2d_topography, is_periodic=topo_is_periodic)
+    result = contact_mechanics(topo, substrate_str=substrate_str, storage_prefix='test',
+                               progress_recorder=DummyProgressRecorder())
+    assert len(result['alerts']) == exp_num_alerts

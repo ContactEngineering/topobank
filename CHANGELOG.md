@@ -4,6 +4,8 @@
 
 - BUG: Fixing missing nc files in contact mechanics download
   (#786)
+- BUG: Fixing contact calculations always pending after 
+  triggering them manually (#788)
 - BUG: Fixing unit issue in contact mechanics for measurements
   with missing data (#783)
 - BUG: Now limiting size of measurements for contact mechanics

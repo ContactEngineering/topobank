@@ -145,7 +145,7 @@ def test_default_function_kwargs():
     func = AnalysisFunction.objects.get(name='Contact mechanics')
 
     expected_kwargs = dict(
-        substrate_str=None,
+        substrate_str='nonperiodic',
         hardness=None,
         nsteps=10,
         pressures=None,
@@ -172,7 +172,7 @@ def test_current_configuration(settings):
     config = current_configuration()
 
     versions = config.versions.order_by(Lower('dependency__import_name'))
-    # Lower: Just to have a defined order independent from database used
+    # Lower: Just to have a defined order independent of database used
 
     assert len(versions) == 6
 
