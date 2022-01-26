@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-## 0.18.2 (not published yet)
+## 0.18.2 (2022-01-26)
 
 - BUG: Fixing missing nc files in contact mechanics download
   (#786)
@@ -8,9 +8,10 @@
   with missing data (#783)
 - BUG: Now limiting size of measurements for contact mechanics
   (#784)
+- BUG: Fix for memcache error (#737)
+- WIP: Workaround for failing thumbnails in production (#782)
 - MAINT: Updated configuration for Docker Swarm because of 
   connection failures in production ()
-
 
 ## 0.18.1 (2022-01-14)
 
