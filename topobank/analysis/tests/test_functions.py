@@ -792,3 +792,16 @@ def test_scale_dependent_slope_for_surface(simple_surface):
     assert expected_result['series'][0]['name'] == result['series'][0]['name']
     assert_allclose(expected_result['series'][0]['x'], result['series'][0]['x'], atol=1e-6)
     assert_allclose(expected_result['series'][0]['y'], result['series'][0]['y'], atol=1e-6)
+
+
+@pytest.mark.parametrize(["x_dim", "y_dim"], [[20000, 10000], [9999999, 3]])
+def test_exception_topography_too_large_for_contact_mechanics(x_dim, y_dim, mocker, simple_linear_2d_topography):
+    topo = FakeTopographyModel(simple_linear_2d_topography)
+
+    # patch raw topography in order to return a higher number of grid points
+    m = mocker.patch("SurfaceTopography.Topography.nb_grid_pts", new_callable=mocker.PropertyMock)
+    m.return_value = (x_dim, y_dim)  # this make the topography returning high numbers of grid points
+
+    with pytest.raises(IncompatibleTopographyException):
+        contact_mechanics(topo, storage_prefix='test')
+

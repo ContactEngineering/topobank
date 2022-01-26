@@ -30,6 +30,8 @@ from .registry import AnalysisFunctionRegistry
 _log = logging.getLogger(__name__)
 
 GAUSSIAN_FIT_SERIES_NAME = 'Gaussian fit'
+CONTACT_MECHANICS_MAX_MB_GRID_PTS_PRODUCT = 100000000
+CONTACT_MECHANICS_MAX_MB_GRID_PTS_PER_DIM = 10000
 
 
 def register_implementation(card_view_flavor="simple", name=None):
@@ -1067,6 +1069,18 @@ def contact_mechanics(topography, substrate_str=None, hardness=None, nsteps=10,
 
     if topography.dim == 1:
         raise IncompatibleTopographyException("Contact mechanics not implemented for line scans.")
+
+    # Limit size of topographies for which this calculation is possible
+    nb_grid_pts_x, nb_grid_pts_y = topography.nb_grid_pts
+    if nb_grid_pts_x * nb_grid_pts_y > CONTACT_MECHANICS_MAX_MB_GRID_PTS_PRODUCT:
+        raise IncompatibleTopographyException(f"Topography has ({nb_grid_pts_x}, {nb_grid_pts_y}) points, "
+                                              f"which are more than {CONTACT_MECHANICS_MAX_MB_GRID_PTS_PRODUCT} - "
+                                              "this is currently too large for a Contact mechanics calculation.")
+    if max(nb_grid_pts_x, nb_grid_pts_y) > CONTACT_MECHANICS_MAX_MB_GRID_PTS_PER_DIM:
+        raise IncompatibleTopographyException(f"Topography has ({nb_grid_pts_x}, {nb_grid_pts_y}) points, "
+                                              f"so more than {CONTACT_MECHANICS_MAX_MB_GRID_PTS_PER_DIM} points "
+                                              "in one direction - this is currently too large for a "
+                                              "Contact mechanics calculation.")
 
     #
     # Choose substrate str from 'is_periodic' flag, if not given
