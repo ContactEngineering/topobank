@@ -664,7 +664,7 @@ class ContactMechanicsCardView(SimpleCardView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-
+        alerts = []  # list of collected alerts
         analyses_success = context['analyses_success']
 
         if len(analyses_success) == 0:
@@ -823,13 +823,14 @@ class ContactMechanicsCardView(SimpleCardView):
 
         context['initial_calc_kwargs'] = initial_calc_kwargs
 
-        context['extra_warnings'] = [
+        context['extra_warnings'] = alerts
+        context['extra_warnings'].append(
             dict(alert_class='alert-warning',
                  message="""
                  Translucent data points did not converge within iteration limit and may carry large errors.
                  <i>A</i> is the true contact area and <i>A0</i> the apparent contact area,
                  i.e. the size of the provided measurement.""")
-        ]
+        )
 
         context['limits_calc_kwargs'] = settings.CONTACT_MECHANICS_KWARGS_LIMITS
 

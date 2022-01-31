@@ -28,6 +28,7 @@ import os.path
 from bokeh.models import DataRange1d, LinearColorMapper, ColorBar
 from bokeh.plotting import figure
 from bokeh.io.export import get_screenshot_as_png
+from bokeh.io.webdriver import webdriver_control  # see whether this is more reliable than get_firefox_webdriver
 
 from ..plots import configure_plot
 from .utils import get_topography_reader, get_firefox_webdriver
@@ -945,28 +946,34 @@ class Topography(models.Model, SubjectMixin):
         #
         generate_driver = not driver
         if generate_driver:
-            driver = get_firefox_webdriver()
+            driver = webdriver_control.create()
+            driver.implicitly_wait(1200)
 
-        image = get_screenshot_as_png(plot, driver=driver)
+        try:
+          image = get_screenshot_as_png(plot, driver=driver, timeout=20)
 
-        thumbnail_height = 400
-        thumbnail_width = int(image.size[0] * thumbnail_height / image.size[1])
-        image.thumbnail((thumbnail_width, thumbnail_height))
-        image_file = io.BytesIO()
-        image.save(image_file, 'PNG')
+          thumbnail_height = 400
+          thumbnail_width = int(image.size[0] * thumbnail_height / image.size[1])
+          image.thumbnail((thumbnail_width, thumbnail_height))
+          image_file = io.BytesIO()
+          image.save(image_file, 'PNG')
 
-        #
-        # Remove old thumbnail
-        #
-        self.thumbnail.delete()
+          #
+          # Remove old thumbnail
+          #
+          self.thumbnail.delete()
 
-        #
-        # Save the contents of in-memory file in Django image field
-        #
-        self.thumbnail.save(
-            f'{self.id}/thumbnail.png',
-            ContentFile(image_file.getvalue()),
-        )
+          #
+          # Save the contents of in-memory file in Django image field
+          #
+          self.thumbnail.save(
+              f'{self.id}/thumbnail.png',
+              ContentFile(image_file.getvalue()),
+          )
+        except RuntimeError as exc:
+            _log.error(f"Cannot generate thumbnail for topography {self.id}. Reason: {exc}")
+            self.thumbnail.delete()
+            _log.warning(f"Thumbnail generation failed for topography {self.id}. Deleted old thumbnail which could be outdated.")
 
         if generate_driver:
             driver.close()  # important to free memory
@@ -1004,6 +1011,8 @@ class Topography(models.Model, SubjectMixin):
                 self.save()
                 _log.warning(f"Problems while generating thumbnail for topography {self.id}: {exc}. "
                              "Saving <None> instead.")
+                import traceback
+                _log.warning(f"Traceback: {traceback.format_exc()}")
             else:
                 raise ThumbnailGenerationException from exc
 

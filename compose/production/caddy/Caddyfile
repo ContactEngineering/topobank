@@ -9,6 +9,9 @@
 
 
 {$DOMAIN_NAME} {
+
+    tls /etc/caddy/certificate.crt /etc/caddy/private.key
+
     reverse_proxy django:5000 {
         header_up Host {http.request.host}
         header_up X-Real-IP {http.request.remote}

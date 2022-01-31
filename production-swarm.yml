@@ -1,4 +1,4 @@
-version: '3'
+version: '3.2'
 
 volumes:
   production_postgres_data: {}
@@ -6,6 +6,7 @@ volumes:
   production_caddy: {}
   production_media: {}
   # The media is used to save the topography files, will probably be replaced later by S3
+  production_rabbitmq: {}
 
 #networks:
 #  topobank:
@@ -14,6 +15,14 @@ volumes:
 #    driver_opts:
 #      encrypted: ""
 #      # not working yet?!
+#
+
+networks:
+  topobank_net:
+    driver: overlay
+    # external: true
+    #driver_opts:
+    #  encrypted: ""
 
 services:
   django: &django
@@ -21,7 +30,7 @@ services:
       context: .
       dockerfile: ./compose/production/django/Dockerfile
     shm_size: '2gb'
-    image: localhost:5000/topobank_production_django
+    image: contact.engineering:5000/topobank_production_django
     depends_on:
       - postgres
       - rabbitmq
@@ -33,15 +42,18 @@ services:
       - ./.envs/.production/.postgres
     command: /start
     deploy:
+      endpoint_mode: dnsrr
       placement:
         constraints:
           - node.role==manager
+    networks:
+      - topobank_net
 
   postgres:
     build:
       context: .
       dockerfile: ./compose/production/postgres/Dockerfile
-    image: localhost:5000/topobank_production_postgres
+    image: contact.engineering:5000/topobank_production_postgres
     volumes:
       - production_postgres_data:/var/lib/postgresql/data
       - production_postgres_data_backups:/backups
@@ -49,15 +61,25 @@ services:
       - ./.envs/.production/.postgres
     entrypoint: /docker-entrypoint.sh -c "shared_buffers=2GB" -c "max_connections=2000"
     deploy:
+      endpoint_mode: dnsrr
       placement:
         constraints:
           - node.role==manager
+    sysctls:
+      # NOTES: these values are needed here because docker swarm kills long running idle
+      # connections by default after 15 minutes see https://github.com/moby/moby/issues/31208
+      # info about these values are here https://tldp.org/HOWTO/TCP-Keepalive-HOWTO/usingkeepalive.html
+      - net.ipv4.tcp_keepalive_intvl=600
+      - net.ipv4.tcp_keepalive_probes=9
+      - net.ipv4.tcp_keepalive_time=600
+    networks:
+      - topobank_net
 
   dbbackup:
     build:
       context: .
       dockerfile: ./compose/production/dbbackup/Dockerfile
-    image: localhost:5000/topobank_production_dbbackup
+    image: contact.engineering:5000/topobank_production_dbbackup
     depends_on:
       - postgres
     env_file:
@@ -68,12 +90,14 @@ services:
       placement:
         constraints:
           - node.role==manager
+    networks:
+      - topobank_net
 
   caddy:
     build:
       context: .
       dockerfile: ./compose/production/caddy/Dockerfile
-    image: localhost:5000/topobank_production_caddy
+    image: contact.engineering:5000/topobank_production_caddy
     depends_on:
       - django
     volumes:
@@ -87,21 +111,59 @@ services:
       placement:
         constraints:
           - node.role==manager
+    networks:
+      - topobank_net
 
+  #
+  # memcached and rabbitmq should run only once on manager
+  #
   memcached:
     image: memcached:1.5-alpine
     volumes:
       - production_media:/app/media
+    restart: always
     deploy:
+      endpoint_mode: dnsrr
       replicas: 2
+      placement:
+        constraints:
+          - node.role==manager
+    sysctls:
+      # NOTES: these values are needed here because docker swarm kills long running idle
+      # connections by default after 15 minutes see https://github.com/moby/moby/issues/31208
+      # info about these values are here https://tldp.org/HOWTO/TCP-Keepalive-HOWTO/usingkeepalive.html
+      - net.ipv4.tcp_keepalive_intvl=600
+      - net.ipv4.tcp_keepalive_probes=9
+      - net.ipv4.tcp_keepalive_time=600
+    networks:
+      - topobank_net
 
   rabbitmq:
     image: rabbitmq:3.7-alpine
+    restart: always
+    volumes:
+      - production_rabbitmq:/var/lib/rabbitmq/mnesia
+    deploy:
+      endpoint_mode: dnsrr
+      placement:
+        constraints:
+          - node.role==manager
+    sysctls:
+      # NOTES: these values are needed here because docker swarm kills long running idle
+      # connections by default after 15 minutes see https://github.com/moby/moby/issues/31208
+      # info about these values are here https://tldp.org/HOWTO/TCP-Keepalive-HOWTO/usingkeepalive.html
+      - net.ipv4.tcp_keepalive_intvl=600
+      - net.ipv4.tcp_keepalive_probes=9
+      - net.ipv4.tcp_keepalive_time=600
+    networks:
+      - topobank_net
 
   celeryworker:
     <<: *django
-    image: localhost:5000/topobank_production_celeryworker
+    image: contact.engineering:5000/topobank_production_celeryworker
     command: /start-celeryworker
+    volumes:
+      - /tmp/container-data/tmp:/tmp
     deploy:
       placement:
         constraints:
@@ -109,7 +171,7 @@ services:
 
   celerybeat:
     <<: *django
-    image: localhost:5000/topobank_production_celerybeat
+    image: contact.engineering:5000/topobank_production_celerybeat
     command: /start-celerybeat
     deploy:
       placement:
@@ -118,7 +180,7 @@ services:
 
   flower:
     <<: *django
-    image: localhost:5000/topobank_production_flower
+    image: contact.engineering:5000/topobank_production_flower
     command: /start-flower
     deploy:
       placement:

@@ -1,5 +1,25 @@
 # Changelog for *TopoBank*
 
+## 0.18.2 (2022-01-26)
+
+- BUG: Fixing missing nc files in contact mechanics download
+  (#786)
+- BUG: Fixing contact calculations always pending after 
+  triggering them manually (#788)
+- BUG: Fixing unit issue in contact mechanics for measurements
+  with missing data (#783)
+- BUG: Now limiting size of measurements for contact mechanics
+  (#784)
+- BUG: Fix for memcache error (#737)
+- WIP: Workaround for failing thumbnails in production (#782)
+- MAINT: Updated configuration for Docker Swarm because of 
+  connection failures in production ()
+
+## 0.18.1 (2022-01-14)
+
+- MAINT: Added missing changes in order to get running
+  with new certificate and using a local Docker repository
+
 ## 0.18.0 (2022-01-14)
 
 - ENH: Improved performance of visualization of image maps
