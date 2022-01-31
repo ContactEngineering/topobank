@@ -29,3 +29,7 @@ beautifulsoup4
 # for testing functions depending on date functions
 freezegun
 
+# for using storage items in test
+dj-inmemorystorage
+
+

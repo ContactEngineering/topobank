@@ -635,7 +635,7 @@ def download_contact_mechanics_analyses_as_zip(request, analyses):
         col_names = ["Normalized pressure p/E*", "Fractional contact area A/A0", "Normalized mean gap u/h_rms",
                      "converged", "filename"]
 
-        col_dicts = {col_names[i]:analysis_result[k] for i,k in enumerate(col_keys)}
+        col_dicts = {col_names[i]: analysis_result[k] for i, k in enumerate(col_keys)}
         plot_df = pd.DataFrame(col_dicts)
         plot_df['filename'] = plot_df['filename'].map(lambda fn: os.path.split(fn)[1])  # only simple filename
 
@@ -643,22 +643,22 @@ def download_contact_mechanics_analyses_as_zip(request, analyses):
         zf.writestr(plot_filename_in_zip, plot_df.to_csv())
 
         #
-        # Add all files from storage
+        # Add nc files from storage
         #
         prefix = analysis.storage_prefix
 
         directories, filenames = default_storage.listdir(prefix)
 
-        for file_no, fname in enumerate(filenames):
+        for dirname in directories:
+            # each directory corresponds to a step
+            input_file = default_storage.open(f"{prefix}/{dirname}/nc/results.nc")
 
-            input_file = default_storage.open(prefix + fname)
-
-            filename_in_zip = os.path.join(zip_dir, fname)
+            filename_in_zip = os.path.join(zip_dir, f"result-{dirname}.nc")
 
             try:
                 zf.writestr(filename_in_zip, input_file.read())
             except Exception as exc:
-                zf.writestr("errors-{}.txt".format(file_no),
+                zf.writestr("errors-{}.txt".format(dirname),
                             "Cannot save file {} in ZIP, reason: {}".format(filename_in_zip, str(exc)))
 
         #
