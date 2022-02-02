@@ -7,7 +7,7 @@
 
 Vue.component("bokeh-plot", {
   template: `
-    <ul>
+    <div>
       <div class="tab-content">
         <div v-for="(plot, index) in plots" :class="(index == 0)?'tab-pane fade show active':'tab-pane fade'" :id="'plot-'+uniquePrefix+'-'+index" role="tabpanel" :aria-labelledby="'plot-tab-'+uniquePrefix+'-'+index">
           <div :id='"bokeh-plot-"+uniquePrefix+"-"+index' ref="bokehPlot"></div>
@@ -286,6 +286,11 @@ Vue.component("bokeh-plot", {
     }
   }, methods: {
     buildPlot() {
+      let tools = this.tools;
+      //const code = "cb_obj.onSelect(cb_data);";
+      const code = "console.log(cb_obj); console.log(cb_data);";
+      tools.push(new Bokeh.TapTool({behavior: "select", callback: new Bokeh.CustomJS({code})}));
+
       for (const plot of this.plots) {
         /* Create and style figure */
         const bokehPlot = new Bokeh.Plotting.Figure({
@@ -295,7 +300,7 @@ Vue.component("bokeh-plot", {
           y_axis_label: plot.yAxisLabel === undefined ? "y" : plot.yAxisLabel,
           x_axis_type: plot.xAxisType === undefined ? "linear" : plot.xAxisType,
           y_axis_type: plot.yAxisType === undefined ? "linear" : plot.yAxisType,
-          tools: this.tools,
+          tools: tools,
           output_backend: this.outputBackend
         });
 
@@ -312,8 +317,8 @@ Vue.component("bokeh-plot", {
 
       /* We iterate in reverse order because we want to the first element to appear on top of the plot */
       for (const dataSource of this.dataSources.reverse()) {
-        dataSource.lines = []
-        dataSource.symbols = []
+        dataSource.lines = [];
+        dataSource.symbols = [];
         for (const [index, plot] of this.plots.entries()) {
           /* Get scale factors */
           xscale_key = plot.x + "_scale";
@@ -364,8 +369,14 @@ Vue.component("bokeh-plot", {
       }
 
       /* Render figure(s) to HTML div */
-      for (const [index, bokehPlot] of this.bokehPlots.entries()) {
-        Bokeh.Plotting.show(bokehPlot, "#bokeh-plot-" + this.uniquePrefix + "-" + index);
+      if (this.bokehPlots.length > 1) {
+        let panels = [];
+        for (const [index, bokehPlot] of this.bokehPlots.entries()) {
+          panels.push(new Bokeh.Panel({child: bokehPlot, title: "aaa"}));
+        }
+        Bokeh.Plotting.show(new Bokeh.Tabs({tabs: panels}), "#bokeh-plot-" + this.uniquePrefix + "-0");
+      } else {
+        Bokeh.Plotting.show(this.bokehPlots[0], "#bokeh-plot-" + this.uniquePrefix + "-0");
       }
     },
     refreshPlot() {
@@ -410,5 +421,8 @@ Vue.component("bokeh-plot", {
         category.selection = [];
       }
     },
+    onSelect(data) {
+      console.log(data);
+    }
   }
 });

@@ -18,6 +18,7 @@
       {% include 'analysis/contactmechanics_card_bokeh.html' %}
     </div>
 
+  <!--
     {% if not analyses_unready %}
     {# Middle with group of tabs #}
     <div class="col-2 col-sm-2 col-md-2 col-lg-2">
@@ -311,11 +312,11 @@
           </div>
 
         </div>
-
         {% include 'analysis/analyses_warnings_tab_pane.html' %}
       </div>
     </div>
     {% endif %}
+-->
 
   </div>
 
@@ -341,7 +342,7 @@
   };
 
 
-  function selection_handler(obj, data, sources) {
+  function selection_handler(obj, data) {
     var selected = data.source.selected;
     var index = selected.indices[0];
     var name = data.source.name; // name of source = topography name
