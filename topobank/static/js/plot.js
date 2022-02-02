@@ -272,8 +272,16 @@ Vue.component("bokeh-plot", {
     buildPlot() {
       let tools = this.tools;
       //const code = "cb_obj.onSelect(cb_data);";
-      const code = "console.log(cb_obj); console.log(cb_data);";
-      tools.push(new Bokeh.TapTool({behavior: "select", callback: new Bokeh.CustomJS({code})}));
+      const code = "selection_handler(cb_obj, cb_data, dataSources  );";
+      tools.push(new Bokeh.TapTool({
+        behavior: "select",
+        callback: new Bokeh.CustomJS({
+          args: {
+            dataSources: this.dataSources
+          },
+          code: code
+        })
+      }));
 
       for (const plot of this.plots) {
         /* Create and style figure */
@@ -315,6 +323,7 @@ Vue.component("bokeh-plot", {
 
           /* Data source: AJAX GET request to storage system retrieving a JSON */
           const source = new Bokeh.AjaxDataSource({
+            name: dataSource.source_name,
             data_url: dataSource.url,
             method: "GET",
             content_type: "",

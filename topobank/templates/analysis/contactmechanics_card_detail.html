@@ -340,7 +340,7 @@
   };
 
 
-  function selection_handler(obj, data) {
+  function selection_handler(obj, data, sources) {
     var selected = data.source.selected;
     var index = selected.indices[0];
     var name = data.source.name; // name of source = topography name
@@ -353,6 +353,7 @@
      * Make sure only the selection for one topography is active
      * and deselect all others
      */
+    /*
     for (i=0; i<sources.length; i++) {
       var selection = []; // default: unselect all points
       var s = sources[i];
@@ -370,7 +371,7 @@
       sources[i].selected.indices = selection;
 
     }
-
+    */
     /**
      * Trigger loading of extra data by using analysis id and index of point
      */
