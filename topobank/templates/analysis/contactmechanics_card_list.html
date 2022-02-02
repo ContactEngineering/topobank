@@ -3,52 +3,52 @@
 {% load icon_tags %}
 
 <div class="card search-result-card">
-    <div class="card-header">
-      {% if analyses_available %}
-      <div class="btn-group btn-group-sm float-right dropdown">
-        <a href="{% url 'analysis:function-detail' function.pk %}" class="btn btn-default float-right open-btn">
-                  {% fa5_icon 'folder-open' 'far' %} Open
-        </a>
-        <button type="button" class="btn btn-default" data-toggle="dropdown"
-                aria-haspopup="true" aria-expanded="false">
-          <i class="fa fa-chevron-down"></i>
-        </button>
-        <div class="dropdown-menu dropdown-menu-right">
-          <!--
-          {% if analyses_success %}
-          <a class="dropdown-item" href="#">Download as TXT</a>
-          <a class="dropdown-item" href="#">Download as XLSX</a>
-          {% endif %}
-          -->
-          {% if not analyses_unready %}
-            <div class="dropdown-divider"></div>
-            <a class="dropdown-item" href="#" data-toggle="modal"
-               data-target="#statusesModal-{{ card_id }}">Task information</a>
-          {% endif %}
-        </div>
+  <div class="card-header">
+    {% if analyses_available %}
+    <div class="btn-group btn-group-sm float-right dropdown">
+      <a href="{% url 'analysis:function-detail' function.pk %}" class="btn btn-default float-right open-btn">
+                {% fa5_icon 'folder-open' 'far' %} Open
+      </a>
+      <button type="button" class="btn btn-default" data-toggle="dropdown"
+              aria-haspopup="true" aria-expanded="false">
+        <i class="fa fa-chevron-down"></i>
+      </button>
+      <div class="dropdown-menu dropdown-menu-right">
+        <!--
+        {% if analyses_success %}
+        <a class="dropdown-item" href="#">Download as TXT</a>
+        <a class="dropdown-item" href="#">Download as XLSX</a>
+        {% endif %}
+        -->
+        {% if not analyses_unready %}
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item" href="#" data-toggle="modal"
+             data-target="#statusesModal-{{ card_id }}">Task information</a>
+        {% endif %}
       </div>
-      {% endif %}
-      <h5>{{ title }}</h5>
     </div>
-    <div class="card-body">
-      {% if analyses_failure or extra_warnings %}
-      <ul class="nav nav-tabs">
-        <li class="nav-item" style="list-style-type: none;">
-          <a class="nav-link active" data-toggle="tab" href="#plot-tab-{{ card_id }}">Plot</a>
-        </li>
-        <li class="nav-item" style="list-style-type: none;">
-          <a class="nav-link" data-toggle="tab" href="#warnings-tab-{{ card_id }}">Warnings</a>
-        </li>
-      </ul>
-      {% endif %}
+    {% endif %}
+    <h5>{{ title }}</h5>
+  </div>
+  <div class="card-body">
+    {% if analyses_failure or extra_warnings %}
+    <ul class="nav nav-tabs">
+      <li class="nav-item" style="list-style-type: none;">
+        <a class="nav-link active" data-toggle="tab" href="#plot-tab-{{ card_id }}">Plot</a>
+      </li>
+      <li class="nav-item" style="list-style-type: none;">
+        <a class="nav-link" data-toggle="tab" href="#warnings-tab-{{ card_id }}">Warnings</a>
+      </li>
+    </ul>
+    {% endif %}
 
-      <div class="tab-content">
-        <div class="tab-pane fade show active" id="plot-tab-{{ card_id }}" role="tabpanel">
-          {% include 'analysis/contactmechanics_card_bokeh.html' %}
-        </div>
-        {% include 'analysis/analyses_warnings_tab_pane.html' %}
+    <div class="tab-content">
+      <div class="tab-pane fade show active" id="plot-tab-{{ card_id }}" role="tabpanel">
+        {% include 'analysis/contactmechanics_card_bokeh.html' %}
       </div>
+      {% include 'analysis/analyses_warnings_tab_pane.html' %}
     </div>
+  </div>
 </div>
 
 {% include 'analysis/task_info_modal.html' %}

@@ -8,24 +8,8 @@
 Vue.component("bokeh-plot", {
   template: `
     <div>
-      <div class="tab-content">
-        <div v-for="(plot, index) in plots" :class="(index == 0)?'tab-pane fade show active':'tab-pane fade'" :id="'plot-'+uniquePrefix+'-'+index" role="tabpanel" :aria-labelledby="'plot-tab-'+uniquePrefix+'-'+index">
-          <div :id='"bokeh-plot-"+uniquePrefix+"-"+index' ref="bokehPlot"></div>
-        </div>
-      </div>
+      <div :id='"bokeh-plot-"+uniquePrefix' ref="bokehPlot"></div>
       <div :id='"plot-controls-accordion-"+uniquePrefix' class="accordion plot-controls-accordion">
-        <div v-if="plots.length > 1" class="card">
-          <div class="card-header plot-controls-card-header">
-            <h6 class="m-1">
-              <!-- Navigation pills for each individual plot, but only if there is more than one -->
-              <ul v-if="plots.length > 1" class="nav nav-pills">
-                <li v-for="(plot, index) in plots" class="nav-item">
-                  <a :class="(index == 0)?'nav-link active':'nav-link'" :id="'plot-tab-'+uniquePrefix+'-'+index" :href="'#plot-'+uniquePrefix+'-'+index" data-toggle="tab" role="tab" :aria-controls="'plot-'+uniquePrefix+'-'+index" :aria-selected="index == 0">{{ plot.title }}</a>
-                </li>
-              </ul>
-            </h6>
-          </div>
-        </div>
         <div v-for="category in categoryElements" class="card">
           <div :id='"heading-"+uniquePrefix+"-"+category.name' class="card-header plot-controls-card-header">
             <h2 class="mb-0">
@@ -372,11 +356,11 @@ Vue.component("bokeh-plot", {
       if (this.bokehPlots.length > 1) {
         let panels = [];
         for (const [index, bokehPlot] of this.bokehPlots.entries()) {
-          panels.push(new Bokeh.Panel({child: bokehPlot, title: "aaa"}));
+          panels.push(new Bokeh.Panel({child: bokehPlot, title: this.plots[index].title}));
         }
-        Bokeh.Plotting.show(new Bokeh.Tabs({tabs: panels}), "#bokeh-plot-" + this.uniquePrefix + "-0");
+        Bokeh.Plotting.show(new Bokeh.Tabs({tabs: panels}), "#bokeh-plot-" + this.uniquePrefix);
       } else {
-        Bokeh.Plotting.show(this.bokehPlots[0], "#bokeh-plot-" + this.uniquePrefix + "-0");
+        Bokeh.Plotting.show(this.bokehPlots[0], "#bokeh-plot-" + this.uniquePrefix);
       }
     },
     refreshPlot() {
