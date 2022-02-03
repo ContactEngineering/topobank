@@ -45,7 +45,8 @@
               </div>
               -->
               <dzi-map prefix-url="{% url 'manager:topography-dzi' pk=topography.pk dzi_filename='' %}"
-                       colorbar="true">
+                       colorbar="true"
+                       ref="dzi">
               </dzi-map>
             {% else %}
               <div id="topography-plot-content">
@@ -200,7 +201,9 @@
               </a>
             {% endif %}
 
-            <a id="topography-download" href="#" class="btn btn-default btn-block btn-lg">
+            <a href="#"
+               class="btn btn-default btn-block btn-lg"
+               v-on:click="$refs.dzi.download()">
               {% fa5_icon 'download' %} Download as PNG
             </a>
 
@@ -235,24 +238,7 @@
 
   {% if topography.size_y %}
     <script>
-      new Vue({el: "#topography-detail"});
-
-      $(document).ready(function () {
-        // Create array with tick information
-        var ticks = [];
-        {% for colorbar_tick in dzi_colorbar_ticks %}
-          ticks.push({position: '{{ colorbar_tick.0 }}', label: '{{ colorbar_tick.1 }}'});
-        {% endfor %}
-
-        // Visualize topography map
-      /*
-        visualizeMap(
-          'topography-view',
-          "{% url 'manager:topography-dzi' pk=topography.pk dzi_filename='' %}",
-          'topography-colorbar',
-          'topography-download');
-          */
-      });
+      vm = new Vue({el: "#topography-detail"});
     </script>
   {% else %}
     <script>

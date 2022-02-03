@@ -50,7 +50,7 @@ Vue.component("dzi-map", {
     this.requestDzi();
   },
   methods: {
-    requestDzi() {
+    requestDzi: function () {
       axios.get(this.prefixUrl + 'dzi.json').then(response => {
         meta = response.data;  // Image metadata
 
@@ -135,35 +135,35 @@ Vue.component("dzi-map", {
           this.errorMessage == error.message;
         }
       });
-    }
-  },
-  download() {
-    // Image download. Code has been adapted from:
-    // https://github.com/KTGLeiden/Openseadragon-screenshot/blob/master/openseadragonScreenshot.js
-    var downloadImage = function () {
-      this.viewer.world.getItemAt(0).removeAllHandlers('fully-loaded-change');
+    },
+    download: function () {
+      // Image download. Code has been adapted from:
+      // https://github.com/KTGLeiden/Openseadragon-screenshot/blob/master/openseadragonScreenshot.js
+      var downloadImage = () => {
+        this.viewer.world.getItemAt(0).removeAllHandlers('fully-loaded-change');
 
-      var imgCanvas = this.viewer.drawer.canvas;
-      var downloadCanvas = document.createElement("canvas");
-      downloadCanvas.width = imgCanvas.width;
-      downloadCanvas.height = imgCanvas.height;
+        var imgCanvas = this.viewer.drawer.canvas;
+        var downloadCanvas = document.createElement("canvas");
+        downloadCanvas.width = imgCanvas.width;
+        downloadCanvas.height = imgCanvas.height;
 
-      var context = downloadCanvas.getContext('2d');
-      context.drawImage(imgCanvas, 0, 0);
+        var context = downloadCanvas.getContext('2d');
+        context.drawImage(imgCanvas, 0, 0);
 
-      var scalebarCanvas = this.viewer.scalebarInstance.getAsCanvas();
-      var location = this.viewer.scalebarInstance.getScalebarLocation();
-      context.drawImage(scalebarCanvas, location.x, location.y);
+        var scalebarCanvas = this.viewer.scalebarInstance.getAsCanvas();
+        var location = this.viewer.scalebarInstance.getScalebarLocation();
+        context.drawImage(scalebarCanvas, location.x, location.y);
 
-      downloadCanvas.toBlob(function (blob) {
-        saveAs(blob, "screenshot.png");
-      });
-    }
+        downloadCanvas.toBlob(function (blob) {
+          saveAs(blob, "screenshot.png");
+        });
+      }
 
-    if (this.viewer.world.getItemAt(0).getFullyLoaded()) {
-      downloadImage();
-    } else {
-      this.viewerviewer.world.getItemAt(0).addHandler('fully-loaded-change', downloadImage);
+      if (this.viewer.world.getItemAt(0).getFullyLoaded()) {
+        downloadImage();
+      } else {
+        this.viewerviewer.world.getItemAt(0).addHandler('fully-loaded-change', downloadImage);
+      }
     }
   }
 });
