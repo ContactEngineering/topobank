@@ -14,7 +14,7 @@ asgiref==3.4.1
     # via
     #   -r base.txt
     #   django
-attrs==21.2.0
+attrs==21.4.0
     # via
     #   -r base.txt
     #   jsonschema
@@ -166,6 +166,8 @@ django-progressbarupload @ git+http://github.com/ContactEngineering/django-progr
     # via -r base.txt
 django-select2==7.9.0
     # via -r base.txt
+django-sortedm2m==3.1.1
+    # via -r base.txt
 django-storages==1.12.3
     # via
     #   -r base.txt
@@ -221,7 +223,7 @@ idna==3.3
     # via
     #   -r base.txt
     #   requests
-idutils==1.1.9
+idutils==1.1.11
     # via
     #   -r base.txt
     #   datacite
@@ -252,7 +254,7 @@ jsonfield==3.1.0
     # via
     #   -r base.txt
     #   django-notifications-hq
-jsonschema==4.3.2
+jsonschema==4.4.0
     # via
     #   -r base.txt
     #   datacite
@@ -378,7 +380,7 @@ pyparsing==3.0.6
     #   -r base.txt
     #   matplotlib
     #   packaging
-pyrsistent==0.18.0
+pyrsistent==0.18.1
     # via
     #   -r base.txt
     #   jsonschema
@@ -559,7 +561,7 @@ whitenoise==5.3.0
     # via -r base.txt
 xarray==0.20.1
     # via -r base.txt
-zipp==3.6.0
+zipp==3.7.0
     # via
     #   -r base.txt
     #   importlib-resources

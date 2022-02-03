@@ -3,6 +3,11 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.safestring import mark_safe
 from django.conf import settings
+from django.core.validators import RegexValidator
+
+from sortedm2m.fields import SortedManyToManyField
+
+from topobank.users.models import User
 
 MAX_LEN_AUTHORS_FIELD = 512
 
@@ -11,11 +16,43 @@ DEFAULT_KEYWORDS = ['surface', 'topography']
 
 
 class UnknownCitationFormat(Exception):
+    """Exception thrown when an unknown citation format should be handled."""
     def __init__(self, flavor):
         self._flavor = flavor
 
     def __str__(self):
         return f"Unknown citation format flavor '{self._flavor}'."
+
+
+class Affiliation(models.Model):
+    """An institution a researcher belongs to."""
+    name = models.CharField(max_length=100)
+    ror_id = models.CharField(max_length=9,
+                              null=True,
+                              validators=[
+                                RegexValidator(r'^0[^ilouILOU]{6}[0-9]{2}')
+                              ])  # see https://ror.org/facts/
+
+
+class Researcher(models.Model):
+    first_name = models.CharField(max_length=60)
+    last_name = models.CharField(max_length=60)
+    orcid_id = models.CharField(max_length=19,
+                                null=True,
+                                validators=[
+                                    RegexValidator(r'^[0-9]{4}-[0-9]{4}-[0-9]{4}')
+                                ])  # 16 digit-number with 3 hyphens inbetween
+    affiliations = SortedManyToManyField(Affiliation)
+    user = models.ForeignKey(User, null=True, on_delete=models.SET_NULL)
+
+    def orcid_identifier(self):
+        """This is the ORCID ID as URL.
+
+        Returns
+        -------
+        URL of the form https://orcid.org/xxxx-xxxx-xxxx-xxxx
+        """
+        return f"https://orcid.org/{self.orcid_id}"
 
 
 class Publication(models.Model):
@@ -32,8 +69,14 @@ class Publication(models.Model):
     version = models.PositiveIntegerField(default=1)
     datetime = models.DateTimeField(auto_now_add=True)
     license = models.CharField(max_length=12, choices=LICENSE_CHOICES, blank=False, default='')
-    authors = models.CharField(max_length=MAX_LEN_AUTHORS_FIELD)
+    # authors = models.CharField(max_length=MAX_LEN_AUTHORS_FIELD)
+    authors = SortedManyToManyField(Researcher)
     container = models.FileField(max_length=50, default='')
+
+    def get_authors_string(self):
+        """Return author names as comma-separated string in correct order.
+        """
+        return ", ".join([f"{a.first_name} {a.last_name}" for a in self.authors.all()])
 
     def get_absolute_url(self):
         return reverse('publication:go', args=[self.short_url])
@@ -166,7 +209,7 @@ class Publication(models.Model):
     @property
     def storage_prefix(self):
         """Return prefix used for storage.
-https://docs.djangoproject.com/en/2.2/ref/models/fields/#django.db.models.FileField.upload_to
+        https://docs.djangoproject.com/en/2.2/ref/models/fields/#django.db.models.FileField.upload_to
         Looks like a relative path to a directory.
         If storage is on filesystem, the prefix should correspond
         to a real directory.
