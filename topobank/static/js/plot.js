@@ -284,7 +284,8 @@ Vue.component("bokeh-plot", {
     symbolSize: function () {
       this.refreshPlot();
     }
-  }, methods: {
+  },
+  methods: {
     buildPlot() {
       for (const plot of this.plots) {
         /* Callback for selection of data points */

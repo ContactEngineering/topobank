@@ -1,157 +1,169 @@
 /**
- * Helper function for visualizing 2D maps (topography, pressure, etc.) using
+ * Vue component for visualizing 2D maps (topography, pressure, etc.) using
  * Deep Zoom Image files and OpenSeadragon.
  */
 
-function visualizeMap(id, prefixUrl, colorBar = null, downloadButton = null, retryDelay = 5000) {
-    $('#' + id).empty();
-    $('#' + id).html('<span class="spinner"></span>Creating and loading zoomable image, please wait...')
-    var requestDzi = function() {
-        $.ajax({
-            url: prefixUrl + 'dzi.json',
-            type: 'get',
-            success: function (meta) {
-                $('#' + id).empty();
-                meta.Image.Url = prefixUrl + 'dzi_files/';
+Vue.component("dzi-map", {
+  template: `
+    <div id="dzi-container" class="dzi-container" style="min-height: calc(100vh - 240px);">
+      <div id="dzi-view" class="dzi-view">
+        <div v-if="viewer === null && errorMessage === null">
+          <span class="spinner"></span>Creating and loading zoomable image, please wait...
+        </div>
+        <div v-if="errorMessage !== null" class='alert alert-danger'>
+          Could not load plot data. Error: {{ errorMessage }}
+        </div>
+      </div>
+      <div v-if="colorbar && viewer !== null" class="dzi-colorbar">
+        <div class="dzi-colorbar-title">
+          {{ colorbarTitle }}
+        </div>
+        <div :class='"dzi-colorbar-column background-" + colormap'>
+          <div v-for="tick in colorbarTicks" class="dzi-colorbar-tick" :style='"top: " + tick.relpos + "%;"'></div>
+        </div>
+        <div class="dzi-colorbar-column">
+          <div v-for="tick in colorbarTicks" class="dzi-colorbar-text" :style='"top: " + tick.relpos + "%;"'>
+            {{ tick.label }}
+          </div>
+        </div>
+      </div>
+    </div>
+  `,
+  props: {
+    prefixUrl: String,
+    colorbar: {
+      type: Boolean, default: false
+    },
+    downloadButton: {
+      type: Boolean, default: false
+    },
+    retryDelay: {
+      type: Number, default: 5000
+    }
+  },
+  data: function () {
+    return {
+      viewer: null, colorbarTitle: null, colormap: null, colorbarTicks: [], errorMessage: null
+    };
+  },
+  mounted: function () {
+    this.requestDzi();
+  },
+  methods: {
+    requestDzi() {
+      axios.get(this.prefixUrl + 'dzi.json').then(response => {
+        meta = response.data;  // Image metadata
 
-                let viewer = new OpenSeadragon.Viewer({
-                    id: id,
-                    tileSources: meta,
-                    showNavigator: true,
-                    navigatorPosition: 'TOP_LEFT',
-                    navigatorSizeRatio: 0.1,
-                    wrapHorizontal: false,
-                    wrapVertical: false,
-                    minZoomImageRatio: 0.5,
-                    maxZoomPixelRatio: 5.0,
-                    crossOriginPolicy: "Anonymous",
-                    showNavigationControl: false
-                });
+        meta.Image.Url = this.prefixUrl + 'dzi_files/';  // Set URL for DZI files
 
-                // Add a scale bar
-                if (meta.Image.PixelsPerMeter) {
-                    viewer.scalebar({
-                        type: OpenSeadragon.ScalebarType.MICROSCOPY,
-                        pixelsPerMeter: (meta.Image.PixelsPerMeter.Width + meta.Image.PixelsPerMeter.Height) / 2,
-                        minWidth: "75px",
-                        location: OpenSeadragon.ScalebarLocation.BOTTOM_LEFT,
-                        xOffset: 10,
-                        yOffset: 10,
-                        stayInsideImage: true,
-                        color: "black",
-                        fontColor: "black",
-                        backgroundColor: "rgba(255, 255, 255, 0.5)",
-                        fontSize: "medium",
-                        barThickness: 2
-                    });
-                }
+        // Create OpenSeadragon viewer
+        this.viewer = new OpenSeadragon.Viewer({
+          id: "dzi-view",
+          tileSources: meta,
+          showNavigator: true,
+          navigatorPosition: 'TOP_LEFT',
+          navigatorSizeRatio: 0.1,
+          wrapHorizontal: false,
+          wrapVertical: false,
+          minZoomImageRatio: 0.5,
+          maxZoomPixelRatio: 5.0,
+          crossOriginPolicy: "Anonymous",
+          showNavigationControl: false
+        });
 
-                    // Add a color bar
-                    if (colorBar && meta.Image.ColorbarRange && meta.Image.ColorbarTitle && meta.Image.Colormap) {
-                        var colorBarDiv = $('#' + colorBar);
-                        colorBarDiv.empty();
-                        colorBarDiv.append($('<div/>', {
-                            class: 'dzi-colorbar-title',
-                            html: meta.Image.ColorbarTitle
-                        }));
-                        var tickDiv = $('<div/>', {
-                            class: 'dzi-colorbar-column background-' + meta.Image.Colormap
-                        });
-                        var tickLabelDiv = $('<div/>', {
-                            class: 'dzi-colorbar-column'
-                        });
-
-                        mn = meta.Image.ColorbarRange.Minimum;
-                        mx = meta.Image.ColorbarRange.Maximum;
-
-                        log10_tick_dist = (Math.round(Math.log10(mx - mn)) - 1);
-                        fraction_digits = log10_tick_dist > 0 ? 0 : -log10_tick_dist;
-                        tick_dist = 10 ** log10_tick_dist;
-                        nb_ticks = Math.trunc((mx - mn) / tick_dist) + 1;
-
-                        while (nb_ticks > 15) {
-                            tick_dist *= 2;
-                            nb_ticks = Math.trunc((mx - mn) / tick_dist) + 1;
-                        }
-
-                        for (let i = 0; i < nb_ticks; i++) {
-                            v = Math.trunc(mn / tick_dist) * tick_dist + tick_dist * i;
-                            relpos = (mx - v) * 100 / (mx - mn);
-                            if (relpos > 0 && relpos < 100) {
-                                tickDiv.append($('<div/>', {
-                                    class: 'dzi-colorbar-tick',
-                                    style: 'top: ' + relpos + '%;'
-                                }));
-                                tickLabelDiv.append($('<div/>', {
-                                    class: 'dzi-colorbar-text',
-                                    style: 'top: ' + relpos + '%;',
-                                    html: v.toFixed(fraction_digits)
-                                }));
-                            }
-                        }
-                        colorBarDiv.append(tickDiv);
-                        colorBarDiv.append(tickLabelDiv);
-                    }
-
-                    // Image download. Code has been adopted from:
-                    // https://github.com/KTGLeiden/Openseadragon-screenshot/blob/master/openseadragonScreenshot.js
-                    if (downloadButton) {
-                        $('#' + downloadButton).on('click', function () {
-                            var downloadImage = function () {
-                                viewer.world.getItemAt(0).removeAllHandlers('fully-loaded-change');
-
-                                var imgCanvas = viewer.drawer.canvas;
-                                var downloadCanvas = document.createElement("canvas");
-                                downloadCanvas.width = imgCanvas.width;
-                                downloadCanvas.height = imgCanvas.height;
-
-                                var context = downloadCanvas.getContext('2d');
-                                context.drawImage(imgCanvas, 0, 0);
-
-                                var scalebarCanvas = viewer.scalebarInstance.getAsCanvas();
-                                var location = viewer.scalebarInstance.getScalebarLocation();
-                                context.drawImage(scalebarCanvas, location.x, location.y);
-
-                                downloadCanvas.toBlob(function (blob) {
-                                    saveAs(blob, "screenshot.png");
-                                });
-                            }
-
-                            if (viewer.world.getItemAt(0).getFullyLoaded()) {
-                                downloadImage();
-                            } else {
-                                viewer.world.getItemAt(0).addHandler('fully-loaded-change', downloadImage);
-                            }
-                        });
-                    }
-                },
-                error: function (xhr, textStatus, errorThrown) {
-                    /**
-                     * If an error occurs *not* because of XMLHttpRequest.abort(), show an
-                     * error message. Do not show error on .abort(). See also
-                     * https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/abort
-                     * */
-                    if (xhr.status == 0) {
-                        console.log("Canceled plot generation.");
-                        $('#' + id).html(`
-                        Canceled loading of plot.
-                      `)
-                    } else if (xhr.status == 404) {
-                        /* 404 indicates the resource is not yet available, retryYou */
-                        setTimeout(requestDzi, retryDelay);
-                    } else {
-                        /* Treat any other code as an actual error */
-                        console.error("Could not create plot: " + errorThrown + " " + xhr.status + " " + xhr.responseText);
-                        $('#' + id).html(`
-                        <div class='alert alert-danger'>
-                            Could not load plot data. Error: ${errorThrown}
-                        </div>
-                      `);
-                    }
-                }
-            });
+        // Add a scale bar
+        if (meta.Image.PixelsPerMeter) {
+          this.viewer.scalebar({
+            type: OpenSeadragon.ScalebarType.MICROSCOPY,
+            pixelsPerMeter: (meta.Image.PixelsPerMeter.Width + meta.Image.PixelsPerMeter.Height) / 2,
+            minWidth: "75px",
+            location: OpenSeadragon.ScalebarLocation.BOTTOM_LEFT,
+            xOffset: 10,
+            yOffset: 10,
+            stayInsideImage: true,
+            color: "black",
+            fontColor: "black",
+            backgroundColor: "rgba(255, 255, 255, 0.5)",
+            fontSize: "medium",
+            barThickness: 2
+          });
         }
-    ;
 
-    requestDzi();
-}
+        // Configure color bar
+        if (this.colorbar && meta.Image.ColorbarRange && meta.Image.ColorbarTitle && meta.Image.Colormap) {
+          // Set title and colormap
+          this.colorbarTitle = meta.Image.ColorbarTitle;
+          this.colormap = meta.Image.Colormap;
+
+          // Generate tick positions and labels
+          mn = meta.Image.ColorbarRange.Minimum;
+          mx = meta.Image.ColorbarRange.Maximum;
+
+          log10_tick_dist = (Math.round(Math.log10(mx - mn)) - 1);
+          fraction_digits = log10_tick_dist > 0 ? 0 : -log10_tick_dist;
+          tick_dist = 10 ** log10_tick_dist;
+          nb_ticks = Math.trunc((mx - mn) / tick_dist) + 1;
+
+          while (nb_ticks > 15) {
+            tick_dist *= 2;
+            nb_ticks = Math.trunc((mx - mn) / tick_dist) + 1;
+          }
+
+          for (let i = 0; i < nb_ticks; i++) {
+            v = Math.trunc(mn / tick_dist) * tick_dist + tick_dist * i;
+            relpos = (mx - v) * 100 / (mx - mn);
+            if (relpos > 0 && relpos < 100) {
+              this.colorbarTicks.push({relpos: relpos, label: v.toFixed(fraction_digits)});
+            }
+          }
+        }
+      }).catch(error => {
+        /**
+         * If an error occurs *not* because of XMLHttpRequest.abort(), show an
+         * error message. Do not show error on .abort(). See also
+         * https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/abort
+         * */
+        console.log(error);
+
+        if (error.response.status == 0) {
+          this.errorMessage = "Canceled loading of plot.";
+        } else if (error.response.status == 404) {
+          /* 404 indicates the resource is not yet available, retryYou */
+          setTimeout(this.requestDzi, this.retryDelay);
+        } else {
+          /* Treat any other code as an actual error */
+          this.errorMessage == error.message;
+        }
+      });
+    }
+  },
+  download() {
+    // Image download. Code has been adapted from:
+    // https://github.com/KTGLeiden/Openseadragon-screenshot/blob/master/openseadragonScreenshot.js
+    var downloadImage = function () {
+      this.viewer.world.getItemAt(0).removeAllHandlers('fully-loaded-change');
+
+      var imgCanvas = this.viewer.drawer.canvas;
+      var downloadCanvas = document.createElement("canvas");
+      downloadCanvas.width = imgCanvas.width;
+      downloadCanvas.height = imgCanvas.height;
+
+      var context = downloadCanvas.getContext('2d');
+      context.drawImage(imgCanvas, 0, 0);
+
+      var scalebarCanvas = this.viewer.scalebarInstance.getAsCanvas();
+      var location = this.viewer.scalebarInstance.getScalebarLocation();
+      context.drawImage(scalebarCanvas, location.x, location.y);
+
+      downloadCanvas.toBlob(function (blob) {
+        saveAs(blob, "screenshot.png");
+      });
+    }
+
+    if (this.viewer.world.getItemAt(0).getFullyLoaded()) {
+      downloadImage();
+    } else {
+      this.viewerviewer.world.getItemAt(0).addHandler('fully-loaded-change', downloadImage);
+    }
+  }
+});
