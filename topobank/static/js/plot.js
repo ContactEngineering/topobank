@@ -387,7 +387,7 @@ Vue.component("bokeh-plot", {
         }
         //Bokeh.Plotting.show(new Bokeh.Tabs({tabs: panels}), "#bokeh-plot-" + this.uniquePrefix);
       } else {
-        Bokeh.Plotting.show(this.bokehPlots[0], "#bokeh-plot-" + this.uniquePrefix);
+        Bokeh.Plotting.show(this.bokehPlots[0], "#bokeh-plot-" + this.uniquePrefix + "-0");
       }
     },
     refreshPlot() {

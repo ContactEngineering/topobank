@@ -638,7 +638,7 @@ class PlotCardView(SimpleCardView):
                 # Context information for this data source
                 #
                 data_sources_dict += [dict(
-                    source_name=analysis.id,
+                    source_name=f'analysis-{analysis.id}',
                     name=subject_display_name,
                     name_index=a_index,
                     series=series_name,
