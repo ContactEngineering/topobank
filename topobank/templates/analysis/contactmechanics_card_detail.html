@@ -12,7 +12,7 @@
 
 {% block card_body %}
 
-  <div class="row">
+  <div id="contact-mechanics-card" class="row">
     {# Left side with simulation results #}
     <div class="col-sm-5">
       {% include 'analysis/contactmechanics_card_bokeh.html' %}
@@ -63,54 +63,42 @@
       {# Tab contents on right side #}
       <div class="tab-content">
         <div class="tab-pane fade active show" id="contacting-points-tab">
-          <div id="contacting-points" class="alert alert-info">For contact geometry, select a point in the graphs on the left!</div>
-          <div id="contacting-points-container" class="dzi-container" style="min-height: 600px;">
-            <div id="contacting-points-view" class="dzi-view"></div>
-            <div id="contacting-points-colorbar" class="dzi-colorbar"></div>
-            <div class="pull-right">
-              <a id="contacting-points-download" href="#" class="btn btn-default">
-                {% fa5_icon 'download' %} Download as PNG
-              </a>
-            </div>
+          <div v-if="selection === null" id="contacting-points" class="alert alert-info">For contact geometry, select a point in the graphs on the left!</div>
+          <dzi-map v-if="selection !== null" :prefix-url="'{% url 'analysis:contact-mechanics-dzi' pk=123 index=456 quantity='contacting-points' dzi_filename='' %}'.replace('123/456', selection.analysis_id + '/' + selection.index)"></dzi-map>
+          <div class="pull-right">
+            <a id="contacting-points-download" href="#" class="btn btn-default">
+              {% fa5_icon 'download' %} Download as PNG
+            </a>
           </div>
         </div>
         <div class="tab-pane fade" id="pressure-tab">
-          <div id="pressure" class="alert alert-info">For contact pressure, select a point in the graphs on the left!</div>
-          <div id="pressure-container" class="dzi-container" style="min-height: 600px;">
-            <div id="pressure-view" class="dzi-view"></div>
-            <div id="pressure-colorbar" class="dzi-colorbar"></div>
-            <div class="pull-right">
-              <a id="pressure-download" href="#" class="btn btn-default">
-                {% fa5_icon 'download' %} Download as PNG
-              </a>
-            </div>
+          <div v-if="selection === null" id="pressure" class="alert alert-info">For contact pressure, select a point in the graphs on the left!</div>
+          <dzi-map v-if="selection !== null" :prefix-url="'{% url 'analysis:contact-mechanics-dzi' pk=123 index=456 quantity='pressure' dzi_filename='' %}'.replace('123/456', selection.analysis_id + '/' + selection.index)"></dzi-map>
+          <div class="pull-right">
+            <a id="pressure-download" href="#" class="btn btn-default">
+              {% fa5_icon 'download' %} Download as PNG
+            </a>
           </div>
         </div>
         <div class="tab-pane fade" id="pressure-distribution-tab">
           <div id="pressure-distribution" class="alert alert-info">For pressure distribution, select a point in the graphs on the left!</div>
         </div>
         <div class="tab-pane fade" id="displacement-tab">
-          <div id="displacement" class="alert alert-info">For displacement, select a point in the graphs on the left!</div>
-          <div id="displacement-container" class="dzi-container" style="min-height: 600px;">
-            <div id="displacement-view" class="dzi-view"></div>
-            <div id="displacement-colorbar" class="dzi-colorbar"></div>
-            <div class="pull-right">
-              <a id="displacement-download" href="#" class="btn btn-default">
-                {% fa5_icon 'download' %} Download as PNG
-              </a>
-            </div>
+          <div v-if="selection === null" id="displacement" class="alert alert-info">For displacement, select a point in the graphs on the left!</div>
+          <dzi-map v-if="selection !== null" :prefix-url="'{% url 'analysis:contact-mechanics-dzi' pk=123 index=456 quantity='displacement' dzi_filename='' %}'.replace('123/456', selection.analysis_id + '/' + selection.index)"></dzi-map>
+          <div class="pull-right">
+            <a id="displacement-download" href="#" class="btn btn-default">
+              {% fa5_icon 'download' %} Download as PNG
+            </a>
           </div>
         </div>
         <div class="tab-pane fade" id="gap-tab">
-          <div id="gap" class="alert alert-info">For gap, select a point in the graphs on the left!</div>
-          <div id="gap-container" class="dzi-container" style="min-height: 600px;">
-            <div id="gap-view" class="dzi-view"></div>
-            <div id="gap-colorbar" class="dzi-colorbar"></div>
-            <div class="pull-right">
-              <a id="gap-download" href="#" class="btn btn-default">
-                {% fa5_icon 'download' %} Download as PNG
-              </a>
-            </div>
+          <div v-if="selection === null" id="gap" class="alert alert-info">For gap, select a point in the graphs on the left!</div>
+          <dzi-map v-if="selection !== null" :prefix-url="'{% url 'analysis:contact-mechanics-dzi' pk=123 index=456 quantity='gap' dzi_filename='' %}'.replace('123/456', selection.analysis_id + '/' + selection.index)"></dzi-map>
+          <div class="pull-right">
+            <a id="gap-download" href="#" class="btn btn-default">
+              {% fa5_icon 'download' %} Download as PNG
+            </a>
           </div>
         </div>
         <div class="tab-pane fade" id="gap-distribution-tab">
@@ -326,305 +314,11 @@
   {# Additonal code for initialization #}
   <script>
 
-  function debug_msg(msg) {
-    alert("Debug: "+msg);
-    console.log("Debug: "+msg);
-  }
-
-  function activate_pill(pill){
-    $('.nav-pills a[href="#' + pill + '"]').tab('show');
-  };
-
-  function is_pill_activated(pill){
-    return $('.nav-pills a[href="#' + pill + '"]').hasClass("active");
-  };
-
-
-  function selection_handler(obj, data) {
-    var selected = data.source.selected;
-    var index = selected.indices[0];
-    var name = data.source.name; // name of source = topography name
-
-    var analysis_id = name.split('-')[1];
-
-    console.log("Selected index: "+index+" in source: "+name+" -> analysis_id: "+analysis_id);
-
-    /**
-     * Make sure only the selection for one topography is active
-     * and deselect all others
-     */
-    /*
-    for (i=0; i<sources.length; i++) {
-      var selection = []; // default: unselect all points
-      var s = sources[i];
-
-      if (s == data.source) {
-        // console.log("Skipping source "+s+" ...");
-        continue; // we do not modify the source for the clicked point, should be okay as bokeh does it
-      }
-
-      if (name == s.name) {
-        selection = [index]; // if name of source is same as clicked point, select point equivalent point there
-      }
-
-      // console.log("Selection for source "+s+": "+selection);
-      sources[i].selected.indices = selection;
-
+  vm = new Vue({
+    el: "#contact-mechanics-card",
+    data: {
+      selection: null
     }
-    */
-    /**
-     * Trigger loading of extra data by using analysis id and index of point
-     */
-
-    var dzi_names = ['contacting-points', 'pressure', 'displacement', 'gap'];
-    var tab_names = ['pressure-distribution', 'gap-distribution', 'cluster-size-distribution'];
-
-    tab_names.forEach(function(tn){
-      var div = $('#'+tn);
-      div.addClass('alert alert-info');
-      div.html("<span class='spinner'></span>Please wait..."); // Delete all old contents
-    });
-
-    if (is_pill_activated('tools-pill')) {
-      activate_pill('contacting-points-pill');
-    }
-
-    $.ajax({
-          type: "POST",
-          url: "{% url 'analysis:contact-mechanics-data' %}",
-          timeout: 0,
-          data: {
-            analysis_id: analysis_id,
-            index: index,
-            csrfmiddlewaretoken: "{{csrf_token}}"
-          },
-          success : function(data, textStatus, xhr) {
-            // debug_msg("Job submission successful. Status: "+xhr.status+" textStatus: "+textStatus+" data: "+data.data_path);
-
-            tab_names.forEach(function(tn){
-              var div = $('#'+tn);
-              div.removeClass('alert alert-info');
-              div.html(""); // Delete all old contents
-
-              var plot = JSON.parse(data[tn]);
-              Bokeh.embed.embed_item(plot, tn); // in Python code, the correct tab names must be used
-            });
-
-          },
-          error: function(xhr, textStatus, errorThrown) {
-            console.log("AJAX error when submitting jobs: errorThrown: "+errorThrown+" status: " +xhr.status+" responseText: "+xhr.responseText);
-
-            // show the error in a prominent way
-            tab_names.forEach(function(tn) {
-              var div = $('#' + tn);
-              div.removeClass('alert alert-info');
-              div.html("Please report this error: " + errorThrown + xhr.status + xhr.responseText);
-              div.addClass("alert alert-danger");
-            });
-          }
-        });
-
-    dzi_names.forEach(function (tn) {
-      prefix_url = "{% url 'analysis:contact-mechanics-dzi' pk=0 index=1 quantity='quantity' dzi_filename='' %}"
-      console.log(prefix_url);
-
-      // Visualize result
-      $('#' + tn).remove();
-      visualizeMap(
-        tn + '-view',
-        prefix_url.replace('0/1/dzi/quantity/', analysis_id + '/' + index + '/dzi/' + tn + '/'),
-        tn + '-colorbar',
-        tn + '-download'
-      );
-    });
-
-  }
-
-  function set_pressure_selection_disable_flag() {
-    var nsteps_input = $("#nsteps-input");
-    var select_pressure_steps = $("#select-pressure-steps");
-    var pressure_selection_mode = $("input[name='pressure-selection']:checked").val();
-
-    if (pressure_selection_mode === "automatic") {
-      nsteps_input.prop("disabled", false);
-      select_pressure_steps.prop("disabled", true);
-    } else {
-      nsteps_input.prop("disabled", true);
-      select_pressure_steps.prop("disabled", false);
-    }
-  }
-
-  // enable all popovers in the document
-  $(document).ready(function() {
-
-    var hardness_checkbox = $("#hardness-checkbox");
-
-    $('[data-toggle="popover"]').popover();
-
-    // set value for substrate based on initial value
-    $("#substrate-select").val("{{ initial_calc_kwargs.substrate_str }}");
-
-    hardness_checkbox.click( function () {
-      var hardness_input = $("#hardness-input");
-      if (hardness_checkbox.prop("checked")) {
-        hardness_input.prop("disabled", false);
-      } else {
-        hardness_input.prop("disabled", true);
-      }
-    });
-
-    // The user should only be able to enter number of steps
-    // or a list of pressures, if the related row is activated
-    // by the radio button
-    $("input[name='pressure-selection']").change( function () {
-      set_pressure_selection_disable_flag();
-    });
-    if ($('#nsteps-input').val().length == 0) {
-      // activate manual if nsteps is not given initially
-      console.log("nsteps is null");
-      $("input[name='pressure-selection'][value='manual']").prop('checked', 'true');
-    }
-    set_pressure_selection_disable_flag();
-
-    // check checkbox or not, depending on whether there is an initial value for hardness or not
-    {% if initial_calc_kwargs.hardness %}
-      hardness_checkbox.click()
-    {% endif %}
-
-
-    // enable multiple selection of manually entered pressure steps
-    $('#select-pressure-steps').select2({
-      multiple: true,
-      tags: true,
-      allowClear: true,
-      maximumSelectionLength: {{ limits_calc_kwargs.pressures.maxlen }},
-      language: {
-        noResults: null  // do not show "no result" dropdown
-      },
-      tokenSeparators: [',', ' '],
-      placeholder: "Enter positive decimal numbers",
-      createTag: function (params) {
-        // Don't offset to create a tag if it is no positive number
-        var x = params.term.trim();
-        console.log("Given: ", x);
-        if (isNaN(x)) {
-          console.warn("Only numbers are allowed.");
-          return null // invalid, because no number
-        } else {
-          x = parseFloat(x);
-          if (x <= 0) {
-            console.warn("Number must be positive.");
-            return null; // invalid because not positive
-          }
-        }
-        return {
-         id: params.term,
-         text: params.term
-        }
-      },
-      {#tokenizer: function(input, selection, callback) {#}
-      {#  // thanks to editors of https://stackoverflow.com/questions/17197223/is-it-possible-to-paste-a-list-to-a-select2-field-and-match-each-item-in-the-lis#}
-      {#  // no comma no need to tokenize#}
-      {#  console.log("tokenizer: ", input, selection, callback);#}
-      {##}
-      {#  var term = input.term;#}
-      {#  // if (term.indexOf(' ') <0 ) return;#}
-      {##}
-      {#  var parts = term.split(/\s+/);#}
-      {#  for (var i=0; i<parts.length; i++) {#}
-      {#      var part = parts[i];#}
-      {#      part = part.trim();#}
-      {##}
-      {#      // check for dupes (if part is already in [selection])#}
-      {#      //if (selection.indexOf(part) < 0) {#}
-      {#      //  callback({id:part,text:part});#}
-      {#      //}#}
-      {#    console.log("Part: "+part);#}
-      {#      callback({id:part,text:part});#}
-      {#  }#}
-
-    });
-
-
-    $("#recalculate").click( function() {
-
-        let substrate_str = $('#substrate-select').val();
-        let hardness = null;
-
-        let pressure_selection_mode = $("input[name='pressure-selection']:checked").val();
-        let nsteps = null;
-        let pressures = null;
-        let maxiter = parseInt($('#maxiter-input').val());
-
-        let form_ok = true;  // are all entered values within the allowed range?
-
-        if (pressure_selection_mode === "automatic") {
-          nsteps = parseInt($('#nsteps-input').val());
-          form_ok = form_ok && ((nsteps>={{ limits_calc_kwargs.nsteps.min }}) && (nsteps<={{ limits_calc_kwargs.nsteps.max }}))
-        } else if (pressure_selection_mode === "manual") {
-          pressures = $("#select-pressure-steps").val().map(parseFloat);
-          pressures = pressures.filter(function (p) { return (p!=null) && (p>0)});
-          let num_pressures = pressures.length;
-          form_ok = form_ok && (num_pressures>=1) && (num_pressures<={{ limits_calc_kwargs.pressures.maxlen }});
-        }
-
-        if ($('#hardness-checkbox').prop("checked") == true) {
-         hardness = parseFloat($('#hardness-input').val());
-        };
-
-        form_ok = form_ok && (maxiter>={{ limits_calc_kwargs.maxiter.min }}) && (maxiter<={{ limits_calc_kwargs.maxiter.max }});
-
-        if (!form_ok) {
-          let msg = "Please check your entries, some value seems to be invalid. Allowed limits:\n";
-          msg += "{{ limits_calc_kwargs.nsteps.min }}<=number of steps<={{ limits_calc_kwargs.nsteps.max }}\n";
-          msg += "1<=number of pressures<={{ limits_calc_kwargs.pressures.maxlen }} (if not given number of steps)\n";
-          msg += "{{ limits_calc_kwargs.maxiter.min }}<=max. number of iterations<={{ limits_calc_kwargs.maxiter.max }}\n";
-          alert(msg);
-          return;
-        }
-
-
-        // debug_msg("Clicked button. substrate: "+substrate_str+" hardness: "+hardness);
-        // debug_msg(" nsteps:"+nsteps+" pressures:"+pressures+" ");
-
-        let function_kwargs = { 'substrate_str': substrate_str, 'hardness': hardness,
-                                'nsteps': nsteps, 'pressures': pressures, 'maxiter': maxiter};
-
-        $(this).attr("disabled", true);
-        $(this).html("Please wait...");
-        $.ajax({
-          type: "POST",
-          url: "{% url 'analysis:card-submit' %}",
-          timeout: 0,
-          data: {
-            function_id: {{ function.id }},
-            subjects_ids_json: JSON.stringify({{ subjects_ids_json|safe }}),
-            function_kwargs_json: JSON.stringify(function_kwargs),
-            csrfmiddlewaretoken: "{{csrf_token}}"
-          },
-          success: function (data, textStatus, xhr) {
-            // debug_msg("Job submission successful. Status: "+xhr.status+" textStatus: "+textStatus);
-            if (xhr.status == 200) {
-              console.log("Triggering reload of card");
-              submit_analyses_card_ajax("{% url 'analysis:card' %}", "card", "detail", {{ function.id }}, {{ subjects_ids_json|safe }}, 0);
-              // debug_msg("Triggered card reload. Status: "+xhr.status+" textStatus: "+textStatus);
-            } else {
-              console.log("Submitting analyses failed");
-              var div = $('#contact_area_vs_load'); // show the error in a prominent way
-              $(div).html("Triggering calculation failed, status: " + xhr.status + " response:" + xhr.responseText);
-              $(div).addClass("alert alert-danger");
-            }
-          },
-          error: function (xhr, textStatus, errorThrown) {
-            console.log("AJAX error when submitting jobs: errorThrown: " + errorThrown + " status: " + xhr.status + " responseText: " + xhr.responseText);
-            var div = $('#contact_area_vs_load'); // show the error in a prominent way
-            $(div).html("Please report this error: " + errorThrown + xhr.status + xhr.responseText);
-            $(div).addClass("alert alert-danger");
-          }
-        });
-
-     });
-
   });
 
   </script>

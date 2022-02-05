@@ -5,8 +5,8 @@
 
 Vue.component("dzi-map", {
   template: `
-    <div id="dzi-container" class="dzi-container" style="min-height: calc(100vh - 240px);">
-      <div id="dzi-view" class="dzi-view">
+    <div class="dzi-container" style="min-height: calc(100vh - 240px);">
+      <div :id='"dzi-view-" + uuid' class="dzi-view">
         <div v-if="viewer === null && errorMessage === null">
           <span class="spinner"></span>Creating and loading zoomable image, please wait...
         </div>
@@ -43,8 +43,11 @@ Vue.component("dzi-map", {
   },
   data: function () {
     return {
-      viewer: null, colorbarTitle: null, colormap: null, colorbarTicks: [], errorMessage: null
+      uuid: null, viewer: null, colorbarTitle: null, colormap: null, colorbarTicks: [], errorMessage: null
     };
+  },
+  created: function () {
+    this.uuid = crypto.randomUUID();
   },
   mounted: function () {
     this.requestDzi();
@@ -58,7 +61,7 @@ Vue.component("dzi-map", {
 
         // Create OpenSeadragon viewer
         this.viewer = new OpenSeadragon.Viewer({
-          id: "dzi-view",
+          id: "dzi-view-" + this.uuid,
           tileSources: meta,
           showNavigator: true,
           navigatorPosition: 'TOP_LEFT',

@@ -9,28 +9,28 @@ Vue.component("bokeh-plot", {
   template: `
     <div>
       <div class="tab-content">
-        <div v-for="(plot, index) in plots" :class="(index == 0)?'tab-pane fade show active':'tab-pane fade'" :id="'plot-'+uniquePrefix+'-'+index" role="tabpanel" :aria-labelledby="'plot-tab-'+uniquePrefix+'-'+index">
-          <div :id='"bokeh-plot-"+uniquePrefix+"-"+index' ref="bokehPlot"></div>
+        <div v-for="(plot, index) in plots" :class="(index == 0)?'tab-pane fade show active':'tab-pane fade'" :id="'plot-'+uuid+'-'+index" role="tabpanel" :aria-labelledby="'plot-tab-'+uuid+'-'+index">
+          <div :id='"bokeh-plot-"+uuid+"-"+index' ref="bokehPlot"></div>
         </div>
       </div>
-      <div :id='"plot-controls-accordion-"+uniquePrefix' class="accordion plot-controls-accordion">
+      <div :id='"plot-controls-accordion-"+uuid' class="accordion plot-controls-accordion">
         <div v-if="plots.length > 1" class="card">
           <div class="card-header plot-controls-card-header">
             <h6 class="m-1">
               <!-- Navigation pills for each individual plot, but only if there is more than one -->
               <ul v-if="plots.length > 1" class="nav nav-pills">
                 <li v-for="(plot, index) in plots" class="nav-item">
-                  <a :class="(index == 0)?'nav-link active':'nav-link'" :id="'plot-tab-'+uniquePrefix+'-'+index" :href="'#plot-'+uniquePrefix+'-'+index" data-toggle="tab" role="tab" :aria-controls="'plot-'+uniquePrefix+'-'+index" :aria-selected="index == 0">{{ plot.title }}</a>
+                  <a :class="(index == 0)?'nav-link active':'nav-link'" :id="'plot-tab-'+uuid+'-'+index" :href="'#plot-'+uuid+'-'+index" data-toggle="tab" role="tab" :aria-controls="'plot-'+uuid+'-'+index" :aria-selected="index == 0">{{ plot.title }}</a>
                 </li>
               </ul>
             </h6>
           </div>
         </div>
         <div v-for="category in categoryElements" class="card">
-          <div :id='"heading-"+uniquePrefix+"-"+category.name' class="card-header plot-controls-card-header">
+          <div :id='"heading-"+uuid+"-"+category.name' class="card-header plot-controls-card-header">
             <h2 class="mb-0">
               <div class="accordion-header-control custom-checkbox">
-                <input :id='"select-all-"+uniquePrefix+"-"+category.name'
+                <input :id='"select-all-"+uuid+"-"+category.name'
                        class="custom-control-input"
                        type="checkbox"
                        value=""
@@ -38,32 +38,32 @@ Vue.component("bokeh-plot", {
                        v-on:change="selectAll(category)"
                        :indeterminate.prop="category.isIndeterminate">
                 <label class="custom-control-label btn-block text-left"
-                       :for='"select-all-"+uniquePrefix+"-"+category.name'>
+                       :for='"select-all-"+uuid+"-"+category.name'>
                 </label>
               </div>
               <button class="btn btn-link btn-block text-left accordion-button collapsed"
                       type="button"
                       data-toggle="collapse"
-                      :data-target='"#collapse-"+uniquePrefix+"-"+category.name'
+                      :data-target='"#collapse-"+uuid+"-"+category.name'
                       aria-expanded="false"
-                      :aria-controls='"collapse-"+uniquePrefix+"-"+category.name'>
+                      :aria-controls='"collapse-"+uuid+"-"+category.name'>
                 {{ category.title }}
               </button>
             </h2>
           </div>
-          <div :id='"collapse-"+uniquePrefix+"-"+category.name'
+          <div :id='"collapse-"+uuid+"-"+category.name'
                class="collapse"
-               :aria-labelledby='"heading-"+uniquePrefix+"-"+category.name'
-               :data-parent='"#plot-controls-accordion-"+uniquePrefix'>
-            <div :id='"card-subjects"+uniquePrefix' class="card-body plot-controls-card-body">
+               :aria-labelledby='"heading-"+uuid+"-"+category.name'
+               :data-parent='"#plot-controls-accordion-"+uuid'>
+            <div :id='"card-subjects"+uuid' class="card-body plot-controls-card-body">
               <div v-for="(element, index) in category.elements" class="custom-control custom-checkbox">
-                <input :id='"switch-"+uniquePrefix+"-"+category.name+"-"+index'
+                <input :id='"switch-"+uuid+"-"+category.name+"-"+index'
                        class="custom-control-input"
                        type="checkbox"
                        :value="index"
                        v-model="category.selection">
                 <label class="custom-control-label"
-                       :for='"switch-"+uniquePrefix+"-"+category.name+"-"+index'>
+                       :for='"switch-"+uuid+"-"+category.name+"-"+index'>
                   <span class="dot" v-if="element.color !== null" :style='"background-color: "+element.color'></span>
                     {{ element.title }}
                 </label>
@@ -73,29 +73,29 @@ Vue.component("bokeh-plot", {
         </div>
 
         <div class="card">
-          <div :id='"heading-plot-options-"+uniquePrefix' class="card-header plot-controls-card-header">
+          <div :id='"heading-plot-options-"+uuid' class="card-header plot-controls-card-header">
             <h2 class="mb-0">
               <button class="btn btn-link btn-block text-left accordion-button collapsed"
                       type="button"
                       data-toggle="collapse"
-                      :data-target='"#collapse-plot-options-"+uniquePrefix'
+                      :data-target='"#collapse-plot-options-"+uuid'
                       aria-expanded="false"
-                      :aria-controls='"collapse-plot-options-"+uniquePrefix'>
+                      :aria-controls='"collapse-plot-options-"+uuid'>
                 Plot options
               </button>
             </h2>
           </div>
-          <div :id='"collapse-plot-options-"+uniquePrefix'
+          <div :id='"collapse-plot-options-"+uuid'
                class="collapse"
-               :aria-labelledby='"heading-plot-options-"+uniquePrefix'
-               :data-parent='"#plot-controls-accordion-"+uniquePrefix'>
+               :aria-labelledby='"heading-plot-options-"+uuid'
+               :data-parent='"#plot-controls-accordion-"+uuid'>
 
 
             <div class="card-body plot-controls-card-body">
               <div class="form-group">
-                <label :for='"plot-layout-"+uniquePrefix' hidden>Plot layout:</label>
+                <label :for='"plot-layout-"+uuid' hidden>Plot layout:</label>
                 <select class="form-control"
-                       :id='"plot-layout-"+uniquePrefix'
+                       :id='"plot-layout-"+uuid'
                        v-model="layout">
                   <option value="web">Optimize plot for web (plot scales with window size)</option>
                   <option value="print-single">Optimize plot for print (single-column layout)</option>
@@ -105,8 +105,8 @@ Vue.component("bokeh-plot", {
 
 <!-- Adjusting line width does not work
               <div class="form-group">
-                <label :for='"line-width-slider-"+uniquePrefix'>Line width: <b>{{ lineWidth }}</b></label>
-                <input :id='"line-width-slider-"+uniquePrefix'
+                <label :for='"line-width-slider-"+uuid'>Line width: <b>{{ lineWidth }}</b></label>
+                <input :id='"line-width-slider-"+uuid'
                        type="range"
                        min="0.1"
                        max="2.0"
@@ -117,8 +117,8 @@ Vue.component("bokeh-plot", {
 -->
 
               <div class="form-group">
-                <label :for='"symbol-size-slider-"+uniquePrefix'>Symbol size: <b>{{ symbolSize }}</b></label>
-                <input :id='"symbol-size-slider-"+uniquePrefix'
+                <label :for='"symbol-size-slider-"+uuid'>Symbol size: <b>{{ symbolSize }}</b></label>
+                <input :id='"symbol-size-slider-"+uuid'
                        type="range"
                        min="1"
                        max="20"
@@ -128,8 +128,8 @@ Vue.component("bokeh-plot", {
               </div>
 
               <div class="form-group">
-                <label :for='"opacity-slider-"+uniquePrefix'>Opacity of lines/symbols (measurements only): <b>{{ opacity }}</b></label>
-                <input :id='"opacity-slider-"+uniquePrefix'
+                <label :for='"opacity-slider-"+uuid'>Opacity of lines/symbols (measurements only): <b>{{ opacity }}</b></label>
+                <input :id='"opacity-slider-"+uuid'
                        type="range"
                        min="0"
                        max="1"
@@ -145,7 +145,6 @@ Vue.component("bokeh-plot", {
     </div>
   `,
   props: {
-    uniquePrefix: String,  // This makes ids here unique - there should be a more elegant way to achieve this
     categories: {
       // Defining selection categories. For each category, there will be an accordion with the possibility to show/hide
       // all curves that correspond to a specific value of that category.
@@ -199,10 +198,13 @@ Vue.component("bokeh-plot", {
   },
   data: function () {
     return {
-      layout: "web", opacity: 0.4, lineWidth: 1, symbolSize: 10, categoryElements: [], bokehPlots: []
+      uuid: null, layout: "web", opacity: 0.4, lineWidth: 1, symbolSize: 10, categoryElements: [], bokehPlots: []
     };
   },
   created: function () {
+    /* Create unique ID */
+    this.uuid = crypto.randomUUID();
+
     /* For each category, create a list of unique entries */
     for (const [index, category] of this.categories.entries()) {
       let titles = new Set();
@@ -290,8 +292,7 @@ Vue.component("bokeh-plot", {
       for (const plot of this.plots) {
         /* Callback for selection of data points */
         let tools = [...this.tools];  // Copy array (= would just be a reference)
-        const code = "self.onSelect(cb_obj, cb_data);";
-        console.log(tools);
+        const code = "self.onTap(cb_obj, cb_data);";
         tools.push(new Bokeh.TapTool({
           behavior: "select",
           callback: new Bokeh.CustomJS({
@@ -299,7 +300,6 @@ Vue.component("bokeh-plot", {
             code: code
           })
         }));
-        console.log(tools);
 
         /* Create and style figure */
         const bokehPlot = new Bokeh.Plotting.Figure({
@@ -379,15 +379,8 @@ Vue.component("bokeh-plot", {
       }
 
       /* Render figure(s) to HTML div */
-      if (this.bokehPlots.length > 1) {
-        //let panels = [];
-        for (const [index, bokehPlot] of this.bokehPlots.entries()) {
-          //panels.push(new Bokeh.Panel({child: bokehPlot, title: this.plots[index].title}));
-          Bokeh.Plotting.show(bokehPlot, "#bokeh-plot-" + this.uniquePrefix + "-" + index);
-        }
-        //Bokeh.Plotting.show(new Bokeh.Tabs({tabs: panels}), "#bokeh-plot-" + this.uniquePrefix);
-      } else {
-        Bokeh.Plotting.show(this.bokehPlots[0], "#bokeh-plot-" + this.uniquePrefix + "-0");
+      for (const [index, bokehPlot] of this.bokehPlots.entries()) {
+        Bokeh.Plotting.show(bokehPlot, "#bokeh-plot-" + this.uuid + "-" + index);
       }
     },
     refreshPlot() {
@@ -432,9 +425,32 @@ Vue.component("bokeh-plot", {
         category.selection = [];
       }
     },
-    onSelect(obj, data) {
-      console.log(data);
-      selection_handler(obj, data);
+    onTap(obj, data) {
+      /**
+       * Make sure only the selection for one topography is active
+       * and deselect all others
+       */
+      /*
+      for (let i = 0; i < sources.length; i++) {
+        var selection = []; // default: unselect all points
+        var s = sources[i];
+
+        if (s == data.source) {
+          // console.log("Skipping source "+s+" ...");
+          continue; // we do not modify the source for the clicked point, should be okay as bokeh does it
+        }
+
+        if (name == s.name) {
+          selection = [index]; // if name of source is same as clicked point, select point equivalent point there
+        }
+
+        // console.log("Selection for source "+s+": "+selection);
+        sources[i].selected.indices = selection;
+      }
+      */
+
+      // Emit event
+      this.$emit("tapped", obj, data);
     }
   }
 });
