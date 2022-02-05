@@ -7,14 +7,14 @@ Vue.component("dzi-map", {
   template: `
     <div class="dzi-container" style="min-height: calc(100vh - 240px);">
       <div :id='"dzi-view-" + uuid' class="dzi-view">
-        <div v-if="viewer === null && errorMessage === null">
+        <div v-if="!isLoaded && errorMessage === null">
           <span class="spinner"></span>Creating and loading zoomable image, please wait...
         </div>
         <div v-if="errorMessage !== null" class='alert alert-danger'>
           Could not load plot data. Error: {{ errorMessage }}
         </div>
       </div>
-      <div v-if="colorbar && viewer !== null" class="dzi-colorbar">
+      <div v-if="colorbar && isLoaded" class="dzi-colorbar">
         <div class="dzi-colorbar-title">
           {{ colorbarTitle }}
         </div>
@@ -43,7 +43,7 @@ Vue.component("dzi-map", {
   },
   data: function () {
     return {
-      uuid: null, viewer: null, colorbarTitle: null, colormap: null, colorbarTicks: [], errorMessage: null
+      uuid: null, viewer: null, isLoaded: false, colorbarTitle: null, colormap: null, colorbarTicks: [], errorMessage: null
     };
   },
   created: function () {
@@ -51,6 +51,26 @@ Vue.component("dzi-map", {
   },
   mounted: function () {
     this.requestDzi();
+  },
+  watch: {
+    prefixUrl: function () {
+      // We are loading a new image
+      this.isLoaded = false;
+
+      // Prefix URL changed - request new image and replace current one
+      axios.get(this.prefixUrl + 'dzi.json').then(response => {
+        meta = response.data;  // Image metadata
+
+        meta.Image.Url = this.prefixUrl + 'dzi_files/';  // Set URL for DZI files
+
+        this.viewer.addTiledImage({
+          tileSource: meta,
+          success: () => {
+            this.isLoaded = true;
+          }
+        });
+      });
+    }
   },
   methods: {
     requestDzi: function () {
@@ -71,7 +91,7 @@ Vue.component("dzi-map", {
           minZoomImageRatio: 0.5,
           maxZoomPixelRatio: 5.0,
           crossOriginPolicy: "Anonymous",
-          showNavigationControl: false
+          showNavigationControl: false,
         });
 
         // Add a scale bar
@@ -120,6 +140,8 @@ Vue.component("dzi-map", {
             }
           }
         }
+
+        this.isLoaded = true;
       }).catch(error => {
         /**
          * If an error occurs *not* because of XMLHttpRequest.abort(), show an
