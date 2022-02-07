@@ -137,8 +137,8 @@
             </div>
             <bokeh-plot
               v-if="selection !== null"
-              :plots='[{title:"Pressure", xDataKey:"pressure", yDataKey:"pressureProbabilityDensity", xAxisLabel:"Pressure p (E*)", yAxisLabel:"Probability density P(p) (E*⁻¹)"},{title:"Gap", xDataKey:"gap", yDataKey:"gapProbabilityDensity", xAxisLabel:"Gap g (m)", yAxisLabel:"Probability density P(g) (m⁻¹)"},{title:"Cluster area", xDataKey:"clusterArea", yDataKey:"clusterAreaProbabilityDensity", xAxisLabel:"Cluster area A (m²)", yAxisLabel:"Probability density P(A) (m⁻²)"}]'
-              :data-sources="distributionDataSource"
+              :plots="distributionPlots"
+              :data-sources="distributionDataSources"
               output-backend="{{ output_backend }}">
             </bokeh-plot>
           </div>
@@ -356,33 +356,31 @@
         }
       },
       computed: {
-        distributionDataSource: function () {
+        distributionPlots: function () {
+          return [{
+            title: "Pressure",
+            xDataKey: "pressure",
+            yDataKey: "pressureProbabilityDensity",
+            xAxisLabel: "Pressure p (E*)",
+            yAxisLabel: "Probability density P(p) (E*⁻¹)"
+          }, {
+            title: "Gap",
+            xDataKey: "gap",
+            yDataKey: "gapProbabilityDensity",
+            xAxisLabel: "Gap g (m)",
+            yAxisLabel: "Probability density P(g) (m⁻¹)"
+          }, {
+            title: "Cluster area",
+            xDataKey: "clusterArea",
+            yDataKey: "clusterAreaProbabilityDensity",
+            xAxisLabel: "Cluster area A (m²)",
+            yAxisLabel: "Probability density P(A) (m⁻²)"
+          }];
+        },
+        distributionDataSources: function () {
           return [{
             url: "{% url 'analysis:contact-mechanics' pk=123 index=456 location='json/distributions.json' %}".replace('123/456', this.selection.analysis_id + '/' + this.selection.index)
           }];
-        },
-        pressureDistributionDataSource: function () {
-          return [{
-            url: "{% url 'analysis:contact-mechanics' pk=123 index=456 location='json/pressure_distribution.json' %}".replace('123/456', this.selection.analysis_id + '/' + this.selection.index)
-          }];
-        },
-        gapDistributionDataSource: function () {
-          if (this.selection === null) {
-            return [];
-          } else {
-            return [{
-              url: "{% url 'analysis:contact-mechanics' pk=123 index=456 location='json/gap_distribution.json' %}".replace('123/456', this.selection.analysis_id + '/' + this.selection.index)
-            }];
-          }
-        },
-        clusterAreaDistributionDataSource: function () {
-          if (this.selection === null) {
-            return [];
-          } else {
-            return [{
-              url: "{% url 'analysis:contact-mechanics' pk=123 index=456 location='json/cluster_area_distribution.json' %}".replace('123/456', this.selection.analysis_id + '/' + this.selection.index)
-            }];
-          }
         }
       }
     });
