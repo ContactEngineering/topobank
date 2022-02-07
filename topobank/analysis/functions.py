@@ -1234,49 +1234,54 @@ def contact_mechanics(topography, substrate_str="nonperiodic", hardness=None, ns
             default_storage_replace(f'{storage_path}/nc/results.nc', File(tmpfile))
 
         #
-        # Store pressure and gap distribution to JSON
+        # Pressure and gap distribution
         #
 
         hist, edges = np.histogram(pressure_xy, density=True, bins=50)
         data_dict = {
             'pressure': (edges[1:-1] + edges[2:]) / 2,
-            'probabilityDensity': hist[1:],
+            'pressureProbabilityDensity': hist[1:],
             'pressureLabel': 'Pressure p',
             'pressureUnit': 'E*',
-            'probabilityDensityLabel': 'Probability density P(p)',
-            'probabilityDensityUnit': 'E*⁻¹'
+            'pressureProbabilityDensityLabel': 'Probability density P(p)',
+            'pressureProbabilityDensityUnit': 'E*⁻¹'
         }
         default_storage_replace(f'{storage_path}/json/pressure_distribution.json',
                                 io.BytesIO(json.dumps(data_dict, cls=NumpyEncoder).encode('utf-8')))
 
         hist, edges = np.histogram(gap_xy, density=True, bins=50)
-        data_dict = {
+        data_dict.update({
             'gap': (edges[1:-1] + edges[2:]) / 2,
-            'probabilityDensity': hist[1:],
+            'gapProbabilityDensity': hist[1:],
             'gapLabel': 'Gap g',
             'gapUnit': topography.unit,
-            'probabilityDensityLabel': 'Probability density P(p)',
-            'probabilityDensityUnit': f'{topography.unit}⁻¹'
-        }
+            'gapProbabilityDensityLabel': 'Probability density P(p)',
+            'gapProbabilityDensityUnit': f'{topography.unit}⁻¹'
+        })
         default_storage_replace(f'{storage_path}/json/gap_distribution.json',
                                 io.BytesIO(json.dumps(data_dict, cls=NumpyEncoder).encode('utf-8')))
 
         #
-        # Store patch size distribution to JSON
+        # Patch size distribution
         #
 
         patch_ids = assign_patch_numbers(contacting_points_xy, substrate_str == 'periodic')[1]
         cluster_areas = patch_areas(patch_ids) * substrate.area_per_pt
         hist, edges = np.histogram(cluster_areas, density=True, bins=50)
-        data_dict = {
+        data_dict.update({
             'clusterArea': (edges[1:-1] + edges[2:]) / 2,
-            'probabilityDensity': hist[1:],
+            'clusterAreaProbabilityDensity': hist[1:],
             'clusterAreaLabel': 'Cluster area A',
             'clusterAreaUnit': f'{topography.unit}²',
-            'probabilityDensityLabel': 'Probability density P(A)',
-            'probabilityDensityUnit': f'{topography.unit}⁻²'
-        }
-        default_storage_replace(f'{storage_path}/json/cluster_area_distribution.json',
+            'clusterAreaProbabilityDensityLabel': 'Probability density P(A)',
+            'clusterAreaProbabilityDensityUnit': f'{topography.unit}⁻²'
+        })
+
+        #
+        # Write to storage
+        #
+
+        default_storage_replace(f'{storage_path}/json/distributions.json',
                                 io.BytesIO(json.dumps(data_dict, cls=NumpyEncoder).encode('utf-8')))
 
         #

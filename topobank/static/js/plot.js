@@ -477,6 +477,13 @@ Vue.component("bokeh-plot", {
        * Make sure only the selection for one topography is active
        * and deselect all others
        */
+      const name = data.source.name;
+      const index = data.source.selected.indices[0];
+      for (const bokehPlot of this.bokehPlots) {
+        for (const line of bokehPlot.lines) {
+          console.log(line.source);
+        }
+      }
       /*
       for (let i = 0; i < sources.length; i++) {
         var selection = []; // default: unselect all points
