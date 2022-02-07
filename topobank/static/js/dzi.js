@@ -5,7 +5,7 @@
 
 Vue.component("dzi-map", {
   template: `
-    <div class="dzi-container" style="min-height: calc(100vh - 240px);">
+    <div class="dzi-container" style="min-height: 550px;">
       <div :id='"dzi-view-" + uuid' class="dzi-view">
         <div v-if="!isLoaded && errorMessage === null">
           <span class="spinner"></span>Creating and loading zoomable image, please wait...

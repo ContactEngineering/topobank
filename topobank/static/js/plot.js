@@ -365,7 +365,8 @@ Vue.component("bokeh-plot", {
             figure: bokehPlot,
             save: saveTool,
             lines: [],
-            symbols: []
+            symbols: [],
+            sources: []
           });
         }
       }
@@ -420,6 +421,7 @@ Vue.component("bokeh-plot", {
                   (dataSource.show_symbols === undefined || dataSource.show_symbols)
               }
             }));
+          bokehPlot.sources.unshift(source);
         }
       }
 
@@ -473,37 +475,19 @@ Vue.component("bokeh-plot", {
       }
     },
     onTap(obj, data) {
-      /**
-       * Make sure only the selection for one topography is active
-       * and deselect all others
-       */
+      /* Make sure only the selection for one topography is active
+         and deselect all others */
       const name = data.source.name;
       const index = data.source.selected.indices[0];
       for (const bokehPlot of this.bokehPlots) {
-        for (const line of bokehPlot.lines) {
-          console.log(line.source);
+        for (const source of bokehPlot.sources) {
+          if (source.name == name) {
+            source.selected.indices = [index];
+          }
         }
       }
-      /*
-      for (let i = 0; i < sources.length; i++) {
-        var selection = []; // default: unselect all points
-        var s = sources[i];
 
-        if (s == data.source) {
-          // console.log("Skipping source "+s+" ...");
-          continue; // we do not modify the source for the clicked point, should be okay as bokeh does it
-        }
-
-        if (name == s.name) {
-          selection = [index]; // if name of source is same as clicked point, select point equivalent point there
-        }
-
-        // console.log("Selection for source "+s+": "+selection);
-        sources[i].selected.indices = selection;
-      }
-      */
-
-      // Emit event
+      /* Emit event */
       this.$emit("selected", obj, data);
     },
     download: function () {
