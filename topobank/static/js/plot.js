@@ -195,6 +195,9 @@ Vue.component("bokeh-plot", {
       type: Array, default: function () {
         return ["pan", "reset", "save", "wheel_zoom", "box_zoom", "hover"];
       }
+    },
+    selectable: {
+      type: Boolean, default: false
     }
   },
   data: function () {
@@ -330,14 +333,16 @@ Vue.component("bokeh-plot", {
         for (const plot of this.plots) {
           /* Callback for selection of data points */
           let tools = [...this.tools];  // Copy array (= would just be a reference)
-          const code = "self.onTap(cb_obj, cb_data);";
-          tools.push(new Bokeh.TapTool({
-            behavior: "select",
-            callback: new Bokeh.CustomJS({
-              args: {self: this},
-              code: code
-            })
-          }));
+          if (this.selectable) {
+            const code = "self.onTap(cb_obj, cb_data);";
+            tools.push(new Bokeh.TapTool({
+              behavior: "select",
+              callback: new Bokeh.CustomJS({
+                args: {self: this},
+                code: code
+              })
+            }));
+          }
 
           /* Create and style figure */
           const bokehPlot = new Bokeh.Plotting.Figure({
@@ -494,7 +499,7 @@ Vue.component("bokeh-plot", {
       */
 
       // Emit event
-      this.$emit("tapped", obj, data);
+      this.$emit("selected", obj, data);
     }
   }
 });

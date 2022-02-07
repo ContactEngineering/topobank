@@ -5,7 +5,8 @@
     <bokeh-plot :plots='[{title:"Contact area vs load", xDataKey:"mean_pressures", yDataKey:"total_contact_areas", xAxisLabel:"Normalized pressure p/E*", yAxisLabel:"Fractional contact area A/A0", xAxisType:"log", yAxisType:"log"}, {title:"Load vs displacement", xDataKey:"mean_gaps", yDataKey:"mean_pressures", xAxisLabel:"Normalized mean gap u/h_rms", yAxisLabel:"Normalized pressure p/E*", xAxisType:"linear", yAxisType:"log"}]'
                 :categories='[{name:"name", title:"Measurements"}]'
                 :data-sources='{{ data_sources|safe }}'
-                v-on:tapped="(obj, data) => { selection = { analysis_id: data.source.name.split('-')[1], index: data.source.selected.indices[0] }; }"
+                :selectable="true"
+                v-on:selected="(obj, data) => { selection = { analysis_id: data.source.name.split('-')[1], index: data.source.selected.indices[0] }; }"
                 output-backend="{{ output_backend }}">
     </bokeh-plot>
   {% endif %}
