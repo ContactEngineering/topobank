@@ -374,6 +374,9 @@ Vue.component("bokeh-plot", {
       /* We iterate in reverse order because we want to the first element to appear on top of the plot */
       for (const dataSource of [...this.dataSources].reverse()) {
         for (const [index, plot] of this.plots.entries()) {
+          /* Get bokeh plot object */
+          const bokehPlot = this.bokehPlots[index];
+
           /* Get scale factors */
           xscale = plot.xScaleKey === undefined ? 1 : (dataSource[plot.xScaleKey] === undefined ? 1 : dataSource[plot.xScaleKey]);
           yscale = plot.yScaleKey === undefined ? 1 : (dataSource[plot.yScaleKey] === undefined ? 1 : dataSource[plot.yScaleKey]);
@@ -390,6 +393,7 @@ Vue.component("bokeh-plot", {
             syncable: false,
             adapter: new Bokeh.CustomJS({code})
           });
+          bokehPlot.sources.unshift(source);
 
           /* Common attributes of lines and symbols */
           attrs = {
@@ -400,8 +404,7 @@ Vue.component("bokeh-plot", {
           }
 
           /* Create lines and symbols */
-          const bokehPlot = this.bokehPlots[index];
-          bokehPlot.lines.unshift(bokehPlot.figure.line(
+          const line = bokehPlot.figure.line(
             {field: "x"},
             {field: "y"},
             {
@@ -409,8 +412,9 @@ Vue.component("bokeh-plot", {
               ...{
                 width: Number(this.lineWidth) * dataSource.width
               }
-            }));
-          bokehPlot.symbols.unshift(bokehPlot.figure.circle(
+            });
+          bokehPlot.lines.unshift(line);
+          const circle = bokehPlot.figure.circle(
             {field: "x"},
             {field: "y"},
             {
@@ -420,8 +424,8 @@ Vue.component("bokeh-plot", {
                 visible: (dataSource.visible === undefined || dataSource.visible) &&
                   (dataSource.show_symbols === undefined || dataSource.show_symbols)
               }
-            }));
-          bokehPlot.sources.unshift(source);
+            });
+          bokehPlot.symbols.unshift(circle);
         }
       }
 
