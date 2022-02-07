@@ -124,9 +124,6 @@ function submit_analyses_card_ajax(card_url, card_element_id, template_flavor, f
 
           if ((0 === call_count) || (200 === xhr.status) ) {
             $(jquery_card_selector).html(data); // insert resulting HTML code
-            // We want to only insert cards on first and last call and
-            // only once if there is only one call.
-            //new Vue({el: $(jquery_card_selector).find('.card-body')[0]});  // Make card reactive
           }
           if (202 === xhr.status) {
               // Not all analyses are ready, retrigger AJAX call

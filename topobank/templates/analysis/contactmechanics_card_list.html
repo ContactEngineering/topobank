@@ -2,49 +2,60 @@
 {% load analysis_tags %}
 {% load icon_tags %}
 
-<div class="card search-result-card">
+<div id="contact-mechanics-card" class="card search-result-card">
   <div class="card-header">
     {% if analyses_available %}
-    <div class="btn-group btn-group-sm float-right dropdown">
-      <a href="{% url 'analysis:function-detail' function.pk %}" class="btn btn-default float-right open-btn">
-                {% fa5_icon 'folder-open' 'far' %} Open
-      </a>
-      <button type="button" class="btn btn-default" data-toggle="dropdown"
-              aria-haspopup="true" aria-expanded="false">
-        <i class="fa fa-chevron-down"></i>
-      </button>
-      <div class="dropdown-menu dropdown-menu-right">
-        <!--
+      <div class="btn-group btn-group-sm float-right dropdown">
+        <a href="{% url 'analysis:function-detail' function.pk %}" class="btn btn-default float-right open-btn">
+          {% fa5_icon 'folder-open' 'far' %} Open
+        </a>
+        <button type="button" class="btn btn-default" data-toggle="dropdown"
+                aria-haspopup="true" aria-expanded="false">
+          <i class="fa fa-chevron-down"></i>
+        </button>
+        <div class="dropdown-menu dropdown-menu-right">
+          <!--
         {% if analyses_success %}
         <a class="dropdown-item" href="#">Download as TXT</a>
         <a class="dropdown-item" href="#">Download as XLSX</a>
         {% endif %}
         -->
-        {% if not analyses_unready %}
-          <div class="dropdown-divider"></div>
-          <a class="dropdown-item" href="#" data-toggle="modal"
-             data-target="#statusesModal-{{ card_id }}">Task information</a>
-        {% endif %}
+          {% if not analyses_unready %}
+            <div class="dropdown-divider"></div>
+            <a class="dropdown-item" href="#" data-toggle="modal"
+               data-target="#statusesModal-{{ card_id }}">Task information</a>
+          {% endif %}
+        </div>
       </div>
-    </div>
     {% endif %}
     <h5>{{ title }}</h5>
   </div>
   <div class="card-body">
     {% if analyses_failure or extra_warnings %}
-    <ul class="nav nav-tabs">
-      <li class="nav-item" style="list-style-type: none;">
-        <a class="nav-link active" data-toggle="tab" href="#plot-tab-{{ card_id }}">Plot</a>
-      </li>
-      <li class="nav-item" style="list-style-type: none;">
-        <a class="nav-link" data-toggle="tab" href="#warnings-tab-{{ card_id }}">Warnings</a>
-      </li>
-    </ul>
+      <ul class="nav nav-tabs">
+        <li class="nav-item" style="list-style-type: none;">
+          <a class="nav-link active" data-toggle="tab" href="#plot-tab-{{ card_id }}">Results</a>
+        </li>
+        <li class="nav-item" style="list-style-type: none;">
+          <a class="nav-link" data-toggle="tab" href="#warnings-tab-{{ card_id }}">Warnings</a>
+        </li>
+      </ul>
     {% endif %}
 
     <div class="tab-content">
       <div class="tab-pane fade show active" id="plot-tab-{{ card_id }}" role="tabpanel">
-        {% include 'analysis/contactmechanics_card_bokeh.html' %}
+        <div class="tab-pane show active" id="plot-{{ card_id }}" role="tabpanel" aria-labelledby="card-tab">
+          {% include 'analysis/analyses_alerts.html' %}
+          {% if analyses_success %}
+            {# Show all analyses for which we have results #}
+            <bokeh-plot
+              :plots='[{title:"Contact area vs load", xDataKey:"mean_pressures", yDataKey:"total_contact_areas", xAxisLabel:"Normalized pressure p/E*", yAxisLabel:"Fractional contact area A/A0", xAxisType:"log", yAxisType:"log"}, {title:"Load vs displacement", xDataKey:"mean_gaps", yDataKey:"mean_pressures", xAxisLabel:"Normalized mean gap u/h_rms", yAxisLabel:"Normalized pressure p/E*", xAxisType:"linear", yAxisType:"log"}]'
+              :categories='[{name:"name", title:"Measurements"}]'
+              :data-sources='{{ data_sources|safe }}'
+              output-backend="{{ output_backend }}">
+            </bokeh-plot>
+          {% endif %}
+        </div>
       </div>
       {% include 'analysis/analyses_warnings_tab_pane.html' %}
     </div>
@@ -53,10 +64,10 @@
 
 {% include 'analysis/task_info_modal.html' %}
 
-
 {% block card_javascript %}
-  {% if analyses_success %}
-    {# Insert the script code needed for the plot #}
-    {{ plot_script | safe }}
-  {% endif %}
+  <script>
+    new Vue({
+      el: "#contact-mechanics-card"
+    });
+  </script>
 {% endblock card_javascript %}

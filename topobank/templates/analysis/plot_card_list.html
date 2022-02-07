@@ -2,7 +2,7 @@
 {% load analysis_tags %}
 {% load icon_tags %}
 
-<div class="card search-result-card">
+<div id="card-{{ function.pk }}" class="card search-result-card">
     <div class="card-header">
       {% if analyses_available %}
       <div class="btn-group btn-group-sm float-right dropdown">
@@ -48,3 +48,11 @@
 </div>
 
 {% include 'analysis/task_info_modal.html' %}
+
+{% block card_javascript %}
+  <script>
+    new Vue({
+      el: "#card-{{ function.pk }}"
+    });
+  </script>
+{% endblock card_javascript %}

@@ -11,7 +11,7 @@
 
 {% block card_body %}
 
-  <div class="row">
+  <div id="card-{{ function.pk }}" class="row">
 
     <div class="col-9">
       <ul class="nav nav-tabs">
@@ -98,3 +98,11 @@
 
   </div>
 {% endblock card_body %}
+
+{% block card_javascript %}
+  <script>
+    new Vue({
+      el: "#card-{{ function.pk }}"
+    });
+  </script>
+{% endblock card_javascript %}
