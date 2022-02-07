@@ -112,7 +112,7 @@
         <div class="row">
           {% if not request.user.is_anonymous %}
           <div class="col-md-3">
-            <h3>Digital surface twins</h3>
+            <h4>Digital surface twins</h4>
             <p>A <em>digital surface twin</em> represents the real-life surface you are measuring, together with its
               descriptive metadata. If you make multiple measurements on the same real-world surface (even using
               different techniques), you can collect all the <em>measurements</em> together in a single <em>digital
@@ -122,26 +122,26 @@
               &raquo;</a></p>
           </div>
           <div class="col-md-3">
-            <h3>Measurements</h3>
-            <p>For each <em>surface</em>, you must upload one or more <em>measurements</em>. These represent each
+            <h4>Measurements</h4>
+            <p>For each <em>digital surface twin</em>, you must upload one or more <em>measurements</em>. These represent each
               individual measurement you performed. You can save metadata for each one, and perform basic pre-analysis.
             </p>
             <p><a class="btn btn-secondary" href="{% url 'manager:select' %}" role="button">Select measurements
               &raquo;</a></p>
           </div>
           <div class="col-md-3">
-            <h3>Analyses</h3>
-            <p>A number <em>analyses</em>, such as computing the power-spectral density or the real area of contact, are
+            <h4>Analysis workflows</h4>
+            <p>A number <em>analysis workflows</em>, such as computing the power-spectral density or the real area of contact, are
             automatically performed on all uploaded <em>measurements</em>.
             These analyses are stored, can be retriggered, visualized or compared.</p>
             <p><a class="btn btn-secondary" href="{% url 'analysis:list' %}" role="button">Show analyses &raquo;</a></p>
           </div>
            <div class="col-md-3">
-            <h3>Sharing</h3>
+            <h4>Sharing & publishing</h4>
              <p><em>Digital surface twins</em> can be <em>shared</em> with others for collaboration. You decide whether
                your collaborators can modify them or not.</p>
              <p>Digital surface twins can also be <em>published</em> to make them citable and accessible for everyone.</p>
-          <p><a class="btn btn-secondary" href="{% url 'manager:sharing-info' %}" role="button">Show sharing info &raquo;</a></p>
+          <p><a class="btn btn-secondary" href="{% url 'manager:sharing-info' %}" role="button">Show shared data &raquo;</a></p>
           </div>
           {% else %}
           <div class="col-md-12">
