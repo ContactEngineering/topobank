@@ -1237,6 +1237,8 @@ def contact_mechanics(topography, substrate_str="nonperiodic", hardness=None, ns
         # Pressure and gap distribution
         #
 
+        fac = get_unit_conversion_factor(topography.unit, 'm')
+
         hist, edges = np.histogram(pressure_xy, density=True, bins=50)
         data_dict = {
             'pressure': (edges[1:-1] + edges[2:]) / 2,
@@ -1251,12 +1253,12 @@ def contact_mechanics(topography, substrate_str="nonperiodic", hardness=None, ns
 
         hist, edges = np.histogram(gap_xy, density=True, bins=50)
         data_dict.update({
-            'gap': (edges[1:-1] + edges[2:]) / 2,
-            'gapProbabilityDensity': hist[1:],
+            'gap': (edges[1:-1] + edges[2:]) / 2 * fac,
+            'gapProbabilityDensity': hist[1:] / fac,
             'gapLabel': 'Gap g',
-            'gapUnit': topography.unit,
+            'gapUnit': 'm',
             'gapProbabilityDensityLabel': 'Probability density P(p)',
-            'gapProbabilityDensityUnit': f'{topography.unit}⁻¹'
+            'gapProbabilityDensityUnit': f'm⁻¹'
         })
         default_storage_replace(f'{storage_path}/json/gap_distribution.json',
                                 io.BytesIO(json.dumps(data_dict, cls=NumpyEncoder).encode('utf-8')))
@@ -1269,12 +1271,12 @@ def contact_mechanics(topography, substrate_str="nonperiodic", hardness=None, ns
         cluster_areas = patch_areas(patch_ids) * substrate.area_per_pt
         hist, edges = np.histogram(cluster_areas, density=True, bins=50)
         data_dict.update({
-            'clusterArea': (edges[1:-1] + edges[2:]) / 2,
-            'clusterAreaProbabilityDensity': hist[1:],
+            'clusterArea': (edges[1:-1] + edges[2:]) / 2 * fac * fac,
+            'clusterAreaProbabilityDensity': hist[1:] / (fac * fac),
             'clusterAreaLabel': 'Cluster area A',
-            'clusterAreaUnit': f'{topography.unit}²',
+            'clusterAreaUnit': f'm²',
             'clusterAreaProbabilityDensityLabel': 'Probability density P(A)',
-            'clusterAreaProbabilityDensityUnit': f'{topography.unit}⁻²'
+            'clusterAreaProbabilityDensityUnit': f'm⁻²'
         })
 
         #
