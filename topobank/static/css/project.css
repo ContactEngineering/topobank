@@ -462,6 +462,14 @@ section[title="Terms and Conditions"] div.toc-container, #tc-terms-html {
   padding: 3px 12px;
 }
 
+/*
+ * https://stackoverflow.com/questions/57851961/dynamic-bootstrap-accordion-display-issue-when-first-of-type-and-last-of-type-is
+ */
+.accordion > .card:first-of-type:last-of-type {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+    border-radius: 0.25rem;
+}
+
 .accordion-button {
     width: 100%;
     position: relative;
