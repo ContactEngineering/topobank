@@ -1239,16 +1239,24 @@ def contact_mechanics(topography, substrate_str="nonperiodic", hardness=None, ns
 
         hist, edges = np.histogram(pressure_xy, density=True, bins=50)
         data_dict = {
-            'pressure': (edges[:-1] + edges[1:]) / 2,
-            'probability_density': hist
+            'pressure': (edges[1:-1] + edges[2:]) / 2,
+            'probabilityDensity': hist[1:],
+            'pressureLabel': 'Pressure p',
+            'pressureUnit': 'E*',
+            'probabilityDensityLabel': 'Probability density P(p)',
+            'probabilityDensityUnit': 'E*⁻¹'
         }
         default_storage_replace(f'{storage_path}/json/pressure_distribution.json',
                                 io.BytesIO(json.dumps(data_dict, cls=NumpyEncoder).encode('utf-8')))
 
         hist, edges = np.histogram(gap_xy, density=True, bins=50)
         data_dict = {
-            'gap': (edges[:-1] + edges[1:]) / 2,
-            'probability_density': hist
+            'gap': (edges[1:-1] + edges[2:]) / 2,
+            'probabilityDensity': hist[1:],
+            'gapLabel': 'Gap g',
+            'gapUnit': topography.unit,
+            'probabilityDensityLabel': 'Probability density P(p)',
+            'probabilityDensityUnit': f'{topography.unit}⁻¹'
         }
         default_storage_replace(f'{storage_path}/json/gap_distribution.json',
                                 io.BytesIO(json.dumps(data_dict, cls=NumpyEncoder).encode('utf-8')))
@@ -1261,10 +1269,14 @@ def contact_mechanics(topography, substrate_str="nonperiodic", hardness=None, ns
         cluster_areas = patch_areas(patch_ids) * substrate.area_per_pt
         hist, edges = np.histogram(cluster_areas, density=True, bins=50)
         data_dict = {
-            'cluster_area': (edges[:-1] + edges[1:]) / 2,
-            'probability_density': hist
+            'clusterArea': (edges[1:-1] + edges[2:]) / 2,
+            'probabilityDensity': hist[1:],
+            'clusterAreaLabel': 'Cluster area A',
+            'clusterAreaUnit': f'{topography.unit}²',
+            'probabilityDensityLabel': 'Probability density P(A)',
+            'probabilityDensityUnit': f'{topography.unit}⁻²'
         }
-        default_storage_replace(f'{storage_path}/json/cluster_size_distribution.json',
+        default_storage_replace(f'{storage_path}/json/cluster_area_distribution.json',
                                 io.BytesIO(json.dumps(data_dict, cls=NumpyEncoder).encode('utf-8')))
 
         #

@@ -156,29 +156,30 @@ Vue.component("bokeh-plot", {
     },
     plots: {
       // Define the plots to show. Each plot will display in its own tab if there is more than one.
-      type: Array, default: [{title: "default", x: "x", y: "y"}]
+      type: Array,
+      default: [{
+        title: "default",  // Title will be used to distinguish between multiple plots. Can be omitted for single plot.
+        xDataKey: "x",  // JSON key in data source containing the x-data
+        yDataKey: "y",  // JSON key in data source containing the y-data
+        xScaleKey: undefined,  // JSON key in data source containing additional scale information
+        yScaleKey: undefined,  // JSON key in data source containing additional scale information
+        xAxisType: "linear",  // "log" or "linear"
+        yAxisType: "linear",  // "log" or "linear"
+        xAxisLabel: "x", // Label for the x-axis.
+        yAxisLabel: "y" // Label for the y-axis.
+      }]
     },
     dataSources: {
-      // Defining data sources.
+      // Define the data sources.
+      type: Array, default: []
       // List of dictionaries with keys:
-      //   [category-name]: Value of the specific category. For each category, there must be a key-value pair.
       //   url: URL to JSON that contains the data.
-      //   color: Line and symbol color.
+      //   [category-name] (optional): Value of the specific category. For each category, there must be a key-value pair.
+      //   color (optional): Line and symbol color.
       //   show_symbols (optional): Show symbols for this data source?
       //   visible (optional): Initial visibility (can be triggered by user).
-      type: Array, default: []
-    },
-    xAxisLabel: {
-      type: String, default: "Please specify x-axis label"
-    },
-    yAxisLabel: {
-      type: String, default: "Please specify y-axis label"
-    },
-    xAxisType: {
-      type: String, default: "linear"
-    },
-    yAxisType: {
-      type: String, default: "linear"
+      // Each data source is a JSON that is loaded from the given URL with via an AJAX request. The plot dictionary
+      // specifies which JSON keys are x and y data.
     },
     outputBackend: String,
     height: {
@@ -218,7 +219,6 @@ Vue.component("bokeh-plot", {
       let selection = [];
 
       for (const dataSource of this.dataSources) {
-
         if (!(category.name in dataSource)) {
           throw new Error("Key '" + category.name + "' not found in data source '" + dataSource.name + "'.");
         }
@@ -233,7 +233,6 @@ Vue.component("bokeh-plot", {
             selection.push(dataSource[category.name + '_index']);
           }
         }
-
       }
 
       this.categoryElements.push({
@@ -293,65 +292,90 @@ Vue.component("bokeh-plot", {
       this.refreshPlot();
     },
     dataSources: function (newVal, oldVal) {
-      // We need to completely rebuild the plot if the dataSources change
-      this.buildPlot();
+      // For some unknown reason, the dataSource watch is triggered even though it is not updated. We have to check
+      // manually that the URL has changed.
+      let has_changed = newVal.length != oldVal.length;
+      if (!has_changed) {
+        for (const [index, val] of newVal.entries()) {
+          has_changed = has_changed || (val.url != oldVal[index].url);
+        }
+      }
+      // We need to completely rebuild the plot if `dataSources` changes
+      if (has_changed) {
+        this.buildPlot();
+      }
     }
   },
   methods: {
     buildPlot() {
-      /* Clear list of Bokeh plots */
-      this.bokehPlots.length = 0;
+      /* Destroy all lines */
+      for (const bokehPlot of this.bokehPlots) {
+        /*
+        for (const line of bokehPlot.lines) {
+          console.log(line);
+          line.destroy();
+        }
+        for (const symbol of bokehPlot.symbols) {
+          symbol.destroy();
+        }
+         */
+        bokehPlot.lines.length = 0;
+        bokehPlot.symbols.length = 0;
+        bokehPlot.figure.renderers.length = 0;
+      }
 
-      for (const plot of this.plots) {
-        /* Callback for selection of data points */
-        let tools = [...this.tools];  // Copy array (= would just be a reference)
-        const code = "self.onTap(cb_obj, cb_data);";
-        tools.push(new Bokeh.TapTool({
-          behavior: "select",
-          callback: new Bokeh.CustomJS({
-            args: {self: this},
-            code: code
-          })
-        }));
+      const newPlot = this.bokehPlots.length == 0;
+      if (newPlot) {
+        /* Create figures */
+        for (const plot of this.plots) {
+          /* Callback for selection of data points */
+          let tools = [...this.tools];  // Copy array (= would just be a reference)
+          const code = "self.onTap(cb_obj, cb_data);";
+          tools.push(new Bokeh.TapTool({
+            behavior: "select",
+            callback: new Bokeh.CustomJS({
+              args: {self: this},
+              code: code
+            })
+          }));
 
-        /* Create and style figure */
-        const bokehPlot = new Bokeh.Plotting.Figure({
-          height: this.height,
-          sizing_mode: this.sizingMode,
-          x_axis_label: plot.xAxisLabel === undefined ? "x" : plot.xAxisLabel,
-          y_axis_label: plot.yAxisLabel === undefined ? "y" : plot.yAxisLabel,
-          x_axis_type: plot.xAxisType === undefined ? "linear" : plot.xAxisType,
-          y_axis_type: plot.yAxisType === undefined ? "linear" : plot.yAxisType,
-          tools: tools,
-          output_backend: this.outputBackend
-        });
+          /* Create and style figure */
+          const bokehPlot = new Bokeh.Plotting.Figure({
+            height: this.height,
+            sizing_mode: this.sizingMode,
+            x_axis_label: plot.xAxisLabel === undefined ? "x" : plot.xAxisLabel,
+            y_axis_label: plot.yAxisLabel === undefined ? "y" : plot.yAxisLabel,
+            x_axis_type: plot.xAxisType === undefined ? "linear" : plot.xAxisType,
+            y_axis_type: plot.yAxisType === undefined ? "linear" : plot.yAxisType,
+            tools: tools,
+            output_backend: this.outputBackend
+          });
 
-        /* This should become a Bokeh theme (supported in BokehJS with 3.0 - but I cannot find the `use_theme` method) */
-        bokehPlot.xaxis.axis_label_text_font_style = "normal";
-        bokehPlot.yaxis.axis_label_text_font_style = "normal";
-        bokehPlot.xaxis.major_label_text_font_size = "16px";
-        bokehPlot.yaxis.major_label_text_font_size = "16px";
-        bokehPlot.xaxis.axis_label_text_font_size = "16px";
-        bokehPlot.yaxis.axis_label_text_font_size = "16px";
+          /* This should become a Bokeh theme (supported in BokehJS with 3.0 - but I cannot find the `use_theme` method) */
+          bokehPlot.xaxis.axis_label_text_font_style = "normal";
+          bokehPlot.yaxis.axis_label_text_font_style = "normal";
+          bokehPlot.xaxis.major_label_text_font_size = "16px";
+          bokehPlot.yaxis.major_label_text_font_size = "16px";
+          bokehPlot.xaxis.axis_label_text_font_size = "16px";
+          bokehPlot.yaxis.axis_label_text_font_size = "16px";
 
-        this.bokehPlots.push({
-          figure: bokehPlot,
-          lines: [],
-          symbols: []
-        });
+          this.bokehPlots.push({
+            figure: bokehPlot,
+            lines: [],
+            symbols: []
+          });
+        }
       }
 
       /* We iterate in reverse order because we want to the first element to appear on top of the plot */
-      for (const dataSource of this.dataSources.reverse()) {
+      for (const dataSource of [...this.dataSources].reverse()) {
         for (const [index, plot] of this.plots.entries()) {
           /* Get scale factors */
-          xscale_key = plot.x + "_scale";
-          yscale_key = plot.y + "_scale";
-          xscale = dataSource[xscale_key] === undefined ? 1 : dataSource[xscale_key];
-          yscale = dataSource[yscale_key] === undefined ? 1 : dataSource[yscale_key];
+          xscale = plot.xScaleKey === undefined ? 1 : (dataSource[plot.xScaleKey] === undefined ? 1 : dataSource[plot.xScaleKey]);
+          yscale = plot.yScaleKey === undefined ? 1 : (dataSource[plot.yScaleKey] === undefined ? 1 : dataSource[plot.yScaleKey]);
 
           /* Get appropriate xy data and apply scale factors */
-          const code = "return { x: cb_data.response." + plot.x + ".map(value => " + xscale + " * value), " + "y: cb_data.response." + plot.y + ".map(value => " + yscale + " * value) }";
+          const code = "return { x: cb_data.response." + plot.xDataKey + ".map(value => " + xscale + " * value), " + "y: cb_data.response." + plot.yDataKey + ".map(value => " + yscale + " * value) }";
 
           /* Data source: AJAX GET request to storage system retrieving a JSON */
           const source = new Bokeh.AjaxDataSource({
@@ -397,8 +421,10 @@ Vue.component("bokeh-plot", {
       }
 
       /* Render figure(s) to HTML div */
-      for (const [index, bokehPlot] of this.bokehPlots.entries()) {
-        Bokeh.Plotting.show(bokehPlot.figure, "#bokeh-plot-" + this.uuid + "-" + index);
+      if (newPlot) {
+        for (const [index, bokehPlot] of this.bokehPlots.entries()) {
+          Bokeh.Plotting.show(bokehPlot.figure, "#bokeh-plot-" + this.uuid + "-" + index);
+        }
       }
     },
     refreshPlot() {

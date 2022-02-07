@@ -45,9 +45,9 @@
              aria-selected="false">
             Gap distribution
           </a>
-          <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#cluster-size-distribution-tab" role="tab"
+          <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#cluster-area-distribution-tab" role="tab"
              aria-selected="false">
-            Cluster size distribution
+            Cluster area distribution
           </a>
           <hr>
           <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#actions-tab" role="tab" aria-selected="false">
@@ -69,9 +69,6 @@
         {# Tab contents on right side #}
         <div class="tab-content">
           <div class="tab-pane fade active show" id="contacting-points-tab">
-            <div v-if="selection === null" id="contacting-points" class="alert alert-info">For contact geometry, select
-              a point in the graphs on the left!
-            </div>
             <dzi-map v-if="selection !== null"
                      :prefix-url="'{% url 'analysis:contact-mechanics' pk=123 index=456 location='dzi/contacting-points/' %}'.replace('123/456', selection.analysis_id + '/' + selection.index)"
             ></dzi-map>
@@ -99,14 +96,12 @@
             <div v-if="selection === null" id="pressure-distribution" class="alert alert-info">For pressure
               distribution, select a point in the graphs on the left!
             </div>
-            <!--
             <bokeh-plot
               v-if="selection !== null"
-              :plots='[{x:"pressure", y:"probability_density", xAxisLabel:"Pressure p (E*)", yAxisLabel:"Probability P(p) (1/E*)"}]'
+              :plots='[{xDataKey:"pressure", yDataKey:"probabilityDensity", xAxisLabel:"Pressure p (E*)", yAxisLabel:"Probability density P(p) (E*⁻¹)"}]'
               :data-sources="pressureDistributionDataSource"
               output-backend="{{ output_backend }}">
             </bokeh-plot>
-            -->
           </div>
           <div class="tab-pane fade" id="displacement-tab">
             <div v-if="selection === null" id="displacement" class="alert alert-info">For displacement, select a point
@@ -137,14 +132,26 @@
             </div>
           </div>
           <div class="tab-pane fade" id="gap-distribution-tab">
-            <div v-if="selection === null" id="gap-distribution" class="alert alert-info">For gap distribution, select a
-              point in the graphs on the left!
-            </div>
-          </div>
-          <div class="tab-pane fade" id="cluster-size-distribution-tab">
-            <div v-if="selection === null" id="cluster-size-distribution" class="alert alert-info">For cluster size
+            <div v-if="selection === null" id="gap-distribution" class="alert alert-info">For gap
               distribution, select a point in the graphs on the left!
             </div>
+            <bokeh-plot
+              v-if="selection !== null"
+              :plots='[{xDataKey:"gap", yDataKey:"probabilityDensity", xAxisLabel:"Gap g (m)", yAxisLabel:"Probability density P(g) (m⁻¹)"}]'
+              :data-sources="gapDistributionDataSource"
+              output-backend="{{ output_backend }}">
+            </bokeh-plot>
+          </div>
+          <div class="tab-pane fade" id="cluster-area-distribution-tab">
+            <div v-if="selection === null" id="cluster-area-distribution" class="alert alert-info">For cluster area
+              distribution, select a point in the graphs on the left!
+            </div>
+            <bokeh-plot
+              v-if="selection !== null"
+              :plots='[{xDataKey:"clusterArea", yDataKey:"probabilityDensity", xAxisLabel:"Cluster area A (m²)", yAxisLabel:"Probability density P(A) (m⁻²)"}]'
+              :data-sources="clusterAreaDistributionDataSource"
+              output-backend="{{ output_backend }}">
+            </bokeh-plot>
           </div>
           <div class="tab-pane fade" id="actions-tab">
 
@@ -362,18 +369,9 @@
       },
       computed: {
         pressureDistributionDataSource: function () {
-          if (this.selection === null) {
-            return [];
-          } else {
-            return [{
-              title: "Pressure distribution",
-              x: "pressure",
-              y: "probability_density",
-              xAxisLabel: "Normalized pressure p/E*",
-              yAxisLabel: "Fractional contact area A/A0",
-              url: "{% url 'analysis:contact-mechanics' pk=123 index=456 location='json/pressure_distribution.json' %}".replace('123/456', this.selection.analysis_id + '/' + this.selection.index)
-            }];
-          }
+          return [{
+            url: "{% url 'analysis:contact-mechanics' pk=123 index=456 location='json/pressure_distribution.json' %}".replace('123/456', this.selection.analysis_id + '/' + this.selection.index)
+          }];
         },
         gapDistributionDataSource: function () {
           if (this.selection === null) {
@@ -382,24 +380,28 @@
             return [{
               title: "Gap distribution",
               x: "gap",
-              y: "probability_density",
-              xAxisLabel: "Gap g",
-              yAxisLabel: "Probability P(g)",
-              url: "{% url 'analysis:contact-mechanics' pk=123 index=456 location='json/pressure_distribution.json' %}".replace('123/456', this.selection.analysis_id + '/' + this.selection.index)
+              y: "probabilityDensity",
+              xLabel: "gapLabel",
+              yLabel: "probabilityDensityLabel",
+              xUnit: "gapUnit",
+              yUnit: "probabilityDensityUnit",
+              url: "{% url 'analysis:contact-mechanics' pk=123 index=456 location='json/gap_distribution.json' %}".replace('123/456', this.selection.analysis_id + '/' + this.selection.index)
             }];
           }
         },
-        clusterSizeDistributionDataSource: function () {
+        clusterAreaDistributionDataSource: function () {
           if (this.selection === null) {
             return [];
           } else {
             return [{
-              title: "Cluster size distribution",
-              x: "cluster_area",
-              y: "probability_density",
-              xAxisLabel: "Cluster area A",
-              yAxisLabel: "Probability P(A)",
-              url: "{% url 'analysis:contact-mechanics' pk=123 index=456 location='json/pressure_distribution.json' %}".replace('123/456', this.selection.analysis_id + '/' + this.selection.index)
+              title: "Cluster area distribution",
+              x: "clusterArea",
+              y: "probabilityDensity",
+              xLabel: "clusterAreaLabel",
+              yLabel: "probabilityDensityLabel",
+              xUnit: "clusterAreaUnit",
+              yUnit: "probabilityDensityUnit",
+              url: "{% url 'analysis:contact-mechanics' pk=123 index=456 location='json/cluster_area_distribution.json' %}".replace('123/456', this.selection.analysis_id + '/' + this.selection.index)
             }];
           }
         }
