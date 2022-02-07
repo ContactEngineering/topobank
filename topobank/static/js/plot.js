@@ -309,7 +309,9 @@ Vue.component("bokeh-plot", {
       const visible = newVal != "off";
       for (const bokehPlot of this.bokehPlots) {
         bokehPlot.legend.visible = visible;
-        bokehPlot.legend.location = newVal;
+        if (visible) {
+          bokehPlot.legend.location = newVal;
+        }
       }
     },
     dataSources: function (newVal, oldVal) {
