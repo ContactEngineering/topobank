@@ -100,6 +100,19 @@ Vue.component("bokeh-plot", {
                 </select>
               </div>
 
+              <div class="form-group">
+                <label :for='"plot-legend-"+uuid' hidden>Legend:</label>
+                <select class="form-control"
+                       :id='"plot-legend-"+uuid'
+                       v-model="legendLocation">
+                  <option value="off">Do not show legend</option>
+                  <option value="top_right">Show legend top right</option>
+                  <option value="top_left">Show legend top left</option>
+                  <option value="bottom_right">Show legend bottom right</option>
+                  <option value="bottom_left">Show legend bottom left</option>
+                </select>
+              </div>
+
 <!-- Adjusting line width does not work
               <div class="form-group">
                 <label :for='"line-width-slider-"+uuid'>Line width: <b>{{ lineWidth }}</b></label>
@@ -123,6 +136,7 @@ Vue.component("bokeh-plot", {
                        class="form-control-range"
                        v-model="symbolSize">
               </div>
+
               <div class="form-group">
                 <label :for='"opacity-slider-"+uuid'>Opacity of lines/symbols (measurements only): <b>{{ opacity }}</b></label>
                 <input :id='"opacity-slider-"+uuid'
@@ -133,6 +147,7 @@ Vue.component("bokeh-plot", {
                        class="form-control-range"
                        v-model="opacity">
               </div>
+
             </div>
           </div>
         </div>
@@ -199,9 +214,10 @@ Vue.component("bokeh-plot", {
     return {
       uuid: null,  // Unique identifier that is embedded in the HTML ids
       layout: "web",
+      legendLocation: "off",
+      symbolSize: 10,
       opacity: 0.4,
       lineWidth: 1,
-      symbolSize: 10,
       categoryElements: [],
       bokehPlots: [],  // Stores Bokeh figure, line and symbol objects
     };
@@ -289,6 +305,13 @@ Vue.component("bokeh-plot", {
     symbolSize: function () {
       this.refreshPlot();
     },
+    legendLocation: function (newVal) {
+      const visible = newVal != "off";
+      for (const bokehPlot of this.bokehPlots) {
+        bokehPlot.legend.visible = visible;
+        bokehPlot.legend.location = newVal;
+      }
+    },
     dataSources: function (newVal, oldVal) {
       // For some unknown reason, the dataSource watch is triggered even though it is not updated. We have to check
       // manually that the URL has changed.
@@ -308,15 +331,6 @@ Vue.component("bokeh-plot", {
     buildPlot() {
       /* Destroy all lines */
       for (const bokehPlot of this.bokehPlots) {
-        /*
-        for (const line of bokehPlot.lines) {
-          console.log(line);
-          line.destroy();
-        }
-        for (const symbol of bokehPlot.symbols) {
-          symbol.destroy();
-        }
-         */
         bokehPlot.lines.length = 0;
         bokehPlot.symbols.length = 0;
         bokehPlot.figure.renderers.length = 0;
@@ -366,7 +380,8 @@ Vue.component("bokeh-plot", {
             save: saveTool,
             lines: [],
             symbols: [],
-            sources: []
+            sources: [],
+            legendItems: []
           });
         }
       }
@@ -426,12 +441,24 @@ Vue.component("bokeh-plot", {
               }
             });
           bokehPlot.symbols.unshift(circle);
+
+          /* Find a label */
+          let label = dataSource.source_name;
+          if (this.categories.length > 0) {
+            label = dataSource[this.categories[0].name]
+          }
+
+          /* Create legend */
+          const item = new Bokeh.LegendItem({label: label, renderers:[circle]});
+          bokehPlot.legendItems.unshift(item);
         }
       }
 
       /* Render figure(s) to HTML div */
       if (newPlot) {
         for (const [index, bokehPlot] of this.bokehPlots.entries()) {
+          bokehPlot.legend = new Bokeh.Legend({items: bokehPlot.legendItems, visible: false});
+          bokehPlot.figure.add_layout(bokehPlot.legend);
           Bokeh.Plotting.show(bokehPlot.figure, "#bokeh-plot-" + this.uuid + "-" + index);
         }
       }
