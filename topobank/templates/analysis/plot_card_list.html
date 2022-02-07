@@ -15,8 +15,9 @@
         </button>
         <div class="dropdown-menu dropdown-menu-right">
           {% if analyses_success %}
-          <a class="dropdown-item" href="{% url 'analysis:download' analyses_success|analyses_results_ids_list_str 'plot' 'txt' %}">Download as TXT</a>
-          <a class="dropdown-item" href="{% url 'analysis:download' analyses_success|analyses_results_ids_list_str 'plot' 'xlsx' %}">Download as XLSX</a>
+          <a class="dropdown-item" href="{% url 'analysis:download' analyses_success|analyses_results_ids_list_str 'plot' 'txt' %}">Download TXT</a>
+          <a class="dropdown-item" href="{% url 'analysis:download' analyses_success|analyses_results_ids_list_str 'plot' 'xlsx' %}">Download XLSX</a>
+          <a class="dropdown-item" v-on:click="$refs.plot.download()">Download SVG</a>
           {% endif %}
           {% if not analyses_unready %}
             <div class="dropdown-divider"></div>

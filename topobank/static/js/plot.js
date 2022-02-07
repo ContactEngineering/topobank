@@ -71,7 +71,6 @@ Vue.component("bokeh-plot", {
             </div>
           </div>
         </div>
-
         <div class="card">
           <div :id='"heading-plot-options-"+uuid' class="card-header plot-controls-card-header">
             <h2 class="mb-0">
@@ -89,8 +88,6 @@ Vue.component("bokeh-plot", {
                class="collapse"
                :aria-labelledby='"heading-plot-options-"+uuid'
                :data-parent='"#plot-controls-accordion-"+uuid'>
-
-
             <div class="card-body plot-controls-card-body">
               <div class="form-group">
                 <label :for='"plot-layout-"+uuid' hidden>Plot layout:</label>
@@ -126,7 +123,6 @@ Vue.component("bokeh-plot", {
                        class="form-control-range"
                        v-model="symbolSize">
               </div>
-
               <div class="form-group">
                 <label :for='"opacity-slider-"+uuid'>Opacity of lines/symbols (measurements only): <b>{{ opacity }}</b></label>
                 <input :id='"opacity-slider-"+uuid'
@@ -137,7 +133,6 @@ Vue.component("bokeh-plot", {
                        class="form-control-range"
                        v-model="opacity">
               </div>
-
             </div>
           </div>
         </div>
@@ -193,7 +188,7 @@ Vue.component("bokeh-plot", {
     },
     tools: {
       type: Array, default: function () {
-        return ["pan", "reset", "save", "wheel_zoom", "box_zoom", "hover"];
+        return ["pan", "reset", "wheel_zoom", "box_zoom", "hover"];
       }
     },
     selectable: {
@@ -343,6 +338,8 @@ Vue.component("bokeh-plot", {
               })
             }));
           }
+          const saveTool = new Bokeh.SaveTool()
+          tools.push(saveTool);
 
           /* Create and style figure */
           const bokehPlot = new Bokeh.Plotting.Figure({
@@ -366,6 +363,7 @@ Vue.component("bokeh-plot", {
 
           this.bokehPlots.push({
             figure: bokehPlot,
+            save: saveTool,
             lines: [],
             symbols: []
           });
@@ -500,6 +498,9 @@ Vue.component("bokeh-plot", {
 
       // Emit event
       this.$emit("selected", obj, data);
+    },
+    download: function () {
+      this.bokehPlots[0].save.do.emit();
     }
   }
 });
