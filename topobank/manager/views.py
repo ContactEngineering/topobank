@@ -930,9 +930,9 @@ class SurfaceDetailView(DetailView):
             taptool.callback = OpenURL(url="@topography_link", same_tab=True)
 
             # include plot into response
-            bw_plot_script, bw_plot_div = components(plot)
-            context['plot_script'] = bw_plot_script
-            context['plot_div'] = bw_plot_div
+            #bw_plot_script, bw_plot_div = components(plot)
+            #context['plot_script'] = bw_plot_script
+            #context['plot_div'] = bw_plot_div
 
         #
         # permission data

@@ -1049,148 +1049,7 @@ def _contact_mechanics_distribution_figure(values, x_axis_label, y_axis_label,
     return p
 
 
-def contact_mechanics_data(request):
-    """Loads extra data for an analysis card
-
-    :param request:
-    :return:
-    """
-    if not request.is_ajax():
-        raise Http404
-
-    request_method = request.POST
-    user = request.user
-
-    try:
-        analysis_id = int(request_method.get('analysis_id'))
-        index = int(request_method.get('index'))
-    except (KeyError, ValueError, TypeError):
-        return JsonResponse({'error': 'error in request data'}, status=400)
-
-    #
-    # Interpret given arguments
-    #
-    analysis = Analysis.objects.get(id=analysis_id)
-
-    unit = analysis.subject.unit
-
-    if user.has_perm('view_surface', analysis.related_surface):
-
-        #
-        # Try to get results from cache
-        #
-        cache_key = "contact-mechanics-plots-json-analysis-{}-index-{}".format(analysis.id, index)
-        plots_json = cache.get(cache_key)
-        if plots_json is None:
-
-            #
-            # generate plots and save in cache
-            #
-
-            pressure_tol = 0  # tolerance for deciding whether point is in contact
-            gap_tol = 0  # tolerance for deciding whether point is in contact
-            # min_pentol = 1e-12 # lower bound for the penetration tolerance
-
-            #
-            # Here we assume a special format for the analysis results
-            #
-            data_path = analysis.result_obj['data_paths'][index]
-
-            data = default_storage.open(f'{data_path}/nc/results.nc')
-            ds = xr.load_dataset(data.open(mode='rb'), engine="h5netcdf")
-            # "engine" argument needed after version updates for TopoBank 0.15.0
-
-            pressure = ds['pressure'].values
-            contacting_points = ds['contacting_points'].values
-            displacement = ds['displacement'].values
-            gap = ds['gap'].values
-
-            # gap, displacement
-
-            #
-            # calculate contact areas
-            #
-
-            patch_ids = assign_patch_numbers(contacting_points, ds.attrs['type'] == 'periodic')[1]
-            contact_areas = patch_areas(patch_ids) * analysis.result_obj['area_per_pt']
-
-            #
-            # Common figure parameters
-            #
-
-            topo = analysis.subject
-            aspect_ratio = topo.size_x / topo.size_y
-            frame_height = 500
-            frame_width = int(frame_height * aspect_ratio)
-
-            MAX_FRAME_WIDTH = 550
-
-            if frame_width > MAX_FRAME_WIDTH:  # rule of thumb, scale down if too wide
-                frame_width = MAX_FRAME_WIDTH
-                frame_height = int(frame_width / aspect_ratio)
-
-            common_kwargs = dict(frame_width=frame_width,
-                                 frame_height=frame_height)
-
-            geometry_figure_common_args = common_kwargs.copy()
-            geometry_figure_common_args.update(topo_unit=topo.unit, topo_size=(topo.size_x, topo.size_y))
-
-            plots = {
-                #
-                #  Geometry figures
-                #
-                'contact-geometry': _contact_mechanics_geometry_figure(
-                    contacting_points,
-                    colorbar_title="Contact geometry",
-                    **geometry_figure_common_args),
-                'contact-pressure': _contact_mechanics_geometry_figure(
-                    pressure,
-                    colorbar_title=r'Pressure',
-                    value_unit='E*',
-                    **geometry_figure_common_args),
-                'displacement': _contact_mechanics_geometry_figure(
-                    displacement,
-                    colorbar_title=r'Displacem.',
-                    value_unit=unit,
-                    **geometry_figure_common_args),
-                'gap': _contact_mechanics_geometry_figure(
-                    gap,
-                    colorbar_title=r'Gap',
-                    value_unit=unit,
-                    **geometry_figure_common_args),
-                #
-                # Distribution figures
-                #
-                'pressure-distribution': _contact_mechanics_distribution_figure(
-                    pressure[contacting_points],
-                    x_axis_label="Pressure p (E*)",
-                    y_axis_label="Probability P(p) (1/E*)",
-                    **common_kwargs),
-                'gap-distribution': _contact_mechanics_distribution_figure(
-                    gap[gap > gap_tol],
-                    x_axis_label="Gap g ({})".format(topo.unit),
-                    y_axis_label="Probability P(g) (1/{})".format(topo.unit),
-                    **common_kwargs),
-                'cluster-size-distribution': _contact_mechanics_distribution_figure(
-                    contact_areas,
-                    x_axis_label="Cluster area A({}²)".format(topo.unit),
-                    y_axis_label="Probability P(A)",
-                    x_axis_type="log",
-                    y_axis_type="log",
-                    **common_kwargs),
-            }
-
-            plots_json = {pn: json.dumps(json_item(plots[pn])) for pn in plots}
-            cache.set(cache_key, plots_json)
-        else:
-            _log.debug("Using plots from cache.")
-
-        return JsonResponse(plots_json, status=200)
-    else:
-        return JsonResponse({}, status=403)
-
-
-def contact_mechanics_dzi(request, pk, index, quantity, dzi_filename):
+def contact_mechanics(request, pk, index, location):
     try:
         pk = int(pk)
     except ValueError:
@@ -1209,7 +1068,7 @@ def contact_mechanics_dzi(request, pk, index, quantity, dzi_filename):
     # okay, we have a valid topography and the user is allowed to see it
 
     data_path = analysis.result_obj['data_paths'][index]
-    name = f'{data_path}/dzi/{quantity}/{dzi_filename}'
+    name = f'{data_path}/{location}'
     url = default_storage.url(name)
     return redirect(url)
 

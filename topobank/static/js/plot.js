@@ -198,7 +198,13 @@ Vue.component("bokeh-plot", {
   },
   data: function () {
     return {
-      uuid: null, layout: "web", opacity: 0.4, lineWidth: 1, symbolSize: 10, categoryElements: [], bokehPlots: []
+      uuid: null,  // Unique identifier that is embedded in the HTML ids
+      layout: "web",
+      opacity: 0.4,
+      lineWidth: 1,
+      symbolSize: 10,
+      categoryElements: [],
+      bokehPlots: [],  // Stores Bokeh figure, line and symbol objects
     };
   },
   created: function () {
@@ -217,7 +223,7 @@ Vue.component("bokeh-plot", {
           throw new Error("Key '" + category.name + "' not found in data source '" + dataSource.name + "'.");
         }
 
-        title = dataSource[category.name];
+        const title = dataSource[category.name];
         if (!(titles.has(title))) {
           color = index == 0 ? dataSource.color : null;  // The first category defines the color
           titles.add(title);
@@ -254,25 +260,25 @@ Vue.component("bokeh-plot", {
       switch (layout) {
         case 'web':
           for (const plot of this.bokehPlots) {
-            plot.sizing_mode = "scale_width";
-            plot.width = null;
-            plot.height = 300;
+            plot.figure.sizing_mode = "scale_width";
+            plot.figure.width = null;
+            plot.figure.height = 300;
           }
           this.symbolSize = 10;
           break;
         case 'print-single':
           for (const plot of this.bokehPlots) {
-            plot.sizing_mode = "fixed";
-            plot.width = 600;
-            plot.height = 300;
+            plot.figure.sizing_mode = "fixed";
+            plot.figure.width = 600;
+            plot.figure.height = 300;
           }
           this.symbolSize = 5;
           break;
         case 'print-double':
           for (const plot of this.bokehPlots) {
-            plot.sizing_mode = "fixed";
-            plot.width = 400;
-            plot.height = 250;
+            plot.figure.sizing_mode = "fixed";
+            plot.figure.width = 400;
+            plot.figure.height = 250;
           }
           this.symbolSize = 5;
           break;
@@ -285,10 +291,17 @@ Vue.component("bokeh-plot", {
     },
     symbolSize: function () {
       this.refreshPlot();
+    },
+    dataSources: function (newVal, oldVal) {
+      // We need to completely rebuild the plot if the dataSources change
+      this.buildPlot();
     }
   },
   methods: {
     buildPlot() {
+      /* Clear list of Bokeh plots */
+      this.bokehPlots.length = 0;
+
       for (const plot of this.plots) {
         /* Callback for selection of data points */
         let tools = [...this.tools];  // Copy array (= would just be a reference)
@@ -321,13 +334,15 @@ Vue.component("bokeh-plot", {
         bokehPlot.xaxis.axis_label_text_font_size = "16px";
         bokehPlot.yaxis.axis_label_text_font_size = "16px";
 
-        this.bokehPlots.push(bokehPlot);
+        this.bokehPlots.push({
+          figure: bokehPlot,
+          lines: [],
+          symbols: []
+        });
       }
 
       /* We iterate in reverse order because we want to the first element to appear on top of the plot */
       for (const dataSource of this.dataSources.reverse()) {
-        dataSource.lines = [];
-        dataSource.symbols = [];
         for (const [index, plot] of this.plots.entries()) {
           /* Get scale factors */
           xscale_key = plot.x + "_scale";
@@ -350,12 +365,15 @@ Vue.component("bokeh-plot", {
 
           /* Common attributes of lines and symbols */
           attrs = {
-            source: source, visible: dataSource.visible, color: dataSource.color, alpha: dataSource.alpha
+            source: source,
+            visible: dataSource.visible,
+            color: dataSource.color,
+            alpha: dataSource.alpha
           }
 
           /* Create lines and symbols */
           const bokehPlot = this.bokehPlots[index];
-          dataSource.lines.push(bokehPlot.line(
+          bokehPlot.lines.unshift(bokehPlot.figure.line(
             {field: "x"},
             {field: "y"},
             {
@@ -364,7 +382,7 @@ Vue.component("bokeh-plot", {
                 width: Number(this.lineWidth) * dataSource.width
               }
             }));
-          dataSource.symbols.push(bokehPlot.circle(
+          bokehPlot.symbols.unshift(bokehPlot.figure.circle(
             {field: "x"},
             {field: "y"},
             {
@@ -380,26 +398,26 @@ Vue.component("bokeh-plot", {
 
       /* Render figure(s) to HTML div */
       for (const [index, bokehPlot] of this.bokehPlots.entries()) {
-        Bokeh.Plotting.show(bokehPlot, "#bokeh-plot-" + this.uuid + "-" + index);
+        Bokeh.Plotting.show(bokehPlot.figure, "#bokeh-plot-" + this.uuid + "-" + index);
       }
     },
     refreshPlot() {
-      for (const dataSource of this.dataSources) {
+      for (const [index, dataSource] of this.dataSources.entries()) {
         let visible = true;
         for (const category of this.categoryElements) {
           visible = visible && category.selection.includes(dataSource[category.name + '_index']);
         }
 
-        for (const line of dataSource.lines) {
+        for (const bokehPlot of this.bokehPlots) {
+          const line = bokehPlot.lines[index];
           line.visible = visible;
           line.glyph.line_width = Number(this.lineWidth) * dataSource.width;
           if (dataSource.is_topography_analysis) {
             line.glyph.line_alpha = Number(this.opacity);
           }
-        }
 
-        for (const symbols of dataSource.symbols) {
-          symbols.visible = visible && (dataSource.show_symbols == undefined || dataSource.show_symbols);
+          const symbols = bokehPlot.symbols[index];
+          symbols.visible = visible && (dataSource.show_symbols === undefined || dataSource.show_symbols);
           symbols.glyph.size = Number(this.symbolSize);
           if (dataSource.is_topography_analysis) {
             symbols.glyph.line_alpha = Number(this.opacity);

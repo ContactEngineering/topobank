@@ -19,300 +19,329 @@
     </div>
 
     {% if not analyses_unready %}
-    {# Middle with group of tabs #}
-    <div class="col-2 col-sm-2 col-md-2 col-lg-2">
+      {# Middle with group of tabs #}
+      <div class="col-2 col-sm-2 col-md-2 col-lg-2">
 
-      <div class="nav nav-pills nav-pills-custom flex-column" aria-orientation="vertical">
-        <a class="nav-link mb-3 p-3 shadow active" data-toggle="pill" href="#contacting-points-tab" role="tab" aria-selected="true">
-          Contact geometry
-        </a>
-        <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#pressure-tab" role="tab" aria-selected="false">
-          Contact pressure
-        </a>
-        <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#pressure-distribution-tab" role="tab" aria-selected="false">
-          Pressure distribution
-        </a>
-        <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#displacement-tab" role="tab" aria-selected="false">
-          Displacement
-        </a>
-        <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#gap-tab" role="tab" aria-selected="false">
-          Gap
-        </a>
-        <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#gap-distribution-tab" role="tab" aria-selected="false">
-          Gap distribution
-        </a>
-        <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#cluster-size-distribution-tab" role="tab" aria-selected="false">
-          Cluster size distribution
-        </a>
-        <hr>
-        <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#actions-tab" role="tab" aria-selected="false">
-          Actions
-        </a>
-        {% if analyses_failure or extra_warnings %}
-          <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#warnings-tab-{{ card_id }}" role="tab" aria-selected="false">
-            Warnings
+        <div class="nav nav-pills nav-pills-custom flex-column" aria-orientation="vertical">
+          <a class="nav-link mb-3 p-3 shadow active" data-toggle="pill" href="#contacting-points-tab" role="tab"
+             aria-selected="true">
+            Contact geometry
           </a>
-        {% endif %}
+          <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#pressure-tab" role="tab" aria-selected="false">
+            Contact pressure
+          </a>
+          <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#pressure-distribution-tab" role="tab"
+             aria-selected="false">
+            Pressure distribution
+          </a>
+          <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#displacement-tab" role="tab"
+             aria-selected="false">
+            Displacement
+          </a>
+          <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#gap-tab" role="tab" aria-selected="false">
+            Gap
+          </a>
+          <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#gap-distribution-tab" role="tab"
+             aria-selected="false">
+            Gap distribution
+          </a>
+          <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#cluster-size-distribution-tab" role="tab"
+             aria-selected="false">
+            Cluster size distribution
+          </a>
+          <hr>
+          <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#actions-tab" role="tab" aria-selected="false">
+            Actions
+          </a>
+          {% if analyses_failure or extra_warnings %}
+            <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#warnings-tab-{{ card_id }}" role="tab"
+               aria-selected="false">
+              Warnings
+            </a>
+          {% endif %}
+
+        </div>
 
       </div>
 
-    </div>
-
-    {# Right with simulation details and actions #}
-    <div class="col-sm-5">
-      {# Tab contents on right side #}
-      <div class="tab-content">
-        <div class="tab-pane fade active show" id="contacting-points-tab">
-          <div v-if="selection === null" id="contacting-points" class="alert alert-info">For contact geometry, select a point in the graphs on the left!</div>
-          <dzi-map v-if="selection !== null"
-                   :prefix-url="'{% url 'analysis:contact-mechanics-dzi' pk=123 index=456 quantity='contacting-points' dzi_filename='' %}'.replace('123/456', selection.analysis_id + '/' + selection.index)"
-          ></dzi-map>
-          <div v-if="selection !== null" class="pull-right">
-            <a id="contacting-points-download" href="#" class="btn btn-default">
-              {% fa5_icon 'download' %} Download as PNG
-            </a>
-          </div>
-        </div>
-        <div class="tab-pane fade" id="pressure-tab">
-          <div v-if="selection === null" id="pressure" class="alert alert-info">For contact pressure, select a point in the graphs on the left!</div>
-          <dzi-map v-if="selection !== null"
-                   :prefix-url="'{% url 'analysis:contact-mechanics-dzi' pk=123 index=456 quantity='pressure' dzi_filename='' %}'.replace('123/456', selection.analysis_id + '/' + selection.index)"
-                   colorbar=true
-          ></dzi-map>
-          <div v-if="selection !== null" class="pull-right">
-            <a id="pressure-download" href="#" class="btn btn-default">
-              {% fa5_icon 'download' %} Download as PNG
-            </a>
-          </div>
-        </div>
-        <div class="tab-pane fade" id="pressure-distribution-tab">
-          <div id="pressure-distribution" class="alert alert-info">For pressure distribution, select a point in the graphs on the left!</div>
-        </div>
-        <div class="tab-pane fade" id="displacement-tab">
-          <div v-if="selection === null" id="displacement" class="alert alert-info">For displacement, select a point in the graphs on the left!</div>
-          <dzi-map v-if="selection !== null"
-                   :prefix-url="'{% url 'analysis:contact-mechanics-dzi' pk=123 index=456 quantity='displacement' dzi_filename='' %}'.replace('123/456', selection.analysis_id + '/' + selection.index)"
-                   colorbar=true
-          ></dzi-map>
-          <div v-if="selection !== null" class="pull-right">
-            <a id="displacement-download" href="#" class="btn btn-default">
-              {% fa5_icon 'download' %} Download as PNG
-            </a>
-          </div>
-        </div>
-        <div class="tab-pane fade" id="gap-tab">
-          <div v-if="selection === null" id="gap" class="alert alert-info">For gap, select a point in the graphs on the left!</div>
-          <dzi-map v-if="selection !== null"
-                   :prefix-url="'{% url 'analysis:contact-mechanics-dzi' pk=123 index=456 quantity='gap' dzi_filename='' %}'.replace('123/456', selection.analysis_id + '/' + selection.index)"
-                   colorbar=true
-          ></dzi-map>
-          <div v-if="selection !== null" class="pull-right">
-            <a id="gap-download" href="#" class="btn btn-default">
-              {% fa5_icon 'download' %} Download as PNG
-            </a>
-          </div>
-        </div>
-        <div class="tab-pane fade" id="gap-distribution-tab">
-          <div id="gap-distribution" class="alert alert-info">For gap distribution, select a point in the graphs on the left!</div>
-        </div>
-        <div class="tab-pane fade" id="cluster-size-distribution-tab">
-          <div id="cluster-size-distribution" class="alert alert-info">For cluster size distribution, select a point in the graphs on the left!</div>
-        </div>
-        <div class="tab-pane fade" id="actions-tab">
-
-          {# BUTTON "TASK INFORMATION" #}
-          <div class="row p-3">
-            <div class="col-12">
-              {% if analyses_available and not analyses_unready %}
-                <a class="btn btn-default btn-block btn-lg" href="#" data-toggle="modal"
-                   data-target="#statusesModal-{{ card_id }}">{% fa5_icon 'tasks' %} Task information</a>
-              {% endif %}
+      {# Right with simulation details and actions #}
+      <div class="col-sm-5">
+        {# Tab contents on right side #}
+        <div class="tab-content">
+          <div class="tab-pane fade active show" id="contacting-points-tab">
+            <div v-if="selection === null" id="contacting-points" class="alert alert-info">For contact geometry, select
+              a point in the graphs on the left!
             </div>
-          </div>
-
-          {% if not analyses_unready and analyses_success %}
-          {# BUTTON "DOWNLOAD" #}
-          <div class="row p-3">
-            <div class="col-12">
-              <a id="download" class="btn btn-default btn-block btn-lg"
-              href="{% url 'analysis:download' analyses_success|analyses_results_ids_list_str 'contact mechanics' 'zip' %}">
-                {% fa5_icon 'download' %} Download
+            <dzi-map v-if="selection !== null"
+                     :prefix-url="'{% url 'analysis:contact-mechanics' pk=123 index=456 location='dzi/contacting-points/' %}'.replace('123/456', selection.analysis_id + '/' + selection.index)"
+            ></dzi-map>
+            <div v-if="selection !== null" class="pull-right">
+              <a id="contacting-points-download" href="#" class="btn btn-default">
+                {% fa5_icon 'download' %} Download as PNG
               </a>
             </div>
           </div>
-          {% endif %}
+          <div class="tab-pane fade" id="pressure-tab">
+            <div v-if="selection === null" id="pressure" class="alert alert-info">For contact pressure, select a point
+              in the graphs on the left!
+            </div>
+            <dzi-map v-if="selection !== null"
+                     :prefix-url="'{% url 'analysis:contact-mechanics' pk=123 index=456 location='dzi/pressure/' %}'.replace('123/456', selection.analysis_id + '/' + selection.index)"
+                     :colorbar="true"
+            ></dzi-map>
+            <div v-if="selection !== null" class="pull-right">
+              <a id="pressure-download" href="#" class="btn btn-default">
+                {% fa5_icon 'download' %} Download as PNG
+              </a>
+            </div>
+          </div>
+          <div class="tab-pane fade" id="pressure-distribution-tab">
+            <div v-if="selection === null" id="pressure-distribution" class="alert alert-info">For pressure
+              distribution, select a point in the graphs on the left!
+            </div>
+            <!--
+            <bokeh-plot
+              v-if="selection !== null"
+              :plots='[{x:"pressure", y:"probability_density", xAxisLabel:"Pressure p (E*)", yAxisLabel:"Probability P(p) (1/E*)"}]'
+              :data-sources="pressureDistributionDataSource"
+              output-backend="{{ output_backend }}">
+            </bokeh-plot>
+            -->
+          </div>
+          <div class="tab-pane fade" id="displacement-tab">
+            <div v-if="selection === null" id="displacement" class="alert alert-info">For displacement, select a point
+              in the graphs on the left!
+            </div>
+            <dzi-map v-if="selection !== null"
+                     :prefix-url="'{% url 'analysis:contact-mechanics' pk=123 index=456 location='dzi/displacement/' %}'.replace('123/456', selection.analysis_id + '/' + selection.index)"
+                     :colorbar="true"
+            ></dzi-map>
+            <div v-if="selection !== null" class="pull-right">
+              <a id="displacement-download" href="#" class="btn btn-default">
+                {% fa5_icon 'download' %} Download as PNG
+              </a>
+            </div>
+          </div>
+          <div class="tab-pane fade" id="gap-tab">
+            <div v-if="selection === null" id="gap" class="alert alert-info">For gap, select a point in the graphs on
+              the left!
+            </div>
+            <dzi-map v-if="selection !== null"
+                     :prefix-url="'{% url 'analysis:contact-mechanics' pk=123 index=456 location='dzi/gap/' %}'.replace('123/456', selection.analysis_id + '/' + selection.index)"
+                     :colorbar="true"
+            ></dzi-map>
+            <div v-if="selection !== null" class="pull-right">
+              <a id="gap-download" href="#" class="btn btn-default">
+                {% fa5_icon 'download' %} Download as PNG
+              </a>
+            </div>
+          </div>
+          <div class="tab-pane fade" id="gap-distribution-tab">
+            <div v-if="selection === null" id="gap-distribution" class="alert alert-info">For gap distribution, select a
+              point in the graphs on the left!
+            </div>
+          </div>
+          <div class="tab-pane fade" id="cluster-size-distribution-tab">
+            <div v-if="selection === null" id="cluster-size-distribution" class="alert alert-info">For cluster size
+              distribution, select a point in the graphs on the left!
+            </div>
+          </div>
+          <div class="tab-pane fade" id="actions-tab">
 
-          {# ELEMENTS FOR TRIGGERING A CALCULATION #}
-          <div class="row p-3">
-            <div class="col-12">
+            {# BUTTON "TASK INFORMATION" #}
+            <div class="row p-3">
+              <div class="col-12">
+                {% if analyses_available and not analyses_unready %}
+                  <a class="btn btn-default btn-block btn-lg" href="#" data-toggle="modal"
+                     data-target="#statusesModal-{{ card_id }}">{% fa5_icon 'tasks' %} Task information</a>
+                {% endif %}
+              </div>
+            </div>
 
-              <form>
-                <div class="form-group row">
+            {% if not analyses_unready and analyses_success %}
+              {# BUTTON "DOWNLOAD" #}
+              <div class="row p-3">
+                <div class="col-12">
+                  <a id="download" class="btn btn-default btn-block btn-lg"
+                     href="{% url 'analysis:download' analyses_success|analyses_results_ids_list_str 'contact mechanics' 'zip' %}">
+                    {% fa5_icon 'download' %} Download
+                  </a>
+                </div>
+              </div>
+            {% endif %}
 
-                  {# Substrate selection #}
+            {# ELEMENTS FOR TRIGGERING A CALCULATION #}
+            <div class="row p-3">
+              <div class="col-12">
 
-                  <div class="input-group col-auto">
-                    <div class="input-group-prepend">
-                      <div class="input-group-text">
-                        Type
+                <form>
+                  <div class="form-group row">
+
+                    {# Substrate selection #}
+
+                    <div class="input-group col-auto">
+                      <div class="input-group-prepend">
+                        <div class="input-group-text">
+                          Type
+                        </div>
+
                       </div>
-
-                    </div>
-                    <select class="custom-select" id="substrate-select">
-                      <option value="periodic" selected>Periodic (repeating array of the measurement)</option>
-                      <option value="nonperiodic">Free boundaries (flat punch with measurement)</option>
-                    </select>
-                    <div class="input-group-append">
-                      <div class="input-group-text">
-                        <i class="fa fa-info-circle" data-toggle="popover"
-                           tabindex="0" data-trigger="focus" role="button"
-                           title="Type of calculation"
-                           data-content="This option determines how the elastic interactions are calculated.
+                      <select class="custom-select" id="substrate-select">
+                        <option value="periodic" selected>Periodic (repeating array of the measurement)</option>
+                        <option value="nonperiodic">Free boundaries (flat punch with measurement)</option>
+                      </select>
+                      <div class="input-group-append">
+                        <div class="input-group-text">
+                          <i class="fa fa-info-circle" data-toggle="popover"
+                             tabindex="0" data-trigger="focus" role="button"
+                             title="Type of calculation"
+                             data-content="This option determines how the elastic interactions are calculated.
                                    This affects edge effects that may show up in the results at large contact area.
                                    Calculations can assume that the surface repeats periodically or that it is pushing down on a nonperiodic,
                                    infinitely expanded half-space. The latter option corresponds to mapping the surface topography on a flat punch.
                                    If not given, this value is automatically chosen as 'periodic' for periodic topographies,
                                    else non-periodic."></i>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  {# Hardness input #}
-                  <div class="input-group col-auto">
+                    {# Hardness input #}
+                    <div class="input-group col-auto">
 
-                    <div class="input-group-prepend">
-                      <div class="input-group-text">
-                        Hardness
+                      <div class="input-group-prepend">
+                        <div class="input-group-text">
+                          Hardness
+                        </div>
+                        <div class="input-group-text">
+                          <input id="hardness-checkbox" type="checkbox" aria-label="enable-hardness">
+                        </div>
                       </div>
-                      <div class="input-group-text">
-                        <input id="hardness-checkbox" type="checkbox" aria-label="enable-hardness">
+                      <input id="hardness-input" type="number" min="0" step="0.1" class="form-control"
+                             disabled="true"
+                        {# will be clicked automatically if hardness was given in arguments, see below #}
+                             value="{{ initial_calc_kwargs.hardness }}">
+                      <div class="input-group-append ">
+                        <div class="input-group-text">
+                          E<sup>*</sup>
+                        </div>
+                        <div class="input-group-text">
+                          <i class="fa fa-info-circle" data-toggle="popover"
+                             tabindex="0" data-trigger="focus" role="button"
+                             title="Hardness"
+                             data-content="Setting a hardness enables plastic calculations. Local pressure cannot exceed hardness value."></i>
+                        </div>
                       </div>
                     </div>
-                    <input id="hardness-input" type="number" min="0" step="0.1" class="form-control"
-                           disabled="true"
-                      {# will be clicked automatically if hardness was given in arguments, see below #}
-                           value="{{ initial_calc_kwargs.hardness }}">
-                    <div class="input-group-append ">
-                      <div class="input-group-text">
-                        E<sup>*</sup>
-                      </div>
-                      <div class="input-group-text">
-                        <i class="fa fa-info-circle" data-toggle="popover"
-                           tabindex="0" data-trigger="focus" role="button"
-                           title="Hardness"
-                           data-content="Setting a hardness enables plastic calculations. Local pressure cannot exceed hardness value."></i>
-                      </div>
-                    </div>
-                  </div>
 
-                  {# Step selection #}
-                  <div class="input-group col-auto">
-                    {# Automatic #}
-                    <div class="input-group-prepend">
-                      <div class="input-group-text">
-                        <input type="radio"
-                               name="pressure-selection"
-                               value="automatic"
-                               checked="checked"
-                               aria-label="Radio button for automatic step selection">
+                    {# Step selection #}
+                    <div class="input-group col-auto">
+                      {# Automatic #}
+                      <div class="input-group-prepend">
+                        <div class="input-group-text">
+                          <input type="radio"
+                                 name="pressure-selection"
+                                 value="automatic"
+                                 checked="checked"
+                                 aria-label="Radio button for automatic step selection">
+                        </div>
+                        <div class="input-group-text">
+                          Number of steps
+                        </div>
                       </div>
-                      <div class="input-group-text">
-                        Number of steps
-                      </div>
-                    </div>
-                    <input id='nsteps-input' type="number"
-                           min="{{ limits_calc_kwargs.nsteps.min }}"
-                           max="{{ limits_calc_kwargs.nsteps.max }}"
-                           step="1" class="form-control"
-                           value="{{ initial_calc_kwargs.nsteps }}">
-                    <div class="input-group-append ">
-                      <div class="input-group-text">
-                        <i class="fa fa-info-circle" data-toggle="popover"
-                           tabindex="0" data-trigger="focus" role="button"
-                           title="Automatic step selection"
-                           data-content="Number of pressure steps which are chosen automatically."></i>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="input-group col-auto">
-                    {# Fixed list #}
-                    <div class="input-group-prepend">
-                      <div class="input-group-text">
-                        <input type="radio" name="pressure-selection" value="manual" aria-label="Radio button for list of values">
-                      </div>
-                      <div class="input-group-text">
-                        Pressures
+                      <input id='nsteps-input' type="number"
+                             min="{{ limits_calc_kwargs.nsteps.min }}"
+                             max="{{ limits_calc_kwargs.nsteps.max }}"
+                             step="1" class="form-control"
+                             value="{{ initial_calc_kwargs.nsteps }}">
+                      <div class="input-group-append ">
+                        <div class="input-group-text">
+                          <i class="fa fa-info-circle" data-toggle="popover"
+                             tabindex="0" data-trigger="focus" role="button"
+                             title="Automatic step selection"
+                             data-content="Number of pressure steps which are chosen automatically."></i>
+                        </div>
                       </div>
                     </div>
-                    <select id="select-pressure-steps" class="form-control" multiple="">
-                      {% if initial_calc_kwargs.pressures %}
-                        {% for pressure in initial_calc_kwargs.pressures %}
-                          <option value={{ pressure }} selected>{{ pressure }}</option>
-                        {% endfor %}
-                      {% endif %}
-                    </select>
-                    <div class="input-group-append  ">
-                      <div class="input-group-text">
-                        E<sup>*</sup>
+                    <div class="input-group col-auto">
+                      {# Fixed list #}
+                      <div class="input-group-prepend">
+                        <div class="input-group-text">
+                          <input type="radio" name="pressure-selection" value="manual"
+                                 aria-label="Radio button for list of values">
+                        </div>
+                        <div class="input-group-text">
+                          Pressures
+                        </div>
                       </div>
-                      <div class="input-group-text">
-                        <i class="fa fa-info-circle" data-toggle="popover"
-                           tabindex="0" data-trigger="focus" role="button"
-                           title="Manual step selection"
-                           data-content="Enter positive pressure values for which you need results. You can also copy/paste
+                      <select id="select-pressure-steps" class="form-control" multiple="">
+                        {% if initial_calc_kwargs.pressures %}
+                          {% for pressure in initial_calc_kwargs.pressures %}
+                            <option value={{ pressure }} selected>{{ pressure }}</option>
+                          {% endfor %}
+                        {% endif %}
+                      </select>
+                      <div class="input-group-append  ">
+                        <div class="input-group-text">
+                          E<sup>*</sup>
+                        </div>
+                        <div class="input-group-text">
+                          <i class="fa fa-info-circle" data-toggle="popover"
+                             tabindex="0" data-trigger="focus" role="button"
+                             title="Manual step selection"
+                             data-content="Enter positive pressure values for which you need results. You can also copy/paste
                            a comma-separated list of values with a comma after every number. Use '.' as decimal separator.
                            The maximum number of values is {{ limits_calc_kwargs.pressures.maxlen }}."></i>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  {# Input of maximum number of iterations  #}
-                  <div class="input-group col-auto">
-                    {# Automatic #}
-                    <div class="input-group-prepend">
-                      <div class="input-group-text">
-                        Max. number of iterations
+                    {# Input of maximum number of iterations  #}
+                    <div class="input-group col-auto">
+                      {# Automatic #}
+                      <div class="input-group-prepend">
+                        <div class="input-group-text">
+                          Max. number of iterations
+                        </div>
                       </div>
-                    </div>
-                    <input id='maxiter-input' type="number"
-                           min="{{ limits_calc_kwargs.maxiter.min }}"
-                           max="{{ limits_calc_kwargs.maxiter.max }}"
-                           step="1" class="form-control"
-                           value="{{ initial_calc_kwargs.maxiter }}">
-                    <div class="input-group-append ">
-                      <div class="input-group-text">
-                        <i class="fa fa-info-circle" data-toggle="popover"
-                           tabindex="0" data-trigger="focus" role="button"
-                           title="Maximum number of iterations"
-                           data-content="Maximum number of iterations (<={{ limits_calc_kwargs.maxiter.max }})."></i>
+                      <input id='maxiter-input' type="number"
+                             min="{{ limits_calc_kwargs.maxiter.min }}"
+                             max="{{ limits_calc_kwargs.maxiter.max }}"
+                             step="1" class="form-control"
+                             value="{{ initial_calc_kwargs.maxiter }}">
+                      <div class="input-group-append ">
+                        <div class="input-group-text">
+                          <i class="fa fa-info-circle" data-toggle="popover"
+                             tabindex="0" data-trigger="focus" role="button"
+                             title="Maximum number of iterations"
+                             data-content="Maximum number of iterations (<={{ limits_calc_kwargs.maxiter.max }})."></i>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              </form>
+                </form>
+              </div>
             </div>
-          </div>
 
-          <div class="row p-1">
-            <div class="col-12">
-              {% if request.user.is_anonymous %}
-                <button title="Please login for this feature"
-                      class="btn btn-primary btn-block btn-lg disabled }}" disabled>
-                {% fa5_icon 'repeat' %} Recalculate
-              </button>
-              {% else %}
-                <button id="recalculate" title="Trigger calculation with given arguments"
-                      class="btn btn-primary btn-block btn-lg">
+            <div class="row p-1">
+              <div class="col-12">
+                {% if request.user.is_anonymous %}
+                  <button title="Please login for this feature"
+                          class="btn btn-primary btn-block btn-lg disabled }}" disabled>
                     {% fa5_icon 'repeat' %} Recalculate
-                </button>
-              {% endif %}
+                  </button>
+                {% else %}
+                  <button id="recalculate" title="Trigger calculation with given arguments"
+                          class="btn btn-primary btn-block btn-lg">
+                    {% fa5_icon 'repeat' %} Recalculate
+                  </button>
+                {% endif %}
+              </div>
             </div>
-          </div>
 
+          </div>
+          {% include 'analysis/analyses_warnings_tab_pane.html' %}
         </div>
-        {% include 'analysis/analyses_warnings_tab_pane.html' %}
       </div>
-    </div>
     {% endif %}
 
   </div>
@@ -322,15 +351,59 @@
 {% block card_javascript %}
   <script src="{% static 'tagulous/lib/select2-4/js/select2.min.js' %}"></script>
 
-  {# Additonal code for initialization #}
+  {# Additional code for initialization #}
   <script>
-
-  vm = new Vue({
-    el: "#contact-mechanics-card",
-    data: {
-      selection: null
-    }
-  });
-
+    vm = new Vue({
+      el: "#contact-mechanics-card",
+      data: function () {
+        return {
+          selection: null
+        }
+      },
+      computed: {
+        pressureDistributionDataSource: function () {
+          if (this.selection === null) {
+            return [];
+          } else {
+            return [{
+              title: "Pressure distribution",
+              x: "pressure",
+              y: "probability_density",
+              xAxisLabel: "Normalized pressure p/E*",
+              yAxisLabel: "Fractional contact area A/A0",
+              url: "{% url 'analysis:contact-mechanics' pk=123 index=456 location='json/pressure_distribution.json' %}".replace('123/456', this.selection.analysis_id + '/' + this.selection.index)
+            }];
+          }
+        },
+        gapDistributionDataSource: function () {
+          if (this.selection === null) {
+            return [];
+          } else {
+            return [{
+              title: "Gap distribution",
+              x: "gap",
+              y: "probability_density",
+              xAxisLabel: "Gap g",
+              yAxisLabel: "Probability P(g)",
+              url: "{% url 'analysis:contact-mechanics' pk=123 index=456 location='json/pressure_distribution.json' %}".replace('123/456', this.selection.analysis_id + '/' + this.selection.index)
+            }];
+          }
+        },
+        clusterSizeDistributionDataSource: function () {
+          if (this.selection === null) {
+            return [];
+          } else {
+            return [{
+              title: "Cluster size distribution",
+              x: "cluster_area",
+              y: "probability_density",
+              xAxisLabel: "Cluster area A",
+              yAxisLabel: "Probability P(A)",
+              url: "{% url 'analysis:contact-mechanics' pk=123 index=456 location='json/pressure_distribution.json' %}".replace('123/456', this.selection.analysis_id + '/' + this.selection.index)
+            }];
+          }
+        }
+      }
+    });
   </script>
 {% endblock card_javascript %}

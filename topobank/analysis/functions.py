@@ -25,6 +25,7 @@ from SurfaceTopography.Container.ScaleDependentStatistics import scale_dependent
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor, suggest_length_unit_for_data
 from SurfaceTopography.Exceptions import CannotPerformAnalysisError
 from ContactMechanics import PeriodicFFTElasticHalfSpace, FreeFFTElasticHalfSpace, make_system
+from ContactMechanics.Tools.ContactAreaAnalysis import patch_areas, assign_patch_numbers
 
 import topobank.manager.models  # will be used to evaluate model classes
 from topobank.manager.utils import default_storage_replace, make_dzi
@@ -1112,7 +1113,7 @@ def contact_mechanics(topography, substrate_str="nonperiodic", hardness=None, ns
         else:
             alert_message += "not periodic, but the analysis is configured for periodic boundaries."
         alerts.append(dict(alert_class=f"alert-warning", message=alert_message))
-        _log.warning(alert_message+" The user should have been informed in the UI.")
+        _log.warning(alert_message + " The user should have been informed in the UI.")
 
     # Get low level topography from SurfaceTopography model
     topography = topography.topography()
@@ -1207,9 +1208,9 @@ def contact_mechanics(topography, substrate_str="nonperiodic", hardness=None, ns
                                        maxiter=maxiter)
 
         #
-        # Save displacement_xy, gap_xy, pressure_xy and contacting_points_xy
-        # to storage, will be retrieved later for visualization
+        # Save displacement_xy, gap_xy, pressure_xy and contacting_points_xy to a NetCDF file
         #
+
         pressure_xy = xr.DataArray(pressure_xy, dims=('x', 'y'))  # maybe define coordinates
         gap_xy = xr.DataArray(gap_xy, dims=('x', 'y'))
         displacement_xy = xr.DataArray(displacement_xy, dims=('x', 'y'))
@@ -1231,6 +1232,44 @@ def contact_mechanics(topography, substrate_str="nonperiodic", hardness=None, ns
             dataset.to_netcdf(tmpfile.name, format=netcdf_format)
             tmpfile.seek(0)
             default_storage_replace(f'{storage_path}/nc/results.nc', File(tmpfile))
+
+        #
+        # Store pressure and gap distribution to JSON
+        #
+
+        hist, edges = np.histogram(pressure_xy, density=True, bins=50)
+        data_dict = {
+            'pressure': (edges[:-1] + edges[1:]) / 2,
+            'probability_density': hist
+        }
+        default_storage_replace(f'{storage_path}/json/pressure_distribution.json',
+                                io.BytesIO(json.dumps(data_dict, cls=NumpyEncoder).encode('utf-8')))
+
+        hist, edges = np.histogram(gap_xy, density=True, bins=50)
+        data_dict = {
+            'gap': (edges[:-1] + edges[1:]) / 2,
+            'probability_density': hist
+        }
+        default_storage_replace(f'{storage_path}/json/gap_distribution.json',
+                                io.BytesIO(json.dumps(data_dict, cls=NumpyEncoder).encode('utf-8')))
+
+        #
+        # Store patch size distribution to JSON
+        #
+
+        patch_ids = assign_patch_numbers(contacting_points_xy, substrate_str == 'periodic')[1]
+        cluster_areas = patch_areas(patch_ids) * substrate.area_per_pt
+        hist, edges = np.histogram(cluster_areas, density=True, bins=50)
+        data_dict = {
+            'cluster_area': (edges[:-1] + edges[1:]) / 2,
+            'probability_density': hist
+        }
+        default_storage_replace(f'{storage_path}/json/cluster_size_distribution.json',
+                                io.BytesIO(json.dumps(data_dict, cls=NumpyEncoder).encode('utf-8')))
+
+        #
+        # Make Deep Zoom Images of pressure, contacting points, gap and displacement
+        #
 
         make_dzi(pressure_xy.data, f'{storage_path}/dzi/pressure',
                  physical_sizes=topography.physical_sizes, unit=topography.unit,
