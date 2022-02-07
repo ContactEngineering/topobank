@@ -78,9 +78,10 @@
             </div>
             <dzi-map v-if="selection !== null"
                      :prefix-url="'{% url 'analysis:contact-mechanics' pk=123 index=456 location='dzi/contacting-points/' %}'.replace('123/456', selection.analysis_id + '/' + selection.index)"
-            ></dzi-map>
+                     ref="contactingPoints">
+            </dzi-map>
             <div v-if="selection !== null" class="pull-right">
-              <a id="contacting-points-download" href="#" class="btn btn-default">
+              <a class="btn btn-default btn-block btn-lg" v-on:click="$refs.contactingPoints.download()">
                 {% fa5_icon 'download' %} Download PNG
               </a>
             </div>
@@ -92,9 +93,10 @@
             <dzi-map v-if="selection !== null"
                      :prefix-url="'{% url 'analysis:contact-mechanics' pk=123 index=456 location='dzi/pressure/' %}'.replace('123/456', selection.analysis_id + '/' + selection.index)"
                      :colorbar="true"
-            ></dzi-map>
+                     ref="pressure">
+            </dzi-map>
             <div v-if="selection !== null" class="pull-right">
-              <a id="pressure-download" href="#" class="btn btn-default">
+              <a class="btn btn-default btn-block btn-lg" v-on:click="$refs.pressure.download()">
                 {% fa5_icon 'download' %} Download PNG
               </a>
             </div>
@@ -106,9 +108,10 @@
             <dzi-map v-if="selection !== null"
                      :prefix-url="'{% url 'analysis:contact-mechanics' pk=123 index=456 location='dzi/displacement/' %}'.replace('123/456', selection.analysis_id + '/' + selection.index)"
                      :colorbar="true"
-            ></dzi-map>
+                     ref="displacement">
+            </dzi-map>
             <div v-if="selection !== null" class="pull-right">
-              <a id="displacement-download" href="#" class="btn btn-default">
+              <a class="btn btn-default btn-block btn-lg" v-on:click="$refs.displacement.download()">
                 {% fa5_icon 'download' %} Download PNG
               </a>
             </div>
@@ -120,9 +123,10 @@
             <dzi-map v-if="selection !== null"
                      :prefix-url="'{% url 'analysis:contact-mechanics' pk=123 index=456 location='dzi/gap/' %}'.replace('123/456', selection.analysis_id + '/' + selection.index)"
                      :colorbar="true"
-            ></dzi-map>
+                     ref="gap">
+            </dzi-map>
             <div v-if="selection !== null" class="pull-right">
-              <a id="gap-download" href="#" class="btn btn-default">
+              <a class="btn btn-default btn-block btn-lg" v-on:click="$refs.gap.download()">
                 {% fa5_icon 'download' %} Download PNG
               </a>
             </div>
