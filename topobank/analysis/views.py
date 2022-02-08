@@ -668,72 +668,20 @@ class ContactMechanicsCardView(SimpleCardView):
         alerts = []  # list of collected alerts
         analyses_success = context['analyses_success']
 
-        if len(analyses_success) == 0:
-            #
-            # Prepare plot, controls, and table with special values..
-            #
-            context.update(
-                dict(plot_script="",
-                     plot_div="No successfully finished analyses available")
-            )
-        else:
-
+        if len(analyses_success) > 0:
             data_sources_dict = []
-
-            #
-            # Prepare helper variables
-            #
-            color_cycle = itertools.cycle(palettes.Category10_10)
-            topography_colors = OrderedDict()  # key: Topography instance
-            topography_names = []
-
             color_cycle = itertools.cycle(palettes.Category10_10)
 
             #
             # Context information for the figure
             #
             context.update(dict(
-                #x_axis_label=x_axis_label,
-                #y_axis_label=y_axis_label,
-                #x_axis_type=get_axis_type('xscale'),
-                #y_axis_type=get_axis_type('yscale'),
                 output_backend=settings.BOKEH_OUTPUT_BACKEND))
 
             #
             # Generate two plots in two tabs based on same data sources
             #
-            sources = []
-            labels = []
             for a_index, analysis in enumerate(analyses_success):
-                analysis_result = analysis.result_obj
-                # subject is always a topography for contact analyses so far,
-                # so there is a surface
-                surface = analysis.subject.surface
-                data = dict(
-                    topography_name=(analysis.subject.name,) * len(analysis_result['mean_pressures']),
-                    surface_name=(surface.name,) * len(analysis_result['mean_pressures']),
-                    mean_pressure=analysis_result['mean_pressures'],
-                    total_contact_area=analysis_result['total_contact_areas'],
-                    mean_displacement=analysis_result['mean_displacements'],
-                    mean_gap=analysis_result['mean_gaps'],
-                    fill_alpha=[1 if c else 0.3 for c in analysis_result['converged']],
-                    converged_info=["yes" if c else "no" for c in analysis_result['converged']],
-                    data_path=analysis_result['data_paths'])
-
-                # the name of the data source is used in javascript in
-                # order to find out the analysis id
-                #source = ColumnDataSource(data, name="analysis-{}".format(analysis.id))
-
-                #sources.append(source)
-                #labels.append(analysis.subject.name)
-
-                #
-                # find out colors for topographies
-                #
-                #if analysis.subject not in topography_colors:
-                #    topography_colors[analysis.subject] = next(color_cycle)
-                #    topography_names.append(analysis.subject.name)
-
                 curr_color = next(color_cycle)
 
                 #
@@ -743,65 +691,9 @@ class ContactMechanicsCardView(SimpleCardView):
                     source_name=f'analysis-{analysis.id}',
                     name=analysis.subject.name,
                     name_index=a_index,
-                    #series=series_name,
-                    #series_index=series_idx,
-                    #xscale=analysis_xscale,
-                    #yscale=analysis_yscale,
                     url=default_storage.url(f'{analysis.storage_prefix}/result.json'),
                     color=curr_color,
-                    #dash=curr_dash,
-                    #width=line_width,
-                    #alpha=topo_alpha,
-                    #show_symbols=show_symbols,
-                    #visible=series_idx in series_visible,
-                    #is_surface_analysis=is_surface_analysis,
-                    #is_topography_analysis=is_topography_analysis
                 )]
-
-            # load_axis_label = "Normalized pressure p/E*"
-            # area_axis_label = "Fractional contact area A/A0"
-            # disp_axis_label = "Normalized mean gap u/h_rms"
-
-
-            #
-            # Configure tooltips
-            #
-            # tooltips = [
-            #     ("topography", "@topography_name"),
-            #     ("surface", "@surface_name"),
-            #     (load_axis_label, "@mean_pressure"),
-            #     (area_axis_label, "@total_contact_area"),
-            #     (disp_axis_label, "@mean_gap"),
-            #     ("properly converged", "@converged_info")
-            # ]
-            # hover = HoverTool(tooltips=tooltips)
-
-            # for source, label in zip(sources, labels):
-            #
-            #     r1 = contact_area_plot.circle('mean_pressure', 'total_contact_area',
-            #                                   source=source,
-            #                                   fill_alpha='fill_alpha',  # to indicate if converged or not
-            #                                   fill_color=curr_color,
-            #                                   line_color=None,
-            #                                   size=12)
-            #     r2 = load_plot.circle('mean_gap', 'mean_pressure',
-            #                           source=source,
-            #                           fill_alpha='fill_alpha',  # to indicate if converged or not
-            #                           fill_color=curr_color,
-            #                           line_color=None,
-            #                           size=12)
-            #
-            #     selected_circle = Circle(fill_alpha='fill_alpha', fill_color=curr_color,
-            #                              line_color="black", line_width=4)
-            #     nonselected_circle = Circle(fill_alpha='fill_alpha', fill_color=curr_color,
-            #                                 line_color=None)
-            #
-            #     for renderer in [r1, r2]:
-            #         renderer.selection_glyph = selected_circle
-            #         renderer.nonselection_glyph = nonselected_circle
-            #
-            # configure_plot(contact_area_plot)
-            # configure_plot(load_plot)
 
             context['data_sources'] = json.dumps(data_sources_dict)
 
