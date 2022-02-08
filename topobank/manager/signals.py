@@ -9,6 +9,7 @@ from allauth.account.signals import user_logged_in
 import logging
 
 from .models import Topography, Surface, user_directory_path
+from .utils import recursive_delete
 from .views import DEFAULT_SELECT_TAB_STATE
 
 _log = logging.getLogger(__name__)
@@ -47,20 +48,9 @@ def remove_files(sender, instance, **kwargs):
             _log.warning("Topography id %d, attribute '%s': Cannot delete data file '%s', reason: %s",
                          instance.id, datafile_attr_name, datafile.name, str(exc))
 
-    def _delete_directory(path):
-        if default_storage.exists(path):
-            directories, filenames = default_storage.listdir(path)
-            for filename in filenames:
-                _log.info(f'Deleting file {path}/{filename}...')
-                default_storage.delete(f'{path}/{filename}')
-            for directory in directories:
-                _log.info(f'Deleting directory {path}/{directory}...')
-                _delete_directory(f'{path}/{directory}')
-                default_storage.delete(f'{path}/{directory}')
-
     def delete_directory(path):
         fullname = user_directory_path(instance, f'{instance.id}/{path}')
-        _delete_directory(fullname)
+        recursive_delete(fullname)
 
     delete_datafile('datafile')
     if instance.has_squeezed_datafile:

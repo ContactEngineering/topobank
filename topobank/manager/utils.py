@@ -81,6 +81,26 @@ def default_storage_replace(name, content):
                       f"storage renamed this file to '{actual_name}'.")
 
 
+def recursive_delete(prefix):
+    """
+    Delete everything underneath a prefix.
+
+    Parameters
+    ----------
+    prefix : str
+        Prefix to delete.
+    """
+    if default_storage.exists(prefix):
+        directories, filenames = default_storage.listdir(prefix)
+        for filename in filenames:
+            _log.info(f'Deleting file {prefix}/{filename}...')
+            default_storage.delete(f'{prefix}/{filename}')
+        for directory in directories:
+            _log.info(f'Deleting directory {prefix}/{directory}...')
+            recursive_delete(f'{prefix}/{directory}')
+            default_storage.delete(f'{prefix}/{directory}')
+
+
 def get_reader_infos():
     reader_infos = []
     for reader_class in surface_topography_readers:
