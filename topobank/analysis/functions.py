@@ -177,7 +177,7 @@ def height_distribution(topography, bins=None, wfac=5, progress_recorder=None, s
             'RMS Height': dict(value=rms_height, unit=unit),
         },
         xlabel='Height',
-        ylabel='Probability',
+        ylabel='Probability density',
         xunit='' if unit is None else unit,
         yunit='' if unit is None else '{}⁻¹'.format(unit),
         series=series
@@ -344,7 +344,7 @@ def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, st
     return dict(
         name='Slope distribution',
         xlabel='Slope',
-        ylabel='Probability',
+        ylabel='Probability density',
         xunit='1',
         yunit='1',
         scalars=scalars,
@@ -419,7 +419,7 @@ def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None
             'RMS Curvature': dict(value=rms_curv, unit=inverse_unit),
         },
         xlabel='Curvature',
-        ylabel='Probability',
+        ylabel='Probability density',
         xunit=inverse_unit,
         yunit=unit,
         series=series
