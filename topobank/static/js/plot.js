@@ -389,6 +389,7 @@ Vue.component("bokeh-plot", {
       }
 
       /* We iterate in reverse order because we want to the first element to appear on top of the plot */
+      legendLabels = new Set()
       for (const dataSource of [...this.dataSources].reverse()) {
         for (const [index, plot] of this.plots.entries()) {
           /* Get bokeh plot object */
@@ -447,12 +448,15 @@ Vue.component("bokeh-plot", {
           /* Find a label */
           let label = dataSource.source_name;
           if (this.categories.length > 0) {
-            label = dataSource[this.categories[0].name]
+            label = dataSource[this.categories[0].name];
           }
 
           /* Create legend */
-          const item = new Bokeh.LegendItem({label: label, renderers:[circle]});
-          bokehPlot.legendItems.unshift(item);
+          if (!legendLabels.has(label)) {
+            legendLabels.add(label);
+            const item = new Bokeh.LegendItem({label: label, renderers:[circle]});
+            bokehPlot.legendItems.unshift(item);
+          }
         }
       }
 
