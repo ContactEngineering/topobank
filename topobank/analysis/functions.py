@@ -157,6 +157,19 @@ def height_distribution(topography, bins=None, wfac=5, progress_recorder=None, s
     except:
         unit = None
 
+    series = [
+        dict(name='Height distribution',
+             x=(bin_edges[:-1] + bin_edges[1:]) / 2,
+             y=hist,
+             ),
+        dict(name=GAUSSIAN_FIT_SERIES_NAME,
+             x=x_gauss,
+             y=y_gauss,
+             )
+    ]
+
+    _save_series(storage_prefix, series)
+
     return dict(
         name='Height distribution',
         scalars={
@@ -167,16 +180,7 @@ def height_distribution(topography, bins=None, wfac=5, progress_recorder=None, s
         ylabel='Probability',
         xunit='' if unit is None else unit,
         yunit='' if unit is None else '{}⁻¹'.format(unit),
-        series=[
-            dict(name='Height distribution',
-                 x=(bin_edges[:-1] + bin_edges[1:]) / 2,
-                 y=hist,
-                 ),
-            dict(name=GAUSSIAN_FIT_SERIES_NAME,
-                 x=x_gauss,
-                 y=y_gauss,
-                 )
-        ]
+        series=series
     )
 
 
@@ -281,15 +285,8 @@ def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, st
     if bins is None:
         bins = _reasonable_bins_argument(topography)
 
-    result = dict(
-        name='Slope distribution',
-        xlabel='Slope',
-        ylabel='Probability',
-        xunit='1',
-        yunit='1',
-        scalars={},
-        series=[]
-    )
+    scalars = {}
+    series = []
     # .. will be completed below..
 
     if topography.dim == 2:
@@ -303,8 +300,8 @@ def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, st
                                                                       wfac=wfac,
                                                                       quantity="slope", unit='1',
                                                                       label='x direction')
-        result['scalars'].update(scalars_slope_x)
-        result['series'].extend(series_slope_x)
+        scalars.update(scalars_slope_x)
+        series.extend(series_slope_x)
 
         #
         # Results for y direction
@@ -314,8 +311,8 @@ def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, st
                                                                       wfac=wfac,
                                                                       quantity="slope", unit='1',
                                                                       label='y direction')
-        result['scalars'].update(scalars_slope_y)
-        result['series'].extend(series_slope_y)
+        scalars.update(scalars_slope_y)
+        series.extend(series_slope_y)
 
         #
         # Results for absolute gradient
@@ -337,12 +334,22 @@ def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, st
                                                                       wfac=wfac,
                                                                       quantity="slope", unit='1',
                                                                       label='x direction')
-        result['scalars'].update(scalars_slope_x)
-        result['series'].extend(series_slope_x)
+        scalars.update(scalars_slope_x)
+        series.extend(series_slope_x)
     else:
         raise ValueError("This analysis function can only handle 1D or 2D topographies.")
 
-    return result
+    _save_series(storage_prefix, series)
+
+    return dict(
+        name='Slope distribution',
+        xlabel='Slope',
+        ylabel='Probability',
+        xunit='1',
+        yunit='1',
+        scalars=scalars,
+        series=series
+    )
 
 
 @register_implementation(name="Curvature distribution", card_view_flavor='plot')
@@ -362,13 +369,12 @@ def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None
     #
     if topography.dim == 2:
         curv_x, curv_y = topography.derivative(n=2)
-        curv = curv_x + curv_y
+        curv = (curv_x + curv_y) / 2
     else:
         curv = topography.derivative(n=2)
 
     mean_curv = np.mean(curv)
     rms_curv = topography.rms_curvature_from_area() if topography.dim == 2 else topography.rms_curvature_from_profile()
-    # rms_curv = topography.rms_curvature()
 
     hist_arr = np.ma.compressed(curv)
 
@@ -393,6 +399,19 @@ def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None
     unit = topography.unit
     inverse_unit = '{}⁻¹'.format(unit)
 
+    series = [
+        dict(name='Curvature distribution',
+             x=(bin_edges[:-1] + bin_edges[1:]) / 2,
+             y=hist,
+             ),
+        dict(name=GAUSSIAN_FIT_SERIES_NAME,
+             x=x_gauss,
+             y=y_gauss,
+             )
+    ]
+
+    _save_series(storage_prefix, series)
+
     return dict(
         name='Curvature distribution',
         scalars={
@@ -403,16 +422,7 @@ def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None
         ylabel='Probability',
         xunit=inverse_unit,
         yunit=unit,
-        series=[
-            dict(name='Curvature distribution',
-                 x=(bin_edges[:-1] + bin_edges[1:]) / 2,
-                 y=hist,
-                 ),
-            dict(name=GAUSSIAN_FIT_SERIES_NAME,
-                 x=x_gauss,
-                 y=y_gauss,
-                 )
-        ]
+        series=series
     )
 
 
