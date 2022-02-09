@@ -171,8 +171,10 @@ Vue.component("bokeh-plot", {
         title: "default",  // Title will be used to distinguish between multiple plots. Can be omitted for single plot.
         xDataKey: "x",  // JSON key in data source containing the x-data
         yDataKey: "y",  // JSON key in data source containing the y-data
-        xScaleKey: undefined,  // JSON key in data source containing additional scale information
-        yScaleKey: undefined,  // JSON key in data source containing additional scale information
+        xScaleKey: undefined,  // JSON key in data source containing scalar with additional scale information
+        yScaleKey: undefined,  // JSON key in data source containing scalar with additional scale information
+        fillAlphaKey: undefined,  // JSON key in the data source with an array of alpha information
+        fillAlphaTransform: undefined,  // function transforming raw data to fill alpha
         xAxisType: "linear",  // "log" or "linear"
         yAxisType: "linear",  // "log" or "linear"
         xAxisLabel: "x", // Label for the x-axis.
@@ -399,8 +401,28 @@ Vue.component("bokeh-plot", {
           xscale = plot.xScaleKey === undefined ? 1 : (dataSource[plot.xScaleKey] === undefined ? 1 : dataSource[plot.xScaleKey]);
           yscale = plot.yScaleKey === undefined ? 1 : (dataSource[plot.yScaleKey] === undefined ? 1 : dataSource[plot.yScaleKey]);
 
-          /* Get appropriate xy data and apply scale factors */
-          const code = "return { x: cb_data.response." + plot.xDataKey + ".map(value => " + xscale + " * value), " + "y: cb_data.response." + plot.yDataKey + ".map(value => " + yscale + " * value) }";
+          /* Common attributes of lines and symbols */
+          attrs = {
+            visible: dataSource.visible,
+            color: dataSource.color,
+            alpha: dataSource.alpha
+          }
+
+          /* Construct conversion function */
+          const xconvexpr = "cb_data.response." + plot.xDataKey + ".map(value => " + xscale + " * value)";
+          const yconvexpr = "cb_data.response." + plot.yDataKey + ".map(value => " + yscale + " * value)";
+          let code = "return { x: " + xconvexpr + ", y: " + yconvexpr;
+          if (plot.fillAlphaKey === undefined) {
+            code += " }";
+          } else if (plot.fillAlphaTransform === undefined) {
+            const alphaexpr = "cb_data.response." + plot.fillAlphaKey;
+            code += ", alpha: " + alphaexpr + " }";
+            attrs.alpha = {field: "alpha"};
+          } else {
+            const alphaexpr = "cb_data.response." + plot.fillAlphaKey + ".map(value => " + plot.fillAlphaTransform + ")";
+            code += ", alpha: " + alphaexpr + " }";
+            attrs.alpha = {field: "alpha"};
+          }
 
           /* Data source: AJAX GET request to storage system retrieving a JSON */
           const source = new Bokeh.AjaxDataSource({
@@ -413,12 +435,10 @@ Vue.component("bokeh-plot", {
           });
           bokehPlot.sources.unshift(source);
 
-          /* Common attributes of lines and symbols */
+          /* Add data source */
           attrs = {
+            ...attrs,
             source: source,
-            visible: dataSource.visible,
-            color: dataSource.color,
-            alpha: dataSource.alpha
           }
 
           /* Create lines and symbols */

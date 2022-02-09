@@ -49,7 +49,7 @@
           {% if analyses_success %}
             {# Show all analyses for which we have results #}
             <bokeh-plot
-              :plots='[{title:"Contact area vs load", xDataKey:"mean_pressures", yDataKey:"total_contact_areas", xAxisLabel:"Normalized pressure p/E*", yAxisLabel:"Fractional contact area A/A0", xAxisType:"log", yAxisType:"log"}, {title:"Load vs displacement", xDataKey:"mean_gaps", yDataKey:"mean_pressures", xAxisLabel:"Normalized mean gap u/h_rms", yAxisLabel:"Normalized pressure p/E*", xAxisType:"linear", yAxisType:"log"}]'
+              :plots="contactMechanicsPlots"
               :categories='[{name:"name", title:"Measurements"}]'
               :data-sources='{{ data_sources|safe }}'
               output-backend="{{ output_backend }}">
@@ -67,7 +67,32 @@
 {% block card_javascript %}
   <script>
     new Vue({
-      el: "#contact-mechanics-card"
+      el: "#contact-mechanics-card",
+      computed: {
+        contactMechanicsPlots: function () {
+          return [{
+            title: "Contact area vs load",
+            xDataKey: "mean_pressures",
+            yDataKey: "total_contact_areas",
+            fillAlphaKey: "converged",
+            fillAlphaTransform: "value ? 1.0 : 0.3",
+            xAxisLabel: "Normalized pressure p/E*",
+            yAxisLabel: "Fractional contact area A/A0",
+            xAxisType: "log",
+            yAxisType: "log"
+          }, {
+            title: "Load vs displacement",
+            xDataKey: "mean_gaps",
+            yDataKey: "mean_pressures",
+            fillAlphaKey: "converged",
+            fillAlphaTransform: "value ? 1.0 : 0.3",
+            xAxisLabel: "Normalized mean gap u/h_rms",
+            yAxisLabel: "Normalized pressure p/E*",
+            xAxisType: "linear",
+            yAxisType: "log"
+          }]
+        }
+      }
     });
   </script>
 {% endblock card_javascript %}
