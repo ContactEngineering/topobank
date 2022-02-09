@@ -79,27 +79,6 @@ def card_view_class(card_view_flavor):
     return globals()[class_name]
 
 
-def analysis_result(request, pk):
-    """Return result.json for a specific analysis.
-
-    :param request: Request object
-    :param pk: Analysis id
-    :return: HTTPResponse
-    """
-    try:
-        pk = int(pk)
-    except ValueError:
-        raise Http404()
-
-    analysis = Analysis.objects.get(id=pk)
-
-    if not request.user.has_perm('view_surface', analysis.related_surface):
-        raise PermissionDenied()
-
-    url = default_storage.url(f'{analysis.storage_prefix}/result.json')
-    return redirect(url)
-
-
 def switch_card_view(request):
     """Selects appropriate card view upon request.
 

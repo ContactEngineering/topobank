@@ -52,9 +52,4 @@ urlpatterns = [
         view=login_required(views.switch_card_view),
         name='card'
     ),
-    url(
-        regex=r'result/(?P<pk>[\d,]+)/$',
-        view=login_required(views.analysis_result),
-        name='result'
-    )
 ]
