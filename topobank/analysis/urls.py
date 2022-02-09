@@ -43,8 +43,8 @@ urlpatterns = [
         name='card-submit'
     ),
     url(
-        regex=r'card/contact-mechanics/(?P<pk>\d+)/(?P<index>\d+)/(?P<location>.*)$',
-        view=login_required(views.contact_mechanics),
+        regex=r'data/(?P<pk>\d+)/(?P<location>.*)$',
+        view=login_required(views.data),
         name='contact-mechanics'
     ),
     url(

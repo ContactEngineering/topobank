@@ -77,7 +77,7 @@
               in the graphs on the left!
             </div>
             <dzi-map v-if="selection !== null"
-                     :prefix-url="'{% url 'analysis:contact-mechanics' pk=123 index=456 location='dzi/contacting-points/' %}'.replace('123/456', selection.analysis_id + '/' + selection.index)"
+                     :prefix-url="'{% url 'analysis:data' pk=123 location='step-456/dzi/contacting-points/' %}'.replace('123/step-456', selection.analysis_id + '/step-' + selection.index)"
                      ref="contactingPoints">
             </dzi-map>
             <div v-if="selection !== null" class="pull-right">
@@ -91,7 +91,7 @@
               in the graphs on the left!
             </div>
             <dzi-map v-if="selection !== null"
-                     :prefix-url="'{% url 'analysis:contact-mechanics' pk=123 index=456 location='dzi/pressure/' %}'.replace('123/456', selection.analysis_id + '/' + selection.index)"
+                     :prefix-url="'{% url 'analysis:data' pk=123 location='step-456/dzi/pressure/' %}'.replace('123/step-456', selection.analysis_id + '/step-' + selection.index)"
                      :colorbar="true"
                      ref="pressure">
             </dzi-map>
@@ -106,7 +106,7 @@
               in the graphs on the left!
             </div>
             <dzi-map v-if="selection !== null"
-                     :prefix-url="'{% url 'analysis:contact-mechanics' pk=123 index=456 location='dzi/displacement/' %}'.replace('123/456', selection.analysis_id + '/' + selection.index)"
+                     :prefix-url="'{% url 'analysis:data' pk=123 location='step-456/dzi/displacement/' %}'.replace('123/step-456', selection.analysis_id + '/step-' + selection.index)"
                      :colorbar="true"
                      ref="displacement">
             </dzi-map>
@@ -121,7 +121,7 @@
               the left!
             </div>
             <dzi-map v-if="selection !== null"
-                     :prefix-url="'{% url 'analysis:contact-mechanics' pk=123 index=456 location='dzi/gap/' %}'.replace('123/456', selection.analysis_id + '/' + selection.index)"
+                     :prefix-url="'{% url 'analysis:data' pk=123 location='step-456/dzi/gap/' %}'.replace('123/step-456', selection.analysis_id + '/step-' + selection.index)"
                      :colorbar="true"
                      ref="gap">
             </dzi-map>
@@ -402,7 +402,7 @@
         },
         distributionDataSources: function () {
           return [{
-            url: "{% url 'analysis:contact-mechanics' pk=123 index=456 location='json/distributions.json' %}".replace('123/456', this.selection.analysis_id + '/' + this.selection.index)
+            url: "{% url 'analysis:data' pk=123 location='step-456/json/distributions.json' %}".replace('123/step-456', this.selection.analysis_id + '/step-' + this.selection.index)
           }];
         }
       }

@@ -941,7 +941,7 @@ def _contact_mechanics_distribution_figure(values, x_axis_label, y_axis_label,
     return p
 
 
-def contact_mechanics(request, pk, index, location):
+def data(request, pk, location):
     try:
         pk = int(pk)
     except ValueError:
@@ -957,10 +957,9 @@ def contact_mechanics(request, pk, index, location):
     if not request.user.has_perm('view_surface', analysis.related_surface):
         raise PermissionDenied()
 
-    # okay, we have a valid topography and the user is allowed to see it
+    # okay, we have a valid analysis and the user is allowed to see it
 
-    data_path = analysis.result_obj['data_paths'][index]
-    name = f'{data_path}/{location}'
+    name = f'{analysis.storage_prefix}/{location}'
     url = default_storage.url(name)
     return redirect(url)
 
