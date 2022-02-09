@@ -889,7 +889,7 @@ class SurfaceDetailView(DetailView):
             bw_thumbnail_links = [reverse('manager:topography-thumbnail',
                                           kwargs=dict(pk=bw['topography'].pk))
                                   for bw in bw_data_without_errors]
-            bw_y = range(0, len(bw_data_without_errors))
+            bw_y = list(range(0, len(bw_data_without_errors)))
 
             bw_source = ColumnDataSource(dict(y=bw_y, left=bw_left, right=bw_right, center=bw_center,
                                               name=bw_names,
@@ -930,9 +930,9 @@ class SurfaceDetailView(DetailView):
             taptool.callback = OpenURL(url="@topography_link", same_tab=True)
 
             # include plot into response
-            #bw_plot_script, bw_plot_div = components(plot)
-            #context['plot_script'] = bw_plot_script
-            #context['plot_div'] = bw_plot_div
+            bw_plot_script, bw_plot_div = components(plot)
+            context['plot_script'] = bw_plot_script
+            context['plot_div'] = bw_plot_div
 
         #
         # permission data
