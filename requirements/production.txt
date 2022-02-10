@@ -20,7 +20,7 @@ billiard==3.6.4.0
     #   celery
 bleach==4.1.0
     # via -r ./base.txt
-bokeh==3.0.0.dev2
+bokeh==3.0.0.dev4
     # via -r ./base.txt
 boto3==1.20.16
     # via -r ./base.txt
@@ -432,9 +432,9 @@ xyzservices==2021.11.0
     # via
     #   -r ./base.txt
     #   bokeh
-zope.event==4.5.0
+zope-event==4.5.0
     # via gevent
-zope.interface==5.4.0
+zope-interface==5.4.0
     # via gevent
 
 # The following packages are considered to be unsafe in a requirements file:
