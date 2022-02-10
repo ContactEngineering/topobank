@@ -14,7 +14,9 @@ from ..views import card_view_class, SimpleCardView, PlotCardView
 
 @pytest.mark.parametrize('card_view_flavor,list_template,detail_template',
                          [('simple', 'analysis/simple_card_list.html', 'analysis/simple_card_detail.html'),
-                          ('plot', 'analysis/plot_card_list.html', 'analysis/plot_card_detail.html')])
+                          ('plot', 'analysis/plot_card_list.html', 'analysis/plot_card_detail.html'),
+                          #('contact mechanics', 'analysis/contactmechanics_card_list.html', 'analysis/contactmechanics_card_detail.html'),
+                          ('roughness parameters', 'analysis/roughnessparameters_card_list.html', 'analysis/roughnessparameters_card_detail.html')])
 @pytest.mark.django_db
 def test_card_templates_simple(client, mocker, handle_usage_statistics, card_view_flavor, list_template,
                                detail_template):
