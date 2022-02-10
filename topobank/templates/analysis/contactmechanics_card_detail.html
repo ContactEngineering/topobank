@@ -84,10 +84,10 @@
             <div v-if="selection === null" id="pressure" class="alert alert-info">For contact geometry, select a point
               in the graphs on the left!
             </div>
-            <dzi-map v-if="selection !== null"
+            <deep-zoom-image v-if="selection !== null"
                      :prefix-url="'{% url 'analysis:data' pk=123 location='step-456/dzi/contacting-points/' %}'.replace('123/step-456', selection.analysis_id + '/step-' + selection.index)"
                      ref="contactingPoints">
-            </dzi-map>
+            </deep-zoom-image>
             <div v-if="selection !== null" class="pull-right">
               <a class="btn btn-default btn-block btn-lg" v-on:click="$refs.contactingPoints.download()">
                 {% fa5_icon 'download' %} Download PNG
@@ -98,11 +98,11 @@
             <div v-if="selection === null" id="pressure" class="alert alert-info">For contact pressure, select a point
               in the graphs on the left!
             </div>
-            <dzi-map v-if="selection !== null"
+            <deep-zoom-image v-if="selection !== null"
                      :prefix-url="'{% url 'analysis:data' pk=123 location='step-456/dzi/pressure/' %}'.replace('123/step-456', selection.analysis_id + '/step-' + selection.index)"
                      :colorbar="true"
                      ref="pressure">
-            </dzi-map>
+            </deep-zoom-image>
             <div v-if="selection !== null" class="pull-right">
               <a class="btn btn-default btn-block btn-lg" v-on:click="$refs.pressure.download()">
                 {% fa5_icon 'download' %} Download PNG
@@ -113,11 +113,11 @@
             <div v-if="selection === null" id="displacement" class="alert alert-info">For displacement, select a point
               in the graphs on the left!
             </div>
-            <dzi-map v-if="selection !== null"
+            <deep-zoom-image v-if="selection !== null"
                      :prefix-url="'{% url 'analysis:data' pk=123 location='step-456/dzi/displacement/' %}'.replace('123/step-456', selection.analysis_id + '/step-' + selection.index)"
                      :colorbar="true"
                      ref="displacement">
-            </dzi-map>
+            </deep-zoom-image>
             <div v-if="selection !== null" class="pull-right">
               <a class="btn btn-default btn-block btn-lg" v-on:click="$refs.displacement.download()">
                 {% fa5_icon 'download' %} Download PNG
@@ -128,11 +128,11 @@
             <div v-if="selection === null" id="gap" class="alert alert-info">For gap, select a point in the graphs on
               the left!
             </div>
-            <dzi-map v-if="selection !== null"
+            <deep-zoom-image v-if="selection !== null"
                      :prefix-url="'{% url 'analysis:data' pk=123 location='step-456/dzi/gap/' %}'.replace('123/step-456', selection.analysis_id + '/step-' + selection.index)"
                      :colorbar="true"
                      ref="gap">
-            </dzi-map>
+            </deep-zoom-image>
             <div v-if="selection !== null" class="pull-right">
               <a class="btn btn-default btn-block btn-lg" v-on:click="$refs.gap.download()">
                 {% fa5_icon 'download' %} Download PNG

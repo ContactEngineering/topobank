@@ -3,7 +3,7 @@
  * Deep Zoom Image files and OpenSeadragon.
  */
 
-Vue.component("dzi-map", {
+Vue.component("deep-zoom-image", {
   template: `
     <div class="dzi-container" style="min-height: 550px;">
       <div :id='"dzi-view-" + uuid' class="dzi-view">
