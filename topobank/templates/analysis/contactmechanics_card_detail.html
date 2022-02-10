@@ -5,6 +5,14 @@
 {% load static %}
 
 {% block card_header %}
+  {% if not analyses_unready and analyses_success %}
+    <div class="btn-group btn-group-sm float-right dropdown">
+      <a type="button" class="btn btn-default"
+              href="{% url 'analysis:download' analyses_success|analyses_results_ids_list_str 'contact mechanics' 'zip' %}">
+        {% fa5_icon 'download' %} Download ZIP
+      </a>
+    </div>
+  {% endif %}
   <div class="pull-left">
     <h3>{{ title }}</h3>
   </div>
@@ -153,18 +161,6 @@
                 {% endif %}
               </div>
             </div>
-
-            {% if not analyses_unready and analyses_success %}
-              {# BUTTON "DOWNLOAD" #}
-              <div class="row p-3">
-                <div class="col-12">
-                  <a id="download" class="btn btn-default btn-block btn-lg"
-                     href="{% url 'analysis:download' analyses_success|analyses_results_ids_list_str 'contact mechanics' 'zip' %}">
-                    {% fa5_icon 'download' %} Download
-                  </a>
-                </div>
-              </div>
-            {% endif %}
 
             {# ELEMENTS FOR TRIGGERING A CALCULATION #}
             <div class="row p-3">
