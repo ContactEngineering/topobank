@@ -36,10 +36,10 @@
           {# Plot #}
           <div class="tab-pane fade active show" id="plot" role="tabpanel" aria-labelledby="plot-tab">
             {% if topography.size_y %}
-              <dzi-map prefix-url="{% url 'manager:topography-dzi' pk=topography.pk dzi_filename='' %}"
+              <deep-zoom-image prefix-url="{% url 'manager:topography-dzi' pk=topography.pk dzi_filename='' %}"
                        :colorbar="true"
                        ref="dzi">
-              </dzi-map>
+              </deep-zoom-image>
             {% else %}
               <div id="topography-plot-content">
                 <span class="spinner"></span>Creating and loading plot, please wait...
