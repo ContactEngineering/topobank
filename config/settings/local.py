@@ -39,8 +39,8 @@ EMAIL_PORT = 1025
 
 # STATIC FILES
 # ------------------------------------------------------------------------------
-#STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-STATICFILES_STORAGE = 'whitenoise.storage.ManifestStaticFilesStorage'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+#STATICFILES_STORAGE = 'whitenoise.storage.ManifestStaticFilesStorage'
 # with 'whitenoise.storage.CompressedManifestStaticFilesStorage', collect static is
 # very slow in development, not sure why - with production settings, it's fast
 
@@ -51,10 +51,7 @@ STATICFILES_STORAGE = 'whitenoise.storage.ManifestStaticFilesStorage'
 # https://django-debug-toolbar.readthedocs.io/en/latest/installation.html#prerequisites
 INSTALLED_APPS += ['debug_toolbar']  # noqa F405
 # https://django-debug-toolbar.readthedocs.io/en/latest/installation.html#middleware
-MIDDLEWARE += [
-    'debug_toolbar.middleware.DebugToolbarMiddleware',
-    "django_cprofile_middleware.middleware.ProfilerMiddleware",
-]
+MIDDLEWARE += ['debug_toolbar.middleware.DebugToolbarMiddleware']  # noqa F405
 # https://django-debug-toolbar.readthedocs.io/en/latest/configuration.html#debug-toolbar-config
 DEBUG_TOOLBAR_CONFIG = {
     'DISABLE_PANELS': [
@@ -146,12 +143,12 @@ LOGGING = {
             'propagate': True
         },
         'topobank': {
-            'level': 'DEBUG',
+            'level': 'INFO',
             'handlers': ['console'],
             'propagate': True
         },
         'topobank.taskapp.tasks': {
-            'level': 'DEBUG',
+            'level': 'INFO',
             'handlers': ['console'],
             'propagate': True
         },
