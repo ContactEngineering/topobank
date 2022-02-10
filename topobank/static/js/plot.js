@@ -356,17 +356,29 @@ Vue.component("bokeh-plot", {
           const saveTool = new Bokeh.SaveTool()
           tools.push(saveTool);
 
+          /* Determine type of x and y-axis */
+          const xAxisType = plot.xAxisType === undefined ? "linear" : plot.xAxisType;
+          const yAxisType = plot.yAxisType === undefined ? "linear" : plot.yAxisType;
+
           /* Create and style figure */
           const bokehPlot = new Bokeh.Plotting.Figure({
             height: this.height,
             sizing_mode: this.sizingMode,
             x_axis_label: plot.xAxisLabel === undefined ? "x" : plot.xAxisLabel,
             y_axis_label: plot.yAxisLabel === undefined ? "y" : plot.yAxisLabel,
-            x_axis_type: plot.xAxisType === undefined ? "linear" : plot.xAxisType,
-            y_axis_type: plot.yAxisType === undefined ? "linear" : plot.yAxisType,
+            x_axis_type: xAxisType,
+            y_axis_type: yAxisType,
             tools: tools,
             output_backend: this.outputBackend
           });
+
+          /* Change formatters for linear axes */
+          if (xAxisType == "linear") {
+            bokehPlot.xaxis.formatter = new Bokeh.CustomJSTickFormatter({code: "return format_exponential(tick);"});
+          }
+          if (yAxisType == "linear") {
+            bokehPlot.yaxis.formatter = new Bokeh.CustomJSTickFormatter({code: "return format_exponential(tick);"});
+          }
 
           /* This should become a Bokeh theme (supported in BokehJS with 3.0 - but I cannot find the `use_theme` method) */
           bokehPlot.xaxis.axis_label_text_font_style = "normal";
