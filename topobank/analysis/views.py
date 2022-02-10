@@ -926,11 +926,6 @@ def data(request, pk, location):
     except ValueError:
         raise Http404()
 
-    try:
-        index = int(index)
-    except ValueError:
-        raise Http404()
-
     analysis = Analysis.objects.get(id=pk)
 
     if not request.user.has_perm('view_surface', analysis.related_surface):
