@@ -35,7 +35,7 @@
       <excludeFolder url="file://$MODULE_DIR$/splinter_tests.test_surface_creation" />
       <excludeFolder url="file://$MODULE_DIR$/splinter_tests.test_xss_attacks" />
     </content>
-    <orderEntry type="jdk" jdkName="Remote Python 3.9.5 Docker Compose (django at [/home/pastewka/Quelltexte/TopoBank/local.yml])" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="topobank" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
   <component name="PackageRequirementsSettings">
