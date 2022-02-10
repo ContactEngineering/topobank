@@ -238,7 +238,7 @@
                              min="{{ limits_calc_kwargs.nsteps.min }}"
                              max="{{ limits_calc_kwargs.nsteps.max }}"
                              step="1" class="form-control"
-                             v-model="nsteps"
+                             v-model="nbSteps"
                              :disabled="pressureSelection != 'automatic'">
                       <div class="input-group-append ">
                         <div class="input-group-text">
@@ -293,7 +293,7 @@
                              min="{{ limits_calc_kwargs.maxiter.min }}"
                              max="{{ limits_calc_kwargs.maxiter.max }}"
                              step="1" class="form-control"
-                             v-model="maxiter">
+                             v-model="maxNbIter">
                       <div class="input-group-append ">
                         <div class="input-group-text">
                           <b-icon-info-circle-fill
@@ -430,8 +430,8 @@
               (this.pressures.length <= {{ limits_calc_kwargs.pressures.maxlen }});
           }
 
-          formOk = formOk && (this.maxiter >={{ limits_calc_kwargs.maxiter.min }}) &&
-            (this.maxiter <={{ limits_calc_kwargs.maxiter.max }});
+          formOk = formOk && (this.maxNbIter >={{ limits_calc_kwargs.maxiter.min }}) &&
+            (this.maxNbIter <={{ limits_calc_kwargs.maxiter.max }});
 
           if (!formOk) {
             let msg = "Please check your entries, some value seems to be invalid. Allowed limits:\n";
@@ -445,9 +445,9 @@
           const function_kwargs = {
             substrate_str: this.periodicity,
             hardness: this.hardness,
-            nsteps: this.pressureSelection == "automatic" ? this.nsteps : null,
+            nsteps: this.pressureSelection == "automatic" ? this.nbSteps : null,
             pressures: this.pressureSelection == "manual" ? this.pressures : null,
-            maxiter: this.maxiter
+            maxiter: this.maxNbIter
           };
 
           // FIXME! Switch to axios.post, but there is some weirdness with CSRF tokens going on
