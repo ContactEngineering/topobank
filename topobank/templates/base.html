@@ -22,6 +22,7 @@
 
     <!-- Bootstrap Core CSS -->
     <link href="{% static 'vendor/bootstrap/css/bootstrap.min.css' %}" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-vue@2.21.2/dist/bootstrap-vue.min.css" rel="stylesheet">
 
     <!-- CSS from sb-admin-2-bs4 template -->
     <link href="{% static 'css/sb-admin-2.css' %}" rel="stylesheet"> <!-- TODO check what is really needed here -->
@@ -484,6 +485,8 @@
     {# During development we use a vue online, so vuejs is not in production mode #}
     <script src="https://cdn.jsdelivr.net/npm/vue@2.6.11/dist/vue.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios@0.25.0/dist/axios.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap-vue@2.21.2/dist/bootstrap-vue.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap-vue@2.21.2/dist/bootstrap-vue-icons.min.js"></script>
     {% else %}
     {# In production, we use a minified version of vuejs TODO make local #}
     <script src="https://cdn.jsdelivr.net/npm/vue@2.6.11/dist/vue.min.js"></script>

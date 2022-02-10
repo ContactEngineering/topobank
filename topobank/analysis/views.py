@@ -694,6 +694,8 @@ class ContactMechanicsCardView(SimpleCardView):
             initial_calc_kwargs = contact_mechanics_func.get_default_kwargs(topography_ct)
             initial_calc_kwargs['substrate_str'] = 'nonperiodic'  # because most topographies are non-periodic
 
+        print(initial_calc_kwargs)
+
         context['initial_calc_kwargs'] = initial_calc_kwargs
 
         context['extra_warnings'] = alerts

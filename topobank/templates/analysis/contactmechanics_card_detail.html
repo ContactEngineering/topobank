@@ -19,11 +19,14 @@
 {% endblock card_header %}
 
 {% block card_body %}
+  <div class="row">
+    {% include 'analysis/analyses_alerts.html' %}
+  </div>
   <div id="contact-mechanics-card" class="row">
+    <b-alert variant="error" :show="errorMessage !== null">[[ errorMessage ]]</b-alert>
     {# Left side with simulation results #}
-    <div class="col-sm-5">
+    <div v-if="errorMessage === null" class="col-sm-5">
       <div class="tab-pane show active" id="plot-{{ card_id }}" role="tabpanel" aria-labelledby="card-tab">
-        {% include 'analysis/analyses_alerts.html' %}
         {% if analyses_success %}
           {# Show all analyses for which we have results #}
           <bokeh-plot
@@ -171,62 +174,52 @@
 
                     {# Substrate selection #}
 
-                    <div class="input-group col-auto">
+                    <div class="input-group col-auto mb-3">
                       <div class="input-group-prepend">
                         <div class="input-group-text">
                           Type
                         </div>
 
                       </div>
-                      <select class="custom-select" id="substrate-select">
-                        <option value="periodic" selected>Periodic (repeating array of the measurement)</option>
-                        <option value="nonperiodic">Free boundaries (flat punch with measurement)</option>
-                      </select>
+                      <b-form-select v-model="periodicity" :options="periodicityOptions"></b-form-select>
                       <div class="input-group-append">
                         <div class="input-group-text">
-                          <i class="fa fa-info-circle" data-toggle="popover"
-                             tabindex="0" data-trigger="focus" role="button"
-                             title="Type of calculation"
-                             data-content="This option determines how the elastic interactions are calculated.
-                                   This affects edge effects that may show up in the results at large contact area.
-                                   Calculations can assume that the surface repeats periodically or that it is pushing down on a nonperiodic,
-                                   infinitely expanded half-space. The latter option corresponds to mapping the surface topography on a flat punch.
-                                   If not given, this value is automatically chosen as 'periodic' for periodic topographies,
-                                   else non-periodic."></i>
+                          <b-icon-info-circle-fill
+                            title="Type of calculation"
+                            v-b-popover.hover="'This option determines how the elastic interactions are calculated. This affects edge effects that may show up in the results at large contact area. Calculations can assume that the surface repeats periodically or that it is pushing down on a nonperiodic, infinitely expanded half-space. The latter option corresponds to mapping the surface topography on a flat punch. If not given, this value is automatically chosen as periodic for periodic topographies, else non-periodic.'">
+                          </b-icon-info-circle-fill>
                         </div>
                       </div>
                     </div>
 
                     {# Hardness input #}
-                    <div class="input-group col-auto">
+                    <div class="input-group col-auto mb-3">
 
                       <div class="input-group-prepend">
                         <div class="input-group-text">
                           Hardness
                         </div>
                         <div class="input-group-text">
-                          <input id="hardness-checkbox" type="checkbox" aria-label="enable-hardness">
+                          <input type="checkbox" v-model="enableHardness">
                         </div>
                       </div>
                       <input id="hardness-input" type="number" min="0" step="0.1" class="form-control"
-                             disabled="true"
-                        {# will be clicked automatically if hardness was given in arguments, see below #}
-                             value="{{ initial_calc_kwargs.hardness }}">
+                             v-model="hardness" :disabled="!enableHardness">
                       <div class="input-group-append ">
                         <div class="input-group-text">
                           E<sup>*</sup>
                         </div>
                         <div class="input-group-text">
-                          <i class="fa fa-info-circle" data-toggle="popover"
-                             tabindex="0" data-trigger="focus" role="button"
-                             title="Hardness"
-                             data-content="Setting a hardness enables plastic calculations. Local pressure cannot exceed hardness value."></i>
+                          <b-icon-info-circle-fill
+                            v-b-popover.hover="'Setting a hardness enables plastic calculations. Local pressure cannot exceed hardness value.'"
+                            title="Hardness">
+                          </b-icon-info-circle-fill>
                         </div>
                       </div>
                     </div>
 
                     {# Step selection #}
-                    <div class="input-group col-auto">
+                    <div class="input-group col-auto mb-3">
                       {# Automatic #}
                       <div class="input-group-prepend">
                         <div class="input-group-text">
@@ -234,6 +227,7 @@
                                  name="pressure-selection"
                                  value="automatic"
                                  checked="checked"
+                                 v-model="pressureSelection"
                                  aria-label="Radio button for automatic step selection">
                         </div>
                         <div class="input-group-text">
@@ -244,45 +238,45 @@
                              min="{{ limits_calc_kwargs.nsteps.min }}"
                              max="{{ limits_calc_kwargs.nsteps.max }}"
                              step="1" class="form-control"
-                             value="{{ initial_calc_kwargs.nsteps }}">
+                             v-model="nsteps"
+                             :disabled="pressureSelection != 'automatic'">
                       <div class="input-group-append ">
                         <div class="input-group-text">
-                          <i class="fa fa-info-circle" data-toggle="popover"
-                             tabindex="0" data-trigger="focus" role="button"
-                             title="Automatic step selection"
-                             data-content="Number of pressure steps which are chosen automatically."></i>
+                          <b-icon-info-circle-fill
+                            title="Automatic step selection"
+                            v-b-popover.hover="'Number of pressure steps which are chosen automatically.'">
+                          </b-icon-info-circle-fill>
                         </div>
                       </div>
                     </div>
-                    <div class="input-group col-auto">
+                    <div class="input-group col-auto mb-3">
                       {# Fixed list #}
                       <div class="input-group-prepend">
                         <div class="input-group-text">
-                          <input type="radio" name="pressure-selection" value="manual"
+                          <input type="radio"
+                                 name="pressure-selection"
+                                 value="manual"
+                                 v-model="pressureSelection"
                                  aria-label="Radio button for list of values">
                         </div>
                         <div class="input-group-text">
                           Pressures
                         </div>
                       </div>
-                      <select id="select-pressure-steps" class="form-control" multiple="">
-                        {% if initial_calc_kwargs.pressures %}
-                          {% for pressure in initial_calc_kwargs.pressures %}
-                            <option value={{ pressure }} selected>{{ pressure }}</option>
-                          {% endfor %}
-                        {% endif %}
-                      </select>
-                      <div class="input-group-append  ">
+                      <b-form-tags class="form-control"
+                                   placeholder=""
+                                   v-model="pressures"
+                                   :disabled="pressureSelection != 'manual'">
+                      </b-form-tags>
+                      <div class="input-group-append">
                         <div class="input-group-text">
                           E<sup>*</sup>
                         </div>
                         <div class="input-group-text">
-                          <i class="fa fa-info-circle" data-toggle="popover"
-                             tabindex="0" data-trigger="focus" role="button"
-                             title="Manual step selection"
-                             data-content="Enter positive pressure values for which you need results. You can also copy/paste
-                           a comma-separated list of values with a comma after every number. Use '.' as decimal separator.
-                           The maximum number of values is {{ limits_calc_kwargs.pressures.maxlen }}."></i>
+                          <b-icon-info-circle-fill
+                            title="Manual step selection"
+                            v-b-popover.hover="'Enter positive pressure values for which you need results. You can also copy/paste a comma-separated list of values with a comma after every number. Use dot as decimal separator. The maximum number of values is {{ limits_calc_kwargs.pressures.maxlen }}.'">
+                          </b-icon-info-circle-fill>
                         </div>
                       </div>
                     </div>
@@ -299,13 +293,13 @@
                              min="{{ limits_calc_kwargs.maxiter.min }}"
                              max="{{ limits_calc_kwargs.maxiter.max }}"
                              step="1" class="form-control"
-                             value="{{ initial_calc_kwargs.maxiter }}">
+                             v-model="maxiter">
                       <div class="input-group-append ">
                         <div class="input-group-text">
-                          <i class="fa fa-info-circle" data-toggle="popover"
-                             tabindex="0" data-trigger="focus" role="button"
-                             title="Maximum number of iterations"
-                             data-content="Maximum number of iterations (<={{ limits_calc_kwargs.maxiter.max }})."></i>
+                          <b-icon-info-circle-fill
+                            title="Maximum number of iterations"
+                            v-b-popover.hover="'Maximum number of iterations (<={{ limits_calc_kwargs.maxiter.max }}).'">
+                          </b-icon-info-circle-fill>
                         </div>
                       </div>
                     </div>
@@ -318,12 +312,13 @@
               <div class="col-12">
                 {% if request.user.is_anonymous %}
                   <button title="Please login for this feature"
-                          class="btn btn-primary btn-block btn-lg disabled }}" disabled>
+                          class="btn btn-primary btn-block btn-lg disabled" disabled>
                     {% fa5_icon 'repeat' %} Recalculate
                   </button>
                 {% else %}
-                  <button id="recalculate" title="Trigger calculation with given arguments"
-                          class="btn btn-primary btn-block btn-lg">
+                  <button title="Trigger calculation with given arguments"
+                          class="btn btn-primary btn-block btn-lg"
+                          v-on:click="recalculate">
                     {% fa5_icon 'repeat' %} Recalculate
                   </button>
                 {% endif %}
@@ -341,14 +336,25 @@
 {% endblock card_body %}
 
 {% block card_javascript %}
-  <script src="{% static 'tagulous/lib/select2-4/js/select2.min.js' %}"></script>
-
   <script>
     new Vue({
+      delimiters: ['[[', ']]'],
       el: "#contact-mechanics-card",
       data: function () {
         return {
-          selection: null
+          errorMessage: null,
+          selection: null,
+          periodicity: "{{ initial_calc_kwargs.substrate_str|default_if_none:"nonperiodic" }}",
+          nbSteps: {{ initial_calc_kwargs.nsteps|default_if_none:10 }},
+          enableHardness: {% if initial_calc_kwargs.hardness %}1{% else %}0{% endif %},
+          pressureSelection: {% if initial_calc_kwargs.pressures %}"manual"{% else %}"automatic"{% endif %},
+          hardness: {{ initial_calc_kwargs.hardness|default_if_none:"undefined" }},
+          pressures: {{ initial_calc_kwargs.pressures|default_if_none:"[]" }},
+          maxNbIter: {{ initial_calc_kwargs.maxiter|default_if_none:100 }},
+          periodicityOptions: [
+            {value: "periodic", text: "Periodic (repeating array of the measurement)"},
+            {value: "nonperiodic", text: "Free boundaries (flat punch with measurement)"}
+          ]
         }
       },
       computed: {
@@ -401,6 +407,75 @@
           return [{
             url: "{% url 'analysis:data' pk=123 location='step-456/json/distributions.json' %}".replace('123/step-456', this.selection.analysis_id + '/step-' + this.selection.index)
           }];
+        }
+      },
+      methods: {
+        recalculate: function () {
+          let formOk = true;  // are all entered values within the allowed range?
+
+          if (this.pressureSelection == "automatic") {
+            formOk = formOk && ((this.nsteps >={{ limits_calc_kwargs.nsteps.min }}) && (this.nsteps <={{ limits_calc_kwargs.nsteps.max }}))
+          } else { // pressure_selection_mode == "manual"
+            const originalLength = this.pressures.length;
+            this.pressures = this.pressures.map(parseFloat);
+            this.pressures = this.pressures.filter((p) => {
+              return (p != null) && (p > 0)
+            });
+            if (originalLength > this.pressures.length) {
+              // The above procedure simply removes values that cannot be parsed. We simply return here so the user
+              // sees that these values have been removed.
+              return;
+            }
+            formOk = formOk && (this.pressures.length >= 1) &&
+              (this.pressures.length <= {{ limits_calc_kwargs.pressures.maxlen }});
+          }
+
+          formOk = formOk && (this.maxiter >={{ limits_calc_kwargs.maxiter.min }}) &&
+            (this.maxiter <={{ limits_calc_kwargs.maxiter.max }});
+
+          if (!formOk) {
+            let msg = "Please check your entries, some value seems to be invalid. Allowed limits:\n";
+            msg += "{{ limits_calc_kwargs.nsteps.min }}<=number of steps<={{ limits_calc_kwargs.nsteps.max }}\n";
+            msg += "1<=number of pressures<={{ limits_calc_kwargs.pressures.maxlen }} (if not given number of steps)\n";
+            msg += "{{ limits_calc_kwargs.maxiter.min }}<=max. number of iterations<={{ limits_calc_kwargs.maxiter.max }}\n";
+            this.errorMessage = msg;
+            return;
+          }
+
+          const function_kwargs = {
+            substrate_str: this.periodicity,
+            hardness: this.hardness,
+            nsteps: this.pressureSelection == "automatic" ? this.nsteps : null,
+            pressures: this.pressureSelection == "manual" ? this.pressures : null,
+            maxiter: this.maxiter
+          };
+
+          // FIXME! Switch to axios.post, but there is some weirdness with CSRF tokens going on
+          $.ajax({
+            type: "POST",
+            url: "{% url 'analysis:card-submit' %}",
+            timeout: 0,
+            data: {
+              function_id: {{ function.id }},
+              subjects_ids_json: JSON.stringify({{ subjects_ids_json|safe }}),
+              function_kwargs_json: JSON.stringify(function_kwargs),
+              csrfmiddlewaretoken: "{{csrf_token}}"
+            },
+            success: (data, textStatus, xhr) => {
+              // debug_msg("Job submission successful. Status: "+xhr.status+" textStatus: "+textStatus);
+              if (xhr.status == 200) {
+                console.log("Triggering reload of card");
+                submit_analyses_card_ajax("{% url 'analysis:card' %}", "card", "detail", {{ function.id }}, {{ subjects_ids_json|safe }}, 0);
+                // debug_msg("Triggered card reload. Status: "+xhr.status+" textStatus: "+textStatus);
+              } else {
+                this.errorMessage = "Triggering calculation failed, status: " + xhr.status + " response:" + xhr.responseText;
+              }
+            },
+            error: (xhr, textStatus, errorThrown) => {
+              console.log("AJAX error when submitting jobs: errorThrown: " + errorThrown + " status: " + xhr.status + " responseText: " + xhr.responseText);
+              this.errorMessage = "Please report this error: " + errorThrown + xhr.status + xhr.responseText;
+            }
+          });
         }
       }
     });
