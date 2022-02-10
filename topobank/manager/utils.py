@@ -80,6 +80,7 @@ def default_storage_replace(name, content):
     if actual_name != name:
         raise IOError(f"Trying to store file with name '{name}', but Django "
                       f"storage renamed this file to '{actual_name}'.")
+    return actual_name
 
 
 def recursive_delete(prefix):
