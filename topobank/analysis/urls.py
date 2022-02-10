@@ -45,7 +45,7 @@ urlpatterns = [
     url(
         regex=r'data/(?P<pk>\d+)/(?P<location>.*)$',
         view=login_required(views.data),
-        name='contact-mechanics'
+        name='data'
     ),
     url(
         regex=r'card/$',
