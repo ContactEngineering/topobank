@@ -169,12 +169,9 @@ Vue.component("bokeh-plot", {
       type: Array,
       default: [{
         title: "default",  // Title will be used to distinguish between multiple plots. Can be omitted for single plot.
-        xDataKey: "x",  // JSON key in data source containing the x-data
-        yDataKey: "y",  // JSON key in data source containing the y-data
-        xScaleKey: undefined,  // JSON key in data source containing scalar with additional scale information
-        yScaleKey: undefined,  // JSON key in data source containing scalar with additional scale information
-        fillAlphaKey: undefined,  // JSON key in the data source with an array of alpha information
-        fillAlphaTransform: undefined,  // function transforming raw data to fill alpha
+        xData: "data.x",  // JS code that yields x data
+        yData: "data.y",  // JS code that yields y data
+        alphaData: undefined,  // JS code that yields alpha information
         xAxisType: "linear",  // "log" or "linear"
         yAxisType: "linear",  // "log" or "linear"
         xAxisLabel: "x", // Label for the x-axis.
@@ -397,10 +394,6 @@ Vue.component("bokeh-plot", {
           /* Get bokeh plot object */
           const bokehPlot = this.bokehPlots[index];
 
-          /* Get scale factors */
-          xscale = plot.xScaleKey === undefined ? 1 : (dataSource[plot.xScaleKey] === undefined ? 1 : dataSource[plot.xScaleKey]);
-          yscale = plot.yScaleKey === undefined ? 1 : (dataSource[plot.yScaleKey] === undefined ? 1 : dataSource[plot.yScaleKey]);
-
           /* Common attributes of lines and symbols */
           attrs = {
             visible: dataSource.visible,
@@ -408,19 +401,16 @@ Vue.component("bokeh-plot", {
             alpha: dataSource.alpha
           }
 
+          /* Default is x and y */
+          const xData = plot.xData === undefined ? "data.x" : plot.xData;
+          const yData = plot.yData === undefined ? "data.y" : plot.yData;
+
           /* Construct conversion function */
-          const xconvexpr = "cb_data.response." + plot.xDataKey + ".map(value => " + xscale + " * value)";
-          const yconvexpr = "cb_data.response." + plot.yDataKey + ".map(value => " + yscale + " * value)";
-          let code = "return { x: " + xconvexpr + ", y: " + yconvexpr;
-          if (plot.fillAlphaKey === undefined) {
+          let code = "const data = cb_data.response; return { x: " + xData + ", y: " + yData;
+          if (plot.alphaData === undefined) {
             code += " }";
-          } else if (plot.fillAlphaTransform === undefined) {
-            const alphaexpr = "cb_data.response." + plot.fillAlphaKey;
-            code += ", alpha: " + alphaexpr + " }";
-            attrs.alpha = {field: "alpha"};
           } else {
-            const alphaexpr = "cb_data.response." + plot.fillAlphaKey + ".map(value => " + plot.fillAlphaTransform + ")";
-            code += ", alpha: " + alphaexpr + " }";
+            code += ", alpha: " + plot.alphaData + " }";
             attrs.alpha = {field: "alpha"};
           }
 
@@ -524,7 +514,6 @@ Vue.component("bokeh-plot", {
       return selection.length != elements.length && selection.length != 0;
     },
     selectAll(category) {
-      console.log(category);
       if (category.isAllSelected) {
         category.selection = [...Array(category.elements.length).keys()];
       } else {

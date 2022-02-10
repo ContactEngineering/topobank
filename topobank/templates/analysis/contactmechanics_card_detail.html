@@ -355,20 +355,18 @@
         contactMechanicsPlots: function () {
           return [{
             title: "Contact area vs load",
-            xDataKey: "mean_pressures",
-            yDataKey: "total_contact_areas",
-            fillAlphaKey: "converged",
-            fillAlphaTransform: "value ? 1.0 : 0.3",
+            xData: "data.mean_pressures",
+            yData: "data.total_contact_areas",
+            alphaData: "data.converged.map((value) => value ? 1.0 : 0.3)",
             xAxisLabel: "Normalized pressure p/E*",
             yAxisLabel: "Fractional contact area A/A0",
             xAxisType: "log",
             yAxisType: "log"
           }, {
             title: "Load vs displacement",
-            xDataKey: "mean_gaps",
-            yDataKey: "mean_pressures",
-            fillAlphaKey: "converged",
-            fillAlphaTransform: "value ? 1.0 : 0.3",
+            xData: "data.mean_gaps",
+            yData: "data.mean_pressures",
+            alphaData: "data.converged.map((value) => value ? 1.0 : 0.3)",
             xAxisLabel: "Normalized mean gap u/h_rms",
             yAxisLabel: "Normalized pressure p/E*",
             xAxisType: "linear",
@@ -378,20 +376,20 @@
         distributionPlots: function () {
           return [{
             title: "Pressure",
-            xDataKey: "pressure",
-            yDataKey: "pressureProbabilityDensity",
+            xData: "data.pressure",
+            yData: "data.pressureProbabilityDensity",
             xAxisLabel: "Pressure p (E*)",
             yAxisLabel: "Probability density P(p) (E*⁻¹)"
           }, {
             title: "Gap",
-            xDataKey: "gap",
-            yDataKey: "gapProbabilityDensity",
+            xData: "data.gap.map((value) => data.gapSIScaleFactor * value)",
+            yData: "data.gapProbabilityDensity.map((value) => data.gapProbabilityDensitySIScaleFactor * value)",
             xAxisLabel: "Gap g (m)",
             yAxisLabel: "Probability density P(g) (m⁻¹)"
           }, {
             title: "Cluster area",
-            xDataKey: "clusterArea",
-            yDataKey: "clusterAreaProbabilityDensity",
+            xData: "data.clusterArea.map((value) => data.clusterAreaSIScaleFactor * value)",
+            yData: "data.clusterAreaProbabilityDensity.map((value) => data.clusterAreaProbabilityDensitySIScaleFactor * value)",
             xAxisLabel: "Cluster area A (m²)",
             yAxisLabel: "Probability density P(A) (m⁻²)"
           }];

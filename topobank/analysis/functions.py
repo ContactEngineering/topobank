@@ -1266,12 +1266,14 @@ def contact_mechanics(topography, substrate_str="nonperiodic", hardness=None, ns
 
         hist, edges = np.histogram(gap_xy, density=True, bins=50)
         data_dict.update({
-            'gap': (edges[1:-1] + edges[2:]) / 2 * fac,
-            'gapProbabilityDensity': hist[1:] / fac,
+            'gap': (edges[1:-1] + edges[2:]) / 2,
+            'gapProbabilityDensity': hist[1:],
             'gapLabel': 'Gap g',
-            'gapUnit': 'm',
+            'gapUnit': topography.unit,
+            'gapSIScaleFactor': fac,
             'gapProbabilityDensityLabel': 'Probability density P(p)',
-            'gapProbabilityDensityUnit': f'm⁻¹'
+            'gapProbabilityDensityUnit': f'{topography.unit}⁻¹',
+            'gapProbabilityDensitySIScaleFactor': 1 / fac
         })
         default_storage_replace(f'{storage_path}/json/gap_distribution.json',
                                 io.BytesIO(json.dumps(data_dict, cls=NumpyEncoder).encode('utf-8')))
@@ -1284,12 +1286,14 @@ def contact_mechanics(topography, substrate_str="nonperiodic", hardness=None, ns
         cluster_areas = patch_areas(patch_ids) * substrate.area_per_pt
         hist, edges = np.histogram(cluster_areas, density=True, bins=50)
         data_dict.update({
-            'clusterArea': (edges[1:-1] + edges[2:]) / 2 * fac * fac,
-            'clusterAreaProbabilityDensity': hist[1:] / (fac * fac),
+            'clusterArea': (edges[1:-1] + edges[2:]) / 2,
+            'clusterAreaProbabilityDensity': hist[1:],
             'clusterAreaLabel': 'Cluster area A',
-            'clusterAreaUnit': f'm²',
+            'clusterAreaUnit': f'{topography.unit}²',
+            'clusterAreaSIScaleFactor': fac * fac,
             'clusterAreaProbabilityDensityLabel': 'Probability density P(A)',
-            'clusterAreaProbabilityDensityUnit': f'm⁻²'
+            'clusterAreaProbabilityDensityUnit': f'{topography.unit}⁻²',
+            'clusterAreaProbabilityDensitySIScaleFactor': 1 / (fac * fac)
         })
 
         #

@@ -72,20 +72,18 @@
         contactMechanicsPlots: function () {
           return [{
             title: "Contact area vs load",
-            xDataKey: "mean_pressures",
-            yDataKey: "total_contact_areas",
-            fillAlphaKey: "converged",
-            fillAlphaTransform: "value ? 1.0 : 0.3",
+            xData: "data.mean_pressures",
+            yData: "data.total_contact_areas",
+            alphaData: "data.converged.map((value) => value ? 1.0 : 0.3)",
             xAxisLabel: "Normalized pressure p/E*",
             yAxisLabel: "Fractional contact area A/A0",
             xAxisType: "log",
             yAxisType: "log"
           }, {
             title: "Load vs displacement",
-            xDataKey: "mean_gaps",
-            yDataKey: "mean_pressures",
-            fillAlphaKey: "converged",
-            fillAlphaTransform: "value ? 1.0 : 0.3",
+            xData: "data.mean_gaps",
+            yData: "data.mean_pressures",
+            alphaData: "data.converged.map((value) => value ? 1.0 : 0.3)",
             xAxisLabel: "Normalized mean gap u/h_rms",
             yAxisLabel: "Normalized pressure p/E*",
             xAxisType: "linear",
