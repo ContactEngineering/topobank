@@ -15,7 +15,7 @@ def test_perform_analysis(mocker, two_topos, settings):
 
     def my_func(topography, a=0, b=1, bins=15, window='hann', progress_recorder=None, storage_prefix=None):
         return {
-            'topotype': type(topography.topography()),
+            'topotype': str(type(topography.topography())),
             'x': (a+b)*bins,
             's': window
         }
@@ -33,9 +33,9 @@ def test_perform_analysis(mocker, two_topos, settings):
                        window="hamming")
 
     analysis = TopographyAnalysisFactory.create(
-                                subject=topo,
-                                function=af,
-                                kwargs=pickle.dumps(func_kwargs))
+        subject=topo,
+        function=af,
+        kwargs=pickle.dumps(func_kwargs))
     analysis.save()
 
     settings.CELERY_TASK_ALWAYS_EAGER = True  # perform tasks locally
@@ -46,7 +46,7 @@ def test_perform_analysis(mocker, two_topos, settings):
     # now check result
     analysis = Analysis.objects.get(id=analysis.id)
     assert pickle.loads(analysis.result) == {
-        'topotype': type(topo.topography()),
+        'topotype': str(type(topo.topography())),
         'x': 30,
         's': 'hamming'
     }
