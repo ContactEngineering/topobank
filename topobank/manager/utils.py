@@ -74,7 +74,8 @@ def default_storage_replace(name, content):
     content : stream
         Contents of the file.
     """
-    default_storage.delete(name)  # will *not* raise exception if file does not exist
+    if default_storage.exists(name):
+        default_storage.delete(name)
     actual_name = default_storage.save(name, content)
     if actual_name != name:
         raise IOError(f"Trying to store file with name '{name}', but Django "
