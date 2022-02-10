@@ -37,7 +37,7 @@ botocore==1.23.16
     #   -r ./base.txt
     #   boto3
     #   s3transfer
-celery==5.2.3
+celery[pymemcache]==5.2.3
     # via
     #   -r ./base.txt
     #   flower
@@ -340,8 +340,6 @@ pyjwt[crypto]==2.3.0
     # via
     #   -r ./base.txt
     #   django-allauth
-pylibmc==1.6.1
-    # via -r ./base.txt
 pyparsing==3.0.6
     # via
     #   -r ./base.txt
@@ -360,7 +358,10 @@ python-dateutil==2.8.2
     #   pandas
     #   surfacetopography
 python-memcached==1.59
-    # via -r production.in
+    # via
+    #   -r ./base.txt
+    #   -r production.in
+    #   celery
 python-slugify==5.0.2
     # via -r ./base.txt
 python3-openid==3.2.0
