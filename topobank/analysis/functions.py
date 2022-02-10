@@ -1261,8 +1261,6 @@ def contact_mechanics(topography, substrate_str="nonperiodic", hardness=None, ns
             'pressureProbabilityDensityLabel': 'Probability density P(p)',
             'pressureProbabilityDensityUnit': 'E*⁻¹'
         }
-        default_storage_replace(f'{storage_path}/json/pressure_distribution.json',
-                                io.BytesIO(json.dumps(data_dict, cls=NumpyEncoder).encode('utf-8')))
 
         hist, edges = np.histogram(gap_xy, density=True, bins=50)
         data_dict.update({
@@ -1275,8 +1273,6 @@ def contact_mechanics(topography, substrate_str="nonperiodic", hardness=None, ns
             'gapProbabilityDensityUnit': f'{topography.unit}⁻¹',
             'gapProbabilityDensitySIScaleFactor': 1 / fac
         })
-        default_storage_replace(f'{storage_path}/json/gap_distribution.json',
-                                io.BytesIO(json.dumps(data_dict, cls=NumpyEncoder).encode('utf-8')))
 
         #
         # Patch size distribution
