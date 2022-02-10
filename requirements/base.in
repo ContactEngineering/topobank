@@ -60,7 +60,7 @@ django-guardian>=2.4.0, <3
 # Celery
 # django-kombu # is this still needed? See https://pypi.org/project/django-kombu/
 celery[pymemcache]>=5.2.2, <6.0
-# pylibmc seems to cause memcache problems: see GH
+# pylibmc seems to cause memcache problems: see GH 737
 # librabbitmq>=2.0
 # problems while compiling librabbitmq
 flower==1.0.0
