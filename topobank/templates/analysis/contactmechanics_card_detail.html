@@ -8,7 +8,7 @@
   {% if not analyses_unready and analyses_success %}
     <div class="btn-group btn-group-sm float-right dropdown">
       <a type="button" class="btn btn-default"
-              href="{% url 'analysis:download' analyses_success|analyses_results_ids_list_str 'contact mechanics' 'zip' %}">
+         href="{% url 'analysis:download' analyses_success|analyses_results_ids_list_str 'contact mechanics' 'zip' %}">
         {% fa5_icon 'download' %} Download ZIP
       </a>
     </div>
@@ -28,7 +28,7 @@
           {# Show all analyses for which we have results #}
           <bokeh-plot
             :plots="contactMechanicsPlots"
-            :categories='[{name:"name", title:"Measurements"}]'
+            :categories="contactMechanicsCategories"
             :data-sources='{{ data_sources|safe }}'
             :selectable="true"
             v-on:selected="(obj, data) => { selection = { analysis_id: data.source.name.split('-')[1], index: data.source.selected.indices[0] }; }"
@@ -85,8 +85,8 @@
               in the graphs on the left!
             </div>
             <deep-zoom-image v-if="selection !== null"
-                     :prefix-url="'{% url 'analysis:data' pk=123 location='step-456/dzi/contacting-points/' %}'.replace('123/step-456', selection.analysis_id + '/step-' + selection.index)"
-                     ref="contactingPoints">
+                             :prefix-url="'{% url 'analysis:data' pk=123 location='step-456/dzi/contacting-points/' %}'.replace('123/step-456', selection.analysis_id + '/step-' + selection.index)"
+                             ref="contactingPoints">
             </deep-zoom-image>
             <div v-if="selection !== null" class="pull-right">
               <a class="btn btn-default btn-block btn-lg" v-on:click="$refs.contactingPoints.download()">
@@ -99,9 +99,9 @@
               in the graphs on the left!
             </div>
             <deep-zoom-image v-if="selection !== null"
-                     :prefix-url="'{% url 'analysis:data' pk=123 location='step-456/dzi/pressure/' %}'.replace('123/step-456', selection.analysis_id + '/step-' + selection.index)"
-                     :colorbar="true"
-                     ref="pressure">
+                             :prefix-url="'{% url 'analysis:data' pk=123 location='step-456/dzi/pressure/' %}'.replace('123/step-456', selection.analysis_id + '/step-' + selection.index)"
+                             :colorbar="true"
+                             ref="pressure">
             </deep-zoom-image>
             <div v-if="selection !== null" class="pull-right">
               <a class="btn btn-default btn-block btn-lg" v-on:click="$refs.pressure.download()">
@@ -114,9 +114,9 @@
               in the graphs on the left!
             </div>
             <deep-zoom-image v-if="selection !== null"
-                     :prefix-url="'{% url 'analysis:data' pk=123 location='step-456/dzi/displacement/' %}'.replace('123/step-456', selection.analysis_id + '/step-' + selection.index)"
-                     :colorbar="true"
-                     ref="displacement">
+                             :prefix-url="'{% url 'analysis:data' pk=123 location='step-456/dzi/displacement/' %}'.replace('123/step-456', selection.analysis_id + '/step-' + selection.index)"
+                             :colorbar="true"
+                             ref="displacement">
             </deep-zoom-image>
             <div v-if="selection !== null" class="pull-right">
               <a class="btn btn-default btn-block btn-lg" v-on:click="$refs.displacement.download()">
@@ -129,9 +129,9 @@
               the left!
             </div>
             <deep-zoom-image v-if="selection !== null"
-                     :prefix-url="'{% url 'analysis:data' pk=123 location='step-456/dzi/gap/' %}'.replace('123/step-456', selection.analysis_id + '/step-' + selection.index)"
-                     :colorbar="true"
-                     ref="gap">
+                             :prefix-url="'{% url 'analysis:data' pk=123 location='step-456/dzi/gap/' %}'.replace('123/step-456', selection.analysis_id + '/step-' + selection.index)"
+                             :colorbar="true"
+                             ref="gap">
             </deep-zoom-image>
             <div v-if="selection !== null" class="pull-right">
               <a class="btn btn-default btn-block btn-lg" v-on:click="$refs.gap.download()">
@@ -372,6 +372,9 @@
             xAxisType: "linear",
             yAxisType: "log"
           }]
+        },
+        contactMechanicsCategories: function () {
+          return [{name: "name", title: "Measurements"}];
         },
         distributionPlots: function () {
           return [{

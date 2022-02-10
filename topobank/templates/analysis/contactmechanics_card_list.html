@@ -50,7 +50,7 @@
             {# Show all analyses for which we have results #}
             <bokeh-plot
               :plots="contactMechanicsPlots"
-              :categories='[{name:"name", title:"Measurements"}]'
+              :categories="contactMechanicsCategories"
               :data-sources='{{ data_sources|safe }}'
               output-backend="{{ output_backend }}">
             </bokeh-plot>
@@ -89,6 +89,9 @@
             xAxisType: "linear",
             yAxisType: "log"
           }]
+        },
+        contactMechanicsCategories: function () {
+          return [{name: "name", title: "Measurements"}];
         }
       }
     });

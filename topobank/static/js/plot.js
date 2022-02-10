@@ -162,7 +162,7 @@ Vue.component("bokeh-plot", {
       //   name: Name of dataset key that defines this category, i.e. if we have add a category with name "person",
       //         the code will expect a "person" key in the dataset, that specifies the value for this category.
       //   title: Title of this category.
-      type: Array, default: []
+      type: Array, default: function() { return []; }
     },
     plots: {
       // Define the plots to show. Each plot will display in its own tab if there is more than one.
