@@ -9,7 +9,7 @@ from topobank.manager.models import Analysis, Topography, Surface
 
 from .utils import AnalysisFunctionFactory, TopographyAnalysisFactory, SurfaceAnalysisFactory,\
     AnalysisFunctionImplementationFactory
-from ..views import card_view_class, SimpleCardView, PlotCardView, PowerSpectrumCardView
+from ..views import card_view_class, SimpleCardView, PlotCardView
 
 
 @pytest.mark.django_db
@@ -137,4 +137,3 @@ def test_plot_card_if_no_successful_topo_analysis(client, handle_usage_statistic
 def test_card_view_class():
     assert card_view_class('simple') == SimpleCardView
     assert card_view_class('plot') == PlotCardView
-    assert card_view_class('power spectrum') == PowerSpectrumCardView
