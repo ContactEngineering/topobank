@@ -38,7 +38,7 @@ from topobank.publication.models import Publication
 from topobank.users.utils import get_default_group
 from topobank.analysis.models import Analysis
 from topobank.analysis.utils import renew_analyses_for_subject
-from topobank.manager.utils import make_dzi
+from topobank.manager.utils import default_storage_replace, make_dzi
 
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 
@@ -1053,7 +1053,7 @@ class Topography(models.Model, SubjectMixin):
             dirname, basename = os.path.split(self.datafile.name)
             orig_stem, orig_ext = os.path.splitext(basename)
             squeezed_name = user_directory_path(self, f'{self.id}/{orig_stem}-squeezed.nc')
-            self.squeezed_datafile = default_storage.save(squeezed_name, File(open(tmp.name, mode='rb')))
+            self.squeezed_datafile = default_storage_replace(squeezed_name, File(open(tmp.name, mode='rb')))
             self.save()
 
     def get_undefined_data_status(self):
