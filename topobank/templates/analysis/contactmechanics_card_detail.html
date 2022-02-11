@@ -317,6 +317,13 @@
                     {% fa5_icon 'repeat' %} Recalculate
                   </button>
                 {% else %}
+                  <b-alert variant="warning"
+                           :show="recalculateWarning"
+                           dismissible
+                           v-on:dismissed="recalculateWarning = false">
+                    Some of the input parameters were invalid. We have updated those parameters for you. Please double
+                    check the parameters and click <b>Recalculate</b> when ready.
+                  </b-alert>
                   <button title="Trigger calculation with given arguments"
                           class="btn btn-primary btn-block btn-lg"
                           v-on:click="recalculate">
@@ -344,6 +351,7 @@
       data: function () {
         return {
           errorMessage: null,
+          recalculateWarning: false,
           selection: null,
           periodicity: "{{ initial_calc_kwargs.substrate_str|default_if_none:"nonperiodic" }}",
           nbSteps: {{ initial_calc_kwargs.nsteps|default_if_none:10 }},
@@ -412,10 +420,17 @@
       },
       methods: {
         recalculate: function () {
-          let formOk = true;  // are all entered values within the allowed range?
+          this.recalculateWarning = false;
 
           if (this.pressureSelection == "automatic") {
-            formOk = formOk && ((this.nsteps >={{ limits_calc_kwargs.nsteps.min }}) && (this.nsteps <={{ limits_calc_kwargs.nsteps.max }}))
+            if (this.nsteps >= {{ limits_calc_kwargs.nsteps.min }}) {
+              this.nsteps = {{ limits_calc_kwargs.nsteps.min }};
+              this.recalculateWarning = true;
+            }
+            if (this.nsteps <= {{ limits_calc_kwargs.nsteps.max }}) {
+              this.nsteps = {{ limits_calc_kwargs.nsteps.max }};
+              this.recalculateWarning = true;
+            }
           } else { // pressure_selection_mode == "manual"
             const originalLength = this.pressures.length;
             this.pressures = this.pressures.map(parseFloat);
@@ -423,23 +438,28 @@
               return (p != null) && (p > 0)
             });
             if (originalLength > this.pressures.length) {
-              // The above procedure simply removes values that cannot be parsed. We simply return here so the user
-              // sees that these values have been removed.
-              return;
+              this.recalculateWarning = true;
             }
-            formOk = formOk && (this.pressures.length >= 1) &&
-              (this.pressures.length <= {{ limits_calc_kwargs.pressures.maxlen }});
+            if (this.pressures.length < 1) {
+              this.pressures = [1];
+              this.recalculateWarning = true;
+            } else if (this.pressures.length > {{ limits_calc_kwargs.pressures.maxlen }}) {
+              this.pressures.length = {{ limits_calc_kwargs.pressures.maxlen }};
+              this.recalculateWarning = true;
+            }
           }
 
-          formOk = formOk && (this.maxNbIter >={{ limits_calc_kwargs.maxiter.min }}) &&
-            (this.maxNbIter <={{ limits_calc_kwargs.maxiter.max }});
+          if (this.maxNbIter < {{ limits_calc_kwargs.maxiter.min }}) {
+            this.maxNbIter = {{ limits_calc_kwargs.maxiter.min }};
+            this.recalculateWarning = true;
+          }
+          if (this.maxNbIter > {{ limits_calc_kwargs.maxiter.max }}) {
+            this.maxNbIter = {{ limits_calc_kwargs.maxiter.max }};
+            this.recalculateWarning = true;
+          }
 
-          if (!formOk) {
-            let msg = "Please check your entries, some value seems to be invalid. Allowed limits:\n";
-            msg += "{{ limits_calc_kwargs.nsteps.min }}<=number of steps<={{ limits_calc_kwargs.nsteps.max }}\n";
-            msg += "1<=number of pressures<={{ limits_calc_kwargs.pressures.maxlen }} (if not given number of steps)\n";
-            msg += "{{ limits_calc_kwargs.maxiter.min }}<=max. number of iterations<={{ limits_calc_kwargs.maxiter.max }}\n";
-            this.errorMessage = msg;
+          if (this.recalculateWarning) {
+            // Return here if some of the parameters were modified
             return;
           }
 
