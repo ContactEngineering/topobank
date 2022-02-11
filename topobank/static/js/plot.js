@@ -174,6 +174,7 @@ Vue.component("bokeh-plot", {
         alphaData: undefined,  // JS code that yields alpha information
         xAxisType: "linear",  // "log" or "linear"
         yAxisType: "linear",  // "log" or "linear"
+        yAxisType: "linear",  // "log" or "linear"
         xAxisLabel: "x", // Label for the x-axis.
         yAxisLabel: "y" // Label for the y-axis.
       }]
@@ -185,7 +186,9 @@ Vue.component("bokeh-plot", {
       //   url: URL to JSON that contains the data.
       //   [category-name] (optional): Value of the specific category. For each category, there must be a key-value pair.
       //   color (optional): Line and symbol color.
-      //   show_symbols (optional): Show symbols for this data source?
+      //   xScaleFactor: Additional scale factor for x-values from this source
+      //   yScaleFactor: Additional scale factor for y-values from this source
+      //   showSymbols (optional): Show symbols for this data source?
       //   visible (optional): Initial visibility (can be triggered by user).
       // Each data source is a JSON that is loaded from the given URL with via an AJAX request. The plot dictionary
       // specifies which JSON keys are x and y data.
@@ -414,8 +417,16 @@ Vue.component("bokeh-plot", {
           }
 
           /* Default is x and y */
-          const xData = plot.xData === undefined ? "data.x" : plot.xData;
-          const yData = plot.yData === undefined ? "data.y" : plot.yData;
+          let xData = plot.xData === undefined ? "data.x" : plot.xData;
+          let yData = plot.yData === undefined ? "data.y" : plot.yData;
+
+          /* Scale data if scale factor is given */
+          if (dataSource.xScaleFactor !== undefined) {
+            xData += ".map((value) => " + dataSource.xScaleFactor + " * value)";
+          }
+          if (dataSource.yScaleFactor !== undefined) {
+            yData += ".map((value) => " + dataSource.yScaleFactor + " * value)";
+          }
 
           /* Construct conversion function */
           let code = "const data = cb_data.response; return { x: " + xData + ", y: " + yData;
@@ -462,7 +473,7 @@ Vue.component("bokeh-plot", {
               ...{
                 size: Number(this.symbolSize),
                 visible: (dataSource.visible === undefined || dataSource.visible) &&
-                  (dataSource.show_symbols === undefined || dataSource.show_symbols)
+                  (dataSource.showSymbols === undefined || dataSource.showSymbols)
               }
             });
           bokehPlot.symbols.unshift(circle);
@@ -507,7 +518,7 @@ Vue.component("bokeh-plot", {
           }
 
           const symbols = bokehPlot.symbols[index];
-          symbols.visible = visible && (dataSource.show_symbols === undefined || dataSource.show_symbols);
+          symbols.visible = visible && (dataSource.showSymbols === undefined || dataSource.showSymbols);
           symbols.glyph.size = Number(this.symbolSize);
           if (dataSource.is_topography_analysis) {
             symbols.glyph.line_alpha = Number(this.opacity);

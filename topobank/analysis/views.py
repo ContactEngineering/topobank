@@ -622,14 +622,14 @@ class PlotCardView(SimpleCardView):
                     name_index=a_index,
                     series=series_name,
                     series_index=series_idx,
-                    x_scale=analysis_xscale,
-                    y_scale=analysis_yscale,
+                    xScaleFactor=analysis_xscale,
+                    yScaleFactor=analysis_yscale,
                     url=default_storage.url(f'{analysis.storage_prefix}/{s_index}.json'),
                     color=curr_color,
                     dash=curr_dash,
                     width=line_width,
                     alpha=topo_alpha,
-                    show_symbols=show_symbols,
+                    showSymbols=show_symbols,
                     visible=series_idx in series_visible,
                     is_surface_analysis=is_surface_analysis,
                     is_topography_analysis=is_topography_analysis
@@ -693,8 +693,6 @@ class ContactMechanicsCardView(SimpleCardView):
             contact_mechanics_func = AnalysisFunction.objects.get(name="Contact mechanics")
             initial_calc_kwargs = contact_mechanics_func.get_default_kwargs(topography_ct)
             initial_calc_kwargs['substrate_str'] = 'nonperiodic'  # because most topographies are non-periodic
-
-        print(initial_calc_kwargs)
 
         context['initial_calc_kwargs'] = initial_calc_kwargs
 
