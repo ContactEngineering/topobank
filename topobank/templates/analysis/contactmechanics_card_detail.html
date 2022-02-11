@@ -92,7 +92,7 @@
                              ref="contactingPoints">
             </deep-zoom-image>
             <div v-if="selection !== null" class="pull-right">
-              <a class="btn btn-default btn-block btn-lg" v-on:click="$refs.contactingPoints.download()">
+              <a class="btn btn-default btn-block btn-lg mt-3" v-on:click="$refs.contactingPoints.download()">
                 {% fa5_icon 'download' %} Download PNG
               </a>
             </div>
@@ -465,10 +465,10 @@
 
           const function_kwargs = {
             substrate_str: this.periodicity,
-            hardness: this.hardness,
+            hardness: parseFloat(this.hardness),
             nsteps: this.pressureSelection == "automatic" ? this.nbSteps : null,
             pressures: this.pressureSelection == "manual" ? this.pressures : null,
-            maxiter: this.maxNbIter
+            maxiter: parseInt(this.maxNbIter)
           };
 
           // FIXME! Switch to axios.post, but there is some weirdness with CSRF tokens going on
