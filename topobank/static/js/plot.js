@@ -162,7 +162,9 @@ Vue.component("bokeh-plot", {
       //   name: Name of dataset key that defines this category, i.e. if we have add a category with name "person",
       //         the code will expect a "person" key in the dataset, that specifies the value for this category.
       //   title: Title of this category.
-      type: Array, default: function() { return []; }
+      type: Array, default: function () {
+        return [];
+      }
     },
     plots: {
       // Define the plots to show. Each plot will display in its own tab if there is more than one.
@@ -475,16 +477,24 @@ Vue.component("bokeh-plot", {
                   (dataSource.showSymbols === undefined || dataSource.showSymbols)
               }
             });
+          const alphaAttrs = {};
+          if (plot.alphaData !== undefined) {
+            alphaAttrs.fill_alpha = {field: "alpha"};
+          }
           circle.selection_glyph = new Bokeh.Circle({
-            fill_color: attrs.color,
-            fill_alpha: {field: "alpha"},
-            line_color: "black",
-            line_width: 4
+            ...alphaAttrs,
+            ...{
+              fill_color: attrs.color,
+              line_color: "black",
+              line_width: 4
+            }
           });
           circle.nonselection_glyph = new Bokeh.Circle({
-            fill_color: attrs.color,
-            fill_alpha: {field: "alpha"},
-            line_color: null
+            ...alphaAttrs,
+            ...{
+              fill_color: attrs.color,
+              line_color: null
+            }
           });
           bokehPlot.symbols.unshift(circle);
 
@@ -497,7 +507,7 @@ Vue.component("bokeh-plot", {
           /* Create legend */
           if (!legendLabels.has(label)) {
             legendLabels.add(label);
-            const item = new Bokeh.LegendItem({label: label, renderers:[circle]});
+            const item = new Bokeh.LegendItem({label: label, renderers: [circle]});
             bokehPlot.legendItems.unshift(item);
           }
         }
