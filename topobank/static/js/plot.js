@@ -174,7 +174,6 @@ Vue.component("bokeh-plot", {
         alphaData: undefined,  // JS code that yields alpha information
         xAxisType: "linear",  // "log" or "linear"
         yAxisType: "linear",  // "log" or "linear"
-        yAxisType: "linear",  // "log" or "linear"
         xAxisLabel: "x", // Label for the x-axis.
         yAxisLabel: "y" // Label for the y-axis.
       }]
@@ -476,6 +475,17 @@ Vue.component("bokeh-plot", {
                   (dataSource.showSymbols === undefined || dataSource.showSymbols)
               }
             });
+          circle.selection_glyph = new Bokeh.Circle({
+            fill_color: attrs.color,
+            fill_alpha: {field: "alpha"},
+            line_color: "black",
+            line_width: 4
+          });
+          circle.nonselection_glyph = new Bokeh.Circle({
+            fill_color: attrs.color,
+            fill_alpha: {field: "alpha"},
+            line_color: null
+          });
           bokehPlot.symbols.unshift(circle);
 
           /* Find a label */
