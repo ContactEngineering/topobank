@@ -450,32 +450,17 @@ class PlotCardView(SimpleCardView):
             output_backend=settings.BOKEH_OUTPUT_BACKEND))
 
         #
-        # Configure hover tool
-        #
-        # plot.hover.tooltips = [
-        #     ("subject name", "$name"),
-        #     ("series", "@series"),
-        #     (x_axis_label, "@x"),
-        #     (y_axis_label, "@y"),
-        # ]
-
-        #
         # Prepare helpers for dashes and colors
         #
         surface_color_palette = palettes.Greys256  # surfaces are shown in black/grey
         topography_color_palette = palettes.Plasma256  # does not have black/gray, which is reserved for averages
         dash_cycle = itertools.cycle(['solid', 'dashed', 'dotted', 'dotdash', 'dashdot'])
-        # symbol_cycle = itertools.cycle(['circle', 'triangle', 'diamond', 'square', 'asterisk'])
-        # TODO remove code for toggling symbols if not needed
 
         subject_colors = OrderedDict()  # key: subject instance, value: color
 
         series_dashes = OrderedDict()  # key: series name
 
         DEFAULT_ALPHA_FOR_TOPOGRAPHIES = 0.3 if has_at_least_one_surface_subject else 1.0
-
-        # Also give each series a symbol (only used for small number of points)
-        # series_symbols = OrderedDict()  # key: series name
 
         #
         # First traversal: find all available series names and sort them
@@ -501,7 +486,6 @@ class PlotCardView(SimpleCardView):
 
         series_names = sorted(list(series_names))  # index of a name in this list is the "series_idx"
         series_visible = set()  # elements: series indices, decides whether a series is visible
-        # series_glyphs = defaultdict(list)  # key: series_idx, value: list of glyphs for that series
 
         #
         # Second traversal: do the plotting
