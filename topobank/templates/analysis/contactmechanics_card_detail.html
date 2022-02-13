@@ -467,7 +467,7 @@
             maxiter: parseInt(this.maxNbIter)
           };
 
-          // FIXME! Switch to axios.post, but there is some weirdness with CSRF tokens going on
+          // FIXME! Switch to fetch API, but there is some weirdness with CSRF tokens going on
           $.ajax({
             type: "POST",
             url: "{% url 'analysis:card-submit' %}",
