@@ -58,9 +58,9 @@ Vue.component("deep-zoom-image", {
       this.isLoaded = false;
 
       // Prefix URL changed - request new image and replace current one
-      axios.get(this.prefixUrl + 'dzi.json').then(response => {
-        meta = response.data;  // Image metadata
-
+      fetch(this.prefixUrl + 'dzi.json').then(response => {
+        return response.json();  // Image metadata
+      }).then(meta => {
         meta.Image.Url = this.prefixUrl + 'dzi_files/';  // Set URL for DZI files
 
         this.viewer.addTiledImage({
@@ -74,9 +74,9 @@ Vue.component("deep-zoom-image", {
   },
   methods: {
     requestDzi: function () {
-      axios.get(this.prefixUrl + 'dzi.json').then(response => {
-        meta = response.data;  // Image metadata
-
+      fetch(this.prefixUrl + 'dzi.json').then(response => {
+        return response.json();
+      }).then(meta => {
         meta.Image.Url = this.prefixUrl + 'dzi_files/';  // Set URL for DZI files
 
         // Create OpenSeadragon viewer
