@@ -121,8 +121,6 @@ django-progressbarupload @ git+http://github.com/ContactEngineering/django-progr
     # via -r base.in
 django-select2==7.9.0
     # via -r base.in
-django-sortedm2m==3.1.1
-    # via -r base.in
 django-storages==1.12.3
     # via
     #   -r base.in

@@ -12,7 +12,6 @@ django-model-utils  # https://github.com/jazzband/django-model-utils
 django-allauth  # https://github.com/pennersr/django-allauth
 django-crispy-forms  # https://github.com/django-crispy-forms/django-crispy-forms
 django-tables2 # https://github.com/jieter/django-tables2
-django-sortedm2m  # https://github.com/jazzband/django-sortedm2m
 
 # Update a dependency of pyjwt to a more secure version
 cryptography>=3.3.2

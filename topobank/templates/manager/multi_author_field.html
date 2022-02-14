@@ -1,73 +1,30 @@
- {% load icon_tags %}
+{% load icon_tags %}
 
 <div id="authors">
-  <div v-for="(item, index) in items" class="my-2">
-    <label v-bind:for="'author_input_'+index"
-           v-bind:class="{requiredField:index==0}">
-      [[ index+1 ]]. Author
-      <span v-if="index == 0" class="asteriskField">*</span>
-    </label>
-    <div class="form-row" >
-      <div class="input-group col-6">
-        <input type="text"
-               v-bind:id="'author_input_'+index"
-               v-bind:name="'author_'+index"
-               v-bind:required="index==0"
-               class="form-control"
-               v-on:keypress="filter_key($event)"
-               v-model="item.name">
-        <div class="input-group-append">
-          <button class="btn btn-secondary"
-                  title="Delete this author"
-                  type="button"
-                  v-bind:class="{ disabled: items.length==1 }"
-                  @click="delete_author_line(index)">{% fa5_icon 'trash' %}</button>
-          <button class="btn btn-secondary insert-me-btn"
-                  title="Insert your name as author"
-                  type="button"
-                  v-bind:class="{ }"
-                  @click="insert_user_as_author(index)">{% fa5_icon 'user' %}</button>
-          <button class="btn btn-secondary"
-                  title="Move this author up"
-                  type="button"
-                  v-bind:class="{ disabled: index==0 }"
-                  @click="move_author_up(index)">{% fa5_icon 'arrow-up' %}</button>
-          <button class="btn btn-secondary"
-                  title="Move this author down"
-                  type="button"
-                  v-bind:class="{ disabled: index==items.length-1 }"
-                  @click="move_author_down(index)">{% fa5_icon 'arrow-down' %}</button>
-        </div>
-      </div>
-    </div>
-  </div>
-  <small class='form-text text-muted'>
-  Use one line per author, enter each name in
-  natural order <b>without commas</b>, e.g. 'Sarah Miller'.
-  Press plus button below if you need more author fields.
-  </small>
-  <p class='form-text text-muted mt-2'>
-    Authors will be saved and listed like this: <b>[[ get_full_authors_string ]]</b>
-  </p>
-  <div v-if="get_full_authors_string.length>=max_len_authors_field"
-          class="alert alert-danger">Maximum length reached
-          ([[ max_len_authors_field ]] characters in total for author list)
-  </div>
-  <div v-if="has_duplicate"
-          class="alert alert-danger">
-    Duplicate names, names should be unique
-  </div>
+  <author-component
+    v-for="(author, author_idx) in items"
+    :author="author"
+    :author_idx="author_idx"
+    :key="author_idx">
+  </author-component>
+
+{#  <div v-if="has_duplicate"#}
+{#          class="alert alert-danger">#}
+{#    Duplicate names, names should be unique#}
+{#  </div>#}
   <div class="form-row">
     <div class="input-group col-2 my-1">
       <button class="btn btn-secondary"
             type="button"
             id="one_more_author_btn" {# for testing purpose, see splinter tests #}
-            v-on:click="add_author_line">
+            v-on:click="add_author">
         {% fa5_icon 'plus' %} One more author
       </button>
-      <input type="hidden" name="num_author_fields" v-bind:value="num_authors">
-      <input type="hidden" name="authors">
+      <input type="hidden" name="authors_json" v-bind:value="authors_json">
     </div>
+  </div>
+  <div class='form-text text-muted mt-2 alert alert-success'>
+    Authors will listed like this: <b>[[ get_full_authors_string ]]</b>
   </div>
 </div>
 

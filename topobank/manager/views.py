@@ -1209,10 +1209,11 @@ class SurfaceShareView(FormMixin, DetailView):
 class PublicationsTable(tables.Table):
     publication = tables.Column(linkify=True, verbose_name='Surface', order_by='surface__name')
     num_topographies = tables.Column(verbose_name='# Measurements')
-    authors = tables.Column(verbose_name="Authors")
+    authors_names = tables.Column(verbose_name="Authors")
     license = tables.Column(verbose_name="License")
     datetime = tables.Column(verbose_name="Publication Date")
     version = tables.Column(verbose_name="Version")
+    doi = tables.Column(verbose_name="DOI")
 
     def render_publication(self, value):
         return value.surface.name
@@ -1247,10 +1248,11 @@ class PublicationListView(ListView):
                 'publication': pub,
                 'surface': pub.surface,
                 'num_topographies': pub.surface.num_topographies(),
-                'authors': pub.authors,
+                'authors_names': pub.get_authors_string(),
                 'license': pub.license,
                 'datetime': pub.datetime,
-                'version': pub.version
+                'version': pub.version,
+                'doi': pub.doi,
             } for pub in self.get_queryset()
         ]
 
@@ -1280,23 +1282,23 @@ class SurfacePublishView(FormView):
         initial['num_author_fields'] = 1
         return initial
 
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        if self.request.method == 'POST':
-            # The field 'num_author_fields' may have been increased by
-            # Javascript (Vuejs) on the client in order to add new authors.
-            # This should be sent to the form in order to know
-            # how many fields the form should have and how many author names
-            # should be combined. So this is passed here:
-            kwargs['num_author_fields'] = int(self.request.POST.get('num_author_fields'))
-        return kwargs
+    # def get_form_kwargs(self):
+    #     kwargs = super().get_form_kwargs()
+    #     if self.request.method == 'POST':
+    #         # The field 'num_author_fields' may have been increased by
+    #         # Javascript (Vuejs) on the client in order to add new authors.
+    #         # This should be sent to the form in order to know
+    #         # how many fields the form should have and how many author names
+    #         # should be combined. So this is passed here:
+    #         kwargs['num_author_fields'] = int(self.request.POST.get('num_author_fields'))
+    #     return kwargs
 
     def get_success_url(self):
         return reverse('manager:publications')
 
     def form_valid(self, form):
         license = form.cleaned_data.get('license')
-        authors = form.cleaned_data.get('authors')
+        authors = form.cleaned_data.get('authors_json')
         surface = self._get_surface()
         try:
             surface.publish(license, authors)
@@ -1330,6 +1332,12 @@ class SurfacePublishView(FormView):
         ]
         context['surface'] = surface
         context['max_len_authors_field'] = MAX_LEN_AUTHORS_FIELD
+        user = self.request.user
+        context['user_dict'] = dict(
+            first_name = user.first_name,
+            last_name = user.last_name,
+            orcid_id = user.orcid_id
+        )
         return context
 
 

@@ -3,9 +3,6 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.safestring import mark_safe
 from django.conf import settings
-from django.core.validators import RegexValidator
-
-from sortedm2m.fields import SortedManyToManyField
 
 from topobank.users.models import User
 
@@ -24,36 +21,11 @@ class UnknownCitationFormat(Exception):
         return f"Unknown citation format flavor '{self._flavor}'."
 
 
-class Affiliation(models.Model):
-    """An institution a researcher belongs to."""
-    name = models.CharField(max_length=100)
-    ror_id = models.CharField(max_length=9,
-                              null=True,
-                              validators=[
-                                RegexValidator(r'^0[^ilouILOU]{6}[0-9]{2}')
-                              ])  # see https://ror.org/facts/
-
-
-class Researcher(models.Model):
-    first_name = models.CharField(max_length=60)
-    last_name = models.CharField(max_length=60)
-    orcid_id = models.CharField(max_length=19,
-                                null=True,
-                                validators=[
-                                    RegexValidator(r'^[0-9]{4}-[0-9]{4}-[0-9]{4}')
-                                ])  # 16 digit-number with 3 hyphens inbetween
-    affiliations = SortedManyToManyField(Affiliation)
-    user = models.ForeignKey(User, null=True, on_delete=models.SET_NULL)
-
-    def orcid_identifier(self):
-        """This is the ORCID ID as URL.
-
-        Returns
-        -------
-        URL of the form https://orcid.org/xxxx-xxxx-xxxx-xxxx
-        """
-        return f"https://orcid.org/{self.orcid_id}"
-
+# Validation ROR ID
+#   RegexValidator(r'^0[^ilouILOU]{6}[0-9]{2}')
+#
+# Validation ORCID ID
+#   RegexValidator(r'^[0-9]{4}-[0-9]{4}-[0-9]{4}')
 
 class Publication(models.Model):
 
@@ -69,14 +41,14 @@ class Publication(models.Model):
     version = models.PositiveIntegerField(default=1)
     datetime = models.DateTimeField(auto_now_add=True)
     license = models.CharField(max_length=12, choices=LICENSE_CHOICES, blank=False, default='')
-    # authors = models.CharField(max_length=MAX_LEN_AUTHORS_FIELD)
-    authors = SortedManyToManyField(Researcher)
+    authors_json = models.JSONField(default=list)
     container = models.FileField(max_length=50, default='')
+    doi = models.CharField(max_length=50, null=True)  # if null, the DOI has not been generated yet
 
     def get_authors_string(self):
         """Return author names as comma-separated string in correct order.
         """
-        return ", ".join([f"{a.first_name} {a.last_name}" for a in self.authors.all()])
+        return ", ".join([f"{a['first_name']} {a['last_name']}" for a in self.authors_json])
 
     def get_absolute_url(self):
         return reverse('publication:go', args=[self.short_url])

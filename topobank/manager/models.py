@@ -331,12 +331,33 @@ class Surface(models.Model, SubjectMixin):
         ----------
         license: str
             One of the keys of LICENSE_CHOICES
-        authors: str
-            Comma-separated string of author names;
+        authors: list
+            List of authors as list of dicts, where each dict has the
+            form as in the example below. Will be saved as-is in JSON
+            format and will be used for creating a DOI.
 
         Returns
         -------
         Publication
+
+        (Fictional) Example of a dict representing an author:
+
+        {
+            'first_name': 'Melissa Kathrin'
+            'last_name': 'Miller',
+            'orcid_id: '1234-1234-1234-1224',
+            'affiliations': [
+                {
+                    'name': 'University of Westminster',
+                    'ror_id: '04ycpbx82'
+                },
+                {
+                    'name': 'New York University Paris',
+                    'ror_id: '05mq03431'
+                },
+            ]
+        }
+
         """
         if self.is_published:
             raise AlreadyPublishedException()
@@ -373,8 +394,13 @@ class Surface(models.Model, SubjectMixin):
         else:
             version = 1
 
+        # TODO Create DOI
+
+        #
+        # Save local reference for the publication
+        #
         pub = Publication.objects.create(surface=copy, original_surface=self,
-                                         authors=authors,
+                                         authors_json=authors,
                                          license=license,
                                          version=version,
                                          publisher=self.creator,
