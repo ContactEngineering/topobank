@@ -133,20 +133,46 @@
  let form_is_bound = JSON.parse(document.getElementById('form-is-bound').textContent);
  let max_len_authors_field = {{ max_len_authors_field }};
 
-
  Vue.use(VeeValidate);
 
- Vue.component('Affiliation', {
-   props: ['author_idx', 'affiliation_idx'],  // affiliation_idx counts the affilliations within one author
-   data: function() {
-     return {
-       name: '',
-       ror_id: null,
+ Vue.component('affiliation-component', {
+   delimiters: ['[[', ']]'],
+   props: ['affiliation', 'affiliation_idx', 'author_idx'],  // affiliation_idx counts the affilliations within one author
+   computed: {
+     name_input_id: function () {
+       return 'author_'+this.author_idx+'_affiliation_'+this.affiliation_idx+'_name';
      }
    },
    template: `
-    <label v-bind:for="'author_'+author_idx+'_first_name'">First name<span class="asteriskField">*</span></label>
-    <input v-bind:id="'author_'+author_idx+'_first_name'" class="form-control" type="text" placeholder="First name" v-model="first_name">
+      <li>
+        <div class="form-row m-1">
+          <div class="input-group">
+            <input v-bind:id="name_input_id" class="form-control-sm" type="text" placeholder="Affiliation name" v-model="affiliation.name">
+            <div class="input-group-append">
+              <button class="btn btn-sm btn-secondary"
+                      title="Delete this affiliation"
+                      type="button"
+                      v-bind:class="{ disabled: $parent.num_affiliations==1 }"
+                      @click="$parent.delete_affiliation(affiliation_idx)">{% fa5_icon 'trash' %}</button>
+              <button class="btn btn-sm btn-secondary"
+                      title="Move this affiliation up"
+                      type="button"
+                      v-bind:class="{ disabled: affiliation_idx==0 }"
+                      @click="$parent.move_affiliation_up(affiliation_idx)">{% fa5_icon 'arrow-up' %}</button>
+              <button class="btn btn-sm btn-secondary"
+                      title="Move this affiliation down"
+                      type="button"
+                      v-bind:class="{ disabled: affiliation_idx==$parent.num_affiliations-1 }"
+                      @click="$parent.move_affiliation_down(affiliation_idx)">{% fa5_icon 'arrow-down' %}</button>
+              {#<button class="btn btn-sm btn-secondary"#}
+              {#        title="Add an affiliation"#}
+              {#        type="button"#}
+              {#        @click="$parent.add_affiliation(affiliation_idx+1)">{% fa5_icon 'university' %}#}
+              {#        </button>#}
+            </div>
+          </div>
+        </div>
+      </li>
    `
  })
 
@@ -155,58 +181,86 @@
      props: ['author', 'author_idx'],
      template: `
       <div>
-        <div class="btn-toolbar col-6" role="toolbar">
-          <h3>[[ author_idx+1 ]]. Author
-            <span v-if="author_idx == 0" class="asteriskField">*</span>
-          </h3>
-          <div class="btn-group float-right">
-            <button class="btn btn-secondary"
-                    title="Delete this author"
-                    type="button"
-                    v-bind:class="{ disabled: $parent.num_authors==1 }"
-                    @click="$parent.delete_author(author_idx)">{% fa5_icon 'trash' %}</button>
-            <button class="btn btn-secondary insert-me-btn"
-                    title="Insert your name and ORCID ID as author"
-                    type="button"
-                    v-bind:class="{ }"
-                    @click="$parent.insert_user_as_author(author_idx)">{% fa5_icon 'user' %}</button>
-            <button class="btn btn-secondary"
-                    title="Move this author up"
-                    type="button"
-                    v-bind:class="{ disabled: author_idx==0 }"
-                    @click="$parent.move_author_up(author_idx)">{% fa5_icon 'arrow-up' %}</button>
-            <button class="btn btn-secondary"
-                    title="Move this author down"
-                    type="button"
-                    v-bind:class="{ disabled: author_idx==$parent.num_authors-1 }"
-                    @click="$parent.move_author_down(author_idx)">{% fa5_icon 'arrow-down' %}</button>
-          </div>
+        <hr>
+        <div>
+          <h3>[[ author_idx+1 ]]. Author <span v-if="author_idx == 0" class="asteriskField">*</span></h3>
 
-        </div>
-      <div>
-        <div class="input-group col-6">
-          <div class="form-row">
-            <div class="form-group col-md-6">
-              <label v-bind:for="'author_'+author_idx+'_first_name'">First name<span class="asteriskField">*</span></label>
-              <input v-bind:id="'author_'+author_idx+'_first_name'" class="form-control" type="text" placeholder="First name" v-model.trim="author.first_name">
+            <div class="form-row">
+              <div class="form-group col-md-3">
+                <label v-bind:for="'author_'+author_idx+'_first_name'">First name<span class="asteriskField">*</span></label>
+                <input v-bind:id="'author_'+author_idx+'_first_name'" class="form-control" type="text" placeholder="First name" v-model.trim="author.first_name">
+              </div>
+              <div class="form-group col-md-3">
+                <label v-bind:for="'author_'+author_idx+'_last_name'">Last name<span class="asteriskField">*</span></label>
+                <input v-bind:id="'author_'+author_idx+'_last_name'" class="form-control" type="text" placeholder="Last name" v-model.trim="author.last_name">
+              </div>
+              <div class="form-group col-md-4">
+
+                <label v-bind:for="'author_'+author_idx+'_orcid_id'">ORCID ID (optional)</label>
+                <div class="input-group">
+                <input v-bind:id="'author_'+author_idx+'_orcid_id'" class="form-control" type="text"
+                 v-validate="{ required: false, regex: /[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{4}/ }"
+                 v-bind:name="'author_'+author_idx+'_orcid_id'"
+                 placeholder="xxxx-xxxx-xxxx-xxxx"
+                 v-model.trim="author.orcid_id">
+                <div class="input-group-append btn-group">
+                  <button class="btn btn-secondary"
+                          title="Delete this author"
+                          type="button"
+                          v-bind:class="{ disabled: $parent.num_authors==1 }"
+                          @click="$parent.delete_author(author_idx)">{% fa5_icon 'trash' %}</button>
+                  <button class="btn btn-secondary insert-me-btn"
+                          title="Insert your name and ORCID ID as author"
+                          type="button"
+                          v-bind:class="{ }"
+                          @click="$parent.insert_user_as_author(author_idx)">{% fa5_icon 'address-card' %}</button>
+                  <button class="btn btn-secondary"
+                          title="Move this author up"
+                          type="button"
+                          v-bind:class="{ disabled: author_idx==0 }"
+                          @click="$parent.move_author_up(author_idx)">{% fa5_icon 'arrow-up' %}</button>
+                  <button class="btn btn-secondary"
+                          title="Move this author down"
+                          type="button"
+                          v-bind:class="{ disabled: author_idx==$parent.num_authors-1 }"
+                          @click="$parent.move_author_down(author_idx)">{% fa5_icon 'arrow-down' %}</button>
+                  {#<button class="btn btn-secondary"#}
+                  {#        title="Add one author"#}
+                  {#        type="button"#}
+                  {#        @click="$parent.add_author(author_idx+1)">{% fa5_icon 'user-plus' %}</button>#}
+                </div>
+                </div>
+              </div>
             </div>
-            <div class="form-group col-md-6">
-              <label v-bind:for="'author_'+author_idx+'_last_name'">Last name<span class="asteriskField">*</span></label>
-              <input v-bind:id="'author_'+author_idx+'_last_name'" class="form-control" type="text" placeholder="Last name" v-model.trim="author.last_name">
+            <h5>Affiliations</h5>
+            <div class="form-row">
+              <div class="col-6">
+                <ol>
+                  <affiliation-component
+                    v-for="(affiliation, affiliation_idx) in author.affiliations"
+                    :affiliation="affiliation"
+                    :affiliation_idx="affiliation_idx"
+                    :author_idx="author_idx"
+                    :key="affiliation_idx">
+                  </affiliation-component>
+                  <button class="btn btn-sm btn-secondary"
+                    title="One more affiliation"
+                    type="button"
+                    @click="add_affiliation(num_affiliations)">{% fa5_icon 'plus' %}One more affiliation for this author
+                    </button>
+                </ol>
+              </div>
+              <div class="col-6">
+               <div v-if="errors.all().length > 0" class="alert alert-danger" role="alert">
+                <ul>
+                  <li v-for="error in errors.all()">
+                    [[ error ]]
+                  </li>
+                </ul>
+                </div>
+              </div>
             </div>
-            <div class="form-group col-md-6">
-              <label v-bind:for="'author_'+author_idx+'_orcid_id'">ORCID ID (optional)</label>
-              <input v-bind:id="'author_'+author_idx+'_orcid_id'" class="form-control" type="text"
-               v-validate="{ required: false, regex: /[0-9]{4}-[0-9]{4}-[0-9]{4}/ }"
-               v-bind:name="'author_'+author_idx+'_orcid_id'"
-               placeholder="xxxx-xxxx-xxxx-xxxx"
-               v-model.trim="author.orcid_id">
-            </div>
-          </div>
-          <div v-for="error in errors.all()" class="form-row alert alert-warning" role="alert">
-             [[ error ]]
-          </div>
-         </div>
+
         </div>
       </div>
      `,
@@ -222,7 +276,38 @@
            orcid_id: this.author.orcid_id,
            affiliations: this.author.affiliations
          };
+       },
+       num_affiliations: function () {
+         return this.author.affiliations.length;
        }
+     },
+     methods: {
+        add_affiliation: function (target_idx) {
+          console.log("target idx for new affiliation: "+target_idx);
+         this.author.affiliations.splice(target_idx, 0, this.$parent.make_empty_affiliation())
+       },
+       delete_affiliation: function(index) {
+         // Keep at least one line
+         if (this.author.affiliations.length > 1) {
+            this.author.affiliations.splice(index, 1);
+         }
+       },
+       move_affiliation_up: function(index) {
+         if (index > 0) {
+           // swap with item before
+           let tmp = this.author.affiliations[index];
+           this.author.affiliations.splice(index, 1, this.author.affiliations[index-1]);
+           this.author.affiliations.splice(index-1, 1, tmp);
+         }
+       },
+       move_affiliation_down: function(index) {
+         if (index < this.author.affiliations.length-1) {
+           // swap with item after
+           let tmp = this.author.affiliations[index];
+           this.author.affiliations.splice(index, 1, this.author.affiliations[index+1]);  // we need to use array methods here!
+           this.author.affiliations.splice(index+1, 1, tmp);
+         }
+       },
      }
    }
  );
@@ -282,14 +367,21 @@
          first_name: '',
          last_name: '',
          orcid_id: '',
-         affiliations: [ {
-           'name': '',
-           'ror_id': '',
-         }]
+         affiliations: [this.make_empty_affiliation()]
        }
      },
-     add_author: function () {
-       this.items.push(this.make_empty_author());
+     make_empty_affiliation: function () {
+       return {
+         name: '',
+         ror_id: '',
+       }
+     },
+     add_author: function (target_idx) {
+       console.log("target idx for new author: "+target_idx);
+       if (target_idx == -1) {
+         target_idx = this.num_authors;
+       }
+       this.items.splice(target_idx, 0, this.make_empty_author())
      },
      delete_author: function(index) {
        // Keep at least one line
@@ -302,7 +394,7 @@
          first_name: user.first_name,
          last_name: user.last_name,
          orcid_id: user.orcid_id,
-         affiliations: []}
+         affiliations: [this.make_empty_affiliation()]}
        );
      },
      move_author_up: function(index) {
