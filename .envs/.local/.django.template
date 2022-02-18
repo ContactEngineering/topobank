@@ -31,6 +31,17 @@ CELERY_FLOWER_PASSWORD=EI7zTd27VUZ2NdqGs5iQxINipsphB6SxUOwxWQXpcJ2OuoeE1JxxTs2bf
 ORCID_CLIENT_ID=<replace with your client ID from ORCID>
 ORCID_SECRET=<replace with your secret from ORCID>
 
+# DataCite settings (DOI creation)
+# ------------------------------------------------------------------------------
+DATACITE_USERNAME=<replace with your DataCite username>
+DATACITE_PASSWORD=<replace with your DataCite password>
+DATACITE_API_URL=https://api.test.datacite.org
+# Test mode: https://api.test.datacite.org
+# Real: https://api.datacite.org
+
+PUBLICATION_DOI_PREFIX=<replace with your DOI prefix registered at DATACITE>
+PUBLICATION_DOI_MANDATORY=False
+
 # Storage settings
 # ------------------------------------------------------------------------------
 USE_S3_STORAGE=yes

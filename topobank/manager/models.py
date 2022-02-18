@@ -34,7 +34,7 @@ from ..plots import configure_plot
 from .utils import get_topography_reader, get_firefox_webdriver
 
 from topobank.users.models import User
-from topobank.publication.models import Publication
+from topobank.publication.models import Publication, DOICreationException
 from topobank.users.utils import get_default_group
 from topobank.analysis.models import Analysis
 from topobank.analysis.utils import renew_analyses_for_subject
@@ -61,7 +61,6 @@ def user_directory_path(instance, filename):
 
 class PublicationException(Exception):
     pass
-
 
 class AlreadyPublishedException(PublicationException):
     pass
@@ -394,8 +393,6 @@ class Surface(models.Model, SubjectMixin):
         else:
             version = 1
 
-        # TODO Create DOI
-
         #
         # Save local reference for the publication
         #
@@ -406,9 +403,24 @@ class Surface(models.Model, SubjectMixin):
                                          publisher=self.creator,
                                          publisher_orcid_id=self.creator.orcid_id)
 
+        #
+        # Try to create DOI - if this doesn't work, rollback
+        #
+        if settings.PUBLICATION_DOI_MANDATORY:
+            try:
+                pub.create_doi()
+            except DOICreationException as exc:
+                _log.error("DOI creation failed, reason: %s", exc)
+                _log.warning("Cannot create publication with DOI, deleting publication instance.")
+                pub.delete()
+                raise PublicationException(f"Cannot create DOI, reason: {exc}") from exc
+        else:
+            _log.info("Skipping creation of DOI, because it is not configured as mandatory.")
+
         _log.info(f"Published surface {self.name} (id: {self.id}) " + \
                   f"with license {license}, version {version}, authors '{authors}'")
-        _log.info(f"URL of publication: {pub.get_absolute_url()}")
+        _log.info(f"Direct URL of publication: {pub.get_absolute_url()}")
+        _log.info(f"DOI name of publication: {pub.doi_name}")
 
         return pub
 

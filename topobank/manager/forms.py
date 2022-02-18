@@ -824,7 +824,8 @@ class SurfacePublishForm(forms.Form):
                     if name_given:
                         if ror_id_given and not re.match('0[^ilouILOU]{6}\d{2}', aff['ror_id']):
                             raise forms.ValidationError(
-                                f"Incorrect format for ROR ID {aff['ror_id']}."
+                                f"Incorrect format for ROR ID \'{aff['ror_id']}\', should start with 0 (zero), followed "
+                                "by 6 characters and should end with 2 digits."
                             )
                         new_affs.append(aff)  # only this one should be used, empty affiliations will be ignored
                     else:

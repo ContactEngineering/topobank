@@ -490,21 +490,27 @@ CC_LICENSE_INFOS = {  # each element refers to two links: (description URL, full
         'description_url': 'https://creativecommons.org/publicdomain/zero/1.0/',
         'legal_code_url': 'https://creativecommons.org/publicdomain/zero/1.0/legalcode',
         'title': 'CC0 1.0 Universal',
-        'option_name': 'CC0 1.0 (Public Domain Dedication)'
+        'option_name': 'CC0 1.0 (Public Domain Dedication)',
+        'spdx_identifier': 'CC0-1.0',
     },
     'ccby-4.0': {
         'description_url': 'https://creativecommons.org/licenses/by/4.0/',
         'legal_code_url': 'https://creativecommons.org/licenses/by/4.0/legalcode',
         'title': 'Creative Commons Attribution 4.0 International Public License',
-        'option_name': 'CC BY 4.0'
+        'option_name': 'CC BY 4.0',
+        'spdx_identifier': 'CC-BY-4.0',
     },
     'ccbysa-4.0': {
         'description_url': 'https://creativecommons.org/licenses/by-sa/4.0/',
         'legal_code_url': 'https://creativecommons.org/licenses/by-sa/4.0/legalcode',
         'title': 'Creative Commons Attribution-ShareAlike 4.0 International Public License',
-        'option_name': 'CC BY-SA 4.0'
+        'option_name': 'CC BY-SA 4.0',
+        'spdx_identifier': 'CC-BY-SA-4.0',
     }
 }
+# For SPDX identifiers, see https://spdx.org/licenses/
+# It may be useful to use these identifiers also everywhere in the code when identifying a license,
+# but then we also need to change the existing entries in the database.
 
 #
 # Settings for exporting plots as thumbnails
@@ -520,3 +526,15 @@ CONTACT_MECHANICS_KWARGS_LIMITS = {
             'maxiter': dict(min=1, max=1000),
             'pressures': dict(maxlen=50),
 }
+
+#
+# Datacite settings (DOI creation)
+#
+PUBLICATION_DOI_MANDATORY = env.bool('PUBLICATION_DOI_MANDATORY', default=False)
+
+if PUBLICATION_DOI_MANDATORY:
+    PUBLICATION_DOI_PREFIX = env.str('PUBLICATION_DOI_PREFIX')
+    DATACITE_USERNAME = env.str('DATACITE_USERNAME')
+    DATACITE_PASSWORD = env.str('DATACITE_PASSWORD')
+    DATACITE_API_URL = env.url('DATACITE_API_URL', default='https://api.test.datacite.org')
+

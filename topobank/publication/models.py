@@ -4,6 +4,9 @@ from django.utils import timezone
 from django.utils.safestring import mark_safe
 from django.conf import settings
 
+from datacite import schema42, DataCiteRESTClient
+from datacite.errors import DataCiteError
+
 from topobank.users.models import User
 
 MAX_LEN_AUTHORS_FIELD = 512
@@ -14,6 +17,7 @@ DEFAULT_KEYWORDS = ['surface', 'topography']
 
 class UnknownCitationFormat(Exception):
     """Exception thrown when an unknown citation format should be handled."""
+
     def __init__(self, flavor):
         self._flavor = flavor
 
@@ -21,14 +25,12 @@ class UnknownCitationFormat(Exception):
         return f"Unknown citation format flavor '{self._flavor}'."
 
 
-# Validation ROR ID
-#   RegexValidator(r'^0[^ilouILOU]{6}[0-9]{2}')
-#
-# Validation ORCID ID
-#   RegexValidator(r'^[0-9]{4}-[0-9]{4}-[0-9]{4}')
+class DOICreationException(Exception):
+    pass
+
 
 class Publication(models.Model):
-
+    """Represents a publication of a digital surface twin."""
     LICENSE_CHOICES = [(k, settings.CC_LICENSE_INFOS[k]['option_name'])
                        for k in ['cc0-1.0', 'ccby-4.0', 'ccbysa-4.0']]
 
@@ -43,7 +45,8 @@ class Publication(models.Model):
     license = models.CharField(max_length=12, choices=LICENSE_CHOICES, blank=False, default='')
     authors_json = models.JSONField(default=list)
     container = models.FileField(max_length=50, default='')
-    doi = models.CharField(max_length=50, null=True)  # if null, the DOI has not been generated yet
+    doi_name = models.CharField(max_length=50, null=True)  # part of DOI which starts with 10.
+    # if null, the DOI has not been generated yet
 
     def get_authors_string(self):
         """Return author names as comma-separated string in correct order.
@@ -59,18 +62,18 @@ class Publication(models.Model):
     def get_citation(self, flavor, request):
         if flavor not in CITATION_FORMAT_FLAVORS:
             raise UnknownCitationFormat(flavor)
-        method_name = '_get_citation_as_'+flavor
+        method_name = '_get_citation_as_' + flavor
         return getattr(self, method_name)(request)
 
     def _get_citation_as_html(self, request):
         s = '{authors}. ({year}). contact.engineering. <em>{surface.name} (Version {version})</em>.'
         s += ' <a href="{publication_url}">{publication_url}</a>'
         s = s.format(
-            authors=self.authors,
+            authors=self.get_authors_string(),
             year=self.datetime.year,
             version=self.version,
             surface=self.surface,
-            publication_url=self.get_full_url(request),
+            publication_url=self.doi_url,
         )
         return mark_safe(s)
 
@@ -90,12 +93,12 @@ class Publication(models.Model):
         # Title
         add('TI', f"{self.surface.name} (Version {self.version})")
         # Authors
-        for author in self.authors.split(','):
+        for author in self.get_authors_string().split(','):
             add('AU', author.strip())
         # Publication Year
         add('PY', format(self.datetime, '%Y/%m/%d/'))
         # URL
-        add('UR', self.get_full_url(request))
+        add('UR', self.doi_url)
         # Name of Database
         add('DB', 'contact.engineering')
 
@@ -116,10 +119,10 @@ class Publication(models.Model):
     def _get_citation_as_bibtex(self, request):
 
         title = f"{self.surface.name} (Version {self.version})"
-        shortname = f"{self.surface.name}_v{self.version}".lower().replace(' ','_')
+        shortname = f"{self.surface.name}_v{self.version}".lower().replace(' ', '_')
         keywords = ",".join(DEFAULT_KEYWORDS)
-        if self.surface.tags.count()>0:
-            keywords += ","+",".join(t.name for t in self.surface.tags.all())
+        if self.surface.tags.count() > 0:
+            keywords += "," + ",".join(t.name for t in self.surface.tags.all())
 
         s = """
         @misc{{
@@ -132,22 +135,22 @@ class Publication(models.Model):
             howpublished = {{{publication_url}}},
         }}
         """.format(title=title,
-                   author=self.authors.replace(', ', ' and '),
+                   author=self.get_authors_string().replace(', ', ' and '),
                    year=self.datetime.year,
                    note=self.surface.description,
-                   publication_url=self.get_full_url(request),
+                   publication_url=self.doi_url,
                    keywords=keywords,
                    shortname=shortname,
-        )
+                   )
 
         return s.strip()
 
     def _get_citation_as_biblatex(self, request):
 
-        shortname = f"{self.surface.name}_v{self.version}".lower().replace(' ','_')
+        shortname = f"{self.surface.name}_v{self.version}".lower().replace(' ', '_')
         keywords = ",".join(DEFAULT_KEYWORDS)
-        if self.surface.tags.count()>0:
-            keywords += ","+",".join(t.name for t in self.surface.tags.all())
+        if self.surface.tags.count() > 0:
+            keywords += "," + ",".join(t.name for t in self.surface.tags.all())
 
         s = """
         @online{{
@@ -165,16 +168,16 @@ class Publication(models.Model):
         }}
         """.format(title=self.surface.name,
                    version=self.version,
-                   author=self.authors.replace(', ', ' and '),
+                   author=self.get_authors_string().replace(', ', ' and '),
                    year=self.datetime.year,
                    month=self.datetime.month,
                    date=format(self.datetime, "%Y-%m-%d"),
                    note=self.surface.description,
-                   url=self.get_full_url(request),
+                   url=self.doi_url,
                    urldate=format(timezone.now(), "%Y-%m-%d"),
                    keywords=keywords,
                    shortname=shortname,
-        )
+                   )
 
         return s.strip()
 
@@ -193,3 +196,157 @@ class Publication(models.Model):
         """Return relative path of container in storage."""
         return f"{self.storage_prefix}container.zip"
 
+    @property
+    def doi_url(self):
+        return f"https://doi.org/{self.doi_name}" if self.doi_name else None
+
+    def create_doi(self):
+        """Create DOI at datacite using available information.
+
+        Raises
+
+            DOICreationException
+        """
+
+        # "DOI name" is created from prefix and suffix, like this: <doi_prefix>/<doi_suffix>
+        doi_suffix = "ce-" + self.short_url
+        doi_name = settings.PUBLICATION_DOI_PREFIX + "/" + doi_suffix
+
+        license_infos = settings.CC_LICENSE_INFOS[self.license]
+
+        data = {
+            #
+            # Mandatory
+            # ---------
+            #
+            # Identifier
+            'identifiers': [
+                {  # plural! See Issue 70
+                    'identifierType': 'DOI',
+                    'identifier': doi_name,
+                }
+            ],
+            # Creator
+            'creators': [
+                {
+                    'name': f"{author['last_name']}, {author['first_name']}",
+                    'nameType': 'Personal',
+                    'givenName': author['first_name'],
+                    'familyName': author['last_name'],
+                    'affiliation': [
+                        {
+                            'name': aff['name'],
+                            'schemeUri': "https://ror.org/",
+                            'affiliationIdentifier': f"https://ror.org/{aff['ror_id']}",  # TODO leave out if no ROR id
+                            'affiliationIdentifierScheme': "ROR",
+                        }
+                        for aff in author['affiliations']
+                    ],
+                    'nameIdentifiers': [
+                        {
+                            'schemeUri': "https://orcid.org",
+                            'nameIdentifierScheme': 'ORCID',
+                            'nameIdentifier': f"https://orcid.org/{author['orcid_id']}"  # TODO leave out if no orcid_id
+                        }
+                    ]
+                } for author in self.authors_json
+            ],
+            # Title
+            'titles': [
+                {'title': self.surface.name, }
+            ],
+            # Publisher
+            'publisher': 'contact.engineering',
+            # PublicationYear
+            'publicationYear': str(self.datetime.year),
+            # ResourceType
+            'types': {
+                'resourceType': 'Dataset',
+                'resourceTypeGeneral': 'Dataset'
+            },
+            #
+            # Recommended or Optional
+            # -----------------------
+            #
+            # # Subject
+            'subjects': [
+                {
+                    "subject": "FOS: Materials engineering",
+                    "valueUri": "http://www.oecd.org/science/inno/38235147.pdf",
+                    "schemeUri": "http://www.oecd.org/science/inno",
+                    "subjectScheme": "Fields of Science and Technology (FOS)"
+                },  # included in result JSON
+            ],
+            # # Contributor
+            # # Date
+            'dates': [
+                {
+                    'dateType': 'Submitted',
+                    'date': self.datetime.isoformat()
+                }  # included in result JSON
+            ],
+            # # Language
+            # # AlternateIdentifier
+            # # RelatedIdentifier
+            # # Size
+            # # Format
+            # # Version
+            'version': str(self.version),
+            # # Rights
+            'rightsList': [
+                {
+                    'rightsURI': license_infos['legal_code_url'],
+                    'rightsIdentifier': license_infos['spdx_identifier'],
+                    'rightsIdentifierSchema': 'SPDX',
+                    'schemeURI': 'https://spdx.org/licenses'
+                },
+            ],
+            # # Description
+            'descriptions': [
+                {
+                    # 'lang': 'en',  # key lang doesn't exist in version 4.2
+                    'descriptionType': 'Abstract',
+                    'description': self.surface.description,
+                },  # missing in result
+            ],
+            # # GeoLocation
+            # # FundingReference
+            # #
+            # # Other (not based on schema 4.2)
+            # # -------------------------------
+            # # Is the following needed? Since it referes to the schema, this key is not part of the schema
+            'schemaVersion': 'http://datacite.org/schema/kernel-4',
+            # 'url': "https://contact.engineering/go/btpax",
+            # 'doi': "10.82035/ce-btpax"
+        }
+
+        if not schema42.validate(data):
+            raise DOICreationException("Given data does not validate according to DataCite Schema 4.22!")
+
+        client_kwargs = dict(
+            username=settings.DATACITE_USERNAME,
+            password=settings.DATACITE_PASSWORD,
+            prefix=settings.PUBLICATION_DOI_PREFIX,  # TODO this also datacite specific?!
+            url=settings.DATACITE_API_URL
+        )
+
+        try:
+            rest_client = DataCiteRESTClient(**client_kwargs)
+
+            # That works for draft doi
+            rest_client.draft_doi(data, doi=doi_name)
+        except DataCiteError as exc:
+            raise DOICreationException(f"DOI creation failed, reason: {exc}") from exc
+
+        # Finally set DOI name
+        self.doi_name = doi_name
+        self.save()
+
+        # url for resolving the doi can only be given for private or public doi
+        # rest_client.public_doi(metadata, url, doi=None)
+
+        # Set URL afterwards, works if url in metadata, explicit url is possible (should be used!)
+        # rest_client.update_doi(doi, metadata)
+
+        # There is also
+        #   rest_client.update_url(doi, url)
