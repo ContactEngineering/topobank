@@ -2,6 +2,8 @@ from django.db import models
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.safestring import mark_safe
+from django.utils.http import quote
+from django.http.request import urljoin
 from django.conf import settings
 
 from datacite import schema42, DataCiteRESTClient
@@ -33,6 +35,11 @@ class Publication(models.Model):
     """Represents a publication of a digital surface twin."""
     LICENSE_CHOICES = [(k, settings.CC_LICENSE_INFOS[k]['option_name'])
                        for k in ['cc0-1.0', 'ccby-4.0', 'ccbysa-4.0']]
+    DOI_STATE_DRAFT = 'draft'
+    DOI_STATE_REGISTERED = 'registered'
+    DOI_STATE_FINDABLE = 'findable'
+    DOI_STATE_CHOICES = [ (k, settings.PUBLICATION_DOI_STATE_INFOS[k]['description'])
+                           for k in [DOI_STATE_DRAFT, DOI_STATE_REGISTERED, DOI_STATE_FINDABLE]]
 
     short_url = models.CharField(max_length=10, unique=True, null=True)
     surface = models.OneToOneField("manager.Surface", on_delete=models.PROTECT, related_name='publication')
@@ -47,6 +54,7 @@ class Publication(models.Model):
     container = models.FileField(max_length=50, default='')
     doi_name = models.CharField(max_length=50, null=True)  # part of DOI which starts with 10.
     # if null, the DOI has not been generated yet
+    doi_state = models.CharField(max_length=10, choices=DOI_STATE_CHOICES, null=True)
 
     def get_authors_string(self):
         """Return author names as comma-separated string in correct order.
@@ -56,8 +64,8 @@ class Publication(models.Model):
     def get_absolute_url(self):
         return reverse('publication:go', args=[self.short_url])
 
-    def get_full_url(self, request):
-        return request.build_absolute_uri(self.get_absolute_url())
+    def get_full_url(self):
+        return urljoin(settings.PUBLICATION_URL_PREFIX, self.short_url)
 
     def get_citation(self, flavor, request):
         if flavor not in CITATION_FORMAT_FLAVORS:
@@ -198,7 +206,15 @@ class Publication(models.Model):
 
     @property
     def doi_url(self):
-        return f"https://doi.org/{self.doi_name}" if self.doi_name else None
+        """Return DOI as URL string or return None if DOI hasn't been generated yet."""
+        # This depends on in which state the DOI -
+        # this is useful in development of DOIs are in "draft" mode
+        if self.doi_name is None:
+            return None
+        elif self.doi_state == Publication.DOI_STATE_DRAFT:
+            return urljoin("https://doi.test.datacite.org/dois/", quote(self.doi_name, safe=''))
+        else:
+            return(f"https://doi.org/{self.doi_name}")  # here we keep the slash
 
     def create_doi(self):
         """Create DOI at datacite using available information.
@@ -214,6 +230,51 @@ class Publication(models.Model):
 
         license_infos = settings.CC_LICENSE_INFOS[self.license]
 
+        creators = []
+        for author in self.authors_json:
+            creator = {
+                'name': f"{author['last_name']}, {author['first_name']}",
+                'nameType': 'Personal',
+                'givenName': author['first_name'],
+                'familyName': author['last_name'],
+
+
+            }
+
+            #
+            # Add affiliations, leave out ROR if not given
+            #
+            creator_affiliations = []
+            for aff in author['affiliations']:
+                creator_aff = {
+                    'name': aff['name']
+                }
+                if aff['ror_id']:
+                    creator_aff.update(
+                        {
+                            'schemeUri': "https://ror.org/",
+                            'affiliationIdentifier': f"https://ror.org/{aff['ror_id']}",
+                            'affiliationIdentifierScheme': "ROR",
+                        })
+                creator_affiliations.append(creator_aff)
+            creator['affiliation'] = creator_affiliations
+
+            if author['orcid_id']:
+                creator.update({
+                    'nameIdentifiers': [
+                        {
+                            'schemeUri': "https://orcid.org",
+                            'nameIdentifierScheme': 'ORCID',
+                            'nameIdentifier': f"https://orcid.org/{author['orcid_id']}"  # TODO leave out if no orcid_id
+                        }
+                    ]
+                })
+            creators.append(creator)
+
+
+        #
+        # Now construct the full dataset using the creators
+        #
         data = {
             #
             # Mandatory
@@ -227,30 +288,7 @@ class Publication(models.Model):
                 }
             ],
             # Creator
-            'creators': [
-                {
-                    'name': f"{author['last_name']}, {author['first_name']}",
-                    'nameType': 'Personal',
-                    'givenName': author['first_name'],
-                    'familyName': author['last_name'],
-                    'affiliation': [
-                        {
-                            'name': aff['name'],
-                            'schemeUri': "https://ror.org/",
-                            'affiliationIdentifier': f"https://ror.org/{aff['ror_id']}",  # TODO leave out if no ROR id
-                            'affiliationIdentifierScheme': "ROR",
-                        }
-                        for aff in author['affiliations']
-                    ],
-                    'nameIdentifiers': [
-                        {
-                            'schemeUri': "https://orcid.org",
-                            'nameIdentifierScheme': 'ORCID',
-                            'nameIdentifier': f"https://orcid.org/{author['orcid_id']}"  # TODO leave out if no orcid_id
-                        }
-                    ]
-                } for author in self.authors_json
-            ],
+            'creators': creators,
             # Title
             'titles': [
                 {'title': self.surface.name, }
@@ -326,27 +364,30 @@ class Publication(models.Model):
         client_kwargs = dict(
             username=settings.DATACITE_USERNAME,
             password=settings.DATACITE_PASSWORD,
-            prefix=settings.PUBLICATION_DOI_PREFIX,  # TODO this also datacite specific?!
+            prefix=settings.PUBLICATION_DOI_PREFIX,
             url=settings.DATACITE_API_URL
         )
 
+        requested_doi_state = settings.PUBLICATION_DOI_STATE
         try:
             rest_client = DataCiteRESTClient(**client_kwargs)
+            pub_full_url = self.get_full_url()
 
-            # That works for draft doi
-            rest_client.draft_doi(data, doi=doi_name)
+            if requested_doi_state == Publication.DOI_STATE_DRAFT:
+                rest_client.draft_doi(data, doi=doi_name)
+                rest_client.update_url(doi=doi_name, url=pub_full_url)
+            elif requested_doi_state == Publication.DOI_STATE_REGISTERED:
+                rest_client.private_doi(data, url=pub_full_url, doi=doi_name)
+            elif requested_doi_state == Publication.DOI_STATE_FINDABLE:
+                rest_client.public_doi(data, url=pub_full_url, doi=doi_name)
+            else:
+                raise DataCiteError(f"Requested DOI state {requested_doi_state} is unknown.")
         except DataCiteError as exc:
             raise DOICreationException(f"DOI creation failed, reason: {exc}") from exc
 
-        # Finally set DOI name
+        #
+        # Finally, set DOI name and state
+        #
         self.doi_name = doi_name
+        self.doi_state = settings.PUBLICATION_DOI_STATE
         self.save()
-
-        # url for resolving the doi can only be given for private or public doi
-        # rest_client.public_doi(metadata, url, doi=None)
-
-        # Set URL afterwards, works if url in metadata, explicit url is possible (should be used!)
-        # rest_client.update_doi(doi, metadata)
-
-        # There is also
-        #   rest_client.update_url(doi, url)

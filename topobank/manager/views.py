@@ -44,8 +44,8 @@ from celery import chain
 
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm
 from .forms import TopographyForm, SurfaceForm, SurfaceShareForm, SurfacePublishForm
-from .models import Topography, Surface, TagModel, NewPublicationTooFastException, LoadTopographyException, \
-    PlotTopographyException, user_directory_path
+from .models import Topography, Surface, TagModel, NewPublicationTooFastException, PublicationException, \
+    LoadTopographyException, PlotTopographyException, user_directory_path
 from .serializers import SurfaceSerializer, TagSerializer
 from .utils import selected_instances, bandwidths_data, get_topography_reader, tags_for_user, get_reader_infos, \
     mailto_link_for_reporting_an_error, current_selection_as_basket_items, filtered_surfaces, \
@@ -1305,6 +1305,9 @@ class SurfacePublishView(FormView):
         except NewPublicationTooFastException as exc:
             return redirect("manager:surface-publication-rate-too-high",
                             pk=surface.pk)
+        except PublicationException as exc:
+            return redirect("manager:surface-publication-rate-too-high",
+                            pk=surface.pk)
 
         return super().form_valid(form)
 
@@ -1369,6 +1372,35 @@ class PublicationRateTooHighView(TemplateView):
             }
         ]
         return context
+
+
+class PublicationErrorView(TemplateView):
+    template_name = "manager/publication_error.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        surface_pk = self.kwargs['pk']
+        surface = Surface.objects.get(pk=surface_pk)
+
+        context['extra_tabs'] = [
+            {
+                'title': f"{surface.label}",
+                'icon': "gem",
+                'icon_style_prefix': 'far',
+                'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
+                'active': False,
+                'tooltip': f"Properties of surface '{surface.label}'"
+            },
+            {
+                'title': f"Publication error",
+                'icon': "flash",
+                'href': self.request.path,
+                'active': True,
+            }
+        ]
+        return context
+
 
 
 class SharingInfoTable(tables.Table):

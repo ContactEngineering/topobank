@@ -1,7 +1,7 @@
 """
 Base settings to build other settings files upon.
 """
-
+from django.core.exceptions import ImproperlyConfigured
 import environ
 import topobank
 
@@ -530,11 +530,26 @@ CONTACT_MECHANICS_KWARGS_LIMITS = {
 #
 # Datacite settings (DOI creation)
 #
+PUBLICATION_DOI_STATE_INFOS = {
+    'draft': {
+        'description': 'only visible in Fabrica, DOI can be deleted',
+    },
+    'registered': {
+        'description': 'registered with the DOI Resolver, cannot be deleted',
+    },
+    'findable': {
+        'description': 'registered with the DOI Resolver and indexed in DataCite Search, cannot be deleted',
+    }
+}
+
 PUBLICATION_DOI_MANDATORY = env.bool('PUBLICATION_DOI_MANDATORY', default=False)
 
 if PUBLICATION_DOI_MANDATORY:
+    PUBLICATION_URL_PREFIX = env.str('PUBLICATION_URL_PREFIX', 'https://contact.engineering/go/')
     PUBLICATION_DOI_PREFIX = env.str('PUBLICATION_DOI_PREFIX')
     DATACITE_USERNAME = env.str('DATACITE_USERNAME')
     DATACITE_PASSWORD = env.str('DATACITE_PASSWORD')
-    DATACITE_API_URL = env.url('DATACITE_API_URL', default='https://api.test.datacite.org')
-
+    DATACITE_API_URL = env.str('DATACITE_API_URL', default='https://api.test.datacite.org')
+    PUBLICATION_DOI_STATE = env.str('PUBLICATION_DOI_STATE', default='draft')
+    if PUBLICATION_DOI_STATE not in PUBLICATION_DOI_STATE_INFOS.keys():
+        raise ImproperlyConfigured(f"Undefined state given for a publication DOI: {PUBLICATION_DOI_STATE}")

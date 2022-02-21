@@ -215,7 +215,7 @@
                   <label v-bind:for="'author_'+author_idx+'_orcid_id'">ORCID ID (optional)</label>
                   <div class="input-group">
                   <input v-bind:id="'author_'+author_idx+'_orcid_id'" class="form-control" type="text"
-                   v-validate="{ required: false, regex: /[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{4}/ }"
+                   v-validate="{ required: false, regex: /[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]/ }"
                    v-bind:name="'author_'+author_idx+'_orcid_id'"
                    placeholder="xxxx-xxxx-xxxx-xxxx"
                    v-model.trim="author.orcid_id">
@@ -444,6 +444,18 @@
      }
    });
 
+  // We want custom error messages
+  VeeValidate.configure({
+   generateMessage: (context) => {
+    const messages = {
+
+    }
+    const message = messages[context.rule.name]
+      ? messages[context.rule.name]
+      : `The field ${context.field} is invalid!`;
+    return message;
+   }
+  });
   </script>
 {% endblock javascript %}
 

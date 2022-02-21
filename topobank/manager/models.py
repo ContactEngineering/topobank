@@ -4,6 +4,7 @@ Basic models for the web app for handling topography data.
 
 import sys
 
+import datacite.errors
 from django.db import models
 from django.shortcuts import reverse
 from django.utils import timezone
@@ -211,7 +212,7 @@ class Surface(models.Model, SubjectMixin):
              }
         if self.is_published:
             d['publication'] = {
-                'url': self.publication.get_full_url(request) if request else self.publication.get_absolute_url(),
+                'url': self.publication.get_full_url(),
                 'license': self.publication.get_license_display(),
                 'authors': self.publication.authors,
                 'version': self.publication.version,

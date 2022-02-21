@@ -805,8 +805,9 @@ class SurfacePublishForm(forms.Form):
                     raise forms.ValidationError("First name must be given for each author.")
                 if a['last_name'] == '':
                     raise forms.ValidationError("Last name must be given for each author.")
-                if a['orcid_id'] != '' and not re.match('\d{4}-\d{4}-\d{4}-\d{4}', a['orcid_id']):
-                    raise forms.ValidationError("ORCID ID must match pattern xxxx-xxxx-xxxx-xxxx, where x is a digit.")
+                if a['orcid_id'] != '' and not re.match('\d{4}-\d{4}-\d{4}-\d{3}[0-9X]', a['orcid_id']):
+                    raise forms.ValidationError("ORCID ID must match pattern xxxx-xxxx-xxxx-xxxy, where x is a digit "
+                                                "and y a digit or the capital letter X.")
 
                 new_affs = []
                 for aff in a['affiliations']:

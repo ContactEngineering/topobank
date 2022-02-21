@@ -37,8 +37,14 @@ DATACITE_USERNAME=<replace with your DataCite username>
 DATACITE_PASSWORD=<replace with your DataCite password>
 DATACITE_API_URL=https://api.test.datacite.org
 # Test mode: https://api.test.datacite.org
-# Real: https://api.datacite.org
+# Production mode: https://api.datacite.org
 
+PUBLICATION_DOI_STATE=draft
+# Choose one of 'draft', 'registered', 'findable'
+# Please keep in mind that only 'draft' DOIs are deletable.
+# For production, use 'findable', if the DOIs should be public.
+
+# PUBLICATION_URL_PREFIX=https://contact.engineering/go/
 PUBLICATION_DOI_PREFIX=<replace with your DOI prefix registered at DATACITE>
 PUBLICATION_DOI_MANDATORY=False
 
