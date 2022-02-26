@@ -2,7 +2,6 @@ from django.core.management.base import BaseCommand
 import logging
 
 from topobank.manager.models import Topography
-from topobank.manager.utils import get_firefox_webdriver
 from topobank.taskapp.tasks import renew_topography_images
 
 _log = logging.getLogger(__name__)
@@ -32,8 +31,6 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-
-        driver = get_firefox_webdriver()
         num_failed = 0
         num_okay = 0
         num_background = 0
@@ -50,7 +47,7 @@ class Command(BaseCommand):
                         renew_topography_images.delay(topo.id)
                         num_background += 1
                     else:
-                        topo.renew_images(driver=driver)
+                        topo.renew_images()
                         num_okay += 1
                 except Exception as exc:
                     _log.warning(f"Cannot create images for topography {topo.id}, reason: {exc}")
