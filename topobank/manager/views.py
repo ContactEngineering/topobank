@@ -28,6 +28,7 @@ from django.views.generic import DetailView, UpdateView, CreateView, DeleteView,
 from django.views.generic.edit import FormMixin
 from django_tables2 import RequestConfig
 from django.contrib.staticfiles.storage import staticfiles_storage
+from django.contrib import messages
 
 from formtools.wizard.views import SessionWizardView
 from guardian.decorators import permission_required_or_403
@@ -1213,7 +1214,7 @@ class PublicationsTable(tables.Table):
     license = tables.Column(verbose_name="License")
     datetime = tables.Column(verbose_name="Publication Date")
     version = tables.Column(verbose_name="Version")
-    doi_url = tables.URLColumn(verbose_name="DOI")
+    # doi_url = tables.URLColumn(verbose_name="DOI")
 
     def render_publication(self, value):
         return value.surface.name
@@ -1252,7 +1253,7 @@ class PublicationListView(ListView):
                 'license': pub.license,
                 'datetime': pub.datetime,
                 'version': pub.version,
-                'doi_url': pub.doi_url,
+                # 'doi_url': pub.doi_url,
             } for pub in self.get_queryset()
         ]
 
@@ -1306,7 +1307,10 @@ class SurfacePublishView(FormView):
             return redirect("manager:surface-publication-rate-too-high",
                             pk=surface.pk)
         except PublicationException as exc:
-            return redirect("manager:surface-publication-rate-too-high",
+            msg = f"Publication failed, reason: {exc}"
+            _log.error(msg)
+            messages.error(self.request, msg)
+            return redirect("manager:surface-publication-error",
                             pk=surface.pk)
 
         return super().form_valid(form)

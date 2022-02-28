@@ -542,14 +542,23 @@ PUBLICATION_DOI_STATE_INFOS = {
     }
 }
 
+# Set this to True if each publication must get a DOI on creation
 PUBLICATION_DOI_MANDATORY = env.bool('PUBLICATION_DOI_MANDATORY', default=False)
 
-if PUBLICATION_DOI_MANDATORY:
-    PUBLICATION_URL_PREFIX = env.str('PUBLICATION_URL_PREFIX', 'https://contact.engineering/go/')
-    PUBLICATION_DOI_PREFIX = env.str('PUBLICATION_DOI_PREFIX')
-    DATACITE_USERNAME = env.str('DATACITE_USERNAME')
-    DATACITE_PASSWORD = env.str('DATACITE_PASSWORD')
-    DATACITE_API_URL = env.str('DATACITE_API_URL', default='https://api.test.datacite.org')
-    PUBLICATION_DOI_STATE = env.str('PUBLICATION_DOI_STATE', default='draft')
-    if PUBLICATION_DOI_STATE not in PUBLICATION_DOI_STATE_INFOS.keys():
-        raise ImproperlyConfigured(f"Undefined state given for a publication DOI: {PUBLICATION_DOI_STATE}")
+# Prefix of the URL each DOI refers to, the short url of the publication is added
+PUBLICATION_URL_PREFIX = env.str('PUBLICATION_URL_PREFIX', 'https://contact.engineering/go/')
+
+# Prefix of the DOI to be generated, e.g. '10.82035'
+PUBLICATION_DOI_PREFIX = env.str('PUBLICATION_DOI_PREFIX')
+
+# These are the credentials for DataCite
+DATACITE_USERNAME = env.str('DATACITE_USERNAME')
+DATACITE_PASSWORD = env.str('DATACITE_PASSWORD')
+
+# URL of the API, there is one for test and one for production
+DATACITE_API_URL = env.str('DATACITE_API_URL', default='https://api.test.datacite.org')
+
+# The desired state of the DOI: draft, registered or findable - only draft DOIs can be deleted
+PUBLICATION_DOI_STATE = env.str('PUBLICATION_DOI_STATE', default='draft')
+if PUBLICATION_DOI_STATE not in PUBLICATION_DOI_STATE_INFOS.keys():
+    raise ImproperlyConfigured(f"Undefined state given for a publication DOI: {PUBLICATION_DOI_STATE}")

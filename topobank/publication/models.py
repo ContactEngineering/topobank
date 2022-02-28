@@ -11,6 +11,11 @@ from datacite.errors import DataCiteError
 
 from topobank.users.models import User
 
+import logging
+
+
+_log = logging.getLogger(__name__)
+
 MAX_LEN_AUTHORS_FIELD = 512
 
 CITATION_FORMAT_FLAVORS = ['html', 'ris', 'bibtex', 'biblatex']
@@ -52,9 +57,9 @@ class Publication(models.Model):
     license = models.CharField(max_length=12, choices=LICENSE_CHOICES, blank=False, default='')
     authors_json = models.JSONField(default=list)
     container = models.FileField(max_length=50, default='')
-    doi_name = models.CharField(max_length=50, null=True)  # part of DOI which starts with 10.
-    # if null, the DOI has not been generated yet
-    doi_state = models.CharField(max_length=10, choices=DOI_STATE_CHOICES, null=True)
+    doi_name = models.CharField(max_length=50)  # part of DOI which starts with 10.
+    # if empty, the DOI has not been generated yet
+    doi_state = models.CharField(max_length=10, choices=DOI_STATE_CHOICES)
 
     def get_authors_string(self):
         """Return author names as comma-separated string in correct order.
@@ -81,7 +86,7 @@ class Publication(models.Model):
             year=self.datetime.year,
             version=self.version,
             surface=self.surface,
-            publication_url=self.doi_url,
+            publication_url=self.get_full_url(),
         )
         return mark_safe(s)
 
@@ -106,7 +111,7 @@ class Publication(models.Model):
         # Publication Year
         add('PY', format(self.datetime, '%Y/%m/%d/'))
         # URL
-        add('UR', self.doi_url)
+        add('UR', self.get_full_url())
         # Name of Database
         add('DB', 'contact.engineering')
 
@@ -146,7 +151,7 @@ class Publication(models.Model):
                    author=self.get_authors_string().replace(', ', ' and '),
                    year=self.datetime.year,
                    note=self.surface.description,
-                   publication_url=self.doi_url,
+                   publication_url=self.get_full_url(),
                    keywords=keywords,
                    shortname=shortname,
                    )
@@ -181,7 +186,7 @@ class Publication(models.Model):
                    month=self.datetime.month,
                    date=format(self.datetime, "%Y-%m-%d"),
                    note=self.surface.description,
-                   url=self.doi_url,
+                   url=self.get_full_url(),
                    urldate=format(timezone.now(), "%Y-%m-%d"),
                    keywords=keywords,
                    shortname=shortname,
@@ -209,19 +214,28 @@ class Publication(models.Model):
         """Return DOI as URL string or return None if DOI hasn't been generated yet."""
         # This depends on in which state the DOI -
         # this is useful in development of DOIs are in "draft" mode
-        if self.doi_name is None:
+        if self.doi_name == '':
             return None
         elif self.doi_state == Publication.DOI_STATE_DRAFT:
             return urljoin("https://doi.test.datacite.org/dois/", quote(self.doi_name, safe=''))
         else:
             return(f"https://doi.org/{self.doi_name}")  # here we keep the slash
 
-    def create_doi(self):
+    def create_doi(self, force_draft=False):
         """Create DOI at datacite using available information.
 
-        Raises
+        Parameters
+        ----------
+        force_draft: bool
+            If True, the DOI state will be 'draft' and can be deleted later.
+            If False, the system settings will be used, which could be either
+            'draft', 'registered', or 'findable'. The later two cannot be
+            deleted.
 
-            DOICreationException
+        Raises
+        ------
+        DOICreationException
+            Is raised if DOI creation fails for some reason. The error message gives more details.
         """
 
         # "DOI name" is created from prefix and suffix, like this: <doi_prefix>/<doi_suffix>
@@ -237,8 +251,6 @@ class Publication(models.Model):
                 'nameType': 'Personal',
                 'givenName': author['first_name'],
                 'familyName': author['last_name'],
-
-
             }
 
             #
@@ -265,7 +277,7 @@ class Publication(models.Model):
                         {
                             'schemeUri': "https://orcid.org",
                             'nameIdentifierScheme': 'ORCID',
-                            'nameIdentifier': f"https://orcid.org/{author['orcid_id']}"  # TODO leave out if no orcid_id
+                            'nameIdentifier': f"https://orcid.org/{author['orcid_id']}"
                         }
                     ]
                 })
@@ -367,27 +379,37 @@ class Publication(models.Model):
             prefix=settings.PUBLICATION_DOI_PREFIX,
             url=settings.DATACITE_API_URL
         )
+        _log.info("Client args: %s", client_kwargs)
 
-        requested_doi_state = settings.PUBLICATION_DOI_STATE
+        requested_doi_state = Publication.DOI_STATE_DRAFT if force_draft else settings.PUBLICATION_DOI_STATE
         try:
             rest_client = DataCiteRESTClient(**client_kwargs)
             pub_full_url = self.get_full_url()
 
             if requested_doi_state == Publication.DOI_STATE_DRAFT:
+                _log.info(f"Creating draft DOI for publication '{self.short_url}' without URL link..")
                 rest_client.draft_doi(data, doi=doi_name)
+                _log.info(f"Linking draft DOI for publication '{self.short_url}' to URL {pub_full_url}..")
                 rest_client.update_url(doi=doi_name, url=pub_full_url)
             elif requested_doi_state == Publication.DOI_STATE_REGISTERED:
+                _log.info(f"Creating registered DOI for publication '{self.short_url}' linked to {pub_full_url}..")
                 rest_client.private_doi(data, url=pub_full_url, doi=doi_name)
             elif requested_doi_state == Publication.DOI_STATE_FINDABLE:
+                _log.info(f"Creating findable DOI for publication '{self.short_url}' linked to {pub_full_url}..")
                 rest_client.public_doi(data, url=pub_full_url, doi=doi_name)
             else:
                 raise DataCiteError(f"Requested DOI state {requested_doi_state} is unknown.")
+            _log.info("Done.")
         except DataCiteError as exc:
-            raise DOICreationException(f"DOI creation failed, reason: {exc}") from exc
+            msg = f"DOI creation failed, reason: {exc}"
+            _log.error(msg)
+            raise DOICreationException(msg) from exc
 
         #
         # Finally, set DOI name and state
         #
+        _log.info("Saving additional data to publication record..")
         self.doi_name = doi_name
-        self.doi_state = settings.PUBLICATION_DOI_STATE
+        self.doi_state = requested_doi_state
         self.save()
+        _log.info(f"Done creating DOI for publication '{self.short_url}'.")

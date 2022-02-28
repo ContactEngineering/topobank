@@ -11,6 +11,7 @@
       <env name="DJANGO_DEBUG" value="True" />
       <env name="FIREFOX_BINARY_PATH" value="/usr/lib/firefox/firefox" />
       <env name="GECKODRIVER_PATH" value="/usr/bin/geckodriver" />
+      <env name="PUBLICATION_DOI_MANDATORY" value="False" />
     </envs>
     <option name="SDK_HOME" value="" />
     <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />

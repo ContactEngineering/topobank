@@ -106,7 +106,33 @@ def example_pub():
 
     user = UserFactory()
 
-    authors = "Alice, Bob"
+    authors = [
+            {
+                'first_name': 'Hermoine',
+                'last_name': 'Granger',
+                'orcid_id': '9999-9999-9999-999X',
+                'affiliations': [
+                    {
+                        'name': 'Hogwarts'
+                    }
+                ]
+            },
+            {'first_name': 'Harry',
+             'last_name': 'Potter',
+             'orcid_id': '9999-9999-9999-9999',
+             'affiliations': [
+                 {
+                     'name': 'University of Freiburg',
+                     'ror_id': '0245cg223'
+                 },
+                 {
+                     'name': 'Hogwarts'
+                 }
+             ]
+             },
+        ]
+
+
     publication_date = datetime.date(2020, 1, 1)
     description = "This is a nice surface for testing."
     name = "Diamond Structure"

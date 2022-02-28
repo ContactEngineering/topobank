@@ -34,7 +34,8 @@ ORCID_SECRET=<replace with your secret from ORCID>
 # DataCite settings (DOI creation)
 # ------------------------------------------------------------------------------
 DATACITE_USERNAME=<replace with your DataCite username>
-DATACITE_PASSWORD=<replace with your DataCite password>
+DATACITE_PASSWORD='<replace with your DataCite password>'
+# use quotes around the password, otherwise this can create problems on a shell
 DATACITE_API_URL=https://api.test.datacite.org
 # Test mode: https://api.test.datacite.org
 # Production mode: https://api.datacite.org

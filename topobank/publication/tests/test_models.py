@@ -15,8 +15,8 @@ def test_citation_html(rf, example_pub):
     request = rf.get(example_pub.get_absolute_url())
 
     exp_html = """
-    Alice, Bob. (2020). contact.engineering. <em>Diamond Structure (Version 1)</em>. <a href="{url}">{url}</a>
-    """.format(url=example_pub.get_full_url(request)).strip()
+    Hermoine Granger, Harry Potter. (2020). contact.engineering. <em>Diamond Structure (Version 1)</em>. <a href="{url}">{url}</a>
+    """.format(url=example_pub.get_full_url()).strip()
 
     result_html = example_pub.get_citation('html', request).strip()
 
@@ -31,8 +31,8 @@ def test_citation_ris(rf, example_pub):
     exp_ris = """
 TY  - ELEC
 TI  - Diamond Structure (Version 1)
-AU  - Alice
-AU  - Bob
+AU  - Hermoine Granger
+AU  - Harry Potter
 PY  - 2020/01/01/
 UR  - {url}
 DB  - contact.engineering
@@ -41,7 +41,7 @@ KW  - surface
 KW  - topography
 KW  - diamond
 ER  -
-    """.format(url=example_pub.get_full_url(request)).strip()
+    """.format(url=example_pub.get_full_url()).strip()
 
     result_ris = example_pub.get_citation('ris', request).strip()
 
@@ -57,13 +57,13 @@ def test_citation_bibtex(rf, example_pub):
         @misc{{
             diamond_structure_v1,
             title  = {{Diamond Structure (Version 1)}},
-            author = {{Alice and Bob}},
+            author = {{Hermoine Granger and Harry Potter}},
             year   = {{2020}},
             note   = {{This is a nice surface for testing.}},
             keywords = {{surface,topography,diamond}},
             howpublished = {{{url}}},
         }}
-    """.format(url=example_pub.get_full_url(request)).strip()
+    """.format(url=example_pub.get_full_url()).strip()
 
     result_bibtex = example_pub.get_citation('bibtex', request).strip()
 
@@ -80,7 +80,7 @@ def test_citation_biblatex(rf, example_pub):
             diamond_structure_v1,
             title  = {{Diamond Structure}},
             version = {{1}},
-            author = {{Alice and Bob}},
+            author = {{Hermoine Granger and Harry Potter}},
             year   = {{2020}},
             month  = {{1}},
             date   = {{2020-01-01}},
@@ -88,7 +88,7 @@ def test_citation_biblatex(rf, example_pub):
             keywords = {{surface,topography,diamond}},
             url = {{{url}}},
             urldate = {{2020-10-01}}
-        }}""".format(url=example_pub.get_full_url(request)).strip()
+        }}""".format(url=example_pub.get_full_url()).strip()
 
     with freeze_time(datetime.date(2020, 10, 1)):
         result_biblatex = example_pub.get_citation('biblatex', request).strip()

@@ -214,7 +214,7 @@ class Surface(models.Model, SubjectMixin):
             d['publication'] = {
                 'url': self.publication.get_full_url(),
                 'license': self.publication.get_license_display(),
-                'authors': self.publication.authors,
+                'authors': self.publication.get_authors_string(),
                 'version': self.publication.version,
                 'date': str(self.publication.datetime.date()),
             }
@@ -367,7 +367,7 @@ class Surface(models.Model, SubjectMixin):
         # We limit the publication rate
         #
         min_seconds = settings.MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS
-        if latest_publication and (min_seconds is not None):
+        if (latest_publication is not None) and (min_seconds is not None):
             delta_since_last_pub = timezone.now() - latest_publication.datetime
             delta_secs = delta_since_last_pub.total_seconds()
             if delta_secs < min_seconds:
