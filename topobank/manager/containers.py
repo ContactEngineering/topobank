@@ -5,6 +5,7 @@ import zipfile
 import os.path
 import yaml
 import textwrap
+import json
 import logging
 
 from django.utils.timezone import now
@@ -151,7 +152,16 @@ def write_surface_container(file, surfaces, request=None):
                settings.TOPOBANK_VERSION))
 
     if len(publications) > 0:
+        #
+        # Add datacite_json
+        #
+        for pub in publications:
+            if pub.doi_name:
+                zf.writestr(f"other/datacite-{pub.short_url}.json", json.dumps(pub.datacite_json))
 
+        #
+        # Add license information to README
+        #
         licenses_used = set(pub.license for pub in publications)
         readme_txt += textwrap.dedent("""
         License information

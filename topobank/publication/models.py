@@ -56,10 +56,11 @@ class Publication(models.Model):
     datetime = models.DateTimeField(auto_now_add=True)
     license = models.CharField(max_length=12, choices=LICENSE_CHOICES, blank=False, default='')
     authors_json = models.JSONField(default=list)
+    datacite_json = models.JSONField(default=dict)
     container = models.FileField(max_length=50, default='')
-    doi_name = models.CharField(max_length=50)  # part of DOI which starts with 10.
+    doi_name = models.CharField(max_length=50, default='')  # part of DOI which starts with 10.
     # if empty, the DOI has not been generated yet
-    doi_state = models.CharField(max_length=10, choices=DOI_STATE_CHOICES)
+    doi_state = models.CharField(max_length=10, choices=DOI_STATE_CHOICES, default='')
 
     def get_authors_string(self):
         """Return author names as comma-separated string in correct order.
@@ -379,8 +380,6 @@ class Publication(models.Model):
             prefix=settings.PUBLICATION_DOI_PREFIX,
             url=settings.DATACITE_API_URL
         )
-        _log.info("Client args: %s", client_kwargs)
-
         requested_doi_state = Publication.DOI_STATE_DRAFT if force_draft else settings.PUBLICATION_DOI_STATE
         try:
             rest_client = DataCiteRESTClient(**client_kwargs)
@@ -411,5 +410,6 @@ class Publication(models.Model):
         _log.info("Saving additional data to publication record..")
         self.doi_name = doi_name
         self.doi_state = requested_doi_state
+        self.datacite_json = data
         self.save()
         _log.info(f"Done creating DOI for publication '{self.short_url}'.")
