@@ -484,7 +484,9 @@ CONTACT_EMAIL_ADDRESS = "support@contact.engineering"
 #
 # Publication settings
 #
-MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS = 600  # set to None to disable check
+# set to None to disable check
+MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS = env.int('MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS', 600)
+
 CC_LICENSE_INFOS = {  # each element refers to two links: (description URL, full license text URL)
     'cc0-1.0': {
         'description_url': 'https://creativecommons.org/publicdomain/zero/1.0/',
