@@ -129,6 +129,14 @@
     save_btn.val("Please wait...");
   }
 
+  function allow_new_submit() {
+    let save_btn = $('#submit-id-save');
+    let cancel_btn = $('#cancel-btn');
+    cancel_btn.show();
+    save_btn.attr("disabled", false);
+    save_btn.val("Submit again");
+  }
+
   /**
   * Component representing all author inputs
   */
