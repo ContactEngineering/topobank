@@ -285,13 +285,13 @@ def test_license_in_surface_download(client, license, handle_usage_statistics, e
 
 
 @pytest.mark.django_db
-def test_dont_show_published_surfaces_on_sharing_info(client):
+def test_dont_show_published_surfaces_on_sharing_info(client, example_authors):
     alice = UserFactory()
     bob = UserFactory()
     surface1 = SurfaceFactory(creator=alice, name="Shared Surface")
     surface1.share(bob)
     surface2 = SurfaceFactory(creator=alice, name="Published Surface")
-    surface2.publish('cc0-1.0', 'Alice')
+    surface2.publish('cc0-1.0', example_authors)
 
     #
     # Login as Bob, surface 1 should be listed on sharing info page
@@ -372,9 +372,9 @@ def test_publishing_unique_author_names():
     assert form.errors['__all__'] == ["Duplicate author given! Make sure authors differ in at least one field."]
 
 
-def test_publishing_wrong_license():
+def test_publishing_wrong_license(example_authors):
     form_data = {
-        'author_0': "Alice",
+        'authors_json': example_authors,
         'agreed': True,
         'copyright_hold': True,
         'license': 'fantasy',

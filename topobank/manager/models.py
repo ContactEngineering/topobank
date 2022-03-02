@@ -217,6 +217,8 @@ class Surface(models.Model, SubjectMixin):
                 'authors': self.publication.get_authors_string(),
                 'version': self.publication.version,
                 'date': str(self.publication.datetime.date()),
+                'doi_url': self.publication.doi_url or '',
+                'doi_state': self.publication.doi_state or '',
             }
         return d
 
