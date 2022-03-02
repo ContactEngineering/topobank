@@ -544,18 +544,18 @@ PUBLICATION_DOI_STATE_INFOS = {
     }
 }
 
-# Set this to True if each publication must get a DOI on creation
-PUBLICATION_DOI_MANDATORY = env.bool('PUBLICATION_DOI_MANDATORY', default=False)
-
 # Prefix of the URL each DOI refers to, the short url of the publication is added
 PUBLICATION_URL_PREFIX = env.str('PUBLICATION_URL_PREFIX', 'https://contact.engineering/go/')
 
+# Set this to True if each publication must get a DOI on creation
+PUBLICATION_DOI_MANDATORY = env.bool('PUBLICATION_DOI_MANDATORY', default=False)
+
 # Prefix of the DOI to be generated, e.g. '10.82035'
-PUBLICATION_DOI_PREFIX = env.str('PUBLICATION_DOI_PREFIX')
+PUBLICATION_DOI_PREFIX = env.str('PUBLICATION_DOI_PREFIX', '99.999')  # 99.999 is invalid, should start with '10.'
 
 # These are the credentials for DataCite
-DATACITE_USERNAME = env.str('DATACITE_USERNAME')
-DATACITE_PASSWORD = env.str('DATACITE_PASSWORD')
+DATACITE_USERNAME = env.str('DATACITE_USERNAME', 'testuser')
+DATACITE_PASSWORD = env.str('DATACITE_PASSWORD', 'testpassword')
 
 # URL of the API, there is one for test and one for production
 DATACITE_API_URL = env.str('DATACITE_API_URL', default='https://api.test.datacite.org')
@@ -564,3 +564,7 @@ DATACITE_API_URL = env.str('DATACITE_API_URL', default='https://api.test.datacit
 PUBLICATION_DOI_STATE = env.str('PUBLICATION_DOI_STATE', default='draft')
 if PUBLICATION_DOI_STATE not in PUBLICATION_DOI_STATE_INFOS.keys():
     raise ImproperlyConfigured(f"Undefined state given for a publication DOI: {PUBLICATION_DOI_STATE}")
+
+# Some limitations, so that bots cannot enter too much
+PUBLICATION_MAX_NUM_AUTHORS = 200
+PUBLICATION_MAX_NUM_AFFILIATIONS_PER_AUTHOR = 20

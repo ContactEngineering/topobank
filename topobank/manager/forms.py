@@ -4,6 +4,7 @@ from django.forms import forms, ModelMultipleChoiceField
 from django import forms
 from django_select2.forms import ModelSelect2MultipleWidget
 from django.contrib.postgres.forms import JSONField as JSONField4Form
+from django.conf import settings
 import bleach  # using bleach instead of django.utils.html.escape because it allows more (e.g. for markdown)
 
 from crispy_forms.helper import FormHelper
@@ -767,13 +768,6 @@ class SurfacePublishForm(forms.Form):
             css_class="alert alert-primary"),
     )
 
-    # def __init__(self, *args, **kwargs):
-    #     num_author_fields = kwargs.pop('num_author_fields', 1)
-    #     super().__init__(*args, **kwargs)
-    #
-    #     for i in range(num_author_fields):
-    #         self.fields[f'author_{i}'] = forms.CharField(required=False, label=f"{i + 1}. Author")
-
     def clean(self):
         cleaned_data = super().clean()
 
@@ -791,9 +785,12 @@ class SurfacePublishForm(forms.Form):
 
         authors = self.cleaned_data.get('authors_json')
 
-        if len(authors) == 0:
+        if (authors is None) or (len(authors) == 0):
             raise forms.ValidationError("At least one author must be given.")
 
+        if len(authors) > settings.PUBLICATION_MAX_NUM_AUTHORS:
+            raise forms.ValidationError(f"Too many authors given, at maximum {settings.PUBLICATION_MAX_NUM_AUTHORS}"
+                                        "allowed.")
         try:
             for a in authors:
                 for k in a.keys():
@@ -808,6 +805,11 @@ class SurfacePublishForm(forms.Form):
                 if a['orcid_id'] != '' and not re.match('\d{4}-\d{4}-\d{4}-\d{3}[0-9X]', a['orcid_id']):
                     raise forms.ValidationError("ORCID ID must match pattern xxxx-xxxx-xxxx-xxxy, where x is a digit "
                                                 "and y a digit or the capital letter X.")
+
+                if len(a['affiliations']) > settings.PUBLICATION_MAX_NUM_AFFILIATIONS_PER_AUTHOR:
+                    raise forms.ValidationError(
+                        f"Too many affiliations given, at maximum {settings.PUBLICATION_MAX_NUM_AFFILIATIONS_PER_AUTHOR}"
+                        "allowed per author.")
 
                 new_affs = []
                 for aff in a['affiliations']:
@@ -835,6 +837,15 @@ class SurfacePublishForm(forms.Form):
                                 f"Please specify a name for affiliation with ROR ID {aff['ror_id']}."
                             )
                 a['affiliations'] = new_affs
+
+            #
+            # Brute force search for duplicates
+            #
+            for a_idx, a in enumerate(authors):
+                for b in authors[a_idx+1:]:
+                    if a == b:
+                        raise forms.ValidationError("Duplicate author given! Make sure authors differ "
+                                                    "in at least one field.")
         except forms.ValidationError:
             raise
         except Exception as exc:

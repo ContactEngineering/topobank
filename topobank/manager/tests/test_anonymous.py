@@ -24,7 +24,7 @@ def test_anonymous_user_only_published_as_default(client):
 
 
 @pytest.mark.django_db
-def test_anonymous_user_can_see_published(client, handle_usage_statistics):
+def test_anonymous_user_can_see_published(client, handle_usage_statistics, example_authors):
     #
     # publish a surface
     #
@@ -32,7 +32,8 @@ def test_anonymous_user_can_see_published(client, handle_usage_statistics):
     surface_name = "Diamond Structure"
     surface = SurfaceFactory(creator=bob, name=surface_name)
     topo = Topography1DFactory(surface=surface)
-    pub = surface.publish('cc0-1.0', bob.name)
+
+    pub = surface.publish('cc0-1.0', example_authors)
 
     # no one is logged in now, assuming the select tab sends a search request
     response = client.get(reverse('manager:search'))

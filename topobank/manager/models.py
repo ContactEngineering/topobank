@@ -345,15 +345,15 @@ class Surface(models.Model, SubjectMixin):
         {
             'first_name': 'Melissa Kathrin'
             'last_name': 'Miller',
-            'orcid_id: '1234-1234-1234-1224',
+            'orcid_id': '1234-1234-1234-1224',
             'affiliations': [
                 {
                     'name': 'University of Westminster',
-                    'ror_id: '04ycpbx82'
+                    'ror_id': '04ycpbx82'
                 },
                 {
                     'name': 'New York University Paris',
-                    'ror_id: '05mq03431'
+                    'ror_id': '05mq03431'
                 },
             ]
         }

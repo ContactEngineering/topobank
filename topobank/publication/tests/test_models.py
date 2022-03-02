@@ -15,7 +15,7 @@ def test_citation_html(rf, example_pub):
     request = rf.get(example_pub.get_absolute_url())
 
     exp_html = """
-    Hermoine Granger, Harry Potter. (2020). contact.engineering. <em>Diamond Structure (Version 1)</em>. <a href="{url}">{url}</a>
+    Hermione Granger, Harry Potter. (2020). contact.engineering. <em>Diamond Structure (Version 1)</em>. <a href="{url}">{url}</a>
     """.format(url=example_pub.get_full_url()).strip()
 
     result_html = example_pub.get_citation('html', request).strip()
@@ -31,7 +31,7 @@ def test_citation_ris(rf, example_pub):
     exp_ris = """
 TY  - ELEC
 TI  - Diamond Structure (Version 1)
-AU  - Hermoine Granger
+AU  - Hermione Granger
 AU  - Harry Potter
 PY  - 2020/01/01/
 UR  - {url}
@@ -57,7 +57,7 @@ def test_citation_bibtex(rf, example_pub):
         @misc{{
             diamond_structure_v1,
             title  = {{Diamond Structure (Version 1)}},
-            author = {{Hermoine Granger and Harry Potter}},
+            author = {{Hermione Granger and Harry Potter}},
             year   = {{2020}},
             note   = {{This is a nice surface for testing.}},
             keywords = {{surface,topography,diamond}},
@@ -80,7 +80,7 @@ def test_citation_biblatex(rf, example_pub):
             diamond_structure_v1,
             title  = {{Diamond Structure}},
             version = {{1}},
-            author = {{Hermoine Granger and Harry Potter}},
+            author = {{Hermione Granger and Harry Potter}},
             year   = {{2020}},
             month  = {{1}},
             date   = {{2020-01-01}},

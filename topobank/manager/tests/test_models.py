@@ -136,7 +136,7 @@ def test_topography_to_dict():
 
 
 @pytest.mark.django_db
-def test_surface_to_dict(mocker):
+def test_surface_to_dict(mocker, example_authors):
     user = UserFactory()
 
     name = "My nice surface"
@@ -165,20 +165,19 @@ def test_surface_to_dict(mocker):
     #
     # prepare publication and compare again
     #
-    authors = 'Billy the Kid, Lucky Luke'
     license = 'cc0-1.0'
 
     fake_url = '/go/fake_url'
 
-    url_mock = mocker.patch('topobank.manager.models.Publication.get_absolute_url')
+    url_mock = mocker.patch('topobank.manager.models.Publication.get_full_url')
     url_mock.return_value = fake_url
 
-    publication = surface.publish(license, authors)
+    publication = surface.publish(license, example_authors)
 
     expected_dict_published['is_published'] = True
     expected_dict_published['publication'] = {
             'license': publication.get_license_display(),
-            'authors': authors,
+            'authors': publication.get_authors_string(),
             'date': format(publication.datetime.date(), '%Y-%m-%d'),
             'url': fake_url,
             'version': 1
