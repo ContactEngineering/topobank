@@ -294,10 +294,15 @@ CELERY_TASK_SERIALIZER = 'json'
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-result_serializer
 CELERY_RESULT_SERIALIZER = 'json'
 # TODO: set to whatever value is adequate in your circumstances
-CELERYD_TASK_TIME_LIMIT = 5 * 60
+# CELERYD_TASK_TIME_LIMIT = 5 * 60
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#task-soft-time-limit
 # TODO: set to whatever value is adequate in your circumstances
-CELERYD_TASK_SOFT_TIME_LIMIT = 60
+# CELERYD_TASK_SOFT_TIME_LIMIT = 60
+
+# https://docs.celeryproject.org/en/stable/userguide/configuration.html#worker-cancel-long-running-tasks-on-connection-loss
+CELERY_WORKER_CANCEL_LONG_RUNNING_TASKS_ON_CONNECTION_LOSS=True
+# https://docs.celeryproject.org/en/stable/userguide/configuration.html?highlight=heartbeat#broker-heartbeat
+CELERY_BROKER_HEARTBEAT=10
 
 
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-broker_url
