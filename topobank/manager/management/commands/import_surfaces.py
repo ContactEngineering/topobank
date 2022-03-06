@@ -151,17 +151,16 @@ class Command(BaseCommand):
             # applied because of file contents while loading
             pass
 
-        # saving topo file in backend
-        new_topo_file_path = os.path.join(user.get_media_path(), os.path.basename(topo_name))
-        self.stdout.write(self.style.NOTICE(f"  Path got topography file in backend: {new_topo_file_path}"))
-
-        if not dry_run:
-            topo_kwargs['datafile'] = default_storage.save(new_topo_file_path, File(topo_file))
-
+        topo_kwargs['datafile'] = topo_name
         topography = Topography(**topo_kwargs)
 
         if not dry_run:
+            # We need to save the topography to get an id...
             topography.save()
+            # ...which we need for the storage prefix
+            new_topo_file_path = f'{topography.storage_prefix}/raw/{topo_name}'
+            actual_topo_file_path = default_storage.save(new_topo_file_path, File(topo_file))
+            self.stdout.write(self.style.NOTICE(f"  Path got topography file in backend: {actual_topo_file_path}"))
             self.stdout.write(self.style.SUCCESS(f"Topography '{topo_name}' saved in database."))
             if not skip_thumbnails:
                 topography.renew_images()

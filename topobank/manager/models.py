@@ -565,6 +565,8 @@ class Topography(models.Model, SubjectMixin):
         If storage is on filesystem, the prefix should correspond
         to a real directory.
         """
+        if self.id is None:
+            raise RuntimeError('This `Topography` does not have an id yet; the storage prefix is not yet known.')
         return f"topographies/{self.id}"
 
     def get_absolute_url(self):
