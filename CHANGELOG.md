@@ -1,5 +1,12 @@
 # Changelog for *TopoBank*
 
+## 0.19.0 (not yet released)
+
+- Removeed Selenium depedency; thumbnail generation now
+  uses Pillow and matplotlib (#787)
+- Store topography data and derived data (squeezed files,
+  thumbnails) under a unique prefix (#801)
+
 ## 0.18.2 (2022-01-26)
 
 - BUG: Fixing missing nc files in contact mechanics download
