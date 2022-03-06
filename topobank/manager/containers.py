@@ -47,7 +47,7 @@ def write_surface_container(file, surfaces, request=None):
     # Add meta data and topography files for all given surfaces
     #
     nb_surfaces = len(surfaces)
-    log10_nb_surfaces = int(math.log10(nb_surfaces))
+    log10_nb_surfaces = int(math.log10(nb_surfaces)) if nb_surfaces > 0 else 0
     for surface_index, surface in enumerate(surfaces):
         surface_prefix = '' if nb_surfaces == 1 else f'{surface_index}'.zfill(log10_nb_surfaces+1) + '-'
 
@@ -59,7 +59,7 @@ def write_surface_container(file, surfaces, request=None):
         # using the original file name + a counter, if needed
 
         nb_topographies = len(topographies)
-        log10_nb_topographies = int(math.log10(nb_topographies))
+        log10_nb_topographies = int(math.log10(nb_topographies)) if nb_topographies > 0 else 0
         for topography_index, topography in enumerate(topographies):
             topography_prefix = f'{topography_index}'.zfill(log10_nb_topographies + 1) + '-'
 
