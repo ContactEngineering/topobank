@@ -13,7 +13,8 @@ import zipfile
 from io import BytesIO
 import yaml
 
-from .utils import FIXTURE_DIR, SurfaceFactory, Topography1DFactory, Topography2DFactory, UserFactory, two_topos
+from .utils import FIXTURE_DIR, SurfaceFactory, Topography1DFactory, Topography2DFactory, UserFactory, two_topos, \
+    one_line_scan
 from ..models import Topography, Surface, MAX_LENGTH_DATAFILE_FORMAT
 from ..forms import TopographyForm, TopographyWizardUnitsForm
 
