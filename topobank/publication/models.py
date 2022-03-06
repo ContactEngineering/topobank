@@ -171,7 +171,7 @@ https://docs.djangoproject.com/en/2.2/ref/models/fields/#django.db.models.FileFi
         If storage is on filesystem, the prefix should correspond
         to a real directory.
         """
-        return "publications/{}/".format(self.short_url)
+        return "publications/{}".format(self.short_url)
 
     @property
     def container_storage_path(self):
