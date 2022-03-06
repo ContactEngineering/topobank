@@ -1,5 +1,19 @@
 # Changelog for *TopoBank*
 
+## 0.19.0 (not yet released)
+
+- ENH: Move plot creation from backend to frontend, speeding up
+  plot creation and loading of data (#776)
+- ENH: Button to hide/show certain data sources now have the 
+  color of the data source next to it (#742)
+- ENH: Show hierarchy of digital twins/measurements in plot (#633)
+- ENH: User switchable legend for plots (#114, #296, #590, #648)
+- ENH: Download plots as SVG vector graphics (#66, #589, #610, #647)
+- BUG: Fixed logscale labels (#771)
+- BUG: Renamed y-label of curvature distribution to probability
+  density (#350)
+- MAINT: Typo on landing page (#799)
+
 ## 0.18.2 (2022-01-26)
 
 - BUG: Fixing missing nc files in contact mechanics download
