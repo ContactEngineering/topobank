@@ -2,7 +2,7 @@
 
 ## 0.19.0 (not yet released)
 
-- Removeed Selenium depedency; thumbnail generation now
+- Removed Selenium dependency; thumbnail generation now
   uses Pillow and matplotlib (#787)
 - Store topography data and derived data (squeezed files,
   thumbnails) under a unique prefix (#801)
