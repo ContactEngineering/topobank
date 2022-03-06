@@ -8,7 +8,7 @@ from django.contrib.contenttypes.models import ContentType
 from allauth.account.signals import user_logged_in
 import logging
 
-from .models import Topography, Surface, user_directory_path
+from .models import Topography, Surface
 from .views import DEFAULT_SELECT_TAB_STATE
 
 _log = logging.getLogger(__name__)
@@ -59,7 +59,7 @@ def remove_files(sender, instance, **kwargs):
                 default_storage.delete(f'{path}/{directory}')
 
     def delete_directory(path):
-        fullname = user_directory_path(instance, f'{instance.id}/{path}')
+        fullname = f'{instance.storage_prefix}/{path}'
         _delete_directory(fullname)
 
     delete_datafile('datafile')

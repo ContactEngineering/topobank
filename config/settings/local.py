@@ -39,8 +39,8 @@ EMAIL_PORT = 1025
 
 # STATIC FILES
 # ------------------------------------------------------------------------------
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-#STATICFILES_STORAGE = 'whitenoise.storage.ManifestStaticFilesStorage'
+#STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+STATICFILES_STORAGE = 'whitenoise.storage.ManifestStaticFilesStorage'
 # with 'whitenoise.storage.CompressedManifestStaticFilesStorage', collect static is
 # very slow in development, not sure why - with production settings, it's fast
 

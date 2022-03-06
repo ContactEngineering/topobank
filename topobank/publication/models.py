@@ -176,5 +176,5 @@ https://docs.djangoproject.com/en/2.2/ref/models/fields/#django.db.models.FileFi
     @property
     def container_storage_path(self):
         """Return relative path of container in storage."""
-        return f"{self.storage_prefix}container.zip"
+        return f"{self.storage_prefix}/container.zip"
 

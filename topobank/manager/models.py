@@ -54,6 +54,7 @@ SQUEEZED_DATAFILE_FORMAT = 'nc'
 _IN_CELERY_WORKER_PROCESS = sys.argv and sys.argv[0].endswith('celery') and 'worker' in sys.argv
 
 
+# Deprecated, but needed for migrations
 def user_directory_path(instance, filename):
     # file will be uploaded to MEDIA_ROOT/user_<id>/<filename>
     return 'topographies/user_{0}/{1}'.format(instance.surface.creator.id, filename)
@@ -475,7 +476,8 @@ class Topography(models.Model, SubjectMixin):
     #
     # Fields related to raw data
     #
-    datafile = models.FileField(max_length=250, upload_to=user_directory_path)  # currently upload_to not used in forms
+    datafile = models.FileField(max_length=250,
+                                upload_to=lambda instance, filename: f'{instance.storage_prefix}/raw/{filename}')  # currently upload_to not used in forms
     datafile_format = models.CharField(max_length=MAX_LENGTH_DATAFILE_FORMAT,
                                        null=True, default=None, blank=True)
     data_source = models.IntegerField()
@@ -487,7 +489,10 @@ class Topography(models.Model, SubjectMixin):
 
     # All data is also stored in a 'squeezed' format for faster loading and processing
     # This is probably netCDF3. Scales and detrend has already been applied here.
-    squeezed_datafile = models.FileField(max_length=260, upload_to=user_directory_path, null=True)
+    squeezed_datafile = models.FileField(
+        max_length=260,
+        upload_to=lambda instance, filename: f'{instance.storage_prefix}/nc/{filename}',
+        null=True)
 
     #
     # Fields with physical meta data
@@ -526,7 +531,9 @@ class Topography(models.Model, SubjectMixin):
     #
     # Other fields
     #
-    thumbnail = models.ImageField(null=True, upload_to=user_directory_path)
+    thumbnail = models.ImageField(
+        null=True,
+        upload_to=lambda instance, filename: f'{instance.storage_prefix}/thumbnail/{filename}')
 
     #
     # Methods
@@ -549,6 +556,16 @@ class Topography(models.Model, SubjectMixin):
     def has_thumbnail(self):
         """If True, a thumbnail can be retrieved via self.thumbnail"""
         return bool(self.thumbnail)
+
+    @property
+    def storage_prefix(self):
+        """Return prefix used for storage.
+
+        Looks like a relative path to a directory.
+        If storage is on filesystem, the prefix should correspond
+        to a real directory.
+        """
+        return f"topographies/{self.id}"
 
     def get_absolute_url(self):
         """URL of detail page for this topography."""
@@ -995,13 +1012,13 @@ class Topography(models.Model, SubjectMixin):
 
         # Save the contents of in-memory file in Django image field
         self.thumbnail.save(
-            f'{self.id}/thumbnail.png',
+            'thumbnail.png',
             ContentFile(image_file.getvalue()),
         )
 
         if self.size_y is not None:
             # This is a topography (map), we need to create a Deep Zoom Image
-            make_dzi(self.topography(), user_directory_path(self, f'{self.id}/dzi'))
+            make_dzi(self.topography(), f'{self.storage_prefix}/dzi')
 
     def renew_images(self, none_on_error=True):
         """Renew thumbnail field.
@@ -1069,8 +1086,8 @@ class Topography(models.Model, SubjectMixin):
             # Upload new squeezed file
             dirname, basename = os.path.split(self.datafile.name)
             orig_stem, orig_ext = os.path.splitext(basename)
-            squeezed_name = user_directory_path(self, f'{self.id}/{orig_stem}-squeezed.nc')
-            self.squeezed_datafile = default_storage.save(squeezed_name, File(open(tmp.name, mode='rb')))
+            squeezed_name = f'{orig_stem}-squeezed.nc'
+            self.squeezed_datafile.save(squeezed_name, File(open(tmp.name, mode='rb')))
             self.save()
 
     def get_undefined_data_status(self):
