@@ -539,6 +539,8 @@ class Topography(models.Model, SubjectMixin):
     # Methods
     #
     def save(self, *args, **kwargs):
+        # `save` is overriden here because `storage_prefix` does not exists before the model instance has been written
+        # to the database (and the `id` becomes available).
         if self.id is None:
             datafile = self.datafile
             squeezed_datafile = self.squeezed_datafile
