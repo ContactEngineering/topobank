@@ -538,6 +538,24 @@ class Topography(models.Model, SubjectMixin):
     #
     # Methods
     #
+    def save(self, *args, **kwargs):
+        if self.id is None:
+            datafile = self.datafile
+            squeezed_datafile = self.squeezed_datafile
+            thumbnail = self.thumbnail
+            # Since we do not have an id yet, we cannot store the file
+            self.datafile = None
+            self.squeezed_datafile = None
+            self.thumbnail = None
+            super().save(*args, **kwargs)
+            # Now we have an id, so we can now save the files
+            self.datafile = datafile
+            self.squeezed_datafile = squeezed_datafile
+            self.thumbnail = thumbnail
+            kwargs.update(dict(update_fields=['datafile', 'squeezed_datafile', 'thumbnail'],
+                               force_insert=False, force_update=True))  # The next save must be an update
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return "Topography '{0}' from {1}".format(self.name, self.measurement_date)
 
