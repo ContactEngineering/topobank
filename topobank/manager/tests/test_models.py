@@ -168,9 +168,16 @@ def test_surface_to_dict(mocker, example_authors):
     license = 'cc0-1.0'
 
     fake_url = '/go/fake_url'
+    fake_doi_url = 'https://doi.org/fake_url'
 
     url_mock = mocker.patch('topobank.manager.models.Publication.get_full_url')
     url_mock.return_value = fake_url
+
+    doi_state_mock = mocker.patch('topobank.manager.models.Publication.doi_state', new_callable=mocker.PropertyMock)
+    doi_state_mock.return_value = 'findable'
+
+    doi_url_mock = mocker.patch('topobank.manager.models.Publication.doi_url', new_callable=mocker.PropertyMock)
+    doi_url_mock.return_value = fake_doi_url
 
     publication = surface.publish(license, example_authors)
 
@@ -180,7 +187,9 @@ def test_surface_to_dict(mocker, example_authors):
             'authors': publication.get_authors_string(),
             'date': format(publication.datetime.date(), '%Y-%m-%d'),
             'url': fake_url,
-            'version': 1
+            'version': 1,
+            'doi_state': 'findable',
+            'doi_url': fake_doi_url,
         }
 
     print(surface.to_dict())
