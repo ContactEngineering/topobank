@@ -84,6 +84,14 @@ This redirects to the property page of the surface.
 
 Each specific version of a surface gets an new URL.
 
+DOI Generation
+--------------
+
+On each publication, a DOI is generated at DataCite in the background.
+If there are publications without DOI, the DOI can be generated using the management command `complete_dois`.
+
+Please keep in mind that the DOI generation makes use of several environment variables.
+
 Implementation in Backend
 -------------------------
 
@@ -102,6 +110,7 @@ All surfaces get a pointer to an *original surface* which is NULL by default.
 For the copy after publication, it points to the original surface.
 Like this, all versions for a surface (published or "current") can be accessed.
 
+
 Outlook
 -------
 
@@ -109,16 +118,6 @@ An anonymous user should also be able to view a published surface without log in
 
 Later this could be extended by automatically registering a DOI with this surface.
 Then the URL for this DOI should point into this application.
-
-Notes about DOIs
-----------------
-
-[Zenodo](https://zenodo.org/) has a [REST API](http://developers.zenodo.org/) and could be an option
-which allows us to easily publish datasets with a DOI.
-There are already many useful metadata fields.
-Also our software could be published there, so we could publish analysis results along with the code.
-Zenodo is financed by the European Commission and open for everybody doing research worldwide.
-
 
 
 
