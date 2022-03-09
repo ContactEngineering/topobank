@@ -168,8 +168,7 @@
                  v-validate="{ required: false, regex: /^0[^ilouILOU]{6}[0-9]{2}$/ }"
                  v-bind:name="ror_id_input_id"
                  placeholder="ROR ID (optional, format 0xxxxxxxx)"
-                 v-model.trim="affiliation.ror_id"
-                 :error-message="errors.first(ror_id_input_id)">
+                 v-model.trim="affiliation.ror_id">
             <div class="input-group-append">
               <button class="btn btn-sm btn-secondary"
                       title="Delete this affiliation"
