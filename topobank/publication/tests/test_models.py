@@ -1,4 +1,5 @@
 """Tests related to publication models."""
+import os
 import tempfile
 
 import pytest
@@ -116,19 +117,20 @@ def test_renew_container(example_pub):
     assert example_pub.has_container
 
     # write container to temporary file
-    with tempfile.NamedTemporaryFile(mode='wb') as tmpfile:
-        tmpfile.write(example_pub.container.read())
-        tmpfile.flush()
-        # closing will delete it
+    tmpfile = tempfile.NamedTemporaryFile(mode='wb', delete=False)
+    tmpfile.write(example_pub.container.read())
+    tmpfile.close()
 
-        with zipfile.ZipFile(tmpfile.name) as zf:
-            meta_file = zf.open('meta.yml')
-            meta = yaml.safe_load(meta_file)
+    # check whether it's a valid zip file with one surface
+    with zipfile.ZipFile(tmpfile.name) as zf:
+        meta_file = zf.open('meta.yml')
+        meta = yaml.safe_load(meta_file)
 
-            meta_surfaces = meta['surfaces']
+        meta_surfaces = meta['surfaces']
 
-            assert len(meta_surfaces) == 1
+        assert len(meta_surfaces) == 1
 
+    os.remove(tmpfile.name)
 
 
 

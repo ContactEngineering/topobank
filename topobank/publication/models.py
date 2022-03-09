@@ -236,8 +236,8 @@ class Publication(models.Model):
 
     @property
     def has_container(self):
-        """Returns True, if this publication already has a container file."""
-        return self.container != ''
+        """Returns True, if this publication already has an non-empty container file."""
+        return self.container != '' and self.container.size > 0
 
     def create_doi(self, force_draft=False):
         """Create DOI at datacite using available information.
@@ -439,6 +439,6 @@ class Publication(models.Model):
         _log.info(f"Preparing container for publication '{self.short_url}'..")
         write_surface_container(container_bytes, [self.surface])
         _log.info(f"Saving container for publication with URL {self.short_url} to storage for later..")
+        container_bytes.seek(0)  # rewind
         self.container.save(self.container_storage_path, container_bytes)
-        self.save()
         _log.info("Done.")
