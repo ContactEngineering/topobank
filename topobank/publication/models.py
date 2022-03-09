@@ -6,6 +6,8 @@ from django.utils.http import quote
 from django.http.request import urljoin
 from django.conf import settings
 
+from io import BytesIO
+
 from datacite import schema42, DataCiteRESTClient
 from datacite.errors import DataCiteError
 
@@ -207,7 +209,12 @@ class Publication(models.Model):
 
     @property
     def container_storage_path(self):
-        """Return relative path of container in storage."""
+        """Return relative path of container in storage.
+
+        This does not mean that the container already has been
+        generated. This path can be used to save the
+        container at the right place.
+        """
         return f"{self.storage_prefix}container.zip"
 
     @property
@@ -221,6 +228,16 @@ class Publication(models.Model):
             return urljoin("https://doi.test.datacite.org/dois/", quote(self.doi_name, safe=''))
         else:
             return(f"https://doi.org/{self.doi_name}")  # here we keep the slash
+
+    @property
+    def has_doi(self):
+        """Returns True, if this publication already has a doi."""
+        return self.doi_name != ''
+
+    @property
+    def has_container(self):
+        """Returns True, if this publication already has a container file."""
+        return self.container != ''
 
     def create_doi(self, force_draft=False):
         """Create DOI at datacite using available information.
@@ -413,3 +430,15 @@ class Publication(models.Model):
         self.datacite_json = data
         self.save()
         _log.info(f"Done creating DOI for publication '{self.short_url}'.")
+
+    def renew_container(self):
+        """Renew container file or create it if not existent.
+        """
+        from topobank.manager.containers import write_surface_container
+        container_bytes = BytesIO()
+        _log.info(f"Preparing container for publication '{self.short_url}'..")
+        write_surface_container(container_bytes, [self.surface])
+        _log.info(f"Saving container for publication with URL {self.short_url} to storage for later..")
+        self.container.save(self.container_storage_path, container_bytes)
+        self.save()
+        _log.info("Done.")

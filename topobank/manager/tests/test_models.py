@@ -192,9 +192,6 @@ def test_surface_to_dict(mocker, example_authors):
             'doi_url': fake_doi_url,
         }
 
-    print(surface.to_dict())
-    print(publication.surface.to_dict())
-
     assert surface.to_dict() == expected_dict_unpublished
     assert publication.surface.to_dict() == expected_dict_published
 

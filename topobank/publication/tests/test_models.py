@@ -1,6 +1,11 @@
 """Tests related to publication models."""
+import tempfile
+
 import pytest
 import datetime
+import zipfile
+import yaml
+
 from freezegun import freeze_time
 
 
@@ -100,3 +105,30 @@ def test_citation_biblatex(rf, example_pub):
 def test_container_attributes(example_pub):
     assert example_pub.container_storage_path == 'publications/' + example_pub.short_url + "/container.zip"
     assert hasattr(example_pub, 'container')
+    assert not example_pub.has_doi
+    assert not example_pub.has_container
+
+
+@pytest.mark.django_db
+def test_renew_container(example_pub):
+    assert not example_pub.has_container
+    example_pub.renew_container()
+    assert example_pub.has_container
+
+    # write container to temporary file
+    with tempfile.NamedTemporaryFile(mode='wb') as tmpfile:
+        tmpfile.write(example_pub.container.read())
+        tmpfile.flush()
+        # closing will delete it
+
+        with zipfile.ZipFile(tmpfile.name) as zf:
+            meta_file = zf.open('meta.yml')
+            meta = yaml.safe_load(meta_file)
+
+            meta_surfaces = meta['surfaces']
+
+            assert len(meta_surfaces) == 1
+
+
+
+

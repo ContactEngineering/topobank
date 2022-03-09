@@ -188,7 +188,7 @@ class Surface(models.Model, SubjectMixin):
     def num_topographies(self):
         return self.topography_set.count()
 
-    def to_dict(self, request=None):
+    def to_dict(self):
         """Create dictionary for export of metadata to json or yaml.
 
         Does not include topographies. They can be added like this:
@@ -196,10 +196,8 @@ class Surface(models.Model, SubjectMixin):
          surface_dict = surface.to_dict()
          surface_dict['topographies'] = [t.to_dict() for t in surface.topography_set.order_by('name')]
 
-        Parameters:
-            request: HTTPRequest
-                Needed for calculating publication URLs.
-                If not given, only return relative publication URL.
+        The publication URL will be based on the official contact.engineering URL.
+
         Returns:
             dict
         """

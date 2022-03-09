@@ -1579,7 +1579,7 @@ def download_surface(request, surface_id):
     if content_data is None:
         container_bytes = BytesIO()
         _log.info(f"Preparing container of surface id={surface_id} for download..")
-        write_surface_container(container_bytes, [surface], request=request)
+        write_surface_container(container_bytes, [surface])
         content_data = container_bytes.getvalue()
 
         if renew_publication_container:
@@ -1613,7 +1613,7 @@ def download_selection_as_surfaces(request):
     surfaces = current_selection_as_surface_list(request)
 
     container_bytes = BytesIO()
-    write_surface_container(container_bytes, surfaces, request=request)
+    write_surface_container(container_bytes, surfaces)
 
     # Prepare response object.
     response = HttpResponse(container_bytes.getvalue(),
