@@ -25,6 +25,23 @@ def test_complete_dois(mocker, settings):
     assert m.call_count == 2
 
 
+@pytest.mark.django_db
+def test_renew_containers(mocker, settings):
+    pub1 = PublicationFactory(doi_name='10.4545/abcde')  # should not get a new container
+    pub2 = PublicationFactory(doi_name='10.4545/xyz')  # should not get a new container
+    pub3 = PublicationFactory()  # only this one should get a new container
+
+    settings.PUBLICATION_DOI_MANDATORY = True
+    m = mocker.patch('topobank.publication.models.Publication.renew_container')
+
+    call_command('renew_containers')
+
+    m.assert_called()
+    assert m.call_count == 1
+
+
+
+
 
 
 

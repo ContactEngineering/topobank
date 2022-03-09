@@ -372,6 +372,39 @@ def test_publishing_unique_author_names():
     assert form.errors['__all__'] == ["Duplicate author given! Make sure authors differ in at least one field."]
 
 
+def test_publishing_invalid_orcid():
+    form_data = {
+        'authors_json': [
+            {'first_name': 'Alice', 'last_name': 'Wonderland', 'orcid_id': '1234-1234-1234-abcd', 'affiliations': []},
+        ],
+        'license': 'cc0-1.0',
+        'agreed': True,
+        'copyright_hold': True,
+    }
+    form = SurfacePublishForm(data=form_data)
+    assert not form.is_valid()
+    assert form.errors['__all__'] == ["ORCID ID must match pattern xxxx-xxxx-xxxx-xxxy, where x is a digit "
+                                      "and y a digit or the capital letter X."]
+
+
+def test_publishing_invalid_ror_id():
+    form_data = {
+        'authors_json': [
+            {'first_name': 'Alice', 'last_name': 'Wonderland', 'orcid_id': '', 'affiliations': [
+                {'name': 'Wonderland University', 'ror_id': '0123456789downtherabbithole'}
+            ]},
+        ],
+        'license': 'cc0-1.0',
+        'agreed': True,
+        'copyright_hold': True,
+    }
+    form = SurfacePublishForm(data=form_data)
+    assert not form.is_valid()
+    assert form.errors['__all__'] == ["Incorrect format for ROR ID '0123456789downtherabbithole', "
+                                      "should start with 0 (zero), followed by 6 characters and "
+                                      "should end with 2 digits."]
+
+
 def test_publishing_wrong_license(example_authors):
     form_data = {
         'authors_json': example_authors,

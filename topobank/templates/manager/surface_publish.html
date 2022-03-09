@@ -165,7 +165,7 @@
           <div class="input-group">
             <input v-bind:id="name_input_id" class="form-control-sm col-4" type="text" placeholder="Affiliation name" v-model="affiliation.name">
             <input v-bind:id="ror_id_input_id" class="form-control-sm col-4" type="text"
-                 v-validate="{ required: false, regex: /0[^ilouILOU]{6}[0-9]{2}/ }"
+                 v-validate="{ required: false, regex: /^0[^ilouILOU]{6}[0-9]{2}$/ }"
                  v-bind:name="ror_id_input_id"
                  placeholder="ROR ID (optional, format 0xxxxxxxx)"
                  v-model.trim="affiliation.ror_id"
@@ -221,7 +221,7 @@
                 <label v-bind:for="'author_'+author_idx+'_orcid_id'">ORCID ID (optional)</label>
                 <div class="input-group">
                 <input v-bind:id="'author_'+author_idx+'_orcid_id'" class="form-control" type="text"
-                 v-validate="{ required: false, regex: /[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]/ }"
+                 v-validate="{ required: false, regex: /^[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]$/ }"
                  v-bind:name="'author_'+author_idx+'_orcid_id'"
                  placeholder="xxxx-xxxx-xxxx-xxxx"
                  v-model.trim="author.orcid_id">

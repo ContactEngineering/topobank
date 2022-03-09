@@ -802,7 +802,7 @@ class SurfacePublishForm(forms.Form):
                     raise forms.ValidationError("First name must be given for each author.")
                 if a['last_name'] == '':
                     raise forms.ValidationError("Last name must be given for each author.")
-                if a['orcid_id'] != '' and not re.match('\d{4}-\d{4}-\d{4}-\d{3}[0-9X]', a['orcid_id']):
+                if a['orcid_id'] != '' and not re.match('^\d{4}-\d{4}-\d{4}-\d{3}[0-9X]$', a['orcid_id']):
                     raise forms.ValidationError("ORCID ID must match pattern xxxx-xxxx-xxxx-xxxy, where x is a digit "
                                                 "and y a digit or the capital letter X.")
 
@@ -825,7 +825,7 @@ class SurfacePublishForm(forms.Form):
                         ror_id_given = False
 
                     if name_given:
-                        if ror_id_given and not re.match('0[^ilouILOU]{6}\d{2}', aff['ror_id']):
+                        if ror_id_given and not re.match('^0[^ilouILOU]{6}\d{2}$', aff['ror_id']):
                             raise forms.ValidationError(
                                 f"Incorrect format for ROR ID \'{aff['ror_id']}\', should start with 0 (zero), followed "
                                 "by 6 characters and should end with 2 digits."
