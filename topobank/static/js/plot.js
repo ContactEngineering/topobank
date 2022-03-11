@@ -404,11 +404,11 @@ Vue.component("bokeh-plot", {
       }
 
       /* We iterate in reverse order because we want to the first element to appear on top of the plot */
-      legendLabels = new Set()
       for (const dataSource of [...this.dataSources].reverse()) {
         for (const [index, plot] of this.plots.entries()) {
           /* Get bokeh plot object */
           const bokehPlot = this.bokehPlots[index];
+          let legendLabels = new Set();
 
           /* Common attributes of lines and symbols */
           attrs = {
