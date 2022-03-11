@@ -187,7 +187,7 @@ Vue.component("deep-zoom-image", {
       if (this.viewer.world.getItemAt(0).getFullyLoaded()) {
         downloadImage();
       } else {
-        this.viewerviewer.world.getItemAt(0).addHandler('fully-loaded-change', downloadImage);
+        this.viewer.world.getItemAt(0).addHandler('fully-loaded-change', downloadImage);
       }
     }
   }
