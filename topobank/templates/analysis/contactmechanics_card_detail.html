@@ -238,7 +238,7 @@
                              min="{{ limits_calc_kwargs.nsteps.min }}"
                              max="{{ limits_calc_kwargs.nsteps.max }}"
                              step="1" class="form-control"
-                             v-model="nbSteps"
+                             v-model="nsteps"
                              :disabled="pressureSelection != 'automatic'">
                       <div class="input-group-append ">
                         <div class="input-group-text">
@@ -350,7 +350,7 @@
           recalculateWarning: false,
           selection: null,
           periodicity: "{{ initial_calc_kwargs.substrate_str|default_if_none:"nonperiodic" }}",
-          nbSteps: {{ initial_calc_kwargs.nsteps|default_if_none:10 }},
+          nsteps: {{ initial_calc_kwargs.nsteps|default_if_none:10 }},
           enableHardness: {% if initial_calc_kwargs.hardness %}1{% else %}0{% endif %},
           pressureSelection: {% if initial_calc_kwargs.pressures %}"manual"{% else %}"automatic"{% endif %},
           hardness: {{ initial_calc_kwargs.hardness|default_if_none:"undefined" }},
@@ -419,11 +419,11 @@
           this.recalculateWarning = false;
 
           if (this.pressureSelection == "automatic") {
-            if (this.nsteps >= {{ limits_calc_kwargs.nsteps.min }}) {
+            if (this.nsteps < {{ limits_calc_kwargs.nsteps.min }}) {
               this.nsteps = {{ limits_calc_kwargs.nsteps.min }};
               this.recalculateWarning = true;
             }
-            if (this.nsteps <= {{ limits_calc_kwargs.nsteps.max }}) {
+            if (this.nsteps > {{ limits_calc_kwargs.nsteps.max }}) {
               this.nsteps = {{ limits_calc_kwargs.nsteps.max }};
               this.recalculateWarning = true;
             }
@@ -462,7 +462,7 @@
           const function_kwargs = {
             substrate_str: this.periodicity,
             hardness: parseFloat(this.hardness),
-            nsteps: this.pressureSelection == "automatic" ? this.nbSteps : null,
+            nsteps: this.pressureSelection == "automatic" ? parseInt(this.nsteps) : null,
             pressures: this.pressureSelection == "manual" ? this.pressures : null,
             maxiter: parseInt(this.maxNbIter)
           };
