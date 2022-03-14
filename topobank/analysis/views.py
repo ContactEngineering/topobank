@@ -585,7 +585,11 @@ class PlotCardView(SimpleCardView):
                 #
                 # Actually plot the line
                 #
-                show_symbols = s['x'] <= MAX_NUM_POINTS_FOR_SYMBOLS
+                try:
+                    len_x = len(s['x'])
+                except TypeError:  # sometimes s['x'] is only one int
+                    len_x = 1
+                show_symbols = len_x <= MAX_NUM_POINTS_FOR_SYMBOLS
 
                 legend_entry = subject_display_name + ": " + series_name
 
@@ -618,6 +622,8 @@ class PlotCardView(SimpleCardView):
                     is_surface_analysis=is_surface_analysis,
                     is_topography_analysis=is_topography_analysis
                 )]
+
+        _log.info("data_sources_dict: %s", data_sources_dict)
 
         context['data_sources'] = json.dumps(data_sources_dict)
 
