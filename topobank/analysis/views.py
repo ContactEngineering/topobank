@@ -449,18 +449,6 @@ class PlotCardView(SimpleCardView):
             y_axis_type=get_axis_type('yscale'),
             output_backend=settings.BOKEH_OUTPUT_BACKEND))
 
-        #
-        # Prepare helpers for dashes and colors
-        #
-        surface_color_palette = palettes.Greys256  # surfaces are shown in black/grey
-        topography_color_palette = palettes.Plasma256  # does not have black/gray, which is reserved for averages
-        dash_cycle = itertools.cycle(['solid', 'dashed', 'dotted', 'dotdash', 'dashdot'])
-
-        subject_colors = OrderedDict()  # key: subject instance, value: color
-
-        series_dashes = OrderedDict()  # key: series name
-
-        DEFAULT_ALPHA_FOR_TOPOGRAPHIES = 0.3 if has_at_least_one_surface_subject else 1.0
 
         #
         # First traversal: find all available series names and sort them
@@ -486,6 +474,24 @@ class PlotCardView(SimpleCardView):
 
         series_names = sorted(list(series_names))  # index of a name in this list is the "series_idx"
         series_visible = set()  # elements: series indices, decides whether a series is visible
+
+        #
+        # Prepare helpers for dashes and colors
+        #
+        surface_color_palette = palettes.Greys256  # surfaces are shown in black/grey
+        if nb_topographies <= 10:
+            topography_colors = palettes.Category10_10
+        else:
+            topography_colors = [palettes.Plasma256[k*256//nb_topographies] for k in range(nb_topographies)]
+            # we don't want to have yellow as first color
+            topography_colors = topography_colors[nb_topographies//2:] + topography_colors[:nb_topographies//2]
+        dash_cycle = itertools.cycle(['solid', 'dashed', 'dotted', 'dotdash', 'dashdot'])
+
+        subject_colors = OrderedDict()  # key: subject instance, value: color
+
+        series_dashes = OrderedDict()  # key: series name
+
+        DEFAULT_ALPHA_FOR_TOPOGRAPHIES = 0.3 if has_at_least_one_surface_subject else 1.0
 
         #
         # Second traversal: do the plotting
@@ -517,10 +523,7 @@ class PlotCardView(SimpleCardView):
                     surface_color_palette[surface_index * len(surface_color_palette) // nb_surfaces]
             else:
                 topography_index += 1
-                subject_colors[subject] = \
-                    topography_color_palette[
-                        len(topography_color_palette) - 1 -
-                        topography_index * len(topography_color_palette) // nb_topographies]
+                subject_colors[subject] = topography_colors[topography_index]
 
             subject_display_name = subject_names_for_plot[subject_idx]
             if is_topography_analysis and has_parent:
@@ -622,8 +625,6 @@ class PlotCardView(SimpleCardView):
                     is_surface_analysis=is_surface_analysis,
                     is_topography_analysis=is_topography_analysis
                 )]
-
-        _log.info("data_sources_dict: %s", data_sources_dict)
 
         context['data_sources'] = json.dumps(data_sources_dict)
 
