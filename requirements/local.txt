@@ -122,7 +122,7 @@ defusedxml==0.7.1
     #   -r ./base.txt
     #   python3-openid
     #   surfacetopography
-django==3.2.11
+django==3.2.12
     # via
     #   -r ./base.txt
     #   collectfast
@@ -381,7 +381,7 @@ pexpect==4.8.0
     # via ipython
 pickleshare==0.7.5
     # via ipython
-pillow==9.0.0
+pillow==9.0.1
     # via
     #   -r ./base.txt
     #   bokeh

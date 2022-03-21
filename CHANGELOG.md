@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 0.18.3 (not released yet)
+
+- MAINT: Updated django and Pillow because of CVEs
+
 ## 0.18.2 (2022-01-26)
 
 - BUG: Fixing missing nc files in contact mechanics download
