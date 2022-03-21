@@ -169,7 +169,7 @@ django-model-utils==4.2.0
     # via
     #   -r ./base.txt
     #   django-notifications-hq
-django-notifications-hq==1.6.0
+django-notifications-hq==1.7.0
     # via -r ./base.txt
 django-progressbarupload @ git+http://github.com/ContactEngineering/django-progressbarupload.git
     # via -r ./base.txt

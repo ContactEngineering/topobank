@@ -99,7 +99,7 @@ h5netcdf
 django-formtools>=2.2
 
 # notifications
-django-notifications-hq
+django-notifications-hq>=1.7.0
 
 # multiple select widget
 django-select2
