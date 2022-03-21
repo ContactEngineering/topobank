@@ -76,7 +76,7 @@
       <ul class="navbar-nav ml-auto">
         {% if not request.user.is_anonymous %}
           <li class="nav-item dropdown no-arrow">
-            <a class="nav-link dropdown-toggle" href="#" id="notificationsDropdown" role="button" data-toggle="dropdown"
+            <a class="nav-link dropdown-toggle" id="notificationsDropdown" role="button" data-toggle="dropdown"
                aria-haspopup="true" aria-expanded="false">
               {% live_notify_badge badge_class="badge badge-info badge-pill live_notify_badge" %}
               {# The icon ist placed after the badge in order to have the badge attached to the icon #}
@@ -94,23 +94,23 @@
         {% endif %} {# if user is not anonymous #}
 
         <li class="nav-item dropdown no-arrow">
-          <a class="nav-link dropdown-toggle" href="#" id="helpDropdown" role="button" data-toggle="dropdown"
+          <a class="nav-link dropdown-toggle" id="helpDropdown" role="button" data-toggle="dropdown"
              aria-haspopup="true" aria-expanded="false">
             <i class="fa fa-info-circle fa-fw"></i>
           </a>
           <div class="dropdown-menu dropdown-menu-right help-dropdown" aria-labelledby="helpDropdown">
             <a class="dropdown-item" target="_blank" href="https://github.com/ContactEngineering/TopoBank/discussions">Feedback</a>
-            <a class="dropdown-item" href="#" data-toggle="modal" data-target="#versionModal">Version Information</a>
+            <a class="dropdown-item" data-toggle="modal" data-target="#versionModal">Version Information</a>
             <a class="dropdown-item" href="{% url 'terms' %}">Terms &amp; Conditions</a>
             <div class="dropdown-divider"></div>
             <a class="dropdown-item" href="{% url 'help' %}">Help</a>
             <div class="dropdown-divider"></div>
-            <a class="dropdown-item" href="#" data-toggle="modal" data-target="#contactModal">Contact</a>
+            <a class="dropdown-item" data-toggle="modal" data-target="#contactModal">Contact</a>
           </div>
         </li>
 
         <li class="nav-item dropdown no-arrow">
-          <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-toggle="dropdown"
+          <a class="nav-link dropdown-toggle" id="userDropdown" role="button" data-toggle="dropdown"
              aria-haspopup="true" aria-expanded="false">
             <i class="fa fa-user-circle fa-fw" aria-hidden="true"></i>
             {% if not request.user.is_anonymous %}
@@ -120,9 +120,9 @@
           <div class="dropdown-menu dropdown-menu-right user-dropdown" aria-labelledby="userDropdown">
             {% if not request.user.is_anonymous and request.user.username %}
             <a class="dropdown-item" href="{% url 'users:detail' request.user.username %}"><i class="fa fa-user fa-fw"></i> User Profile</a>
-            <!-- a class="dropdown-item" href="#"><i class="fa fa-cog fa-fw"></i> Settings<a> -->
+            <!-- a class="dropdown-item" ><i class="fa fa-cog fa-fw"></i> Settings<a> -->
             <div class="dropdown-divider"></div>
-            <a class="dropdown-item" href="#" data-toggle="modal" data-target="#logoutModal">
+            <a class="dropdown-item" data-toggle="modal" data-target="#logoutModal">
               <i class="fa fa-sign-out fa-fw"></i>Sign Out</a>
             {% else %}
             <a class="dropdown-item" href="{% provider_login_url 'orcid' method="oauth2" %}">Sign in via ORCID</a>
@@ -448,7 +448,7 @@
             }
             else {
                 messages += '<div class="dropdown-divider"></div>';
-                messages += `<a class="dropdown-item" href="#" id="mark-all-as-read-btn"><b>Mark all as read</b></a>`;
+                messages += `<a class="dropdown-item" id="mark-all-as-read-btn"><b>Mark all as read</b></a>`;
             }
 
             // Not clear yet how to mark only those as read which where shown in the list,
