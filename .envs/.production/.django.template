@@ -59,6 +59,24 @@ CELERY_FLOWER_PASSWORD=<a very long random string>
 ORCID_CLIENT_ID=<replace with your client ID from ORCID>
 ORCID_SECRET=<replace with your secret from ORCID>
 
+# DataCite settings (DOI creation)
+# ------------------------------------------------------------------------------
+DATACITE_USERNAME=<replace with your DataCite username>
+DATACITE_PASSWORD='<replace with your DataCite password>'
+# use quotes around the password, otherwise this can create problems on a shell
+DATACITE_API_URL=https://api.datacite.org
+# Test mode: https://api.test.datacite.org
+# Production mode: https://api.datacite.org
+
+PUBLICATION_DOI_STATE=draft
+# Choose one of 'draft', 'registered', 'findable'
+# Please keep in mind that only 'draft' DOIs are deletable.
+# For production, use 'findable', if the DOIs should be public.
+
+PUBLICATION_URL_PREFIX=https://contact.engineering/go/
+# PUBLICATION_DOI_PREFIX=<replace with your DOI prefix registered at DATACITE>
+PUBLICATION_DOI_MANDATORY=False
+
 # Storage settings
 # ------------------------------------------------------------------------------
 USE_S3_STORAGE=yes
