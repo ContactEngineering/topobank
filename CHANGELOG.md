@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-## 0.19.0 (not released yet)
+## 0.19.0 (2022-03-23)
 
 - ENH: Added possibility for assigning DOIs to published datasets
 - ENH: Added management command 'renew_containers'
