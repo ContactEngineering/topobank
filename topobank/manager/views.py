@@ -1214,7 +1214,7 @@ class PublicationsTable(tables.Table):
     license = tables.Column(verbose_name="License")
     datetime = tables.Column(verbose_name="Publication Date")
     version = tables.Column(verbose_name="Version")
-    # doi_url = tables.URLColumn(verbose_name="DOI")
+    doi_url = tables.URLColumn(verbose_name="DOI")
 
     def render_publication(self, value):
         return value.surface.name
@@ -1253,7 +1253,7 @@ class PublicationListView(ListView):
                 'license': pub.license,
                 'datetime': pub.datetime,
                 'version': pub.version,
-                # 'doi_url': pub.doi_url,
+                'doi_url': pub.doi_url,
             } for pub in self.get_queryset()
         ]
 

@@ -73,7 +73,15 @@ class Publication(models.Model):
         return reverse('publication:go', args=[self.short_url])
 
     def get_full_url(self):
-        return urljoin(settings.PUBLICATION_URL_PREFIX, self.short_url)
+        """Return URL which should be used to permanently point to this publication.
+
+        If the publication has a DOI, this will be it's URL, otherwise
+        it's a URL pointing to this web app.
+        """
+        if self.has_doi:
+            return self.doi_url
+        else:
+            return urljoin(settings.PUBLICATION_URL_PREFIX, self.short_url)
 
     def get_citation(self, flavor, request):
         if flavor not in CITATION_FORMAT_FLAVORS:

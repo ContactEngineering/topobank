@@ -11,7 +11,7 @@ from freezegun import freeze_time
 
 
 @pytest.mark.django_db
-def test_publication_orcid_id(example_pub):
+def test_publication_publisher_orcid_id(example_pub):
     assert example_pub.publisher_orcid_id == example_pub.surface.creator.orcid_id
 
 
@@ -108,6 +108,21 @@ def test_container_attributes(example_pub):
     assert hasattr(example_pub, 'container')
     assert not example_pub.has_doi
     assert not example_pub.has_container
+
+
+@pytest.mark.parametrize('should_have_doi', [False, True])
+@pytest.mark.django_db
+def test_publication_full_url(example_pub, mocker, should_have_doi):
+    if should_have_doi:
+        has_doi_mock = mocker.patch('topobank.publication.models.Publication.has_doi', new_callable=mocker.PropertyMock)
+        has_doi_mock.return_value = True
+
+        doi_url_mock = mocker.patch('topobank.publication.models.Publication.doi_url', new_callable=mocker.PropertyMock)
+        doi_url_mock.return_value = 'http://example.org'
+
+        assert example_pub.get_full_url() == 'http://example.org'
+    else:
+        assert f'go/{example_pub.short_url}' in example_pub.get_full_url()
 
 
 @pytest.mark.django_db
