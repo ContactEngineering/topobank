@@ -42,6 +42,14 @@ class Command(BaseCommand):
         )
 
         parser.add_argument(
+            '-r',
+            '--related',
+            action='store_true',
+            dest='related',
+            help='If given for surfaces, the analyses of the related topographies will also be triggered.',
+        )
+
+        parser.add_argument(
             '-d',
             '--default-kwargs',
             action='store_true',
@@ -50,7 +58,7 @@ class Command(BaseCommand):
             ' saved for this analysis in the database.',
         )
 
-    def parse_item(self, item, use_default_kwargs=False):
+    def parse_item(self, item, use_default_kwargs=False, related=False):
         """Parse one item and trigger analyses.
 
         Parameters
@@ -105,8 +113,14 @@ class Command(BaseCommand):
             if ct.name in ['surface', 'topography']:
                 renew_analyses_for_subject(obj)
                 self.stdout.write(
-                    self.style.SUCCESS(f"Renewed analyses for subject '{obj}'.")
+                    self.style.SUCCESS(f"Renewed analyses for {ct.name} '{obj}'.")
                 )
+                if related and ct.name == 'surface':
+                    for topo in obj.topography_set.all():
+                        renew_analyses_for_subject(topo)
+                        self.stdout.write(
+                            self.style.SUCCESS(f"Renewed analyses for topography '{obj}'.")
+                        )
             elif ct.name == "analysis":
                 renew_analysis(obj, use_default_kwargs=use_default_kwargs)
                 self.stdout.write(
@@ -140,4 +154,4 @@ class Command(BaseCommand):
             sys.exit(0)
 
         for item in options['item']:
-            self.parse_item(item, use_default_kwargs=options['use_default_kwargs'])
+            self.parse_item(item, use_default_kwargs=options['use_default_kwargs'], related=options['related'])
