@@ -15,7 +15,7 @@ from ..containers import write_surface_container
 from ..models import Topography
 
 @pytest.mark.django_db
-def test_surface_container():
+def test_surface_container(example_authors):
 
     instrument_name = 'My nice profilometer'
     instrument_type = 'contact-based'
@@ -56,7 +56,7 @@ def test_surface_container():
     # surface 3 is empty
 
     # surface 2 is published
-    publication = surface2.publish('cc0-1.0', 'Test User')
+    publication = surface2.publish('cc0-1.0', example_authors)
     surface4 = publication.surface
 
     surfaces = [surface1, surface2, surface3, surface4]
@@ -111,7 +111,7 @@ def test_surface_container():
         assert meta_surfaces[3]['is_published']
         meta_surface4 = meta_surfaces[3]
         meta_surface_4_pub = meta_surface4['publication']
-        assert meta_surface_4_pub['authors'] == "Test User"
+        assert meta_surface_4_pub['authors'] == "Hermione Granger, Harry Potter"
         assert meta_surface_4_pub['license'] == settings.CC_LICENSE_INFOS['cc0-1.0']['option_name']
         assert meta_surface_4_pub['version'] == 1
 

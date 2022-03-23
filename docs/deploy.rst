@@ -1173,7 +1173,6 @@ If building the containers was successful, aks yourself these questions:
   and the database will be changed accordingly.
 
 
-
 Restart application
 ...................
 

@@ -33,18 +33,17 @@ def test_publication_version(settings):
 
 
 @pytest.mark.django_db
-def test_publication_fields():
+def test_publication_fields(example_authors):
     user = UserFactory(name="Tom")
     surface = SurfaceFactory(creator=user)
-    authors = 'Alice, Bob, Charly, Tom'
-    publication = surface.publish('cc0-1.0', authors)
+    publication = surface.publish('cc0-1.0', example_authors)
 
     assert publication.license == 'cc0-1.0'
     assert publication.original_surface == surface
     assert publication.surface != publication.original_surface
     assert publication.publisher == surface.creator
     assert publication.version == 1
-    assert publication.authors == authors
+    assert publication.get_authors_string() == "Hermione Granger, Harry Potter"
 
 
 @pytest.mark.django_db
@@ -218,7 +217,7 @@ def test_switch_versions_on_properties_tab(client, settings, handle_usage_statis
 
 
 @pytest.mark.django_db
-def test_notification_saying_new_version_exists(client, settings, handle_usage_statistics):
+def test_notification_saying_new_version_exists(client, settings, handle_usage_statistics, example_authors):
 
     settings.MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS = None
 
@@ -232,8 +231,8 @@ def test_notification_saying_new_version_exists(client, settings, handle_usage_s
     #
     # Now publish two times
     #
-    pub1 = surface.publish('cc0-1.0', 'Alice')
-    pub2 = surface.publish('cc0-1.0', 'Alice')
+    pub1 = surface.publish('cc0-1.0', example_authors)
+    pub2 = surface.publish('cc0-1.0', example_authors)
 
     #
     # When showing page for "Work in Progress" surface, there should be a hint there are publications
@@ -256,13 +255,13 @@ def test_notification_saying_new_version_exists(client, settings, handle_usage_s
 
 @pytest.mark.parametrize("license", settings.CC_LICENSE_INFOS.keys())
 @pytest.mark.django_db
-def test_license_in_surface_download(client, license, handle_usage_statistics):
+def test_license_in_surface_download(client, license, handle_usage_statistics, example_authors):
     import io
     user1 = UserFactory()
     user2 = UserFactory()
     surface = SurfaceFactory(creator=user1)
     Topography2DFactory(surface=surface)
-    publication = surface.publish(license, 'Alice')
+    publication = surface.publish(license, example_authors)
     client.force_login(user2)
 
     response = client.get(reverse('manager:surface-download', kwargs=dict(surface_id=publication.surface.id)))
@@ -286,13 +285,13 @@ def test_license_in_surface_download(client, license, handle_usage_statistics):
 
 
 @pytest.mark.django_db
-def test_dont_show_published_surfaces_on_sharing_info(client):
+def test_dont_show_published_surfaces_on_sharing_info(client, example_authors):
     alice = UserFactory()
     bob = UserFactory()
     surface1 = SurfaceFactory(creator=alice, name="Shared Surface")
     surface1.share(bob)
     surface2 = SurfaceFactory(creator=alice, name="Published Surface")
-    surface2.publish('cc0-1.0', 'Alice')
+    surface2.publish('cc0-1.0', example_authors)
 
     #
     # Login as Bob, surface 1 should be listed on sharing info page
@@ -309,14 +308,14 @@ def test_dont_show_published_surfaces_on_sharing_info(client):
 
 
 @pytest.mark.django_db
-def test_dont_show_published_surfaces_when_shared_filter_used(client, handle_usage_statistics):
+def test_dont_show_published_surfaces_when_shared_filter_used(client, handle_usage_statistics, example_authors):
 
     alice = UserFactory()
     bob = UserFactory()
     surface1 = SurfaceFactory(creator=alice, name="Shared Surface")
     surface1.share(bob)
     surface2 = SurfaceFactory(creator=alice, name="Published Surface")
-    surface2.publish('cc0-1.0', 'Alice')
+    surface2.publish('cc0-1.0', example_authors)
 
     client.force_login(bob)
 
@@ -346,17 +345,8 @@ def test_limit_publication_frequency(settings):
         surface.publish('cc0-1.0', 'Alice, Bob')
 
 
-def test_publishing_form_multiple_author_fields_included():
-    form = SurfacePublishForm(num_author_fields=3)
-    # we want to have three author fields
-    for i in range(3):
-        field_name = f"author_{i}"
-        assert field_name in form.fields
-
-
 def test_publishing_no_authors_given():
     form_data = {
-        'num_author_fields': 0,
         'license': 'cc0-1.0',
         'agreed': True,
         'copyright_hold': True,
@@ -368,42 +358,56 @@ def test_publishing_no_authors_given():
 
 def test_publishing_unique_author_names():
     form_data = {
-        'author_0': "Alice",
-        'author_1': "Bob",
-        'author_2': "Alice",
-        'num_author_fields': 3,
+        'authors_json': [
+            {'first_name': 'Alice', 'last_name': 'Wonderland', 'orcid_id': '', 'affiliations': []},
+            {'first_name': 'Bob', 'last_name': 'Wonderland', 'orcid_id': '', 'affiliations': []},
+            {'first_name': 'Alice', 'last_name': 'Wonderland', 'orcid_id': '', 'affiliations': []},
+        ],
         'license': 'cc0-1.0',
         'agreed': True,
         'copyright_hold': True,
     }
-    form = SurfacePublishForm(data=form_data, num_author_fields=3)
+    form = SurfacePublishForm(data=form_data)
     assert not form.is_valid()
-    assert form.errors['__all__'] == ["Author 'Alice' is already in the list."]
+    assert form.errors['__all__'] == ["Duplicate author given! Make sure authors differ in at least one field."]
 
 
-def test_publishing_too_long_authors_given():
-    # exceed maximum length with 10 authors
+def test_publishing_invalid_orcid():
     form_data = {
-        'num_author_fields': 10,
+        'authors_json': [
+            {'first_name': 'Alice', 'last_name': 'Wonderland', 'orcid_id': '1234-1234-1234-abcd', 'affiliations': []},
+        ],
         'license': 'cc0-1.0',
         'agreed': True,
         'copyright_hold': True,
     }
-    len_per_author = int(MAX_LEN_AUTHORS_FIELD / 10) + 1
-    for k in range(10):
-        author = 'x'*len_per_author + str(k)  # k to make it unique
-        form_data[f'author_{k}'] = author
-    # total length should be too much
-    form = SurfacePublishForm(data=form_data, num_author_fields=10)
+    form = SurfacePublishForm(data=form_data)
     assert not form.is_valid()
-    assert form.errors['__all__'] == ["Representation of authors is too long, "
-                                      f"at maximum {MAX_LEN_AUTHORS_FIELD} characters are allowed."]
+    assert form.errors['__all__'] == ["ORCID ID must match pattern xxxx-xxxx-xxxx-xxxy, where x is a digit "
+                                      "and y a digit or the capital letter X."]
 
 
-def test_publishing_wrong_license():
+def test_publishing_invalid_ror_id():
     form_data = {
-        'author_0': "Alice",
-        'num_author_fields': 1,
+        'authors_json': [
+            {'first_name': 'Alice', 'last_name': 'Wonderland', 'orcid_id': '', 'affiliations': [
+                {'name': 'Wonderland University', 'ror_id': '0123456789downtherabbithole'}
+            ]},
+        ],
+        'license': 'cc0-1.0',
+        'agreed': True,
+        'copyright_hold': True,
+    }
+    form = SurfacePublishForm(data=form_data)
+    assert not form.is_valid()
+    assert form.errors['__all__'] == ["Incorrect format for ROR ID '0123456789downtherabbithole', "
+                                      "should start with 0 (zero), followed by 6 characters and "
+                                      "should end with 2 digits."]
+
+
+def test_publishing_wrong_license(example_authors):
+    form_data = {
+        'authors_json': example_authors,
         'agreed': True,
         'copyright_hold': True,
         'license': 'fantasy',
@@ -415,12 +419,12 @@ def test_publishing_wrong_license():
 
 
 @pytest.mark.django_db
-def test_show_license_when_viewing_published_surface(rf, settings):
+def test_show_license_when_viewing_published_surface(rf, settings, example_authors):
 
     license = 'cc0-1.0'
 
     surface = SurfaceFactory()
-    pub = surface.publish(license, 'Mike Publisher')
+    pub = surface.publish(license, example_authors)
 
     request = rf.get(reverse('manager:surface-detail', kwargs=dict(pk=pub.surface.pk)))
     request.user = surface.creator

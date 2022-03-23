@@ -99,14 +99,42 @@ def reset_singletons():
     del reg
 
 
+@pytest.fixture
+def example_authors():
+    authors = [
+        {
+            'first_name': 'Hermione',
+            'last_name': 'Granger',
+            'orcid_id': '9999-9999-9999-999X',
+            'affiliations': [
+                {
+                    'name': 'Hogwarts'
+                }
+            ]
+        },
+        {'first_name': 'Harry',
+         'last_name': 'Potter',
+         'orcid_id': '9999-9999-9999-9999',
+         'affiliations': [
+             {
+                 'name': 'University of Freiburg',
+                 'ror_id': '0245cg223'
+             },
+             {
+                 'name': 'Hogwarts'
+             }
+         ]
+         },
+    ]
+    return authors
+
 @pytest.mark.django_db
 @pytest.fixture
-def example_pub():
+def example_pub(example_authors):
     """Fixture returning a publication which can be used as test example"""
 
     user = UserFactory()
 
-    authors = "Alice, Bob"
     publication_date = datetime.date(2020, 1, 1)
     description = "This is a nice surface for testing."
     name = "Diamond Structure"
@@ -115,7 +143,7 @@ def example_pub():
     surface.tags = ['diamond']
 
     with freeze_time(publication_date):
-        pub = surface.publish('cc0-1.0', authors)
+        pub = surface.publish('cc0-1.0', example_authors)
 
     return pub
 

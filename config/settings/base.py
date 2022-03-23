@@ -1,7 +1,7 @@
 """
 Base settings to build other settings files upon.
 """
-
+from django.core.exceptions import ImproperlyConfigured
 import environ
 import topobank
 
@@ -282,7 +282,7 @@ if USE_TZ:
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-broker_url
 CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='amqp://')
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-result_backend
-CELERY_RESULT_BACKEND = env('CELERY_RESULT_BACKEND', default='cache+memcached://127.0.0.1:11211/')  # CELERY_BROKER_URL
+CELERY_RESULT_BACKEND = env('CELERY_RESULT_BACKEND', default='redis://127.0.0.1:6379/0')
 # we don't use rpc:// as default here, because Python 3.7 is not officially supported by celery 4.2
 # and there is a problem with Python 3.7's keyword 'async' which is used in the celery code
 
@@ -294,10 +294,15 @@ CELERY_TASK_SERIALIZER = 'json'
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-result_serializer
 CELERY_RESULT_SERIALIZER = 'json'
 # TODO: set to whatever value is adequate in your circumstances
-CELERYD_TASK_TIME_LIMIT = 5 * 60
+# CELERYD_TASK_TIME_LIMIT = 5 * 60
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#task-soft-time-limit
 # TODO: set to whatever value is adequate in your circumstances
-CELERYD_TASK_SOFT_TIME_LIMIT = 60
+# CELERYD_TASK_SOFT_TIME_LIMIT = 60
+
+# https://docs.celeryproject.org/en/stable/userguide/configuration.html#worker-cancel-long-running-tasks-on-connection-loss
+CELERY_WORKER_CANCEL_LONG_RUNNING_TASKS_ON_CONNECTION_LOSS=True
+# https://docs.celeryproject.org/en/stable/userguide/configuration.html?highlight=heartbeat#broker-heartbeat
+CELERY_BROKER_HEARTBEAT=10
 
 
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-broker_url
@@ -484,27 +489,35 @@ CONTACT_EMAIL_ADDRESS = "support@contact.engineering"
 #
 # Publication settings
 #
-MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS = 600  # set to None to disable check
+# set to None to disable check
+MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS = env.int('MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS', 600)
+
 CC_LICENSE_INFOS = {  # each element refers to two links: (description URL, full license text URL)
     'cc0-1.0': {
         'description_url': 'https://creativecommons.org/publicdomain/zero/1.0/',
         'legal_code_url': 'https://creativecommons.org/publicdomain/zero/1.0/legalcode',
         'title': 'CC0 1.0 Universal',
-        'option_name': 'CC0 1.0 (Public Domain Dedication)'
+        'option_name': 'CC0 1.0 (Public Domain Dedication)',
+        'spdx_identifier': 'CC0-1.0',
     },
     'ccby-4.0': {
         'description_url': 'https://creativecommons.org/licenses/by/4.0/',
         'legal_code_url': 'https://creativecommons.org/licenses/by/4.0/legalcode',
         'title': 'Creative Commons Attribution 4.0 International Public License',
-        'option_name': 'CC BY 4.0'
+        'option_name': 'CC BY 4.0',
+        'spdx_identifier': 'CC-BY-4.0',
     },
     'ccbysa-4.0': {
         'description_url': 'https://creativecommons.org/licenses/by-sa/4.0/',
         'legal_code_url': 'https://creativecommons.org/licenses/by-sa/4.0/legalcode',
         'title': 'Creative Commons Attribution-ShareAlike 4.0 International Public License',
-        'option_name': 'CC BY-SA 4.0'
+        'option_name': 'CC BY-SA 4.0',
+        'spdx_identifier': 'CC-BY-SA-4.0',
     }
 }
+# For SPDX identifiers, see https://spdx.org/licenses/
+# It may be useful to use these identifiers also everywhere in the code when identifying a license,
+# but then we also need to change the existing entries in the database.
 
 #
 # Settings for exporting plots as thumbnails
@@ -520,3 +533,43 @@ CONTACT_MECHANICS_KWARGS_LIMITS = {
             'maxiter': dict(min=1, max=1000),
             'pressures': dict(maxlen=50),
 }
+
+#
+# Datacite settings (DOI creation)
+#
+PUBLICATION_DOI_STATE_INFOS = {
+    'draft': {
+        'description': 'only visible in Fabrica, DOI can be deleted',
+    },
+    'registered': {
+        'description': 'registered with the DOI Resolver, cannot be deleted',
+    },
+    'findable': {
+        'description': 'registered with the DOI Resolver and indexed in DataCite Search, cannot be deleted',
+    }
+}
+
+# Prefix of the URL each DOI refers to, the short url of the publication is added
+PUBLICATION_URL_PREFIX = env.str('PUBLICATION_URL_PREFIX', 'https://contact.engineering/go/')
+
+# Set this to True if each publication must get a DOI on creation
+PUBLICATION_DOI_MANDATORY = env.bool('PUBLICATION_DOI_MANDATORY', default=False)
+
+# Prefix of the DOI to be generated, e.g. '10.82035'
+PUBLICATION_DOI_PREFIX = env.str('PUBLICATION_DOI_PREFIX', '99.999')  # 99.999 is invalid, should start with '10.'
+
+# These are the credentials for DataCite
+DATACITE_USERNAME = env.str('DATACITE_USERNAME', 'testuser')
+DATACITE_PASSWORD = env.str('DATACITE_PASSWORD', 'testpassword')
+
+# URL of the API, there is one for test and one for production
+DATACITE_API_URL = env.str('DATACITE_API_URL', default='https://api.test.datacite.org')
+
+# The desired state of the DOI: draft, registered or findable - only draft DOIs can be deleted
+PUBLICATION_DOI_STATE = env.str('PUBLICATION_DOI_STATE', default='draft')
+if PUBLICATION_DOI_STATE not in PUBLICATION_DOI_STATE_INFOS.keys():
+    raise ImproperlyConfigured(f"Undefined state given for a publication DOI: {PUBLICATION_DOI_STATE}")
+
+# Some limitations, so that bots cannot enter too much
+PUBLICATION_MAX_NUM_AUTHORS = 200
+PUBLICATION_MAX_NUM_AFFILIATIONS_PER_AUTHOR = 20
