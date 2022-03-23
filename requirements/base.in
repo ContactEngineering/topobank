@@ -13,6 +13,9 @@ django-allauth  # https://github.com/pennersr/django-allauth
 django-crispy-forms  # https://github.com/django-crispy-forms/django-crispy-forms
 django-tables2 # https://github.com/jieter/django-tables2
 
+# Redis for caching
+django-redis
+
 # Update a dependency of pyjwt to a more secure version
 cryptography>=3.3.2
 
@@ -59,7 +62,8 @@ django-guardian>=2.4.0, <3
 
 # Celery
 # django-kombu # is this still needed? See https://pypi.org/project/django-kombu/
-celery[pymemcache]>=5.2.2, <6.0
+celery[redis]>=5.2.3, <6.0
+# with memcached we've had several problems within a Docker swarm stack
 # pylibmc seems to cause memcache problems: see GH 737
 # librabbitmq>=2.0
 # problems while compiling librabbitmq
@@ -99,7 +103,7 @@ h5netcdf
 django-formtools>=2.2
 
 # notifications
-django-notifications-hq
+django-notifications-hq>=1.7.0
 
 # multiple select widget
 django-select2

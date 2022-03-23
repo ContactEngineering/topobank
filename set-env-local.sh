@@ -11,7 +11,10 @@ export DATACITE_PASSWORD
 # export DATACITE_API_URL
 # export PUBLICATION_DOI_STATE
 
-export CELERY_BROKER_URL='amqp://roettger:secert7$@localhost:5672/topobank'
+# export CELERY_BROKER_URL='amqp://roettger:secert7$@localhost:5672/topobank'
+export CELERY_BROKER_URL='redis://localhost:6379/0'
+export CELERY_RESULT_BACKEND='redis://localhost:6379/1'
+
 export FIREFOX_BINARY_PATH=`which firefox`
 export GECKODRIVER_PATH=`which geckodriver`
 export EMAIL_HOST=localhost

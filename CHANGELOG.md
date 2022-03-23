@@ -1,7 +1,13 @@
 # Changelog for *TopoBank*
 
-## 0.18.3 (not released yet)
+## 0.19.0 (not released yet)
 
+- ENH: Added possibility for assigning DOIs to published datasets
+- ENH: Added management command 'renew_containers'
+- ENH: Added switch to 'trigger_analyses' which triggers analyses
+  for all topographies related to the given surfaces
+- MAINT: Switched cache backend and celery broker to
+  redis because of several problems with RabbitMQ and Memcached  
 - MAINT: Updated django and Pillow because of CVEs
 
 ## 0.18.2 (2022-01-26)

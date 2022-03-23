@@ -9,7 +9,10 @@ def transfer_authors_string_to_authors_json(apps, schema_editor):
     Publication = apps.get_model('publication', 'Publication')
 
     for pub in Publication.objects.all():
-        authors_names = [a.strip() for a in pub.authors.split(',')]
+        if pub.authors is not None:
+            authors_names = [a.strip() for a in pub.authors.split(',')]
+        else:
+            authors_names = []
         authors = []
         for author_name in authors_names:
             # find last name as last word
