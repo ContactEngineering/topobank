@@ -1,5 +1,10 @@
 # Changelog for *TopoBank*
 
+## 0.19.1 (2022-03-23)
+
+MAINT: Adjusted docker-compose file for production with Docker 
+Swarm for the use with redis, removed memcache and rabbitmq
+
 ## 0.19.0 (2022-03-23)
 
 - ENH: Added possibility for assigning DOIs to published datasets
