@@ -22,8 +22,7 @@ services:
     image: contact.engineering:5000/topobank_production_django
     depends_on:
       - postgres
-      - rabbitmq
-      - memcached
+      - redis
     volumes:
       - production_media:/app/media
     env_file:
