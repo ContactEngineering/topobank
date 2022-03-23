@@ -19,10 +19,11 @@ DATABASES['default']['CONN_MAX_AGE'] = env.int('CONN_MAX_AGE', default=60)  # no
 CACHES = {
     'default': {
         'BACKEND': env.str("DJANGO_DEFAULT_CACHE_BACKEND",
-                           default='django.core.cache.backends.memcached.MemcachedCache'),
-        'LOCATION': env.str("DJANGO_DEFAULT_CACHE_LOCATION", default='memcached:11211'),
-        # 'BACKEND': 'django.core.cache.backends.memcached.PyLibMCCache',
-        # 'LOCATION': '/tmp/memcached.sock',
+                           default='django_redis.cache.RedisCache'),
+        'LOCATION': env.str("DJANGO_DEFAULT_CACHE_LOCATION", default='redis://redis:6379/0'),
+        'OPTIONS': {
+            'CLIENT_CLASS': "django_redis.client.DefaultClient",
+        }
     }
     # 'default': {
     #     'BACKEND': 'django_redis.cache.RedisCache',
@@ -35,6 +36,8 @@ CACHES = {
     #     }
     # }
 }
+
+SELECT2_CACHE_BACKEND = "default"
 
 # SECURITY
 # ------------------------------------------------------------------------------

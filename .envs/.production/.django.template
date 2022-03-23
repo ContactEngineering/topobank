@@ -10,6 +10,11 @@ DJANGO_SECRET_KEY=<replace with your own secret key, a very long random string>
 DJANGO_ADMIN_URL=<replace with a long random url>
 DJANGO_ALLOWED_HOSTS=contact.engineering
 
+# Django's cache backend
+# ------------------------------------------------------------------------------
+DJANGO_DEFAULT_CACHE_BACKEND=django_redis.cache.RedisCache
+DJANGO_DEFAULT_CACHE_LOCATION=redis:6379/0
+
 # Generating topography thumbnails with Firefox
 # ------------------------------------------------------------------------------
 # firefox binary, not the script!
@@ -38,9 +43,12 @@ WEB_CONCURRENCY=4
 
 # Celery
 # ------------------------------------------------------------------------------
-CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+CELERY_BROKER_URL=redis://redis:6379/0
+CELERY_RESULT_BACKEND=redis://redis:6379/1
+
+# CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
 # without quotes!
-CELERY_RESULT_BACKEND=cache+memcached://memcached:11211/
+# CELERY_RESULT_BACKEND=cache+memcached://memcached:11211/
 
 # Flower
 CELERY_FLOWER_USER=<a long random string>

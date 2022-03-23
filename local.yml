@@ -16,6 +16,7 @@ services:
     depends_on:
       - postgres
       - mailhog
+      - redis
     volumes:
       - .:/app
       - exchange_data:/tmp/exchange
@@ -57,19 +58,20 @@ services:
     ports:
       - "8025:8025"
 
-  memcached:
-    image: memcached:1.5-alpine
+  #memcached:
+  #  image: memcached:1.5-alpine
+  redis:
+    image: redis:6-alpine
 
-  rabbitmq:
-    image: rabbitmq:3.7-alpine
+  # rabbitmq:
+  #   image: rabbitmq:3.7-alpine
 
   celeryworker:
     <<: *django
     image: topobank_local_celeryworker
     depends_on:
       - postgres
-      - rabbitmq
-      - memcached
+      - redis
       - mailhog
     ports: [] # overwrites ports from django entry
     command: /start-celeryworker
@@ -79,8 +81,7 @@ services:
     image: topobank_local_celerybeat
     depends_on:
       - postgres
-      - rabbitmq
-      - memcached
+      - redis
       - mailhog
     ports: [] # overwrites ports from django entry
     command: /start-celerybeat
