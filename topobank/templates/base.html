@@ -18,7 +18,7 @@
 
     <title>contact.engineering - Store and analyze surface topography measurements</title>
 
-    <link rel="icon" type="image/x-icon" href="{% static 'images/favicons/favicon.ico' %}"/>
+    <link rel="icon" type="image/x-icon" href="{% static 'images/favicons/favicon.png' %}"/>
 
     <!-- Bootstrap Core CSS -->
     <link href="{% static 'vendor/bootstrap/css/bootstrap.min.css' %}" rel="stylesheet">
@@ -49,7 +49,7 @@
       <!-- Navbar -->
 
       {# Logo / name of the application #}
-      <a class="navbar-brand" href="{% url 'home' %}">contact.engineering</a>
+      <a class="navbar-brand" href="{% url 'home' %}"><img src="{% static 'images/ce_logo.svg' %}" height="25px">&nbsp contact.engineering</a>
       <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbar_supported_content">
         <span class="navbar-toggler-icon"></span>
       </button>
