@@ -2,12 +2,8 @@
 Definition of celery tasks used in TopoBank.
 """
 
-import io
-import json
 import pickle
 import traceback
-
-from numpyencoder import NumpyEncoder
 
 from django.utils import timezone
 from django.db.utils import IntegrityError
@@ -27,13 +23,13 @@ from ContactMechanics.Systems import IncompatibleFormulationError
 from .celery import app
 from .utils import get_package_version_instance
 
+from topobank.analysis.functions import IncompatibleTopographyException
 from topobank.analysis.models import Analysis, Configuration, AnalysisCollection
 from topobank.manager.models import Topography, Surface
+from topobank.manager.utils import store_split_dict
 from topobank.users.models import User
-from topobank.analysis.functions import IncompatibleTopographyException
 from topobank.usage_stats.utils import increase_statistics_by_date, increase_statistics_by_date_and_object, \
     current_statistics
-from topobank.manager.utils import default_storage_replace
 
 EXCEPTION_CLASSES_FOR_INCOMPATIBILITIES = (IncompatibleTopographyException, IncompatibleFormulationError,
                                            CannotPerformAnalysisError)
@@ -115,9 +111,10 @@ def perform_analysis(self, analysis_id):
     def save_result(result, task_state):
         _log.debug(f"Saving result of analysis {analysis_id}...")
         analysis.task_state = task_state
-        default_storage_replace(f'{analysis.storage_prefix}/result.json',
-                                io.BytesIO(json.dumps(result, cls=NumpyEncoder).encode('utf-8')))
-        analysis.result = pickle.dumps(result)  # can also be an exception in case of errors!
+        #default_storage_replace(f'{analysis.storage_prefix}/result.json',
+        #                        io.BytesIO(json.dumps(result, cls=NumpyEncoder).encode('utf-8')))
+        store_split_dict(analysis.storage_prefix, 'result', result)
+        #analysis.result = pickle.dumps(result)  # can also be an exception in case of errors!
         analysis.end_time = timezone.now()  # with timezone
         if 'effective_kwargs' in result:
             analysis.kwargs = pickle.dumps(result['effective_kwargs'])

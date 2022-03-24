@@ -28,7 +28,8 @@ from ContactMechanics import PeriodicFFTElasticHalfSpace, FreeFFTElasticHalfSpac
 from ContactMechanics.Tools.ContactAreaAnalysis import patch_areas, assign_patch_numbers
 
 import topobank.manager.models  # will be used to evaluate model classes
-from topobank.manager.utils import default_storage_replace, make_dzi
+from topobank.manager.utils import default_storage_replace, make_dzi, SplitDictionaryHere
+
 from .registry import AnalysisFunctionRegistry
 
 _log = logging.getLogger(__name__)
@@ -115,6 +116,18 @@ class ReentrantTopographyException(IncompatibleTopographyException):
     pass
 
 
+def wrap_series(series):
+    """
+    Wrap each data series into a `SplitDictionaryHere` with a consecutive name
+    'series-0', 'series-1'. Each `SplitDictionaryHere` is written into a separate
+    file by `store_split_dict`.
+    """
+    wrapped_series = []
+    for i, s in enumerate(series):
+        wrapped_series.append(SplitDictionaryHere(f'series-{i}', s))
+    return wrapped_series
+
+
 #
 # Use this during development if you need a long running task with failures
 #
@@ -168,8 +181,6 @@ def height_distribution(topography, bins=None, wfac=5, progress_recorder=None, s
              )
     ]
 
-    _save_series(storage_prefix, series)
-
     return dict(
         name='Height distribution',
         scalars={
@@ -180,7 +191,7 @@ def height_distribution(topography, bins=None, wfac=5, progress_recorder=None, s
         ylabel='Probability density',
         xunit='' if unit is None else unit,
         yunit='' if unit is None else '{}⁻¹'.format(unit),
-        series=series
+        series=wrap_series(series)
     )
 
 
@@ -339,8 +350,6 @@ def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, st
     else:
         raise ValueError("This analysis function can only handle 1D or 2D topographies.")
 
-    _save_series(storage_prefix, series)
-
     return dict(
         name='Slope distribution',
         xlabel='Slope',
@@ -348,7 +357,7 @@ def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, st
         xunit='1',
         yunit='1',
         scalars=scalars,
-        series=series
+        series=wrap_series(series)
     )
 
 
@@ -410,8 +419,6 @@ def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None
              )
     ]
 
-    _save_series(storage_prefix, series)
-
     return dict(
         name='Curvature distribution',
         scalars={
@@ -422,7 +429,7 @@ def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None
         ylabel='Probability density',
         xunit=inverse_unit,
         yunit=unit,
-        series=series
+        series=wrap_series(series)
     )
 
 
@@ -449,18 +456,6 @@ def make_alert_entry(level, subject_name, subject_url, data_series_name, detail_
     link = f'<a class="alert-link" href="{subject_url}">{subject_name}</a>'
     message = f"Failure for digital surface twin {link}, data series '{data_series_name}': {detail_mesg}"
     return dict(alert_class=f"alert-{level}", message=message)
-
-
-def _save_series(storage_prefix, series):
-    """Save series data into a JSON and remove it from the series dictionary"""
-    if storage_prefix is None:
-        # Don't store anything if no storage prefix is given
-        return
-    for i, s in enumerate(series):
-        default_storage_replace(f'{storage_prefix}/{i}.json',
-                                io.BytesIO(json.dumps(s, cls=NumpyEncoder).encode('utf-8')))
-        s['x'] = len(s['x'])
-        s['y'] = len(s['y'])
 
 
 def analysis_function(topography, funcname_profile, funcname_area, name, xlabel, ylabel, xname, yname, aname, xunit,
@@ -573,9 +568,6 @@ def analysis_function(topography, funcname_profile, funcname_area, name, xlabel,
 
     unit = topography.unit
 
-    # Store series data in individual JSON files for use with Bokeh's AjaxDataSource
-    _save_series(storage_prefix, series)
-
     # Return metadata for results as a dictionary (to be stored in the postgres database)
     return dict(
         name=name,
@@ -585,7 +577,7 @@ def analysis_function(topography, funcname_profile, funcname_area, name, xlabel,
         yunit=yunit.format(unit),
         xscale='log',
         yscale='log',
-        series=series,
+        series=wrap_series(series),
         alerts=alerts)
 
 
@@ -618,9 +610,6 @@ def analysis_function_for_surface(surface, progress_recorder, funcname_profile, 
         alerts.append(make_alert_entry('warning', surface.name, surface.get_absolute_url(),
                                        xname, str(exc)))
 
-    # Store series data in individual JSON files for use with Bokeh's AjaxDataSource
-    _save_series(storage_prefix, series)
-
     # Return metadata for results as a dictionary (to be stored in the postgres database)
     result = dict(
         name=name,
@@ -630,7 +619,7 @@ def analysis_function_for_surface(surface, progress_recorder, funcname_profile, 
         yunit=yunit.format(unit),
         xscale='log',
         yscale='log',
-        series=series,
+        series=wrap_series(series),
         alerts=alerts)
 
     return result
@@ -818,9 +807,6 @@ def scale_dependent_roughness_parameter(topography, progress_recorder, order_of_
 
         process_series_reliable_unreliable(xyname, xy_kwargs)
 
-    # Store series data in individual JSON files for use with Bokeh's AjaxDataSource
-    _save_series(storage_prefix, series)
-
     unit = topography.unit
     return dict(
         name=name,
@@ -830,7 +816,7 @@ def scale_dependent_roughness_parameter(topography, progress_recorder, order_of_
         yunit=yunit.format(unit),
         xscale='log',
         yscale='log',
-        series=series,
+        series=wrap_series(series),
         alerts=alerts)
 
 
@@ -856,9 +842,6 @@ def scale_dependent_roughness_parameter_for_surface(surface, progress_recorder, 
     except CannotPerformAnalysisError as exc:
         alerts.append(make_alert_entry('warning', surface.name, surface.get_absolute_url(), xname, str(exc)))
 
-    # Store series data in individual JSON files for use with Bokeh's AjaxDataSource
-    _save_series(storage_prefix, series)
-
     return dict(
         name=name,
         xlabel='Distance',
@@ -867,7 +850,7 @@ def scale_dependent_roughness_parameter_for_surface(surface, progress_recorder, 
         yunit=yunit.format(unit),
         xscale='log',
         yscale='log',
-        series=series,
+        series=wrap_series(series),
         alerts=alerts)
 
 

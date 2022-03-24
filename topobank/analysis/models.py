@@ -1,15 +1,18 @@
 """
 Models related to analyses.
 """
+
 from django.db import models
-from django.db.models import CheckConstraint, Q, UniqueConstraint
+from django.db.models import UniqueConstraint
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 
 import inspect
 import pickle
 
+from topobank.manager.utils import load_split_dict
 from topobank.users.models import User
+
 from .registry import ImplementationMissingException
 
 
@@ -129,7 +132,7 @@ class Analysis(models.Model):
     @property
     def result_obj(self):
         """Return unpickled result object or None if there is no yet."""
-        return pickle.loads(self.result) if self.result else None
+        return load_split_dict(self.storage_prefix, 'result')
 
     @property
     def storage_prefix(self):
