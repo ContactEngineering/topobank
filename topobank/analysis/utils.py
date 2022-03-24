@@ -1,13 +1,13 @@
-from django.db.models import OuterRef, Subquery
+import inspect
+import logging
+import math
+import pickle
+
+from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 from django.db.models import Q
-from django.contrib.contenttypes.models import ContentType
-from guardian.shortcuts import get_users_with_perms
 
-import inspect
-import pickle
-import math
-import logging
+from guardian.shortcuts import get_users_with_perms
 
 from topobank.analysis.models import Analysis, AnalysisFunction
 
