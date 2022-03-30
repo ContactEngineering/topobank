@@ -59,7 +59,7 @@ def remove_files(sender, instance, **kwargs):
             default_storage.delete(f'{path}/{directory}')
 
     datafile_path = instance.datafile.name
-    squeezed_datafile_path = instance.datafile.name
+    squeezed_datafile_path = instance.squeezed_datafile.name
     thumbnail_path = instance.thumbnail.name
 
     delete_datafile('datafile')
@@ -76,10 +76,6 @@ def remove_files(sender, instance, **kwargs):
         return
     if squeezed_datafile_path is not None and not squeezed_datafile_path.startswith(instance.storage_prefix):
         _log.warning(f'Squeezed datafile is stored at location {squeezed_datafile_path}, but storage prefix is '
-                     f'{instance.storage_prefix}. I will not attempt to deleting everything at this prefix.')
-        return
-    if datafile_path is not None and not datafile_path.startswith(instance.storage_prefix):
-        _log.warning(f'Datafile is stored at location {datafile_path}, but storage prefix is '
                      f'{instance.storage_prefix}. I will not attempt to deleting everything at this prefix.')
         return
     if thumbnail_path is not None and not thumbnail_path.startswith(instance.storage_prefix):
