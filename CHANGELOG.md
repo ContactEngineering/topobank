@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-## 0.19.0 (not yet released)
+## 0.20.0 (not yet released)
 
 - MAINT: Removed Selenium dependency; thumbnail generation now
   uses Pillow and matplotlib (#782, #785, #787)
