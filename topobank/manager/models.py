@@ -804,7 +804,7 @@ class Topography(models.Model, SubjectMixin):
         Parameters
         ----------
         width : int, optional
-            Maximum width of the thumbnail. (Default: 500)
+            Maximum width of the thumbnail. (Default: 400)
         height : int, optional
             Maximum height of the thumbnail. (Default: 400)
         cmap : str or colormap, optional
