@@ -196,7 +196,7 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
         return obj.publication.datetime.date() if obj.is_published else ''
 
     def get_publication_authors(self, obj):
-        return obj.publication.authors if obj.is_published else ''
+        return obj.publication.get_authors_string() if obj.is_published else ''
 
     def get_publication_license(self, obj):
         return obj.publication.license if obj.is_published else ''

@@ -7,6 +7,21 @@
 - MAINT: Store topography data and derived data (squeezed files,
   thumbnails) under a unique prefix (#801)
 
+## 0.19.1 (2022-03-23)
+
+MAINT: Adjusted docker-compose file for production with Docker 
+Swarm for the use with redis, removed memcache and rabbitmq
+
+## 0.19.0 (2022-03-23)
+
+- ENH: Added possibility for assigning DOIs to published datasets
+- ENH: Added management command 'renew_containers'
+- ENH: Added switch to 'trigger_analyses' which triggers analyses
+  for all topographies related to the given surfaces
+- MAINT: Switched cache backend and celery broker to
+  redis because of several problems with RabbitMQ and Memcached  
+- MAINT: Updated django and Pillow because of CVEs
+
 ## 0.18.2 (2022-01-26)
 
 - BUG: Fixing missing nc files in contact mechanics download

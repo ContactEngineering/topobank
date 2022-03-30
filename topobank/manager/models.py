@@ -4,6 +4,7 @@ Basic models for the web app for handling topography data.
 
 import sys
 
+import datacite.errors
 from django.db import models
 from django.shortcuts import reverse
 from django.utils import timezone
@@ -34,7 +35,7 @@ from ..plots import configure_plot
 from .utils import get_topography_reader
 
 from topobank.users.models import User
-from topobank.publication.models import Publication
+from topobank.publication.models import Publication, DOICreationException
 from topobank.users.utils import get_default_group
 from topobank.analysis.models import Analysis
 from topobank.analysis.utils import renew_analyses_for_subject
@@ -62,7 +63,6 @@ def user_directory_path(instance, filename):
 
 class PublicationException(Exception):
     pass
-
 
 class AlreadyPublishedException(PublicationException):
     pass
@@ -189,7 +189,7 @@ class Surface(models.Model, SubjectMixin):
     def num_topographies(self):
         return self.topography_set.count()
 
-    def to_dict(self, request=None):
+    def to_dict(self):
         """Create dictionary for export of metadata to json or yaml.
 
         Does not include topographies. They can be added like this:
@@ -197,10 +197,8 @@ class Surface(models.Model, SubjectMixin):
          surface_dict = surface.to_dict()
          surface_dict['topographies'] = [t.to_dict() for t in surface.topography_set.order_by('name')]
 
-        Parameters:
-            request: HTTPRequest
-                Needed for calculating publication URLs.
-                If not given, only return relative publication URL.
+        The publication URL will be based on the official contact.engineering URL.
+
         Returns:
             dict
         """
@@ -213,11 +211,13 @@ class Surface(models.Model, SubjectMixin):
              }
         if self.is_published:
             d['publication'] = {
-                'url': self.publication.get_full_url(request) if request else self.publication.get_absolute_url(),
+                'url': self.publication.get_full_url(),
                 'license': self.publication.get_license_display(),
-                'authors': self.publication.authors,
+                'authors': self.publication.get_authors_string(),
                 'version': self.publication.version,
                 'date': str(self.publication.datetime.date()),
+                'doi_url': self.publication.doi_url or '',
+                'doi_state': self.publication.doi_state or '',
             }
         return d
 
@@ -332,12 +332,33 @@ class Surface(models.Model, SubjectMixin):
         ----------
         license: str
             One of the keys of LICENSE_CHOICES
-        authors: str
-            Comma-separated string of author names;
+        authors: list
+            List of authors as list of dicts, where each dict has the
+            form as in the example below. Will be saved as-is in JSON
+            format and will be used for creating a DOI.
 
         Returns
         -------
         Publication
+
+        (Fictional) Example of a dict representing an author:
+
+        {
+            'first_name': 'Melissa Kathrin'
+            'last_name': 'Miller',
+            'orcid_id': '1234-1234-1234-1224',
+            'affiliations': [
+                {
+                    'name': 'University of Westminster',
+                    'ror_id': '04ycpbx82'
+                },
+                {
+                    'name': 'New York University Paris',
+                    'ror_id': '05mq03431'
+                },
+            ]
+        }
+
         """
         if self.is_published:
             raise AlreadyPublishedException()
@@ -347,7 +368,7 @@ class Surface(models.Model, SubjectMixin):
         # We limit the publication rate
         #
         min_seconds = settings.MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS
-        if latest_publication and (min_seconds is not None):
+        if (latest_publication is not None) and (min_seconds is not None):
             delta_since_last_pub = timezone.now() - latest_publication.datetime
             delta_secs = delta_since_last_pub.total_seconds()
             if delta_secs < min_seconds:
@@ -374,16 +395,34 @@ class Surface(models.Model, SubjectMixin):
         else:
             version = 1
 
+        #
+        # Save local reference for the publication
+        #
         pub = Publication.objects.create(surface=copy, original_surface=self,
-                                         authors=authors,
+                                         authors_json=authors,
                                          license=license,
                                          version=version,
                                          publisher=self.creator,
                                          publisher_orcid_id=self.creator.orcid_id)
 
+        #
+        # Try to create DOI - if this doesn't work, rollback
+        #
+        if settings.PUBLICATION_DOI_MANDATORY:
+            try:
+                pub.create_doi()
+            except DOICreationException as exc:
+                _log.error("DOI creation failed, reason: %s", exc)
+                _log.warning("Cannot create publication with DOI, deleting publication instance.")
+                pub.delete()
+                raise PublicationException(f"Cannot create DOI, reason: {exc}") from exc
+        else:
+            _log.info("Skipping creation of DOI, because it is not configured as mandatory.")
+
         _log.info(f"Published surface {self.name} (id: {self.id}) " + \
                   f"with license {license}, version {version}, authors '{authors}'")
-        _log.info(f"URL of publication: {pub.get_absolute_url()}")
+        _log.info(f"Direct URL of publication: {pub.get_absolute_url()}")
+        _log.info(f"DOI name of publication: {pub.doi_name}")
 
         return pub
 

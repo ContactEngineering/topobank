@@ -6,12 +6,15 @@ psycopg2-binary>=2.8, <2.9  # https://github.com/psycopg/psycopg2
 
 # Django
 # ------------------------------------------------------------------------------
-django==3.2.11  #  does this work with pyup?  # https://www.djangoproject.com/
+django==3.2.12  #  does this work with pyup?  # https://www.djangoproject.com/
 django-environ  # https://github.com/joke2k/django-environ
 django-model-utils  # https://github.com/jazzband/django-model-utils
 django-allauth  # https://github.com/pennersr/django-allauth
 django-crispy-forms  # https://github.com/django-crispy-forms/django-crispy-forms
 django-tables2 # https://github.com/jieter/django-tables2
+
+# Redis for caching
+django-redis
 
 # Update a dependency of pyjwt to a more secure version
 cryptography>=3.3.2
@@ -59,8 +62,9 @@ django-guardian>=2.4.0, <3
 
 # Celery
 # django-kombu # is this still needed? See https://pypi.org/project/django-kombu/
-celery[pymemcache]>=5.2.2, <6.0
-# pylibmc seems to cause memcache problems: see GH
+celery[redis]>=5.2.3, <6.0
+# with memcached we've had several problems within a Docker swarm stack
+# pylibmc seems to cause memcache problems: see GH 737
 # librabbitmq>=2.0
 # problems while compiling librabbitmq
 flower==1.0.0
@@ -95,7 +99,7 @@ h5netcdf
 django-formtools>=2.2
 
 # notifications
-django-notifications-hq
+django-notifications-hq>=1.7.0
 
 # multiple select widget
 django-select2
@@ -129,15 +133,16 @@ django-bootstrap-datepicker-plus
 # fix muspectre version because of a bug/incompatibility in later versions
 # git+https://gitlab.com/muspectre/muspectre.git@654a508babf97564c3e3144ca11686431fe45c39#egg=mufft
 
-# for publication URLs
+# for publications
 short_url
 django-fullurl
+datacite
 
 # some other constraints due to security concerns
 lxml>=4.6.5
 jinja2>=2.11.3  # because of CVE-2020-28493
 
-Pillow>=9.0.0  # because of several CVEs
+Pillow>=9.0.1  # because of several CVEs
 PyYAML>=5.4  # CVE-2020-14343
 sqlparse>=0.4.2  # CVE-2021-32839
 

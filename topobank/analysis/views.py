@@ -266,7 +266,7 @@ class SimpleCardView(TemplateView):
                 triggered_analysis = request_analysis(user, function, subject, **analysis_kwargs)
                 subjects_triggered.append(subject)
                 # topographies_available_ids.append(topo.id)
-                _log.info(f"Triggered analysis {triggered_analysis.id} for function {function.name} " + \
+                _log.info(f"Triggered analysis {triggered_analysis.id} for function '{function.name}' "
                           f"and subject '{subject}'.")
         subjects_missing = [s for s in subjects_missing if s not in subjects_triggered]
 
@@ -815,7 +815,8 @@ class PlotCardView(SimpleCardView):
         series_button_group.js_on_click(toggle_lines_callback)
         if has_at_least_one_surface_subject:
             surface_btn_group.js_on_click(toggle_lines_callback)
-        topography_btn_group.js_on_click(toggle_lines_callback)
+        if has_at_least_one_topography_subject:
+            topography_btn_group.js_on_click(toggle_lines_callback)
         subject_btn_group_toggle_button.js_on_click(toggle_subject_checkboxes)
         series_btn_group_toggle_button.js_on_click(toggle_series_checkboxes)
         options_group_toggle_button.js_on_click(toggle_options)

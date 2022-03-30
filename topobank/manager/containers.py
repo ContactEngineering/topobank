@@ -6,6 +6,7 @@ import zipfile
 import os.path
 import yaml
 import textwrap
+import json
 import logging
 import math
 
@@ -21,7 +22,7 @@ import SurfaceTopography
 _log = logging.getLogger(__name__)
 
 
-def write_surface_container(file, surfaces, request=None):
+def write_surface_container(file, surfaces):
     """Write container data to a file.
 
     Parameters
@@ -30,8 +31,6 @@ def write_surface_container(file, surfaces, request=None):
         Should be opened in "w" mode.
     surfaces: sequence of Surface instances
         Surface which should be included in container.
-    request: HTTPRequest
-        If None, urls of published surfaces will only be relative.
 
     Returns
     -------
@@ -107,7 +106,7 @@ def write_surface_container(file, surfaces, request=None):
 
             topography_dicts.append(topo_dict)
 
-        surface_dict = surface.to_dict(request)
+        surface_dict = surface.to_dict()
         surface_dict['topographies'] = topography_dicts
 
         surfaces_dicts.append(surface_dict)
@@ -156,7 +155,16 @@ def write_surface_container(file, surfaces, request=None):
     """)
 
     if len(publications) > 0:
+        #
+        # Add datacite_json
+        #
+        for pub in publications:
+            if pub.doi_name:
+                zf.writestr(f"other/datacite-{pub.short_url}.json", json.dumps(pub.datacite_json))
 
+        #
+        # Add license information to README
+        #
         licenses_used = set(pub.license for pub in publications)
         readme_txt += textwrap.dedent("""
         License information
