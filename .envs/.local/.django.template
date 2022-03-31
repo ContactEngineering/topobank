@@ -9,6 +9,12 @@ DJANGO_SETTINGS_MODULE=config.settings.local
 # settings seem to be local implicitly, but let's be explicit here
 DJANGO_DEBUG=yes
 
+# Django's cache backend
+# ------------------------------------------------------------------------------
+DJANGO_DEFAULT_CACHE_BACKEND=django_redis.cache.RedisCache
+DJANGO_DEFAULT_CACHE_LOCATION=redis://redis:6379/0
+# We also use redis server here like in production
+
 # Generating topography thumbnails with Firefox
 # ------------------------------------------------------------------------------
 # firefox binary, not the script!
@@ -17,9 +23,12 @@ GECKODRIVER_PATH=/opt/conda/bin/geckodriver
 
 # Celery
 # ------------------------------------------------------------------------------
-CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+CELERY_BROKER_URL=redis://redis:6379/0
+CELERY_RESULT_BACKEND=redis://redis:6379/1
+
+# CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
 # without quotes!
-CELERY_RESULT_BACKEND=cache+memcached://memcached:11211/
+# CELERY_RESULT_BACKEND=cache+memcached://memcached:11211/
 # Note: RabbitMQ and Memcached are running in separate containers having host names 'rabbitmq' and 'memcached'
 
 # Flower
@@ -30,6 +39,24 @@ CELERY_FLOWER_PASSWORD=EI7zTd27VUZ2NdqGs5iQxINipsphB6SxUOwxWQXpcJ2OuoeE1JxxTs2bf
 # ------------------------------------------------------------------------------
 ORCID_CLIENT_ID=<replace with your client ID from ORCID>
 ORCID_SECRET=<replace with your secret from ORCID>
+
+# DataCite settings (DOI creation)
+# ------------------------------------------------------------------------------
+DATACITE_USERNAME=<replace with your DataCite username>
+DATACITE_PASSWORD='<replace with your DataCite password>'
+# use quotes around the password, otherwise this can create problems on a shell
+DATACITE_API_URL=https://api.test.datacite.org
+# Test mode: https://api.test.datacite.org
+# Production mode: https://api.datacite.org
+
+PUBLICATION_DOI_STATE=draft
+# Choose one of 'draft', 'registered', 'findable'
+# Please keep in mind that only 'draft' DOIs are deletable.
+# For production, use 'findable', if the DOIs should be public.
+
+# PUBLICATION_URL_PREFIX=https://contact.engineering/go/
+PUBLICATION_DOI_PREFIX=<replace with your DOI prefix registered at DATACITE>
+PUBLICATION_DOI_MANDATORY=False
 
 # Storage settings
 # ------------------------------------------------------------------------------

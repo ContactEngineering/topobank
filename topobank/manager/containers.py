@@ -1,22 +1,28 @@
 """
 Import and export surfaces through archives aka "surface containers".
 """
+
 import zipfile
 import os.path
 import yaml
 import textwrap
+import json
 import logging
+import math
 
+from django.utils.text import slugify
 from django.utils.timezone import now
 from django.conf import settings
 from django.contrib.staticfiles.storage import staticfiles_storage
 
 from .models import Topography
 
+import SurfaceTopography
+
 _log = logging.getLogger(__name__)
 
 
-def write_surface_container(file, surfaces, request=None):
+def write_surface_container(file, surfaces):
     """Write container data to a file.
 
     Parameters
@@ -25,16 +31,12 @@ def write_surface_container(file, surfaces, request=None):
         Should be opened in "w" mode.
     surfaces: sequence of Surface instances
         Surface which should be included in container.
-    request: HTTPRequest
-        If None, urls of published surfaces will only be relative.
 
     Returns
     -------
     None
     """
     surfaces_dicts = []
-    already_used_topofile_names = []
-    counter = 0
 
     publications = set()  # collect publications so we can list the licenses in an extra file
 
@@ -43,7 +45,11 @@ def write_surface_container(file, surfaces, request=None):
     #
     # Add meta data and topography files for all given surfaces
     #
-    for surface in surfaces:
+    nb_surfaces = len(surfaces)
+    log10_nb_surfaces = int(math.log10(nb_surfaces)) if nb_surfaces > 0 else 0
+    for surface_index, surface in enumerate(surfaces):
+        surface_prefix = '' if nb_surfaces == 1 else f'{surface_index}'.zfill(log10_nb_surfaces+1) + '-'
+
         topographies = Topography.objects.filter(surface=surface)
 
         topography_dicts = []
@@ -51,36 +57,37 @@ def write_surface_container(file, surfaces, request=None):
         # create unique file names for the data files
         # using the original file name + a counter, if needed
 
-        for topography in topographies:
+        nb_topographies = len(topographies)
+        log10_nb_topographies = int(math.log10(nb_topographies)) if nb_topographies > 0 else 0
+        for topography_index, topography in enumerate(topographies):
+            topography_prefix = f'{topography_index}'.zfill(log10_nb_topographies + 1) + '-'
+
             topo_dict = topography.to_dict()
             # this dict may be okay, but have to check whether the filename is unique
             # because every filename should only appear once in the archive
 
-            def unique_topography_filename(fn, already_used_topofile_names=already_used_topofile_names):
-                """Make sure the filename is unique in archive.
-
-                If filename `fn` is already used, add a counter.
-                Return the name that should be used.
-                """
-                nonlocal counter
-                while fn in already_used_topofile_names:
-                    fn_root, fn_ext = os.path.splitext(fn)
-                    fn = f"{fn_root}_{counter}.{fn_ext}"
-                    counter += 1
-                return fn
-
             #
             # Return original datafile to archive
             #
-            original_name = unique_topography_filename(
-                os.path.basename(topo_dict['datafile']['original']),
-                already_used_topofile_names=already_used_topofile_names
-            )
-            topo_dict['datafile']['original'] = original_name
-            already_used_topofile_names.append(original_name)
+
+            # Split out original extension
+            _, original_extension = os.path.splitext(topo_dict['datafile']['original'])
+            slugified_name = slugify(topo_dict['name'])
+            # `slugified_name` may have an extension since initial `name` is filename
+            name, slugified_extension = os.path.splitext(slugified_name)
+            if slugified_extension == original_extension:
+                # We will add the extension later, hence `slugified_name` should not contain it
+                slugified_name = name
+            else:
+                # Apparently the `name` was not a filename and we need to add the extension
+                slugified_extension = original_extension
+            # Construct filename for use within the container (note: extension contains the leading '.')
+            name_in_container = f'{surface_prefix}{topography_prefix}{slugified_name}{slugified_extension}'
+            topo_dict['datafile']['original'] = name_in_container
 
             # add topography file to ZIP archive
-            zf.writestr(original_name, topography.datafile.read())
+            zf.writestr(name_in_container, topography.datafile.read())
+
             #
             # Also add squeezed netcdf file, if possible
             #
@@ -91,19 +98,15 @@ def write_surface_container(file, surfaces, request=None):
                     _log.error(f"Cannot generate squeezed datafile of topography id {topography.id} "
                                f"for download: {exc}")
             if topography.has_squeezed_datafile:
-                squeezed_file_name = unique_topography_filename(
-                    os.path.basename(topography.squeezed_datafile.name),
-                    already_used_topofile_names=already_used_topofile_names
-                )
-                topo_dict['datafile']['squeezed-netcdf'] = squeezed_file_name
-                already_used_topofile_names.append(squeezed_file_name)
+                squeezed_name_in_container = f'{surface_prefix}{topography_prefix}{slugified_name}-squeezed.nc'
+                topo_dict['datafile']['squeezed-netcdf'] = squeezed_name_in_container
 
                 # add topography file to ZIP archive
-                zf.writestr(squeezed_file_name, topography.squeezed_datafile.read())
+                zf.writestr(squeezed_name_in_container, topography.squeezed_datafile.read())
 
             topography_dicts.append(topo_dict)
 
-        surface_dict = surface.to_dict(request)
+        surface_dict = surface.to_dict()
         surface_dict['topographies'] = topography_dicts
 
         surfaces_dicts.append(surface_dict)
@@ -125,33 +128,43 @@ def write_surface_container(file, surfaces, request=None):
     #
     # Add a Readme file and license files
     #
-    readme_txt = textwrap.dedent("""
+    readme_txt = textwrap.dedent(f"""
     Contents of this ZIP archive
     ============================
-    This archive contains {} surface(s). Each surface is a
-    collection of individual topography measurements.
-    In total {} topography measurements are included.
+    This archive contains {len(surfaces)} digital surface twin(s). Each digital surface
+    twin is a collection of individual topography measurements. In total,
+    this archive contains {sum(s.topography_set.count() for s in surfaces)} topography measurements.
 
-    For each measurement two files are included:
+    There are two files for each measurement:
     - The original data file which was uploaded by a user,
     - as alternative, a NetCDF 3 file with extension "-squeezed.nc" which can
-      be used to load the data in other programs, e.g. Matlab; here "squeezed"
-      means that height scale factors and detrending have already been applied
-      and the data can be directly used.
+      be used to load the data in other programs, e.g. Matlab or Python. Here,
+      "squeezed" means that the measurement was preprocessed: It was rescaled
+      according to the height scale factor, was detrended (if selected) and
+      missing data points were filled in (if selected).
 
-    The meta data for the surfaces and the individual topographies
-    can be found in the auxiliary file 'meta.yml'. It is formatted
-    as a [YAML](https://yaml.org/) file.
+    The metadata for the digital twins and the individual measurements can be
+    found in the auxiliary file 'meta.yml'. It is formatted as
+    [YAML](https://yaml.org/) file.
 
     Version information
     ===================
 
-    TopoBank: {}
-    """.format(len(surfaces), sum(s.topography_set.count() for s in surfaces),
-               settings.TOPOBANK_VERSION))
+    TopoBank: {settings.TOPOBANK_VERSION}
+    SurfaceTopgoraphy: {SurfaceTopography.__version__}
+    """)
 
     if len(publications) > 0:
+        #
+        # Add datacite_json
+        #
+        for pub in publications:
+            if pub.doi_name:
+                zf.writestr(f"other/datacite-{pub.short_url}.json", json.dumps(pub.datacite_json))
 
+        #
+        # Add license information to README
+        #
         licenses_used = set(pub.license for pub in publications)
         readme_txt += textwrap.dedent("""
         License information

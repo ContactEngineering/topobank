@@ -72,6 +72,14 @@ class Command(BaseCommand):
         )
 
         parser.add_argument(
+            '--unsafe-yaml-loader',
+            action='store_true',
+            dest='unsafe_yaml_loader',
+            help='Use unsafe YAML loader - use with care, this is potentially dangerous, '
+                 'malicious code execution is possible.',
+        )
+
+        parser.add_argument(
             '--name-as-datafile',
             action='store_true',
             dest='name_as_datafile',
@@ -151,17 +159,17 @@ class Command(BaseCommand):
             # applied because of file contents while loading
             pass
 
-        # saving topo file in backend
-        new_topo_file_path = os.path.join(user.get_media_path(), os.path.basename(topo_name))
-        self.stdout.write(self.style.NOTICE(f"  Path got topography file in backend: {new_topo_file_path}"))
-
-        if not dry_run:
-            topo_kwargs['datafile'] = default_storage.save(new_topo_file_path, File(topo_file))
-
+        topo_kwargs['datafile'] = topo_name
         topography = Topography(**topo_kwargs)
 
         if not dry_run:
+            # We need to save the topography to get an id...
             topography.save()
+            # ...which we need for the storage prefix
+            new_topo_file_path = f'{topography.storage_prefix}/raw/{topo_name}'
+            actual_topo_file_path = default_storage.save(new_topo_file_path, File(topo_file))
+            topography.datafile = actual_topo_file_path
+            self.stdout.write(self.style.NOTICE(f"  Path got topography file in backend: {actual_topo_file_path}"))
             self.stdout.write(self.style.SUCCESS(f"Topography '{topo_name}' saved in database."))
             if not skip_thumbnails:
                 topography.renew_images()
@@ -170,7 +178,7 @@ class Command(BaseCommand):
 
     def process_surface_archive(self, surface_zip, user, datafile_attribute='datafile',
                                 ignore_missing=False, dry_run=False, trigger_analyses=False,
-                                skip_thumbnails=False):
+                                skip_thumbnails=False, unsafe_yaml_loader=False):
         """Process surface archive i.e. importing the surfaces.
 
         Parameters
@@ -189,9 +197,14 @@ class Command(BaseCommand):
             If True, trigger analyses after importing a surface.
         skip_thumbnails: bool
             If True, do not create thumbnails for topographies.
+        unsafe_yaml_loader: bool
+            If True, use an unsafe YAML loader. Use this with care,
+            if there is malicious code in the metadata, this can compromise your system.
         """
         with surface_zip.open('meta.yml', mode='r') as meta_file:
-            meta = yaml.safe_load(meta_file)
+
+            yaml_loader = yaml.full_load if unsafe_yaml_loader else yaml.safe_load
+            meta = yaml_loader(meta_file)
 
             for surface_dict in meta['surfaces']:
 
@@ -264,6 +277,9 @@ class Command(BaseCommand):
         dry_run = options['dry_run']
         if dry_run:
             self.stdout.write(self.style.WARNING("Dry run. Nothing will be changed."))
+        unsafe_yaml_loader = options['unsafe_yaml_loader']
+        if unsafe_yaml_loader:
+            self.stdout.write(self.style.WARNING("You are using an unsafe YAML loader."))
 
         datafile_attribute = 'name' if options['name_as_datafile'] else 'datafile'
         self.stdout.write(self.style.NOTICE(f"As datafile attribute '{datafile_attribute}' will be used."))
@@ -278,7 +294,8 @@ class Command(BaseCommand):
                                                  ignore_missing=options['ignore_missing'],
                                                  dry_run=options['dry_run'],
                                                  trigger_analyses=options['trigger_analyses'],
-                                                 skip_thumbnails=options['skip_thumbnails'])
+                                                 skip_thumbnails=options['skip_thumbnails'],
+                                                 unsafe_yaml_loader=unsafe_yaml_loader)
             except Exception as exc:
                 err_msg = f"Cannot process file '{filename}'. Reason: {exc}"
                 self.stdout.write(self.style.ERROR(err_msg))

@@ -316,18 +316,17 @@ def test_topography_name_is_safe_on_creation():
 
 
 def test_author_is_safe():
-    malicious_author = MALICIOUS_TEXT
-
     form_data = {
-        'author_0': malicious_author,
-        'num_author_fields': 1,
+        'authors_json': [{'first_name': 'Draco', 'last_name': MALICIOUS_TEXT, 'orcid_id': '', 'affiliations': []}],
         'license': 'cc0-1.0',
         'agreed': True,
         'copyright_hold': True,
     }
-    form = SurfacePublishForm(data=form_data, num_author_fields=1)
+    form = SurfacePublishForm(data=form_data)
     assert form.is_valid()
 
     cleaned = form.clean()
-    assert cleaned['authors'] == BLEACHED_MALICIOUS_TEXT
+    assert cleaned['authors_json'] == [{'first_name': 'Draco',
+                                        'last_name': BLEACHED_MALICIOUS_TEXT,
+                                        'orcid_id': '', 'affiliations': []}]
 

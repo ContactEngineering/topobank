@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% load icon_tags %}
+
+{% block content %}
+
+<div class="card">
+ <h3 class="card-header">
+   {% fa5_icon 'bolt' %}
+   Publication error for given surface
+ </h3>
+ <div class="card-body">
+   <div class="alert alert-warning" role="alert">
+     A problem occurred while publishing this surface.
+     This surface has not been published. Please try again later.
+   </div>
+ </div>
+</div>
+
+{% endblock content %}

@@ -20,10 +20,22 @@ ALLOWED_HOSTS = [
 # https://docs.djangoproject.com/en/dev/ref/settings/#caches
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': ''
-    }
+        'BACKEND': env.str("DJANGO_DEFAULT_CACHE_BACKEND",
+                           default='django_redis.cache.RedisCache'),
+        'LOCATION': env.str("DJANGO_DEFAULT_CACHE_LOCATION", default='redis://localhost:6379/0'),
+        'OPTIONS': {
+            'CLIENT_CLASS': "django_redis.client.DefaultClient",
+        }
+    },
+    # "select2": {
+    #     "BACKEND": "django_redis.cache.RedisCache",
+    #     "LOCATION": env.str("DJANGO_SELECT2_CACHE_LOCATION", default='redis://127.0.0.1:6379/2'),
+    #     "OPTIONS": {
+    #         "CLIENT_CLASS": "django_redis.client.DefaultClient",
+    #     }
+    # }
 }
+SELECT2_CACHE_BACKEND = "default"
 
 # TEMPLATES
 # ------------------------------------------------------------------------------
@@ -148,7 +160,7 @@ LOGGING = {
             'propagate': True
         },
         'topobank.taskapp.tasks': {
-            'level': 'INFO',
+            'level': 'DEBUG',
             'handlers': ['console'],
             'propagate': True
         },

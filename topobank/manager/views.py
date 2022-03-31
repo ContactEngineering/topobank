@@ -28,6 +28,7 @@ from django.views.generic import DetailView, UpdateView, CreateView, DeleteView,
 from django.views.generic.edit import FormMixin
 from django_tables2 import RequestConfig
 from django.contrib.staticfiles.storage import staticfiles_storage
+from django.contrib import messages
 
 from formtools.wizard.views import SessionWizardView
 from guardian.decorators import permission_required_or_403
@@ -45,7 +46,7 @@ from celery import chain
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm
 from .forms import TopographyForm, SurfaceForm, SurfaceShareForm, SurfacePublishForm
 from .models import Topography, Surface, TagModel, NewPublicationTooFastException, LoadTopographyException, \
-    PlotTopographyException, user_directory_path
+    PlotTopographyException, PublicationException
 from .serializers import SurfaceSerializer, TagSerializer
 from .utils import selected_instances, bandwidths_data, get_topography_reader, tags_for_user, get_reader_infos, \
     mailto_link_for_reporting_an_error, current_selection_as_basket_items, filtered_surfaces, \
@@ -1208,10 +1209,11 @@ class SurfaceShareView(FormMixin, DetailView):
 class PublicationsTable(tables.Table):
     publication = tables.Column(linkify=True, verbose_name='Surface', order_by='surface__name')
     num_topographies = tables.Column(verbose_name='# Measurements')
-    authors = tables.Column(verbose_name="Authors")
+    authors_names = tables.Column(verbose_name="Authors")
     license = tables.Column(verbose_name="License")
     datetime = tables.Column(verbose_name="Publication Date")
     version = tables.Column(verbose_name="Version")
+    doi_url = tables.URLColumn(verbose_name="DOI")
 
     def render_publication(self, value):
         return value.surface.name
@@ -1246,10 +1248,11 @@ class PublicationListView(ListView):
                 'publication': pub,
                 'surface': pub.surface,
                 'num_topographies': pub.surface.num_topographies(),
-                'authors': pub.authors,
+                'authors_names': pub.get_authors_string(),
                 'license': pub.license,
                 'datetime': pub.datetime,
-                'version': pub.version
+                'version': pub.version,
+                'doi_url': pub.doi_url,
             } for pub in self.get_queryset()
         ]
 
@@ -1279,28 +1282,34 @@ class SurfacePublishView(FormView):
         initial['num_author_fields'] = 1
         return initial
 
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        if self.request.method == 'POST':
-            # The field 'num_author_fields' may have been increased by
-            # Javascript (Vuejs) on the client in order to add new authors.
-            # This should be sent to the form in order to know
-            # how many fields the form should have and how many author names
-            # should be combined. So this is passed here:
-            kwargs['num_author_fields'] = int(self.request.POST.get('num_author_fields'))
-        return kwargs
+    # def get_form_kwargs(self):
+    #     kwargs = super().get_form_kwargs()
+    #     if self.request.method == 'POST':
+    #         # The field 'num_author_fields' may have been increased by
+    #         # Javascript (Vuejs) on the client in order to add new authors.
+    #         # This should be sent to the form in order to know
+    #         # how many fields the form should have and how many author names
+    #         # should be combined. So this is passed here:
+    #         kwargs['num_author_fields'] = int(self.request.POST.get('num_author_fields'))
+    #     return kwargs
 
     def get_success_url(self):
         return reverse('manager:publications')
 
     def form_valid(self, form):
         license = form.cleaned_data.get('license')
-        authors = form.cleaned_data.get('authors')
+        authors = form.cleaned_data.get('authors_json')
         surface = self._get_surface()
         try:
             surface.publish(license, authors)
         except NewPublicationTooFastException as exc:
             return redirect("manager:surface-publication-rate-too-high",
+                            pk=surface.pk)
+        except PublicationException as exc:
+            msg = f"Publication failed, reason: {exc}"
+            _log.error(msg)
+            messages.error(self.request, msg)
+            return redirect("manager:surface-publication-error",
                             pk=surface.pk)
 
         return super().form_valid(form)
@@ -1329,6 +1338,13 @@ class SurfacePublishView(FormView):
         ]
         context['surface'] = surface
         context['max_len_authors_field'] = MAX_LEN_AUTHORS_FIELD
+        user = self.request.user
+        context['user_dict'] = dict(
+            first_name = user.first_name,
+            last_name = user.last_name,
+            orcid_id = user.orcid_id
+        )
+        context['configured_for_doi_generation'] = settings.PUBLICATION_DOI_MANDATORY
         return context
 
 
@@ -1359,6 +1375,35 @@ class PublicationRateTooHighView(TemplateView):
             }
         ]
         return context
+
+
+class PublicationErrorView(TemplateView):
+    template_name = "manager/publication_error.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        surface_pk = self.kwargs['pk']
+        surface = Surface.objects.get(pk=surface_pk)
+
+        context['extra_tabs'] = [
+            {
+                'title': f"{surface.label}",
+                'icon': "gem",
+                'icon_style_prefix': 'far',
+                'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
+                'active': False,
+                'tooltip': f"Properties of surface '{surface.label}'"
+            },
+            {
+                'title': f"Publication error",
+                'icon': "flash",
+                'href': self.request.path,
+                'active': True,
+            }
+        ]
+        return context
+
 
 
 class SharingInfoTable(tables.Table):
@@ -1533,7 +1578,7 @@ def download_surface(request, surface_id):
     if content_data is None:
         container_bytes = BytesIO()
         _log.info(f"Preparing container of surface id={surface_id} for download..")
-        write_surface_container(container_bytes, [surface], request=request)
+        write_surface_container(container_bytes, [surface])
         content_data = container_bytes.getvalue()
 
         if renew_publication_container:
@@ -1567,7 +1612,7 @@ def download_selection_as_surfaces(request):
     surfaces = current_selection_as_surface_list(request)
 
     container_bytes = BytesIO()
-    write_surface_container(container_bytes, surfaces, request=request)
+    write_surface_container(container_bytes, surfaces)
 
     # Prepare response object.
     response = HttpResponse(container_bytes.getvalue(),
@@ -1969,4 +2014,4 @@ def dzi(request, pk, dzi_filename):
 
     # okay, we have a valid topography and the user is allowed to see it
 
-    return redirect(default_storage.url(user_directory_path(topo, f'{topo.id}/dzi/{dzi_filename}')))
+    return redirect(default_storage.url(f'{topo.storage_prefix}/dzi/{dzi_filename}'))

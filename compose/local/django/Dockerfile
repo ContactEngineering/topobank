@@ -76,7 +76,16 @@ RUN addgroup django \
 #
 # Prepare application code
 #
-COPY --chown=django . /app
+# COPY --chown=django . /app
+RUN mkdir -p /app
+COPY --chown=django config /app/
+COPY --chown=django docs /app/
+COPY --chown=django config /app/
+COPY --chown=django locale /app/
+COPY --chown=django requirements /app/
+COPY --chown=django splinter_tests /app/
+COPY --chown=django topobank /app/
+
 RUN rm -Rf app/venv app/.idea app/.pytest_cache app/.git app/__pycache__ app/media/topographies app/media/analyses
 
 # is the following needed?

@@ -264,7 +264,7 @@ class SimpleCardView(TemplateView):
                 triggered_analysis = request_analysis(user, function, subject, **analysis_kwargs)
                 subjects_triggered.append(subject)
                 # topographies_available_ids.append(topo.id)
-                _log.info(f"Triggered analysis {triggered_analysis.id} for function {function.name} " + \
+                _log.info(f"Triggered analysis {triggered_analysis.id} for function '{function.name}' "
                           f"and subject '{subject}'.")
         subjects_missing = [s for s in subjects_missing if s not in subjects_triggered]
 

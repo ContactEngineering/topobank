@@ -95,6 +95,11 @@ urlpatterns = [
         name='surface-publication-rate-too-high'
     ),
     url(
+        regex=r'surface/(?P<pk>\d+)/publication-error/$',
+        view=login_required(views.PublicationErrorView.as_view()),
+        name='surface-publication-error'
+    ),
+    url(
        regex=r'surface/(?P<pk>\d+)/select/$',
        view=login_required(views.select_surface),
        name='surface-select'
