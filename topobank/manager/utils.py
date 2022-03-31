@@ -16,10 +16,6 @@ import json
 import tempfile
 import traceback
 
-from selenium import webdriver
-from selenium.webdriver.remote.webdriver import WebDriver
-from selenium.webdriver.firefox.firefox_binary import FirefoxBinary
-
 from SurfaceTopography import open_topography
 from SurfaceTopography.IO import readers as surface_topography_readers
 from SurfaceTopography.IO.DZI import write_dzi
@@ -840,20 +836,6 @@ def get_tree_mode(request) -> str:
     if tree_mode not in TREE_MODE_CHOICES:
         raise PermissionDenied()
     return tree_mode
-
-
-def get_firefox_webdriver() -> WebDriver:
-    binary = FirefoxBinary(str(settings.FIREFOX_BINARY_PATH))
-
-    options = webdriver.firefox.options.Options()
-    options.add_argument("--headless")
-
-    return webdriver.Firefox(
-        options=options,
-        firefox_binary=binary,
-        executable_path=str(settings.GECKODRIVER_PATH),
-        service_log_path=devnull,
-    )
 
 
 def get_permission_table_data(instance, request_user, actions=['view', 'change', 'delete', 'share']):

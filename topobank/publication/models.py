@@ -213,17 +213,12 @@ class Publication(models.Model):
         If storage is on filesystem, the prefix should correspond
         to a real directory.
         """
-        return "publications/{}/".format(self.short_url)
+        return "publications/{}".format(self.short_url)
 
     @property
     def container_storage_path(self):
-        """Return relative path of container in storage.
-
-        This does not mean that the container already has been
-        generated. This path can be used to save the
-        container at the right place.
-        """
-        return f"{self.storage_prefix}container.zip"
+        """Return relative path of container in storage."""
+        return f"{self.storage_prefix}/container.zip"
 
     @property
     def doi_url(self):

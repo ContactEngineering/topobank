@@ -45,8 +45,8 @@ from celery import chain
 
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm
 from .forms import TopographyForm, SurfaceForm, SurfaceShareForm, SurfacePublishForm
-from .models import Topography, Surface, TagModel, NewPublicationTooFastException, PublicationException, \
-    LoadTopographyException, PlotTopographyException, user_directory_path
+from .models import Topography, Surface, TagModel, NewPublicationTooFastException, LoadTopographyException, \
+    PlotTopographyException, PublicationException
 from .serializers import SurfaceSerializer, TagSerializer
 from .utils import selected_instances, bandwidths_data, get_topography_reader, tags_for_user, get_reader_infos, \
     mailto_link_for_reporting_an_error, current_selection_as_basket_items, filtered_surfaces, \
@@ -2015,4 +2015,4 @@ def dzi(request, pk, dzi_filename):
 
     # okay, we have a valid topography and the user is allowed to see it
 
-    return redirect(default_storage.url(user_directory_path(topo, f'{topo.id}/dzi/{dzi_filename}')))
+    return redirect(default_storage.url(f'{topo.storage_prefix}/dzi/{dzi_filename}'))

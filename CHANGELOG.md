@@ -1,5 +1,12 @@
 # Changelog for *TopoBank*
 
+## 0.20.0 (not yet released)
+
+- MAINT: Removed Selenium dependency; thumbnail generation now
+  uses Pillow and matplotlib (#782, #785, #787)
+- MAINT: Store topography data and derived data (squeezed files,
+  thumbnails) under a unique prefix (#801)
+
 ## 0.19.1 (2022-03-23)
 
 MAINT: Adjusted docker-compose file for production with Docker 
