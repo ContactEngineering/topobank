@@ -63,13 +63,13 @@ def test_analysis_times(client, two_topos, django_user_model, handle_usage_stati
     topo = Topography.objects.first()
     af = AnalysisFunction.objects.first()
 
-    pickled_result = pickle.dumps({'name': 'test function',
-                                   'xlabel': 'x',
-                                   'ylabel': 'y',
-                                   'xunit': '1',
-                                   'yunit': '1',
-                                   'series': [],
-                                   })
+    result = {'name': 'test function',
+              'xlabel': 'x',
+              'ylabel': 'y',
+              'xunit': '1',
+              'yunit': '1',
+              'series': [],
+              }
 
     analysis = TopographyAnalysisFactory.create(
         subject=topo,
@@ -77,7 +77,7 @@ def test_analysis_times(client, two_topos, django_user_model, handle_usage_stati
         task_state=Analysis.SUCCESS,
         start_time=datetime.datetime(2018, 1, 1, 12),
         end_time=datetime.datetime(2018, 1, 1, 13, 1, 1),  # duration: 1 hour, 1 minute, 1 sec
-        result=pickled_result,
+        result=result,
     )
     analysis.users.add(user)
     analysis.save()
@@ -108,13 +108,13 @@ def test_show_only_last_analysis(client, two_topos, django_user_model, handle_us
     topo2 = Topography.objects.last()
     af = AnalysisFunction.objects.first()
 
-    pickled_result = pickle.dumps({'name': 'test function',
-                                   'xlabel': 'x',
-                                   'ylabel': 'y',
-                                   'xunit': '1',
-                                   'yunit': '1',
-                                   'series': [],
-                                   })
+    result = {'name': 'test function',
+              'xlabel': 'x',
+              'ylabel': 'y',
+              'xunit': '1',
+              'yunit': '1',
+              'series': [],
+              }
 
     #
     # Topography 1
@@ -126,7 +126,7 @@ def test_show_only_last_analysis(client, two_topos, django_user_model, handle_us
         kwargs=pickle.dumps({}),
         start_time=datetime.datetime(2018, 1, 1, 12),
         end_time=datetime.datetime(2018, 1, 1, 13, 1, 1),
-        result=pickled_result,
+        result=result,
     )
     analysis.users.add(user)
     analysis.save()
@@ -139,7 +139,7 @@ def test_show_only_last_analysis(client, two_topos, django_user_model, handle_us
         kwargs=pickle.dumps({}),
         start_time=datetime.datetime(2018, 1, 2, 12),
         end_time=datetime.datetime(2018, 1, 2, 13, 1, 1),
-        result=pickled_result,
+        result=result,
     )
     analysis.users.add(user)
     analysis.save()
@@ -154,7 +154,7 @@ def test_show_only_last_analysis(client, two_topos, django_user_model, handle_us
         kwargs=pickle.dumps({}),
         start_time=datetime.datetime(2018, 1, 3, 12),
         end_time=datetime.datetime(2018, 1, 3, 13, 1, 1),
-        result=pickled_result,
+        result=result,
     )
     analysis.users.add(user)
     analysis.save()
@@ -167,7 +167,7 @@ def test_show_only_last_analysis(client, two_topos, django_user_model, handle_us
         kwargs=pickle.dumps({}),
         start_time=datetime.datetime(2018, 1, 4, 12),
         end_time=datetime.datetime(2018, 1, 4, 13, 1, 1),
-        result=pickled_result,
+        result=result,
     )
     analysis.users.add(user)
     analysis.save()
@@ -204,13 +204,13 @@ def test_show_analyses_with_different_arguments(client, two_topos, django_user_m
     topo1 = Topography.objects.first()
     af = AnalysisFunction.objects.first()
 
-    pickled_result = pickle.dumps({'name': 'test function',
-                                   'xlabel': 'x',
-                                   'ylabel': 'y',
-                                   'xunit': '1',
-                                   'yunit': '1',
-                                   'series': [],
-                                   })
+    result = {'name': 'test function',
+              'xlabel': 'x',
+              'ylabel': 'y',
+              'xunit': '1',
+              'yunit': '1',
+              'series': [],
+              }
 
     #
     # Create analyses for same function and topography but with different arguments
@@ -222,7 +222,7 @@ def test_show_analyses_with_different_arguments(client, two_topos, django_user_m
         kwargs=pickle.dumps({'bins': 10}),
         start_time=datetime.datetime(2018, 1, 1, 12),
         end_time=datetime.datetime(2018, 1, 1, 13, 1, 1),
-        result=pickled_result,
+        result=result,
     )
     analysis.users.add(user)
     analysis.save()
@@ -235,7 +235,7 @@ def test_show_analyses_with_different_arguments(client, two_topos, django_user_m
         kwargs=pickle.dumps({'bins': 20}),
         start_time=datetime.datetime(2018, 1, 2, 12),
         end_time=datetime.datetime(2018, 1, 2, 13, 1, 1),
-        result=pickled_result,
+        result=result,
     )
     analysis.users.add(user)
     analysis.save()
@@ -248,7 +248,7 @@ def test_show_analyses_with_different_arguments(client, two_topos, django_user_m
         kwargs=pickle.dumps({'bins': 30}),
         start_time=datetime.datetime(2018, 1, 3, 12),
         end_time=datetime.datetime(2018, 1, 3, 13, 1, 1),
-        result=pickled_result,
+        result=result,
     )
     analysis.users.add(user)
     analysis.save()
@@ -454,7 +454,7 @@ def ids_downloadable_analyses(two_topos):
         analysis = TopographyAnalysisFactory.create(
             subject=topos[k],
             function=function,
-            result=pickle.dumps(result),
+            result=result,
             kwargs=pickle.dumps({}),
             configuration=config)
         ids.append(analysis.id)
@@ -789,7 +789,6 @@ def test_analysis_download_as_xlsx(client, two_topos, ids_downloadable_analyses,
         assert ('Subject Type', 'topography') in vals
         assert ('Subject Name', t.name) in vals
         assert ('Creator', str(t.creator)) in vals
-
 
     # Check links on INDEX sheet
     ws = xlsx.get_sheet_by_name("INDEX")

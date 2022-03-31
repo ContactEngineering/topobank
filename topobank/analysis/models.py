@@ -10,7 +10,7 @@ from django.contrib.contenttypes.models import ContentType
 import inspect
 import pickle
 
-from topobank.manager.utils import load_split_dict
+from topobank.manager.utils import load_split_dict, store_split_dict
 from topobank.users.models import User
 
 from .registry import ImplementationMissingException
@@ -107,12 +107,25 @@ class Analysis(models.Model):
     start_time = models.DateTimeField(null=True)
     end_time = models.DateTimeField(null=True)
 
-    result = models.BinaryField(null=True, default=None)  # for pickle, in case of failure, can be Exception instance
-
     configuration = models.ForeignKey(Configuration, null=True, on_delete=models.SET_NULL)
+
+    def __init__(self, *args, result=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._result = result  # temporary storage
 
     def __str__(self):
         return "Task {} with state {}".format(self.task_id, self.get_task_state_display())
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # If a result dict is given on input, we store it. However, we can only do this once we have an id.
+        # This happens during testing.
+        if self._result is not None:
+            store_split_dict(self.storage_prefix, 'result', self._result)
+            from django.core.files.storage import default_storage
+            print(self.storage_prefix, default_storage.listdir(self.storage_prefix))
+            self._result = None
+
 
     def duration(self):
         """Returns duration of computation or None if not finished yet.
@@ -130,8 +143,10 @@ class Analysis(models.Model):
         return str(pickle.loads(self.kwargs))
 
     @property
-    def result_obj(self):
+    def result(self):
         """Return unpickled result object or None if there is no yet."""
+        from django.core.files.storage import default_storage
+        print(self.storage_prefix, default_storage.listdir(self.storage_prefix))
         return load_split_dict(self.storage_prefix, 'result')
 
     @property

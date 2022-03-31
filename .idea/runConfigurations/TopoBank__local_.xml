@@ -2,6 +2,7 @@
   <configuration default="false" name="TopoBank (local)" type="docker-deploy" factoryName="docker-compose.yml" server-name="Docker">
     <deployment type="docker-compose.yml">
       <settings>
+        <option name="envFilePath" value="" />
         <option name="sourceFilePath" value="local.yml" />
       </settings>
     </deployment>

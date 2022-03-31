@@ -1028,6 +1028,12 @@ class SplitDictionaryHere:
         self._name = name
         self._dict = dict
 
+    def __getitem__(self, key):
+        return self._dict.__getitem__(key)
+
+    def __setitem__(self, key, value):
+        return self._dict.__setitem__(key, value)
+
     @property
     def name(self):
         return self._name

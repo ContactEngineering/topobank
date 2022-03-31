@@ -45,7 +45,7 @@ def test_perform_analysis(mocker, two_topos, settings):
 
     # now check result
     analysis = Analysis.objects.get(id=analysis.id)
-    assert pickle.loads(analysis.result) == {
+    assert analysis.result == {
         'topotype': str(type(topo.topography())),
         'x': 30,
         's': 'hamming'

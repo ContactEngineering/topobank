@@ -423,7 +423,7 @@ class PlotCardView(SimpleCardView):
         # Use first analysis to determine some properties for the whole plot
         #
 
-        first_analysis_result = analyses_success_list[0].result_obj
+        first_analysis_result = analyses_success_list[0].result
         xunit = first_analysis_result['xunit'] if 'xunit' in first_analysis_result else None
         yunit = first_analysis_result['yunit'] if 'yunit' in first_analysis_result else None
 
@@ -465,7 +465,7 @@ class PlotCardView(SimpleCardView):
             if analysis.task_state != analysis.SUCCESS:
                 continue  # should not happen if only called with successful analyses
 
-            series_names.update([s['name'] for s in analysis.result_obj['series']])
+            series_names.update([s['name'] for s in analysis.result['series']])
 
             if isinstance(analysis.subject, Surface):
                 nb_surfaces += 1
@@ -535,7 +535,7 @@ class PlotCardView(SimpleCardView):
             if analysis.task_state == analysis.FAILURE:
                 continue  # should not happen if only called with successful analyses
             elif analysis.task_state == analysis.SUCCESS:
-                series = analysis.result_obj['series']
+                series = analysis.result['series']
             else:
                 # not ready yet
                 continue  # should not happen if only called with successful analyses
@@ -543,7 +543,7 @@ class PlotCardView(SimpleCardView):
             #
             # find out scale for data
             #
-            analysis_result = analysis.result_obj
+            analysis_result = analysis.result
 
             if xunit is None:
                 analysis_xscale = 1
@@ -714,7 +714,7 @@ class RoughnessParametersCardView(SimpleCardView):
                 return 'infinity'
             else:
                 # convert float32 to float, round to fixed number of significant digits
-                v = round_to_significant_digits(v.astype(float),
+                v = round_to_significant_digits(float(v),
                                                 NUM_SIGNIFICANT_DIGITS_RMS_VALUES)
         return v
 
@@ -725,7 +725,7 @@ class RoughnessParametersCardView(SimpleCardView):
 
         data = []
         for analysis in analyses_success:
-            analysis_result = analysis.result_obj
+            analysis_result = analysis.result
 
             for d in analysis_result:
                 d['value'] = self._convert_value(d['value'])
