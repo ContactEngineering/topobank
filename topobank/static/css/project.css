@@ -98,6 +98,14 @@ input.checkbox-color-design:checked+span:after {
   background-color: yellow;
 }
 
+/** Improve layout of notifications a bit */
+div.live_notify_list {
+  /** inline-size: min-content; */
+  overflow-wrap: break-word;
+  overflow-inline: auto;
+  width: 600px;
+}
+
 /** Workaround for problem with django-tagolous and crispy forms
  See https://github.com/radiac/django-tagulous/issues/35
  */
