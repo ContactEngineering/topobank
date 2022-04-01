@@ -1,7 +1,6 @@
 from django.db.models.signals import pre_delete, post_delete, pre_save, post_save
 from django.dispatch import receiver
 from django.core.cache import cache
-from django.core.files.storage import default_storage
 from guardian.shortcuts import assign_perm
 from notifications.models import Notification
 from django.contrib.contenttypes.models import ContentType
@@ -10,6 +9,7 @@ import logging
 
 from .models import Topography, Surface
 from .views import DEFAULT_SELECT_TAB_STATE
+from .utils import recursive_delete
 
 _log = logging.getLogger(__name__)
 
@@ -47,6 +47,16 @@ def remove_files(sender, instance, **kwargs):
             _log.warning("Topography id %d, attribute '%s': Cannot delete data file '%s', reason: %s",
                          instance.id, datafile_attr_name, datafile.name, str(exc))
 
+    datafile_path = instance.datafile.name
+    squeezed_datafile_path = instance.squeezed_datafile.name
+    thumbnail_path = instance.thumbnail.name
+
+    delete_datafile('datafile')
+    if instance.has_squeezed_datafile:
+        delete_datafile('squeezed_datafile')
+    if instance.has_thumbnail:
+        delete_datafile('thumbnail')
+
     # Delete everything else after idiot check: Make sure files are actually stored under the storage prefix.
     # Otherwise we abort deletion.
     if datafile_path is not None and not datafile_path.startswith(instance.storage_prefix):
@@ -61,7 +71,7 @@ def remove_files(sender, instance, **kwargs):
         _log.warning(f'Thumbnail is stored at location {thumbnail_path}, but storage prefix is '
                      f'{instance.storage_prefix}. I will not attempt to deleting everything at this prefix.')
         return
-    delete_directory(instance.storage_prefix)
+    recursive_delete(instance.storage_prefix)
 
 
 @receiver(post_delete, sender=Topography)
