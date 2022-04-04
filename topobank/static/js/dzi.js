@@ -75,7 +75,12 @@ Vue.component("deep-zoom-image", {
   methods: {
     requestDzi: function () {
       fetch(this.prefixUrl + 'dzi.json').then(response => {
-        return response.json();
+        if (response.ok) {
+          return response.json();
+        }
+        let err = Error("DZI images not ready yet.");
+        err.response = response;
+        throw err;
       }).then(meta => {
         meta.Image.Url = this.prefixUrl + 'dzi_files/';  // Set URL for DZI files
 
@@ -143,6 +148,7 @@ Vue.component("deep-zoom-image", {
 
         this.isLoaded = true;
       }).catch(error => {
+        let error_has_response = "response" in error;
         /**
          * If an error occurs *not* because of XMLHttpRequest.abort(), show an
          * error message. Do not show error on .abort(). See also
@@ -150,14 +156,15 @@ Vue.component("deep-zoom-image", {
          * */
         console.log(error);
 
-        if (error.response.status == 0) {
+        if (error_has_response && (error.response.status == 0)) {
           this.errorMessage = "Canceled loading of plot.";
-        } else if (error.response.status == 404) {
-          /* 404 indicates the resource is not yet available, retryYou */
+        } else if (error_has_response && (error.response.status == 404)) {
+          /* 404 indicates the resource is not yet available, retry */
+          console.log("Resource not yet available, retrying..")
           setTimeout(this.requestDzi, this.retryDelay);
         } else {
           /* Treat any other code as an actual error */
-          this.errorMessage == error.message;
+          this.errorMessage = error.message;
         }
       });
     },
