@@ -21,7 +21,7 @@ from SurfaceTopography.Container.Averaging import log_average
 from SurfaceTopography.Container.ScaleDependentStatistics import scale_dependent_statistical_property
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor, suggest_length_unit_for_data
 from SurfaceTopography.Exceptions import CannotPerformAnalysisError
-from ContactMechanics import PeriodicFFTElasticHalfSpace, FreeFFTElasticHalfSpace, make_system
+from ContactMechanics import PeriodicFFTElasticHalfSpace, FreeFFTElasticHalfSpace, make_system, make_plastic_system
 
 import topobank.manager.models  # will be used to evaluate model classes
 from topobank.manager.utils import make_dzi
@@ -1142,7 +1142,10 @@ def contact_mechanics(topography, substrate_str="nonperiodic", hardness=None, ns
     substrate = half_space_factory[substrate_str](topography.nb_grid_pts, 1.0, topography.physical_sizes,
                                                   **half_space_kwargs)
 
-    system = make_system(substrate, topography)
+    if (hardness is not None) and (hardness > 0):
+        system = make_plastic_system(substrate, topography)
+    else:
+        system = make_system(substrate, topography)
 
     # Heuristics for the possible tolerance on penetration.
     # This is necessary because numbers can vary greatly
