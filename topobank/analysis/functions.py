@@ -746,12 +746,12 @@ def scale_dependent_roughness_parameter(topography, progress_recorder, order_of_
             '{}: Cannot calculate analysis function for reentrant measurements.'.format(name))
 
     if topography.dim == 2:
-        fac = 6
+        nb_analyses = 6  # x-direction, y-direction, xy-direction (reliable + unreliable)
     else:
-        fac = 2
+        nb_analyses = 2  # Just x-direction (reliable + unreliable)
     progress_offset = 0
     progress_callback = None if progress_recorder is None else \
-        lambda i, n: progress_recorder.set_progress(progress_offset + i + 1, fac * n)
+        lambda i, n: progress_recorder.set_progress(progress_offset + i/n, nb_analyses)
 
     def process_series_reliable_unreliable(series_name, func_kwargs, is_reliable_visible=False):
         """Add series for reliable and unreliable data.
@@ -778,7 +778,7 @@ def scale_dependent_roughness_parameter(topography, progress_recorder, order_of_
                             visible=is_reliable_visible)]
         except CannotPerformAnalysisError as exc:
             alerts.append(make_alert_entry('warning', topography_name, topography_url, series_name, str(exc)))
-        progress_offset += len(distances)
+        progress_offset += 1
 
         distances, rms_values_sq = topography.scale_dependent_statistical_property(reliable=False, **func_kwargs)
         series += [dict(name=series_name + ' (incl. unreliable data)',
@@ -786,7 +786,7 @@ def scale_dependent_roughness_parameter(topography, progress_recorder, order_of_
                         y=np.sqrt(rms_values_sq),
                         visible=False),
                    ]
-        progress_offset += len(distances)
+        progress_offset += 1
 
     x_kwargs = dict(func=lambda x, y=None: np.mean(x * x),
                     n=order_of_derivative,
