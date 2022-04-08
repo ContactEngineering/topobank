@@ -29,7 +29,7 @@ from ContactMechanics.Tools.ContactAreaAnalysis import patch_areas, assign_patch
 
 import topobank.manager.models  # will be used to evaluate model classes
 from topobank.manager.utils import default_storage_replace, make_dzi
-from .utils import SplitDictionaryHere
+from ..utils import SplitDictionaryHere
 
 from .registry import AnalysisFunctionRegistry
 

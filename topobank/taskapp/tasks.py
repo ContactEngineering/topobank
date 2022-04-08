@@ -26,7 +26,7 @@ from .utils import get_package_version_instance
 from topobank.analysis.functions import IncompatibleTopographyException
 from topobank.analysis.models import Analysis, Configuration, AnalysisCollection, RESULT_FILE_BASENAME
 from topobank.manager.models import Topography, Surface
-from ..analysis.utils import store_split_dict
+from ..utils import store_split_dict
 from topobank.users.models import User
 from topobank.usage_stats.utils import increase_statistics_by_date, increase_statistics_by_date_and_object, \
     current_statistics
