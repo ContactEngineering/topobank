@@ -73,12 +73,12 @@ def request_analysis(user, analysis_func, subject, *other_args, **kwargs):
     if analysis is None:
         analysis = submit_analysis(users=[user], analysis_func=analysis_func, subject=subject,
                                    pickled_pyfunc_kwargs=pickled_pyfunc_kwargs)
-        _log.info("Submitted new analysis..")
+        _log.info(f"Submitted new analysis for {analysis_func.name} and {subject.name} (user: {user.id})..")
     elif user not in analysis.users.all():
         analysis.users.add(user)
         _log.info("Added user %d to existing analysis %d.", user.id, analysis.id)
     else:
-        _log.info("User %d already registered for analysis %d.", user.id, analysis.id)
+        _log.debug("User %d already registered for analysis %d.", user.id, analysis.id)
 
     #
     # Retrigger an analysis if there was a failure, maybe sth has been fixed in the meantime
@@ -145,7 +145,7 @@ def renew_analyses_for_subject(subject):
 
 
 def renew_analysis(analysis, use_default_kwargs=False):
-    """Delete existing analysis and recreate and submit with some arguments and users.
+    """Delete existing analysis and recreate and submit with same arguments and users.
 
     Parameters
     ----------
@@ -158,7 +158,6 @@ def renew_analysis(analysis, use_default_kwargs=False):
     Returns
     -------
     New analysis object.
-
     """
     users = analysis.users.all()
     func = analysis.function
@@ -252,6 +251,10 @@ def get_latest_analyses(user, func, subjects):
     The returned queryset is comprised of only the latest analyses,
     so for each subject there should be at most one result.
     Only analyses for the given function are returned.
+
+    It is not guaranteed that there are results
+    for the returned analyses, even if these analyses are marked as
+    successful.
     """
 
     analyses = Analysis.objects.none()

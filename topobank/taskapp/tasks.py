@@ -24,7 +24,7 @@ from .celery import app
 from .utils import get_package_version_instance
 
 from topobank.analysis.functions import IncompatibleTopographyException
-from topobank.analysis.models import Analysis, Configuration, AnalysisCollection
+from topobank.analysis.models import Analysis, Configuration, AnalysisCollection, RESULT_FILE_BASENAME
 from topobank.manager.models import Topography, Surface
 from topobank.manager.utils import store_split_dict
 from topobank.users.models import User
@@ -109,11 +109,11 @@ def perform_analysis(self, analysis_id):
     analysis.save()
 
     def save_result(result, task_state):
-        _log.debug(f"Saving result of analysis {analysis_id}...")
+        _log.debug(f"Saving result of analysis {analysis_id} to storage...")
         analysis.task_state = task_state
         #default_storage_replace(f'{analysis.storage_prefix}/result.json',
         #                        io.BytesIO(json.dumps(result, cls=NumpyEncoder).encode('utf-8')))
-        store_split_dict(analysis.storage_prefix, 'result', result)
+        store_split_dict(analysis.storage_prefix, RESULT_FILE_BASENAME, result)
         #analysis.result = pickle.dumps(result)  # can also be an exception in case of errors!
         analysis.end_time = timezone.now()  # with timezone
         if 'effective_kwargs' in result:
@@ -150,9 +150,10 @@ def perform_analysis(self, analysis_id):
         # we want a real exception here so celery's flower can show the task as failure
         raise
     finally:
-
-        # first check whether analysis is still there
         try:
+            #
+            # first check whether analysis is still there
+            #
             analysis = Analysis.objects.get(id=analysis_id)
 
             #

@@ -47,7 +47,7 @@ from ..usage_stats.utils import increase_statistics_by_date_and_object
 from ..plots import configure_plot
 from .models import Analysis, AnalysisFunction, AnalysisCollection, CARD_VIEW_FLAVORS
 from .forms import FunctionSelectForm
-from .utils import get_latest_analyses, round_to_significant_digits, request_analysis
+from .utils import get_latest_analyses, round_to_significant_digits, request_analysis, renew_analysis
 
 import logging
 
@@ -287,7 +287,23 @@ class SimpleCardView(TemplateView):
         # Determine status code of request - do we need to trigger request again?
         #
         analyses_ready = analyses_avail.filter(task_state__in=['su', 'fa'])
+        # Leave out those analyses which have a state meaning "ready", but
+        # have no result file:
+        ids_of_ready_analyses_with_result_file = [a.id for a in analyses_ready if a.has_result_file]
+        ready_analyses_without_result_file = [a for a in analyses_ready
+                                              if a.id not in ids_of_ready_analyses_with_result_file]
+        analyses_ready = analyses_ready.filter(id__in=ids_of_ready_analyses_with_result_file)
         analyses_unready = analyses_avail.filter(~Q(id__in=analyses_ready))
+
+        #
+        # Those analyses, which seem to be ready but have no result, should be re-triggered
+        # and added to the unready results
+        #
+        if len(ready_analyses_without_result_file) > 0:
+            _log.info(f"There are {len(ready_analyses_without_result_file)} analyses marked as ready but "
+                      "without result file. These will be retriggered.")
+        additional_unready_analyses = [renew_analysis(a) for a in ready_analyses_without_result_file]
+        analyses_unready = analyses_unready | Analysis.objects.filter(id__in=[a.id for a in additional_unready_analyses])
 
         #
         # collect lists of successful analyses and analyses with failures

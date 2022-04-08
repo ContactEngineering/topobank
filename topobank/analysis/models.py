@@ -6,6 +6,7 @@ from django.db import models
 from django.db.models import UniqueConstraint
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
+from django.core.files.storage import default_storage
 
 import inspect
 import pickle
@@ -14,6 +15,8 @@ from topobank.manager.utils import load_split_dict, store_split_dict
 from topobank.users.models import User
 
 from .registry import ImplementationMissingException
+
+RESULT_FILE_BASENAME = 'result'
 
 
 class Dependency(models.Model):
@@ -121,9 +124,8 @@ class Analysis(models.Model):
         # If a result dict is given on input, we store it. However, we can only do this once we have an id.
         # This happens during testing.
         if self._result is not None:
-            store_split_dict(self.storage_prefix, 'result', self._result)
+            store_split_dict(self.storage_prefix, RESULT_FILE_BASENAME, self._result)
             self._result = None
-
 
     def duration(self):
         """Returns duration of computation or None if not finished yet.
@@ -142,8 +144,18 @@ class Analysis(models.Model):
 
     @property
     def result(self):
-        """Return unpickled result object or None if there is no yet."""
-        return load_split_dict(self.storage_prefix, 'result')
+        """Return result object or None if there is nothing yet."""
+        return load_split_dict(self.storage_prefix, RESULT_FILE_BASENAME)
+
+    @property
+    def result_file_name(self):
+        """Returns name of the result file in storage backend as string."""
+        return f'{self.storage_prefix}/{RESULT_FILE_BASENAME}.json'
+
+    @property
+    def has_result_file(self):
+        """Returns True if result file exists in storage backend, else False."""
+        return default_storage.exists(self.result_file_name)
 
     @property
     def storage_prefix(self):
