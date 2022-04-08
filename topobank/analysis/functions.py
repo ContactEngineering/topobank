@@ -1515,7 +1515,13 @@ def topography_analysis_function_for_tests(topography, a=1, b="foo"):
                     x=np.array((1, 2, 3, 4, 5, 6, 7, 8)),
                     y=np.array((0, 1, 1, 2, 3, 5, 8, 13)),
                     std_err_y=np.zeros(8),
-                )
+                ),
+                dict(
+                    name='Geometric series',
+                    x=np.array((1, 2, 3, 4, 5, 6, 7, 8)),
+                    y=0.5 ** np.array((1, 2, 3, 4, 5, 6, 7, 8)),
+                    std_err_y=np.zeros(8),
+                ),
             ],
             'alerts': [dict(alert_class='alert-info', message="This is a test for a measurement alert.")],
             'comment': f"a is {a} and b is {b}"}
