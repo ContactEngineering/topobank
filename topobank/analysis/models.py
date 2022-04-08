@@ -122,8 +122,6 @@ class Analysis(models.Model):
         # This happens during testing.
         if self._result is not None:
             store_split_dict(self.storage_prefix, 'result', self._result)
-            from django.core.files.storage import default_storage
-            print(self.storage_prefix, default_storage.listdir(self.storage_prefix))
             self._result = None
 
 
@@ -145,8 +143,6 @@ class Analysis(models.Model):
     @property
     def result(self):
         """Return unpickled result object or None if there is no yet."""
-        from django.core.files.storage import default_storage
-        print(self.storage_prefix, default_storage.listdir(self.storage_prefix))
         return load_split_dict(self.storage_prefix, 'result')
 
     @property
