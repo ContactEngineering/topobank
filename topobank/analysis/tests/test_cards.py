@@ -1,9 +1,11 @@
 import pytest
+import json
 
 from django.shortcuts import reverse
 from django.contrib.contenttypes.models import ContentType
+from django.core.files.storage import default_storage
 
-from topobank.manager.tests.utils import Topography1DFactory, UserFactory, SurfaceFactory
+from topobank.manager.tests.utils import Topography1DFactory, Topography2DFactory, UserFactory, SurfaceFactory
 from topobank.manager.utils import subjects_to_json
 from topobank.manager.models import Analysis, Topography, Surface
 
@@ -49,6 +51,66 @@ def test_card_templates_simple(client, mocker, handle_usage_statistics, card_vie
     }, HTTP_X_REQUESTED_WITH='XMLHttpRequest')  # we need an AJAX request
 
     assert response.template_name == [detail_template]
+
+
+@pytest.mark.django_db
+def test_plot_card_data_sources(rf, handle_usage_statistics):
+    #
+    # Create database objects
+    #
+    password = "secret"
+    user = UserFactory(password=password)
+    surface = SurfaceFactory(creator=user)
+    func1 = AnalysisFunctionFactory(card_view_flavor='plot')
+    AnalysisFunctionImplementationFactory(function=func1)  # generate implementation, reference not needed
+    topo1 = Topography2DFactory(surface=surface)
+
+    analysis = TopographyAnalysisFactory(subject=topo1, function=func1, users=[user])
+
+    request = rf.post(reverse('analysis:card'), data={
+        'function_id': func1.id,
+        'card_id': 'card',
+        'template_flavor': 'detail',
+        'subjects_ids_json': subjects_to_json([topo1]),
+    }, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+    request.user = user
+    response = PlotCardView.as_view()(request)
+
+    data_sources = json.loads(response.context_data['data_sources'])
+
+    exp_data_sources = [
+        {
+            "source_name": f"analysis-{analysis.id}",
+            "name": topo1.name,
+            "name_index": 0,
+            "series": "Fibonacci series",
+            "series_index": 0,
+            "xScaleFactor": 1,
+            "yScaleFactor": 1,
+            "url": f"{default_storage.base_url}analyses/{analysis.id}/series-0.json",
+            "color": "#1f77b4", "dash": "solid", "width": 1, "alpha": 1.0,
+            "showSymbols": True,
+            "visible": True,
+            "is_surface_analysis": False,
+            "is_topography_analysis": True,
+        },
+        {
+            "source_name": f"analysis-{analysis.id}",
+            "name": topo1.name,
+            "name_index": 0,
+            "series": "Geometric series",
+            "series_index": 1,
+            "xScaleFactor": 1,
+            "yScaleFactor": 1,
+            "url": f"{default_storage.base_url}analyses/{analysis.id}/series-1.json",
+            "color": "#1f77b4", "dash": "dashed", "width": 1, "alpha": 1.0,
+            "showSymbols": True, "visible": True,
+            "is_surface_analysis": False,
+            "is_topography_analysis": True
+        }
+    ]
+
+    assert data_sources == exp_data_sources
 
 
 @pytest.mark.django_db

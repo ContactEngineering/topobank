@@ -615,7 +615,7 @@ class PlotCardView(SimpleCardView):
                     series_index=series_idx,
                     xScaleFactor=analysis_xscale,
                     yScaleFactor=analysis_yscale,
-                    url=default_storage.url(f'{analysis.storage_prefix}/{s_index}.json'),
+                    url=default_storage.url(f'{analysis.storage_prefix}/series-{s_index}.json'),
                     color=curr_color,
                     dash=curr_dash,
                     width=line_width,
