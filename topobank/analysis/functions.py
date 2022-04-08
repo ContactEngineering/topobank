@@ -28,7 +28,8 @@ from ContactMechanics import PeriodicFFTElasticHalfSpace, FreeFFTElasticHalfSpac
 from ContactMechanics.Tools.ContactAreaAnalysis import patch_areas, assign_patch_numbers
 
 import topobank.manager.models  # will be used to evaluate model classes
-from topobank.manager.utils import default_storage_replace, make_dzi, SplitDictionaryHere
+from topobank.manager.utils import default_storage_replace, make_dzi
+from .utils import SplitDictionaryHere
 
 from .registry import AnalysisFunctionRegistry
 

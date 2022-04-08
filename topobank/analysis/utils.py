@@ -1,15 +1,20 @@
 import inspect
+import io
+import json
 import logging
 import math
 import pickle
 
 from django.contrib.contenttypes.models import ContentType
+from django.core.files.storage import default_storage
 from django.db import transaction
 from django.db.models import Q
 
 from guardian.shortcuts import get_users_with_perms
+from numpyencoder import NumpyEncoder
 
 from topobank.analysis.models import Analysis, AnalysisFunction
+from topobank.manager.utils import default_storage_replace
 
 _log = logging.getLogger(__name__)
 
@@ -468,3 +473,71 @@ def float_to_unicode(f, digits=3):
 
     else:
         return ('{{:.{}g}}×10{{}}'.format(digits)).format(m, unicode_superscript(str(e3)))
+
+
+class SplitDictionaryHere:
+    def __init__(self, name, dict):
+        self._name = name
+        self._dict = dict
+
+    def __getitem__(self, key):
+        return self._dict.__getitem__(key)
+
+    def __setitem__(self, key, value):
+        return self._dict.__setitem__(key, value)
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def dict(self):
+        return self._dict
+
+
+def store_split_dict(storage_prefix, name, dict):
+    # Traverse dictionary and search for NamedSubDicts. Those are written to
+    # separate files.
+    def _split_dict(d):
+        if isinstance(d, SplitDictionaryHere):
+            split_d = _split_dict(d.dict)
+            default_storage_replace(f'{storage_prefix}/{d.name}.json',
+                                    io.BytesIO(json.dumps(split_d, cls=NumpyEncoder).encode('utf-8')))
+            return {'__external__': f'{d.name}.json'}
+        elif hasattr(d, 'items'):
+            new_d = {}
+            for key, value in d.items():
+                new_d[key] = _split_dict(value)
+            return new_d
+        elif isinstance(d, list):
+            new_d = []
+            for value in d:
+                new_d.append(_split_dict(value))
+            return new_d
+        else:
+            return d
+
+    split_d = _split_dict(dict)
+    default_storage_replace(f'{storage_prefix}/{name}.json',
+                            io.BytesIO(json.dumps(split_d, cls=NumpyEncoder).encode('utf-8')))
+
+
+def load_split_dict(storage_prefix, name):
+    def _unsplit_dict(d):
+        if hasattr(d, 'items'):
+            new_d = {}
+            for key, value in d.items():
+                if key == '__external__':
+                    return _unsplit_dict(json.load(default_storage.open(f'{storage_prefix}/{value}')))
+                new_d[key] = _unsplit_dict(value)
+            return new_d
+        elif isinstance(d, list):
+            new_d = []
+            for value in d:
+                new_d.append(_unsplit_dict(value))
+            return new_d
+        else:
+            return d
+
+    d = json.load(default_storage.open(f'{storage_prefix}/{name}.json'))
+    return _unsplit_dict(d)

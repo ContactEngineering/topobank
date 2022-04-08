@@ -11,7 +11,7 @@ from django.core.files.storage import default_storage
 import inspect
 import pickle
 
-from topobank.manager.utils import load_split_dict, store_split_dict
+from .utils import store_split_dict, load_split_dict
 from topobank.users.models import User
 
 from .registry import ImplementationMissingException
