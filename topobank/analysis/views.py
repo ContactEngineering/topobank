@@ -385,7 +385,7 @@ class PlotCardView(SimpleCardView):
                                                         subject_type=surface_ct)
                 i = [s.subject.id if s.subject_type == surface_ct else None for s in analyses_success_list] \
                     .index(surface_analysis.subject.id)
-            except Analysis.DoesNotExist:
+            except (Analysis.DoesNotExist, ValueError):  # ValueError: Surface is not included because only 1 topography
                 analyses_success_list.append(topography_analysis)
             else:
                 analyses_success_list.insert(i + 1, topography_analysis)
