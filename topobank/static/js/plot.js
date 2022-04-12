@@ -341,8 +341,8 @@ Vue.component("bokeh-plot", {
         bokehPlot.figure.renderers.length = 0;
       }
 
-      const newPlot = this.bokehPlots.length == 0;
-      if (newPlot) {
+      const isNewPlot = this.bokehPlots.length == 0;
+      if (isNewPlot) {
         /* Create figures */
         for (const plot of this.plots) {
           /* Callback for selection of data points */
@@ -514,7 +514,7 @@ Vue.component("bokeh-plot", {
       }
 
       /* Render figure(s) to HTML div */
-      if (newPlot) {
+      if (isNewPlot) {
         for (const [index, bokehPlot] of this.bokehPlots.entries()) {
           bokehPlot.legend = new Bokeh.Legend({items: bokehPlot.legendItems, visible: false});
           bokehPlot.figure.add_layout(bokehPlot.legend);
