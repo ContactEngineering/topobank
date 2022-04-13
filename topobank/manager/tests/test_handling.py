@@ -1604,3 +1604,22 @@ def test_usage_of_cached_container_on_download_of_published_surface(client, exam
 
     # no extra call of write_container because it is a published surface
     assert write_container_mock.call_count == 1
+
+
+@pytest.mark.django_db
+def test_download_of_unpublished_surface(client, handle_usage_statistics):
+    user = UserFactory()
+    surface = SurfaceFactory(creator=user)
+    topo1 = Topography1DFactory(surface=surface)
+    topo2 = Topography2DFactory(surface=surface)
+
+    client.force_login(user)
+
+    response = client.get(reverse('manager:surface-download', kwargs=dict(surface_id=surface.id)),
+                          follow=True)
+    assert response.status_code == 200
+
+
+
+
+
