@@ -13,6 +13,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='publication',
             name='doi_state',
-            field=models.CharField(choices=[('draft', 'only visible in Fabrica, DOI can be deleted'), ('registered', 'registered with the DOI Resolver, cannot be deleted'), ('findable', 'registered with the DOI Resolver and indexed in DataCite Search, cannot be deleted')], max_length=10, null=True),
+            field=models.CharField(choices=[('draft', 'only visible in Fabrica, DOI can be deleted'), ('registered', 'registered with the DOI Resolver, cannot be deleted'), ('findable', 'registered with the DOI Resolver and indexed in DataCite Search, cannot be deleted')], max_length=10),
         ),
     ]

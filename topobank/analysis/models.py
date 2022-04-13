@@ -139,7 +139,9 @@ class Analysis(models.Model):
         If storage is on filesystem, the prefix should correspond
         to a real directory.
         """
-        return "analyses/{}/".format(self.id)
+        if self.id is None:
+            raise RuntimeError('This `Analysis` does not have an id yet; the storage prefix is not yet known.')
+        return "analyses/{}".format(self.id)
 
     @property
     def related_surface(self):

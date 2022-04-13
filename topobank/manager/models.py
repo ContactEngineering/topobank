@@ -19,20 +19,20 @@ from django.contrib.contenttypes.models import ContentType
 from guardian.shortcuts import assign_perm, remove_perm, get_users_with_perms
 import tagulous.models as tm
 
-import numpy as np
-import math
-import logging
+import PIL
 import io
-import tempfile
+import logging
+import math
+import matplotlib
+import numpy as np
 import os.path
+import tempfile
 
 from bokeh.models import DataRange1d, LinearColorMapper, ColorBar, FuncTickFormatter
 from bokeh.plotting import figure
-from bokeh.io.export import get_screenshot_as_png
-from bokeh.io.webdriver import webdriver_control  # see whether this is more reliable than get_firefox_webdriver
 
 from ..plots import configure_plot
-from .utils import get_topography_reader, get_firefox_webdriver
+from .utils import get_topography_reader
 
 from topobank.users.models import User
 from topobank.publication.models import Publication, DOICreationException
@@ -55,6 +55,7 @@ SQUEEZED_DATAFILE_FORMAT = 'nc'
 _IN_CELERY_WORKER_PROCESS = sys.argv and sys.argv[0].endswith('celery') and 'worker' in sys.argv
 
 
+# Deprecated, but needed for migrations
 def user_directory_path(instance, filename):
     # file will be uploaded to MEDIA_ROOT/user_<id>/<filename>
     return 'topographies/user_{0}/{1}'.format(instance.surface.creator.id, filename)
@@ -514,7 +515,8 @@ class Topography(models.Model, SubjectMixin):
     #
     # Fields related to raw data
     #
-    datafile = models.FileField(max_length=250, upload_to=user_directory_path)  # currently upload_to not used in forms
+    datafile = models.FileField(max_length=250,
+                                upload_to=lambda instance, filename: f'{instance.storage_prefix}/raw/{filename}')  # currently upload_to not used in forms
     datafile_format = models.CharField(max_length=MAX_LENGTH_DATAFILE_FORMAT,
                                        null=True, default=None, blank=True)
     data_source = models.IntegerField()
@@ -526,7 +528,10 @@ class Topography(models.Model, SubjectMixin):
 
     # All data is also stored in a 'squeezed' format for faster loading and processing
     # This is probably netCDF3. Scales and detrend has already been applied here.
-    squeezed_datafile = models.FileField(max_length=260, upload_to=user_directory_path, null=True)
+    squeezed_datafile = models.FileField(
+        max_length=260,
+        upload_to=lambda instance, filename: f'{instance.storage_prefix}/nc/{filename}',
+        null=True)
 
     #
     # Fields with physical meta data
@@ -565,11 +570,33 @@ class Topography(models.Model, SubjectMixin):
     #
     # Other fields
     #
-    thumbnail = models.ImageField(null=True, upload_to=user_directory_path)
+    thumbnail = models.ImageField(
+        null=True,
+        upload_to=lambda instance, filename: f'{instance.storage_prefix}/thumbnail/{filename}')
 
     #
     # Methods
     #
+    def save(self, *args, **kwargs):
+        # `save` is overriden here because `storage_prefix` does not exists before the model instance has been written
+        # to the database (and the `id` becomes available).
+        if self.id is None:
+            datafile = self.datafile
+            squeezed_datafile = self.squeezed_datafile
+            thumbnail = self.thumbnail
+            # Since we do not have an id yet, we cannot store the file
+            self.datafile = None
+            self.squeezed_datafile = None
+            self.thumbnail = None
+            super().save(*args, **kwargs)
+            # Now we have an id, so we can now save the files
+            self.datafile = datafile
+            self.squeezed_datafile = squeezed_datafile
+            self.thumbnail = thumbnail
+            kwargs.update(dict(update_fields=['datafile', 'squeezed_datafile', 'thumbnail'],
+                               force_insert=False, force_update=True))  # The next save must be an update
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return "Topography '{0}' from {1}".format(self.name, self.measurement_date)
 
@@ -588,6 +615,18 @@ class Topography(models.Model, SubjectMixin):
     def has_thumbnail(self):
         """If True, a thumbnail can be retrieved via self.thumbnail"""
         return bool(self.thumbnail)
+
+    @property
+    def storage_prefix(self):
+        """Return prefix used for storage.
+
+        Looks like a relative path to a directory.
+        If storage is on filesystem, the prefix should correspond
+        to a real directory.
+        """
+        if self.id is None:
+            raise RuntimeError('This `Topography` does not have an id yet; the storage prefix is not yet known.')
+        return f"topographies/{self.id}"
 
     def get_absolute_url(self):
         """URL of detail page for this topography."""
@@ -797,6 +836,57 @@ class Topography(models.Model, SubjectMixin):
 
         return copy
 
+    def get_thumbnail(self, width=400, height=400, cmap=None):
+        """
+        Make thumbnail image.
+
+        Parameters
+        ----------
+        width : int, optional
+            Maximum width of the thumbnail. (Default: 400)
+        height : int, optional
+            Maximum height of the thumbnail. (Default: 400)
+        cmap : str or colormap, optional
+            Color map for rendering the topography. (Default: None)
+
+        Returns
+        -------
+        image : bytes-like
+            Thumbnail image.
+        """
+        st_topo = self.topography()  # SurfaceTopography instance (=st)
+        image_file = io.BytesIO()
+        if st_topo.dim == 1:
+            dpi = 100
+            fig, ax = matplotlib.pyplot.subplots(figsize=[width / dpi, height / dpi])
+            x, y = st_topo.positions_and_heights()
+            ax.plot(x, y, '-')
+            ax.set_axis_off()
+            fig.savefig(image_file, bbox_inches='tight', dpi=100, format='png')
+        elif st_topo.dim == 2:
+            # Compute thumbnail size (keeping aspect ratio)
+            sx, sy = st_topo.physical_sizes
+            width2 = int(sx * height / sy)
+            height2 = int(sy * width / sx)
+            if width2 <= width:
+                width = width2
+            else:
+                height = height2
+
+            # Get heights and rescale to interval 0, 1
+            heights = st_topo.heights()
+            mx, mn = heights.max(), heights.min()
+            heights = (heights - mn) / (mx - mn)
+            # Get color map
+            cmap = matplotlib.cm.get_cmap(cmap)
+            # Convert to image
+            colors = (cmap(heights.T) * 255).astype(np.uint8)
+            # Remove alpha channel before writing
+            PIL.Image.fromarray(colors[:, :, :3]).resize((width, height)).save(image_file, format='png')
+        else:
+            raise RuntimeError(f"Don't know how to create thumbnail for topography of dimension {st_topo.dim}.")
+        return image_file
+
     def get_plot(self, thumbnail=False):
         """Return bokeh plot.
 
@@ -969,72 +1059,33 @@ class Topography(models.Model, SubjectMixin):
 
         return plot
 
-    def _renew_images(self, driver=None):
+    def _renew_images(self):
         """Renew thumbnail and deep zoom images.
 
-        Parameters
-        ----------
-        driver
-            selenium webdriver instance, if not given
-            a firefox instance is created using
-            `utils.get_firefox_webdriver()`
         Returns
         -------
         None
         """
+        image_file = self.get_thumbnail()
 
-        plot = self.get_plot(thumbnail=True)
+        # Remove old thumbnail
+        self.thumbnail.delete()
 
-        #
-        # Create a plot and save a thumbnail image in in-memory file
-        #
-        generate_driver = not driver
-        if generate_driver:
-            driver = webdriver_control.create()
-            driver.implicitly_wait(1200)
-
-        try:
-          image = get_screenshot_as_png(plot, driver=driver, timeout=20)
-
-          thumbnail_height = 400
-          thumbnail_width = int(image.size[0] * thumbnail_height / image.size[1])
-          image.thumbnail((thumbnail_width, thumbnail_height))
-          image_file = io.BytesIO()
-          image.save(image_file, 'PNG')
-
-          #
-          # Remove old thumbnail
-          #
-          self.thumbnail.delete()
-
-          #
-          # Save the contents of in-memory file in Django image field
-          #
-          self.thumbnail.save(
-              f'{self.id}/thumbnail.png',
-              ContentFile(image_file.getvalue()),
-          )
-        except RuntimeError as exc:
-            _log.error(f"Cannot generate thumbnail for topography {self.id}. Reason: {exc}")
-            self.thumbnail.delete()
-            _log.warning(f"Thumbnail generation failed for topography {self.id}. Deleted old thumbnail which could be outdated.")
-
-        if generate_driver:
-            driver.close()  # important to free memory
+        # Save the contents of in-memory file in Django image field
+        self.thumbnail.save(
+            'thumbnail.png',
+            ContentFile(image_file.getvalue()),
+        )
 
         if self.size_y is not None:
             # This is a topography (map), we need to create a Deep Zoom Image
-            make_dzi(self.topography(), user_directory_path(self, f'{self.id}/dzi'))
+            make_dzi(self.topography(), f'{self.storage_prefix}/dzi')
 
-    def renew_images(self, driver=None, none_on_error=True):
+    def renew_images(self, none_on_error=True):
         """Renew thumbnail field.
 
         Parameters
         ----------
-        driver
-            selenium webdriver instance, if not given
-            a firefox instance is created using
-            `utils.get_firefox_webdriver()`
         none_on_error: bool
             If True (default), sets thumbnail to None if there are any errors.
             If False, exceptions have to be caught outside.
@@ -1048,7 +1099,7 @@ class Topography(models.Model, SubjectMixin):
         ThumbnailGenerationException
         """
         try:
-            self._renew_images(driver=driver)
+            self._renew_images()
         except Exception as exc:
             if none_on_error:
                 self.thumbnail = None
@@ -1096,8 +1147,8 @@ class Topography(models.Model, SubjectMixin):
             # Upload new squeezed file
             dirname, basename = os.path.split(self.datafile.name)
             orig_stem, orig_ext = os.path.splitext(basename)
-            squeezed_name = user_directory_path(self, f'{self.id}/{orig_stem}-squeezed.nc')
-            self.squeezed_datafile = default_storage.save(squeezed_name, File(open(tmp.name, mode='rb')))
+            squeezed_name = f'{orig_stem}-squeezed.nc'
+            self.squeezed_datafile.save(squeezed_name, File(open(tmp.name, mode='rb')))
             self.save()
 
     def get_undefined_data_status(self):

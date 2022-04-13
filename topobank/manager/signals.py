@@ -8,7 +8,7 @@ from django.contrib.contenttypes.models import ContentType
 from allauth.account.signals import user_logged_in
 import logging
 
-from .models import Topography, Surface, user_directory_path
+from .models import Topography, Surface
 from .views import DEFAULT_SELECT_TAB_STATE
 
 _log = logging.getLogger(__name__)
@@ -47,29 +47,42 @@ def remove_files(sender, instance, **kwargs):
             _log.warning("Topography id %d, attribute '%s': Cannot delete data file '%s', reason: %s",
                          instance.id, datafile_attr_name, datafile.name, str(exc))
 
-    def _delete_directory(path):
-        if default_storage.exists(path):
-            directories, filenames = default_storage.listdir(path)
-            for filename in filenames:
-                _log.info(f'Deleting file {path}/{filename}...')
-                default_storage.delete(f'{path}/{filename}')
-            for directory in directories:
-                _log.info(f'Deleting directory {path}/{directory}...')
-                _delete_directory(f'{path}/{directory}')
-                default_storage.delete(f'{path}/{directory}')
-
     def delete_directory(path):
-        fullname = user_directory_path(instance, f'{instance.id}/{path}')
-        _delete_directory(fullname)
+        _log.info(f'Attempting to delete everything at {path}...')
+        directories, filenames = default_storage.listdir(path)
+        for filename in filenames:
+            _log.info(f'Deleting file {path}/{filename}...')
+            default_storage.delete(f'{path}/{filename}')
+        for directory in directories:
+            _log.info(f'Deleting directory {path}/{directory}...')
+            delete_directory(f'{path}/{directory}')
+            default_storage.delete(f'{path}/{directory}')
+
+    datafile_path = instance.datafile.name
+    squeezed_datafile_path = instance.squeezed_datafile.name
+    thumbnail_path = instance.thumbnail.name
 
     delete_datafile('datafile')
     if instance.has_squeezed_datafile:
         delete_datafile('squeezed_datafile')
     if instance.has_thumbnail:
         delete_datafile('thumbnail')
-    if instance.size_y is not None:
-        # Delete Deep Zoom Image files
-        delete_directory('dzi')
+
+    # Delete everything else after idiot check: Make sure files are actually stored under the storage prefix.
+    # Otherwise we abort deletion.
+    if datafile_path is not None and not datafile_path.startswith(instance.storage_prefix):
+        _log.warning(f'Datafile is stored at location {datafile_path}, but storage prefix is '
+                     f'{instance.storage_prefix}. I will not attempt to deleting everything at this prefix.')
+        return
+    if squeezed_datafile_path is not None and not squeezed_datafile_path.startswith(instance.storage_prefix):
+        _log.warning(f'Squeezed datafile is stored at location {squeezed_datafile_path}, but storage prefix is '
+                     f'{instance.storage_prefix}. I will not attempt to deleting everything at this prefix.')
+        return
+    if thumbnail_path is not None and not thumbnail_path.startswith(instance.storage_prefix):
+        _log.warning(f'Thumbnail is stored at location {thumbnail_path}, but storage prefix is '
+                     f'{instance.storage_prefix}. I will not attempt to deleting everything at this prefix.')
+        return
+    delete_directory(instance.storage_prefix)
 
 
 @receiver(post_delete, sender=Topography)
