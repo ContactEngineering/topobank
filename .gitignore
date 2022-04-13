@@ -353,5 +353,6 @@ orcid.yaml
 # Some stuff which may appear during development
 .ipynb_checkpoints/
 /media/**/*
+usage_statistics.xlsx
 
 
