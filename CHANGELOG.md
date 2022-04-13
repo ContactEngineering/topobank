@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 0.20.1 (2022-04-13)
+
+- BUG: Added missing migration
+
 ## 0.20.0 (2022-04-13)
 
 - BUG: Explicity make plastic system if hardness is specified (#819)
