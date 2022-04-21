@@ -1,5 +1,10 @@
 # Changelog for *TopoBank*
 
+## 0.20.2 (not yet released)
+
+- BUG: Plastic calculation should reset plastic displacement before each
+  optimizer run (#827)
+
 ## 0.20.1 (2022-04-13)
 
 - BUG: Added missing migration
