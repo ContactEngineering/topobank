@@ -357,7 +357,7 @@ Vue.component("bokeh-plot", {
               })
             }));
           }
-          const saveTool = new Bokeh.SaveTool()
+          const saveTool = new Bokeh.SaveTool();
           tools.push(saveTool);
 
           /* Determine type of x and y-axis */
@@ -415,7 +415,7 @@ Vue.component("bokeh-plot", {
             visible: dataSource.visible,
             color: dataSource.color,
             alpha: dataSource.alpha
-          }
+          };
 
           /* Default is x and y */
           let xData = plot.xData === undefined ? "data.x" : plot.xData;
@@ -453,7 +453,7 @@ Vue.component("bokeh-plot", {
           attrs = {
             ...attrs,
             source: source,
-          }
+          };
 
           /* Create lines and symbols */
           const line = bokehPlot.figure.line(
