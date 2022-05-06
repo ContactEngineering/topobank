@@ -582,15 +582,16 @@ class PlotCardView(SimpleCardView):
                     continue
                     # TODO How to handle such an error here? Notification? Message in analysis box?
 
-            for s_index, s in enumerate(series):
+            for series_idx, s in enumerate(series):
                 #
                 # Collect data for visibility of the corresponding series
                 #
                 series_name = s['name']
                 is_visible = s['visible'] if 'visible' in s else True
-                series_idx = series_names.index(series_name)
+                series_name_idx = series_names.index(series_name)
+                series_url = default_storage.url(f'{analysis.storage_prefix}/series-{series_idx}.json')
                 if is_visible:
-                    series_visible.add(series_idx)
+                    series_visible.add(series_name_idx)
                     # as soon as one dataset wants this series to be visible,
                     # this series will be visible for all
 
@@ -631,13 +632,13 @@ class PlotCardView(SimpleCardView):
                     series_index=series_idx,
                     xScaleFactor=analysis_xscale,
                     yScaleFactor=analysis_yscale,
-                    url=default_storage.url(f'{analysis.storage_prefix}/series-{s_index}.json'),
+                    url=series_url,
                     color=curr_color,
                     dash=curr_dash,
                     width=line_width,
                     alpha=topo_alpha,
                     showSymbols=show_symbols,
-                    visible=series_idx in series_visible,
+                    visible=series_name_idx in series_visible,
                     is_surface_analysis=is_surface_analysis,
                     is_topography_analysis=is_topography_analysis
                 )]
