@@ -611,7 +611,7 @@ class PlotCardView(SimpleCardView):
                     len_x = 1
                 show_symbols = len_x <= MAX_NUM_POINTS_FOR_SYMBOLS
 
-                legend_entry = subject_display_name + ": " + series_name
+                legend_label = subject_display_name + ": " + series_name
 
                 curr_color = subject_colors[subject]
                 curr_dash = series_dashes[series_name]
@@ -633,6 +633,7 @@ class PlotCardView(SimpleCardView):
                     xScaleFactor=analysis_xscale,
                     yScaleFactor=analysis_yscale,
                     url=series_url,
+                    legend_label=legend_label,
                     color=curr_color,
                     dash=curr_dash,
                     width=line_width,

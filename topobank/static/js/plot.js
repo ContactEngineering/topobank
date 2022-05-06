@@ -500,15 +500,18 @@ Vue.component("bokeh-plot", {
 
           /* Find a label */
           let label = dataSource.source_name;
-          if (this.categories.length > 0) {
+          if (dataSource['legend_label'] != undefined) {
+            label = dataSource['legend_label'];
+          } else if (this.categories.length > 0) {
             label = dataSource[this.categories[0].name];
           }
 
           /* Create legend */
           if (!legendLabels.has(label)) {
             legendLabels.add(label);
-            const item = new Bokeh.LegendItem({label: label, renderers: [circle]});
+            const item = new Bokeh.LegendItem({label: label, renderers: [circle], visible: dataSource.visible});
             bokehPlot.legendItems.unshift(item);
+            dataSource.legend_item = item;  // for toggling visibility
           }
         }
       }
@@ -527,6 +530,10 @@ Vue.component("bokeh-plot", {
         let visible = true;
         for (const category of this.categoryElements) {
           visible = visible && category.selection.includes(dataSource[category.name + '_index']);
+        }
+
+        if (dataSource.hasOwnProperty('legend_item')) {
+          dataSource.legend_item.visible = visible;
         }
 
         for (const bokehPlot of this.bokehPlots) {
