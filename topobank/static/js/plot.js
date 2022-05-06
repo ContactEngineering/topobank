@@ -544,11 +544,12 @@ Vue.component("bokeh-plot", {
             line.glyph.line_alpha = Number(this.opacity);
           }
 
-          const symbols = bokehPlot.symbols[index];
-          symbols.visible = visible && (dataSource.showSymbols === undefined || dataSource.showSymbols);
-          symbols.glyph.size = Number(this.symbolSize);
+          const symbol = bokehPlot.symbols[index];
+          symbol.visible = visible && (dataSource.showSymbols === undefined || dataSource.showSymbols);
+          symbol.glyph.size = Number(this.symbolSize);
           if (dataSource.is_topography_analysis) {
-            symbols.glyph.line_alpha = Number(this.opacity);
+            symbol.glyph.line_alpha = Number(this.opacity);
+            symbol.glyph.fill_alpha = Number(this.opacity);
           }
         }
       }
