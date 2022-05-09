@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 0.21.0 (Not published yet)
+
+- ENH: Sorted functions by name (#719) 
+
 ## 0.20.1 (2022-04-13)
 
 - BUG: Added missing migration
