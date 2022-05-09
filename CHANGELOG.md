@@ -3,6 +3,9 @@
 ## 0.21.0 (Not published yet)
 
 - ENH: Sorted functions by name (#719) 
+- BUG: Plastic calculation should reset plastic displacement before each
+  optimizer run (#827)
+- MAINT: Updated Django because of CVE
 
 ## 0.20.1 (2022-04-13)
 

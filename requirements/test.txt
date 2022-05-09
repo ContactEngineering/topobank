@@ -115,7 +115,7 @@ deprecated==1.2.13
     #   redis
 dj-inmemorystorage==2.1.0
     # via -r test.in
-django==3.2.12
+django==3.2.13
     # via
     #   -r base.txt
     #   collectfast
@@ -478,7 +478,6 @@ scipy==1.7.3
     #   numpi
 selenium==3.141.0
     # via
-    #   -r base.txt
     #   -r test.in
     #   pytest-selenium
     #   pytest-splinter
