@@ -17,7 +17,7 @@ class FunctionSelectForm(forms.Form):
 
     help_text = "Select one or multiple analysis functions."
 
-    functions = ModelMultipleChoiceField(queryset=AnalysisFunction.objects.all(),
+    functions = ModelMultipleChoiceField(queryset=AnalysisFunction.objects.order_by('name'),
                                          widget=CheckboxSelectMultiple,
                                          help_text=help_text)
 
@@ -33,6 +33,3 @@ class FunctionSelectForm(forms.Form):
             HTML('<hr/>'),
         )
     )
-
-
-
