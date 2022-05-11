@@ -367,7 +367,7 @@ class PlotCardView(SimpleCardView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-
+        extra_warnings = []
         analyses_success = context['analyses_success']
 
         #
@@ -574,20 +574,29 @@ class PlotCardView(SimpleCardView):
                 try:
                     analysis_xscale = ureg.convert(1, analysis_result['xunit'], xunit)
                 except UndefinedUnitError as exc:
-                    _log.error("Cannot convert units when displaying results for analysis with id %s. Cause: %s",
-                               analysis.id, str(exc))
+                    err_msg = f"Cannot convert x units when displaying results for analysis with id {analysis.id}. "\
+                              f"Cause: {exc}"
+                    _log.error(err_msg)
+                    extra_warnings.append(
+                        dict(alert_class='alert-warning',
+                             message=err_msg)
+                    )
                     continue
-                    # TODO How to handle such an error here? Notification? Message in analysis box?
             if yunit is None:
                 analysis_yscale = 1
             else:
                 try:
                     analysis_yscale = ureg.convert(1, analysis_result['yunit'], yunit)
                 except UndefinedUnitError as exc:
-                    _log.error("Cannot convert units when displaying results for analysis with id %s. Cause: %s",
-                               analysis.id, str(exc))
+                    err_msg = f"Cannot convert y units when displaying results for analysis with id {analysis.id}. " \
+                              f"Cause: {exc}"
+                    _log.error(err_msg)
+                    extra_warnings.append(
+                        dict(alert_class='alert-warning',
+                             message=err_msg)
+                    )
                     continue
-                    # TODO How to handle such an error here? Notification? Message in analysis box?
+
 
             for series_idx, s in enumerate(series_seq):
                 #
@@ -664,6 +673,7 @@ class PlotCardView(SimpleCardView):
                 'key': "series_name",
             },
         ])
+        context['extra_warnings'] = extra_warnings
 
         return context
 
@@ -1096,7 +1106,6 @@ class AnalysesListView(FormView):
 
             # as long as we have the current UI (before implementing GH #304)
             # we also set the collection's function and topographies as selection
-            # TODO is this still needed?
             topography_selection = instances_to_selection(topographies=topographies)
             self.request.session['selection'] = tuple(topography_selection)
             self.request.session['selected_functions'] = tuple(f.id for f in functions)
@@ -1134,13 +1143,6 @@ class AnalysesListView(FormView):
         return dict(
             functions=AnalysesListView._selected_functions(self.request),
         )
-
-    def post(self, request, *args, **kwargs):  # TODO is this really needed?
-        form = self.get_form()
-        if form.is_valid():
-            return self.form_valid(form)
-        else:
-            return self.form_invalid(form)
 
     def form_valid(self, form):
         functions = form.cleaned_data.get('functions', [])
