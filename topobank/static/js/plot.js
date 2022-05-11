@@ -4,6 +4,10 @@
  *   show/hide all datasets belonging to a specific value of this category. These categories are for example the names
  *   of a measurement and the data series (1D PSD, 2D PSD, etc.).
  */
+/* jshint esversion: 9 */
+/* jshint strict:true */
+"use strict";
+/* globals Vue:false, Bokeh:false */
 
 Vue.component("bokeh-plot", {
   template: `
@@ -27,10 +31,10 @@ Vue.component("bokeh-plot", {
           </div>
         </div>
         <div v-for="category in categoryElements" class="card">
-          <div :id='"heading-"+uuid+"-"+category.name' class="card-header plot-controls-card-header">
+          <div :id='"heading-"+uuid+"-"+category.key' class="card-header plot-controls-card-header">
             <h2 class="mb-0">
               <div class="accordion-header-control custom-checkbox">
-                <input :id='"select-all-"+uuid+"-"+category.name'
+                <input :id='"select-all-"+uuid+"-"+category.key'
                        class="custom-control-input"
                        type="checkbox"
                        value=""
@@ -38,32 +42,32 @@ Vue.component("bokeh-plot", {
                        v-on:change="selectAll(category)"
                        :indeterminate.prop="category.isIndeterminate">
                 <label class="custom-control-label btn-block text-left"
-                       :for='"select-all-"+uuid+"-"+category.name'>
+                       :for='"select-all-"+uuid+"-"+category.key'>
                 </label>
               </div>
               <button class="btn btn-link btn-block text-left accordion-button collapsed"
                       type="button"
                       data-toggle="collapse"
-                      :data-target='"#collapse-"+uuid+"-"+category.name'
+                      :data-target='"#collapse-"+uuid+"-"+category.key'
                       aria-expanded="false"
-                      :aria-controls='"collapse-"+uuid+"-"+category.name'>
+                      :aria-controls='"collapse-"+uuid+"-"+category.key'>
                 {{ category.title }}
               </button>
             </h2>
           </div>
-          <div :id='"collapse-"+uuid+"-"+category.name'
+          <div :id='"collapse-"+uuid+"-"+category.key'
                class="collapse"
-               :aria-labelledby='"heading-"+uuid+"-"+category.name'
+               :aria-labelledby='"heading-"+uuid+"-"+category.key'
                :data-parent='"#plot-controls-accordion-"+uuid'>
             <div :id='"card-subjects"+uuid' class="card-body plot-controls-card-body">
               <div v-for="(element, index) in category.elements" class="custom-control custom-checkbox">
-                <input :id='"switch-"+uuid+"-"+category.name+"-"+index'
+                <input :id='"switch-"+uuid+"-"+category.key+"-"+index'
                        class="custom-control-input"
                        type="checkbox"
                        :value="index"
                        v-model="category.selection">
                 <label class="custom-control-label"
-                       :for='"switch-"+uuid+"-"+category.name+"-"+index'>
+                       :for='"switch-"+uuid+"-"+category.key+"-"+index'>
                   <span class="dot" v-if="element.color !== null" :style='"background-color: "+element.color'></span>
                     {{ element.title }}
                 </label>
@@ -158,10 +162,12 @@ Vue.component("bokeh-plot", {
     categories: {
       // Defining selection categories. For each category, there will be an accordion with the possibility to show/hide
       // all curves that correspond to a specific value of that category.
-      // List of dictionaries with keys:
-      //   name: Name of dataset key that defines this category, i.e. if we have add a category with name "person",
-      //         the code will expect a "person" key in the dataset, that specifies the value for this category.
-      //   title: Title of this category.
+      // Array of dictionaries with keys:
+      //   key: Name of dataset key that defines this category, i.e. if we have add a category with key "series_name",
+      //        the code will expect a "series_name" key in a dataSource, that specifies the value for this category.
+      //        Typical categories: "subject_name" for name of a measurement, "series_name" for name of a data series like
+      //        "1D PSD along x"
+      //   title: Title of this category, a header put in front of the category elements e.g. "Data Series"
       type: Array, default: function () {
         return [];
       }
@@ -183,10 +189,13 @@ Vue.component("bokeh-plot", {
     dataSources: {
       // Define the data sources.
       type: Array, default: []
-      // List of dictionaries with keys:
+      // Array of dictionaries with keys:
       //   url: URL to JSON that contains the data.
-      //   [category-name] (optional): Value of the specific category. For each category, there must be a key-value pair.
+      //   [category-name] (optional): Display value of the specific category. For each category,
+      //                               there must be a key-value pair.Example: "series_name": "1D PSD along x"
+      //   [category-name]_index (optional): Zero-based index of [category_name] in an ordered list.
       //   color (optional): Line and symbol color.
+      //   dash (optional): Line style, one of "solid", "dashed", "dotted", "dotdash", "dashdot".
       //   xScaleFactor: Additional scale factor for x-values from this source
       //   yScaleFactor: Additional scale factor for y-values from this source
       //   showSymbols (optional): Show symbols for this data source?
@@ -230,30 +239,39 @@ Vue.component("bokeh-plot", {
     this.uuid = crypto.randomUUID();
 
     /* For each category, create a list of unique entries */
-    for (const [index, category] of this.categories.entries()) {
+    for (const [category_idx, category] of this.categories.entries()) {
       let titles = new Set();
       let elements = [];
       let selection = [];
 
+      // console.log(`Category ${category_idx}: ${category.title} (key: ${category.key})`);
+      // console.log("===============================================================");
+
       for (const dataSource of this.dataSources) {
-        if (!(category.name in dataSource)) {
-          throw new Error("Key '" + category.name + "' not found in data source '" + dataSource.name + "'.");
+        if (!(category.key in dataSource)) {
+          throw new Error("Key '" + category.key + "' not found in data source '" + dataSource.name + "'.");
         }
 
-        const title = dataSource[category.name];
+        const title = dataSource[category.key];
         if (!(titles.has(title))) {
-          color = index == 0 ? dataSource.color : null;  // The first category defines the color
+          let element_index = dataSource[category.key + '_index'];
+          let color = category_idx === 0 ? dataSource.color : null;  // The first category defines the color
+          let dash = category_idx ===1 ? dataSource.dash : null;     // The first category defines the line type
           titles.add(title);
-          elements.push({title: title, color: color});
-          // Default to showing a data source if it has no 'visible' attribute
+
+          // need to have the same order as index of category
+          elements[element_index] = {title: title, color: color, dash: dash};
+          // Defaults to showing a data source if it has no 'visible' attribute
           if (dataSource.visible === undefined || dataSource.visible) {
-            selection.push(dataSource[category.name + '_index']);
+            selection.push(element_index);
           }
         }
       }
 
+      // console.table(elements);
+
       this.categoryElements.push({
-        name: category.name,
+        key: category.key,
         title: category.title,
         elements: elements,
         selection: selection,
@@ -309,7 +327,7 @@ Vue.component("bokeh-plot", {
       this.refreshPlot();
     },
     legendLocation: function (newVal) {
-      const visible = newVal != "off";
+      const visible = newVal !== "off";
       for (const bokehPlot of this.bokehPlots) {
         bokehPlot.legend.visible = visible;
         if (visible) {
@@ -320,10 +338,10 @@ Vue.component("bokeh-plot", {
     dataSources: function (newVal, oldVal) {
       // For some unknown reason, the dataSource watch is triggered even though it is not updated. We have to check
       // manually that the URL has changed.
-      let has_changed = newVal.length != oldVal.length;
+      let has_changed = newVal.length !== oldVal.length;
       if (!has_changed) {
         for (const [index, val] of newVal.entries()) {
-          has_changed = has_changed || (val.url != oldVal[index].url);
+          has_changed = has_changed || (val.url !== oldVal[index].url);
         }
       }
       // We need to completely rebuild the plot if `dataSources` changes
@@ -341,7 +359,7 @@ Vue.component("bokeh-plot", {
         bokehPlot.figure.renderers.length = 0;
       }
 
-      const isNewPlot = this.bokehPlots.length == 0;
+      const isNewPlot = this.bokehPlots.length === 0;
       if (isNewPlot) {
         /* Create figures */
         for (const plot of this.plots) {
@@ -377,10 +395,10 @@ Vue.component("bokeh-plot", {
           });
 
           /* Change formatters for linear axes */
-          if (xAxisType == "linear") {
+          if (xAxisType === "linear") {
             bokehPlot.xaxis.formatter = new Bokeh.CustomJSTickFormatter({code: "return format_exponential(tick);"});
           }
-          if (yAxisType == "linear") {
+          if (yAxisType === "linear") {
             bokehPlot.yaxis.formatter = new Bokeh.CustomJSTickFormatter({code: "return format_exponential(tick);"});
           }
 
@@ -411,7 +429,7 @@ Vue.component("bokeh-plot", {
           let legendLabels = new Set();
 
           /* Common attributes of lines and symbols */
-          attrs = {
+          let attrs = {
             visible: dataSource.visible,
             color: dataSource.color,
             alpha: dataSource.alpha
@@ -462,6 +480,7 @@ Vue.component("bokeh-plot", {
             {
               ...attrs,
               ...{
+                dash: dataSource.dash,
                 width: Number(this.lineWidth) * dataSource.width
               }
             });
@@ -498,18 +517,18 @@ Vue.component("bokeh-plot", {
           });
           bokehPlot.symbols.unshift(circle);
 
-          /* Find a label */
-          let label = dataSource.source_name;
-          if (dataSource['legend_label'] != undefined) {
-            label = dataSource['legend_label'];
+          /* Find a label for the legend */
+          let legend_label = dataSource.source_name;
+          if (dataSource.legend_label !== undefined) {
+            legend_label = dataSource.legend_label;
           } else if (this.categories.length > 0) {
-            label = dataSource[this.categories[0].name];
+            legend_label = dataSource[this.categories[0].key];
           }
 
           /* Create legend */
-          if (!legendLabels.has(label)) {
-            legendLabels.add(label);
-            const item = new Bokeh.LegendItem({label: label, renderers: [circle], visible: dataSource.visible});
+          if (!legendLabels.has(legend_label)) {
+            legendLabels.add(legend_label);
+            const item = new Bokeh.LegendItem({label: legend_label, renderers: [circle,line], visible: dataSource.visible});
             bokehPlot.legendItems.unshift(item);
             dataSource.legend_item = item;  // for toggling visibility
           }
@@ -526,10 +545,10 @@ Vue.component("bokeh-plot", {
       }
     },
     refreshPlot() {
-      for (const [index, dataSource] of this.dataSources.entries()) {
+      for (const [dataSourceIdx, dataSource] of this.dataSources.entries()) {
         let visible = true;
-        for (const category of this.categoryElements) {
-          visible = visible && category.selection.includes(dataSource[category.name + '_index']);
+        for (const categoryElem of this.categoryElements) {
+          visible = visible && categoryElem.selection.includes(dataSource[categoryElem.key + '_index']);
         }
 
         if (dataSource.hasOwnProperty('legend_item')) {
@@ -537,14 +556,14 @@ Vue.component("bokeh-plot", {
         }
 
         for (const bokehPlot of this.bokehPlots) {
-          const line = bokehPlot.lines[index];
+          const line = bokehPlot.lines[dataSourceIdx];
           line.visible = visible;
           line.glyph.line_width = Number(this.lineWidth) * dataSource.width;
           if (dataSource.is_topography_analysis) {
             line.glyph.line_alpha = Number(this.opacity);
           }
 
-          const symbol = bokehPlot.symbols[index];
+          const symbol = bokehPlot.symbols[dataSourceIdx];
           symbol.visible = visible && (dataSource.showSymbols === undefined || dataSource.showSymbols);
           symbol.glyph.size = Number(this.symbolSize);
           if (dataSource.is_topography_analysis) {
@@ -553,16 +572,16 @@ Vue.component("bokeh-plot", {
           }
         }
       }
-      for (const category of this.categoryElements) {
-        category.isAllSelected = this.isAllSelected(category.elements, category.selection);
-        category.isIndeterminate = this.isIndeterminate(category.elements, category.selection);
+      for (const categoryElem of this.categoryElements) {
+        categoryElem.isAllSelected = this.isAllSelected(categoryElem.elements, categoryElem.selection);
+        categoryElem.isIndeterminate = this.isIndeterminate(categoryElem.elements, categoryElem.selection);
       }
     },
     isAllSelected(elements, selection) {
-      return elements.length == selection.length;
+      return elements.length === selection.length;
     },
     isIndeterminate(elements, selection) {
-      return selection.length != elements.length && selection.length != 0;
+      return selection.length !== elements.length && selection.length !== 0;
     },
     selectAll(category) {
       if (category.isAllSelected) {
@@ -578,7 +597,7 @@ Vue.component("bokeh-plot", {
       const index = data.source.selected.indices[0];
       for (const bokehPlot of this.bokehPlots) {
         for (const source of bokehPlot.sources) {
-          if (source.name == name) {
+          if (source.name === name) {
             source.selected.indices = [index];
           }
         }

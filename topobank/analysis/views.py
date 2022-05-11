@@ -414,40 +414,31 @@ class PlotCardView(SimpleCardView):
         #
         subjects = set(a.subject for a in analyses_success_list)
         subjects = sorted(subjects, key=lambda s: s.get_content_type() == surface_ct, reverse=True)  # surfaces first
-        subject_names_for_plot = []
+        subject_names = []  # will be shown under category "subject_names"
 
         # Build subject groups by content type, so each content type gets its
         # one checkbox group
-
-        subject_checkbox_groups = {}  # key: ContentType, value: list of subject names to display
-
+        has_at_least_one_surface_subject = False
         for s in subjects:
             subject_ct = s.get_content_type()
             subject_name = s.label
             if subject_ct == surface_ct:
                 subject_name = f"Average of »{subject_name}«"
-            subject_names_for_plot.append(subject_name)
-
-            if subject_ct not in subject_checkbox_groups.keys():
-                subject_checkbox_groups[subject_ct] = []
-
-            subject_checkbox_groups[subject_ct].append(subject_name)
-
-        has_at_least_one_surface_subject = surface_ct in subject_checkbox_groups.keys()
+                has_at_least_one_surface_subject = True
+            subject_names.append(subject_name)
 
         #
         # Use first analysis to determine some properties for the whole plot
         #
-
         first_analysis_result = analyses_success_list[0].result
         xunit = first_analysis_result['xunit'] if 'xunit' in first_analysis_result else None
         yunit = first_analysis_result['yunit'] if 'yunit' in first_analysis_result else None
 
         ureg = UnitRegistry()  # for unit conversion for each analysis individually, see below
 
-        def get_axis_type(key):
-            return first_analysis_result.get(key) or "linear"
-
+        #
+        # Determine axes labels
+        #
         x_axis_label = first_analysis_result['xlabel']
         if xunit is not None:
             x_axis_label += f' ({xunit})'
@@ -458,6 +449,9 @@ class PlotCardView(SimpleCardView):
         #
         # Context information for the figure
         #
+        def get_axis_type(key):
+            return first_analysis_result.get(key) or "linear"
+
         context.update(dict(
             x_axis_label=x_axis_label,
             y_axis_label=y_axis_label,
@@ -465,11 +459,10 @@ class PlotCardView(SimpleCardView):
             y_axis_type=get_axis_type('yscale'),
             output_backend=settings.BOKEH_OUTPUT_BACKEND))
 
-
         #
         # First traversal: find all available series names and sort them
-        # We need fixed series indices, because this is used on Javascript level to connect
-        # checkboxes to glyphs.
+        #
+        # Also collect number of topographies and surfaces
         #
         series_names = set()
         nb_surfaces = 0  # Total number of averages/surfaces shown
@@ -488,8 +481,8 @@ class PlotCardView(SimpleCardView):
             else:
                 nb_topographies += 1
 
-        series_names = sorted(list(series_names))  # index of a name in this list is the "series_idx"
-        series_visible = set()  # elements: series indices, decides whether a series is visible
+        series_names = sorted(list(series_names))  # index of a name in this list is the "series_name_index"
+        visible_series_indices = set()  # elements: series indices, decides whether a series is visible
 
         #
         # Prepare helpers for dashes and colors
@@ -510,11 +503,15 @@ class PlotCardView(SimpleCardView):
         DEFAULT_ALPHA_FOR_TOPOGRAPHIES = 0.3 if has_at_least_one_surface_subject else 1.0
 
         #
-        # Second traversal: do the plotting
+        # Second traversal: Prepare metadata for plotting
+        #
+        # The plotting is done in Javascript on client side.
+        # The metadata is prepared here, the data itself will be retrieved
+        # by an AJAX request. The url for this request is also prepared here.
         #
         surface_index = -1
         topography_index = -1
-        for a_index, analysis in enumerate(analyses_success_list):
+        for analysis_idx, analysis in enumerate(analyses_success_list):
             #
             # Define some helper variables
             #
@@ -524,14 +521,28 @@ class PlotCardView(SimpleCardView):
             is_surface_analysis = isinstance(subject, Surface)
             is_topography_analysis = isinstance(subject, Topography)
 
+            #
+            # Change display name depending on whether there is a parent analysis or not
+            #
             if is_topography_analysis:
                 try:
+                    # We look whether the corresponding analysis for the
+                    # parent surface is available
                     analyses_success.get(subject_id=analysis.subject.surface.id, subject_type=surface_ct)
                 except Analysis.DoesNotExist:
                     has_parent = False
                 else:
                     has_parent = True
+            else:
+                has_parent = False
 
+            subject_display_name = subject_names[subject_idx]
+            if has_parent:
+                subject_display_name = f"└─ {subject_display_name}"
+
+            #
+            # Decide for colors
+            #
             if is_surface_analysis:
                 # Surface results are plotted in black/grey
                 surface_index += 1
@@ -541,23 +552,19 @@ class PlotCardView(SimpleCardView):
                 topography_index += 1
                 subject_colors[subject] = topography_colors[topography_index]
 
-            subject_display_name = subject_names_for_plot[subject_idx]
-            if is_topography_analysis and has_parent:
-                subject_display_name = f"└─ {subject_display_name}"
-
             #
-            # handle task state
+            # Handle unexpected task states for robustness, shouldn't be needed in general
             #
             if analysis.task_state == analysis.FAILURE:
                 continue  # should not happen if only called with successful analyses
             elif analysis.task_state == analysis.SUCCESS:
-                series = analysis.result['series']
+                series_seq = analysis.result['series']
             else:
                 # not ready yet
                 continue  # should not happen if only called with successful analyses
 
             #
-            # find out scale for data
+            # Find out scale for data
             #
             analysis_result = analysis.result
 
@@ -582,21 +589,23 @@ class PlotCardView(SimpleCardView):
                     continue
                     # TODO How to handle such an error here? Notification? Message in analysis box?
 
-            for series_idx, s in enumerate(series):
+            for series_idx, s in enumerate(series_seq):
                 #
                 # Collect data for visibility of the corresponding series
                 #
-                series_name = s['name']
-                is_visible = s['visible'] if 'visible' in s else True
-                series_name_idx = series_names.index(series_name)
                 series_url = default_storage.url(f'{analysis.storage_prefix}/series-{series_idx}.json')
+
+                series_name = s['name']
+                series_name_idx = series_names.index(series_name)
+
+                is_visible = s['visible'] if 'visible' in s else True
                 if is_visible:
-                    series_visible.add(series_name_idx)
+                    visible_series_indices.add(series_name_idx)
                     # as soon as one dataset wants this series to be visible,
                     # this series will be visible for all
 
                 #
-                # find out dashes for data series
+                # Find out dashes for data series
                 #
                 if series_name not in series_dashes:
                     series_dashes[series_name] = next(dash_cycle)
@@ -619,17 +628,17 @@ class PlotCardView(SimpleCardView):
 
                 # hover_name = "{} for '{}'".format(series_name, topography_name)
                 line_width = LINEWIDTH_FOR_SURFACE_AVERAGE if is_surface_analysis else 1
-                topo_alpha = DEFAULT_ALPHA_FOR_TOPOGRAPHIES if is_topography_analysis else 1.
+                alpha = DEFAULT_ALPHA_FOR_TOPOGRAPHIES if is_topography_analysis else 1.
 
                 #
-                # Context information for this data source
+                # Context information for this data source, will be interpreted by client JS code
                 #
                 data_sources_dict += [dict(
                     source_name=f'analysis-{analysis.id}',
-                    name=subject_display_name,
-                    name_index=a_index,
-                    series=series_name,
-                    series_index=series_idx,
+                    subject_name=subject_display_name,
+                    subject_name_index=analysis_idx,
+                    series_name=series_name,
+                    series_name_index=series_name_idx,
                     xScaleFactor=analysis_xscale,
                     yScaleFactor=analysis_yscale,
                     url=series_url,
@@ -637,19 +646,31 @@ class PlotCardView(SimpleCardView):
                     color=curr_color,
                     dash=curr_dash,
                     width=line_width,
-                    alpha=topo_alpha,
+                    alpha=alpha,
                     showSymbols=show_symbols,
-                    visible=series_name_idx in series_visible,
+                    visible=series_name_idx in visible_series_indices,  # independent of subject
                     is_surface_analysis=is_surface_analysis,
                     is_topography_analysis=is_topography_analysis
                 )]
 
         context['data_sources'] = json.dumps(data_sources_dict)
+        context['categories'] = json.dumps([
+            {
+                'title': "Averages / Measurements",
+                'key': "subject_name",
+            },
+            {
+                'title': "Data Series",
+                'key': "series_name",
+            },
+        ])
 
         return context
 
 
 class ContactMechanicsCardView(SimpleCardView):
+    """View for displaying a card with results from Contact Mechanics analyses.
+    """
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
