@@ -117,18 +117,16 @@ Vue.component("bokeh-plot", {
                 </select>
               </div>
 
-<!-- Adjusting line width does not work
               <div class="form-group">
                 <label :for='"line-width-slider-"+uuid'>Line width: <b>{{ lineWidth }}</b></label>
                 <input :id='"line-width-slider-"+uuid'
                        type="range"
                        min="0.1"
-                       max="2.0"
+                       max="3.0"
                        step="0.1"
                        class="form-control-range"
                        v-model="lineWidth">
               </div>
--->
 
               <div class="form-group">
                 <label :for='"symbol-size-slider-"+uuid'>Symbol size: <b>{{ symbolSize }}</b></label>
@@ -324,6 +322,9 @@ Vue.component("bokeh-plot", {
       this.refreshPlot();
     },
     symbolSize: function () {
+      this.refreshPlot();
+    },
+    lineWidth: function () {
       this.refreshPlot();
     },
     legendLocation: function (newVal) {
