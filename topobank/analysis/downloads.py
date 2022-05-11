@@ -637,7 +637,8 @@ def download_contact_mechanics_analyses_as_zip(request, analyses):
 
         col_dicts = {col_names[i]: analysis_result[k] for i, k in enumerate(col_keys)}
         plot_df = pd.DataFrame(col_dicts)
-        plot_df['filename'] = plot_df['filename'].map(lambda fn: os.path.split(fn)[1])  # only simple filename
+        plot_df['filename'] = "result-" + plot_df['filename'].map(lambda fn: os.path.split(fn)[1]) + ".nc"
+        # only simple filename
 
         plot_filename_in_zip = os.path.join(zip_dir, 'plot.csv')
         zf.writestr(plot_filename_in_zip, plot_df.to_csv())
