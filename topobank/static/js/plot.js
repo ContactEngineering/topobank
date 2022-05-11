@@ -528,7 +528,11 @@ Vue.component("bokeh-plot", {
           /* Create legend */
           if (!legendLabels.has(legend_label)) {
             legendLabels.add(legend_label);
-            const item = new Bokeh.LegendItem({label: legend_label, renderers: [circle,line], visible: dataSource.visible});
+            const item = new Bokeh.LegendItem({
+              label: legend_label,
+              renderers: dataSource.showSymbols ? [circle,line]:[line],
+              visible: dataSource.visible
+            });
             bokehPlot.legendItems.unshift(item);
             dataSource.legend_item = item;  // for toggling visibility
           }
