@@ -396,17 +396,27 @@ class PlotCardView(SimpleCardView):
         # but the only measurement's analysis has no success. In this case there is also
         # no successful analysis to display because the surface has only one measurement.
 
-        nb_analyses = len(analyses_success_list)
-        if nb_analyses == 0:
+        nb_analyses_success = len(analyses_success_list)
+        if nb_analyses_success == 0:
             #
             # Prepare plot, controls, and table with special values..
             #
-            context.update(
-                dict(plot_script="",
-                     plot_div="No successfully finished analyses available",
-                     special_values=[],
-                     topography_colors=json.dumps(list()),
-                     series_dashes=json.dumps(list())))
+            context['data_sources'] = json.dumps([])
+            context['categories'] = json.dumps([
+                {
+                    'title': "Averages / Measurements",
+                    'key': "subject_name",
+                },
+                {
+                    'title': "Data Series",
+                    'key': "series_name",
+                },
+            ])
+            extra_warnings.append(
+                dict(alert_class='alert-info',
+                     message="So far no analysis has been successfully finished yet.")
+            )
+            context['extra_warnings'] = extra_warnings
             return context
 
         #
@@ -532,7 +542,8 @@ class PlotCardView(SimpleCardView):
                 except Analysis.DoesNotExist:
                     has_parent = False
                 else:
-                    has_parent = True
+                    # only show parent analysis if there is more than one child
+                    has_parent = analysis.subject.surface.num_topographies() > 1
             else:
                 has_parent = False
 
