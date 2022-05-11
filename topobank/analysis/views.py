@@ -412,10 +412,6 @@ class PlotCardView(SimpleCardView):
                     'key': "series_name",
                 },
             ])
-            extra_warnings.append(
-                dict(alert_class='alert-info',
-                     message="So far no analysis has been successfully finished yet.")
-            )
             context['extra_warnings'] = extra_warnings
             return context
 
