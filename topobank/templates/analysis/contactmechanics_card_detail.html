@@ -35,6 +35,7 @@
             :data-sources='{{ data_sources|safe }}'
             :selectable="true"
             v-on:selected="(obj, data) => { selection = { analysis_id: data.source.name.split('-')[1], index: data.source.selected.indices[0] }; }"
+            :options-widgets="['layout', 'legend', 'lineWidth', 'symbolSize']"
             output-backend="{{ output_backend }}">
           </bokeh-plot>
         {% endif %}
@@ -385,7 +386,7 @@
           }]
         },
         contactMechanicsCategories: function () {
-          return [{name: "name", title: "Measurements"}];
+          return [{key: "subject_name", title: "Measurements"}];
         },
         distributionPlots: function () {
           return [{

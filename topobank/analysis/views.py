@@ -697,6 +697,7 @@ class ContactMechanicsCardView(SimpleCardView):
         if len(analyses_success) > 0:
             data_sources_dict = []
             color_cycle = itertools.cycle(palettes.Category10_10)
+            subject_names = []
 
             #
             # Context information for the figure
@@ -710,15 +711,21 @@ class ContactMechanicsCardView(SimpleCardView):
             for a_index, analysis in enumerate(analyses_success):
                 curr_color = next(color_cycle)
 
+                subject_name = analysis.subject.name
+                if subject_name not in subject_names:
+                    subject_names.append(subject_name)
+
                 #
                 # Context information for this data source
                 #
                 data_sources_dict += [dict(
                     source_name=f'analysis-{analysis.id}',
-                    name=analysis.subject.name,
-                    name_index=a_index,
+                    subject_name=subject_name,
+                    subject_name_index=subject_names.index(subject_name),
                     url=default_storage.url(f'{analysis.storage_prefix}/result.json'),
+                    showSymbols=True,  # otherwise symbols do not appear in legend
                     color=curr_color,
+                    width=1.,
                 )]
 
             context['data_sources'] = json.dumps(data_sources_dict)

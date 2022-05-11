@@ -93,7 +93,7 @@ Vue.component("bokeh-plot", {
                :aria-labelledby='"heading-plot-options-"+uuid'
                :data-parent='"#plot-controls-accordion-"+uuid'>
             <div class="card-body plot-controls-card-body">
-              <div class="form-group">
+              <div v-if="optionsWidgets.includes('layout')" class="form-group">
                 <label :for='"plot-layout-"+uuid' hidden>Plot layout:</label>
                 <select class="form-control"
                        :id='"plot-layout-"+uuid'
@@ -104,7 +104,7 @@ Vue.component("bokeh-plot", {
                 </select>
               </div>
 
-              <div class="form-group">
+              <div v-if="optionsWidgets.includes('legend')" class="form-group">
                 <label :for='"plot-legend-"+uuid' hidden>Legend:</label>
                 <select class="form-control"
                        :id='"plot-legend-"+uuid'
@@ -117,7 +117,7 @@ Vue.component("bokeh-plot", {
                 </select>
               </div>
 
-              <div class="form-group">
+              <div v-if="optionsWidgets.includes('lineWidth')" class="form-group">
                 <label :for='"line-width-slider-"+uuid'>Line width: <b>{{ lineWidth }}</b></label>
                 <input :id='"line-width-slider-"+uuid'
                        type="range"
@@ -128,7 +128,7 @@ Vue.component("bokeh-plot", {
                        v-model="lineWidth">
               </div>
 
-              <div class="form-group">
+              <div v-if="optionsWidgets.includes('symbolSize')" class="form-group">
                 <label :for='"symbol-size-slider-"+uuid'>Symbol size: <b>{{ symbolSize }}</b></label>
                 <input :id='"symbol-size-slider-"+uuid'
                        type="range"
@@ -139,7 +139,7 @@ Vue.component("bokeh-plot", {
                        v-model="symbolSize">
               </div>
 
-              <div class="form-group">
+              <div v-if="optionsWidgets.includes('opacity')" class="form-group">
                 <label :for='"opacity-slider-"+uuid'>Opacity of lines/symbols (measurements only): <b>{{ opacity }}</b></label>
                 <input :id='"opacity-slider-"+uuid'
                        type="range"
@@ -149,7 +149,6 @@ Vue.component("bokeh-plot", {
                        class="form-control-range"
                        v-model="opacity">
               </div>
-
             </div>
           </div>
         </div>
@@ -218,6 +217,11 @@ Vue.component("bokeh-plot", {
     },
     selectable: {
       type: Boolean, default: false
+    },
+    optionsWidgets: {
+      type: Array, default: function() {
+        return ["layout", "legend", "lineWidth", "symbolSize", "opacity"];
+      }
     }
   },
   data: function () {
@@ -246,6 +250,7 @@ Vue.component("bokeh-plot", {
       // console.log("===============================================================");
 
       for (const dataSource of this.dataSources) {
+        // console.table(dataSource);
         if (!(category.key in dataSource)) {
           throw new Error("Key '" + category.key + "' not found in data source '" + dataSource.name + "'.");
         }
@@ -265,8 +270,6 @@ Vue.component("bokeh-plot", {
           }
         }
       }
-
-      // console.table(elements);
 
       this.categoryElements.push({
         key: category.key,
