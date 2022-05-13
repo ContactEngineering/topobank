@@ -116,6 +116,16 @@ def switch_card_view(request):
     return view_class.as_view()(request)
 
 
+def _palette_for_topographies(nb_topographies):
+    if nb_topographies <= 10:
+        topography_colors = palettes.Category10_10
+    else:
+        topography_colors = [palettes.Plasma256[k * 256 // nb_topographies] for k in range(nb_topographies)]
+        # we don't want to have yellow as first color
+        topography_colors = topography_colors[nb_topographies // 2:] + topography_colors[:nb_topographies // 2]
+    return topography_colors
+
+
 class SimpleCardView(TemplateView):
     """Very basic display of results. Base class for more complex views.
 
@@ -420,10 +430,9 @@ class PlotCardView(SimpleCardView):
         #
         subjects = set(a.subject for a in analyses_success_list)
         subjects = sorted(subjects, key=lambda s: s.get_content_type() == surface_ct, reverse=True)  # surfaces first
-        subject_names = []  # will be shown under category "subject_names"
 
-        # Build subject groups by content type, so each content type gets its
-        # one checkbox group
+        # Collect subject names and sort them
+        subject_names = []  # will be shown under category "subject_names"
         has_at_least_one_surface_subject = False
         for s in subjects:
             subject_ct = s.get_content_type()
@@ -494,12 +503,8 @@ class PlotCardView(SimpleCardView):
         # Prepare helpers for dashes and colors
         #
         surface_color_palette = palettes.Greys256  # surfaces are shown in black/grey
-        if nb_topographies <= 10:
-            topography_colors = palettes.Category10_10
-        else:
-            topography_colors = [palettes.Plasma256[k*256//nb_topographies] for k in range(nb_topographies)]
-            # we don't want to have yellow as first color
-            topography_colors = topography_colors[nb_topographies//2:] + topography_colors[:nb_topographies//2]
+        topography_colors = _palette_for_topographies(nb_topographies)
+
         dash_cycle = itertools.cycle(['solid', 'dashed', 'dotted', 'dotdash', 'dashdot'])
 
         subject_colors = OrderedDict()  # key: subject instance, value: color
@@ -695,9 +700,18 @@ class ContactMechanicsCardView(SimpleCardView):
         analyses_success = context['analyses_success']
 
         if len(analyses_success) > 0:
+
             data_sources_dict = []
-            color_cycle = itertools.cycle(palettes.Category10_10)
-            subject_names = []
+
+            #
+            # Prepare subject names
+            #
+            subject_names = sorted(set(a.subject.name for a in analyses_success))
+
+            #
+            # Prepare colors to be used for different analyses
+            #
+            color_cycle = itertools.cycle(_palette_for_topographies(len(subject_names)))
 
             #
             # Context information for the figure
@@ -712,8 +726,6 @@ class ContactMechanicsCardView(SimpleCardView):
                 curr_color = next(color_cycle)
 
                 subject_name = analysis.subject.name
-                if subject_name not in subject_names:
-                    subject_names.append(subject_name)
 
                 #
                 # Context information for this data source
