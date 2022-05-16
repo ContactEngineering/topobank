@@ -126,6 +126,83 @@ def _palette_for_topographies(nb_topographies):
     return topography_colors
 
 
+def _filter_and_order_analyses(analyses):
+    """Order analyses such that surface analyses are coming last (plotted on top).
+
+    The analyses are filtered that that surface analyses
+    are only included if there are more than 1 measurement.
+
+    Parameters
+    ----------
+    analyses: QuerySet
+
+    Returns
+    -------
+    Ordered list of analyses. Analyses for measurements
+    are listed directly after corresponding surface.
+    """
+    surface_ct = ContentType.objects.get_for_model(Surface)
+    sorted_analyses = []
+
+    #
+    # Order analyses by surface
+    # such that for each surface the analyses are ordered by subject id
+    #
+    analysis_groups = OrderedDict()  # always the same order of surfaces for same list of subjects
+    for topography_analysis in analyses.filter(~Q(subject_type=surface_ct)).order_by('subject_id'):
+        surface = topography_analysis.subject.surface
+        if not surface in analysis_groups:
+            analysis_groups[surface] = []
+        analysis_groups[surface].append(topography_analysis)
+
+    #
+    # Process groups and collect analyses which are implicitly sorted
+    #
+    surfaces_analyses = analyses.filter(subject_type=surface_ct).order_by('subject_id')
+    surfaces_of_surface_analyses = [surfana.subject for surfana in surfaces_analyses]
+    for surface, topography_analyses in analysis_groups.items():
+        try:
+            # Is there an analysis for the corresponding surface?
+            surface_analysis_index = surfaces_of_surface_analyses.index(surface)
+            surface_analysis = surfaces_analyses[surface_analysis_index]
+            if surface.num_topographies() > 1:
+                # only show average for surface if more than one topography
+                sorted_analyses.append(surface_analysis)
+                surface_analysis_index = len(sorted_analyses) - 1  # last one
+        except ValueError:
+            # No analysis given for surface, so skip
+            surface_analysis_index = None
+
+        #
+        # Add topography analyses whether there was a surface analysis or not
+        # This will result in same order of topography analysis, no matter whether there was a surface analysis
+        #
+        if surface_analysis_index is None:
+            sorted_analyses.extend(topography_analyses)
+        else:
+            # Insert corresponding topography analyses after surface analyses
+            sorted_analyses = sorted_analyses[:surface_analysis_index+1] + topography_analyses \
+                              + sorted_analyses[surface_analysis_index+1:]
+
+    return sorted_analyses
+
+
+def _subject_colors(analyses):
+    """Return dict with mapping from subject to color for plotting.
+
+    Parameters
+    ----------
+    analyses
+
+    Returns
+    -------
+    dict with key: subject, value: color string suitable or bokeh
+    """
+    pass
+
+
+
+
 class SimpleCardView(TemplateView):
     """Very basic display of results. Base class for more complex views.
 
@@ -382,24 +459,7 @@ class PlotCardView(SimpleCardView):
 
         #
         # order analyses such that surface analyses are coming last (plotted on top)
-        #
-        surface_ct = ContentType.objects.get_for_model(Surface)
-        analyses_success_list = []
-        for surface_analysis in analyses_success.filter(subject_type=surface_ct):
-            if surface_analysis.subject.num_topographies() > 1:
-                # only show average for surface if more than one topography
-                analyses_success_list.append(surface_analysis)
-        for topography_analysis in analyses_success.filter(~Q(subject_type=surface_ct)):
-            try:
-                surface_analysis = analyses_success.get(subject_id=topography_analysis.subject.surface.id,
-                                                        subject_type=surface_ct)
-                i = [s.subject.id if s.subject_type == surface_ct else None for s in analyses_success_list] \
-                    .index(surface_analysis.subject.id)
-            except (Analysis.DoesNotExist, ValueError):  # ValueError: Surface is not included because only 1 topography
-                analyses_success_list.append(topography_analysis)
-            else:
-                analyses_success_list.insert(i + 1, topography_analysis)
-
+        analyses_success_list = _filter_and_order_analyses(analyses_success)
         data_sources_dict = []
 
         # Special case: It can happen that there is one surface with a successful analysis
@@ -426,15 +486,13 @@ class PlotCardView(SimpleCardView):
             return context
 
         #
-        # Build order of subjects such that surfaces are first (used for checkbox on subjects)
+        # Extract subject names for display
         #
-        subjects = set(a.subject for a in analyses_success_list)
-        subjects = sorted(subjects, key=lambda s: s.get_content_type() == surface_ct, reverse=True)  # surfaces first
-
-        # Collect subject names and sort them
-        subject_names = []  # will be shown under category "subject_names"
+        surface_ct = ContentType.objects.get_for_model(Surface)
+        subject_names = []  # will be shown under category with key "subject_name" (see plot.js)
         has_at_least_one_surface_subject = False
-        for s in subjects:
+        for a in analyses_success_list:
+            s = a.subject
             subject_ct = s.get_content_type()
             subject_name = s.label
             if subject_ct == surface_ct:
@@ -503,7 +561,7 @@ class PlotCardView(SimpleCardView):
         # Prepare helpers for dashes and colors
         #
         surface_color_palette = palettes.Greys256  # surfaces are shown in black/grey
-        topography_colors = _palette_for_topographies(nb_topographies)
+        topography_color_palette = _palette_for_topographies(nb_topographies)
 
         dash_cycle = itertools.cycle(['solid', 'dashed', 'dotted', 'dotdash', 'dashdot'])
 
@@ -527,7 +585,6 @@ class PlotCardView(SimpleCardView):
             # Define some helper variables
             #
             subject = analysis.subject
-            subject_idx = subjects.index(subject)  # unique identifier within the plot
 
             is_surface_analysis = isinstance(subject, Surface)
             is_topography_analysis = isinstance(subject, Topography)
@@ -539,7 +596,8 @@ class PlotCardView(SimpleCardView):
                 try:
                     # We look whether the corresponding analysis for the
                     # parent surface is available
-                    analyses_success.get(subject_id=analysis.subject.surface.id, subject_type=surface_ct)
+                    analyses_success.get(subject_id=analysis.subject.surface.id, subject_type=surface_ct,
+                                         function=analysis.function)
                 except Analysis.DoesNotExist:
                     has_parent = False
                 else:
@@ -548,7 +606,7 @@ class PlotCardView(SimpleCardView):
             else:
                 has_parent = False
 
-            subject_display_name = subject_names[subject_idx]
+            subject_display_name = subject_names[analysis_idx]
             if has_parent:
                 subject_display_name = f"└─ {subject_display_name}"
 
@@ -562,7 +620,7 @@ class PlotCardView(SimpleCardView):
                     surface_color_palette[surface_index * len(surface_color_palette) // nb_surfaces]
             else:
                 topography_index += 1
-                subject_colors[subject] = topography_colors[topography_index]
+                subject_colors[subject] = topography_color_palette[topography_index]
 
             #
             # Handle unexpected task states for robustness, shouldn't be needed in general
@@ -608,7 +666,6 @@ class PlotCardView(SimpleCardView):
                              message=err_msg)
                     )
                     continue
-
 
             for series_idx, s in enumerate(series_seq):
                 #
@@ -703,15 +760,12 @@ class ContactMechanicsCardView(SimpleCardView):
 
             data_sources_dict = []
 
-            #
-            # Prepare subject names
-            #
-            subject_names = sorted(set(a.subject.name for a in analyses_success))
+            analyses_success = _filter_and_order_analyses(analyses_success)
 
             #
             # Prepare colors to be used for different analyses
             #
-            color_cycle = itertools.cycle(_palette_for_topographies(len(subject_names)))
+            color_cycle = itertools.cycle(_palette_for_topographies(len(analyses_success)))
 
             #
             # Context information for the figure
@@ -733,7 +787,7 @@ class ContactMechanicsCardView(SimpleCardView):
                 data_sources_dict += [dict(
                     source_name=f'analysis-{analysis.id}',
                     subject_name=subject_name,
-                    subject_name_index=subject_names.index(subject_name),
+                    subject_name_index=a_index,
                     url=default_storage.url(f'{analysis.storage_prefix}/result.json'),
                     showSymbols=True,  # otherwise symbols do not appear in legend
                     color=curr_color,
