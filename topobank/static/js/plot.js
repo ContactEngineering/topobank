@@ -197,8 +197,8 @@ Vue.component("bokeh-plot", {
       //   yScaleFactor: Additional scale factor for y-values from this source
       //   showSymbols (optional): Show symbols for this data source?
       //   visible (optional): Initial visibility (can be triggered by user).
-      // Each data source is a JSON that is loaded from the given URL with via an AJAX request. The plot dictionary
-      // specifies which JSON keys are x and y data.
+      // Each data source is a JSON that is loaded from the given URL with via an AJAX request. The "plots"
+      // property specifies for each plot, which JSON keys should be used to get x and y data.
     },
     outputBackend: String,
     height: {
