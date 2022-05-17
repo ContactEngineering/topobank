@@ -448,6 +448,18 @@ class Surface(models.Model, SubjectMixin):
         renew_analyses_for_subject(self)
 
 
+def _upload_path_for_datafile(instance, filename):
+    return f'{instance.storage_prefix}/raw/{filename}'
+
+
+def _upload_path_for_squeezed_datafile(instance, filename):
+    return f'{instance.storage_prefix}/nc/{filename}'
+
+
+def _upload_path_for_thumbnail(instance, filename):
+    return f'{instance.storage_prefix}/thumbnail/{filename}'
+
+
 class Topography(models.Model, SubjectMixin):
     """Topography Measurement of a Surface.
     """
@@ -516,7 +528,7 @@ class Topography(models.Model, SubjectMixin):
     # Fields related to raw data
     #
     datafile = models.FileField(max_length=250,
-                                upload_to=lambda instance, filename: f'{instance.storage_prefix}/raw/{filename}')  # currently upload_to not used in forms
+                                upload_to=_upload_path_for_datafile)  # currently upload_to not used in forms
     datafile_format = models.CharField(max_length=MAX_LENGTH_DATAFILE_FORMAT,
                                        null=True, default=None, blank=True)
     data_source = models.IntegerField()
@@ -530,7 +542,7 @@ class Topography(models.Model, SubjectMixin):
     # This is probably netCDF3. Scales and detrend has already been applied here.
     squeezed_datafile = models.FileField(
         max_length=260,
-        upload_to=lambda instance, filename: f'{instance.storage_prefix}/nc/{filename}',
+        upload_to=_upload_path_for_squeezed_datafile,
         null=True)
 
     #
@@ -572,7 +584,7 @@ class Topography(models.Model, SubjectMixin):
     #
     thumbnail = models.ImageField(
         null=True,
-        upload_to=lambda instance, filename: f'{instance.storage_prefix}/thumbnail/{filename}')
+        upload_to=_upload_path_for_thumbnail)
 
     #
     # Methods

@@ -74,7 +74,7 @@ defusedxml==0.7.1
     #   surfacetopography
 deprecated==1.2.13
     # via redis
-django==3.2.12
+django==3.2.13
     # via
     #   -r base.in
     #   collectfast
@@ -304,8 +304,6 @@ s3transfer==0.5.0
     # via boto3
 scipy==1.7.3
     # via numpi
-selenium==3.141.0
-    # via -r base.in
 setuptools-scm==6.3.2
     # via matplotlib
 short-url==1.2.2
@@ -344,7 +342,6 @@ urllib3==1.26.7
     #   botocore
     #   dulwich
     #   requests
-    #   selenium
 vine==5.0.0
     # via
     #   amqp

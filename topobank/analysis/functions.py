@@ -24,8 +24,8 @@ from SurfaceTopography.Container.Averaging import log_average
 from SurfaceTopography.Container.ScaleDependentStatistics import scale_dependent_statistical_property
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor, suggest_length_unit_for_data
 from SurfaceTopography.Exceptions import CannotPerformAnalysisError
-from ContactMechanics import PeriodicFFTElasticHalfSpace, FreeFFTElasticHalfSpace, make_system
-from ContactMechanics.Tools.ContactAreaAnalysis import patch_areas, assign_patch_numbers
+from ContactMechanics import PeriodicFFTElasticHalfSpace, FreeFFTElasticHalfSpace
+from ContactMechanics.Factory import make_system, make_plastic_system
 
 import topobank.manager.models  # will be used to evaluate model classes
 from topobank.manager.utils import default_storage_replace, make_dzi
@@ -946,7 +946,18 @@ def _next_contact_step(system, history=None, pentol=None, maxiter=None):
         History of contact calculations.
     """
 
+    # Get topography object from contact system
     topography = system.surface
+
+    try:
+        # Reset plastic displacement if this is a plastic calculation. We need to do this because the individual steps
+        # are not in order, i.e. the contact is not continuously formed or lifted. Each calculation needs to compute
+        # a fresh plastic displacement.
+        topography.plastic_displ = np.zeros_like(topography.plastic_displ)
+    except AttributeError:
+        pass
+
+    # Get substrate object from contact system
     substrate = system.substrate
 
     # Get the profile as a numpy array
@@ -1038,16 +1049,25 @@ def _contact_at_given_load(system, external_force, history=None, pentol=None, ma
         History of contact calculations.
     """
 
+    # Get topography object from contact system
     topography = system.surface
+
+    try:
+        # Reset plastic displacement if this is a plastic calculation. We need to do this because the individual steps
+        # are not in order, i.e. the contact is not continuously formed or lifted. Each calculation needs to compute
+        # a fresh plastic displacement.
+        topography.plastic_displ = np.zeros_like(topography.plastic_displ)
+    except AttributeError:
+        pass
+
+    # Get substrate object from contact system
     substrate = system.substrate
 
     # Get the profile as a numpy array
     heights = topography.heights()
 
     # Find max, min and mean heights
-    top = np.max(heights)
     middle = np.mean(heights)
-    bot = np.min(heights)
 
     if history is None:
         mean_displacements = []
@@ -1176,7 +1196,10 @@ def contact_mechanics(topography, substrate_str="nonperiodic", hardness=None, ns
     substrate = half_space_factory[substrate_str](topography.nb_grid_pts, 1.0, topography.physical_sizes,
                                                   **half_space_kwargs)
 
-    system = make_system(substrate, topography)
+    if (hardness is not None) and (hardness > 0):
+        system = make_plastic_system(substrate, topography)
+    else:
+        system = make_system(substrate, topography)
 
     # Heuristics for the possible tolerance on penetration.
     # This is necessary because numbers can vary greatly

@@ -103,7 +103,7 @@ deprecated==1.2.13
     # via
     #   -r ./base.txt
     #   redis
-django==3.2.12
+django==3.2.13
     # via
     #   -r ./base.txt
     #   collectfast
@@ -408,8 +408,6 @@ scipy==1.7.3
     # via
     #   -r ./base.txt
     #   numpi
-selenium==3.141.0
-    # via -r ./base.txt
 setuptools-scm==6.3.2
     # via
     #   -r ./base.txt
@@ -460,7 +458,6 @@ urllib3==1.26.7
     #   botocore
     #   dulwich
     #   requests
-    #   selenium
 vine==5.0.0
     # via
     #   -r ./base.txt

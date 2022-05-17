@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-## 0.20.0 (not yet released)
+## 0.21.0 (Not published yet)
 
 - ENH: Move plot creation from backend to frontend, speeding up
   plot creation and loading of data (#776)
@@ -13,20 +13,34 @@
   over all plots
 - ENH: Line style is also shown in plot legend
 - ENH: Added slider for line widths to plot
+- ENH: Sorted functions by name (#719)
 - BUG: Fixed logscale labels (#771)
 - BUG: Renamed y-label of curvature distribution to probability
   density (#350)
 - BUG: Fixed step filename in plot.csv of contact data
+- BUG: Plastic calculation should reset plastic displacement before each
+  optimizer run (#827)
 - MAINT: Typo on landing page (#799)
+- MAINT: Updated Django because of CVE
+
+## 0.20.1 (2022-04-13)
+
+- BUG: Added missing migration
+
+## 0.20.0 (2022-04-13)
+
+- BUG: Explicity make plastic system if hardness is specified (#819)
+- BUG: Fix for thumbnail creation (#782)
+- BUG: Fix for redundant thumbnail files (#785)
 - MAINT: Removed Selenium dependency; thumbnail generation now
-  uses Pillow and matplotlib (#782, #785, #787)
+  uses Pillow and matplotlib (#787)
 - MAINT: Store topography data and derived data (squeezed files,
   thumbnails) under a unique prefix (#801)
 
 ## 0.19.1 (2022-03-23)
 
-MAINT: Adjusted docker-compose file for production with Docker 
-Swarm for the use with redis, removed memcache and rabbitmq
+- MAINT: Adjusted docker-compose file for production with Docker 
+  Swarm for the use with redis, removed memcache and rabbitmq
 
 ## 0.19.0 (2022-03-23)
 
