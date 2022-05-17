@@ -599,16 +599,14 @@ class PlotCardView(SimpleCardView):
                     analyses_success.get(subject_id=analysis.subject.surface.id, subject_type=surface_ct,
                                          function=analysis.function)
                 except Analysis.DoesNotExist:
-                    has_parent = False
+                    has_parent_analysis = False
                 else:
                     # only show parent analysis if there is more than one child
-                    has_parent = analysis.subject.surface.num_topographies() > 1
+                    has_parent_analysis = analysis.subject.surface.num_topographies() > 1
             else:
-                has_parent = False
+                has_parent_analysis = False
 
             subject_display_name = subject_names[analysis_idx]
-            if has_parent:
-                subject_display_name = f"└─ {subject_display_name}"
 
             #
             # Decide for colors
@@ -698,8 +696,6 @@ class PlotCardView(SimpleCardView):
                     len_x = 1
                 show_symbols = len_x <= MAX_NUM_POINTS_FOR_SYMBOLS
 
-                legend_label = subject_display_name + ": " + series_name
-
                 curr_color = subject_colors[subject]
                 curr_dash = series_dashes[series_name]
                 # curr_symbol = series_symbols[series_name]
@@ -715,12 +711,12 @@ class PlotCardView(SimpleCardView):
                     source_name=f'analysis-{analysis.id}',
                     subject_name=subject_display_name,
                     subject_name_index=analysis_idx,
+                    subject_name_has_parent=has_parent_analysis,
                     series_name=series_name,
                     series_name_index=series_name_idx,
                     xScaleFactor=analysis_xscale,
                     yScaleFactor=analysis_yscale,
                     url=series_url,
-                    legend_label=legend_label,
                     color=curr_color,
                     dash=curr_dash,
                     width=line_width,

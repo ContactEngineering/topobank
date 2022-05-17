@@ -69,6 +69,7 @@ Vue.component("bokeh-plot", {
                 <label class="custom-control-label"
                        :for='"switch-"+uuid+"-"+category.key+"-"+index'>
                   <span class="dot" v-if="element.color !== null" :style='"background-color: "+element.color'></span>
+                  <span v-if="element.has_parent">└─ </span>
                     {{ element.title }}
                 </label>
               </div>
@@ -260,10 +261,14 @@ Vue.component("bokeh-plot", {
           let element_index = dataSource[category.key + '_index'];
           let color = category_idx === 0 ? dataSource.color : null;  // The first category defines the color
           let dash = category_idx ===1 ? dataSource.dash : null;     // The first category defines the line type
+          let has_parent = dataSource[category.key + '_has_parent'];
           titles.add(title);
 
           // need to have the same order as index of category
-          elements[element_index] = {title: title, color: color, dash: dash};
+          elements[element_index] = {
+            title: title, color: color, dash: dash,
+            has_parent: has_parent === undefined ? false:has_parent
+          };
           // Defaults to showing a data source if it has no 'visible' attribute
           if (dataSource.visible === undefined || dataSource.visible) {
             selection.push(element_index);
@@ -355,6 +360,40 @@ Vue.component("bokeh-plot", {
     }
   },
   methods: {
+    legend_label(dataSource) {
+      /* Find number of selected items in second category (e.g. "series_name") */
+      let second_category_in_legend_labels = false;
+      if ((this.categoryElements.length > 1) && (this.categoryElements[1].selection.length > 1)) {
+        second_category_in_legend_labels = true;
+      }
+
+      /* Find a label for the legend */
+      let legend_label = dataSource.source_name;
+      if (dataSource.legend_label !== undefined) {
+        legend_label = dataSource.legend_label;
+      } else if (this.categories.length > 0) {
+        legend_label = dataSource[this.categories[0].key];
+        const has_parent_key = this.categories[0].key + "_has_parent";
+        if ((dataSource[has_parent_key] !== undefined) && (dataSource[has_parent_key] === true) && !second_category_in_legend_labels) {
+          legend_label = "└─ " + legend_label;
+          /* It is not solved yet to get the legend items in the correct order
+             to display sublevels only for the correct data series and not for others,
+             and at the same time have the same colors and dashed for same subjects
+             over different analysis functions. So we decided to remove the sublevels
+             in legend if a second dataseries has been selected
+             (here: More than one element selected in second category).
+          */
+
+        }
+        if (second_category_in_legend_labels) {
+          legend_label += ": " + dataSource[this.categories[1].key];
+        }
+      }
+
+      // console.log("this.categoryElements[1].selection: " + this.categoryElements[1].selection);
+      // console.log(second_category_in_legend_labels, legend_label);
+      return legend_label;
+    },
     buildPlot() {
       /* Destroy all lines */
       for (const bokehPlot of this.bokehPlots) {
@@ -521,13 +560,7 @@ Vue.component("bokeh-plot", {
           });
           bokehPlot.symbols.unshift(circle);
 
-          /* Find a label for the legend */
-          let legend_label = dataSource.source_name;
-          if (dataSource.legend_label !== undefined) {
-            legend_label = dataSource.legend_label;
-          } else if (this.categories.length > 0) {
-            legend_label = dataSource[this.categories[0].key];
-          }
+          let legend_label = this.legend_label(dataSource);
 
           /* Create legend */
           if (!legendLabels.has(legend_label)) {
@@ -561,6 +594,7 @@ Vue.component("bokeh-plot", {
 
         if (dataSource.hasOwnProperty('legend_item')) {
           dataSource.legend_item.visible = visible;
+          dataSource.legend_item.label = this.legend_label(dataSource);
         }
 
         for (const bokehPlot of this.bokehPlots) {
