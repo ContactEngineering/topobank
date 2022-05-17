@@ -9,9 +9,14 @@
 - ENH: Show hierarchy of digital twins/measurements in plot (#633)
 - ENH: User switchable legend for plots (#114, #296, #590, #648)
 - ENH: Download plots as SVG vector graphics (#66, #589, #610, #647)
+- ENH: Same digital twins/measurements have the same colors
+  over all plots
+- ENH: Line style is also shown in plot legend
+- ENH: Added slider for line widths to plot
 - BUG: Fixed logscale labels (#771)
 - BUG: Renamed y-label of curvature distribution to probability
   density (#350)
+- BUG: Fixed step filename in plot.csv of contact data
 - MAINT: Typo on landing page (#799)
 - MAINT: Removed Selenium dependency; thumbnail generation now
   uses Pillow and matplotlib (#782, #785, #787)
