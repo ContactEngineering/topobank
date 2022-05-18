@@ -92,6 +92,7 @@ def test_plot_card_data_sources(rf, handle_usage_statistics):
             "color": "#1f77b4", "dash": "solid", "width": 1, "alpha": 1.0,
             "showSymbols": True,
             "visible": True,
+            "has_parent": False,
             "is_surface_analysis": False,
             "is_topography_analysis": True,
         },
@@ -106,7 +107,9 @@ def test_plot_card_data_sources(rf, handle_usage_statistics):
             "yScaleFactor": 1,
             "url": f"{default_storage.base_url}analyses/{analysis.id}/series-1.json",
             "color": "#1f77b4", "dash": "dashed", "width": 1, "alpha": 1.0,
-            "showSymbols": True, "visible": True,
+            "showSymbols": True,
+            "visible": True,
+            "has_parent": False,
             "is_surface_analysis": False,
             "is_topography_analysis": True
         }
