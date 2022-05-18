@@ -262,6 +262,7 @@ def test_warnings_for_different_arguments(client, handle_usage_statistics):
     # assert str(dict(bins=20)) in unescaped
 
 
+# Maybe the following test can be rewritten as an integration test for usage with selenium
 @pytest.mark.skip("Test makes no sense, because it needs AJAX call to be executed.")
 @pytest.mark.django_db
 def test_show_multiple_analyses_for_two_functions(client, two_topos):
