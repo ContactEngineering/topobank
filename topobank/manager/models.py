@@ -28,7 +28,7 @@ import numpy as np
 import os.path
 import tempfile
 
-from bokeh.models import DataRange1d, LinearColorMapper, ColorBar, FuncTickFormatter
+from bokeh.models import DataRange1d, LinearColorMapper, ColorBar
 from bokeh.plotting import figure
 
 from ..plots import configure_plot
@@ -39,7 +39,7 @@ from topobank.publication.models import Publication, DOICreationException
 from topobank.users.utils import get_default_group
 from topobank.analysis.models import Analysis
 from topobank.analysis.utils import renew_analyses_for_subject
-from topobank.manager.utils import make_dzi
+from topobank.manager.utils import default_storage_replace, make_dzi
 
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 
@@ -990,10 +990,6 @@ class Topography(models.Model, SubjectMixin):
             plot.yaxis.visible = False
             plot.grid.visible = False
 
-        # see js function "format_exponential()" in project.js file
-        plot.xaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
-        plot.yaxis.formatter = FuncTickFormatter(code="return format_exponential(tick);")
-
         plot.toolbar.logo = None
 
         return plot
@@ -1049,8 +1045,8 @@ class Topography(models.Model, SubjectMixin):
 
         configure_plot(plot)
         if reduced:
-            plot.xaxis.visible = None
-            plot.yaxis.visible = None
+            plot.xaxis.visible = False
+            plot.yaxis.visible = False
 
         # we need to rotate the height data in order to be compatible with image in Gwyddion
         plot.image([np.rot90(heights)], x=0, y=topo_size[1],
@@ -1065,7 +1061,6 @@ class Topography(models.Model, SubjectMixin):
                                 label_standoff=12,
                                 location=(0, 0),
                                 width=colorbar_width,
-                                formatter=FuncTickFormatter(code="return format_exponential(tick);"),
                                 title=f"height ({self.unit})")
             plot.add_layout(colorbar, 'right')
 

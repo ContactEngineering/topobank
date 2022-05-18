@@ -63,13 +63,13 @@ def test_analysis_times(client, two_topos, django_user_model, handle_usage_stati
     topo = Topography.objects.first()
     af = AnalysisFunction.objects.first()
 
-    pickled_result = pickle.dumps({'name': 'test function',
-                                   'xlabel': 'x',
-                                   'ylabel': 'y',
-                                   'xunit': '1',
-                                   'yunit': '1',
-                                   'series': [],
-                                   })
+    result = {'name': 'test function',
+              'xlabel': 'x',
+              'ylabel': 'y',
+              'xunit': '1',
+              'yunit': '1',
+              'series': [],
+              }
 
     analysis = TopographyAnalysisFactory.create(
         subject=topo,
@@ -77,7 +77,7 @@ def test_analysis_times(client, two_topos, django_user_model, handle_usage_stati
         task_state=Analysis.SUCCESS,
         start_time=datetime.datetime(2018, 1, 1, 12),
         end_time=datetime.datetime(2018, 1, 1, 13, 1, 1),  # duration: 1 hour, 1 minute, 1 sec
-        result=pickled_result,
+        result=result,
     )
     analysis.users.add(user)
     analysis.save()
@@ -108,13 +108,13 @@ def test_show_only_last_analysis(client, two_topos, django_user_model, handle_us
     topo2 = Topography.objects.last()
     af = AnalysisFunction.objects.first()
 
-    pickled_result = pickle.dumps({'name': 'test function',
-                                   'xlabel': 'x',
-                                   'ylabel': 'y',
-                                   'xunit': '1',
-                                   'yunit': '1',
-                                   'series': [],
-                                   })
+    result = {'name': 'test function',
+              'xlabel': 'x',
+              'ylabel': 'y',
+              'xunit': '1',
+              'yunit': '1',
+              'series': [],
+              }
 
     #
     # Topography 1
@@ -126,7 +126,7 @@ def test_show_only_last_analysis(client, two_topos, django_user_model, handle_us
         kwargs=pickle.dumps({}),
         start_time=datetime.datetime(2018, 1, 1, 12),
         end_time=datetime.datetime(2018, 1, 1, 13, 1, 1),
-        result=pickled_result,
+        result=result,
     )
     analysis.users.add(user)
     analysis.save()
@@ -139,7 +139,7 @@ def test_show_only_last_analysis(client, two_topos, django_user_model, handle_us
         kwargs=pickle.dumps({}),
         start_time=datetime.datetime(2018, 1, 2, 12),
         end_time=datetime.datetime(2018, 1, 2, 13, 1, 1),
-        result=pickled_result,
+        result=result,
     )
     analysis.users.add(user)
     analysis.save()
@@ -154,7 +154,7 @@ def test_show_only_last_analysis(client, two_topos, django_user_model, handle_us
         kwargs=pickle.dumps({}),
         start_time=datetime.datetime(2018, 1, 3, 12),
         end_time=datetime.datetime(2018, 1, 3, 13, 1, 1),
-        result=pickled_result,
+        result=result,
     )
     analysis.users.add(user)
     analysis.save()
@@ -167,7 +167,7 @@ def test_show_only_last_analysis(client, two_topos, django_user_model, handle_us
         kwargs=pickle.dumps({}),
         start_time=datetime.datetime(2018, 1, 4, 12),
         end_time=datetime.datetime(2018, 1, 4, 13, 1, 1),
-        result=pickled_result,
+        result=result,
     )
     analysis.users.add(user)
     analysis.save()
@@ -193,92 +193,6 @@ def test_show_only_last_analysis(client, two_topos, django_user_model, handle_us
 
     assert b"2018-01-01 12:00:00" not in response.content
     assert b"2018-01-03 12:00:00" not in response.content
-
-
-@pytest.mark.skip("Not sure if this test is correct. Why all analyses should be shown?")
-@pytest.mark.django_db
-def test_show_analyses_with_different_arguments(client, two_topos, django_user_model, handle_usage_statistics):
-    user = django_user_model.objects.get(username='testuser')
-    client.force_login(user)
-
-    topo1 = Topography.objects.first()
-    af = AnalysisFunction.objects.first()
-
-    pickled_result = pickle.dumps({'name': 'test function',
-                                   'xlabel': 'x',
-                                   'ylabel': 'y',
-                                   'xunit': '1',
-                                   'yunit': '1',
-                                   'series': [],
-                                   })
-
-    #
-    # Create analyses for same function and topography but with different arguments
-    #
-    analysis = TopographyAnalysisFactory.create(
-        subject=topo1,
-        function=af,
-        task_state=Analysis.SUCCESS,
-        kwargs=pickle.dumps({'bins': 10}),
-        start_time=datetime.datetime(2018, 1, 1, 12),
-        end_time=datetime.datetime(2018, 1, 1, 13, 1, 1),
-        result=pickled_result,
-    )
-    analysis.users.add(user)
-    analysis.save()
-
-    # save a second, which has a later start time
-    analysis = TopographyAnalysisFactory.create(
-        subject=topo1,
-        function=af,
-        task_state=Analysis.SUCCESS,
-        kwargs=pickle.dumps({'bins': 20}),
-        start_time=datetime.datetime(2018, 1, 2, 12),
-        end_time=datetime.datetime(2018, 1, 2, 13, 1, 1),
-        result=pickled_result,
-    )
-    analysis.users.add(user)
-    analysis.save()
-
-    # save a third, which has a later start time
-    analysis = TopographyAnalysisFactory.create(
-        subject=topo1,
-        function=af,
-        task_state=Analysis.SUCCESS,
-        kwargs=pickle.dumps({'bins': 30}),
-        start_time=datetime.datetime(2018, 1, 3, 12),
-        end_time=datetime.datetime(2018, 1, 3, 13, 1, 1),
-        result=pickled_result,
-    )
-    analysis.users.add(user)
-    analysis.save()
-
-    #
-    # Check response, all three analyses should be shown
-    #
-    response = client.post(reverse("analysis:card"),
-                           data={
-                               'subjects_ids_json': subjects_to_json([topo1]),
-                               'function_id': af.id,
-                               'card_id': "card-1",
-                               'template_flavor': 'list'
-                           },
-                           HTTP_X_REQUESTED_WITH='XMLHttpRequest',
-                           follow=True)
-
-    assert response.status_code == 200
-
-    assert_in_content(response, "2018-01-01 12:00:00")
-    assert_in_content(response, "2018-01-02 12:00:00")
-    assert_in_content(response, "2018-01-03 12:00:00")
-
-    # arguments should be visible in output
-
-    import html.parser
-    unescaped = html.unescape(response.content.decode())
-
-    assert str(dict(bins=10)) in unescaped
-    assert str(dict(bins=20)) in unescaped
 
 
 @pytest.mark.django_db
@@ -348,6 +262,7 @@ def test_warnings_for_different_arguments(client, handle_usage_statistics):
     # assert str(dict(bins=20)) in unescaped
 
 
+# Maybe the following test can be rewritten as an integration test for usage with selenium
 @pytest.mark.skip("Test makes no sense, because it needs AJAX call to be executed.")
 @pytest.mark.django_db
 def test_show_multiple_analyses_for_two_functions(client, two_topos):
@@ -454,7 +369,7 @@ def ids_downloadable_analyses(two_topos):
         analysis = TopographyAnalysisFactory.create(
             subject=topos[k],
             function=function,
-            result=pickle.dumps(result),
+            result=result,
             kwargs=pickle.dumps({}),
             configuration=config)
         ids.append(analysis.id)
@@ -789,7 +704,6 @@ def test_analysis_download_as_xlsx(client, two_topos, ids_downloadable_analyses,
         assert ('Subject Type', 'topography') in vals
         assert ('Subject Name', t.name) in vals
         assert ('Creator', str(t.creator)) in vals
-
 
     # Check links on INDEX sheet
     ws = xlsx.get_sheet_by_name("INDEX")

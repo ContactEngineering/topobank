@@ -2,10 +2,23 @@
 # Some helpers useful during testing
 #
 import datetime
+import io
+import json
+
+from django.core.files.storage import default_storage
 from django.utils import formats
 from django.test import SimpleTestCase
 
+from bokeh.core.json_encoder import BokehJSONEncoder
+
+from topobank.manager.utils import default_storage_replace
+
 DEFAULT_DEBUG_HTML_FILENAME = '/tmp/response.html'
+JSON_CONSTANTS = {
+    'NaN': float("nan"),
+    '-Infinity': float("-inf"),
+    'Infinity': float("inf")
+}
 
 
 def export_reponse_as_html(response, fname=DEFAULT_DEBUG_HTML_FILENAME):
@@ -70,7 +83,7 @@ def assert_form_error(response, error_msg_fragment, field_name=None):
     error_msg_fragment: str
         Substring which should be included in the error message.
     field_name: str, optional
-        Field name for which the error should occur.
+        Name of field for which the error is expected to occur.
         If a general error message (not bound to a field) is meant,
         use `None`.
 
@@ -113,7 +126,6 @@ class Singleton(type):
 
     class Logger(metaclass=Singleton):
         pass
-
     """
     _instances = {}
 
@@ -121,3 +133,126 @@ class Singleton(type):
         if cls not in cls._instances:
             cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
         return cls._instances[cls]
+
+
+class SplitDictionaryHere:
+    """Wrapper class for usage with `store_split_dict`.
+
+    This allows to wrap a dictionary such that the function
+    `store_split_dict` stores it in a separate file in storage.
+    See there for more information.
+    """
+    def __init__(self, name, dict):
+        self._name = name
+        self._dict = dict
+
+    def __getitem__(self, key):
+        return self._dict.__getitem__(key)
+
+    def __setitem__(self, key, value):
+        return self._dict.__setitem__(key, value)
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def dict(self):
+        return self._dict
+
+
+def store_split_dict(storage_prefix, name, src_dict):
+    """Store a dictionary in storage with optional splitting into several files.
+
+    Parameters
+    ----------
+    storage_prefix: str
+        prefix in storage
+    name: str
+        determines the files name under which the dict is stored, the extension '.json' is appended automatically.
+    src_dict: dict
+        dictionary to store, if it contains elements which are instances of `SplitDictionaryHere`,
+        the corresponding dictionary is saved into a separate file, not in the root file which
+        represents `src_dict`.
+
+    Returns
+    -------
+    None
+
+    The stored data can be retrieved again from multiple files by using `load_split_dict`,
+    given the `storage prefix` and `name` used here to store the dict.
+
+    Caution: Don't use the string literals "NaN" and "Infinity" and "-Infinity" as
+             values, unless you want them decoded as the corresponding float values.
+             This is a workaround for not having NaN in the JSON standard.
+    """
+    # Traverse dictionary and search for instances of SplitDictionaryHere.
+    # Those are written to separate files.
+
+    # We're using Bokeh's JSON encoder here, because it represents NaN values as "NaN" (with quotes),
+    # which is JSON compatible
+    encoder_cls = BokehJSONEncoder
+
+    def _split_dict(d):
+        if isinstance(d, SplitDictionaryHere):
+            split_d = _split_dict(d.dict)
+            default_storage_replace(f'{storage_prefix}/{d.name}.json',
+                                    io.BytesIO(json.dumps(split_d, cls=encoder_cls).encode('utf-8')))
+            return {'__external__': f'{d.name}.json'}
+        elif hasattr(d, 'items'):
+            new_d = {}
+            for key, value in d.items():
+                new_d[key] = _split_dict(value)
+            return new_d
+        elif isinstance(d, list):
+            new_d = []
+            for value in d:
+                new_d.append(_split_dict(value))
+            return new_d
+        else:
+            return d
+
+    split_d = _split_dict(src_dict)
+    default_storage_replace(f'{storage_prefix}/{name}.json',
+                            io.BytesIO(json.dumps(split_d, cls=encoder_cls).encode('utf-8')))
+
+
+def load_split_dict(storage_prefix, name):
+    """Load split dicts from storage, previously written by `store_split_dict`.
+
+    Parameters
+    ----------
+    storage_prefix: str
+        Storage prefix used as parameter of `store_split_dict`.
+    name: str
+        Name used as parameter of `store_split_dict`.
+
+    Returns
+    -------
+    Original dict as stored with `store_split_dict`, but without the wrapper classes
+    of type `SplitDictionaryHere`.
+    """
+    def _unsplit_dict(d):
+        if hasattr(d, 'items'):
+            new_d = {}
+            for key, value in d.items():
+                if key == '__external__':
+                    return _unsplit_dict(json.load(default_storage.open(f'{storage_prefix}/{value}')))
+                new_d[key] = _unsplit_dict(value)
+            return new_d
+        elif isinstance(d, list):
+            new_d = []
+            for value in d:
+                new_d.append(_unsplit_dict(value))
+            return new_d
+        elif isinstance(d, str) and (d in JSON_CONSTANTS):
+            # reinsert NaN instead of "NaN" (with quotes)
+            return JSON_CONSTANTS[d]
+        else:
+            return d
+
+    d = json.load(default_storage.open(f'{storage_prefix}/{name}.json'))
+    return _unsplit_dict(d)
+
+
+

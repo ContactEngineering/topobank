@@ -28,8 +28,7 @@
       -->
       <div class="row">
         {% for card in cards %}
-          <div class="col-xl-6 mb-4">
-
+          <div class="col-lg-6 mb-4">
             <div id="card-{{ forloop.counter }}">
               <div class="card search-result-card">
                 <div class="card-header">
@@ -38,7 +37,7 @@
                 <div class="card-body">
                     <span class="spinner"></span>
                     <div id="card-{{ forloop.counter }}-wait-text">
-                      Please wait
+                      Please wait...
                     </div>
                 </div>
               </div>
@@ -53,9 +52,11 @@
 
 {% block javascript %}
   <!-- ----------- for bokeh plot ----- -->
-  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-2.2.3.min.js"></script>
-  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-widgets-2.2.3.min.js"></script>
-  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-tables-2.2.3.min.js"></script>
+  <script src="{% static 'vendor/bokeh/bokeh.min.js' %}"></script>
+  <script src="{% static 'vendor/bokeh/bokeh-api.min.js' %}"></script>
+  <script src="{% static 'vendor/bokeh/bokeh-widgets.min.js' %}"></script>
+  <script src="{% static 'vendor/bokeh/bokeh-tables.min.js' %}"></script>
+  <script src="{% static 'js/plot.js' %}"></script>
 
   <!-- for task progress bar -->
   <script src="{% static 'celery_progress/celery_progress.js' %}"></script>

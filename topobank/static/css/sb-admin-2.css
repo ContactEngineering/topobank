@@ -8,24 +8,29 @@ html {
 	position: relative;
 	min-height: 100%;
 }
+
 body {
 	height: 100%;
 }
+
 #wrapper {
 	display: -webkit-box;
 	display: -ms-flexbox;
 	display: flex;
 }
+
 #wrapper #content-wrapper {
 	overflow-x: hidden;
 	width: 100%;
 	padding-top: 1rem;
 	padding-bottom: 80px;
 }
+
 body.fixed-nav #content-wrapper {
 	margin-top: 56px;
 	padding-left: 90px;
 }
+
 body.fixed-nav.sidebar-toggled #content-wrapper {
 	padding-left: 0;
 }

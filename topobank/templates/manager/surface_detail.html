@@ -265,7 +265,7 @@
 
               {% if surface.num_topographies > 0 %}
                 <a href="{% url 'analysis:surface' surface.id %}" class="btn btn-default btn-block btn-lg">
-                    {% fa5_icon 'chart-area' %} Analyze this surface
+                    {% fa5_icon 'chart-area' %} Analyze this digital surface twin
                 </a>
               {% endif %}
 
@@ -318,9 +318,11 @@
 
 {% block javascript %}
    <!-- ----------- for bokeh plot ----- -->
-  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-2.2.3.min.js"></script>
-  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-widgets-2.2.3.min.js"></script>
-  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-tables-2.2.3.min.js"></script>
+  <script src="{% static 'vendor/bokeh/bokeh.min.js' %}"></script>
+  <script src="{% static 'vendor/bokeh/bokeh-api.min.js' %}"></script>
+  <script src="{% static 'vendor/bokeh/bokeh-widgets.min.js' %}"></script>
+  <script src="{% static 'vendor/bokeh/bokeh-tables.min.js' %}"></script>
+  <script src="{% static 'js/plot.js' %}"></script>
 
   <script>
     $().ready(function () {

@@ -1,6 +1,6 @@
 import importlib
 
-from topobank.analysis.models import Configuration, Dependency, Version
+from topobank.analysis.models import Dependency, Version
 
 class ConfigurationException(Exception):
     pass

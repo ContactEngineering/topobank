@@ -520,12 +520,6 @@ CC_LICENSE_INFOS = {  # each element refers to two links: (description URL, full
 # but then we also need to change the existing entries in the database.
 
 #
-# Settings for exporting plots as thumbnails
-#
-FIREFOX_BINARY_PATH = env.path('FIREFOX_BINARY_PATH')
-GECKODRIVER_PATH = env.path('GECKODRIVER_PATH')
-
-#
 # Analysis-specific settings
 #
 CONTACT_MECHANICS_KWARGS_LIMITS = {

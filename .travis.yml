@@ -22,7 +22,7 @@ env:
     - FIREFOX_BINARY_PATH=/usr/lib/firefox/firefox
     - GECKODRIVER_PATH=/usr/bin/geckodriver
 python:
-  - 3.7
+  - 3.8
 #before_install:
 #  - google-chrome-stable --headless --disable-gpu --remote-debugging-port=9222 http://localhost &
 install:
