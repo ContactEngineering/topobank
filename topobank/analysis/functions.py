@@ -26,6 +26,7 @@ from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor,
 from SurfaceTopography.Exceptions import CannotPerformAnalysisError
 from ContactMechanics import PeriodicFFTElasticHalfSpace, FreeFFTElasticHalfSpace
 from ContactMechanics.Factory import make_system, make_plastic_system
+from ContactMechanics.Tools.ContactAreaAnalysis import patch_areas, assign_patch_numbers
 
 import topobank.manager.models  # will be used to evaluate model classes
 from topobank.manager.utils import default_storage_replace, make_dzi
