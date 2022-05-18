@@ -241,14 +241,14 @@ def submit_analysis(users, analysis_func, subject, pickled_pyfunc_kwargs=None):
 
 
 def get_latest_analyses(user, func, subjects):
-    """Get latest analyses for given function and topographies and user.
+    """Get the latest analyses for given function and topographies and user.
 
     :param user: user which views the analyses
     :param func: AnalysisFunction instance
     :param subjects: iterable of analysis subjects
     :return: Queryset of analyses
 
-    The returned queryset is comprised of only the latest analyses,
+    The returned queryset comprises only the latest analyses,
     so for each subject there should be at most one result.
     Only analyses for the given function are returned.
 
