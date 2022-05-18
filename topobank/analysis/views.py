@@ -592,19 +592,16 @@ class PlotCardView(SimpleCardView):
             #
             # Change display name depending on whether there is a parent analysis or not
             #
-            if is_topography_analysis:
+            if is_topography_analysis and analysis.subject.surface.num_topographies() > 1:
                 try:
                     # We look whether the corresponding analysis for the
                     # parent surface is available
-                    analyses_success.get(subject_id=analysis.subject.surface.id, subject_type=surface_ct,
-                                         function=analysis.function)
+                    parent_analysis = analyses_success.get(subject_id=analysis.subject.surface.id, subject_type=surface_ct,
+                                                           function=analysis.function)
                 except Analysis.DoesNotExist:
-                    has_parent_analysis = False
-                else:
-                    # only show parent analysis if there is more than one child
-                    has_parent_analysis = analysis.subject.surface.num_topographies() > 1
+                    parent_analysis = None
             else:
-                has_parent_analysis = False
+                parent_analysis = None
 
             subject_display_name = subject_names[analysis_idx]
 
@@ -705,15 +702,23 @@ class PlotCardView(SimpleCardView):
                 alpha = DEFAULT_ALPHA_FOR_TOPOGRAPHIES if is_topography_analysis else 1.
 
                 #
+                # Find out whether this dataset for this special series has a parent dataset
+                # in the parent_analysis, which means whether the same series is available there
+                #
+                has_parent = (parent_analysis is not None) and \
+                             any(s['name'] == series_name for s in parent_analysis.result['series'])
+
+                #
                 # Context information for this data source, will be interpreted by client JS code
                 #
                 data_sources_dict += [dict(
                     source_name=f'analysis-{analysis.id}',
                     subject_name=subject_display_name,
                     subject_name_index=analysis_idx,
-                    subject_name_has_parent=has_parent_analysis,
+                    subject_name_has_parent=parent_analysis is not None,
                     series_name=series_name,
                     series_name_index=series_name_idx,
+                    has_parent=has_parent,  # can be used for the legend
                     xScaleFactor=analysis_xscale,
                     yScaleFactor=analysis_yscale,
                     url=series_url,

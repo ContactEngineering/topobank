@@ -373,14 +373,14 @@ Vue.component("bokeh-plot", {
         legend_label = dataSource.legend_label;
       } else if (this.categories.length > 0) {
         legend_label = dataSource[this.categories[0].key];
-        const has_parent_key = this.categories[0].key + "_has_parent";
+        const has_parent_key = "has_parent";
         if ((dataSource[has_parent_key] !== undefined) && (dataSource[has_parent_key] === true) && !second_category_in_legend_labels) {
           legend_label = "└─ " + legend_label;
           /* It is not solved yet to get the legend items in the correct order
              to display sublevels only for the correct data series and not for others,
              and at the same time have the same colors and dashed for same subjects
              over different analysis functions. So we decided to remove the sublevels
-             in legend if a second dataseries has been selected
+             in legend if a second data series has been selected
              (here: More than one element selected in second category).
           */
 
