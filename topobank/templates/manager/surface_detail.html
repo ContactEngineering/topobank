@@ -109,7 +109,8 @@
               {% else %}
                 <div class="alert alert-secondary">
                   This bandwidth plot shows the range of length scales that have been measured for this digital surface
-                  twin. Each of the blocks below represents one measurement.
+                  twin. Each of the blocks below represents one measurement. Part of the bandwidth shown may be unreliable
+                  due to the configured instrument's measurement capacities.
                 </div>
               {% endif %}
               {% for bw_err in bandwidths_data_with_errors %}

@@ -58,6 +58,8 @@ from ..publication.models import Publication, MAX_LEN_AUTHORS_FIELD
 from .containers import write_surface_container
 from ..taskapp.tasks import renew_squeezed_datafile, renew_topography_images, renew_analyses_related_to_topography
 
+from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
+
 # create dicts with labels and option values for Select tab
 CATEGORY_FILTER_CHOICES = {'all': 'All categories',
                            **{cc[0]: cc[1] + " only" for cc in Surface.CATEGORY_CHOICES}}
@@ -885,6 +887,18 @@ class SurfaceDetailView(DetailView):
             bw_left = [bw['lower_bound'] for bw in bw_data_without_errors]
             bw_right = [bw['upper_bound'] for bw in bw_data_without_errors]
             bw_center = np.exp((np.log(bw_left)+np.log(bw_right))/2)  # we want to center on log scale
+            bw_unrel_limit = []
+            for bw in bw_data_without_errors:
+                st_topo = bw['topography'].topography()
+                unrel_limit = st_topo.short_reliability_cutoff()  # return float or None
+
+                if unrel_limit is not None:
+                    conv_fac = get_unit_conversion_factor(st_topo.unit, "m")  # float
+                    unrel_limit = unrel_limit*conv_fac
+                else:  # cannot compute reliability cutoff, so all data is assumed to be reliable
+                    unrel_limit = bw['lower_bound']
+
+                bw_unrel_limit.append(unrel_limit)
             bw_names = [bw['topography'].name for bw in bw_data_without_errors]
             bw_topography_links = [bw['link'] for bw in bw_data_without_errors]
             bw_thumbnail_links = [reverse('manager:topography-thumbnail',
@@ -892,6 +906,8 @@ class SurfaceDetailView(DetailView):
                                   for bw in bw_data_without_errors]
             bw_y = range(0, len(bw_data_without_errors))
 
+            bw_unrel_source = ColumnDataSource(dict(y=bw_y, left=bw_left, right=bw_unrel_limit,
+                                              name=bw_names))
             bw_source = ColumnDataSource(dict(y=bw_y, left=bw_left, right=bw_right, center=bw_center,
                                               name=bw_names,
                                               topography_link=bw_topography_links,
@@ -902,9 +918,7 @@ class SurfaceDetailView(DetailView):
             TOOL_TIPS = """
             <div class="bandwidth-hover-box">
                 <img src="@thumbnail_link" height="80" width="80" alt="Thumbnail is missing, sorry">
-                </img>
                 <span>@name</span>
-
             </div>
             """
 
@@ -915,13 +929,26 @@ class SurfaceDetailView(DetailView):
                           tools=["tap", "hover"],
                           toolbar_location=None,
                           tooltips=TOOL_TIPS)
-            hbar_renderer = plot.hbar(y="y", left="left", right="right", height=bar_height,
-                                      name='bandwidths', source=bw_source)
+
+            unrel_hbar_renderer = plot.hbar(y="y", left="left", right="right", height=bar_height, color='#dc3545',
+                                      name='bandwidths', legend_label="Unreliable bandwidth", source=bw_unrel_source)
+            unrel_hbar_renderer.nonselection_glyph = None  # makes glyph invariant on selection
+
+            hbar_renderer = plot.hbar(y="y", left="left", right="right", height=bar_height, color='#2c90d9',
+                                      name='bandwidths', legend_label="Reliable bandwidth", source=bw_source, level="underlay")
             hbar_renderer.nonselection_glyph = None  # makes glyph invariant on selection
+            plot.hover.renderers = [hbar_renderer]
+
             plot.yaxis.visible = False
             plot.grid.visible = False
             plot.outline_line_color = None
             plot.xaxis.formatter = FuncTickFormatter(code="return siSuffixMeters(2)(tick)")
+            plot.legend.location = "top_left"
+            plot.legend.title = "Reliability of the bandwidth"
+            plot.legend.title_text_font_style = "bold"
+            plot.legend.background_fill_color = "#f0f0f0"
+            plot.legend.border_line_width = 3
+            plot.legend.border_line_cap = "round"
 
             # make that 1 single topography does not look like a block
             if len(bw_data_without_errors) == 1:
