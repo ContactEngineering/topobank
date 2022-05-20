@@ -524,7 +524,7 @@ CC_LICENSE_INFOS = {  # each element refers to two links: (description URL, full
 #
 CONTACT_MECHANICS_KWARGS_LIMITS = {
             'nsteps': dict(min=1, max=50),
-            'maxiter': dict(min=1, max=1000),
+            'maxiter': dict(min=100, max=1000),
             'pressures': dict(maxlen=50),
 }
 
