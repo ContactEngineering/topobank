@@ -20,6 +20,7 @@
 - BUG: Fixed step filename in plot.csv of contact data
 - BUG: Plastic calculation should reset plastic displacement before each
   optimizer run (#827)
+- BUG: Fixed automtatic redirection from http:// to https:// (#835) 
 - MAINT: Typo on landing page (#799)
 - MAINT: Updated Django because of CVE
 
