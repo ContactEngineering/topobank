@@ -14,6 +14,8 @@
 - ENH: Line style is also shown in plot legend
 - ENH: Added slider for line widths to plot
 - ENH: Sorted functions by name (#719)
+- ENH: Increased step size for maximum number of iterations in 
+  contact mechanics (#809)
 - BUG: Fixed logscale labels (#771)
 - BUG: Renamed y-label of curvature distribution to probability
   density (#350)
