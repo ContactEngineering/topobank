@@ -16,6 +16,7 @@
 - ENH: Sorted functions by name (#719)
 - ENH: Increased step size for maximum number of iterations in 
   contact mechanics (#809)
+- ENH: Improved filenames of downloaded containers (#815)
 - BUG: Fixed logscale labels (#771)
 - BUG: Renamed y-label of curvature distribution to probability
   density (#350)
