@@ -9,8 +9,7 @@ from guardian.shortcuts import get_perms
 from .utils import SurfaceFactory, UserFactory, Topography2DFactory, TagModelFactory
 from ..forms import SurfacePublishForm
 from ..views import SurfaceDetailView
-from topobank.publication.models import MAX_LEN_AUTHORS_FIELD
-from topobank.utils import assert_in_content, assert_redirects, assert_not_in_content
+from topobank.utils import assert_in_content, assert_not_in_content
 from topobank.manager.models import NewPublicationTooFastException
 
 
