@@ -85,6 +85,8 @@ DEFAULT_SELECT_TAB_STATE = {
 
 MEASUREMENT_TIME_INFO_FIELD = 'acquisition_time'
 
+DEFAULT_CONTAINER_FILENAME = "digital_surface_twin.zip"
+
 _log = logging.getLogger(__name__)
 
 surface_view_permission_required = method_decorator(
@@ -1566,6 +1568,7 @@ def download_surface(request, surface_id):
     renew_publication_container = False
     if surface.is_published:
         pub = surface.publication
+        container_filename = os.path.basename(pub.container_storage_path)
 
         # noinspection PyBroadException
         try:
@@ -1574,6 +1577,8 @@ def download_surface(request, surface_id):
             _log.debug(f"Read container for published surface {pub.short_url} from storage.")
         except Exception:  # not interested here, why it fails
             renew_publication_container = True
+    else:
+        container_filename = DEFAULT_CONTAINER_FILENAME
 
     if content_data is None:
         container_bytes = BytesIO()
@@ -1593,7 +1598,7 @@ def download_surface(request, surface_id):
     # Prepare response object.
     response = HttpResponse(content_data,
                             content_type='application/x-zip-compressed')
-    response['Content-Disposition'] = 'attachment; filename="{}"'.format('surface.zip')
+    response['Content-Disposition'] = 'attachment; filename="{}"'.format(container_filename)
 
     increase_statistics_by_date_and_object(Metric.objects.SURFACE_DOWNLOAD_COUNT,
                                            period=Period.DAY, obj=surface)
@@ -1617,7 +1622,9 @@ def download_selection_as_surfaces(request):
     # Prepare response object.
     response = HttpResponse(container_bytes.getvalue(),
                             content_type='application/x-zip-compressed')
-    response['Content-Disposition'] = 'attachment; filename="{}"'.format('surface.zip')
+    response['Content-Disposition'] = 'attachment; filename="{}"'.format(DEFAULT_CONTAINER_FILENAME)
+    # Since the selection contains multiple surfaces in general, we should think about
+    # another file name in this case.
 
     # increase download count for each surface
     for surf in surfaces:
