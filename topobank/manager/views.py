@@ -887,18 +887,7 @@ class SurfaceDetailView(DetailView):
             bw_left = [bw['lower_bound'] for bw in bw_data_without_errors]
             bw_right = [bw['upper_bound'] for bw in bw_data_without_errors]
             bw_center = np.exp((np.log(bw_left)+np.log(bw_right))/2)  # we want to center on log scale
-            bw_unrel_limit = []
-            for bw in bw_data_without_errors:
-                st_topo = bw['topography'].topography()
-                unrel_limit = st_topo.short_reliability_cutoff()  # return float or None
-
-                if unrel_limit is not None:
-                    conv_fac = get_unit_conversion_factor(st_topo.unit, "m")  # float
-                    unrel_limit = unrel_limit*conv_fac
-                else:  # cannot compute reliability cutoff, so all data is assumed to be reliable
-                    unrel_limit = bw['lower_bound']
-
-                bw_unrel_limit.append(unrel_limit)
+            bw_unrel_limit = [bw['short_reliability_cutoff'] for bw in bw_data_without_errors]
             bw_names = [bw['topography'].name for bw in bw_data_without_errors]
             bw_topography_links = [bw['link'] for bw in bw_data_without_errors]
             bw_thumbnail_links = [reverse('manager:topography-thumbnail',

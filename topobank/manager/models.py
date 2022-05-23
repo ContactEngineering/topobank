@@ -569,6 +569,7 @@ class Topography(models.Model, SubjectMixin):
 
     bandwidth_lower = models.FloatField(null=True, default=None)  # in meters
     bandwidth_upper = models.FloatField(null=True, default=None)  # in meters
+    short_reliability_cutoff = models.FloatField(null=True, default=None)
 
     is_periodic = models.BooleanField(default=False)
 
@@ -1131,6 +1132,12 @@ class Topography(models.Model, SubjectMixin):
             fac = get_unit_conversion_factor(st_topo.unit, 'm')
             self.bandwidth_lower = fac * bandwidth_lower
             self.bandwidth_upper = fac * bandwidth_upper
+
+            short_reliability_cutoff = st_topo.short_reliability_cutoff()
+            if short_reliability_cutoff is not None:
+                self.short_reliability_cutoff = fac * short_reliability_cutoff
+            else:
+                self.short_reliability_cutoff = bandwidth_lower
 
     def renew_squeezed_datafile(self):
         """Renew squeezed datafile file."""

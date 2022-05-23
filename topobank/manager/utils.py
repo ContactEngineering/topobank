@@ -710,12 +710,15 @@ def _bandwidths_data_entry(topo):
     else:
         link = reverse('manager:topography-detail', kwargs=dict(pk=topo.pk))
 
+    short_reliability_cutoff = topo.short_reliability_cutoff
+
     return {
         'lower_bound': lower_bound,
         'upper_bound': upper_bound,
         'topography': topo,
         'link': link,
-        'error_message': err_message
+        'error_message': err_message,
+        'short_reliability_cutoff': short_reliability_cutoff
     }
 
 
@@ -732,6 +735,7 @@ def bandwidths_data(topographies):
     'topo': topography instance
     'link': link to topography details
     'error_message': None or a string with an error message if calculation failed
+    'short_reliability_cutoff': limit of the unreliable bandwidth (or lower bound if all data is reliable) in meters
 
     The list is sorted by the lower bound with smaller lower bound first.
 
