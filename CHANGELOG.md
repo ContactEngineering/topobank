@@ -17,7 +17,6 @@
 - ENH: Increased step size for maximum number of iterations in 
   contact mechanics (#809)
 - ENH: Improved filenames of downloaded containers (#815)
-- ENH: Added temporary redirect to challenge URL
 - BUG: Fixed logscale labels (#771)
 - BUG: Renamed y-label of curvature distribution to probability
   density (#350)
@@ -27,6 +26,7 @@
 - BUG: Fixed automtatic redirection from http:// to https:// (#835) 
 - MAINT: Typo on landing page (#799)
 - MAINT: Some dependency updates because of security issues
+- MAINT: Added temporary redirect to challenge URL
 
 ## 0.20.1 (2022-04-13)
 
