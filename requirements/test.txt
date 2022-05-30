@@ -31,7 +31,7 @@ billiard==3.6.4.0
     #   celery
 bleach==4.1.0
     # via -r base.txt
-bokeh==2.2.3
+bokeh==3.0.0.dev4
     # via -r base.txt
 boto3==1.20.16
     # via -r base.txt
@@ -115,7 +115,7 @@ deprecated==1.2.13
     #   redis
 dj-inmemorystorage==2.1.0
     # via -r test.in
-django==3.2.12
+django==3.2.13
     # via
     #   -r base.txt
     #   collectfast
@@ -375,7 +375,7 @@ pyflakes==2.4.0
     # via flake8
 pygments==2.10.0
     # via -r base.txt
-pyjwt[crypto]==2.3.0
+pyjwt[crypto]==2.4.0
     # via
     #   -r base.txt
     #   django-allauth
@@ -423,7 +423,6 @@ pytest-variables==1.9.0
 python-dateutil==2.8.2
     # via
     #   -r base.txt
-    #   bokeh
     #   botocore
     #   faker
     #   freezegun
@@ -478,7 +477,6 @@ scipy==1.7.3
     #   numpi
 selenium==3.141.0
     # via
-    #   -r base.txt
     #   -r test.in
     #   pytest-selenium
     #   pytest-splinter
@@ -574,6 +572,10 @@ wrapt==1.14.0
     #   deprecated
 xarray==0.20.1
     # via -r base.txt
+xyzservices==2021.11.0
+    # via
+    #   -r base.txt
+    #   bokeh
 zipp==3.7.0
     # via
     #   -r base.txt

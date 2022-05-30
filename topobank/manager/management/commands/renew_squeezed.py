@@ -1,3 +1,5 @@
+import traceback
+
 from django.core.management.base import BaseCommand
 import logging
 
@@ -20,6 +22,13 @@ class Command(BaseCommand):
             action='store_true',
             dest='dry_run',
             help='Just traverse users and show what would be done.',
+        )
+
+        parser.add_argument(
+            '--with-traceback',
+            action='store_true',
+            dest='with_traceback',
+            help="On failures, also print traceback so it's easier to localize the problem.",
         )
 
         parser.add_argument(
@@ -55,8 +64,11 @@ class Command(BaseCommand):
                 num_with += 1
 
             if topo.has_squeezed_datafile and options['missing']:
-                num_skipped += 1
-                continue
+                if topo.squeezed_datafile.storage.exists(topo.squeezed_datafile.name):
+                    num_skipped += 1
+                    continue
+                else:
+                    _log.warning(f"Datafile '{topo.squeezed_datafile.name}' does not exist but is expected to.")
 
             _log.info(f"Renewing squeezed data file for '{topo.name}', id {topo.id}, {topo_idx+1}/{num_total}..")
             if not options['dry_run']:
@@ -67,7 +79,9 @@ class Command(BaseCommand):
                         topo.renew_squeezed_datafile()
                     num_success += 1
                 except Exception as exc:
-                    _log.warning(f"Cannot recreate squeezed data file for topography {topo.id}, reason: {exc}")
+                    _log.error(f"Cannot recreate squeezed data file for topography {topo.id}, reason: {exc}")
+                    if options['with_traceback']:
+                        _log.error(traceback.format_exc())
                     num_failed += 1
 
         self.stdout.write(self.style.SUCCESS(
@@ -77,6 +91,9 @@ class Command(BaseCommand):
         if options['background']:
             self.stdout.write(self.style.NOTICE("Recreation has been triggered in the background - "
                                                 "success not known yet."))
+
+        if num_failed > 0 and not options['with_traceback']:
+            self.stdout.write(self.style.NOTICE("There have been failures. Use option --with-traceback to see details."))
 
         if options['dry_run']:
             self.stdout.write(self.style.WARNING("This was a dry run, nothing has been changed."))

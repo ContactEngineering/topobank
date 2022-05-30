@@ -34,7 +34,7 @@ def body_for_mailto_link(analysis, user):
     # using multi line strings was difficult here with the line breaks.
 
     if analysis.task_state == Analysis.FAILURE:
-        r = analysis.result_obj
+        r = analysis.result
 
         try:
             if r['is_incompatible']:

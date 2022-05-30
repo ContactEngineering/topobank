@@ -43,14 +43,9 @@ urlpatterns = [
         name='card-submit'
     ),
     url(
-        regex=r'card/contact-mechanics/data$',
-        view=login_required(views.contact_mechanics_data),
-        name='contact-mechanics-data'
-    ),
-    url(
-        regex=r'card/contact-mechanics/(?P<pk>\d+)/(?P<index>\d+)/dzi/(?P<quantity>[a-zA-Z0-9_.-]*)/(?P<dzi_filename>.*)$',
-        view=login_required(views.contact_mechanics_dzi),
-        name='contact-mechanics-dzi'
+        regex=r'data/(?P<pk>\d+)/(?P<location>.*)$',
+        view=login_required(views.data),
+        name='data'
     ),
     url(
         regex=r'card/$',

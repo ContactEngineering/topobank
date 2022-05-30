@@ -327,6 +327,10 @@ section[title="Terms and Conditions"] div.toc-container, #tc-terms-html {
   font-size: 1rem !important;
 }
 
+.bk-tab {
+  font-size: 1rem !important;
+}
+
 
 /** Container for deep zoom images */
 
@@ -339,6 +343,7 @@ section[title="Terms and Conditions"] div.toc-container, #tc-terms-html {
 .dzi-view {
   float: left;
   width: calc(100% - 1em);
+  aspect-ratio: 4 / 3;
 }
 
 .dzi-colorbar {
@@ -443,3 +448,59 @@ section[title="Terms and Conditions"] div.toc-container, #tc-terms-html {
   table-layout: fixed;
 }
 
+.dot {
+  width: 1em;
+  height: 1em;
+  background-color: #333;
+  position: relative;
+  float: left;
+  border-radius: 100%;
+  top: 0.3em;  /* to center the dot, there is probably a better way to do this */
+  margin-right: 0.5em;
+}
+
+.plot-controls-accordion {
+  margin: 1rem;
+}
+
+.plot-controls-card-header {
+  padding: 0px;
+}
+
+.plot-controls-card-body {
+  padding: 3px 12px;
+}
+
+/*
+ * https://stackoverflow.com/questions/57851961/dynamic-bootstrap-accordion-display-issue-when-first-of-type-and-last-of-type-is
+ */
+.accordion > .card:first-of-type:last-of-type {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+    border-radius: 0.25rem;
+}
+
+.accordion-button {
+    width: 100%;
+    position: relative;
+    text-align: left;
+}
+
+.accordion-button::before {
+    content: '\f107';
+    position: absolute;
+    top: 50%;
+    right: 0.8rem;
+    transform: translateY(-50%);
+    display: block;
+    font-family: 'FontAwesome';
+    font-size: 1.1rem;
+}
+
+.accordion-button[aria-expanded='true']::before {
+    content: '\f106';
+}
+
+.accordion-header-control {
+  position: absolute;
+  top: 0.35rem;
+}

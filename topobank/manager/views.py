@@ -8,7 +8,7 @@ import django_tables2 as tables
 import numpy as np
 
 from bokeh.embed import components
-from bokeh.models import FuncTickFormatter, TapTool, OpenURL
+from bokeh.models import TapTool, OpenURL
 from bokeh.plotting import figure, ColumnDataSource
 
 from django.conf import settings
@@ -84,6 +84,8 @@ DEFAULT_SELECT_TAB_STATE = {
 }
 
 MEASUREMENT_TIME_INFO_FIELD = 'acquisition_time'
+
+DEFAULT_CONTAINER_FILENAME = "digital_surface_twin.zip"
 
 _log = logging.getLogger(__name__)
 
@@ -890,7 +892,7 @@ class SurfaceDetailView(DetailView):
             bw_thumbnail_links = [reverse('manager:topography-thumbnail',
                                           kwargs=dict(pk=bw['topography'].pk))
                                   for bw in bw_data_without_errors]
-            bw_y = range(0, len(bw_data_without_errors))
+            bw_y = list(range(0, len(bw_data_without_errors)))
 
             bw_source = ColumnDataSource(dict(y=bw_y, left=bw_left, right=bw_right, center=bw_center,
                                               name=bw_names,
@@ -921,7 +923,6 @@ class SurfaceDetailView(DetailView):
             plot.yaxis.visible = False
             plot.grid.visible = False
             plot.outline_line_color = None
-            plot.xaxis.formatter = FuncTickFormatter(code="return siSuffixMeters(2)(tick)")
 
             # make that 1 single topography does not look like a block
             if len(bw_data_without_errors) == 1:
@@ -1567,6 +1568,7 @@ def download_surface(request, surface_id):
     renew_publication_container = False
     if surface.is_published:
         pub = surface.publication
+        container_filename = os.path.basename(pub.container_storage_path)
 
         # noinspection PyBroadException
         try:
@@ -1575,6 +1577,8 @@ def download_surface(request, surface_id):
             _log.debug(f"Read container for published surface {pub.short_url} from storage.")
         except Exception:  # not interested here, why it fails
             renew_publication_container = True
+    else:
+        container_filename = DEFAULT_CONTAINER_FILENAME
 
     if content_data is None:
         container_bytes = BytesIO()
@@ -1594,7 +1598,7 @@ def download_surface(request, surface_id):
     # Prepare response object.
     response = HttpResponse(content_data,
                             content_type='application/x-zip-compressed')
-    response['Content-Disposition'] = 'attachment; filename="{}"'.format('surface.zip')
+    response['Content-Disposition'] = 'attachment; filename="{}"'.format(container_filename)
 
     increase_statistics_by_date_and_object(Metric.objects.SURFACE_DOWNLOAD_COUNT,
                                            period=Period.DAY, obj=surface)
@@ -1618,7 +1622,9 @@ def download_selection_as_surfaces(request):
     # Prepare response object.
     response = HttpResponse(container_bytes.getvalue(),
                             content_type='application/x-zip-compressed')
-    response['Content-Disposition'] = 'attachment; filename="{}"'.format('surface.zip')
+    response['Content-Disposition'] = 'attachment; filename="{}"'.format(DEFAULT_CONTAINER_FILENAME)
+    # Since the selection contains multiple surfaces in general, we should think about
+    # another file name in this case.
 
     # increase download count for each surface
     for surf in surfaces:

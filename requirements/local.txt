@@ -39,7 +39,7 @@ black==21.12b0
     # via ipython
 bleach==4.1.0
     # via -r ./base.txt
-bokeh==2.2.3
+bokeh==3.0.0.dev4
     # via -r ./base.txt
 boto3==1.20.16
     # via -r ./base.txt
@@ -126,7 +126,7 @@ deprecated==1.2.13
     # via
     #   -r ./base.txt
     #   redis
-django==3.2.12
+django==3.2.13
     # via
     #   -r ./base.txt
     #   collectfast
@@ -435,7 +435,7 @@ pygments==2.10.0
     #   -r ./base.txt
     #   ipython
     #   sphinx
-pyjwt[crypto]==2.3.0
+pyjwt[crypto]==2.4.0
     # via
     #   -r ./base.txt
     #   django-allauth
@@ -460,7 +460,6 @@ pytest-sugar==0.9.4
 python-dateutil==2.8.2
     # via
     #   -r ./base.txt
-    #   bokeh
     #   botocore
     #   faker
     #   matplotlib
@@ -512,8 +511,6 @@ scipy==1.7.3
     # via
     #   -r ./base.txt
     #   numpi
-selenium==3.141.0
-    # via -r ./base.txt
 setuptools-scm==6.3.2
     # via
     #   -r ./base.txt
@@ -601,7 +598,6 @@ urllib3==1.26.7
     #   botocore
     #   dulwich
     #   requests
-    #   selenium
 vine==5.0.0
     # via
     #   -r ./base.txt
@@ -628,6 +624,10 @@ wrapt==1.14.0
     #   deprecated
 xarray==0.20.1
     # via -r ./base.txt
+xyzservices==2021.11.0
+    # via
+    #   -r ./base.txt
+    #   bokeh
 zipp==3.7.0
     # via
     #   -r ./base.txt

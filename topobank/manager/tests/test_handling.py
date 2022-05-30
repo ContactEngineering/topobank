@@ -17,6 +17,7 @@ from .utils import FIXTURE_DIR, SurfaceFactory, Topography1DFactory, Topography2
     one_line_scan
 from ..models import Topography, Surface, MAX_LENGTH_DATAFILE_FORMAT
 from ..forms import TopographyForm, TopographyWizardUnitsForm
+from ..views import DEFAULT_CONTAINER_FILENAME
 
 from topobank.utils import assert_in_content, \
     assert_redirects, assert_no_form_errors, assert_form_error
@@ -66,6 +67,7 @@ def test_download_selection(client, mocker, handle_usage_statistics):
     from ..views import download_selection_as_surfaces
     response = download_selection_as_surfaces(request)
     assert response.status_code == 200
+    assert response['Content-Disposition'] == f'attachment; filename="{DEFAULT_CONTAINER_FILENAME}"'
 
     # open zip file and look into meta file, there should be two surfaces and three topographies
     with zipfile.ZipFile(BytesIO(response.content)) as zf:
@@ -1604,3 +1606,24 @@ def test_usage_of_cached_container_on_download_of_published_surface(client, exam
 
     # no extra call of write_container because it is a published surface
     assert write_container_mock.call_count == 1
+
+
+@pytest.mark.django_db
+def test_download_of_unpublished_surface(client, handle_usage_statistics):
+    user = UserFactory()
+    surface = SurfaceFactory(creator=user)
+    topo1 = Topography1DFactory(surface=surface)
+    topo2 = Topography2DFactory(surface=surface)
+
+    client.force_login(user)
+
+    response = client.get(reverse('manager:surface-download', kwargs=dict(surface_id=surface.id)),
+                          follow=True)
+    assert response.status_code == 200
+    assert response['Content-Disposition'] == f'attachment; filename="{DEFAULT_CONTAINER_FILENAME}"'
+
+
+
+
+
+

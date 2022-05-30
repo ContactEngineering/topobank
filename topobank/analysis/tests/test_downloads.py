@@ -17,7 +17,6 @@ import pytest
 
 @pytest.mark.django_db
 def test_download_plot_analyses_to_txt(rf):
-
     func = AnalysisFunctionFactory()
     impl = AnalysisFunctionImplementationFactory(function=func)
     analysis = TopographyAnalysisFactory(function=func)
@@ -35,36 +34,33 @@ def test_download_plot_analyses_to_txt(rf):
 
 @pytest.mark.django_db
 def test_download_contact_analyses_to_zip(rf):
-
     func = AnalysisFunctionFactory()
     impl = AnalysisFunctionImplementationFactory(function=func)
 
     storage_prefix = "test/"
 
-    pickled_result = pickle.dumps(
-        dict(
-            name='Contact mechanics',
-            area_per_pt=0.1,
+    result = dict(
+        name='Contact mechanics',
+        area_per_pt=0.1,
+        maxiter=100,
+        min_pentol=0.01,
+        mean_pressures=[1, 2, 3, 4],
+        total_contact_areas=[2, 4, 6, 8],
+        mean_displacements=[3, 5, 7, 9],
+        mean_gaps=[4, 6, 8, 10],
+        converged=[True, True, False, True],
+        data_paths=[storage_prefix + "step-0", storage_prefix + "step-1",
+                    storage_prefix + "step-2", storage_prefix + "step-3", ],
+        effective_kwargs=dict(
+            substrate_str="periodic",
+            hardness=1,
+            nsteps=11,
+            pressures=[1, 2, 3, 4],
             maxiter=100,
-            min_pentol=0.01,
-            mean_pressures=[1, 2, 3, 4],
-            total_contact_areas=[2, 4, 6, 8],
-            mean_displacements=[3, 5, 7, 9],
-            mean_gaps=[4, 6, 8, 10],
-            converged=[True, True, False, True],
-            data_paths=[storage_prefix + "step-0", storage_prefix + "step-1",
-                        storage_prefix + "step-2", storage_prefix + "step-3",],
-            effective_kwargs=dict(
-                substrate_str="periodic",
-                hardness=1,
-                nsteps=11,
-                pressures=[1, 2, 3, 4],
-                maxiter=100,
-            )
         )
     )
 
-    analysis = TopographyAnalysisFactory(function=func, result=pickled_result)
+    analysis = TopographyAnalysisFactory(function=func, result=result)
 
     # create files in storage for zipping
     from django.core.files.storage import default_storage
@@ -97,5 +93,3 @@ def test_download_contact_analyses_to_zip(rf):
     assert sorted(expected_filenames) == sorted(archive.namelist())
     # TODO check file contents
     # TODO delete temporary data from storage
-
-

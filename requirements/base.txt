@@ -18,7 +18,7 @@ billiard==3.6.4.0
     # via celery
 bleach==4.1.0
     # via -r base.in
-bokeh==2.2.3
+bokeh==3.0.0.dev4
     # via -r base.in
 boto3==1.20.16
     # via -r base.in
@@ -74,7 +74,7 @@ defusedxml==0.7.1
     #   surfacetopography
 deprecated==1.2.13
     # via redis
-django==3.2.12
+django==3.2.13
     # via
     #   -r base.in
     #   collectfast
@@ -256,8 +256,10 @@ pycparser==2.21
     # via cffi
 pygments==2.10.0
     # via -r base.in
-pyjwt[crypto]==2.3.0
-    # via django-allauth
+pyjwt[crypto]==2.4.0
+    # via
+    #   -r base.in
+    #   django-allauth
 pyparsing==3.0.6
     # via
     #   matplotlib
@@ -266,7 +268,6 @@ pyrsistent==0.18.1
     # via jsonschema
 python-dateutil==2.8.2
     # via
-    #   bokeh
     #   botocore
     #   matplotlib
     #   pandas
@@ -305,8 +306,6 @@ s3transfer==0.5.0
     # via boto3
 scipy==1.7.3
     # via numpi
-selenium==3.141.0
-    # via -r base.in
 setuptools-scm==6.3.2
     # via matplotlib
 short-url==1.2.2
@@ -345,7 +344,6 @@ urllib3==1.26.7
     #   botocore
     #   dulwich
     #   requests
-    #   selenium
 vine==5.0.0
     # via
     #   amqp
@@ -361,6 +359,8 @@ wrapt==1.14.0
     # via deprecated
 xarray==0.20.1
     # via -r base.in
+xyzservices==2021.11.0
+    # via bokeh
 zipp==3.7.0
     # via importlib-resources
 

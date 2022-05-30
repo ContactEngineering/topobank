@@ -5,8 +5,11 @@ The first argument is either a Topography or Surface instance (model).
 """
 
 import collections
+import io
+import json
 
-from django.core.files.storage import default_storage
+from bokeh.core.json_encoder import BokehJSONEncoder
+
 from django.core.files import File
 from django.conf import settings
 
@@ -23,9 +26,12 @@ from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor,
 from SurfaceTopography.Exceptions import CannotPerformAnalysisError
 from ContactMechanics import PeriodicFFTElasticHalfSpace, FreeFFTElasticHalfSpace
 from ContactMechanics.Factory import make_system, make_plastic_system
+from ContactMechanics.Tools.ContactAreaAnalysis import patch_areas, assign_patch_numbers
 
 import topobank.manager.models  # will be used to evaluate model classes
-from topobank.manager.utils import make_dzi
+from topobank.manager.utils import default_storage_replace, make_dzi
+from ..utils import SplitDictionaryHere
+
 from .registry import AnalysisFunctionRegistry
 
 _log = logging.getLogger(__name__)
@@ -112,6 +118,18 @@ class ReentrantTopographyException(IncompatibleTopographyException):
     pass
 
 
+def wrap_series(series):
+    """
+    Wrap each data series into a `SplitDictionaryHere` with a consecutive name
+    'series-0', 'series-1'. Each `SplitDictionaryHere` is written into a separate
+    file by `store_split_dict`.
+    """
+    wrapped_series = []
+    for i, s in enumerate(series):
+        wrapped_series.append(SplitDictionaryHere(f'series-{i}', s))
+    return wrapped_series
+
+
 #
 # Use this during development if you need a long running task with failures
 #
@@ -154,6 +172,17 @@ def height_distribution(topography, bins=None, wfac=5, progress_recorder=None, s
     except:
         unit = None
 
+    series = [
+        dict(name='Height distribution',
+             x=(bin_edges[:-1] + bin_edges[1:]) / 2,
+             y=hist,
+             ),
+        dict(name=GAUSSIAN_FIT_SERIES_NAME,
+             x=x_gauss,
+             y=y_gauss,
+             )
+    ]
+
     return dict(
         name='Height distribution',
         scalars={
@@ -161,19 +190,10 @@ def height_distribution(topography, bins=None, wfac=5, progress_recorder=None, s
             'RMS Height': dict(value=rms_height, unit=unit),
         },
         xlabel='Height',
-        ylabel='Probability',
+        ylabel='Probability density',
         xunit='' if unit is None else unit,
         yunit='' if unit is None else '{}⁻¹'.format(unit),
-        series=[
-            dict(name='Height distribution',
-                 x=(bin_edges[:-1] + bin_edges[1:]) / 2,
-                 y=hist,
-                 ),
-            dict(name=GAUSSIAN_FIT_SERIES_NAME,
-                 x=x_gauss,
-                 y=y_gauss,
-                 )
-        ]
+        series=wrap_series(series)
     )
 
 
@@ -278,15 +298,8 @@ def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, st
     if bins is None:
         bins = _reasonable_bins_argument(topography)
 
-    result = dict(
-        name='Slope distribution',
-        xlabel='Slope',
-        ylabel='Probability',
-        xunit='1',
-        yunit='1',
-        scalars={},
-        series=[]
-    )
+    scalars = {}
+    series = []
     # .. will be completed below..
 
     if topography.dim == 2:
@@ -300,8 +313,8 @@ def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, st
                                                                       wfac=wfac,
                                                                       quantity="slope", unit='1',
                                                                       label='x direction')
-        result['scalars'].update(scalars_slope_x)
-        result['series'].extend(series_slope_x)
+        scalars.update(scalars_slope_x)
+        series.extend(series_slope_x)
 
         #
         # Results for y direction
@@ -311,8 +324,8 @@ def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, st
                                                                       wfac=wfac,
                                                                       quantity="slope", unit='1',
                                                                       label='y direction')
-        result['scalars'].update(scalars_slope_y)
-        result['series'].extend(series_slope_y)
+        scalars.update(scalars_slope_y)
+        series.extend(series_slope_y)
 
         #
         # Results for absolute gradient
@@ -334,12 +347,20 @@ def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, st
                                                                       wfac=wfac,
                                                                       quantity="slope", unit='1',
                                                                       label='x direction')
-        result['scalars'].update(scalars_slope_x)
-        result['series'].extend(series_slope_x)
+        scalars.update(scalars_slope_x)
+        series.extend(series_slope_x)
     else:
         raise ValueError("This analysis function can only handle 1D or 2D topographies.")
 
-    return result
+    return dict(
+        name='Slope distribution',
+        xlabel='Slope',
+        ylabel='Probability density',
+        xunit='1',
+        yunit='1',
+        scalars=scalars,
+        series=wrap_series(series)
+    )
 
 
 @register_implementation(name="Curvature distribution", card_view_flavor='plot')
@@ -359,13 +380,12 @@ def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None
     #
     if topography.dim == 2:
         curv_x, curv_y = topography.derivative(n=2)
-        curv = curv_x + curv_y
+        curv = (curv_x + curv_y) / 2
     else:
         curv = topography.derivative(n=2)
 
     mean_curv = np.mean(curv)
     rms_curv = topography.rms_curvature_from_area() if topography.dim == 2 else topography.rms_curvature_from_profile()
-    # rms_curv = topography.rms_curvature()
 
     hist_arr = np.ma.compressed(curv)
 
@@ -390,6 +410,17 @@ def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None
     unit = topography.unit
     inverse_unit = '{}⁻¹'.format(unit)
 
+    series = [
+        dict(name='Curvature distribution',
+             x=(bin_edges[:-1] + bin_edges[1:]) / 2,
+             y=hist,
+             ),
+        dict(name=GAUSSIAN_FIT_SERIES_NAME,
+             x=x_gauss,
+             y=y_gauss,
+             )
+    ]
+
     return dict(
         name='Curvature distribution',
         scalars={
@@ -397,19 +428,10 @@ def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None
             'RMS Curvature': dict(value=rms_curv, unit=inverse_unit),
         },
         xlabel='Curvature',
-        ylabel='Probability',
+        ylabel='Probability density',
         xunit=inverse_unit,
         yunit=unit,
-        series=[
-            dict(name='Curvature distribution',
-                 x=(bin_edges[:-1] + bin_edges[1:]) / 2,
-                 y=hist,
-                 ),
-            dict(name=GAUSSIAN_FIT_SERIES_NAME,
-                 x=x_gauss,
-                 y=y_gauss,
-                 )
-        ]
+        series=wrap_series(series)
     )
 
 
@@ -439,7 +461,7 @@ def make_alert_entry(level, subject_name, subject_url, data_series_name, detail_
 
 
 def analysis_function(topography, funcname_profile, funcname_area, name, xlabel, ylabel, xname, yname, aname, xunit,
-                      yunit, conv_2d_fac=1.0, conv_2d_exponent=0, **kwargs):
+                      yunit, conv_2d_fac=1.0, conv_2d_exponent=0, storage_prefix=None, **kwargs):
     topography_name = topography.name
     topography_url = topography.get_absolute_url()
 
@@ -548,6 +570,7 @@ def analysis_function(topography, funcname_profile, funcname_area, name, xlabel,
 
     unit = topography.unit
 
+    # Return metadata for results as a dictionary (to be stored in the postgres database)
     return dict(
         name=name,
         xlabel=xlabel,
@@ -556,12 +579,12 @@ def analysis_function(topography, funcname_profile, funcname_area, name, xlabel,
         yunit=yunit.format(unit),
         xscale='log',
         yscale='log',
-        series=series,
+        series=wrap_series(series),
         alerts=alerts)
 
 
 def analysis_function_for_surface(surface, progress_recorder, funcname_profile, name, xlabel, ylabel, xname, xunit,
-                                  yunit, **kwargs):
+                                  yunit, storage_prefix=None, **kwargs):
     """Calculate average analysis result for a surface."""
     topographies = ContainerProxy(surface.topography_set.all())
     unit = suggest_length_unit(topographies, 'log')
@@ -589,6 +612,7 @@ def analysis_function_for_surface(surface, progress_recorder, funcname_profile, 
         alerts.append(make_alert_entry('warning', surface.name, surface.get_absolute_url(),
                                        xname, str(exc)))
 
+    # Return metadata for results as a dictionary (to be stored in the postgres database)
     result = dict(
         name=name,
         xlabel=xlabel,
@@ -597,7 +621,7 @@ def analysis_function_for_surface(surface, progress_recorder, funcname_profile, 
         yunit=yunit.format(unit),
         xscale='log',
         yscale='log',
-        series=series,
+        series=wrap_series(series),
         alerts=alerts)
 
     return result
@@ -622,7 +646,8 @@ def power_spectrum(topography, progress_recorder=None, storage_prefix=None, wind
                              conv_2d_fac=1 / np.pi,
                              conv_2d_exponent=1,
                              window=window,
-                             nb_points_per_decade=nb_points_per_decade)
+                             nb_points_per_decade=nb_points_per_decade,
+                             storage_prefix=storage_prefix)
 
 
 @register_implementation(name="Power spectrum", card_view_flavor='plot')
@@ -641,7 +666,8 @@ def power_spectrum_for_surface(surface, progress_recorder=None, storage_prefix=N
                                          '{}⁻¹',
                                          '{}³',
                                          window=window,
-                                         nb_points_per_decade=nb_points_per_decade)
+                                         nb_points_per_decade=nb_points_per_decade,
+                                         storage_prefix=storage_prefix)
 
 
 @register_implementation(name="Autocorrelation", card_view_flavor='plot')
@@ -657,7 +683,8 @@ def autocorrelation(topography, progress_recorder=None, storage_prefix=None, nb_
                              'Radial average',
                              '{}',
                              '{}²',
-                             nb_points_per_decade=nb_points_per_decade)
+                             nb_points_per_decade=nb_points_per_decade,
+                             storage_prefix=storage_prefix)
 
 
 @register_implementation(name="Autocorrelation", card_view_flavor='plot')
@@ -671,7 +698,8 @@ def autocorrelation_for_surface(surface, progress_recorder=None, storage_prefix=
                                          'Along x',
                                          '{}',
                                          '{}²',
-                                         nb_points_per_decade=nb_points_per_decade)
+                                         nb_points_per_decade=nb_points_per_decade,
+                                         storage_prefix=storage_prefix)
 
 
 @register_implementation(name="Variable bandwidth", card_view_flavor='plot')
@@ -686,7 +714,8 @@ def variable_bandwidth(topography, progress_recorder=None, storage_prefix=None):
                              'Profile decomposition along y',
                              'Areal decomposition',
                              '{}',
-                             '{}')
+                             '{}',
+                             storage_prefix=storage_prefix)
 
 
 @register_implementation(name="Variable bandwidth", card_view_flavor='plot')
@@ -700,11 +729,12 @@ def variable_bandwidth_for_surface(surface, progress_recorder=None, storage_pref
                                          'Profile decomposition along x',
                                          '{}',
                                          '{}',
-                                         nb_points_per_decade=nb_points_per_decade)
+                                         nb_points_per_decade=nb_points_per_decade,
+                                         storage_prefix=storage_prefix)
 
 
 def scale_dependent_roughness_parameter(topography, progress_recorder, order_of_derivative, name, ylabel, xname, yname,
-                                        xyfunc, xyname, yunit, **kwargs):
+                                        xyfunc, xyname, yunit, storage_prefix=None, **kwargs):
     topography_name = topography.name
     topography_url = topography.get_absolute_url()
 
@@ -718,12 +748,12 @@ def scale_dependent_roughness_parameter(topography, progress_recorder, order_of_
             '{}: Cannot calculate analysis function for reentrant measurements.'.format(name))
 
     if topography.dim == 2:
-        fac = 6
+        nb_analyses = 6  # x-direction, y-direction, xy-direction (reliable + unreliable)
     else:
-        fac = 2
+        nb_analyses = 2  # Just x-direction (reliable + unreliable)
     progress_offset = 0
     progress_callback = None if progress_recorder is None else \
-        lambda i, n: progress_recorder.set_progress(progress_offset + i + 1, fac * n)
+        lambda i, n: progress_recorder.set_progress(progress_offset + i/n, nb_analyses)
 
     def process_series_reliable_unreliable(series_name, func_kwargs, is_reliable_visible=False):
         """Add series for reliable and unreliable data.
@@ -750,7 +780,7 @@ def scale_dependent_roughness_parameter(topography, progress_recorder, order_of_
                             visible=is_reliable_visible)]
         except CannotPerformAnalysisError as exc:
             alerts.append(make_alert_entry('warning', topography_name, topography_url, series_name, str(exc)))
-        progress_offset += len(distances)
+        progress_offset += 1
 
         distances, rms_values_sq = topography.scale_dependent_statistical_property(reliable=False, **func_kwargs)
         series += [dict(name=series_name + ' (incl. unreliable data)',
@@ -758,7 +788,7 @@ def scale_dependent_roughness_parameter(topography, progress_recorder, order_of_
                         y=np.sqrt(rms_values_sq),
                         visible=False),
                    ]
-        progress_offset += len(distances)
+        progress_offset += 1
 
     x_kwargs = dict(func=lambda x, y=None: np.mean(x * x),
                     n=order_of_derivative,
@@ -788,12 +818,12 @@ def scale_dependent_roughness_parameter(topography, progress_recorder, order_of_
         yunit=yunit.format(unit),
         xscale='log',
         yscale='log',
-        series=series,
+        series=wrap_series(series),
         alerts=alerts)
 
 
 def scale_dependent_roughness_parameter_for_surface(surface, progress_recorder, order_of_derivative, name, ylabel,
-                                                    xname, yunit, **kwargs):
+                                                    xname, yunit, storage_prefix=None, **kwargs):
     topographies = ContainerProxy(surface.topography_set.all())
     unit = suggest_length_unit(topographies, 'log')
 
@@ -822,7 +852,7 @@ def scale_dependent_roughness_parameter_for_surface(surface, progress_recorder, 
         yunit=yunit.format(unit),
         xscale='log',
         yscale='log',
-        series=series,
+        series=wrap_series(series),
         alerts=alerts)
 
 
@@ -839,7 +869,8 @@ def scale_dependent_slope(topography, progress_recorder=None, storage_prefix=Non
         lambda x, y: x * x + y * y,
         'Gradient',
         '1',
-        nb_points_per_decade=nb_points_per_decade)
+        nb_points_per_decade=nb_points_per_decade,
+        storage_prefix=storage_prefix)
 
 
 @register_implementation(name="Scale-dependent slope", card_view_flavor='plot')
@@ -852,7 +883,8 @@ def scale_dependent_slope_for_surface(surface, progress_recorder=None, storage_p
         'Slope',
         'Slope in x-direction',
         '1',
-        nb_points_per_decade=nb_points_per_decade)
+        nb_points_per_decade=nb_points_per_decade,
+        storage_prefix=storage_prefix)
 
 
 @register_implementation(name="Scale-dependent curvature", card_view_flavor='plot')
@@ -868,7 +900,8 @@ def scale_dependent_curvature(topography, progress_recorder=None, storage_prefix
         lambda x, y: (x + y) ** 2 / 4,
         '1/2 Laplacian',
         '{}⁻¹',
-        nb_points_per_decade=nb_points_per_decade)
+        nb_points_per_decade=nb_points_per_decade,
+        storage_prefix=storage_prefix)
 
 
 @register_implementation(name="Scale-dependent curvature", card_view_flavor='plot')
@@ -882,7 +915,8 @@ def scale_dependent_curvature_for_surface(surface, progress_recorder=None, stora
         'Curvature',
         'Curvature in x-direction',
         '{}⁻¹',
-        nb_points_per_decade=nb_points_per_decade)
+        nb_points_per_decade=nb_points_per_decade,
+        storage_prefix=storage_prefix)
 
 
 def _next_contact_step(system, history=None, pentol=None, maxiter=None):
@@ -913,7 +947,18 @@ def _next_contact_step(system, history=None, pentol=None, maxiter=None):
         History of contact calculations.
     """
 
+    # Get topography object from contact system
     topography = system.surface
+
+    try:
+        # Reset plastic displacement if this is a plastic calculation. We need to do this because the individual steps
+        # are not in order, i.e. the contact is not continuously formed or lifted. Each calculation needs to compute
+        # a fresh plastic displacement.
+        topography.plastic_displ = np.zeros_like(topography.plastic_displ)
+    except AttributeError:
+        pass
+
+    # Get substrate object from contact system
     substrate = system.substrate
 
     # Get the profile as a numpy array
@@ -1005,16 +1050,25 @@ def _contact_at_given_load(system, external_force, history=None, pentol=None, ma
         History of contact calculations.
     """
 
+    # Get topography object from contact system
     topography = system.surface
+
+    try:
+        # Reset plastic displacement if this is a plastic calculation. We need to do this because the individual steps
+        # are not in order, i.e. the contact is not continuously formed or lifted. Each calculation needs to compute
+        # a fresh plastic displacement.
+        topography.plastic_displ = np.zeros_like(topography.plastic_displ)
+    except AttributeError:
+        pass
+
+    # Get substrate object from contact system
     substrate = system.substrate
 
     # Get the profile as a numpy array
     heights = topography.heights()
 
     # Find max, min and mean heights
-    top = np.max(heights)
     middle = np.mean(heights)
-    bot = np.min(heights)
 
     if history is None:
         mean_displacements = []
@@ -1077,7 +1131,7 @@ def contact_mechanics(topography, substrate_str="nonperiodic", hardness=None, ns
         else:
             alert_message += "not periodic, but the analysis is configured for periodic boundaries."
         alerts.append(dict(alert_class=f"alert-warning", message=alert_message))
-        _log.warning(alert_message+" The user should have been informed in the UI.")
+        _log.warning(alert_message + " The user should have been informed in the UI.")
 
     # Get low level topography from SurfaceTopography model
     topography = topography.topography()
@@ -1175,9 +1229,9 @@ def contact_mechanics(topography, substrate_str="nonperiodic", hardness=None, ns
                                        maxiter=maxiter)
 
         #
-        # Save displacement_xy, gap_xy, pressure_xy and contacting_points_xy
-        # to storage, will be retrieved later for visualization
+        # Save displacement_xy, gap_xy, pressure_xy and contacting_points_xy to a NetCDF file
         #
+
         pressure_xy = xr.DataArray(pressure_xy, dims=('x', 'y'))  # maybe define coordinates
         gap_xy = xr.DataArray(gap_xy, dims=('x', 'y'))
         displacement_xy = xr.DataArray(displacement_xy, dims=('x', 'y'))
@@ -1198,7 +1252,63 @@ def contact_mechanics(topography, substrate_str="nonperiodic", hardness=None, ns
         with tempfile.NamedTemporaryFile(prefix='analysis-') as tmpfile:
             dataset.to_netcdf(tmpfile.name, format=netcdf_format)
             tmpfile.seek(0)
-            default_storage.save(f'{storage_path}/nc/results.nc', File(tmpfile))
+            default_storage_replace(f'{storage_path}/nc/results.nc', File(tmpfile))
+
+        #
+        # Pressure and gap distribution
+        #
+
+        fac = get_unit_conversion_factor(topography.unit, 'm')
+
+        hist, edges = np.histogram(pressure_xy, density=True, bins=50)
+        data_dict = {
+            'pressure': (edges[1:-1] + edges[2:]) / 2,
+            'pressureProbabilityDensity': hist[1:],
+            'pressureLabel': 'Pressure p',
+            'pressureUnit': 'E*',
+            'pressureProbabilityDensityLabel': 'Probability density P(p)',
+            'pressureProbabilityDensityUnit': 'E*⁻¹'
+        }
+
+        hist, edges = np.histogram(gap_xy, density=True, bins=50)
+        data_dict.update({
+            'gap': (edges[1:-1] + edges[2:]) / 2,
+            'gapProbabilityDensity': hist[1:],
+            'gapLabel': 'Gap g',
+            'gapUnit': topography.unit,
+            'gapSIScaleFactor': fac,
+            'gapProbabilityDensityLabel': 'Probability density P(p)',
+            'gapProbabilityDensityUnit': f'{topography.unit}⁻¹',
+            'gapProbabilityDensitySIScaleFactor': 1 / fac
+        })
+
+        #
+        # Patch size distribution
+        #
+
+        patch_ids = assign_patch_numbers(contacting_points_xy, substrate_str == 'periodic')[1]
+        cluster_areas = patch_areas(patch_ids) * substrate.area_per_pt
+        hist, edges = np.histogram(cluster_areas, density=True, bins=50)
+        data_dict.update({
+            'clusterArea': (edges[1:-1] + edges[2:]) / 2,
+            'clusterAreaProbabilityDensity': hist[1:],
+            'clusterAreaLabel': 'Cluster area A',
+            'clusterAreaUnit': f'{topography.unit}²',
+            'clusterAreaSIScaleFactor': fac * fac,
+            'clusterAreaProbabilityDensityLabel': 'Probability density P(A)',
+            'clusterAreaProbabilityDensityUnit': f'{topography.unit}⁻²',
+            'clusterAreaProbabilityDensitySIScaleFactor': 1 / (fac * fac)
+        })
+
+        #
+        # Write to storage
+        #
+        default_storage_replace(f'{storage_path}/json/distributions.json',
+                                io.BytesIO(json.dumps(data_dict, cls=BokehJSONEncoder).encode('utf-8')))
+
+        #
+        # Make Deep Zoom Images of pressure, contacting points, gap and displacement
+        #
 
         make_dzi(pressure_xy.data, f'{storage_path}/dzi/pressure',
                  physical_sizes=topography.physical_sizes, unit=topography.unit,
@@ -1429,7 +1539,13 @@ def topography_analysis_function_for_tests(topography, a=1, b="foo"):
                     x=np.array((1, 2, 3, 4, 5, 6, 7, 8)),
                     y=np.array((0, 1, 1, 2, 3, 5, 8, 13)),
                     std_err_y=np.zeros(8),
-                )
+                ),
+                dict(
+                    name='Geometric series',
+                    x=np.array((1, 2, 3, 4, 5, 6, 7, 8)),
+                    y=0.5 ** np.array((1, 2, 3, 4, 5, 6, 7, 8)),
+                    std_err_y=np.zeros(8),
+                ),
             ],
             'alerts': [dict(alert_class='alert-info', message="This is a test for a measurement alert.")],
             'comment': f"a is {a} and b is {b}"}

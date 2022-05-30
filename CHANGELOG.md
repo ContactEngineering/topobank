@@ -1,5 +1,33 @@
 # Changelog for *TopoBank*
 
+## 0.90.0 (2022-05-30)
+
+- ENH: Move plot creation from backend to frontend, speeding up
+  plot creation and loading of data (#776)
+- ENH: Button to hide/show certain data sources now have the 
+  color of the data source next to it (#742)
+- ENH: Show hierarchy of digital twins/measurements in plot (#633)
+- ENH: User switchable legend for plots (#114, #296, #590, #648)
+- ENH: Download plots as SVG vector graphics (#66, #589, #610, #647)
+- ENH: Same digital twins/measurements have the same colors
+  over all plots
+- ENH: Line style is also shown in plot legend
+- ENH: Added slider for line widths to plot
+- ENH: Sorted functions by name (#719)
+- ENH: Increased step size for maximum number of iterations in 
+  contact mechanics (#809)
+- ENH: Improved filenames of downloaded containers (#815)
+- BUG: Fixed logscale labels (#771)
+- BUG: Renamed y-label of curvature distribution to probability
+  density (#350)
+- BUG: Fixed step filename in plot.csv of contact data
+- BUG: Plastic calculation should reset plastic displacement before each
+  optimizer run (#827)
+- BUG: Fixed automtatic redirection from http:// to https:// (#835) 
+- MAINT: Typo on landing page (#799)
+- MAINT: Some dependency updates because of security issues
+- MAINT: Added temporary redirect to challenge URL
+
 ## 0.20.1 (2022-04-13)
 
 - BUG: Added missing migration

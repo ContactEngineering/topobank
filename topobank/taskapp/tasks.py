@@ -1,6 +1,7 @@
 """
 Definition of celery tasks used in TopoBank.
 """
+
 import pickle
 import traceback
 
@@ -22,13 +23,13 @@ from ContactMechanics.Systems import IncompatibleFormulationError
 from .celery import app
 from .utils import get_package_version_instance
 
-from topobank.analysis.models import Analysis, Configuration, AnalysisCollection
-from topobank.manager.models import Topography, Surface
-from topobank.users.models import User
 from topobank.analysis.functions import IncompatibleTopographyException
-from topobank.usage_stats.utils import increase_statistics_by_date, increase_statistics_by_date_and_object,\
-                                        current_statistics
-
+from topobank.analysis.models import Analysis, Configuration, AnalysisCollection, RESULT_FILE_BASENAME
+from topobank.manager.models import Topography, Surface
+from ..utils import store_split_dict
+from topobank.users.models import User
+from topobank.usage_stats.utils import increase_statistics_by_date, increase_statistics_by_date_and_object, \
+    current_statistics
 
 EXCEPTION_CLASSES_FOR_INCOMPATIBILITIES = (IncompatibleTopographyException, IncompatibleFormulationError,
                                            CannotPerformAnalysisError)
@@ -108,9 +109,12 @@ def perform_analysis(self, analysis_id):
     analysis.save()
 
     def save_result(result, task_state):
-        _log.debug(f"Saving result of analysis {analysis_id}..")
+        _log.debug(f"Saving result of analysis {analysis_id} to storage...")
         analysis.task_state = task_state
-        analysis.result = pickle.dumps(result)  # can also be an exception in case of errors!
+        #default_storage_replace(f'{analysis.storage_prefix}/result.json',
+        #                        io.BytesIO(json.dumps(result, cls=NumpyEncoder).encode('utf-8')))
+        store_split_dict(analysis.storage_prefix, RESULT_FILE_BASENAME, result)
+        #analysis.result = pickle.dumps(result)  # can also be an exception in case of errors!
         analysis.end_time = timezone.now()  # with timezone
         if 'effective_kwargs' in result:
             analysis.kwargs = pickle.dumps(result['effective_kwargs'])
@@ -126,12 +130,12 @@ def perform_analysis(self, analysis_id):
         subject = analysis.subject
         kwargs['progress_recorder'] = progress_recorder
         kwargs['storage_prefix'] = analysis.storage_prefix
-        _log.debug("Evaluating analysis function '%s' on subject '%s' with kwargs %s..",
-                   analysis.function.name, subject, kwargs)
+        _log.debug("Evaluating analysis function '%s' on subject '%s' with kwargs %s and storage prefix '%s'...",
+                   analysis.function.name, subject, kwargs, analysis.storage_prefix)
         result = analysis.function.eval(subject, **kwargs)
         save_result(result, Analysis.SUCCESS)
     except (Topography.DoesNotExist, Surface.DoesNotExist, IntegrityError) as exc:
-        _log.warning("Subject for analysis %s doesn't exist any more, so that analysis will be deleted..",
+        _log.warning("Subject for analysis %s doesn't exist any more, so that analysis will be deleted...",
                      analysis.id)
         analysis.delete()
         # we want a real exception here so celery's flower can show the task as failure
@@ -146,9 +150,10 @@ def perform_analysis(self, analysis_id):
         # we want a real exception here so celery's flower can show the task as failure
         raise
     finally:
-
-        # first check whether analysis is still there
         try:
+            #
+            # first check whether analysis is still there
+            #
             analysis = Analysis.objects.get(id=analysis_id)
 
             #
@@ -162,13 +167,13 @@ def perform_analysis(self, analysis_id):
             #
             from trackstats.models import Metric
 
-            td = analysis.end_time-analysis.start_time
+            td = analysis.end_time - analysis.start_time
             increase_statistics_by_date(metric=Metric.objects.TOTAL_ANALYSIS_CPU_MS,
-                                        increment=1000*td.total_seconds())
-            increase_statistics_by_date_and_object(
-                                        metric=Metric.objects.TOTAL_ANALYSIS_CPU_MS,
-                                        obj=analysis.function,
                                         increment=1000 * td.total_seconds())
+            increase_statistics_by_date_and_object(
+                metric=Metric.objects.TOTAL_ANALYSIS_CPU_MS,
+                obj=analysis.function,
+                increment=1000 * td.total_seconds())
 
         except Analysis.DoesNotExist:
             _log.debug(f"Analysis with {analysis_id} does not exist.")
@@ -188,7 +193,7 @@ def check_analysis_collection(collection_id):
     collection = AnalysisCollection.objects.get(id=collection_id)
 
     analyses = collection.analyses.all()
-    task_states = [analysis.task_state for analysis in analyses ]
+    task_states = [analysis.task_state for analysis in analyses]
 
     has_started = any(ts not in ['pe'] for ts in task_states)
     has_failure = any(ts in ['fa'] for ts in task_states)
@@ -204,7 +209,7 @@ def check_analysis_collection(collection_id):
             href = reverse('analysis:collection', kwargs=dict(collection_id=collection.id))
 
             notify.send(sender=collection, recipient=collection.owner, verb="finished",
-                        description="Tasks finished: "+collection.name,
+                        description="Tasks finished: " + collection.name,
                         href=href)
 
         else:

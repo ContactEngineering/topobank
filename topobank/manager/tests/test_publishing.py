@@ -9,8 +9,7 @@ from guardian.shortcuts import get_perms
 from .utils import SurfaceFactory, UserFactory, Topography2DFactory, TagModelFactory
 from ..forms import SurfacePublishForm
 from ..views import SurfaceDetailView
-from topobank.publication.models import MAX_LEN_AUTHORS_FIELD
-from topobank.utils import assert_in_content, assert_redirects, assert_not_in_content
+from topobank.utils import assert_in_content, assert_not_in_content
 from topobank.manager.models import NewPublicationTooFastException
 
 
@@ -265,8 +264,11 @@ def test_license_in_surface_download(client, license, handle_usage_statistics, e
     client.force_login(user2)
 
     response = client.get(reverse('manager:surface-download', kwargs=dict(surface_id=publication.surface.id)))
+
     assert response.status_code == 200
-    assert response['Content-Disposition'] == 'attachment; filename="surface.zip"'
+    # for published surfaces, the downloaded file should have the name "ce-<short_url>.zip"
+    assert response['Content-Disposition'] == f'attachment; filename="ce-{publication.short_url}.zip"'
+
     downloaded_file = io.BytesIO(response.content)
     with zipfile.ZipFile(downloaded_file) as z:
         with z.open('README.txt') as readme_file:

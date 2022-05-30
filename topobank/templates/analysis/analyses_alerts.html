@@ -13,7 +13,6 @@
       </thead>
       <tbody>
         {% for av in analyses_available %}
-
           <tr>
             <td>{{ av.subject.name }}</td>
             <td>
@@ -63,14 +62,14 @@
 {% else %}
     {# Show info bar if there are analyses which failed #}
     {% if analyses_failure %}
-    <div class="alert alert-warning">
+    <div class="alert alert-warning w-100">
       {% fa5_icon 'exclamation-circle' %}
       Analysis for {{ analyses_failure|length }} subject{{ analyses_failure|length|pluralize }} failed.
       See tab "Warnings" for details.
     </div>
     {% endif %}
     {% if extra_warnings %}
-    <div class="alert alert-info">
+    <div class="alert alert-info w-100">
       {% fa5_icon 'exclamation-circle' %}
       Please see tab "Warnings" for additional information about these results.
     </div>
@@ -78,7 +77,7 @@
 {% endif %}
 
 {% if not analyses_available %}
-  <div class="alert alert-info">
+  <div class="alert alert-info w-100">
       {% fa5_icon 'exclamation-circle' %}
       {% if num_basket_items %}
         You have chosen subjects for analyses, but no analyses are available yet.
@@ -91,7 +90,7 @@
 {% else %}
   {% for subject_type, unique_kwargs_for_type in unique_kwargs.items %}
     {% if unique_kwargs_for_type is None %}
-      <div class="alert alert-warning">
+      <div class="alert alert-warning w-100">
           {% fa5_icon 'exclamation-circle' %}
           Arguments for this analysis function differ among chosen subjects of type '{{ subject_type }}'.
           See <a href="#" data-toggle="modal" data-target="#statusesModal-{{ card_id }}">task information</a> for details.
@@ -103,7 +102,7 @@
 
 {% for ms in subjects_missing %}
 
-  <div class="alert alert-warning" id="trigger-div-{{ function.id }}-{{ forloop.counter }}">
+  <div class="alert alert-warning w-100" id="trigger-div-{{ function.id }}-{{ forloop.counter }}">
     Analysis for subject <a href="{{ ms.get_absolute_url }}" class="alert-link">{{ ms.name }}</a>
     not triggered yet. Please <button id="trigger-button-{{ function.id }}-{{ forloop.counter }}">trigger</button> if needed.
   </div>
