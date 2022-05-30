@@ -32,11 +32,6 @@ urlpatterns = [
                       GotoSelectView.as_view(),
                       name="search",
                   ),
-                  path(
-                      "challenge/",
-                      RedirectView.as_view(url=settings.CHALLENGE_REDIRECT_URL, permanent=False),
-                      name="challenge",
-                  ),
                   # Django Admin, use {% url 'admin:index' %}
                   path(settings.ADMIN_URL, admin.site.urls),
                   # User management
@@ -102,6 +97,15 @@ urlpatterns = [
               ] + static(
     settings.MEDIA_URL, document_root=settings.MEDIA_ROOT
 )
+
+if settings.CHALLENGE_REDIRECT_URL:
+    urlpatterns += [
+        path(
+            "challenge/",
+            RedirectView.as_view(url=settings.CHALLENGE_REDIRECT_URL, permanent=False),
+            name="challenge",
+        ),
+    ]
 
 if settings.DEBUG:
     # This allows the error pages to be debugged during development, just visit
