@@ -18,6 +18,8 @@ def two_topos_mock(mocker):
     class STTopoStub:  # ST: from module SurfaceTopography
         bandwidth: tuple
         unit: str
+        def short_reliability_cutoff(self):
+            return 1  # doesn't matter here
 
     topography_method_mock = mocker.patch('topobank.manager.models.Topography.topography')
     topography_method_mock.side_effect = [
