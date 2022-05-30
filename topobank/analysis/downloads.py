@@ -262,7 +262,7 @@ def download_plot_analyses_to_txt(request, analyses):
 
         f.write(_analysis_header_for_txt_file(analysis))
 
-        result = pickle.loads(analysis.result)
+        result = analysis.result
         xunit_str = '' if result['xunit'] is None else ' ({})'.format(result['xunit'])
         yunit_str = '' if result['yunit'] is None else ' ({})'.format(result['yunit'])
         header = 'Columns: {}{}, {}{}'.format(result['xlabel'], xunit_str, result['ylabel'], yunit_str)
@@ -354,7 +354,7 @@ def download_plot_analyses_to_xlsx(request, analyses):
     index_entries = []  # tuples with (subject name, subject type, function name, data series, hyperlink to sheet)
 
     for analysis_idx, analysis in enumerate(analyses):
-        result = pickle.loads(analysis.result)
+        result = analysis.result
         column1 = '{} ({})'.format(result['xlabel'], result['xunit'])
         column2 = '{} ({})'.format(result['ylabel'], result['yunit'])
         column3 = 'standard error of {} ({})'.format(result['ylabel'], result['yunit'])
@@ -365,7 +365,7 @@ def download_plot_analyses_to_xlsx(request, analyses):
             try:
                 std_err_y_mask = series['std_err_y'].mask
             except (AttributeError, KeyError) as exc:
-                std_err_y_mask = np.zeros(series['y'].shape, dtype=bool)
+                std_err_y_mask = np.zeros(len(series['y']), dtype=bool)
 
             try:
                 df_columns_dict[column3] = series['std_err_y']
@@ -523,7 +523,7 @@ def download_roughness_parameters_to_txt(request, analyses):
 
         f.write(_analysis_header_for_txt_file(analysis))
 
-        result = pickle.loads(analysis.result)
+        result = analysis.result
         topography = analysis.subject
         for row in result:
             data.append([topography.surface.name,
@@ -577,7 +577,7 @@ def download_roughness_parameters_to_xlsx(request, analyses):
     data = []
     for analysis in analyses:
         topo = analysis.subject
-        for row in pickle.loads(analysis.result):
+        for row in analysis.result:
             row['surface'] = topo.surface.name
             row['measurement'] = topo.name
             data.append(row)
@@ -629,7 +629,7 @@ def download_contact_mechanics_analyses_as_zip(request, analyses):
         #
         # Add a csv file with plot data
         #
-        analysis_result = analysis.result_obj
+        analysis_result = analysis.result
 
         col_keys = ['mean_pressures', 'total_contact_areas', 'mean_gaps', 'converged', 'data_paths']
         col_names = ["Normalized pressure p/E*", "Fractional contact area A/A0", "Normalized mean gap u/h_rms",
@@ -637,7 +637,8 @@ def download_contact_mechanics_analyses_as_zip(request, analyses):
 
         col_dicts = {col_names[i]: analysis_result[k] for i, k in enumerate(col_keys)}
         plot_df = pd.DataFrame(col_dicts)
-        plot_df['filename'] = plot_df['filename'].map(lambda fn: os.path.split(fn)[1])  # only simple filename
+        plot_df['filename'] = "result-" + plot_df['filename'].map(lambda fn: os.path.split(fn)[1]) + ".nc"
+        # only simple filename
 
         plot_filename_in_zip = os.path.join(zip_dir, 'plot.csv')
         zf.writestr(plot_filename_in_zip, plot_df.to_csv())

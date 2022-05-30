@@ -39,7 +39,7 @@ from topobank.publication.models import Publication, DOICreationException
 from topobank.users.utils import get_default_group
 from topobank.analysis.models import Analysis
 from topobank.analysis.utils import renew_analyses_for_subject
-from topobank.manager.utils import make_dzi
+from topobank.manager.utils import default_storage_replace, make_dzi
 
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 
@@ -1046,8 +1046,8 @@ class Topography(models.Model, SubjectMixin):
 
         configure_plot(plot)
         if reduced:
-            plot.xaxis.visible = None
-            plot.yaxis.visible = None
+            plot.xaxis.visible = False
+            plot.yaxis.visible = False
 
         # we need to rotate the height data in order to be compatible with image in Gwyddion
         plot.image([np.rot90(heights)], x=0, y=topo_size[1],

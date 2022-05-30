@@ -11,7 +11,7 @@
 
   {% get_obj_perms request.user for topography.surface as "surface_perms" %}
 
-  <div class="tab-content mt-2 extra-tab">
+  <div id="topography-detail" class="tab-content mt-2 extra-tab">
 
     <div class="row">
 
@@ -36,12 +36,10 @@
           {# Plot #}
           <div class="tab-pane fade active show" id="plot" role="tabpanel" aria-labelledby="plot-tab">
             {% if topography.size_y %}
-              <div id="topography-container" class="dzi-container" style="min-height: calc(100vh - 240px);">
-                <div id="topography-view" class="dzi-view">
-                  <span class="spinner"></span>Creating and loading zoomable image, please wait...
-                </div>
-                <div id="topography-colorbar" class="dzi-colorbar"></div>
-              </div>
+              <deep-zoom-image prefix-url="{% url 'manager:topography-dzi' pk=topography.pk dzi_filename='' %}"
+                       :colorbar="true"
+                       ref="dzi">
+              </deep-zoom-image>
             {% else %}
               <div id="topography-plot-content">
                 <span class="spinner"></span>Creating and loading plot, please wait...
@@ -195,8 +193,9 @@
               </a>
             {% endif %}
 
-            <a id="topography-download" href="#" class="btn btn-default btn-block btn-lg">
-              {% fa5_icon 'download' %} Download as PNG
+            <a class="btn btn-default btn-block btn-lg"
+               v-on:click="$refs.dzi.download()">
+              {% fa5_icon 'download' %} Download PNG
             </a>
 
             {% if "change_surface" in surface_perms %}
@@ -219,30 +218,18 @@
 
 {% block javascript %}
 
-  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-2.2.3.min.js"></script>
-  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-widgets-2.2.3.min.js"></script>
-  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-tables-2.2.3.min.js"></script>
-
+  <script src="{% static 'vendor/bokeh/bokeh.min.js' %}"></script>
+  <script src="{% static 'vendor/bokeh/bokeh-api.min.js' %}"></script>
+  <script src="{% static 'vendor/bokeh/bokeh-widgets.min.js' %}"></script>
+  <script src="{% static 'vendor/bokeh/bokeh-tables.min.js' %}"></script>
+  <script src="{% static 'js/dzi.js' %}"></script>
 
   {# Some JSON code to define JS variables from Django context #}
   {{ category_filter_choices | json_script:"category-filter-choices" }}
 
   {% if topography.size_y %}
     <script>
-      $(document).ready(function () {
-        // Create array with tick information
-        var ticks = [];
-        {% for colorbar_tick in dzi_colorbar_ticks %}
-          ticks.push({position: '{{ colorbar_tick.0 }}', label: '{{ colorbar_tick.1 }}'});
-        {% endfor %}
-
-        // Visualize topography map
-        visualizeMap(
-          'topography-view',
-          "{% url 'manager:topography-dzi' pk=topography.pk dzi_filename='' %}",
-          'topography-colorbar',
-          'topography-download');
-      });
+      vm = new Vue({el: "#topography-detail"});
     </script>
   {% else %}
     <script>

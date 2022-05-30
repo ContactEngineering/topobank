@@ -84,7 +84,7 @@ SurfaceTopography>=0.101.3, <1.0
 ContactMechanics>=0.91.0, <1.0
 
 # plotting
-bokeh==2.2.3
+bokeh==3.0.0.dev4
 # links to CSS+JS in HTML files must have exactly this version!
 
 # pandas is currently needed for downloading xlsx files from analyses
@@ -145,4 +145,6 @@ jinja2>=2.11.3  # because of CVE-2020-28493
 Pillow>=9.0.1  # because of several CVEs
 PyYAML>=5.4  # CVE-2020-14343
 sqlparse>=0.4.2  # CVE-2021-32839
+pyjwt>=2.4.0  #  https://github.com/ContactEngineering/TopoBank/security/dependabot/61
+
 

@@ -1,3 +1,9 @@
+import json
+import logging
+import markdown2
+import tempfile
+import traceback
+
 from django.shortcuts import reverse
 from guardian.shortcuts import get_objects_for_user, get_users_with_perms
 from django.conf import settings
@@ -8,13 +14,6 @@ from django.core.files import File
 from django.core.files.storage import default_storage
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.search import SearchVector, SearchQuery
-
-import markdown2
-from os.path import devnull
-import logging
-import json
-import tempfile
-import traceback
 
 from SurfaceTopography import open_topography
 from SurfaceTopography.IO import readers as surface_topography_readers
@@ -54,6 +53,49 @@ class TopographyFileReadingException(TopographyFileException):
     @property
     def message(self):
         return self._message
+
+
+def default_storage_replace(name, content):
+    """
+    Write a file to the default storage, but replacing a potentially existing
+    file. This is necessary because Django will rename the newly uploaded file
+    if an object of the same name already exists. The function raises an error
+    if Django deviates from the given name.
+
+    Parameters
+    ----------
+    name : str
+        Name of the file.
+    content : stream
+        Contents of the file.
+    """
+    if default_storage.exists(name):
+        default_storage.delete(name)
+    actual_name = default_storage.save(name, content)
+    if actual_name != name:
+        raise IOError(f"Trying to store file with name '{name}', but Django "
+                      f"storage renamed this file to '{actual_name}'.")
+    return actual_name
+
+
+def recursive_delete(prefix):
+    """
+    Delete everything underneath a prefix.
+
+    Parameters
+    ----------
+    prefix : str
+        Prefix to delete.
+    """
+    if default_storage.exists(prefix):
+        directories, filenames = default_storage.listdir(prefix)
+        for filename in filenames:
+            _log.info(f'Deleting file {prefix}/{filename}...')
+            default_storage.delete(f'{prefix}/{filename}')
+        for directory in directories:
+            _log.info(f'Deleting directory {prefix}/{directory}...')
+            recursive_delete(f'{prefix}/{directory}')
+            default_storage.delete(f'{prefix}/{directory}')
 
 
 def get_reader_infos():
@@ -911,9 +953,40 @@ def get_permission_table_data(instance, request_user, actions=['view', 'change',
 
 
 def make_dzi(data, path_prefix, physical_sizes=None, unit=None, quality=95, colorbar_title=None, cmap=None):
+    """
+    Make JPG Deep Zoom Image (DZI) files given data on a two-dimensional grid.
 
+    The DZI format specifies multiple files:
+        1. A JSON file containing structural information on the file
+        2. A set of image files at different zoom levels
+
+    Parameters
+    ----------
+    data : :obj:SurfaceTopography.Topogaphy or :obj:numpy.ndarray
+        Data container holding the 2D data set.
+    path_prefix : str
+        Prefix for creating the Deep Zoom Image files. In particular, the
+        writer will use '{path_prefix}/dzi.json' for structural metadata and
+        store the image files under the prefix '{path_prefix}/dzi_files/'.
+    physical_sizes : tuple of float, optional
+        Physical sizes of the two-dimensional map, if not specified by `data`.
+        (Default: None)
+    unit : str, optional
+        Length unit of the physical sizes, if not specified by `data`.
+        (Default: None)
+    quality : int, optional
+        Quality of JPG, passed to Pillow's `save` function.
+    colorbar_title : str, optional
+        Title of colorbar; this information is dumped into the metadata json
+        and a proprietary extension to the official DZI format.
+        (Default: None)
+    cmap : str, optional
+        Name of colormap; this information is dumped into the metadata json
+        and a proprietary extension to the official DZI format.
+        (Default: None)
+    """
     with tempfile.TemporaryDirectory() as tmpdirname:
-        _log.debug(f"Making DZI files for '{data}' under path prefix {path_prefix} using temp dir {tmpdirname}..")
+        _log.debug(f"Making DZI files under path prefix {path_prefix} using temp dir {tmpdirname}..")
         try:
             # This is a Topography
             filenames = data.to_dzi('dzi', root_directory=tmpdirname, meta_format='json', quality=quality, cmap=cmap)
@@ -928,8 +1001,7 @@ def make_dzi(data, path_prefix, physical_sizes=None, unit=None, quality=95, colo
             storage_filename = filename[len(tmpdirname) + 1:]
             # Delete (possibly existing) old data files
             target_name = f'{path_prefix}/{storage_filename}'
-            if default_storage.exists(target_name):  # needed at least when using dj-inmemorystorage for tests
-                default_storage.delete(target_name)
             # Upload to S3
-            uploded_name = default_storage.save(target_name, File(open(filename, mode='rb')))
-            assert uploded_name == target_name
+            default_storage_replace(target_name, File(open(filename, mode='rb')))
+
+

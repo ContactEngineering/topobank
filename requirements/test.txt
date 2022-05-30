@@ -31,7 +31,7 @@ billiard==3.6.4.0
     #   celery
 bleach==4.1.0
     # via -r base.txt
-bokeh==2.2.3
+bokeh==3.0.0.dev4
     # via -r base.txt
 boto3==1.20.16
     # via -r base.txt
@@ -375,7 +375,7 @@ pyflakes==2.4.0
     # via flake8
 pygments==2.10.0
     # via -r base.txt
-pyjwt[crypto]==2.3.0
+pyjwt[crypto]==2.4.0
     # via
     #   -r base.txt
     #   django-allauth
@@ -423,7 +423,6 @@ pytest-variables==1.9.0
 python-dateutil==2.8.2
     # via
     #   -r base.txt
-    #   bokeh
     #   botocore
     #   faker
     #   freezegun
@@ -573,6 +572,10 @@ wrapt==1.14.0
     #   deprecated
 xarray==0.20.1
     # via -r base.txt
+xyzservices==2021.11.0
+    # via
+    #   -r base.txt
+    #   bokeh
 zipp==3.7.0
     # via
     #   -r base.txt

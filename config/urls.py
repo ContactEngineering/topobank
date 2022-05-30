@@ -3,7 +3,7 @@ from django.urls import include, path
 from django.conf.urls.static import static
 from django.conf.urls import url
 from django.contrib import admin
-from django.views.generic import TemplateView
+from django.views.generic import TemplateView, RedirectView
 from django.views import defaults as default_views
 import notifications.urls
 
@@ -97,6 +97,15 @@ urlpatterns = [
               ] + static(
     settings.MEDIA_URL, document_root=settings.MEDIA_ROOT
 )
+
+if settings.CHALLENGE_REDIRECT_URL:
+    urlpatterns += [
+        path(
+            "challenge/",
+            RedirectView.as_view(url=settings.CHALLENGE_REDIRECT_URL, permanent=False),
+            name="challenge",
+        ),
+    ]
 
 if settings.DEBUG:
     # This allows the error pages to be debugged during development, just visit

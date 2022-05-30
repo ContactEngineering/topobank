@@ -103,8 +103,9 @@ def test_citation_biblatex(rf, example_pub):
 
 
 @pytest.mark.django_db
-def test_container_attributes(example_pub):
-    assert example_pub.container_storage_path == 'publications/' + example_pub.short_url + "/container.zip"
+def test_container_attributes_of_publication(example_pub):
+    short_url = example_pub.short_url
+    assert example_pub.container_storage_path == f'publications/{short_url}/ce-{short_url}.zip'
     assert hasattr(example_pub, 'container')
     assert not example_pub.has_doi
     assert not example_pub.has_container

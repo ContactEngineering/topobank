@@ -218,7 +218,7 @@ class Publication(models.Model):
     @property
     def container_storage_path(self):
         """Return relative path of container in storage."""
-        return f"{self.storage_prefix}/container.zip"
+        return f"{self.storage_prefix}/ce-{self.short_url}.zip"
 
     @property
     def doi_url(self):

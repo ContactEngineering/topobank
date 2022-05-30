@@ -1,16 +1,22 @@
 """
 Models related to analyses.
 """
+
 from django.db import models
-from django.db.models import CheckConstraint, Q, UniqueConstraint
+from django.db.models import UniqueConstraint
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
+from django.core.files.storage import default_storage
 
 import inspect
 import pickle
 
+from ..utils import store_split_dict, load_split_dict
 from topobank.users.models import User
+
 from .registry import ImplementationMissingException
+
+RESULT_FILE_BASENAME = 'result'
 
 
 class Dependency(models.Model):
@@ -104,12 +110,22 @@ class Analysis(models.Model):
     start_time = models.DateTimeField(null=True)
     end_time = models.DateTimeField(null=True)
 
-    result = models.BinaryField(null=True, default=None)  # for pickle, in case of failure, can be Exception instance
-
     configuration = models.ForeignKey(Configuration, null=True, on_delete=models.SET_NULL)
+
+    def __init__(self, *args, result=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._result = result  # temporary storage
 
     def __str__(self):
         return "Task {} with state {}".format(self.task_id, self.get_task_state_display())
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # If a result dict is given on input, we store it. However, we can only do this once we have an id.
+        # This happens during testing.
+        if self._result is not None:
+            store_split_dict(self.storage_prefix, RESULT_FILE_BASENAME, self._result)
+            self._result = None
 
     def duration(self):
         """Returns duration of computation or None if not finished yet.
@@ -127,9 +143,19 @@ class Analysis(models.Model):
         return str(pickle.loads(self.kwargs))
 
     @property
-    def result_obj(self):
-        """Return unpickled result object or None if there is no yet."""
-        return pickle.loads(self.result) if self.result else None
+    def result(self):
+        """Return result object or None if there is nothing yet."""
+        return load_split_dict(self.storage_prefix, RESULT_FILE_BASENAME)
+
+    @property
+    def result_file_name(self):
+        """Returns name of the result file in storage backend as string."""
+        return f'{self.storage_prefix}/{RESULT_FILE_BASENAME}.json'
+
+    @property
+    def has_result_file(self):
+        """Returns True if result file exists in storage backend, else False."""
+        return default_storage.exists(self.result_file_name)
 
     @property
     def storage_prefix(self):

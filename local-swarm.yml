@@ -102,8 +102,8 @@ services:
     volumes:
       - minio_data:/data
     environment:
-      - MINIO_ACCESS_KEY=admin
-      - MINIO_SECRET_KEY=secret12
+      - MINIO_ROOT_USER=admin
+      - MINIO_ROOT_PASSWORD=secret12
     command: server /data
 
 #

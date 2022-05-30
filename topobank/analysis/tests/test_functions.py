@@ -75,7 +75,7 @@ def test_height_distribution_simple_line_scan():
     }
 
     assert result['xlabel'] == 'Height'
-    assert result['ylabel'] == 'Probability'
+    assert result['ylabel'] == 'Probability density'
     assert result['xunit'] == 'nm'
     assert result['yunit'] == 'nm⁻¹'
 
@@ -110,7 +110,7 @@ def test_slope_distribution_simple_line_scan():
     }
 
     assert result['xlabel'] == 'Slope'
-    assert result['ylabel'] == 'Probability'
+    assert result['ylabel'] == 'Probability density'
     assert result['xunit'] == '1'
     assert result['yunit'] == '1'
 
@@ -147,7 +147,7 @@ def test_curvature_distribution_simple_line_scan():
     assert result['scalars']['RMS Curvature']['unit'] == '{}⁻¹'.format(unit)
 
     assert result['xlabel'] == 'Curvature'
-    assert result['ylabel'] == 'Probability'
+    assert result['ylabel'] == 'Probability density'
     assert result['xunit'] == '{}⁻¹'.format(unit)
     assert result['yunit'] == unit
 
@@ -262,7 +262,7 @@ def test_height_distribution_simple_2d_topography(simple_linear_2d_topography):
     assert result['scalars']['RMS Height']['unit'] == exp_unit
 
     assert result['xlabel'] == 'Height'
-    assert result['ylabel'] == 'Probability'
+    assert result['ylabel'] == 'Probability density'
     assert result['xunit'] == exp_unit
     assert result['yunit'] == '{}⁻¹'.format(exp_unit)
 
@@ -300,7 +300,7 @@ def test_slope_distribution_simple_2d_topography(simple_linear_2d_topography):
         assert result['scalars'][f'{kind} Slope ({dir} direction)']['unit'] == '1'
 
     assert result['xlabel'] == 'Slope'
-    assert result['ylabel'] == 'Probability'
+    assert result['ylabel'] == 'Probability density'
     assert result['xunit'] == '1'
     assert result['yunit'] == '1'
 
@@ -347,7 +347,7 @@ def test_curvature_distribution_simple_2d_topography(simple_linear_2d_topography
     assert result['scalars']['RMS Curvature']['unit'] == '{}⁻¹'.format(unit)
 
     assert result['xlabel'] == 'Curvature'
-    assert result['ylabel'] == 'Probability'
+    assert result['ylabel'] == 'Probability density'
     assert result['xunit'] == '{}⁻¹'.format(unit)
     assert result['yunit'] == unit
 
