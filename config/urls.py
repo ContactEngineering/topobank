@@ -3,7 +3,7 @@ from django.urls import include, path
 from django.conf.urls.static import static
 from django.conf.urls import url
 from django.contrib import admin
-from django.views.generic import TemplateView
+from django.views.generic import TemplateView, RedirectView
 from django.views import defaults as default_views
 import notifications.urls
 
@@ -31,6 +31,11 @@ urlpatterns = [
                       "search/",
                       GotoSelectView.as_view(),
                       name="search",
+                  ),
+                  path(
+                      "challenge/",
+                      RedirectView.as_view(url=settings.CHALLENGE_REDIRECT_URL, permanent=False),
+                      name="challenge",
                   ),
                   # Django Admin, use {% url 'admin:index' %}
                   path(settings.ADMIN_URL, admin.site.urls),
