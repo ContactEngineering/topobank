@@ -30,7 +30,6 @@ from bokeh.plotting import figure
 from bokeh.embed import components, json_item
 from bokeh.models.widgets import CheckboxGroup, Tabs, Panel, Toggle, Div, Slider, Button
 from bokeh.models import LinearColorMapper, ColorBar
-from bokeh.models.formatters import FuncTickFormatter
 
 import xarray as xr
 
@@ -1308,7 +1307,6 @@ def _contact_mechanics_geometry_figure(values, frame_width, frame_height, topo_u
                             width=COLORBAR_WIDTH,
                             location=(0, 0),
                             title=f"{colorbar_title} ({value_unit})")
-        colorbar.formatter = FuncTickFormatter(code="return format_exponential(tick);")
         p.add_layout(colorbar, "right")
 
     configure_plot(p)
