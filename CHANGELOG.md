@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-## 0.21.0 (Not published yet)
+## 0.90.0 (2022-05-30)
 
 - ENH: Move plot creation from backend to frontend, speeding up
   plot creation and loading of data (#776)
