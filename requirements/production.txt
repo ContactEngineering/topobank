@@ -342,7 +342,7 @@ pycparser==2.21
     #   cffi
 pygments==2.10.0
     # via -r ./base.txt
-pyjwt[crypto]==2.3.0
+pyjwt[crypto]==2.4.0
     # via
     #   -r ./base.txt
     #   django-allauth
@@ -484,12 +484,13 @@ xyzservices==2021.11.0
     # via
     #   -r ./base.txt
     #   bokeh
-zope-event==4.5.0
 zipp==3.7.0
     # via
     #   -r ./base.txt
     #   importlib-resources
-zope-interface==5.4.0
+zope.event==4.5.0
+    # via gevent
+zope.interface==5.4.0
     # via gevent
 
 # The following packages are considered to be unsafe in a requirements file:

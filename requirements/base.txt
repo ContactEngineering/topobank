@@ -256,8 +256,10 @@ pycparser==2.21
     # via cffi
 pygments==2.10.0
     # via -r base.in
-pyjwt[crypto]==2.3.0
-    # via django-allauth
+pyjwt[crypto]==2.4.0
+    # via
+    #   -r base.in
+    #   django-allauth
 pyparsing==3.0.6
     # via
     #   matplotlib

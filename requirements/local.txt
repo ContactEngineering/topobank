@@ -435,7 +435,7 @@ pygments==2.10.0
     #   -r ./base.txt
     #   ipython
     #   sphinx
-pyjwt[crypto]==2.3.0
+pyjwt[crypto]==2.4.0
     # via
     #   -r ./base.txt
     #   django-allauth

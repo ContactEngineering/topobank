@@ -375,7 +375,7 @@ pyflakes==2.4.0
     # via flake8
 pygments==2.10.0
     # via -r base.txt
-pyjwt[crypto]==2.3.0
+pyjwt[crypto]==2.4.0
     # via
     #   -r base.txt
     #   django-allauth
@@ -576,6 +576,10 @@ xyzservices==2021.11.0
     # via
     #   -r base.txt
     #   bokeh
+zipp==3.7.0
+    # via
+    #   -r base.txt
+    #   importlib-resources
 
 # The following packages are considered to be unsafe in a requirements file:
 # setuptools
