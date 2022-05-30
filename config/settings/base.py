@@ -567,3 +567,10 @@ if PUBLICATION_DOI_STATE not in PUBLICATION_DOI_STATE_INFOS.keys():
 # Some limitations, so that bots cannot enter too much
 PUBLICATION_MAX_NUM_AUTHORS = 200
 PUBLICATION_MAX_NUM_AFFILIATIONS_PER_AUTHOR = 20
+
+#
+# Settings related to challenge
+#
+# Set to empty string in order to deactive corresponding test
+CHALLENGE_REDIRECT_URL = env.str('CHALLENGE_REDIRECT_URL', default='https://forms.gle/GB3jLqJggbMmNfFm6')
+# CHALLENGE_REDIRECT_URL = ''
