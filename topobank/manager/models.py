@@ -1132,7 +1132,7 @@ class Topography(models.Model, SubjectMixin):
             if short_reliability_cutoff is not None:
                 self.short_reliability_cutoff = fac * short_reliability_cutoff
             else:
-                self.short_reliability_cutoff = bandwidth_lower
+                self.short_reliability_cutoff = self.bandwidth_lower
 
     def renew_squeezed_datafile(self):
         """Renew squeezed datafile file."""
