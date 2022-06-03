@@ -169,6 +169,8 @@ class Command(BaseCommand):
             new_topo_file_path = f'{topography.storage_prefix}/raw/{topo_name}'
             actual_topo_file_path = default_storage.save(new_topo_file_path, File(topo_file))
             topography.datafile = actual_topo_file_path
+            # We need to save again to store the new file name
+            topography.save()
             self.stdout.write(self.style.NOTICE(f"  Path got topography file in backend: {actual_topo_file_path}"))
             self.stdout.write(self.style.SUCCESS(f"Topography '{topo_name}' saved in database."))
             if not skip_thumbnails:
