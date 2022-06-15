@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 0.90.1 (2022-06-15)
+
+- MAINT: Presign in separate request when loading analysis data (#841)
+
 ## 0.90.0 (2022-05-30)
 
 - ENH: Move plot creation from backend to frontend, speeding up
