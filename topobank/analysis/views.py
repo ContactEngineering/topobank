@@ -33,8 +33,6 @@ from guardian.shortcuts import get_objects_for_user
 
 from trackstats.models import Metric
 
-from ContactMechanics.Tools.ContactAreaAnalysis import patch_areas, assign_patch_numbers
-
 from ..manager.models import Topography, Surface
 from ..manager.utils import instances_to_selection, selection_to_subjects_json, subjects_from_json, subjects_to_json
 from ..usage_stats.utils import increase_statistics_by_date_and_object
