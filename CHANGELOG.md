@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-## 0.90.1 (2022-06-15)
+## 0.90.1 (2022-06-24)
 
 - MAINT: Presign in separate request when loading analysis data (#841)
 
