@@ -41,9 +41,8 @@ RUN pip install --upgrade pip
 COPY ./requirements /requirements
 WORKDIR /
 RUN pip install --upgrade setuptools
-# Don't use binary for numpy as this gives problems with LAPACK in dependent packages (SurfaceTopography)
-RUN pip install -r /requirements/local.txt --ignore-installed --no-binary numpy
-RUN pip install -r /requirements/test.txt --ignore-installed --no-binary numpy
+RUN pip install -r /requirements/local.txt --ignore-installed
+RUN pip install -r /requirements/test.txt --ignore-installed
 # TODO remove test requirements as they are always useful for local?
 
 # Here the entrypoint from production settings is taken!

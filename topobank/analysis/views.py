@@ -285,8 +285,8 @@ class SimpleCardView(TemplateView):
         # Filter for analyses where the user has read permission for the related surface
         #
         readable_surfaces = get_objects_for_user(user, ['view_surface'], klass=Surface)
-        analyses_avail = analyses_avail.filter(Q(topography__surface__in=readable_surfaces)) | \
-                         analyses_avail.filter(Q(surface__in=readable_surfaces))
+        analyses_avail = analyses_avail.filter(
+            Q(topography__surface__in=readable_surfaces) | Q(surface__in=readable_surfaces))
 
         #
         # collect list of subjects for which an analysis instance is missing
