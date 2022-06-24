@@ -257,8 +257,6 @@ def get_latest_analyses(user, func, subjects):
     successful.
     """
 
-    # FIXME: The query for analyses results should include the parameters
-
     # Create query from subjects
     query = None
     for subject in subjects:
@@ -269,9 +267,11 @@ def get_latest_analyses(user, func, subjects):
     if query is None:
         return Analysis.objects.none()
 
-    analyses = Analysis.objects.filter(Q(users__in=[user]) & Q(function=func) & query)
+    analyses = Analysis.objects.filter(Q(users=user) & Q(function=func) & query) \
+        .order_by('subject_type_id', 'subject_id', '-start_time').distinct("subject_type_id", 'subject_id')
 
-    return analyses
+    # we need a query which is non-unique in order to be able to be combined with other non-unique queries
+    return Analysis.objects.filter(id__in=analyses)
 
 
 def mangle_sheet_name(s: str) -> str:
