@@ -62,7 +62,7 @@ def request_analysis(user, analysis_func, subject, *other_args, **kwargs):
     # Search for analyses with same topography, function and (pickled) function args
     #
     pickled_pyfunc_kwargs = pickle.dumps(pyfunc_kwargs)
-    analysis = Analysis.objects.filter(\
+    analysis = Analysis.objects.filter( \
         Q(subject_type=subject_type)
         & Q(subject_id=subject.id)
         & Q(function=analysis_func)
@@ -223,14 +223,14 @@ def submit_analysis(users, analysis_func, subject, pickled_pyfunc_kwargs=None):
     #
     # TODO delete all started old analyses, where the task does not exist any more
     #
-    #maybe_aborted_analyses = Analysis.objects.filter(
+    # maybe_aborted_analyses = Analysis.objects.filter(
     #    ~Q(id=analysis.id)
     #    & Q(topography=topography)
     #    & Q(function=analysis_func)
     #    & Q(task_state__in=[Analysis.STARTED]))
     # How to find out if task is still running?
     #
-    #for a in maybe_aborted_analyses:
+    # for a in maybe_aborted_analyses:
     #    result = app.AsyncResult(a.task_id)
 
     # Send task to the queue if the analysis has been created
@@ -296,6 +296,7 @@ def mangle_sheet_name(s: str) -> str:
 
     return s
 
+
 def round_to_significant_digits(x, num_dig_digits):
     """Round given number to given number of significant digits
 
@@ -319,5 +320,3 @@ def round_to_significant_digits(x, num_dig_digits):
         return round(x, num_dig_digits - int(math.floor(math.log10(abs(x)))) - 1)
     except ValueError:
         return x
-
-
