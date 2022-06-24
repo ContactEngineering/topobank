@@ -32,8 +32,6 @@ django-extensions  # https://github.com/django-extensions/django-extensions
 django-coverage-plugin  # https://github.com/nedbat/django_coverage_plugin
 pytest-django  # https://github.com/pytest-dev/pytest-django
 
-django-cprofile-middleware  # https://github.com/omarish/django-cprofile-middleware
-
 # Dependency Handling
 # ------------------------------------------------------------------------------
 pip-tools>=5.5.0
