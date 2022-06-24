@@ -264,10 +264,7 @@ def get_latest_analyses(user, func, subjects):
     for subject in subjects:
         ct = ContentType.objects.get_for_model(subject)
         q = Q(subject_type_id=ct.id) & Q(subject_id=subject.id)
-        if query is None:
-            query = q
-        else:
-            query = query | q
+        query = q if query is None else query | q
 
     if query is None:
         return Analysis.objects.none()
