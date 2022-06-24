@@ -257,39 +257,20 @@ def get_latest_analyses(user, func, subjects):
     successful.
     """
 
-    analyses = Analysis.objects.none()
-
-    # slow implementation with multiple queries, optimize later
+    # Create query from subjects
+    query = None
     for subject in subjects:
-
         ct = ContentType.objects.get_for_model(subject)
+        q = Q(subject_type_id=ct.id) & Q(subject_id=subject.id)
+        if query is None:
+            query = q
+        else:
+            query = query | q
 
-        tmp = Analysis.objects.filter(
-            users__in=[user], function=func,
-            subject_type_id=ct.id, subject_id=subject.id
-        ).order_by('-start_time').first()
-        if tmp:
-            analyses |= Analysis.objects.filter(pk=tmp.pk)  # inefficient
+    if query is None:
+        return Analysis.objects.none()
 
-    #Analysis.objects.filter(users__in=[user], function=func, subject_type=ct, subject_id=topo.id).order_by(
-    #    '-start_time').first()
-
-    #
-    # sq_analyses = Analysis.objects \
-    #             .filter(subject_id__in=subjects_ids,
-    #                     function_id=function_id,
-    #                     users__in=[user]) \
-    #             .filter(topography=OuterRef('topography'), function=OuterRef('function'),
-    #                     kwargs=OuterRef('kwargs')) \
-    #             .order_by('-start_time')
-    #
-    # # Use this subquery for finding only latest analyses for each (topography, kwargs) group
-    # analyses = Analysis.objects \
-    #     .filter(pk=Subquery(sq_analyses.values('pk')[:1])) \
-    #     .order_by('topography__name')
-
-    # thanks to minkwe for the contribution at https://gist.github.com/ryanpitts/1304725
-    # maybe be better solved with PostGreSQL and Window functions
+    analyses = Analysis.objects.filter(Q(users__in=[user]) & Q(function=func) & query)
 
     return analyses
 
