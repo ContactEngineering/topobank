@@ -257,6 +257,8 @@ def get_latest_analyses(user, func, subjects):
     successful.
     """
 
+    # FIXME: The query for analyses results should include the parameters
+
     # Create query from subjects
     query = None
     for subject in subjects:
