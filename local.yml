@@ -86,12 +86,13 @@ services:
     ports: [] # overwrites ports from django entry
     command: /start-celerybeat
 
-  flower:
-    <<: *django
-    image: topobank_local_flower
-    ports:
-      - "5555:5555"
-    command: /start-flower
+  #  flower:
+  #    <<: *django
+  #    image: topobank_local_flower
+  #    ports:
+  #      - "5555:5555"
+  #    command: /start-flower
+  # Currently not used, because of dependency problems and security concerns
 
   #
   # use can this built-in S3 server for development if you don't have an external one
