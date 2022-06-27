@@ -62,7 +62,7 @@ def request_analysis(user, analysis_func, subject, *other_args, **kwargs):
     # Search for analyses with same topography, function and (pickled) function args
     #
     pickled_pyfunc_kwargs = pickle.dumps(pyfunc_kwargs)
-    analysis = Analysis.objects.filter(\
+    analysis = Analysis.objects.filter( \
         Q(subject_type=subject_type)
         & Q(subject_id=subject.id)
         & Q(function=analysis_func)
@@ -223,14 +223,14 @@ def submit_analysis(users, analysis_func, subject, pickled_pyfunc_kwargs=None):
     #
     # TODO delete all started old analyses, where the task does not exist any more
     #
-    #maybe_aborted_analyses = Analysis.objects.filter(
+    # maybe_aborted_analyses = Analysis.objects.filter(
     #    ~Q(id=analysis.id)
     #    & Q(topography=topography)
     #    & Q(function=analysis_func)
     #    & Q(task_state__in=[Analysis.STARTED]))
     # How to find out if task is still running?
     #
-    #for a in maybe_aborted_analyses:
+    # for a in maybe_aborted_analyses:
     #    result = app.AsyncResult(a.task_id)
 
     # Send task to the queue if the analysis has been created
@@ -257,41 +257,21 @@ def get_latest_analyses(user, func, subjects):
     successful.
     """
 
-    analyses = Analysis.objects.none()
-
-    # slow implementation with multiple queries, optimize later
+    # Create query from subjects
+    query = None
     for subject in subjects:
-
         ct = ContentType.objects.get_for_model(subject)
+        q = Q(subject_type_id=ct.id) & Q(subject_id=subject.id)
+        query = q if query is None else query | q
 
-        tmp = Analysis.objects.filter(
-            users__in=[user], function=func,
-            subject_type_id=ct.id, subject_id=subject.id
-        ).order_by('-start_time').first()
-        if tmp:
-            analyses |= Analysis.objects.filter(pk=tmp.pk)  # inefficient
+    if query is None:
+        return Analysis.objects.none()
 
-    #Analysis.objects.filter(users__in=[user], function=func, subject_type=ct, subject_id=topo.id).order_by(
-    #    '-start_time').first()
+    analyses = Analysis.objects.filter(Q(users=user) & Q(function=func) & query) \
+        .order_by('subject_type_id', 'subject_id', '-start_time').distinct("subject_type_id", 'subject_id')
 
-    #
-    # sq_analyses = Analysis.objects \
-    #             .filter(subject_id__in=subjects_ids,
-    #                     function_id=function_id,
-    #                     users__in=[user]) \
-    #             .filter(topography=OuterRef('topography'), function=OuterRef('function'),
-    #                     kwargs=OuterRef('kwargs')) \
-    #             .order_by('-start_time')
-    #
-    # # Use this subquery for finding only latest analyses for each (topography, kwargs) group
-    # analyses = Analysis.objects \
-    #     .filter(pk=Subquery(sq_analyses.values('pk')[:1])) \
-    #     .order_by('topography__name')
-
-    # thanks to minkwe for the contribution at https://gist.github.com/ryanpitts/1304725
-    # maybe be better solved with PostGreSQL and Window functions
-
-    return analyses
+    # we need a query which is non-unique in order to be able to be combined with other non-unique queries
+    return Analysis.objects.filter(id__in=analyses)
 
 
 def mangle_sheet_name(s: str) -> str:
@@ -316,6 +296,7 @@ def mangle_sheet_name(s: str) -> str:
 
     return s
 
+
 def round_to_significant_digits(x, num_dig_digits):
     """Round given number to given number of significant digits
 
@@ -339,5 +320,3 @@ def round_to_significant_digits(x, num_dig_digits):
         return round(x, num_dig_digits - int(math.floor(math.log10(abs(x)))) - 1)
     except ValueError:
         return x
-
-
