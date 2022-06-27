@@ -569,8 +569,14 @@ PUBLICATION_MAX_NUM_AUTHORS = 200
 PUBLICATION_MAX_NUM_AFFILIATIONS_PER_AUTHOR = 20
 
 #
-# Settings related to challenge
+# Settings related to contact characterization challenge
 #
 # Set to empty string in order to deactive corresponding test
 CHALLENGE_REDIRECT_URL = env.str('CHALLENGE_REDIRECT_URL', default='https://forms.gle/GB3jLqJggbMmNfFm6')
 # CHALLENGE_REDIRECT_URL = ''
+
+#
+# Performance related settings
+#
+DEFAULT_ALLOW_CACHE_FOR_LOW_LEVEL_TOPOGRAPHY = True
+

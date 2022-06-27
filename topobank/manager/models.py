@@ -660,7 +660,7 @@ class Topography(models.Model, SubjectMixin):
         """
         return self.surface.is_shared(with_user, allow_change=allow_change)
 
-    def topography(self, allow_cache=True, allow_squeezed=True):
+    def topography(self, allow_cache=settings.DEFAULT_ALLOW_CACHE_FOR_LOW_LEVEL_TOPOGRAPHY, allow_squeezed=True):
         """Return a SurfaceTopography.Topography/UniformLineScan/NonuniformLineScan instance.
 
         This instance is guaranteed to
@@ -683,9 +683,9 @@ class Topography(models.Model, SubjectMixin):
         Parameters
         ----------
         allow_cache: bool
-            If True (default), the instance is allowed to get the
-            topography from cache if available. If not, the topography
-            in cache is rewritten.
+            If True (see settings.DEFAULT_ALLOW_CACHE_FOR_LOW_LEVEL_TOPOGRAPHY),
+            the instance is allowed to get the topography from cache if available.
+            If it was not in cache, the topography in cache is put there after generation.
 
         allow_squeezed: bool
             If True (default), the instance is allowed to be generated
