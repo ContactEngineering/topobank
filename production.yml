@@ -98,7 +98,8 @@ services:
     image: topobank_production_celerybeat
     command: /start-celerybeat
 
-  flower:
-    <<: *django
-    image: topobank_production_flower
-    command: /start-flower
+  #  flower:
+  #    <<: *django
+  #    image: topobank_production_flower
+  #    command: /start-flower
+  # Currently not used, because of dependency problems and security concerns

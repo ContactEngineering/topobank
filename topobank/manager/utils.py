@@ -649,8 +649,14 @@ def subjects_from_json(subjects_ids_json, function=None):
             if not function.is_implemented_for_type(ct):
                 # skip these subjects
                 continue
+        query = None
         for so_id in subject_object_ids:
-            subjects.append(ct.get_object_for_this_type(id=so_id))
+            q = Q(id=so_id)
+            query = q if query is None else query | q
+        if query is None:
+            # skip these subjects
+            continue
+        subjects += [s for s in ct.get_all_objects_for_this_type().filter(query)]
     return subjects
 
 

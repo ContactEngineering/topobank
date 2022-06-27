@@ -6,29 +6,23 @@ from typing import Optional, Dict, Any
 import numpy as np
 import math
 import itertools
-from collections import OrderedDict, defaultdict
+from collections import OrderedDict
 
-from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.http import HttpResponse, Http404, JsonResponse
 from django.views.generic import DetailView, FormView, TemplateView
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from django.db.models import Q
 from django import template
 from django.core.files.storage import default_storage
-from django.core.cache import cache  # default cache
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect, reverse
 from django.conf import settings
 
 import bokeh
 import bokeh.palettes as palettes
-from bokeh.layouts import column, grid, layout
-from bokeh.models import ColumnDataSource, CustomJS, TapTool, Circle, HoverTool
 from bokeh.models.ranges import DataRange1d
 from bokeh.plotting import figure
-from bokeh.embed import components, json_item
-from bokeh.models.widgets import CheckboxGroup, Tabs, Panel, Toggle, Button
 from bokeh.models import LinearColorMapper, ColorBar
 
 import xarray as xr
@@ -293,8 +287,8 @@ class SimpleCardView(TemplateView):
         # Filter for analyses where the user has read permission for the related surface
         #
         readable_surfaces = get_objects_for_user(user, ['view_surface'], klass=Surface)
-        analyses_avail = analyses_avail.filter(Q(topography__surface__in=readable_surfaces)) | \
-                         analyses_avail.filter(Q(surface__in=readable_surfaces))
+        analyses_avail = analyses_avail.filter(
+            Q(topography__surface__in=readable_surfaces) | Q(surface__in=readable_surfaces))
 
         #
         # collect list of subjects for which an analysis instance is missing
@@ -666,7 +660,7 @@ class PlotCardView(SimpleCardView):
                 #
                 # Collect data for visibility of the corresponding series
                 #
-                series_url = default_storage.url(f'{analysis.storage_prefix}/series-{series_idx}.json')
+                series_url = reverse('analysis:data', args=(analysis.pk, f'series-{series_idx}.json'))
 
                 series_name = s['name']
                 series_name_idx = series_names.index(series_name)
@@ -789,7 +783,7 @@ class ContactMechanicsCardView(SimpleCardView):
                     source_name=f'analysis-{analysis.id}',
                     subject_name=subject_name,
                     subject_name_index=a_index,
-                    url=default_storage.url(f'{analysis.storage_prefix}/result.json'),
+                    url=reverse('analysis:data', args=(analysis.pk, 'result.json')),
                     showSymbols=True,  # otherwise symbols do not appear in legend
                     color=curr_color,
                     width=1.,
@@ -1233,9 +1227,11 @@ class AnalysesListView(FormView):
     @staticmethod
     def _selected_functions(request):
         """Returns selected functions as saved in session or, if given, in POST parameters.
+
+        Functions are ordered by name.
         """
         function_ids = request.session.get('selected_functions', [])
-        functions = AnalysisFunction.objects.filter(id__in=function_ids)
+        functions = AnalysisFunction.objects.filter(id__in=function_ids).order_by('name')
         return functions
 
     def get_context_data(self, **kwargs):
