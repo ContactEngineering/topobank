@@ -67,7 +67,10 @@ celery[redis]>=5.2.3, <6.0
 # pylibmc seems to cause memcache problems: see GH 737
 # librabbitmq>=2.0
 # problems while compiling librabbitmq
-flower==1.0.0
+
+# Flower (monitoring for celery) is currently not used because of dependency and security problems
+# flower==1.0.0
+
 # tornado>=4.2.0, <6.0.0
 
 # progress bars for celery tasks, served by Django
