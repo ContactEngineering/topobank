@@ -777,7 +777,7 @@ def bandwidths_data(topographies):
     'topo': topography instance
     'link': link to topography details
     'error_message': None or a string with an error message if calculation failed
-    'short_reliability_cutoff': limit of the unreliable bandwidth (or lower bound if all data is reliable) in meters
+    'short_reliability_cutoff': limit of the unreliable bandwidth (or None if all data is reliable) in meters
 
     The list is sorted by the lower bound with smaller lower bound first.
 

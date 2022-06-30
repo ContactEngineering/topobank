@@ -58,8 +58,6 @@ from ..publication.models import Publication, MAX_LEN_AUTHORS_FIELD
 from .containers import write_surface_container
 from ..taskapp.tasks import renew_squeezed_datafile, renew_topography_images, renew_analyses_related_to_topography
 
-from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
-
 # create dicts with labels and option values for Select tab
 CATEGORY_FILTER_CHOICES = {'all': 'All categories',
                            **{cc[0]: cc[1] + " only" for cc in Surface.CATEGORY_CHOICES}}
@@ -895,9 +893,23 @@ class SurfaceDetailView(DetailView):
             bw_thumbnail_links = [reverse('manager:topography-thumbnail',
                                           kwargs=dict(pk=bw['topography'].pk))
                                   for bw in bw_data_without_errors]
+            bw_has_unrel = [l < u for (l, u) in zip(bw_left, bw_unrel_limit)]
+            # bw_has_unrel_2 = [l < u if bw['topography'].instrument_type == 'undefined' for (l, u) in zip(bw_left, bw_unrel_limit) ]
+            # bw_instr = [bw['topography'].instrument_type for bw in bw_data_without_errors]
+
+            _log.info(f"{bw_has_unrel}")
+            _log.info(f"{bw_left}")
+            _log.info(f"{bw_unrel_limit}")
+
+            _log.info(f"{bw_names}")
+            _log.info([bw['topography'].topography().info for bw in bw_data_without_errors])
+
             bw_y = list(range(0, len(bw_data_without_errors)))
 
-            bw_unrel_source = ColumnDataSource(dict(y=bw_y, left=bw_left, right=bw_unrel_limit, name=bw_names))
+            bw_unrel_source = ColumnDataSource(dict(y=[y for y, has_unrel in zip(bw_y, bw_has_unrel) if has_unrel],
+                                                    left=[left for left, has_unrel in zip(bw_left, bw_has_unrel) if has_unrel],
+                                                    right=[right for right, has_unrel in zip(bw_unrel_limit, bw_has_unrel) if has_unrel],
+                                                    name=[name for name, has_unrel in zip(bw_names, bw_has_unrel) if has_unrel]))
             bw_source = ColumnDataSource(dict(y=bw_y, left=bw_left, right=bw_right, center=bw_center,
                                               name=bw_names,
                                               topography_link=bw_topography_links,
@@ -925,15 +937,16 @@ class SurfaceDetailView(DetailView):
             unrel_hbar_renderer.nonselection_glyph = None  # makes glyph invariant on selection
 
             hbar_renderer = plot.hbar(y="y", left="left", right="right", height=bar_height, color='#2c90d9',
-                                      name='bandwidths', legend_label="Reliable bandwidth", source=bw_source, level="underlay")
+                                      name='bandwidths', legend_label="Reliable bandwidth", source=bw_source,
+                                      level="underlay")
             hbar_renderer.nonselection_glyph = None  # makes glyph invariant on selection
-            plot.hover.renderers = [hbar_renderer]
 
+            plot.hover.renderers = [hbar_renderer]
             plot.yaxis.visible = False
             plot.grid.visible = False
             plot.outline_line_color = None
             plot.legend.location = "top_left"
-            plot.legend.title = "Reliability of the bandwidth"
+            plot.legend.title = "Measurement artifacts"
             plot.legend.title_text_font_style = "bold"
             plot.legend.background_fill_color = "#f0f0f0"
             plot.legend.border_line_width = 3

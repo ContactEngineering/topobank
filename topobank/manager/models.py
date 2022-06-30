@@ -43,6 +43,7 @@ from topobank.manager.utils import default_storage_replace, make_dzi
 
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 
+
 _log = logging.getLogger(__name__)
 
 MAX_LENGTH_DATAFILE_FORMAT = 15  # some more characters than currently needed, we may have sub formats in future
@@ -1128,11 +1129,9 @@ class Topography(models.Model, SubjectMixin):
             self.bandwidth_lower = fac * bandwidth_lower
             self.bandwidth_upper = fac * bandwidth_upper
 
-            short_reliability_cutoff = st_topo.short_reliability_cutoff()
+            short_reliability_cutoff = st_topo.short_reliability_cutoff()  # Return float or None
             if short_reliability_cutoff is not None:
                 self.short_reliability_cutoff = fac * short_reliability_cutoff
-            else:
-                self.short_reliability_cutoff = self.bandwidth_lower
 
     def renew_squeezed_datafile(self):
         """Renew squeezed datafile file."""
