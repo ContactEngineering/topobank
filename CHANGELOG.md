@@ -1,5 +1,10 @@
 # Changelog for *TopoBank*
 
+## 0.91.0 (not yet released)
+
+- BUG: `import_surfaces` management command now saves to database
+  after updating file name and before generating squeezed file
+
 ## 0.90.0 (2022-05-30)
 
 - ENH: Move plot creation from backend to frontend, speeding up
