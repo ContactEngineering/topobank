@@ -5,8 +5,9 @@ import io
 
 from SurfaceTopography.IO import read_topography
 
-from ..functions import ReentrantTopographyException, power_spectrum,\
-    slope_distribution, curvature_distribution, autocorrelation, scale_dependent_slope, scale_dependent_curvature
+from ..functions import ReentrantTopographyException
+from ...statistical_analysis.functions import slope_distribution, curvature_distribution, power_spectrum, \
+    autocorrelation, scale_dependent_slope, scale_dependent_curvature
 from .test_functions import FakeTopographyModel
 
 

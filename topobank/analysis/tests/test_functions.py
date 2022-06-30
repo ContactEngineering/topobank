@@ -8,12 +8,11 @@ from SurfaceTopography import Topography, NonuniformLineScan
 
 import topobank.analysis.functions
 from topobank.analysis.functions import (
-    IncompatibleTopographyException,
-    height_distribution, slope_distribution, curvature_distribution,
-    power_spectrum, autocorrelation, scale_dependent_slope, variable_bandwidth,
-    contact_mechanics, roughness_parameters,
-    power_spectrum_for_surface, autocorrelation_for_surface, scale_dependent_slope_for_surface,
-    variable_bandwidth_for_surface)
+    IncompatibleTopographyException)
+from topobank.contact_analysis.functions import contact_mechanics
+from topobank.statistical_analysis.functions import height_distribution, slope_distribution, curvature_distribution, \
+    power_spectrum, power_spectrum_for_surface, autocorrelation, autocorrelation_for_surface, variable_bandwidth, \
+    variable_bandwidth_for_surface, scale_dependent_slope, scale_dependent_slope_for_surface, roughness_parameters
 
 from topobank.manager.tests.utils import SurfaceFactory, Topography1DFactory
 

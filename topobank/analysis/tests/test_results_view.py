@@ -26,7 +26,8 @@ from .utils import AnalysisFunctionFactory, AnalysisFunctionImplementationFactor
     TopographyAnalysisFactory, SurfaceAnalysisFactory
 
 from ..models import Analysis, AnalysisFunction
-from ..views import RoughnessParametersCardView, NUM_SIGNIFICANT_DIGITS_RMS_VALUES
+from ..views import NUM_SIGNIFICANT_DIGITS_RMS_VALUES
+from ...statistical_analysis.views import RoughnessParametersCardView
 
 
 def selection_from_instances(instances):
