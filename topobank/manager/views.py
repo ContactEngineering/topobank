@@ -893,11 +893,11 @@ class SurfaceDetailView(DetailView):
             bw_thumbnail_links = [reverse('manager:topography-thumbnail',
                                           kwargs=dict(pk=bw['topography'].pk))
                                   for bw in bw_data_without_errors]
-            bw_has_unrel = [l < u for (l, u) in zip(bw_left, bw_unrel_limit)]
+            bw_has_unrel = [u is not None for u in bw_unrel_limit]
             # bw_has_unrel_2 = [l < u if bw['topography'].instrument_type == 'undefined' for (l, u) in zip(bw_left, bw_unrel_limit) ]
             # bw_instr = [bw['topography'].instrument_type for bw in bw_data_without_errors]
 
-            _log.info(f"{bw_has_unrel}")
+            # _log.info(f"{bw_has_unrel}")
             _log.info(f"{bw_left}")
             _log.info(f"{bw_unrel_limit}")
 
