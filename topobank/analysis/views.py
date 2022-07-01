@@ -1227,9 +1227,11 @@ class AnalysesListView(FormView):
     @staticmethod
     def _selected_functions(request):
         """Returns selected functions as saved in session or, if given, in POST parameters.
+
+        Functions are ordered by name.
         """
         function_ids = request.session.get('selected_functions', [])
-        functions = AnalysisFunction.objects.filter(id__in=function_ids)
+        functions = AnalysisFunction.objects.filter(id__in=function_ids).order_by('name')
         return functions
 
     def get_context_data(self, **kwargs):

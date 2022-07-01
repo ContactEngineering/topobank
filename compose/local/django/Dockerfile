@@ -11,7 +11,7 @@ ENV CFLAGS "-I/usr/include/eigen3/"
 #
 RUN apt-get update \
   && apt-get install --yes apt-utils \
-  && apt-get install --yes libfftw3-3 libfftw3-dev libopenblas-dev libeigen3-dev gcc g++ gettext \
+  && apt-get install --yes libfftw3-3 libfftw3-dev libopenblas-base libopenblas-dev libeigen3-dev gcc g++ gettext \
   # Pillow requirements
   && apt-get install --yes libjpeg-dev zlib1g-dev libfreetype6-dev \
      liblcms2-dev libtiff-dev tk-dev tcl-dev librabbitmq-dev \

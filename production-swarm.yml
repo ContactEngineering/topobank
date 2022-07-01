@@ -115,6 +115,9 @@ services:
           - node.role==manager
     networks:
       - topobank_net
+    command: redis-server /etc/redis/redis.conf
+    volumes:
+      - ./compose/production/redis/redis.conf:/etc/redis/redis.conf
     #sysctls:
     #  # NOTES: these values are needed here because docker swarm kills long running idle
     #  # connections by default after 15 minutes see https://github.com/moby/moby/issues/31208
