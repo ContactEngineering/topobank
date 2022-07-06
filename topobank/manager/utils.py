@@ -689,8 +689,10 @@ def selection_to_subjects_json(request):
 
     # Do we have permission for all of these?
     user = request.user
-    effective_topographies = [t for t in effective_topographies if user.has_perm('view_surface', t.surface)]
-    effective_surfaces = [s for s in effective_surfaces if user.has_perm('view_surface', s)]
+    unique_surfaces = set(t.surface for t in effective_topographies) | set(effective_surfaces)
+    surfaces_with_view_permission = [s for s in unique_surfaces if user.has_perm('view_surface', s)]
+    effective_topographies = [t for t in effective_topographies if t.surface in surfaces_with_view_permission]
+    effective_surfaces = [s for s in effective_surfaces if s in surfaces_with_view_permission]
 
     # we collect effective topographies and surfaces because we have so far implementations
     # for analysis functions for topographies and surfaces
