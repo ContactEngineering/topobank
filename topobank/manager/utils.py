@@ -470,10 +470,10 @@ def selected_instances(request):
     topographies, surfaces, tags = selection_to_instances(selection)
 
     # make sure that only topographies with read permission can be found here
-    topographies = [t for t in topographies
-                    if request.user.has_perm('view_surface', t.surface)]
-    surfaces = [s for s in surfaces
-                if request.user.has_perm('view_surface', s)]
+    unique_surfaces = set(t.surface for t in topographies) | set(surfaces)
+    surfaces_with_view_permission = [s for s in unique_surfaces if request.user.has_perm('view_surface', s)]
+    topographies = [t for t in topographies if t.surface in surfaces_with_view_permission]
+    surfaces = [s for s in surfaces if s in surfaces_with_view_permission]
 
     return topographies, surfaces, list(tags)
 
