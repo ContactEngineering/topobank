@@ -497,18 +497,18 @@ class PlotCardView(SimpleCardView):
         # Use first analysis to determine some properties for the whole plot
         #
         first_analysis_result = analyses_success_list[0].result
-        xunit = first_analysis_result['xunit'] if 'xunit' in first_analysis_result else None
-        yunit = first_analysis_result['yunit'] if 'yunit' in first_analysis_result else None
+        xunit = first_analysis_result['xUnit'] if 'xUnit' in first_analysis_result else None
+        yunit = first_analysis_result['yUnit'] if 'yUnit' in first_analysis_result else None
 
         ureg = UnitRegistry()  # for unit conversion for each analysis individually, see below
 
         #
         # Determine axes labels
         #
-        x_axis_label = first_analysis_result['xlabel']
+        x_axis_label = first_analysis_result['xLabel']
         if xunit is not None:
             x_axis_label += f' ({xunit})'
-        y_axis_label = first_analysis_result['ylabel']
+        y_axis_label = first_analysis_result['yLabel']
         if yunit is not None:
             y_axis_label += f' ({yunit})'
 
@@ -521,8 +521,8 @@ class PlotCardView(SimpleCardView):
         context.update(dict(
             x_axis_label=x_axis_label,
             y_axis_label=y_axis_label,
-            x_axis_type=get_axis_type('xscale'),
-            y_axis_type=get_axis_type('yscale'),
+            x_axis_type=get_axis_type('xScale'),
+            y_axis_type=get_axis_type('yScale'),
             output_backend=settings.BOKEH_OUTPUT_BACKEND))
 
         #
@@ -624,7 +624,7 @@ class PlotCardView(SimpleCardView):
                 analysis_xscale = 1
             else:
                 try:
-                    analysis_xscale = ureg.convert(1, result_metadata['xunit'], xunit)
+                    analysis_xscale = ureg.convert(1, result_metadata['xUnit'], xunit)
                 except UndefinedUnitError as exc:
                     err_msg = f"Cannot convert x units when displaying results for analysis with id {analysis.id}. "\
                               f"Cause: {exc}"
@@ -638,7 +638,7 @@ class PlotCardView(SimpleCardView):
                 analysis_yscale = 1
             else:
                 try:
-                    analysis_yscale = ureg.convert(1, result_metadata['yunit'], yunit)
+                    analysis_yscale = ureg.convert(1, result_metadata['yUnit'], yunit)
                 except UndefinedUnitError as exc:
                     err_msg = f"Cannot convert y units when displaying results for analysis with id {analysis.id}. " \
                               f"Cause: {exc}"

@@ -3,6 +3,8 @@ import logging
 import math
 import pickle
 
+from pint import UnitRegistry
+
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 from django.db.models import Q
@@ -320,3 +322,19 @@ def round_to_significant_digits(x, num_dig_digits):
         return round(x, num_dig_digits - int(math.floor(math.log10(abs(x)))) - 1)
     except ValueError:
         return x
+
+
+_ureg = UnitRegistry()
+
+def make_unit_dict(**kwargs):
+    unit_dict = {}
+    for key, value in kwargs.items():
+        # For each entry, create a normalized SI unit
+        unit = _ureg(value)
+        assert unit.magnitude == 1
+        base_unit = unit.to_base_units()
+        unit_dict[key] = f'{unit.units:~P}'  # Normalize input unit
+        unit_dict[f'{key}SI'] = f'{base_unit.units:~P}'  # SI unit
+        unit_dict[f'{key}SIFactor'] = base_unit.magnitude  # SI scale factor
+
+    return unit_dict

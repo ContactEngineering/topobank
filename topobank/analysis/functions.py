@@ -28,9 +28,12 @@ from ContactMechanics import PeriodicFFTElasticHalfSpace, FreeFFTElasticHalfSpac
 from ContactMechanics.Factory import make_system, make_plastic_system
 from ContactMechanics.Tools.ContactAreaAnalysis import patch_areas, assign_patch_numbers
 
+
 import topobank.manager.models  # will be used to evaluate model classes
 from topobank.manager.utils import default_storage_replace, make_dzi
+
 from ..utils import SplitDictionaryHere
+from .utils import make_unit_dict
 
 from .registry import AnalysisFunctionRegistry
 
@@ -194,10 +197,10 @@ def height_distribution(topography, bins=None, wfac=5, progress_recorder=None, s
             'Mean Height': dict(value=mean_height, unit=unit),
             'RMS Height': dict(value=rms_height, unit=unit),
         },
-        xlabel='Height',
-        ylabel='Probability density',
-        xunit='' if unit is None else unit,
-        yunit='' if unit is None else '{}⁻¹'.format(unit),
+        xLabel='Height',
+        yLabel='Probability density',
+        xUnit='' if unit is None else unit,
+        yUnit='' if unit is None else '{}⁻¹'.format(unit),
         series=wrap_series(series)
     )
 
@@ -359,10 +362,10 @@ def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, st
 
     return dict(
         name='Slope distribution',
-        xlabel='Slope',
-        ylabel='Probability density',
-        xunit='1',
-        yunit='1',
+        xLabel='Slope',
+        yLabel='Probability density',
+        xUnit='1',
+        yUnit='1',
         scalars=scalars,
         series=wrap_series(series)
     )
@@ -432,10 +435,10 @@ def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None
             'Mean Curvature': dict(value=mean_curv, unit=inverse_unit),
             'RMS Curvature': dict(value=rms_curv, unit=inverse_unit),
         },
-        xlabel='Curvature',
-        ylabel='Probability density',
-        xunit=inverse_unit,
-        yunit=unit,
+        xLabel='Curvature',
+        yLabel='Probability density',
+        xUnit=inverse_unit,
+        yUnit=unit,
         series=wrap_series(series)
     )
 
@@ -575,17 +578,15 @@ def analysis_function(topography, funcname_profile, funcname_area, name, xlabel,
 
     unit = topography.unit
 
-    # Return metadata for results as a dictionary (to be stored in the postgres database)
+    # Return metadata for results as a dictionary (to be stored in a JSON file)
     return dict(
         name=name,
-        xlabel=xlabel,
-        ylabel=ylabel,
-        xunit=xunit.format(unit),
-        yunit=yunit.format(unit),
-        xscale='log',
-        yscale='log',
+        xLabel=xlabel,
+        yLabel=ylabel,
+        xScale='log',
+        yScale='log',
         series=wrap_series(series),
-        alerts=alerts)
+        alerts=alerts) | make_unit_dict(xUnit=xunit.format(unit), yUnit=yunit.format(unit))
 
 
 def analysis_function_for_surface(surface, progress_recorder, funcname_profile, name, xlabel, ylabel, xname, xunit,
@@ -620,14 +621,12 @@ def analysis_function_for_surface(surface, progress_recorder, funcname_profile, 
     # Return metadata for results as a dictionary (to be stored in the postgres database)
     result = dict(
         name=name,
-        xlabel=xlabel,
-        ylabel=ylabel,
-        xunit=xunit.format(unit),
-        yunit=yunit.format(unit),
-        xscale='log',
-        yscale='log',
+        xLabel=xlabel,
+        yLabel=ylabel,
+        xScale='log',
+        yScale='log',
         series=wrap_series(series),
-        alerts=alerts)
+        alerts=alerts) | make_unit_dict(xUnit=xunit.format(unit), yUnit=yunit.format(unit))
 
     return result
 
@@ -817,14 +816,12 @@ def scale_dependent_roughness_parameter(topography, progress_recorder, order_of_
     unit = topography.unit
     return dict(
         name=name,
-        xlabel='Distance',
-        ylabel=ylabel,
-        xunit=unit,
-        yunit=yunit.format(unit),
-        xscale='log',
-        yscale='log',
+        xLabel='Distance',
+        yLabel=ylabel,
+        xScale='log',
+        yScale='log',
         series=wrap_series(series),
-        alerts=alerts)
+        alerts=alerts) | make_unit_dict(xunit=unit, yunit=yunit.format(unit))
 
 
 def scale_dependent_roughness_parameter_for_surface(surface, progress_recorder, order_of_derivative, name, ylabel,
@@ -851,14 +848,12 @@ def scale_dependent_roughness_parameter_for_surface(surface, progress_recorder, 
 
     return dict(
         name=name,
-        xlabel='Distance',
-        ylabel=ylabel,
-        xunit=unit,
-        yunit=yunit.format(unit),
-        xscale='log',
-        yscale='log',
+        xLabel='Distance',
+        yLabel=ylabel,
+        xScale='log',
+        yScale='log',
         series=wrap_series(series),
-        alerts=alerts)
+        alerts=alerts) | make_unit_dict(xunit=unit, yunit=yunit.format(unit))
 
 
 @register_implementation(name="Scale-dependent slope", card_view_flavor='plot')
@@ -1534,10 +1529,10 @@ def roughness_parameters(topography, progress_recorder=None, storage_prefix=None
 def topography_analysis_function_for_tests(topography, a=1, b="foo"):
     """This function can be registered for tests."""
     return {'name': 'Test result for test function called for topography {}.'.format(topography),
-            'xunit': 'm',
-            'yunit': 'm',
-            'xlabel': 'x',
-            'ylabel': 'y',
+            'xUnit': 'm',
+            'yUnit': 'm',
+            'xLabel': 'x',
+            'yLabel': 'y',
             'series': [
                 dict(
                     name='Fibonacci series',
@@ -1559,10 +1554,10 @@ def topography_analysis_function_for_tests(topography, a=1, b="foo"):
 def surface_analysis_function_for_tests(surface, a=1, c="bar"):
     """This function can be registered for tests."""
     return {'name': 'Test result for test function called for surface {}.'.format(surface),
-            'xunit': 'm',
-            'yunit': 'm',
-            'xlabel': 'x',
-            'ylabel': 'y',
+            'xUnit': 'm',
+            'yUnit': 'm',
+            'xLabel': 'x',
+            'yLabel': 'y',
             'series': [],
             'alerts': [dict(alert_class='alert-info', message="This is a test for a surface alert.")],
             'comment': f"a is {a} and c is {c}"}
