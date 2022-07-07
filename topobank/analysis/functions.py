@@ -579,14 +579,14 @@ def analysis_function(topography, funcname_profile, funcname_area, name, xlabel,
     unit = topography.unit
 
     # Return metadata for results as a dictionary (to be stored in a JSON file)
-    return dict(
-        name=name,
-        xLabel=xlabel,
-        yLabel=ylabel,
-        xScale='log',
-        yScale='log',
-        series=wrap_series(series),
-        alerts=alerts) | make_unit_dict(xUnit=xunit.format(unit), yUnit=yunit.format(unit))
+    return {**dict(name=name,
+                   xLabel=xlabel,
+                   yLabel=ylabel,
+                   xScale='log',
+                   yScale='log',
+                   series=wrap_series(series),
+                   alerts=alerts),
+            **make_unit_dict(xUnit=xunit.format(unit), yUnit=yunit.format(unit))}
 
 
 def analysis_function_for_surface(surface, progress_recorder, funcname_profile, name, xlabel, ylabel, xname, xunit,
@@ -619,14 +619,14 @@ def analysis_function_for_surface(surface, progress_recorder, funcname_profile, 
                                        xname, str(exc)))
 
     # Return metadata for results as a dictionary (to be stored in the postgres database)
-    result = dict(
-        name=name,
-        xLabel=xlabel,
-        yLabel=ylabel,
-        xScale='log',
-        yScale='log',
-        series=wrap_series(series),
-        alerts=alerts) | make_unit_dict(xUnit=xunit.format(unit), yUnit=yunit.format(unit))
+    result = {**dict(name=name,
+                     xLabel=xlabel,
+                     yLabel=ylabel,
+                     xScale='log',
+                     yScale='log',
+                     series=wrap_series(series),
+                     alerts=alerts),
+              **make_unit_dict(xUnit=xunit.format(unit), yUnit=yunit.format(unit))}
 
     return result
 
@@ -814,14 +814,14 @@ def scale_dependent_roughness_parameter(topography, progress_recorder, order_of_
         process_series_reliable_unreliable(xyname, xy_kwargs)
 
     unit = topography.unit
-    return dict(
-        name=name,
-        xLabel='Distance',
-        yLabel=ylabel,
-        xScale='log',
-        yScale='log',
-        series=wrap_series(series),
-        alerts=alerts) | make_unit_dict(xUnit=unit, yUnit=yunit.format(unit))
+    return {**dict(name=name,
+                   xLabel='Distance',
+                   yLabel=ylabel,
+                   xScale='log',
+                   yScale='log',
+                   series=wrap_series(series),
+                   alerts=alerts),
+            **make_unit_dict(xUnit=unit, yUnit=yunit.format(unit))}
 
 
 def scale_dependent_roughness_parameter_for_surface(surface, progress_recorder, order_of_derivative, name, ylabel,
@@ -846,14 +846,14 @@ def scale_dependent_roughness_parameter_for_surface(surface, progress_recorder, 
     except CannotPerformAnalysisError as exc:
         alerts.append(make_alert_entry('warning', surface.name, surface.get_absolute_url(), xname, str(exc)))
 
-    return dict(
-        name=name,
-        xLabel='Distance',
-        yLabel=ylabel,
-        xScale='log',
-        yScale='log',
-        series=wrap_series(series),
-        alerts=alerts) | make_unit_dict(xUnit=unit, yUnit=yunit.format(unit))
+    return {**dict(name=name,
+                   xLabel='Distance',
+                   yLabel=ylabel,
+                   xScale='log',
+                   yScale='log',
+                   series=wrap_series(series),
+                   alerts=alerts),
+            **make_unit_dict(xUnit=unit, yUnit=yunit.format(unit))}
 
 
 @register_implementation(name="Scale-dependent slope", card_view_flavor='plot')
