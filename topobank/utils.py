@@ -217,7 +217,7 @@ def store_split_dict(storage_prefix, name, src_dict):
             default_storage_replace(f'{storage_prefix}/{d.name}.json',
                                     io.BytesIO(json.dumps(split_d, cls=encoder_cls).encode('utf-8')))
             # Include supplementary dictionary in the toplevel JSON
-            return {'__external__': f'{d.name}.json'} | d.supplementary
+            return {**{'__external__': f'{d.name}.json'}, **d.supplementary}
         elif hasattr(d, 'items'):
             new_d = {}
             for key, value in d.items():
