@@ -821,7 +821,7 @@ def scale_dependent_roughness_parameter(topography, progress_recorder, order_of_
         xScale='log',
         yScale='log',
         series=wrap_series(series),
-        alerts=alerts) | make_unit_dict(xunit=unit, yunit=yunit.format(unit))
+        alerts=alerts) | make_unit_dict(xUnit=unit, yUnit=yunit.format(unit))
 
 
 def scale_dependent_roughness_parameter_for_surface(surface, progress_recorder, order_of_derivative, name, ylabel,
@@ -853,7 +853,7 @@ def scale_dependent_roughness_parameter_for_surface(surface, progress_recorder, 
         xScale='log',
         yScale='log',
         series=wrap_series(series),
-        alerts=alerts) | make_unit_dict(xunit=unit, yunit=yunit.format(unit))
+        alerts=alerts) | make_unit_dict(xUnit=unit, yUnit=yunit.format(unit))
 
 
 @register_implementation(name="Scale-dependent slope", card_view_flavor='plot')
@@ -1538,13 +1538,13 @@ def topography_analysis_function_for_tests(topography, a=1, b="foo"):
                     name='Fibonacci series',
                     x=np.array((1, 2, 3, 4, 5, 6, 7, 8)),
                     y=np.array((0, 1, 1, 2, 3, 5, 8, 13)),
-                    std_err_y=np.zeros(8),
+                    stdErrY=np.zeros(8),
                 ),
                 dict(
                     name='Geometric series',
                     x=np.array((1, 2, 3, 4, 5, 6, 7, 8)),
                     y=0.5 ** np.array((1, 2, 3, 4, 5, 6, 7, 8)),
-                    std_err_y=np.zeros(8),
+                    stdErrY=np.zeros(8),
                 ),
             ],
             'alerts': [dict(alert_class='alert-info', message="This is a test for a measurement alert.")],

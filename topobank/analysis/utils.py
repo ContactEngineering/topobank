@@ -331,10 +331,15 @@ def make_unit_dict(**kwargs):
     for key, value in kwargs.items():
         # For each entry, create a normalized SI unit
         unit = _ureg(value)
-        assert unit.magnitude == 1
-        base_unit = unit.to_base_units()
-        unit_dict[key] = f'{unit.units:~P}'  # Normalize input unit
-        unit_dict[f'{key}SI'] = f'{base_unit.units:~P}'  # SI unit
-        unit_dict[f'{key}SIFactor'] = base_unit.magnitude  # SI scale factor
+        if type(unit) is int:
+            unit_dict[key] = '1'  # Normalize input unit
+            unit_dict[f'{key}SI'] = '1'  # SI unit
+            unit_dict[f'{key}SIFactor'] = 1  # SI scale factor
+        else:
+            assert unit.magnitude == 1
+            base_unit = unit.to_base_units()
+            unit_dict[key] = f'{unit.units:~P}'  # Normalize input unit
+            unit_dict[f'{key}SI'] = f'{base_unit.units:~P}'  # SI unit
+            unit_dict[f'{key}SIFactor'] = base_unit.magnitude  # SI scale factor
 
     return unit_dict

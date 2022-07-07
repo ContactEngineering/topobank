@@ -1,7 +1,7 @@
 """
 Test of downloads module.
 """
-import pickle
+
 import zipfile
 from io import BytesIO, StringIO
 

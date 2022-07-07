@@ -263,13 +263,13 @@ def download_plot_analyses_to_txt(request, analyses):
         f.write(_analysis_header_for_txt_file(analysis))
 
         result = analysis.result
-        xunit_str = '' if result['xunit'] is None else ' ({})'.format(result['xunit'])
-        yunit_str = '' if result['yunit'] is None else ' ({})'.format(result['yunit'])
-        header = 'Columns: {}{}, {}{}'.format(result['xlabel'], xunit_str, result['ylabel'], yunit_str)
+        xunit_str = '' if result['xUnit'] is None else ' ({})'.format(result['xUnit'])
+        yunit_str = '' if result['yUnit'] is None else ' ({})'.format(result['yUnit'])
+        header = 'Columns: {}{}, {}{}'.format(result['xLabel'], xunit_str, result['yLabel'], yunit_str)
 
-        std_err_y_in_series = any('std_err_y' in s.keys() for s in result['series'])
+        std_err_y_in_series = any('stdErrY' in s.keys() for s in result['series'])
         if std_err_y_in_series:
-            header += ', standard error of average {}{}'.format(result['ylabel'], yunit_str)
+            header += ', standard error of average {}{}'.format(result['yLabel'], yunit_str)
             f.writelines([
                 '# The value "nan" for the standard error of an average indicates that no error\n',
                 '# could be computed because the average contains only a single data point.\n\n'])
@@ -278,7 +278,7 @@ def download_plot_analyses_to_txt(request, analyses):
             series_data = [series['x'], series['y']]
             if std_err_y_in_series:
                 try:
-                    std_err_y = series['std_err_y']
+                    std_err_y = series['stdErrY']
                     if hasattr(std_err_y, 'filled'):
                         std_err_y = std_err_y.filled(np.nan)
                     series_data.append(std_err_y)
@@ -355,20 +355,20 @@ def download_plot_analyses_to_xlsx(request, analyses):
 
     for analysis_idx, analysis in enumerate(analyses):
         result = analysis.result
-        column1 = '{} ({})'.format(result['xlabel'], result['xunit'])
-        column2 = '{} ({})'.format(result['ylabel'], result['yunit'])
-        column3 = 'standard error of {} ({})'.format(result['ylabel'], result['yunit'])
+        column1 = '{} ({})'.format(result['xLabel'], result['xUnit'])
+        column2 = '{} ({})'.format(result['yLabel'], result['yUnit'])
+        column3 = 'standard error of {} ({})'.format(result['yLabel'], result['yUnit'])
         column4 = 'comment'
 
         for series_idx, series in enumerate(result['series']):
             df_columns_dict = {column1: series['x'], column2: series['y']}
             try:
-                std_err_y_mask = series['std_err_y'].mask
+                std_err_y_mask = series['stdErrY'].mask
             except (AttributeError, KeyError) as exc:
                 std_err_y_mask = np.zeros(len(series['y']), dtype=bool)
 
             try:
-                df_columns_dict[column3] = series['std_err_y']
+                df_columns_dict[column3] = series['stdErrY']
                 df_columns_dict[column4] = [comment_on_average(y, masked)
                                             for y, masked in zip(series['y'], std_err_y_mask)]
             except KeyError:

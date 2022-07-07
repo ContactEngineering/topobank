@@ -17,10 +17,10 @@ from topobank.analysis.functions import (
 
 from topobank.manager.tests.utils import SurfaceFactory, Topography1DFactory
 
-EXPECTED_KEYS_FOR_DIST_ANALYSIS = sorted(['name', 'scalars', 'xlabel', 'ylabel', 'xunit', 'yunit', 'series'])
-EXPECTED_KEYS_FOR_PLOT_CARD_ANALYSIS = sorted(['alerts', 'name',
-                                               'xlabel', 'ylabel', 'xunit', 'yunit',
-                                               'xscale', 'yscale', 'series'])
+EXPECTED_KEYS_FOR_DIST_ANALYSIS = sorted(['name', 'scalars', 'xLabel', 'yLabel', 'xUnit', 'yUnit', 'series'])
+EXPECTED_KEYS_FOR_PLOT_CARD_ANALYSIS = sorted(['alerts', 'name', 'xLabel', 'yLabel', 'xUnit', 'xUnitSI',
+                                               'xUnitSIFactor', 'yUnit', 'yUnitSI', 'yUnitSIFactor', 'xScale',
+                                               'yScale', 'series'])
 
 ###############################################################################
 # Helpers for doing tests
@@ -74,10 +74,10 @@ def test_height_distribution_simple_line_scan():
         'RMS Height': {'value': math.sqrt(4. / 3), 'unit': 'nm'},
     }
 
-    assert result['xlabel'] == 'Height'
-    assert result['ylabel'] == 'Probability density'
-    assert result['xunit'] == 'nm'
-    assert result['yunit'] == 'nm⁻¹'
+    assert result['xLabel'] == 'Height'
+    assert result['yLabel'] == 'Probability density'
+    assert result['xUnit'] == 'nm'
+    assert result['yUnit'] == 'nm⁻¹'
 
     assert len(result['series']) == 2
 
@@ -109,10 +109,10 @@ def test_slope_distribution_simple_line_scan():
         'RMS Slope (x direction)': dict(value=2., unit='1'),  # absolute value of slope
     }
 
-    assert result['xlabel'] == 'Slope'
-    assert result['ylabel'] == 'Probability density'
-    assert result['xunit'] == '1'
-    assert result['yunit'] == '1'
+    assert result['xLabel'] == 'Slope'
+    assert result['yLabel'] == 'Probability density'
+    assert result['xUnit'] == '1'
+    assert result['yUnit'] == '1'
 
     assert len(result['series']) == 2
 
@@ -146,10 +146,10 @@ def test_curvature_distribution_simple_line_scan():
     assert result['scalars']['Mean Curvature']['unit'] == '{}⁻¹'.format(unit)
     assert result['scalars']['RMS Curvature']['unit'] == '{}⁻¹'.format(unit)
 
-    assert result['xlabel'] == 'Curvature'
-    assert result['ylabel'] == 'Probability density'
-    assert result['xunit'] == '{}⁻¹'.format(unit)
-    assert result['yunit'] == unit
+    assert result['xLabel'] == 'Curvature'
+    assert result['yLabel'] == 'Probability density'
+    assert result['xUnit'] == '{}⁻¹'.format(unit)
+    assert result['yUnit'] == unit
 
     assert len(result['series']) == 2
 
@@ -181,10 +181,10 @@ def test_power_spectrum_simple_nonuniform_linescan():
 
     assert result['name'] == 'Power-spectral density (PSD)'
 
-    assert result['xlabel'] == 'Wavevector'
-    assert result['ylabel'] == 'PSD'
-    assert result['xunit'] == '{}⁻¹'.format(unit)
-    assert result['yunit'] == '{}³'.format(unit)
+    assert result['xLabel'] == 'Wavevector'
+    assert result['yLabel'] == 'PSD'
+    assert result['xUnit'] == '1/{}'.format(unit)
+    assert result['yUnit'] == '{}³'.format(unit)
 
     assert len(result['series']) == 2
 
@@ -261,10 +261,10 @@ def test_height_distribution_simple_2d_topography(simple_linear_2d_topography):
     assert result['scalars']['Mean Height']['unit'] == exp_unit
     assert result['scalars']['RMS Height']['unit'] == exp_unit
 
-    assert result['xlabel'] == 'Height'
-    assert result['ylabel'] == 'Probability density'
-    assert result['xunit'] == exp_unit
-    assert result['yunit'] == '{}⁻¹'.format(exp_unit)
+    assert result['xLabel'] == 'Height'
+    assert result['yLabel'] == 'Probability density'
+    assert result['xUnit'] == exp_unit
+    assert result['yUnit'] == '{}⁻¹'.format(exp_unit)
 
     assert len(result['series']) == 2
 
@@ -299,10 +299,10 @@ def test_slope_distribution_simple_2d_topography(simple_linear_2d_topography):
     for kind, dir in zip(['Mean', 'RMS'], ['x', 'y']):
         assert result['scalars'][f'{kind} Slope ({dir} direction)']['unit'] == '1'
 
-    assert result['xlabel'] == 'Slope'
-    assert result['ylabel'] == 'Probability density'
-    assert result['xunit'] == '1'
-    assert result['yunit'] == '1'
+    assert result['xLabel'] == 'Slope'
+    assert result['yLabel'] == 'Probability density'
+    assert result['xUnit'] == '1'
+    assert result['yUnit'] == '1'
 
     assert len(result['series']) == 4
 
@@ -346,10 +346,10 @@ def test_curvature_distribution_simple_2d_topography(simple_linear_2d_topography
     assert result['scalars']['Mean Curvature']['unit'] == '{}⁻¹'.format(unit)
     assert result['scalars']['RMS Curvature']['unit'] == '{}⁻¹'.format(unit)
 
-    assert result['xlabel'] == 'Curvature'
-    assert result['ylabel'] == 'Probability density'
-    assert result['xunit'] == '{}⁻¹'.format(unit)
-    assert result['yunit'] == unit
+    assert result['xLabel'] == 'Curvature'
+    assert result['yLabel'] == 'Probability density'
+    assert result['xUnit'] == '{}⁻¹'.format(unit)
+    assert result['yUnit'] == unit
 
     assert len(result['series']) == 2
 
@@ -400,10 +400,10 @@ def test_power_spectrum_simple_2d_topography(simple_linear_2d_topography):
 
     assert result['name'] == 'Power-spectral density (PSD)'
 
-    assert result['xlabel'] == 'Wavevector'
-    assert result['ylabel'] == 'PSD'
-    assert result['xunit'] == '{}⁻¹'.format(unit)
-    assert result['yunit'] == '{}³'.format(unit)
+    assert result['xLabel'] == 'Wavevector'
+    assert result['yLabel'] == 'PSD'
+    assert result['xUnit'] == '1/{}'.format(unit)
+    assert result['yUnit'] == '{}³'.format(unit)
 
     assert len(result['series']) == 6
 
@@ -662,12 +662,12 @@ def test_psd_for_surface(simple_surface):
 
     expected_result = {
         'name': 'Power-spectral density (PSD)',
-        'xlabel': 'Wavevector',
-        'ylabel': 'PSD',
-        'xunit': 'nm⁻¹',
-        'yunit': 'nm³',
-        'xscale': 'log',
-        'yscale': 'log',
+        'xLabel': 'Wavevector',
+        'yLabel': 'PSD',
+        'xUnit': '1/nm',
+        'yUnit': 'nm³',
+        'xScale': 'log',
+        'yScale': 'log',
         'series': [
             {
                 'name': '1D PSD along x',
@@ -683,7 +683,7 @@ def test_psd_for_surface(simple_surface):
         'alerts': [],
     }
 
-    for k in ['name', 'xunit', 'yunit', 'xlabel', 'ylabel', 'xscale', 'yscale']:
+    for k in ['name', 'xUnit', 'yUnit', 'xLabel', 'yLabel', 'xScale', 'yScale']:
         assert expected_result[k] == result[k]
 
     assert expected_result['series'][0]['name'] == result['series'][0]['name']
@@ -698,12 +698,12 @@ def test_autocorrelation_for_surface(simple_surface):
 
     expected_result = {
         'name': 'Height-difference autocorrelation function (ACF)',
-        'xlabel': 'Distance',
-        'ylabel': 'ACF',
-        'xunit': 'nm',
-        'yunit': 'nm²',
-        'xscale': 'log',
-        'yscale': 'log',
+        'xLabel': 'Distance',
+        'yLabel': 'ACF',
+        'xUnit': 'nm',
+        'yUnit': 'nm²',
+        'xScale': 'log',
+        'yScale': 'log',
         'series': [
             {
                 'name': 'Along x',
@@ -718,7 +718,7 @@ def test_autocorrelation_for_surface(simple_surface):
         ]
     }
 
-    for k in ['name', 'xunit', 'yunit', 'xlabel', 'ylabel', 'xscale', 'yscale']:
+    for k in ['name', 'xUnit', 'yUnit', 'xLabel', 'yLabel', 'xScale', 'yScale']:
         assert expected_result[k] == result[k]
 
     assert expected_result['series'][0]['name'] == result['series'][0]['name']
@@ -733,12 +733,12 @@ def test_variable_bandwidth_for_surface(simple_surface):
 
     expected_result = {
         'name': 'Variable-bandwidth analysis',
-        'xlabel': 'Bandwidth',
-        'ylabel': 'RMS height',
-        'xunit': 'nm',
-        'yunit': 'nm',
-        'xscale': 'log',
-        'yscale': 'log',
+        'xLabel': 'Bandwidth',
+        'yLabel': 'RMS height',
+        'xUnit': 'nm',
+        'yUnit': 'nm',
+        'xScale': 'log',
+        'yScale': 'log',
         'series': [
             {
                 'name': 'Profile decomposition along x',
@@ -753,7 +753,7 @@ def test_variable_bandwidth_for_surface(simple_surface):
         ]
     }
 
-    for k in ['name', 'xunit', 'yunit', 'xlabel', 'ylabel', 'xscale', 'yscale']:
+    for k in ['name', 'xUnit', 'yUnit', 'xLabel', 'yLabel', 'xScale', 'yScale']:
         assert expected_result[k] == result[k]
 
     assert expected_result['series'][0]['name'] == result['series'][0]['name']
@@ -768,12 +768,12 @@ def test_scale_dependent_slope_for_surface(simple_surface):
 
     expected_result = {
         'name': 'Scale-dependent slope',
-        'xlabel': 'Distance',
-        'ylabel': 'Slope',
-        'xunit': 'nm',
-        'yunit': '1',
-        'xscale': 'log',
-        'yscale': 'log',
+        'xLabel': 'Distance',
+        'yLabel': 'Slope',
+        'xUnit': 'nm',
+        'yUnit': '1',
+        'xScale': 'log',
+        'yScale': 'log',
         'series': [
             {
                 'name': 'Slope in x-direction',
@@ -785,7 +785,7 @@ def test_scale_dependent_slope_for_surface(simple_surface):
         ]
     }
 
-    for k in ['name', 'xunit', 'yunit', 'xlabel', 'ylabel', 'xscale', 'yscale']:
+    for k in ['name', 'xUnit', 'yUnit', 'xLabel', 'yLabel', 'xScale', 'yScale']:
         assert expected_result[k] == result[k]
 
     assert expected_result['series'][0]['name'] == result['series'][0]['name']

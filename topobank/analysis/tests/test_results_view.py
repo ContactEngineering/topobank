@@ -64,10 +64,10 @@ def test_analysis_times(client, two_topos, django_user_model, handle_usage_stati
     af = AnalysisFunction.objects.first()
 
     result = {'name': 'test function',
-              'xlabel': 'x',
-              'ylabel': 'y',
-              'xunit': '1',
-              'yunit': '1',
+              'xLabel': 'x',
+              'yLabel': 'y',
+              'xUnit': '1',
+              'yUnit': '1',
               'series': [],
               }
 
@@ -109,10 +109,10 @@ def test_show_only_last_analysis(client, two_topos, django_user_model, handle_us
     af = AnalysisFunction.objects.first()
 
     result = {'name': 'test function',
-              'xlabel': 'x',
-              'ylabel': 'y',
-              'xunit': '1',
-              'yunit': '1',
+              'xLabel': 'x',
+              'yLabel': 'y',
+              'xUnit': '1',
+              'yUnit': '1',
               'series': [],
               }
 
@@ -351,10 +351,10 @@ def ids_downloadable_analyses(two_topos):
                 nice_value=13,
                 bad_value=-99,
             ),
-            xlabel='time',
-            ylabel='distance',
-            xunit='s',
-            yunit='m',
+            xLabel='time',
+            yLabel='distance',
+            xUnit='s',
+            yUnit='m',
             series=[
                 dict(name='First Series',
                      x=v + k,
