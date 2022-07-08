@@ -27,7 +27,7 @@ coverage  # https://github.com/nedbat/coveragepy
 factory-boy  # https://github.com/FactoryBoy/factory_boy
 django-test-plus  # https://github.com/revsys/django-test-plus
 
-django-debug-toolbar>=3.0<3.3  # https://github.com/jazzband/django-debug-toolbar
+django-debug-toolbar>=2.2.1  # https://github.com/jazzband/django-debug-toolbar
 django-extensions  # https://github.com/django-extensions/django-extensions
 django-coverage-plugin  # https://github.com/nedbat/django_coverage_plugin
 django-cprofile-middleware  # https://github.com/omarish/django-cprofile-middleware/
