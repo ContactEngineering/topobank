@@ -7,6 +7,8 @@
   reducing storage requests (from the Django backend) by only loading the
   plot metadata and not the plot results when preparing the plot in the
   Django backend (#841, #847, #851)
+- MAINT: Automatically create 'topobank-dev' bucket in Minio S3 of the
+  development Docker environment (local.yml)
 
 ## 0.90.1 (2022-06-27)
 
