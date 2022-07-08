@@ -107,8 +107,6 @@ CELERY_TASK_ALWAYS_EAGER = False
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#task-eager-propagates
 CELERY_TASK_EAGER_PROPAGATES = True
 
-DJANGO_CPROFILE_MIDDLEWARE_REQUIRE_STAFF = False
-
 # Your stuff...
 # ------------------------------------------------------------------------------
 
