@@ -84,7 +84,7 @@ bleach>=3.3.0
 #
 muFFT>=0.11.1
 SurfaceTopography>=0.101.3, <1.0
-ContactMechanics>=0.91.0, <0.92.0
+ContactMechanics>=0.91.0, <1.0
 
 # plotting
 bokeh==3.0.0.dev4
