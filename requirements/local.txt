@@ -49,9 +49,7 @@ botocore==1.23.16
     #   boto3
     #   s3transfer
 celery[redis]==5.2.3
-    # via
-    #   -r ./base.txt
-    #   flower
+    # via -r ./base.txt
 celery-progress==0.1.1
     # via -r ./base.txt
 certifi==2021.10.8
@@ -126,7 +124,7 @@ deprecated==1.2.13
     # via
     #   -r ./base.txt
     #   redis
-django==3.2.13
+django==3.2.14
     # via
     #   -r ./base.txt
     #   collectfast
@@ -228,8 +226,6 @@ faker==9.9.0
     # via factory-boy
 flake8==4.0.1
     # via -r local.in
-flower==1.0.0
-    # via -r ./base.txt
 fontawesomefree==5.15.4
     # via -r ./base.txt
 fonttools==4.28.2
@@ -243,10 +239,6 @@ h5py==3.6.0
     #   -r ./base.txt
     #   h5netcdf
     #   surfacetopography
-humanize==3.13.1
-    # via
-    #   -r ./base.txt
-    #   flower
 idna==3.3
     # via
     #   -r ./base.txt
@@ -305,7 +297,7 @@ kombu==5.2.3
     # via
     #   -r ./base.txt
     #   celery
-lxml==4.7.1
+lxml==4.9.1
     # via
     #   -r ./base.txt
     #   datacite
@@ -403,10 +395,6 @@ platformdirs==2.4.1
     # via black
 pluggy==1.0.0
     # via pytest
-prometheus-client==0.12.0
-    # via
-    #   -r ./base.txt
-    #   flower
 prompt-toolkit==3.0.23
     # via
     #   -r ./base.txt
@@ -479,7 +467,6 @@ pytz==2021.3
     #   django
     #   django-notifications-hq
     #   django-trackstats
-    #   flower
     #   pandas
 pyyaml==6.0
     # via
@@ -581,7 +568,6 @@ tornado==6.1
     # via
     #   -r ./base.txt
     #   bokeh
-    #   flower
 traitlets==5.1.1
     # via
     #   ipython
