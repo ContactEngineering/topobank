@@ -1,5 +1,16 @@
 # Changelog for *TopoBank*
 
+## 0.90.2 (2022-07-11)
+
+- MAINT: Multiple performance fixes, in particular by a) reducing redundant
+  SQL queries by either combining queries of filtering in memory and b)
+  reducing storage requests (from the Django backend) by only loading the
+  plot metadata and not the plot results when preparing the plot in the
+  Django backend (#841, #847, #851)
+- MAINT: Automatically create 'topobank-dev' bucket in Minio S3 of the
+  development Docker environment (local.yml)
+- MAINT: Security updates for django and lxml
+
 ## 0.90.1 (2022-06-27)
 
 - MAINT: Presign in separate request when loading analysis data (#841)
