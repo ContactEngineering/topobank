@@ -130,8 +130,8 @@ services:
     <<: *django
     image: contact.engineering:5000/topobank_production_celeryworker
     command: /start-celeryworker
-    volumes:
-      - /tmp/container-data/tmp:/tmp
+    # volumes:
+    #   - /tmp/container-data/tmp:/tmp
     deploy:
       placement:
         constraints:
