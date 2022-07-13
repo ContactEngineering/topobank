@@ -10,39 +10,12 @@ import numpy as np
 import logging
 
 from ..utils import SplitDictionaryHere
-
-from .registry import AnalysisFunctionRegistry
+from .registry import register_implementation
 
 _log = logging.getLogger(__name__)
 
 CONTACT_MECHANICS_MAX_MB_GRID_PTS_PRODUCT = 100000000
 CONTACT_MECHANICS_MAX_MB_GRID_PTS_PER_DIM = 10000
-
-
-def register_implementation(card_view_flavor="simple", name=None):
-    """Decorator for marking a function as implementation for an analysis function.
-
-    :param card_view_flavor: defines how results for this function are displayed, see views.CARD_VIEW_FLAVORS
-    :param name: human-readable name, default is to create this from function name
-
-    Only card_view_flavor can be used which are defined in the
-    AnalysisFunction model. Additionally See views.py for possible view classes.
-    They should be descendants of the class "SimpleCardView".
-    """
-
-    def register_decorator(func):
-        """
-        :param func: function to be registered, first arg must be a "topography" or "surface"
-        :return: decorated function
-
-        Depending on the name of the first argument, you get either a Topography
-        or a Surface instance.
-        """
-        registry = AnalysisFunctionRegistry()  # singleton
-        registry.add_implementation(name, card_view_flavor, func)
-        return func
-
-    return register_decorator
 
 
 class ContainerProxy(collections.abc.Iterator):
@@ -150,6 +123,7 @@ def make_alert_entry(level, subject_name, subject_url, data_series_name, detail_
     return dict(alert_class=f"alert-{level}", message=message)
 
 
+@register_implementation('plot', 'test')
 def topography_analysis_function_for_tests(topography, a=1, b="foo"):
     """This function can be registered for tests."""
     return {'name': 'Test result for test function called for topography {}.'.format(topography),
@@ -175,6 +149,7 @@ def topography_analysis_function_for_tests(topography, a=1, b="foo"):
             'comment': f"a is {a} and b is {b}"}
 
 
+@register_implementation('plot', 'test')
 def surface_analysis_function_for_tests(surface, a=1, c="bar"):
     """This function can be registered for tests."""
     return {'name': 'Test result for test function called for surface {}.'.format(surface),

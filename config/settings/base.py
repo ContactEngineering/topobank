@@ -100,8 +100,15 @@ LOCAL_APPS = [
     'topobank.tabnav.apps.TabNavAppConfig',
     'topobank.publication.apps.PublicationAppConfig',
 ]
+
+PLUGIN_APPS = [
+    'topobank.statistical_analysis.apps.StatisticalAnalysisConfig',
+    # 'topobank.contact_analysis.apps.ContactAnalysisConfig',
+]
+
+
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
-INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
+INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS + PLUGIN_APPS
 
 # MIGRATIONS
 # ------------------------------------------------------------------------------

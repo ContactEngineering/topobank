@@ -19,24 +19,30 @@ import os.path
 import textwrap
 
 from .models import Analysis
-from .views import CARD_VIEW_FLAVORS
-from .utils import mangle_sheet_name
 from ..manager.models import Surface
-
+from .registry import register_download_function, AnalysisRegistry, UnknownKeyException
 
 #######################################################################
 # Download views
 #######################################################################
 
 
-def download_analyses(request, ids, card_view_flavor, file_format):
+def download_analyses(request, ids, art, file_format):
     """Returns a file comprised from analyses results.
 
-    :param request:
-    :param ids: comma separated string with analyses ids
-    :param card_view_flavor: card view flavor, see CARD_VIEW_FLAVORS
-    :param file_format: requested file format
-    :return:
+    Parameters
+    ----------
+    request: HttpRequest
+    ids: str
+        comma separated string with analyses ids
+    art: str
+        Analysis result type TODO can't this be calculated from analyses?
+    file_format: str
+        Requested file format, e.g. 'txt' or 'xlsx', depends on what was registerd.
+
+    Returns
+    -------
+        HttpResponse downloading a file
     """
 
     #
@@ -71,29 +77,17 @@ def download_analyses(request, ids, card_view_flavor, file_format):
         analyses.append(analysis)
 
     #
-    # Check flavor and format argument
-    #
-    card_view_flavor = card_view_flavor.replace('_', ' ')  # may be given with underscore in URL
-    if card_view_flavor not in CARD_VIEW_FLAVORS:
-        return HttpResponseBadRequest("Unknown card view flavor '{}'.".format(card_view_flavor))
-
-    download_response_functions = {
-        ('plot', 'xlsx'): download_plot_analyses_to_xlsx,
-        ('plot', 'txt'): download_plot_analyses_to_txt,
-        ('roughness parameters', 'xlsx'): download_roughness_parameters_to_xlsx,
-        ('roughness parameters', 'txt'): download_roughness_parameters_to_txt,
-        ('contact mechanics', 'zip'): download_contact_mechanics_analyses_as_zip,
-    }
-
-    #
     # Dispatch
     #
-    key = (card_view_flavor, file_format)
-    if key not in download_response_functions:
+    spec = 'results'  # could be used to download different things
+    key = (art, spec, file_format)
+    try:
+        download_function = AnalysisRegistry().get_download_function(*key)
+    except UnknownKeyException:
         return HttpResponseBadRequest(
-            "Cannot provide a download for card view flavor {} in file format ".format(card_view_flavor))
+            f"Cannot provide a download for '{spec}' as analysis result type '{art}' in file format '{file_format}'")
 
-    return download_response_functions[key](request, analyses)
+    return download_function(request, analyses)
 
 
 def _analyses_meta_data_dataframe(analyses, request):
@@ -181,15 +175,15 @@ def _publications_urls(request, analyses):
     return publication_urls
 
 
-def _analysis_header_for_txt_file(analysis, as_comment=True):
+def analysis_header_for_txt_file(analysis, as_comment=True):
     """
 
     Parameters
     ----------
-    analysis
-        Analysis instance
-    as_comment
-        boolean, if True, add '# ' in front of each line
+    analysis: Analysis
+        Analysis instance for which a header should be generated.
+    as_comment: bool
+        If True, add '# ' in front of each line
 
     Returns
     -------
@@ -224,6 +218,7 @@ def _analysis_header_for_txt_file(analysis, as_comment=True):
     return s
 
 
+@register_download_function('plot', 'results', 'txt')
 def download_plot_analyses_to_txt(request, analyses):
     """Download plot data for given analyses as CSV file.
 
@@ -260,7 +255,7 @@ def download_plot_analyses_to_txt(request, analyses):
                     f.write(f'# - {pub_url}\n')
                 f.write('#\n')
 
-        f.write(_analysis_header_for_txt_file(analysis))
+        f.write(analysis_header_for_txt_file(analysis))
 
         result = analysis.result
         xunit_str = '' if result['xunit'] is None else ' ({})'.format(result['xunit'])
@@ -298,6 +293,7 @@ def download_plot_analyses_to_txt(request, analyses):
     return response
 
 
+@register_download_function('plot', 'results', 'xlsx')
 def download_plot_analyses_to_xlsx(request, analyses):
     """Download plot data for given analyses as XLSX file.
 
@@ -477,6 +473,7 @@ def download_plot_analyses_to_xlsx(request, analyses):
     return response
 
 
+@register_download_function('roughness parameters', 'results', 'txt')
 def download_roughness_parameters_to_txt(request, analyses):
     """Download roughness parameters from given analyses as CSV file.
 
@@ -521,7 +518,7 @@ def download_roughness_parameters_to_txt(request, analyses):
                     f.write(f'# - {pub_url}\n')
                 f.write('#\n')
 
-        f.write(_analysis_header_for_txt_file(analysis))
+        f.write(analysis_header_for_txt_file(analysis))
 
         result = analysis.result
         topography = analysis.subject
@@ -551,6 +548,7 @@ def download_roughness_parameters_to_txt(request, analyses):
     return response
 
 
+@register_download_function('roughness parameters', 'results', 'xlsx')
 def download_roughness_parameters_to_xlsx(request, analyses):
     """Download roughness parameters from given analyses as XLSX file.
 
@@ -600,181 +598,3 @@ def download_roughness_parameters_to_xlsx(request, analyses):
     f.close()
     return response
 
-
-def download_contact_mechanics_analyses_as_zip(request, analyses):
-    """Provides a ZIP file with contact mechanics data.
-
-    :param request: HTTPRequest
-    :param analyses: sequence of Analysis instances
-    :return: HTTP Response with file download
-    """
-
-    bytes = io.BytesIO()
-
-    zf = zipfile.ZipFile(bytes, mode='w')
-
-    #
-    # Add directories and files for all analyses
-    #
-    zip_dirs = set()
-
-    for analysis in analyses:
-
-        zip_dir = analysis.subject.name
-        if zip_dir in zip_dirs:
-            # make directory unique
-            zip_dir += "-{}".format(analysis.subject.id)
-        zip_dirs.add(zip_dir)
-
-        #
-        # Add a csv file with plot data
-        #
-        analysis_result = analysis.result
-
-        col_keys = ['mean_pressures', 'total_contact_areas', 'mean_gaps', 'converged', 'data_paths']
-        col_names = ["Normalized pressure p/E*", "Fractional contact area A/A0", "Normalized mean gap u/h_rms",
-                     "converged", "filename"]
-
-        col_dicts = {col_names[i]: analysis_result[k] for i, k in enumerate(col_keys)}
-        plot_df = pd.DataFrame(col_dicts)
-        plot_df['filename'] = "result-" + plot_df['filename'].map(lambda fn: os.path.split(fn)[1]) + ".nc"
-        # only simple filename
-
-        plot_filename_in_zip = os.path.join(zip_dir, 'plot.csv')
-        zf.writestr(plot_filename_in_zip, plot_df.to_csv())
-
-        #
-        # Add nc files from storage
-        #
-        prefix = analysis.storage_prefix
-
-        directories, filenames = default_storage.listdir(prefix)
-
-        for dirname in directories:
-            # each directory corresponds to a step
-            input_file = default_storage.open(f"{prefix}/{dirname}/nc/results.nc")
-
-            filename_in_zip = os.path.join(zip_dir, f"result-{dirname}.nc")
-
-            try:
-                zf.writestr(filename_in_zip, input_file.read())
-            except Exception as exc:
-                zf.writestr("errors-{}.txt".format(dirname),
-                            "Cannot save file {} in ZIP, reason: {}".format(filename_in_zip, str(exc)))
-
-        #
-        # Add a file with version information
-        #
-        zf.writestr(os.path.join(zip_dir, 'info.txt'),
-                    _analysis_header_for_txt_file(analysis))
-
-
-    #
-    # Add a Readme file
-    #
-    zf.writestr("README.txt",
-                f"""
-Contents of this ZIP archive
-============================
-This archive contains data from contact mechanics calculation.
-
-Each directory corresponds to one measurement and is named after the measurement.
-Inside you find two types of files:
-
-- a simple CSV file ('plot.csv')
-- a couple of classical netCDF files (Extension '.nc')
-
-The file 'plot.csv' contains a table with the data used in the plot,
-one line for each calculation step. It has the following columns:
-
-- Zero-based index column
-- Normalized pressure in units of p/E*
-- Fractional contact area in units of A/A0
-- Normalized mean gap in units of u/h_rms
-- A boolean flag (True/False) which indicates whether the calculation converged
-  within the given limit
-- Filename of the NetCDF file (order of filenames may be different than index)
-
-So each line also refers to one NetCDF file in the directory, it corresponds to
-one external pressure. Inside the NetCDF file you'll find the variables
-
-* `contact_points`: boolean array, true if point is in contact
-* `pressure`: floating-point array containing local pressure (in units of `E*`)
-* `gap`: floating-point array containing the local gap
-* `displacement`: floating-point array containing the local displacements
-
-as well as the attributes
-
-* `mean_pressure`: mean pressure (in units of `E*`)
-* `total_contact_area`: total contact area (fractional)
-
-Accessing the CSV file
-======================
-
-Inside the archive you find a file "plot.csv" which contains the data
-from the plot.
-
-With Python and numpy you can load it e.g. like this:
-
-```
-import numpy as np
-pressure_contact_area = np.loadtxt("plot.csv", delimiter=",",
-                                   skiprows=1, usecols=(1,2))
-```
-
-With pandas, you can do:
-
-```
-import pandas as pd
-df = pd.read_csv("plot.csv", index_col=0)
-```
-
-Accessing the NetCDF files
-==========================
-
-In order to read the data for each point,
-you can use a netCDF library. Please see the following examples:
-
-### Python
-
-Given the package [`netcdf4-python`](http://netcdf4-python.googlecode.com/) is installed:
-
-```
-import netCDF4
-ds = netCDF4.Dataset("result-step-0.nc")
-print(ds)
-pressure = ds['pressure'][:]
-mean_pressure = ds.mean_pressure
-```
-
-Another convenient package you can use is [`xarray`](xarray.pydata.org/).
-
-### Matlab
-
-In order to read the pressure map in Matlab, use
-
-```
-ncid = netcdf.open("result-step-0.nc", 'NC_NOWRITE');
-varid = netcdf.inqVarID(ncid, "pressure");
-pressure = netcdf.getVar(ncid, varid);
-```
-
-Have look in the official Matlab documentation for more information.
-
-Version information
-===================
-
-For version information of the packages used, please look into the files named
-'info.txt' in the subdirectories for each measurement. The versions of the packages
-used for analysis may differ among measurements, because they may have been
-calculated at different times.
-    """)
-
-    zf.close()
-
-    # Prepare response object.
-    response = HttpResponse(bytes.getvalue(),
-                            content_type='application/x-zip-compressed')
-    response['Content-Disposition'] = 'attachment; filename="{}"'.format('contact_mechanics.zip')
-
-    return response

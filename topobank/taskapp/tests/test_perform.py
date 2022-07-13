@@ -11,7 +11,7 @@ from topobank.analysis.tests.utils import TopographyAnalysisFactory
 
 
 @pytest.mark.django_db
-def test_perform_analysis(mocker, two_topos, settings):
+def test_perform_analysis(mocker, two_topos, test_analysis_function, settings):
 
     def my_func(topography, a=0, b=1, bins=15, window='hann', progress_recorder=None, storage_prefix=None):
         return {
@@ -20,11 +20,11 @@ def test_perform_analysis(mocker, two_topos, settings):
             's': window
         }
 
-    m = mocker.patch('topobank.analysis.models.AnalysisFunctionImplementation.python_function',
+    m = mocker.patch('topobank.analysis.registry.AnalysisFunctionImplementation.python_function',
                      new_callable=mocker.PropertyMock)
     m.return_value = lambda: my_func  # we need a function which returns a function
 
-    af = AnalysisFunction.objects.first()  # doesn't matter
+    af = test_analysis_function
     topo = Topography.objects.first()  # doesn't matter
 
     func_kwargs = dict(a=1,

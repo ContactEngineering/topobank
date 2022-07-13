@@ -5,18 +5,15 @@ from django.shortcuts import reverse
 
 from trackstats.models import Metric, Period
 
-from topobank.analysis.tests.utils import TopographyAnalysisFactory, AnalysisFunctionFactory, \
-    AnalysisFunctionImplementationFactory
+from topobank.analysis.tests.utils import TopographyAnalysisFactory, AnalysisFunctionFactory
 from topobank.manager.utils import subjects_to_json
 
 
 @pytest.mark.django_db
-def test_counts_analyses_views(client, mocker, handle_usage_statistics):
-    function = AnalysisFunctionFactory()
-    impl = AnalysisFunctionImplementationFactory(function=function)
-    analysis = TopographyAnalysisFactory.create(function=function)
+def test_counts_analyses_views(client, test_analysis_function, mocker, handle_usage_statistics):
+
+    analysis = TopographyAnalysisFactory.create(function=test_analysis_function)
     topography = analysis.subject
-    function = analysis.function
     user = topography.surface.creator
 
     metric = Metric.objects.ANALYSES_RESULTS_VIEW_COUNT
@@ -28,7 +25,7 @@ def test_counts_analyses_views(client, mocker, handle_usage_statistics):
     # during this test - so we must imitate the AJAX call here
     def send_card_request():
         response = client.post(reverse('analysis:card'), data={
-            'function_id': function.id,
+            'function_id': test_analysis_function.id,
             'card_id': 'card',
             'template_flavor': 'list',
             'subjects_ids_json': subjects_to_json([topography]),
@@ -42,7 +39,8 @@ def test_counts_analyses_views(client, mocker, handle_usage_statistics):
 
     today = datetime.date.today()
 
-    record_mock.assert_called_with(metric=metric, object=function, period=Period.DAY,
+    record_mock.assert_called_with(metric=metric, object=test_analysis_function,
+                                   period=Period.DAY,
                                    value=1, date=today)
     response = send_card_request()
     assert response.status_code == 200
@@ -57,7 +55,8 @@ def test_counts_analyses_views(client, mocker, handle_usage_statistics):
         response = send_card_request()
         assert response.status_code == 200
         assert record_mock.call_count == 3
-        record_mock.assert_called_with(metric=metric, object=function, period=Period.DAY,
+        record_mock.assert_called_with(metric=metric, object=test_analysis_function,
+                                       period=Period.DAY,
                                        value=1, date=yesterday)
 
     client.logout()

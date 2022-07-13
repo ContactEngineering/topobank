@@ -28,7 +28,7 @@ urlpatterns = [
         name='topography'
     ),
     url(
-        regex=r'download/(?P<ids>[\d,]+)/(?P<card_view_flavor>[\w\s]+)/(?P<file_format>\w+)$',
+        regex=r'download/(?P<ids>[\d,]+)/(?P<art>[\w\s]+)/(?P<file_format>\w+)$',
         view=login_required(downloads.download_analyses),
         name='download'
     ),

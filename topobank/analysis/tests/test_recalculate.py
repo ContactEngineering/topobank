@@ -4,21 +4,20 @@ import pytest
 from django.db import transaction
 
 from topobank.manager.tests.utils import SurfaceFactory, Topography1DFactory, UserFactory
-from topobank.analysis.tests.utils import AnalysisFunctionFactory, AnalysisFunctionImplementationFactory
+from topobank.analysis.tests.utils import AnalysisFunctionFactory
 from topobank.analysis.models import Analysis, AnalysisCollection
 from topobank.manager.utils import subjects_to_json
 
 
 @pytest.mark.django_db
-def test_recalculate(client):
+def test_recalculate(client, test_analysis_function):
 
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
     topo1 = Topography1DFactory(surface=surface)
     topo2 = Topography1DFactory(surface=surface)
 
-    func = AnalysisFunctionFactory(name="test function")
-    impl = AnalysisFunctionImplementationFactory(function=func)
+    func = test_analysis_function
 
     client.force_login(user)
 

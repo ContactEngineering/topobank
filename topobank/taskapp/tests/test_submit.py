@@ -2,26 +2,23 @@ import pytest
 import pickle
 
 from topobank.analysis.models import Analysis
-from topobank.analysis.models import AnalysisFunction
 from topobank.analysis.utils import request_analysis, submit_analysis
 
-from topobank.analysis.tests.utils import AnalysisFunctionImplementationFactory, AnalysisFunctionFactory, \
-    TopographyAnalysisFactory
+from topobank.analysis.tests.utils import AnalysisFunctionFactory, TopographyAnalysisFactory
 from topobank.manager.tests.utils import Topography1DFactory, UserFactory
 
 
 @pytest.mark.django_db
-def test_request_analysis(mocker):
+def test_request_analysis(mocker, test_analysis_function):
     """Make sure analysis objects were created with correct parameters"""
 
     user = UserFactory()
 
-    af = AnalysisFunctionFactory.create(name="somefunc")
-    afimpl = AnalysisFunctionImplementationFactory.create(function=af)
+    af = test_analysis_function
 
-    m = mocker.patch('topobank.analysis.models.AnalysisFunctionImplementation.python_function',
-                     new_callable=mocker.PropertyMock)
-    m.return_value = lambda: lambda topography, a, b, bins=15, window='hann': None  # defining default parameters here
+    # m = mocker.patch('topobank.analysis.models.AnalysisFunctionImplementation.python_function',
+    #                  new_callable=mocker.PropertyMock)
+    # m.return_value = lambda: lambda topography, a, b, bins=15, window='hann': None  # defining default parameters here
 
     # mocker.patch('topobank.analysis.models.Analysis.objects.create')
     # mocker.patch('django.db.models.QuerySet.delete') # we don't need to test with delete here
@@ -62,7 +59,7 @@ def test_request_analysis(mocker):
 
 
 @pytest.mark.django_db
-def test_unmark_other_analyses_during_request_analysis(mocker):
+def test_unmark_other_analyses_during_request_analysis(mocker, test_analysis_function):
     """
     When requesting an analysis with new arguments, the old analyses should still exist
     (at the moment, maybe delete later analyses without user),
@@ -70,12 +67,11 @@ def test_unmark_other_analyses_during_request_analysis(mocker):
     """
     user = UserFactory()
 
-    m = mocker.patch('topobank.analysis.models.AnalysisFunctionImplementation.python_function',
+    m = mocker.patch('topobank.analysis.registry.AnalysisFunctionImplementation.python_function',
                      new_callable=mocker.PropertyMock)
     m.return_value = lambda: lambda topography, a, b, bins=15, window='hann': None
 
-    af = AnalysisFunctionFactory(name="somefunc")
-    afim = AnalysisFunctionImplementationFactory(function=af)
+    af = test_analysis_function
 
     topo = Topography1DFactory()
 

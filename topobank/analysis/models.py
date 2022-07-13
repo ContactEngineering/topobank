@@ -3,18 +3,16 @@ Models related to analyses.
 """
 
 from django.db import models
-from django.db.models import UniqueConstraint
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.core.files.storage import default_storage
 
-import inspect
 import pickle
 
 from ..utils import store_split_dict, load_split_dict
 from topobank.users.models import User
 
-from .registry import ImplementationMissingException
+from .registry import ImplementationMissingAnalysisFunctionException, AnalysisRegistry, AnalysisFunctionImplementation
 
 RESULT_FILE_BASENAME = 'result'
 
@@ -244,11 +242,7 @@ class AnalysisFunction(models.Model):
         ImplementationMissingException
             in case the implementation is missing
         """
-        try:
-            impl = self.implementations.get(subject_type=subject_type)
-        except AnalysisFunctionImplementation.DoesNotExist as exc:
-            raise ImplementationMissingException(self.name, subject_type)
-        return impl
+        return AnalysisRegistry().get_implementation(self.name, subject_type=subject_type)
 
     def python_function(self, subject_type):
         """Return function for given first argument type.
@@ -267,18 +261,18 @@ class AnalysisFunction(models.Model):
         ImplementationMissingException
             if implementation for given subject type does not exist
         """
-        return self.get_implementation(subject_type).python_function()
+        return AnalysisRegistry().get_implementation(self.name, subject_type).python_function()
 
     def get_implementation_types(self):
         """Return list of content types for which this function is implemented.
         """
-        return [impl.subject_type for impl in self.implementations.all()]
+        return AnalysisRegistry().get_implementation_types(self.name)
 
     def is_implemented_for_type(self, subject_type):
         """Returns True if function is implemented for given content type, else False"""
         try:
             self.python_function(subject_type)
-        except ImplementationMissingException:
+        except ImplementationMissingAnalysisFunctionException:
             return False
         return True
 
@@ -314,58 +308,6 @@ class AnalysisFunction(models.Model):
         except Exception as exc:
             raise ValueError(f"Cannot find content type for subject '{subject}'.")
         return self.get_implementation(subject_type).eval(subject, **kwargs)
-
-
-class AnalysisFunctionImplementation(models.Model):
-    """Represents an implementation of an analysis function depending on subject."""
-    function = models.ForeignKey(AnalysisFunction, related_name='implementations', on_delete=models.CASCADE)
-    subject_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
-    code_ref = models.CharField(max_length=256,
-                                help_text="name of Python function in 'topobank.analysis.functions' module")
-
-    class Meta:
-        constraints = [
-            UniqueConstraint(fields=['function', 'subject_type'], name='distinct_implementation')
-        ]
-
-    def python_function(self):
-        """Return reference to corresponding Python function."""
-        import topobank.analysis.functions as functions_module
-        try:
-            return getattr(functions_module, self.code_ref)
-        except AttributeError as exc:
-            raise ValueError(f"Cannot resolve reference to python function '{self.code_ref}'.")
-
-    @staticmethod
-    def _get_default_args(func):
-        # thanks to mgilson, his answer on SO:
-        # https://stackoverflow.com/questions/12627118/get-a-function-arguments-default-value#12627202
-
-        signature = inspect.signature(func)
-        return {
-            k: v.default
-            for k, v in signature.parameters.items()
-            if v.default is not inspect.Parameter.empty
-        }
-
-    def get_default_kwargs(self):
-        """Return default keyword arguments as dict.
-
-        Administrative arguments like
-        'storage_prefix' and 'progress_recorder'
-        which are common to all functions, are excluded.
-        """
-        dkw = self._get_default_args(self.python_function())
-        if 'storage_prefix' in dkw:
-            del dkw['storage_prefix']
-        if 'progress_recorder' in dkw:
-            del dkw['progress_recorder']
-        return dkw
-
-    def eval(self, subject, **kwargs):
-        """Evaluate implementation on given subject with given arguments."""
-        pyfunc = self.python_function()
-        return pyfunc(subject, **kwargs)
 
 
 class AnalysisCollection(models.Model):

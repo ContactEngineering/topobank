@@ -4,13 +4,14 @@ from SurfaceTopography.Container.ScaleDependentStatistics import scale_dependent
 from SurfaceTopography.Container.common import suggest_length_unit
 from SurfaceTopography.Exceptions import CannotPerformAnalysisError
 
-from topobank.analysis.functions import register_implementation, _reasonable_bins_argument, wrap_series, \
+from topobank.analysis.functions import _reasonable_bins_argument, wrap_series, \
     ReentrantTopographyException, make_alert_entry, ContainerProxy
+from topobank.analysis.registry import register_implementation
 
 GAUSSIAN_FIT_SERIES_NAME = 'Gaussian fit'
 
 
-@register_implementation(name="Height distribution", card_view_flavor='plot')
+@register_implementation(art='plot', name="Height distribution")
 def height_distribution(topography, bins=None, wfac=5, progress_recorder=None, storage_prefix=None):
     # Get low level topography from SurfaceTopography model
     topography = topography.topography()
@@ -148,7 +149,7 @@ def _moments_histogram_gaussian(arr, bins, topography, wfac, quantity, label, un
     return scalars, series
 
 
-@register_implementation(name="Slope distribution", card_view_flavor='plot')
+@register_implementation(art='plot', name="Slope distribution")
 def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, storage_prefix=None):
     """Calculates slope distribution for given topography."""
     # Get low level topography from SurfaceTopography model
@@ -226,7 +227,7 @@ def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, st
     )
 
 
-@register_implementation(name="Curvature distribution", card_view_flavor='plot')
+@register_implementation(art='plot', name="Curvature distribution")
 def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None, storage_prefix=None):
     # Get low level topography from SurfaceTopography model
     topography = topography.topography()
@@ -298,12 +299,12 @@ def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None
     )
 
 
-@register_implementation(name="Power spectrum", card_view_flavor='plot')
+@register_implementation(art='plot', name="Power spectrum")
 def power_spectrum(topography, progress_recorder=None, storage_prefix=None, window=None,
                    nb_points_per_decade=10):
     """Calculate Power Spectrum for given topography."""
     # Get low level topography from SurfaceTopography model
-    return analysis_function(topography,
+    return _analysis_function(topography,
                              'power_spectrum_from_profile',
                              'power_spectrum_from_area',
                              'Power-spectral density (PSD)',
@@ -314,21 +315,21 @@ def power_spectrum(topography, progress_recorder=None, storage_prefix=None, wind
                              'q/π × 2D PSD',
                              '{}⁻¹',
                              '{}³',
-                             conv_2d_fac=1 / np.pi,
-                             conv_2d_exponent=1,
-                             window=window,
-                             nb_points_per_decade=nb_points_per_decade,
-                             storage_prefix=storage_prefix)
+                              conv_2d_fac=1 / np.pi,
+                              conv_2d_exponent=1,
+                              window=window,
+                              nb_points_per_decade=nb_points_per_decade,
+                              storage_prefix=storage_prefix)
 
 
-@register_implementation(name="Power spectrum", card_view_flavor='plot')
+@register_implementation(art='plot', name="Power spectrum")
 def power_spectrum_for_surface(surface, progress_recorder=None, storage_prefix=None, window=None,
                                nb_points_per_decade=10):
     """Calculate Power Spectrum for given topography."""
     # Get low level topography from SurfaceTopography model
 
-    return analysis_function_for_surface(surface,
-                                         progress_recorder,
+    return _analysis_function_for_surface(surface,
+                                          progress_recorder,
                                          'power_spectrum_from_profile',
                                          'Power-spectral density (PSD)',
                                          'Wavevector',
@@ -336,14 +337,14 @@ def power_spectrum_for_surface(surface, progress_recorder=None, storage_prefix=N
                                          '1D PSD along x',
                                          '{}⁻¹',
                                          '{}³',
-                                         window=window,
-                                         nb_points_per_decade=nb_points_per_decade,
-                                         storage_prefix=storage_prefix)
+                                          window=window,
+                                          nb_points_per_decade=nb_points_per_decade,
+                                          storage_prefix=storage_prefix)
 
 
-@register_implementation(name="Autocorrelation", card_view_flavor='plot')
+@register_implementation(art='plot', name="Autocorrelation")
 def autocorrelation(topography, progress_recorder=None, storage_prefix=None, nb_points_per_decade=10):
-    return analysis_function(topography,
+    return _analysis_function(topography,
                              'autocorrelation_from_profile',
                              'autocorrelation_from_area',
                              'Height-difference autocorrelation function (ACF)',
@@ -354,14 +355,14 @@ def autocorrelation(topography, progress_recorder=None, storage_prefix=None, nb_
                              'Radial average',
                              '{}',
                              '{}²',
-                             nb_points_per_decade=nb_points_per_decade,
-                             storage_prefix=storage_prefix)
+                              nb_points_per_decade=nb_points_per_decade,
+                              storage_prefix=storage_prefix)
 
 
-@register_implementation(name="Autocorrelation", card_view_flavor='plot')
+@register_implementation(art='plot', name="Autocorrelation")
 def autocorrelation_for_surface(surface, progress_recorder=None, storage_prefix=None, nb_points_per_decade=10):
-    return analysis_function_for_surface(surface,
-                                         progress_recorder,
+    return _analysis_function_for_surface(surface,
+                                          progress_recorder,
                                          'autocorrelation_from_profile',
                                          'Height-difference autocorrelation function (ACF)',
                                          'Distance',
@@ -369,13 +370,13 @@ def autocorrelation_for_surface(surface, progress_recorder=None, storage_prefix=
                                          'Along x',
                                          '{}',
                                          '{}²',
-                                         nb_points_per_decade=nb_points_per_decade,
-                                         storage_prefix=storage_prefix)
+                                          nb_points_per_decade=nb_points_per_decade,
+                                          storage_prefix=storage_prefix)
 
 
-@register_implementation(name="Variable bandwidth", card_view_flavor='plot')
+@register_implementation(art='plot', name="Variable bandwidth")
 def variable_bandwidth(topography, progress_recorder=None, storage_prefix=None):
-    return analysis_function(topography,
+    return _analysis_function(topography,
                              'variable_bandwidth_from_profile',
                              'variable_bandwidth_from_area',
                              'Variable-bandwidth analysis',
@@ -386,13 +387,13 @@ def variable_bandwidth(topography, progress_recorder=None, storage_prefix=None):
                              'Areal decomposition',
                              '{}',
                              '{}',
-                             storage_prefix=storage_prefix)
+                              storage_prefix=storage_prefix)
 
 
-@register_implementation(name="Variable bandwidth", card_view_flavor='plot')
+@register_implementation(art='plot', name="Variable bandwidth")
 def variable_bandwidth_for_surface(surface, progress_recorder=None, storage_prefix=None, nb_points_per_decade=10):
-    return analysis_function_for_surface(surface,
-                                         progress_recorder,
+    return _analysis_function_for_surface(surface,
+                                          progress_recorder,
                                          'variable_bandwidth_from_profile',
                                          'Variable-bandwidth analysis',
                                          'Bandwidth',
@@ -400,8 +401,8 @@ def variable_bandwidth_for_surface(surface, progress_recorder=None, storage_pref
                                          'Profile decomposition along x',
                                          '{}',
                                          '{}',
-                                         nb_points_per_decade=nb_points_per_decade,
-                                         storage_prefix=storage_prefix)
+                                          nb_points_per_decade=nb_points_per_decade,
+                                          storage_prefix=storage_prefix)
 
 
 def scale_dependent_roughness_parameter(topography, progress_recorder, order_of_derivative, name, ylabel, xname, yname,
@@ -527,7 +528,7 @@ def scale_dependent_roughness_parameter_for_surface(surface, progress_recorder, 
         alerts=alerts)
 
 
-@register_implementation(name="Scale-dependent slope", card_view_flavor='plot')
+@register_implementation(art='plot', name="Scale-dependent slope")
 def scale_dependent_slope(topography, progress_recorder=None, storage_prefix=None, nb_points_per_decade=10):
     return scale_dependent_roughness_parameter(
         topography,
@@ -544,7 +545,7 @@ def scale_dependent_slope(topography, progress_recorder=None, storage_prefix=Non
         storage_prefix=storage_prefix)
 
 
-@register_implementation(name="Scale-dependent slope", card_view_flavor='plot')
+@register_implementation(art='plot', name="Scale-dependent slope")
 def scale_dependent_slope_for_surface(surface, progress_recorder=None, storage_prefix=None, nb_points_per_decade=10):
     return scale_dependent_roughness_parameter_for_surface(
         surface,
@@ -558,7 +559,7 @@ def scale_dependent_slope_for_surface(surface, progress_recorder=None, storage_p
         storage_prefix=storage_prefix)
 
 
-@register_implementation(name="Scale-dependent curvature", card_view_flavor='plot')
+@register_implementation(art='plot', name="Scale-dependent curvature")
 def scale_dependent_curvature(topography, progress_recorder=None, storage_prefix=None, nb_points_per_decade=10):
     return scale_dependent_roughness_parameter(
         topography,
@@ -575,7 +576,7 @@ def scale_dependent_curvature(topography, progress_recorder=None, storage_prefix
         storage_prefix=storage_prefix)
 
 
-@register_implementation(name="Scale-dependent curvature", card_view_flavor='plot')
+@register_implementation(art='plot', name="Scale-dependent curvature")
 def scale_dependent_curvature_for_surface(surface, progress_recorder=None, storage_prefix=None,
                                           nb_points_per_decade=10):
     return scale_dependent_roughness_parameter_for_surface(
@@ -590,7 +591,7 @@ def scale_dependent_curvature_for_surface(surface, progress_recorder=None, stora
         storage_prefix=storage_prefix)
 
 
-@register_implementation(name="Roughness parameters", card_view_flavor='roughness parameters')
+@register_implementation(art='roughness parameters', name="Roughness parameters")
 def roughness_parameters(topography, progress_recorder=None, storage_prefix=None):
     """Calculate roughness parameters for given topography.
 
@@ -754,8 +755,8 @@ def roughness_parameters(topography, progress_recorder=None, storage_prefix=None
     return result
 
 
-def analysis_function(topography, funcname_profile, funcname_area, name, xlabel, ylabel, xname, yname, aname, xunit,
-                      yunit, conv_2d_fac=1.0, conv_2d_exponent=0, storage_prefix=None, **kwargs):
+def _analysis_function(topography, funcname_profile, funcname_area, name, xlabel, ylabel, xname, yname, aname, xunit,
+                       yunit, conv_2d_fac=1.0, conv_2d_exponent=0, storage_prefix=None, **kwargs):
     topography_name = topography.name
     topography_url = topography.get_absolute_url()
 
@@ -877,8 +878,8 @@ def analysis_function(topography, funcname_profile, funcname_area, name, xlabel,
         alerts=alerts)
 
 
-def analysis_function_for_surface(surface, progress_recorder, funcname_profile, name, xlabel, ylabel, xname, xunit,
-                                  yunit, storage_prefix=None, **kwargs):
+def _analysis_function_for_surface(surface, progress_recorder, funcname_profile, name, xlabel, ylabel, xname, xunit,
+                                   yunit, storage_prefix=None, **kwargs):
     """Calculate average analysis result for a surface."""
     topographies = ContainerProxy(surface.topography_set.all())
     unit = suggest_length_unit(topographies, 'log')

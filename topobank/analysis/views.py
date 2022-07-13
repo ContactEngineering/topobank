@@ -33,9 +33,11 @@ from ..manager.models import Topography, Surface
 from ..manager.utils import instances_to_selection, selection_to_subjects_json, subjects_from_json, subjects_to_json
 from ..usage_stats.utils import increase_statistics_by_date_and_object
 from ..plots import configure_plot
-from .models import Analysis, AnalysisFunction, AnalysisCollection, CARD_VIEW_FLAVORS
+from .models import Analysis, AnalysisFunction, AnalysisCollection
 from .forms import FunctionSelectForm
-from .utils import get_latest_analyses, request_analysis, renew_analysis
+from .utils import get_latest_analyses, request_analysis, renew_analysis, filter_and_order_analyses, \
+    palette_for_topographies
+from .registry import AnalysisRegistry, register_card_view_class
 
 import logging
 
@@ -47,24 +49,19 @@ NUM_SIGNIFICANT_DIGITS_RMS_VALUES = 5
 LINEWIDTH_FOR_SURFACE_AVERAGE = 4
 
 
-def card_view_class(card_view_flavor):
-    """Return class for given card view flavor.
+def card_view_class(art):  # TODO maybe remove?
+    """Return class for given analysis result type.
 
     Parameters
     ----------
-    card_view_flavor: str
-        Defined in model AnalysisFunction.
+    art: str
+        Analysis result type as registered.
 
     Returns
     -------
     class
     """
-    if card_view_flavor not in CARD_VIEW_FLAVORS:
-        raise ValueError("Unknown card view flavor '{}'. Known values are: {}".format(card_view_flavor,
-                                                                                      CARD_VIEW_FLAVORS))
-
-    class_name = card_view_flavor.title().replace(' ', '') + "CardView"
-    return globals()[class_name]
+    return AnalysisRegistry().get_card_view_class(art)
 
 
 def switch_card_view(request):
@@ -104,77 +101,6 @@ def switch_card_view(request):
     return view_class.as_view()(request)
 
 
-def _palette_for_topographies(nb_topographies):
-    if nb_topographies <= 10:
-        topography_colors = palettes.Category10_10
-    else:
-        topography_colors = [palettes.Plasma256[k * 256 // nb_topographies] for k in range(nb_topographies)]
-        # we don't want to have yellow as first color
-        topography_colors = topography_colors[nb_topographies // 2:] + topography_colors[:nb_topographies // 2]
-    return topography_colors
-
-
-def _filter_and_order_analyses(analyses):
-    """Order analyses such that surface analyses are coming last (plotted on top).
-
-    The analyses are filtered that that surface analyses
-    are only included if there are more than 1 measurement.
-
-    Parameters
-    ----------
-    analyses: QuerySet
-
-    Returns
-    -------
-    Ordered list of analyses. Analyses for measurements
-    are listed directly after corresponding surface.
-    """
-    surface_ct = ContentType.objects.get_for_model(Surface)
-    sorted_analyses = []
-
-    #
-    # Order analyses by surface
-    # such that for each surface the analyses are ordered by subject id
-    #
-    analysis_groups = OrderedDict()  # always the same order of surfaces for same list of subjects
-    for topography_analysis in analyses.filter(~Q(subject_type=surface_ct)).order_by('subject_id'):
-        surface = topography_analysis.subject.surface
-        if not surface in analysis_groups:
-            analysis_groups[surface] = []
-        analysis_groups[surface].append(topography_analysis)
-
-    #
-    # Process groups and collect analyses which are implicitly sorted
-    #
-    surfaces_analyses = analyses.filter(subject_type=surface_ct).order_by('subject_id')
-    surfaces_of_surface_analyses = [surfana.subject for surfana in surfaces_analyses]
-    for surface, topography_analyses in analysis_groups.items():
-        try:
-            # Is there an analysis for the corresponding surface?
-            surface_analysis_index = surfaces_of_surface_analyses.index(surface)
-            surface_analysis = surfaces_analyses[surface_analysis_index]
-            if surface.num_topographies() > 1:
-                # only show average for surface if more than one topography
-                sorted_analyses.append(surface_analysis)
-                surface_analysis_index = len(sorted_analyses) - 1  # last one
-        except ValueError:
-            # No analysis given for surface, so skip
-            surface_analysis_index = None
-
-        #
-        # Add topography analyses whether there was a surface analysis or not
-        # This will result in same order of topography analysis, no matter whether there was a surface analysis
-        #
-        if surface_analysis_index is None:
-            sorted_analyses.extend(topography_analyses)
-        else:
-            # Insert corresponding topography analyses after surface analyses
-            sorted_analyses = sorted_analyses[:surface_analysis_index+1] + topography_analyses \
-                              + sorted_analyses[surface_analysis_index+1:]
-
-    return sorted_analyses
-
-
 def _subject_colors(analyses):
     """Return dict with mapping from subject to color for plotting.
 
@@ -189,8 +115,7 @@ def _subject_colors(analyses):
     pass
 
 
-
-
+@register_card_view_class('generic')
 class SimpleCardView(TemplateView):
     """Very basic display of results. Base class for more complex views.
 
@@ -438,6 +363,7 @@ class SimpleCardView(TemplateView):
         return response
 
 
+@register_card_view_class('plot')  # TODO rename
 class PlotCardView(SimpleCardView):
 
     def get_context_data(self, **kwargs):
@@ -447,7 +373,7 @@ class PlotCardView(SimpleCardView):
 
         #
         # order analyses such that surface analyses are coming last (plotted on top)
-        analyses_success_list = _filter_and_order_analyses(analyses_success)
+        analyses_success_list = filter_and_order_analyses(analyses_success)
         data_sources_dict = []
 
         # Special case: It can happen that there is one surface with a successful analysis
@@ -549,7 +475,7 @@ class PlotCardView(SimpleCardView):
         # Prepare helpers for dashes and colors
         #
         surface_color_palette = palettes.Greys256  # surfaces are shown in black/grey
-        topography_color_palette = _palette_for_topographies(nb_topographies)
+        topography_color_palette = palette_for_topographies(nb_topographies)
 
         dash_cycle = itertools.cycle(['solid', 'dashed', 'dotted', 'dotdash', 'dashdot'])
 
@@ -732,89 +658,6 @@ class PlotCardView(SimpleCardView):
             },
         ])
         context['extra_warnings'] = extra_warnings
-
-        return context
-
-
-class ContactMechanicsCardView(SimpleCardView):
-    """View for displaying a card with results from Contact Mechanics analyses.
-    """
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        alerts = []  # list of collected alerts
-        analyses_success = context['analyses_success']
-
-        if len(analyses_success) > 0:
-
-            data_sources_dict = []
-
-            analyses_success = _filter_and_order_analyses(analyses_success)
-
-            #
-            # Prepare colors to be used for different analyses
-            #
-            color_cycle = itertools.cycle(_palette_for_topographies(len(analyses_success)))
-
-            #
-            # Context information for the figure
-            #
-            context.update(dict(
-                output_backend=settings.BOKEH_OUTPUT_BACKEND))
-
-            #
-            # Generate two plots in two tabs based on same data sources
-            #
-            for a_index, analysis in enumerate(analyses_success):
-                curr_color = next(color_cycle)
-
-                subject_name = analysis.subject.name
-
-                #
-                # Context information for this data source
-                #
-                data_sources_dict += [dict(
-                    source_name=f'analysis-{analysis.id}',
-                    subject_name=subject_name,
-                    subject_name_index=a_index,
-                    url=reverse('analysis:data', args=(analysis.pk, 'result.json')),
-                    showSymbols=True,  # otherwise symbols do not appear in legend
-                    color=curr_color,
-                    width=1.,
-                )]
-
-            context['data_sources'] = json.dumps(data_sources_dict)
-
-        #
-        # Calculate initial values for the parameter form on the page
-        # We only handle topographies here so far, so we only take into account
-        # parameters for topography analyses
-        #
-        topography_ct = ContentType.objects.get_for_model(Topography)
-        try:
-            unique_kwargs = context['unique_kwargs'][topography_ct]
-        except KeyError:
-            unique_kwargs = None
-        if unique_kwargs:
-            initial_calc_kwargs = unique_kwargs
-        else:
-            # default initial arguments for form if we don't have unique common arguments
-            contact_mechanics_func = AnalysisFunction.objects.get(name="Contact mechanics")
-            initial_calc_kwargs = contact_mechanics_func.get_default_kwargs(topography_ct)
-            initial_calc_kwargs['substrate_str'] = 'nonperiodic'  # because most topographies are non-periodic
-
-        context['initial_calc_kwargs'] = initial_calc_kwargs
-
-        context['extra_warnings'] = alerts
-        context['extra_warnings'].append(
-            dict(alert_class='alert-warning',
-                 message="""
-                 Translucent data points did not converge within iteration limit and may carry large errors.
-                 <i>A</i> is the true contact area and <i>A0</i> the apparent contact area,
-                 i.e. the size of the provided measurement.""")
-        )
-
-        context['limits_calc_kwargs'] = settings.CONTACT_MECHANICS_KWARGS_LIMITS
 
         return context
 

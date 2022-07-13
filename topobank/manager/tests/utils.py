@@ -5,7 +5,7 @@ from operator import itemgetter
 import pytest
 from django.core.management import call_command
 from django.conf import settings
-from shutil import copyfile
+
 import os.path
 import logging
 import datetime
@@ -13,8 +13,6 @@ import factory
 
 from ..models import Topography, Surface, TagModel
 from topobank.users.tests.factories import UserFactory
-
-# from topobank.users.models import User
 
 
 FIXTURE_DIR = os.path.join(

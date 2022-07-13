@@ -14,8 +14,9 @@ from bokeh.core.json_encoder import BokehJSONEncoder
 from django.conf import settings
 from django.core.files import File
 
-from topobank.analysis.functions import register_implementation, _log, IncompatibleTopographyException, \
+from topobank.analysis.functions import _log, IncompatibleTopographyException, \
     CONTACT_MECHANICS_MAX_MB_GRID_PTS_PRODUCT, CONTACT_MECHANICS_MAX_MB_GRID_PTS_PER_DIM
+from topobank.analysis.registry import register_implementation
 from topobank.manager.utils import default_storage_replace, make_dzi
 
 
@@ -202,7 +203,7 @@ def _contact_at_given_load(system, external_force, history=None, pentol=None, ma
            (mean_displacements, mean_gaps, mean_pressures, total_contact_areas, converged)
 
 
-@register_implementation(name="Contact mechanics", card_view_flavor='contact mechanics')
+@register_implementation(art='contact mechanics', name="Contact mechanics")
 def contact_mechanics(topography, substrate_str="nonperiodic", hardness=None, nsteps=10,
                       pressures=None, maxiter=100, progress_recorder=None, storage_prefix=None):
     """

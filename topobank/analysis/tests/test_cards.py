@@ -9,18 +9,19 @@ from topobank.manager.tests.utils import Topography1DFactory, Topography2DFactor
 from topobank.manager.utils import subjects_to_json
 from topobank.manager.models import Analysis, Topography, Surface
 
-from .utils import AnalysisFunctionFactory, TopographyAnalysisFactory, SurfaceAnalysisFactory,\
-    AnalysisFunctionImplementationFactory
+from ..models import AnalysisFunction
+from .utils import AnalysisFunctionFactory, TopographyAnalysisFactory, SurfaceAnalysisFactory
 from ..views import card_view_class, SimpleCardView, PlotCardView
+from ..registry import AnalysisRegistry
 
 
-@pytest.mark.parametrize('card_view_flavor,list_template,detail_template',
+@pytest.mark.parametrize('art,list_template,detail_template',
                          [('simple', 'analysis/simple_card_list.html', 'analysis/simple_card_detail.html'),
                           ('plot', 'analysis/plot_card_list.html', 'analysis/plot_card_detail.html'),
                           #('contact mechanics', 'analysis/contactmechanics_card_list.html', 'analysis/contactmechanics_card_detail.html'),
                           ('roughness parameters', 'analysis/roughnessparameters_card_list.html', 'analysis/roughnessparameters_card_detail.html')])
 @pytest.mark.django_db
-def test_card_templates_simple(client, mocker, handle_usage_statistics, card_view_flavor, list_template,
+def test_card_templates_simple(client, mocker, handle_usage_statistics, art, list_template,
                                detail_template):
     """Check whether correct template is selected."""
 
@@ -29,7 +30,7 @@ def test_card_templates_simple(client, mocker, handle_usage_statistics, card_vie
     #
     password = "secret"
     user = UserFactory(password=password)
-    func1 = AnalysisFunctionFactory(card_view_flavor=card_view_flavor)
+    func1 = AnalysisFunction.objects.get(name="test")
     topo1 = Topography1DFactory()
 
     assert client.login(username=user.username, password=password)
@@ -61,8 +62,8 @@ def test_plot_card_data_sources(rf, handle_usage_statistics):
     password = "secret"
     user = UserFactory(password=password)
     surface = SurfaceFactory(creator=user)
-    func1 = AnalysisFunctionFactory(card_view_flavor='plot')
-    AnalysisFunctionImplementationFactory(function=func1)  # generate implementation, reference not needed
+    func1 = AnalysisFunction.objects.get(name="test")
+
     topo1 = Topography2DFactory(surface=surface)
 
     analysis = TopographyAnalysisFactory(subject=topo1, function=func1, users=[user])
@@ -127,9 +128,12 @@ def test_plot_card_if_no_successful_topo_analysis(client, handle_usage_statistic
     user = UserFactory(password=password)
     topography_ct = ContentType.objects.get_for_model(Topography)
     surface_ct = ContentType.objects.get_for_model(Surface)
-    func1 = AnalysisFunctionFactory(card_view_flavor='plot')
-    AnalysisFunctionImplementationFactory(function=func1, subject_type=topography_ct)
-    AnalysisFunctionImplementationFactory(function=func1, subject_type=surface_ct)
+    func1 = AnalysisFunction.objects.get(name="test")
+
+    from topobank.analysis.functions import topography_analysis_function_for_tests, surface_analysis_function_for_tests
+    reg = AnalysisRegistry()
+    reg.add_implementation('plot', name=func1.name, func=topography_analysis_function_for_tests)
+    reg.add_implementation('plot', name=func1.name, func=surface_analysis_function_for_tests)
 
     surf = SurfaceFactory(creator=user)
     topo = Topography1DFactory(surface=surf)  # also generates the surface

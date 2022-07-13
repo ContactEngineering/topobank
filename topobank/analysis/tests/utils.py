@@ -5,7 +5,8 @@ import pickle
 import datetime
 import json
 
-from ..models import Analysis, AnalysisFunction, AnalysisFunctionImplementation
+from ..models import Analysis, AnalysisFunction
+from ..registry import AnalysisFunctionImplementation
 from topobank.manager.tests.utils import Topography2DFactory, SurfaceFactory
 from topobank.manager.models import Topography, Surface
 
@@ -23,16 +24,16 @@ class AnalysisFunctionFactory(factory.django.DjangoModelFactory):
     name = factory.Sequence(lambda n: "Test Function no. {}".format(n))
     card_view_flavor = 'simple'
 
-
-class AnalysisFunctionImplementationFactory(factory.django.DjangoModelFactory):
-
-    function = factory.SubFactory(AnalysisFunctionFactory)
-    subject_type = factory.LazyAttribute(lambda x: ContentType.objects.get_for_model(Topography))
-    code_ref = 'topography_analysis_function_for_tests'
-
-    # noinspection PyMissingOrEmptyDocstring
-    class Meta:
-        model = AnalysisFunctionImplementation
+#
+# class AnalysisFunctionImplementationFactory(factory.django.DjangoModelFactory):
+#
+#     function = factory.SubFactory(AnalysisFunctionFactory)
+#     subject_type = factory.LazyAttribute(lambda x: ContentType.objects.get_for_model(Topography))
+#     code_ref = 'topography_analysis_function_for_tests'
+#
+#     # noinspection PyMissingOrEmptyDocstring
+#     class Meta:
+#         model = AnalysisFunctionImplementation
 
 
 def _analysis_result(analysis):

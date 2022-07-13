@@ -2,7 +2,9 @@ import inspect
 import logging
 import math
 import pickle
+from collections import OrderedDict
 
+from bokeh import palettes as palettes
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 from django.db.models import Q
@@ -320,3 +322,82 @@ def round_to_significant_digits(x, num_dig_digits):
         return round(x, num_dig_digits - int(math.floor(math.log10(abs(x)))) - 1)
     except ValueError:
         return x
+
+
+def filter_and_order_analyses(analyses):
+    """Order analyses such that surface analyses are coming last (plotted on top).
+
+    The analyses are filtered that that surface analyses
+    are only included if there are more than 1 measurement.
+
+    Parameters
+    ----------
+    analyses: QuerySet
+
+    Returns
+    -------
+    Ordered list of analyses. Analyses for measurements
+    are listed directly after corresponding surface.
+    """
+    from topobank.manager.models import Surface
+    surface_ct = ContentType.objects.get_for_model(Surface)
+    sorted_analyses = []
+
+    #
+    # Order analyses by surface
+    # such that for each surface the analyses are ordered by subject id
+    #
+    analysis_groups = OrderedDict()  # always the same order of surfaces for same list of subjects
+    for topography_analysis in analyses.filter(~Q(subject_type=surface_ct)).order_by('subject_id'):
+        surface = topography_analysis.subject.surface
+        if not surface in analysis_groups:
+            analysis_groups[surface] = []
+        analysis_groups[surface].append(topography_analysis)
+
+    #
+    # Process groups and collect analyses which are implicitly sorted
+    #
+    surfaces_analyses = analyses.filter(subject_type=surface_ct).order_by('subject_id')
+    surfaces_of_surface_analyses = [surfana.subject for surfana in surfaces_analyses]
+    for surface, topography_analyses in analysis_groups.items():
+        try:
+            # Is there an analysis for the corresponding surface?
+            surface_analysis_index = surfaces_of_surface_analyses.index(surface)
+            surface_analysis = surfaces_analyses[surface_analysis_index]
+            if surface.num_topographies() > 1:
+                # only show average for surface if more than one topography
+                sorted_analyses.append(surface_analysis)
+                surface_analysis_index = len(sorted_analyses) - 1  # last one
+        except ValueError:
+            # No analysis given for surface, so skip
+            surface_analysis_index = None
+
+        #
+        # Add topography analyses whether there was a surface analysis or not
+        # This will result in same order of topography analysis, no matter whether there was a surface analysis
+        #
+        if surface_analysis_index is None:
+            sorted_analyses.extend(topography_analyses)
+        else:
+            # Insert corresponding topography analyses after surface analyses
+            sorted_analyses = sorted_analyses[:surface_analysis_index+1] + topography_analyses \
+                              + sorted_analyses[surface_analysis_index+1:]
+
+    return sorted_analyses
+
+
+def palette_for_topographies(nb_topographies):
+    """Return a palette to distinguish topographies by color in a plot.
+
+    Parameters
+    ----------
+    nb_topographies: int
+        Number of topographies
+    """
+    if nb_topographies <= 10:
+        topography_colors = palettes.Category10_10
+    else:
+        topography_colors = [palettes.Plasma256[k * 256 // nb_topographies] for k in range(nb_topographies)]
+        # we don't want to have yellow as first color
+        topography_colors = topography_colors[nb_topographies // 2:] + topography_colors[:nb_topographies // 2]
+    return topography_colors

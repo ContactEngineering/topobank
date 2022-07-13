@@ -10,7 +10,7 @@ import logging
 from freezegun import freeze_time
 from trackstats.models import Domain, Metric
 
-from topobank.analysis.registry import AnalysisFunctionRegistry
+from topobank.analysis.registry import AnalysisRegistry
 from topobank.manager.tests.utils import UserFactory, SurfaceFactory
 from topobank.users.tests.factories import UserFactory
 
@@ -57,8 +57,8 @@ def user_alice_logged_in(live_server, browser, user_alice, handle_usage_statisti
     #
     # Register all analysis functions
     #
-    reg = AnalysisFunctionRegistry()
-    reg.sync()
+    reg = AnalysisRegistry()
+    reg.sync_analysis_functions()
 
     browser.visit(live_server.url + "/accounts/login")  # we don't want to use ORCID here for testing
 
@@ -92,12 +92,25 @@ def user_alice_logged_in(live_server, browser, user_alice, handle_usage_statisti
         _log.info("Cleared all sessions.")
 
 
-@pytest.fixture(autouse=True)
-def reset_singletons():
-    from topobank.analysis.functions import AnalysisFunctionRegistry
-    reg = AnalysisFunctionRegistry()
-    del reg
+# @pytest.fixture(autouse=True)
+# def reset_singletons():
+#     from topobank.analysis.registry import AnalysisRegistry
+#     reg = AnalysisRegistry()
+#     del reg
 
+@pytest.fixture(scope="function", autouse=True)
+def sync_analysis_functions(db):
+    _log.info("Syncing analysis functions in registry with database objects..")
+    from topobank.analysis.registry import AnalysisRegistry
+    reg = AnalysisRegistry()
+    reg.sync_analysis_functions(cleanup=True)
+    _log.info("Done synchronizing registry with database.")
+
+
+@pytest.fixture(scope="function")
+def test_analysis_function(db):
+    from topobank.analysis.models import AnalysisFunction
+    return AnalysisFunction.objects.get(name="test")
 
 @pytest.fixture
 def example_authors():

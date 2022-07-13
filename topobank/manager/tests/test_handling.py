@@ -1424,13 +1424,11 @@ def test_create_surface(client, django_user_model, handle_usage_statistics):
 @pytest.mark.django_db
 def test_edit_surface(client, django_user_model):
     surface_id = 1
-    username = 'testuser'
-    password = 'abcd$1234'
     category = 'sim'
 
-    user = django_user_model.objects.create_user(username=username, password=password)
+    user = UserFactory()
 
-    assert client.login(username=username, password=password)
+    client.force_login(user)
 
     surface = Surface.objects.create(id=surface_id, name="Surface 1", creator=user, category=category)
     surface.save()
@@ -1476,6 +1474,8 @@ def test_delete_surface(client, django_user_model, handle_usage_statistics):
     assert Surface.objects.all().count() == 1
 
     response = client.get(reverse('manager:surface-delete', kwargs=dict(pk=surface_id)))
+
+    assert response.status_code == 200
 
     # user should be asked if he/she is sure
     assert b'Are you sure' in response.content

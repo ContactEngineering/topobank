@@ -4,7 +4,7 @@ from collections import defaultdict
 import logging
 
 from topobank.analysis.models import Analysis, AnalysisFunction
-from topobank.analysis.registry import ImplementationMissingException
+from topobank.analysis.registry import ImplementationMissingAnalysisFunctionException
 
 _log = logging.getLogger(__name__)
 
@@ -58,7 +58,7 @@ class Command(BaseCommand):
             analysis_kwargs = pickle.loads(a.kwargs)
             try:
                 impl = a.function.get_implementation(a.subject_type)
-            except ImplementationMissingException:
+            except ImplementationMissingAnalysisFunctionException:
                 self.stdout.write(self.style.WARNING(f"Skipping analysis {a.id} because the implementation " + \
                                                      f"no longer exists and we cannot determine default parameters."))
                 continue

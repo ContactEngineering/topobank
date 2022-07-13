@@ -7,46 +7,40 @@ from django.contrib.contenttypes.models import ContentType
 from ..models import Analysis, AnalysisFunction
 from topobank.manager.models import Topography
 from topobank.manager.tests.utils import two_topos, Topography1DFactory  # needed for fixture
-from .utils import AnalysisFunctionFactory, AnalysisFunctionImplementationFactory, \
+from .utils import AnalysisFunctionFactory, \
     TopographyAnalysisFactory, SurfaceAnalysisFactory, SurfaceFactory
-from ..registry import ImplementationMissingException
+from ..registry import ImplementationMissingAnalysisFunctionException, AnalysisFunctionImplementation, \
+    register_implementation
 
 
 @pytest.mark.django_db
 def test_topography_as_analysis_subject():
     topo = Topography1DFactory()
-    # we must have an implementation before creating the analysis
-    impl = AnalysisFunctionImplementationFactory(code_ref='topography_analysis_function_for_tests',
-                                                 subject_type=ContentType.objects.get_for_model(topo))
-    analysis = TopographyAnalysisFactory(subject=topo, function=impl.function)
+    func = AnalysisFunction.objects.get(name="test")
+    analysis = TopographyAnalysisFactory(subject=topo, function=func)
     assert analysis.subject == topo
 
 
 @pytest.mark.django_db
 def test_surface_as_analysis_subject():
     surf = SurfaceFactory()
-    # we must have an implementation before creating the analysis
-    impl = AnalysisFunctionImplementationFactory(code_ref='surface_analysis_function_for_tests',
-                                                 subject_type=ContentType.objects.get_for_model(surf))
-    analysis = SurfaceAnalysisFactory(subject=surf, function=impl.function)
+    func = AnalysisFunction.objects.get(name="test")
+    analysis = SurfaceAnalysisFactory(subject=surf, function=func)
     assert analysis.subject == surf
 
 
 @pytest.mark.django_db
 def test_exception_implementation_missing():
-    # We create an implementation for surfaces, but not for topographies
+    # We create an implementation for surfaces, but not for analyses
     topo = Topography1DFactory()
     surface = topo.surface
-
-    impl = AnalysisFunctionImplementationFactory(code_ref='surface_analysis_function_for_tests',
-                                                 subject_type=ContentType.objects.get_for_model(surface))
-    function = impl.function
-
+    function = AnalysisFunction.objects.get(name="test")
+    analysis = Topography1DFactory(function=function)
     function.eval(surface)  # that's okay, it's implemented
-    with pytest.raises(ImplementationMissingException):
-        function.eval(topo)  # that's not implemented
+    with pytest.raises(ImplementationMissingAnalysisFunctionException):
+        function.eval(analysis)  # that's not implemented
 
-
+@pytest.mark.skip("Is this still neded?")
 @pytest.mark.django_db
 def test_analysis_function_implementation():
     impl = AnalysisFunctionImplementationFactory()
@@ -61,30 +55,36 @@ def test_analysis_function_implementation():
 
 
 @pytest.mark.django_db
-def test_analysis_function():
-    func = AnalysisFunctionFactory()
-    impl = AnalysisFunctionImplementationFactory(function=func)
-    from ..functions import topography_analysis_function_for_tests
+def test_analysis_function(mocker, test_analysis_function):
+
+    def pyfunc(topography, a=1, b="foo"):
+        return dict(comment=f"a is {a} and b is {b}")
+
+
+    m = mocker.patch('topobank.analysis.registry.AnalysisFunctionImplementation.python_function',
+                     new_callable=mocker.PropertyMock)
+    m.return_value = pyfunc
 
     ct = ContentType.objects.get_for_model(Topography)
-    assert func.python_function(ct) == topography_analysis_function_for_tests
-    assert func.get_default_kwargs(ct) == dict(a=1, b="foo")
+    assert test_analysis_function.python_function(ct) == pyfunc
+    assert test_analysis_function.get_default_kwargs(ct) == dict(a=1, b="foo")
 
-    t = Topography1DFactory()
-    result = func.eval(t, a=2, b="bar")
+    surface = SurfaceFactory()
+    t = Topography1DFactory(surface=surface)
+    result = test_analysis_function.eval(t, a=2, b="bar")
     assert result['comment'] == f"a is 2 and b is bar"
 
 
 @pytest.mark.django_db
-def test_analysis_times(two_topos):
+def test_analysis_times(two_topos, test_analysis_function):
 
     import pickle
 
     analysis = TopographyAnalysisFactory.create(
             subject=Topography.objects.first(),
-            function=AnalysisFunction.objects.first(),
+            function=test_analysis_function,
             task_state=Analysis.SUCCESS,
-            kwargs=pickle.dumps({'bins': 2, 'wfac': 4}),
+            kwargs=pickle.dumps({'a': 2, 'b': 4}),
             start_time=datetime.datetime(2018, 1, 1, 12),
             end_time=datetime.datetime(2018, 1,  1, 13),
     )
@@ -94,7 +94,7 @@ def test_analysis_times(two_topos):
     assert analysis.end_time == datetime.datetime(2018, 1, 1, 13)
     assert analysis.duration() == datetime.timedelta(0, 3600)
 
-    assert analysis.get_kwargs_display() == str({'bins': 2, 'wfac': 4})
+    assert analysis.get_kwargs_display() == str({'a': 2, 'b': 4})
 
 
 # @pytest.mark.skip("Cannot run startup code which modifies the database so far.")

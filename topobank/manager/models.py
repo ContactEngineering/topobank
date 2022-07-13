@@ -189,6 +189,17 @@ class Surface(models.Model, SubjectMixin):
     def num_topographies(self):
         return self.topography_set.count()
 
+    def save(self, *args, **kwargs):
+        created = self.pk is None
+        super().save(*args, **kwargs)
+        if created:
+            self.grant_permissions_to_creator()
+
+    def grant_permissions_to_creator(self):
+        """Grant all permissions for this surface to its creator."""
+        for perm in ['view_surface', 'change_surface', 'delete_surface', 'share_surface', 'publish_surface']:
+            assign_perm(perm, self.creator, self)
+
     def to_dict(self):
         """Create dictionary for export of metadata to json or yaml.
 

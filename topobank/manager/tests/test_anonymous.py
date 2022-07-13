@@ -4,8 +4,7 @@ from django.core.exceptions import PermissionDenied
 
 from ..utils import selection_from_session, selection_to_instances
 from .utils import UserFactory, SurfaceFactory, Topography1DFactory
-from topobank.analysis.tests.utils import TopographyAnalysisFactory, \
-    AnalysisFunctionFactory, AnalysisFunctionImplementationFactory
+from topobank.analysis.tests.utils import TopographyAnalysisFactory, AnalysisFunctionFactory
 from topobank.utils import assert_in_content, assert_not_in_content
 
 #
@@ -115,17 +114,15 @@ def test_anonymous_user_cannot_change(client, handle_usage_statistics):
 
 
 @pytest.mark.django_db
-def test_download_analyses_without_permission(client, handle_usage_statistics):
+def test_download_analyses_without_permission(client, test_analysis_function, handle_usage_statistics):
     bob = UserFactory()
     surface = SurfaceFactory(creator=bob)
     topo = Topography1DFactory(surface=surface)
-    function = AnalysisFunctionFactory()
-    impl = AnalysisFunctionImplementationFactory(function=function)
-    analysis = TopographyAnalysisFactory(subject=topo, function=function)
+    analysis = TopographyAnalysisFactory(subject=topo, function=test_analysis_function)
 
     response = client.get(reverse('analysis:download',
                                   kwargs=dict(ids=f"{analysis.id}",
-                                              card_view_flavor='simple',
+                                              art='plot',
                                               file_format='txt')))
     assert response.status_code == 403
 

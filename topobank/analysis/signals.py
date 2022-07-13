@@ -1,9 +1,6 @@
 from django.db.models.signals import pre_delete
 from django.dispatch import receiver
 
-from django.core.files.storage import default_storage
-import os.path
-
 import logging
 
 from ..manager.utils import recursive_delete

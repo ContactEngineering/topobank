@@ -1,12 +1,11 @@
 import math
 
-from django.shortcuts import render
-
-# Create your views here.
 from topobank.analysis.utils import round_to_significant_digits
 from topobank.analysis.views import SimpleCardView, NUM_SIGNIFICANT_DIGITS_RMS_VALUES
+from topobank.analysis.registry import register_card_view_class
 
 
+@register_card_view_class('roughness parameters')
 class RoughnessParametersCardView(SimpleCardView):
 
     @staticmethod

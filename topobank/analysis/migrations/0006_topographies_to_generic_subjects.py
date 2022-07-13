@@ -5,8 +5,8 @@ from django.db import migrations
 
 def move_topographies_to_subjects(apps, schema_editor):
     Analysis = apps.get_model('analysis', 'Analysis')
-    Topography = apps.get_model('manager', 'Topography')
     ContentType = apps.get_model('contenttypes', 'ContentType')
+    Topography = apps.get_model('manager', 'Topography')
     topography_content_type = ContentType.objects.get_for_model(Topography)
 
     for a in Analysis.objects.all():
