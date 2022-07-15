@@ -54,12 +54,6 @@ def user_alice_logged_in(live_server, browser, user_alice, handle_usage_statisti
     # passing "handle_usage_statistics" is important, otherwise
     # the following tests may fail in a strange way because of foreign key errors
 
-    #
-    # Register all analysis functions
-    #
-    reg = AnalysisRegistry()
-    reg.sync_analysis_functions()
-
     browser.visit(live_server.url + "/accounts/login")  # we don't want to use ORCID here for testing
 
     assert browser.is_element_present_by_text('Sign In', wait_time=1)
@@ -91,12 +85,6 @@ def user_alice_logged_in(live_server, browser, user_alice, handle_usage_statisti
         call_command('clearsessions')  # TODO is this effective?
         _log.info("Cleared all sessions.")
 
-
-# @pytest.fixture(autouse=True)
-# def reset_singletons():
-#     from topobank.analysis.registry import AnalysisRegistry
-#     reg = AnalysisRegistry()
-#     del reg
 
 @pytest.fixture(scope="function", autouse=True)
 def sync_analysis_functions(db):

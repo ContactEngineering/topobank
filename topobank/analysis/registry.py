@@ -261,7 +261,7 @@ class AnalysisRegistry(metaclass=Singleton):
         raise ValueError(f"No function registered with given name {requested_name}.")
 
     def sync_analysis_functions(self, cleanup=False):
-        """Make sure all analysis function implementations are represented in database.
+        """Make sure all analysis functions are represented in database.
 
         It's recommended to run this with cleanup=True if an analysis
         function should be removed.
@@ -272,7 +272,7 @@ class AnalysisRegistry(metaclass=Singleton):
         cleanup: bool
             If True, delete all analysis functions for which no implementations exist
             and also delete all analyses related to those functions.
-            Be careful, will delete existing analysis.
+            Be careful, will delete existing analyses.
         """
         from .models import AnalysisFunction, Analysis
 
@@ -280,9 +280,6 @@ class AnalysisRegistry(metaclass=Singleton):
             funcs_updated=0,
             funcs_created=0,
             funcs_deleted=0,
-            implementations_updated=0,
-            implementations_created=0,
-            implementations_deleted=0,
         )
 
         #
@@ -314,32 +311,6 @@ class AnalysisRegistry(metaclass=Singleton):
                     func.delete()
                     _log.info(f"Deleted function '{func.name}' and all its analyses.")
                     counts['funcs_deleted'] += 1
-
-        #
-        # Ensure all implementations needed to exist in database
-        #
-        # for art, name, subject_type_name in self._implementations:
-        #     function = AnalysisFunction.objects.get(name=name)
-        #     subject_type = ContentType.objects.get_by_natural_key('manager', subject_type_name)
-        #     pyfunc_obj = self._implementations[(art, name, subject_type_name)]
-        #     pyfunc_name = pyfunc_obj.__name__
-        #     impl, created = AnalysisFunctionImplementation.objects.update_or_create(
-        #         defaults=dict(code_ref=pyfunc_name),
-        #         function=function,
-        #         subject_type=subject_type,
-        #     )
-        #     if created:
-        #         counts['implementations_created'] += 1
-        #     else:
-        #         counts['implementations_updated'] += 1
-        #
-        # # If there is any implementation in the database which
-        # # has no representative in the code, delete it:
-        # for impl in AnalysisFunctionImplementation.objects.all():
-        #     key = (impl.function.name, impl.subject_type.name)
-        #     if key not in self._implementations:
-        #         impl.delete()
-        #         counts['implementations_deleted'] += 1
 
         return counts
 
