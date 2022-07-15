@@ -13,6 +13,10 @@ from django.contrib.contenttypes.models import ContentType
 
 _log = logging.getLogger(__name__)
 
+# Analysis Result Types ('art' parameter)
+ART_GENERIC = 'generic'
+ART_SERIES = 'plot'
+
 
 class RegistryException(Exception):
     """Generic exception for problems while handling analysis functions."""

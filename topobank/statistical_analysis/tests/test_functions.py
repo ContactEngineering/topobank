@@ -1,10 +1,8 @@
 import pytest
 
-from operator import itemgetter
-
 from topobank.analysis.models import AnalysisFunction
 
-# @pytest.mark.skip("Cannot run startup code which modifies the database so far.")
+
 @pytest.mark.django_db
 def test_autoload_analysis_functions():
     # TODO this test has a problem: It's not independent from the available functions
@@ -13,31 +11,27 @@ def test_autoload_analysis_functions():
 
     call_command('register_analysis_functions')
 
-    funcs = AnalysisFunction.objects.all().order_by('name')
+    available_funcs_names = list(x[0] for x in AnalysisFunction.objects.values_list("name"))
 
-    expected_funcs = sorted([
-        dict(name='Height distribution',),
-        dict(name='Slope distribution'),
-        dict(name='Curvature distribution'),
-        dict(name='Power spectrum'),
-        dict(name='Autocorrelation'),
-        dict(name='Variable bandwidth'),
-        # dict(name='Contact mechanics'),
-        dict(name='Roughness parameters'),
-        dict(name='Scale-dependent slope'),
-        dict(name='Scale-dependent curvature'),
-    ], key=itemgetter('name'))
+    expected_funcs_names = sorted([
+        'Height distribution',
+        'Slope distribution',
+        'Curvature distribution',
+        'Power spectrum',
+        'Autocorrelation',
+        'Variable bandwidth',
+        'Roughness parameters',
+        'Scale-dependent slope',
+        'Scale-dependent curvature',
+    ])
 
-    assert len(expected_funcs) == len(funcs), f"Wrong number of registered functions: {funcs}"
+    assert len(expected_funcs_names) <= len(available_funcs_names)
 
-    for f, exp_f in zip(funcs, expected_funcs):
-        for k in ['name']:
-            assert getattr(f, k) == exp_f[k]
+    for efn in expected_funcs_names:
+        assert efn in available_funcs_names
 
     #
     # Call should be idempotent
     #
     call_command('register_analysis_functions')
-
-    funcs = AnalysisFunction.objects.all()
-    assert len(expected_funcs) == len(funcs)
+    assert len(available_funcs_names) == AnalysisFunction.objects.count()

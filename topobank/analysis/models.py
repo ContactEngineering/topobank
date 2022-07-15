@@ -254,7 +254,8 @@ class AnalysisFunction(models.Model):
 
         Returns
         -------
-        Python function, where first argument must be the given type.
+        Python function which implements the analysis, where first argument must be the given type,
+        and there maybe more arguments needed.
 
         Raises
         ------

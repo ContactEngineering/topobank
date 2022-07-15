@@ -10,6 +10,7 @@ from topobank.manager.utils import subjects_to_json
 from topobank.manager.tests.utils import two_topos
 from topobank.analysis.models import AnalysisFunction
 from topobank.analysis.tests.utils import TopographyAnalysisFactory, Topography2DFactory
+from topobank.analysis.registry import AnalysisRegistry
 
 from ..views import RoughnessParametersCardView, NUM_SIGNIFICANT_DIGITS_RMS_VALUES
 
@@ -72,54 +73,57 @@ def test_roughness_params_download_as_txt(client, two_topos, file_format, handle
         xlsx.get_sheet_by_name("INFORMATION")
 
 
+@pytest.mark.parametrize('template_flavor', ['list', 'detail'])
 @pytest.mark.django_db
-def test_roughness_params_rounded(rf, mocker):
-    from django.core.management import call_command
-    call_command('register_analysis_functions')
+def test_roughness_params_rounded(rf, mocker, template_flavor):
 
-    m = mocker.patch('topobank.statistical_analysis.functions.roughness_parameters')
-    m.return_value = [  # some fake values for rounding
-        {
-            'quantity': 'RMS Height',
-            'direction': None,
-            'from': 'area (2D)',
-            'symbol': 'Sq',
-            'value': np.float32(1.2345678),
-            'unit': 'm',
-        },
-        {
-            'quantity': 'RMS Height',
-            'direction': 'x',
-            'from': 'profile (1D)',
-            'symbol': 'Rq',
-            'value': np.float32(8.7654321),
-            'unit': 'm',
-        },
-        {
-            'quantity': 'RMS Curvature',
-            'direction': None,
-            'from': 'profile (1D)',
-            'symbol': '',
-            'value': np.float32(0.9),
-            'unit': '1/m',
-        },
-        {
-            'quantity': 'RMS Slope',
-            'direction': 'x',
-            'from': 'profile (1D)',
-            'symbol': 'S&Delta;q',
-            'value': np.float32(-1.56789),
-            'unit': 1,
-        },
-        {
-            'quantity': 'RMS Slope',
-            'direction': 'y',
-            'from': 'profile (1D)',
-            'symbol': 'S&Delta;q',
-            'value': np.float32('nan'),
-            'unit': 1,
-        }
-    ]
+    def myfunc(*args, **kwargs):
+        """Return some fake values for testing rounding"""
+        return [
+            {
+                'quantity': 'RMS Height',
+                'direction': None,
+                'from': 'area (2D)',
+                'symbol': 'Sq',
+                'value': np.float32(1.2345678),
+                'unit': 'm',
+            },
+            {
+                'quantity': 'RMS Height',
+                'direction': 'x',
+                'from': 'profile (1D)',
+                'symbol': 'Rq',
+                'value': np.float32(8.7654321),
+                'unit': 'm',
+            },
+            {
+                'quantity': 'RMS Curvature',
+                'direction': None,
+                'from': 'profile (1D)',
+                'symbol': '',
+                'value': np.float32(0.9),
+                'unit': '1/m',
+            },
+            {
+                'quantity': 'RMS Slope',
+                'direction': 'x',
+                'from': 'profile (1D)',
+                'symbol': 'S&Delta;q',
+                'value': np.float32(-1.56789),
+                'unit': 1,
+            },
+            {
+                'quantity': 'RMS Slope',
+                'direction': 'y',
+                'from': 'profile (1D)',
+                'symbol': 'S&Delta;q',
+                'value': np.float32('nan'),
+                'unit': 1,
+            }
+        ]
+
+    m = mocker.patch('topobank.analysis.registry.AnalysisFunctionImplementation.python_function')
+    m.return_value = myfunc
 
     topo = Topography2DFactory(size_x=1, size_y=1)
 
@@ -129,15 +133,19 @@ def test_roughness_params_rounded(rf, mocker):
     request = rf.post(reverse('analysis:card'), data={
         'function_id': func.id,
         'card_id': 'card',
-        'template_flavor': 'list',
+        'template_flavor': template_flavor,
         'subjects_ids_json': subjects_to_json([topo]),
     }, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
     request.user = topo.surface.creator
     request.session = {}
 
-    rms_table_card_view = RoughnessParametersCardView.as_view()
-    response = rms_table_card_view(request)
+    reg = AnalysisRegistry()
+    card_view_class = reg.get_card_view_class(reg.get_analysis_result_type_for_function_name(func.name))
+
+    card_view = card_view_class.as_view()
+    response = card_view(request)
     assert response.status_code == 200
+    assert response.template_name == [f'statistical_analysis/roughnessparameters_card_{template_flavor}.html']
 
     response.render()
     # we want rounding to 5 digits

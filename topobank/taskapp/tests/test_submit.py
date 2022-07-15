@@ -29,14 +29,14 @@ def test_request_analysis(mocker, test_analysis_function):
     # just an abbreviation
     def assert_correct_args(analysis, expected_kwargs):
         kwargs = pickle.loads(analysis.kwargs)
-        assert expected_kwargs == kwargs
-        assert user in analysis.users.all() # make sure the user has been set
+        assert kwargs == expected_kwargs
+        assert user in analysis.users.all()  # make sure the user has been set
 
     # test case 1
-    analysis = request_analysis(user, af, topo, a=1, b=2)
+    analysis = request_analysis(user, af, topo, a=13, b=24)
     assert_correct_args(analysis,
-                        dict(a=1,
-                             b=2,
+                        dict(a=13,
+                             b=24,
                              bins=15,
                              window='hann'))  # check default parameters in database
 

@@ -8,6 +8,8 @@ from topobank.analysis.registry import register_card_view_class
 @register_card_view_class('roughness parameters')
 class RoughnessParametersCardView(SimpleCardView):
 
+    template_name_pattern = "statistical_analysis/roughnessparameters_card_{template_flavor}.html"
+
     @staticmethod
     def _convert_value(v):
         if v is not None:

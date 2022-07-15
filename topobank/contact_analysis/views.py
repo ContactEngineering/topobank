@@ -17,6 +17,8 @@ class ContactMechanicsCardView(SimpleCardView):
     """View for displaying a card with results from Contact Mechanics analyses.
     """
 
+    template_name_pattern = "contact_analysis/contact_mechanics_card_{template_flavor}.html"
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         alerts = []  # list of collected alerts

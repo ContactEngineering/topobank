@@ -10,7 +10,7 @@ import numpy as np
 import logging
 
 from ..utils import SplitDictionaryHere
-from .registry import register_implementation
+from .registry import register_implementation, ART_SERIES
 
 _log = logging.getLogger(__name__)
 
@@ -123,9 +123,13 @@ def make_alert_entry(level, subject_name, subject_url, data_series_name, detail_
     return dict(alert_class=f"alert-{level}", message=message)
 
 
-@register_implementation('plot', 'test')
-def topography_analysis_function_for_tests(topography, a=1, b="foo"):
-    """This function can be registered for tests."""
+@register_implementation(ART_SERIES, 'test')
+def topography_analysis_function_for_tests(topography, a=1, b="foo", bins=15, window="hann",
+                                           progress_recorder=None, storage_prefix=None):
+    """This function can be registered for tests.
+
+    The arguments have no meaning. Result are two series.
+    """
     return {'name': 'Test result for test function called for topography {}.'.format(topography),
             'xunit': 'm',
             'yunit': 'm',
@@ -146,11 +150,11 @@ def topography_analysis_function_for_tests(topography, a=1, b="foo"):
                 ),
             ],
             'alerts': [dict(alert_class='alert-info', message="This is a test for a measurement alert.")],
-            'comment': f"a is {a} and b is {b}"}
+            'comment': f"Arguments: a is {a}, b is {b}, bins is {bins} and window is {window}"}
 
 
-@register_implementation('plot', 'test')
-def surface_analysis_function_for_tests(surface, a=1, c="bar"):
+@register_implementation(ART_SERIES, 'test')
+def surface_analysis_function_for_tests(surface, a=1, c="bar", progress_recorder=None, storage_prefix=None):
     """This function can be registered for tests."""
     return {'name': 'Test result for test function called for surface {}.'.format(surface),
             'xunit': 'm',

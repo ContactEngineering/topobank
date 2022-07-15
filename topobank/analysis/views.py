@@ -122,10 +122,20 @@ class SimpleCardView(TemplateView):
     Must be used in an AJAX call.
     """
 
-    @staticmethod
-    def _template_name(class_name, template_flavor):
-        template_name_prefix = class_name.replace('View', '').replace('Card', '_card').lower()
-        return f"analysis/{template_name_prefix}_{template_flavor}.html"
+    template_name_pattern = "analysis/simple_card_{template_flavor}.html"
+
+    def _template_name(self, template_flavor, pat=None):
+        """Build template name.
+
+        Parameters
+        ----------
+        template_flavor: str
+            Template flavor, e.g. 'list' and 'detail'.
+        """
+        if pat is None:
+            pat = self.template_name_pattern
+
+        return pat.format(template_flavor=template_flavor)
 
     def get_template_names(self):
         """Return list of possible templates.
@@ -140,17 +150,16 @@ class SimpleCardView(TemplateView):
         if template_flavor is None:
             raise ValueError("Missing 'template_flavor' in POST arguments.")
 
-        template_name = self._template_name(self.__class__.__name__, template_flavor)
+        template_name = self._template_name(template_flavor)
 
         #
-        # If template does not exist, return template from parent class
+        # If template does not exist, return SimpleCardView template
         #
-        # MAYBE later: go down the hierarchy and take first template found
         try:
             template.loader.get_template(template_name)
         except template.TemplateDoesNotExist:
-            base_class = self.__class__.__bases__[0]
-            template_name = self._template_name(base_class.__name__, template_flavor)
+            _log.warning(f"Template {template_name} not found. Falling back to simple card template.")
+            template_name = self._template_name(template_flavor, SimpleCardView.template_name_pattern)
 
         return [template_name]
 
@@ -363,8 +372,10 @@ class SimpleCardView(TemplateView):
         return response
 
 
-@register_card_view_class('plot')  # TODO rename
+@register_card_view_class('plot')  # TODO rename art
 class PlotCardView(SimpleCardView):
+
+    template_name_pattern = "analysis/plot_card_{template_flavor}.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

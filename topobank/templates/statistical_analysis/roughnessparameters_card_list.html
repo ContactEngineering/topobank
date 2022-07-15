@@ -44,7 +44,7 @@
         <div class="tab-pane fade show active" id="table-tab-{{ card_id }}" role="tabpanel">
           {% include 'analysis/analyses_alerts.html' %}
           {% if not analyses_unready and analyses_success %}
-            {% include 'analysis/roughnessparameters_card_datatables.html' %}
+            {% include 'statistical_analysis/roughnessparameters_card_datatables.html' %}
           {% endif %}
         </div>
         {% include 'analysis/analyses_warnings_tab_pane.html' %}

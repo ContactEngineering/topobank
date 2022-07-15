@@ -4,13 +4,15 @@ import datetime
 from django.db.models.functions import Lower
 from django.contrib.contenttypes.models import ContentType
 
-from ..models import Analysis, AnalysisFunction
 from topobank.manager.models import Topography
 from topobank.manager.tests.utils import two_topos, Topography1DFactory  # needed for fixture
+
+from ..models import Analysis, AnalysisFunction
 from .utils import AnalysisFunctionFactory, \
     TopographyAnalysisFactory, SurfaceAnalysisFactory, SurfaceFactory
 from ..registry import ImplementationMissingAnalysisFunctionException, AnalysisFunctionImplementation, \
     register_implementation
+from ..functions import topography_analysis_function_for_tests
 
 
 @pytest.mark.django_db
@@ -35,49 +37,26 @@ def test_exception_implementation_missing():
     topo = Topography1DFactory()
     surface = topo.surface
     function = AnalysisFunction.objects.get(name="test")
-    analysis = Topography1DFactory(function=function)
+    analysis = TopographyAnalysisFactory(function=function)
     function.eval(surface)  # that's okay, it's implemented
     with pytest.raises(ImplementationMissingAnalysisFunctionException):
         function.eval(analysis)  # that's not implemented
 
-@pytest.mark.skip("Is this still neded?")
-@pytest.mark.django_db
-def test_analysis_function_implementation():
-    impl = AnalysisFunctionImplementationFactory()
-    from ..functions import topography_analysis_function_for_tests
-
-    assert impl.python_function() == topography_analysis_function_for_tests
-    assert impl.get_default_kwargs() == dict(a=1, b="foo")
-
-    t = Topography1DFactory()
-    result = impl.eval(t, a=2, b="bar")
-    assert result['comment'] == f"a is 2 and b is bar"
-
 
 @pytest.mark.django_db
-def test_analysis_function(mocker, test_analysis_function):
-
-    def pyfunc(topography, a=1, b="foo"):
-        return dict(comment=f"a is {a} and b is {b}")
-
-
-    m = mocker.patch('topobank.analysis.registry.AnalysisFunctionImplementation.python_function',
-                     new_callable=mocker.PropertyMock)
-    m.return_value = pyfunc
-
+def test_analysis_function(test_analysis_function):
     ct = ContentType.objects.get_for_model(Topography)
-    assert test_analysis_function.python_function(ct) == pyfunc
-    assert test_analysis_function.get_default_kwargs(ct) == dict(a=1, b="foo")
+    assert test_analysis_function.python_function(ct) == topography_analysis_function_for_tests
+    assert test_analysis_function.get_default_kwargs(ct) == dict(a=1, b="foo", bins=15, window='hann')
 
     surface = SurfaceFactory()
     t = Topography1DFactory(surface=surface)
     result = test_analysis_function.eval(t, a=2, b="bar")
-    assert result['comment'] == f"a is 2 and b is bar"
+    assert result['comment'] == 'Arguments: a is 2, b is bar, bins is 15 and window is hann'
 
 
 @pytest.mark.django_db
 def test_analysis_times(two_topos, test_analysis_function):
-
     import pickle
 
     analysis = TopographyAnalysisFactory.create(
@@ -101,39 +80,43 @@ def test_analysis_times(two_topos, test_analysis_function):
 @pytest.mark.django_db
 def test_autoload_analysis_functions():
     # TODO this test has a problem: It's not independent from the available functions
+    # At least the functions defined in this app should be available
 
     from django.core.management import call_command
 
     call_command('register_analysis_functions')
 
-    funcs = AnalysisFunction.objects.all().order_by('name')
+    # remember number of functions
+    num_funcs = AnalysisFunction.objects.count()
 
-    expected_funcs = sorted([
-        dict(name='Height distribution',),
-        dict(name='Slope distribution'),
-        dict(name='Curvature distribution'),
-        dict(name='Power spectrum'),
-        dict(name='Autocorrelation'),
-        dict(name='Variable bandwidth'),
-        dict(name='Contact mechanics'),
-        dict(name='Roughness parameters'),
-        dict(name='Scale-dependent slope'),
-        dict(name='Scale-dependent curvature'),
-    ], key=itemgetter('name'))
+    # "test" function should be there
+    AnalysisFunction.objects.get(name="test")
 
-    assert len(expected_funcs) == len(funcs), f"Wrong number of registered functions: {funcs}"
+    # expected_funcs = sorted([
+    #     dict(name='Height distribution',),
+    #     dict(name='Slope distribution'),
+    #     dict(name='Curvature distribution'),
+    #     dict(name='Power spectrum'),
+    #     dict(name='Autocorrelation'),
+    #     dict(name='Variable bandwidth'),
+    #     dict(name='Contact mechanics'),
+    #     dict(name='Roughness parameters'),
+    #     dict(name='Scale-dependent slope'),
+    #     dict(name='Scale-dependent curvature'),
+    # ], key=itemgetter('name'))
 
-    for f, exp_f in zip(funcs, expected_funcs):
-        for k in ['name']:
-            assert getattr(f, k) == exp_f[k]
+
+    # assert len(expected_funcs) == len(funcs), f"Wrong number of registered functions: {funcs}"
+
+    # for f, exp_f in zip(funcs, expected_funcs):
+    #     for k in ['name']:
+    #         assert getattr(f, k) == exp_f[k]
 
     #
     # Call should be idempotent
     #
     call_command('register_analysis_functions')
-
-    funcs = AnalysisFunction.objects.all()
-    assert len(expected_funcs) == len(funcs)
+    assert num_funcs == AnalysisFunction.objects.count()
 
 
 @pytest.mark.django_db

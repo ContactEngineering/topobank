@@ -15,14 +15,8 @@ from ..views import card_view_class, SimpleCardView, PlotCardView
 from ..registry import AnalysisRegistry
 
 
-@pytest.mark.parametrize('art,list_template,detail_template',
-                         [('simple', 'analysis/simple_card_list.html', 'analysis/simple_card_detail.html'),
-                          ('plot', 'analysis/plot_card_list.html', 'analysis/plot_card_detail.html'),
-                          #('contact mechanics', 'analysis/contactmechanics_card_list.html', 'analysis/contactmechanics_card_detail.html'),
-                          ('roughness parameters', 'analysis/roughnessparameters_card_list.html', 'analysis/roughnessparameters_card_detail.html')])
 @pytest.mark.django_db
-def test_card_templates_simple(client, mocker, handle_usage_statistics, art, list_template,
-                               detail_template):
+def test_card_template(client, handle_usage_statistics):
     """Check whether correct template is selected."""
 
     #
@@ -31,6 +25,12 @@ def test_card_templates_simple(client, mocker, handle_usage_statistics, art, lis
     password = "secret"
     user = UserFactory(password=password)
     func1 = AnalysisFunction.objects.get(name="test")
+
+    reg = AnalysisRegistry()
+    art = reg.get_analysis_result_type_for_function_name(func1.name)
+
+    assert art == "plot"
+
     topo1 = Topography1DFactory()
 
     assert client.login(username=user.username, password=password)
@@ -42,7 +42,7 @@ def test_card_templates_simple(client, mocker, handle_usage_statistics, art, lis
         'subjects_ids_json': subjects_to_json([topo1]),
     }, HTTP_X_REQUESTED_WITH='XMLHttpRequest')  # we need an AJAX request
 
-    assert response.template_name == [list_template]
+    assert response.template_name == ['analysis/plot_card_list.html']
 
     response = client.post(reverse('analysis:card'), data={
         'function_id': func1.id,
@@ -51,7 +51,7 @@ def test_card_templates_simple(client, mocker, handle_usage_statistics, art, lis
         'subjects_ids_json': subjects_to_json([topo1]),
     }, HTTP_X_REQUESTED_WITH='XMLHttpRequest')  # we need an AJAX request
 
-    assert response.template_name == [detail_template]
+    assert response.template_name == ['analysis/plot_card_detail.html']
 
 
 @pytest.mark.django_db
@@ -129,11 +129,6 @@ def test_plot_card_if_no_successful_topo_analysis(client, handle_usage_statistic
     topography_ct = ContentType.objects.get_for_model(Topography)
     surface_ct = ContentType.objects.get_for_model(Surface)
     func1 = AnalysisFunction.objects.get(name="test")
-
-    from topobank.analysis.functions import topography_analysis_function_for_tests, surface_analysis_function_for_tests
-    reg = AnalysisRegistry()
-    reg.add_implementation('plot', name=func1.name, func=topography_analysis_function_for_tests)
-    reg.add_implementation('plot', name=func1.name, func=surface_analysis_function_for_tests)
 
     surf = SurfaceFactory(creator=user)
     topo = Topography1DFactory(surface=surf)  # also generates the surface

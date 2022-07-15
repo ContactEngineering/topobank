@@ -20,14 +20,13 @@ from topobank.manager.models import Topography, Surface
 from topobank.manager.utils import subjects_to_json
 from topobank.manager.tests.utils import SurfaceFactory, UserFactory, \
     Topography1DFactory, Topography2DFactory, two_topos
-from topobank.taskapp.tasks import current_configuration
+from topobank.taskapp.tasks import current_configuration, perform_analysis
 from topobank.utils import assert_in_content, assert_not_in_content
+
 from .utils import AnalysisFunctionFactory, \
     TopographyAnalysisFactory, SurfaceAnalysisFactory
 
 from ..models import Analysis, AnalysisFunction
-from ..views import NUM_SIGNIFICANT_DIGITS_RMS_VALUES
-from ...statistical_analysis.views import RoughnessParametersCardView
 
 
 def selection_from_instances(instances):
@@ -325,15 +324,17 @@ def test_show_multiple_analyses_for_two_functions(client, two_topos):
 
 
 @pytest.fixture
-def ids_downloadable_analyses(two_topos):
+def ids_downloadable_analyses(two_topos, settings, test_analysis_function, mocker):
+    """Returns ids of analyses which can be downloaded as list."""
     config = current_configuration()
+
+    settings.CELERY_TASK_ALWAYS_EAGER = True  # perform tasks locally
 
     #
     # create two analyses with results
     #
-    topos = [Topography.objects.get(name="Example 3 - ZSensor"), Topography.objects.get(name="Example 4 - Default")]
-    # function = AnalysisFunction.objects.create(name="Test Function")
-    function = AnalysisFunction.objects.get(name="test")
+    topos = [Topography.objects.get(name="Example 3 - ZSensor"),
+             Topography.objects.get(name="Example 4 - Default")]
 
     v = np.arange(5)
     ids = []
@@ -362,10 +363,17 @@ def ids_downloadable_analyses(two_topos):
 
         analysis = TopographyAnalysisFactory.create(
             subject=topos[k],
-            function=function,
-            result=result,
+            function=test_analysis_function,
             kwargs=pickle.dumps({}),
             configuration=config)
+
+        # we insert our result instead of the real function's result
+        m = mocker.patch("topobank.analysis.models.AnalysisFunction.eval")
+        m.return_value = result
+
+        # Saving above results in storage
+        perform_analysis(analysis.id)
+
         ids.append(analysis.id)
 
     return ids
@@ -374,7 +382,7 @@ def ids_downloadable_analyses(two_topos):
 @pytest.mark.django_db
 def test_analysis_download_as_txt(client, two_topos, ids_downloadable_analyses, settings, handle_usage_statistics):
 
-    user = UserFactory()
+    user = two_topos[0].surface.creator  # we need a user which is allowed to download
     client.force_login(user)
 
     ids_str = ",".join(str(i) for i in ids_downloadable_analyses)
@@ -382,6 +390,8 @@ def test_analysis_download_as_txt(client, two_topos, ids_downloadable_analyses, 
                            kwargs=dict(ids=ids_str, art='plot', file_format='txt'))
 
     response = client.get(download_url)
+
+    assert response.status_code == 200
 
     from io import StringIO
 
@@ -439,8 +449,6 @@ def test_analysis_download_as_txt(client, two_topos, ids_downloadable_analyses, 
     ])
 
     assert arr == pytest.approx(expected_arr)
-
-
 
 
 @pytest.mark.parametrize("same_names", [False, True])
