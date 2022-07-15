@@ -654,6 +654,7 @@ class PlotCardView(SimpleCardView):
                 # Collect data for visibility of the corresponding series
                 #
                 series_url = reverse('analysis:data', args=(analysis.pk, f'series-{series_idx}.json'))
+                #series_url = default_storage.url(f'{analysis.storage_prefix}/series-{series_idx}.json')
 
                 series_name = s['name'] if 'name' in s else f'{series_idx}'
                 series_name_idx = series_names.index(series_name)
@@ -773,6 +774,7 @@ class ContactMechanicsCardView(SimpleCardView):
                     subject_name=subject_name,
                     subject_name_index=a_index,
                     url=reverse('analysis:data', args=(analysis.pk, 'result.json')),
+                    #url=default_storage.url(f'{analysis.storage_prefix}/result.json'),
                     showSymbols=True,  # otherwise symbols do not appear in legend
                     color=curr_color,
                     width=1.,

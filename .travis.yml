@@ -28,7 +28,7 @@ python:
 install:
   # - sudo apt-get install libfftw3-dev libopenblas-dev chromium-chromedriver
   - sudo apt-get install libfftw3-dev libopenblas-dev
-  - pip install -q -r requirements/test.txt
+  - pip install -q -r requirements/test.txt --no-binary numpy
   - python manage.py collectstatic
   # - pip install selenium
 script:

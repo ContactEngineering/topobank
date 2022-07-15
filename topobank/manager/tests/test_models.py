@@ -206,10 +206,10 @@ def test_call_topography_method_multiple_times(two_topos):
     st_topo = topo.topography(allow_squeezed=False)
 
     coeffs_before = st_topo.coeffs
-    scaling_factor_before = st_topo.parent_topography.scale_factor
+    scaling_factor_before = st_topo.parent_topography.height_scale_factor
     st_topo = topo.topography(allow_squeezed=False)
 
-    assert st_topo.parent_topography.scale_factor == scaling_factor_before
+    assert st_topo.parent_topography.height_scale_factor == scaling_factor_before
     assert st_topo.coeffs == coeffs_before
 
 
