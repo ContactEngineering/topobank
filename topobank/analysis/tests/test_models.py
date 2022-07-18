@@ -92,26 +92,6 @@ def test_autoload_analysis_functions():
     # "test" function should be there
     AnalysisFunction.objects.get(name="test")
 
-    # expected_funcs = sorted([
-    #     dict(name='Height distribution',),
-    #     dict(name='Slope distribution'),
-    #     dict(name='Curvature distribution'),
-    #     dict(name='Power spectrum'),
-    #     dict(name='Autocorrelation'),
-    #     dict(name='Variable bandwidth'),
-    #     dict(name='Contact mechanics'),
-    #     dict(name='Roughness parameters'),
-    #     dict(name='Scale-dependent slope'),
-    #     dict(name='Scale-dependent curvature'),
-    # ], key=itemgetter('name'))
-
-
-    # assert len(expected_funcs) == len(funcs), f"Wrong number of registered functions: {funcs}"
-
-    # for f, exp_f in zip(funcs, expected_funcs):
-    #     for k in ['name']:
-    #         assert getattr(f, k) == exp_f[k]
-
     #
     # Call should be idempotent
     #

@@ -103,7 +103,7 @@ LOCAL_APPS = [
 
 PLUGIN_APPS = [
     'topobank.statistical_analysis.apps.StatisticalAnalysisConfig',
-    # 'topobank.contact_analysis.apps.ContactAnalysisConfig',
+    'topobank.contact_analysis.apps.ContactAnalysisConfig',
 ]
 
 

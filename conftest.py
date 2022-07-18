@@ -10,8 +10,7 @@ import logging
 from freezegun import freeze_time
 from trackstats.models import Domain, Metric
 
-from topobank.analysis.registry import AnalysisRegistry
-from topobank.manager.tests.utils import UserFactory, SurfaceFactory
+from topobank.manager.tests.utils import SurfaceFactory
 from topobank.users.tests.factories import UserFactory
 
 _log = logging.getLogger(__name__)

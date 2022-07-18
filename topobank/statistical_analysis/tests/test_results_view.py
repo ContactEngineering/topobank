@@ -142,6 +142,8 @@ def test_roughness_params_rounded(rf, mocker, template_flavor):
     reg = AnalysisRegistry()
     card_view_class = reg.get_card_view_class(reg.get_analysis_result_type_for_function_name(func.name))
 
+    assert card_view_class == RoughnessParametersCardView
+
     card_view = card_view_class.as_view()
     response = card_view(request)
     assert response.status_code == 200

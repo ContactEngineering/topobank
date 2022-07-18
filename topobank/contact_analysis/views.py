@@ -11,8 +11,9 @@ from topobank.analysis.utils import filter_and_order_analyses, palette_for_topog
 from topobank.manager.models import Topography
 from topobank.analysis.models import AnalysisFunction
 
+from .functions import ART_CONTACT_MECHANICS
 
-@register_card_view_class('contact mechanics')
+@register_card_view_class(ART_CONTACT_MECHANICS)
 class ContactMechanicsCardView(SimpleCardView):
     """View for displaying a card with results from Contact Mechanics analyses.
     """

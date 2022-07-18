@@ -206,10 +206,6 @@ class AnalysisFunction(models.Model):
     These functions are referenced by the analyses. Each function "knows"
     how to find the appropriate implementation for given arguments.
     """
-
-    CONTACT_MECHANICS = 'contact mechanics'
-
-
     name = models.CharField(max_length=80, help_text="A human-readable name.", unique=True)
 
     def __str__(self):

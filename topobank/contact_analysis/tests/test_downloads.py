@@ -7,6 +7,10 @@ from django.shortcuts import reverse
 from topobank.analysis.models import AnalysisFunction
 from topobank.analysis.tests.utils import TopographyAnalysisFactory
 
+from topobank.contact_analysis.downloads import download_contact_mechanics_analyses_as_zip
+from topobank.contact_analysis.functions import ART_CONTACT_MECHANICS
+
+
 @pytest.mark.django_db
 def test_download_contact_analyses_to_zip(rf):
     func = AnalysisFunction.objects.get(name="test")
@@ -47,7 +51,7 @@ def test_download_contact_analyses_to_zip(rf):
 
     request = rf.get(reverse('analysis:download',
                              kwargs=dict(ids=str(analysis.id),
-                                         art=AnalysisFunction.CONTACT_MECHANICS,
+                                         art=ART_CONTACT_MECHANICS,
                                          file_format='zip')))
 
     response = download_contact_mechanics_analyses_as_zip(request, [analysis])

@@ -657,7 +657,6 @@ class PlotCardView(SimpleCardView):
             },
         ])
         context['extra_warnings'] = extra_warnings
-        context['ART_SERIES'] = ART_SERIES
 
         return context
 

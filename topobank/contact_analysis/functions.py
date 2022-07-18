@@ -207,7 +207,7 @@ def _contact_at_given_load(system, external_force, history=None, pentol=None, ma
            (mean_displacements, mean_gaps, mean_pressures, total_contact_areas, converged)
 
 
-@register_implementation(art='contact mechanics', name="Contact mechanics")
+@register_implementation(art=ART_CONTACT_MECHANICS, name="Contact mechanics")
 def contact_mechanics(topography, substrate_str="nonperiodic", hardness=None, nsteps=10,
                       pressures=None, maxiter=100, progress_recorder=None, storage_prefix=None):
     """

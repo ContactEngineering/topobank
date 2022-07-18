@@ -594,7 +594,7 @@ def scale_dependent_curvature_for_surface(surface, progress_recorder=None, stora
         storage_prefix=storage_prefix)
 
 
-@register_implementation(art=ART_SERIES, name="Roughness parameters")
+@register_implementation(art=ART_ROUGHNESS_PARAMETERS, name="Roughness parameters")
 def roughness_parameters(topography, progress_recorder=None, storage_prefix=None):
     """Calculate roughness parameters for given topography.
 

@@ -142,7 +142,6 @@ def test_plot_card_if_no_successful_topo_analysis(client, handle_usage_statistic
     TopographyAnalysisFactory(task_state='fa', subject_id=topo.id,
                               subject_type_id=topography_ct.id, function=func1, users=[user])
 
-
     assert Analysis.objects.filter(function=func1, subject_id=topo.id, subject_type_id=topography_ct.id,
                                    task_state='su').count() == 0
     assert Analysis.objects.filter(function=func1, subject_id=topo.id, subject_type_id=topography_ct.id,

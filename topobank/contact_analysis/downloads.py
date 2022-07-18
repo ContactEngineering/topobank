@@ -4,12 +4,13 @@ import os.path
 
 import pandas as pd
 from django.core.files.storage import default_storage
+from django.http import HttpResponse
 
 from topobank.analysis.downloads import analysis_header_for_txt_file
 from topobank.analysis.registry import register_download_function
+from .functions import ART_CONTACT_MECHANICS
 
-
-@register_download_function('contact mechanics', 'results', 'zip')
+@register_download_function(ART_CONTACT_MECHANICS, 'results', 'zip')
 def download_contact_mechanics_analyses_as_zip(request, analyses):
     """Provides a ZIP file with contact mechanics data.
 
