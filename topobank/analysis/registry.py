@@ -289,8 +289,7 @@ class AnalysisRegistry(metaclass=Singleton):
 
         for name in function_names_used:
             art = self.get_analysis_result_type_for_function_name(name)
-            func, created = AnalysisFunction.objects.update_or_create(defaults=dict(card_view_flavor=art),
-                                                                      name=name)
+            func, created = AnalysisFunction.objects.update_or_create(name=name)
             if created:
                 counts['funcs_created'] += 1
             else:

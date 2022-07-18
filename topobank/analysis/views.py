@@ -49,21 +49,6 @@ NUM_SIGNIFICANT_DIGITS_RMS_VALUES = 5
 LINEWIDTH_FOR_SURFACE_AVERAGE = 4
 
 
-def card_view_class(art):  # TODO maybe remove?
-    """Return class for given analysis result type.
-
-    Parameters
-    ----------
-    art: str
-        Analysis result type as registered.
-
-    Returns
-    -------
-    class
-    """
-    return AnalysisRegistry().get_card_view_class(art)
-
-
 def switch_card_view(request):
     """Selects appropriate card view upon request.
 
@@ -90,7 +75,8 @@ def switch_card_view(request):
 
     function = AnalysisFunction.objects.get(id=function_id)
 
-    view_class = card_view_class(function.card_view_flavor)
+    reg = AnalysisRegistry()
+    view_class = reg.get_card_view_class(reg.get_analysis_result_type_for_function_name(function.name))
 
     #
     # for statistics, count views per function

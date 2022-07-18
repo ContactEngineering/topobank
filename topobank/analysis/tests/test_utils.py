@@ -128,10 +128,9 @@ def test_latest_analyses(two_topos, test_analysis_function):
 
 
 @pytest.mark.django_db
-def test_latest_analyses_if_no_analyses():
+def test_latest_analyses_if_no_analyses(test_analysis_function):
     user = UserFactory()
-    function = AnalysisFunctionFactory()
-    assert get_latest_analyses(user, function, []).count() == 0
+    assert get_latest_analyses(user, test_analysis_function, []).count() == 0
 
 
 def test_mangle_sheet_name():

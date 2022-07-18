@@ -10,8 +10,8 @@ from topobank.manager.utils import subjects_to_json
 from topobank.manager.models import Analysis, Topography, Surface
 
 from ..models import AnalysisFunction
-from .utils import AnalysisFunctionFactory, TopographyAnalysisFactory, SurfaceAnalysisFactory
-from ..views import card_view_class, SimpleCardView, PlotCardView
+from .utils import TopographyAnalysisFactory, SurfaceAnalysisFactory
+from ..views import PlotCardView
 from ..registry import AnalysisRegistry
 
 
@@ -162,7 +162,3 @@ def test_plot_card_if_no_successful_topo_analysis(client, handle_usage_statistic
     # should return without errors
     assert response.status_code == 200
 
-
-def test_card_view_class():
-    assert card_view_class('simple') == SimpleCardView
-    assert card_view_class('plot') == PlotCardView

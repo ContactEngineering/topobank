@@ -84,7 +84,7 @@ def wrap_series(series):
 #
 # Use this during development if you need a long running task with failures
 #
-# @analysis_function(card_view_flavor='simple')
+# @register_implementation(ART_GENERIC, 'long')
 # def long_running_task(topography, progress_recorder=None, storage_prefix=None):
 #     topography = topography.topography()
 #     import time, random

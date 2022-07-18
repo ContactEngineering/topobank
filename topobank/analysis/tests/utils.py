@@ -22,7 +22,6 @@ class AnalysisFunctionFactory(factory.django.DjangoModelFactory):
         model = AnalysisFunction
 
     name = factory.Sequence(lambda n: "Test Function no. {}".format(n))
-    card_view_flavor = 'simple'
 
 #
 # class AnalysisFunctionImplementationFactory(factory.django.DjangoModelFactory):

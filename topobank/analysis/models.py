@@ -200,8 +200,8 @@ class AnalysisFunction(models.Model):
     """Represents an analysis function from a user perspective.
 
     Examples:
-        - name: 'Height distribution', card_view_flavor='plot'
-        - name: 'Contact mechanics', card_view_flavor='contact mechanics'
+        - name: 'Height distribution'
+        - name: 'Contact mechanics'
 
     These functions are referenced by the analyses. Each function "knows"
     how to find the appropriate implementation for given arguments.
@@ -211,16 +211,8 @@ class AnalysisFunction(models.Model):
     POWER_SPECTRUM = 'power spectrum'
     CONTACT_MECHANICS = 'contact mechanics'
     ROUGHNESS_PARAMETERS = 'roughness parameters'
-    CARD_VIEW_FLAVOR_CHOICES = [
-        (SIMPLE, 'Simple display of the results as raw data structure'),
-        (PLOT, 'Display results in a plot with multiple datasets'),
-        (POWER_SPECTRUM, 'Display results in a plot suitable for power spectrum'),
-        (CONTACT_MECHANICS, 'Display suitable for contact mechanics including special widgets'),
-        (ROUGHNESS_PARAMETERS, 'Display a table with roughness parameters.')
-    ]
 
     name = models.CharField(max_length=80, help_text="A human-readable name.", unique=True)
-    card_view_flavor = models.CharField(max_length=50, default=SIMPLE, choices=CARD_VIEW_FLAVOR_CHOICES)
 
     def __str__(self):
         return self.name
@@ -323,5 +315,3 @@ class AnalysisCollection(models.Model):
     # This happens e.g. if the user presses "recalculate" several times and
     # one analysis becomes part in each of these requests.
 
-
-CARD_VIEW_FLAVORS = [cv for cv, _ in AnalysisFunction.CARD_VIEW_FLAVOR_CHOICES]
