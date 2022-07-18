@@ -15,20 +15,19 @@ from ..utils import get_latest_analyses
 
 
 @pytest.mark.django_db
-def test_request_analysis(two_topos, django_user_model):
+def test_request_analysis(two_topos, test_analysis_function):
     topo1 = Topography.objects.get(name="Example 3 - ZSensor")
     topo2 = Topography.objects.get(name="Example 4 - Default")
-    af = AnalysisFunction.objects.first()
 
     # delete all prior analyses for these two topographies in order to have a clean state
     Analysis.objects.filter(topography__in=[topo1, topo2]).delete()
 
-    user = django_user_model.objects.create(name='testuser')
+    user = UserFactory()
 
-    analysis = request_analysis(user=user, subject=topo1, analysis_func=af)
+    analysis = request_analysis(user=user, subject=topo1, analysis_func=test_analysis_function)
 
     assert analysis.subject == topo1
-    assert analysis.function == af
+    assert analysis.function == test_analysis_function
     assert user in analysis.users.all()
 
 

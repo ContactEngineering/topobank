@@ -56,28 +56,20 @@ def test_selection_from_instances(mocker):
 
 
 @pytest.mark.django_db
-def test_analysis_times(client, two_topos, django_user_model, handle_usage_statistics):
-    user = django_user_model.objects.get(username='testuser')
-    client.force_login(user)
+def test_analysis_times(client, two_topos, test_analysis_function, handle_usage_statistics):
 
     topo = Topography.objects.first()
-    af = AnalysisFunction.objects.first()
 
-    result = {'name': 'test function',
-              'xlabel': 'x',
-              'ylabel': 'y',
-              'xunit': '1',
-              'yunit': '1',
-              'series': [],
-              }
+    # we make sure to have to right user who has access
+    user = topo.surface.creator
+    client.force_login(user)
 
     analysis = TopographyAnalysisFactory.create(
         subject=topo,
-        function=af,
+        function=test_analysis_function,
         task_state=Analysis.SUCCESS,
         start_time=datetime.datetime(2018, 1, 1, 12),
         end_time=datetime.datetime(2018, 1, 1, 13, 1, 1),  # duration: 1 hour, 1 minute, 1 sec
-        result=result,
     )
     analysis.users.add(user)
     analysis.save()
@@ -85,7 +77,7 @@ def test_analysis_times(client, two_topos, django_user_model, handle_usage_stati
     response = client.post(reverse("analysis:card"),
                            data={
                                'subjects_ids_json': subjects_to_json([topo]),
-                               'function_id': af.id,
+                               'function_id': test_analysis_function.id,
                                'card_id': "card-1",
                                'template_flavor': 'list',
                            },
@@ -99,14 +91,13 @@ def test_analysis_times(client, two_topos, django_user_model, handle_usage_stati
 
 
 @pytest.mark.django_db
-def test_show_only_last_analysis(client, two_topos, django_user_model, handle_usage_statistics):
-    username = 'testuser'
-    user = django_user_model.objects.get(username=username)
-    client.force_login(user)
+def test_show_only_last_analysis(client, two_topos, test_analysis_function, handle_usage_statistics):
 
     topo1 = Topography.objects.first()
     topo2 = Topography.objects.last()
-    af = AnalysisFunction.objects.first()
+
+    user = topo1.surface.creator
+    client.force_login(user)
 
     result = {'name': 'test function',
               'xlabel': 'x',
@@ -121,7 +112,7 @@ def test_show_only_last_analysis(client, two_topos, django_user_model, handle_us
     #
     analysis = TopographyAnalysisFactory.create(
         subject=topo1,
-        function=af,
+        function=test_analysis_function,
         task_state=Analysis.SUCCESS,
         kwargs=pickle.dumps({}),
         start_time=datetime.datetime(2018, 1, 1, 12),
@@ -134,7 +125,7 @@ def test_show_only_last_analysis(client, two_topos, django_user_model, handle_us
     # save a second only, which has a later start time
     analysis = TopographyAnalysisFactory.create(
         subject=topo1,
-        function=af,
+        function=test_analysis_function,
         task_state=Analysis.SUCCESS,
         kwargs=pickle.dumps({}),
         start_time=datetime.datetime(2018, 1, 2, 12),
@@ -149,7 +140,7 @@ def test_show_only_last_analysis(client, two_topos, django_user_model, handle_us
     #
     analysis = TopographyAnalysisFactory.create(
         subject=topo2,
-        function=af,
+        function=test_analysis_function,
         task_state=Analysis.SUCCESS,
         kwargs=pickle.dumps({}),
         start_time=datetime.datetime(2018, 1, 3, 12),
@@ -162,7 +153,7 @@ def test_show_only_last_analysis(client, two_topos, django_user_model, handle_us
     # save a second only, which has a later start time
     analysis = TopographyAnalysisFactory.create(
         subject=topo2,
-        function=af,
+        function=test_analysis_function,
         task_state=Analysis.SUCCESS,
         kwargs=pickle.dumps({}),
         start_time=datetime.datetime(2018, 1, 4, 12),
@@ -179,7 +170,7 @@ def test_show_only_last_analysis(client, two_topos, django_user_model, handle_us
     response = client.post(reverse("analysis:card"),
                            data={
                                'subjects_ids_json': subjects_to_json([topo1, topo2]),
-                               'function_id': af.id,
+                               'function_id': test_analysis_function.id,
                                'card_id': 1,
                                'template_flavor': 'list'
                            },
@@ -188,11 +179,11 @@ def test_show_only_last_analysis(client, two_topos, django_user_model, handle_us
 
     assert response.status_code == 200
 
-    assert b"2018-01-02 12:00:00" in response.content
-    assert b"2018-01-04 12:00:00" in response.content
+    assert_in_content(response, b"2018-01-02 12:00:00")
+    assert_in_content(response, b"2018-01-04 12:00:00")
 
-    assert b"2018-01-01 12:00:00" not in response.content
-    assert b"2018-01-03 12:00:00" not in response.content
+    assert_not_in_content(response, b"2018-01-01 12:00:00")
+    assert_not_in_content(response, b"2018-01-03 12:00:00")
 
 
 @pytest.mark.django_db

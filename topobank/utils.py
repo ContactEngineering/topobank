@@ -37,17 +37,19 @@ def export_reponse_as_html(response, fname=DEFAULT_DEBUG_HTML_FILENAME):
 def assert_in_content(response, x):
     """Check whether x is in the content of given response"""
 
-    if isinstance(x, datetime.date):
-        representation = formats.date_format(x)
+    if isinstance(x, bytes):
+        in_content = x in response.content
     else:
-        representation = str(x)
-
-    in_content = bytes(representation, encoding='utf-8') in response.content
+        if isinstance(x, datetime.date):
+            x = formats.date_format(x)
+        else:
+            x = str(x)
+        in_content = bytes(x, encoding='utf-8') in response.content
 
     if not in_content:
         export_reponse_as_html(response)  # for debugging
 
-    assert in_content, f"Cannot find '{representation}' in this content:\n{response.content}.\n\n" + \
+    assert in_content, f"Cannot find '{x}' in this content:\n{response.content}.\n\n" + \
                        f"See file://{DEFAULT_DEBUG_HTML_FILENAME} in order to view the output."
 
 
