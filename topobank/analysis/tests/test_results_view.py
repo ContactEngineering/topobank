@@ -23,10 +23,10 @@ from topobank.manager.tests.utils import SurfaceFactory, UserFactory, \
 from topobank.taskapp.tasks import current_configuration, perform_analysis
 from topobank.utils import assert_in_content, assert_not_in_content
 
-from .utils import AnalysisFunctionFactory, \
-    TopographyAnalysisFactory, SurfaceAnalysisFactory
+from .utils import TopographyAnalysisFactory, SurfaceAnalysisFactory
 
 from ..models import Analysis, AnalysisFunction
+from ..functions import ART_SERIES
 
 
 def selection_from_instances(instances):
@@ -378,7 +378,7 @@ def test_analysis_download_as_txt(client, two_topos, ids_downloadable_analyses, 
 
     ids_str = ",".join(str(i) for i in ids_downloadable_analyses)
     download_url = reverse('analysis:download',
-                           kwargs=dict(ids=ids_str, art='plot', file_format='txt'))
+                           kwargs=dict(ids=ids_str, art=ART_SERIES, file_format='txt'))
 
     response = client.get(download_url)
 
@@ -470,7 +470,7 @@ def test_analysis_download_as_xlsx(client, two_topos, ids_downloadable_analyses,
 
     ids_str = ",".join(str(i) for i in ids_downloadable_analyses)
     download_url = reverse('analysis:download',
-                           kwargs=dict(ids=ids_str, art='plot', file_format='xlsx'))
+                           kwargs=dict(ids=ids_str, art=ART_SERIES, file_format='xlsx'))
 
     response = client.get(download_url)
 
@@ -606,7 +606,7 @@ def test_analysis_download_as_xlsx_despite_slash_in_sheetname(client, two_topos,
 
     ids_str = ",".join(str(i) for i in ids_downloadable_analyses)
     download_url = reverse('analysis:download',
-                           kwargs=dict(ids=ids_str, art='plot', file_format='xlsx'))
+                           kwargs=dict(ids=ids_str, art=ART_SERIES, file_format='xlsx'))
 
     response = client.get(download_url)
 
@@ -632,7 +632,7 @@ def test_download_analysis_results_without_permission(client, two_topos, ids_dow
 
     ids_str = ",".join(str(i) for i in ids_downloadable_analyses)
     download_url = reverse('analysis:download',
-                           kwargs=dict(ids=ids_str, art='plot', file_format='txt'))
+                           kwargs=dict(ids=ids_str, art=ART_SERIES, file_format='txt'))
 
     response = client.get(download_url)
     assert response.status_code == 403  # Permission denied
@@ -673,7 +673,7 @@ def test_publication_link_in_txt_download(client, two_analyses_two_publications,
     # Now two publications are involved in these analyses
     #
     download_url = reverse('analysis:download', kwargs=dict(ids=f"{analysis1.id},{analysis2.id}",
-                                                            art='plot',
+                                                            art=ART_SERIES,
                                                             file_format='txt'))
     user = UserFactory(username='testuser')
     client.force_login(user)
@@ -694,7 +694,7 @@ def test_publication_link_in_xlsx_download(client, two_analyses_two_publications
     # Now two publications are involved in these analyses
     #
     download_url = reverse('analysis:download', kwargs=dict(ids=f"{analysis1.id},{analysis2.id}",
-                                                            art='plot',
+                                                            art=ART_SERIES,
                                                             file_format='xlsx'))
     user = UserFactory()
     client.force_login(user)

@@ -38,6 +38,8 @@ from .forms import FunctionSelectForm
 from .utils import get_latest_analyses, request_analysis, renew_analysis, filter_and_order_analyses, \
     palette_for_topographies
 from .registry import AnalysisRegistry, register_card_view_class
+from .functions import ART_SERIES
+
 
 import logging
 
@@ -358,7 +360,7 @@ class SimpleCardView(TemplateView):
         return response
 
 
-@register_card_view_class('plot')  # TODO rename art
+@register_card_view_class(ART_SERIES)
 class PlotCardView(SimpleCardView):
 
     template_name_pattern = "analysis/plot_card_{template_flavor}.html"
@@ -655,6 +657,7 @@ class PlotCardView(SimpleCardView):
             },
         ])
         context['extra_warnings'] = extra_warnings
+        context['ART_SERIES'] = ART_SERIES
 
         return context
 

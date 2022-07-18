@@ -21,6 +21,7 @@ import textwrap
 from .models import Analysis
 from ..manager.models import Surface
 from .registry import register_download_function, AnalysisRegistry, UnknownKeyException
+from .functions import ART_SERIES
 
 #######################################################################
 # Download views
@@ -218,7 +219,7 @@ def analysis_header_for_txt_file(analysis, as_comment=True):
     return s
 
 
-@register_download_function('plot', 'results', 'txt')
+@register_download_function(ART_SERIES, 'results', 'txt')
 def download_plot_analyses_to_txt(request, analyses):
     """Download plot data for given analyses as CSV file.
 
@@ -293,7 +294,7 @@ def download_plot_analyses_to_txt(request, analyses):
     return response
 
 
-@register_download_function('plot', 'results', 'xlsx')
+@register_download_function(ART_SERIES, 'results', 'xlsx')
 def download_plot_analyses_to_xlsx(request, analyses):
     """Download plot data for given analyses as XLSX file.
 

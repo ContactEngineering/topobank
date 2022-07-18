@@ -10,12 +10,14 @@ import numpy as np
 import logging
 
 from ..utils import SplitDictionaryHere
-from .registry import register_implementation, ART_SERIES
+from .registry import register_implementation
 
 _log = logging.getLogger(__name__)
 
-CONTACT_MECHANICS_MAX_MB_GRID_PTS_PRODUCT = 100000000
-CONTACT_MECHANICS_MAX_MB_GRID_PTS_PER_DIM = 10000
+
+# Analysis Result Types ('art' parameter)
+ART_GENERIC = 'generic'
+ART_SERIES = 'series'
 
 
 class ContainerProxy(collections.abc.Iterator):

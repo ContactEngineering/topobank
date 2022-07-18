@@ -14,10 +14,14 @@ from bokeh.core.json_encoder import BokehJSONEncoder
 from django.conf import settings
 from django.core.files import File
 
-from topobank.analysis.functions import _log, IncompatibleTopographyException, \
-    CONTACT_MECHANICS_MAX_MB_GRID_PTS_PRODUCT, CONTACT_MECHANICS_MAX_MB_GRID_PTS_PER_DIM
+from topobank.analysis.functions import _log, IncompatibleTopographyException
 from topobank.analysis.registry import register_implementation
 from topobank.manager.utils import default_storage_replace, make_dzi
+
+ART_CONTACT_MECHANICS = "contact mechanics"
+
+CONTACT_MECHANICS_MAX_MB_GRID_PTS_PRODUCT = 100000000
+CONTACT_MECHANICS_MAX_MB_GRID_PTS_PER_DIM = 10000
 
 
 def _next_contact_step(system, history=None, pentol=None, maxiter=None):

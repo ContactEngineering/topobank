@@ -78,10 +78,10 @@
           {% if analyses_available %}
             {% if analyses_success %}
               <a class="btn btn-default btn-block btn-lg"
-                 href="{% url 'analysis:download' analyses_success|analyses_results_ids_list_str 'plot' 'txt' %}">
+                 href="{% url 'analysis:download' analyses_success|analyses_results_ids_list_str ART_SERIES 'txt' %}">
                 {% fa5_icon 'download' %} Download TXT</a>
               <a class="btn btn-default btn-block btn-lg"
-                 href="{% url 'analysis:download' analyses_success|analyses_results_ids_list_str 'plot' 'xlsx' %}">
+                 href="{% url 'analysis:download' analyses_success|analyses_results_ids_list_str ART_SERIES 'xlsx' %}">
                 {% fa5_icon 'download' %} Download XLSX</a>
               <a href="#"
                  class="btn btn-default btn-block btn-lg"

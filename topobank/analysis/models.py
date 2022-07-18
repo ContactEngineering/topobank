@@ -206,11 +206,9 @@ class AnalysisFunction(models.Model):
     These functions are referenced by the analyses. Each function "knows"
     how to find the appropriate implementation for given arguments.
     """
-    SIMPLE = 'simple'
-    PLOT = 'plot'
-    POWER_SPECTRUM = 'power spectrum'
+
     CONTACT_MECHANICS = 'contact mechanics'
-    ROUGHNESS_PARAMETERS = 'roughness parameters'
+
 
     name = models.CharField(max_length=80, help_text="A human-readable name.", unique=True)
 
