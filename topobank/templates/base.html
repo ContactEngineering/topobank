@@ -44,7 +44,10 @@
     <!-- jquery must be loaded early, e.g. because of datepicker -->
     <script src="{% static 'vendor/jquery/jquery-3.3.1.min.js' %}"></script>
 
-    <nav class="navbar navbar-expand-md navbar-dark bg-dark fixed-top">
+    <div class="fixed-top">
+
+    
+    <nav class="navbar navbar-expand-md navbar-dark bg-dark">
 
       <!-- Navbar -->
 
@@ -73,6 +76,9 @@
       </form>
       </div>
 
+
+
+      
       <ul class="navbar-nav ml-auto">
         {% if not request.user.is_anonymous %}
           <li class="nav-item dropdown no-arrow">
@@ -138,8 +144,9 @@
     </nav>
 
     {% tab_navigation %}
+  </div>
 
-    <div id="wrapper">
+    <div id="wrapper" class="mt-5">
       <div id="content-wrapper">
 
         <div class="container-fluid mt-1">
@@ -498,11 +505,15 @@
     {% endif %}
     <script src="{% static 'js/basket.js' %}"></script>
     <script>
+
+
       // Some globals on each page
       var event_hub = new Vue(); // used to register event handlers and to pass events
       var csrf_token = '{{ csrf_token }}';  // useful when doing AJAX calls from JS files
       // only create basket if target element exists
       var basket = $('#basket').length ? make_basket({{ basket_items_json|safe }}) : null;
+      console.log("AFTER BASKET CREATED");
+      console.log(basket.$el)
       var unselect_all_url = '{{ unselect_all_url|safe }}';
     </script>
 

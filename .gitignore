@@ -332,6 +332,12 @@ tags
 pyvenv.cfg
 pip-selfcheck.json
 
+#Celery_Created
+celerybeat-schedule.bak
+celerybeat-schedule.dat
+celerybeat-schedule.dir
+
+
 
 ### Project template
 
