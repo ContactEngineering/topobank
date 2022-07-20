@@ -13,6 +13,7 @@ from topobank.analysis.models import AnalysisFunction
 
 from .functions import ART_CONTACT_MECHANICS
 
+
 @register_card_view_class(ART_CONTACT_MECHANICS)
 class ContactMechanicsCardView(SimpleCardView):
     """View for displaying a card with results from Contact Mechanics analyses.

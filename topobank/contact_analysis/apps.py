@@ -7,4 +7,8 @@ class ContactAnalysisConfig(AppConfig):
 
     def ready(self):
         # make sure the functions are registered now
+        # noinspection PyUnresolvedReferences
         import topobank.contact_analysis.functions
+        # noinspection PyUnresolvedReferences
+        import topobank.contact_analysis.views
+

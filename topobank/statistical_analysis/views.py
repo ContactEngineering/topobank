@@ -4,8 +4,10 @@ from topobank.analysis.utils import round_to_significant_digits
 from topobank.analysis.views import SimpleCardView, NUM_SIGNIFICANT_DIGITS_RMS_VALUES
 from topobank.analysis.registry import register_card_view_class
 
+from .functions import ART_ROUGHNESS_PARAMETERS
 
-@register_card_view_class('roughness parameters')
+
+@register_card_view_class(ART_ROUGHNESS_PARAMETERS)
 class RoughnessParametersCardView(SimpleCardView):
 
     template_name_pattern = "statistical_analysis/roughnessparameters_card_{template_flavor}.html"

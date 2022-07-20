@@ -7,4 +7,8 @@ class StatisticalAnalysisConfig(AppConfig):
 
     def ready(self):
         # make sure the functions are registered now
+        # noinspection PyUnresolvedReferences
         import topobank.statistical_analysis.functions
+        # noinspection PyUnresolvedReferences
+        import topobank.statistical_analysis.views
+
