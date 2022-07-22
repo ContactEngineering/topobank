@@ -34,7 +34,7 @@
             :categories="contactMechanicsCategories"
             :data-sources='{{ data_sources|safe }}'
             :selectable="true"
-            v-on:selected="(obj, data) => { selection = { analysis_id: data.source.name.split('-')[1], index: data.source.selected.indices[0] }; }"
+            v-on:selected="onSelected"
             :options-widgets="['layout', 'legend', 'lineWidth', 'symbolSize']"
             output-backend="{{ output_backend }}">
           </bokeh-plot>
@@ -89,7 +89,7 @@
               in the graphs on the left!
             </div>
             <deep-zoom-image v-if="selection !== null"
-                             :prefix-url="'{% url 'analysis:data' pk=123 location='step-456/dzi/contacting-points/' %}'.replace('123/step-456', selection.analysis_id + '/step-' + selection.index)"
+                             :prefix-url="'{% url 'analysis:data' pk=123 location='step-456/dzi/contacting-points/' %}'.replace('123/step-456', selection.analysis_id + '/' + selection.data_path)"
                              ref="contactingPoints">
             </deep-zoom-image>
             <div v-if="selection !== null" class="pull-right">
@@ -103,7 +103,7 @@
               in the graphs on the left!
             </div>
             <deep-zoom-image v-if="selection !== null"
-                             :prefix-url="'{% url 'analysis:data' pk=123 location='step-456/dzi/pressure/' %}'.replace('123/step-456', selection.analysis_id + '/step-' + selection.index)"
+                             :prefix-url="'{% url 'analysis:data' pk=123 location='step-456/dzi/pressure/' %}'.replace('123/step-456', selection.analysis_id + '/' + selection.data_path)"
                              :colorbar="true"
                              ref="pressure">
             </deep-zoom-image>
@@ -118,7 +118,7 @@
               in the graphs on the left!
             </div>
             <deep-zoom-image v-if="selection !== null"
-                             :prefix-url="'{% url 'analysis:data' pk=123 location='step-456/dzi/displacement/' %}'.replace('123/step-456', selection.analysis_id + '/step-' + selection.index)"
+                             :prefix-url="'{% url 'analysis:data' pk=123 location='step-456/dzi/displacement/' %}'.replace('123/step-456', selection.analysis_id + '/' + selection.data_path)"
                              :colorbar="true"
                              ref="displacement">
             </deep-zoom-image>
@@ -133,7 +133,7 @@
               the left!
             </div>
             <deep-zoom-image v-if="selection !== null"
-                             :prefix-url="'{% url 'analysis:data' pk=123 location='step-456/dzi/gap/' %}'.replace('123/step-456', selection.analysis_id + '/step-' + selection.index)"
+                             :prefix-url="'{% url 'analysis:data' pk=123 location='step-456/dzi/gap/' %}'.replace('123/step-456', selection.analysis_id + '/' + selection.data_path)"
                              :colorbar="true"
                              ref="gap">
             </deep-zoom-image>
@@ -369,6 +369,7 @@
             title: "Contact area vs load",
             xData: "data.mean_pressures",
             yData: "data.total_contact_areas",
+            auxiliaryDataColumns: {dataPath: "data.data_paths"},
             alphaData: "data.converged.map((value) => value ? 1.0 : 0.3)",
             xAxisLabel: "Normalized pressure p/E*",
             yAxisLabel: "Fractional contact area A/A0",
@@ -378,6 +379,7 @@
             title: "Load vs displacement",
             xData: "data.mean_gaps",
             yData: "data.mean_pressures",
+            auxiliaryDataColumns: {dataPath: "data.data_paths"},
             alphaData: "data.converged.map((value) => value ? 1.0 : 0.3)",
             xAxisLabel: "Normalized mean gap u/h_rms",
             yAxisLabel: "Normalized pressure p/E*",
@@ -411,7 +413,7 @@
         },
         distributionDataSources: function () {
           return [{
-            url: "{% url 'analysis:data' pk=123 location='step-456/json/distributions.json' %}".replace('123/step-456', this.selection.analysis_id + '/step-' + this.selection.index)
+            url: "{% url 'analysis:data' pk=123 location='step-456/json/distributions.json' %}".replace('123/step-456', this.selection.analysis_id + '/' + this.selection.data_path)
           }];
         }
       },
@@ -482,7 +484,6 @@
             success: (data, textStatus, xhr) => {
               // debug_msg("Job submission successful. Status: "+xhr.status+" textStatus: "+textStatus);
               if (xhr.status == 200) {
-                console.log("Triggering reload of card");
                 submit_analyses_card_ajax("{% url 'analysis:card' %}", "card", "detail", {{ function.id }}, {{ subjects_ids_json|safe }}, 0);
                 // debug_msg("Triggered card reload. Status: "+xhr.status+" textStatus: "+textStatus);
               } else {
@@ -494,6 +495,15 @@
               this.errorMessage = "Please report this error: " + errorThrown + xhr.status + xhr.responseText;
             }
           });
+        },
+        onSelected: function (obj, data) {
+          const name = data.source.name;
+          const path = data.source.data.dataPath[data.source.selected.indices[0]];
+          const split_path = path.split('/')
+          this.selection = {
+            analysis_id: name.split('-')[1],
+            data_path: split_path[split_path.length - 1]  // We need to do some name mangling
+          };
         }
       }
     });

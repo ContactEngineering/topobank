@@ -3,6 +3,7 @@
 ## 0.91.0 (not yet released)
 
 - MAINT: Bumped SurfaceTopography version to 1.0
+- BUG: Showed wrong contact mechanics details (#859)
 
 ## 0.90.2 (2022-07-11)
 
