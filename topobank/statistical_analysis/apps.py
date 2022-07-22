@@ -11,4 +11,7 @@ class StatisticalAnalysisConfig(AppConfig):
         import topobank.statistical_analysis.functions
         # noinspection PyUnresolvedReferences
         import topobank.statistical_analysis.views
+        # noinspection PyUnresolvedReferences
+        import topobank.statistical_analysis.downloads
+
 

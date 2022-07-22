@@ -11,4 +11,6 @@ class ContactAnalysisConfig(AppConfig):
         import topobank.contact_analysis.functions
         # noinspection PyUnresolvedReferences
         import topobank.contact_analysis.views
+        # noinspection PyUnresolvedReferences
+        import topobank.contact_analysis.downloads
 
