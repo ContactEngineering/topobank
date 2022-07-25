@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 0.91.0 (not published yet)
+
+- ENH: Fixed navigation bar including basket while scrolling (#779)
+
 ## 0.90.2 (2022-07-11)
 
 - MAINT: Multiple performance fixes, in particular by a) reducing redundant
