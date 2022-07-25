@@ -131,7 +131,7 @@ urllib3>=1.26.5
 pygments>=2.7.4
 
 # datepicker
-django-bootstrap-datepicker-plus
+django-bootstrap-datepicker-plus>=3.0.6
 
 # fix muspectre version because of a bug/incompatibility in later versions
 # git+https://gitlab.com/muspectre/muspectre.git@654a508babf97564c3e3144ca11686431fe45c39#egg=mufft
