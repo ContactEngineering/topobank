@@ -1,7 +1,7 @@
 # Changelog for *TopoBank*
 
 
-## 0.91.0 (not yet released)
+## 0.90.3 (not yet released)
 
 - ENH: Fixed navigation bar including basket while scrolling (#779)
 - BUG: Showed wrong contact mechanics details (#859)
