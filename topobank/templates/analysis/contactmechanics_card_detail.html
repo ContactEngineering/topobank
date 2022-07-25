@@ -499,7 +499,7 @@
         onSelected: function (obj, data) {
           const name = data.source.name;
           const path = data.source.data.dataPath[data.source.selected.indices[0]];
-          const split_path = path.split('/')
+          const split_path = path.split('/');
           this.selection = {
             analysis_id: name.split('-')[1],
             data_path: split_path[split_path.length - 1]  // We need to do some name mangling
