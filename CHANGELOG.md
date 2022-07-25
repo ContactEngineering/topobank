@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-## 0.90.3 (not published yet)
+## 0.91.0 (not published yet)
 
 - ENH: Fixed navigation bar including basket while scrolling (#779)
 
