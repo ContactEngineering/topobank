@@ -13,7 +13,7 @@ from crispy_forms.bootstrap import FormActions
 
 from tagulous.forms import TagField
 
-from bootstrap_datepicker_plus.widgets import DatePickerInput
+from bootstrap_datepicker_plus import DatePickerInput
 
 import logging
 
