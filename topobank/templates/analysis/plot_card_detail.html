@@ -18,7 +18,7 @@
         {% if special_values or analyses_failure or extra_warnings %}
           {#  we only need the plot tab if there are at least two tabs #}
           <li class="nav-item">
-            <a class="nav-link active" href="#plot" data-toggle="tab" role="tab">Plot</a>
+            <a class="nav-link active" href="#plot-tab-{{ card_id }}" data-toggle="tab" role="tab">Plot</a>
           </li>
         {% endif %}
         {% if special_values %}
