@@ -347,16 +347,7 @@ ACCOUNT_LOGOUT_ON_GET = True  # True: disable intermediate page
 # Your stuff...
 # ------------------------------------------------------------------------------
 
-#
-# Local references for "select2"
-#
-# An alternative is maybe "django-bower" which could be used
-# to resolve all external javascript dependencies and install them
-# locally in a defined way
-SELECT2_JS = '/static/tagulous/lib/select2-4/js/select2.min.js'
-SELECT2_CSS = '/static/tagulous/lib/select2-4/css/select2.min.css'
-SELECT2_I18N_PATH = '/static/tagulous/lib/select2-4/js/i18n'
-# The default for all these are pointers to Cloudflare CDN
+
 
 #
 # Define permissions when using the rest framework
@@ -471,15 +462,32 @@ DJANGO_NOTIFICATIONS_CONFIG = {'USE_JSONFIELD': True}
 # I would like to pass the target url to a notification
 
 #
+# Local references for "select2"
+#
+# An alternative is maybe "django-bower" which could be used
+# to resolve all external javascript dependencies and install them
+# locally in a defined way
+SELECT2_JS = '/static/tagulous/lib/select2-4/js/select2.min.js'
+SELECT2_CSS = '/static/tagulous/lib/select2-4/css/select2.min.css'
+SELECT2_I18N_PATH = '/static/tagulous/lib/select2-4/js/i18n'
+# The default for all these are pointers to Cloudflare CDN
+
+#
 # Settings for django-tagulous (tagging)
 #
-
 SERIALIZATION_MODULES = {
     'xml':    'tagulous.serializers.xml_serializer',
     'json':   'tagulous.serializers.json',
     'python': 'tagulous.serializers.python',
     'yaml':   'tagulous.serializers.pyyaml',
 }
+
+TAGULOUS_AUTOCOMPLETE_JS = (
+    "tagulous/lib/select2-4/js/select2.full.min.js",
+    "tagulous/tagulous.js",
+    "tagulous/adaptor/select2-4.js",
+)
+
 
 #
 # E-Mail address to contact us
