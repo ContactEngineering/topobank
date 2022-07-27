@@ -360,3 +360,5 @@ orcid.yaml
 .ipynb_checkpoints/
 /media/**/*
 !/usage_statistics.xlsx
+data/
+
