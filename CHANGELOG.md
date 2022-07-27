@@ -1,5 +1,14 @@
 # Changelog for *TopoBank*
 
+## 0.90.3 (2022-07-27)
+
+- ENH: Fixed navigation bar including basket while scrolling (#779)
+- BUG: Showed wrong contact mechanics details (#859)
+- BUG: Fixed missing progress bars for unready analyses (#858)
+- BUG: Fixed impossible return to plot tab (#863)
+- BUG: Fixed missing download link for contact mechanics (#865)
+- MAINT: Bumped SurfaceTopography version to 1.0
+
 ## 0.90.2 (2022-07-11)
 
 - MAINT: Multiple performance fixes, in particular by a) reducing redundant

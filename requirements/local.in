@@ -27,14 +27,15 @@ coverage  # https://github.com/nedbat/coveragepy
 factory-boy  # https://github.com/FactoryBoy/factory_boy
 django-test-plus  # https://github.com/revsys/django-test-plus
 
-django-debug-toolbar>=2.2.1  # https://github.com/jazzband/django-debug-toolbar
+django-debug-toolbar<3.3  # https://github.com/jazzband/django-debug-toolbar
+# Debug toolbar must be compatible with Django 3.2
 django-extensions  # https://github.com/django-extensions/django-extensions
 django-coverage-plugin  # https://github.com/nedbat/django_coverage_plugin
 pytest-django  # https://github.com/pytest-dev/pytest-django
 
 # Dependency Handling
 # ------------------------------------------------------------------------------
-pip-tools>=5.5.0
+pip-tools>=6.8.0
 
 # Docker
 # ------------------------------------------------------------------------------

@@ -58,9 +58,7 @@ def test_height_distribution_simple_line_scan():
     x = np.array((1, 2, 3))
     y = 2 * x
 
-    info = dict(unit='nm')
-
-    t = NonuniformLineScan(x, y, info=info).detrend(detrend_mode='center')
+    t = NonuniformLineScan(x, y, unit='nm').detrend(detrend_mode='center')
 
     topography = FakeTopographyModel(t)
 
@@ -131,7 +129,7 @@ def test_curvature_distribution_simple_line_scan():
     x = np.arange(10)
     y = -2 * x ** 2  # constant curvature
 
-    t = NonuniformLineScan(x, y, info=dict(unit=unit)).detrend(detrend_mode='center')
+    t = NonuniformLineScan(x, y, unit=unit).detrend(detrend_mode='center')
     topography = FakeTopographyModel(t)
 
     bins = np.array((-4.75, -4.25, -3.75, -3.25))  # special for this test in order to know results
@@ -172,7 +170,7 @@ def test_power_spectrum_simple_nonuniform_linescan():
     x = np.arange(10)
     y = -2 * x ** 2  # constant curvature
 
-    t = NonuniformLineScan(x, y, info=dict(unit=unit)).detrend(detrend_mode='center')
+    t = NonuniformLineScan(x, y, unit=unit).detrend(detrend_mode='center')
     topography = FakeTopographyModel(t)
 
     result = power_spectrum(topography)
@@ -200,9 +198,7 @@ def test_autocorrelation_simple_nonuniform_topography():
     x = np.arange(5)
     h = 2 * x
 
-    info = dict(unit='nm')
-
-    t = NonuniformLineScan(x, h, info=info).detrend('center')
+    t = NonuniformLineScan(x, h, unit='nm').detrend('center')
     topography = FakeTopographyModel(t)
 
     result = autocorrelation(topography)
@@ -217,9 +213,8 @@ def test_autocorrelation_simple_nonuniform_topography():
 def test_variable_bandwidth_simple_nonuniform_linescan():
     x = np.arange(5)
     h = 2 * x
-    info = dict(unit='nm')
 
-    t = NonuniformLineScan(x, h, info=info).detrend('center')
+    t = NonuniformLineScan(x, h, unit='nm').detrend('center')
     topography = FakeTopographyModel(t)
 
     result = variable_bandwidth(topography)
@@ -239,11 +234,10 @@ def test_variable_bandwidth_simple_nonuniform_linescan():
 def simple_linear_2d_topography():
     """Simple 2D topography, which is linear in y"""
     unit = 'nm'
-    info = dict(unit=unit)
     y = np.arange(10).reshape((1, -1))
     x = np.arange(5).reshape((-1, 1))
     arr = -2 * y + 0 * x  # only slope in y direction
-    t = Topography(arr, (5, 10), info=info).detrend('center')
+    t = Topography(arr, (5, 10), unit=unit).detrend('center')
     return t
 
 
@@ -369,13 +363,12 @@ def test_curvature_distribution_simple_2d_topography(simple_linear_2d_topography
 
 def test_curvature_distribution_simple_2d_topography_periodic():
     unit = 'nm'
-    info = dict(unit=unit)
 
     y = np.arange(100).reshape((1, -1))
 
     arr = np.sin(y / 2 / np.pi)  # only slope in y direction, second derivative is -sin
 
-    t = Topography(arr, (100, 100), periodic=True, info=info).detrend('center')
+    t = Topography(arr, (100, 100), periodic=True, unit=unit).detrend('center')
     # resulting heights follow this function: h(x,y)=-2y+9
 
     topography = FakeTopographyModel(t)
@@ -457,8 +450,7 @@ def test_variable_bandwidth_simple_2d_topography(simple_linear_2d_topography):
 def test_contact_mechanics_incompatible_topography():
     x = np.arange(10)
     arr = 2 * x
-    info = dict(unit='nm')
-    t = NonuniformLineScan(x, arr, info=info).detrend("center")
+    t = NonuniformLineScan(x, arr, unit='nm').detrend("center")
     topography = FakeTopographyModel(t)
 
     with pytest.raises(IncompatibleTopographyException):
@@ -483,8 +475,7 @@ def test_contact_mechanics_effective_kwargs_in_result(periodic):
 
     arr = -2 * y + 0 * x  # only slope in y direction
 
-    info = dict(unit='nm')
-    t = Topography(arr, (10, 5), info=info, periodic=periodic).detrend('center')
+    t = Topography(arr, (10, 5), unit='nm', periodic=periodic).detrend('center')
 
     topography = FakeTopographyModel(t)
     result = contact_mechanics(topography, substrate_str=None, nsteps=10, storage_prefix='test/',

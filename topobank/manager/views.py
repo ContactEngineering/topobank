@@ -312,9 +312,7 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
             # Set data source choices based on file contents
             #
             kwargs['data_source_choices'] = [(k, clean_channel_name(channel_info.name)) for k, channel_info in
-                                             enumerate(channel_infos)
-                                             if not (('unit' in channel_info.info)
-                                                     and isinstance(channel_info.info['unit'], tuple))]
+                                             enumerate(channel_infos)]
 
             #
             # Set surface in order to check for duplicate topography names
