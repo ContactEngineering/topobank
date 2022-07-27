@@ -1,8 +1,11 @@
 # Changelog for *TopoBank*
 
-## 0.91.0 (not published yet)
+
+## 0.90.3 (not yet released)
 
 - ENH: Fixed navigation bar including basket while scrolling (#779)
+- BUG: Showed wrong contact mechanics details (#859)
+- MAINT: Bumped SurfaceTopography version to 1.0
 
 ## 0.90.2 (2022-07-11)
 
