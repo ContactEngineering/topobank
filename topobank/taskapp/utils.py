@@ -1,5 +1,7 @@
 import importlib
 
+from django.db import transaction
+
 from topobank.analysis.models import Dependency, Version
 
 class ConfigurationException(Exception):
@@ -38,6 +40,7 @@ def get_package_version_tuple(pkg_name, version_expr):
     return major, minor, micro
 
 
+@transaction.atomic
 def get_package_version_instance(pkg_name, version_expr):
     """Return version instance for currently installed version of a package.
 
