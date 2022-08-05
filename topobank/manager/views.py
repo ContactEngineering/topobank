@@ -910,33 +910,32 @@ class SurfaceDetailView(DetailView):
             bw_left = [bw['lower_bound'] for bw in bw_data_without_errors]
             bw_right = [bw['upper_bound'] for bw in bw_data_without_errors]
             bw_center = np.exp((np.log(bw_left)+np.log(bw_right))/2)  # we want to center on log scale
-            bw_unrel_limit = [bw['short_reliability_cutoff'] for bw in bw_data_without_errors]
+            bw_rel_cutoff = [bw['short_reliability_cutoff'] for bw in bw_data_without_errors]
             bw_names = [bw['topography'].name for bw in bw_data_without_errors]
             bw_topography_links = [bw['link'] for bw in bw_data_without_errors]
             bw_thumbnail_links = [reverse('manager:topography-thumbnail',
                                           kwargs=dict(pk=bw['topography'].pk))
                                   for bw in bw_data_without_errors]
-            bw_has_unrel = [u is not None for u in bw_unrel_limit]
-            # bw_has_unrel_2 = [l < u if bw['topography'].instrument_type == 'undefined' for (l, u) in zip(bw_left, bw_unrel_limit) ]
-            # bw_instr = [bw['topography'].instrument_type for bw in bw_data_without_errors]
-
-            # _log.info(f"{bw_has_unrel}")
-            _log.info(f"{bw_left}")
-            _log.info(f"{bw_unrel_limit}")
-
-            _log.info(f"{bw_names}")
-            _log.info([bw['topography'].topography().info for bw in bw_data_without_errors])
+            bw_has_rel_cutoff = [u is not None for u in bw_rel_cutoff]
 
             bw_y = list(range(0, len(bw_data_without_errors)))
 
-            bw_unrel_source = ColumnDataSource(dict(y=[y for y, has_unrel in zip(bw_y, bw_has_unrel) if has_unrel],
-                                                    left=[left for left, has_unrel in zip(bw_left, bw_has_unrel) if has_unrel],
-                                                    right=[right for right, has_unrel in zip(bw_unrel_limit, bw_has_unrel) if has_unrel],
-                                                    name=[name for name, has_unrel in zip(bw_names, bw_has_unrel) if has_unrel]))
-            bw_source = ColumnDataSource(dict(y=bw_y, left=bw_left, right=bw_right, center=bw_center,
-                                              name=bw_names,
-                                              topography_link=bw_topography_links,
-                                              thumbnail_link=bw_thumbnail_links))
+            bw_rel_cutoff_source = ColumnDataSource(
+                dict(
+                    y=[y for y, has_rel_cutoff in zip(bw_y, bw_has_rel_cutoff) if has_rel_cutoff],
+                    left=[left for left, has_rel_cutoff in zip(bw_left, bw_has_rel_cutoff) if has_rel_cutoff],
+                    right=[right for right, has_rel_cutoff in zip(bw_rel_cutoff, bw_has_rel_cutoff) if has_rel_cutoff],
+                    name=[name for name, has_rel_cutoff in zip(bw_names, bw_has_rel_cutoff) if has_rel_cutoff]
+                )
+            )
+            bw_source = ColumnDataSource(
+                dict(
+                    y=bw_y, left=bw_left, right=bw_right, center=bw_center,
+                    name=bw_names,
+                    topography_link=bw_topography_links,
+                    thumbnail_link=bw_thumbnail_links
+                )
+            )
 
             x_range = (min(bw_left), max(bw_right))
 
@@ -956,7 +955,8 @@ class SurfaceDetailView(DetailView):
                           tooltips=TOOL_TIPS)
 
             unrel_hbar_renderer = plot.hbar(y="y", left="left", right="right", height=bar_height, color='#dc3545',
-                                      name='bandwidths', legend_label="Unreliable bandwidth", source=bw_unrel_source)
+                                            name='bandwidths', legend_label="Unreliable bandwidth",
+                                            source=bw_rel_cutoff_source)
             unrel_hbar_renderer.nonselection_glyph = None  # makes glyph invariant on selection
 
             hbar_renderer = plot.hbar(y="y", left="left", right="right", height=bar_height, color='#2c90d9',
