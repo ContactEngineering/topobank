@@ -1235,6 +1235,14 @@ Log in to the VM once and execute
 
     docker inspect -f "{{ .NetworkSettings.Networks.topobank_default.IPAddress }}" topobank_postgres_1
 
+or on docker stack
+
+.. code:bash
+
+    docker inspect -f "{{ .NetworkSettings.Networks.prodstack_topobank_net.IPAddress }}" 6f04ff907173
+
+(id of container is an example)
+
 Then take a note of the IP. Use this IP in an SSH tunnel, e.g.:
 
 .. code:: bash
