@@ -7,6 +7,7 @@
 - MAINT: Count failed images as failed by default when using management 
   command create_images
 - MAINT: Changed redis heath beat check intervals
+- MAINT: Removed some old template code
 
 ## 0.90.3 (2022-07-27)
 
