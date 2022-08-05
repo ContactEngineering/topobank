@@ -56,7 +56,8 @@ from ..usage_stats.utils import increase_statistics_by_date, increase_statistics
 from ..users.models import User
 from ..publication.models import Publication, MAX_LEN_AUTHORS_FIELD
 from .containers import write_surface_container
-from ..taskapp.tasks import renew_squeezed_datafile, renew_topography_images, renew_analyses_related_to_topography
+from ..taskapp.tasks import renew_squeezed_datafile, renew_bandwidth_cache, \
+    renew_topography_images, renew_analyses_related_to_topography
 
 # create dicts with labels and option values for Select tab
 CATEGORY_FILTER_CHOICES = {'all': 'All categories',
@@ -436,7 +437,9 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
         # Trigger some calculations in background.
         #
         _log.info("Creating squeezed datafile, images and analyses...")
-        transaction.on_commit(chain(renew_squeezed_datafile.si(instance.id), renew_topography_images.si(instance.id),
+        transaction.on_commit(chain(renew_squeezed_datafile.si(instance.id),
+                                    renew_bandwidth_cache.si(instance.id),
+                                    renew_topography_images.si(instance.id),
                                     renew_analyses_related_to_topography.si(instance.id)).delay)
 
         #
@@ -539,9 +542,11 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
         if len(significant_fields_with_changes) > 0:
             _log.info(f"During edit of topography id={topo.id} some significant fields changed: " +
                       f"{significant_fields_with_changes}.")
-            _log.info("Renewing squeezed datafile, images and analyses...")
+            _log.info("Renewing squeezed datafile, bandwidth cache, images and analyses...")
             # Images and analyses can only be computed after the squeezed file has been renewed
-            transaction.on_commit(chain(renew_squeezed_datafile.si(topo.id), renew_topography_images.si(topo.id),
+            transaction.on_commit(chain(renew_squeezed_datafile.si(topo.id),
+                                        renew_bandwidth_cache.si(topo.id),
+                                        renew_topography_images.si(topo.id),
                                         renew_analyses_related_to_topography.si(topo.id)).delay)
             notification_msg += f"\nBecause significant fields have changed, all related analyses are recalculated now."
         else:

@@ -2,8 +2,12 @@
 
 ## 0.90.4 (not released yet)
 
+- ENH: Show unreliable bandwidth in different color in 
+  bandwidth plot (#825) 
 - BUG: Fix for parallel generation of same version numbers (#876)
 - BUG: Fix for missing import when generating thumbnails (#875)
+- BUG: `import_surfaces` management command now saves to database
+  after updating file name and before generating squeezed file
 - MAINT: Count failed images as failed by default when using management 
   command create_images
 - MAINT: Changed redis heath beat check intervals
@@ -37,11 +41,6 @@
 - MAINT: No longer use of compiled numpy package because of broken wheel
 - MAINT: Order of analysis result cards now matches order of chosen 
          checkboxes
-
-## 0.91.0 (not yet released)
-
-- BUG: `import_surfaces` management command now saves to database
-  after updating file name and before generating squeezed file
 
 ## 0.90.0 (2022-05-30)
 

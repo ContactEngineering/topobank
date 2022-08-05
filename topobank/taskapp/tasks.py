@@ -284,6 +284,29 @@ def renew_squeezed_datafile(topography_id):
 
 
 @app.task
+def renew_bandwidth_cache(topography_id):
+    """Renew bandwidth cache for given topography,
+
+    Parameters
+    ----------
+    topography_id: int
+        ID if topography for which the datafile should be calculated
+        and saved.
+
+    Returns
+    -------
+    None
+    """
+    _log.debug(f"Renewing bandwidth cache for topography id {topography_id}..")
+    try:
+        topography = Topography.objects.get(id=topography_id)
+        topography.renew_bandwidth_cache()
+    except Topography.DoesNotExist:
+        _log.error(f"Couldn't find topography with id {topography_id}. Cannot renew bandwidth cache.")
+    _log.debug(f"Done - renewed bandwidth cache for topography id {topography_id}.")
+
+
+@app.task
 def renew_topography_images(topography_id):
     """Renew thumbnail for given topography,
 

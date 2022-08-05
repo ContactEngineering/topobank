@@ -1120,9 +1120,12 @@ class Topography(models.Model, SubjectMixin):
             else:
                 raise ThumbnailGenerationException from exc
 
-    def _renew_bandwidth_cache(self, st_topo=None):
-        if st_topo is None:
-            st_topo = self.topography()
+    def renew_bandwidth_cache(self):
+        """Renew bandwidth cache.
+
+        Cache bandwidth for bandwidth plot in database. Data is stored in units of meter.
+        """
+        st_topo = self.topography()
         if st_topo.unit is not None:
             bandwidth_lower, bandwidth_upper = st_topo.bandwidth()
             fac = get_unit_conversion_factor(st_topo.unit, 'm')
@@ -1150,9 +1153,6 @@ class Topography(models.Model, SubjectMixin):
             self.has_undefined_data = parent_topo.has_undefined_data
             if not self.has_undefined_data:
                 self.fill_undefined_data_mode = Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING
-
-            # Cache bandwidth for bandwidth plot in database. Data is stored in units of meter.
-            self._renew_bandwidth_cache(st_topo)
 
             # Write and upload NetCDF file
             st_topo.to_netcdf(tmp.name)
