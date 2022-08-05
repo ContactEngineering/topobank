@@ -23,7 +23,7 @@ import PIL
 import io
 import logging
 import math
-import matplotlib
+import matplotlib.pyplot, matplotlib.cm
 import numpy as np
 import os.path
 import tempfile
