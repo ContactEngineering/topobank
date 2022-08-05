@@ -3,7 +3,9 @@
 ## 0.90.4 (not released yet)
 
 - BUG: Fix for parallel generation of same version numbers (#876)
-- 
+- BUG: Fix for missing import when generating thumbnails (#875)
+- MAINT: Count failed images as failed by default when using management 
+  command create_images
 
 ## 0.90.3 (2022-07-27)
 
