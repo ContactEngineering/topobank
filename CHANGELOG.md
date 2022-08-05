@@ -1,5 +1,22 @@
 # Changelog for *TopoBank*
 
+## 0.91.0 (2022-08-05)
+
+- ENH: Show unreliable bandwidth in different color in 
+  bandwidth plot (#825) 
+- ENH: Added management command `renew_bandwidth_cache` for
+  renewing bandwidth cache for all measurements which includes
+  the short reliability cutoff (#880)
+- BUG: Fix for parallel generation of same version numbers (#876)
+- BUG: Fix for missing import when generating thumbnails (#875)
+- BUG: `import_surfaces` management command now saves to database
+  after updating file name and before generating squeezed file
+- BUG: Fixed layout of measurement form (#878)
+- MAINT: Count failed images as failed by default when using management 
+  command create_images
+- MAINT: Changed redis health beat check intervals
+- MAINT: Removed some old template code
+
 ## 0.90.3 (2022-07-27)
 
 - ENH: Fixed navigation bar including basket while scrolling (#779)

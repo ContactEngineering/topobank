@@ -43,6 +43,8 @@ from trackstats.models import Metric, Period
 
 from celery import chain
 
+from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
+
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm
 from .forms import TopographyForm, SurfaceForm, SurfaceShareForm, SurfacePublishForm
 from .models import Topography, Surface, TagModel, NewPublicationTooFastException, LoadTopographyException, \
@@ -56,7 +58,8 @@ from ..usage_stats.utils import increase_statistics_by_date, increase_statistics
 from ..users.models import User
 from ..publication.models import Publication, MAX_LEN_AUTHORS_FIELD
 from .containers import write_surface_container
-from ..taskapp.tasks import renew_squeezed_datafile, renew_topography_images, renew_analyses_related_to_topography
+from ..taskapp.tasks import renew_squeezed_datafile, renew_bandwidth_cache, \
+    renew_topography_images, renew_analyses_related_to_topography
 
 # create dicts with labels and option values for Select tab
 CATEGORY_FILTER_CHOICES = {'all': 'All categories',
@@ -436,7 +439,9 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
         # Trigger some calculations in background.
         #
         _log.info("Creating squeezed datafile, images and analyses...")
-        transaction.on_commit(chain(renew_squeezed_datafile.si(instance.id), renew_topography_images.si(instance.id),
+        transaction.on_commit(chain(renew_squeezed_datafile.si(instance.id),
+                                    renew_bandwidth_cache.si(instance.id),
+                                    renew_topography_images.si(instance.id),
                                     renew_analyses_related_to_topography.si(instance.id)).delay)
 
         #
@@ -529,6 +534,8 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
                              }
         significant_fields_with_changes = set(changed_fields).intersection(significant_fields)
 
+        instrument_fields = set(['instrument_type', 'instrument_parameters'])
+
         # check instrument_parameters manually, since this is not detected properly
         if form.cleaned_data['instrument_parameters'] != form.initial['instrument_parameters']:
             significant_fields_with_changes.add('instrument_parameters')
@@ -539,10 +546,22 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
         if len(significant_fields_with_changes) > 0:
             _log.info(f"During edit of topography id={topo.id} some significant fields changed: " +
                       f"{significant_fields_with_changes}.")
-            _log.info("Renewing squeezed datafile, images and analyses...")
+
             # Images and analyses can only be computed after the squeezed file has been renewed
-            transaction.on_commit(chain(renew_squeezed_datafile.si(topo.id), renew_topography_images.si(topo.id),
-                                        renew_analyses_related_to_topography.si(topo.id)).delay)
+
+            # determine whether only instrument fields have been changed,
+            # then we don't need to recalculate the squeezed file
+            renew_squeezed_needed = significant_fields_with_changes.difference(instrument_fields) != set()
+            renewal_chain_elems = []
+            if renew_squeezed_needed:
+                _log.info("Preparing renewal of squeezed file...")
+                renewal_chain_elems.append(renew_squeezed_datafile.si(topo.id))
+            _log.info("Renewing bandwidth cache, images and analyses...")
+            renewal_chain_elems.extend([renew_bandwidth_cache.si(topo.id),
+                                        renew_topography_images.si(topo.id),
+                                        renew_analyses_related_to_topography.si(topo.id)])
+
+            transaction.on_commit(chain(*renewal_chain_elems).delay)
             notification_msg += f"\nBecause significant fields have changed, all related analyses are recalculated now."
         else:
             _log.info("Changes not significant for renewal of thumbnails or analysis results.")
@@ -673,6 +692,12 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
             context['topography_prev'] = topo.get_previous_by_measurement_date(surface=topo.surface).id
         except Topography.DoesNotExist:
             context['topography_prev'] = topo.id
+
+        fac = get_unit_conversion_factor(topo.unit, 'm')
+        # context['bandwidth_lower_meter'] = topo.bandwidth_lower / fac
+        # context['bandwidth_upper_meter'] = topo.bandwidth_upper / fac
+        if topo.short_reliability_cutoff:
+            context['short_reliability_cutoff_meter'] = topo.short_reliability_cutoff / fac
 
         #
         # Add context needed for tabs
@@ -885,26 +910,39 @@ class SurfaceDetailView(DetailView):
             bw_left = [bw['lower_bound'] for bw in bw_data_without_errors]
             bw_right = [bw['upper_bound'] for bw in bw_data_without_errors]
             bw_center = np.exp((np.log(bw_left)+np.log(bw_right))/2)  # we want to center on log scale
+            bw_rel_cutoff = [bw['short_reliability_cutoff'] for bw in bw_data_without_errors]
             bw_names = [bw['topography'].name for bw in bw_data_without_errors]
             bw_topography_links = [bw['link'] for bw in bw_data_without_errors]
             bw_thumbnail_links = [reverse('manager:topography-thumbnail',
                                           kwargs=dict(pk=bw['topography'].pk))
                                   for bw in bw_data_without_errors]
+            bw_has_rel_cutoff = [u is not None for u in bw_rel_cutoff]
+
             bw_y = list(range(0, len(bw_data_without_errors)))
 
-            bw_source = ColumnDataSource(dict(y=bw_y, left=bw_left, right=bw_right, center=bw_center,
-                                              name=bw_names,
-                                              topography_link=bw_topography_links,
-                                              thumbnail_link=bw_thumbnail_links))
+            bw_rel_cutoff_source = ColumnDataSource(
+                dict(
+                    y=[y for y, has_rel_cutoff in zip(bw_y, bw_has_rel_cutoff) if has_rel_cutoff],
+                    left=[left for left, has_rel_cutoff in zip(bw_left, bw_has_rel_cutoff) if has_rel_cutoff],
+                    right=[right for right, has_rel_cutoff in zip(bw_rel_cutoff, bw_has_rel_cutoff) if has_rel_cutoff],
+                    name=[name for name, has_rel_cutoff in zip(bw_names, bw_has_rel_cutoff) if has_rel_cutoff]
+                )
+            )
+            bw_source = ColumnDataSource(
+                dict(
+                    y=bw_y, left=bw_left, right=bw_right, center=bw_center,
+                    name=bw_names,
+                    topography_link=bw_topography_links,
+                    thumbnail_link=bw_thumbnail_links
+                )
+            )
 
             x_range = (min(bw_left), max(bw_right))
 
             TOOL_TIPS = """
             <div class="bandwidth-hover-box">
                 <img src="@thumbnail_link" height="80" width="80" alt="Thumbnail is missing, sorry">
-                </img>
                 <span>@name</span>
-
             </div>
             """
 
@@ -915,12 +953,27 @@ class SurfaceDetailView(DetailView):
                           tools=["tap", "hover"],
                           toolbar_location=None,
                           tooltips=TOOL_TIPS)
-            hbar_renderer = plot.hbar(y="y", left="left", right="right", height=bar_height,
-                                      name='bandwidths', source=bw_source)
+
+            unrel_hbar_renderer = plot.hbar(y="y", left="left", right="right", height=bar_height, color='#dc3545',
+                                            name='bandwidths', legend_label="Unreliable bandwidth",
+                                            source=bw_rel_cutoff_source)
+            unrel_hbar_renderer.nonselection_glyph = None  # makes glyph invariant on selection
+
+            hbar_renderer = plot.hbar(y="y", left="left", right="right", height=bar_height, color='#2c90d9',
+                                      name='bandwidths', legend_label="Reliable bandwidth", source=bw_source,
+                                      level="underlay")
             hbar_renderer.nonselection_glyph = None  # makes glyph invariant on selection
+
+            plot.hover.renderers = [hbar_renderer]
             plot.yaxis.visible = False
             plot.grid.visible = False
             plot.outline_line_color = None
+            plot.legend.location = "top_left"
+            plot.legend.title = "Measurement artifacts"
+            plot.legend.title_text_font_style = "bold"
+            plot.legend.background_fill_color = "#f0f0f0"
+            plot.legend.border_line_width = 3
+            plot.legend.border_line_cap = "round"
 
             # make that 1 single topography does not look like a block
             if len(bw_data_without_errors) == 1:
