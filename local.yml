@@ -86,12 +86,13 @@ services:
     ports: [] # overwrites ports from django entry
     command: /start-celerybeat
 
-  flower:
-    <<: *django
-    image: topobank_local_flower
-    ports:
-      - "5555:5555"
-    command: /start-flower
+  #  flower:
+  #    <<: *django
+  #    image: topobank_local_flower
+  #    ports:
+  #      - "5555:5555"
+  #    command: /start-flower
+  # Currently not used, because of dependency problems and security concerns
 
   #
   # use can this built-in S3 server for development if you don't have an external one
@@ -112,6 +113,27 @@ services:
       - MINIO_ROOT_USER=admin
       - MINIO_ROOT_PASSWORD=secret12
     command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  minio-create-buckets:
+    image: minio/mc
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      - BUCKET_NAME=topobank-dev
+      - ENDPOINT=http://minio:9000
+    entrypoint: >
+        /bin/sh -c "
+        /usr/bin/mc config host add minio http://minio:9000 admin secret12;
+        /usr/bin/mc mb minio/topobank-dev;
+        /usr/bin/mc policy set public minio/topobank-dev;
+        exit 0;
+        "
 
 #
 #  pgbackup:

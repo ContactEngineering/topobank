@@ -24,9 +24,10 @@ from SurfaceTopography.Container.Averaging import log_average
 from SurfaceTopography.Container.ScaleDependentStatistics import scale_dependent_statistical_property
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor, suggest_length_unit_for_data
 from SurfaceTopography.Exceptions import CannotPerformAnalysisError
+from SurfaceTopography.Uniform.GeometryAnalysis import patch_areas, assign_patch_numbers_area
 from ContactMechanics import PeriodicFFTElasticHalfSpace, FreeFFTElasticHalfSpace
 from ContactMechanics.Factory import make_system, make_plastic_system
-from ContactMechanics.Tools.ContactAreaAnalysis import patch_areas, assign_patch_numbers
+
 
 import topobank.manager.models  # will be used to evaluate model classes
 from topobank.manager.utils import default_storage_replace, make_dzi
@@ -126,7 +127,12 @@ def wrap_series(series):
     """
     wrapped_series = []
     for i, s in enumerate(series):
-        wrapped_series.append(SplitDictionaryHere(f'series-{i}', s))
+        supplementary = {'name': s['name'], 'nbDataPoints': len(s['x'])}
+        if 'visible' in s:
+            supplementary['visible'] = s['visible']
+        wrapped_series.append(SplitDictionaryHere(
+            f'series-{i}', s,
+            supplementary=supplementary))
     return wrapped_series
 
 
@@ -1286,7 +1292,7 @@ def contact_mechanics(topography, substrate_str="nonperiodic", hardness=None, ns
         # Patch size distribution
         #
 
-        patch_ids = assign_patch_numbers(contacting_points_xy, substrate_str == 'periodic')[1]
+        patch_ids = assign_patch_numbers_area(contacting_points_xy, substrate_str == 'periodic')[1]
         cluster_areas = patch_areas(patch_ids) * substrate.area_per_pt
         hist, edges = np.histogram(cluster_areas, density=True, bins=50)
         data_dict.update({

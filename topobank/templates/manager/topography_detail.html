@@ -4,9 +4,6 @@
 {% load guardian_tags %}
 {% load surface_tags %}
 
-{% block content-title %}Details for measurement <i>{{ topography.name }}</i>
-{% endblock content-title %}
-
 {% block content %}
 
   {% get_obj_perms request.user for topography.surface as "surface_perms" %}

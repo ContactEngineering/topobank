@@ -11,7 +11,7 @@ ENV CFLAGS "-I/usr/include/eigen3/"
 #
 RUN apt-get update \
   && apt-get install --yes apt-utils \
-  && apt-get install --yes libfftw3-3 libfftw3-dev libopenblas-dev libpq-dev gcc g++ gettext \
+  && apt-get install --yes libfftw3-3 libfftw3-dev libopenblas-base libopenblas-dev libpq-dev gcc g++ gettext \
   # Curl is needed to download pybind11 and Eigen3
   && apt-get install --yes curl \
   # Pillow requirements
@@ -49,7 +49,7 @@ RUN pip install --upgrade pip
 COPY ./requirements /requirements
 WORKDIR /
 RUN pip install --upgrade setuptools
-RUN pip install --no-cache-dir -r /requirements/production.txt --ignore-installed && rm -Rf /requirements
+RUN pip install --no-cache-dir -r /requirements/production.txt --ignore-installed --no-binary numpy && rm -Rf /requirements
 
 COPY ./compose/production/django/entrypoint /entrypoint
 RUN sed -i 's/\r//' /entrypoint

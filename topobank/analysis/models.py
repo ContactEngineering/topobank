@@ -2,14 +2,15 @@
 Models related to analyses.
 """
 
+import inspect
+import json
+import pickle
+
 from django.db import models
 from django.db.models import UniqueConstraint
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.core.files.storage import default_storage
-
-import inspect
-import pickle
 
 from ..utils import store_split_dict, load_split_dict
 from topobank.users.models import User
@@ -115,6 +116,8 @@ class Analysis(models.Model):
     def __init__(self, *args, result=None, **kwargs):
         super().__init__(*args, **kwargs)
         self._result = result  # temporary storage
+        self._result_cache = result  # cached result
+        self._result_metadata_cache = None  # cached toplevel result file
 
     def __str__(self):
         return "Task {} with state {}".format(self.task_id, self.get_task_state_display())
@@ -145,7 +148,17 @@ class Analysis(models.Model):
     @property
     def result(self):
         """Return result object or None if there is nothing yet."""
-        return load_split_dict(self.storage_prefix, RESULT_FILE_BASENAME)
+        if self._result_cache is None:
+            self._result_cache = load_split_dict(self.storage_prefix, RESULT_FILE_BASENAME)
+        return self._result_cache
+
+    @property
+    def result_metadata(self):
+        """Return the toplevel result object without series data, i.e. the raw result.json without unsplitting it"""
+        if self._result_metadata_cache is None:
+            self._result_metadata_cache = json.load(
+                default_storage.open(f'{self.storage_prefix}/{RESULT_FILE_BASENAME}.json'))
+        return self._result_metadata_cache
 
     @property
     def result_file_name(self):

@@ -1,5 +1,43 @@
 # Changelog for *TopoBank*
 
+## 0.90.4 (not released yet)
+
+- BUG: Fix for parallel generation of same version numbers (#876)
+- BUG: Fix for missing import when generating thumbnails (#875)
+- MAINT: Count failed images as failed by default when using management 
+  command create_images
+- MAINT: Changed redis heath beat check intervals
+- MAINT: Removed some old template code
+
+## 0.90.3 (2022-07-27)
+
+- ENH: Fixed navigation bar including basket while scrolling (#779)
+- BUG: Showed wrong contact mechanics details (#859)
+- BUG: Fixed missing progress bars for unready analyses (#858)
+- BUG: Fixed impossible return to plot tab (#863)
+- BUG: Fixed missing download link for contact mechanics (#865)
+- MAINT: Bumped SurfaceTopography version to 1.0
+
+## 0.90.2 (2022-07-11)
+
+- MAINT: Multiple performance fixes, in particular by a) reducing redundant
+  SQL queries by either combining queries of filtering in memory and b)
+  reducing storage requests (from the Django backend) by only loading the
+  plot metadata and not the plot results when preparing the plot in the
+  Django backend (#841, #847, #851)
+- MAINT: Automatically create 'topobank-dev' bucket in Minio S3 of the
+  development Docker environment (local.yml)
+- MAINT: Security updates for django and lxml
+
+## 0.90.1 (2022-06-27)
+
+- MAINT: Presign in separate request when loading analysis data (#841)
+- MAINT: Some optimization of SQL requests (#841)
+- MAINT: Security fixes (numpy, flower)
+- MAINT: No longer use of compiled numpy package because of broken wheel
+- MAINT: Order of analysis result cards now matches order of chosen 
+         checkboxes
+
 ## 0.91.0 (not yet released)
 
 - BUG: `import_surfaces` management command now saves to database

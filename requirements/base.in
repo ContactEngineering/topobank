@@ -6,7 +6,7 @@ psycopg2-binary>=2.8, <2.9  # https://github.com/psycopg/psycopg2
 
 # Django
 # ------------------------------------------------------------------------------
-django==3.2.13  #  does this work with pyup?  # https://www.djangoproject.com/
+django==3.2.14  #  does this work with pyup?  # https://www.djangoproject.com/
 django-environ  # https://github.com/joke2k/django-environ
 django-model-utils  # https://github.com/jazzband/django-model-utils
 django-allauth  # https://github.com/pennersr/django-allauth
@@ -67,7 +67,10 @@ celery[redis]>=5.2.3, <6.0
 # pylibmc seems to cause memcache problems: see GH 737
 # librabbitmq>=2.0
 # problems while compiling librabbitmq
-flower==1.0.0
+
+# Flower (monitoring for celery) is currently not used because of dependency and security problems
+# flower==1.0.0
+
 # tornado>=4.2.0, <6.0.0
 
 # progress bars for celery tasks, served by Django
@@ -80,8 +83,8 @@ bleach>=3.3.0
 # Contact Mechanics
 #
 muFFT>=0.11.1
-SurfaceTopography>=0.101.3, <1.0
-ContactMechanics>=0.91.0, <1.0
+SurfaceTopography>=1.0
+ContactMechanics>=0.93.0
 
 # plotting
 bokeh==3.0.0.dev4
@@ -128,7 +131,7 @@ urllib3>=1.26.5
 pygments>=2.7.4
 
 # datepicker
-django-bootstrap-datepicker-plus
+django-bootstrap-datepicker-plus>=4.0<5.0
 
 # fix muspectre version because of a bug/incompatibility in later versions
 # git+https://gitlab.com/muspectre/muspectre.git@654a508babf97564c3e3144ca11686431fe45c39#egg=mufft
@@ -139,12 +142,13 @@ django-fullurl
 datacite
 
 # some other constraints due to security concerns
-lxml>=4.6.5
+lxml>=4.9.1
 jinja2>=2.11.3  # because of CVE-2020-28493
 
 Pillow>=9.0.1  # because of several CVEs
 PyYAML>=5.4  # CVE-2020-14343
 sqlparse>=0.4.2  # CVE-2021-32839
 pyjwt>=2.4.0  #  https://github.com/ContactEngineering/TopoBank/security/dependabot/61
+numpy>=1.22  # incomplete string comparison in the numpy.core component in NumPy1.9.x
 
 

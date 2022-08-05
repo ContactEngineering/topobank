@@ -470,10 +470,10 @@ def selected_instances(request):
     topographies, surfaces, tags = selection_to_instances(selection)
 
     # make sure that only topographies with read permission can be found here
-    topographies = [t for t in topographies
-                    if request.user.has_perm('view_surface', t.surface)]
-    surfaces = [s for s in surfaces
-                if request.user.has_perm('view_surface', s)]
+    unique_surfaces = set(t.surface for t in topographies) | set(surfaces)
+    surfaces_with_view_permission = [s for s in unique_surfaces if request.user.has_perm('view_surface', s)]
+    topographies = [t for t in topographies if t.surface in surfaces_with_view_permission]
+    surfaces = [s for s in surfaces if s in surfaces_with_view_permission]
 
     return topographies, surfaces, list(tags)
 
@@ -649,8 +649,14 @@ def subjects_from_json(subjects_ids_json, function=None):
             if not function.is_implemented_for_type(ct):
                 # skip these subjects
                 continue
+        query = None
         for so_id in subject_object_ids:
-            subjects.append(ct.get_object_for_this_type(id=so_id))
+            q = Q(id=so_id)
+            query = q if query is None else query | q
+        if query is None:
+            # skip these subjects
+            continue
+        subjects += [s for s in ct.get_all_objects_for_this_type().filter(query)]
     return subjects
 
 
@@ -683,8 +689,10 @@ def selection_to_subjects_json(request):
 
     # Do we have permission for all of these?
     user = request.user
-    effective_topographies = [t for t in effective_topographies if user.has_perm('view_surface', t.surface)]
-    effective_surfaces = [s for s in effective_surfaces if user.has_perm('view_surface', s)]
+    unique_surfaces = set(t.surface for t in effective_topographies) | set(effective_surfaces)
+    surfaces_with_view_permission = [s for s in unique_surfaces if user.has_perm('view_surface', s)]
+    effective_topographies = [t for t in effective_topographies if t.surface in surfaces_with_view_permission]
+    effective_surfaces = [s for s in effective_surfaces if s in surfaces_with_view_permission]
 
     # we collect effective topographies and surfaces because we have so far implementations
     # for analysis functions for topographies and surfaces
