@@ -1,9 +1,12 @@
 # Changelog for *TopoBank*
 
-## 0.90.4 (not released yet)
+## 0.91.0 (not released yet)
 
 - ENH: Show unreliable bandwidth in different color in 
   bandwidth plot (#825) 
+- ENH: Added management command `renew_bandwidth_cache` for
+  renewing bandwidth cache for all measurements which includes
+  the short reliability cutoff (#880)
 - BUG: Fix for parallel generation of same version numbers (#876)
 - BUG: Fix for missing import when generating thumbnails (#875)
 - BUG: `import_surfaces` management command now saves to database
