@@ -1,5 +1,11 @@
 # Changelog for *TopoBank*
 
+## 0.91.1 (not released yet)
+
+- BUG: Fixed missing save() statement when renewing 
+  bandwidth cache
+- 
+
 ## 0.91.0 (2022-08-05)
 
 - ENH: Show unreliable bandwidth in different color in 

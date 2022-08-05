@@ -1136,6 +1136,7 @@ class Topography(models.Model, SubjectMixin):
             if short_reliability_cutoff is not None:
                 short_reliability_cutoff *= fac
             self.short_reliability_cutoff = short_reliability_cutoff  # None is also saved here
+            self.save()
 
     def renew_squeezed_datafile(self):
         """Renew squeezed datafile file."""
