@@ -6,7 +6,7 @@
 - BUG: Fix for missing import when generating thumbnails (#875)
 - MAINT: Count failed images as failed by default when using management 
   command create_images
-- MAINT: Changed redis heath check intervals
+- MAINT: Changed redis heath beat check intervals
 
 ## 0.90.3 (2022-07-27)
 
