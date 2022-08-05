@@ -534,6 +534,8 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
                              }
         significant_fields_with_changes = set(changed_fields).intersection(significant_fields)
 
+        instrument_fields = set(['instrument_type', 'instrument_parameters'])
+
         # check instrument_parameters manually, since this is not detected properly
         if form.cleaned_data['instrument_parameters'] != form.initial['instrument_parameters']:
             significant_fields_with_changes.add('instrument_parameters')
@@ -544,12 +546,22 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
         if len(significant_fields_with_changes) > 0:
             _log.info(f"During edit of topography id={topo.id} some significant fields changed: " +
                       f"{significant_fields_with_changes}.")
-            _log.info("Renewing squeezed datafile, bandwidth cache, images and analyses...")
+
             # Images and analyses can only be computed after the squeezed file has been renewed
-            transaction.on_commit(chain(renew_squeezed_datafile.si(topo.id),
-                                        renew_bandwidth_cache.si(topo.id),
+
+            # determine whether only instrument fields have been changed,
+            # then we don't need to recalculate the squeezed file
+            renew_squeezed_needed = significant_fields_with_changes.difference(instrument_fields) != set()
+            renewal_chain_elems = []
+            if renew_squeezed_needed:
+                _log.info("Preparing renewal of squeezed file...")
+                renewal_chain_elems.append(renew_squeezed_datafile.si(topo.id))
+            _log.info("Renewing bandwidth cache, images and analyses...")
+            renewal_chain_elems.extend([renew_bandwidth_cache.si(topo.id),
                                         renew_topography_images.si(topo.id),
-                                        renew_analyses_related_to_topography.si(topo.id)).delay)
+                                        renew_analyses_related_to_topography.si(topo.id)])
+
+            transaction.on_commit(chain(*renewal_chain_elems).delay)
             notification_msg += f"\nBecause significant fields have changed, all related analyses are recalculated now."
         else:
             _log.info("Changes not significant for renewal of thumbnails or analysis results.")
