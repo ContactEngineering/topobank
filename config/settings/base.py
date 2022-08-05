@@ -280,7 +280,7 @@ if USE_TZ:
     # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-timezone
     CELERY_TIMEZONE = TIME_ZONE
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-broker_url
-CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='amqp://')
+CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='redis://redis:6379/0')
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-result_backend
 CELERY_RESULT_BACKEND = env('CELERY_RESULT_BACKEND', default='redis://127.0.0.1:6379/0')
 # we don't use rpc:// as default here, because Python 3.7 is not officially supported by celery 4.2
