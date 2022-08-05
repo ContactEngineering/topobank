@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-## 0.91.0 (not released yet)
+## 0.91.0 (2022-08-05)
 
 - ENH: Show unreliable bandwidth in different color in 
   bandwidth plot (#825) 
@@ -14,7 +14,7 @@
 - BUG: Fixed layout of measurement form (#878)
 - MAINT: Count failed images as failed by default when using management 
   command create_images
-- MAINT: Changed redis heath beat check intervals
+- MAINT: Changed redis health beat check intervals
 - MAINT: Removed some old template code
 
 ## 0.90.3 (2022-07-27)
