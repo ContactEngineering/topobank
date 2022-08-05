@@ -43,6 +43,8 @@ from trackstats.models import Metric, Period
 
 from celery import chain
 
+from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
+
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm
 from .forms import TopographyForm, SurfaceForm, SurfaceShareForm, SurfacePublishForm
 from .models import Topography, Surface, TagModel, NewPublicationTooFastException, LoadTopographyException, \
@@ -678,6 +680,12 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
             context['topography_prev'] = topo.get_previous_by_measurement_date(surface=topo.surface).id
         except Topography.DoesNotExist:
             context['topography_prev'] = topo.id
+
+        fac = get_unit_conversion_factor(topo.unit, 'm')
+        # context['bandwidth_lower_meter'] = topo.bandwidth_lower / fac
+        # context['bandwidth_upper_meter'] = topo.bandwidth_upper / fac
+        if topo.short_reliability_cutoff:
+            context['short_reliability_cutoff_meter'] = topo.short_reliability_cutoff / fac
 
         #
         # Add context needed for tabs
