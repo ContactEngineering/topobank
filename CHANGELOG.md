@@ -8,6 +8,7 @@
 - BUG: Fix for missing import when generating thumbnails (#875)
 - BUG: `import_surfaces` management command now saves to database
   after updating file name and before generating squeezed file
+- BUG: Fixed layout of measurement form (#878)
 - MAINT: Count failed images as failed by default when using management 
   command create_images
 - MAINT: Changed redis heath beat check intervals
