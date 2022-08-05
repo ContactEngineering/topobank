@@ -18,11 +18,14 @@ def two_topos_mock(mocker):
     class STTopoStub:  # ST: from module SurfaceTopography
         bandwidth: tuple
         unit: str
+        with_cut_off: bool
+        def short_reliability_cutoff(self):
+            return 1.2 if self.with_cut_off else None  # should be seen in tests
 
     topography_method_mock = mocker.patch('topobank.manager.models.Topography.topography')
     topography_method_mock.side_effect = [
-        STTopoStub(bandwidth=lambda: (6, 600), unit='nm'),
-        STTopoStub(bandwidth=lambda: (5, 100), unit='µm'),
+        STTopoStub(bandwidth=lambda: (6, 600), unit='nm', with_cut_off=True),
+        STTopoStub(bandwidth=lambda: (5, 100), unit='µm', with_cut_off=False),
     ]
     mocker.patch('topobank.manager.models.Topography', autospec=True)
 
@@ -42,21 +45,21 @@ def two_topos_mock(mocker):
 
 def test_bandwidths_data(two_topos_mock):
 
+    topoB, topoA = two_topos_mock
+
     for topo in two_topos_mock:
-        topo._renew_bandwidth_cache(topo.topography())
+        topo.renew_bandwidth_cache()
 
     bd = bandwidths_data(two_topos_mock)
 
-    topoB, topoA = two_topos_mock
-
     # expected bandwidth data - smaller lower bounds should be listed first
     exp_bd = [
-        dict(upper_bound=6e-7, lower_bound=6e-9, topography=topoB, link='linkB/'),
-        dict(upper_bound=1e-4, lower_bound=5e-6, topography=topoA, link='linkA/'),
+        dict(upper_bound=6e-7, lower_bound=6e-9, topography=topoB, link='linkB/', short_reliability_cutoff=1.2e-9),
+        dict(upper_bound=1e-4, lower_bound=5e-6, topography=topoA, link='linkA/', short_reliability_cutoff=None),
     ]
 
     for i in range(len(exp_bd)):
-        for field in ['upper_bound', 'lower_bound']:
+        for field in ['upper_bound', 'lower_bound', 'short_reliability_cutoff']:
             assert exp_bd[i][field] == approx(bd[i][field])
         for field in ['topography', 'link']:
             assert exp_bd[i][field] == bd[i][field]
@@ -84,7 +87,7 @@ def test_bandwidth_error_message_in_dict_when_problems_while_loading(topography_
 
     topo1 = topography_loaded_from_broken_file
     topo2 = Topography1DFactory()
-    topo2._renew_bandwidth_cache()  # topo2 has bandwidth information
+    topo2.renew_bandwidth_cache()  # topo2 has bandwidth information
     assert topo2.unit == 'nm'
 
     bd = bandwidths_data([topo1, topo2])

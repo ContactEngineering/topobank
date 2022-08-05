@@ -6,7 +6,7 @@
 
   {% load crispy_forms_tags %}
 
-  <div class="tab-content p-2 extra-tab">
+  <div class="tab-content pt-2 extra-tab">
 
     <div class="btn-group float-right">
       <a href="{% url 'manager:topography-update' topography_prev %}"
@@ -71,5 +71,6 @@
     })
   </script>
 
-  {{ form.media.js }}
+  {# See issue 742, if included, the layout is broken - why? #}
+  {#  {{ form.media.js }} #}
 {% endblock javascript %}

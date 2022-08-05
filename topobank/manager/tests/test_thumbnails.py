@@ -22,6 +22,7 @@ def test_renewal_on_topography_detrend_mode_change(client, mocker, django_captur
 
     from ..models import Topography
     renew_squeezed_mock = mocker.patch('topobank.manager.views.renew_squeezed_datafile.si')
+    renew_bandwidth_cache_mock = mocker.patch('topobank.manager.views.renew_bandwidth_cache.si')
     renew_topo_analyses_mock = mocker.patch('topobank.manager.views.renew_analyses_related_to_topography.si')
     renew_topo_images_mock = mocker.patch('topobank.manager.views.renew_topography_images.si')
 
@@ -57,3 +58,4 @@ def test_renewal_on_topography_detrend_mode_change(client, mocker, django_captur
     assert renew_topo_images_mock.called
     assert renew_topo_analyses_mock.called
     assert renew_squeezed_mock.called  # was directly called, not as callback from commit
+    assert renew_bandwidth_cache_mock.called  # was directly called, not as callback from commit
