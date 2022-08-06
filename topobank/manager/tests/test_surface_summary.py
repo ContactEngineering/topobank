@@ -12,7 +12,7 @@ from .utils import Topography1DFactory, topography_loaded_from_broken_file
 from topobank.utils import assert_in_content
 
 @pytest.fixture
-def two_topos_mock(mocker):
+def two_topos_mock_for_bandwidth(mocker, db):
 
     @dataclass  # new feature in Python 3.7
     class STTopoStub:  # ST: from module SurfaceTopography
@@ -38,19 +38,19 @@ def two_topos_mock(mocker):
     #   needed from SurfaceTopography.Topography: pixel_size, size
     #   needed from TopoBank's Topography: name, pk
 
-    topos = [Topography(name='topoB', pk=2), Topography(name='topoA', pk=1)]
+    topos = [Topography1DFactory(name='topoB', pk=2), Topography1DFactory(name='topoA', pk=1)]
 
     return topos
 
 
-def test_bandwidths_data(two_topos_mock):
+def test_bandwidths_data(two_topos_mock_for_bandwidth):
 
-    topoB, topoA = two_topos_mock
+    topoB, topoA = two_topos_mock_for_bandwidth
 
-    for topo in two_topos_mock:
+    for topo in two_topos_mock_for_bandwidth:
         topo.renew_bandwidth_cache()
 
-    bd = bandwidths_data(two_topos_mock)
+    bd = bandwidths_data(two_topos_mock_for_bandwidth)
 
     # expected bandwidth data - smaller lower bounds should be listed first
     exp_bd = [
