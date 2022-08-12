@@ -443,10 +443,23 @@ def test_show_license_when_viewing_published_surface(rf, settings, example_autho
 
 
 
+@pytest.mark.django_db
+def test_show_affiliations_when_viewing_published_surface(rf, settings, example_authors):
+    license = 'cc0-1.0'
 
+    surface = SurfaceFactory()
+    pub = surface.publish(license, example_authors)
 
+    request = rf.get(reverse('manager:surface-detail', kwargs=dict(pk=pub.surface.pk)))
+    request.user = surface.creator
+    request.session = {}
 
-
+    response = SurfaceDetailView.as_view()(request, pk=pub.surface.pk)
+    response.render()
+    assert_in_content(response, "Author Affiliations")
+    assert_in_content(response,request.user.first_name)
+    assert_in_content(response,request.user.last_name)
+    
 
 
 
