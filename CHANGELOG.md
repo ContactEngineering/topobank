@@ -2,7 +2,7 @@
 
 ## 0.91.1 (not released yet)
 
-- ENH: Added author affiliations in detail page for 
+- ENH: Added "Authors" tab in detail page for 
   published digital twins (#811)
 - BUG: Fixed missing save() statement when renewing 
   bandwidth cache
