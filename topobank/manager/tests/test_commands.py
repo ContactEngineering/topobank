@@ -5,8 +5,6 @@ from django.core.management import call_command
 from django.shortcuts import reverse
 
 import pytest
-import datetime
-from pathlib import Path
 import tempfile
 import math
 
@@ -104,7 +102,15 @@ def test_fix_height_scale(two_topos):
     assert math.isclose(new_topo.height_scale, 0.296382712790741, abs_tol=1e-8)
 
 
+@pytest.mark.django_db
+def test_renew_bandwidth_cache(mocker):
+    Topography2DFactory()
+    import topobank.manager.management.commands
+    renew_bandwidth_cache_mock = mocker.patch('topobank.manager.management.commands.renew_bandwidth_cache.renew_bandwidth_cache')
 
+    call_command('renew_bandwidth_cache', background=True)
+
+    assert renew_bandwidth_cache_mock.delay.called
 
 
 

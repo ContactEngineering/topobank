@@ -23,7 +23,7 @@ import PIL
 import io
 import logging
 import math
-import matplotlib
+import matplotlib.pyplot, matplotlib.cm
 import numpy as np
 import os.path
 import tempfile
@@ -42,6 +42,7 @@ from topobank.analysis.utils import renew_analyses_for_subject
 from topobank.manager.utils import default_storage_replace, make_dzi
 
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
+
 
 _log = logging.getLogger(__name__)
 
@@ -569,6 +570,7 @@ class Topography(models.Model, SubjectMixin):
 
     bandwidth_lower = models.FloatField(null=True, default=None)  # in meters
     bandwidth_upper = models.FloatField(null=True, default=None)  # in meters
+    short_reliability_cutoff = models.FloatField(null=True, default=None)
 
     is_periodic = models.BooleanField(default=False)
 
@@ -1118,14 +1120,23 @@ class Topography(models.Model, SubjectMixin):
             else:
                 raise ThumbnailGenerationException from exc
 
-    def _renew_bandwidth_cache(self, st_topo=None):
-        if st_topo is None:
-            st_topo = self.topography()
+    def renew_bandwidth_cache(self):
+        """Renew bandwidth cache.
+
+        Cache bandwidth for bandwidth plot in database. Data is stored in units of meter.
+        """
+        st_topo = self.topography()
         if st_topo.unit is not None:
             bandwidth_lower, bandwidth_upper = st_topo.bandwidth()
             fac = get_unit_conversion_factor(st_topo.unit, 'm')
             self.bandwidth_lower = fac * bandwidth_lower
             self.bandwidth_upper = fac * bandwidth_upper
+
+            short_reliability_cutoff = st_topo.short_reliability_cutoff()  # Return float or None
+            if short_reliability_cutoff is not None:
+                short_reliability_cutoff *= fac
+            self.short_reliability_cutoff = short_reliability_cutoff  # None is also saved here
+            self.save()
 
     def renew_squeezed_datafile(self):
         """Renew squeezed datafile file."""
@@ -1143,9 +1154,6 @@ class Topography(models.Model, SubjectMixin):
             self.has_undefined_data = parent_topo.has_undefined_data
             if not self.has_undefined_data:
                 self.fill_undefined_data_mode = Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING
-
-            # Cache bandwidth for bandwidth plot in database. Data is stored in units of meter.
-            self._renew_bandwidth_cache(st_topo)
 
             # Write and upload NetCDF file
             st_topo.to_netcdf(tmp.name)

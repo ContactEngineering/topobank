@@ -24,6 +24,14 @@ class Command(BaseCommand):
         )
 
         parser.add_argument(
+            '-n',
+            '--none-on-error',
+            action='store_true',
+            dest='none_on_error',
+            help='If image creation fails, store None instead of raising an exception.',
+        )
+
+        parser.add_argument(
             '--dry-run',
             action='store_true',
             dest='dry_run',
@@ -47,7 +55,7 @@ class Command(BaseCommand):
                         renew_topography_images.delay(topo.id)
                         num_background += 1
                     else:
-                        topo.renew_images()
+                        topo.renew_images(none_on_error=options['none_on_error'])
                         num_okay += 1
                 except Exception as exc:
                     _log.warning(f"Cannot create images for topography {topo.id}, reason: {exc}")

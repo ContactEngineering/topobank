@@ -1,5 +1,37 @@
 # Changelog for *TopoBank*
 
+## 0.91.1 (not released yet)
+
+- BUG: Fixed missing save() statement when renewing 
+  bandwidth cache
+- 
+
+## 0.91.0 (2022-08-05)
+
+- ENH: Show unreliable bandwidth in different color in 
+  bandwidth plot (#825) 
+- ENH: Added management command `renew_bandwidth_cache` for
+  renewing bandwidth cache for all measurements which includes
+  the short reliability cutoff (#880)
+- BUG: Fix for parallel generation of same version numbers (#876)
+- BUG: Fix for missing import when generating thumbnails (#875)
+- BUG: `import_surfaces` management command now saves to database
+  after updating file name and before generating squeezed file
+- BUG: Fixed layout of measurement form (#878)
+- MAINT: Count failed images as failed by default when using management 
+  command create_images
+- MAINT: Changed redis health beat check intervals
+- MAINT: Removed some old template code
+
+## 0.90.3 (2022-07-27)
+
+- ENH: Fixed navigation bar including basket while scrolling (#779)
+- BUG: Showed wrong contact mechanics details (#859)
+- BUG: Fixed missing progress bars for unready analyses (#858)
+- BUG: Fixed impossible return to plot tab (#863)
+- BUG: Fixed missing download link for contact mechanics (#865)
+- MAINT: Bumped SurfaceTopography version to 1.0
+
 ## 0.90.2 (2022-07-11)
 
 - MAINT: Multiple performance fixes, in particular by a) reducing redundant

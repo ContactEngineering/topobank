@@ -372,7 +372,7 @@ class SimpleCardView(TemplateView):
                                               if a.id not in ids_of_ready_analyses_with_result_file]
         analyses_ready = [a for a in analyses_ready
                           if a.id in ids_of_ready_analyses_with_result_file]
-        analyses_unready = [a for a in analyses_ready
+        analyses_unready = [a for a in analyses_available
                             if a.id not in ids_of_ready_analyses_with_result_file]
 
         #

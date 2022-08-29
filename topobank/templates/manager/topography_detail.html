@@ -4,9 +4,6 @@
 {% load guardian_tags %}
 {% load surface_tags %}
 
-{% block content-title %}Details for measurement <i>{{ topography.name }}</i>
-{% endblock content-title %}
-
 {% block content %}
 
   {% get_obj_perms request.user for topography.surface as "surface_perms" %}
@@ -71,7 +68,7 @@
               <tr>
                 <th scope="row">Physical size</th>
                 <td>
-                  {{ topography.size_x }} {{ topography.unit }}{% if topography.size_y %} x {{ topography.size_y }} {{ topography.unit }} {% endif %}
+                  {{ topography.size_x|floatformat:5 }} {{ topography.unit }}{% if topography.size_y %} x {{ topography.size_y|floatformat:5 }} {{ topography.unit }} {% endif %}
                   ({% if topography.size_editable %}given by user{% else %}fixed by file contents{% endif %})
                 </td>
               </tr>
@@ -103,6 +100,16 @@
                     {% endif %}
                   {% else %}
                     (not saved yet)
+                  {% endif %}
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Short Reliability Cutoff</th>
+                <td>
+                  {% if topography.short_reliability_cutoff %}
+                  {{  short_reliability_cutoff_meter|floatformat:5 }} {{  topography.unit }}
+                  {% else %}
+                  Considered reliable over full bandwidth, see also instrument tab.
                   {% endif %}
                 </td>
               </tr>
