@@ -14,25 +14,30 @@ from topobank.analysis.tests.utils import SurfaceAnalysisFactory, AnalysisFuncti
 from topobank.utils import assert_in_content, assert_no_form_errors
 
 
-@pytest.mark.parametrize("changed_values_dict", [  # would should be changed in POST request (->str values!)
-    {
+@pytest.mark.parametrize("changed_values_dict,renew_squeezed_expected",
+[  # would should be changed in POST request (->str values!)
+    ({
         "size_y": '100'
-    },
-    {
+    }, True),
+    ({
+        "height_scale": '10',
+        "instrument_type": 'microscope-based',
+    }, True),  # renew_squeezed should be called because of height_scale, not because of instrument_type
+    ({
         "instrument_type": 'microscope-based',  # instrument type changed at least
         "resolution_value": '1',
         "resolution_unit": 'mm',
-    },
-    {
+    }, False),
+    ({
         "tip_radius_value": '2',  # value changed
-    },
-    {
+    }, False),
+    ({
         "tip_radius_unit": 'nm',  # unit changed
-    }
+    }, False),
 ])
 @pytest.mark.django_db
 def test_renewal_on_topography_change(client, mocker, django_capture_on_commit_callbacks, handle_usage_statistics,
-                                      changed_values_dict):
+                                      changed_values_dict, renew_squeezed_expected):
     """Check whether methods for renewal are called on significant topography change.
     """
     renew_squeezed_method_mock = mocker.patch('topobank.manager.views.renew_squeezed_datafile.si')
@@ -128,7 +133,10 @@ def test_renewal_on_topography_change(client, mocker, django_capture_on_commit_c
     assert len(callbacks) == 1
     # one (chain) callback on commit expected, see view
 
-    assert renew_squeezed_method_mock.called
+    if renew_squeezed_expected:
+        assert renew_squeezed_method_mock.called
+    else:
+        assert not renew_squeezed_method_mock.called
     assert renew_topo_analyses_mock.called
     assert renew_topo_images_mock.called
 

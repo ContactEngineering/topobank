@@ -470,10 +470,10 @@ def selected_instances(request):
     topographies, surfaces, tags = selection_to_instances(selection)
 
     # make sure that only topographies with read permission can be found here
-    topographies = [t for t in topographies
-                    if request.user.has_perm('view_surface', t.surface)]
-    surfaces = [s for s in surfaces
-                if request.user.has_perm('view_surface', s)]
+    unique_surfaces = set(t.surface for t in topographies) | set(surfaces)
+    surfaces_with_view_permission = [s for s in unique_surfaces if request.user.has_perm('view_surface', s)]
+    topographies = [t for t in topographies if t.surface in surfaces_with_view_permission]
+    surfaces = [s for s in surfaces if s in surfaces_with_view_permission]
 
     return topographies, surfaces, list(tags)
 
@@ -689,8 +689,10 @@ def selection_to_subjects_json(request):
 
     # Do we have permission for all of these?
     user = request.user
-    effective_topographies = [t for t in effective_topographies if user.has_perm('view_surface', t.surface)]
-    effective_surfaces = [s for s in effective_surfaces if user.has_perm('view_surface', s)]
+    unique_surfaces = set(t.surface for t in effective_topographies) | set(effective_surfaces)
+    surfaces_with_view_permission = [s for s in unique_surfaces if user.has_perm('view_surface', s)]
+    effective_topographies = [t for t in effective_topographies if t.surface in surfaces_with_view_permission]
+    effective_surfaces = [s for s in effective_surfaces if s in surfaces_with_view_permission]
 
     # we collect effective topographies and surfaces because we have so far implementations
     # for analysis functions for topographies and surfaces
@@ -758,12 +760,15 @@ def _bandwidths_data_entry(topo):
     else:
         link = reverse('manager:topography-detail', kwargs=dict(pk=topo.pk))
 
+    short_reliability_cutoff = topo.short_reliability_cutoff
+
     return {
         'lower_bound': lower_bound,
         'upper_bound': upper_bound,
         'topography': topo,
         'link': link,
-        'error_message': err_message
+        'error_message': err_message,
+        'short_reliability_cutoff': short_reliability_cutoff
     }
 
 
@@ -780,6 +785,7 @@ def bandwidths_data(topographies):
     'topo': topography instance
     'link': link to topography details
     'error_message': None or a string with an error message if calculation failed
+    'short_reliability_cutoff': limit of the unreliable bandwidth (or None if all data is reliable) in meters
 
     The list is sorted by the lower bound with smaller lower bound first.
 

@@ -162,10 +162,10 @@ class SimpleCardView(TemplateView):
           title: card title
           function: AnalysisFunction instance
           unique_kwargs: dict with common kwargs for all analyses, None if not unique
-          analyses_available: queryset of all analyses which are relevant for this view
-          analyses_success: queryset of successfully finished analyses (result is useable, can be displayed)
-          analyses_failure: queryset of analyses finished with failures (result has traceback, can't be displayed)
-          analyses_unready: queryset of analyses which are still running
+          analyses_available: list of all analyses which are relevant for this view
+          analyses_success: list of successfully finished analyses (result is useable, can be displayed)
+          analyses_failure: list of analyses finished with failures (result has traceback, can't be displayed)
+          analyses_unready: list of analyses which are still running
           subjects_missing: list of subjects for which there is no Analysis object yet
           subjects_requested_json: json representation of list with all requested subjects as 2-tuple
                                    (subject_type.id, subject.id)
@@ -194,22 +194,17 @@ class SimpleCardView(TemplateView):
         subjects_ids_json = subjects_to_json(subjects_requested)
 
         #
-        # Get all relevant analysis objects for this function and these subjects
-        #
-
-        analyses_avail = get_latest_analyses(user, function, subjects_requested)
-
-        #
         # Filter for analyses where the user has read permission for the related surface
         #
         readable_surfaces = get_objects_for_user(user, ['view_surface'], klass=Surface)
-        analyses_avail = analyses_avail.filter(
-            Q(topography__surface__in=readable_surfaces) | Q(surface__in=readable_surfaces))
+        analyses_available = get_latest_analyses(user, function, subjects_requested) \
+            .filter(Q(topography__surface__in=readable_surfaces) |
+                    Q(surface__in=readable_surfaces))
 
         #
         # collect list of subjects for which an analysis instance is missing
         #
-        subjects_available = [a.subject for a in analyses_avail]
+        subjects_available = [a.subject for a in analyses_available]
         subjects_missing = [s for s in subjects_requested if s not in subjects_available]
 
         #
@@ -221,18 +216,16 @@ class SimpleCardView(TemplateView):
         # - if a contenttype exists, but value is None, this means:
         #   There arguments of the analyses for this contenttype are not unique
 
-        for av in analyses_avail:
-            kwargs = pickle.loads(av.kwargs)
+        for analysis in analyses_available:
+            kwargs = pickle.loads(analysis.kwargs)
 
-            if av.subject_type not in unique_kwargs:
-                unique_kwargs[av.subject_type] = kwargs
-            elif unique_kwargs[av.subject_type] is not None:  # was unique so far
-                if kwargs != unique_kwargs[av.subject_type]:
-                    unique_kwargs[av.subject_type] = None
+            if analysis.subject_type not in unique_kwargs:
+                unique_kwargs[analysis.subject_type] = kwargs
+            elif unique_kwargs[analysis.subject_type] is not None:  # was unique so far
+                if kwargs != unique_kwargs[analysis.subject_type]:
+                    unique_kwargs[analysis.subject_type] = None
                     # Found differing arguments for this subject_type
                     # We need to continue in the loop, because of the other subject types
-
-        function = AnalysisFunction.objects.get(id=function_id)
 
         #
         # automatically trigger analyses for missing subjects (topographies or surfaces)
@@ -273,24 +266,33 @@ class SimpleCardView(TemplateView):
             # if no analyses where available before, unique_kwargs is None
             # which is interpreted as "differing arguments". This is wrong
             # in that case
-            if len(analyses_avail) == 0:
+            if len(analyses_available) == 0:
                 unique_kwargs = kwargs_for_missing
 
-            analyses_avail = get_latest_analyses(user, function_id, subjects_requested) \
+            analyses_available = get_latest_analyses(user, function, subjects_requested) \
                 .filter(Q(topography__surface__in=readable_surfaces) |
                         Q(surface__in=readable_surfaces))
 
         #
+        # Turn available analyses into a list
+        #
+        analyses_available = list(analyses_available)
+
+        #
         # Determine status code of request - do we need to trigger request again?
         #
-        analyses_ready = analyses_avail.filter(task_state__in=['su', 'fa'])
+        analyses_ready = [a for a in analyses_available
+                          if a.task_state in ['su', 'fa']]
         # Leave out those analyses which have a state meaning "ready", but
         # have no result file:
-        ids_of_ready_analyses_with_result_file = [a.id for a in analyses_ready if a.has_result_file]
+        ids_of_ready_analyses_with_result_file = [a.id for a in analyses_ready
+                                                  if a.has_result_file]
         ready_analyses_without_result_file = [a for a in analyses_ready
                                               if a.id not in ids_of_ready_analyses_with_result_file]
-        analyses_ready = analyses_ready.filter(id__in=ids_of_ready_analyses_with_result_file)
-        analyses_unready = analyses_avail.filter(~Q(id__in=analyses_ready))
+        analyses_ready = [a for a in analyses_ready
+                          if a.id in ids_of_ready_analyses_with_result_file]
+        analyses_unready = [a for a in analyses_available
+                            if a.id not in ids_of_ready_analyses_with_result_file]
 
         #
         # Those analyses, which seem to be ready but have no result, should be re-triggered
@@ -300,15 +302,15 @@ class SimpleCardView(TemplateView):
             _log.info(f"There are {len(ready_analyses_without_result_file)} analyses marked as ready but "
                       "without result file. These will be retriggered.")
         additional_unready_analyses = [renew_analysis(a) for a in ready_analyses_without_result_file]
-        analyses_unready = analyses_unready | Analysis.objects.filter(id__in=[a.id for a in additional_unready_analyses])
+        analyses_unready += additional_unready_analyses
 
         #
         # collect lists of successful analyses and analyses with failures
         #
         # Only the successful ones should show up in the plot
         # the ones with failure should be shown elsewhere
-        analyses_success = analyses_ready.filter(task_state='su')
-        analyses_failure = analyses_ready.filter(task_state='fa')
+        analyses_success = [analysis for analysis in analyses_ready if analysis.task_state == 'su']
+        analyses_failure = [analysis for analysis in analyses_ready if analysis.task_state == 'fa']
 
         #
         # comprise context for analysis result card
@@ -319,7 +321,7 @@ class SimpleCardView(TemplateView):
             title=function.name,
             function=function,
             unique_kwargs=unique_kwargs,
-            analyses_available=analyses_avail,  # all Analysis objects related to this card
+            analyses_available=analyses_available,  # all Analysis objects related to this card
             analyses_success=analyses_success,  # ..the ones which were successful and can be displayed
             analyses_failure=analyses_failure,  # ..the ones which have failures and can't be displayed
             analyses_unready=analyses_unready,  # ..the ones which are still running
@@ -349,8 +351,8 @@ class SimpleCardView(TemplateView):
         # Set status code depending on whether all analyses are finished
         #
         context = response.context_data
-        num_analyses_avail = context['analyses_available'].count()
-        num_analyses_ready = context['analyses_success'].count() + context['analyses_failure'].count()
+        num_analyses_avail = len(context['analyses_available'])
+        num_analyses_ready = len(context['analyses_success']) + len(context['analyses_failure'])
 
         if (num_analyses_avail > 0) and (num_analyses_ready < num_analyses_avail):
             response.status_code = 202  # signal to caller: please request again
@@ -460,7 +462,8 @@ class PlotCardView(SimpleCardView):
             if analysis.task_state != analysis.SUCCESS:
                 continue  # should not happen if only called with successful analyses
 
-            series_names.update([s['name'] for s in analysis.result['series']])
+            series_names.update([s['name'] if 'name' in s else f'{i}'
+                                 for i, s in enumerate(analysis.result_metadata['series'])])
 
             if isinstance(analysis.subject, Surface):
                 nb_surfaces += 1
@@ -505,16 +508,12 @@ class PlotCardView(SimpleCardView):
             #
             # Change display name depending on whether there is a parent analysis or not
             #
+            parent_analysis = None
             if is_topography_analysis and analysis.subject.surface.num_topographies() > 1:
-                try:
-                    # We look whether the corresponding analysis for the
-                    # parent surface is available
-                    parent_analysis = analyses_success.get(subject_id=analysis.subject.surface.id, subject_type=surface_ct,
-                                                           function=analysis.function)
-                except Analysis.DoesNotExist:
-                    parent_analysis = None
-            else:
-                parent_analysis = None
+                for a in analyses_success_list:
+                    if a.subject_type == surface_ct and a.subject_id == analysis.subject.surface.id and \
+                        a.function == analysis.function:
+                        parent_analysis = a
 
             subject_display_name = subject_names[analysis_idx]
 
@@ -533,24 +532,21 @@ class PlotCardView(SimpleCardView):
             #
             # Handle unexpected task states for robustness, shouldn't be needed in general
             #
-            if analysis.task_state == analysis.FAILURE:
-                continue  # should not happen if only called with successful analyses
-            elif analysis.task_state == analysis.SUCCESS:
-                series_seq = analysis.result['series']
-            else:
+            if analysis.task_state != analysis.SUCCESS:
                 # not ready yet
                 continue  # should not happen if only called with successful analyses
 
             #
             # Find out scale for data
             #
-            analysis_result = analysis.result
+            result_metadata = analysis.result_metadata
+            series_metadata = result_metadata['series']
 
             if xunit is None:
                 analysis_xscale = 1
             else:
                 try:
-                    analysis_xscale = ureg.convert(1, analysis_result['xunit'], xunit)
+                    analysis_xscale = ureg.convert(1, result_metadata['xunit'], xunit)
                 except UndefinedUnitError as exc:
                     err_msg = f"Cannot convert x units when displaying results for analysis with id {analysis.id}. "\
                               f"Cause: {exc}"
@@ -564,7 +560,7 @@ class PlotCardView(SimpleCardView):
                 analysis_yscale = 1
             else:
                 try:
-                    analysis_yscale = ureg.convert(1, analysis_result['yunit'], yunit)
+                    analysis_yscale = ureg.convert(1, result_metadata['yunit'], yunit)
                 except UndefinedUnitError as exc:
                     err_msg = f"Cannot convert y units when displaying results for analysis with id {analysis.id}. " \
                               f"Cause: {exc}"
@@ -575,13 +571,14 @@ class PlotCardView(SimpleCardView):
                     )
                     continue
 
-            for series_idx, s in enumerate(series_seq):
+            for series_idx, s in enumerate(series_metadata):
                 #
                 # Collect data for visibility of the corresponding series
                 #
                 series_url = reverse('analysis:data', args=(analysis.pk, f'series-{series_idx}.json'))
+                #series_url = default_storage.url(f'{analysis.storage_prefix}/series-{series_idx}.json')
 
-                series_name = s['name']
+                series_name = s['name'] if 'name' in s else f'{series_idx}'
                 series_name_idx = series_names.index(series_name)
 
                 is_visible = s['visible'] if 'visible' in s else True
@@ -600,15 +597,10 @@ class PlotCardView(SimpleCardView):
                 #
                 # Actually plot the line
                 #
-                try:
-                    len_x = len(s['x'])
-                except TypeError:  # sometimes s['x'] is only one int
-                    len_x = 1
-                show_symbols = len_x <= MAX_NUM_POINTS_FOR_SYMBOLS
+                show_symbols = s['nbDataPoints'] <= MAX_NUM_POINTS_FOR_SYMBOLS if 'nbDataPoints' in s else True
 
                 curr_color = subject_colors[subject]
                 curr_dash = series_dashes[series_name]
-                # curr_symbol = series_symbols[series_name]
 
                 # hover_name = "{} for '{}'".format(series_name, topography_name)
                 line_width = LINEWIDTH_FOR_SURFACE_AVERAGE if is_surface_analysis else 1
@@ -619,7 +611,8 @@ class PlotCardView(SimpleCardView):
                 # in the parent_analysis, which means whether the same series is available there
                 #
                 has_parent = (parent_analysis is not None) and \
-                             any(s['name'] == series_name for s in parent_analysis.result['series'])
+                             any(s['name'] == series_name if 'name' in s else f'{i}' == series_name
+                                 for i, s in enumerate(parent_analysis.result_metadata['series']))
 
                 #
                 # Context information for this data source, will be interpreted by client JS code
@@ -657,6 +650,159 @@ class PlotCardView(SimpleCardView):
             },
         ])
         context['extra_warnings'] = extra_warnings
+
+        return context
+
+
+class ContactMechanicsCardView(SimpleCardView):
+    """View for displaying a card with results from Contact Mechanics analyses.
+    """
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        alerts = []  # list of collected alerts
+        analyses_success = context['analyses_success']
+
+        if len(analyses_success) > 0:
+
+            data_sources_dict = []
+
+            analyses_success = _filter_and_order_analyses(analyses_success)
+
+            #
+            # Prepare colors to be used for different analyses
+            #
+            color_cycle = itertools.cycle(_palette_for_topographies(len(analyses_success)))
+
+            #
+            # Context information for the figure
+            #
+            context.update(dict(
+                output_backend=settings.BOKEH_OUTPUT_BACKEND))
+
+            #
+            # Generate two plots in two tabs based on same data sources
+            #
+            for a_index, analysis in enumerate(analyses_success):
+                curr_color = next(color_cycle)
+
+                subject_name = analysis.subject.name
+
+                #
+                # Context information for this data source
+                #
+                data_sources_dict += [dict(
+                    source_name=f'analysis-{analysis.id}',
+                    subject_name=subject_name,
+                    subject_name_index=a_index,
+                    url=reverse('analysis:data', args=(analysis.pk, 'result.json')),
+                    #url=default_storage.url(f'{analysis.storage_prefix}/result.json'),
+                    showSymbols=True,  # otherwise symbols do not appear in legend
+                    color=curr_color,
+                    width=1.,
+                )]
+
+            context['data_sources'] = json.dumps(data_sources_dict)
+
+        #
+        # Calculate initial values for the parameter form on the page
+        # We only handle topographies here so far, so we only take into account
+        # parameters for topography analyses
+        #
+        topography_ct = ContentType.objects.get_for_model(Topography)
+        try:
+            unique_kwargs = context['unique_kwargs'][topography_ct]
+        except KeyError:
+            unique_kwargs = None
+        if unique_kwargs:
+            initial_calc_kwargs = unique_kwargs
+        else:
+            # default initial arguments for form if we don't have unique common arguments
+            contact_mechanics_func = AnalysisFunction.objects.get(name="Contact mechanics")
+            initial_calc_kwargs = contact_mechanics_func.get_default_kwargs(topography_ct)
+            initial_calc_kwargs['substrate_str'] = 'nonperiodic'  # because most topographies are non-periodic
+
+        context['initial_calc_kwargs'] = initial_calc_kwargs
+
+        context['extra_warnings'] = alerts
+        context['extra_warnings'].append(
+            dict(alert_class='alert-warning',
+                 message="""
+                 Translucent data points did not converge within iteration limit and may carry large errors.
+                 <i>A</i> is the true contact area and <i>A0</i> the apparent contact area,
+                 i.e. the size of the provided measurement.""")
+        )
+
+        context['limits_calc_kwargs'] = settings.CONTACT_MECHANICS_KWARGS_LIMITS
+
+        return context
+
+
+class RoughnessParametersCardView(SimpleCardView):
+
+    @staticmethod
+    def _convert_value(v):
+        if v is not None:
+            if math.isnan(v):
+                v = None  # will be interpreted as null in JS, replace there with NaN!
+                # It's not easy to pass NaN as JSON:
+                # https://stackoverflow.com/questions/15228651/how-to-parse-json-string-containing-nan-in-node-js
+            elif math.isinf(v):
+                return 'infinity'
+            else:
+                # convert float32 to float, round to fixed number of significant digits
+                v = round_to_significant_digits(float(v),
+                                                NUM_SIGNIFICANT_DIGITS_RMS_VALUES)
+        return v
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        analyses_success = context['analyses_success']
+
+        data = []
+        for analysis in analyses_success:
+            analysis_result = analysis.result
+
+            for d in analysis_result:
+                d['value'] = self._convert_value(d['value'])
+
+                if not d['direction']:
+                    d['direction'] = ''
+                if not d['from']:
+                    d['from'] = ''
+                if not d['symbol']:
+                    d['symbol'] = ''
+
+                # put topography in every line
+                topo = analysis.subject
+                d.update(dict(topography_name=topo.name,
+                              topography_url=topo.get_absolute_url()))
+
+            data.extend(analysis_result)
+
+        #
+        # find out all existing keys keeping order
+        #
+        all_keys = []
+        for d in data:
+            for k in d.keys():
+                if k not in all_keys:
+                    all_keys.append(k)
+
+        #
+        # make sure every dict has all keys
+        #
+        for k in all_keys:
+            for d in data:
+                d.setdefault(k)
+
+        #
+        # create table
+        #
+        context.update(dict(
+            table_data=data
+        ))
 
         return context
 

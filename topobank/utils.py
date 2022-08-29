@@ -1,6 +1,7 @@
-#
-# Some helpers useful during testing
-#
+"""
+Some helper functions
+"""
+
 import datetime
 import io
 import json
@@ -144,9 +145,22 @@ class SplitDictionaryHere:
     `store_split_dict` stores it in a separate file in storage.
     See there for more information.
     """
-    def __init__(self, name, dict):
+    def __init__(self, name, dict, supplementary={}):
+        """
+
+        Parameters
+        ----------
+        name : str
+            Name of the subdirectionary. This will be used as a file prefix
+            when writing this dictionary to JSON
+        dict : dict
+            The actual dictionary.
+        supplementary : dict
+            Supplementary dictionary to include only into the split variant.
+        """
         self._name = name
         self._dict = dict
+        self._supplementary = supplementary
 
     def __getitem__(self, key):
         return self._dict.__getitem__(key)
@@ -161,6 +175,10 @@ class SplitDictionaryHere:
     @property
     def dict(self):
         return self._dict
+
+    @property
+    def supplementary(self):
+        return self._supplementary
 
 
 def store_split_dict(storage_prefix, name, src_dict):
@@ -200,7 +218,8 @@ def store_split_dict(storage_prefix, name, src_dict):
             split_d = _split_dict(d.dict)
             default_storage_replace(f'{storage_prefix}/{d.name}.json',
                                     io.BytesIO(json.dumps(split_d, cls=encoder_cls).encode('utf-8')))
-            return {'__external__': f'{d.name}.json'}
+            # Include supplementary dictionary in the toplevel JSON
+            return {**{'__external__': f'{d.name}.json'}, **d.supplementary}
         elif hasattr(d, 'items'):
             new_d = {}
             for key, value in d.items():
@@ -239,6 +258,7 @@ def load_split_dict(storage_prefix, name):
             new_d = {}
             for key, value in d.items():
                 if key == '__external__':
+                    # '__external__' will override anything that is at this level in the dictionary
                     return _unsplit_dict(json.load(default_storage.open(f'{storage_prefix}/{value}')))
                 new_d[key] = _unsplit_dict(value)
             return new_d

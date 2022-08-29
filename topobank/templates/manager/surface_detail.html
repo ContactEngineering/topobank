@@ -4,8 +4,6 @@
 {% load guardian_tags %}
 {% load static %}
 
-{% block content-title %}Details for Surface <i>{{ surface.name }}</i>
-{% endblock content-title %}
 
 {% block content %}
 
@@ -32,7 +30,10 @@
                 Permissions
               </a>
             {% if surface.is_published %}
-              <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#license" role="tab" aria-selected="false">
+            <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#authors" role="tab" aria-selected="false">
+              Authors
+            </a>
+            <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#license" role="tab" aria-selected="false">
                 License
               </a>
               <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#howtocite" role="tab" aria-selected="false">
@@ -109,7 +110,8 @@
               {% else %}
                 <div class="alert alert-secondary">
                   This bandwidth plot shows the range of length scales that have been measured for this digital surface
-                  twin. Each of the blocks below represents one measurement.
+                  twin. Each of the blocks below represents one measurement. Part of the bandwidth shown may be unreliable
+                  due to the configured instrument's measurement capacities.
                 </div>
               {% endif %}
               {% for bw_err in bandwidths_data_with_errors %}
@@ -172,6 +174,54 @@
               </table>
 
             </div>
+            <div class="tab-pane fade" id="authors">
+
+              <table id="surface-tree"
+        class="table table-condensed surface-tree fancytree-container fancytree-ext-table fancytree-ext-glyph"
+        tabindex="-1" role="treegrid" aria-multiselectable="true" aria-readonly="true" aria-activedescendant="ui-id-4">
+        <colgroup>
+          <col>
+          <col>
+          <col>
+        </colgroup>
+        <thead style="display: table-header-group">
+          <tr>
+            <th scope="col">Author Name</th>
+            <th scope="col">Orcid ID</th>
+            <th scope="col">Affiliations</th>
+          </tr>
+        </thead>
+        <tbody>
+
+          {% for author in surface.publication.authors_json %}
+          <tr role="row" aria-expanded="false" aria-selected="false"
+            class="fancytree-folder fancytree-has-children select-tree-item fancytree-exp-c fancytree-ico-cf"
+            id="ui-id-4">
+            <td role="gridcell">
+              <p class="select-tree-title">{{author.first_name}} {{author.last_name}}</p>
+            </td>
+
+            <td role="gridcell">
+              <p class="select-tree-authors">{{author.orcid_id}}</p>
+            </td>
+
+            <td role="gridcell">
+              <p class="select-tree-info">
+
+              <ul>
+                {% for affiliation in author.affiliations %}
+                <li>{{affiliation.name}} {% if affiliation.ror_id %} (ROR ID: {{affiliation.ror_id}}) {% endif %}  </li>
+                {% endfor %}
+              </ul>
+              </p>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+            </div>
+
             {% if surface.is_published %}
               <div class="tab-pane fade" id="license">
                 <table class="table table-striped table-bordered w-75">

@@ -287,7 +287,7 @@ if USE_TZ:
     # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-timezone
     CELERY_TIMEZONE = TIME_ZONE
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-broker_url
-CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='amqp://')
+CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='redis://redis:6379/0')
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-result_backend
 CELERY_RESULT_BACKEND = env('CELERY_RESULT_BACKEND', default='redis://127.0.0.1:6379/0')
 # we don't use rpc:// as default here, because Python 3.7 is not officially supported by celery 4.2
@@ -309,8 +309,8 @@ CELERY_RESULT_SERIALIZER = 'json'
 # https://docs.celeryproject.org/en/stable/userguide/configuration.html#worker-cancel-long-running-tasks-on-connection-loss
 CELERY_WORKER_CANCEL_LONG_RUNNING_TASKS_ON_CONNECTION_LOSS=True
 # https://docs.celeryproject.org/en/stable/userguide/configuration.html?highlight=heartbeat#broker-heartbeat
-CELERY_BROKER_HEARTBEAT=10
-
+CELERY_BROKER_HEARTBEAT=60
+CELERY_REDIS_BACKEND_HEALTH_CHECK_INTERVAL=30
 
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-broker_url
 # CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='django://')
@@ -354,16 +354,7 @@ ACCOUNT_LOGOUT_ON_GET = True  # True: disable intermediate page
 # Your stuff...
 # ------------------------------------------------------------------------------
 
-#
-# Local references for "select2"
-#
-# An alternative is maybe "django-bower" which could be used
-# to resolve all external javascript dependencies and install them
-# locally in a defined way
-SELECT2_JS = '/static/tagulous/lib/select2-4/js/select2.min.js'
-SELECT2_CSS = '/static/tagulous/lib/select2-4/css/select2.min.css'
-SELECT2_I18N_PATH = '/static/tagulous/lib/select2-4/js/i18n'
-# The default for all these are pointers to Cloudflare CDN
+
 
 #
 # Define permissions when using the rest framework
@@ -478,15 +469,32 @@ DJANGO_NOTIFICATIONS_CONFIG = {'USE_JSONFIELD': True}
 # I would like to pass the target url to a notification
 
 #
+# Local references for "select2"
+#
+# An alternative is maybe "django-bower" which could be used
+# to resolve all external javascript dependencies and install them
+# locally in a defined way
+SELECT2_JS = '/static/tagulous/lib/select2-4/js/select2.min.js'
+SELECT2_CSS = '/static/tagulous/lib/select2-4/css/select2.min.css'
+SELECT2_I18N_PATH = '/static/tagulous/lib/select2-4/js/i18n'
+# The default for all these are pointers to Cloudflare CDN
+
+#
 # Settings for django-tagulous (tagging)
 #
-
 SERIALIZATION_MODULES = {
     'xml':    'tagulous.serializers.xml_serializer',
     'json':   'tagulous.serializers.json',
     'python': 'tagulous.serializers.python',
     'yaml':   'tagulous.serializers.pyyaml',
 }
+
+TAGULOUS_AUTOCOMPLETE_JS = (
+    "tagulous/lib/select2-4/js/select2.full.min.js",
+    "tagulous/tagulous.js",
+    "tagulous/adaptor/select2-4.js",
+)
+
 
 #
 # E-Mail address to contact us

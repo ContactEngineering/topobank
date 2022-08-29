@@ -10,6 +10,7 @@
   <link href="{% static 'css/pygments-default.css' %}" rel="stylesheet">
   {# generated using https://github.com/richleland/pygments-css by replacing .highlight with .codehilite #}
   {# as suggested here: https://github.com/trentm/python-markdown2/wiki/fenced-code-blocks #}
+  {{ form.media.css }}
 {% endblock extra_css %}
 
 {% block content %}
@@ -69,4 +70,6 @@
     });
     </script>
   {% endif %}
+
+  {{ form.media.js }}
 {% endblock %}

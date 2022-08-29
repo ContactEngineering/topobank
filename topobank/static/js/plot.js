@@ -177,6 +177,7 @@ Vue.component("bokeh-plot", {
         title: "default",  // Title will be used to distinguish between multiple plots. Can be omitted for single plot.
         xData: "data.x",  // JS code that yields x data
         yData: "data.y",  // JS code that yields y data
+        auxiliaryDataColumns: undefined,  // Auxiliary data columns
         alphaData: undefined,  // JS code that yields alpha information
         xAxisType: "linear",  // "log" or "linear"
         yAxisType: "linear",  // "log" or "linear"
@@ -492,6 +493,11 @@ Vue.component("bokeh-plot", {
 
           /* Construct conversion function */
           let code = "const data = cb_data.response; return { x: " + xData + ", y: " + yData;
+          if (plot.auxiliaryDataColumns !== undefined) {
+            for (const [columnName, auxData] of Object.entries(plot.auxiliaryDataColumns)) {
+              code += ", " + columnName + ": " + auxData;
+            }
+          }
           if (plot.alphaData === undefined) {
             code += " }";
           } else {

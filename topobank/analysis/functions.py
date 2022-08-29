@@ -79,7 +79,12 @@ def wrap_series(series):
     """
     wrapped_series = []
     for i, s in enumerate(series):
-        wrapped_series.append(SplitDictionaryHere(f'series-{i}', s))
+        supplementary = {'name': s['name'], 'nbDataPoints': len(s['x'])}
+        if 'visible' in s:
+            supplementary['visible'] = s['visible']
+        wrapped_series.append(SplitDictionaryHere(
+            f'series-{i}', s,
+            supplementary=supplementary))
     return wrapped_series
 
 
