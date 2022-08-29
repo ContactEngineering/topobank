@@ -440,10 +440,10 @@ def test_show_license_and_affiliations_when_viewing_published_surface(rf, settin
     assert_in_content(response, license_info['title'])
     assert_in_content(response, license_info['description_url'])
     assert_in_content(response, license_info['legal_code_url'])
-    assert_in_content(response, "Author Affiliations")
-    assert_in_content(response,request.user.first_name)
-    assert_in_content(response,request.user.last_name)
-       
+    assert_in_content(response, "Authors")
+    assert_in_content(response, request.user.first_name)
+    assert_in_content(response, request.user.last_name)
+
 
 
 
