@@ -332,7 +332,8 @@ def filter_and_order_analyses(analyses):
 
     Parameters
     ----------
-    analyses: QuerySet
+    analyses: list of Analysis instances
+        Analyses to be filtered and sorted.
 
     Returns
     -------
@@ -348,7 +349,8 @@ def filter_and_order_analyses(analyses):
     # such that for each surface the analyses are ordered by subject id
     #
     analysis_groups = OrderedDict()  # always the same order of surfaces for same list of subjects
-    for topography_analysis in analyses.filter(~Q(subject_type=surface_ct)).order_by('subject_id'):
+    for topography_analysis in sorted([a for a in analyses if a.subject_type != surface_ct],
+                                      key=lambda a: a.subject_id):
         surface = topography_analysis.subject.surface
         if not surface in analysis_groups:
             analysis_groups[surface] = []
@@ -357,13 +359,14 @@ def filter_and_order_analyses(analyses):
     #
     # Process groups and collect analyses which are implicitly sorted
     #
-    surfaces_analyses = analyses.filter(subject_type=surface_ct).order_by('subject_id')
-    surfaces_of_surface_analyses = [surfana.subject for surfana in surfaces_analyses]
+    analyses_of_surfaces = sorted([a for a in analyses if a.subject_type == surface_ct],
+                                  key=lambda a: a.subject_id)
+    surfaces_of_surface_analyses = [a.subject for a in analyses_of_surfaces]
     for surface, topography_analyses in analysis_groups.items():
         try:
             # Is there an analysis for the corresponding surface?
             surface_analysis_index = surfaces_of_surface_analyses.index(surface)
-            surface_analysis = surfaces_analyses[surface_analysis_index]
+            surface_analysis = analyses_of_surfaces[surface_analysis_index]
             if surface.num_topographies() > 1:
                 # only show average for surface if more than one topography
                 sorted_analyses.append(surface_analysis)
@@ -384,6 +387,7 @@ def filter_and_order_analyses(analyses):
                               + sorted_analyses[surface_analysis_index+1:]
 
     return sorted_analyses
+
 
 
 def palette_for_topographies(nb_topographies):

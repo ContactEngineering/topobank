@@ -8,6 +8,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.files.storage import default_storage
 
 import pickle
+import json
 
 from ..utils import store_split_dict, load_split_dict
 from topobank.users.models import User
