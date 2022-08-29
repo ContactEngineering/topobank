@@ -4,7 +4,7 @@ from SurfaceTopography.Container.ScaleDependentStatistics import scale_dependent
 from SurfaceTopography.Container.common import suggest_length_unit
 from SurfaceTopography.Exceptions import CannotPerformAnalysisError
 
-from topobank.analysis.functions import _reasonable_bins_argument, wrap_series, \
+from topobank.analysis.functions import reasonable_bins_argument, wrap_series, \
     ReentrantTopographyException, make_alert_entry, ContainerProxy, ART_SERIES
 from topobank.analysis.registry import register_implementation
 
@@ -20,7 +20,7 @@ def height_distribution(topography, bins=None, wfac=5, progress_recorder=None, s
     topography = topography.topography()
 
     if bins is None:
-        bins = _reasonable_bins_argument(topography)
+        bins = reasonable_bins_argument(topography)
 
     profile = topography.heights()
 
@@ -163,7 +163,7 @@ def slope_distribution(topography, bins=None, wfac=5, progress_recorder=None, st
             'Slope distribution: Cannot calculate analysis function for reentrant measurements.')
 
     if bins is None:
-        bins = _reasonable_bins_argument(topography)
+        bins = reasonable_bins_argument(topography)
 
     scalars = {}
     series = []
@@ -240,7 +240,7 @@ def curvature_distribution(topography, bins=None, wfac=5, progress_recorder=None
             'Curvature distribution: Cannot calculate analysis function for reentrant measurements.')
 
     if bins is None:
-        bins = _reasonable_bins_argument(topography)
+        bins = reasonable_bins_argument(topography)
 
     #
     # Calculate the Laplacian

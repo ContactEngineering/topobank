@@ -1,20 +1,23 @@
 import io
 import json
-import tempfile
 
-import numpy as np
+from bokeh.core.json_encoder import BokehJSONEncoder
+
+from django.core.files import File
+from django.conf import settings
+
 import xarray as xr
-from ContactMechanics import PeriodicFFTElasticHalfSpace, FreeFFTElasticHalfSpace, make_system
-from ContactMechanics.Factory import make_plastic_system
-from ContactMechanics.Tools.ContactAreaAnalysis import patch_areas
+import numpy as np
+import tempfile
+import logging
+
 from SurfaceTopography import PlasticTopography
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor, suggest_length_unit_for_data
-from _SurfaceTopography import assign_patch_numbers
-from bokeh.core.json_encoder import BokehJSONEncoder
-from django.conf import settings
-from django.core.files import File
+from SurfaceTopography.Uniform.GeometryAnalysis import patch_areas, assign_patch_numbers_area
+from ContactMechanics import PeriodicFFTElasticHalfSpace, FreeFFTElasticHalfSpace
+from ContactMechanics.Factory import make_system, make_plastic_system
 
-from topobank.analysis.functions import _log, IncompatibleTopographyException
+from topobank.analysis.functions import IncompatibleTopographyException
 from topobank.analysis.registry import register_implementation
 from topobank.manager.utils import default_storage_replace, make_dzi
 
@@ -22,6 +25,9 @@ ART_CONTACT_MECHANICS = "contact mechanics"
 
 CONTACT_MECHANICS_MAX_MB_GRID_PTS_PRODUCT = 100000000
 CONTACT_MECHANICS_MAX_MB_GRID_PTS_PER_DIM = 10000
+
+
+_log = logging.getLogger(__name__)
 
 
 def _next_contact_step(system, history=None, pentol=None, maxiter=None):
@@ -391,7 +397,7 @@ def contact_mechanics(topography, substrate_str="nonperiodic", hardness=None, ns
         # Patch size distribution
         #
 
-        patch_ids = assign_patch_numbers(contacting_points_xy, substrate_str == 'periodic')[1]
+        patch_ids = assign_patch_numbers_area(contacting_points_xy, substrate_str == 'periodic')[1]
         cluster_areas = patch_areas(patch_ids) * substrate.area_per_pt
         hist, edges = np.histogram(cluster_areas, density=True, bins=50)
         data_dict.update({

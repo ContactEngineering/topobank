@@ -40,7 +40,7 @@ class ContainerProxy(collections.abc.Iterator):
         return next(self._iter).topography()
 
 
-def _reasonable_bins_argument(topography):
+def reasonable_bins_argument(topography):
     """Returns a reasonable 'bins' argument for np.histogram for given topography's heights.
 
     :param topography: Line scan or topography from SurfaceTopography module
