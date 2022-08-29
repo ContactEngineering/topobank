@@ -6,21 +6,13 @@ dist: focal
 language: python
 cache: pip
 addons:
-  firefox: latest
   postgresql: "13"
-  apt:
-    packages:
-      - firefox-geckodriver
-      - rabbitmq-server
 services:
-  - rabbitmq
   - postgresql
 env:
   global:
     - USE_DOCKER=no
     - DJANGO_SETTINGS_MODULE=config.settings.test
-    - FIREFOX_BINARY_PATH=/usr/lib/firefox/firefox
-    - GECKODRIVER_PATH=/usr/bin/geckodriver
 python:
   - 3.8
 #before_install:
