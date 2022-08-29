@@ -30,11 +30,11 @@
               </a>
               <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#permissions" role="tab" aria-selected="false">
                 Permissions
-              </a>          
+              </a>
             {% if surface.is_published %}
             <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#affiliations" role="tab" aria-selected="false">
               Author Affiliations
-            </a>  
+            </a>
             <a class="nav-link mb-3 p-3 shadow" data-toggle="pill" href="#license" role="tab" aria-selected="false">
                 License
               </a>
@@ -176,7 +176,7 @@
 
             </div>
             <div class="tab-pane fade" id="affiliations">
-              
+
               <table id="surface-tree"
         class="table table-condensed surface-tree fancytree-container fancytree-ext-table fancytree-ext-glyph"
         tabindex="-1" role="treegrid" aria-multiselectable="true" aria-readonly="true" aria-activedescendant="ui-id-4">
@@ -190,47 +190,33 @@
             <th scope="col">Author</th>
             <th scope="col">Orcid ID</th>
             <th scope="col">Affiliations</th>
-            
           </tr>
         </thead>
         <tbody>
 
           {% for author in surface.publication.authors_json %}
-
-
           <tr role="row" aria-expanded="false" aria-selected="false"
             class="fancytree-folder fancytree-has-children select-tree-item fancytree-exp-c fancytree-ico-cf"
             id="ui-id-4">
             <td role="gridcell">
               <p class="select-tree-title">{{author.first_name}} {{author.last_name}}</p>
-              
             </td>
 
             <td role="gridcell">
               <p class="select-tree-authors">{{author.orcid_id}}</p>
-              
             </td>
-            
+
             <td role="gridcell">
               <p class="select-tree-info">
 
               <ul>
                 {% for affiliation in author.affiliations %}
-
-                <li>{{affiliation.name}} {% if affiliation.ror_id %} - {{affiliation.ror_id}} {% endif %}  </li>
-
-
+                <li>{{affiliation.name}} {% if affiliation.ror_id %} (ROR ID: {{affiliation.ror_id}}) {% endif %}  </li>
                 {% endfor %}
-
               </ul>
               </p>
             </td>
-            
-
           </tr>
-
-
-
           {% endfor %}
         </tbody>
       </table>
