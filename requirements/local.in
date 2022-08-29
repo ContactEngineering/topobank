@@ -29,7 +29,7 @@ django-test-plus  # https://github.com/revsys/django-test-plus
 
 django-debug-toolbar<3.3  # https://github.com/jazzband/django-debug-toolbar
 # Debug toolbar must be compatible with Django 3.2
-django-extensions  # https://github.com/django-extensions/django-extensions
+django-extensions>=3.2.0  # https://github.com/django-extensions/django-extensions
 django-coverage-plugin  # https://github.com/nedbat/django_coverage_plugin
 pytest-django  # https://github.com/pytest-dev/pytest-django
 
