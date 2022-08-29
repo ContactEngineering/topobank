@@ -6,6 +6,7 @@
   published digital twins (#811)
 - BUG: Fixed missing save() statement when renewing 
   bandwidth cache
+- MAINT: Security update for django
 
 ## 0.91.0 (2022-08-05)
 
