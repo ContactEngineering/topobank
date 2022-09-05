@@ -268,7 +268,7 @@ class AnalysisRegistry(metaclass=Singleton):
         cleanup: bool
             If True, delete all analysis functions for which no implementations exist
             and also delete all analyses related to those functions.
-            Be careful, will delete existing analyses.
+            Be careful, might delete existing analyses.
         """
         from .models import AnalysisFunction, Analysis
 
@@ -284,7 +284,6 @@ class AnalysisRegistry(metaclass=Singleton):
         function_names_used = self.get_analysis_function_names()
 
         for name in function_names_used:
-            art = self.get_analysis_result_type_for_function_name(name)
             func, created = AnalysisFunction.objects.update_or_create(name=name)
             if created:
                 counts['funcs_created'] += 1
