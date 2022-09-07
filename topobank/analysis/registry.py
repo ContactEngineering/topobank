@@ -42,13 +42,14 @@ class UnimplementedAnalysisFunctionException(RegistryException):
 class AlreadyRegisteredAnalysisFunctionException(RegistryException):  # TODO replace with  AlreadyRegisteredException ?
     """An implementation of an analysis function has already been defined."""
 
-    def __init__(self, name, subject_app_label, subject_model):
+    def __init__(self, art, name, subject_app_label, subject_model):
+        self._art = art
         self._name = name
         self._subject_app_label = subject_app_label
         self._subject_model = subject_model
 
     def __str__(self):
-        return f"An implementation for analysis function '{self._name}' with subject type " +\
+        return f"An implementation for analysis function '{self._name}' (result type: {self._art}) with subject type " +\
                f"'{self._subject_model}' (app '{self._subject_app_label}') has already been defined."
 
 
