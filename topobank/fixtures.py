@@ -209,14 +209,3 @@ def example_contact_analysis(test_analysis_function):
     return analysis
 
 
-@pytest.mark.django_db
-@pytest.fixture
-def register_test_functions():
-    from topobank.analysis.functions import surface_analysis_function_for_tests, \
-        topography_analysis_function_for_tests, register_implementation, ART_SERIES
-    from topobank.analysis.registry import AnalysisRegistry
-
-    register_implementation(ART_SERIES, 'test')(surface_analysis_function_for_tests)
-    register_implementation(ART_SERIES, 'test')(topography_analysis_function_for_tests)
-
-    AnalysisRegistry().sync_analysis_functions()

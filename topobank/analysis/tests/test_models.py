@@ -76,7 +76,6 @@ def test_analysis_times(two_topos, test_analysis_function):
     assert analysis.get_kwargs_display() == str({'a': 2, 'b': 4})
 
 
-# @pytest.mark.skip("Cannot run startup code which modifies the database so far.")
 @pytest.mark.django_db
 def test_autoload_analysis_functions():
     # TODO this test has a problem: It's not independent from the available functions
@@ -105,14 +104,10 @@ def test_default_function_kwargs():
 
     call_command('register_analysis_functions')
 
-    func = AnalysisFunction.objects.get(name='Contact mechanics')
+    func = AnalysisFunction.objects.get(name='test')
 
     expected_kwargs = dict(
-        substrate_str='nonperiodic',
-        hardness=None,
-        nsteps=10,
-        pressures=None,
-        maxiter=100,
+        a=1, b="foo", bins=15, window="hann",
     )
     ct = ContentType.objects.get_for_model(Topography)
     assert func.get_default_kwargs(ct) == expected_kwargs

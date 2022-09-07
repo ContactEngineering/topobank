@@ -1,4 +1,4 @@
-from django.urls import re_path
+from django.urls import re_path, path
 from django.contrib.auth.decorators import login_required
 from django.views.generic import TemplateView
 
@@ -114,13 +114,13 @@ urlpatterns = [
         view=login_required(views.download_surface),
         name='surface-download'
     ),
-    re_path(
-        r'surface/new/$',
+    path(
+        'surface/new/',
         view=login_required(views.SurfaceCreateView.as_view()),
         name='surface-create'
     ),
-    re_path(
-        r'tag/tree/$',
+    path(
+        'tag/tree/',
         view=login_required(views.TagTreeView.as_view()),
         name='tag-list'  # TODO rename
     ),
@@ -134,38 +134,38 @@ urlpatterns = [
        view=login_required(views.unselect_tag),
        name='tag-unselect'
     ),
-    re_path(
-        r'select/$',
+    path(
+        'select/',
         view=login_required(views.SelectView.as_view()),
         name='select'
     ),
-    re_path(
-        r'select/download$',
+    path(
+        'select/download/',
         view=login_required(views.download_selection_as_surfaces),
         name='download-selection'
     ),
-    re_path(
-       r'unselect-all/$',
+    path(
+       'unselect-all/',
        view=login_required(views.unselect_all),
        name='unselect-all'
     ),
-    re_path(
-        r'surface/search/$',  # TODO check URL, rename?
+    path(
+        'surface/search/',  # TODO check URL, rename?
         view=login_required(views.SurfaceListView.as_view()),  # TODO Check view name, rename?
         name='search'  # TODO rename?
     ),
-    re_path(
-        r'access-denied/$',
+    path(
+        'access-denied/',
         view=TemplateView.as_view(template_name="403.html"),
         name='access-denied'
     ),
-    re_path(
-        r'sharing/$',
+    path(
+        'sharing/',
         view=login_required(views.sharing_info),
         name='sharing-info'
     ),
-    re_path(
-        r'publications/$',
+    path(
+        'publications/',
         view=login_required(views.PublicationListView.as_view()),
         name='publications'
     ),

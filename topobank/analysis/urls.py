@@ -6,8 +6,8 @@ from . import downloads
 
 app_name = "analysis"
 urlpatterns = [
-    re_path(
-        r'list/$',  # TODO change to 'function', also rename name
+    path(
+        'list/',  # TODO change to 'function', also rename name
         view=login_required(views.AnalysesListView.as_view()),
         name='list'
     ),
@@ -36,8 +36,8 @@ urlpatterns = [
         view=login_required(views.AnalysisFunctionDetailView.as_view()),
         name='function-detail'
     ),
-    re_path(
-        r'card/submit$',
+    path(
+        'card/submit/',
         view=login_required(views.submit_analyses_view),
         name='card-submit'
     ),
@@ -46,8 +46,8 @@ urlpatterns = [
         view=login_required(views.data),
         name='data'
     ),
-    re_path(
-        r'card/$',
+    path(
+        'card/',
         view=login_required(views.switch_card_view),
         name='card'
     ),
