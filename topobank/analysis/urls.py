@@ -1,4 +1,4 @@
-from django.conf.urls import url
+from django.conf.urls import re_path
 from django.urls import path
 from django.contrib.auth.decorators import login_required
 
@@ -7,7 +7,7 @@ from . import downloads
 
 app_name = "analysis"
 urlpatterns = [
-    url(
+    re_path(
         regex=r'list/$',  # TODO change to 'function', also rename name
         view=login_required(views.AnalysesListView.as_view()),
         name='list'
@@ -27,27 +27,27 @@ urlpatterns = [
         view=login_required(views.AnalysesListView.as_view()),
         name='topography'
     ),
-    url(
+    re_path(
         regex=r'download/(?P<ids>[\d,]+)/(?P<art>[\w\s]+)/(?P<file_format>\w+)$',
         view=login_required(downloads.download_analyses),
         name='download'
     ),
-    url(
+    re_path(
         regex=r'function/(?P<pk>[\d,]+)/$',
         view=login_required(views.AnalysisFunctionDetailView.as_view()),
         name='function-detail'
     ),
-    url(
+    re_path(
         regex=r'card/submit$',
         view=login_required(views.submit_analyses_view),
         name='card-submit'
     ),
-    url(
+    re_path(
         regex=r'data/(?P<pk>\d+)/(?P<location>.*)$',
         view=login_required(views.data),
         name='data'
     ),
-    url(
+    re_path(
         regex=r'card/$',
         view=login_required(views.switch_card_view),
         name='card'
