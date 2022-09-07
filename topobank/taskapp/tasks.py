@@ -20,7 +20,7 @@ from notifications.signals import notify
 from SurfaceTopography.Exceptions import CannotPerformAnalysisError
 from ContactMechanics.Systems import IncompatibleFormulationError
 
-from .celery import app
+from .celeryapp import app
 from .utils import get_package_version_instance
 
 from topobank.analysis.functions import IncompatibleTopographyException

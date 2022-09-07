@@ -41,9 +41,7 @@ RUN pip install --upgrade pip
 COPY ./requirements /requirements
 WORKDIR /
 RUN pip install --upgrade setuptools
-RUN pip install -r /requirements/local.txt --ignore-installed --no-binary numpy
-RUN pip install -r /requirements/test.txt --ignore-installed --no-binary numpy
-# TODO remove test requirements as they are always useful for local?
+RUN pip install -r /requirements/local.txt --ignore-installed --no-binary numpy && rm -Rf /requirements
 
 # Here the entrypoint from production settings is taken!
 COPY ./compose/production/django/entrypoint /entrypoint
@@ -78,15 +76,16 @@ RUN addgroup django \
 #
 # COPY --chown=django . /app
 RUN mkdir -p /app
-COPY --chown=django config /app/
-COPY --chown=django docs /app/
-COPY --chown=django config /app/
-COPY --chown=django locale /app/
-COPY --chown=django requirements /app/
-COPY --chown=django splinter_tests /app/
-COPY --chown=django topobank /app/
+COPY --chown=django config /app/config
+COPY --chown=django docs /app/docs
+COPY --chown=django locale /app/locale
+COPY --chown=django requirements /app/requirements
+COPY --chown=django splinter_tests /app/splinter_tests
+COPY --chown=django topobank /app/topobank
 
 RUN rm -Rf app/venv app/.idea app/.pytest_cache app/.git app/__pycache__ app/media/topographies app/media/analyses
+
+
 
 # is the following needed?
 # RUN chmod -R u+w /app
@@ -95,6 +94,20 @@ RUN rm -Rf app/venv app/.idea app/.pytest_cache app/.git app/__pycache__ app/med
 # Finalize..
 #
 WORKDIR /app
+
+#
+# Install topobank as package, so plugins can check version
+#
+COPY --chown=django setup.py setup.cfg pyproject.toml /app/
+
+# RUN ls -al .
+RUN pip install -e .
+
+#
+# Install plugins
+#
+RUN pip install -i https://test.pypi.org/simple/ topobank-statistics==0.92.0
+
 
 USER django
 

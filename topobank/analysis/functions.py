@@ -130,7 +130,7 @@ def make_alert_entry(level, subject_name, subject_url, data_series_name, detail_
     return dict(alert_class=f"alert-{level}", message=message)
 
 
-@register_implementation(ART_SERIES, 'test')
+# This function will be registered in tests by a fixture
 def topography_analysis_function_for_tests(topography, a=1, b="foo", bins=15, window="hann",
                                            progress_recorder=None, storage_prefix=None):
     """This function can be registered for tests.
@@ -160,7 +160,7 @@ def topography_analysis_function_for_tests(topography, a=1, b="foo", bins=15, wi
             'comment': f"Arguments: a is {a}, b is {b}, bins is {bins} and window is {window}"}
 
 
-@register_implementation(ART_SERIES, 'test')
+# This function will be registered in tests by a fixture
 def surface_analysis_function_for_tests(surface, a=1, c="bar", progress_recorder=None, storage_prefix=None):
     """This function can be registered for tests."""
     return {'name': 'Test result for test function called for surface {}.'.format(surface),

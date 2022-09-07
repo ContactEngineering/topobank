@@ -2,7 +2,9 @@
 Base settings to build other settings files upon.
 """
 from django.core.exceptions import ImproperlyConfigured
+from pkg_resources import iter_entry_points
 import environ
+
 import topobank
 
 ROOT_DIR = environ.Path(__file__) - 3  # (topobank/config/settings/base.py - 3 = topobank/)
@@ -92,8 +94,8 @@ THIRD_PARTY_APPS = [
     'fullurl',
 ]
 LOCAL_APPS = [
-    'topobank.users.apps.UsersAppConfig',
     # Your stuff: custom apps go here
+    'topobank.users.apps.UsersAppConfig',
     'topobank.manager.apps.ManagerAppConfig',
     'topobank.analysis.apps.AnalysisAppConfig',
     'topobank.usage_stats.apps.UsageStatsAppConfig',
@@ -101,10 +103,19 @@ LOCAL_APPS = [
     'topobank.publication.apps.PublicationAppConfig',
 ]
 
-PLUGIN_APPS = [
-    'topobank.statistical_analysis.apps.StatisticalAnalysisConfig',
-    'topobank.contact_analysis.apps.ContactAnalysisConfig',
-]
+TOPOBANK_PLUGINS_IGNORE_CONFLICTS = env.bool('TOPOBANK_PLUGINS_IGNORE_CONFLICTS', default=False)
+TOPOBANK_PLUGINS_EXCLUDE = env.list('TOPOBANK_PLUGINS_EXCLUDE', default=[])
+PLUGIN_APPS = []
+for entry_point in iter_entry_points(group='topobank.plugins', name=None):
+    if entry_point.module_name in TOPOBANK_PLUGINS_EXCLUDE:
+        continue
+    PLUGIN_APPS.append(entry_point.module_name)
+
+#
+# PLUGIN_APPS = [
+#     'topobank.statistical_analysis.apps.StatisticalAnalysisConfig',
+#     'topobank.contact_analysis.apps.ContactAnalysisConfig',
+# ]
 
 
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
@@ -282,7 +293,7 @@ MANAGERS = ADMINS
 
 # Celery
 # ------------------------------------------------------------------------------
-INSTALLED_APPS += ['topobank.taskapp.celery.CeleryAppConfig']
+INSTALLED_APPS += ['topobank.taskapp.celeryapp.CeleryAppConfig']
 if USE_TZ:
     # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-timezone
     CELERY_TIMEZONE = TIME_ZONE

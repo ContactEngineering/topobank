@@ -94,6 +94,10 @@ urlpatterns = [
                       "analysis/",
                       include("topobank.analysis.urls", namespace="analysis"),
                   ),
+                path(
+                      "plugins/",
+                      include("topobank.plugins.urls", namespace="plugins"),
+                  ),
               ] + static(
     settings.MEDIA_URL, document_root=settings.MEDIA_ROOT
 )

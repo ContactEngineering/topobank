@@ -17,7 +17,7 @@ from ..functions import ART_SERIES
 
 
 @pytest.mark.django_db
-def test_card_template(client, handle_usage_statistics):
+def test_card_template(client, register_test_functions, handle_usage_statistics):
     """Check whether correct template is selected."""
 
     #
