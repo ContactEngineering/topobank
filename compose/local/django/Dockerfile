@@ -101,13 +101,12 @@ WORKDIR /app
 COPY --chown=django setup.py setup.cfg pyproject.toml /app/
 
 # RUN ls -al .
-RUN pip install -e .
+RUN pip install -e .[dev]
 
 #
 # Install plugins
 #
-RUN pip install -i https://test.pypi.org/simple/ topobank-statistics==0.92.0
-
+# RUN pip install -i https://test.pypi.org/simple/ topobank-statistics==0.92.0
 
 USER django
 

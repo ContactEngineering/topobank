@@ -4,6 +4,11 @@ set -o errexit
 set -o pipefail
 set -o nounset
 
+# echo "-> Install local plugins from plugin packages"
+pip install --pre --index http://pypi:8080 topobank-statistics==0.92.0a1 --trusted-host pypi
+## --pre in order to install pre-releases
+## Exact version number (including a1) is also important!
+
 echo "-> Running database migrations.."
 python manage.py migrate
 

@@ -146,7 +146,7 @@ class SimpleCardView(TemplateView):
         try:
             template.loader.get_template(template_name)
         except template.TemplateDoesNotExist:
-            _log.warning(f"Template {template_name} not found. Falling back to simple card template.")
+            _log.warning(f"Template '{template_name}' not found. Falling back to simple card template.")
             template_name = self._template_name(template_flavor, SimpleCardView.template_name_pattern)
 
         return [template_name]

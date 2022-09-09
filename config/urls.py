@@ -1,9 +1,12 @@
+import importlib.util
+
 from django.conf import settings
 from django.urls import include, path, re_path
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.views.generic import TemplateView, RedirectView
 from django.views import defaults as default_views
+from django.apps import apps
 import notifications.urls
 
 from topobank.views import TermsView, HomeView, HelpView, GotoSelectView, TermsDetailView, TermsAcceptView
@@ -135,3 +138,21 @@ if settings.DEBUG:
         import debug_toolbar
 
         urlpatterns = [path("__debug__/", include(debug_toolbar.urls))] + urlpatterns
+
+#
+# Load URL patterns from plugins
+#
+plugin_patterns = []
+for app in apps.get_app_configs():
+    if hasattr(app, 'TopobankPluginMeta'):
+        url_module_name = app.name + '.urls'
+        if importlib.util.find_spec(url_module_name):
+            url_module = importlib.import_module(url_module_name)
+            plugin_patterns.append(
+                re_path(
+                      "",
+                      include((url_module.urlpatterns, app.label))
+                )
+            )
+urlpatterns.extend(plugin_patterns)
+
