@@ -107,7 +107,7 @@ RUN pip install -e .[dev]
 # Install plugins (needs topobank package installed above as dependency)
 #
 COPY ./requirements/plugins.txt /requirements/plugins.txt
-COPY ./pip-packages /pip-packages
+COPY ./compose/local/django/pip-packages /pip-packages
 # RUN ls -al /pip-packages
 RUN pip install -r /requirements/plugins.txt
 RUN rm -Rf /requirements /pip-packages
