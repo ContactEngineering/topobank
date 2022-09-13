@@ -20,7 +20,7 @@ services:
     volumes:
       - .:/app
       - exchange_data:/tmp/exchange
-      - ./pip-packages:/pip-packages:ro
+      - ./compose/local/django/pip-packages:/pip-packages:ro
       # You could use a mount to a local directory in order to
       # do a pip install -e /some/path[dev] to load plugin
       # packages for development:
@@ -150,8 +150,8 @@ services:
     ports:
       - "8010:8080"
     volumes:
-      - ./.pypi-authfile:/data/.htpasswd
-      - ./pip-packages:/data/packages
+      - ./.envs/.local/.pypi-authfile:/data/.htpasswd
+      - ./compose/local/django/pip-packages:/data/packages
     command: run -a update -P /data/.htpasswd --overwrite /data/packages
     restart: always
     # As initialization, run:
