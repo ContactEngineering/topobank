@@ -474,6 +474,12 @@ TRACKED_DEPENDENCIES = [
     ('numpy', 'numpy.__version__'),
     ('scipy', 'scipy.__version__'),
 ]
+# Extend tracked dependencies by Plugin apps
+for plugin_app in PLUGIN_APPS:
+    TRACKED_DEPENDENCIES.append(
+        (plugin_app, plugin_app+'.__version__')  # we use the module name as readable name at first
+    )
+
 
 #
 # Settings for notifications package
