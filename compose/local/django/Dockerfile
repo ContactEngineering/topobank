@@ -38,10 +38,12 @@ RUN pip install --upgrade pip
 #
 # Install requirements for TopoBank
 #
-COPY ./requirements /requirements
 WORKDIR /
 RUN pip install --upgrade setuptools
-RUN pip install -r /requirements/local.txt --ignore-installed --no-binary numpy && rm -Rf /requirements
+
+COPY ./requirements/local.txt /requirements/local.txt
+RUN pip install -r /requirements/local.txt --ignore-installed --no-binary numpy
+
 
 # Here the entrypoint from production settings is taken!
 COPY ./compose/production/django/entrypoint /entrypoint
@@ -79,12 +81,11 @@ RUN mkdir -p /app
 COPY --chown=django config /app/config
 COPY --chown=django docs /app/docs
 COPY --chown=django locale /app/locale
-COPY --chown=django requirements /app/requirements
+# COPY --chown=django requirements /app/requirements
 COPY --chown=django splinter_tests /app/splinter_tests
 COPY --chown=django topobank /app/topobank
 
 RUN rm -Rf app/venv app/.idea app/.pytest_cache app/.git app/__pycache__ app/media/topographies app/media/analyses
-
 
 
 # is the following needed?
@@ -100,13 +101,17 @@ WORKDIR /app
 #
 COPY --chown=django setup.py setup.cfg pyproject.toml /app/
 
-# RUN ls -al .
 RUN pip install -e .[dev]
 
 #
-# Install plugins
+# Install plugins (needs topobank package installed above as dependency)
 #
-# RUN pip install -i https://test.pypi.org/simple/ topobank-statistics==0.92.0
+COPY ./requirements/plugins.txt /requirements/plugins.txt
+COPY ./pip-packages /pip-packages
+# RUN ls -al /pip-packages
+RUN pip install -r /requirements/plugins.txt
+RUN rm -Rf /requirements /pip-packages
+
 
 USER django
 

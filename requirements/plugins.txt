@@ -1,0 +1,2 @@
+--pre --find-links file:///pip-packages
+topobank-statistics==0.92.0a1

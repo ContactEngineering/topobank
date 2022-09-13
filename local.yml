@@ -14,13 +14,17 @@ services:
     shm_size: '2gb'
     image: topobank_local_django
     depends_on:
-      - pypi
       - postgres
       - mailhog
       - redis
     volumes:
       - .:/app
       - exchange_data:/tmp/exchange
+      - ./pip-packages:/pip-packages:ro
+      # You could use a mount to a local directory in order to
+      # do a pip install -e /some/path[dev] to load plugin
+      # packages for development:
+      # - ..:/prj:ro
     env_file:
       - ./.envs/.local/.django
       - ./.envs/.local/.postgres
@@ -147,7 +151,7 @@ services:
       - "8010:8080"
     volumes:
       - ./.pypi-authfile:/data/.htpasswd
-      - ./packages:/data/packages
+      - ./pip-packages:/data/packages
     command: run -a update -P /data/.htpasswd --overwrite /data/packages
     restart: always
     # As initialization, run:
@@ -156,7 +160,7 @@ services:
     #   (enter new password twice)
     # Use this username and given password when pushing packages to this local pypiserver!
     # This is needed to install plugin packages in docker.
-
+#
 #
 #  pgbackup:
 #    image: docker-postgres-s3-backup
