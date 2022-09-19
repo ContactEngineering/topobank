@@ -7,7 +7,6 @@
 
   <div class="tab-content mt-1">
     <div class="tab-pane active">
-
       <div class="jumbotron">
         <div class="container">
           <h1 class="display-4">Welcome to <b>contact.&#8203;engineering</b></h1>
@@ -17,6 +16,11 @@
             analyze contact properties and
             (if you wish) share your data with collaborators or even publish your datasets.
           </p>
+          <div class="alert alert-primary" role="alert">
+            For more information on this site and details about the analysis methods used,
+            <a class="alert-link" target="_blank" href="https://doi.org/10.1088/2051-672X/ac860a">
+              please read our new paper</a> (open access).
+          </div>
           {#  <p><a class="btn btn-primary btn-lg" href="#" role="button">Learn more &raquo;</a></p> #}
           <div class="row">
             {% with request.user.is_anonymous as is_anonymous %}

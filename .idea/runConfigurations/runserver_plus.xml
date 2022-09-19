@@ -23,7 +23,7 @@
     <option name="launchJavascriptDebuger" value="false" />
     <option name="port" value="8000" />
     <option name="host" value="0.0.0.0" />
-    <option name="additionalOptions" value="" />
+    <option name="additionalOptions" value=" --keep-meta-shutdown" />
     <option name="browserUrl" value="" />
     <option name="runTestServer" value="false" />
     <option name="runNoReload" value="false" />

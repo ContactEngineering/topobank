@@ -421,7 +421,7 @@ def test_publishing_wrong_license(example_authors):
 
 
 @pytest.mark.django_db
-def test_show_license_when_viewing_published_surface(rf, settings, example_authors):
+def test_show_license_and_affiliations_when_viewing_published_surface(rf, settings, example_authors):
 
     license = 'cc0-1.0'
 
@@ -440,12 +440,9 @@ def test_show_license_when_viewing_published_surface(rf, settings, example_autho
     assert_in_content(response, license_info['title'])
     assert_in_content(response, license_info['description_url'])
     assert_in_content(response, license_info['legal_code_url'])
-
-
-
-
-
-
+    assert_in_content(response, "Authors")
+    assert_in_content(response, request.user.first_name)
+    assert_in_content(response, request.user.last_name)
 
 
 

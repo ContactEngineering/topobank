@@ -72,7 +72,7 @@ defusedxml==0.7.1
     #   surfacetopography
 deprecated==1.2.13
     # via redis
-django==3.2.14
+django==3.2.15
     # via
     #   -r base.in
     #   collectfast
@@ -215,8 +215,10 @@ numpy==1.23.0
     #   xarray
 numpyencoder==0.3.0
     # via surfacetopography
-oauthlib==3.2.0
-    # via requests-oauthlib
+oauthlib==3.2.1
+    # via
+    #   -r base.in
+    #   requests-oauthlib
 openpyxl==3.0.10
     # via -r base.in
 packaging==21.3

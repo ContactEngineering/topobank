@@ -116,7 +116,7 @@ deprecated==1.2.13
     #   redis
 dj-inmemorystorage==2.1.0
     # via -r test.in
-django==3.2.14
+django==3.2.15
     # via
     #   -r base.txt
     #   collectfast
@@ -311,7 +311,7 @@ numpyencoder==0.3.0
     # via
     #   -r base.txt
     #   surfacetopography
-oauthlib==3.2.0
+oauthlib==3.2.1
     # via
     #   -r base.txt
     #   requests-oauthlib
