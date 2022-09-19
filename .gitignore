@@ -361,4 +361,5 @@ orcid.yaml
 /media/**/*
 !/usage_statistics.xlsx
 data/
+.envs/.local/.pypi-authfile
 
