@@ -18,10 +18,16 @@ python:
 #before_install:
 #  - google-chrome-stable --headless --disable-gpu --remote-debugging-port=9222 http://localhost &
 install:
-  # - sudo apt-get install libfftw3-dev libopenblas-dev chromium-chromedriver
   - sudo apt-get install libfftw3-dev libopenblas-dev
+  - pushd /tmp
+  - git clone git@github.com:ContactEngineering/TopoBank.git
+  - cd topobank
+  - git checkout 22_analysis_plugins
   - pip install -q -r requirements/local.txt --no-binary numpy
+  - pip install -e .[dev]
   - python manage.py collectstatic
+  - popd
+  - pip install .[dev]
   # - pip install selenium
 script:
   # - pytest -v --splinter-webdriver=chrome --splinter-headless=true --splinter-webdriver-executable=/opt/google/chrome/chrome
