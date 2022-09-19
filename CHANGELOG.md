@@ -4,6 +4,7 @@
 
 - ENH: Added "Authors" tab in detail page for 
   published digital twins (#811)
+- ENH: Added links to contact.engineering paper (#873) 
 - BUG: Fixed missing save() statement when renewing 
   bandwidth cache
 - MAINT: Security update for django, oauthlib
