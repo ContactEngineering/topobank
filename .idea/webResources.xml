@@ -6,6 +6,7 @@
         <entryData>
           <resourceRoots>
             <path value="file://$PROJECT_DIR$/topobank/static" />
+            <path value="file://$PROJECT_DIR$/data" />
           </resourceRoots>
         </entryData>
       </entry>

@@ -87,7 +87,7 @@ def download_analyses(request, ids, art, file_format):
     return download_function(request, analyses)
 
 
-def _analyses_meta_data_dataframe(analyses, request):
+def analyses_meta_data_dataframe(analyses, request):
     """Generates a pandas.DataFrame with meta data about analyses.
 
     Parameters
@@ -148,7 +148,7 @@ def _analyses_meta_data_dataframe(analyses, request):
     return df
 
 
-def _publications_urls(request, analyses):
+def publications_urls(request, analyses):
     """Return set of publication URLS for given analyses.
 
     Parameters
@@ -234,7 +234,7 @@ def download_plot_analyses_to_txt(request, analyses):
     # TODO: We need a mechanism for embedding references to papers into output.
 
     # Collect publication links, if any
-    publication_urls = _publications_urls(request, analyses)
+    publication_urls = publications_urls(request, analyses)
 
     # Pack analysis results into a single text file.
     f = io.StringIO()
@@ -315,7 +315,7 @@ def download_plot_analyses_to_xlsx(request, analyses):
     #
     # Create sheet with meta data
     #
-    meta_df = _analyses_meta_data_dataframe(analyses, request)
+    meta_df = analyses_meta_data_dataframe(analyses, request)
     meta_df.to_excel(excel_writer, sheet_name='INFORMATION', index=False, freeze_panes=(1, 0))
 
     # Analyze subject names and store a distinct name
