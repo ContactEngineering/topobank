@@ -150,5 +150,6 @@ PyYAML>=5.4  # CVE-2020-14343
 sqlparse>=0.4.2  # CVE-2021-32839
 pyjwt>=2.4.0  #  https://github.com/ContactEngineering/TopoBank/security/dependabot/61
 numpy>=1.22  # incomplete string comparison in the numpy.core component in NumPy1.9.x
+oauthlib>=3.2.1  # vulnerable to DoS when attacker provides malicious IPV6 URI
 
 

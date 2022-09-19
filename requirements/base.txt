@@ -215,8 +215,10 @@ numpy==1.23.0
     #   xarray
 numpyencoder==0.3.0
     # via surfacetopography
-oauthlib==3.2.0
-    # via requests-oauthlib
+oauthlib==3.2.1
+    # via
+    #   -r base.in
+    #   requests-oauthlib
 openpyxl==3.0.10
     # via -r base.in
 packaging==21.3

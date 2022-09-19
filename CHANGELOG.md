@@ -1,12 +1,12 @@
 # Changelog for *TopoBank*
 
-## 0.91.1 (not released yet)
+## 0.91.1 (2022-09-19)
 
 - ENH: Added "Authors" tab in detail page for 
   published digital twins (#811)
 - BUG: Fixed missing save() statement when renewing 
   bandwidth cache
-- MAINT: Security update for django
+- MAINT: Security update for django, oauthlib
 
 ## 0.91.0 (2022-08-05)
 

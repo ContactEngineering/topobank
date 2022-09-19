@@ -347,7 +347,7 @@ numpyencoder==0.3.0
     # via
     #   -r ./base.txt
     #   surfacetopography
-oauthlib==3.2.0
+oauthlib==3.2.1
     # via
     #   -r ./base.txt
     #   requests-oauthlib
