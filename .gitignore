@@ -365,4 +365,5 @@ compose/local/django/pip-packages/*
 /media/**/*
 !/stuff/usage_statistics.xlsx
 data/
+.envs/.local/.pypi-authfile
 
