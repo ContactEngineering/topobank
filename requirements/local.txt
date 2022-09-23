@@ -21,6 +21,7 @@ async-timeout==4.0.2
 attrs==22.1.0
     # via
     #   jsonschema
+    #   outcome
     #   pytest
 babel==2.10.3
     # via sphinx
@@ -34,9 +35,9 @@ bleach==5.0.1
     # via topobank (../setup.py)
 bokeh==3.0.0.dev4
     # via topobank (../setup.py)
-boto3==1.24.66
+boto3==1.24.77
     # via topobank (../setup.py)
-botocore==1.27.66
+botocore==1.27.77
     # via
     #   boto3
     #   s3transfer
@@ -46,13 +47,13 @@ celery[redis]==5.2.7
     # via topobank (../setup.py)
 celery-progress==0.1.2
     # via topobank (../setup.py)
-certifi==2022.6.15
+certifi==2022.9.14
     # via requests
 cffi==1.15.1
     # via
     #   argon2-cffi-bindings
     #   cryptography
-cftime==1.6.1
+cftime==1.6.2
     # via netcdf4
 charset-normalizer==2.1.1
     # via requests
@@ -73,12 +74,14 @@ collectfast==2.2.0
     # via topobank (../setup.py)
 contactmechanics==0.93.0
     # via topobank (../setup.py)
+contourpy==1.0.5
+    # via matplotlib
 coverage[toml]==6.4.4
     # via
     #   django-coverage-plugin
     #   pytest-cov
     #   topobank (../setup.py)
-cryptography==37.0.4
+cryptography==38.0.1
     # via
     #   pyjwt
     #   topobank (../setup.py)
@@ -140,7 +143,7 @@ django-debug-toolbar==3.6.0
     # via topobank (../setup.py)
 django-environ==0.9.0
     # via topobank (../setup.py)
-django-extensions==3.2.0
+django-extensions==3.2.1
     # via topobank (../setup.py)
 django-filter==22.1
     # via topobank (../setup.py)
@@ -160,7 +163,7 @@ django-progressbarupload @ git+http://github.com/ContactEngineering/django-progr
     # via topobank (../setup.py)
 django-redis==5.2.0
     # via topobank (../setup.py)
-django-select2==7.10.0
+django-select2==7.10.1
     # via topobank (../setup.py)
 django-storages==1.13.1
     # via
@@ -194,7 +197,7 @@ flake8==5.0.4
     # via topobank (../setup.py)
 fontawesomefree==5.15.4
     # via topobank (../setup.py)
-fonttools==4.37.1
+fonttools==4.37.3
     # via matplotlib
 freezegun==1.2.2
     # via topobank (../setup.py)
@@ -214,7 +217,7 @@ h5py==3.7.0
     # via
     #   h5netcdf
     #   surfacetopography
-idna==3.3
+idna==3.4
     # via requests
 idutils==1.1.12
     # via datacite
@@ -230,7 +233,7 @@ iniconfig==1.1.1
     # via pytest
 ipdb==0.13.9
     # via topobank (../setup.py)
-ipython==8.4.0
+ipython==8.5.0
     # via
     #   ipdb
     #   topobank (../setup.py)
@@ -249,7 +252,7 @@ jmespath==1.0.1
     #   botocore
 jsonfield==3.1.0
     # via django-notifications-hq
-jsonschema==4.15.0
+jsonschema==4.16.0
     # via datacite
 kiwisolver==1.4.4
     # via matplotlib
@@ -266,7 +269,7 @@ markupsafe==2.1.1
     # via
     #   jinja2
     #   werkzeug
-matplotlib==3.5.3
+matplotlib==3.6.0
     # via surfacetopography
 matplotlib-inline==0.1.6
     # via ipython
@@ -277,17 +280,18 @@ mufft==0.23.1
     #   contactmechanics
     #   surfacetopography
     #   topobank (../setup.py)
-netcdf4==1.6.0
+netcdf4==1.6.1
     # via topobank (../setup.py)
 numpi==0.3.0
     # via
     #   contactmechanics
     #   surfacetopography
-numpy==1.23.2
+numpy==1.23.3
     # via
     #   bokeh
     #   cftime
     #   contactmechanics
+    #   contourpy
     #   h5py
     #   matplotlib
     #   mufft
@@ -301,7 +305,7 @@ numpy==1.23.2
     #   xarray
 numpyencoder==0.3.0
     # via surfacetopography
-oauthlib==3.2.0
+oauthlib==3.2.1
     # via requests-oauthlib
 openpyxl==3.0.10
     # via topobank (../setup.py)
@@ -316,7 +320,7 @@ packaging==21.3
     #   redis
     #   sphinx
     #   xarray
-pandas==1.4.4
+pandas==1.5.0
     # via
     #   topobank (../setup.py)
     #   xarray
@@ -367,7 +371,7 @@ pygments==2.13.0
     #   ipython
     #   sphinx
     #   topobank (../setup.py)
-pyjwt[crypto]==2.4.0
+pyjwt[crypto]==2.5.0
     # via
     #   django-allauth
     #   topobank (../setup.py)
@@ -404,7 +408,7 @@ pytest-mock==3.8.2
     # via topobank (../setup.py)
 pytest-selenium==3.0.0
     # via topobank (../setup.py)
-pytest-splinter==3.3.1
+pytest-splinter==3.3.2
     # via topobank (../setup.py)
 pytest-sugar==0.9.5
     # via topobank (../setup.py)
@@ -513,7 +517,7 @@ swapper==1.3.0
     # via django-notifications-hq
 tenacity==6.3.1
     # via pytest-selenium
-termcolor==1.1.0
+termcolor==2.0.1
     # via pytest-sugar
 text-unidecode==1.3
     # via python-slugify
@@ -528,10 +532,12 @@ tomli==2.0.1
     #   pep517
 tornado==6.2
     # via bokeh
-traitlets==5.3.0
+traitlets==5.4.0
     # via
     #   ipython
     #   matplotlib-inline
+types-cryptography==3.3.23
+    # via pyjwt
 typing-extensions==4.3.0
     # via
     #   bokeh
@@ -562,7 +568,7 @@ wrapt==1.14.1
     # via deprecated
 xarray==2022.6.0
     # via topobank (../setup.py)
-xyzservices==2022.6.0
+xyzservices==2022.9.0
     # via bokeh
 zipp==3.8.1
     # via
