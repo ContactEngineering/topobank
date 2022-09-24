@@ -156,3 +156,20 @@ for app in apps.get_app_configs():
             )
 urlpatterns.extend(plugin_patterns)
 
+# Idea, also by Raphael Michel (Djangocon 2019): Auto-wrap all plugin views in a decorator
+#
+# Instead of
+#   include((url_module.urlpatterns, app.label))
+# use
+#   include((plugin_urls(url_module.urlpatterns), app.label))
+# with
+# def plugin_urls(urllist):
+#     for entry in urllist:
+#         if hasattr((entry, "url_patterns")):
+#             plugin_urls(entry.url_patterns)
+#         elif hasattr(entry, 'callback'):
+#             entry.callback = login_required(entry.callback)
+#     return urllist
+#
+# Or any other decorator, e.g. permission checking
+
