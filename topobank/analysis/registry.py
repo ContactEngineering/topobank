@@ -4,9 +4,6 @@ Registry for collection analysis functions.
 import inspect
 import logging
 
-from django.db import models
-from django.db.models import UniqueConstraint
-
 from ..utils import Singleton
 
 from django.contrib.contenttypes.models import ContentType
@@ -241,12 +238,22 @@ class AnalysisRegistry(metaclass=Singleton):
         except KeyError as exc:
             raise ImplementationMissingAnalysisFunctionException(name, subject_app_label, subject_model) from exc
 
-    def get_analysis_function_names(self):
-        """Returns function names as list."""
-        return list(set(name for art, name, subject_app_label, subject_model in self._implementations.keys()))
+    def get_analysis_function_names(self, user=None):
+        """Returns function names as list.
+
+        If given a user, only the functions are returned
+        which have at least one implementation for the given user.
+        """
+        implementations = self._implementations
+        if user is not None:
+            # filter for user
+            implementations = { k:impl for k, impl in implementations.items()
+                                if impl.is_available_for_user(user) }
+
+        return list(set(name for art, name, subject_app_label, subject_model in implementations.keys()))
 
     def get_implementation_types(self, name):
-        """Returns function names as list."""
+        """Returns list of ContentType which can be given as first argument to function with given name."""
         return list(set(ContentType.objects.get_by_natural_key(subject_app_label, subject_model)
                         for art, n, subject_app_label, subject_model in self._implementations.keys() if n==name))
 
@@ -509,3 +516,35 @@ class AnalysisFunctionImplementation:
     def eval(self, subject, **kwargs):
         """Evaluate implementation on given subject with given arguments."""
         return self.python_function()(subject, **kwargs)
+
+    def is_available_for_user(self, user):
+        """Return whether this implementation is available for the given user."""
+
+        app = _get_app_config_for_obj(self._pyfunc)
+
+        if app is None:
+            return False
+        elif app.name == 'topobank.analysis':  # special case, should be always available
+            return True
+
+        from topobank.organizations.models import Organization
+        plugins_available = Organization.objects.get_plugins_available(user)
+        return app.name in plugins_available
+
+
+def _get_app_config_for_obj(obj):
+    """For given object, find out app config it belongs to."""
+    from django.apps import apps
+
+    search_path = obj.__module__
+    if search_path.startswith('topobank.'):
+        search_path = search_path[9:]  # otherwise app from topobank are not found
+    app = None
+    while app is None:
+        try:
+            app = apps.get_app_config(search_path)
+        except LookupError:
+            if ("." not in search_path) or app:
+                break
+            search_path, _ = search_path.rsplit(".", 1)
+    return app

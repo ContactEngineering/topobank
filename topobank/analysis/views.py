@@ -978,6 +978,11 @@ class AnalysesListView(FormView):
             functions=AnalysesListView._selected_functions(self.request),
         )
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
+
     def form_valid(self, form):
         functions = form.cleaned_data.get('functions', [])
         self.request.session['selected_functions'] = list(t.id for t in functions)
@@ -991,7 +996,9 @@ class AnalysesListView(FormView):
         """
         function_ids = request.session.get('selected_functions', [])
         functions = AnalysisFunction.objects.filter(id__in=function_ids).order_by('name')
-        return functions
+
+        # filter function by those which have available implementations for the given user
+        return functions.filter(name__in=AnalysisRegistry().get_analysis_function_names(request.user))
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
