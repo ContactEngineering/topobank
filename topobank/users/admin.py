@@ -35,5 +35,10 @@ class MyUserAdmin(AuthUserAdmin):
     form = MyUserChangeForm
     add_form = MyUserCreationForm
     fieldsets = (("User Profile", {"fields": ("name",)}),) + AuthUserAdmin.fieldsets
-    list_display = ("username", "name", "is_superuser")
+    list_display = ("username", "name", "is_superuser", "orcid_uri")
     search_fields = ["name"]
+
+    @admin.display(description="ORCID URI")
+    def orcid_uri(self, user):
+        return user.orcid_uri()
+

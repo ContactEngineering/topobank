@@ -5,4 +5,4 @@ from .models import Organization
 
 @admin.register(Organization)
 class OrganizationAdmin(admin.ModelAdmin):
-    pass
+    list_display = ('name', 'group', 'plugins_available')
