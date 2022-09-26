@@ -167,8 +167,8 @@ for app in apps.get_app_configs():
         if importlib.util.find_spec(url_module_name):
             url_module = importlib.import_module(url_module_name)
             plugin_patterns.append(
-                re_path(
-                      "",
+                path(
+                      f"plugins/{app.name}/",  # all urls of this plugin start with this
                       include((url_module.urlpatterns, app.label))
                 )
             )
