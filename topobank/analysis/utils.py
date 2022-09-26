@@ -12,6 +12,7 @@ from django.db.models import Q
 from guardian.shortcuts import get_users_with_perms
 
 from topobank.analysis.models import Analysis, AnalysisFunction
+from topobank.analysis.registry import AnalysisRegistry
 
 _log = logging.getLogger(__name__)
 
@@ -267,6 +268,11 @@ def get_latest_analyses(user, func, subjects):
         query = q if query is None else query | q
 
     if query is None:
+        return Analysis.objects.none()
+
+    # Check if function is available for user, if not return emtpy queryset
+    reg = AnalysisRegistry()
+    if func.name not in reg.get_analysis_function_names(user):
         return Analysis.objects.none()
 
     analyses = Analysis.objects.filter(Q(users=user) & Q(function=func) & query) \

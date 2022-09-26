@@ -72,7 +72,7 @@ class Configuration(models.Model):
 class Analysis(models.Model):
     """Concrete Analysis with state, function reference, arguments, and results.
 
-    Additionally it saves the configuration which was present when
+    Additionally, it saves the configuration which was present when
     executing the analysis, i.e. versions of the main libraries needed.
     """
     PENDING = 'pe'
@@ -194,7 +194,9 @@ class Analysis(models.Model):
 
     def is_visible_for_user(self, user):
         """Returns True if given user should be able to see this analysis."""
-        return user.has_perm("view_surface", self.related_surface)
+        allowed_to_view_surface = user.has_perm("view_surface", self.related_surface)
+        allowed_to_use_implementation = self.function.get_implementation(self.subject_type).is_available_for_user(user)
+        return allowed_to_use_implementation and allowed_to_view_surface
 
     @property
     def is_topography_related(self):

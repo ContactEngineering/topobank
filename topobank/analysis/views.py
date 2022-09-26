@@ -40,7 +40,6 @@ from .utils import get_latest_analyses, request_analysis, renew_analysis, filter
 from .registry import AnalysisRegistry, register_card_view_class
 from .functions import ART_SERIES
 
-
 import logging
 
 _log = logging.getLogger(__name__)
@@ -795,6 +794,25 @@ def _contact_mechanics_distribution_figure(values, x_axis_label, y_axis_label,
 
 
 def data(request, pk, location):
+    """Request data stored for a particular analysis.
+
+    Before redirecting to the data, the permissions
+    of the current user are checked for the given analysis.
+    The user needs permissions for the data as well as
+    the analysis function performed should be available.
+
+    Parameters
+    ----------
+
+    pk: int
+        id of Analysis instance
+    location: str
+        path underneath given analysis where file can be found
+
+    Returns
+    -------
+    Redirects to file on storage.
+    """
     try:
         pk = int(pk)
     except ValueError:
@@ -802,7 +820,7 @@ def data(request, pk, location):
 
     analysis = Analysis.objects.get(id=pk)
 
-    if not request.user.has_perm('view_surface', analysis.related_surface):
+    if not analysis.is_visible_for_user(request.user):
         raise PermissionDenied()
 
     # okay, we have a valid analysis and the user is allowed to see it
@@ -880,7 +898,12 @@ class AnalysisFunctionDetailView(DetailView):
         context = super().get_context_data(**kwargs)
 
         function = self.object
+        # Check if user is allowed to use this function
+        reg = AnalysisRegistry()
+        if function.name not in reg.get_analysis_function_names(self.request.user):
+            raise PermissionDenied()
 
+        # filter subjects to those this user is allowed to see
         effective_topographies, effective_surfaces, subjects_ids_json = selection_to_subjects_json(self.request)
 
         card = dict(function=function,
