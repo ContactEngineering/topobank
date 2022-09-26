@@ -33,6 +33,8 @@
       <sourceFolder url="file://$MODULE_DIR$/topobank/usage_stats" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/topobank/users" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/utility" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/topobank/organizations" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/topobank/organizations/tests" isTestSource="true" />
       <excludeFolder url="file://$MODULE_DIR$/node_modules" />
       <excludeFolder url="file://$MODULE_DIR$/staticfiles" />
       <excludeFolder url="file://$MODULE_DIR$/venv" />
