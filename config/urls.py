@@ -7,13 +7,13 @@ from django.contrib import admin
 from django.views.generic import TemplateView, RedirectView
 from django.views import defaults as default_views
 from django.apps import apps
-# from django.contrib.auth.decorators import user_passes_test, login_required
+from django.contrib.auth.decorators import user_passes_test, login_required
 
 import notifications.urls
 
 from topobank.views import TermsView, HomeView, HelpView, GotoSelectView, TermsDetailView, TermsAcceptView
 from topobank.users.views import TabbedEmailView
-# from topobank.organizations.models import Organization
+from topobank.organizations.models import Organization
 
 urlpatterns = [
                   path("", HomeView.as_view(), name="home"),
@@ -145,19 +145,16 @@ if settings.DEBUG:
 #
 # Load URL patterns from plugins
 #
-# def plugin_urls(urllist, app_name):
-#     for entry in urllist:
-#         import logging
-#         _log = logging.getLogger(__name__)
-#         _log.setLevel(logging.DEBUG)
-#         _log.info(f"Preparing plugin URLS for {entry} and {app_name}..{hasattr((entry, 'url_patterns'))}, {hasattr(entry, 'callback')}")
-#         if hasattr((entry, 'url_patterns')):
-#             plugin_urls(entry.url_patterns)
-#         elif hasattr(entry, 'callback'):
-#             def plugin_available_check(user):
-#                 return app_name in Organization.objects.get_plugins_available(user)
-#             entry.callback = user_passes_test(plugin_available_check)(login_required(entry.callback))
-#     return urllist
+def plugin_urls(urllist, app_name):
+    for entry in urllist:
+        if hasattr(entry, 'url_patterns'):
+            plugin_urls(entry.url_patterns)
+        elif hasattr(entry, 'callback'):
+            def plugin_available_check(user):
+                return app_name in Organization.objects.get_plugins_available(user)
+            callback_decorator = user_passes_test(plugin_available_check, login_url='/403/', redirect_field_name=None)
+            entry.callback = callback_decorator(login_required(entry.callback))
+    return urllist
 
 
 plugin_patterns = []
@@ -168,8 +165,11 @@ for app in apps.get_app_configs():
             url_module = importlib.import_module(url_module_name)
             plugin_patterns.append(
                 path(
-                      f"plugins/{app.name}/",  # all urls of this plugin start with this
-                      include((url_module.urlpatterns, app.label))
+                    f"plugins/{app.name}/",  # all urls of this plugin start with this
+                    # Allow access only if plugin available
+                    include((plugin_urls(url_module.urlpatterns, app_name=app.name), app.label))
+                    # Allow access independent of plugin availability (always permitted)
+                    # include((url_module.urlpatterns, app.label))
                 )
             )
 urlpatterns.extend(plugin_patterns)
