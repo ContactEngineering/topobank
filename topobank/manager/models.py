@@ -480,6 +480,7 @@ class Topography(models.Model, SubjectMixin):
     class Meta:
         ordering = ['measurement_date', 'pk']
         unique_together = (('surface', 'name'),)
+        verbose_name_plural = "topographies"
 
     LENGTH_UNIT_CHOICES = [
         ('km', 'kilometers'),

@@ -75,7 +75,6 @@ class Analysis(models.Model):
     Additionally it saves the configuration which was present when
     executing the analysis, i.e. versions of the main libraries needed.
     """
-
     PENDING = 'pe'
     STARTED = 'st'
     RETRY = 're'
@@ -110,6 +109,9 @@ class Analysis(models.Model):
     end_time = models.DateTimeField(null=True)
 
     configuration = models.ForeignKey(Configuration, null=True, on_delete=models.SET_NULL)
+
+    class Meta:
+        verbose_name_plural = "analyses"
 
     def __init__(self, *args, result=None, **kwargs):
         super().__init__(*args, **kwargs)
