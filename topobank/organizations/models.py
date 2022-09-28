@@ -4,6 +4,13 @@ from django.utils.translation import ugettext_lazy as _
 
 from django.contrib.auth.models import Group
 
+import logging
+_log = logging.getLogger(__name__)
+
+DEFAULT_ORGANIZATION_NAME = "World"
+DEFAULT_PLUGINS_AVAILABLE = "topobank_statistics, topobank_contact"
+DEFAULT_GROUP_NAME = "all"
+
 
 class OrganizationManager(models.Manager):
     def for_user(self, user):
@@ -36,4 +43,30 @@ class Organization(models.Model):
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        """Called when saving this instance.
+
+        Also ensures that a group with same
+        name as the organization is created and
+        linked to this instance.
+        Exception: Organization "World" is linked to the
+                   group "all"
+        By default, each new organization gets the default plugins.
+        """
+        created = self.pk is None
+        if created:
+            group_name = self.name
+            if group_name == DEFAULT_ORGANIZATION_NAME:
+                group_name = DEFAULT_GROUP_NAME
+
+            group, group_created = Group.objects.get_or_create(name=group_name)
+            if group_created:
+                _log.info(f"Created group '{group_name}' for being associated with organization '{self.name}'.")
+            self.group = group
+
+            if self.plugins_available == '':
+                self.plugins_available = DEFAULT_PLUGINS_AVAILABLE
+
+        super().save(*args, **kwargs)
 
