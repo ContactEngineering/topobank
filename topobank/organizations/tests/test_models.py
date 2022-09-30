@@ -1,18 +1,11 @@
-import factory
 import pytest
 
 from django.contrib.auth.models import Group
 
 from topobank.manager.tests.utils import UserFactory
+
+from utils import OrganizationFactory
 from ..models import Organization
-
-
-class OrganizationFactory(factory.django.DjangoModelFactory):
-    """Creating Organization instance for tests."""
-    class Meta:
-        model = Organization
-
-    name = factory.Sequence(lambda n: "Organization No. {:d}".format(n))
 
 
 @pytest.mark.django_db
