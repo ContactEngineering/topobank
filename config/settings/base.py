@@ -112,13 +112,6 @@ for entry_point in iter_entry_points(group='topobank.plugins', name=None):
         continue
     PLUGIN_APPS.append(entry_point.module_name)
 
-#
-# PLUGIN_APPS = [
-#     'topobank.statistical_analysis.apps.StatisticalAnalysisConfig',
-#     'topobank.contact_analysis.apps.ContactAnalysisConfig',
-# ]
-
-
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS + PLUGIN_APPS
 
