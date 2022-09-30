@@ -25,7 +25,7 @@ from .functions import ART_SERIES
 
 
 def download_analyses(request, ids, art, file_format):
-    """Returns a file comprised from analyses results.
+    """View returning a file comprised from analyses results.
 
     Parameters
     ----------
