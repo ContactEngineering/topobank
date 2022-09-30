@@ -101,7 +101,7 @@ LOCAL_APPS = [
     'topobank.usage_stats.apps.UsageStatsAppConfig',
     'topobank.tabnav.apps.TabNavAppConfig',
     'topobank.publication.apps.PublicationAppConfig',
-    'topobank.organizations.apps.OrganizationsConfig',
+    'topobank.organizations.apps.OrganizationsAppConfig',
 ]
 
 TOPOBANK_PLUGINS_IGNORE_CONFLICTS = env.bool('TOPOBANK_PLUGINS_IGNORE_CONFLICTS', default=False)

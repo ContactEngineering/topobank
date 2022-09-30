@@ -1,7 +1,7 @@
 from django.apps import AppConfig
 
 
-class OrganizationsConfig(AppConfig):
+class OrganizationsAppConfig(AppConfig):
     """This app handles organizations.
 
     Organizations are needed to configure which plugins are available for
