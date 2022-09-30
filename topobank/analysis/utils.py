@@ -273,6 +273,8 @@ def get_latest_analyses(user, func, subjects):
     # Check if function is available for user, if not return emtpy queryset
     reg = AnalysisRegistry()
     if func.name not in reg.get_analysis_function_names(user):
+        _log.warning(f"Requested latest analysis results for user id '{user.id}' and function '{func.name}', "
+                     "but this function is not available for this user. Returning empty queryset.")
         return Analysis.objects.none()
 
     analyses = Analysis.objects.filter(Q(users=user) & Q(function=func) & query) \
