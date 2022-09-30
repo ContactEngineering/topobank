@@ -52,7 +52,8 @@ def test_availability_of_implementation_in_plugin(mocker, plugins_installed, plu
     u = UserFactory()
     u.groups.add(group)
     if plugins_available_for_org is not None:
-        OrganizationFactory(group=group,
+        OrganizationFactory(name="University",  # organization must have the same name as the group
+                            group=group,
                             plugins_available=plugins_available_for_org)
         # User is now part of the organization with defined available plugins
 
