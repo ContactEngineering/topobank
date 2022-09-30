@@ -22,7 +22,6 @@
       <sourceFolder url="file://$MODULE_DIR$/splinter_tests" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/topobank" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/topobank/analysis" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/topobank/contact_analysis" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/topobank/contrib" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/topobank/manager" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/topobank/plugins" isTestSource="false" />
@@ -35,6 +34,7 @@
       <sourceFolder url="file://$MODULE_DIR$/utility" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/topobank/organizations" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/topobank/organizations/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/topobank/contact_analysis_sav" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/node_modules" />
       <excludeFolder url="file://$MODULE_DIR$/staticfiles" />
       <excludeFolder url="file://$MODULE_DIR$/venv" />
