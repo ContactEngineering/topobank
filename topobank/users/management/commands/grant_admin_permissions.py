@@ -16,7 +16,7 @@ _log = logging.getLogger(__name__)
 
 PERMISSIONS_TO_GRANT = {  # key: model, value: list of actions - subset of {"delete", "add", "view", "change"}
     Analysis: ['view', 'change', 'delete'],
-    User: ['view', 'change', 'delete'],
+    User: ['view'],
     Group: ['add', 'view', 'change', 'delete'],
     Organization: ['add', 'view', 'change', 'delete'],
 }
@@ -56,4 +56,6 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS(
             "User '{}' should be able to use admin now without being superuser.".format(options['username'])))
+        self.stdout.write(self.style.SUCCESS(
+            "The corresponding link is available in the user's menu entry."))
         _log.info("Done.")
