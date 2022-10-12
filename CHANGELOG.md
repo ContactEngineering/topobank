@@ -1,5 +1,18 @@
 # Changelog for *TopoBank*
 
+## 0.92.0 (not published yet)
+
+- MAINT: Added plugin system, moved statistical analysis 
+  functions and contact mechanics to individial plugins
+  (topobank-statistics, topobank-contact), allows to 
+  add other functionality via plugins without changing the
+  main application
+- ENH: Added management command "grant_admin_permissions"
+  to give a user restricted permissions to enter 
+  admin interface in order to edit organizations or check
+  the state of analyses
+- ENH: Added link to admin interface for staff users
+
 ## 0.91.1 (2022-09-19)
 
 - ENH: Added "Authors" tab in detail page for 
