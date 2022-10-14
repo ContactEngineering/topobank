@@ -11,6 +11,9 @@
   to give a user restricted permissions to enter 
   admin interface in order to edit organizations or check
   the state of analyses
+- ENH Enhanced management command "create_images" such that
+  thumbnails and DZI files can be processed separately
+  and such that only missing images are generated (#903) 
 - ENH: Added link to admin interface for staff users
 
 ## 0.91.1 (2022-09-19)
