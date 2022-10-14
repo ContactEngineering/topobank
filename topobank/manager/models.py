@@ -704,7 +704,7 @@ class Topography(models.Model, SubjectMixin):
         allow_squeezed: bool
             If True (default), the instance is allowed to be generated
             from a squeezed datafile which is not the original datafile.
-            This is often faster then the original file format.
+            This is often faster than the original file format.
         """
         if not _IN_CELERY_WORKER_PROCESS and self.size_y is not None:
             _log.warning('You are requesting to load a (2D) topography and you are not within in a Celery worker '
