@@ -960,6 +960,23 @@ def get_permission_table_data(instance, request_user, actions=['view', 'change',
     return perms_table
 
 
+def dzi_exists(path_prefix):
+    """
+    Decides whether DZI data exists under the given path_prefix.
+    Current heuristics: If '{path_prefix}/dzi.json' exists, the deep
+    zoom images are expected to be available. This could be further improved.
+
+    Parameters
+    ----------
+    path_prefix
+
+    Returns
+    -------
+    True, if DZI data is expected to be available, else False.
+    """
+    return default_storage.exists(f'{path_prefix}/dzi.json')
+
+
 def make_dzi(data, path_prefix, physical_sizes=None, unit=None, quality=95, colorbar_title=None, cmap=None):
     """
     Make JPG Deep Zoom Image (DZI) files given data on a two-dimensional grid.

@@ -14,6 +14,7 @@ from celery_progress.backend import ProgressRecorder
 from celery.signals import after_setup_task_logger
 from celery.app.log import TaskFormatter
 from celery.utils.log import get_task_logger
+from celery import group
 
 from notifications.signals import notify
 
@@ -321,12 +322,55 @@ def renew_topography_images(topography_id):
     None
     """
     _log.debug(f"Renewing images for topography id {topography_id}..")
+    group(renew_topography_thumbnail.si(topography_id),
+          renew_topography_dzi.si(topography_id)).delay()
+    _log.debug(f"Done - renewed images for topography id {topography_id}.")
+
+
+@app.task
+def renew_topography_thumbnail(topography_id):
+    """Renew thumbnail for given topography.
+
+    Parameters
+    ----------
+    topography_id: int
+        ID if topography for which a thumbnail should be generated
+        and saved.
+
+    Returns
+    -------
+    None
+    """
+    _log.debug(f"Renewing thumbnail for topography id {topography_id}..")
     try:
         topography = Topography.objects.get(id=topography_id)
-        topography.renew_images()
+        topography.renew_thumbnail(none_on_error=False)
     except Topography.DoesNotExist:
-        _log.error(f"Couldn't find topography with id {topography_id}. Cannot renew images.")
-    _log.debug(f"Done - renewed images for topography id {topography_id}.")
+        _log.error(f"Couldn't find topography with id {topography_id}. Cannot renew thumbnail.")
+    _log.debug(f"Done - renewed thumbnail for topography id {topography_id}.")
+
+
+@app.task
+def renew_topography_dzi(topography_id):
+    """Renew DZI files for given topography.
+
+    Parameters
+    ----------
+    topography_id: int
+        ID if topography for which the DZI files should be generated
+        and saved.
+
+    Returns
+    -------
+    None
+    """
+    _log.debug(f"Renewing DZI images for topography id {topography_id}..")
+    try:
+        topography = Topography.objects.get(id=topography_id)
+        topography.renew_dzi(none_on_error=False)
+    except Topography.DoesNotExist:
+        _log.error(f"Couldn't find topography with id {topography_id}. Cannot renew DZI.")
+    _log.debug(f"Done - renewed DZI for topography id {topography_id}.")
 
 
 @app.task
