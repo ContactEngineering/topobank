@@ -178,8 +178,8 @@ class AnalysisRegistry(metaclass=Singleton):
         func_spec = inspect.getfullargspec(func)
         subject_model = func_spec.args[0]
 
-        _log.info(f"Adding analysis function implementation for art: {art}, function name: {name}, "
-                  f"app_label: {subject_app_label}, subject_type: {subject_model}..")
+        _log.debug(f"Adding analysis function implementation for art: {art}, function name: {name}, "
+                   f"app_label: {subject_app_label}, subject_type: {subject_model}..")
 
         #
         # For a given function name, the card view flavor should be unique
@@ -290,6 +290,7 @@ class AnalysisRegistry(metaclass=Singleton):
         # Ensure all analysis functions needed to exist in database
         #
         function_names_used = self.get_analysis_function_names()
+        _log.info(f"Syncing analysis functions with database - {len(function_names_used)} functions used - ..")
 
         for name in function_names_used:
             func, created = AnalysisFunction.objects.update_or_create(name=name)
