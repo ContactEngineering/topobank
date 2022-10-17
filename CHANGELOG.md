@@ -4,7 +4,9 @@
 
 - ENH: Enhanced search by also searching for names of 
   users who created digitial surface twins or 
-  measurements (#896) 
+  measurements (#896)
+- ENH: Also show names of creators of unpublished digital 
+  surface twins and measurements in search results (#896) 
 - ENH: Added management command "grant_admin_permissions"
   to give a user restricted permissions to enter 
   admin interface in order to edit organizations or check
