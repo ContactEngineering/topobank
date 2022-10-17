@@ -15,6 +15,8 @@
   thumbnails and DZI files can be processed separately
   and such that only missing images are generated (#903) 
 - ENH: Added link to admin interface for staff users
+- MAINT: Close figures after generating plots from 1D
+  measurements (#898)
 - MAINT: Added plugin system, moved statistical analysis 
   functions and contact mechanics to individial plugins
   (topobank-statistics, topobank-contact), allows to 

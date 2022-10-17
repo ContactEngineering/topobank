@@ -925,6 +925,7 @@ class Topography(models.Model, SubjectMixin):
             ax.plot(x, y, '-')
             ax.set_axis_off()
             fig.savefig(image_file, bbox_inches='tight', dpi=100, format='png')
+            matplotlib.pyplot.close(fig)  # probably saves memory, see issue 898
         elif st_topo.dim == 2:
             # Compute thumbnail size (keeping aspect ratio)
             sx, sy = st_topo.physical_sizes
