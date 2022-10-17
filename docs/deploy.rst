@@ -1,6 +1,12 @@
 Deploy
 ========
 
+**CAUTION: This document is a bit outdated since
+it uses the production.yml file and is related to
+the use of docker-compose in production. We now use docker swarm
+and this procedure here needs to be revised.**
+
+
 This is where you describe how the project is deployed in production.
 
 .. role:: bash(code)
@@ -463,6 +469,8 @@ Configures the PostGreSQL database:
 
 These settings are recognized by the "postgres" service and then used to automatically create a user+database.
 
+
+
 .. _first-run:
 
 Further preparation of first run
@@ -624,24 +632,27 @@ Login as user :code:`topobank` and have a look at the possible commands:
 .. code:: bash
 
    cd topobank
-   docker-compose -f production.yml -h
+   docker-compose -f local.yml -h
 
 In the following sections, we list here some important commands.
-You have to be in the subdirectory where the docker-compose file (here `production.yaml`) is.
+You have to be in the subdirectory where the docker-compose file (here `local.yaml`) is.
 
 Build images for all services
 .............................
 
 .. code:: bash
 
-   docker-compose -f production.yml build
+   docker-compose -f local.yml build
 
 Creating containers for all services and start
 ..............................................
 
 .. code:: bash
 
-   docker-compose -f production.yml up -d
+   docker-compose -f local.yml up -d
+
+(Here only "local" deployment for development. For production, docker swarm and "production-swarm.yml"
+is used now)
 
 The switch `-d` detaches the containers from the terminal, so you can safely log out.
 
@@ -657,7 +668,7 @@ Viewing logs
 
 .. code:: bash
 
-   docker-compose -f production.yml logs
+   docker-compose -f local.yml logs
 
 See help with `-h` in order to see more options, e.g. filter for messages of one service.
 Use `-f` in order to follow logs.
@@ -666,7 +677,7 @@ Example: See only messages of "django" service and follow them:
 
 .. code:: bash
 
-   docker-compose -f production.yml logs -f django
+   docker-compose -f local.yml logs -f django
 
 Seeing running processes
 ........................
@@ -675,13 +686,13 @@ See if all services are up and running, their container names, the port redirect
 
 .. code:: bash
 
-   docker-compose -f production.yml ps
+   docker-compose -f local.yml ps
 
 See all processes, ordered by container:
 
 .. code:: bash
 
-   docker-compose -f production.yml top
+   docker-compose -f local.yml top
 
 Start and stop containers
 .........................
@@ -690,17 +701,17 @@ Do this on all containers:
 
 .. code:: bash
 
-   docker-compose -f production.yml start
-   docker-compose -f production.yml stop
-   docker-compose -f production.yml restart
+   docker-compose -f local.yml start
+   docker-compose -f local.yml stop
+   docker-compose -f local.yml restart
 
 Or on individual services:
 
 .. code:: bash
 
-   docker-compose -f production.yml start django
-   docker-compose -f production.yml stop django
-   docker-compose -f production.yml restart django
+   docker-compose -f local.yml start django
+   docker-compose -f local.yml stop django
+   docker-compose -f local.yml restart django
 
 Other
 .....
@@ -709,9 +720,7 @@ Interesting, but not tested is probably the scaling of containers, e.g. the cele
 
 .. code:: bash
 
-   docker-compose -f production.yml scale celeryworker=4
-
-
+   docker-compose -f local.yml scale celeryworker=4
 
 
 
@@ -722,7 +731,7 @@ With a running django container do:
 
 .. code::bash
 
-    $ docker-compose -f production.yml run --rm django python manage.py shell
+    $ docker-compose -f local.yml run --rm django python manage.py shell
     >>> from django.core.mail import send_mail
     >>> send_mail('test subject','test body','topobank@imtek.uni-freiburg.de',['roettger@tf.uni-freiburg.de'])
 
@@ -732,7 +741,7 @@ Or instead in one command:
 
 .. code:: bash
 
-    $ docker-compose -f production.yml run --rm django python manage.py shell -c "from django.core.mail import send_mail;send_mail('test','','topobank@imtek.uni-freiburg.de',['roettger@tf.uni-freiburg.de'])"
+    $ docker-compose -f local.yml run --rm django python manage.py shell -c "from django.core.mail import send_mail;send_mail('test','','topobank@imtek.uni-freiburg.de',['roettger@tf.uni-freiburg.de'])"
 
 .. todo:: currently this results in "[Errno 99] Cannot assign requested address"
 
@@ -807,7 +816,7 @@ First stop the application:
 
 .. code:: bash
 
-    docker-compose -f production.yml stop
+    docker-compose -f local.yml stop
 
 Start only the postgresql part:
 
@@ -830,7 +839,7 @@ Then stop the two services in the first terminal. Afterwards restart all the sta
 
 .. code:: bash
 
-    docker-compose -f production.yml up -d
+    docker-compose -f local.yml up -d
 
 The application should work with the restored database.
 Be aware that there could be inconsistencies:
@@ -1314,7 +1323,7 @@ Probably the image has already a user created. If there is no valuable data yet,
   docker container rm topobank_postgres_1
   docker system prune
   docker volume rm $(docker volume ls -qf dangling=true)
-  docker-compose -f production.yml build
+  docker-compose -f production-swarm.yml build
 
 
 
