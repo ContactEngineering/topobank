@@ -24,12 +24,14 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
     selected = serializers.SerializerMethodField()
     key = serializers.SerializerMethodField()
     surface_key = serializers.SerializerMethodField()
+    sharing_status = serializers.SerializerMethodField()
     folder = serializers.BooleanField(default=False)
     tags = serializers.SerializerMethodField()
     type = serializers.CharField(default='topography')
     version = serializers.CharField(default='')
     publication_authors = serializers.CharField(default='')
     publication_date = serializers.CharField(default='')
+    creator_name = serializers.SerializerMethodField()
 
     def get_urls(self, obj):
         """Return only those urls which are usable for the user
@@ -71,14 +73,26 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
     def get_surface_key(self, obj):
         return f"surface-{obj.surface.pk}"
 
+    def get_sharing_status(self, obj):
+        user = self.context['request'].user
+        if hasattr(obj.surface, 'is_published') and obj.surface.is_published:
+            return 'published'
+        elif user == obj.surface.creator:
+            return "own"
+        else:
+            return "shared"
+
     def get_tags(self, obj):  # TODO prove if own method needed
         return [t.name for t in obj.tags.all()]
+
+    def get_creator_name(self, obj):
+        return obj.creator.name
 
     class Meta:
         model = Topography
         fields = ['pk', 'type', 'name', 'creator', 'description', 'tags',
                   'urls', 'selected', 'key', 'surface_key', 'title', 'folder', 'version',
-                  'publication_date', 'publication_authors']
+                  'publication_date', 'publication_authors', 'creator_name', 'sharing_status']
 
 
 class SurfaceSerializer(serializers.HyperlinkedModelSerializer):

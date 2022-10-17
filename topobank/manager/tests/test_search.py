@@ -108,6 +108,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
             'category_name': 'Experimental data',
             'children': [
                 {'creator': user_url,
+                 'creator_name': user.name,
                  'description': '',
                  'folder': False,
                  'key': f'topography-{topo1a.pk}',
@@ -117,6 +118,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                  'publication_authors': '',
                  'publication_date': '',
                  'selected': True,
+                 'sharing_status': 'own',
                  'tags': [],
                  'title': topo1a.name,
                  'type': 'topography',
@@ -128,6 +130,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                           'unselect': topo1a_prefix + 'unselect/',
                           'update': topo1a_prefix + 'update/'}},
                 {'creator': user_url,
+                 'creator_name': user.name,
                  'description': '',
                  'folder': False,
                  'key': f'topography-{topo1b.pk}',
@@ -137,6 +140,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                  'publication_authors': '',
                  'publication_date': '',
                  'selected': False,
+                 'sharing_status': 'own',
                  'tags': [],
                  'title': topo1b.name,
                  'type': 'topography',
@@ -182,6 +186,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
             'category_name': 'Simulated data',
             'children': [
                 {'creator': user_url,
+                 'creator_name': user.name,
                  'description': '',
                  'folder': False,
                  'key': f'topography-{topo2a.pk}',
@@ -191,6 +196,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                  'publication_authors': '',
                  'publication_date': '',
                  'selected': False,  # not explicitly selected
+                 'sharing_status': 'own',
                  'tags': ['bike', 'train/ice'],
                  'title': topo2a.name,
                  'type': 'topography',
@@ -202,6 +208,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                           'unselect': topo2a_prefix + 'unselect/',
                           'update': topo2a_prefix + 'update/'}},
                 {'creator': user_url,
+                 'creator_name': user.name,
                  'description': '',
                  'folder': False,
                  'key': f'topography-{topo2b.pk}',
@@ -211,6 +218,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                  'publication_authors': '',
                  'publication_date': '',
                  'selected': False,  # not explicitly selected
+                 'sharing_status': 'own',
                  'tags': [],
                  'title': topo2b.name,
                  'type': 'topography',
@@ -307,6 +315,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
             'category_name': 'Simulated data',
             'children': [
                 {'creator': user_url,
+                 'creator_name': user.name,
                  'description': '',
                  'folder': False,
                  'key': f'topography-{topo2a.pk}',
@@ -316,6 +325,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                  'publication_authors': '',
                  'publication_date': '',
                  'selected': False,  # not explicitly selected
+                 'sharing_status': 'own',
                  'tags': ['bike', 'train/ice'],
                  'title': topo2a.name,
                  'type': 'topography',
@@ -380,6 +390,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
             'category_name': 'Experimental data',
             'children': [
                 {'creator': user_url,
+                 'creator_name': user.name,
                  'description': '',
                  'folder': False,
                  'key': f'topography-{topo1a.pk}',
@@ -389,6 +400,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                  'publication_authors': '',
                  'publication_date': '',
                  'selected': True,
+                 'sharing_status': 'own',
                  'tags': [],
                  'title': topo1a.name,
                  'type': 'topography',
@@ -400,6 +412,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                           'unselect': topo1a_prefix + 'unselect/',
                           'update': topo1a_prefix + 'update/'}},
                 {'creator': user_url,
+                 'creator_name': user.name,
                  'description': '',
                  'folder': False,
                  'key': f'topography-{topo1b.pk}',
@@ -409,6 +422,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                  'publication_authors': '',
                  'publication_date': '',
                  'selected': False,
+                 'sharing_status': 'own',
                  'tags': [],
                  'title': topo1b.name,
                  'type': 'topography',
@@ -507,6 +521,7 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
 
     expected_dict_topo1a = {
         'creator': user_url,
+        'creator_name': user.name,
         'description': '',
         'folder': False,
         'key': f'topography-{topo1a.pk}',
@@ -516,6 +531,7 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
         'publication_authors': '',
         'publication_date': '',
         'selected': True,
+        'sharing_status': 'own',
         'tags': [],
         'title': topo1a.name,
         'type': 'topography',
@@ -529,6 +545,7 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
     }
     expected_dict_topo1b = {
         'creator': user_url,
+        'creator_name': user.name,
         'description': '',
         'folder': False,
         'key': f'topography-{topo1b.pk}',
@@ -538,6 +555,7 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
         'publication_authors': '',
         'publication_date': '',
         'selected': False,
+        'sharing_status': 'own',
         'tags': [],
         'title': topo1b.name,
         'type': 'topography',
@@ -552,6 +570,7 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
 
     expected_dict_topo2a = {
         'creator': user_url,
+        'creator_name': user.name,
         'description': '',
         'folder': False,
         'key': f'topography-{topo2a.pk}',
@@ -561,6 +580,7 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
         'publication_authors': '',
         'publication_date': '',
         'selected': False,  # not explicitly selected
+        'sharing_status': 'own',
         'tags': ['bike', 'train/ice'],
         'title': topo2a.name,
         'type': 'topography',
@@ -575,6 +595,7 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
 
     expected_dict_topo2b = {
         'creator': user_url,
+        'creator_name': user.name,
         'description': '',
         'folder': False,
         'key': f'topography-{topo2b.pk}',
@@ -584,6 +605,7 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
         'publication_authors': '',
         'publication_date': '',
         'selected': False,  # not explicitly selected
+        'sharing_status': 'own',
         'tags': ['train/ice/restaurant'],
         'title': topo2b.name,
         'type': 'topography',

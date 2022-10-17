@@ -202,9 +202,10 @@ let search_results_vm = new Vue({
                         publication_info += `${node.data.publication_authors} (published ${node.data.publication_date})`;
                     } else {
                         if (node.type == "surface") {
-                            publication_info += `This dataset is unpublished.`;
+                            publication_info += `This dataset is unpublished. It was initiated by ${node.data.creator_name}.`;
                         }
                     }
+
                     if (publication_info) {
                         description_html += `<p class="select-tree-authors">${publication_info}</p>`;
                     }
@@ -221,6 +222,9 @@ let search_results_vm = new Vue({
                         info_footer += `This is version ${node.data.version} of this digital surface twin.`
                     } else if (node.data.topography_count) {
                         info_footer += `This digital surface twin contains ${node.data.topography_count} measurements.`
+                    }
+                    if ((node.type == "topography") && (node.data.sharing_status != "published")) {
+                        info_footer += `Uploaded by ${node.data.creator_name}.`;
                     }
                     if (info_footer) {
                         description_html += `<p class="select-tree-info">${info_footer}</p>`
