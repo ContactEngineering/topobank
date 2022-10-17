@@ -4,6 +4,7 @@ from operator import itemgetter
 
 import pytest
 from django.core.management import call_command
+from django.shortcuts import reverse
 from django.conf import settings
 
 import os.path
@@ -12,6 +13,7 @@ import datetime
 import factory
 
 from ..models import Topography, Surface, TagModel
+from ..views import SurfaceListView
 from topobank.users.tests.factories import UserFactory
 
 
@@ -165,10 +167,37 @@ def export_reponse_as_html(response, fname='/tmp/response.html'):  # pragma: no 
 
 
 def ordereddicts_to_dicts(input_ordered_dict, sorted_by='pk'):
+    """Convert an ordered dict to a list of dicts, also sorted."""
     result = json.loads(json.dumps(input_ordered_dict))
     if sorted_by is not None:
         result = sorted(result, key=itemgetter(sorted_by))
     return result
+
+
+def search_surfaces(request_factory, user, expr):
+    """Search surfaces with given expression and return dicts with results.
+
+    This is a helper function used in tests.
+
+    Parameters
+    ----------
+    request_factory: rest_framework.test.APIRequestFactory
+        Used to generate a search request
+    user: topobank.users.models.User
+        This is the user who performs the search.
+    expr: str
+        Search expression.
+
+    Returns
+    -------
+    List of dicts with search results, sorted by 'title' key.
+    """
+    request = request_factory.get(reverse('manager:search') + f"?search={expr}")
+    request.user = user
+    request.session = {}  # must be there
+    response = SurfaceListView.as_view()(request)
+    assert response.status_code == 200
+    return ordereddicts_to_dicts(response.data['page_results'], sorted_by='title')
 
 
 @pytest.fixture

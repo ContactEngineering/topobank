@@ -240,8 +240,9 @@ def filtered_surfaces(request):
             topography_name_for_search=Replace('topography__name', Value('.'), Value(' '))  # often there are filenames
         ).distinct('id').order_by('id')
         qs = filter_queryset_by_search_term(qs, search_term, [
-            'description', 'name', 'tag_names_for_search',
+            'description', 'name', 'creator__name', 'tag_names_for_search',
             'topography_name_for_search', 'topography__description', 'topography_tag_names_for_search',
+            'topography__creator__name',
         ])
     return qs
 
@@ -273,7 +274,7 @@ def filtered_topographies(request, surfaces):
             name_for_search=Replace('name', Value('.'), Value(' '))
         ).distinct('id').order_by('id')
         topographies = filter_queryset_by_search_term(topographies, search_term, [
-            'description', 'name_for_search', 'tag_names_for_search',
+            'description', 'creator__name', 'name_for_search', 'tag_names_for_search',
         ])
     return topographies
 

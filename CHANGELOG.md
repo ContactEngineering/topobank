@@ -2,11 +2,9 @@
 
 ## 0.92.0 (not published yet)
 
-- MAINT: Added plugin system, moved statistical analysis 
-  functions and contact mechanics to individial plugins
-  (topobank-statistics, topobank-contact), allows to 
-  add other functionality via plugins without changing the
-  main application
+- ENH: Enhanced search by also searching for names of 
+  users who created digitial surface twins or 
+  measurements (#896) 
 - ENH: Added management command "grant_admin_permissions"
   to give a user restricted permissions to enter 
   admin interface in order to edit organizations or check
@@ -15,6 +13,11 @@
   thumbnails and DZI files can be processed separately
   and such that only missing images are generated (#903) 
 - ENH: Added link to admin interface for staff users
+- MAINT: Added plugin system, moved statistical analysis 
+  functions and contact mechanics to individial plugins
+  (topobank-statistics, topobank-contact), allows to 
+  add other functionality via plugins without changing the
+  main application
 
 ## 0.91.1 (2022-09-19)
 
