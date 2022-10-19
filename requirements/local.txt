@@ -21,7 +21,6 @@ async-timeout==4.0.2
 attrs==22.1.0
     # via
     #   jsonschema
-    #   outcome
     #   pytest
 babel==2.10.3
     # via sphinx
@@ -103,7 +102,7 @@ deprecated==1.2.13
     # via redis
 dj-inmemorystorage==2.1.0
     # via topobank (../setup.py)
-django==3.2.15
+django==3.2.16
     # via
     #   collectfast
     #   dj-inmemorystorage

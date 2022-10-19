@@ -22,6 +22,7 @@
   (topobank-statistics, topobank-contact), allows to 
   add other functionality via plugins without changing the
   main application
+- MAINT: Update of django because of security issue
 
 ## 0.91.1 (2022-09-19)
 
