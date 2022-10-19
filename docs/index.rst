@@ -14,6 +14,7 @@ Contents:
    configuration
    search
    deploy
+   swarm
    maintenance
    install-docker
    orcid
