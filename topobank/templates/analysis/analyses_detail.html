@@ -17,7 +17,7 @@
       <!--
       Show card. Will be replaced by AJAX call.
       -->
-      <div id="card">
+      <div id="card-wrapper">
         <div class="card">
           <div class="card-header">
             <h3>{{ card.function.name }}</h3>
@@ -61,9 +61,10 @@
     <!-- Trigger fetching analysis results -->
     // for the card submit ajax call to insert result card
     $(document).ready(function () {
-      submit_analyses_card_ajax("{% url 'analysis:card' %}", "card", "detail",
-              {{ card.function.id }},
-              {{ card.subjects_ids_json|safe }}, 0);
+      submit_analyses_card_ajax("{% url 'analysis:card' %}",
+        "card-wrapper", "card", "detail",
+        {{ card.function.id }},
+        {{ card.subjects_ids_json|safe }}, 0);
 
       // we want that closing an item in the basket
       // does unselect it and reload the analyses

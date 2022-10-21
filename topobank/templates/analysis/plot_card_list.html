@@ -2,7 +2,7 @@
 {% load analysis_tags %}
 {% load icon_tags %}
 
-<div id="card-{{ function.pk }}" class="card search-result-card">
+<div id="{{ card_id }}" class="card search-result-card">
     <div class="card-header">
       {% if analyses_available %}
       <div class="btn-group btn-group-sm float-right dropdown">
@@ -53,7 +53,7 @@
 {% block card_javascript %}
   <script>
     new Vue({
-      el: "#card-{{ function.pk }}"
+      el: "#{{ card_id }}"
     });
   </script>
 {% endblock card_javascript %}

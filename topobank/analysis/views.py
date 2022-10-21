@@ -1034,7 +1034,8 @@ class AnalysesListView(FormView):
         # which then can be used to load the result data in the background
         cards = []
         for function in selected_functions:
-            cards.append(dict(function=function,
+            cards.append(dict(id=f"card-{function.pk}",
+                              function=function,
                               subjects_ids_json=subjects_ids_json))
 
         context['cards'] = cards

@@ -25,14 +25,14 @@
       <div class="row">
         {% for card in cards %}
           <div class="col-lg-6 mb-4">
-            <div id="card-{{ forloop.counter }}">
+            <div id="{{ card.id }}-wrapper">
               <div class="card search-result-card">
                 <div class="card-header">
                   <h5>{{ card.function.name }}</h5>
                 </div>
                 <div class="card-body">
                     <span class="spinner"></span>
-                    <div id="card-{{ forloop.counter }}-wait-text">
+                    <div id="{{ card.id }}-wait-text">
                       Please wait...
                     </div>
                 </div>
@@ -72,7 +72,8 @@
         {#console.log("{{ card_url }}", "card-{{ forloop.counter }}", "list", {{ card.function.id }});#}
         {#console.log("subjects_ids_json:");#}
         {#console.log({{ card.subjects_ids_json|safe }});#}
-        submit_analyses_card_ajax("{{ card_url }}", "card-{{ forloop.counter }}", "list", {{ card.function.id }},
+        submit_analyses_card_ajax("{{ card_url }}", "{{ card.id }}-wrapper", "{{ card.id }}",
+                                  "list", {{ card.function.id }},
                                   {{ card.subjects_ids_json|safe }}, 0);
       {% endfor %}
 
