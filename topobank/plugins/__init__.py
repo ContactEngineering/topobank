@@ -20,8 +20,6 @@ class PluginConfig(AppConfig):
             try:
                 pkg_resources.require(self.TopobankPluginMeta.compatibility)
             except pkg_resources.VersionConflict as e:
-                print("Incompatible plugins found!")
-                print("Plugin {} requires you to have {}, but you installed {}.".format(
-                    self.name, e.req, e.dist
-                ))
+                _log.error("Incompatible plugins found!")
+                _log.error(f"Plugin {self.name} requires you to have {e.req}, but you installed {e.dist}.")
                 sys.exit(1)
