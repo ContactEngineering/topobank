@@ -144,6 +144,7 @@ services:
   # Local pypiserver for installing packages
   #
   pypi:
+    user: "${PYPI_SERVER_UID}:${PYPI_SERVER_GID}"  # use here the UID (and GID) of the user running the service
     image: docker.io/pypiserver/pypiserver:latest
     environment:
       - PYTHONUNBUFFERED=1
@@ -155,6 +156,7 @@ services:
     command: run -a update -P /data/.htpasswd --overwrite /data/packages
     restart: always
     # As initialization, run:
+    # $ cd .envs/.local/
     # $ sudo apt install apache2-utils
     # $ htpasswd -sc ".pypi-authfile" "topobank"
     #   (enter new password twice)
