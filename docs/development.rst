@@ -44,6 +44,37 @@ Afterwards, the local environment can be updated using
 
     $ pip install -r requirements/local.txt
 
+Building plugin packages
+------------------------
+
+.. code:: bash
+
+    $ python -m build .
+
+The package files are generated in the `dist/` directory.
+
+They can be uploaded to the local repository, e.g. by using `twine`,
+if the local pypi server is running by docker-compose.
+
+.. code:: bash
+
+    $ twine upload -r localpypi dist/* --verbose
+
+Twine uses a local config file `~/.pypirc`, which has an enty like this:
+
+.. code::
+
+    [localpypi]
+    repository = http://localhost:8010
+    username = topobank
+    password = topobank
+
+
+
+
+
+
+
 
 
 
