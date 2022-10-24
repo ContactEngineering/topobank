@@ -7,6 +7,8 @@
   measurements (#896)
 - ENH: Also show names of creators of unpublished digital 
   surface twins and measurements in search results (#896) 
+- ENH: When hovering on data point, also display measurement
+  name and series name (#893)
 - ENH: Added management command "grant_admin_permissions"
   to give a user restricted permissions to enter 
   admin interface in order to edit organizations or check

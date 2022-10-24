@@ -191,7 +191,7 @@ Vue.component("bokeh-plot", {
       // Array of dictionaries with keys:
       //   url: URL to JSON that contains the data.
       //   [category-name] (optional): Display value of the specific category. For each category,
-      //                               there must be a key-value pair.Example: "series_name": "1D PSD along x"
+      //                               there must be a key-value pair. Example: "series_name": "1D PSD along x"
       //   [category-name]_index (optional): Zero-based index of [category_name] in an ordered list.
       //   color (optional): Line and symbol color.
       //   dash (optional): Line style, one of "solid", "dashed", "dotted", "dotdash", "dashdot".
@@ -214,7 +214,16 @@ Vue.component("bokeh-plot", {
     },
     tools: {
       type: Array, default: function () {
-        return ["pan", "reset", "wheel_zoom", "box_zoom", "hover"];
+        return ["pan", "reset", "wheel_zoom", "box_zoom",
+                new Bokeh.HoverTool({
+                  'tooltips': [
+                      ['index', '$index'],
+                      ['(x,y)', '($x,$y)'],
+                      ['subject', '@subject_name'],
+                      ['series', '@series_name'],
+                ]
+                })
+        ];
       }
     },
     selectable: {
@@ -498,12 +507,21 @@ Vue.component("bokeh-plot", {
               code += ", " + columnName + ": " + auxData;
             }
           }
-          if (plot.alphaData === undefined) {
-            code += " }";
-          } else {
-            code += ", alpha: " + plot.alphaData + " }";
+          if (plot.alphaData !== undefined) {
+            code += ", alpha: " + plot.alphaData;
             attrs.alpha = {field: "alpha"};
           }
+          if (dataSource.subject_name !== undefined) {
+            // For each data point, add the same subject_name
+            code += ", subject_name: " + xData + ".map((value) => '" + dataSource.subject_name + "')";
+          }
+          let series_name = "-";
+          if (dataSource.series_name !== undefined) {
+            series_name = dataSource.series_name;
+          }
+          // For each data point, add the same series_name
+          code += ", series_name: " + xData + ".map((value) => '" + series_name + "')";
+          code += " }";
 
           /* Data source: AJAX GET request to storage system retrieving a JSON */
           const source = new Bokeh.AjaxDataSource({
