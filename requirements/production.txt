@@ -56,7 +56,7 @@ click-repl==0.2.0
     # via celery
 collectfast==2.2.0
     # via topobank (../setup.py)
-contactmechanics==0.93.0
+contactmechanics==1.0.0
     # via topobank (../setup.py)
 contourpy==1.0.5
     # via matplotlib
@@ -322,7 +322,7 @@ sqlparse==0.4.2
     # via
     #   django
     #   topobank (../setup.py)
-surfacetopography==1.0
+surfacetopography==1.1
     # via
     #   contactmechanics
     #   topobank (../setup.py)
