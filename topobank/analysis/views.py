@@ -407,7 +407,7 @@ class PlotCardView(SimpleCardView):
         for a in analyses_success_list:
             s = a.subject
             subject_ct = s.get_content_type()
-            subject_name = s.label
+            subject_name = s.label.replace("'", "&apos;")
             if subject_ct == surface_ct:
                 subject_name = f"Average of »{subject_name}«"
                 has_at_least_one_surface_subject = True
