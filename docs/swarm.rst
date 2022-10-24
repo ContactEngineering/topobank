@@ -56,9 +56,17 @@ Check with `docker service ls`. Example:
     07q7k3e2iuro   prodstack_redis          replicated   1/1        redis:6-alpine
 
 
+Running a management command on Docker Swarm
+--------------------------------------------
 
+This shell command runs a management command in a currently running django container,
+when started by Docker Swarm:
 
+.. code:: bash
 
+    $ docker exec -ti $(docker ps -q -f name=prodstack_django) /entrypoint python manage.py -h
+
+The entrypoint ensures that the database connection is available.
 
 
 
