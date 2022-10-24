@@ -69,6 +69,21 @@ Twine uses a local config file `~/.pypirc`, which has an enty like this:
     username = topobank
     password = topobank
 
+Updating plugins when using Docker
+----------------------------------
+
+When building the local Docker image for development using
+
+.. code:: bash
+
+    $ docker-compose -f local.yml build
+
+the plugins listed in `requirements/plugins.txt` are installed.
+
+If you need the code of a plugin running in Docker and you are currently
+developing this plugin:
+First build the plugin package, upload it to the integrated pypi server (see above)
+and rebuild the image, then restart the docker containers.
 
 
 
