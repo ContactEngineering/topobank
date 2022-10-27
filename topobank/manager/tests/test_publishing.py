@@ -10,7 +10,7 @@ from .utils import SurfaceFactory, UserFactory, Topography2DFactory, TagModelFac
 from ..forms import SurfacePublishForm
 from ..views import SurfaceDetailView
 from topobank.utils import assert_in_content, assert_not_in_content
-from topobank.manager.models import NewPublicationTooFastException
+from topobank.manager.models import NewPublicationTooFastException, PublicationsDisabledException
 
 
 @pytest.mark.django_db
@@ -29,6 +29,33 @@ def test_publication_version(settings):
 
     assert publication_v1.original_surface == publication_v2.original_surface
     assert publication_v1.surface != publication_v2.surface
+
+
+@pytest.mark.django_db
+def test_publication_disabled(settings):
+    settings.PUBLICATION_ENABLED = False
+    surface = SurfaceFactory()
+    with pytest.raises(PublicationsDisabledException):
+        surface.publish('cc0-1.0', 'Bob')
+
+
+@pytest.mark.parametrize("should_be_visible", [True, False])
+@pytest.mark.django_db
+def test_availability_publication_button(settings, rf, should_be_visible, handle_usage_statistics):
+    settings.PUBLICATION_ENABLED = should_be_visible
+    surface = SurfaceFactory()
+
+    request = rf.get(reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)))
+    request.user = surface.creator
+    request.session = {}
+
+    response = SurfaceDetailView.as_view()(request, pk=surface.pk)
+    response.render()
+
+    if should_be_visible:
+        assert_in_content(response, 'Publish')
+    else:
+        assert_not_in_content(response, 'Publish')
 
 
 @pytest.mark.django_db

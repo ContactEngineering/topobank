@@ -1064,6 +1064,10 @@ class SurfaceDetailView(DetailView):
             ('BibLaTeX format', 'biblatex', True),
         ]
 
+        # add flag whether publications are allowed by settings and permissions
+        context['publication_allowed'] = settings.PUBLICATION_ENABLED \
+                                         and self.request.user.has_perm('publish_surface', surface)
+
         return context
 
 

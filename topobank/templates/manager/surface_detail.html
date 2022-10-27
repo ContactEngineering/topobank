@@ -341,7 +341,7 @@
                 </a>
               {% endif %}
 
-              {% if not surface.is_published and "publish_surface" in surface_perms %}
+              {% if not surface.is_published and publication_allowed %}
                 <a href="{% url 'manager:surface-publish' surface.id %}"
                    class="btn btn-outline-success btn-block btn-lg">
                   {% fa5_icon 'bullhorn' %} Publish

@@ -17,6 +17,9 @@
   thumbnails and DZI files can be processed separately
   and such that only missing images are generated (#903) 
 - ENH: Added link to admin interface for staff users
+- ENH: Added config options PUBLICATION_ENABLED and
+  PUBLICATION_DISPLAY_TAB_WITH_OWN_PUBLICATIONS which
+  are True by default, but can be used to disable publications
 - BUG: Fixed crashing of plots when apostroph was used
   in the subject's name
 - MAINT: Close figures after generating plots from 1D

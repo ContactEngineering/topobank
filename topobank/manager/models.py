@@ -67,6 +67,11 @@ class PublicationException(Exception):
     pass
 
 
+class PublicationsDisabledException(PublicationException):
+    """Publications are not allowed due to settings."""
+    pass
+
+
 class AlreadyPublishedException(PublicationException):
     """A surface has already been published."""
     pass
@@ -389,6 +394,9 @@ class Surface(models.Model, SubjectMixin):
         }
 
         """
+        if not settings.PUBLICATION_ENABLED:
+            raise PublicationsDisabledException()
+
         if self.is_published:
             raise AlreadyPublishedException()
 
