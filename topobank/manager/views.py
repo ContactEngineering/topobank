@@ -1016,7 +1016,7 @@ class SurfaceDetailView(DetailView):
         ]
 
         #
-        # Build urls for version selection in dropdown
+        # Build urls for version selection in dropdown NEW COMMENT
         #
         def version_label_from_publication(pub):
             return f'Version {pub.version} ({pub.datetime.date()})' if pub else 'Work in progress'
