@@ -6,6 +6,9 @@ ENV PYTHONUNBUFFERED 1
 ENV CFLAGS "-I/usr/include/eigen3/"
 # This is a workaround for https://gitlab.com/muspectre/muspectre/-/issues/144
 
+ARG USER_ID
+ARG GROUP_ID
+
 #
 # System dependencies for Python + Django
 #
@@ -65,8 +68,8 @@ RUN chmod +x /start-celerybeat
 # RUN sed -i 's/\r//' /start-flower
 # RUN chmod +x /start-flower
 
-RUN addgroup django \
-    && adduser --ingroup django --gecos "" --disabled-password django
+RUN addgroup django --gid ${GROUP_ID} \
+    && adduser --ingroup django --uid ${USER_ID} --gecos "" --disabled-password django
 # or using --system? Problems with permissions?
 # celeryworker should not run as root, refuses to work
 #

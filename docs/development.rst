@@ -43,6 +43,23 @@ Afterwards, the local environment can be updated using
 
     $ pip install -r requirements/local.txt
 
+Setup use of docker compose
+---------------------------
+
+For configuring :code:`docker compose`, copy the template file
+:code:`.env.template` to :code:`.env`.
+Then insert here
+
+.. code::
+
+    TOPOBANK_UID=<insert here your user id>
+    TOPOBANK_GID=<insert here your group id>
+
+your user and group id. By doing this, the files in the django
+container will have the same IDs as you have and you can access them easily.
+Also the internal `pypi` server is run with the same IDs.
+
+
 Building plugin packages
 ------------------------
 

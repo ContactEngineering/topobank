@@ -16,6 +16,9 @@ services:
     build:
       context: .
       dockerfile: ./compose/local/django/Dockerfile
+      args:
+        USER_ID: ${TOPOBANK_UID:-0}
+        GROUP_ID: ${TOPOBANK_GID:-0}
     shm_size: '2gb'
     image: topobank_local_django
     depends_on:
@@ -169,7 +172,7 @@ services:
   # Local pypiserver for installing packages
   #
   pypi:
-    user: "${PYPI_SERVER_UID}:${PYPI_SERVER_GID}"  # use here the UID (and GID) of the user running the service
+    user: "${TOPOBANK_UID}:${TOPOBANK_GID}"  # use here the UID (and GID) of the user running the service
     image: docker.io/pypiserver/pypiserver:latest
     environment:
       - PYTHONUNBUFFERED=1
