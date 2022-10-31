@@ -30,7 +30,6 @@ RUN apt-get -qy autoremove
 # Extra requirements for exporting plots in bokeh
 #
 RUN apt-get install --yes libgtk-3-0 libdbus-glib-1-2
-RUN conda install -c conda-forge firefox geckodriver
 
 # Upgrade pip, so package 'cryptography' does not need to be compiled with rust
 RUN pip install --upgrade pip
