@@ -959,12 +959,13 @@ class AnalysesListView(FormView):
                 raise PermissionDenied()
 
             functions = set(a.function for a in collection.analyses.all())
-            topographies = set(a.subject for a in collection.analyses.all())
+            surfaces = set(a.subject for a in collection.analyses.all() if a.is_surface_related)
+            topographies = set(a.subject for a in collection.analyses.all() if a.is_topography_related)
 
             # as long as we have the current UI (before implementing GH #304)
             # we also set the collection's function and topographies as selection
-            topography_selection = instances_to_selection(topographies=topographies)
-            self.request.session['selection'] = tuple(topography_selection)
+            selection = instances_to_selection(topographies=topographies, surfaces=surfaces)
+            self.request.session['selection'] = tuple(selection)
             self.request.session['selected_functions'] = tuple(f.id for f in functions)
 
         elif 'surface_id' in self.kwargs:
