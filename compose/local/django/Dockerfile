@@ -61,9 +61,9 @@ COPY ./compose/local/django/celery/beat/start /start-celerybeat
 RUN sed -i 's/\r//' /start-celerybeat
 RUN chmod +x /start-celerybeat
 
-COPY ./compose/local/django/celery/flower/start /start-flower
-RUN sed -i 's/\r//' /start-flower
-RUN chmod +x /start-flower
+# COPY ./compose/local/django/celery/flower/start /start-flower
+# RUN sed -i 's/\r//' /start-flower
+# RUN chmod +x /start-flower
 
 RUN addgroup django \
     && adduser --ingroup django --gecos "" --disabled-password django
