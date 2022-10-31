@@ -96,13 +96,6 @@ RUN rm -Rf app/venv app/.idea app/.pytest_cache app/.git app/__pycache__ app/med
 WORKDIR /app
 
 #
-# Install topobank as package, so plugins can check version
-#
-COPY --chown=django setup.py setup.cfg pyproject.toml /app/
-
-RUN pip install -e .[dev]
-
-#
 # Install plugins (needs topobank package installed above as dependency)
 #
 COPY ./requirements/plugins.txt /requirements/plugins.txt
