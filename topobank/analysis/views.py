@@ -325,7 +325,8 @@ class SimpleCardView(TemplateView):
             analyses_unready=analyses_unready,  # ..the ones which are still running
             subjects_missing=subjects_missing,  # subjects for which there is no Analysis object yet
             subjects_ids_json=subjects_ids_json,  # can be used to re-trigger analyses
-            extra_warnings=[],  # use list of dicts of form {'alert_class': 'alert-info', 'message': 'your message'}
+            extra_warnings=[],  # use list of dicts of form {'alert_class': 'alert-info', 'message': 'your message'},
+            analyses_restart_url=reverse('analysis:card-restart'),
         ))
 
         return context
@@ -652,6 +653,54 @@ class PlotCardView(SimpleCardView):
         return context
 
 
+def restart_analyses_view(request):
+    """Restarts existing analyses.
+    :param request:
+    :return: HTTPResponse
+    """
+    if not request.is_ajax():
+        raise Http404
+
+    request_method = request.POST
+    user = request.user
+
+    if user.is_anonymous:
+        raise PermissionDenied()
+
+    try:
+        analyses_ids = request_method.getlist('analyses_ids[]')
+    except (KeyError, ValueError, TypeError, json.JSONDecodeError):
+        return JsonResponse({'error': 'error in request data'}, status=400)
+
+    try:
+        analyses_ids = [int(x) for x in analyses_ids ]
+        analyses = Analysis.objects.filter(id__in=analyses_ids)
+    except Exception:
+        return JsonResponse({'error': 'error in request data'}, status=400)
+
+    allowed = all(a.is_visible_for_user(user) for a in analyses)
+
+    if allowed:
+        new_analyses = [renew_analysis(a) for a in analyses]
+        status = 200
+
+        #
+        # create a collection of analyses such that points to all analyses
+        #
+        analyses_str = f"{len(analyses)} analyses" if len(analyses) > 1 else "one analysis"
+        collection = AnalysisCollection.objects.create(name=f"Recalculation of {analyses_str}.",
+                                                       combined_task_state=Analysis.PENDING,
+                                                       owner=user)
+        collection.analyses.set(new_analyses)
+        #
+        # Each finished analysis checks whether related collections are finished, see "topobank.taskapp.tasks"
+        #
+    else:
+        status = 403
+
+    return JsonResponse({}, status=status)
+
+
 def submit_analyses_view(request):
     """Requests analyses.
     :param request:
@@ -706,91 +755,6 @@ def submit_analyses_view(request):
         status = 403
 
     return JsonResponse({}, status=status)
-
-
-def _contact_mechanics_geometry_figure(values, frame_width, frame_height, topo_unit, topo_size, colorbar_title=None,
-                                       value_unit=None):
-    """
-
-    :param values: 2D numpy array
-    :param frame_width:
-    :param frame_height:
-    :param topo_unit:
-    :param topo_size:
-    :param colorbar_title:
-    :param value_unit:
-    :return:
-    """
-
-    x_range = DataRange1d(start=0, end=topo_size[0], bounds='auto', range_padding=5)
-    y_range = DataRange1d(start=topo_size[1], end=0, flipped=True, range_padding=5)
-
-    boolean_values = values.dtype == np.bool
-
-    COLORBAR_WIDTH = 50
-    COLORBAR_LABEL_STANDOFF = 12
-
-    plot_width = frame_width
-    if not boolean_values:
-        plot_width += COLORBAR_WIDTH + COLORBAR_LABEL_STANDOFF + 5
-
-    p = figure(x_range=x_range,
-               y_range=y_range,
-               frame_width=frame_width,
-               frame_height=frame_height,
-               plot_width=plot_width,
-               x_axis_label="Position x ({})".format(topo_unit),
-               y_axis_label="Position y ({})".format(topo_unit),
-               match_aspect=True,
-               toolbar_location="above",
-               output_backend=settings.BOKEH_OUTPUT_BACKEND)
-
-    if boolean_values:
-        color_mapper = LinearColorMapper(palette=["black", "white"], low=0, high=1)
-    else:
-        min_val = values.min()
-        max_val = values.max()
-
-        color_mapper = LinearColorMapper(palette='Viridis256', low=min_val, high=max_val)
-
-    p.image([np.rot90(values)], x=0, y=topo_size[1], dw=topo_size[0], dh=topo_size[1], color_mapper=color_mapper)
-
-    if not boolean_values:
-        colorbar = ColorBar(color_mapper=color_mapper,
-                            label_standoff=COLORBAR_LABEL_STANDOFF,
-                            width=COLORBAR_WIDTH,
-                            location=(0, 0),
-                            title=f"{colorbar_title} ({value_unit})")
-        p.add_layout(colorbar, "right")
-
-    configure_plot(p)
-
-    return p
-
-
-def _contact_mechanics_distribution_figure(values, x_axis_label, y_axis_label,
-                                           frame_width, frame_height,
-                                           x_axis_type='auto',
-                                           y_axis_type='auto',
-                                           title=None):
-    hist, edges = np.histogram(values, density=True, bins=50)
-
-    p = figure(title=title,
-               frame_width=frame_width,
-               frame_height=frame_height,
-               sizing_mode='scale_width',
-               x_axis_label=x_axis_label,
-               y_axis_label=y_axis_label,
-               x_axis_type=x_axis_type,
-               y_axis_type=y_axis_type,
-               toolbar_location="above",
-               output_backend=settings.BOKEH_OUTPUT_BACKEND)
-
-    p.step(edges[:-1], hist, mode="before", line_width=2)
-
-    configure_plot(p)
-
-    return p
 
 
 def data(request, pk, location):

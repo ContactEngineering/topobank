@@ -17,6 +17,7 @@
           <table class="table table-hover task-table">
             <thead>
             <tr>
+              <th scope="col"><input type="checkbox" id="cb-all-analyses" v-model="toggleAllChecked"  />&nbsp;</th>
               <th scope="col">Function</th>
               <th scope="col">Subject Type</th>
               <th scope="col">Subject</th>
@@ -29,6 +30,7 @@
             <tbody>
             {% for analysis in analyses_available %}
               <tr>
+                <td><input type="checkbox" id="cb-analysis-{{ analysis.id }}" v-model="selectedAnalyses" :value="{{ analysis.id }}"/>&nbsp;</td>
                 <td>{{ analysis.function.name }}</td>
                 <td>{{ analysis.subject.get_content_type.model.title }}</td>
                 <td class="ellipsis">
@@ -53,8 +55,75 @@
         {% endif %}
       </div>
       <div class="modal-footer">
+        {% if analyses_available %}
+          <button class="btn btn-default" type="button"
+                  :disabled='triggerDisabled' v-on:click="triggerSelected" >Restart selected tasks and reload</button>
+        {% endif %}
         <button class="btn btn-secondary" type="button" data-dismiss="modal">Close</button>
       </div>
     </div>
   </div>
 </div>
+
+{{ analyses_restart_url | json_script:"analyses-restart-url" }}
+
+<script>
+  new Vue({
+    delimiters: ['[[', ']]'],
+    el: '#statusesModal-{{ card_id }}',
+    data: {
+      analyses_restart_url: JSON.parse(document.getElementById('analyses-restart-url').textContent),
+      allAnalyses: [],
+      selectedAnalyses: [],
+    },
+    mounted: function() {
+      {% for analysis in analyses_available %}
+        this.allAnalyses.push({{ analysis.id }});
+      {% endfor %}
+    },
+    computed: {
+      triggerDisabled: function () {
+        return this.selectedAnalyses.length == 0;
+      },
+      toggleAllChecked: {
+        // getter
+        get: function () {
+          return this.selectedAnalyses.length == this.allAnalyses.length;
+        },
+        // setter
+        set: function(checked) {
+          if (checked) {
+            this.selectedAnalyses = [...this.allAnalyses];
+          } else {
+            this.selectedAnalyses = [];
+          }
+        }
+      }
+    },
+    methods: {
+      triggerSelected: function () {
+        console.log("Triggering analyses "+ JSON.stringify(this.selectedAnalyses) +" ..");
+
+        // Using fetch here is not the best option for doing
+        // AJAX calls in VueJS. In the future, we should use "axios".
+        $.ajax({
+          type: "POST",
+          url: this.analyses_restart_url,
+          timeout: 0,
+          data: {
+             analyses_ids: this.selectedAnalyses,
+             csrfmiddlewaretoken: csrf_token
+          },
+          success : function(data, textStatus, xhr) {
+             console.log("Retriggered selected analyses. Reloading page..");
+             window.location.reload();
+          },
+          error: function(xhr, textStatus, errorThrown) {
+            console.error("Error receiving response for triggering analyses. Status: "+xhr.status
+                           +" Response: "+xhr.responseText+ "Error: " + errorThrown);
+          }
+        });
+      },
+    }
+  });
+</script>

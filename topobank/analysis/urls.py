@@ -41,6 +41,11 @@ urlpatterns = [
         view=login_required(views.submit_analyses_view),
         name='card-submit'
     ),
+    path(
+        'card/restart/',
+        view=login_required(views.restart_analyses_view),
+        name='card-restart'
+    ),
     re_path(
         r'data/(?P<pk>\d+)/(?P<location>.*)$',
         view=login_required(views.data),
