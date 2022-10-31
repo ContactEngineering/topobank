@@ -22,6 +22,8 @@
   are True by default, but can be used to disable publications
 - BUG: Fixed crashing of plots when apostroph was used
   in the subject's name
+- BUG: Fixed problem when a surface was part of an
+  analysis collection
 - MAINT: Close figures after generating plots from 1D
   measurements (#898)
 - MAINT: Added plugin system, moved statistical analysis 
