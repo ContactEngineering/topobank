@@ -4,8 +4,10 @@ from django.db import transaction
 
 from topobank.analysis.models import Dependency, Version
 
+
 class ConfigurationException(Exception):
     pass
+
 
 def get_package_version_tuple(pkg_name, version_expr):
     """
