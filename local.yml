@@ -6,6 +6,11 @@ volumes:
   minio_data: {}
   exchange_data: {}
 
+networks:
+  # this network was added in order to define an alias for the minio container
+  # See below at "minio" service
+  topobank_net:
+
 services:
   django: &django
     build:
@@ -30,6 +35,8 @@ services:
       - ./.envs/.local/.postgres
     ports:
       - "8000:8000"
+    networks:
+      - topobank_net
     command: /start
 
   postgres:
@@ -44,6 +51,8 @@ services:
       - ./.envs/.local/.postgres
     ports:
       - "5433:5432"
+    networks:
+      - topobank_net
 
 #  dbbackup:
 #    build:
@@ -62,11 +71,15 @@ services:
     image: mailhog/mailhog:v1.0.0
     ports:
       - "8025:8025"
+    networks:
+      - topobank_net
 
   #memcached:
   #  image: memcached:1.5-alpine
   redis:
     image: redis:6-alpine
+    networks:
+      - topobank_net
 
   # rabbitmq:
   #   image: rabbitmq:3.7-alpine
@@ -112,6 +125,16 @@ services:
     ports:
       - "9000:9000"
       - "9001:9001"
+    networks:
+      topobank_net:
+        aliases:
+          # For localhost access, add the following to your /etc/hosts
+          # 127.0.0.1  topobank-minio-alias
+          # and make sure that in settings, the AWS URL also uses this hostname;
+          # Like this, the URL given for accessing the S3 can be resolved
+          # on the host computer, because minio is exposed to port 9000 on host
+          - topobank-minio-alias
+
     volumes:
       - minio_data:/data
     environment:
@@ -129,6 +152,8 @@ services:
     depends_on:
       minio:
         condition: service_healthy
+    networks:
+      - topobank_net
     environment:
       - BUCKET_NAME=topobank-dev
       - ENDPOINT=http://minio:9000
@@ -150,6 +175,8 @@ services:
       - PYTHONUNBUFFERED=1
     ports:
       - "8010:8080"
+    networks:
+      - topobank_net
     volumes:
       - ./.envs/.local/.pypi-authfile:/data/.htpasswd
       - ./compose/local/django/pip-packages:/data/packages

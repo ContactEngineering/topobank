@@ -18,12 +18,11 @@ in the project's main directory. Activate with
 
     . venv/bin/activate
 
-
 How to update requirements
 --------------------------
 
-The requirements are defined in `setup.cfg`.
-Under `install_requires = ` everything is listed
+The requirements are defined in :code:`setup.cfg`.
+Under :code:`install_requires = ` everything is listed
 for running the application in production.
 In the section
 
@@ -35,7 +34,7 @@ In the section
 all additional dependencies are listed which are needed for development.
 
 In order to generate requirements files, which are used e.g. in the Docker files, enter
-the `requirements` directory and call `make`.
+the :code:`requirements` directory and call :code:`make`.
 Make sure the virtual environment is activated.
 
 Afterwards, the local environment can be updated using
@@ -51,16 +50,16 @@ Building plugin packages
 
     $ python -m build .
 
-The package files are generated in the `dist/` directory.
+The package files are generated in the :code:`dist/` directory.
 
-They can be uploaded to the local repository, e.g. by using `twine`,
+They can be uploaded to the local repository, e.g. by using :code:`twine`,
 if the local pypi server is running by docker-compose.
 
 .. code:: bash
 
     $ twine upload -r localpypi dist/* --verbose
 
-Twine uses a local config file `~/.pypirc`, which has an enty like this:
+Twine uses a local config file :code:`~/.pypirc`, which has an entry like this:
 
 .. code::
 
@@ -78,12 +77,66 @@ When building the local Docker image for development using
 
     $ docker-compose -f local.yml build
 
-the plugins listed in `requirements/plugins.txt` are installed.
+the plugins listed in :code:`requirements/plugins.txt` are installed.
 
 If you need the code of a plugin running in Docker and you are currently
 developing this plugin:
 First build the plugin package, upload it to the integrated pypi server (see above)
 and rebuild the image, then restart the docker containers.
+
+Accessing Minio contents from localhost
+---------------------------------------
+
+If you run the application in Docker with :code:`docker compose -f local.yml up`,
+you want your browser to be able to access the S3 contents directly,
+because the Zoom image of a measurement and also the analyses results are fetched from
+there without going over the django application server.
+
+In order to do so, we use a trick:
+
+1. Edit your :code:`/etc/hosts` and add this line:
+
+.. code::
+
+    127.0.0.1 topobank-minio-alias
+
+2. Make sure in :code:`.envs/.local/.django` that you have configured
+
+.. code::
+
+   AWS_S3_ENDPOINT_URL=http://topobank-minio-alias:9000
+
+3. Make sure that in :code:`local.yml` you define an alias for the :code:`minio` container
+   e.g.
+
+   .. code::
+
+    networks:
+      topobank_net:
+        aliases:
+          # For localhost access, add the following to your /etc/hosts
+          # 127.0.0.1  topobank-minio-alias
+          # and make sure that in settings, the AWS URL also uses this hostname;
+          # Like this, the URL given for accessing the S3 can be resolved
+          # on the host computer, because minio is exposed to port 9000 on host
+          - topobank-minio-alias
+
+    Of course you need to use this network :code:`topobank_net` also for this other containers
+    and define it on top.
+
+The alternative we used before is also possible. You could also
+defined in :code:`/etc/hosts` an alias the the **current IP of minio**, e.g.
+
+.. code::
+
+    172.18.0.5      minio
+
+The current minio IP can be found be inspecting the running minio service.
+This has to be changed each time the minio IP changes, so this is a bit cumbersome.
+
+
+
+
 
 
 
