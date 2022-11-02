@@ -326,7 +326,7 @@ class SimpleCardView(TemplateView):
             subjects_missing=subjects_missing,  # subjects for which there is no Analysis object yet
             subjects_ids_json=subjects_ids_json,  # can be used to re-trigger analyses
             extra_warnings=[],  # use list of dicts of form {'alert_class': 'alert-info', 'message': 'your message'},
-            analyses_restart_url=reverse('analysis:card-restart'),
+            analyses_renew_url=reverse('analysis:renew'),
         ))
 
         return context
@@ -653,8 +653,8 @@ class PlotCardView(SimpleCardView):
         return context
 
 
-def restart_analyses_view(request):
-    """Restarts existing analyses.
+def renew_analyses_view(request):
+    """Renew existing analyses.
     :param request:
     :return: HTTPResponse
     """

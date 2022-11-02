@@ -42,9 +42,9 @@ urlpatterns = [
         name='card-submit'
     ),
     path(
-        'card/restart/',
-        view=login_required(views.restart_analyses_view),
-        name='card-restart'
+        'renew/',
+        view=login_required(views.renew_analyses_view),
+        name='renew'
     ),
     re_path(
         r'data/(?P<pk>\d+)/(?P<location>.*)$',

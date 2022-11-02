@@ -65,14 +65,14 @@
   </div>
 </div>
 
-{{ analyses_restart_url | json_script:"analyses-restart-url" }}
+{{ analyses_renew_url | json_script:"analyses-renew-url" }}
 
 <script>
   new Vue({
     delimiters: ['[[', ']]'],
     el: '#statusesModal-{{ card_id }}',
     data: {
-      analyses_restart_url: JSON.parse(document.getElementById('analyses-restart-url').textContent),
+      analyses_renew_url: JSON.parse(document.getElementById('analyses-renew-url').textContent),
       allAnalyses: [],
       selectedAnalyses: [],
     },
@@ -108,7 +108,7 @@
         // AJAX calls in VueJS. In the future, we should use "axios".
         $.ajax({
           type: "POST",
-          url: this.analyses_restart_url,
+          url: this.analyses_renew_url,
           timeout: 0,
           data: {
              analyses_ids: this.selectedAnalyses,
