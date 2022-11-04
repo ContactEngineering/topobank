@@ -3,13 +3,13 @@
 ## 0.92.0 (not published yet)
 
 - ENH: Enhanced search by also searching for names of 
-  users who created digitial surface twins or 
+  users who created digital surface twins or 
   measurements (#896)
 - ENH: Also show names of creators of unpublished digital 
   surface twins and measurements in search results (#896) 
 - ENH: When hovering on data point, also display measurement
   name and series name (#893)
-- ENH: Made "Tasks" information more promiment and added
+- ENH: Made "Tasks" information more prominent and added
   possibility to renew selected analyses in the UI (#901) 
 - ENH: Added management command "grant_admin_permissions"
   to give a user restricted permissions to enter 
