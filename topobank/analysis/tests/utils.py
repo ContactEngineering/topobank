@@ -10,7 +10,7 @@ import factory
 import pytest
 
 from ..models import Analysis, AnalysisFunction
-from topobank.manager.tests.utils import Topography2DFactory, SurfaceFactory
+from topobank.manager.tests.utils import Topography2DFactory, SurfaceFactory, SurfaceCollectionFactory
 from SurfaceTopography import Topography as STTopography, NonuniformLineScan as STNonuniformLineScan
 
 _log = logging.getLogger(__name__)
@@ -81,8 +81,8 @@ class AnalysisFactory(factory.django.DjangoModelFactory):
     @factory.post_generation
     def users(self, create, extracted, **kwargs):
         if create:
-            surface = self.related_surface
-            self.users.set([surface.creator])
+            users = set(s.creator for s in self.related_surfaces())
+            self.users.set(users)
 
         if extracted:
             # a list of users was passed in, add those users
@@ -102,6 +102,15 @@ class TopographyAnalysisFactory(AnalysisFactory):
 class SurfaceAnalysisFactory(AnalysisFactory):
     """Create an analysis for a surface."""
     subject = factory.SubFactory(SurfaceFactory)
+
+    # noinspection PyMissingOrEmptyDocstring
+    class Meta:
+        model = Analysis
+
+
+class SurfaceCollectionAnalysisFactory(AnalysisFactory):
+    """Create an analysis for a surface collection."""
+    subject = factory.SubFactory(SurfaceCollectionFactory)
 
     # noinspection PyMissingOrEmptyDocstring
     class Meta:

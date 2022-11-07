@@ -171,3 +171,36 @@ def surface_analysis_function_for_tests(surface, a=1, c="bar", progress_recorder
             'series': [],
             'alerts': [dict(alert_class='alert-info', message="This is a test for a surface alert.")],
             'comment': f"a is {a} and c is {c}"}
+
+
+# This function will be registered in tests by a fixture
+def surfacecollection_analysis_function_for_tests(surfacecollection, a=1, d="bar",
+                                                  progress_recorder=None, storage_prefix=None):
+    """This function can be registered for tests.
+
+    Parameters
+    ----------
+    surfacecollection: SurfaceCollection instance
+    a: int
+        Just a parameter as example.
+    d: str
+        Another example parameter.
+    progress_recorder: celery_progress.backend.ProgressRecorder instance
+        If given, a progress recorder used as callback for reporting progress to
+        user interface.
+    storage_prefix: str or None
+        If given, prefix for files in storage which should be used to store
+        files related to this analysis.
+    """
+
+    name = f'Test result for test function called for surface collection {surfacecollection}, ' \
+           ', which is built from surfaces {}'.format([s.name for s in surfacecollection.surfaces.all()])
+
+    return {'name': name,
+            'xunit': 'm',
+            'yunit': 'm',
+            'xlabel': 'x',
+            'ylabel': 'y',
+            'series': [],
+            'alerts': [dict(alert_class='alert-info', message="This is a test for an alert.")],
+            'comment': f"a is {a} and d is {d}"}

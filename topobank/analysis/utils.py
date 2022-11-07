@@ -12,6 +12,7 @@ from django.db.models import Q
 from guardian.shortcuts import get_users_with_perms
 
 from topobank.analysis.models import Analysis, AnalysisFunction
+from topobank.users.models import User
 from topobank.analysis.registry import AnalysisRegistry
 
 _log = logging.getLogger(__name__)
@@ -127,9 +128,8 @@ def renew_analyses_for_subject(subject):
 
     analysis_funcs = AnalysisFunction.objects.all()
 
-    # collect users which are allowed to view analyses
-    related_surface = subject if isinstance(subject, Surface) else subject.surface
-    users = get_users_with_perms(related_surface)
+    # collect users which are allowed to use these analyses by default
+    users_for_subject = subject.get_users_with_perms()
 
     def submit_all(subj=subject):
         """Trigger analyses for this subject for all available analyses functions."""
@@ -137,7 +137,10 @@ def renew_analyses_for_subject(subject):
         subj.analyses.all().delete()
         _log.info("Triggering analyses for %s %d and all analysis functions..", subj.get_content_type().name, subj.id)
         for af in analysis_funcs:
-            if af.is_implemented_for_type(subj.get_content_type()):
+            subject_type = subj.get_content_type()
+            if af.is_implemented_for_type(subject_type):
+                # filter also for users who are allowed to use the function
+                users = [u for u in users_for_subject if af.get_implementation(subject_type).is_available_for_user(u)]
                 try:
                     submit_analysis(users, af, subject=subj)
                 except Exception as err:
@@ -253,7 +256,8 @@ def get_latest_analyses(user, func, subjects):
 
     The returned queryset comprises only the latest analyses,
     so for each subject there should be at most one result.
-    Only analyses for the given function are returned.
+    Only analyses for the given function are returned
+    and only analyses which should be visible for the given user.
 
     It is not guaranteed that there are results
     for the returned analyses, even if these analyses are marked as
@@ -280,8 +284,11 @@ def get_latest_analyses(user, func, subjects):
     analyses = Analysis.objects.filter(Q(users=user) & Q(function=func) & query) \
         .order_by('subject_type_id', 'subject_id', '-start_time').distinct("subject_type_id", 'subject_id')
 
+    # filter by current visibility for user
+    final_analysis_ids = [a.id for a in analyses if a.is_visible_for_user(user)]
+
     # we need a query which is non-unique in order to be able to be combined with other non-unique queries
-    return Analysis.objects.filter(id__in=analyses)
+    return Analysis.objects.filter(id__in=final_analysis_ids)
 
 
 def mangle_sheet_name(s: str) -> str:
@@ -348,8 +355,12 @@ def filter_and_order_analyses(analyses):
     Ordered list of analyses. Analyses for measurements
     are listed directly after corresponding surface.
     """
-    from topobank.manager.models import Surface
+    from topobank.manager.models import Surface, SurfaceCollection, Topography
+
     surface_ct = ContentType.objects.get_for_model(Surface)
+    surfacecollection_ct = ContentType.objects.get_for_model(SurfaceCollection)
+    topography_ct = ContentType.objects.get_for_model(Topography)
+
     sorted_analyses = []
 
     #
@@ -357,7 +368,7 @@ def filter_and_order_analyses(analyses):
     # such that for each surface the analyses are ordered by subject id
     #
     analysis_groups = OrderedDict()  # always the same order of surfaces for same list of subjects
-    for topography_analysis in sorted([a for a in analyses if a.subject_type != surface_ct],
+    for topography_analysis in sorted([a for a in analyses if a.subject_type == topography_ct],
                                       key=lambda a: a.subject_id):
         surface = topography_analysis.subject.surface
         if not surface in analysis_groups:
@@ -393,6 +404,13 @@ def filter_and_order_analyses(analyses):
             # Insert corresponding topography analyses after surface analyses
             sorted_analyses = sorted_analyses[:surface_analysis_index+1] + topography_analyses \
                               + sorted_analyses[surface_analysis_index+1:]
+
+    #
+    # Finally add analyses for surface collections, if any
+    #
+    for collection_analysis in sorted([a for a in analyses if a.subject_type == surfacecollection_ct],
+                                      key=lambda a: a.subject_id):
+        sorted_analyses.append(collection_analysis)
 
     return sorted_analyses
 

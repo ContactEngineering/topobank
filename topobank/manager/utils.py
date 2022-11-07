@@ -7,7 +7,7 @@ import traceback
 from django.shortcuts import reverse
 from guardian.shortcuts import get_objects_for_user, get_users_with_perms
 from django.conf import settings
-from django.db.models import Q, Value
+from django.db.models import Q, Value, Count
 from django.db.models.functions import Replace
 from django.core.exceptions import PermissionDenied
 from django.core.files import File
@@ -18,6 +18,7 @@ from django.contrib.postgres.search import SearchVector, SearchQuery
 from SurfaceTopography import open_topography
 from SurfaceTopography.IO import readers as surface_topography_readers
 from SurfaceTopography.IO.DZI import write_dzi
+
 
 _log = logging.getLogger(__name__)
 
@@ -664,6 +665,9 @@ def subjects_from_json(subjects_ids_json, function=None):
 def selection_to_subjects_json(request):
     """Convert current selection into list of subjects as json.
 
+    If 2 or more surfaces are created, also adds a SurfaceCollection
+    instance to the subjects.
+
     Parameters
     ----------
     request
@@ -673,11 +677,11 @@ def selection_to_subjects_json(request):
     (eff_topographies, eff_surfaces, subjects_ids_json)
 
     where:
-        eff_topographies  - list of topographies which are effectively
-                            included in the selection (selected explicitly
-                            or implicitly by surfaces and tags)
-        eff_surfaces      - list of surfaces which are effectively
-                            included in the selection (by selecting surfaces+tags)
+        eff_topographies       - list of topographies which are effectively
+                                 included in the selection (selected explicitly
+                                 or implicitly by surfaces and tags)
+        eff_surfaces           - list of surfaces which are effectively
+                                  included in the selection (by selecting surfaces+tags)
         subjects_ids_json - JSONfied dict with key: content type id, value: list of object ids
                             This dict encodes all subjects in the selection
 
@@ -695,9 +699,34 @@ def selection_to_subjects_json(request):
     effective_topographies = [t for t in effective_topographies if t.surface in surfaces_with_view_permission]
     effective_surfaces = [s for s in effective_surfaces if s in surfaces_with_view_permission]
 
+    if len(effective_surfaces) > 1:
+        from .models import SurfaceCollection
+        # In order to find a matching SurfaceCollection, we need to search first
+        # for all surface collections with same number of surfaces, then filtering
+        # (see https://stackoverflow.com/questions/16324362/django-queryset-get-exact-manytomany-lookup)
+        colls = SurfaceCollection.objects.annotate(surface_count=Count('surfaces'))\
+            .filter(surface_count=len(effective_surfaces))
+        for s in effective_surfaces:
+            colls = colls.filter(surfaces__pk=s.pk)
+
+        if colls.count() > 0:  # should be exactly 0 or 1 but let's keep it robust here
+            _log.info(f"Found existing surface collection for surfaces {[s.id for s in effective_surfaces]}.")
+            coll = colls.first()
+            if colls.count() > 1:
+                _log.warning(f"More than on surface collection instance for surfaces {[s.id for s in effective_surfaces]} found.")
+        else:
+            coll = SurfaceCollection.objects.create(name='Surfaces: '+", ".join(s.name for s in effective_surfaces))
+            coll.surfaces.set(effective_surfaces)
+            coll.save()
+            _log.info(f"Created new surface collection for surfaces {[s.id for s in effective_surfaces]}.")
+
+        effective_surface_collections = [coll]
+    else:
+        effective_surface_collections = []
+
     # we collect effective topographies and surfaces because we have so far implementations
     # for analysis functions for topographies and surfaces
-    subjects_ids_json = subjects_to_json(effective_topographies + effective_surfaces)
+    subjects_ids_json = subjects_to_json(effective_topographies + effective_surfaces + effective_surface_collections)
 
     return effective_topographies, effective_surfaces, subjects_ids_json
 

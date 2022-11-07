@@ -4,13 +4,16 @@ from django.contrib.contenttypes.models import ContentType
 
 from ..views import SimpleCardView, PlotCardView
 from ..registry import AnalysisRegistry
-from ..functions import topography_analysis_function_for_tests, ART_SERIES, ART_GENERIC
-from topobank.manager.tests.utils import Topography1DFactory, UserFactory
-from topobank.manager.models import Topography
+from ..functions import topography_analysis_function_for_tests, \
+    surface_analysis_function_for_tests, \
+    surfacecollection_analysis_function_for_tests, \
+    ART_SERIES, ART_GENERIC
+from topobank.manager.tests.utils import Topography1DFactory, UserFactory, SurfaceFactory, SurfaceCollectionFactory
+from topobank.manager.models import Topography, Surface, SurfaceCollection
 
 
 @pytest.mark.django_db
-def test_analysis_function_implementation():
+def test_analysis_function_implementation_for_topography():
     reg = AnalysisRegistry()
 
     ct = ContentType.objects.get_for_model(Topography)
@@ -23,6 +26,50 @@ def test_analysis_function_implementation():
     t = Topography1DFactory()
     result = impl.eval(t, a=2, b="bar")
     assert result['comment'] == 'Arguments: a is 2, b is bar, bins is 15 and window is hann'
+
+    # test function should be available because defined in analysis module
+    u = UserFactory()
+    assert impl.is_available_for_user(u)
+
+
+@pytest.mark.django_db
+def test_analysis_function_implementation_for_surface():
+    reg = AnalysisRegistry()
+
+    ct = ContentType.objects.get_for_model(Surface)
+
+    impl = reg.get_implementation("test", ct)
+
+    assert impl.python_function() == surface_analysis_function_for_tests
+    assert impl.get_default_kwargs() == dict(a=1, c="bar")
+
+    s = SurfaceFactory()
+    result = impl.eval(s, a=2, c="bar")
+    assert result['comment'] == 'a is 2 and c is bar'
+
+    # test function should be available because defined in analysis module
+    u = UserFactory()
+    assert impl.is_available_for_user(u)
+
+
+@pytest.mark.django_db
+def test_analysis_function_implementation_for_surfacecollection():
+    reg = AnalysisRegistry()
+
+    ct = ContentType.objects.get_for_model(SurfaceCollection)
+
+    impl = reg.get_implementation("test", ct)
+
+    assert impl.python_function() == surfacecollection_analysis_function_for_tests
+    assert impl.get_default_kwargs() == dict(a=1, d="bar")
+
+    s1 = SurfaceFactory()
+    s2 = SurfaceFactory()
+    s3 = SurfaceFactory()
+
+    sc = SurfaceCollectionFactory(surfaces=[s1, s2, s3])
+    result = impl.eval(sc, a=2, d="bar")
+    assert result['comment'] == 'a is 2 and d is bar'
 
     # test function should be available because defined in analysis module
     u = UserFactory()

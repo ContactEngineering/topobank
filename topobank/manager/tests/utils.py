@@ -12,7 +12,7 @@ import logging
 import datetime
 import factory
 
-from ..models import Topography, Surface, TagModel
+from ..models import Topography, Surface, SurfaceCollection, TagModel
 from ..views import SurfaceListView
 from topobank.users.tests.factories import UserFactory
 
@@ -36,6 +36,26 @@ class SurfaceFactory(factory.django.DjangoModelFactory):
 
     name = factory.Sequence(lambda n: "surface-{:05d}".format(n))  # format because of defined order by name
     creator = factory.SubFactory(UserFactory)
+
+
+class SurfaceCollectionFactory(factory.django.DjangoModelFactory):
+    """Generates a SurfaceCollection."""
+
+    class Meta:
+        model = SurfaceCollection
+
+    name = factory.Sequence(lambda n: "surfacecollection-{:05d}".format(n))
+
+    @factory.post_generation
+    def surfaces(self, create, extracted, **kwargs):
+        if not create:
+            # Simple build, do nothing
+            return
+        if extracted:
+            # A list of surfaces were passed in, use them for the manytomany field
+            for surface in extracted:
+                self.surfaces.add(surface)
+
 
 
 class Topography1DFactory(factory.django.DjangoModelFactory):
