@@ -1,6 +1,5 @@
 .PHONY: all check clean
 
-objects = $(wildcard *.in)
 outputs := local.txt production.txt
 setup_files := ../setup.cfg ../setup.py
 

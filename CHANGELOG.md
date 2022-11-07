@@ -36,6 +36,8 @@
 - MAINT: Update for package SurfaceTopography (#911)
 - MAINT: Update for package ContactMechanics (#872)
 - MAINT: Update of django because of security issue
+- MAINT: Bumped NuMPI version to 0.3.1 and removed scipy
+  dependency (#917)
 
 ## 0.91.1 (2022-09-19)
 
