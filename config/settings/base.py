@@ -466,7 +466,8 @@ TRACKED_DEPENDENCIES = [
     ('NuMPI', 'NuMPI.__version__'),
     ('muFFT', 'muFFT.version.description()'),
     ('topobank', 'topobank.__version__'),
-    ('numpy', 'numpy.__version__')
+    ('numpy', 'numpy.__version__'),
+    ('scipy', 'scipy.__version__'),
 ]
 # Extend tracked dependencies by Plugin apps
 for plugin_app in PLUGIN_APPS:
