@@ -22,6 +22,7 @@
 - ENH: Added config options PUBLICATION_ENABLED and
   PUBLICATION_DISPLAY_TAB_WITH_OWN_PUBLICATIONS which
   are True by default, but can be used to disable publications
+- ENH: Added django-watchman to monitor the endpoint status (#921)
 - BUG: Fixed crashing of plots when apostroph was used
   in the subject's name
 - BUG: Fixed problem when a surface was part of an
