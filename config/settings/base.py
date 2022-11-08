@@ -92,6 +92,7 @@ THIRD_PARTY_APPS = [
     'tagulous',
     'trackstats',
     'fullurl',
+    'watchman',
 ]
 LOCAL_APPS = [
     # Your stuff: custom apps go here
