@@ -33,6 +33,7 @@
   (topobank-statistics, topobank-contact), allows to 
   add other functionality via plugins without changing the
   main application
+- MAINT: Upgrade to Bokeh 3.0.1, using CDN now
 - MAINT: Update for package SurfaceTopography (#911)
 - MAINT: Update for package ContactMechanics (#872)
 - MAINT: Update of django because of security issue
