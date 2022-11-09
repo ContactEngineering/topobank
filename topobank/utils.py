@@ -7,8 +7,6 @@ import io
 import json
 import numpy as np
 
-from bokeh.core.serialization import Serializer, Deserializer
-
 from django.core.files.storage import default_storage
 from django.utils import formats
 from django.test import SimpleTestCase
