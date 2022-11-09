@@ -5,12 +5,13 @@ Some helper functions
 import datetime
 import io
 import json
+import numpy as np
+
+from bokeh.core.serialization import Serializer, Deserializer
 
 from django.core.files.storage import default_storage
 from django.utils import formats
 from django.test import SimpleTestCase
-
-from bokeh.core.json_encoder import BokehJSONEncoder
 
 from topobank.manager.utils import default_storage_replace
 
@@ -138,6 +139,39 @@ class Singleton(type):
         return cls._instances[cls]
 
 
+class NumpyEncoder(json.JSONEncoder):
+    """ Custom encoder for numpy data types """
+    # Code taken from https://github.com/hmallen/numpyencoder and modified
+    # for returning "NaN" for NaN
+
+    def default(self, obj):
+        if isinstance(obj, (np.int_, np.intc, np.intp, np.int8,
+                            np.int16, np.int32, np.int64, np.uint8,
+                            np.uint16, np.uint32, np.uint64)):
+
+            return int(obj)
+
+        elif isinstance(obj, (np.float_, np.float16, np.float32, np.float64)):
+            if np.isnan(obj):
+                return "NaN"  # As string this is JSON compatible, but not as NaN
+            else:
+                return float(obj)
+
+        elif isinstance(obj, (np.complex_, np.complex64, np.complex128)):
+            return {'real': obj.real, 'imag': obj.imag}
+
+        elif isinstance(obj, (np.ndarray,)):
+            return obj.tolist()
+
+        elif isinstance(obj, (np.bool_)):
+            return bool(obj)
+
+        elif isinstance(obj, (np.void)):
+            return None
+
+        return json.JSONEncoder.default(self, obj)
+
+
 class SplitDictionaryHere:
     """Wrapper class for usage with `store_split_dict`.
 
@@ -209,9 +243,9 @@ def store_split_dict(storage_prefix, name, src_dict):
     # Traverse dictionary and search for instances of SplitDictionaryHere.
     # Those are written to separate files.
 
-    # We're using Bokeh's JSON encoder here, because it represents NaN values as "NaN" (with quotes),
+    # We're using our own JSON encoder here, because it represents NaN values as "NaN" (with quotes),
     # which is JSON compatible
-    encoder_cls = BokehJSONEncoder
+    encoder_cls = NumpyEncoder
 
     def _split_dict(d):
         if isinstance(d, SplitDictionaryHere):
