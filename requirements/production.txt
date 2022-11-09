@@ -20,7 +20,7 @@ billiard==3.6.4.0
     # via celery
 bleach==5.0.1
     # via topobank (../setup.py)
-bokeh==3.0.0.dev4
+bokeh==3.0.1
     # via topobank (../setup.py)
 boto3==1.24.77
     # via topobank (../setup.py)
@@ -59,7 +59,9 @@ collectfast==2.2.0
 contactmechanics==1.0.0
     # via topobank (../setup.py)
 contourpy==1.0.5
-    # via matplotlib
+    # via
+    #   bokeh
+    #   matplotlib
 cryptography==38.0.1
     # via
     #   pyjwt
@@ -241,6 +243,7 @@ packaging==21.3
     #   xarray
 pandas==1.5.0
     # via
+    #   bokeh
     #   topobank (../setup.py)
     #   xarray
 pillow==9.2.0
@@ -335,9 +338,7 @@ tornado==6.2
 types-cryptography==3.3.23
     # via pyjwt
 typing-extensions==4.3.0
-    # via
-    #   bokeh
-    #   collectfast
+    # via collectfast
 urllib3==1.26.12
     # via
     #   botocore

@@ -1,7 +1,6 @@
 """
 Models related to analyses.
 """
-
 from django.db import models
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
@@ -157,7 +156,8 @@ class Analysis(models.Model):
         """Return the toplevel result object without series data, i.e. the raw result.json without unsplitting it"""
         if self._result_metadata_cache is None:
             self._result_metadata_cache = json.load(
-                default_storage.open(f'{self.storage_prefix}/{RESULT_FILE_BASENAME}.json'))
+                default_storage.open(f'{self.storage_prefix}/{RESULT_FILE_BASENAME}.json')
+            )
         return self._result_metadata_cache
 
     @property
