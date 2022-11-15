@@ -432,7 +432,7 @@ Vue.component("bokeh-plot", {
           const yAxisType = plot.yAxisType === undefined ? "linear" : plot.yAxisType;
 
           /* Create and style figure */
-          const bokehPlot = new Bokeh.Plotting.Figure({
+          const bokehPlotFigure = new Bokeh.Plotting.Figure({
             height: this.height,
             sizing_mode: this.sizingMode,
             x_axis_label: plot.xAxisLabel === undefined ? "x" : plot.xAxisLabel,
@@ -445,22 +445,22 @@ Vue.component("bokeh-plot", {
 
           /* Change formatters for linear axes */
           if (xAxisType === "linear") {
-            bokehPlot.xaxis.formatter = new Bokeh.CustomJSTickFormatter({code: "return format_exponential(tick);"});
+            bokehPlotFigure.xaxis.formatter = new Bokeh.CustomJSTickFormatter({code: "return format_exponential(tick);"});
           }
           if (yAxisType === "linear") {
-            bokehPlot.yaxis.formatter = new Bokeh.CustomJSTickFormatter({code: "return format_exponential(tick);"});
+            bokehPlotFigure.yaxis.formatter = new Bokeh.CustomJSTickFormatter({code: "return format_exponential(tick);"});
           }
 
           /* This should become a Bokeh theme (supported in BokehJS with 3.0 - but I cannot find the `use_theme` method) */
-          bokehPlot.xaxis.axis_label_text_font_style = "normal";
-          bokehPlot.yaxis.axis_label_text_font_style = "normal";
-          bokehPlot.xaxis.major_label_text_font_size = "16px";
-          bokehPlot.yaxis.major_label_text_font_size = "16px";
-          bokehPlot.xaxis.axis_label_text_font_size = "16px";
-          bokehPlot.yaxis.axis_label_text_font_size = "16px";
+          bokehPlotFigure.xaxis.axis_label_text_font_style = "normal";
+          bokehPlotFigure.yaxis.axis_label_text_font_style = "normal";
+          bokehPlotFigure.xaxis.major_label_text_font_size = "16px";
+          bokehPlotFigure.yaxis.major_label_text_font_size = "16px";
+          bokehPlotFigure.xaxis.axis_label_text_font_size = "16px";
+          bokehPlotFigure.yaxis.axis_label_text_font_size = "16px";
 
           this.bokehPlots.push({
-            figure: bokehPlot,
+            figure: bokehPlotFigure,
             save: saveTool,
             lines: [],
             symbols: [],
@@ -601,6 +601,7 @@ Vue.component("bokeh-plot", {
         for (const [index, bokehPlot] of this.bokehPlots.entries()) {
           bokehPlot.legend = new Bokeh.Legend({items: bokehPlot.legendItems, visible: false});
           bokehPlot.figure.add_layout(bokehPlot.legend);
+          console.log(bokehPlot.figure);
           Bokeh.Plotting.show(bokehPlot.figure, "#bokeh-plot-" + this.uuid + "-" + index);
         }
       }
