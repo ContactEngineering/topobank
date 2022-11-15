@@ -161,10 +161,10 @@ Vue.component("bokeh-plot", {
       // Defining selection categories. For each category, there will be an accordion with the possibility to show/hide
       // all curves that correspond to a specific value of that category.
       // Array of dictionaries with keys:
-      //   key: Name of dataset key that defines this category, i.e. if we have add a category with key "series_name",
+      //   key: Name of dataset key that defines this category, i.e. if we have added a category with key "series_name",
       //        the code will expect a "series_name" key in a dataSource, that specifies the value for this category.
-      //        Typical categories: "subject_name" for name of a measurement, "series_name" for name of a data series like
-      //        "1D PSD along x"
+      //        Typical categories: "subject_name" for name of a measurement, "series_name" for name of a data series
+      //        like "1D PSD along x"
       //   title: Title of this category, a header put in front of the category elements e.g. "Data Series"
       type: Array, default: function () {
         return [];
@@ -211,20 +211,6 @@ Vue.component("bokeh-plot", {
     },
     sizingMode: {
       type: String, default: "scale_width"
-    },
-    tools: {
-      type: Array, default: function () {
-        return ["pan", "reset", "wheel_zoom", "box_zoom",
-                new Bokeh.HoverTool({
-                  'tooltips': [
-                      ['index', '$index'],
-                      ['(x,y)', '($x,$y)'],
-                      ['subject', '@subject_name'],
-                      ['series', '@series_name'],
-                ]
-                })
-        ];
-      }
     },
     selectable: {
       type: Boolean, default: false
@@ -417,7 +403,17 @@ Vue.component("bokeh-plot", {
         /* Create figures */
         for (const plot of this.plots) {
           /* Callback for selection of data points */
-          let tools = [...this.tools];  // Copy array (= would just be a reference)
+          let tools = ["pan", "reset", "wheel_zoom", "box_zoom",
+                        new Bokeh.HoverTool({
+                         'tooltips': [
+                           ['index', '$index'],
+                           ['(x,y)', '($x,$y)'],
+                           ['subject', '@subject_name'],
+                           ['series', '@series_name'],
+                         ]
+                        })
+          ];
+          // let tools = [...this.tools];  // Copy array (= would just be a reference)
           if (this.selectable) {
             const code = "self.onTap(cb_obj, cb_data);";
             tools.push(new Bokeh.TapTool({
