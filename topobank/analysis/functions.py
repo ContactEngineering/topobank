@@ -62,15 +62,6 @@ class IncompatibleTopographyException(Exception):
     pass
 
 
-class ReentrantTopographyException(IncompatibleTopographyException):
-    """Raise this exception if a function cannot handle a topography because it is reentrant.
-
-    By handling this special exception, the UI can show the incompatibility
-    as note to the user, not as failure. It is an excepted failure.
-    """
-    pass
-
-
 def wrap_series(series):
     """
     Wrap each data series into a `SplitDictionaryHere` with a consecutive name
