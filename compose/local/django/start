@@ -4,6 +4,10 @@ set -o errexit
 set -o pipefail
 set -o nounset
 
+echo "-> Installing plugins"
+pip install -e /topobank-statistics
+pip install -e /topobank-contact
+
 echo "-> Running database migrations.."
 python manage.py migrate
 

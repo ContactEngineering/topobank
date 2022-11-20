@@ -27,6 +27,8 @@ services:
       - redis
     volumes:
       - .:/app
+      - ../topobank-statistics:/topobank-statistics
+      - ../topobank-contact:/topobank-contact
       - exchange_data:/tmp/exchange
       - ./compose/local/django/pip-packages:/pip-packages:ro
       # You could use a mount to a local directory in order to
@@ -171,20 +173,20 @@ services:
   #
   # Local pypiserver for installing packages
   #
-  pypi:
-    user: "${TOPOBANK_UID}:${TOPOBANK_GID}"  # use here the UID (and GID) of the user running the service
-    image: docker.io/pypiserver/pypiserver:latest
-    environment:
-      - PYTHONUNBUFFERED=1
-    ports:
-      - "8010:8080"
-    networks:
-      - topobank_net
-    volumes:
-      - ./.envs/.local/.pypi-authfile:/data/.htpasswd
-      - ./compose/local/django/pip-packages:/data/packages
-    command: run -a update -P /data/.htpasswd --overwrite /data/packages
-    restart: always
+#  pypi:
+#    user: "${TOPOBANK_UID}:${TOPOBANK_GID}"  # use here the UID (and GID) of the user running the service
+#    image: docker.io/pypiserver/pypiserver:latest
+#    environment:
+#      - PYTHONUNBUFFERED=1
+#    ports:
+#      - "8010:8080"
+#    networks:
+#      - topobank_net
+#    volumes:
+#      - ./.envs/.local/.pypi-authfile:/data/.htpasswd
+#      - ./compose/local/django/pip-packages:/data/packages
+#    command: run -a update -P /data/.htpasswd --overwrite /data/packages
+#    restart: always
     # As initialization, run:
     # $ cd .envs/.local/
     # $ sudo apt install apache2-utils

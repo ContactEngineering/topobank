@@ -3,4 +3,9 @@
 set -o errexit
 set -o nounset
 
+echo "-> Installing plugins.."
+pip install -e /topobank-statistics
+pip install -e /topobank-contact
+
+echo "-> Starting Celery worker.."
 celery -A topobank.taskapp worker -l INFO

@@ -48,7 +48,7 @@ RUN pip install -r /requirements/local.txt --ignore-installed --no-binary numpy
 
 
 # Here the entrypoint from production settings is taken!
-COPY ./compose/production/django/entrypoint /entrypoint
+COPY ./compose/local/django/entrypoint /entrypoint
 RUN sed -i 's/\r//' /entrypoint
 RUN chmod +x /entrypoint
 
@@ -101,11 +101,11 @@ WORKDIR /app
 #
 # Install plugins (needs topobank package installed above as dependency)
 #
-COPY ./requirements/plugins.txt /requirements/plugins.txt
-COPY ./compose/local/django/pip-packages /pip-packages
+#COPY ./requirements/plugins.txt /requirements/plugins.txt
+#COPY ./compose/local/django/pip-packages /pip-packages
 # RUN ls -al /pip-packages
-RUN pip install -r /requirements/plugins.txt
-RUN rm -Rf /requirements /pip-packages
+#RUN pip install -r /requirements/plugins.txt
+#RUN rm -Rf /requirements /pip-packages
 
 
 USER django
