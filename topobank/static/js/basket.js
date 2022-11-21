@@ -104,6 +104,7 @@
 Vue.component('basket-element', {
     props: ['elem'], // object with keys: 'name', 'type'
     delimiters: ['[[', ']]'],
+
     template: `
            <span v-if="elem.type=='surface'" class="badge badge-pill badge-primary mr-1 basket-element">
                 <span class="far fa-gem"></span>
