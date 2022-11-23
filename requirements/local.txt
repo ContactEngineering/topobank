@@ -32,7 +32,7 @@ billiard==3.6.4.0
     # via celery
 bleach==5.0.1
     # via topobank (../setup.py)
-bokeh==3.0.1
+bokeh==3.0.0-dev4
     # via topobank (../setup.py)
 boto3==1.24.77
     # via topobank (../setup.py)
@@ -74,9 +74,7 @@ collectfast==2.2.0
 contactmechanics==1.0.0
     # via topobank (../setup.py)
 contourpy==1.0.5
-    # via
-    #   bokeh
-    #   matplotlib
+    # via matplotlib
 coverage[toml]==6.4.4
     # via
     #   django-coverage-plugin
@@ -276,7 +274,7 @@ matplotlib-inline==0.1.6
     # via ipython
 mccabe==0.7.0
     # via flake8
-mufft==0.23.1
+mufft==0.24.0
     # via
     #   contactmechanics
     #   surfacetopography
@@ -295,7 +293,6 @@ numpy==1.23.3
     #   contourpy
     #   h5py
     #   matplotlib
-    #   mufft
     #   netcdf4
     #   numpi
     #   numpyencoder
@@ -323,7 +320,6 @@ packaging==21.3
     #   xarray
 pandas==1.5.0
     # via
-    #   bokeh
     #   topobank (../setup.py)
     #   xarray
 parso==0.8.3
@@ -541,7 +537,9 @@ traitlets==5.4.0
 types-cryptography==3.3.23
     # via pyjwt
 typing-extensions==4.3.0
-    # via collectfast
+    # via
+    #   bokeh
+    #   collectfast
 urllib3==1.26.12
     # via
     #   botocore
