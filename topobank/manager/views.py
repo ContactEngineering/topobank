@@ -4,6 +4,7 @@ import os.path
 import traceback
 from io import BytesIO
 
+import dateutil.parser
 import django_tables2 as tables
 import numpy as np
 
@@ -208,9 +209,13 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
             measurement_dates = []
             for ch in channel_infos:
                 try:
-                    measurement_time_str = ch.info[MEASUREMENT_TIME_INFO_FIELD]
-                    measurement_time = datetime.datetime.strptime(measurement_time_str, '%Y-%m-%d %H:%M:%S')
-                    measurement_dates.append(measurement_time.date())  # timezone is not known an not taken into account
+                    measurement_time = ch.info[MEASUREMENT_TIME_INFO_FIELD]
+                    if not isinstance(measurement_time, datetime.date):
+                        try:
+                            measurement_time = measurement_time.date()
+                        except AttributeError:
+                            measurement_time = dateutil.parser.parse(measurement_time).date()
+                    measurement_dates.append(measurement_time)  # timezone is not known and not taken into account
                 except KeyError:
                     # measurement time not available in channel
                     pass
