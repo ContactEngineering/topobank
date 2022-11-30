@@ -48,7 +48,7 @@ from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm
 from .forms import TopographyForm, SurfaceForm, SurfaceShareForm, SurfacePublishForm
 from .models import Topography, Surface, TagModel, NewPublicationTooFastException, LoadTopographyException, \
-    PlotTopographyException, PublicationException
+    PlotTopographyException, PublicationException, _upload_path_for_datafile
 from .serializers import SurfaceSerializer, TagSerializer
 from .utils import selected_instances, bandwidths_data, get_topography_reader, tags_for_user, get_reader_infos, \
     mailto_link_for_reporting_an_error, current_selection_as_basket_items, filtered_surfaces, \
@@ -404,14 +404,6 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
             raise PermissionDenied()
 
         #
-        # move file to the permanent storage (wizard's files will be deleted)
-        #
-        new_path = os.path.join(self.request.user.get_media_path(),
-                                os.path.basename(d['datafile'].name))
-        with d['datafile'].open(mode='rb') as datafile:
-            d['datafile'] = default_storage.save(new_path, File(datafile))
-
-        #
         # Set the topography's creator to the current user uploading the file
         #
         d['creator'] = self.request.user
@@ -425,13 +417,24 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
         del d['tip_radius_value']
         del d['tip_radius_unit']
 
+        datafile = d['datafile']
+        del d['datafile']
+
         #
         # create topography in database
         #
         instance = Topography(**d)
         instance.save()
         # we save once so the member variables like "data_source"
-        # have the correct type for the next step
+        # have the correct type for the next step, and we get an id
+        # for constructing the file path
+
+        #
+        # move file to the permanent storage (wizard's files will be deleted)
+        #
+        new_path = _upload_path_for_datafile(instance, os.path.basename(datafile.name))
+        with datafile.open(mode='rb') as f:
+            instance.datafile = default_storage.save(new_path, File(f))
 
         #
         # Note that we do not need to read the file, since it has
