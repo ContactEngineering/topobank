@@ -108,7 +108,7 @@ class Analysis(models.Model):
     end_time = models.DateTimeField(null=True)
 
     # Bibliography
-    dois = models.JSONField(default=[])
+    dois = models.JSONField(default=list)
 
     configuration = models.ForeignKey(Configuration, null=True, on_delete=models.SET_NULL)
 

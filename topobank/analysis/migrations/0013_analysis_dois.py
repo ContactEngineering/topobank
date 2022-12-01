@@ -13,6 +13,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='analysis',
             name='dois',
-            field=models.JSONField(default=[]),
+            field=models.JSONField(default=list),
         ),
     ]
