@@ -435,6 +435,7 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
         new_path = _upload_path_for_datafile(instance, os.path.basename(datafile.name))
         with datafile.open(mode='rb') as f:
             instance.datafile = default_storage.save(new_path, File(f))
+        instance.save()
 
         #
         # Note that we do not need to read the file, since it has
