@@ -4,7 +4,13 @@ from django.core.files.storage import default_storage
 import numpy as np
 import json
 
-from .utils import store_split_dict, load_split_dict, SplitDictionaryHere
+from .utils import store_split_dict, load_split_dict, SplitDictionaryHere, NumpyEncoder
+
+
+def test_numpyencoder_with_nan():
+    data = {'x': float("nan")}
+    encoded_data = json.dumps(data, cls=NumpyEncoder)
+    assert '"NaN"' in encoded_data
 
 
 def test_store_split_dict_with_supplementary():
