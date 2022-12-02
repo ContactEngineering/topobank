@@ -601,7 +601,6 @@ Vue.component("bokeh-plot", {
         for (const [index, bokehPlot] of this.bokehPlots.entries()) {
           bokehPlot.legend = new Bokeh.Legend({items: bokehPlot.legendItems, visible: false});
           bokehPlot.figure.add_layout(bokehPlot.legend);
-          console.log(bokehPlot.figure);
           Bokeh.Plotting.show(bokehPlot.figure, "#bokeh-plot-" + this.uuid + "-" + index);
         }
       }
