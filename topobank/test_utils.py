@@ -4,12 +4,14 @@ from django.core.files.storage import default_storage
 import numpy as np
 import json
 
+from bokeh.core.json_encoder import BokehJSONEncoder
+
 from .utils import store_split_dict, load_split_dict, SplitDictionaryHere, NumpyEncoder
 
 
-def test_numpyencoder_with_nan():
-    data = {'x': float("nan")}
-    encoded_data = json.dumps(data, cls=NumpyEncoder)
+def test_used_json_encoder_with_nan():
+    data = {'x': np.array([np.nan, np.nan])}
+    encoded_data = json.dumps(data, cls=BokehJSONEncoder)
     assert '"NaN"' in encoded_data
 
 
