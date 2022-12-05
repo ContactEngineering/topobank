@@ -7,6 +7,8 @@ import io
 import json
 import numpy as np
 
+from bokeh.core.json_encoder import BokehJSONEncoder
+
 from django.core.files.storage import default_storage
 from django.utils import formats
 from django.test import SimpleTestCase
@@ -149,7 +151,7 @@ class NumpyEncoder(json.JSONEncoder):
 
             return int(obj)
 
-        elif isinstance(obj, (np.float_, np.float16, np.float32, np.float64)):
+        elif isinstance(obj, (float, np.float_, np.float16, np.float32, np.float64)):
             if np.isnan(obj):
                 return "NaN"  # As string this is JSON compatible, but not as NaN
             else:
@@ -242,8 +244,10 @@ def store_split_dict(storage_prefix, name, src_dict):
     # Those are written to separate files.
 
     # We're using our own JSON encoder here, because it represents NaN values as "NaN" (with quotes),
-    # which is JSON compatible
-    encoder_cls = NumpyEncoder
+    # which is JSON compatible (only works with Numpy arrays)
+    # encoder_cls = NumpyEncoder
+    encoder_cls = BokehJSONEncoder
+    # TODO replace this encoder with NumyEncoder again when updating from bokeh3.0.0-dev4 to 3.1
 
     def _split_dict(d):
         if isinstance(d, SplitDictionaryHere):

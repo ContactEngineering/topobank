@@ -181,7 +181,7 @@ services:
     networks:
       - topobank_net
     volumes:
-      - ./.envs/.local/.pypi-authfile:/data/.htpasswd
+      - ./.envs/.local/.pypi-authfile:/data/.htpasswd:ro
       - ./compose/local/django/pip-packages:/data/packages
     command: run -a update -P /data/.htpasswd --overwrite /data/packages
     restart: always
