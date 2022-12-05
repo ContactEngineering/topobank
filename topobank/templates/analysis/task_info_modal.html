@@ -55,7 +55,7 @@
         {% endif %}
       </div>
       <div class="modal-footer">
-        {% if analyses_available %}
+        {% if analyses_available and not request.user.is_anonymous %}
           <button class="btn btn-default" type="button"
                   :disabled='triggerDisabled' v-on:click="triggerSelected" >Restart selected tasks and reload</button>
         {% endif %}
