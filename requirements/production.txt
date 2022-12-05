@@ -20,19 +20,19 @@ billiard==3.6.4.0
     # via celery
 bleach==5.0.1
     # via topobank (../setup.py)
-bokeh==3.0.1
+bokeh==3.0.0-dev4
     # via topobank (../setup.py)
-boto3==1.24.77
+boto3==1.26.22
     # via topobank (../setup.py)
-botocore==1.27.77
+botocore==1.29.22
     # via
     #   boto3
     #   s3transfer
 celery[redis]==5.2.7
     # via topobank (../setup.py)
-celery-progress==0.1.2
+celery-progress==0.1.3
     # via topobank (../setup.py)
-certifi==2022.9.14
+certifi==2022.9.24
     # via requests
 cffi==1.15.1
     # via
@@ -58,11 +58,9 @@ collectfast==2.2.0
     # via topobank (../setup.py)
 contactmechanics==1.0.0
     # via topobank (../setup.py)
-contourpy==1.0.5
-    # via
-    #   bokeh
-    #   matplotlib
-cryptography==38.0.1
+contourpy==1.0.6
+    # via matplotlib
+cryptography==38.0.4
     # via
     #   pyjwt
     #   topobank (../setup.py)
@@ -74,8 +72,6 @@ defusedxml==0.7.1
     # via
     #   python3-openid
     #   surfacetopography
-deprecated==1.2.13
-    # via redis
 django==3.2.16
     # via
     #   collectfast
@@ -102,7 +98,7 @@ django-allauth==0.51.0
     # via topobank (../setup.py)
 django-appconf==1.0.5
     # via django-select2
-django-bootstrap-datepicker-plus==4.0.0
+django-bootstrap-datepicker-plus==5.0.2
     # via topobank (../setup.py)
 django-crispy-forms==1.14.0
     # via topobank (../setup.py)
@@ -110,13 +106,13 @@ django-environ==0.9.0
     # via topobank (../setup.py)
 django-filter==22.1
     # via topobank (../setup.py)
-django-formtools==2.3
+django-formtools==2.4
     # via topobank (../setup.py)
 django-fullurl==1.3
     # via topobank (../setup.py)
 django-guardian==2.4.0
     # via topobank (../setup.py)
-django-model-utils==4.2.0
+django-model-utils==4.3.1
     # via
     #   django-notifications-hq
     #   topobank (../setup.py)
@@ -126,7 +122,7 @@ django-progressbarupload @ git+http://github.com/ContactEngineering/django-progr
     # via topobank (../setup.py)
 django-redis==5.2.0
     # via topobank (../setup.py)
-django-select2==7.10.1
+django-select2==8.0.0
     # via topobank (../setup.py)
 django-storages==1.13.1
     # via
@@ -136,29 +132,29 @@ django-tables2==2.4.1
     # via topobank (../setup.py)
 django-tagulous==1.3.3
     # via topobank (../setup.py)
-django-termsandconditions==2.0.10
+django-termsandconditions==2.0.11
     # via topobank (../setup.py)
 django-trackstats==0.5.0
     # via topobank (../setup.py)
-djangorestframework==3.13.1
+djangorestframework==3.14.0
     # via topobank (../setup.py)
 et-xmlfile==1.1.0
     # via openpyxl
 fontawesomefree==5.15.4
     # via topobank (../setup.py)
-fonttools==4.37.3
+fonttools==4.38.0
     # via matplotlib
-gevent==21.12.0
+gevent==22.10.2
     # via
     #   gunicorn
     #   topobank (../setup.py)
-greenlet==1.1.3
+greenlet==2.0.1
     # via
     #   gevent
     #   topobank (../setup.py)
 gunicorn[gevent]==20.1.0
     # via topobank (../setup.py)
-h5netcdf==1.0.2
+h5netcdf==1.1.0
     # via topobank (../setup.py)
 h5py==3.7.0
     # via
@@ -166,13 +162,13 @@ h5py==3.7.0
     #   surfacetopography
 idna==3.4
     # via requests
-idutils==1.1.12
+idutils==1.1.13
     # via datacite
 igor==0.3
     # via surfacetopography
-importlib-resources==5.9.0
+importlib-resources==5.10.0
     # via jsonschema
-isbnlib==3.10.10
+isbnlib==3.10.12
     # via idutils
 jinja2==3.1.2
     # via
@@ -184,7 +180,7 @@ jmespath==1.0.1
     #   botocore
 jsonfield==3.1.0
     # via django-notifications-hq
-jsonschema==4.16.0
+jsonschema==4.17.3
     # via datacite
 kiwisolver==1.4.4
     # via matplotlib
@@ -194,24 +190,24 @@ lxml==4.9.1
     # via
     #   datacite
     #   topobank (../setup.py)
-markdown2==2.4.3
+markdown2==2.4.6
     # via topobank (../setup.py)
 markupsafe==2.1.1
     # via jinja2
-matplotlib==3.6.0
+matplotlib==3.6.2
     # via surfacetopography
-mufft==0.23.1
+mufft==0.24.0
     # via
     #   contactmechanics
     #   surfacetopography
     #   topobank (../setup.py)
-netcdf4==1.6.1
+netcdf4==1.6.2
     # via topobank (../setup.py)
-numpi==0.3.0
+numpi==0.3.1
     # via
     #   contactmechanics
     #   surfacetopography
-numpy==1.23.3
+numpy==1.23.5
     # via
     #   bokeh
     #   cftime
@@ -219,21 +215,23 @@ numpy==1.23.3
     #   contourpy
     #   h5py
     #   matplotlib
-    #   mufft
     #   netcdf4
     #   numpi
     #   numpyencoder
     #   pandas
     #   scipy
     #   surfacetopography
+    #   tifffile
     #   topobank (../setup.py)
     #   xarray
 numpyencoder==0.3.0
     # via surfacetopography
-oauthlib==3.2.1
+oauthlib==3.2.2
     # via requests-oauthlib
 openpyxl==3.0.10
-    # via topobank (../setup.py)
+    # via
+    #   surfacetopography
+    #   topobank (../setup.py)
 packaging==21.3
     # via
     #   bokeh
@@ -241,30 +239,31 @@ packaging==21.3
     #   matplotlib
     #   redis
     #   xarray
-pandas==1.5.0
+pandas==1.5.2
     # via
-    #   bokeh
     #   topobank (../setup.py)
     #   xarray
-pillow==9.2.0
+pillow==9.3.0
     # via
     #   bokeh
     #   matplotlib
     #   surfacetopography
     #   topobank (../setup.py)
-pint==0.19.2
+pint==0.20.1
     # via topobank (../setup.py)
 pkgutil-resolve-name==1.3.10
     # via jsonschema
-prompt-toolkit==3.0.31
+prompt-toolkit==3.0.33
     # via click-repl
 psycopg2-binary==2.8.6
     # via topobank (../setup.py)
 pycparser==2.21
     # via cffi
+pydantic==1.10.2
+    # via django-bootstrap-datepicker-plus
 pygments==2.13.0
     # via topobank (../setup.py)
-pyjwt[crypto]==2.5.0
+pyjwt[crypto]==2.6.0
     # via
     #   django-allauth
     #   topobank (../setup.py)
@@ -272,7 +271,7 @@ pyparsing==3.0.9
     # via
     #   matplotlib
     #   packaging
-pyrsistent==0.18.1
+pyrsistent==0.19.2
     # via jsonschema
 python-dateutil==2.8.2
     # via
@@ -280,11 +279,11 @@ python-dateutil==2.8.2
     #   matplotlib
     #   pandas
     #   surfacetopography
-python-slugify==6.1.2
+python-slugify==7.0.0
     # via topobank (../setup.py)
 python3-openid==3.2.0
     # via django-allauth
-pytz==2022.2.1
+pytz==2022.6
     # via
     #   celery
     #   django
@@ -297,7 +296,7 @@ pyyaml==6.0
     #   bokeh
     #   surfacetopography
     #   topobank (../setup.py)
-redis==4.3.4
+redis==4.3.5
     # via
     #   celery
     #   django-redis
@@ -311,8 +310,8 @@ requests-oauthlib==1.3.1
     # via django-allauth
 s3transfer==0.6.0
     # via boto3
-scipy==1.9.1
-    # via numpi
+scipy==1.9.3
+    # via surfacetopography
 short-url==1.2.2
     # via topobank (../setup.py)
 six==1.16.0
@@ -321,11 +320,11 @@ six==1.16.0
     #   click-repl
     #   idutils
     #   python-dateutil
-sqlparse==0.4.2
+sqlparse==0.4.3
     # via
     #   django
     #   topobank (../setup.py)
-surfacetopography==1.1
+surfacetopography==1.2.2
     # via
     #   contactmechanics
     #   topobank (../setup.py)
@@ -333,13 +332,19 @@ swapper==1.3.0
     # via django-notifications-hq
 text-unidecode==1.3
     # via python-slugify
+tifffile==2022.10.10
+    # via tiffile
+tiffile==2018.10.18
+    # via surfacetopography
 tornado==6.2
     # via bokeh
-types-cryptography==3.3.23
-    # via pyjwt
-typing-extensions==4.3.0
-    # via collectfast
-urllib3==1.26.12
+typing-extensions==4.4.0
+    # via
+    #   bokeh
+    #   collectfast
+    #   django-bootstrap-datepicker-plus
+    #   pydantic
+urllib3==1.26.13
     # via
     #   botocore
     #   requests
@@ -355,17 +360,15 @@ webencodings==0.5.1
     # via bleach
 whitenoise==5.3.0
     # via topobank (../setup.py)
-wrapt==1.14.1
-    # via deprecated
-xarray==2022.6.0
+xarray==2022.11.0
     # via topobank (../setup.py)
 xyzservices==2022.9.0
     # via bokeh
-zipp==3.8.1
+zipp==3.11.0
     # via importlib-resources
 zope-event==4.5.0
     # via gevent
-zope-interface==5.4.0
+zope-interface==5.5.2
     # via gevent
 
 # The following packages are considered to be unsafe in a requirements file:
