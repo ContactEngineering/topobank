@@ -110,6 +110,9 @@ class Analysis(models.Model):
     start_time = models.DateTimeField(null=True)
     end_time = models.DateTimeField(null=True)
 
+    # Bibliography
+    dois = models.JSONField(default=list)
+
     configuration = models.ForeignKey(Configuration, null=True, on_delete=models.SET_NULL)
 
     class Meta:
@@ -159,7 +162,8 @@ class Analysis(models.Model):
         """Return the toplevel result object without series data, i.e. the raw result.json without unsplitting it"""
         if self._result_metadata_cache is None:
             self._result_metadata_cache = json.load(
-                default_storage.open(f'{self.storage_prefix}/{RESULT_FILE_BASENAME}.json'))
+                default_storage.open(f'{self.storage_prefix}/{RESULT_FILE_BASENAME}.json')
+            )
         return self._result_metadata_cache
 
     @property

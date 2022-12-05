@@ -423,7 +423,7 @@ if USE_S3_STORAGE:
 
     AWS_AUTO_CREATE_BUCKET = True
 
-    AWS_S3_ENDPOINT_URL = env.str('AWS_S3_ENDPOINT_URL', default='https://localhost:8082/')
+    AWS_S3_ENDPOINT_URL = env.str('AWS_S3_ENDPOINT_URL', default=None)
     AWS_S3_USE_SSL = env.bool('AWS_S3_USE_SSL', default=True)
     AWS_S3_VERIFY = env.bool('AWS_S3_VERIFY', default=True)
     AWS_DEFAULT_ACL = None
@@ -465,8 +465,7 @@ TRACKED_DEPENDENCIES = [
     ('NuMPI', 'NuMPI.__version__'),
     ('muFFT', 'muFFT.version.description()'),
     ('topobank', 'topobank.__version__'),
-    ('numpy', 'numpy.__version__'),
-    ('scipy', 'scipy.__version__'),
+    ('numpy', 'numpy.__version__')
 ]
 # Extend tracked dependencies by Plugin apps
 for plugin_app in PLUGIN_APPS:

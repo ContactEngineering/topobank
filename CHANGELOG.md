@@ -2,6 +2,8 @@
 
 ## 0.92.0 (not published yet)
 
+- ENH: Store bibliography (DOIs) when an analsis completes
+  (#171)
 - ENH: Enhanced search by also searching for names of 
   users who created digital surface twins or 
   measurements (#896)
@@ -22,18 +24,18 @@
 - ENH: Added config options PUBLICATION_ENABLED and
   PUBLICATION_DISPLAY_TAB_WITH_OWN_PUBLICATIONS which
   are True by default, but can be used to disable publications
-- BUG: Fixed crashing of plots when apostroph was used
+- BUG: Fixed crashing of plots when apostrophe was used
   in the subject's name
 - BUG: Fixed problem when a surface was part of an
   analysis collection
 - MAINT: Close figures after generating plots from 1D
   measurements (#898)
 - MAINT: Added plugin system, moved statistical analysis 
-  functions and contact mechanics to individial plugins
+  functions and contact mechanics to individual plugins
   (topobank-statistics, topobank-contact), allows to 
   add other functionality via plugins without changing the
   main application
-- MAINT: Update for package SurfaceTopography (#911)
+- MAINT: Update for package SurfaceTopography (#911,#923)
 - MAINT: Update for package ContactMechanics (#872)
 - MAINT: Update of django because of security issue
 

@@ -104,6 +104,9 @@ and rebuild the image, then restart the docker containers.
 Accessing Minio contents from localhost
 ---------------------------------------
 
+Configuring URL resolution
+..........................
+
 If you run the application in Docker with :code:`docker compose -f local.yml up`,
 you want your browser to be able to access the S3 contents directly,
 because the Zoom image of a measurement and also the analyses results are fetched from
@@ -150,8 +153,27 @@ defined in :code:`/etc/hosts` an alias the the **current IP of minio**, e.g.
 
 The current minio IP can be found be inspecting the running minio service.
 This has to be changed each time the minio IP changes, so this is a bit cumbersome.
+Using the alias as described above is more convenient and also assumed in the next subsection
+below.
 
+Configuring CORS
+................
 
+This also applies to the development when running the app in Docker.
+
+When your application tries to access the local minio server (S3 server),
+that minio server runs in a Docker container on your development machine.
+
+You might see the error message "The Same Policy Origin disallows reading the remote
+resource at http://topobank-minio-alias:9000/..." and "Reason: CORS request did not succeed".
+
+In order to solve this, this minio via its web console: https://topobank-minio-alias:9001
+The username and password is configured in `.envs/.local/.django`, the default ist "admin"
+and "secret12". Then, go to "Settings > Configuration > API".
+For "Cors Allow Origin" enter: "http://localhost:8000"
+
+Then it should be possible to access the S3 contents directly which is done
+e.g. when displaying analysis results.
 
 
 

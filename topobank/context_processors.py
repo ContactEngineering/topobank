@@ -7,7 +7,6 @@ import json
 import bokeh
 import celery
 import numpy
-import scipy
 
 import SurfaceTopography, ContactMechanics, NuMPI, muFFT
 
@@ -43,9 +42,6 @@ def versions_processor(request):
         dict(module='NumPy',
              version=numpy.__version__,
              links={'Website': 'https://numpy.org/'}),
-        dict(module='SciPy',
-             version=scipy.__version__,
-             links={'Website': 'https://www.scipy.org/'}),
         dict(module='Django',
              version=django.__version__,
              links={'Website': 'https://www.djangoproject.com/'}),
