@@ -2,6 +2,8 @@
 
 ## 0.92.0 (not published yet)
 
+- ENH: Store bibliography (DOIs) when an analsis completes
+  (#171)
 - ENH: Enhanced search by also searching for names of 
   users who created digital surface twins or 
   measurements (#896)
