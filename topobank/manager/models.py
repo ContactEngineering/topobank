@@ -514,6 +514,7 @@ class Topography(models.Model, SubjectMixin):
         ('µm', 'micrometers'),
         ('nm', 'nanometers'),
         ('Å', 'angstrom'),
+        ('pm', 'picometers')  # This is the default unit for VK files so we need it
     ]
 
     HAS_UNDEFINED_DATA_DESCRIPTION = {
