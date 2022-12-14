@@ -2,7 +2,7 @@
 
 ## 0.92.0 (not published yet)
 
-- ENH: Store bibliography (DOIs) when an analsis completes
+- ENH: Store bibliography (DOIs) when an analysis completes
   (#171)
 - ENH: Enhanced search by also searching for names of 
   users who created digital surface twins or 
@@ -17,7 +17,7 @@
   to give a user restricted permissions to enter 
   admin interface in order to edit organizations or check
   the state of analyses
-- ENH Enhanced management command "create_images" such that
+- ENH: Enhanced management command "create_images" such that
   thumbnails and DZI files can be processed separately
   and such that only missing images are generated (#903) 
 - ENH: Added link to admin interface for staff users
