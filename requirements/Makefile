@@ -1,16 +1,16 @@
 .PHONY: all check clean
 
 objects = $(wildcard *.in)
-outputs := base.txt local.txt test.txt production.txt
-# outputs := $(objects:.in=.txt)
+outputs := local.txt production.txt
+setup_files := ../setup.cfg ../setup.py
 
 all: $(outputs)
 
-base.txt: base.in
-	pip-compile -v --output-file $@ $<
+local.txt: $(setup_files)
+	pip-compile --extra dev -v --output-file $@ ../setup.py
 
-%.txt: %.in base.txt
-	pip-compile -v --output-file $@ $<
+production.txt: $(setup_files)
+	pip-compile -v --output-file $@ ../setup.py
 
 check:
 	@which pip-compile > /dev/null

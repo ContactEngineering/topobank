@@ -3,14 +3,13 @@ import json
 from typing import Optional, Dict, Any
 
 import numpy as np
-import math
 import itertools
 from collections import OrderedDict
 
 from django.contrib.contenttypes.models import ContentType
 from django.http import HttpResponse, Http404, JsonResponse
 from django.views.generic import DetailView, FormView, TemplateView
-from django.urls import reverse, reverse_lazy
+from django.urls import reverse_lazy
 from django.db.models import Q
 from django import template
 from django.core.files.storage import default_storage
@@ -34,9 +33,12 @@ from ..manager.models import Topography, Surface
 from ..manager.utils import instances_to_selection, selection_to_subjects_json, subjects_from_json, subjects_to_json
 from ..usage_stats.utils import increase_statistics_by_date_and_object
 from ..plots import configure_plot
-from .models import Analysis, AnalysisFunction, AnalysisCollection, CARD_VIEW_FLAVORS
+from .models import Analysis, AnalysisFunction, AnalysisCollection
 from .forms import FunctionSelectForm
-from .utils import get_latest_analyses, round_to_significant_digits, request_analysis, renew_analysis
+from .utils import get_latest_analyses, request_analysis, renew_analysis, filter_and_order_analyses, \
+    palette_for_topographies
+from .registry import AnalysisRegistry, register_card_view_class
+from .functions import ART_SERIES
 
 import logging
 
@@ -44,28 +46,7 @@ _log = logging.getLogger(__name__)
 
 SMALLEST_ABSOLUT_NUMBER_IN_LOGPLOTS = 1e-100
 MAX_NUM_POINTS_FOR_SYMBOLS = 50
-NUM_SIGNIFICANT_DIGITS_RMS_VALUES = 5
 LINEWIDTH_FOR_SURFACE_AVERAGE = 4
-
-
-def card_view_class(card_view_flavor):
-    """Return class for given card view flavor.
-
-    Parameters
-    ----------
-    card_view_flavor: str
-        Defined in model AnalysisFunction.
-
-    Returns
-    -------
-    class
-    """
-    if card_view_flavor not in CARD_VIEW_FLAVORS:
-        raise ValueError("Unknown card view flavor '{}'. Known values are: {}".format(card_view_flavor,
-                                                                                      CARD_VIEW_FLAVORS))
-
-    class_name = card_view_flavor.title().replace(' ', '') + "CardView"
-    return globals()[class_name]
 
 
 def switch_card_view(request):
@@ -94,7 +75,8 @@ def switch_card_view(request):
 
     function = AnalysisFunction.objects.get(id=function_id)
 
-    view_class = card_view_class(function.card_view_flavor)
+    reg = AnalysisRegistry()
+    view_class = reg.get_card_view_class(reg.get_analysis_result_type_for_function_name(function.name))
 
     #
     # for statistics, count views per function
@@ -103,79 +85,6 @@ def switch_card_view(request):
     increase_statistics_by_date_and_object(metric, obj=function)
 
     return view_class.as_view()(request)
-
-
-def _palette_for_topographies(nb_topographies):
-    if nb_topographies <= 10:
-        topography_colors = palettes.Category10_10
-    else:
-        topography_colors = [palettes.Plasma256[k * 256 // nb_topographies] for k in range(nb_topographies)]
-        # we don't want to have yellow as first color
-        topography_colors = topography_colors[nb_topographies // 2:] + topography_colors[:nb_topographies // 2]
-    return topography_colors
-
-
-def _filter_and_order_analyses(analyses):
-    """Order analyses such that surface analyses are coming last (plotted on top).
-
-    The analyses are filtered that that surface analyses
-    are only included if there are more than 1 measurement.
-
-    Parameters
-    ----------
-    analyses: QuerySet
-
-    Returns
-    -------
-    Ordered list of analyses. Analyses for measurements
-    are listed directly after corresponding surface.
-    """
-    surface_ct = ContentType.objects.get_for_model(Surface)
-    sorted_analyses = []
-
-    #
-    # Order analyses by surface
-    # such that for each surface the analyses are ordered by subject id
-    #
-    analysis_groups = OrderedDict()  # always the same order of surfaces for same list of subjects
-    for topography_analysis in sorted([a for a in analyses if a.subject_type != surface_ct],
-                                      key=lambda a: a.subject_id):
-        surface = topography_analysis.subject.surface
-        if not surface in analysis_groups:
-            analysis_groups[surface] = []
-        analysis_groups[surface].append(topography_analysis)
-
-    #
-    # Process groups and collect analyses which are implicitly sorted
-    #
-    analyses_of_surfaces = sorted([a for a in analyses if a.subject_type == surface_ct],
-                                  key=lambda a: a.subject_id)
-    surfaces_of_surface_analyses = [a.subject for a in analyses_of_surfaces]
-    for surface, topography_analyses in analysis_groups.items():
-        try:
-            # Is there an analysis for the corresponding surface?
-            surface_analysis_index = surfaces_of_surface_analyses.index(surface)
-            surface_analysis = analyses_of_surfaces[surface_analysis_index]
-            if surface.num_topographies() > 1:
-                # only show average for surface if more than one topography
-                sorted_analyses.append(surface_analysis)
-                surface_analysis_index = len(sorted_analyses) - 1  # last one
-        except ValueError:
-            # No analysis given for surface, so skip
-            surface_analysis_index = None
-
-        #
-        # Add topography analyses whether there was a surface analysis or not
-        # This will result in same order of topography analysis, no matter whether there was a surface analysis
-        #
-        if surface_analysis_index is None:
-            sorted_analyses.extend(topography_analyses)
-        else:
-            # Insert corresponding topography analyses after surface analyses
-            sorted_analyses = sorted_analyses[:surface_analysis_index+1] + topography_analyses \
-                              + sorted_analyses[surface_analysis_index+1:]
-
-    return sorted_analyses
 
 
 def _subject_colors(analyses):
@@ -192,18 +101,27 @@ def _subject_colors(analyses):
     pass
 
 
-
-
+@register_card_view_class('generic')
 class SimpleCardView(TemplateView):
     """Very basic display of results. Base class for more complex views.
 
     Must be used in an AJAX call.
     """
 
-    @staticmethod
-    def _template_name(class_name, template_flavor):
-        template_name_prefix = class_name.replace('View', '').replace('Card', '_card').lower()
-        return f"analysis/{template_name_prefix}_{template_flavor}.html"
+    template_name_pattern = "analysis/simple_card_{template_flavor}.html"
+
+    def _template_name(self, template_flavor, pat=None):
+        """Build template name.
+
+        Parameters
+        ----------
+        template_flavor: str
+            Template flavor, e.g. 'list' and 'detail'.
+        """
+        if pat is None:
+            pat = self.template_name_pattern
+
+        return pat.format(template_flavor=template_flavor)
 
     def get_template_names(self):
         """Return list of possible templates.
@@ -218,17 +136,16 @@ class SimpleCardView(TemplateView):
         if template_flavor is None:
             raise ValueError("Missing 'template_flavor' in POST arguments.")
 
-        template_name = self._template_name(self.__class__.__name__, template_flavor)
+        template_name = self._template_name(template_flavor)
 
         #
-        # If template does not exist, return template from parent class
+        # If template does not exist, return SimpleCardView template
         #
-        # MAYBE later: go down the hierarchy and take first template found
         try:
             template.loader.get_template(template_name)
         except template.TemplateDoesNotExist:
-            base_class = self.__class__.__bases__[0]
-            template_name = self._template_name(base_class.__name__, template_flavor)
+            _log.warning(f"Template '{template_name}' not found. Falling back to simple card template.")
+            template_name = self._template_name(template_flavor, SimpleCardView.template_name_pattern)
 
         return [template_name]
 
@@ -408,7 +325,8 @@ class SimpleCardView(TemplateView):
             analyses_unready=analyses_unready,  # ..the ones which are still running
             subjects_missing=subjects_missing,  # subjects for which there is no Analysis object yet
             subjects_ids_json=subjects_ids_json,  # can be used to re-trigger analyses
-            extra_warnings=[],  # use list of dicts of form {'alert_class': 'alert-info', 'message': 'your message'}
+            extra_warnings=[],  # use list of dicts of form {'alert_class': 'alert-info', 'message': 'your message'},
+            analyses_renew_url=reverse('analysis:renew'),
         ))
 
         return context
@@ -443,7 +361,10 @@ class SimpleCardView(TemplateView):
         return response
 
 
+@register_card_view_class(ART_SERIES)
 class PlotCardView(SimpleCardView):
+
+    template_name_pattern = "analysis/plot_card_{template_flavor}.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -452,7 +373,7 @@ class PlotCardView(SimpleCardView):
 
         #
         # order analyses such that surface analyses are coming last (plotted on top)
-        analyses_success_list = _filter_and_order_analyses(analyses_success)
+        analyses_success_list = filter_and_order_analyses(analyses_success)
         data_sources_dict = []
 
         # Special case: It can happen that there is one surface with a successful analysis
@@ -487,7 +408,7 @@ class PlotCardView(SimpleCardView):
         for a in analyses_success_list:
             s = a.subject
             subject_ct = s.get_content_type()
-            subject_name = s.label
+            subject_name = s.label.replace("'", "&apos;")
             if subject_ct == surface_ct:
                 subject_name = f"Average of »{subject_name}«"
                 has_at_least_one_surface_subject = True
@@ -555,7 +476,7 @@ class PlotCardView(SimpleCardView):
         # Prepare helpers for dashes and colors
         #
         surface_color_palette = palettes.Greys256  # surfaces are shown in black/grey
-        topography_color_palette = _palette_for_topographies(nb_topographies)
+        topography_color_palette = palette_for_topographies(nb_topographies)
 
         dash_cycle = itertools.cycle(['solid', 'dashed', 'dotted', 'dotdash', 'dashdot'])
 
@@ -732,157 +653,52 @@ class PlotCardView(SimpleCardView):
         return context
 
 
-class ContactMechanicsCardView(SimpleCardView):
-    """View for displaying a card with results from Contact Mechanics analyses.
+def renew_analyses_view(request):
+    """Renew existing analyses.
+    :param request:
+    :return: HTTPResponse
     """
+    if not request.is_ajax():
+        raise Http404
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        alerts = []  # list of collected alerts
-        analyses_success = context['analyses_success']
+    request_method = request.POST
+    user = request.user
 
-        if len(analyses_success) > 0:
+    if user.is_anonymous:
+        raise PermissionDenied()
 
-            data_sources_dict = []
+    try:
+        analyses_ids = request_method.getlist('analyses_ids[]')
+    except (KeyError, ValueError, TypeError, json.JSONDecodeError):
+        return JsonResponse({'error': 'error in request data'}, status=400)
 
-            analyses_success = _filter_and_order_analyses(analyses_success)
+    try:
+        analyses_ids = [int(x) for x in analyses_ids ]
+        analyses = Analysis.objects.filter(id__in=analyses_ids)
+    except Exception:
+        return JsonResponse({'error': 'error in request data'}, status=400)
 
-            #
-            # Prepare colors to be used for different analyses
-            #
-            color_cycle = itertools.cycle(_palette_for_topographies(len(analyses_success)))
+    allowed = all(a.is_visible_for_user(user) for a in analyses)
 
-            #
-            # Context information for the figure
-            #
-            context.update(dict(
-                output_backend=settings.BOKEH_OUTPUT_BACKEND))
-
-            #
-            # Generate two plots in two tabs based on same data sources
-            #
-            for a_index, analysis in enumerate(analyses_success):
-                curr_color = next(color_cycle)
-
-                subject_name = analysis.subject.name
-
-                #
-                # Context information for this data source
-                #
-                data_sources_dict += [dict(
-                    source_name=f'analysis-{analysis.id}',
-                    subject_name=subject_name,
-                    subject_name_index=a_index,
-                    url=reverse('analysis:data', args=(analysis.pk, 'result.json')),
-                    #url=default_storage.url(f'{analysis.storage_prefix}/result.json'),
-                    showSymbols=True,  # otherwise symbols do not appear in legend
-                    color=curr_color,
-                    width=1.,
-                )]
-
-            context['data_sources'] = json.dumps(data_sources_dict)
+    if allowed:
+        new_analyses = [renew_analysis(a) for a in analyses]
+        status = 200
 
         #
-        # Calculate initial values for the parameter form on the page
-        # We only handle topographies here so far, so we only take into account
-        # parameters for topography analyses
+        # create a collection of analyses such that points to all analyses
         #
-        topography_ct = ContentType.objects.get_for_model(Topography)
-        try:
-            unique_kwargs = context['unique_kwargs'][topography_ct]
-        except KeyError:
-            unique_kwargs = None
-        if unique_kwargs:
-            initial_calc_kwargs = unique_kwargs
-        else:
-            # default initial arguments for form if we don't have unique common arguments
-            contact_mechanics_func = AnalysisFunction.objects.get(name="Contact mechanics")
-            initial_calc_kwargs = contact_mechanics_func.get_default_kwargs(topography_ct)
-            initial_calc_kwargs['substrate_str'] = 'nonperiodic'  # because most topographies are non-periodic
-
-        context['initial_calc_kwargs'] = initial_calc_kwargs
-
-        context['extra_warnings'] = alerts
-        context['extra_warnings'].append(
-            dict(alert_class='alert-warning',
-                 message="""
-                 Translucent data points did not converge within iteration limit and may carry large errors.
-                 <i>A</i> is the true contact area and <i>A0</i> the apparent contact area,
-                 i.e. the size of the provided measurement.""")
-        )
-
-        context['limits_calc_kwargs'] = settings.CONTACT_MECHANICS_KWARGS_LIMITS
-
-        return context
-
-
-class RoughnessParametersCardView(SimpleCardView):
-
-    @staticmethod
-    def _convert_value(v):
-        if v is not None:
-            if math.isnan(v):
-                v = None  # will be interpreted as null in JS, replace there with NaN!
-                # It's not easy to pass NaN as JSON:
-                # https://stackoverflow.com/questions/15228651/how-to-parse-json-string-containing-nan-in-node-js
-            elif math.isinf(v):
-                return 'infinity'
-            else:
-                # convert float32 to float, round to fixed number of significant digits
-                v = round_to_significant_digits(float(v),
-                                                NUM_SIGNIFICANT_DIGITS_RMS_VALUES)
-        return v
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-
-        analyses_success = context['analyses_success']
-
-        data = []
-        for analysis in analyses_success:
-            analysis_result = analysis.result
-
-            for d in analysis_result:
-                d['value'] = self._convert_value(d['value'])
-
-                if not d['direction']:
-                    d['direction'] = ''
-                if not d['from']:
-                    d['from'] = ''
-                if not d['symbol']:
-                    d['symbol'] = ''
-
-                # put topography in every line
-                topo = analysis.subject
-                d.update(dict(topography_name=topo.name,
-                              topography_url=topo.get_absolute_url()))
-
-            data.extend(analysis_result)
-
+        analyses_str = f"{len(analyses)} analyses" if len(analyses) > 1 else "one analysis"
+        collection = AnalysisCollection.objects.create(name=f"Recalculation of {analyses_str}.",
+                                                       combined_task_state=Analysis.PENDING,
+                                                       owner=user)
+        collection.analyses.set(new_analyses)
         #
-        # find out all existing keys keeping order
+        # Each finished analysis checks whether related collections are finished, see "topobank.taskapp.tasks"
         #
-        all_keys = []
-        for d in data:
-            for k in d.keys():
-                if k not in all_keys:
-                    all_keys.append(k)
+    else:
+        status = 403
 
-        #
-        # make sure every dict has all keys
-        #
-        for k in all_keys:
-            for d in data:
-                d.setdefault(k)
-
-        #
-        # create table
-        #
-        context.update(dict(
-            table_data=data
-        ))
-
-        return context
+    return JsonResponse({}, status=status)
 
 
 def submit_analyses_view(request):
@@ -941,92 +757,26 @@ def submit_analyses_view(request):
     return JsonResponse({}, status=status)
 
 
-def _contact_mechanics_geometry_figure(values, frame_width, frame_height, topo_unit, topo_size, colorbar_title=None,
-                                       value_unit=None):
-    """
-
-    :param values: 2D numpy array
-    :param frame_width:
-    :param frame_height:
-    :param topo_unit:
-    :param topo_size:
-    :param colorbar_title:
-    :param value_unit:
-    :return:
-    """
-
-    x_range = DataRange1d(start=0, end=topo_size[0], bounds='auto', range_padding=5)
-    y_range = DataRange1d(start=topo_size[1], end=0, flipped=True, range_padding=5)
-
-    boolean_values = values.dtype == np.bool
-
-    COLORBAR_WIDTH = 50
-    COLORBAR_LABEL_STANDOFF = 12
-
-    plot_width = frame_width
-    if not boolean_values:
-        plot_width += COLORBAR_WIDTH + COLORBAR_LABEL_STANDOFF + 5
-
-    p = figure(x_range=x_range,
-               y_range=y_range,
-               frame_width=frame_width,
-               frame_height=frame_height,
-               plot_width=plot_width,
-               x_axis_label="Position x ({})".format(topo_unit),
-               y_axis_label="Position y ({})".format(topo_unit),
-               match_aspect=True,
-               toolbar_location="above",
-               output_backend=settings.BOKEH_OUTPUT_BACKEND)
-
-    if boolean_values:
-        color_mapper = LinearColorMapper(palette=["black", "white"], low=0, high=1)
-    else:
-        min_val = values.min()
-        max_val = values.max()
-
-        color_mapper = LinearColorMapper(palette='Viridis256', low=min_val, high=max_val)
-
-    p.image([np.rot90(values)], x=0, y=topo_size[1], dw=topo_size[0], dh=topo_size[1], color_mapper=color_mapper)
-
-    if not boolean_values:
-        colorbar = ColorBar(color_mapper=color_mapper,
-                            label_standoff=COLORBAR_LABEL_STANDOFF,
-                            width=COLORBAR_WIDTH,
-                            location=(0, 0),
-                            title=f"{colorbar_title} ({value_unit})")
-        p.add_layout(colorbar, "right")
-
-    configure_plot(p)
-
-    return p
-
-
-def _contact_mechanics_distribution_figure(values, x_axis_label, y_axis_label,
-                                           frame_width, frame_height,
-                                           x_axis_type='auto',
-                                           y_axis_type='auto',
-                                           title=None):
-    hist, edges = np.histogram(values, density=True, bins=50)
-
-    p = figure(title=title,
-               frame_width=frame_width,
-               frame_height=frame_height,
-               sizing_mode='scale_width',
-               x_axis_label=x_axis_label,
-               y_axis_label=y_axis_label,
-               x_axis_type=x_axis_type,
-               y_axis_type=y_axis_type,
-               toolbar_location="above",
-               output_backend=settings.BOKEH_OUTPUT_BACKEND)
-
-    p.step(edges[:-1], hist, mode="before", line_width=2)
-
-    configure_plot(p)
-
-    return p
-
-
 def data(request, pk, location):
+    """Request data stored for a particular analysis.
+
+    Before redirecting to the data, the permissions
+    of the current user are checked for the given analysis.
+    The user needs permissions for the data as well as
+    the analysis function performed should be available.
+
+    Parameters
+    ----------
+
+    pk: int
+        id of Analysis instance
+    location: str
+        path underneath given analysis where file can be found
+
+    Returns
+    -------
+    Redirects to file on storage.
+    """
     try:
         pk = int(pk)
     except ValueError:
@@ -1034,7 +784,7 @@ def data(request, pk, location):
 
     analysis = Analysis.objects.get(id=pk)
 
-    if not request.user.has_perm('view_surface', analysis.related_surface):
+    if not analysis.is_visible_for_user(request.user):
         raise PermissionDenied()
 
     # okay, we have a valid analysis and the user is allowed to see it
@@ -1112,7 +862,12 @@ class AnalysisFunctionDetailView(DetailView):
         context = super().get_context_data(**kwargs)
 
         function = self.object
+        # Check if user is allowed to use this function
+        reg = AnalysisRegistry()
+        if function.name not in reg.get_analysis_function_names(self.request.user):
+            raise PermissionDenied()
 
+        # filter subjects to those this user is allowed to see
         effective_topographies, effective_surfaces, subjects_ids_json = selection_to_subjects_json(self.request)
 
         card = dict(function=function,
@@ -1168,12 +923,13 @@ class AnalysesListView(FormView):
                 raise PermissionDenied()
 
             functions = set(a.function for a in collection.analyses.all())
-            topographies = set(a.subject for a in collection.analyses.all())
+            surfaces = set(a.subject for a in collection.analyses.all() if a.is_surface_related)
+            topographies = set(a.subject for a in collection.analyses.all() if a.is_topography_related)
 
             # as long as we have the current UI (before implementing GH #304)
             # we also set the collection's function and topographies as selection
-            topography_selection = instances_to_selection(topographies=topographies)
-            self.request.session['selection'] = tuple(topography_selection)
+            selection = instances_to_selection(topographies=topographies, surfaces=surfaces)
+            self.request.session['selection'] = tuple(selection)
             self.request.session['selected_functions'] = tuple(f.id for f in functions)
 
         elif 'surface_id' in self.kwargs:
@@ -1210,6 +966,11 @@ class AnalysesListView(FormView):
             functions=AnalysesListView._selected_functions(self.request),
         )
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
+
     def form_valid(self, form):
         functions = form.cleaned_data.get('functions', [])
         self.request.session['selected_functions'] = list(t.id for t in functions)
@@ -1223,7 +984,9 @@ class AnalysesListView(FormView):
         """
         function_ids = request.session.get('selected_functions', [])
         functions = AnalysisFunction.objects.filter(id__in=function_ids).order_by('name')
-        return functions
+
+        # filter function by those which have available implementations for the given user
+        return functions.filter(name__in=AnalysisRegistry().get_analysis_function_names(request.user))
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1236,7 +999,8 @@ class AnalysesListView(FormView):
         # which then can be used to load the result data in the background
         cards = []
         for function in selected_functions:
-            cards.append(dict(function=function,
+            cards.append(dict(id=f"card-{function.pk}",
+                              function=function,
                               subjects_ids_json=subjects_ids_json))
 
         context['cards'] = cards

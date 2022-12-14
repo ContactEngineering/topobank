@@ -1422,24 +1422,19 @@ def test_create_surface(client, django_user_model, handle_usage_statistics):
 
 
 @pytest.mark.django_db
-def test_edit_surface(client, django_user_model):
-    surface_id = 1
-    username = 'testuser'
-    password = 'abcd$1234'
+def test_edit_surface(client):
     category = 'sim'
 
-    user = django_user_model.objects.create_user(username=username, password=password)
+    user = UserFactory()
+    surface = SurfaceFactory(creator=user, category=category)
 
-    assert client.login(username=username, password=password)
-
-    surface = Surface.objects.create(id=surface_id, name="Surface 1", creator=user, category=category)
-    surface.save()
+    client.force_login(user)
 
     new_name = "This is a better surface name"
     new_description = "This is new description"
     new_category = 'dum'
 
-    response = client.post(reverse('manager:surface-update', kwargs=dict(pk=surface_id)),
+    response = client.post(reverse('manager:surface-update', kwargs=dict(pk=surface.id)),
                            data={
                                'name': new_name,
                                'creator': user.id,
@@ -1451,9 +1446,9 @@ def test_edit_surface(client, django_user_model):
         response.context['form'].errors)
 
     assert response.status_code == 302
-    assert reverse('manager:surface-detail', kwargs=dict(pk=surface_id)) == response.url
+    assert reverse('manager:surface-detail', kwargs=dict(pk=surface.id)) == response.url
 
-    surface = Surface.objects.get(pk=surface_id)
+    surface = Surface.objects.get(pk=surface.id)
 
     assert new_name == surface.name
     assert new_description == surface.description
@@ -1461,26 +1456,21 @@ def test_edit_surface(client, django_user_model):
 
 
 @pytest.mark.django_db
-def test_delete_surface(client, django_user_model, handle_usage_statistics):
-    surface_id = 1
-    username = 'testuser'
-    password = 'abcd$1234'
-
-    user = django_user_model.objects.create_user(username=username, password=password)
-
-    assert client.login(username=username, password=password)
-
-    surface = Surface.objects.create(id=surface_id, name="Surface 1", creator=user)
-    surface.save()
+def test_delete_surface(client, handle_usage_statistics):
+    user = UserFactory()
+    surface = SurfaceFactory(creator=user)
+    client.force_login(user)
 
     assert Surface.objects.all().count() == 1
 
-    response = client.get(reverse('manager:surface-delete', kwargs=dict(pk=surface_id)))
+    response = client.get(reverse('manager:surface-delete', kwargs=dict(pk=surface.id)))
+
+    assert response.status_code == 200
 
     # user should be asked if he/she is sure
     assert b'Are you sure' in response.content
 
-    response = client.post(reverse('manager:surface-delete', kwargs=dict(pk=surface_id)))
+    response = client.post(reverse('manager:surface-delete', kwargs=dict(pk=surface.id)))
 
     assert ('context' not in response) or ('form' not in response.context), "Still on form: {}".format(
         response.context['form'].errors)

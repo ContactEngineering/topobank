@@ -6,7 +6,7 @@ from django.shortcuts import reverse
 from rest_framework.test import APIRequestFactory
 
 from ..views import SurfaceSearchPaginator, SurfaceListView, TagTreeView
-from .utils import ordereddicts_to_dicts, Topography1DFactory, UserFactory, SurfaceFactory
+from .utils import ordereddicts_to_dicts, Topography1DFactory, UserFactory, SurfaceFactory, search_surfaces
 from ..models import TagModel
 
 
@@ -108,6 +108,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
             'category_name': 'Experimental data',
             'children': [
                 {'creator': user_url,
+                 'creator_name': user.name,
                  'description': '',
                  'folder': False,
                  'key': f'topography-{topo1a.pk}',
@@ -117,6 +118,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                  'publication_authors': '',
                  'publication_date': '',
                  'selected': True,
+                 'sharing_status': 'own',
                  'tags': [],
                  'title': topo1a.name,
                  'type': 'topography',
@@ -128,6 +130,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                           'unselect': topo1a_prefix + 'unselect/',
                           'update': topo1a_prefix + 'update/'}},
                 {'creator': user_url,
+                 'creator_name': user.name,
                  'description': '',
                  'folder': False,
                  'key': f'topography-{topo1b.pk}',
@@ -137,6 +140,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                  'publication_authors': '',
                  'publication_date': '',
                  'selected': False,
+                 'sharing_status': 'own',
                  'tags': [],
                  'title': topo1b.name,
                  'type': 'topography',
@@ -182,6 +186,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
             'category_name': 'Simulated data',
             'children': [
                 {'creator': user_url,
+                 'creator_name': user.name,
                  'description': '',
                  'folder': False,
                  'key': f'topography-{topo2a.pk}',
@@ -191,6 +196,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                  'publication_authors': '',
                  'publication_date': '',
                  'selected': False,  # not explicitly selected
+                 'sharing_status': 'own',
                  'tags': ['bike', 'train/ice'],
                  'title': topo2a.name,
                  'type': 'topography',
@@ -202,6 +208,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                           'unselect': topo2a_prefix + 'unselect/',
                           'update': topo2a_prefix + 'update/'}},
                 {'creator': user_url,
+                 'creator_name': user.name,
                  'description': '',
                  'folder': False,
                  'key': f'topography-{topo2b.pk}',
@@ -211,6 +218,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                  'publication_authors': '',
                  'publication_date': '',
                  'selected': False,  # not explicitly selected
+                 'sharing_status': 'own',
                  'tags': [],
                  'title': topo2b.name,
                  'type': 'topography',
@@ -307,6 +315,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
             'category_name': 'Simulated data',
             'children': [
                 {'creator': user_url,
+                 'creator_name': user.name,
                  'description': '',
                  'folder': False,
                  'key': f'topography-{topo2a.pk}',
@@ -316,6 +325,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                  'publication_authors': '',
                  'publication_date': '',
                  'selected': False,  # not explicitly selected
+                 'sharing_status': 'own',
                  'tags': ['bike', 'train/ice'],
                  'title': topo2a.name,
                  'type': 'topography',
@@ -380,6 +390,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
             'category_name': 'Experimental data',
             'children': [
                 {'creator': user_url,
+                 'creator_name': user.name,
                  'description': '',
                  'folder': False,
                  'key': f'topography-{topo1a.pk}',
@@ -389,6 +400,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                  'publication_authors': '',
                  'publication_date': '',
                  'selected': True,
+                 'sharing_status': 'own',
                  'tags': [],
                  'title': topo1a.name,
                  'type': 'topography',
@@ -400,6 +412,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                           'unselect': topo1a_prefix + 'unselect/',
                           'update': topo1a_prefix + 'update/'}},
                 {'creator': user_url,
+                 'creator_name': user.name,
                  'description': '',
                  'folder': False,
                  'key': f'topography-{topo1b.pk}',
@@ -409,6 +422,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                  'publication_authors': '',
                  'publication_date': '',
                  'selected': False,
+                 'sharing_status': 'own',
                  'tags': [],
                  'title': topo1b.name,
                  'type': 'topography',
@@ -507,6 +521,7 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
 
     expected_dict_topo1a = {
         'creator': user_url,
+        'creator_name': user.name,
         'description': '',
         'folder': False,
         'key': f'topography-{topo1a.pk}',
@@ -516,6 +531,7 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
         'publication_authors': '',
         'publication_date': '',
         'selected': True,
+        'sharing_status': 'own',
         'tags': [],
         'title': topo1a.name,
         'type': 'topography',
@@ -529,6 +545,7 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
     }
     expected_dict_topo1b = {
         'creator': user_url,
+        'creator_name': user.name,
         'description': '',
         'folder': False,
         'key': f'topography-{topo1b.pk}',
@@ -538,6 +555,7 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
         'publication_authors': '',
         'publication_date': '',
         'selected': False,
+        'sharing_status': 'own',
         'tags': [],
         'title': topo1b.name,
         'type': 'topography',
@@ -552,6 +570,7 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
 
     expected_dict_topo2a = {
         'creator': user_url,
+        'creator_name': user.name,
         'description': '',
         'folder': False,
         'key': f'topography-{topo2a.pk}',
@@ -561,6 +580,7 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
         'publication_authors': '',
         'publication_date': '',
         'selected': False,  # not explicitly selected
+        'sharing_status': 'own',
         'tags': ['bike', 'train/ice'],
         'title': topo2a.name,
         'type': 'topography',
@@ -575,6 +595,7 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
 
     expected_dict_topo2b = {
         'creator': user_url,
+        'creator_name': user.name,
         'description': '',
         'folder': False,
         'key': f'topography-{topo2b.pk}',
@@ -584,6 +605,7 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
         'publication_authors': '',
         'publication_date': '',
         'selected': False,  # not explicitly selected
+        'sharing_status': 'own',
         'tags': ['train/ice/restaurant'],
         'title': topo2b.name,
         'type': 'topography',
@@ -942,27 +964,18 @@ def test_search_expressions_with_request_factory():
     #
     factory = APIRequestFactory()
 
-    def search_surfaces(expr):
-        """Search given given expression and return dicts with results"""
-        request = factory.get(reverse('manager:search')+f"?search={expr}")
-        request.user = user
-        request.session = {}  # must be there
-        response = SurfaceListView.as_view()(request)
-        assert response.status_code == 200
-        return ordereddicts_to_dicts(response.data['page_results'], sorted_by='title')
-
     # simple search for a topography by name given a phrase
-    result = search_surfaces(f"'{topo2a.name}'")
+    result = search_surfaces(factory, user, f"'{topo2a.name}'")
     assert len(result) == 1  # one surface
     assert len(result[0]['children']) == 1  # one topography
     assert result[0]['children'][0]['name'] == topo2a.name
 
     # AND search for topographies by name
-    result = search_surfaces(f'"{topo2a.name}" "{topo1a.name}"')
+    result = search_surfaces(factory, user, f'"{topo2a.name}" "{topo1a.name}"')
     assert len(result) == 0  # no surfaces
 
     # OR search for topographies by name
-    result = search_surfaces(f'"{topo2a.name}" OR "{topo1a.name}"')
+    result = search_surfaces(factory, user, f'"{topo2a.name}" OR "{topo1a.name}"')
     assert len(result) == 2  # two surfaces
     # noinspection DuplicatedCode
     assert len(result[0]['children']) == 1  # one topography
@@ -971,7 +984,7 @@ def test_search_expressions_with_request_factory():
     assert result[1]['children'][0]['name'] == topo2a.name
 
     # Exclusion using '-'
-    result = search_surfaces(f'-elephant')
+    result = search_surfaces(factory, user, f'-elephant')
     assert len(result) == 2
     assert result[0]['name'] == surface1.name
     assert result[1]['name'] == surface2.name
@@ -979,7 +992,7 @@ def test_search_expressions_with_request_factory():
     assert len(result[1]['children']) == 2
 
     # Searching nearby
-    result = search_surfaces(f'Find * here')
+    result = search_surfaces(factory, user, f'Find * here')
     assert len(result) == 1
     assert result[0]['name'] == surface1.name
     assert len(result[0]['children']) == 1  # here one measurement has it
@@ -994,12 +1007,161 @@ def test_search_expressions_with_request_factory():
     #
 
     # result = search_surfaces(f'bike AND "a big" or "a small" -"not me"')
-    result = search_surfaces(f'bike -snake big')
+    result = search_surfaces(factory, user, f'bike -snake big')
 
     assert len(result) == 1  # surface 2 is excluded because there is no "bike"
     assert result[0]['name'] == surface1.name
     assert len(result[0]['children']) == 1
     assert result[0]['children'][0]["name"] == topo1b.name  # topo1d is excluded because of 'not me'
+
+
+@pytest.mark.django_db
+def test_search_for_user_with_request_factory():
+    user1 = UserFactory(name="Bob Marley")
+    user2 = UserFactory(name="Bob Dylan")
+
+    surf1 = SurfaceFactory(creator=user1)
+    surf2 = SurfaceFactory(creator=user2)
+
+    request_factory = APIRequestFactory()
+
+    #
+    # So far nothing has been shared
+    #
+    # User 1 searches
+    result = search_surfaces(request_factory, user1, "Bob")
+    assert len(result) == 1
+    assert result[0]['name'] == surf1.name
+    assert len(result[0]['children']) == 0
+
+    result = search_surfaces(request_factory, user1, "Marley")
+    assert len(result) == 1
+    assert result[0]['name'] == surf1.name
+    assert len(result[0]['children']) == 0
+
+    result = search_surfaces(request_factory, user1, "Dylan")
+    assert len(result) == 0
+
+    # User 2 searches
+    result = search_surfaces(request_factory, user2, "Bob")
+    assert len(result) == 1
+    assert result[0]['name'] == surf2.name
+    assert len(result[0]['children']) == 0
+
+    result = search_surfaces(request_factory, user2, "Marley")
+    assert len(result) == 0
+
+    result = search_surfaces(request_factory, user2, "Dylan")
+    assert len(result) == 1
+    assert result[0]['name'] == surf2.name
+    assert len(result[0]['children']) == 0
+
+    #
+    # User1 shares his surface with user2
+    #
+    surf1.share(user2, allow_change=True)
+
+    # User 2 searches, now surface of user 1 is also visible
+    result = search_surfaces(request_factory, user2, "Bob")
+    assert len(result) == 2
+    assert set(r['name'] for r in result) == set((surf1.name, surf2.name))
+    assert len(result[0]['children']) == 0
+    assert len(result[1]['children']) == 0
+
+    result = search_surfaces(request_factory, user2, "Marley")
+    assert len(result) == 1
+    assert result[0]['name'] == surf1.name
+    assert len(result[0]['children']) == 0
+
+    result = search_surfaces(request_factory, user2, "Dylan")
+    assert len(result) == 1
+    assert result[0]['name'] == surf2.name
+    assert len(result[0]['children']) == 0
+
+    #
+    # User1 adds a topography to shared surface, it should be findable by both users using first user's name
+    #
+    topo1a = Topography1DFactory(surface=surf1, creator=user1)
+
+    # User 1 searches, finds also topography
+    result = search_surfaces(request_factory, user1, "Bob")
+    assert len(result) == 1
+    assert result[0]['name'] == surf1.name
+    assert len(result[0]['children']) == 1
+
+    result = search_surfaces(request_factory, user1, "Marley")
+    assert len(result) == 1
+    assert result[0]['name'] == surf1.name
+    assert len(result[0]['children']) == 1
+
+    result = search_surfaces(request_factory, user1, "Dylan")
+    assert len(result) == 0
+
+    # User 2 searches, finds also topography of user 1 in shared surface
+    result = search_surfaces(request_factory, user2, "Bob")
+    assert len(result) == 2
+    assert set(r['name'] for r in result) == set((surf1.name, surf2.name))
+    assert len(result[0]['children']) == 1
+    assert len(result[1]['children']) == 0   # user2's own surface has no topography
+
+    result = search_surfaces(request_factory, user2, "Marley")
+    assert len(result) == 1
+    assert result[0]['name'] == surf1.name
+    assert len(result[0]['children']) == 1
+
+    result = search_surfaces(request_factory, user2, "Dylan")
+    assert len(result) == 1
+    assert result[0]['name'] == surf2.name
+    assert len(result[0]['children']) == 0
+
+    #
+    # User2 adds a topography to shared surface, it should be findable by both users using user2's last name
+    #
+    topo1b = Topography1DFactory(surface=surf1, creator=user2)
+
+    # User 1 searches, finds topographies, depending on search term
+    result = search_surfaces(request_factory, user1, "Bob")
+    assert len(result) == 1
+    assert result[0]['name'] == surf1.name
+    assert len(result[0]['children']) == 2
+
+    result = search_surfaces(request_factory, user1, "Marley")
+    assert len(result) == 1
+    assert result[0]['name'] == surf1.name
+    assert len(result[0]['children']) == 1  # topography uploaded by user2 should not be shown
+    assert result[0]['children'][0]['name'] == topo1a.name
+
+    result = search_surfaces(request_factory, user1, "Dylan")
+    assert len(result) == 1
+    assert result[0]['name'] == surf1.name   # now own surface is also listed with one topography matching "Dylan"
+    assert len(result[0]['children']) == 1  # topography uploaded by user2 should be shown alone
+    assert result[0]['children'][0]['name'] == topo1b.name
+
+    # User 2 searches, finds also topography of user 1 in shared surface
+    result = search_surfaces(request_factory, user2, "Bob")
+    assert len(result) == 2
+    assert set(r['name'] for r in result) == set((surf1.name, surf2.name))
+    assert len(result[0]['children']) == 2
+    assert len(result[1]['children']) == 0   # user2's own surface has no topography
+
+    result = search_surfaces(request_factory, user2, "Marley")
+    assert len(result) == 1
+    assert result[0]['name'] == surf1.name
+    assert len(result[0]['children']) == 1  # topography uploaded by user1 should be shown alone
+    assert result[0]['children'][0]['name'] == topo1a.name
+
+    result = search_surfaces(request_factory, user2, "Dylan")
+    assert len(result) == 2
+    assert set(r['name'] for r in result) == set((surf1.name, surf2.name))  # now also surf1 is listed
+    assert result[0]['name'] == surf1.name
+    assert len(result[0]['children']) == 1  # topography uploaded by user1 should be shown alone
+    assert result[0]['children'][0]['name'] == topo1b.name
+    assert result[1]['name'] == surf2.name
+    assert len(result[1]['children']) == 0
+
+
+
+
 
 
 

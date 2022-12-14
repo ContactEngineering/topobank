@@ -1,13 +1,17 @@
-from django.contrib.contenttypes.models import ContentType
-import factory
+from dataclasses import dataclass
 import logging
 import pickle
 import datetime
-import json
+import numpy as np
 
-from ..models import Analysis, AnalysisFunction, AnalysisFunctionImplementation
+
+from django.contrib.contenttypes.models import ContentType
+import factory
+import pytest
+
+from ..models import Analysis, AnalysisFunction
 from topobank.manager.tests.utils import Topography2DFactory, SurfaceFactory
-from topobank.manager.models import Topography, Surface
+from SurfaceTopography import Topography as STTopography, NonuniformLineScan as STNonuniformLineScan
 
 _log = logging.getLogger(__name__)
 
@@ -21,18 +25,17 @@ class AnalysisFunctionFactory(factory.django.DjangoModelFactory):
         model = AnalysisFunction
 
     name = factory.Sequence(lambda n: "Test Function no. {}".format(n))
-    card_view_flavor = 'simple'
 
-
-class AnalysisFunctionImplementationFactory(factory.django.DjangoModelFactory):
-
-    function = factory.SubFactory(AnalysisFunctionFactory)
-    subject_type = factory.LazyAttribute(lambda x: ContentType.objects.get_for_model(Topography))
-    code_ref = 'topography_analysis_function_for_tests'
-
-    # noinspection PyMissingOrEmptyDocstring
-    class Meta:
-        model = AnalysisFunctionImplementation
+#
+# class AnalysisFunctionImplementationFactory(factory.django.DjangoModelFactory):
+#
+#     function = factory.SubFactory(AnalysisFunctionFactory)
+#     subject_type = factory.LazyAttribute(lambda x: ContentType.objects.get_for_model(Topography))
+#     code_ref = 'topography_analysis_function_for_tests'
+#
+#     # noinspection PyMissingOrEmptyDocstring
+#     class Meta:
+#         model = AnalysisFunctionImplementation
 
 
 def _analysis_result(analysis):
@@ -103,5 +106,81 @@ class SurfaceAnalysisFactory(AnalysisFactory):
     # noinspection PyMissingOrEmptyDocstring
     class Meta:
         model = Analysis
+
+
+@dataclass(frozen=True)
+class FakeTopographyModel:
+    """This model is used to create a Topography for being passed to analysis functions.
+    """
+    t: STTopography
+    name: str = "mytopo"
+    is_periodic: bool = False
+
+    def topography(self):
+        """Return low level topography.
+        """
+        return self.t
+
+    def get_absolute_url(self):
+        return "some/url/"
+
+
+class DummyProgressRecorder:
+    def set_progress(self, a, nsteps):
+        """Do nothing."""
+        pass  # dummy
+
+
+
+@pytest.fixture
+def simple_linear_2d_topography():
+    """Simple 2D topography, which is linear in y"""
+    unit = 'nm'
+    y = np.arange(10).reshape((1, -1))
+    x = np.arange(5).reshape((-1, 1))
+    arr = -2 * y + 0 * x  # only slope in y direction
+    t = STTopography(arr, (5, 10), unit=unit).detrend('center')
+    return t
+
+
+
+@pytest.fixture
+def simple_surface():
+    class WrapTopography:
+        def __init__(self, t):
+            self._t = t
+        def topography(self):
+            return self._t
+
+    class WrapRequest:
+        def __init__(self, c):
+            self._c = c
+        def all(self):
+            return self._c
+
+    class WrapSurface:
+        def __init__(self, c):
+            self._c = c
+        @property
+        def topography_set(self):
+            return WrapRequest(self._c)
+
+    nx, ny = 113, 123
+    sx, sy = 1, 1
+    lx = 0.3
+    topographies = [
+        STTopography(np.resize(np.sin(np.arange(nx) * sx * 2 * np.pi / (nx * lx)), (nx, ny)), (sx, sy), periodic=False,
+                     unit='um')
+    ]
+
+    nx = 278
+    sx = 100
+    lx = 2
+    x = np.arange(nx) * sx / nx
+    topographies += [
+        STNonuniformLineScan(x, np.cos(x * np.pi / lx), unit='nm')
+    ]
+
+    return WrapSurface([WrapTopography(t) for t in topographies])
 
 

@@ -6,29 +6,21 @@ dist: focal
 language: python
 cache: pip
 addons:
-  firefox: latest
   postgresql: "13"
-  apt:
-    packages:
-      - firefox-geckodriver
-      - rabbitmq-server
 services:
-  - rabbitmq
   - postgresql
 env:
   global:
     - USE_DOCKER=no
     - DJANGO_SETTINGS_MODULE=config.settings.test
-    - FIREFOX_BINARY_PATH=/usr/lib/firefox/firefox
-    - GECKODRIVER_PATH=/usr/bin/geckodriver
 python:
   - 3.8
 #before_install:
 #  - google-chrome-stable --headless --disable-gpu --remote-debugging-port=9222 http://localhost &
 install:
-  # - sudo apt-get install libfftw3-dev libopenblas-dev chromium-chromedriver
   - sudo apt-get install libfftw3-dev libopenblas-dev
-  - pip install -q -r requirements/test.txt --no-binary numpy
+  - pip install -r requirements/local.txt --no-binary numpy
+  # - pip install -e .[dev] --no-binary numpy
   - python manage.py collectstatic
   # - pip install selenium
 script:

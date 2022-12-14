@@ -15,31 +15,30 @@ from ..utils import get_latest_analyses
 
 
 @pytest.mark.django_db
-def test_request_analysis(two_topos, django_user_model):
+def test_request_analysis(two_topos, test_analysis_function):
     topo1 = Topography.objects.get(name="Example 3 - ZSensor")
     topo2 = Topography.objects.get(name="Example 4 - Default")
-    af = AnalysisFunction.objects.first()
 
     # delete all prior analyses for these two topographies in order to have a clean state
     Analysis.objects.filter(topography__in=[topo1, topo2]).delete()
 
-    user = django_user_model.objects.create(name='testuser')
+    user = UserFactory()
 
-    analysis = request_analysis(user=user, subject=topo1, analysis_func=af)
+    analysis = request_analysis(user=user, subject=topo1, analysis_func=test_analysis_function)
 
     assert analysis.subject == topo1
-    assert analysis.function == af
+    assert analysis.function == test_analysis_function
     assert user in analysis.users.all()
 
 
 @pytest.mark.django_db
-def test_latest_analyses(two_topos, django_user_model):
+def test_latest_analyses(two_topos, test_analysis_function):
 
-    user = django_user_model.objects.get(username="testuser")
+    user = UserFactory()
 
     topo1 = Topography.objects.get(name="Example 3 - ZSensor")
     topo2 = Topography.objects.get(name="Example 4 - Default")
-    af = AnalysisFunction.objects.first()
+
 
     # delete all prior analyses for these two topographies in order to have a clean state
     Analysis.objects.filter(topography__in=[topo1, topo2]).delete()
@@ -49,7 +48,7 @@ def test_latest_analyses(two_topos, django_user_model):
     #
     analysis = TopographyAnalysisFactory.create(
         subject=topo1,
-        function=af,
+        function=test_analysis_function,
         task_state=Analysis.SUCCESS,
         kwargs=pickle.dumps({}),
         start_time=datetime.datetime(2018, 1, 1, 12),
@@ -61,7 +60,7 @@ def test_latest_analyses(two_topos, django_user_model):
     # save a second only, which has a later start time
     analysis = TopographyAnalysisFactory.create(
         subject=topo1,
-        function=af,
+        function=test_analysis_function,
         task_state=Analysis.SUCCESS,
         kwargs=pickle.dumps({}),
         start_time=datetime.datetime(2018, 1, 2, 12),
@@ -75,7 +74,7 @@ def test_latest_analyses(two_topos, django_user_model):
     #
     analysis = TopographyAnalysisFactory.create(
         subject=topo2,
-        function=af,
+        function=test_analysis_function,
         task_state=Analysis.SUCCESS,
         kwargs=pickle.dumps({}),
         start_time=datetime.datetime(2018, 1, 3, 12),
@@ -87,7 +86,7 @@ def test_latest_analyses(two_topos, django_user_model):
     # save a second one, which has the latest start time
     analysis = TopographyAnalysisFactory.create(
         subject=topo2,
-        function=af,
+        function=test_analysis_function,
         task_state=Analysis.SUCCESS,
         kwargs=pickle.dumps({}),
         start_time=datetime.datetime(2018, 1, 5, 12),
@@ -99,7 +98,7 @@ def test_latest_analyses(two_topos, django_user_model):
     # save a third one, which has a later start time than the first
     analysis = TopographyAnalysisFactory.create(
         subject=topo2,
-        function=af,
+        function=test_analysis_function,
         task_state=Analysis.SUCCESS,
         kwargs=pickle.dumps({}),
         start_time=datetime.datetime(2018, 1, 4, 12),
@@ -109,7 +108,7 @@ def test_latest_analyses(two_topos, django_user_model):
     analysis.users.add(user)
 
     tt = ContentType.objects.get_for_model(Topography)
-    analyses = get_latest_analyses(user, af, [topo1, topo2])
+    analyses = get_latest_analyses(user, test_analysis_function, [topo1, topo2])
 
     assert len(analyses) == 2  # one analysis per function and topography
 
@@ -129,10 +128,9 @@ def test_latest_analyses(two_topos, django_user_model):
 
 
 @pytest.mark.django_db
-def test_latest_analyses_if_no_analyses():
+def test_latest_analyses_if_no_analyses(test_analysis_function):
     user = UserFactory()
-    function = AnalysisFunctionFactory()
-    assert get_latest_analyses(user, function, []).count() == 0
+    assert get_latest_analyses(user, test_analysis_function, []).count() == 0
 
 
 def test_mangle_sheet_name():

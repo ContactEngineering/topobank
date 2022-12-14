@@ -39,7 +39,7 @@ from topobank.publication.models import Publication, DOICreationException
 from topobank.users.utils import get_default_group
 from topobank.analysis.models import Analysis
 from topobank.analysis.utils import renew_analyses_for_subject
-from topobank.manager.utils import default_storage_replace, make_dzi
+from topobank.manager.utils import make_dzi, dzi_exists
 
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 
@@ -63,13 +63,22 @@ def user_directory_path(instance, filename):
 
 
 class PublicationException(Exception):
+    """A general exception related to publications."""
     pass
 
+
+class PublicationsDisabledException(PublicationException):
+    """Publications are not allowed due to settings."""
+    pass
+
+
 class AlreadyPublishedException(PublicationException):
+    """A surface has already been published."""
     pass
 
 
 class NewPublicationTooFastException(PublicationException):
+    """A new publication has been issued to fast after the former one."""
     def __init__(self, latest_publication, wait_seconds):
         self._latest_pub = latest_publication
         self._wait_seconds = wait_seconds
@@ -81,14 +90,27 @@ class NewPublicationTooFastException(PublicationException):
 
 
 class LoadTopographyException(Exception):
+    """Failure while loading data for a topography."""
     pass
 
 
 class PlotTopographyException(Exception):
+    """Failure while plotting topography."""
     pass
 
 
 class ThumbnailGenerationException(Exception):
+    """Failure while generating thumbnails for a topography."""
+    def __init__(self, topo, message):
+        self._topo = topo
+        self._message = message
+
+    def __str__(self):
+        return self._message
+
+
+class DZIGenerationException(ThumbnailGenerationException):
+    """Failure while generating DZI files for a topography."""
     pass
 
 
@@ -189,6 +211,17 @@ class Surface(models.Model, SubjectMixin):
 
     def num_topographies(self):
         return self.topography_set.count()
+
+    def save(self, *args, **kwargs):
+        created = self.pk is None
+        super().save(*args, **kwargs)
+        if created:
+            self.grant_permissions_to_creator()
+
+    def grant_permissions_to_creator(self):
+        """Grant all permissions for this surface to its creator."""
+        for perm in ['view_surface', 'change_surface', 'delete_surface', 'share_surface', 'publish_surface']:
+            assign_perm(perm, self.creator, self)
 
     def to_dict(self):
         """Create dictionary for export of metadata to json or yaml.
@@ -361,6 +394,9 @@ class Surface(models.Model, SubjectMixin):
         }
 
         """
+        if not settings.PUBLICATION_ENABLED:
+            raise PublicationsDisabledException()
+
         if self.is_published:
             raise AlreadyPublishedException()
 
@@ -469,6 +505,7 @@ class Topography(models.Model, SubjectMixin):
     class Meta:
         ordering = ['measurement_date', 'pk']
         unique_together = (('surface', 'name'),)
+        verbose_name_plural = "topographies"
 
     LENGTH_UNIT_CHOICES = [
         ('km', 'kilometers'),
@@ -477,6 +514,7 @@ class Topography(models.Model, SubjectMixin):
         ('µm', 'micrometers'),
         ('nm', 'nanometers'),
         ('Å', 'angstrom'),
+        ('pm', 'picometers')  # This is the default unit for VK files so we need it
     ]
 
     HAS_UNDEFINED_DATA_DESCRIPTION = {
@@ -628,7 +666,26 @@ class Topography(models.Model, SubjectMixin):
     @property
     def has_thumbnail(self):
         """If True, a thumbnail can be retrieved via self.thumbnail"""
-        return bool(self.thumbnail)
+        if not bool(self.thumbnail):
+            # thumbnail is not set
+            return False
+        # check whether it is a valid file
+        from PIL import Image
+        try:
+            image = Image.open(self.thumbnail)
+            image.verify()
+        except Exception as exc:
+            _log.warning(f"Topography {self.id} has no thumbnail. Reason: {exc}")
+            return False
+        return True
+
+    @property
+    def has_dzi(self):
+        """If True, this topography is expected to have dzi data.
+
+        For 1D topography data this is always False.
+        """
+        return (self.size_y is not None) and dzi_exists(self._dzi_storage_prefix())
 
     @property
     def storage_prefix(self):
@@ -692,7 +749,7 @@ class Topography(models.Model, SubjectMixin):
         allow_squeezed: bool
             If True (default), the instance is allowed to be generated
             from a squeezed datafile which is not the original datafile.
-            This is often faster then the original file format.
+            This is often faster than the original file format.
         """
         if not _IN_CELERY_WORKER_PROCESS and self.size_y is not None:
             _log.warning('You are requesting to load a (2D) topography and you are not within in a Celery worker '
@@ -877,6 +934,7 @@ class Topography(models.Model, SubjectMixin):
             ax.plot(x, y, '-')
             ax.set_axis_off()
             fig.savefig(image_file, bbox_inches='tight', dpi=100, format='png')
+            matplotlib.pyplot.close(fig)  # probably saves memory, see issue 898
         elif st_topo.dim == 2:
             # Compute thumbnail size (keeping aspect ratio)
             sx, sy = st_topo.physical_sizes
@@ -1068,8 +1126,10 @@ class Topography(models.Model, SubjectMixin):
 
         return plot
 
-    def _renew_images(self):
-        """Renew thumbnail and deep zoom images.
+    def _renew_thumbnail(self):
+        """Renews thumbnail.
+
+
 
         Returns
         -------
@@ -1086,11 +1146,22 @@ class Topography(models.Model, SubjectMixin):
             ContentFile(image_file.getvalue()),
         )
 
+    def _dzi_storage_prefix(self):
+        """Return prefix for storing DZI images."""
+        return f'{self.storage_prefix}/dzi'
+
+    def _renew_dzi(self):
+        """Renew deep zoom images.
+
+        Returns
+        -------
+        None
+        """
         if self.size_y is not None:
             # This is a topography (map), we need to create a Deep Zoom Image
-            make_dzi(self.topography(), f'{self.storage_prefix}/dzi')
+            make_dzi(self.topography(), self._dzi_storage_prefix())
 
-    def renew_images(self, none_on_error=True):
+    def renew_thumbnail(self, none_on_error=True):
         """Renew thumbnail field.
 
         Parameters
@@ -1108,7 +1179,7 @@ class Topography(models.Model, SubjectMixin):
         ThumbnailGenerationException
         """
         try:
-            self._renew_images()
+            self._renew_thumbnail()
         except Exception as exc:
             if none_on_error:
                 self.thumbnail = None
@@ -1118,7 +1189,55 @@ class Topography(models.Model, SubjectMixin):
                 import traceback
                 _log.warning(f"Traceback: {traceback.format_exc()}")
             else:
-                raise ThumbnailGenerationException from exc
+                raise ThumbnailGenerationException(self, str(exc)) from exc
+
+    def renew_dzi(self, none_on_error=True):
+        """Renew deep zoom image files.
+
+        Parameters
+        ----------
+        none_on_error: bool
+            If True (default), do not raise an exception if there are any errors.
+            If False, exceptions have to be caught outside.
+
+        Returns
+        -------
+        None
+
+        Raises
+        ------
+        DZIGenerationException
+        """
+        try:
+            self._renew_dzi()
+        except Exception as exc:
+            if none_on_error:
+                _log.warning(f"Problems while generating deep zoom images for topography {self.id}: {exc}.")
+                import traceback
+                _log.warning(f"Traceback: {traceback.format_exc()}")
+            else:
+                raise DZIGenerationException(self, str(exc)) from exc
+
+    def renew_images(self, none_on_error=True):
+        """Renew thumbnail field and deep zoom image files.
+
+        Parameters
+        ----------
+        none_on_error: bool
+            If True (default), sets thumbnail to None if there are any errors.
+            If False, exceptions have to be caught outside.
+
+        Returns
+        -------
+        None
+
+        Raises
+        ------
+        ThumbnailGenerationException
+        DZIGenerationException
+        """
+        self.renew_thumbnail(none_on_error=none_on_error)
+        self.renew_dzi(none_on_error=none_on_error)
 
     def renew_bandwidth_cache(self):
         """Renew bandwidth cache.

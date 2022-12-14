@@ -1,21 +1,18 @@
 """
 Models related to analyses.
 """
-
-import inspect
-import json
-import pickle
-
 from django.db import models
-from django.db.models import UniqueConstraint
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.core.files.storage import default_storage
 
+import pickle
+import json
+
 from ..utils import store_split_dict, load_split_dict
 from topobank.users.models import User
 
-from .registry import ImplementationMissingException
+from .registry import ImplementationMissingAnalysisFunctionException, AnalysisRegistry, AnalysisFunctionImplementation
 
 RESULT_FILE_BASENAME = 'result'
 
@@ -74,10 +71,9 @@ class Configuration(models.Model):
 class Analysis(models.Model):
     """Concrete Analysis with state, function reference, arguments, and results.
 
-    Additionally it saves the configuration which was present when
+    Additionally, it saves the configuration which was present when
     executing the analysis, i.e. versions of the main libraries needed.
     """
-
     PENDING = 'pe'
     STARTED = 'st'
     RETRY = 're'
@@ -111,7 +107,13 @@ class Analysis(models.Model):
     start_time = models.DateTimeField(null=True)
     end_time = models.DateTimeField(null=True)
 
+    # Bibliography
+    dois = models.JSONField(default=list)
+
     configuration = models.ForeignKey(Configuration, null=True, on_delete=models.SET_NULL)
+
+    class Meta:
+        verbose_name_plural = "analyses"
 
     def __init__(self, *args, result=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -157,7 +159,8 @@ class Analysis(models.Model):
         """Return the toplevel result object without series data, i.e. the raw result.json without unsplitting it"""
         if self._result_metadata_cache is None:
             self._result_metadata_cache = json.load(
-                default_storage.open(f'{self.storage_prefix}/{RESULT_FILE_BASENAME}.json'))
+                default_storage.open(f'{self.storage_prefix}/{RESULT_FILE_BASENAME}.json')
+            )
         return self._result_metadata_cache
 
     @property
@@ -194,7 +197,9 @@ class Analysis(models.Model):
 
     def is_visible_for_user(self, user):
         """Returns True if given user should be able to see this analysis."""
-        return user.has_perm("view_surface", self.related_surface)
+        allowed_to_view_surface = user.has_perm("view_surface", self.related_surface)
+        allowed_to_use_implementation = self.function.get_implementation(self.subject_type).is_available_for_user(user)
+        return allowed_to_use_implementation and allowed_to_view_surface
 
     @property
     def is_topography_related(self):
@@ -215,27 +220,13 @@ class AnalysisFunction(models.Model):
     """Represents an analysis function from a user perspective.
 
     Examples:
-        - name: 'Height distribution', card_view_flavor='plot'
-        - name: 'Contact mechanics', card_view_flavor='contact mechanics'
+        - name: 'Height distribution'
+        - name: 'Contact mechanics'
 
     These functions are referenced by the analyses. Each function "knows"
     how to find the appropriate implementation for given arguments.
     """
-    SIMPLE = 'simple'
-    PLOT = 'plot'
-    POWER_SPECTRUM = 'power spectrum'
-    CONTACT_MECHANICS = 'contact mechanics'
-    ROUGHNESS_PARAMETERS = 'roughness parameters'
-    CARD_VIEW_FLAVOR_CHOICES = [
-        (SIMPLE, 'Simple display of the results as raw data structure'),
-        (PLOT, 'Display results in a plot with multiple datasets'),
-        (POWER_SPECTRUM, 'Display results in a plot suitable for power spectrum'),
-        (CONTACT_MECHANICS, 'Display suitable for contact mechanics including special widgets'),
-        (ROUGHNESS_PARAMETERS, 'Display a table with roughness parameters.')
-    ]
-
     name = models.CharField(max_length=80, help_text="A human-readable name.", unique=True)
-    card_view_flavor = models.CharField(max_length=50, default=SIMPLE, choices=CARD_VIEW_FLAVOR_CHOICES)
 
     def __str__(self):
         return self.name
@@ -257,11 +248,7 @@ class AnalysisFunction(models.Model):
         ImplementationMissingException
             in case the implementation is missing
         """
-        try:
-            impl = self.implementations.get(subject_type=subject_type)
-        except AnalysisFunctionImplementation.DoesNotExist as exc:
-            raise ImplementationMissingException(self.name, subject_type)
-        return impl
+        return AnalysisRegistry().get_implementation(self.name, subject_type=subject_type)
 
     def python_function(self, subject_type):
         """Return function for given first argument type.
@@ -273,25 +260,26 @@ class AnalysisFunction(models.Model):
 
         Returns
         -------
-        Python function, where first argument must be the given type.
+        Python function which implements the analysis, where first argument must be the given type,
+        and there maybe more arguments needed.
 
         Raises
         ------
         ImplementationMissingException
             if implementation for given subject type does not exist
         """
-        return self.get_implementation(subject_type).python_function()
+        return AnalysisRegistry().get_implementation(self.name, subject_type).python_function()
 
     def get_implementation_types(self):
         """Return list of content types for which this function is implemented.
         """
-        return [impl.subject_type for impl in self.implementations.all()]
+        return AnalysisRegistry().get_implementation_types(self.name)
 
     def is_implemented_for_type(self, subject_type):
         """Returns True if function is implemented for given content type, else False"""
         try:
             self.python_function(subject_type)
-        except ImplementationMissingException:
+        except ImplementationMissingAnalysisFunctionException:
             return False
         return True
 
@@ -329,58 +317,6 @@ class AnalysisFunction(models.Model):
         return self.get_implementation(subject_type).eval(subject, **kwargs)
 
 
-class AnalysisFunctionImplementation(models.Model):
-    """Represents an implementation of an analysis function depending on subject."""
-    function = models.ForeignKey(AnalysisFunction, related_name='implementations', on_delete=models.CASCADE)
-    subject_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
-    code_ref = models.CharField(max_length=256,
-                                help_text="name of Python function in 'topobank.analysis.functions' module")
-
-    class Meta:
-        constraints = [
-            UniqueConstraint(fields=['function', 'subject_type'], name='distinct_implementation')
-        ]
-
-    def python_function(self):
-        """Return reference to corresponding Python function."""
-        import topobank.analysis.functions as functions_module
-        try:
-            return getattr(functions_module, self.code_ref)
-        except AttributeError as exc:
-            raise ValueError(f"Cannot resolve reference to python function '{self.code_ref}'.")
-
-    @staticmethod
-    def _get_default_args(func):
-        # thanks to mgilson, his answer on SO:
-        # https://stackoverflow.com/questions/12627118/get-a-function-arguments-default-value#12627202
-
-        signature = inspect.signature(func)
-        return {
-            k: v.default
-            for k, v in signature.parameters.items()
-            if v.default is not inspect.Parameter.empty
-        }
-
-    def get_default_kwargs(self):
-        """Return default keyword arguments as dict.
-
-        Administrative arguments like
-        'storage_prefix' and 'progress_recorder'
-        which are common to all functions, are excluded.
-        """
-        dkw = self._get_default_args(self.python_function())
-        if 'storage_prefix' in dkw:
-            del dkw['storage_prefix']
-        if 'progress_recorder' in dkw:
-            del dkw['progress_recorder']
-        return dkw
-
-    def eval(self, subject, **kwargs):
-        """Evaluate implementation on given subject with given arguments."""
-        pyfunc = self.python_function()
-        return pyfunc(subject, **kwargs)
-
-
 class AnalysisCollection(models.Model):
     """A collection of analyses which belong together for some reason."""
     name = models.CharField(max_length=160)
@@ -393,5 +329,3 @@ class AnalysisCollection(models.Model):
     # This happens e.g. if the user presses "recalculate" several times and
     # one analysis becomes part in each of these requests.
 
-
-CARD_VIEW_FLAVORS = [cv for cv, _ in AnalysisFunction.CARD_VIEW_FLAVOR_CHOICES]

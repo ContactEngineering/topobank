@@ -11,7 +11,7 @@
 
 {% block card_body %}
 
-  <div id="card-{{ function.pk }}" class="row">
+  <div id="{{ card_id }}" class="row">
 
     <div class="col-9">
       <ul class="nav nav-tabs">
@@ -76,22 +76,22 @@
         <div class="col">
           <!-- button area -->
           {% if analyses_available %}
+            {% if not analyses_unready %}
+            <a class="btn btn-primary btn-block btn-lg" href="#" data-toggle="modal"
+                 data-target="#statusesModal-{{ card_id }}">{% fa5_icon 'tasks' %} Tasks</a>
+            {% endif %}
             {% if analyses_success %}
               <a class="btn btn-default btn-block btn-lg"
-                 href="{% url 'analysis:download' analyses_success|analyses_results_ids_list_str 'plot' 'txt' %}">
+                 href="{% url 'analysis:download' analyses_success|analyses_results_ids_list_str 'series' 'txt' %}">
                 {% fa5_icon 'download' %} Download TXT</a>
               <a class="btn btn-default btn-block btn-lg"
-                 href="{% url 'analysis:download' analyses_success|analyses_results_ids_list_str 'plot' 'xlsx' %}">
+                 href="{% url 'analysis:download' analyses_success|analyses_results_ids_list_str 'series' 'xlsx' %}">
                 {% fa5_icon 'download' %} Download XLSX</a>
               <a href="#"
                  class="btn btn-default btn-block btn-lg"
                  v-on:click="$refs.plot.download()">
                 {% fa5_icon 'download' %} Download SVG
               </a>
-            {% endif %}
-            {% if not analyses_unready %}
-              <a class="btn btn-default btn-block btn-lg" href="#" data-toggle="modal"
-                 data-target="#statusesModal-{{ card_id }}">{% fa5_icon 'tasks' %} Task information</a>
             {% endif %}
           {% endif %}
         </div>
@@ -107,7 +107,7 @@
 {% block card_javascript %}
   <script>
     new Vue({
-      el: "#card-{{ function.pk }}"
+      el: "#{{ card_id }}"
     });
   </script>
 {% endblock card_javascript %}

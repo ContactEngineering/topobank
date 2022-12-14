@@ -346,12 +346,16 @@ topobank/media/
 topobank.db
 .pytest_cache/
 
-# The following files contain password and should be generated manally from .template files
+# The following files contain password and should be generated manully from .template files or commands
 .envs/.local/.django
+.envs/.local/.pypi-authfile
 .envs/.production/.django
 .envs/.production/.django.testserver
 .envs/.production/.postgres
 orcid.yaml
+
+# Locally generated pip packages
+compose/local/django/pip-packages/*
 
 # temporary files from soffice
 .~lock.*#
@@ -359,6 +363,7 @@ orcid.yaml
 # Some stuff which may appear during development
 .ipynb_checkpoints/
 /media/**/*
-!/usage_statistics.xlsx
+!/stuff/usage_statistics.xlsx
 data/
+.envs/.local/.pypi-authfile
 

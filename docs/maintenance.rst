@@ -7,6 +7,30 @@ Maintenance
 Management Commands
 -------------------
 
+`grant_admin_permissions`
+.........................
+
+Call this with a username as argument in order to grant permissions for
+using the admin interface. In order to find out the username,
+you can either use an existing admin access or enter the "User Profile"
+page in the application. Then you can see your username in the URL.
+
+Example:
+
+    The URL is `https://contact.engineering/users/michael/`, then the username is `michael`.
+
+After granting the permission, you can enter the admin page. The link
+can be found by this user in the menu item which is named after the user.
+
+Currently only a subset of models can be changed and seen via the admin.
+The user can create and change organizations and view, filter and delete
+analyses.
+
+The main reason for enabling this access is to
+- investigate into problems with analyses
+- create new organizations
+- grant plugin permissions for individual organizations
+
 `export_usage_statistics`
 .........................
 

@@ -62,7 +62,9 @@ AWS_SECRET_ACCESS_KEY=secret12
 # the bucket will be created if not available, you can use different buckets for each developer:
 AWS_STORAGE_BUCKET_NAME=topobank-dev
 # replace with your endpoint url, you can use http://localhost:8082/ if you want to use an SSH tunnel to your endpoint:
-AWS_S3_ENDPOINT_URL=http://minio:9000
+# AWS_S3_ENDPOINT_URL=http://minio:9000
+AWS_S3_ENDPOINT_URL=http://topobank-minio-alias:9000
+# See local.yml why we use this alias! Alternatively, you could define "minio" as hostname for the container's IP
 AWS_S3_USE_SSL=True # this is default
 AWS_S3_VERIFY=False  # currently the certificate is not valid
 #AWS_MEDIA_PREFIX=media/

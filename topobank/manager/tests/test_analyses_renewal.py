@@ -10,7 +10,7 @@ from django.contrib.contenttypes.models import ContentType
 from .utils import FIXTURE_DIR, Topography1DFactory, SurfaceFactory, UserFactory
 from ..models import Topography
 from topobank.analysis.tests.utils import SurfaceAnalysisFactory, AnalysisFunctionFactory, \
-    AnalysisFunctionImplementationFactory, TopographyAnalysisFactory, Topography2DFactory
+    TopographyAnalysisFactory, Topography2DFactory
 from topobank.utils import assert_in_content, assert_no_form_errors
 
 
@@ -217,7 +217,7 @@ def test_form_changed_when_input_changes(changed_values_dict):
 
 
 @pytest.mark.django_db
-def test_analysis_removal_on_topography_deletion(client, handle_usage_statistics):
+def test_analysis_removal_on_topography_deletion(client, test_analysis_function, handle_usage_statistics):
     """Check whether surface analyses are deleted if topography is deleted.
     """
 
@@ -225,14 +225,9 @@ def test_analysis_removal_on_topography_deletion(client, handle_usage_statistics
     surface = SurfaceFactory(creator=user)
     topo = Topography1DFactory(surface=surface)
 
-    func = AnalysisFunctionFactory()
-    AnalysisFunctionImplementationFactory(function=func,
-                                          subject_type=ContentType.objects.get_for_model(topo))
-    AnalysisFunctionImplementationFactory(function=func,
-                                          subject_type=ContentType.objects.get_for_model(surface))
-    TopographyAnalysisFactory(subject=topo, function=func)
-    SurfaceAnalysisFactory(subject=surface, function=func)
-    SurfaceAnalysisFactory(subject=surface, function=func)
+    TopographyAnalysisFactory(subject=topo, function=test_analysis_function)
+    SurfaceAnalysisFactory(subject=surface, function=test_analysis_function)
+    SurfaceAnalysisFactory(subject=surface, function=test_analysis_function)
 
     assert topo.analyses.count() == 1
     assert surface.analyses.count() == 2

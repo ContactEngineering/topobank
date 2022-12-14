@@ -225,10 +225,17 @@
 
 {% block javascript %}
 
-  <script src="{% static 'vendor/bokeh/bokeh.min.js' %}"></script>
-  <script src="{% static 'vendor/bokeh/bokeh-api.min.js' %}"></script>
-  <script src="{% static 'vendor/bokeh/bokeh-widgets.min.js' %}"></script>
-  <script src="{% static 'vendor/bokeh/bokeh-tables.min.js' %}"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bokeh/3.0.0-dev.4/bokeh.min.js" integrity="sha512-HfciX3GGYUSD5vbnSEFkesyF3KD/ZEMsxRxPQmGoABd3OTSAdY4Hbauw+3ieCBF0KIbV4cZKn9rIW93a882EcA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bokeh/3.0.0-dev.4/bokeh-api.min.js" integrity="sha512-lM8DqpIFHDJzMhBJ8YW/7UGFPIq1eGStGuPbFf3pWVEPpoZBD3L6PvptqaW0z3GwzC/yPwsaSQVh9JObK9hpUw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bokeh/3.0.0-dev.4/bokeh-widgets.min.js" integrity="sha512-8gbP3L8XiZSD+zqB50nFZzgPqkg2d00gPGVfevBXFqbC+ob1PLlyqu1ZiU+n6pQ0iVQ4HnXEh5cZ8jKmgJqYsA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bokeh/3.0.0-dev.4/bokeh-tables.min.js" integrity="sha512-0MPXzezXHxbzck9MBVY6bRNBKK9L6oBEtOM+LrOZu+gN51LyvFYvSLj5FsbxXctf2Lt45wgjp3rFOh8mX/LBiw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+  {#  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-3.0.2.min.js"></script>#}
+  {#  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-api-3.0.2.min.js"></script>#}
+  {#  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-widgets-3.0.2.min.js"></script>#}
+  {#  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-tables-3.0.2.min.js"></script>#}
+
   <script src="{% static 'js/dzi.js' %}"></script>
 
   {# Some JSON code to define JS variables from Django context #}

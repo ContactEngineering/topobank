@@ -240,8 +240,9 @@ def filtered_surfaces(request):
             topography_name_for_search=Replace('topography__name', Value('.'), Value(' '))  # often there are filenames
         ).distinct('id').order_by('id')
         qs = filter_queryset_by_search_term(qs, search_term, [
-            'description', 'name', 'tag_names_for_search',
+            'description', 'name', 'creator__name', 'tag_names_for_search',
             'topography_name_for_search', 'topography__description', 'topography_tag_names_for_search',
+            'topography__creator__name',
         ])
     return qs
 
@@ -273,7 +274,7 @@ def filtered_topographies(request, surfaces):
             name_for_search=Replace('name', Value('.'), Value(' '))
         ).distinct('id').order_by('id')
         topographies = filter_queryset_by_search_term(topographies, search_term, [
-            'description', 'name_for_search', 'tag_names_for_search',
+            'description', 'creator__name', 'name_for_search', 'tag_names_for_search',
         ])
     return topographies
 
@@ -958,6 +959,23 @@ def get_permission_table_data(instance, request_user, actions=['view', 'change',
         perms_table.append(row)
 
     return perms_table
+
+
+def dzi_exists(path_prefix):
+    """
+    Decides whether DZI data exists under the given path_prefix.
+    Current heuristics: If '{path_prefix}/dzi.json' exists, the deep
+    zoom images are expected to be available. This could be further improved.
+
+    Parameters
+    ----------
+    path_prefix
+
+    Returns
+    -------
+    True, if DZI data is expected to be available, else False.
+    """
+    return default_storage.exists(f'{path_prefix}/dzi.json')
 
 
 def make_dzi(data, path_prefix, physical_sizes=None, unit=None, quality=95, colorbar_title=None, cmap=None):

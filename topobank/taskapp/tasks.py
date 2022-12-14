@@ -14,13 +14,15 @@ from celery_progress.backend import ProgressRecorder
 from celery.signals import after_setup_task_logger
 from celery.app.log import TaskFormatter
 from celery.utils.log import get_task_logger
+from celery import group
 
 from notifications.signals import notify
 
 from SurfaceTopography.Exceptions import CannotPerformAnalysisError
+from SurfaceTopography.Support import doi
 from ContactMechanics.Systems import IncompatibleFormulationError
 
-from .celery import app
+from .celeryapp import app
 from .utils import get_package_version_instance
 
 from topobank.analysis.functions import IncompatibleTopographyException
@@ -108,7 +110,7 @@ def perform_analysis(self, analysis_id):
     analysis.configuration = current_configuration()
     analysis.save()
 
-    def save_result(result, task_state):
+    def save_result(result, task_state, dois=[]):
         _log.debug(f"Saving result of analysis {analysis_id} to storage...")
         analysis.task_state = task_state
         #default_storage_replace(f'{analysis.storage_prefix}/result.json',
@@ -118,8 +120,13 @@ def perform_analysis(self, analysis_id):
         analysis.end_time = timezone.now()  # with timezone
         if 'effective_kwargs' in result:
             analysis.kwargs = pickle.dumps(result['effective_kwargs'])
+        analysis.dois = list(dois)  # dois is a set, we need to convert it
         analysis.save()
         _log.debug("Done saving analysis result.")
+
+    @doi()
+    def evaluate_function(subject, **kwargs):
+        return analysis.function.eval(subject, **kwargs)
 
     #
     # actually perform analysis
@@ -130,10 +137,13 @@ def perform_analysis(self, analysis_id):
         subject = analysis.subject
         kwargs['progress_recorder'] = progress_recorder
         kwargs['storage_prefix'] = analysis.storage_prefix
+        # also request citation information
+        dois = set()
+        kwargs['dois'] = dois
         _log.debug("Evaluating analysis function '%s' on subject '%s' with kwargs %s and storage prefix '%s'...",
                    analysis.function.name, subject, kwargs, analysis.storage_prefix)
-        result = analysis.function.eval(subject, **kwargs)
-        save_result(result, Analysis.SUCCESS)
+        result = evaluate_function(subject, **kwargs)
+        save_result(result, Analysis.SUCCESS, dois)
     except (Topography.DoesNotExist, Surface.DoesNotExist, IntegrityError) as exc:
         _log.warning("Subject for analysis %s doesn't exist any more, so that analysis will be deleted...",
                      analysis.id)
@@ -321,12 +331,55 @@ def renew_topography_images(topography_id):
     None
     """
     _log.debug(f"Renewing images for topography id {topography_id}..")
+    group(renew_topography_thumbnail.si(topography_id),
+          renew_topography_dzi.si(topography_id)).delay()
+    _log.debug(f"Done - renewed images for topography id {topography_id}.")
+
+
+@app.task
+def renew_topography_thumbnail(topography_id):
+    """Renew thumbnail for given topography.
+
+    Parameters
+    ----------
+    topography_id: int
+        ID if topography for which a thumbnail should be generated
+        and saved.
+
+    Returns
+    -------
+    None
+    """
+    _log.debug(f"Renewing thumbnail for topography id {topography_id}..")
     try:
         topography = Topography.objects.get(id=topography_id)
-        topography.renew_images()
+        topography.renew_thumbnail(none_on_error=False)
     except Topography.DoesNotExist:
-        _log.error(f"Couldn't find topography with id {topography_id}. Cannot renew images.")
-    _log.debug(f"Done - renewed images for topography id {topography_id}.")
+        _log.error(f"Couldn't find topography with id {topography_id}. Cannot renew thumbnail.")
+    _log.debug(f"Done - renewed thumbnail for topography id {topography_id}.")
+
+
+@app.task
+def renew_topography_dzi(topography_id):
+    """Renew DZI files for given topography.
+
+    Parameters
+    ----------
+    topography_id: int
+        ID if topography for which the DZI files should be generated
+        and saved.
+
+    Returns
+    -------
+    None
+    """
+    _log.debug(f"Renewing DZI images for topography id {topography_id}..")
+    try:
+        topography = Topography.objects.get(id=topography_id)
+        topography.renew_dzi(none_on_error=False)
+    except Topography.DoesNotExist:
+        _log.error(f"Couldn't find topography with id {topography_id}. Cannot renew DZI.")
+    _log.debug(f"Done - renewed DZI for topography id {topography_id}.")
 
 
 @app.task

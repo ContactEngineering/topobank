@@ -6,11 +6,19 @@ volumes:
   minio_data: {}
   exchange_data: {}
 
+networks:
+  # this network was added in order to define an alias for the minio container
+  # See below at "minio" service
+  topobank_net:
+
 services:
   django: &django
     build:
       context: .
       dockerfile: ./compose/local/django/Dockerfile
+      args:
+        USER_ID: ${TOPOBANK_UID:-0}
+        GROUP_ID: ${TOPOBANK_GID:-0}
     shm_size: '2gb'
     image: topobank_local_django
     depends_on:
@@ -20,11 +28,18 @@ services:
     volumes:
       - .:/app
       - exchange_data:/tmp/exchange
+      - ./compose/local/django/pip-packages:/pip-packages:ro
+      # You could use a mount to a local directory in order to
+      # do a pip install -e /some/path[dev] to load plugin
+      # packages for development:
+      # - ..:/prj:ro
     env_file:
       - ./.envs/.local/.django
       - ./.envs/.local/.postgres
     ports:
       - "8000:8000"
+    networks:
+      - topobank_net
     command: /start
 
   postgres:
@@ -39,6 +54,8 @@ services:
       - ./.envs/.local/.postgres
     ports:
       - "5433:5432"
+    networks:
+      - topobank_net
 
 #  dbbackup:
 #    build:
@@ -57,11 +74,15 @@ services:
     image: mailhog/mailhog:v1.0.0
     ports:
       - "8025:8025"
+    networks:
+      - topobank_net
 
   #memcached:
   #  image: memcached:1.5-alpine
   redis:
     image: redis:6-alpine
+    networks:
+      - topobank_net
 
   # rabbitmq:
   #   image: rabbitmq:3.7-alpine
@@ -107,6 +128,16 @@ services:
     ports:
       - "9000:9000"
       - "9001:9001"
+    networks:
+      topobank_net:
+        aliases:
+          # For localhost access, add the following to your /etc/hosts
+          # 127.0.0.1  topobank-minio-alias
+          # and make sure that in settings, the AWS URL also uses this hostname;
+          # Like this, the URL given for accessing the S3 can be resolved
+          # on the host computer, because minio is exposed to port 9000 on host
+          - topobank-minio-alias
+
     volumes:
       - minio_data:/data
     environment:
@@ -124,6 +155,8 @@ services:
     depends_on:
       minio:
         condition: service_healthy
+    networks:
+      - topobank_net
     environment:
       - BUCKET_NAME=topobank-dev
       - ENDPOINT=http://minio:9000
@@ -135,6 +168,31 @@ services:
         exit 0;
         "
 
+  #
+  # Local pypiserver for installing packages
+  #
+  pypi:
+    user: "${TOPOBANK_UID}:${TOPOBANK_GID}"  # use here the UID (and GID) of the user running the service
+    image: docker.io/pypiserver/pypiserver:latest
+    environment:
+      - PYTHONUNBUFFERED=1
+    ports:
+      - "8010:8080"
+    networks:
+      - topobank_net
+    volumes:
+      - ./.envs/.local/.pypi-authfile:/data/.htpasswd:ro
+      - ./compose/local/django/pip-packages:/data/packages
+    command: run -a update -P /data/.htpasswd --overwrite /data/packages
+    restart: always
+    # As initialization, run:
+    # $ cd .envs/.local/
+    # $ sudo apt install apache2-utils
+    # $ htpasswd -sc ".pypi-authfile" "topobank"
+    #   (enter new password twice)
+    # Use this username and given password when pushing packages to this local pypiserver!
+    # This is needed to install plugin packages in docker.
+#
 #
 #  pgbackup:
 #    image: docker-postgres-s3-backup

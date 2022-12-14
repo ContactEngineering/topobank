@@ -14,6 +14,27 @@
   </component>
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
+      <sourceFolder url="file://$MODULE_DIR$/ansible" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/compose" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/config" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/docs" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/requirements" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/splinter_tests" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/topobank" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/topobank/analysis" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/topobank/contrib" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/topobank/manager" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/topobank/plugins" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/topobank/publication" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/topobank/static" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/topobank/tabnav" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/topobank/taskapp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/topobank/usage_stats" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/topobank/users" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/utility" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/topobank/organizations" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/topobank/organizations/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/topobank/contact_analysis_sav" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/node_modules" />
       <excludeFolder url="file://$MODULE_DIR$/staticfiles" />
       <excludeFolder url="file://$MODULE_DIR$/venv" />
@@ -34,8 +55,12 @@
       <excludeFolder url="file://$MODULE_DIR$/splinter_tests.test_selection" />
       <excludeFolder url="file://$MODULE_DIR$/splinter_tests.test_surface_creation" />
       <excludeFolder url="file://$MODULE_DIR$/splinter_tests.test_xss_attacks" />
+      <excludeFolder url="file://$MODULE_DIR$/data" />
+      <excludeFolder url="file://$MODULE_DIR$/media" />
+      <excludeFolder url="file://$MODULE_DIR$/topobank/topobank.egg-info" />
+      <excludeFolder url="file://$MODULE_DIR$/topobank.egg-info" />
     </content>
-    <orderEntry type="jdk" jdkName="topobank" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="Python 3.8 (venv)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
   <component name="PackageRequirementsSettings">

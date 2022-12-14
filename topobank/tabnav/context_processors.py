@@ -1,5 +1,7 @@
 from django.shortcuts import reverse
 
+from django.conf import settings
+
 HOME_URL = reverse('home')
 SELECT_URL = reverse('manager:select')
 SHARING_INFO_URL = reverse('manager:sharing-info')
@@ -38,16 +40,23 @@ def fixed_tabs_processor(request):
             'active': request.path == HOME_URL,
             'tooltip': "Welcome to contact.engineering",
             'show_basket': False,
-        },
-        {
-            'login_required': True,
-            'title': '',  # no text
-            'icon': 'bullhorn',
-            'href': PUBLICATIONS_URL,
-            'active': request.path == PUBLICATIONS_URL,
-            'tooltip': "Surfaces published by you",
-            'show_basket': False,
-        },
+        }
+    ]
+
+    if settings.PUBLICATION_DISPLAY_TAB_WITH_OWN_PUBLICATIONS:
+        tabs.append(
+            {
+                'login_required': True,
+                'title': '',  # no text
+                'icon': 'bullhorn',
+                'href': PUBLICATIONS_URL,
+                'active': request.path == PUBLICATIONS_URL,
+                'tooltip': "Surfaces published by you",
+                'show_basket': False,
+            },
+        )
+
+    tabs.extend([
         {
             'login_required': True,
             'title': '',  # no text
@@ -67,7 +76,7 @@ def fixed_tabs_processor(request):
             'tooltip': "Select surfaces and topographies for analysis or create new surfaces",
             'show_basket': True,
         },
-    ]
+    ])
 
     # Add default value for icon_style_prefix if missing
     for tab in tabs:

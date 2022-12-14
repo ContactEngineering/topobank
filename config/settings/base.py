@@ -2,7 +2,9 @@
 Base settings to build other settings files upon.
 """
 from django.core.exceptions import ImproperlyConfigured
+from pkg_resources import iter_entry_points
 import environ
+
 import topobank
 
 ROOT_DIR = environ.Path(__file__) - 3  # (topobank/config/settings/base.py - 3 = topobank/)
@@ -92,16 +94,26 @@ THIRD_PARTY_APPS = [
     'fullurl',
 ]
 LOCAL_APPS = [
-    'topobank.users.apps.UsersAppConfig',
     # Your stuff: custom apps go here
+    'topobank.users.apps.UsersAppConfig',
     'topobank.manager.apps.ManagerAppConfig',
     'topobank.analysis.apps.AnalysisAppConfig',
     'topobank.usage_stats.apps.UsageStatsAppConfig',
     'topobank.tabnav.apps.TabNavAppConfig',
     'topobank.publication.apps.PublicationAppConfig',
+    'topobank.organizations.apps.OrganizationsAppConfig',
 ]
+
+TOPOBANK_PLUGINS_IGNORE_CONFLICTS = env.bool('TOPOBANK_PLUGINS_IGNORE_CONFLICTS', default=False)
+TOPOBANK_PLUGINS_EXCLUDE = env.list('TOPOBANK_PLUGINS_EXCLUDE', default=[])
+PLUGIN_APPS = []
+for entry_point in iter_entry_points(group='topobank.plugins', name=None):
+    if entry_point.module_name in TOPOBANK_PLUGINS_EXCLUDE:
+        continue
+    PLUGIN_APPS.append(entry_point.module_name)
+
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
-INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
+INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS + PLUGIN_APPS
 
 # MIGRATIONS
 # ------------------------------------------------------------------------------
@@ -212,11 +224,13 @@ MEDIA_URL = '/media/'
 # TEMPLATES
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#templates
+
 TEMPLATES = [
     {
         # https://docs.djangoproject.com/en/dev/ref/settings/#std:setting-TEMPLATES-BACKEND
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         # https://docs.djangoproject.com/en/dev/ref/settings/#template-dirs
+        # 'APP_DIRS': True,
         'DIRS': [
             str(APPS_DIR.path('templates')),
         ],
@@ -275,7 +289,7 @@ MANAGERS = ADMINS
 
 # Celery
 # ------------------------------------------------------------------------------
-INSTALLED_APPS += ['topobank.taskapp.celery.CeleryAppConfig']
+INSTALLED_APPS += ['topobank.taskapp.celeryapp.CeleryAppConfig']
 if USE_TZ:
     # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-timezone
     CELERY_TIMEZONE = TIME_ZONE
@@ -409,7 +423,7 @@ if USE_S3_STORAGE:
 
     AWS_AUTO_CREATE_BUCKET = True
 
-    AWS_S3_ENDPOINT_URL = env.str('AWS_S3_ENDPOINT_URL', default='https://localhost:8082/')
+    AWS_S3_ENDPOINT_URL = env.str('AWS_S3_ENDPOINT_URL', default=None)
     AWS_S3_USE_SSL = env.bool('AWS_S3_USE_SSL', default=True)
     AWS_S3_VERIFY = env.bool('AWS_S3_VERIFY', default=True)
     AWS_DEFAULT_ACL = None
@@ -451,9 +465,14 @@ TRACKED_DEPENDENCIES = [
     ('NuMPI', 'NuMPI.__version__'),
     ('muFFT', 'muFFT.version.description()'),
     ('topobank', 'topobank.__version__'),
-    ('numpy', 'numpy.__version__'),
-    ('scipy', 'scipy.__version__'),
+    ('numpy', 'numpy.__version__')
 ]
+# Extend tracked dependencies by Plugin apps
+for plugin_app in PLUGIN_APPS:
+    TRACKED_DEPENDENCIES.append(
+        (plugin_app, plugin_app+'.__version__')  # we use the module name as readable name at first
+    )
+
 
 #
 # Settings for notifications package
@@ -495,8 +514,9 @@ TAGULOUS_AUTOCOMPLETE_JS = (
 CONTACT_EMAIL_ADDRESS = "support@contact.engineering"
 
 #
-# Publication settings
+# Publication and Datacite settings (DOI creation)
 #
+
 # set to None to disable check
 MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS = env.int('MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS', 600)
 
@@ -527,18 +547,10 @@ CC_LICENSE_INFOS = {  # each element refers to two links: (description URL, full
 # It may be useful to use these identifiers also everywhere in the code when identifying a license,
 # but then we also need to change the existing entries in the database.
 
-#
-# Analysis-specific settings
-#
-CONTACT_MECHANICS_KWARGS_LIMITS = {
-            'nsteps': dict(min=1, max=50),
-            'maxiter': dict(min=100, max=1000),
-            'pressures': dict(maxlen=50),
-}
+# Set the following to False, if publications shouldn't be possible at all
+PUBLICATION_ENABLED = env.bool('PUBLICATION_ENABLED', default=True)
+PUBLICATION_DISPLAY_TAB_WITH_OWN_PUBLICATIONS = env.bool('PUBLICATION_DISPLAY_TAB_WITH_OWN_PUBLICATIONS', default=True)
 
-#
-# Datacite settings (DOI creation)
-#
 PUBLICATION_DOI_STATE_INFOS = {
     'draft': {
         'description': 'only visible in Fabrica, DOI can be deleted',
@@ -575,6 +587,16 @@ if PUBLICATION_DOI_STATE not in PUBLICATION_DOI_STATE_INFOS.keys():
 # Some limitations, so that bots cannot enter too much
 PUBLICATION_MAX_NUM_AUTHORS = 200
 PUBLICATION_MAX_NUM_AFFILIATIONS_PER_AUTHOR = 20
+
+#
+# Analysis-specific settings
+#
+CONTACT_MECHANICS_KWARGS_LIMITS = {
+            'nsteps': dict(min=1, max=50),
+            'maxiter': dict(min=100, max=1000),
+            'pressures': dict(maxlen=50),
+}
+
 
 #
 # Settings related to contact characterization challenge

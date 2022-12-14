@@ -1,5 +1,44 @@
 # Changelog for *TopoBank*
 
+## 0.92.0 (not published yet)
+
+- ENH: Store bibliography (DOIs) when an analysis completes
+  (#171)
+- ENH: Enhanced search by also searching for names of 
+  users who created digital surface twins or 
+  measurements (#896)
+- ENH: Also show names of creators of unpublished digital 
+  surface twins and measurements in search results (#896) 
+- ENH: When hovering on data point, also display measurement
+  name and series name (#893)
+- ENH: Made "Tasks" information more prominent and added
+  possibility to renew selected analyses in the UI (#901) 
+- ENH: Added management command "grant_admin_permissions"
+  to give a user restricted permissions to enter 
+  admin interface in order to edit organizations or check
+  the state of analyses
+- ENH: Enhanced management command "create_images" such that
+  thumbnails and DZI files can be processed separately
+  and such that only missing images are generated (#903) 
+- ENH: Added link to admin interface for staff users
+- ENH: Added config options PUBLICATION_ENABLED and
+  PUBLICATION_DISPLAY_TAB_WITH_OWN_PUBLICATIONS which
+  are True by default, but can be used to disable publications
+- BUG: Fixed crashing of plots when apostrophe was used
+  in the subject's name
+- BUG: Fixed problem when a surface was part of an
+  analysis collection
+- MAINT: Close figures after generating plots from 1D
+  measurements (#898)
+- MAINT: Added plugin system, moved statistical analysis 
+  functions and contact mechanics to individual plugins
+  (topobank-statistics, topobank-contact), allows to 
+  add other functionality via plugins without changing the
+  main application
+- MAINT: Update for package SurfaceTopography (#911,#923)
+- MAINT: Update for package ContactMechanics (#872)
+- MAINT: Update of django because of security issue
+
 ## 0.91.1 (2022-09-19)
 
 - ENH: Added "Authors" tab in detail page for 

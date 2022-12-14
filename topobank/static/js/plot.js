@@ -161,10 +161,10 @@ Vue.component("bokeh-plot", {
       // Defining selection categories. For each category, there will be an accordion with the possibility to show/hide
       // all curves that correspond to a specific value of that category.
       // Array of dictionaries with keys:
-      //   key: Name of dataset key that defines this category, i.e. if we have add a category with key "series_name",
+      //   key: Name of dataset key that defines this category, i.e. if we have added a category with key "series_name",
       //        the code will expect a "series_name" key in a dataSource, that specifies the value for this category.
-      //        Typical categories: "subject_name" for name of a measurement, "series_name" for name of a data series like
-      //        "1D PSD along x"
+      //        Typical categories: "subject_name" for name of a measurement, "series_name" for name of a data series
+      //        like "1D PSD along x"
       //   title: Title of this category, a header put in front of the category elements e.g. "Data Series"
       type: Array, default: function () {
         return [];
@@ -191,7 +191,7 @@ Vue.component("bokeh-plot", {
       // Array of dictionaries with keys:
       //   url: URL to JSON that contains the data.
       //   [category-name] (optional): Display value of the specific category. For each category,
-      //                               there must be a key-value pair.Example: "series_name": "1D PSD along x"
+      //                               there must be a key-value pair. Example: "series_name": "1D PSD along x"
       //   [category-name]_index (optional): Zero-based index of [category_name] in an ordered list.
       //   color (optional): Line and symbol color.
       //   dash (optional): Line style, one of "solid", "dashed", "dotted", "dotdash", "dashdot".
@@ -211,11 +211,6 @@ Vue.component("bokeh-plot", {
     },
     sizingMode: {
       type: String, default: "scale_width"
-    },
-    tools: {
-      type: Array, default: function () {
-        return ["pan", "reset", "wheel_zoom", "box_zoom", "hover"];
-      }
     },
     selectable: {
       type: Boolean, default: false
@@ -408,7 +403,17 @@ Vue.component("bokeh-plot", {
         /* Create figures */
         for (const plot of this.plots) {
           /* Callback for selection of data points */
-          let tools = [...this.tools];  // Copy array (= would just be a reference)
+          let tools = ["pan", "reset", "wheel_zoom", "box_zoom",
+                        new Bokeh.HoverTool({
+                         'tooltips': [
+                           ['index', '$index'],
+                           ['(x,y)', '($x,$y)'],
+                           ['subject', '@subject_name'],
+                           ['series', '@series_name'],
+                         ]
+                        })
+          ];
+          // let tools = [...this.tools];  // Copy array (= would just be a reference)
           if (this.selectable) {
             const code = "self.onTap(cb_obj, cb_data);";
             tools.push(new Bokeh.TapTool({
@@ -427,7 +432,7 @@ Vue.component("bokeh-plot", {
           const yAxisType = plot.yAxisType === undefined ? "linear" : plot.yAxisType;
 
           /* Create and style figure */
-          const bokehPlot = new Bokeh.Plotting.Figure({
+          const bokehPlotFigure = new Bokeh.Plotting.Figure({
             height: this.height,
             sizing_mode: this.sizingMode,
             x_axis_label: plot.xAxisLabel === undefined ? "x" : plot.xAxisLabel,
@@ -440,22 +445,22 @@ Vue.component("bokeh-plot", {
 
           /* Change formatters for linear axes */
           if (xAxisType === "linear") {
-            bokehPlot.xaxis.formatter = new Bokeh.CustomJSTickFormatter({code: "return format_exponential(tick);"});
+            bokehPlotFigure.xaxis.formatter = new Bokeh.CustomJSTickFormatter({code: "return format_exponential(tick);"});
           }
           if (yAxisType === "linear") {
-            bokehPlot.yaxis.formatter = new Bokeh.CustomJSTickFormatter({code: "return format_exponential(tick);"});
+            bokehPlotFigure.yaxis.formatter = new Bokeh.CustomJSTickFormatter({code: "return format_exponential(tick);"});
           }
 
           /* This should become a Bokeh theme (supported in BokehJS with 3.0 - but I cannot find the `use_theme` method) */
-          bokehPlot.xaxis.axis_label_text_font_style = "normal";
-          bokehPlot.yaxis.axis_label_text_font_style = "normal";
-          bokehPlot.xaxis.major_label_text_font_size = "16px";
-          bokehPlot.yaxis.major_label_text_font_size = "16px";
-          bokehPlot.xaxis.axis_label_text_font_size = "16px";
-          bokehPlot.yaxis.axis_label_text_font_size = "16px";
+          bokehPlotFigure.xaxis.axis_label_text_font_style = "normal";
+          bokehPlotFigure.yaxis.axis_label_text_font_style = "normal";
+          bokehPlotFigure.xaxis.major_label_text_font_size = "16px";
+          bokehPlotFigure.yaxis.major_label_text_font_size = "16px";
+          bokehPlotFigure.xaxis.axis_label_text_font_size = "16px";
+          bokehPlotFigure.yaxis.axis_label_text_font_size = "16px";
 
           this.bokehPlots.push({
-            figure: bokehPlot,
+            figure: bokehPlotFigure,
             save: saveTool,
             lines: [],
             symbols: [],
@@ -498,12 +503,21 @@ Vue.component("bokeh-plot", {
               code += ", " + columnName + ": " + auxData;
             }
           }
-          if (plot.alphaData === undefined) {
-            code += " }";
-          } else {
-            code += ", alpha: " + plot.alphaData + " }";
+          if (plot.alphaData !== undefined) {
+            code += ", alpha: " + plot.alphaData;
             attrs.alpha = {field: "alpha"};
           }
+          if (dataSource.subject_name !== undefined) {
+            // For each data point, add the same subject_name
+            code += ", subject_name: " + xData + ".map((value) => '" + dataSource.subject_name + "')";
+          }
+          let series_name = "-";
+          if (dataSource.series_name !== undefined) {
+            series_name = dataSource.series_name;
+          }
+          // For each data point, add the same series_name
+          code += ", series_name: " + xData + ".map((value) => '" + series_name + "')";
+          code += " }";
 
           /* Data source: AJAX GET request to storage system retrieving a JSON */
           const source = new Bokeh.AjaxDataSource({

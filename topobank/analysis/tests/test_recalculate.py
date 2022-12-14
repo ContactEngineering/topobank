@@ -1,24 +1,23 @@
-from django.shortcuts import reverse
-from notifications.models import Notification
 import pytest
+from django.shortcuts import reverse
 from django.db import transaction
 
 from topobank.manager.tests.utils import SurfaceFactory, Topography1DFactory, UserFactory
-from topobank.analysis.tests.utils import AnalysisFunctionFactory, AnalysisFunctionImplementationFactory
+from topobank.analysis.tests.utils import TopographyAnalysisFactory
 from topobank.analysis.models import Analysis, AnalysisCollection
 from topobank.manager.utils import subjects_to_json
 
 
 @pytest.mark.django_db
-def test_recalculate(client):
+def test_submit_analyses_api(client, test_analysis_function, handle_usage_statistics):
+    """Test API to submit new analyses."""
 
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
     topo1 = Topography1DFactory(surface=surface)
     topo2 = Topography1DFactory(surface=surface)
 
-    func = AnalysisFunctionFactory(name="test function")
-    impl = AnalysisFunctionImplementationFactory(function=func)
+    func = test_analysis_function
 
     client.force_login(user)
 
@@ -62,4 +61,47 @@ def test_recalculate(client):
     # #
     # note = Notification.objects.get(recipient=user, description__contains="Tasks finished")
     # assert note.href == reverse('analysis:collection', kwargs=dict(collection_id=collection.id))
+
+
+@pytest.mark.django_db
+def test_renew_analyses_api(client, test_analysis_function):
+    """Test whether existing analyses can be renewed by API call."""
+
+    user = UserFactory()
+    surface = SurfaceFactory(creator=user)
+    topo1 = Topography1DFactory(surface=surface)
+    topo2 = Topography1DFactory(surface=surface)
+
+    func = test_analysis_function
+
+    analysis1a = TopographyAnalysisFactory(subject=topo1, function=func)
+    analysis2a = TopographyAnalysisFactory(subject=topo2, function=func)
+
+    client.force_login(user)
+
+    with transaction.atomic():
+        # trigger "renew" for two specific analyses
+        response = client.post(reverse('analysis:renew'), {
+            'analyses_ids[]': [analysis1a.id, analysis2a.id],
+        }, HTTP_X_REQUESTED_WITH='XMLHttpRequest')  # we need an AJAX request
+        assert response.status_code == 200
+
+    #
+    # Old analyses should be deleted
+    #
+    with pytest.raises(Analysis.DoesNotExist):
+        Analysis.objects.get(id=analysis1a.id)
+    with pytest.raises(Analysis.DoesNotExist):
+        Analysis.objects.get(id=analysis2a.id)
+
+    #
+    # New Analysis objects should be there and marked for the user
+    #
+    analysis1b = Analysis.objects.get(function=func, topography=topo1)
+    analysis2b = Analysis.objects.get(function=func, topography=topo2)
+
+    assert user in analysis1b.users.all()
+    assert user in analysis2b.users.all()
+
+
 

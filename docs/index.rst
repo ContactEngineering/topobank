@@ -11,9 +11,12 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
+   development
    configuration
    search
+   analyses
    deploy
+   swarm
    maintenance
    install-docker
    orcid

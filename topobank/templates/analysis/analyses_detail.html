@@ -17,7 +17,7 @@
       <!--
       Show card. Will be replaced by AJAX call.
       -->
-      <div id="card">
+      <div id="card-wrapper">
         <div class="card">
           <div class="card-header">
             <h3>{{ card.function.name }}</h3>
@@ -37,16 +37,16 @@
 
 {% block javascript %}
   <!-- ----------- for bokeh plot ----- -->
-  <!--
-  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-3.0.0.dev2.min.js"></script>
-  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-api-3.0.0.dev2.min.js"></script>
-  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-widgets-3.0.0.dev2.min.js"></script>
-  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-tables-3.0.0.dev2.min.js"></script>
-  -->
-  <script src="{% static 'vendor/bokeh/bokeh.min.js' %}"></script>
-  <script src="{% static 'vendor/bokeh/bokeh-api.min.js' %}"></script>
-  <script src="{% static 'vendor/bokeh/bokeh-widgets.min.js' %}"></script>
-  <script src="{% static 'vendor/bokeh/bokeh-tables.min.js' %}"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bokeh/3.0.0-dev.4/bokeh.min.js" integrity="sha512-HfciX3GGYUSD5vbnSEFkesyF3KD/ZEMsxRxPQmGoABd3OTSAdY4Hbauw+3ieCBF0KIbV4cZKn9rIW93a882EcA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bokeh/3.0.0-dev.4/bokeh-api.min.js" integrity="sha512-lM8DqpIFHDJzMhBJ8YW/7UGFPIq1eGStGuPbFf3pWVEPpoZBD3L6PvptqaW0z3GwzC/yPwsaSQVh9JObK9hpUw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bokeh/3.0.0-dev.4/bokeh-widgets.min.js" integrity="sha512-8gbP3L8XiZSD+zqB50nFZzgPqkg2d00gPGVfevBXFqbC+ob1PLlyqu1ZiU+n6pQ0iVQ4HnXEh5cZ8jKmgJqYsA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bokeh/3.0.0-dev.4/bokeh-tables.min.js" integrity="sha512-0MPXzezXHxbzck9MBVY6bRNBKK9L6oBEtOM+LrOZu+gN51LyvFYvSLj5FsbxXctf2Lt45wgjp3rFOh8mX/LBiw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+{#  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-3.0.2.min.js"></script>#}
+{#  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-api-3.0.2.min.js"></script>#}
+{#  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-widgets-3.0.2.min.js"></script>#}
+{#  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-tables-3.0.2.min.js"></script>#}
+
   <script src="{% static 'js/plot.js' %}"></script>
 
   <!-- for task progress bar -->
@@ -61,9 +61,10 @@
     <!-- Trigger fetching analysis results -->
     // for the card submit ajax call to insert result card
     $(document).ready(function () {
-      submit_analyses_card_ajax("{% url 'analysis:card' %}", "card", "detail",
-              {{ card.function.id }},
-              {{ card.subjects_ids_json|safe }}, 0);
+      submit_analyses_card_ajax("{% url 'analysis:card' %}",
+        "card-wrapper", "card", "detail",
+        {{ card.function.id }},
+        {{ card.subjects_ids_json|safe }}, 0);
 
       // we want that closing an item in the basket
       // does unselect it and reload the analyses

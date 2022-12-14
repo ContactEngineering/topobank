@@ -4,8 +4,7 @@ import datetime
 from freezegun import freeze_time
 
 from topobank.manager.tests.utils import Topography1DFactory, SurfaceFactory, UserFactory
-from topobank.analysis.tests.utils import AnalysisFunctionFactory, \
-    AnalysisFunctionImplementationFactory, TopographyAnalysisFactory
+from topobank.analysis.tests.utils import AnalysisFunctionFactory, TopographyAnalysisFactory
 
 from ..utils import increase_statistics_by_date, increase_statistics_by_date_and_object, current_statistics
 
@@ -99,8 +98,9 @@ def test_increase_statistics_by_date_and_object(handle_usage_statistics):
         assert s.value == 1
         assert s.date == yesterday
 
+
 @pytest.fixture
-def stats_instances(db):
+def stats_instances(db, test_analysis_function):
     user_1 = UserFactory()
     user_2 = UserFactory()
     surf_1A = SurfaceFactory(creator=user_1)
@@ -110,11 +110,10 @@ def stats_instances(db):
     topo_1Ab = Topography1DFactory(surface=surf_1A)
     topo_1Ba = Topography1DFactory(surface=surf_1B)
     topo_2Aa = Topography1DFactory(surface=surf_2A)
-    func = AnalysisFunctionFactory()
-    AnalysisFunctionImplementationFactory(function=func)
-    TopographyAnalysisFactory(subject=topo_1Aa, function=func)
-    TopographyAnalysisFactory(subject=topo_1Ab, function=func)
-    TopographyAnalysisFactory(subject=topo_2Aa, function=func)
+
+    TopographyAnalysisFactory(subject=topo_1Aa, function=test_analysis_function)
+    TopographyAnalysisFactory(subject=topo_1Ab, function=test_analysis_function)
+    TopographyAnalysisFactory(subject=topo_2Aa, function=test_analysis_function)
 
     return user_1, user_2, surf_1A
 

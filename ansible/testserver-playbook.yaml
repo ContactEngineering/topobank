@@ -36,7 +36,7 @@
       user: topobank
       state: present
       key: "{{ lookup('file', '/home/michael/.ssh/id_rsa.pub') }}"
-       
+
 #
 ##############
 ## plus (not coded yet, really needed?)
@@ -44,64 +44,64 @@
 # Add a line to /etc/hosts
 # 127.0.1.1 conengrk conengrk.vm.privat
 ############
-
-- name: Prepare containers
-  hosts: topobank-test-vm
-  remote_user: topobank
-  tasks:
-    - name: GitHub checkout
-      ansible.builtin.git:
-        repo: https://github.com/ContactEngineering/TopoBank.git
-        dest: /home/topobank/topobank
-        version: 21_shift_analyses_to_cloud
-        # version: 0.16.2
-    - name: Copy environment files
-      copy:
-        src: ../.envs
-        dest: /home/topobank/topobank/
-        owner: topobank
-        mode: u=rw,g=,o=
-    - name: Copy django config file for testserver
-      copy:
-        remote_src: True
-        src: /home/topobank/topobank/.envs/.production/.django.testserver
-        dest: /home/topobank/topobank/.envs/.production/.django
-        owner: topobank
-        mode: u=rw,g=,o=
-    - name: Copy caddy config file for testserver
-      copy:
-        remote_src: True
-        src: /home/topobank/topobank/.envs/.production/.caddy.testserver
-        dest: /home/topobank/topobank/.envs/.production/.caddy
-        owner: topobank
-        mode: u=rw,g=,o=
-    - name: Build docker containers with docker compose
-      community.docker.docker_compose:
-        project_src: /home/topobank/topobank
-        files: production.yml
-        state: present
-        build: yes
-    - name: Migrate database
-      community.docker.docker_compose:
-        project_src: /home/topobank/topobank
-        files: production.yml
-
-#         remove_orphans: yes
-#         state: present
-#         project_name: topobank-celery
-#         services: celeryworker
-#         definition:
-#           version: '3'
-#           services:
-#             celeryworker:
-#               image: topobank_celeryworker
-#               ports: []
-#               command: /start-celeryworker
-#               build:
-#                 context: .
-#                 dockerfile: ./compose/production/django/Dockerfile
-#               env_file:
-#                 - ./.envs/.local/.django
-#                 - ./.envs/.local/.postgres
-
-
+#
+#- name: Prepare containers
+#  hosts: topobank-test-vm
+#  remote_user: topobank
+#  tasks:
+#    - name: GitHub checkout
+#      ansible.builtin.git:
+#        repo: https://github.com/ContactEngineering/TopoBank.git
+#        dest: /home/topobank/topobank
+#        version: 21_shift_analyses_to_cloud
+#        # version: 0.16.2
+#    - name: Copy environment files
+#      copy:
+#        src: ../.envs
+#        dest: /home/topobank/topobank/
+#        owner: topobank
+#        mode: u=rw,g=,o=
+#    - name: Copy django config file for testserver
+#      copy:
+#        remote_src: True
+#        src: /home/topobank/topobank/.envs/.production/.django.testserver
+#        dest: /home/topobank/topobank/.envs/.production/.django
+#        owner: topobank
+#        mode: u=rw,g=,o=
+#    - name: Copy caddy config file for testserver
+#      copy:
+#        remote_src: True
+#        src: /home/topobank/topobank/.envs/.production/.caddy.testserver
+#        dest: /home/topobank/topobank/.envs/.production/.caddy
+#        owner: topobank
+#        mode: u=rw,g=,o=
+#    - name: Build docker containers with docker compose
+#      community.docker.docker_compose:
+#        project_src: /home/topobank/topobank
+#        files: production.yml
+#        state: present
+#        build: yes
+#    - name: Migrate database
+#      community.docker.docker_compose:
+#        project_src: /home/topobank/topobank
+#        files: production.yml
+#
+##         remove_orphans: yes
+##         state: present
+##         project_name: topobank-celery
+##         services: celeryworker
+##         definition:
+##           version: '3'
+##           services:
+##             celeryworker:
+##               image: topobank_celeryworker
+##               ports: []
+##               command: /start-celeryworker
+##               build:
+##                 context: .
+##                 dockerfile: ./compose/production/django/Dockerfile
+##               env_file:
+##                 - ./.envs/.local/.django
+##                 - ./.envs/.local/.postgres
+#
+#
