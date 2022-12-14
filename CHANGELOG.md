@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-## 0.92.0 (not published yet)
+## 0.92.0 (2022-12-14)
 
 - ENH: Store bibliography (DOIs) when an analysis completes
   (#171)
