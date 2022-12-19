@@ -77,7 +77,7 @@ class Command(BaseCommand):
             if topo.size_y:
                 size_str += f" x {topo.size_y} {topo.unit}"
 
-            _log.info(f"Creating images for '{topo.name}', id {topo.id}, size {size_str}..")
+            _log.info(f"Checking images for '{topo.name}', id {topo.id}, size {size_str}..")
             thumbnail_available = topo.has_thumbnail
             dzi_available = topo.has_dzi
             should_have_dzi = topo.size_y is not None

@@ -1,5 +1,10 @@
 # Changelog for *TopoBank*
 
+## 0.92.1 (not published yet)
+
+
+- MAINT: Improved log messages of command "create_images"
+
 ## 0.92.0 (2022-12-14)
 
 - ENH: Store bibliography (DOIs) when an analysis completes
