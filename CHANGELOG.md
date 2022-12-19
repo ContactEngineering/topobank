@@ -2,7 +2,8 @@
 
 ## 0.92.1 (not published yet)
 
-
+- ENH: Also save creation time of analyses and show it 
+  in the modal dialog for the tasks (#899)
 - MAINT: Improved log messages of command "create_images"
 - MAINT: Fixed missing "plugin.txt" for Docker image in
   production

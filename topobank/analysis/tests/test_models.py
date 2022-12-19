@@ -1,8 +1,9 @@
 import pytest
-from operator import itemgetter
+
 import datetime
 from django.db.models.functions import Lower
 from django.contrib.contenttypes.models import ContentType
+from django.utils import timezone
 
 from topobank.manager.models import Topography
 from topobank.manager.tests.utils import two_topos, Topography1DFactory  # needed for fixture
@@ -59,6 +60,8 @@ def test_analysis_function(test_analysis_function):
 def test_analysis_times(two_topos, test_analysis_function):
     import pickle
 
+    now = timezone.now()
+
     analysis = TopographyAnalysisFactory.create(
             subject=Topography.objects.first(),
             function=test_analysis_function,
@@ -69,6 +72,7 @@ def test_analysis_times(two_topos, test_analysis_function):
     )
     analysis.save()
 
+    assert analysis.creation_time - now < datetime.timedelta(seconds=1)
     assert analysis.start_time == datetime.datetime(2018, 1, 1, 12)
     assert analysis.end_time == datetime.datetime(2018, 1, 1, 13)
     assert analysis.duration() == datetime.timedelta(0, 3600)

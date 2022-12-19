@@ -23,6 +23,7 @@
               <th scope="col">Subject</th>
               <th scope="col">Further Args</th>
               <th scope="col">Task State</th>
+              <th scope="col">Creation Time</th>
               <th scope="col">Start Time</th>
               <th scope="col">Duration</th>
             </tr>
@@ -40,6 +41,7 @@
                 </td>
                 <td>{{ analysis.get_kwargs_display }}</td>
                 <td>{{ analysis.get_task_state_display }}</td>
+                <td>{{ analysis.creation_time|date:"Y-m-d H:i:s" }}</td>
                 <td>{{ analysis.start_time|date:"Y-m-d H:i:s" }}</td>
                 <td>{{ analysis.duration|default_if_none:"" }}</td>
               </tr>
