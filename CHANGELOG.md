@@ -6,6 +6,7 @@
 - MAINT: Improved log messages of command "create_images"
 - MAINT: Fixed missing "plugin.txt" for Docker image in
   production
+- MAINT: Removed firefox from production's Dockerfile
 
 ## 0.92.0 (2022-12-14)
 
