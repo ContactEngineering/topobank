@@ -88,6 +88,12 @@ RUN chown -R django /app
 #
 WORKDIR /app
 
+#
+# Install plugins
+#
+COPY ./requirements/plugins.txt /requirements/plugins.txt
+RUN pip install -r /requirements/plugins.txt
+
 USER django
 
 ENTRYPOINT ["/entrypoint"]

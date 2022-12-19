@@ -4,6 +4,8 @@
 
 
 - MAINT: Improved log messages of command "create_images"
+- MAINT: Fixed missing "plugin.txt" for Docker image in
+  production
 
 ## 0.92.0 (2022-12-14)
 
