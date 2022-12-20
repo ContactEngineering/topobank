@@ -9,6 +9,7 @@ from django.db import models
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.core.files.storage import default_storage
+from django.utils import timezone
 
 from guardian.shortcuts import get_users_with_perms
 
@@ -107,6 +108,7 @@ class Analysis(models.Model):
     task_state = models.CharField(max_length=7,
                                   choices=TASK_STATE_CHOICES)
 
+    creation_time = models.DateTimeField(null=True)
     start_time = models.DateTimeField(null=True)
     end_time = models.DateTimeField(null=True)
 
@@ -128,6 +130,8 @@ class Analysis(models.Model):
         return "Task {} with state {}".format(self.task_id, self.get_task_state_display())
 
     def save(self, *args, **kwargs):
+        if not self.id:
+            self.creation_time = timezone.now()
         super().save(*args, **kwargs)
         # If a result dict is given on input, we store it. However, we can only do this once we have an id.
         # This happens during testing.
