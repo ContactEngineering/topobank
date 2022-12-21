@@ -540,9 +540,16 @@ class SurfaceCollection(models.Model, SubjectMixin):
 
         Always returns True if user is the creator of all related surfaces.
 
-        :param with_user: User to test
-        :param allow_change: If True, only return True if related surfaces can be changed by given user
-        :return: True or False
+        Parameters
+        ----------
+        with_user: User
+            User to test
+        allow_change: bool
+            If True, only return True if related surfaces can be changed by given user
+
+        Returns
+        -------
+        True or False
         """
         return all(s.is_shared(with_user, allow_change=allow_change) for s in self.related_surfaces())
 
