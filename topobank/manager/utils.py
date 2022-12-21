@@ -703,16 +703,17 @@ def selection_to_subjects_json(request):
         from .models import SurfaceCollection
         # In order to find a matching SurfaceCollection, we need to search first
         # for all surface collections with same number of surfaces, then filtering
+        # for the exact surfaces
         # (see https://stackoverflow.com/questions/16324362/django-queryset-get-exact-manytomany-lookup)
-        colls = SurfaceCollection.objects.annotate(surface_count=Count('surfaces'))\
+        surf_collections = SurfaceCollection.objects.annotate(surface_count=Count('surfaces'))\
             .filter(surface_count=len(effective_surfaces))
         for s in effective_surfaces:
-            colls = colls.filter(surfaces__pk=s.pk)
+            surf_collections = surf_collections.filter(surfaces__pk=s.pk)
 
-        if colls.count() > 0:  # should be exactly 0 or 1 but let's keep it robust here
+        if surf_collections.count() > 0:  # should be exactly 0 or 1 but let's keep it robust here
             _log.info(f"Found existing surface collection for surfaces {[s.id for s in effective_surfaces]}.")
-            coll = colls.first()
-            if colls.count() > 1:
+            coll = surf_collections.first()
+            if surf_collections.count() > 1:
                 _log.warning(f"More than on surface collection instance for surfaces {[s.id for s in effective_surfaces]} found.")
         else:
             coll = SurfaceCollection.objects.create(name='Surfaces: '+", ".join(s.name for s in effective_surfaces))
