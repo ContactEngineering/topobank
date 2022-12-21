@@ -34,11 +34,10 @@ def test_request_analysis(two_topos, test_analysis_function):
 @pytest.mark.django_db
 def test_latest_analyses(two_topos, test_analysis_function):
 
-    user = UserFactory()
-
     topo1 = Topography.objects.get(name="Example 3 - ZSensor")
     topo2 = Topography.objects.get(name="Example 4 - Default")
 
+    user = topo1.creator
 
     # delete all prior analyses for these two topographies in order to have a clean state
     Analysis.objects.filter(topography__in=[topo1, topo2]).delete()

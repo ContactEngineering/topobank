@@ -106,8 +106,8 @@ def analyses_meta_data_dataframe(analyses, request):
     values = []
     for i, analysis in enumerate(analyses):
 
-        surface = analysis.related_surface
-        pub = surface.publication if surface.is_published else None
+        surfaces = analysis.related_surfaces()
+        pubs = [surface.publication for surface in surfaces if surface.is_published]
 
         if i == 0:
             # list function name and a blank line
@@ -120,7 +120,7 @@ def analyses_meta_data_dataframe(analyses, request):
                        'End time of analysis task', 'Duration of analysis task']
 
         values += [str(analysis.subject.get_content_type().model), str(analysis.subject.name),
-                   str(analysis.subject.creator),
+                   str(analysis.subject.creator) if hasattr(analysis.subject, 'creator') else '',
                    analysis.get_kwargs_display(), str(analysis.start_time),
                    str(analysis.end_time), str(analysis.duration())]
 
@@ -134,8 +134,8 @@ def analyses_meta_data_dataframe(analyses, request):
                 properties.append(f"Version of '{version.dependency.import_name}'")
                 values.append(f"{version.number_as_string()}")
 
-        if pub:
-            # If the surface of the topography was published, the URL is inserted
+        for pub in pubs:
+            # If a surface was published, the URL is inserted
             properties.append("Publication URL (surface data)")
             values.append(request.build_absolute_uri(pub.get_absolute_url()))
 
@@ -163,8 +163,11 @@ def publications_urls(request, analyses):
     """
     # Collect publication links, if any
     publication_urls = set()
+    related_surfaces = set()
     for a in analyses:
-        surface = a.related_surface
+        for surface in a.related_surfaces():
+            related_surfaces.add(surface)
+    for surface in related_surfaces:
         if surface.is_published:
             pub = surface.publication
             pub_url = request.build_absolute_uri(pub.get_absolute_url())
@@ -188,7 +191,7 @@ def analysis_header_for_txt_file(analysis, as_comment=True):
     """
 
     subject = analysis.subject
-    subject_creator = subject.creator
+    subject_creator = subject.creator if hasattr(subject, 'creator') else ''
     subject_type_str = analysis.subject_type.model.title()
     headline = f"{subject_type_str}: {subject.name}"
 

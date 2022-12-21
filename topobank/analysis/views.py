@@ -29,7 +29,7 @@ from guardian.shortcuts import get_objects_for_user
 
 from trackstats.models import Metric
 
-from ..manager.models import Topography, Surface
+from ..manager.models import Topography, Surface, SurfaceCollection
 from ..manager.utils import instances_to_selection, selection_to_subjects_json, subjects_from_json, subjects_to_json
 from ..usage_stats.utils import increase_statistics_by_date_and_object
 from ..plots import configure_plot
@@ -192,12 +192,9 @@ class SimpleCardView(TemplateView):
         subjects_ids_json = subjects_to_json(subjects_requested)
 
         #
-        # Filter for analyses where the user has read permission for the related surface
+        # Find the latest analyses for which the user has read permission for the related data
         #
-        readable_surfaces = get_objects_for_user(user, ['view_surface'], klass=Surface)
-        analyses_available = get_latest_analyses(user, function, subjects_requested) \
-            .filter(Q(topography__surface__in=readable_surfaces) |
-                    Q(surface__in=readable_surfaces))
+        analyses_available = get_latest_analyses(user, function, subjects_requested)
 
         #
         # collect list of subjects for which an analysis instance is missing
@@ -267,9 +264,7 @@ class SimpleCardView(TemplateView):
             if len(analyses_available) == 0:
                 unique_kwargs = kwargs_for_missing
 
-            analyses_available = get_latest_analyses(user, function, subjects_requested) \
-                .filter(Q(topography__surface__in=readable_surfaces) |
-                        Q(surface__in=readable_surfaces))
+            analyses_available = get_latest_analyses(user, function, subjects_requested)
 
         #
         # Turn available analyses into a list
@@ -403,8 +398,12 @@ class PlotCardView(SimpleCardView):
         # Extract subject names for display
         #
         surface_ct = ContentType.objects.get_for_model(Surface)
+        surfacecollection_ct = ContentType.objects.get_for_model(SurfaceCollection)
+        topography_ct = ContentType.objects.get_for_model(Topography)
+
         subject_names = []  # will be shown under category with key "subject_name" (see plot.js)
         has_at_least_one_surface_subject = False
+        has_at_least_one_surfacecollection_subject = False
         for a in analyses_success_list:
             s = a.subject
             subject_ct = s.get_content_type()
@@ -412,6 +411,8 @@ class PlotCardView(SimpleCardView):
             if subject_ct == surface_ct:
                 subject_name = f"Average of »{subject_name}«"
                 has_at_least_one_surface_subject = True
+            if subject_ct == surfacecollection_ct:
+                has_at_least_one_surfacecollection_subject = True
             subject_names.append(subject_name)
 
         #
@@ -453,7 +454,10 @@ class PlotCardView(SimpleCardView):
         #
         series_names = set()
         nb_surfaces = 0  # Total number of averages/surfaces shown
+        nb_surfacecollections = 0  # Total number of surface collections shown
         nb_topographies = 0  # Total number of topography results shown
+        nb_others = 0  # Total number of results for other kinds of subject types
+
         for analysis in analyses_success_list:
             #
             # handle task state
@@ -466,8 +470,12 @@ class PlotCardView(SimpleCardView):
 
             if isinstance(analysis.subject, Surface):
                 nb_surfaces += 1
-            else:
+            elif isinstance(analysis.subject, Topography):
                 nb_topographies += 1
+            elif isinstance(analysis.subject, SurfaceCollection):
+                nb_surfacecollections += 1
+            else:
+                nb_others += 1
 
         series_names = sorted(list(series_names))  # index of a name in this list is the "series_name_index"
         visible_series_indices = set()  # elements: series indices, decides whether a series is visible
@@ -503,6 +511,7 @@ class PlotCardView(SimpleCardView):
 
             is_surface_analysis = isinstance(subject, Surface)
             is_topography_analysis = isinstance(subject, Topography)
+            # is_surfacecollection_analysis = isinstance(subject, SurfaceCollection)
 
             #
             # Change display name depending on whether there is a parent analysis or not
@@ -524,9 +533,11 @@ class PlotCardView(SimpleCardView):
                 surface_index += 1
                 subject_colors[subject] = \
                     surface_color_palette[surface_index * len(surface_color_palette) // nb_surfaces]
-            else:
+            elif is_topography_analysis:
                 topography_index += 1
                 subject_colors[subject] = topography_color_palette[topography_index]
+            else:
+                subject_colors[subject] = 'black'  # Find better colors later, if needed
 
             #
             # Handle unexpected task states for robustness, shouldn't be needed in general
@@ -913,18 +924,18 @@ class AnalysesListView(FormView):
         user = self.request.user
 
         if 'collection_id' in self.kwargs:
-            collection_id = self.kwargs['collection_id']
+            analysis_collection_id = self.kwargs['collection_id']
             try:
-                collection = AnalysisCollection.objects.get(id=collection_id)
+                analysis_collection = AnalysisCollection.objects.get(id=analysis_collection_id)
             except AnalysisCollection.DoesNotExist:
                 raise Http404("Collection does not exist")
 
-            if collection.owner != user:
+            if analysis_collection.owner != user:
                 raise PermissionDenied()
 
-            functions = set(a.function for a in collection.analyses.all())
-            surfaces = set(a.subject for a in collection.analyses.all() if a.is_surface_related)
-            topographies = set(a.subject for a in collection.analyses.all() if a.is_topography_related)
+            functions = set(a.function for a in analysis_collection.analyses.all())
+            surfaces = set(a.subject for a in analysis_collection.analyses.all() if a.is_surface_related)
+            topographies = set(a.subject for a in analysis_collection.analyses.all() if a.is_topography_related)
 
             # as long as we have the current UI (before implementing GH #304)
             # we also set the collection's function and topographies as selection
