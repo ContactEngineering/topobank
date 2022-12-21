@@ -247,7 +247,7 @@ def submit_analysis(users, analysis_func, subject, pickled_pyfunc_kwargs=None):
 
 
 def get_latest_analyses(user, func, subjects):
-    """Get the latest analyses for given function and topographies and user.
+    """Get the latest analyses for given function and subjects and user.
 
     :param user: user which views the analyses
     :param func: AnalysisFunction instance
@@ -260,7 +260,7 @@ def get_latest_analyses(user, func, subjects):
     and only analyses which should be visible for the given user.
 
     It is not guaranteed that there are results
-    for the returned analyses, even if these analyses are marked as
+    for the returned analyses or if these analyses are marked as
     successful.
     """
 
