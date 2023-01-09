@@ -204,7 +204,7 @@ BOKEH_OUTPUT_BACKEND = 'svg'
 
 # Settings for watchman
 # WATCHMAN_AUTH_DECORATOR = 'watchman.decorators.token_required'
-# WATCHMAN_AUTH_DECORATOR = 'django.contrib.admin.views.decorators.staff_member_required'
+WATCHMAN_AUTH_DECORATOR = 'django.contrib.admin.views.decorators.staff_member_required'
 # like this, you need to login as a staff member (can be achieved using the 'grant_admin_permissions'
 # management command) in order to see the dashboard;
 # Can also be configured to use a token or no token at all, see
