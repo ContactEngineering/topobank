@@ -149,6 +149,10 @@ LOGGING = {
             'handlers': ['console'],
             'propagate': True
         },
+        'watchman': {
+            'handlers': ['console'],
+            'level': 'INFO',
+        },
     }
 }
 
@@ -158,3 +162,6 @@ LOGGING = {
 #   backend. SVG has problems with zooming plots.
 # - 'webgl': Accelerates some plots using WebGL
 BOKEH_OUTPUT_BACKEND = 'svg'
+
+# Settings for watchman
+# WATCHMAN_AUTH_DECORATOR = 'django.contrib.admin.views.decorators.staff_member_required'

@@ -99,9 +99,13 @@ urlpatterns = [
                       "analysis/",
                       include("topobank.analysis.urls", namespace="analysis"),
                   ),
-                path(
+                  path(
                       "plugins/",
                       include("topobank.plugins.urls", namespace="plugins"),
+                  ),
+                  path(
+                      "watchman/",
+                      include(("watchman.urls", "watchman"), namespace="watchman")
                   ),
             ] + static(
                 settings.MEDIA_URL, document_root=settings.MEDIA_ROOT
