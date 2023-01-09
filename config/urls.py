@@ -8,6 +8,7 @@ from django.views.generic import TemplateView, RedirectView
 from django.views import defaults as default_views
 from django.apps import apps
 from django.contrib.auth.decorators import user_passes_test, login_required
+from django.http import HttpResponse
 
 import notifications.urls
 
@@ -99,9 +100,14 @@ urlpatterns = [
                       "analysis/",
                       include("topobank.analysis.urls", namespace="analysis"),
                   ),
-                path(
+                  path(
                       "plugins/",
                       include("topobank.plugins.urls", namespace="plugins"),
+                  ),
+                  path(
+                      "health-check/",
+                      lambda request: HttpResponse("OK", status=200),
+                      name='health-check'
                   ),
             ] + static(
                 settings.MEDIA_URL, document_root=settings.MEDIA_ROOT
