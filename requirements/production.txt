@@ -63,6 +63,7 @@ contourpy==1.0.6
 cryptography==38.0.4
     # via
     #   pyjwt
+    #   pyopenssl
     #   topobank (../setup.py)
 cycler==0.11.0
     # via matplotlib
@@ -263,6 +264,8 @@ pyjwt[crypto]==2.6.0
     # via
     #   django-allauth
     #   topobank (../setup.py)
+pyopenssl==23.0.0
+    # via topobank (../setup.py)
 pyparsing==3.0.9
     # via
     #   matplotlib
@@ -321,7 +324,7 @@ sqlparse==0.4.3
     # via
     #   django
     #   topobank (../setup.py)
-surfacetopography==1.2.5
+surfacetopography==1.2.6
     # via
     #   contactmechanics
     #   topobank (../setup.py)

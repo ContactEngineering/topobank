@@ -91,6 +91,7 @@ coverage[toml]==6.5.0
 cryptography==38.0.4
     # via
     #   pyjwt
+    #   pyopenssl
     #   topobank (../setup.py)
 cssselect==1.2.0
     # via splinter
@@ -387,6 +388,8 @@ pyjwt[crypto]==2.6.0
     # via
     #   django-allauth
     #   topobank (../setup.py)
+pyopenssl==23.0.0
+    # via topobank (../setup.py)
 pyparsing==3.0.9
     # via
     #   matplotlib
@@ -528,7 +531,7 @@ sqlparse==0.4.3
     #   topobank (../setup.py)
 stack-data==0.6.2
     # via ipython
-surfacetopography==1.2.5
+surfacetopography==1.2.6
     # via
     #   contactmechanics
     #   topobank (../setup.py)
