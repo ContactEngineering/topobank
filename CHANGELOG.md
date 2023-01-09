@@ -7,7 +7,6 @@
   process a bunch of surfaces (#900)
 - ENH: Also save creation time of analyses and show it 
   in the modal dialog for the tasks (#899)
-- ENH: Simple health check
 - BUG: Fixed problem loading SUR files (#945)
 - MAINT: Improved log messages of command "create_images"
 - MAINT: Fixed missing "plugin.txt" for Docker image in
