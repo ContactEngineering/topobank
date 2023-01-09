@@ -13,7 +13,7 @@
   production
 - MAINT: Removed firefox from production's Dockerfile
 - MAINT: Upgrade of SurfaceTopograpy to 1.2.6
-- MAINT: Added django-watchman
+- MAINT: Added django-watchman, added celery check
 
 ## 0.92.0 (2022-12-14)
 
