@@ -4,6 +4,7 @@ Base settings to build other settings files upon.
 from django.core.exceptions import ImproperlyConfigured
 from pkg_resources import iter_entry_points
 import environ
+from watchman import constants as watchman_constants
 
 import topobank
 
@@ -612,3 +613,5 @@ CHALLENGE_REDIRECT_URL = env.str('CHALLENGE_REDIRECT_URL', default='https://form
 #
 DEFAULT_ALLOW_CACHE_FOR_LOW_LEVEL_TOPOGRAPHY = True
 
+# Configure watchman checks
+WATCHMAN_CHECKS = watchman_constants.DEFAULT_CHECKS + ('topobank.taskapp.utils.celery_worker_check', )
