@@ -103,7 +103,10 @@ urlpatterns = [
                       "plugins/",
                       include("topobank.plugins.urls", namespace="plugins"),
                   ),
-                  re_path(r'^watchman/', include('watchman.urls')),
+                  path(
+                      "watchman/",
+                      include(("watchman.urls", "watchman"), namespace="watchman")
+                  ),
             ] + static(
                 settings.MEDIA_URL, document_root=settings.MEDIA_ROOT
             )
