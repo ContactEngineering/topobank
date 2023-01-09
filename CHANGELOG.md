@@ -7,12 +7,15 @@
   process a bunch of surfaces (#900)
 - ENH: Also save creation time of analyses and show it 
   in the modal dialog for the tasks (#899)
+- ENH: Simple health check
 - BUG: Fixed problem loading SUR files (#945)
 - MAINT: Improved log messages of command "create_images"
 - MAINT: Fixed missing "plugin.txt" for Docker image in
   production
 - MAINT: Removed firefox from production's Dockerfile
-- MAINT: Upgrade of SurfaceTopograpy to 1.2.6
+- MAINT: Upgrade of SurfaceTopograpy to 1.3.0
+- MAINT: Renamed "Sign in via ORCID" to "Sign in"
+- MAINT: Default AWS access information to None
 
 ## 0.92.0 (2022-12-14)
 
