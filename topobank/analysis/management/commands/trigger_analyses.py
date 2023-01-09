@@ -128,11 +128,13 @@ class Command(BaseCommand):
                 )
             elif ct.name == "analysis function":
                 num_analyses = 0
-                for ct in obj.get_implementation_types():
-                    subjects = ct.get_all_objects_for_this_type()
+                for ct_impl_type in obj.get_implementation_types():
+                    subjects = ct_impl_type.get_all_objects_for_this_type()
                     for subject in subjects:
-                        related_surface = subject if isinstance(subject, Surface) else subject.surface
-                        users = get_users_with_perms(related_surface)
+                        users_for_subject = subject.get_users_with_perms()
+                        # filter users whether allowed to use implementation
+                        users = [u for u in users_for_subject if
+                                 obj.get_implementation(ct_impl_type).is_available_for_user(u)]
                         submit_analysis(users, obj, subject)
                         self.stdout.write(
                             self.style.SUCCESS(f"Triggered analysis for function '{obj}' and subject '{subject}'.")

@@ -1,15 +1,19 @@
+import operator
+
 import pytest
-from operator import itemgetter
+
 import datetime
 from django.db.models.functions import Lower
 from django.contrib.contenttypes.models import ContentType
+from django.utils import timezone
 
 from topobank.manager.models import Topography
 from topobank.manager.tests.utils import two_topos, Topography1DFactory  # needed for fixture
+from topobank.manager.tests.utils import Topography2DFactory, SurfaceFactory, SurfaceCollectionFactory, UserFactory
 
 from ..models import Analysis, AnalysisFunction
-from .utils import AnalysisFunctionFactory, \
-    TopographyAnalysisFactory, SurfaceAnalysisFactory, SurfaceFactory
+from .utils import TopographyAnalysisFactory, SurfaceAnalysisFactory, SurfaceCollectionAnalysisFactory
+
 from ..registry import ImplementationMissingAnalysisFunctionException, AnalysisFunctionImplementation, \
     register_implementation
 from ..functions import topography_analysis_function_for_tests
@@ -29,6 +33,56 @@ def test_surface_as_analysis_subject():
     func = AnalysisFunction.objects.get(name="test")
     analysis = SurfaceAnalysisFactory(subject=surf, function=func)
     assert analysis.subject == surf
+
+
+@pytest.mark.django_db
+def test_surfacecollection_as_analysis_subject():
+    s1 = SurfaceFactory()
+    s2 = SurfaceFactory()
+    s3 = SurfaceFactory()
+    sc = SurfaceCollectionFactory(surfaces=[s1, s2, s3])
+    func = AnalysisFunction.objects.get(name="test")
+    analysis = SurfaceCollectionAnalysisFactory(subject=sc, function=func)
+    assert analysis.subject == sc
+
+
+@pytest.mark.django_db
+def test_default_users_for_surface_analysis():
+    u1 = UserFactory(name='Alice')
+    u2 = UserFactory(name='Bob')
+    surf = SurfaceFactory(creator=u1)
+    surf.share(u2)
+    func = AnalysisFunction.objects.get(name="test")
+    analysis = SurfaceAnalysisFactory(subject=surf, function=func)
+    assert sorted(analysis.get_default_users(), key=operator.attrgetter('name')) == [u1, u2]
+
+
+@pytest.mark.django_db
+def test_default_users_for_surfacecollection_analysis():
+    u1 = UserFactory(name='Alice')
+    u2 = UserFactory(name='Bob')
+    u3 = UserFactory(name='Kim')
+    surf1 = SurfaceFactory(creator=u1)
+    surf2 = SurfaceFactory(creator=u2)
+    surf1.share(u3)
+    surf2.share(u3)
+    # Only Kim is allowed to see both surfaces
+    sc = SurfaceCollectionFactory(surfaces=[surf1, surf2])
+    func = AnalysisFunction.objects.get(name="test")
+    analysis = SurfaceCollectionAnalysisFactory(subject=sc, function=func)
+    assert sorted(analysis.get_default_users(), key=operator.attrgetter('name')) == [u3]
+
+
+@pytest.mark.django_db
+def test_default_users_for_topography_analysis():
+    u1 = UserFactory(name='Alice')
+    u2 = UserFactory(name='Bob')
+    surf = SurfaceFactory(creator=u1)
+    surf.share(u2)
+    topo = Topography1DFactory(surface=surf)
+    func = AnalysisFunction.objects.get(name="test")
+    analysis = TopographyAnalysisFactory(subject=topo, function=func)
+    assert sorted(analysis.get_default_users(), key=operator.attrgetter('name')) == [u1, u2]
 
 
 @pytest.mark.django_db
@@ -59,6 +113,8 @@ def test_analysis_function(test_analysis_function):
 def test_analysis_times(two_topos, test_analysis_function):
     import pickle
 
+    now = timezone.now()
+
     analysis = TopographyAnalysisFactory.create(
             subject=Topography.objects.first(),
             function=test_analysis_function,
@@ -69,6 +125,7 @@ def test_analysis_times(two_topos, test_analysis_function):
     )
     analysis.save()
 
+    assert analysis.creation_time - now < datetime.timedelta(seconds=1)
     assert analysis.start_time == datetime.datetime(2018, 1, 1, 12)
     assert analysis.end_time == datetime.datetime(2018, 1, 1, 13)
     assert analysis.duration() == datetime.timedelta(0, 3600)

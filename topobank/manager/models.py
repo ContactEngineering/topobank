@@ -162,6 +162,22 @@ class SubjectMixin:
         """
         raise NotImplementedError()
 
+    def related_surfaces(self):
+        """Returns sequence of related surfaces.
+
+        :return: True or False
+        """
+        raise NotImplementedError()
+
+    def get_users_with_perms(self):
+        """Return users with any permission on this subject.
+
+        Returns
+        -------
+        A queryset of users.
+        """
+        return User.objects.intersection(*tuple(get_users_with_perms(s) for s in self.related_surfaces()))
+
 
 class Surface(models.Model, SubjectMixin):
     """Physical Surface.
@@ -205,6 +221,9 @@ class Surface(models.Model, SubjectMixin):
     @property
     def label(self):
         return str(self)
+
+    def related_surfaces(self):
+        return [self]
 
     def get_absolute_url(self):
         return reverse('manager:surface-detail', kwargs=dict(pk=self.pk))
@@ -484,6 +503,8 @@ class Surface(models.Model, SubjectMixin):
         _log.info("Regenerating analyses directly related to surface %d..", self.pk)
         renew_analyses_for_subject(self)
 
+    def related_surfaces(self):
+        return [self]
 
 def _upload_path_for_datafile(instance, filename):
     return f'{instance.storage_prefix}/raw/{filename}'
@@ -495,6 +516,42 @@ def _upload_path_for_squeezed_datafile(instance, filename):
 
 def _upload_path_for_thumbnail(instance, filename):
     return f'{instance.storage_prefix}/thumbnail/{filename}'
+
+
+class SurfaceCollection(models.Model, SubjectMixin):
+    """A collection of surfaces."""
+    name = models.CharField(max_length=160)
+    surfaces = models.ManyToManyField(Surface)
+    # We have a manytomany field, because a surface could be part of multiple collections.
+
+    analyses = GenericRelation(Analysis, related_query_name='surfacecollection',
+                               content_type_field='subject_type',
+                               object_id_field='subject_id')
+
+    @property
+    def label(self):
+        return self.name
+
+    def related_surfaces(self):
+        return list(self.surfaces.all())
+
+    def is_shared(self, with_user, allow_change=False):
+        """Returns True, if this subject is shared with a given user.
+
+        Always returns True if user is the creator of all related surfaces.
+
+        Parameters
+        ----------
+        with_user: User
+            User to test
+        allow_change: bool
+            If True, only return True if related surfaces can be changed by given user
+
+        Returns
+        -------
+        True or False
+        """
+        return all(s.is_shared(with_user, allow_change=allow_change) for s in self.related_surfaces())
 
 
 class Topography(models.Model, SubjectMixin):
@@ -514,6 +571,7 @@ class Topography(models.Model, SubjectMixin):
         ('µm', 'micrometers'),
         ('nm', 'nanometers'),
         ('Å', 'angstrom'),
+        ('pm', 'picometers')  # This is the default unit for VK files so we need it
     ]
 
     HAS_UNDEFINED_DATA_DESCRIPTION = {
@@ -697,6 +755,13 @@ class Topography(models.Model, SubjectMixin):
         if self.id is None:
             raise RuntimeError('This `Topography` does not have an id yet; the storage prefix is not yet known.')
         return f"topographies/{self.id}"
+
+    def related_surfaces(self):
+        """Returns sequence of related surfaces.
+
+        :return: True or False
+        """
+        return [self.surface]
 
     def get_absolute_url(self):
         """URL of detail page for this topography."""

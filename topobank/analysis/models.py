@@ -1,14 +1,17 @@
 """
 Models related to analyses.
 """
+import pickle
+import json
+import operator
 
 from django.db import models
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.core.files.storage import default_storage
+from django.utils import timezone
 
-import pickle
-import json
+from guardian.shortcuts import get_users_with_perms
 
 from ..utils import store_split_dict, load_split_dict
 from topobank.users.models import User
@@ -96,7 +99,7 @@ class Analysis(models.Model):
     subject_id = models.PositiveIntegerField(null=True)
     subject = GenericForeignKey('subject_type', 'subject_id')
 
-    # According to github #208, each user should be able to see analysis with parameters chosen by himself
+    # According to GitHub #208, each user should be able to see analysis with parameters chosen by himself
     users = models.ManyToManyField(User)
 
     kwargs = models.BinaryField()  # for pickle
@@ -105,8 +108,12 @@ class Analysis(models.Model):
     task_state = models.CharField(max_length=7,
                                   choices=TASK_STATE_CHOICES)
 
+    creation_time = models.DateTimeField(null=True)
     start_time = models.DateTimeField(null=True)
     end_time = models.DateTimeField(null=True)
+
+    # Bibliography
+    dois = models.JSONField(default=list)
 
     configuration = models.ForeignKey(Configuration, null=True, on_delete=models.SET_NULL)
 
@@ -123,6 +130,8 @@ class Analysis(models.Model):
         return "Task {} with state {}".format(self.task_id, self.get_task_state_display())
 
     def save(self, *args, **kwargs):
+        if not self.id:
+            self.creation_time = timezone.now()
         super().save(*args, **kwargs)
         # If a result dict is given on input, we store it. However, we can only do this once we have an id.
         # This happens during testing.
@@ -157,7 +166,8 @@ class Analysis(models.Model):
         """Return the toplevel result object without series data, i.e. the raw result.json without unsplitting it"""
         if self._result_metadata_cache is None:
             self._result_metadata_cache = json.load(
-                default_storage.open(f'{self.storage_prefix}/{RESULT_FILE_BASENAME}.json'))
+                default_storage.open(f'{self.storage_prefix}/{RESULT_FILE_BASENAME}.json')
+            )
         return self._result_metadata_cache
 
     @property
@@ -182,34 +192,48 @@ class Analysis(models.Model):
             raise RuntimeError('This `Analysis` does not have an id yet; the storage prefix is not yet known.')
         return "analyses/{}".format(self.id)
 
-    @property
-    def related_surface(self):
-        """Returns surface instance related to this analysis."""
-        subject = self.subject
-        if hasattr(subject, 'surface'):
-            surface = subject.surface
-        else:
-            surface = subject
-        return surface
+    def related_surfaces(self):
+        """Returns sequence of surface instances related to the subject of this analysis."""
+        return self.subject.related_surfaces()
 
     def is_visible_for_user(self, user):
         """Returns True if given user should be able to see this analysis."""
-        allowed_to_view_surface = user.has_perm("view_surface", self.related_surface)
-        allowed_to_use_implementation = self.function.get_implementation(self.subject_type).is_available_for_user(user)
-        return allowed_to_use_implementation and allowed_to_view_surface
+        is_allowed_to_view_surfaces = all(user.has_perm("view_surface", s) for s in self.related_surfaces())
+        is_allowed_to_use_implementation = self.function.get_implementation(self.subject_type).is_available_for_user(user)
+        return is_allowed_to_use_implementation and is_allowed_to_view_surfaces
+
+    def get_default_users(self):
+        """Return list of users which should naturally be able to see this analysis.
+
+        This is based on the permissions of the subjects and of the analysis function.
+        The users re returned in a queryset sorted by name.
+        """
+        # Find all users having access to all related surfaces
+        users_allowed_by_surfaces = self.subject.get_users_with_perms()
+        # Filter those users for those having access to the function implementation
+        users_allowed = [u for u in users_allowed_by_surfaces
+                         if self.function.get_implementation(self.subject_type).is_available_for_user(u)]
+        return User.objects.filter(id__in=[u.id for u in users_allowed]).order_by('name')
 
     @property
     def is_topography_related(self):
-        """Returns True, if analysis is related to a specific topography, else False.
+        """Returns True, if the analysis subject is a topography, else False.
         """
         topography_ct = ContentType.objects.get_by_natural_key('manager', 'topography')
         return topography_ct == self.subject_type
 
     @property
     def is_surface_related(self):
-        """Returns True, if analysis is related to a specific surface, else False.
+        """Returns True, if the analysis subject is a surface, else False.
         """
         surface_ct = ContentType.objects.get_by_natural_key('manager', 'surface')
+        return surface_ct == self.subject_type
+
+    @property
+    def is_surfacecollection_related(self):
+        """Returns True, if the analysis subject is a surface collection, else False.
+        """
+        surface_ct = ContentType.objects.get_by_natural_key('manager', 'surfacecollection')
         return surface_ct == self.subject_type
 
 

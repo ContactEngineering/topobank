@@ -1,3 +1,2 @@
---find-links file:///pip-packages
-topobank-statistics==0.92.0
-topobank-contact==0.92.0
+topobank-statistics==0.92.1
+topobank-contact==0.92.1
