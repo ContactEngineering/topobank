@@ -128,6 +128,8 @@
             <div class="dropdown-divider"></div>
             {% if request.user.is_staff %}
               <a class="dropdown-item" href="{% url 'admin:index' %}"><i class="fa fa-table fa-fw"></i> Admin interface</a>
+              <a class="dropdown-item" href="{% url 'watchman:dashboard' %}"><i class="fa fa-list fa-fw"></i> Watchman dashboard</a>
+              <a class="dropdown-item" href="{% url 'watchman:status' %}"><i class="fa fa-info fa-fw"></i> Watchman status (JSON)</a>
               <div class="dropdown-divider"></div>
             {% endif %}
             <a class="dropdown-item" data-toggle="modal" data-target="#logoutModal">

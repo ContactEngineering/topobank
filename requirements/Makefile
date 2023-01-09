@@ -7,10 +7,10 @@ setup_files := ../setup.cfg ../setup.py
 all: $(outputs)
 
 local.txt: $(setup_files)
-	pip-compile --extra dev -v --output-file $@ ../setup.py
+	pip-compile --extra dev -v --resolver=backtracking --output-file $@ ../setup.py
 
 production.txt: $(setup_files)
-	pip-compile -v --output-file $@ ../setup.py
+	pip-compile -v --resolver=backtracking --output-file $@ ../setup.py
 
 check:
 	@which pip-compile > /dev/null
