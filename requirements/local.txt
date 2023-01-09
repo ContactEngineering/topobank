@@ -556,7 +556,7 @@ tomli==2.0.1
     #   pep517
 tornado==6.2
     # via bokeh
-traitlets==5.8.0
+traitlets==5.8.1
     # via
     #   ipython
     #   matplotlib-inline
