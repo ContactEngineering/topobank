@@ -416,8 +416,8 @@ if USE_S3_STORAGE:
     # DEFAULT_FILE_STORAGE = 'topobank.manager.storage_backends.MediaStorage'
     AWS_LOCATION = env.str('AWS_MEDIA_PREFIX', default='media')
 
-    AWS_ACCESS_KEY_ID = env.str('AWS_ACCESS_KEY_ID')
-    AWS_SECRET_ACCESS_KEY = env.str('AWS_SECRET_ACCESS_KEY')
+    AWS_ACCESS_KEY_ID = env.str('AWS_ACCESS_KEY_ID', default=None)
+    AWS_SECRET_ACCESS_KEY = env.str('AWS_SECRET_ACCESS_KEY', default=None)
 
     AWS_STORAGE_BUCKET_NAME = env.str('AWS_STORAGE_BUCKET_NAME', default='topobank-assets')
 
