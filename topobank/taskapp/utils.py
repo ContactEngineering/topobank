@@ -61,19 +61,22 @@ def get_package_version_instance(pkg_name, version_expr):
     return version
 
 
-@watchman_check
 def celery_worker_check():
+    return {
+        'celery': _celery_worker_check(),
+    }
+
+@watchman_check
+def _celery_worker_check():
     """Used with watchman in order to check whether celery workers are available."""
     # See https://github.com/mwarkentin/django-watchman/issues/8
     from .celeryapp import app
     MIN_NUM_WORKERS_EXPECTED = 1
     d = app.control.broadcast('ping', reply=True, timeout=0.5, limit=MIN_NUM_WORKERS_EXPECTED)
     return {
-        'celery': {
-            'num_workers_available': len(d),
-            'min_num_workers_expected': MIN_NUM_WORKERS_EXPECTED,
-            'ok': len(d) >= MIN_NUM_WORKERS_EXPECTED,
-        }
+        'num_workers_available': len(d),
+        'min_num_workers_expected': MIN_NUM_WORKERS_EXPECTED,
+        'ok': len(d) >= MIN_NUM_WORKERS_EXPECTED,
     }
 
 
