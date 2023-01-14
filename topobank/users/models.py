@@ -6,9 +6,17 @@ from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.db.utils import ProgrammingError
 
-from allauth.socialaccount.models import SocialAccount
 from guardian.mixins import GuardianUserMixin
 from guardian.shortcuts import get_objects_for_user, get_anonymous_user
+
+try:
+    from allauth.socialaccount.models import SocialAccount
+except RuntimeError:
+    # If allauth is installed but not configured
+    SocialAccount = None
+except ModuleNotFoundError:
+    # If allauth is not installed
+    SocialAccount = None
 
 import os
 
@@ -40,6 +48,9 @@ class User(GuardianUserMixin, AbstractUser):
         return os.path.join('topographies', 'user_{}'.format(self.id))
 
     def _orcid_info(self):  # TODO use local cache
+        if SocialAccount is None:
+            raise ORCIDException("ORCID authentication not configured.")
+
         try:
             social_account = SocialAccount.objects.get(user_id=self.id)
         except SocialAccount.DoesNotExist as exc:
