@@ -3,7 +3,7 @@
 ## 0.92.1 (not published yet)
 
 - ENH: Added surface collection as analysis subject,
-  now analysis function can be implemented which 
+  now analysis functions can be implemented which 
   process a bunch of surfaces (#900)
 - ENH: Also save creation time of analyses and show it 
   in the modal dialog for the tasks (#899)
