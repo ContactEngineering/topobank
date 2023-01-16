@@ -5,6 +5,9 @@
 - ENH: Added surface collection as analysis subject,
   now analysis functions can be implemented which 
   process a bunch of surfaces (#900)
+- ENH: Added output of DOIs related to analyses
+  to downloads and to display of results of analyses
+  using the standard plot card view (#171)
 - ENH: Also save creation time of analyses and show it 
   in the modal dialog for the tasks (#899)
 - BUG: Fixed problem loading SUR files (#945)
