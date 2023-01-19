@@ -552,7 +552,6 @@ CC_LICENSE_INFOS = {  # each element refers to two links: (description URL, full
 
 # Set the following to False, if publications shouldn't be possible at all
 PUBLICATION_ENABLED = env.bool('PUBLICATION_ENABLED', default=True)
-PUBLICATION_DISPLAY_TAB_WITH_OWN_PUBLICATIONS = env.bool('PUBLICATION_DISPLAY_TAB_WITH_OWN_PUBLICATIONS', default=True)
 
 PUBLICATION_DOI_STATE_INFOS = {
     'draft': {
@@ -615,3 +614,9 @@ DEFAULT_ALLOW_CACHE_FOR_LOW_LEVEL_TOPOGRAPHY = True
 
 # Configure watchman checks
 WATCHMAN_CHECKS = watchman_constants.DEFAULT_CHECKS + ('topobank.taskapp.utils.celery_worker_check', )
+
+#
+# Tabnav configuration
+#
+TABNAV_DISPLAY_HOME_TAB = True
+TABNAV_DISPLAY_SHARING_TAB = True
