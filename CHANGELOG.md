@@ -3,7 +3,7 @@
 ## 0.92.1 (not published yet)
 
 - ENH: Added surface collection as analysis subject,
-  now analysis function can be implemented which 
+  now analysis functions can be implemented which 
   process a bunch of surfaces (#900)
 - ENH: Also save creation time of analyses and show it 
   in the modal dialog for the tasks (#899)
@@ -12,7 +12,7 @@
 - MAINT: Fixed missing "plugin.txt" for Docker image in
   production
 - MAINT: Removed firefox from production's Dockerfile
-- MAINT: Upgrade of SurfaceTopograpy to 1.3.0
+- MAINT: Upgrade of SurfaceTopograpy to 1.3.1
 - MAINT: Renamed "Sign in via ORCID" to "Sign in"
 - MAINT: Default AWS access information to None
 - MAINT: Added django-watchman, added celery check
