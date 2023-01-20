@@ -23,7 +23,6 @@ from SurfaceTopography.Exceptions import CannotDetectFileFormat, CorruptFile, Un
 
 from topobank.manager.utils import get_topography_reader
 from .models import Topography, Surface, MAX_LENGTH_DATAFILE_FORMAT
-from ..publication.models import MAX_LEN_AUTHORS_FIELD
 
 from topobank.users.models import User
 
