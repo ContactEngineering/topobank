@@ -9,15 +9,6 @@ from django.db.utils import ProgrammingError
 from guardian.mixins import GuardianUserMixin
 from guardian.shortcuts import get_objects_for_user, get_anonymous_user
 
-try:
-    from allauth.socialaccount.models import SocialAccount
-except RuntimeError:
-    # If allauth is installed but not configured
-    SocialAccount = None
-except ModuleNotFoundError:
-    # If allauth is not installed
-    SocialAccount = None
-
 import os
 
 DEFAULT_GROUP_NAME = 'all'
@@ -48,7 +39,9 @@ class User(GuardianUserMixin, AbstractUser):
         return os.path.join('topographies', 'user_{}'.format(self.id))
 
     def _orcid_info(self):  # TODO use local cache
-        if SocialAccount is None:
+        try:
+            from allauth.socialaccount.models import SocialAccount
+        except:
             raise ORCIDException("ORCID authentication not configured.")
 
         try:
