@@ -3,7 +3,6 @@ import re
 from django.forms import forms, ModelMultipleChoiceField
 from django import forms
 from django_select2.forms import ModelSelect2MultipleWidget
-from django.contrib.postgres.forms import JSONField as JSONField4Form
 from django.conf import settings
 import bleach  # using bleach instead of django.utils.html.escape because it allows more (e.g. for markdown)
 
