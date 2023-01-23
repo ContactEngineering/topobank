@@ -123,7 +123,7 @@
           </a>
           <div class="dropdown-menu dropdown-menu-right user-dropdown" aria-labelledby="userDropdown">
             {% if not request.user.is_anonymous and request.user.username %}
-            <a class="dropdown-item" href="{% url 'users:detail' request.user.username %}"><i class="fa fa-user fa-fw"></i> User Profile</a>
+            <a class="dropdown-item" href="{% url 'users:detail' request.user.username %}"><i class="fa fa-user fa-fw"></i> User profile</a>
             <!-- a class="dropdown-item" ><i class="fa fa-cog fa-fw"></i> Settings<a> -->
             <div class="dropdown-divider"></div>
             {% if request.user.is_staff %}

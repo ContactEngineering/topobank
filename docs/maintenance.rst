@@ -12,7 +12,7 @@ Management Commands
 
 Call this with a username as argument in order to grant permissions for
 using the admin interface. In order to find out the username,
-you can either use an existing admin access or enter the "User Profile"
+you can either use an existing admin access or enter the "User profile"
 page in the application. Then you can see your username in the URL.
 
 Example:

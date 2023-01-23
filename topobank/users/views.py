@@ -24,7 +24,7 @@ class UserDetailView(LoginRequiredMixin, DetailView):
         context = super().get_context_data(**kwargs)
         context['extra_tabs'] = [
             {
-                'title': f"User Profile",
+                'title': f"User profile",
                 'icon': "user",
                 'href': self.request.path,
                 'active': True,
