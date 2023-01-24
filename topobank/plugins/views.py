@@ -14,7 +14,7 @@ class PluginListView(TemplateView):
         # only show plugins available for his user
         plugins_available = Organization.objects.get_plugins_available(self.request.user)
         context['plugins_available'] = plugins_available
-        context['settings_plugins'] = [app.name for app in settings.PLUGIN_APPS]
+        context['settings_plugins'] = [app for app in settings.PLUGIN_APPS]
         context['plugin_apps'] = [apps.get_app_config(app) for app in settings.PLUGIN_APPS
                                   if app in plugins_available]
 

@@ -6,9 +6,11 @@
   <h1>Available Plugins</h1>
 
   <div class="row">
+    <p>Available plugins {{ plugins_available }}</p>
+    <p>Settings plugins {{ settings_plugins }}</p>
+  </div>
 
-    {{ plugins_available }}
-
+  <div class="row">
     {% for plugin_app in plugin_apps %}
     <div class="col-4">
       <div class="card">
