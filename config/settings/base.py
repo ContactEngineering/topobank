@@ -1,9 +1,15 @@
 """
 Base settings to build other settings files upon.
 """
-from django.core.exceptions import ImproperlyConfigured
-from pkg_resources import iter_entry_points
+import random
+import string
+
 import environ
+
+from pkg_resources import iter_entry_points
+
+from django.core.exceptions import ImproperlyConfigured
+
 from watchman import constants as watchman_constants
 
 import topobank
