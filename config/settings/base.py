@@ -8,6 +8,9 @@ from watchman import constants as watchman_constants
 
 import topobank
 
+def random_string(l=16):
+    return ''.join(random.choice(string.ascii_lowercase) for i in range(l))
+
 ROOT_DIR = environ.Path(__file__) - 3  # (topobank/config/settings/base.py - 3 = topobank/)
 APPS_DIR = ROOT_DIR.path('topobank')
 
@@ -43,8 +46,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/dev/ref/settings/#databases
 
 DATABASES = {
-    'default': env.db('DATABASE_URL', default='postgres:///topobank'),
-    # 'default': env.db('DATABASE_URL', default='sqlite:///topobank.db'),
+    'default': env.db('DATABASE_URL', default=f'postgres:///{random_string()}'),
 }
 DATABASES['default']['ATOMIC_REQUESTS'] = True
 
@@ -575,8 +577,8 @@ PUBLICATION_DOI_MANDATORY = env.bool('PUBLICATION_DOI_MANDATORY', default=False)
 PUBLICATION_DOI_PREFIX = env.str('PUBLICATION_DOI_PREFIX', '99.999')  # 99.999 is invalid, should start with '10.'
 
 # These are the credentials for DataCite
-DATACITE_USERNAME = env.str('DATACITE_USERNAME', 'testuser')
-DATACITE_PASSWORD = env.str('DATACITE_PASSWORD', 'testpassword')
+DATACITE_USERNAME = env.str('DATACITE_USERNAME', default=random_string())
+DATACITE_PASSWORD = env.str('DATACITE_PASSWORD', default=random_string())
 
 # URL of the API, there is one for test and one for production
 DATACITE_API_URL = env.str('DATACITE_API_URL', default='https://api.test.datacite.org')
