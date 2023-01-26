@@ -100,10 +100,8 @@
           </a>
           <div class="dropdown-menu dropdown-menu-right help-dropdown" aria-labelledby="helpDropdown">
             <a class="dropdown-item" target="_blank" href="https://github.com/ContactEngineering/TopoBank/discussions">Feedback</a>
-            <a class="dropdown-item" data-toggle="modal" data-target="#versionModal">Version Information</a>
-            <a class="dropdown-item" href="{% url 'terms' %}">Terms &amp; Conditions</a>
-            <div class="dropdown-divider"></div>
-            <a class="dropdown-item" href="{% url 'plugins:plugins-list' %}">Plugins</a>
+            <a class="dropdown-item" data-toggle="modal" data-target="#versionModal">Version information</a>
+            <a class="dropdown-item" href="{% url 'terms' %}">Terms &amp; conditions</a>
             <div class="dropdown-divider"></div>
             <a class="dropdown-item" target="_blank" href="https://doi.org/10.1088/2051-672X/ac860a">Read our paper!</a>
             <div class="dropdown-divider"></div>
@@ -123,13 +121,13 @@
           </a>
           <div class="dropdown-menu dropdown-menu-right user-dropdown" aria-labelledby="userDropdown">
             {% if not request.user.is_anonymous and request.user.username %}
-            <a class="dropdown-item" href="{% url 'users:detail' request.user.username %}"><i class="fa fa-user fa-fw"></i> User profile</a>
-            <!-- a class="dropdown-item" ><i class="fa fa-cog fa-fw"></i> Settings<a> -->
+            <a class="dropdown-item" href="{% url 'users:detail' request.user.username %}">User profile</a>
+            <a class="dropdown-item" href="{% url 'plugins:plugins-list' %}">Plugins</a>
             <div class="dropdown-divider"></div>
             {% if request.user.is_staff %}
-              <a class="dropdown-item" href="{% url 'admin:index' %}"><i class="fa fa-table fa-fw"></i> Admin interface</a>
-              <a class="dropdown-item" href="{% url 'watchman:dashboard' %}"><i class="fa fa-list fa-fw"></i> Watchman dashboard</a>
-              <a class="dropdown-item" href="{% url 'watchman:status' %}"><i class="fa fa-info fa-fw"></i> Watchman status (JSON)</a>
+              <a class="dropdown-item" href="{% url 'admin:index' %}">Admin interface</a>
+              <a class="dropdown-item" href="{% url 'watchman:dashboard' %}">Watchman dashboard</a>
+              <a class="dropdown-item" href="{% url 'watchman:status' %}">Watchman status (JSON)</a>
               <div class="dropdown-divider"></div>
             {% endif %}
             <a class="dropdown-item" data-toggle="modal" data-target="#logoutModal">
