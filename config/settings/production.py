@@ -94,12 +94,12 @@ TEMPLATES[0]['OPTIONS']['loaders'] = [  # noqa F405
 # https://docs.djangoproject.com/en/dev/ref/settings/#default-from-email
 DEFAULT_FROM_EMAIL = env(
     'DJANGO_DEFAULT_FROM_EMAIL',
-    default='TopoBank <noreply@contact.engineering>'
+    default='contact.engineering <noreply@contact.engineering>'
 )
 # https://docs.djangoproject.com/en/dev/ref/settings/#server-email
 SERVER_EMAIL = env('DJANGO_SERVER_EMAIL', default=DEFAULT_FROM_EMAIL)
 # https://docs.djangoproject.com/en/dev/ref/settings/#email-subject-prefix
-EMAIL_SUBJECT_PREFIX = env('DJANGO_EMAIL_SUBJECT_PREFIX', default='[TopoBank]')
+EMAIL_SUBJECT_PREFIX = env('DJANGO_EMAIL_SUBJECT_PREFIX', default='[contact.engineering]')
 
 # ADMIN
 # ------------------------------------------------------------------------------
@@ -208,3 +208,18 @@ WATCHMAN_AUTH_DECORATOR = 'django.contrib.admin.views.decorators.staff_member_re
 # Can also be configured to use a token or no token at all, see
 # https://django-watchman.readthedocs.io/en/latest/readme.html#documentation
 # for details
+
+# STATIC
+# ------------------------------------------------------------------------------
+# We use whitenoise in production for delivering static files. Those files need
+# to be collected with `manage.py collectstatic` before. (This happens when
+# building the Docker container.) Now we insert `WhiteNoiseMiddleware` after
+# `SecurityMiddleware`.
+# See: http://whitenoise.evans.io/en/latest/django.html#enable-whitenoise
+# See also here for a discussion of Whitenoise vs S3:
+# http://whitenoise.evans.io/en/stable/#shouldn-t-i-be-pushing-my-static-files-to-s3-using-something-like-django-storages
+MIDDLEWARE.insert(
+    MIDDLEWARE.index('django.middleware.security.SecurityMiddleware') + 1,
+    'whitenoise.middleware.WhiteNoiseMiddleware')
+# Enable white noise compressed storage
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
