@@ -17,7 +17,10 @@ import topobank
 def random_string(l=16):
     return ''.join(random.choice(string.ascii_lowercase) for i in range(l))
 
-ROOT_DIR = environ.Path(__file__) - 3  # (topobank/config/settings/base.py - 3 = topobank/)
+# We provide (dummy) default values for every setting so we can run manage.py
+# without needing a configured stack.
+
+ROOT_DIR = environ.Path('/app')
 APPS_DIR = ROOT_DIR.path('topobank')
 
 env = environ.Env()
@@ -50,7 +53,6 @@ USE_TZ = True
 # DATABASES
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#databases
-
 DATABASES = {
     'default': env.db('DATABASE_URL', default=f'postgres:///{random_string()}'),
 }
@@ -71,10 +73,7 @@ DJANGO_APPS = [
     'django.contrib.sessions',
     'django.contrib.sites',
     'django.contrib.messages',
-    'whitenoise.runserver_nostatic',  # also use whitenoise with runserver
-    'collectfast',  # must be inserted before 'staticfiles'
     'django.contrib.staticfiles',
-    # 'django.contrib.humanize', # Handy template tags
     'django.contrib.admin',
     'django.contrib.postgres',  # needed for 'search' lookup
 ]
@@ -185,7 +184,6 @@ AUTH_PASSWORD_VALIDATORS = [
 # https://docs.djangoproject.com/en/dev/ref/settings/#middleware
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # http://whitenoise.evans.io/en/latest/django.html#enable-whitenoise
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -199,37 +197,6 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'topobank.usage_stats.middleware.count_request_middleware',
 ]
-
-# STATIC
-# ------------------------------------------------------------------------------
-# https://docs.djangoproject.com/en/dev/ref/settings/#static-root
-STATIC_ROOT = str(ROOT_DIR('staticfiles'))
-# https://docs.djangoproject.com/en/dev/ref/settings/#static-url
-STATIC_URL = '/static/'
-# https://docs.djangoproject.com/en/dev/ref/contrib/staticfiles/#std:setting-STATICFILES_DIRS
-STATICFILES_DIRS = [
-    str(APPS_DIR.path('static')),
-]
-# https://docs.djangoproject.com/en/dev/ref/contrib/staticfiles/#staticfiles-finders
-STATICFILES_FINDERS = [
-    'django.contrib.staticfiles.finders.FileSystemFinder',
-    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
-]
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-# STATICFILES_STORAGE = 'whitenoise.storage.ManifestStaticFilesStorage'
-# test whether slow collect static comes from WhiteNoise
-
-# for faster collection of static files
-COLLECTFAST_STRATEGY = "collectfast.strategies.filesystem.FileSystemStrategy"
-# we first keep using filesystem storage, may try S3 later
-
-
-# MEDIA
-# ------------------------------------------------------------------------------
-# https://docs.djangoproject.com/en/dev/ref/settings/#media-root
-MEDIA_ROOT = str(ROOT_DIR.path('media'))
-# https://docs.djangoproject.com/en/dev/ref/settings/#media-url
-MEDIA_URL = '/media/'
 
 # TEMPLATES
 # ------------------------------------------------------------------------------
@@ -439,6 +406,31 @@ if USE_S3_STORAGE:
     AWS_DEFAULT_ACL = None
     # Append extra characters if new files have the same name
     AWS_S3_FILE_OVERWRITE = False
+
+# STATIC
+# ------------------------------------------------------------------------------
+# https://docs.djangoproject.com/en/dev/ref/settings/#static-root
+STATIC_ROOT = str(ROOT_DIR('staticfiles'))
+# https://docs.djangoproject.com/en/dev/ref/settings/#static-url
+STATIC_URL = '/static/'
+# https://docs.djangoproject.com/en/dev/ref/contrib/staticfiles/#std:setting-STATICFILES_DIRS
+STATICFILES_DIRS = [
+    str(APPS_DIR.path('static')),
+]
+# https://docs.djangoproject.com/en/dev/ref/contrib/staticfiles/#staticfiles-finders
+STATICFILES_FINDERS = [
+    'django.contrib.staticfiles.finders.FileSystemFinder',
+    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
+]
+STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
+
+
+# MEDIA
+# ------------------------------------------------------------------------------
+# https://docs.djangoproject.com/en/dev/ref/settings/#media-root
+MEDIA_ROOT = ''
+# https://docs.djangoproject.com/en/dev/ref/settings/#media-url
+MEDIA_URL = '/media/'
 
 #
 # Settings for django-guardian
