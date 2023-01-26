@@ -130,10 +130,9 @@
               <a class="dropdown-item" href="{% url 'watchman:status' %}">Watchman status (JSON)</a>
               <div class="dropdown-divider"></div>
             {% endif %}
-            <a class="dropdown-item" data-toggle="modal" data-target="#logoutModal">
-              <i class="fa fa-sign-out fa-fw"></i>Sign Out</a>
+            <a class="dropdown-item" data-toggle="modal" data-target="#logoutModal">Sign Out</a>
             {% else %}
-            <a class="dropdown-item" href="{% provider_login_url 'orcid' method="oauth2" %}">Sign in via ORCID</a>
+            <a class="dropdown-item" href="{% provider_login_url 'orcid' method="oauth2" %}">Sign in</a>
             {% endif %}
           </div>
         </li>
@@ -215,7 +214,7 @@
           <div class="modal-body">Select "Sign Out" below if you are ready to end your current session.</div>
           <div class="modal-footer">
             <button class="btn btn-secondary" type="button" data-dismiss="modal">Cancel</button>
-            <a class="btn btn-primary" href="{% url 'account_logout' %}">{% trans "Sign Out" %}</a>
+            <a class="btn btn-primary" href="{% url 'account_logout' %}">{% trans "Sign out" %}</a>
           </div>
         </div>
       </div>
