@@ -226,17 +226,19 @@
       <div class="modal-dialog" role="document">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="versionModalLabel">Version Information</h5>
+            <h5 class="modal-title" id="versionModalLabel">Version information</h5>
             <button class="close" type="button" data-dismiss="modal" aria-label="Close">
               <span aria-hidden="true">×</span>
             </button>
           </div>
           <div class="modal-body">
+            <p>This cloud platform is build from open source packages.</p>
             <table class="table table-striped">
               <thead>
                 <tr>
                   <th>Module</th>
                   <th>Version</th> {#  Maybe also add links? #}
+                  <th>License</th>
                   <th>Links</th>
                 </tr>
               </thead>
@@ -245,6 +247,9 @@
                   <tr>
                     <td>{{ v.module }}</td>
                     <td>{{ v.version }}</td>
+                    <td>
+                      <a href="{{ v.license.1 }}">{{ v.license.0 }}</a>
+                    </td>
                     <td>
                       {% for name,href in v.links.items %}
                         <a href="{{ href }}">{{ name }}</a>
@@ -256,6 +261,7 @@
                   <tr>
                     <td>OpenSeadragon</td>
                     <td id="openseadragon-version"></td>
+                    <td><a href="https://github.com/ContactEngineering/topobank/blob/develop/LICENSE-openseadragon.txt">BSD 3-Clause</a></td>
                     <td><a href="https://openseadragon.github.io/">Website</a></td>
                   </tr>
               </tbody>
