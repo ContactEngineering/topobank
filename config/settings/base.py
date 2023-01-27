@@ -20,7 +20,7 @@ def random_string(l=16):
 # We provide (dummy) default values for every setting so we can run manage.py
 # without needing a configured stack.
 
-ROOT_DIR = environ.Path('/app')
+ROOT_DIR = environ.Path(__file__) - 3 # (topobank/config/settings/base.py - 3 = topobank/)
 APPS_DIR = ROOT_DIR.path('topobank')
 
 env = environ.Env()
@@ -122,7 +122,8 @@ for entry_point in iter_entry_points(group='topobank.plugins', name=None):
     PLUGIN_APPS.append(entry_point.module_name)
 
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
-INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS + PLUGIN_APPS
+# Remove duplicate entries
+INSTALLED_APPS = list(set(DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS + PLUGIN_APPS))
 
 # MIGRATIONS
 # ------------------------------------------------------------------------------
