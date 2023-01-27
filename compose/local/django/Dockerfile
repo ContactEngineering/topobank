@@ -44,7 +44,7 @@ WORKDIR /
 RUN pip install --upgrade setuptools
 
 COPY ./requirements/local.txt /requirements/local.txt
-RUN pip install -r /requirements/local.txt --ignore-installed --no-binary numpy
+RUN pip install -r /requirements/local.txt --ignore-installed
 
 
 # Here the entrypoint from production settings is taken!

@@ -20,7 +20,7 @@ python:
 install:
   - sudo apt-get install libfftw3-dev libopenblas-dev
   - pip install -r requirements/local.txt
-  # - pip install -e .[dev] --no-binary numpy
+  # - pip install -e .[dev]
   - python manage.py collectstatic
   # - pip install selenium
 script:
