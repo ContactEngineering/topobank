@@ -19,7 +19,7 @@ python:
 #  - google-chrome-stable --headless --disable-gpu --remote-debugging-port=9222 http://localhost &
 install:
   - sudo apt-get install libfftw3-dev libopenblas-dev
-  - pip install -r requirements/local.txt --no-binary numpy
+  - pip install -r requirements/local.txt
   # - pip install -e .[dev] --no-binary numpy
   - python manage.py collectstatic
   # - pip install selenium
