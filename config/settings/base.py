@@ -20,7 +20,12 @@ def random_string(l=16):
 # We provide (dummy) default values for every setting so we can run manage.py
 # without needing a configured stack.
 
-ROOT_DIR = environ.Path(__file__) - 3 # (topobank/config/settings/base.py - 3 = topobank/)
+if os.path.exists('/app'):
+    # This is the production container
+    ROOT_DIR = environ.Path('/app')
+else:
+    # This is the development container
+    ROOT_DIR = environ.Path(__file__) - 3 # (topobank/config/settings/base.py - 3 = topobank/)
 APPS_DIR = ROOT_DIR.path('topobank')
 
 env = environ.Env()
