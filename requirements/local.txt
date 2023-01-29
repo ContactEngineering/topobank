@@ -142,7 +142,7 @@ django-allauth==0.52.0
     # via topobank (../setup.py)
 django-appconf==1.0.5
     # via django-select2
-django-bootstrap-datepicker-plus==5.0.2
+django-bootstrap-datepicker-plus==4.0.0
     # via topobank (../setup.py)
 django-coverage-plugin==3.0.0
     # via topobank (../setup.py)
@@ -383,8 +383,6 @@ pycodestyle==2.10.0
     # via flake8
 pycparser==2.21
     # via cffi
-pydantic==1.10.4
-    # via django-bootstrap-datepicker-plus
 pyflakes==3.0.1
     # via flake8
 pygments==2.14.0
@@ -582,8 +580,6 @@ typing-extensions==4.4.0
     # via
     #   bokeh
     #   collectfast
-    #   django-bootstrap-datepicker-plus
-    #   pydantic
 urllib3[socks]==1.26.13
     # via
     #   botocore
