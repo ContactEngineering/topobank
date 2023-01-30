@@ -3,7 +3,6 @@ import re
 from django.forms import forms, ModelMultipleChoiceField
 from django import forms
 from django_select2.forms import ModelSelect2MultipleWidget
-from django.contrib.postgres.forms import JSONField as JSONField4Form
 from django.conf import settings
 import bleach  # using bleach instead of django.utils.html.escape because it allows more (e.g. for markdown)
 
@@ -24,7 +23,6 @@ from SurfaceTopography.Exceptions import CannotDetectFileFormat, CorruptFile, Un
 
 from topobank.manager.utils import get_topography_reader
 from .models import Topography, Surface, MAX_LENGTH_DATAFILE_FORMAT
-from ..publication.models import MAX_LEN_AUTHORS_FIELD
 
 from topobank.users.models import User
 

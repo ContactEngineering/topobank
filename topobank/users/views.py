@@ -3,8 +3,6 @@ from django.urls import reverse
 from django.views.generic import DetailView, ListView, RedirectView, UpdateView
 from django.core.exceptions import PermissionDenied
 
-from allauth.account.views import EmailView
-
 from .models import User
 from .utils import are_collaborating
 
@@ -26,7 +24,7 @@ class UserDetailView(LoginRequiredMixin, DetailView):
         context = super().get_context_data(**kwargs)
         context['extra_tabs'] = [
             {
-                'title': f"User Profile",
+                'title': f"User profile",
                 'icon': "user",
                 'href': self.request.path,
                 'active': True,
@@ -44,7 +42,6 @@ class UserRedirectView(LoginRequiredMixin, RedirectView):
 
 
 class UserUpdateView(LoginRequiredMixin, UpdateView):
-
     fields = ["name"]
 
     # we already imported User in the view code above, remember?
@@ -73,26 +70,6 @@ class UserUpdateView(LoginRequiredMixin, UpdateView):
                 'icon': "edit",
                 'href': self.request.path,
                 'active': True,
-            }
-        ]
-        return context
-
-
-class TabbedEmailView(EmailView):
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['extra_tabs'] = [
-            {
-                'title': f"User Profile",
-                'icon': "user",
-                'href': reverse('users:detail', kwargs=dict(username=self.request.user.username)),
-                'active': False
-            },
-            {
-                'title': f"Edit E-mail Addresses",
-                'icon': "edit",
-                'href': self.request.path,
-                'active': True
             }
         ]
         return context

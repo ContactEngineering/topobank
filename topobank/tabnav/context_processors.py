@@ -31,8 +31,9 @@ def fixed_tabs_processor(request):
     }
     """
 
-    tabs = [
-        {
+    tabs = []
+    if settings.TABNAV_DISPLAY_HOME_TAB:
+        tabs += [{
             'login_required': False,
             'title': '',  # no text
             'icon': 'home',
@@ -40,24 +41,21 @@ def fixed_tabs_processor(request):
             'active': request.path == HOME_URL,
             'tooltip': "Welcome to contact.engineering",
             'show_basket': False,
-        }
-    ]
+        }]
 
     if settings.PUBLICATION_DISPLAY_TAB_WITH_OWN_PUBLICATIONS:
-        tabs.append(
-            {
-                'login_required': True,
-                'title': '',  # no text
-                'icon': 'bullhorn',
-                'href': PUBLICATIONS_URL,
-                'active': request.path == PUBLICATIONS_URL,
-                'tooltip': "Surfaces published by you",
-                'show_basket': False,
-            },
-        )
+        tabs += [{
+            'login_required': True,
+            'title': '',  # no text
+            'icon': 'bullhorn',
+            'href': PUBLICATIONS_URL,
+            'active': request.path == PUBLICATIONS_URL,
+            'tooltip': "Surfaces published by you",
+            'show_basket': False,
+        }]
 
-    tabs.extend([
-        {
+    if settings.TABNAV_DISPLAY_SHARING_TAB:
+        tabs += [{
             'login_required': True,
             'title': '',  # no text
             'icon': 'share-alt',
@@ -65,24 +63,22 @@ def fixed_tabs_processor(request):
             'active': request.path == SHARING_INFO_URL,
             'tooltip': "Surfaces shared with you or by you",
             'show_basket': False,
-        },
-        {
-            'login_required': False,
-            'title': 'Find & select',
-            'icon': 'check-square',
-            'icon_style_prefix': 'far',
-            'href': SELECT_URL,
-            'active': request.path == SELECT_URL,
-            'tooltip': "Select surfaces and topographies for analysis or create new surfaces",
-            'show_basket': True,
-        },
-    ])
+        }]
+
+    # This is the datasets tab
+    tabs += [{
+        'login_required': False,
+        'title': 'Datasets',
+        'icon': 'check-square',
+        'icon_style_prefix': 'far',
+        'href': SELECT_URL,
+        'active': request.path == SELECT_URL,
+        'tooltip': "Select surfaces and topographies for analysis or create new surfaces",
+        'show_basket': True,
+    }]
 
     # Add default value for icon_style_prefix if missing
     for tab in tabs:
         tab.setdefault('icon_style_prefix', 'fas')
 
     return dict(fixed_tabs=tabs)
-
-
-
