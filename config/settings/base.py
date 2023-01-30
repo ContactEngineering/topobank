@@ -559,6 +559,7 @@ CC_LICENSE_INFOS = {  # each element refers to two links: (description URL, full
 
 # Set the following to False, if publications shouldn't be possible at all
 PUBLICATION_ENABLED = env.bool('PUBLICATION_ENABLED', default=True)
+PUBLICATION_DISPLAY_TAB_WITH_OWN_PUBLICATIONS = env.bool('PUBLICATION_DISPLAY_TAB_WITH_OWN_PUBLICATIONS', default=True)
 
 PUBLICATION_DOI_STATE_INFOS = {
     'draft': {

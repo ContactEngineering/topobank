@@ -43,7 +43,7 @@ def fixed_tabs_processor(request):
             'show_basket': False,
         }]
 
-    if settings.PUBLICATION_ENABLED:
+    if settings.PUBLICATION_DISPLAY_TAB_WITH_OWN_PUBLICATIONS:
         tabs += [{
             'login_required': True,
             'title': '',  # no text
