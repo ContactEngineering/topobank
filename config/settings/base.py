@@ -1,6 +1,7 @@
 """
 Base settings to build other settings files upon.
 """
+import os
 import random
 import string
 
