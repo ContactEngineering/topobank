@@ -8,6 +8,8 @@
 - ENH: Also save creation time of analyses and show it 
   in the modal dialog for the tasks (#899)
 - BUG: Fixed problem loading SUR files (#945)
+- BUG: Fixed layout problem in basked with too long 
+  lines (#894)
 - MAINT: Improved log messages of command "create_images"
 - MAINT: Fixed missing "plugin.txt" for Docker image in
   production

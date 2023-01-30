@@ -504,3 +504,8 @@ section[title="Terms and Conditions"] div.toc-container, #tc-terms-html {
   position: absolute;
   top: 0.35rem;
 }
+
+.float-right-flex {
+display:flex;
+justify-content: flex-end;
+}
