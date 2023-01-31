@@ -11,6 +11,7 @@
 - ENH: Also save creation time of analyses and show it 
   in the modal dialog for the tasks (#899)
 - BUG: Fixed problem loading SUR files (#945)
+- BUG: Fixed problem with surface collection name (#953)
 - MAINT: Fined-grained enabling of tabnav tabs in settings file
 - MAINT: Moved `allauth`-dependent views into `views_allauth`
 - MAINT: Added license information to version information modal
