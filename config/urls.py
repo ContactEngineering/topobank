@@ -12,7 +12,7 @@ from django.contrib.auth.decorators import user_passes_test, login_required
 import notifications.urls
 
 from topobank.views import TermsView, HomeView, HelpView, GotoSelectView, TermsDetailView, TermsAcceptView
-from topobank.users.views import TabbedEmailView
+from topobank.users.allauth_views import TabbedEmailView
 from topobank.organizations.models import Organization
 
 urlpatterns = [
