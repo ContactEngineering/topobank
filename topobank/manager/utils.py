@@ -19,9 +19,9 @@ from SurfaceTopography import open_topography
 from SurfaceTopography.IO import readers as surface_topography_readers
 from SurfaceTopography.IO.DZI import write_dzi
 
-
 _log = logging.getLogger(__name__)
 
+MAX_LENGTH_SURFACE_COLLECTION_NAME = 160
 DEFAULT_DATASOURCE_NAME = 'Default'
 MAX_LEN_SEARCH_TERM = 200
 SELECTION_SESSION_VARNAME = 'selection'
@@ -661,6 +661,28 @@ def subjects_from_json(subjects_ids_json, function=None):
         subjects += [s for s in ct.get_all_objects_for_this_type().filter(query)]
     return subjects
 
+def surface_collection_name(surface_names):
+    """For a given list of names, return a length-limited collection name."""
+    num_surfaces = len(surface_names)
+    k = 0
+    coll_name_prefix = ""
+    last_coll_name = ""
+    while k < num_surfaces:
+        coll_name_prefix += f"Surface '{surface_names[k]}', "
+        coll_name_postfix = f" and {num_surfaces - k} more"
+        coll_name = coll_name_prefix + coll_name_postfix
+        if len(coll_name) > MAX_LENGTH_SURFACE_COLLECTION_NAME:
+            if last_coll_name == "":
+                coll_name = coll_name_prefix[:MAX_LENGTH_SURFACE_COLLECTION_NAME - 4] + "..."
+            else:
+                coll_name = last_coll_name
+            break
+        else:
+            last_coll_name = coll_name
+            k += 1  # add one more and try if it still fits
+
+    return coll_name
+
 
 def selection_to_subjects_json(request):
     """Convert current selection into list of subjects as json.
@@ -716,7 +738,7 @@ def selection_to_subjects_json(request):
             if surf_collections.count() > 1:
                 _log.warning(f"More than on surface collection instance for surfaces {[s.id for s in effective_surfaces]} found.")
         else:
-            coll = SurfaceCollection.objects.create(name='Surfaces: '+", ".join(s.name for s in effective_surfaces))
+            coll = SurfaceCollection.objects.create(name=surface_collection_name(s.name for s in effective_surfaces))
             coll.surfaces.set(effective_surfaces)
             coll.save()
             _log.info(f"Created new surface collection for surfaces {[s.id for s in effective_surfaces]}.")

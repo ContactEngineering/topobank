@@ -32,7 +32,7 @@ from bokeh.models import DataRange1d, LinearColorMapper, ColorBar
 from bokeh.plotting import figure
 
 from ..plots import configure_plot
-from .utils import get_topography_reader
+from .utils import get_topography_reader, MAX_LENGTH_SURFACE_COLLECTION_NAME
 
 from topobank.users.models import User
 from topobank.publication.models import Publication, DOICreationException
@@ -45,6 +45,7 @@ from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 
 
 _log = logging.getLogger(__name__)
+
 
 MAX_LENGTH_DATAFILE_FORMAT = 15  # some more characters than currently needed, we may have sub formats in future
 MAX_NUM_POINTS_FOR_SYMBOLS_IN_LINE_SCAN_PLOT = 100
@@ -520,7 +521,7 @@ def _upload_path_for_thumbnail(instance, filename):
 
 class SurfaceCollection(models.Model, SubjectMixin):
     """A collection of surfaces."""
-    name = models.CharField(max_length=160)
+    name = models.CharField(max_length=MAX_LENGTH_SURFACE_COLLECTION_NAME)
     surfaces = models.ManyToManyField(Surface)
     # We have a manytomany field, because a surface could be part of multiple collections.
 
