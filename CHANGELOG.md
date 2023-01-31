@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-## 0.93.0 (not published yet)
+## 1.0.0 (2023-01-31)
 
 - ENH: Added surface collection as analysis subject,
   now analysis functions can be implemented which 
