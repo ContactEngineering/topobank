@@ -338,6 +338,7 @@ packaging==23.0
     #   matplotlib
     #   pytest
     #   pytest-sugar
+    #   setuptools-scm
     #   sphinx
     #   xarray
 pandas==1.5.2
@@ -492,6 +493,8 @@ selenium==4.7.2
     #   pytest-selenium
     #   pytest-splinter
     #   topobank (../setup.py)
+setuptools-scm==7.1.0
+    # via topobank (../setup.py)
 short-url==1.2.2
     # via topobank (../setup.py)
 six==1.16.0
@@ -564,6 +567,7 @@ tomli==2.0.1
     #   coverage
     #   ipdb
     #   pep517
+    #   setuptools-scm
 tornado==6.2
     # via bokeh
 traitlets==5.8.1
@@ -580,6 +584,7 @@ typing-extensions==4.4.0
     # via
     #   bokeh
     #   collectfast
+    #   setuptools-scm
 urllib3[socks]==1.26.13
     # via
     #   botocore
