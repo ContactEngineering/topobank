@@ -363,9 +363,6 @@ REST_FRAMEWORK = {
     #'PAGE_SIZE': 2,
 }
 
-# Version number used in the GUI
-TOPOBANK_VERSION = topobank.__version__
-
 #
 # Settings for authentication with ORCID
 #

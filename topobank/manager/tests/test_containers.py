@@ -9,6 +9,8 @@ import os
 
 from django.conf import settings
 
+import topobank
+
 from .utils import SurfaceFactory, Topography2DFactory, Topography1DFactory, TagModelFactory, UserFactory, FIXTURE_DIR
 
 from ..containers import write_surface_container
@@ -101,7 +103,7 @@ def test_surface_container(example_authors):
                 assert squeezed_datafile_name in zf.namelist()
 
         # check version information
-        assert meta['versions']['topobank'] == settings.TOPOBANK_VERSION
+        assert meta['versions']['topobank'] == topobank.__version__
         assert 'creation_time' in meta
 
         # check publication fields
