@@ -263,8 +263,13 @@ def test_related_surfaces_for_selection(rf):
                                                          surfaces=[surf1],
                                                          tags=[tag2])) == [surf1]
 
-@pytest.mark.parametrize(["surface_names", "exp_name"], [
-    (["A", "B"], "Surface 'A', Surface 'B'"),
+@pytest.mark.parametrize(["surface_names", "exp_name", "max_total_length"], [
+    (["A"], "Surface 'A'", 11),
+    (["A", "B"], "Surface 'A', Surface 'B'", 30),
+    (["AAAAA"], "Surface 'AAAAA'", 15),
+    (["AAAAAA"], "Surface 'A...", 14),
+    (["AAA", "BBB", "CCCCCCCCCCCCCCCCCCCCCCCC"],
+      "Surface 'AAA', Surface 'BBB' and 1 more", 40),
 ])
-def test_surface_collection_name(surface_names, exp_name):
-    assert surface_collection_name(surface_names) == exp_name
+def test_surface_collection_name(surface_names, exp_name, max_total_length):
+    assert surface_collection_name(surface_names, max_total_length=max_total_length) == exp_name

@@ -661,24 +661,27 @@ def subjects_from_json(subjects_ids_json, function=None):
         subjects += [s for s in ct.get_all_objects_for_this_type().filter(query)]
     return subjects
 
-def surface_collection_name(surface_names):
+def surface_collection_name(surface_names, max_total_length=MAX_LENGTH_SURFACE_COLLECTION_NAME):
     """For a given list of names, return a length-limited collection name."""
     num_surfaces = len(surface_names)
     k = 0
     coll_name_prefix = ""
     last_coll_name = ""
     while k < num_surfaces:
-        coll_name_prefix += f"Surface '{surface_names[k]}', "
-        coll_name_postfix = f" and {num_surfaces - k} more"
-        coll_name = coll_name_prefix + coll_name_postfix
-        if len(coll_name) > MAX_LENGTH_SURFACE_COLLECTION_NAME:
+        coll_name_prefix += f"Surface '{surface_names[k]}'"
+        num_rest = num_surfaces - (k + 1)
+        coll_name = coll_name_prefix[:]
+        if num_rest > 0:
+            coll_name += f" and {num_rest} more"
+        if len(coll_name) > max_total_length:
             if last_coll_name == "":
-                coll_name = coll_name_prefix[:MAX_LENGTH_SURFACE_COLLECTION_NAME - 4] + "..."
+                coll_name = coll_name_prefix[:max_total_length - 4] + "..."
             else:
                 coll_name = last_coll_name
             break
         else:
             last_coll_name = coll_name
+            coll_name_prefix += ", "
             k += 1  # add one more and try if it still fits
 
     return coll_name
