@@ -302,7 +302,7 @@ class Surface(models.Model, SubjectMixin):
         #
         # Request all standard analyses to be available for that user
         #
-        _log.info("After sharing surface %d with user %d, requesting all standard analyses..", self.id, with_user.id)
+        _log.info(f"After sharing surface {self.id} with user {with_user.id}, requesting all standard analyses...")
         from topobank.analysis.models import AnalysisFunction
         from topobank.analysis.utils import request_analysis
         analysis_funcs = AnalysisFunction.objects.all()
@@ -498,10 +498,10 @@ class Surface(models.Model, SubjectMixin):
         This is done in that order.
         """
         if include_topographies:
-            _log.info("Regenerating analyses of topographies of surface %d..", self.pk)
+            _log.info(f"Regenerating analyses of topographies of surface {self.pk}..")
             for topo in self.topography_set.all():
                 topo.renew_analyses()
-        _log.info("Regenerating analyses directly related to surface %d..", self.pk)
+        _log.info(f"Regenerating analyses directly related to surface {self.pk}..")
         renew_analyses_for_subject(self)
 
     def related_surfaces(self):

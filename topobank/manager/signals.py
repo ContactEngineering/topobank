@@ -63,8 +63,8 @@ def remove_files(sender, instance, **kwargs):
             _log.info(f'Deleting {datafile.name}...')
             datafile.delete()
         except Exception as exc:
-            _log.warning("Topography id %d, attribute '%s': Cannot delete data file '%s', reason: %s",
-                         instance.id, datafile_attr_name, datafile.name, str(exc))
+            _log.warning(f"Topography id {instance.id}, attribute '{datafile_attr_name}': Cannot delete data file "
+                         f"{datafile.name}', reason: {str(exc)}")
 
     datafile_path = instance.datafile.name
     squeezed_datafile_path = instance.squeezed_datafile.name

@@ -80,9 +80,9 @@ def request_analysis(user, analysis_func, subject, *other_args, **kwargs):
         _log.info(f"Submitted new analysis for {analysis_func.name} and {subject.name} (user: {user.id})..")
     elif user not in analysis.users.all():
         analysis.users.add(user)
-        _log.info("Added user %d to existing analysis %d.", user.id, analysis.id)
+        _log.info(f"Added user {user.id} to existing analysis {analysis.id}.")
     else:
-        _log.debug("User %d already registered for analysis %d.", user.id, analysis.id)
+        _log.debug(f"User {user.id} already registered for analysis {analysis.id}.")
 
     #
     # Retrigger an analysis if there was a failure, maybe sth has been fixed in the meantime
@@ -91,7 +91,7 @@ def request_analysis(user, analysis_func, subject, *other_args, **kwargs):
         new_analysis = submit_analysis(users=analysis.users.all(),
                                        analysis_func=analysis_func, subject=subject,
                                        pickled_pyfunc_kwargs=pickled_pyfunc_kwargs)
-        _log.info("Submitted analysis %d again because of failure..", analysis.id)
+        _log.info(f"Submitted analysis {analysis.id} again because of failure..")
         analysis.delete()
         analysis = new_analysis
 
@@ -124,8 +124,6 @@ def renew_analyses_for_subject(subject):
     because the pre_delete signal deletes the datafile and
     this also then triggers "renew_analyses".
     """
-    from topobank.manager.models import Surface
-
     analysis_funcs = AnalysisFunction.objects.all()
 
     # collect users which are allowed to use these analyses by default
@@ -133,9 +131,9 @@ def renew_analyses_for_subject(subject):
 
     def submit_all(subj=subject):
         """Trigger analyses for this subject for all available analyses functions."""
-        _log.info("Deleting all analyses for %s %d..", subj.get_content_type().name, subj.id)
+        _log.info(f"Deleting all analyses for {subj.get_content_type().name} {subj.id}...")
         subj.analyses.all().delete()
-        _log.info("Triggering analyses for %s %d and all analysis functions..", subj.get_content_type().name, subj.id)
+        _log.info(f"Triggering analyses for {subj.get_content_type().name} {subj.id} and all analysis functions...")
         for af in analysis_funcs:
             subject_type = subj.get_content_type()
             if af.is_implemented_for_type(subject_type):
@@ -144,8 +142,8 @@ def renew_analyses_for_subject(subject):
                 try:
                     submit_analysis(users, af, subject=subj)
                 except Exception as err:
-                    _log.error("Cannot submit analysis for function '%s' and subject '%s' (%s, %d). Reason: %s",
-                               af.name, subj, subj.get_content_type().name, subj.id, str(err))
+                    _log.error(f"Cannot submit analysis for function '{af.name}' and subject '{subj}' "
+                               f"({subj.get_content_type().name} {subj.id}). Reason: {str(err)}")
 
     transaction.on_commit(lambda: submit_all(subject))
 
@@ -175,9 +173,9 @@ def renew_analysis(analysis, use_default_kwargs=False):
     else:
         pickled_pyfunc_kwargs = analysis.kwargs
 
-    _log.info("Renewing analysis %d for %d users, function %s, subject type %s, subject id %d .. kwargs: %s",
-              analysis.id, len(users), func.name, subject_type, analysis.subject.id,
-              pickle.loads(pickled_pyfunc_kwargs))
+    _log.info(f"Renewing analysis {analysis.id} for {len(users)} users, function {func.name}, "
+              f"subject type {subject_type}, subject id {analysis.subject.id} .. "
+              f"kwargs: {pickle.loads(pickled_pyfunc_kwargs)}")
     analysis.delete()
     return submit_analysis(users, func, subject=analysis.subject,
                            pickled_pyfunc_kwargs=pickled_pyfunc_kwargs)
