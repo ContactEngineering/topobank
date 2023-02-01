@@ -361,8 +361,8 @@ class Surface(models.Model, SubjectMixin):
         - removes edit, share and delete permission from everyone
         - add read permission for everyone
         """
-        # Remove edit, share and delete permission from everyone
-        users = get_users_with_perms(self)
+        # Remove edit, share and delete permission from everyone, including superusers
+        users = get_users_with_perms(self, with_superusers=True)
         for u in users:
             for perm in ['publish_surface', 'share_surface', 'change_surface', 'delete_surface']:
                 remove_perm(perm, u, self)
@@ -440,7 +440,8 @@ class Surface(models.Model, SubjectMixin):
             copy.set_publication_permissions()
         except PublicationException as exc:
             # see GH 704
-            _log.error(f"Could not set permission for copied surface to publish .. deleting copy of surface {self.pk}.")
+            _log.error(f"Could not set permission for copied surface to publish ... "
+                       f"deleting copy of surface {self.pk}.")
             copy.delete()
             raise
 
