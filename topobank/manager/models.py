@@ -4,7 +4,6 @@ Basic models for the web app for handling topography data.
 
 import sys
 
-import datacite.errors
 from django.db import models
 from django.shortcuts import reverse
 from django.utils import timezone
@@ -445,7 +444,7 @@ class Surface(models.Model, SubjectMixin):
         except PublicationException as exc:
             # see GH 704
             _log.error(f"Could not set permission for copied surface to publish ... "
-                       f"deleting copy of surface {self.pk} (surface {copy.pk}).")
+                       f"deleting copy (surface {copy.pk}) of surface {self.pk}.")
             copy.delete()
             raise
 
@@ -475,8 +474,10 @@ class Surface(models.Model, SubjectMixin):
                 pub.create_doi()
             except DOICreationException as exc:
                 _log.error("DOI creation failed, reason: %s", exc)
-                _log.warning("Cannot create publication with DOI, deleting publication instance.")
-                pub.delete()
+                _log.warning(f"Cannot create publication with DOI, deleting copy (surface {copy.pk}) of "
+                             f"surface {self.pk} and publication instance.")
+                pub.delete()  # need to delete pub first because it references copy
+                copy.delete()
                 raise PublicationException(f"Cannot create DOI, reason: {exc}") from exc
         else:
             _log.info("Skipping creation of DOI, because it is not configured as mandatory.")
