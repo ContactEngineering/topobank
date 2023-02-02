@@ -10,7 +10,7 @@ from .utils import SurfaceFactory, UserFactory, Topography2DFactory, TagModelFac
 from ..forms import SurfacePublishForm
 from ..views import SurfaceDetailView
 from topobank.utils import assert_in_content, assert_not_in_content
-from topobank.manager.models import NewPublicationTooFastException, PublicationsDisabledException
+from topobank.manager.models import NewPublicationTooFastException, PublicationsDisabledException, PublicationException
 
 
 @pytest.mark.django_db
@@ -36,6 +36,15 @@ def test_publication_disabled(settings):
     settings.PUBLICATION_ENABLED = False
     surface = SurfaceFactory()
     with pytest.raises(PublicationsDisabledException):
+        surface.publish('cc0-1.0', 'Bob')
+
+
+@pytest.mark.django_db
+def test_publication_superuser(settings):
+    surface = SurfaceFactory()
+    surface.creator.is_superuser = True
+    surface.creator.save()
+    with pytest.raises(PublicationException):
         surface.publish('cc0-1.0', 'Bob')
 
 

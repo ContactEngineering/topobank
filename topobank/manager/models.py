@@ -361,8 +361,12 @@ class Surface(models.Model, SubjectMixin):
         - removes edit, share and delete permission from everyone
         - add read permission for everyone
         """
-        # Remove edit, share and delete permission from everyone, including superusers
-        users = get_users_with_perms(self, with_superusers=True)
+        # Superusers cannot publish
+        if self.creator.is_superuser:
+            raise PublicationException("Superusers cannot publish!")
+
+        # Remove edit, share and delete permission from everyone
+        users = get_users_with_perms(self)
         for u in users:
             for perm in ['publish_surface', 'share_surface', 'change_surface', 'delete_surface']:
                 remove_perm(perm, u, self)
