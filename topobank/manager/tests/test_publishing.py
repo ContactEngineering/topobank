@@ -10,7 +10,8 @@ from .utils import SurfaceFactory, UserFactory, Topography2DFactory, TagModelFac
 from ..forms import SurfacePublishForm
 from ..views import SurfaceDetailView
 from topobank.utils import assert_in_content, assert_not_in_content
-from topobank.manager.models import NewPublicationTooFastException, PublicationsDisabledException, PublicationException
+from topobank.manager.models import Surface, NewPublicationTooFastException, PublicationsDisabledException, \
+    PublicationException
 
 
 @pytest.mark.django_db
@@ -46,6 +47,9 @@ def test_publication_superuser(settings):
     surface.creator.save()
     with pytest.raises(PublicationException):
         surface.publish('cc0-1.0', 'Bob')
+    # Make sure that the copy, and not the original surface, is deleted again
+    assert len(Surface.objects.all()) == 1
+    assert Surface.objects.all()[0].pk == 1
 
 
 @pytest.mark.parametrize("should_be_visible", [True, False])
