@@ -445,7 +445,7 @@ class Surface(models.Model, SubjectMixin):
         except PublicationException as exc:
             # see GH 704
             _log.error(f"Could not set permission for copied surface to publish ... "
-                       f"deleting copy of surface {self.pk}.")
+                       f"deleting copy of surface {self.pk} (surface {copy.pk}).")
             copy.delete()
             raise
 
