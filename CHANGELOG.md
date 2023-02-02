@@ -1,7 +1,8 @@
 # Changelog for *TopoBank*
 
-## 1.0.1 (not yet released)
+## 1.0.1 (2023-02-02)
 
+- BUG: Fixed comparative analysis (#962)
 - BUG: Remove copy of surface when publication fails
 
 ## 1.0.0 (2023-01-31)
