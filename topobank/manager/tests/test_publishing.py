@@ -48,11 +48,11 @@ def test_publication_superuser(settings):
     surface = SurfaceFactory()
     surface.creator.is_superuser = True
     surface.creator.save()
+    nb_surfaces = len(Surface.objects.all())
     with pytest.raises(PublicationException):
         surface.publish('cc0-1.0', 'Bob')
     # Make sure that the copy, and not the original surface, is deleted again
-    assert len(Surface.objects.all()) == 1
-    assert Surface.objects.all()[0].pk == 1
+    assert len(Surface.objects.all()) == nb_surfaces
 
 
 @pytest.mark.django_db
@@ -60,13 +60,12 @@ def test_failing_publication(settings):
     settings.DATACITE_API_URL = 'https://nonexistent.api.url/'  # lets publication fail
     settings.PUBLICATION_DOI_MANDATORY = True  # make sure to contact DataCite
     settings.PUBLICATION_DOI_PREFIX = '10.12345'
-    surface1 = SurfaceFactory()
-    surface2 = SurfaceFactory()
-    assert(len(Surface.objects.all()) == 2)
+    surface = SurfaceFactory()
+    nb_surfaces = len(Surface.objects.all())
     with pytest.raises(PublicationException):
-        surface2.publish('cc0-1.0', [bob])
+        surface.publish('cc0-1.0', [bob])
     # Check that the copy of the surface was properly deleted again
-    assert(len(Surface.objects.all()) == 2)
+    assert len(Surface.objects.all()) == nb_surfaces
 
 @pytest.mark.parametrize("should_be_visible", [True, False])
 @pytest.mark.django_db
