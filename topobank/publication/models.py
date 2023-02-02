@@ -406,6 +406,7 @@ class Publication(models.Model):
             pub_full_url = self.get_full_url()
 
             if requested_doi_state == Publication.DOI_STATE_DRAFT:
+                _log.info(f"{client_kwargs}")
                 _log.info(f"Creating draft DOI '{doi_name}' for publication '{self.short_url}' without URL link...")
                 rest_client.draft_doi(data, doi=doi_name)
                 _log.info(f"Linking draft DOI '{doi_name}' for publication '{self.short_url}' to URL {pub_full_url}...")
