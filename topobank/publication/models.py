@@ -9,7 +9,7 @@ from django.conf import settings
 from io import BytesIO
 
 from datacite import schema42, DataCiteRESTClient
-from datacite.errors import DataCiteError
+from datacite.errors import DataCiteError, HttpError
 
 import logging
 
@@ -419,7 +419,7 @@ class Publication(models.Model):
             else:
                 raise DataCiteError(f"Requested DOI state {requested_doi_state} is unknown.")
             _log.info("Done.")
-        except DataCiteError as exc:
+        except (DataCiteError, HttpError) as exc:
             msg = f"DOI creation failed, reason: {exc}"
             _log.error(msg)
             raise DOICreationException(msg) from exc

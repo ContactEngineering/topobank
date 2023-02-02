@@ -13,10 +13,13 @@ from topobank.utils import assert_in_content, assert_not_in_content
 from topobank.manager.models import Surface, NewPublicationTooFastException, PublicationsDisabledException, \
     PublicationException
 
+# Example user
+bob = dict(first_name='Bob', last_name='Doe', orcid_id='123',
+           affiliations=[dict(name='UofA', ror_id='123')])
+
 
 @pytest.mark.django_db
 def test_publication_version(settings):
-
     settings.MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS = None  # disable
 
     surface = SurfaceFactory()
@@ -51,6 +54,19 @@ def test_publication_superuser(settings):
     assert len(Surface.objects.all()) == 1
     assert Surface.objects.all()[0].pk == 1
 
+
+@pytest.mark.django_db
+def test_failing_publication(settings):
+    settings.DATACITE_API_URL = 'https://nonexistent.api.url/'  # lets publication fail
+    settings.PUBLICATION_DOI_MANDATORY = True  # make sure to contact DataCite
+    settings.PUBLICATION_DOI_PREFIX = '10.12345'
+    surface1 = SurfaceFactory()
+    surface2 = SurfaceFactory()
+    assert(len(Surface.objects.all()) == 2)
+    with pytest.raises(PublicationException):
+        surface2.publish('cc0-1.0', [bob])
+    # Check that the copy of the surface was properly deleted again
+    assert(len(Surface.objects.all()) == 2)
 
 @pytest.mark.parametrize("should_be_visible", [True, False])
 @pytest.mark.django_db
@@ -148,7 +164,6 @@ def test_permissions_for_published():
 
 @pytest.mark.django_db
 def test_surface_deepcopy():
-
     tag1 = TagModelFactory()
     tag2 = TagModelFactory()
 
@@ -206,7 +221,6 @@ def test_surface_deepcopy():
 
 @pytest.mark.django_db
 def test_switch_versions_on_properties_tab(client, settings, handle_usage_statistics):
-
     settings.MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS = None
 
     user = UserFactory()
@@ -257,7 +271,6 @@ def test_switch_versions_on_properties_tab(client, settings, handle_usage_statis
 
 @pytest.mark.django_db
 def test_notification_saying_new_version_exists(client, settings, handle_usage_statistics, example_authors):
-
     settings.MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS = None
 
     user = UserFactory()
@@ -351,7 +364,6 @@ def test_dont_show_published_surfaces_on_sharing_info(client, example_authors):
 
 @pytest.mark.django_db
 def test_dont_show_published_surfaces_when_shared_filter_used(client, handle_usage_statistics, example_authors):
-
     alice = UserFactory()
     bob = UserFactory()
     surface1 = SurfaceFactory(creator=alice, name="Shared Surface")
@@ -361,11 +373,11 @@ def test_dont_show_published_surfaces_when_shared_filter_used(client, handle_usa
 
     client.force_login(bob)
 
-    response = client.get(reverse('manager:search')+'?sharing_status=shared')  # means "shared with you"
+    response = client.get(reverse('manager:search') + '?sharing_status=shared')  # means "shared with you"
     assert_in_content(response, "Shared Surface")
     assert_not_in_content(response, "Published Surface")
 
-    response = client.get(reverse('manager:search')+'?sharing_status=published')  # means "published by anyone"
+    response = client.get(reverse('manager:search') + '?sharing_status=published')  # means "published by anyone"
     assert_not_in_content(response, "Shared Surface")
     assert_in_content(response, "Published Surface")
 
@@ -462,7 +474,6 @@ def test_publishing_wrong_license(example_authors):
 
 @pytest.mark.django_db
 def test_show_license_and_affiliations_when_viewing_published_surface(rf, settings, example_authors):
-
     license = 'cc0-1.0'
 
     surface = SurfaceFactory()
@@ -483,7 +494,3 @@ def test_show_license_and_affiliations_when_viewing_published_surface(rf, settin
     assert_in_content(response, "Authors")
     assert_in_content(response, request.user.first_name)
     assert_in_content(response, request.user.last_name)
-
-
-
-
