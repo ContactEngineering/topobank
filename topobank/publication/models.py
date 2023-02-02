@@ -406,15 +406,15 @@ class Publication(models.Model):
             pub_full_url = self.get_full_url()
 
             if requested_doi_state == Publication.DOI_STATE_DRAFT:
-                _log.info(f"Creating draft DOI for publication '{self.short_url}' without URL link...")
+                _log.info(f"Creating draft DOI '{doi_name}' for publication '{self.short_url}' without URL link...")
                 rest_client.draft_doi(data, doi=doi_name)
-                _log.info(f"Linking draft DOI for publication '{self.short_url}' to URL {pub_full_url}...")
+                _log.info(f"Linking draft DOI '{doi_name}' for publication '{self.short_url}' to URL {pub_full_url}...")
                 rest_client.update_url(doi=doi_name, url=pub_full_url)
             elif requested_doi_state == Publication.DOI_STATE_REGISTERED:
-                _log.info(f"Creating registered DOI for publication '{self.short_url}' linked to {pub_full_url}...")
+                _log.info(f"Creating registered DOI '{doi_name}' for publication '{self.short_url}' linked to {pub_full_url}...")
                 rest_client.private_doi(data, url=pub_full_url, doi=doi_name)
             elif requested_doi_state == Publication.DOI_STATE_FINDABLE:
-                _log.info(f"Creating findable DOI for publication '{self.short_url}' linked to {pub_full_url}...")
+                _log.info(f"Creating findable DOI '{doi_name}' for publication '{self.short_url}' linked to {pub_full_url}...")
                 rest_client.public_doi(data, url=pub_full_url, doi=doi_name)
             else:
                 raise DataCiteError(f"Requested DOI state {requested_doi_state} is unknown.")
