@@ -12,7 +12,7 @@ from ..tests.utils import two_topos, Topography1DFactory, Topography2DFactory, S
     TagModelFactory, UserFactory, user_three_topographies_three_surfaces_three_tags
 from ..utils import selection_to_instances, instances_to_selection, tags_for_user, \
     instances_to_topographies, surfaces_for_user, subjects_to_json, instances_to_surfaces, \
-    current_selection_as_surface_list
+    current_selection_as_surface_list, surface_collection_name
 from ..models import Surface, Topography, TagModel
 
 
@@ -262,3 +262,14 @@ def test_related_surfaces_for_selection(rf):
     assert current_selection_as_surface_list(get_request(topographies=[topo1a],
                                                          surfaces=[surf1],
                                                          tags=[tag2])) == [surf1]
+
+@pytest.mark.parametrize(["surface_names", "exp_name", "max_total_length"], [
+    (["A"], "Surface 'A'", 11),
+    (["A", "B"], "Surface 'A', Surface 'B'", 30),
+    (["AAAAA"], "Surface 'AAAAA'", 15),
+    (["AAAAAA"], "Surface 'A...", 14),
+    (["AAA", "BBB", "CCCCCCCCCCCCCCCCCCCCCCCC"],
+      "Surface 'AAA', Surface 'BBB' and 1 more", 40),
+])
+def test_surface_collection_name(surface_names, exp_name, max_total_length):
+    assert surface_collection_name(surface_names, max_total_length=max_total_length) == exp_name

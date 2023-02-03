@@ -306,6 +306,11 @@ class SimpleCardView(TemplateView):
         analyses_failure = [analysis for analysis in analyses_ready if analysis.task_state == 'fa']
 
         #
+        # Collect dois from all available analyses
+        #
+        dois = sorted(set().union(*[a.dois for a in analyses_available]))
+
+        #
         # comprise context for analysis result card
         #
         context.update(dict(
@@ -322,6 +327,7 @@ class SimpleCardView(TemplateView):
             subjects_ids_json=subjects_ids_json,  # can be used to re-trigger analyses
             extra_warnings=[],  # use list of dicts of form {'alert_class': 'alert-info', 'message': 'your message'},
             analyses_renew_url=reverse('analysis:renew'),
+            dois=dois,
         ))
 
         return context
