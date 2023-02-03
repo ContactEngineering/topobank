@@ -47,7 +47,7 @@ jobs:
 
     - name: Install
       run: |
-        pip install --upgrade pip
+        pip install --upgrade pip pip-tools
         pip-compile pyproject.toml
         pip install -r requirements.txt
         USE_DOCKER=no python manage.py collectstatic
