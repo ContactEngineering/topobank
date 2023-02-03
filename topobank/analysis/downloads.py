@@ -102,6 +102,9 @@ def analyses_meta_data_dataframe(analyses, request):
     pandas.DataFrame, can be inserted as extra sheet
     """
 
+    # Collect DOIs, if any
+    dois = sorted(set().union(*[a.dois for a in analyses]))
+
     properties = []
     values = []
     for i, analysis in enumerate(analyses):
@@ -113,6 +116,10 @@ def analyses_meta_data_dataframe(analyses, request):
             # list function name and a blank line
             properties = ["Function", ""]
             values = [str(analysis.function), ""]
+
+            if len(dois) > 0:
+                properties += ['PLEASE CITE THESE DOIs', '']
+                values += [', '.join(dois), '']
 
         properties += ['Subject Type', 'Subject Name',
                        'Creator',
@@ -233,21 +240,29 @@ def download_plot_analyses_to_txt(request, analyses):
         -------
         HTTPResponse
     """
-    # TODO: It would probably be useful to use the (some?) template engine for this.
-    # TODO: We need a mechanism for embedding references to papers into output.
 
     # Collect publication links, if any
     publication_urls = publications_urls(request, analyses)
+
+    # Collect DOIs, if any
+    dois = sorted(set().union(*[a.dois for a in analyses]))
 
     # Pack analysis results into a single text file.
     f = io.StringIO()
     for i, analysis in enumerate(analyses):
         if i == 0:
+            # Write header
             f.write('# {}\n'.format(analysis.function) +
                     '# {}\n'.format('=' * len(str(analysis.function))))
 
-            f.write('# IF YOU USE THIS DATA IN A PUBLICATION, PLEASE CITE XXX.\n' +
-                    '\n')
+            # Write DOIs
+            if len(dois) > 0:
+                f.write('# IF YOU USE THIS DATA IN A PUBLICATION, PLEASE CITE THE FOLLOWING DOIS:\n')
+                for doi in dois:
+                    f.write(f"# - {doi}\n")
+                f.write("#\n")
+
+            # Write publications
             if len(publication_urls) > 0:
                 f.write('#\n')
                 f.write('# For these analyses, published data was used. Please visit these URLs for details:\n')
@@ -308,7 +323,6 @@ def download_plot_analyses_to_xlsx(request, analyses):
     -------
     HTTPResponse
     """
-    # TODO: We need a mechanism for embedding references to papers into output.
 
     # Pack analysis results into a single text file.
     excel_file_buffer = io.BytesIO()

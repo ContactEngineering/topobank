@@ -1,13 +1,22 @@
 # Changelog for *TopoBank*
 
-## 0.93.0 (not published yet)
+## 1.0.1 (2023-02-02)
+
+- BUG: Fixed comparative analysis (#962)
+- BUG: Remove copy of surface when publication fails
+
+## 1.0.0 (2023-01-31)
 
 - ENH: Added surface collection as analysis subject,
   now analysis functions can be implemented which 
   process a bunch of surfaces (#900)
+- ENH: Added output of DOIs related to analyses
+  to downloads and to display of results of analyses
+  using the standard plot card view (#171)
 - ENH: Also save creation time of analyses and show it 
   in the modal dialog for the tasks (#899)
 - BUG: Fixed problem loading SUR files (#945)
+- BUG: Fixed problem with surface collection name (#953)
 - MAINT: Fined-grained enabling of tabnav tabs in settings file
 - MAINT: Moved `allauth`-dependent views into `views_allauth`
 - MAINT: Added license information to version information modal

@@ -2051,7 +2051,7 @@ def thumbnail(request, pk):
     try:
         response.write(image.file.read())
     except Exception as exc:
-        _log.warning("Cannot load thumbnail for topography %d. Reason: %s", topo.id, exc)
+        _log.warning(f"Cannot load thumbnail for topography {topo.id}. Reason: {exc}")
         # return some default image so the client gets sth in any case
         with staticfiles_storage.open('images/thumbnail_unavailable.png', mode='rb') as img_file:
             response.write(img_file.read())
