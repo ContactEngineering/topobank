@@ -4,7 +4,6 @@ Basic models for the web app for handling topography data.
 
 import sys
 
-import datacite.errors
 from django.db import models
 from django.shortcuts import reverse
 from django.utils import timezone
@@ -302,7 +301,7 @@ class Surface(models.Model, SubjectMixin):
         #
         # Request all standard analyses to be available for that user
         #
-        _log.info("After sharing surface %d with user %d, requesting all standard analyses..", self.id, with_user.id)
+        _log.info(f"After sharing surface {self.id} with user {with_user.id}, requesting all standard analyses...")
         from topobank.analysis.models import AnalysisFunction
         from topobank.analysis.utils import request_analysis
         analysis_funcs = AnalysisFunction.objects.all()
@@ -361,6 +360,10 @@ class Surface(models.Model, SubjectMixin):
         - removes edit, share and delete permission from everyone
         - add read permission for everyone
         """
+        # Superusers cannot publish
+        if self.creator.is_superuser:
+            raise PublicationException("Superusers cannot publish!")
+
         # Remove edit, share and delete permission from everyone
         users = get_users_with_perms(self)
         for u in users:
@@ -440,7 +443,8 @@ class Surface(models.Model, SubjectMixin):
             copy.set_publication_permissions()
         except PublicationException as exc:
             # see GH 704
-            _log.error(f"Could not set permission for copied surface to publish .. deleting copy of surface {self.pk}.")
+            _log.error(f"Could not set permission for copied surface to publish ... "
+                       f"deleting copy (surface {copy.pk}) of surface {self.pk}.")
             copy.delete()
             raise
 
@@ -470,8 +474,10 @@ class Surface(models.Model, SubjectMixin):
                 pub.create_doi()
             except DOICreationException as exc:
                 _log.error("DOI creation failed, reason: %s", exc)
-                _log.warning("Cannot create publication with DOI, deleting publication instance.")
-                pub.delete()
+                _log.warning(f"Cannot create publication with DOI, deleting copy (surface {copy.pk}) of "
+                             f"surface {self.pk} and publication instance.")
+                pub.delete()  # need to delete pub first because it references copy
+                copy.delete()
                 raise PublicationException(f"Cannot create DOI, reason: {exc}") from exc
         else:
             _log.info("Skipping creation of DOI, because it is not configured as mandatory.")
@@ -498,10 +504,10 @@ class Surface(models.Model, SubjectMixin):
         This is done in that order.
         """
         if include_topographies:
-            _log.info("Regenerating analyses of topographies of surface %d..", self.pk)
+            _log.info(f"Regenerating analyses of topographies of surface {self.pk}..")
             for topo in self.topography_set.all():
                 topo.renew_analyses()
-        _log.info("Regenerating analyses directly related to surface %d..", self.pk)
+        _log.info(f"Regenerating analyses directly related to surface {self.pk}..")
         renew_analyses_for_subject(self)
 
     def related_surfaces(self):

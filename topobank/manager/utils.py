@@ -741,7 +741,7 @@ def selection_to_subjects_json(request):
             if surf_collections.count() > 1:
                 _log.warning(f"More than on surface collection instance for surfaces {[s.id for s in effective_surfaces]} found.")
         else:
-            coll = SurfaceCollection.objects.create(name=surface_collection_name(s.name for s in effective_surfaces))
+            coll = SurfaceCollection.objects.create(name=surface_collection_name([s.name for s in effective_surfaces]))
             coll.surfaces.set(effective_surfaces)
             coll.save()
             _log.info(f"Created new surface collection for surfaces {[s.id for s in effective_surfaces]}.")
