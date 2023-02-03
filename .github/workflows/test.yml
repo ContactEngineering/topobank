@@ -48,7 +48,8 @@ jobs:
     - name: Install
       run: |
         pip install --upgrade pip
-        pip install -r requirements/local.txt
+        pip-compile pyproject.toml
+        pip install -r requirements.txt
         USE_DOCKER=no python manage.py collectstatic
 
     - name: Test
