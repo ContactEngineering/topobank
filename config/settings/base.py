@@ -21,20 +21,9 @@ def random_string(l=16):
 # We provide (dummy) default values for every setting so we can run manage.py
 # without needing a configured stack.
 
-if os.path.exists('/app'):
-    # This is the production container
-    ROOT_DIR = environ.Path('/app')
-else:
-    # This is the development container
-    ROOT_DIR = environ.Path(__file__) - 3 # (topobank/config/settings/base.py - 3 = topobank/)
-APPS_DIR = ROOT_DIR.path('topobank')
-
 env = environ.Env()
 
-READ_DOT_ENV_FILE = env.bool('DJANGO_READ_DOT_ENV_FILE', default=False)
-if READ_DOT_ENV_FILE:
-    # OS environment variables take precedence over variables from .env
-    env.read_env(str(ROOT_DIR.path('.env')))
+APPS_DIR = environ.Path(topobank.__file__) - 1
 
 # GENERAL
 # ------------------------------------------------------------------------------
@@ -414,7 +403,7 @@ if USE_S3_STORAGE:
 # STATIC
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#static-root
-STATIC_ROOT = str(ROOT_DIR('staticfiles'))
+STATIC_ROOT = env.str('DJANGO_STATIC_ROOT', default='/app/staticfiles')
 # https://docs.djangoproject.com/en/dev/ref/settings/#static-url
 STATIC_URL = '/static/'
 # https://docs.djangoproject.com/en/dev/ref/contrib/staticfiles/#std:setting-STATICFILES_DIRS
