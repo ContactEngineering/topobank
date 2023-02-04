@@ -39,7 +39,7 @@ def test_surface_container(example_authors):
 
     topo1a = Topography1DFactory(surface=surface1)
     topo1b = Topography2DFactory(surface=surface1,
-                                 datafile__from_path=str(settings.ROOT_DIR.path(FIXTURE_DIR + "/example4.txt")),
+                                 datafile__from_path=FIXTURE_DIR + "/example4.txt",
                                  height_scale_editable=False)
     # for topo1b we use a datafile which has an height_scale_factor defined - this is needed in order
     # to test that this factor is NOT exported to meta.yaml -
