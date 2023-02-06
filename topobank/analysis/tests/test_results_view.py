@@ -6,7 +6,6 @@ import datetime
 import openpyxl
 import pickle
 import tempfile
-import json
 
 import ContactMechanics
 import NuMPI
@@ -16,6 +15,7 @@ import numpy as np
 import pytest
 from django.urls import reverse
 
+import topobank
 from topobank.manager.models import Topography, Surface
 from topobank.manager.utils import subjects_to_json
 from topobank.manager.tests.utils import SurfaceFactory, UserFactory, \
@@ -395,7 +395,7 @@ def test_analysis_download_as_txt(client, two_topos, ids_downloadable_analyses, 
     assert ContactMechanics.__version__ in txt
     assert NuMPI.__version__ in txt
     assert muFFT.version.description() in txt
-    assert settings.TOPOBANK_VERSION in txt
+    assert topobank.__version__ in txt
 
     # check whether creator of topography is listed
     topo1, topo2 = two_topos
@@ -557,7 +557,7 @@ def test_analysis_download_as_xlsx(client, two_topos, ids_downloadable_analyses,
     assert_version_in_vals('ContactMechanics', ContactMechanics.__version__)
     assert_version_in_vals('NuMPI', NuMPI.__version__)
     assert_version_in_vals('muFFT', muFFT.version.description())
-    assert_version_in_vals('topobank', settings.TOPOBANK_VERSION)
+    assert_version_in_vals('topobank', topobank.__version__)
 
     # subject names should also be included, as well as the creator
     for t in topos:
