@@ -2,7 +2,6 @@ import pickle
 import json
 from typing import Optional, Dict, Any
 
-import numpy as np
 import itertools
 from collections import OrderedDict
 
@@ -10,7 +9,6 @@ from django.contrib.contenttypes.models import ContentType
 from django.http import HttpResponse, Http404, JsonResponse
 from django.views.generic import DetailView, FormView, TemplateView
 from django.urls import reverse_lazy
-from django.db.models import Q
 from django import template
 from django.core.files.storage import default_storage
 from django.core.exceptions import PermissionDenied
@@ -19,20 +17,14 @@ from django.conf import settings
 
 import bokeh
 import bokeh.palettes as palettes
-from bokeh.models.ranges import DataRange1d
-from bokeh.plotting import figure
-from bokeh.models import LinearColorMapper, ColorBar
 
 from pint import UnitRegistry, UndefinedUnitError
-
-from guardian.shortcuts import get_objects_for_user
 
 from trackstats.models import Metric
 
 from ..manager.models import Topography, Surface, SurfaceCollection
 from ..manager.utils import instances_to_selection, selection_to_subjects_json, subjects_from_json, subjects_to_json
 from ..usage_stats.utils import increase_statistics_by_date_and_object
-from ..plots import configure_plot
 from .models import Analysis, AnalysisFunction, AnalysisCollection
 from .forms import FunctionSelectForm
 from .utils import get_latest_analyses, request_analysis, renew_analysis, filter_and_order_analyses, \
