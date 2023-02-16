@@ -1,49 +1,37 @@
+<script>
 /**
- * Vue component for visualizing 2D maps (topography, pressure, etc.) using
- * Deep Zoom Image files and OpenSeadragon.
- */
+* Vue component for visualizing 2D maps (topography, pressure, etc.) using
+* Deep Zoom Image files and OpenSeadragon.
+*/
 
-Vue.component("deep-zoom-image", {
-  template: `
-    <div class="dzi-container">
-      <div :id='"dzi-view-" + uuid' class="dzi-view">
-        <div v-if="!isLoaded && errorMessage === null">
-          <span class="spinner"></span>Creating and loading zoomable image, please wait...
-        </div>
-        <div v-if="errorMessage !== null" class='alert alert-danger'>
-          Could not load plot data. Error: {{ errorMessage }}
-        </div>
-      </div>
-      <div v-if="colorbar && isLoaded" class="dzi-colorbar">
-        <div class="dzi-colorbar-title">
-          {{ colorbarTitle }}
-        </div>
-        <div :class='"dzi-colorbar-column background-" + colormap'>
-          <div v-for="tick in colorbarTicks" class="dzi-colorbar-tick" :style='"top: " + tick.relpos + "%;"'></div>
-        </div>
-        <div class="dzi-colorbar-column">
-          <div v-for="tick in colorbarTicks" class="dzi-colorbar-text" :style='"top: " + tick.relpos + "%;"'>
-            {{ tick.label }}
-          </div>
-        </div>
-      </div>
-    </div>
-  `,
+export default {
+  name: 'deep-zoom-image',
   props: {
     prefixUrl: String,
     colorbar: {
-      type: Boolean, default: false
+      type: Boolean,
+      default: false
     },
     downloadButton: {
-      type: Boolean, default: false
+      type: Boolean,
+      default:
+          false
     },
     retryDelay: {
-      type: Number, default: 5000
+      type: Number,
+      default:
+          5000
     }
   },
   data: function () {
     return {
-      uuid: null, viewer: null, isLoaded: false, colorbarTitle: null, colormap: null, colorbarTicks: [], errorMessage: null
+      uuid: null,
+      viewer: null,
+      isLoaded: false,
+      colorbarTitle: null,
+      colormap: null,
+      colorbarTicks: [],
+      errorMessage: null
     };
   },
   created: function () {
@@ -198,4 +186,31 @@ Vue.component("deep-zoom-image", {
       }
     }
   }
-});
+}
+</script>
+
+<template>
+  <div class="dzi-container">
+    <div :id='"dzi-view-" + uuid' class="dzi-view">
+      <div v-if="!isLoaded && errorMessage === null">
+        <span class="spinner"></span>Creating and loading zoomable image, please wait...
+      </div>
+      <div v-if="errorMessage !== null" class='alert alert-danger'>
+        Could not load plot data. Error: {{ errorMessage }}
+      </div>
+    </div>
+    <div v-if="colorbar && isLoaded" class="dzi-colorbar">
+      <div class="dzi-colorbar-title">
+        {{ colorbarTitle }}
+      </div>
+      <div :class='"dzi-colorbar-column background-" + colormap'>
+        <div v-for="tick in colorbarTicks" class="dzi-colorbar-tick" :style='"top: " + tick.relpos + "%;"'></div>
+      </div>
+      <div class="dzi-colorbar-column">
+        <div v-for="tick in colorbarTicks" class="dzi-colorbar-text" :style='"top: " + tick.relpos + "%;"'>
+          {{ tick.label }}
+        </div>
+      </div>
+    </div>
+  </div>
+</template>

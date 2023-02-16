@@ -395,9 +395,6 @@
     <!-- Unit conversion --->
     <script src="{% static 'vendor/convert-units/convert-units.js' %}"></script>
 
-    <!-- D3  -->
-    <script src="https://d3js.org/d3.v5.min.js"></script>
-
     <!-- OpenSeadragon -->
     <script src={% static "vendor/openseadragon/openseadragon.min.js" %}></script>
     <script src={% static "vendor/openseadragon/openseadragon-scalebar.js" %}></script>
@@ -497,20 +494,8 @@
     </script>
     {% register_notify_callbacks callbacks='fill_notification_badge_or_hide_if_none,fill_notification_list_with_linked_items' %}
 
-    {# vuejs for interactivity #}
-
-    {% if debug %}
-    {# During development we use a vue online, so vuejs is not in production mode #}
-    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.11/dist/vue.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap-vue@2.21.2/dist/bootstrap-vue.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap-vue@2.21.2/dist/bootstrap-vue-icons.js"></script>
-    {% else %}
-    {# In production, we use a minified version of vuejs #}
-    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.11/dist/vue.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap-vue@2.21.2/dist/bootstrap-vue.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap-vue@2.21.2/dist/bootstrap-vue-icons.min.js"></script>
-    {% endif %}
-    <script src="{% static 'js/basket.js' %}"></script>
+    <script src="{% static 'js/basket.bundle.js' %}"></script>
+    <!--
     <script>
       // Some globals on each page
       var event_hub = new Vue(); // used to register event handlers and to pass events
@@ -519,10 +504,10 @@
       var basket = $('#basket').length ? make_basket({{ basket_items_json|safe }}) : null;
       var unselect_all_url = '{{ unselect_all_url|safe }}';
     </script>
+    -->
 
     <!-- Custom scripts for all pages -->
     <script src="{% static 'js/project.js' %}"></script>
-    <script src="{% static 'js/dzi.js' %}"></script>
 
     {% block javascript %}{% endblock javascript %}
 

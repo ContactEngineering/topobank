@@ -1,3 +1,4 @@
+<script>
 /*
  * Vue component that wraps a Bokeh plot and adds elements for controlling that plots appearance.
  * - Categories: Each dataset can be assigned multiple *categories*. Each category receives an accordion that allows to
@@ -6,156 +7,9 @@
  */
 /* jshint esversion: 9 */
 /* jshint strict:true */
-"use strict";
 /* globals Vue:false, Bokeh:false */
 
-Vue.component("bokeh-plot", {
-  template: `
-    <div>
-      <div class="tab-content">
-        <div v-for="(plot, index) in plots" :class="(index == 0)?'tab-pane fade show active':'tab-pane fade'" :id="'plot-'+uuid+'-'+index" role="tabpanel" :aria-labelledby="'plot-tab-'+uuid+'-'+index">
-          <div :id='"bokeh-plot-"+uuid+"-"+index' ref="bokehPlot"></div>
-        </div>
-      </div>
-      <div :id='"plot-controls-accordion-"+uuid' class="accordion plot-controls-accordion">
-        <div v-if="plots.length > 1" class="card">
-          <div class="card-header plot-controls-card-header">
-            <h6 class="m-1">
-              <!-- Navigation pills for each individual plot, but only if there is more than one -->
-              <ul v-if="plots.length > 1" class="nav nav-pills">
-                <li v-for="(plot, index) in plots" class="nav-item">
-                  <a :class="(index == 0)?'nav-link active':'nav-link'" :id="'plot-tab-'+uuid+'-'+index" :href="'#plot-'+uuid+'-'+index" data-toggle="tab" role="tab" :aria-controls="'plot-'+uuid+'-'+index" :aria-selected="index == 0">{{ plot.title }}</a>
-                </li>
-              </ul>
-            </h6>
-          </div>
-        </div>
-        <div v-for="category in categoryElements" class="card">
-          <div :id='"heading-"+uuid+"-"+category.key' class="card-header plot-controls-card-header">
-            <h2 class="mb-0">
-              <div class="accordion-header-control custom-checkbox">
-                <input :id='"select-all-"+uuid+"-"+category.key'
-                       class="custom-control-input"
-                       type="checkbox"
-                       value=""
-                       v-model="category.isAllSelected"
-                       v-on:change="selectAll(category)"
-                       :indeterminate.prop="category.isIndeterminate">
-                <label class="custom-control-label btn-block text-left"
-                       :for='"select-all-"+uuid+"-"+category.key'>
-                </label>
-              </div>
-              <button class="btn btn-link btn-block text-left accordion-button collapsed"
-                      type="button"
-                      data-toggle="collapse"
-                      :data-target='"#collapse-"+uuid+"-"+category.key'
-                      aria-expanded="false"
-                      :aria-controls='"collapse-"+uuid+"-"+category.key'>
-                {{ category.title }}
-              </button>
-            </h2>
-          </div>
-          <div :id='"collapse-"+uuid+"-"+category.key'
-               class="collapse"
-               :aria-labelledby='"heading-"+uuid+"-"+category.key'
-               :data-parent='"#plot-controls-accordion-"+uuid'>
-            <div :id='"card-subjects"+uuid' class="card-body plot-controls-card-body">
-              <div v-for="(element, index) in category.elements" class="custom-control custom-checkbox">
-                <input :id='"switch-"+uuid+"-"+category.key+"-"+index'
-                       class="custom-control-input"
-                       type="checkbox"
-                       :value="index"
-                       v-model="category.selection">
-                <label class="custom-control-label"
-                       :for='"switch-"+uuid+"-"+category.key+"-"+index'>
-                  <span class="dot" v-if="element.color !== null" :style='"background-color: "+element.color'></span>
-                  <span v-if="element.has_parent">└─ </span>
-                    {{ element.title }}
-                </label>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="card">
-          <div :id='"heading-plot-options-"+uuid' class="card-header plot-controls-card-header">
-            <h2 class="mb-0">
-              <button class="btn btn-link btn-block text-left accordion-button collapsed"
-                      type="button"
-                      data-toggle="collapse"
-                      :data-target='"#collapse-plot-options-"+uuid'
-                      aria-expanded="false"
-                      :aria-controls='"collapse-plot-options-"+uuid'>
-                Plot options
-              </button>
-            </h2>
-          </div>
-          <div :id='"collapse-plot-options-"+uuid'
-               class="collapse"
-               :aria-labelledby='"heading-plot-options-"+uuid'
-               :data-parent='"#plot-controls-accordion-"+uuid'>
-            <div class="card-body plot-controls-card-body">
-              <div v-if="optionsWidgets.includes('layout')" class="form-group">
-                <label :for='"plot-layout-"+uuid' hidden>Plot layout:</label>
-                <select class="form-control"
-                       :id='"plot-layout-"+uuid'
-                       v-model="layout">
-                  <option value="web">Optimize plot for web (plot scales with window size)</option>
-                  <option value="print-single">Optimize plot for print (single-column layout)</option>
-                  <option value="print-double">Optimize plot for print (two-column layout)</option>
-                </select>
-              </div>
-
-              <div v-if="optionsWidgets.includes('legend')" class="form-group">
-                <label :for='"plot-legend-"+uuid' hidden>Legend:</label>
-                <select class="form-control"
-                       :id='"plot-legend-"+uuid'
-                       v-model="legendLocation">
-                  <option value="off">Do not show legend</option>
-                  <option value="top_right">Show legend top right</option>
-                  <option value="top_left">Show legend top left</option>
-                  <option value="bottom_right">Show legend bottom right</option>
-                  <option value="bottom_left">Show legend bottom left</option>
-                </select>
-              </div>
-
-              <div v-if="optionsWidgets.includes('lineWidth')" class="form-group">
-                <label :for='"line-width-slider-"+uuid'>Line width: <b>{{ lineWidth }}</b></label>
-                <input :id='"line-width-slider-"+uuid'
-                       type="range"
-                       min="0.1"
-                       max="3.0"
-                       step="0.1"
-                       class="form-control-range"
-                       v-model="lineWidth">
-              </div>
-
-              <div v-if="optionsWidgets.includes('symbolSize')" class="form-group">
-                <label :for='"symbol-size-slider-"+uuid'>Symbol size: <b>{{ symbolSize }}</b></label>
-                <input :id='"symbol-size-slider-"+uuid'
-                       type="range"
-                       min="1"
-                       max="20"
-                       step="1"
-                       class="form-control-range"
-                       v-model="symbolSize">
-              </div>
-
-              <div v-if="optionsWidgets.includes('opacity')" class="form-group">
-                <label :for='"opacity-slider-"+uuid'>Opacity of lines/symbols (measurements only): <b>{{ opacity }}</b></label>
-                <input :id='"opacity-slider-"+uuid'
-                       type="range"
-                       min="0"
-                       max="1"
-                       step="0.1"
-                       class="form-control-range"
-                       v-model="opacity">
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  `,
+export default {
   props: {
     categories: {
       // Defining selection categories. For each category, there will be an accordion with the possibility to show/hide
@@ -216,7 +70,7 @@ Vue.component("bokeh-plot", {
       type: Boolean, default: false
     },
     optionsWidgets: {
-      type: Array, default: function() {
+      type: Array, default: function () {
         return ["layout", "legend", "lineWidth", "symbolSize", "opacity"];
       }
     }
@@ -256,14 +110,14 @@ Vue.component("bokeh-plot", {
         if (!(titles.has(title))) {
           let element_index = dataSource[category.key + '_index'];
           let color = category_idx === 0 ? dataSource.color : null;  // The first category defines the color
-          let dash = category_idx ===1 ? dataSource.dash : null;     // The first category defines the line type
+          let dash = category_idx === 1 ? dataSource.dash : null;     // The first category defines the line type
           let has_parent = dataSource[category.key + '_has_parent'];
           titles.add(title);
 
           // need to have the same order as index of category
           elements[element_index] = {
             title: title, color: color, dash: dash,
-            has_parent: has_parent === undefined ? false:has_parent
+            has_parent: has_parent === undefined ? false : has_parent
           };
           // Defaults to showing a data source if it has no 'visible' attribute
           if (dataSource.visible === undefined || dataSource.visible) {
@@ -296,25 +150,25 @@ Vue.component("bokeh-plot", {
       switch (layout) {
         case 'web':
           for (const plot of this.bokehPlots) {
-            plot.figure.sizing_mode = "scale_width";
-            plot.figure.width = null;
-            plot.figure.height = 300;
+            Plot.figure.sizing_mode = "scale_width";
+            Plot.figure.width = null;
+            Plot.figure.height = 300;
           }
           this.symbolSize = 10;
           break;
         case 'print-single':
           for (const plot of this.bokehPlots) {
-            plot.figure.sizing_mode = "fixed";
-            plot.figure.width = 600;
-            plot.figure.height = 300;
+            Plot.figure.sizing_mode = "fixed";
+            Plot.figure.width = 600;
+            Plot.figure.height = 300;
           }
           this.symbolSize = 5;
           break;
         case 'print-double':
           for (const plot of this.bokehPlots) {
-            plot.figure.sizing_mode = "fixed";
-            plot.figure.width = 400;
-            plot.figure.height = 250;
+            Plot.figure.sizing_mode = "fixed";
+            Plot.figure.width = 400;
+            Plot.figure.height = 250;
           }
           this.symbolSize = 5;
           break;
@@ -404,14 +258,14 @@ Vue.component("bokeh-plot", {
         for (const plot of this.plots) {
           /* Callback for selection of data points */
           let tools = ["pan", "reset", "wheel_zoom", "box_zoom",
-                        new Bokeh.HoverTool({
-                         'tooltips': [
-                           ['index', '$index'],
-                           ['(x,y)', '($x,$y)'],
-                           ['subject', '@subject_name'],
-                           ['series', '@series_name'],
-                         ]
-                        })
+            new Bokeh.HoverTool({
+              'tooltips': [
+                ['index', '$index'],
+                ['(x,y)', '($x,$y)'],
+                ['subject', '@subject_name'],
+                ['series', '@series_name'],
+              ]
+            })
           ];
           // let tools = [...this.tools];  // Copy array (= would just be a reference)
           if (this.selectable) {
@@ -428,15 +282,15 @@ Vue.component("bokeh-plot", {
           tools.push(saveTool);
 
           /* Determine type of x and y-axis */
-          const xAxisType = plot.xAxisType === undefined ? "linear" : plot.xAxisType;
-          const yAxisType = plot.yAxisType === undefined ? "linear" : plot.yAxisType;
+          const xAxisType = Plot.xAxisType === undefined ? "linear" : Plot.xAxisType;
+          const yAxisType = Plot.yAxisType === undefined ? "linear" : Plot.yAxisType;
 
           /* Create and style figure */
           const bokehPlotFigure = new Bokeh.Plotting.Figure({
             height: this.height,
             sizing_mode: this.sizingMode,
-            x_axis_label: plot.xAxisLabel === undefined ? "x" : plot.xAxisLabel,
-            y_axis_label: plot.yAxisLabel === undefined ? "y" : plot.yAxisLabel,
+            x_axis_label: Plot.xAxisLabel === undefined ? "x" : Plot.xAxisLabel,
+            y_axis_label: Plot.yAxisLabel === undefined ? "y" : Plot.yAxisLabel,
             x_axis_type: xAxisType,
             y_axis_type: yAxisType,
             tools: tools,
@@ -485,8 +339,8 @@ Vue.component("bokeh-plot", {
           };
 
           /* Default is x and y */
-          let xData = plot.xData === undefined ? "data.x" : plot.xData;
-          let yData = plot.yData === undefined ? "data.y" : plot.yData;
+          let xData = Plot.xData === undefined ? "data.x" : Plot.xData;
+          let yData = Plot.yData === undefined ? "data.y" : Plot.yData;
 
           /* Scale data if scale factor is given */
           if (dataSource.xScaleFactor !== undefined) {
@@ -498,13 +352,13 @@ Vue.component("bokeh-plot", {
 
           /* Construct conversion function */
           let code = "const data = cb_data.response; return { x: " + xData + ", y: " + yData;
-          if (plot.auxiliaryDataColumns !== undefined) {
-            for (const [columnName, auxData] of Object.entries(plot.auxiliaryDataColumns)) {
+          if (Plot.auxiliaryDataColumns !== undefined) {
+            for (const [columnName, auxData] of Object.entries(Plot.auxiliaryDataColumns)) {
               code += ", " + columnName + ": " + auxData;
             }
           }
-          if (plot.alphaData !== undefined) {
-            code += ", alpha: " + plot.alphaData;
+          if (Plot.alphaData !== undefined) {
+            code += ", alpha: " + Plot.alphaData;
             attrs.alpha = {field: "alpha"};
           }
           if (dataSource.subject_name !== undefined) {
@@ -538,29 +392,29 @@ Vue.component("bokeh-plot", {
 
           /* Create lines and symbols */
           const line = bokehPlot.figure.line(
-            {field: "x"},
-            {field: "y"},
-            {
-              ...attrs,
-              ...{
-                dash: dataSource.dash,
-                width: Number(this.lineWidth) * dataSource.width
-              }
-            });
+              {field: "x"},
+              {field: "y"},
+              {
+                ...attrs,
+                ...{
+                  dash: dataSource.dash,
+                  width: Number(this.lineWidth) * dataSource.width
+                }
+              });
           bokehPlot.lines.unshift(line);
           const circle = bokehPlot.figure.circle(
-            {field: "x"},
-            {field: "y"},
-            {
-              ...attrs,
-              ...{
-                size: Number(this.symbolSize),
-                visible: (dataSource.visible === undefined || dataSource.visible) &&
-                  (dataSource.showSymbols === undefined || dataSource.showSymbols)
-              }
-            });
+              {field: "x"},
+              {field: "y"},
+              {
+                ...attrs,
+                ...{
+                  size: Number(this.symbolSize),
+                  visible: (dataSource.visible === undefined || dataSource.visible) &&
+                      (dataSource.showSymbols === undefined || dataSource.showSymbols)
+                }
+              });
           const alphaAttrs = {};
-          if (plot.alphaData !== undefined) {
+          if (Plot.alphaData !== undefined) {
             alphaAttrs.fill_alpha = {field: "alpha"};
           }
           circle.selection_glyph = new Bokeh.Circle({
@@ -587,7 +441,7 @@ Vue.component("bokeh-plot", {
             legendLabels.add(legend_label);
             const item = new Bokeh.LegendItem({
               label: legend_label,
-              renderers: dataSource.showSymbols ? [circle,line]:[line],
+              renderers: dataSource.showSymbols ? [circle, line] : [line],
               visible: dataSource.visible
             });
             bokehPlot.legendItems.unshift(item);
@@ -672,4 +526,154 @@ Vue.component("bokeh-plot", {
       this.bokehPlots[0].save.do.emit();
     }
   }
-});
+}
+</script>
+
+<template>
+  <div>
+    <div class="tab-content">
+      <div v-for="(plot, index) in plots" :class="(index == 0)?'tab-pane fade show active':'tab-pane fade'" :id="'plot-'+uuid+'-'+index" role="tabpanel" :aria-labelledby="'plot-tab-'+uuid+'-'+index">
+        <div :id='"bokeh-plot-"+uuid+"-"+index' ref="bokehPlot"></div>
+      </div>
+    </div>
+    <div :id='"plot-controls-accordion-"+uuid' class="accordion plot-controls-accordion">
+      <div v-if="plots.length > 1" class="card">
+        <div class="card-header plot-controls-card-header">
+          <h6 class="m-1">
+            <!-- Navigation pills for each individual plot, but only if there is more than one -->
+            <ul v-if="plots.length > 1" class="nav nav-pills">
+              <li v-for="(plot, index) in plots" class="nav-item">
+                <a :class="(index == 0)?'nav-link active':'nav-link'" :id="'plot-tab-'+uuid+'-'+index" :href="'#plot-'+uuid+'-'+index" data-toggle="tab" role="tab" :aria-controls="'plot-'+uuid+'-'+index" :aria-selected="index == 0">{{
+                    Plot.title
+                  }}</a>
+              </li>
+            </ul>
+          </h6>
+        </div>
+      </div>
+      <div v-for="category in categoryElements" class="card">
+        <div :id='"heading-"+uuid+"-"+category.key' class="card-header plot-controls-card-header">
+          <h2 class="mb-0">
+            <div class="accordion-header-control custom-checkbox">
+              <input :id='"select-all-"+uuid+"-"+category.key'
+                     class="custom-control-input"
+                     type="checkbox"
+                     value=""
+                     v-model="category.isAllSelected"
+                     v-on:change="selectAll(category)"
+                     :indeterminate.prop="category.isIndeterminate">
+              <label class="custom-control-label btn-block text-left"
+                     :for='"select-all-"+uuid+"-"+category.key'>
+              </label>
+            </div>
+            <button class="btn btn-link btn-block text-left accordion-button collapsed"
+                    type="button"
+                    data-toggle="collapse"
+                    :data-target='"#collapse-"+uuid+"-"+category.key'
+                    aria-expanded="false"
+                    :aria-controls='"collapse-"+uuid+"-"+category.key'>
+              {{ category.title }}
+            </button>
+          </h2>
+        </div>
+        <div :id='"collapse-"+uuid+"-"+category.key'
+             class="collapse"
+             :aria-labelledby='"heading-"+uuid+"-"+category.key'
+             :data-parent='"#plot-controls-accordion-"+uuid'>
+          <div :id='"card-subjects"+uuid' class="card-body plot-controls-card-body">
+            <div v-for="(element, index) in category.elements" class="custom-control custom-checkbox">
+              <input :id='"switch-"+uuid+"-"+category.key+"-"+index'
+                     class="custom-control-input"
+                     type="checkbox"
+                     :value="index"
+                     v-model="category.selection">
+              <label class="custom-control-label"
+                     :for='"switch-"+uuid+"-"+category.key+"-"+index'>
+                <span class="dot" v-if="element.color !== null" :style='"background-color: "+element.color'></span>
+                <span v-if="element.has_parent">└─ </span>
+                  {{ element.title }}
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div :id='"heading-plot-options-"+uuid' class="card-header plot-controls-card-header">
+          <h2 class="mb-0">
+            <button class="btn btn-link btn-block text-left accordion-button collapsed"
+                    type="button"
+                    data-toggle="collapse"
+                    :data-target='"#collapse-plot-options-"+uuid'
+                    aria-expanded="false"
+                    :aria-controls='"collapse-plot-options-"+uuid'>
+              Plot options
+            </button>
+          </h2>
+        </div>
+        <div :id='"collapse-plot-options-"+uuid'
+             class="collapse"
+             :aria-labelledby='"heading-plot-options-"+uuid'
+             :data-parent='"#plot-controls-accordion-"+uuid'>
+          <div class="card-body plot-controls-card-body">
+            <div v-if="optionsWidgets.includes('layout')" class="form-group">
+              <label :for='"plot-layout-"+uuid' hidden>Plot layout:</label>
+              <select class="form-control"
+                     :id='"plot-layout-"+uuid'
+                     v-model="layout">
+                <option value="web">Optimize plot for web (plot scales with window size)</option>
+                <option value="print-single">Optimize plot for print (single-column layout)</option>
+                <option value="print-double">Optimize plot for print (two-column layout)</option>
+              </select>
+            </div>
+
+            <div v-if="optionsWidgets.includes('legend')" class="form-group">
+              <label :for='"plot-legend-"+uuid' hidden>Legend:</label>
+              <select class="form-control"
+                     :id='"plot-legend-"+uuid'
+                     v-model="legendLocation">
+                <option value="off">Do not show legend</option>
+                <option value="top_right">Show legend top right</option>
+                <option value="top_left">Show legend top left</option>
+                <option value="bottom_right">Show legend bottom right</option>
+                <option value="bottom_left">Show legend bottom left</option>
+              </select>
+            </div>
+
+            <div v-if="optionsWidgets.includes('lineWidth')" class="form-group">
+              <label :for='"line-width-slider-"+uuid'>Line width: <b>{{ lineWidth }}</b></label>
+              <input :id='"line-width-slider-"+uuid'
+                     type="range"
+                     min="0.1"
+                     max="3.0"
+                     step="0.1"
+                     class="form-control-range"
+                     v-model="lineWidth">
+            </div>
+
+            <div v-if="optionsWidgets.includes('symbolSize')" class="form-group">
+              <label :for='"symbol-size-slider-"+uuid'>Symbol size: <b>{{ symbolSize }}</b></label>
+              <input :id='"symbol-size-slider-"+uuid'
+                     type="range"
+                     min="1"
+                     max="20"
+                     step="1"
+                     class="form-control-range"
+                     v-model="symbolSize">
+            </div>
+
+            <div v-if="optionsWidgets.includes('opacity')" class="form-group">
+              <label :for='"opacity-slider-"+uuid'>Opacity of lines/symbols (measurements only): <b>{{ opacity }}</b></label>
+              <input :id='"opacity-slider-"+uuid'
+                     type="range"
+                     min="0"
+                     max="1"
+                     step="0.1"
+                     class="form-control-range"
+                     v-model="opacity">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
