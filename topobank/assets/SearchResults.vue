@@ -15,37 +15,48 @@
 export default {
   name: 'search-results',
   delimiters: ['[[', ']]'],
-  data: {
-    num_items: null,
-    num_pages: null,
-    page_range: null,
-    page_urls: null,
-    num_items_on_current_page: null,
-    base_urls: base_urls,
-    current_page: initial_select_tab_state.current_page,
-    page_size: initial_select_tab_state.page_size,
-    search_term: initial_select_tab_state.search_term,
-    category: initial_select_tab_state.category,
-    sharing_status: initial_select_tab_state.sharing_status,
-    tree_mode: initial_select_tab_state.tree_mode,
-    tree_element: "#surface-tree",
-    tree_mode_infos: {
-      "surface list": {
-        element_kind: "digital surface twins",
-        hint: 'Analyze selected items by clicking on the "Analyze" button.',
-      },
-      "tag tree": {
-        element_kind: "top level tags",
-        hint: "Tags can be introduced or changed when editing meta data of surfaces and topographies.",
+  props: {
+    base_urls: Object,
+    category_filter_choices: Object,
+    csrf_token: String,
+    current_page: Number,
+    is_anonymous: Boolean,
+    sharing_status_filter_choices: Object,
+    search_term: String,
+    surface_create_url: String,
+    initial_category: Object,
+    initial_is_loading: Boolean,
+    initial_page_size: Number,
+    initial_sharing_status: String,
+    initial_tree_mode: String
+  },
+  data() {
+    return {
+      category: this.initial_category,
+      is_loading: this.initial_is_loading,
+      num_items: null,
+      num_items_on_current_page: null,
+      num_pages: null,
+      page_range: null,
+      page_size: this.initial_page_size,
+      page_urls: null,
+      sharing_status: this.initial_sharing_statuss,
+      tree_element: "#surface-tree",
+      tree_mode: this.initial_tree_mode,
+      tree_mode_infos: {
+        "surface list": {
+          element_kind: "digital surface twins",
+          hint: 'Analyze selected items by clicking on the "Analyze" button.',
+        },
+        "tag tree": {
+          element_kind: "top level tags",
+          hint: "Tags can be introduced or changed when editing meta data of surfaces and topographies.",
+        }
       }
-    },
-    category_filter_choices: category_filter_choices,
-    sharing_status_filter_choices: sharing_status_filter_choices,
-    is_loading: false,
+    }
   },
   mounted: function () {
-    const vm = this;
-    $(vm.tree_element)
+    $(this.tree_element)
         // init fancytree
         .fancytree({
           extensions: ["glyph", "table"],
@@ -91,17 +102,17 @@ export default {
           },
           postProcess: function (event, data) {
             // console.log("PostProcess: ", data);
-            vm.num_pages = data.response.num_pages;
-            vm.num_items = data.response.num_items;
-            vm.current_page = data.response.current_page;
-            vm.num_items_on_current_page = data.response.num_items_on_current_page;
-            vm.page_range = data.response.page_range;
-            vm.page_urls = data.response.page_urls;
-            vm.page_size = data.response.page_size;
+            this.num_pages = data.response.num_pages;
+            this.num_items = data.response.num_items;
+            this.current_page = data.response.current_page;
+            this.num_items_on_current_page = data.response.num_items_on_current_page;
+            this.page_range = data.response.page_range;
+            this.page_urls = data.response.page_urls;
+            this.page_size = data.response.page_size;
             // assuming the Ajax response contains a list of child nodes:
             // We replace the result
             data.result = data.response.page_results;
-            vm.is_loading = false;
+            this.is_loading = false;
           },
           select: function (event, data) {
             const node = data.node;
@@ -112,12 +123,12 @@ export default {
                   type: "POST",
                   url: node.data.urls.select,
                   data: {
-                    csrfmiddlewaretoken: csrf_token
+                    csrfmiddlewaretoken: this.csrf_token
                   },
                   success: function (data, textStatus, xhr) {
                     // console.log("Selected: " + node.data.name + " " + node.key);
                     basket.update(data);
-                    vm.set_selected_by_key(node.key, true);
+                    this.set_selected_by_key(node.key, true);
                   },
                   error: function (xhr, textStatus, errorThrown) {
                     console.error("Could not select: " + errorThrown + " " + xhr.status + " " + xhr.responseText);
@@ -133,7 +144,7 @@ export default {
                   success: function (data, textStatus, xhr) {
                     // console.log("Unselected: " + node.data.name + " " + node.key);
                     basket.update(data);
-                    vm.set_selected_by_key(node.key, false);
+                    this.set_selected_by_key(node.key, false);
                   },
                   error: function (xhr, textStatus, errorThrown) {
                     console.error("Could not unselect: " + errorThrown + " " + xhr.status + " " + xhr.responseText);
@@ -247,7 +258,7 @@ export default {
             }
           },
         }); // fancytree()
-    vm.set_loading_indicator();
+    this.set_loading_indicator();
   },   // mounted()
   computed: {
     search_url: function () {
@@ -343,3 +354,132 @@ export default {
   }
 }
 </script>
+
+<template>
+  <div>
+    <form>
+      <div class="form-row justify-content-around">
+
+        <div v-if="search_term" class="form-group col-md-4">
+          <button class="btn btn-warning form-control" type="button"
+                  id="clear-search-term-btn"
+                  @click="clear_search_term">
+            Clear filter for <b>[[ search_term ]]</b>
+          </button>
+        </div>
+        <div v-else class="form-group col-md-4">
+          <button class="btn btn-outline-info form-control disabled" type="button">
+            Not filtered for search term
+          </button>
+        </div>
+
+        <div class="form-group col-md-2">
+          <select name="category" class="form-control" v-model="category" @change="reload">
+            <option v-for="(choice_label, choice_val) in category_filter_choices"
+                    v-bind:value="choice_val" v-bind:selected="choice_val==category">
+              [[ choice_label ]]
+            </option>
+          </select>
+        </div>
+
+        <div class="form-group col-md-2">
+          <select name="sharing_status" class="form-control" v-model="sharing_status" @change="reload">
+            <option v-for="(choice_label, choice_val) in sharing_status_filter_choices"
+                    v-bind:value="choice_val" v-bind:selected="choice_val==sharing_status">
+              [[ choice_label ]]
+            </option>
+          </select>
+        </div>
+
+        <div id="tree-selector" class="form-group btn-group btn-group-toggle">
+          <label v-for="choice in
+                     [ { label: 'Surface list',
+                         value: 'surface list',
+                         icon_class: 'far fa-gem'},
+                       { label:'Tag tree',
+                         value: 'tag tree',
+                         icon_class: 'fas fa-tag'}]"
+                 class="btn"
+                 v-bind:class="{active: tree_mode==choice.value,
+                                    'btn-success': tree_mode==choice.value,
+                                    'btn-default': tree_mode!=choice.value}">
+            <input type="radio" class="btn-group-toggle" autocomplete="off"
+                   name="tree_mode"
+                   v-bind:value="choice.value" v-model="tree_mode" @change="reload">
+            <span><i v-bind:class="choice.icon_class"></i> [[ choice.label ]]</span>
+          </label>
+        </div>
+      </div>
+    </form>
+
+    <div class="row">
+      <div class="col-md-8">
+        <nav aria-label="Pagination">
+          <ul id="pagination" class="pagination">
+            <li class="page-item" v-bind:class="{ disabled: current_page <= 1 }">
+              <a class="page-link" v-on:click="load_page(current_page-1)">Previous</a>
+            </li>
+            <li class="page-item" v-bind:class="{ active: current_page==page_no}" v-for="page_no in page_range">
+              <a class="page-link" v-on:click="load_page(page_no)">[[ page_no ]]</a>
+            </li>
+            <li class="page-item" v-bind:class="{ disabled: current_page >=num_pages }">
+              <a class="page-link" v-on:click="load_page(current_page+1)">Next</a>
+            </li>
+
+            <li class="ml-2">
+              <div class="input-group nav-item">
+                <div class="input-group-prepend">
+                  <label class="input-group-text" for="page-size-select">Page size</label>
+                </div>
+                <select name="page_size" class="custom-select" id="page-size-select" v-model="page_size"
+                        @change="reload()">
+                  <option v-for="ps in [10,25,50,100]" v-bind:class="{selected: ps==page_size}">[[ ps ]]</option>
+                </select>
+              </div>
+            </li>
+          </ul>
+        </nav>
+      </div>
+
+      <div class="col-md-4">
+        <div v-if="is_anonymous" class="form-group">
+          <button class="btn btn-primary form-control disabled"
+                  title="Please sign-in to use this feature">Create digital surface twin
+          </button>
+        </div>
+        <div v-if="!is_anonymous" class="form-group" title="Create a new digital surface twin">
+          <a class="btn btn-primary form-control" :href="surface_create_url">Create digital
+            surface
+            twin</a>
+        </div>
+      </div>
+    </div>
+
+    <div id="scrollParent">
+      <table id="surface-tree" class="table table-condensed surface-tree">
+        <!--
+        <colgroup>
+          <col width="150rem"></col>
+          <col></col>
+          <col width="100rem"></col>
+        </colgroup>
+        -->
+        <thead>
+        <tr>
+          <th scope="col">Select</th>
+          <th scope="col">Description</th>
+          <th scope="col">Actions</th>
+        </tr>
+        </thead>
+        <tbody>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <span v-if="!is_loading">
+        Showing [[ num_items_on_current_page ]] [[ tree_mode_infos[tree_mode].element_kind ]] out of [[ num_items ]].
+        [[ tree_mode_infos[tree_mode].hint ]]
+      </span>
+    </div>
+  </div>
+</template>

@@ -2,14 +2,16 @@ const webpack = require('webpack');
 const path = require('path');
 const {VueLoaderPlugin} = require('vue-loader');
 
-const config = {
+module.exports = {
   entry: {
     basket: './topobank/assets/basket.js',
+    select: './topobank/assets/select.js',
     topography_detail: './topobank/assets/topography_detail.js'
   },
   output: {
     path: path.resolve(__dirname, 'topobank/static/js'),
-    filename: '[name].bundle.js'
+    filename: '[name].bundle.js',
+    library: ['topobank', '[name]']
   },
   module: {
     rules: [
@@ -44,5 +46,3 @@ const config = {
     new VueLoaderPlugin()
   ]
 };
-
-module.exports = config;
