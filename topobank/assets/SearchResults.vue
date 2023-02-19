@@ -36,6 +36,7 @@ export default {
     surface_create_url: String,
     tree_mode: String
   },
+  inject: ['event_hub'],
   data() {
     return {
       _category: this.category,
@@ -59,7 +60,7 @@ export default {
           hint: "Tags can be introduced or changed when editing meta data of surfaces and topographies.",
         }
       }
-    }
+    };
   },
   mounted: function () {
     // this is not accessible from the scope of the callback function of fancy tree
@@ -131,11 +132,11 @@ export default {
               type: "POST",
               url: node.data.urls.select,
               data: {
-                csrfmiddlewaretoken: this.csrf_token
+                csrfmiddlewaretoken: _this.csrf_token
               },
               success: function (data, textStatus, xhr) {
                 // console.log("Selected: " + node.data.name + " " + node.key);
-                basket.update(data);
+                _this.event_hub.emit('basket-update', data);
                 _this.set_selected_by_key(node.key, true);
               },
               error: function (xhr, textStatus, errorThrown) {
@@ -147,11 +148,11 @@ export default {
               type: "POST",
               url: node.data.urls.unselect,
               data: {
-                csrfmiddlewaretoken: this.csrf_token
+                csrfmiddlewaretoken: _this.csrf_token
               },
               success: function (data, textStatus, xhr) {
                 // console.log("Unselected: " + node.data.name + " " + node.key);
-                basket.update(data);
+                _this.event_hub.emit('basket-update', data);
                 _this.set_selected_by_key(node.key, false);
               },
               error: function (xhr, textStatus, errorThrown) {
@@ -161,7 +162,7 @@ export default {
           }
         } else {
           console.log("No urls defined for node. Cannot pass selection to session.");
-          basket.update();
+          this.basket.update();
         }
       },
 
@@ -365,130 +366,128 @@ export default {
 </script>
 
 <template>
-  <div>
-    <form>
-      <div class="form-row justify-content-around">
+  <form>
+    <div class="form-row justify-content-around">
 
-        <div v-if="search_term" class="form-group col-md-4">
-          <button class="btn btn-warning form-control" type="button"
-                  id="clear-search-term-btn"
-                  @click="clear_search_term">
-            Clear filter for <b>{{ search_term }}</b>
-          </button>
-        </div>
-        <div v-else class="form-group col-md-4">
-          <button class="btn btn-outline-info form-control disabled" type="button">
-            Not filtered for search term
-          </button>
-        </div>
+      <div v-if="search_term" class="form-group col-md-4">
+        <button class="btn btn-warning form-control" type="button"
+                id="clear-search-term-btn"
+                @click="clear_search_term">
+          Clear filter for <b>{{ search_term }}</b>
+        </button>
+      </div>
+      <div v-else class="form-group col-md-4">
+        <button class="btn btn-outline-info form-control disabled" type="button">
+          Not filtered for search term
+        </button>
+      </div>
 
-        <div class="form-group col-md-2">
-          <select name="category" class="form-control" v-model="_category" @change="reload">
-            <option v-for="(choice_label, choice_val) in category_filter_choices"
-                    v-bind:value="choice_val" v-bind:selected="choice_val==_category">
-              {{ choice_label }}
-            </option>
-          </select>
-        </div>
+      <div class="form-group col-md-2">
+        <select name="category" class="form-control" v-model="_category" @change="reload">
+          <option v-for="(choice_label, choice_val) in category_filter_choices"
+                  v-bind:value="choice_val" v-bind:selected="choice_val==_category">
+            {{ choice_label }}
+          </option>
+        </select>
+      </div>
 
-        <div class="form-group col-md-2">
-          <select name="sharing_status" class="form-control" v-model="_sharing_status" @change="reload">
-            <option v-for="(choice_label, choice_val) in sharing_status_filter_choices"
-                    v-bind:value="choice_val" v-bind:selected="choice_val==_sharing_status">
-              {{ choice_label }}
-            </option>
-          </select>
-        </div>
+      <div class="form-group col-md-2">
+        <select name="sharing_status" class="form-control" v-model="_sharing_status" @change="reload">
+          <option v-for="(choice_label, choice_val) in sharing_status_filter_choices"
+                  v-bind:value="choice_val" v-bind:selected="choice_val==_sharing_status">
+            {{ choice_label }}
+          </option>
+        </select>
+      </div>
 
-        <div id="tree-selector" class="form-group btn-group btn-group-toggle">
-          <label v-for="choice in
+      <div id="tree-selector" class="form-group btn-group btn-group-toggle">
+        <label v-for="choice in
                      [ { label: 'Surface list',
                          value: 'surface list',
                          icon_class: 'far fa-gem'},
                        { label:'Tag tree',
                          value: 'tag tree',
                          icon_class: 'fas fa-tag'}]"
-                 class="btn"
-                 v-bind:class="{active: _tree_mode==choice.value,
+               class="btn"
+               v-bind:class="{active: _tree_mode==choice.value,
                                     'btn-success': _tree_mode==choice.value,
                                     'btn-default': _tree_mode!=choice.value}">
-            <input type="radio" class="btn-group-toggle" autocomplete="off"
-                   name="tree_mode"
-                   v-bind:value="choice.value" v-model="_tree_mode" @change="reload">
-            <span><i v-bind:class="choice.icon_class"></i> {{ choice.label }}</span>
-          </label>
-        </div>
+          <input type="radio" class="btn-group-toggle" autocomplete="off"
+                 name="tree_mode"
+                 v-bind:value="choice.value" v-model="_tree_mode" @change="reload">
+          <span><i v-bind:class="choice.icon_class"></i> {{ choice.label }}</span>
+        </label>
       </div>
-    </form>
+    </div>
+  </form>
 
-    <div class="row">
-      <div class="col-md-8">
-        <nav aria-label="Pagination">
-          <ul id="pagination" class="pagination">
-            <li class="page-item" v-bind:class="{ disabled: _current_page <= 1 }">
-              <a class="page-link" v-on:click="load_page(_current_page-1)">Previous</a>
-            </li>
-            <li class="page-item" v-bind:class="{ active: _current_page==page_no}" v-for="page_no in _page_range">
-              <a class="page-link" v-on:click="load_page(page_no)">{{ page_no }}</a>
-            </li>
-            <li class="page-item" v-bind:class="{ disabled: _current_page >=_num_pages }">
-              <a class="page-link" v-on:click="load_page(_current_page+1)">Next</a>
-            </li>
+  <div class="row">
+    <div class="col-md-8">
+      <nav aria-label="Pagination">
+        <ul id="pagination" class="pagination">
+          <li class="page-item" v-bind:class="{ disabled: _current_page <= 1 }">
+            <a class="page-link" v-on:click="load_page(_current_page-1)">Previous</a>
+          </li>
+          <li class="page-item" v-bind:class="{ active: _current_page==page_no}" v-for="page_no in _page_range">
+            <a class="page-link" v-on:click="load_page(page_no)">{{ page_no }}</a>
+          </li>
+          <li class="page-item" v-bind:class="{ disabled: _current_page >=_num_pages }">
+            <a class="page-link" v-on:click="load_page(_current_page+1)">Next</a>
+          </li>
 
-            <li class="ml-2">
-              <div class="input-group nav-item">
-                <div class="input-group-prepend">
-                  <label class="input-group-text" for="page-size-select">Page size</label>
-                </div>
-                <select name="page_size" class="custom-select" id="page-size-select" v-model="_page_size"
-                        @change="reload()">
-                  <option v-for="ps in [10,25,50,100]" v-bind:class="{selected: ps==page_size}">{{ ps }}</option>
-                </select>
+          <li class="ml-2">
+            <div class="input-group nav-item">
+              <div class="input-group-prepend">
+                <label class="input-group-text" for="page-size-select">Page size</label>
               </div>
-            </li>
-          </ul>
-        </nav>
-      </div>
-
-      <div class="col-md-4">
-        <div v-if="is_anonymous" class="form-group">
-          <button class="btn btn-primary form-control disabled"
-                  title="Please sign-in to use this feature">Create digital surface twin
-          </button>
-        </div>
-        <div v-if="!is_anonymous" class="form-group" title="Create a new digital surface twin">
-          <a class="btn btn-primary form-control" :href="surface_create_url">Create digital
-            surface
-            twin</a>
-        </div>
-      </div>
+              <select name="page_size" class="custom-select" id="page-size-select" v-model="_page_size"
+                      @change="reload()">
+                <option v-for="ps in [10,25,50,100]" v-bind:class="{selected: ps==page_size}">{{ ps }}</option>
+              </select>
+            </div>
+          </li>
+        </ul>
+      </nav>
     </div>
 
-    <div id="scrollParent">
-      <table id="surface-tree" class="table table-condensed surface-tree">
-        <colgroup>
-          <col width="150rem">
-          <col>
-          <col width="100rem">
-        </colgroup>
-        <thead>
-        <tr>
-          <th scope="col">Select</th>
-          <th scope="col">Description</th>
-          <th scope="col">Actions</th>
-        </tr>
-        </thead>
-        <tbody>
-        </tbody>
-      </table>
+    <div class="col-md-4">
+      <div v-if="is_anonymous" class="form-group">
+        <button class="btn btn-primary form-control disabled"
+                title="Please sign-in to use this feature">Create digital surface twin
+        </button>
+      </div>
+      <div v-if="!is_anonymous" class="form-group" title="Create a new digital surface twin">
+        <a class="btn btn-primary form-control" :href="surface_create_url">Create digital
+          surface
+          twin</a>
+      </div>
     </div>
-    <div>
-      <span v-if="!_is_loading">
-        Showing {{ _num_items_on_current_page }} {{ _tree_mode_infos[_tree_mode].element_kind }} out of {{
-          _num_items
-        }}.
-        {{ _tree_mode_infos[_tree_mode].hint }}
-      </span>
-    </div>
+  </div>
+
+  <div id="scrollParent">
+    <table id="surface-tree" class="table table-condensed surface-tree">
+      <colgroup>
+        <col width="150rem">
+        <col>
+        <col width="100rem">
+      </colgroup>
+      <thead>
+      <tr>
+        <th scope="col">Select</th>
+        <th scope="col">Description</th>
+        <th scope="col">Actions</th>
+      </tr>
+      </thead>
+      <tbody>
+      </tbody>
+    </table>
+  </div>
+  <div>
+    <span v-if="!_is_loading">
+      Showing {{ _num_items_on_current_page }} {{ _tree_mode_infos[_tree_mode].element_kind }} out of {{
+        _num_items
+      }}.
+      {{ _tree_mode_infos[_tree_mode].hint }}
+    </span>
   </div>
 </template>

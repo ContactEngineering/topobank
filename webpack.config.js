@@ -4,7 +4,7 @@ const {VueLoaderPlugin} = require('vue-loader');
 
 module.exports = {
   entry: {
-    basket: './topobank/assets/basket.js',
+    base: './topobank/assets/base.js',
     select: './topobank/assets/select.js',
     topography_detail: './topobank/assets/topography_detail.js'
   },
