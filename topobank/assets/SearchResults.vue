@@ -110,7 +110,7 @@ export default {
         cache: false
       },
       postProcess: function (event, data) {
-        console.log("PostProcess: ", data);
+        // console.log("PostProcess: ", data);
         _this._num_pages = data.response.num_pages;
         _this._num_items = data.response.num_items;
         _this._current_page = data.response.current_page;
