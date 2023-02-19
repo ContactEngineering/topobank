@@ -4,19 +4,7 @@
 {% load guardian_tags %}
 {% load static i18n %}
 
-{% block extra_css %}
-
-<!-- Include Fancytree skin  -->
-<!-- link href="{# static 'vendor/fancytree/skin-awesome/ui.fancytree.min.css' #}" rel="stylesheet" -->
-<!-- TODO Use CDN? -->
-<link href="https://unpkg.com/jquery.fancytree@2.38.0/dist/skin-awesome/ui.fancytree.min.css" rel="stylesheet"
-      xmlns:vbind="http://www.w3.org/1999/xhtml" xmlns:vbind="http://www.w3.org/1999/xhtml"
-      xmlns:v-bind="http://www.w3.org/1999/xhtml">
-{% endblock extra_css %}
-
-
 {% block content %}
-
 
 {# full text search in names, descriptions, tags #}
 
@@ -31,12 +19,6 @@
 {% block javascript %}
 
 <script src="{% static 'js/select.bundle.js' %}"></script>
-
-<script src="https://unpkg.com/jquery-highlight@3.3.0/jquery.highlight.js"></script>
-<script src="https://unpkg.com/jquery.fancytree@2.33.0/dist/jquery.fancytree-all-deps.min.js"></script>
-<script src="https://unpkg.com/jquery.fancytree@2.33.0/dist/modules/jquery.fancytree.glyph.js"></script>
-<script src="https://unpkg.com/jquery.fancytree@2.33.0/dist/modules/jquery.fancytree.table.js"></script>
-<script src="https://unpkg.com/jquery.fancytree@2.33.0/dist/modules/jquery.fancytree.filter.js"></script>
 
 {# Some JSON code to define JS variables from Django context #}
 {{ category_filter_choices | json_script:"category-filter-choices" }}
@@ -98,11 +80,12 @@
       category_filter_choices: category_filter_choices,
       csrf_token: '{{ csrf_token }}',
       current_page: initial_select_tab_state.current_page,
-      search_term: initial_select_tab_state.search_term,
-      surface_create_url: "{% url 'manager:surface-create' %}",
+      is_anonymous: {{ request.user.is_anonymous|yesno:'true,false' }},
       page_size: initial_select_tab_state.page_size,
+      search_term: initial_select_tab_state.search_term,
       sharing_status: initial_select_tab_state.sharing_status,
       sharing_status_filter_choices: sharing_status_filter_choices,
+      surface_create_url: "{% url 'manager:surface-create' %}",
       tree_mode: initial_select_tab_state.tree_mode
     }
   );
