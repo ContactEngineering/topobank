@@ -4,9 +4,9 @@ const {VueLoaderPlugin} = require('vue-loader');
 
 module.exports = {
   entry: {
-    base: './topobank/assets/base.js',
-    select: './topobank/assets/select.js',
-    topography_detail: './topobank/assets/topography_detail.js'
+    base: './topobank/frontend/base.js',
+    select: './topobank/frontend/select.js',
+    topography_detail: './topobank/frontend/topography_detail.js'
   },
   output: {
     path: path.resolve(__dirname, 'topobank/static/js'),
