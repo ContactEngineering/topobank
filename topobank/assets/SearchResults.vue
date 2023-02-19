@@ -62,6 +62,9 @@ export default {
     }
   },
   mounted: function () {
+    // this is not accessible from the scope of the callback function of fancy tree
+    const _this = this;
+
     // init fancytree
     this.tree = createTree('#surface-tree', {
       extensions: ["glyph", "table"],
@@ -106,18 +109,18 @@ export default {
         cache: false
       },
       postProcess: function (event, data) {
-        // console.log("PostProcess: ", data);
-        this._num_pages = data.response.num_pages;
-        this._num_items = data.response.num_items;
-        this._current_page = data.response.current_page;
-        this._num_items_on_current_page = data.response.num_items_on_current_page;
-        this._page_range = data.response.page_range;
-        this._page_urls = data.response.page_urls;
-        this._page_size = data.response.page_size;
+        console.log("PostProcess: ", data);
+        _this._num_pages = data.response.num_pages;
+        _this._num_items = data.response.num_items;
+        _this._current_page = data.response.current_page;
+        _this._num_items_on_current_page = data.response.num_items_on_current_page;
+        _this._page_range = data.response.page_range;
+        _this._page_urls = data.response.page_urls;
+        _this._page_size = data.response.page_size;
         // assuming the Ajax response contains a list of child nodes:
         // We replace the result
         data.result = data.response.page_results;
-        this._is_loading = false;
+        _this._is_loading = false;
       },
       select: function (event, data) {
         const node = data.node;
@@ -133,7 +136,7 @@ export default {
               success: function (data, textStatus, xhr) {
                 // console.log("Selected: " + node.data.name + " " + node.key);
                 basket.update(data);
-                this.set_selected_by_key(node.key, true);
+                _this.set_selected_by_key(node.key, true);
               },
               error: function (xhr, textStatus, errorThrown) {
                 console.error("Could not select: " + errorThrown + " " + xhr.status + " " + xhr.responseText);
@@ -149,7 +152,7 @@ export default {
               success: function (data, textStatus, xhr) {
                 // console.log("Unselected: " + node.data.name + " " + node.key);
                 basket.update(data);
-                this.set_selected_by_key(node.key, false);
+                _this.set_selected_by_key(node.key, false);
               },
               error: function (xhr, textStatus, errorThrown) {
                 console.error("Could not unselect: " + errorThrown + " " + xhr.status + " " + xhr.responseText);
