@@ -12,6 +12,8 @@
  * See https://vuejs.org/v2/examples/select2.html as example how to wrap 3rd party code into a component
  */
 
+import $ from 'jquery';
+
 import {createTree} from 'jquery.fancytree';
 
 import 'jquery.fancytree/dist/modules/jquery.fancytree.glyph';
