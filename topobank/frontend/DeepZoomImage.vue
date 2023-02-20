@@ -112,13 +112,13 @@ export default {
           this.colormap = meta.Image.Colormap;
 
           // Generate tick positions and labels
-          mn = meta.Image.ColorbarRange.Minimum;
-          mx = meta.Image.ColorbarRange.Maximum;
+          let mn = meta.Image.ColorbarRange.Minimum;
+          let mx = meta.Image.ColorbarRange.Maximum;
 
-          log10_tick_dist = (Math.round(Math.log10(mx - mn)) - 1);
-          fraction_digits = log10_tick_dist > 0 ? 0 : -log10_tick_dist;
-          tick_dist = 10 ** log10_tick_dist;
-          nb_ticks = Math.trunc((mx - mn) / tick_dist) + 1;
+          let log10_tick_dist = (Math.round(Math.log10(mx - mn)) - 1);
+          let fraction_digits = log10_tick_dist > 0 ? 0 : -log10_tick_dist;
+          let tick_dist = 10 ** log10_tick_dist;
+          let nb_ticks = Math.trunc((mx - mn) / tick_dist) + 1;
 
           while (nb_ticks > 15) {
             tick_dist *= 2;
@@ -126,8 +126,8 @@ export default {
           }
 
           for (let i = 0; i < nb_ticks; i++) {
-            v = Math.trunc(mn / tick_dist) * tick_dist + tick_dist * i;
-            relpos = (mx - v) * 100 / (mx - mn);
+            let v = Math.trunc(mn / tick_dist) * tick_dist + tick_dist * i;
+            let relpos = (mx - v) * 100 / (mx - mn);
             if (relpos > 0 && relpos < 100) {
               this.colorbarTicks.push({relpos: relpos, label: v.toFixed(fraction_digits)});
             }

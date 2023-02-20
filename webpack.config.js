@@ -6,7 +6,7 @@ module.exports = {
   entry: {
     base: './topobank/frontend/base.js',
     select: './topobank/frontend/select.js',
-    topography_detail: './topobank/frontend/topography_detail.js'
+    dzi: './topobank/frontend/dzi.js'
   },
   output: {
     path: path.resolve(__dirname, 'topobank/static/js'),

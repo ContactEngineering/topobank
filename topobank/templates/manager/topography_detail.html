@@ -33,10 +33,7 @@
           {# Plot #}
           <div class="tab-pane fade active show" id="plot" role="tabpanel" aria-labelledby="plot-tab">
             {% if topography.size_y %}
-              <deep-zoom-image prefix-url="{% url 'manager:topography-dzi' pk=topography.pk dzi_filename='' %}"
-                       :colorbar="true"
-                       ref="dzi">
-              </deep-zoom-image>
+              <div id="topography-deep-zoom-image"></div>
             {% else %}
               <div id="topography-plot-content">
                 <span class="spinner"></span>Creating and loading plot, please wait...
@@ -235,7 +232,13 @@
   {{ category_filter_choices | json_script:"category-filter-choices" }}
 
   {% if topography.size_y %}
-    <script src="{% static 'js/topography_detail.js' %}"></script>
+    <script src="{% static 'js/dzi.bundle.js' %}"></script>
+    <script>
+      topobank.dzi.createDeepZoomImage('#topography-deep-zoom-image', {
+        prefixUrl: "{% url 'manager:topography-dzi' pk=topography.pk dzi_filename='' %}",
+        colorbar: true
+      });
+    </script>
   {% else %}
     <script>
       $(document).ready(function () {
