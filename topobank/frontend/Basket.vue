@@ -55,15 +55,15 @@ export default {
     unselect_all() {
       const _this = this;
       fetch(unselect_all_url, {method: 'POST', headers: {'X-CSRFToken': this.csrf_token}})
-          .then((response) => response.json())
-          .then((data) => {
+          .then(response => response.json())
+          .then(data => {
             console.log("keys to unselect: ", _this.keys);
             _this.keys.forEach(function (key) {
               _this.event_hub.emit('basket-unselect-successful', key);
             });
             _this.update(data);
           })
-          .catch((error) => {
+          .catch(error => {
             console.error("Could not unselect: " + error);
           });
     },
@@ -74,12 +74,12 @@ export default {
       const elem = this.elements[key];
       const _this = this;
       fetch(elem.unselect_url, {method: 'POST', headers: {'X-CSRFToken': this.csrf_token}})
-          .then((response) => response.json())
-          .then((data) => {
+          .then(response => response.json())
+          .then(data => {
             _this.update(data);
             _this.event_hub.emit('basket-unselect-successful', key);
           })
-          .catch((error) => {
+          .catch(error => {
             console.error("Could not unselect: " + error);
           });
     }

@@ -133,24 +133,24 @@ export default {
             if (node.data.urls !== undefined) {
               if (is_selected) {
                 fetch(node.data.urls.select, {method: 'POST', headers: {'X-CSRFToken': _this.csrf_token}})
-                    .then((response) => response.json())
-                    .then((reponse_data) => {
+                    .then(response => response.json())
+                    .then(reponse_data => {
                       // console.log("Selected: " + node.data.name + " " + node.key);
                       _this.event_hub.emit('basket-update', reponse_data);
                       _this.set_selected_by_key(node.key, true);
                     })
-                    .catch((error) => {
+                    .catch(error => {
                       console.error("Could not select: " + error);
                     });
               } else {
                 fetch(node.data.urls.unselect, {method: 'POST', headers: {'X-CSRFToken': _this.csrf_token}})
-                    .then((response) => response.json())
-                    .then((reponse_data) => {
+                    .then(response => response.json())
+                    .then(reponse_data => {
                       // console.log("Unselected: " + node.data.name + " " + node.key);
                       _this.event_hub.emit('basket-update', reponse_data);
                       _this.set_selected_by_key(node.key, false);
                     })
-                    .catch((error) => {
+                    .catch(error => {
                       console.error("Could not unselect: " + error);
                     });
               }
