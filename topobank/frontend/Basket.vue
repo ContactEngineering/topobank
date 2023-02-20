@@ -18,24 +18,21 @@ export default {
   data() {
     return {
       keys: [],
-      elements: {}, // key: key like "surface-1", value is object, see below
-      unselect_handler: null,  // set in order to define what to be called if an item is "closed"
-      // - should be null or a function(key) where key is an element of "keys", e.g. 'surface-1'
-      // - should be used e.g. to deselect items in a tree or reload a page after deselecting
+      elements: {} // key: key like "surface-1", value is object, see below
     };
   },
-  mounted: function () {
-    this.update(this.initial_basket_items);
-  },
-  created: function () {
+  created() {
     this.event_hub.on('basket-unselect', this.unselect);
     this.event_hub.on('basket-update', this.update);
   },
+  mounted() {
+    this.update(this.initial_basket_items);
+  },
   methods: {
-    get_element: function (key) {
+    get_element(key) {
       return this.elements[key];
     },
-    update: function (basket_items) {
+    update(basket_items) {
 
       let elements = {};
       let keys = [];
@@ -56,50 +53,43 @@ export default {
       this.keys = keys;
     },
 
-    unselect_all: function () {
-      const basket = this;
+    unselect_all() {
+      const _this = this;
       $.ajax({
         type: "POST",
         url: unselect_all_url,
         data: {
           csrfmiddlewaretoken: this.csrf_token
         },
-        success: function (data, textStatus, xhr) {
-          if (basket.unselect_handler) {
-            console.log("keys to unselect: ", basket.keys);
-            basket.keys.forEach(function (key) {
-              basket.unselect_handler(key);
-            });
-          }
-          basket.update(data);
+        success(data, textStatus, xhr) {
+          console.log("keys to unselect: ", _this.keys);
+          _this.keys.forEach(function (key) {
+            _this.event_hub.emit('basket-unselect-successful', key);
+          });
+          _this.update(data);
         },
-        error: function (xhr, textStatus, errorThrown) {
+        error(xhr, textStatus, errorThrown) {
           console.error("Could not unselect: " + errorThrown + " " + xhr.status + " " + xhr.responseText);
         }
       });
     },
 
-    unselect: function (key) {
+    unselect(key) {
       // First call unselect url for this element
       // then the additional handler if needed
       const elem = this.elements[key];
-      const basket = this;
+      const _this = this;
       $.ajax({
         type: "POST",
         url: elem.unselect_url,
         data: {
           csrfmiddlewaretoken: this.csrf_token
         },
-        success: function (data, textStatus, xhr) {
-          basket.update(data);
-          if (basket.unselect_handler) {
-            //console.log(`Calling unselect handler for key ${key} from basket..`);
-            basket.unselect_handler(key);
-          } else {
-            //console.debug("Unselect handler not set for basket, doing nothing extra.");
-          }
+        success(data, textStatus, xhr) {
+          _this.update(data);
+          _this.event_hub.emit('basket-unselect-successful', key);
         },
-        error: function (xhr, textStatus, errorThrown) {
+        error(xhr, textStatus, errorThrown) {
           console.error("Could not unselect: " + errorThrown + " " + xhr.status + " " + xhr.responseText);
         }
       });

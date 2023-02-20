@@ -10,6 +10,7 @@
 /* globals Vue:false, Bokeh:false */
 
 export default {
+  name: 'plot',
   props: {
     categories: {
       // Defining selection categories. For each category, there will be an accordion with the possibility to show/hide

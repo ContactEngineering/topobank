@@ -11,8 +11,8 @@ export default {
   inject: ['event_hub'],
   methods: {
     // the following method is called when the "x" symbol is clicked in a basket item
-    handle_close: function (event) {
-      this.event_hub.emit('unselect', this.elem.key);  // See basket's "created" where event handlers are defined
+    handle_close(event) {
+      this.event_hub.emit('basket-unselect', this.elem.key);  // See basket's "created" where event handlers are defined
     }
   }
 }

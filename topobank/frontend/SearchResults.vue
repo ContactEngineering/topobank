@@ -48,6 +48,7 @@ export default {
       _page_range: null,
       _page_size: this.page_size,
       _page_urls: null,
+      _search_term: this.search_term,
       _sharing_status: this.sharing_status,
       _tree_mode: this.tree_mode,
       _tree_mode_infos: {
@@ -62,7 +63,10 @@ export default {
       }
     };
   },
-  mounted: function () {
+  created() {
+    this.event_hub.on('basket-unselect-successful', this.unselect);
+  },
+  mounted() {
     // this is not accessible from the scope of the callback function of fancy tree
     const _this = this;
 
@@ -82,13 +86,13 @@ export default {
         "topography": {icon: "far fa-file", iconTooltip: "This is a measurement"},
         "tag": {icon: "fas fa-tag", iconTooltip: "This is a tag"},
       },
-      icon: function (event, data) {
+      icon(event, data) {
         // data.typeInfo contains tree.types[node.type] (or {} if not found)
         // Here we will return the specific icon for that type, or `undefined` if
         // not type info is defined (in this case a default icon is displayed).
         return data.typeInfo.icon;
       },
-      iconTooltip: function (event, data) {
+      iconTooltip(event, data) {
         return data.typeInfo.iconTooltip; // set tooltip which appears when hovering an icon
       },
       table: {
@@ -109,7 +113,7 @@ export default {
         url: this.search_url.toString(),  // this is a computed property, see below
         cache: false
       },
-      postProcess: function (event, data) {
+      postProcess(event, data) {
         // console.log("PostProcess: ", data);
         _this._num_pages = data.response.num_pages;
         _this._num_items = data.response.num_items;
@@ -123,7 +127,7 @@ export default {
         data.result = data.response.page_results;
         _this._is_loading = false;
       },
-      select: function (event, data) {
+      select(event, data) {
         const node = data.node;
         const is_selected = node.isSelected();
         if (node.data.urls !== undefined) {
@@ -134,12 +138,12 @@ export default {
               data: {
                 csrfmiddlewaretoken: _this.csrf_token
               },
-              success: function (data, textStatus, xhr) {
+              success(data, textStatus, xhr) {
                 // console.log("Selected: " + node.data.name + " " + node.key);
                 _this.event_hub.emit('basket-update', data);
                 _this.set_selected_by_key(node.key, true);
               },
-              error: function (xhr, textStatus, errorThrown) {
+              error(xhr, textStatus, errorThrown) {
                 console.error("Could not select: " + errorThrown + " " + xhr.status + " " + xhr.responseText);
               }
             });
@@ -150,12 +154,12 @@ export default {
               data: {
                 csrfmiddlewaretoken: _this.csrf_token
               },
-              success: function (data, textStatus, xhr) {
+              success(data, textStatus, xhr) {
                 // console.log("Unselected: " + node.data.name + " " + node.key);
                 _this.event_hub.emit('basket-update', data);
                 _this.set_selected_by_key(node.key, false);
               },
-              error: function (xhr, textStatus, errorThrown) {
+              error(xhr, textStatus, errorThrown) {
                 console.error("Could not unselect: " + errorThrown + " " + xhr.status + " " + xhr.responseText);
               }
             });
@@ -166,11 +170,11 @@ export default {
         }
       },
 
-      renderTitle: function (event, data) {
+      renderTitle(event, data) {
         return " ";
       },
 
-      renderColumns: function (event, data) {
+      renderColumns(event, data) {
         const node = data.node;
         const $tdList = $(node.tr).find(">td");
 
@@ -270,7 +274,7 @@ export default {
     this.set_loading_indicator();
   },   // mounted()
   computed: {
-    search_url: function () {
+    search_url() {
       // Returns URL object
 
       let url = new URL(this.base_urls[this._tree_mode]);
@@ -279,7 +283,7 @@ export default {
       // ref: https://usefulangle.com/post/81/javascript-change-url-parameters
       let query_params = url.searchParams;
 
-      query_params.set("search", this.search_term);  // empty string -> no search
+      query_params.set("search", this._search_term);  // empty string -> no search
       query_params.set("category", this._category);
       query_params.set("sharing_status", this._sharing_status);
       query_params.set('page_size', this._page_size);
@@ -294,10 +298,10 @@ export default {
     },
   },
   methods: {
-    get_tree: function () {
+    get_tree() {
       return this.tree;
     },
-    set_loading_indicator: function () {
+    set_loading_indicator() {
       // hack: replace loading indicator from fancytree by own indicator with spinner
       let loading_node = $('tr.fancytree-statusnode-loading');
       if (loading_node) {
@@ -311,18 +315,15 @@ export default {
         this._is_loading = true;
       }
     },
-    clear_search_term: function () {
+    clear_search_term() {
       console.log("Clearing search term...");
-      // Fixme!!! Fix clearing search term...
-      // this.search_term = '';
+      this._search_term = '';
       this.reload();
     },
-    reload: function () {
-      /*
-                Reload means: the tree must be completely reloaded,
-                with currently set state of the select tab,
-                except of the page number which should be 1.
-             */
+    reload() {
+      /* Reload means: the tree must be completely reloaded,
+         with currently set state of the select tab,
+         except of the page number which should be 1. */
       const tree = this.get_tree();
       this._current_page = 1;
       console.log("Reloading tree, tree mode: " + this._tree_mode + " current page: " + this._current_page);
@@ -333,7 +334,7 @@ export default {
       });
       this.set_loading_indicator();
     },
-    load_page: function (page_no) {
+    load_page(page_no) {
       page_no = parseInt(page_no);
 
       if ((page_no >= 1) && (page_no <= this._page_range.length)) {
@@ -350,7 +351,7 @@ export default {
         console.warn("Cannot load page " + page_no + ", because the page number is invalid.")
       }
     },
-    set_selected_by_key: function (key, selected) {
+    set_selected_by_key(key, selected) {
       // Set selection on all nodes with given key and
       // set it to "selected" (bool)
       const tree = this.get_tree();
@@ -360,6 +361,9 @@ export default {
         node.setSelected(selected, {noEvents: true});
         // we only want to set the checkbox here, we don't want to simulate the click
       })
+    },
+    unselect(key) {
+      this.set_selected_by_key(key, false);
     }
   }
 }
@@ -369,11 +373,11 @@ export default {
   <form>
     <div class="form-row justify-content-around">
 
-      <div v-if="search_term" class="form-group col-md-4">
+      <div v-if="_search_term" class="form-group col-md-4">
         <button class="btn btn-warning form-control" type="button"
                 id="clear-search-term-btn"
                 @click="clear_search_term">
-          Clear filter for <b>{{ search_term }}</b>
+          Clear filter for <b>{{ _search_term }}</b>
         </button>
       </div>
       <div v-else class="form-group col-md-4">
