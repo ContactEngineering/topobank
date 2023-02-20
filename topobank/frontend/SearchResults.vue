@@ -162,8 +162,7 @@ export default {
 
           renderTitle(event, data) {
             return " ";
-          }
-          ,
+          },
 
           renderColumns(event, data) {
             const node = data.node;
