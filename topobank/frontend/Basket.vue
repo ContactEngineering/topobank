@@ -102,7 +102,7 @@ export default {
 <template>
   <div v-if="keys.length">
     <basket-element v-for="key in keys" v-bind:elem="get_element(key)" v-bind:key="key"></basket-element>
-    <a class="btn btn-sm btn-outline-success" href="{{ analysis_list_url }}">
+    <a class="btn btn-sm btn-outline-success" :href="analysis_list_url">
       Analyze
     </a>
     <div class="btn-group btn-group-sm float-right" role="group" aria-label="Actions on current selection">
@@ -110,7 +110,7 @@ export default {
         Clear selection
       </button>
       <a class="btn btn-sm btn-outline-secondary"
-         href="{{ manager_download_selection_url }}"
+         :href="manager_download_selection_url"
          type="button"
          id="download-selection">
         Download selected datasets
