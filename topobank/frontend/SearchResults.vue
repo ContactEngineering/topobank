@@ -12,8 +12,6 @@
  * See https://vuejs.org/v2/examples/select2.html as example how to wrap 3rd party code into a component
  */
 
-import $ from "jquery";
-
 import {createTree} from 'jquery.fancytree';
 
 import 'jquery.fancytree/dist/modules/jquery.fancytree.glyph';
@@ -72,205 +70,199 @@ export default {
 
     // init fancytree
     this.tree = createTree('#surface-tree', {
-      extensions: ["glyph", "table"],
-      glyph: {
-        preset: "awesome5",
-        map: {
-          // Override distinct default icons here
-          folder: "fa-folder",
-          folderOpen: "fa-folder-open"
-        }
-      },
-      types: {
-        "surface": {icon: "far fa-gem", iconTooltip: "This is a digital surface twin"},
-        "topography": {icon: "far fa-file", iconTooltip: "This is a measurement"},
-        "tag": {icon: "fas fa-tag", iconTooltip: "This is a tag"},
-      },
-      icon(event, data) {
-        // data.typeInfo contains tree.types[node.type] (or {} if not found)
-        // Here we will return the specific icon for that type, or `undefined` if
-        // not type info is defined (in this case a default icon is displayed).
-        return data.typeInfo.icon;
-      },
-      iconTooltip(event, data) {
-        return data.typeInfo.iconTooltip; // set tooltip which appears when hovering an icon
-      },
-      table: {
-        checkboxColumnIdx: null,    // render the checkboxes into the this column index (default: nodeColumnIdx)
-        indentation: 20,            // indent every node level by these number of pixels
-        nodeColumnIdx: 0            // render node expander, icon, and title to this column (default: #0)
-      },
-      autoActivate: true,
-      titlesTabbable: false,
-      tabindex: -1,
-      focusOnSelect: false,
-      scrollParent: window,
-      autoScroll: true,
-      scrollOfs: {top: 200, bottom: 50},
-      checkbox: true,
-      selectMode: 2, // 'multi'
-      source: {
-        url: this.search_url.toString(),  // this is a computed property, see below
-        cache: false
-      },
-      postProcess(event, data) {
-        // console.log("PostProcess: ", data);
-        _this._num_pages = data.response.num_pages;
-        _this._num_items = data.response.num_items;
-        _this._current_page = data.response.current_page;
-        _this._num_items_on_current_page = data.response.num_items_on_current_page;
-        _this._page_range = data.response.page_range;
-        _this._page_urls = data.response.page_urls;
-        _this._page_size = data.response.page_size;
-        // assuming the Ajax response contains a list of child nodes:
-        // We replace the result
-        data.result = data.response.page_results;
-        _this._is_loading = false;
-      },
-      select(event, data) {
-        const node = data.node;
-        const is_selected = node.isSelected();
-        if (node.data.urls !== undefined) {
-          if (is_selected) {
-            $.ajax({
-              type: "POST",
-              url: node.data.urls.select,
-              data: {
-                csrfmiddlewaretoken: _this.csrf_token
-              },
-              success(data, textStatus, xhr) {
-                // console.log("Selected: " + node.data.name + " " + node.key);
-                _this.event_hub.emit('basket-update', data);
-                _this.set_selected_by_key(node.key, true);
-              },
-              error(xhr, textStatus, errorThrown) {
-                console.error("Could not select: " + errorThrown + " " + xhr.status + " " + xhr.responseText);
+          extensions: ["glyph", "table"],
+          glyph: {
+            preset: "awesome5",
+            map: {
+              // Override distinct default icons here
+              folder: "fa-folder",
+              folderOpen: "fa-folder-open"
+            }
+          },
+          types: {
+            "surface": {icon: "far fa-gem", iconTooltip: "This is a digital surface twin"},
+            "topography": {icon: "far fa-file", iconTooltip: "This is a measurement"},
+            "tag": {icon: "fas fa-tag", iconTooltip: "This is a tag"},
+          },
+          icon(event, data) {
+            // data.typeInfo contains tree.types[node.type] (or {} if not found)
+            // Here we will return the specific icon for that type, or `undefined` if
+            // not type info is defined (in this case a default icon is displayed).
+            return data.typeInfo.icon;
+          },
+          iconTooltip(event, data) {
+            return data.typeInfo.iconTooltip; // set tooltip which appears when hovering an icon
+          },
+          table: {
+            checkboxColumnIdx: null,    // render the checkboxes into the this column index (default: nodeColumnIdx)
+            indentation: 20,            // indent every node level by these number of pixels
+            nodeColumnIdx: 0            // render node expander, icon, and title to this column (default: #0)
+          },
+          autoActivate: true,
+          titlesTabbable: false,
+          tabindex: -1,
+          focusOnSelect: false,
+          scrollParent: window,
+          autoScroll: true,
+          scrollOfs: {top: 200, bottom: 50},
+          checkbox: true,
+          selectMode: 2, // 'multi'
+          source: {
+            url: this.search_url.toString(),  // this is a computed property, see below
+            cache: false
+          },
+          postProcess(event, data) {
+            // console.log("PostProcess: ", data);
+            _this._num_pages = data.response.num_pages;
+            _this._num_items = data.response.num_items;
+            _this._current_page = data.response.current_page;
+            _this._num_items_on_current_page = data.response.num_items_on_current_page;
+            _this._page_range = data.response.page_range;
+            _this._page_urls = data.response.page_urls;
+            _this._page_size = data.response.page_size;
+            // assuming the Ajax response contains a list of child nodes:
+            // We replace the result
+            data.result = data.response.page_results;
+            _this._is_loading = false;
+          },
+          select(event, data) {
+            const node = data.node;
+            const is_selected = node.isSelected();
+            if (node.data.urls !== undefined) {
+              if (is_selected) {
+                fetch(node.data.urls.select, {method: 'POST', headers: {'X-CSRFToken': _this.csrf_token}})
+                    .then((response) => response.json())
+                    .then((reponse_data) => {
+                      // console.log("Selected: " + node.data.name + " " + node.key);
+                      _this.event_hub.emit('basket-update', reponse_data);
+                      _this.set_selected_by_key(node.key, true);
+                    })
+                    .catch((error) => {
+                      console.error("Could not select: " + error);
+                    });
+              } else {
+                fetch(node.data.urls.unselect, {method: 'POST', headers: {'X-CSRFToken': _this.csrf_token}})
+                    .then((response) => response.json())
+                    .then((reponse_data) => {
+                      // console.log("Unselected: " + node.data.name + " " + node.key);
+                      _this.event_hub.emit('basket-update', reponse_data);
+                      _this.set_selected_by_key(node.key, false);
+                    })
+                    .catch((error) => {
+                      console.error("Could not unselect: " + error);
+                    });
               }
+            } else {
+              console.log("No urls defined for node. Cannot pass selection to session.");
+              this.basket.update();
+            }
+          },
+
+          renderTitle(event, data) {
+            return " ";
+          }
+          ,
+
+          renderColumns(event, data) {
+            const node = data.node;
+            const $tdList = $(node.tr).find(">td");
+
+            /**
+             Add special css classes to nodes depending on type
+             */
+
+            let extra_classes = {
+              surface: [],
+              topography: [],
+              tag: ['font-italic']
+            };
+
+            node.addClass('select-tree-item')
+
+            extra_classes[node.type].forEach(function (c) {
+              node.addClass(c);
             });
-          } else {
-            $.ajax({
-              type: "POST",
-              url: node.data.urls.unselect,
-              data: {
-                csrfmiddlewaretoken: _this.csrf_token
-              },
-              success(data, textStatus, xhr) {
-                // console.log("Unselected: " + node.data.name + " " + node.key);
-                _this.event_hub.emit('basket-update', data);
-                _this.set_selected_by_key(node.key, false);
-              },
-              error(xhr, textStatus, errorThrown) {
-                console.error("Could not unselect: " + errorThrown + " " + xhr.status + " " + xhr.responseText);
+
+            let description_html = "";
+
+            // License image
+            if (node.data.publication_license) {
+              description_html += `<img src="/static/images/cc/${node.data.publication_license}.svg" title="Dataset can be reused under the terms of a Creative Commons license." style="float:right">`;
+            }
+
+            // Tags
+            if (node.data.category) {
+              description_html += `<p class='badge badge-secondary mr-1'>${node.data.category_name}</p>`;
+            }
+
+            if (node.data.sharing_status == "own") {
+              description_html += `<p class='badge badge-info mr-1'>Created by you</p>`;
+            } else if (node.data.sharing_status == "shared") {
+              description_html += `<p class='badge badge-info mr-1'>Shared by ${node.data.creator_name}</p>`;
+            }
+
+            if (node.data.tags !== undefined) {
+              node.data.tags.forEach(function (tag) {
+                description_html += "<p class='badge badge-success mr-1'>" + tag + "</p>";
+              });
+            }
+
+            // Title
+            description_html += `<p class="select-tree-title">${node.data.name}</p>`;
+
+            let publication_info = "";
+            if (node.data.publication_authors) {
+              publication_info += `${node.data.publication_authors} (published ${node.data.publication_date})`;
+            } else {
+              if (node.type == "surface") {
+                publication_info += `This dataset is unpublished. It was initiated by ${node.data.creator_name}.`;
               }
-            });
-          }
-        } else {
-          console.log("No urls defined for node. Cannot pass selection to session.");
-          this.basket.update();
-        }
-      },
+            }
 
-      renderTitle(event, data) {
-        return " ";
-      },
+            if (publication_info) {
+              description_html += `<p class="select-tree-authors">${publication_info}</p>`;
+            }
 
-      renderColumns(event, data) {
-        const node = data.node;
-        const $tdList = $(node.tr).find(">td");
+            // Set column with description
+            if (node.data.description !== undefined) {
+              description_html += `<p class='select-tree-description'>${node.data.description}</p>`;
+            }
 
-        /**
-         Add special css classes to nodes depending on type
-         */
+            let info_footer = "";
+            if (node.data.topography_count && node.data.version) {
+              info_footer += `This is version ${node.data.version} of this digital surface twin and contains ${node.data.topography_count} measurements.`
+            } else if (node.data.version) {
+              info_footer += `This is version ${node.data.version} of this digital surface twin.`
+            } else if (node.data.topography_count) {
+              info_footer += `This digital surface twin contains ${node.data.topography_count} measurements.`
+            }
+            if ((node.type == "topography") && (node.data.sharing_status != "published")) {
+              info_footer += `Uploaded by ${node.data.creator_name}.`;
+            }
+            if (info_footer) {
+              description_html += `<p class="select-tree-info">${info_footer}</p>`
+            }
 
-        let extra_classes = {
-          surface: [],
-          topography: [],
-          tag: ['font-italic']
-        };
+            $tdList
+                .eq(1)
+                .html(description_html);
 
-        node.addClass('select-tree-item')
-
-        extra_classes[node.type].forEach(function (c) {
-          node.addClass(c);
-        });
-
-        let description_html = "";
-
-        // License image
-        if (node.data.publication_license) {
-          description_html += `<img src="/static/images/cc/${node.data.publication_license}.svg" title="Dataset can be reused under the terms of a Creative Commons license." style="float:right">`;
-        }
-
-        // Tags
-        if (node.data.category) {
-          description_html += `<p class='badge badge-secondary mr-1'>${node.data.category_name}</p>`;
-        }
-
-        if (node.data.sharing_status == "own") {
-          description_html += `<p class='badge badge-info mr-1'>Created by you</p>`;
-        } else if (node.data.sharing_status == "shared") {
-          description_html += `<p class='badge badge-info mr-1'>Shared by ${node.data.creator_name}</p>`;
-        }
-
-        if (node.data.tags !== undefined) {
-          node.data.tags.forEach(function (tag) {
-            description_html += "<p class='badge badge-success mr-1'>" + tag + "</p>";
-          });
-        }
-
-        // Title
-        description_html += `<p class="select-tree-title">${node.data.name}</p>`;
-
-        let publication_info = "";
-        if (node.data.publication_authors) {
-          publication_info += `${node.data.publication_authors} (published ${node.data.publication_date})`;
-        } else {
-          if (node.type == "surface") {
-            publication_info += `This dataset is unpublished. It was initiated by ${node.data.creator_name}.`;
-          }
-        }
-
-        if (publication_info) {
-          description_html += `<p class="select-tree-authors">${publication_info}</p>`;
-        }
-
-        // Set column with description
-        if (node.data.description !== undefined) {
-          description_html += `<p class='select-tree-description'>${node.data.description}</p>`;
-        }
-
-        let info_footer = "";
-        if (node.data.topography_count && node.data.version) {
-          info_footer += `This is version ${node.data.version} of this digital surface twin and contains ${node.data.topography_count} measurements.`
-        } else if (node.data.version) {
-          info_footer += `This is version ${node.data.version} of this digital surface twin.`
-        } else if (node.data.topography_count) {
-          info_footer += `This digital surface twin contains ${node.data.topography_count} measurements.`
-        }
-        if ((node.type == "topography") && (node.data.sharing_status != "published")) {
-          info_footer += `Uploaded by ${node.data.creator_name}.`;
-        }
-        if (info_footer) {
-          description_html += `<p class="select-tree-info">${info_footer}</p>`
-        }
-
-        $tdList
-            .eq(1)
-            .html(description_html);
-
-        // Set columns with buttons:
-        if (node.type !== "tag") {
-          const actions_html = `
+            // Set columns with buttons:
+            if (node.type !== "tag") {
+              const actions_html = `
                             <div class="btn-group-vertical btn-group-sm" role="group" aria-label="Actions">
                              ${item_buttons(node.data.urls)}
                             </div>
                           `;
-          $tdList
-              .eq(2)
-              .html(actions_html);
+              $tdList
+                  .eq(2)
+                  .html(actions_html);
+            }
+          }
+          ,
         }
-      },
-    }); // fancytree()
+    )
+    ; // fancytree()
     this.set_loading_indicator();
   },   // mounted()
   computed: {
@@ -295,12 +287,15 @@ export default {
       console.log("Requested search URL: " + url.toString());
 
       return url;
-    },
-  },
+    }
+    ,
+  }
+  ,
   methods: {
     get_tree() {
       return this.tree;
-    },
+    }
+    ,
     set_loading_indicator() {
       // hack: replace loading indicator from fancytree by own indicator with spinner
       let loading_node = $('tr.fancytree-statusnode-loading');
@@ -314,12 +309,14 @@ export default {
                     `);
         this._is_loading = true;
       }
-    },
+    }
+    ,
     clear_search_term() {
       console.log("Clearing search term...");
       this._search_term = '';
       this.reload();
-    },
+    }
+    ,
     reload() {
       /* Reload means: the tree must be completely reloaded,
          with currently set state of the select tab,
@@ -333,7 +330,8 @@ export default {
         cache: false,
       });
       this.set_loading_indicator();
-    },
+    }
+    ,
     load_page(page_no) {
       page_no = parseInt(page_no);
 
@@ -350,7 +348,8 @@ export default {
       } else {
         console.warn("Cannot load page " + page_no + ", because the page number is invalid.")
       }
-    },
+    }
+    ,
     set_selected_by_key(key, selected) {
       // Set selection on all nodes with given key and
       // set it to "selected" (bool)
@@ -361,7 +360,8 @@ export default {
         node.setSelected(selected, {noEvents: true});
         // we only want to set the checkbox here, we don't want to simulate the click
       })
-    },
+    }
+    ,
     unselect(key) {
       this.set_selected_by_key(key, false);
     }

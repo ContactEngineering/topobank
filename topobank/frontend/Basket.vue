@@ -33,7 +33,6 @@ export default {
       return this.elements[key];
     },
     update(basket_items) {
-
       let elements = {};
       let keys = [];
 
@@ -55,23 +54,18 @@ export default {
 
     unselect_all() {
       const _this = this;
-      $.ajax({
-        type: "POST",
-        url: unselect_all_url,
-        data: {
-          csrfmiddlewaretoken: this.csrf_token
-        },
-        success(data, textStatus, xhr) {
-          console.log("keys to unselect: ", _this.keys);
-          _this.keys.forEach(function (key) {
-            _this.event_hub.emit('basket-unselect-successful', key);
+      fetch(unselect_all_url, {method: 'POST', headers: {'X-CSRFToken': this.csrf_token}})
+          .then((response) => response.json())
+          .then((data) => {
+            console.log("keys to unselect: ", _this.keys);
+            _this.keys.forEach(function (key) {
+              _this.event_hub.emit('basket-unselect-successful', key);
+            });
+            _this.update(data);
+          })
+          .catch((error) => {
+            console.error("Could not unselect: " + error);
           });
-          _this.update(data);
-        },
-        error(xhr, textStatus, errorThrown) {
-          console.error("Could not unselect: " + errorThrown + " " + xhr.status + " " + xhr.responseText);
-        }
-      });
     },
 
     unselect(key) {
@@ -79,20 +73,15 @@ export default {
       // then the additional handler if needed
       const elem = this.elements[key];
       const _this = this;
-      $.ajax({
-        type: "POST",
-        url: elem.unselect_url,
-        data: {
-          csrfmiddlewaretoken: this.csrf_token
-        },
-        success(data, textStatus, xhr) {
-          _this.update(data);
-          _this.event_hub.emit('basket-unselect-successful', key);
-        },
-        error(xhr, textStatus, errorThrown) {
-          console.error("Could not unselect: " + errorThrown + " " + xhr.status + " " + xhr.responseText);
-        }
-      });
+      fetch(elem.unselect_url, {method: 'POST', headers: {'X-CSRFToken': this.csrf_token}})
+          .then((response) => response.json())
+          .then((data) => {
+            _this.update(data);
+            _this.event_hub.emit('basket-unselect-successful', key);
+          })
+          .catch((error) => {
+            console.error("Could not unselect: " + error);
+          });
     }
   }
 }
