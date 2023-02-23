@@ -4,9 +4,10 @@ const {VueLoaderPlugin} = require('vue-loader');
 
 module.exports = {
   entry: {
-    base: './topobank/frontend/base.js',
-    select: './topobank/frontend/select.js',
-    dzi: './topobank/frontend/dzi.js'
+    base: './topobank/frontend/manager/base.js',
+    select: './topobank/frontend/manager/select.js',
+    dzi: './topobank/frontend/manager/dzi.js',
+    series_card: './topobank/frontend/analysis/series_card.js'
   },
   output: {
     path: path.resolve(__dirname, 'topobank/static/js'),

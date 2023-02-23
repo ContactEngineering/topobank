@@ -590,7 +590,7 @@ def current_selection_as_basket_items(request):
     return instances_to_basket_items(topographies, surfaces, tags)
 
 
-def subjects_to_json(subjects):
+def subjects_to_dict(subjects):
     """Return JSON code suitable for passing 'subjects_ids' in AJAX call.
 
     Parameters
@@ -614,13 +614,12 @@ def subjects_to_json(subjects):
             tmp[ct] = []
         tmp[ct].append(sub.id)
 
-    result = {
-        ct.id: sub_ids for ct, sub_ids in tmp.items()
+    return {
+        ct.model: sub_ids for ct, sub_ids in tmp.items()
     }
-    return json.dumps(result)
 
 
-def subjects_from_json(subjects_ids_json, function=None):
+def subjects_from_dict(subjects_ids, function=None):
     """Return subject instances from ids given as json, optionally filtered.
 
     Parameters
@@ -643,7 +642,6 @@ def subjects_from_json(subjects_ids_json, function=None):
     sequence of subject instances (e.g. Topography or Surface)
 
     """
-    subjects_ids = json.loads(subjects_ids_json)
     subjects = []
     for subject_type_id_str, subject_object_ids in subjects_ids.items():
         ct = ContentType.objects.get_for_id(int(subject_type_id_str))  # keys in JSON hashes are always string
@@ -687,7 +685,7 @@ def surface_collection_name(surface_names, max_total_length=MAX_LENGTH_SURFACE_C
     return coll_name
 
 
-def selection_to_subjects_json(request):
+def selection_to_subjects_dict(request):
     """Convert current selection into list of subjects as json.
 
     If 2 or more surfaces are created, also adds a SurfaceCollection
@@ -752,9 +750,9 @@ def selection_to_subjects_json(request):
 
     # we collect effective topographies and surfaces because we have so far implementations
     # for analysis functions for topographies and surfaces
-    subjects_ids_json = subjects_to_json(effective_topographies + effective_surfaces + effective_surface_collections)
+    subjects_ids = subjects_to_dict(effective_topographies + effective_surfaces + effective_surface_collections)
 
-    return effective_topographies, effective_surfaces, subjects_ids_json
+    return effective_topographies, effective_surfaces, subjects_ids
 
 
 def mailto_link_for_reporting_an_error(subject, info, err_msg, traceback) -> str:

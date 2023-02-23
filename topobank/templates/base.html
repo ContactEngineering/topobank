@@ -504,7 +504,7 @@
       // var csrf_token = '{{ csrf_token }}';  // useful when doing AJAX calls from JS files
       // only create basket if target element exists
       //var basket = $('#basket').length ? create_basket('#basket', {{ basket_items_json|safe }}) : null;
-      var basket = $('#basket').length ? topobank.base.create_basket('#basket', event_hub, {
+      var basket = $('#basket').length ? topobank.base.createBasketApp('#basket', event_hub, {
         initial_basket_items: {{ basket_items_json | safe }},
         analysis_list_url: "{% url 'analysis:list' %}",
         manager_download_selection_url: "{% url 'manager:download-selection' %}",

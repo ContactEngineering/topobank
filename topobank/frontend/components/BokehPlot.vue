@@ -10,7 +10,7 @@
 /* globals Vue:false, Bokeh:false */
 
 export default {
-  name: 'plot',
+  name: 'bokeh-plot',
   props: {
     categories: {
       // Defining selection categories. For each category, there will be an accordion with the possibility to show/hide
@@ -545,7 +545,7 @@ export default {
             <ul v-if="plots.length > 1" class="nav nav-pills">
               <li v-for="(plot, index) in plots" class="nav-item">
                 <a :class="(index == 0)?'nav-link active':'nav-link'" :id="'plot-tab-'+uuid+'-'+index" :href="'#plot-'+uuid+'-'+index" data-toggle="tab" role="tab" :aria-controls="'plot-'+uuid+'-'+index" :aria-selected="index == 0">{{
-                    Plot.title
+                    BokehPlot.title
                   }}</a>
               </li>
             </ul>

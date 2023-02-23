@@ -20,10 +20,6 @@ Issues with the above approach:
 */
 $('.form-group').removeClass('row');
 
-function siSuffixMeters(numberOfSignificantFigures = 3) {
-  return d => d3.format("." + numberOfSignificantFigures + "s")(d)+ "m";
-}
-
 /*
  * Convert numerals inside a string into the unicode superscript equivalent, e.g.
  *   µm3 => µm³
@@ -102,7 +98,7 @@ function format_exponential(d, maxNumberOfDecimalPlaces) {
  * @param card_element_id {String} CSS id of the div element which has the class "card"
  * @param template_flavor {String} defines which template should be finally used (e.g. 'list', 'detail')
  * @param function_id {Number} Integer number of the analysis function which should be displayed
- * @param subjects_ids {Object} object where key: contenttype id and value: a list of object ids of the subjects
+ * @param subjects {Object} object where key: contenttype id and value: a list of object ids of the subjects
  *                          for which analyses should be displayed
  * @param call_count {Integer} 0 for first call in a chain of ajax calls, increased by one in further calls
  */
@@ -110,7 +106,8 @@ function submit_analyses_card_ajax(card_url,
                                    card_wrapper_element_id,
                                    card_element_id,
                                    template_flavor, function_id,
-                                   subjects_ids, call_count) {
+                                   subjects, call_count,
+                                   csrf_token) {
     const jquery_card_wrapper_selector = "#" + card_wrapper_element_id;
 
       $.ajax({
@@ -121,7 +118,7 @@ function submit_analyses_card_ajax(card_url,
            card_id: card_element_id,
            template_flavor: template_flavor,
            function_id: function_id,
-           subjects_ids_json: JSON.stringify(subjects_ids),
+           subjects: subjects,
            csrfmiddlewaretoken: csrf_token
         },
         success : function(data, textStatus, xhr) {
@@ -135,7 +132,7 @@ function submit_analyses_card_ajax(card_url,
               setTimeout(function () {
                   submit_analyses_card_ajax(card_url, card_wrapper_element_id, card_element_id,
                       template_flavor, function_id,
-                      subjects_ids, call_count + 1);
+                      subjects, call_count + 1);
               }, 1000);
           }
         },
@@ -152,7 +149,7 @@ function submit_analyses_card_ajax(card_url,
                   card_element_id: card_element_id,
                   template_flavor: template_flavor,
                   function_id: function_id,
-                  subjects_ids: subjects_ids,
+                  subjects: subjects,
                   call_count: call_count
               };
               let message = `

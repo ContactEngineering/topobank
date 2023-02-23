@@ -64,7 +64,7 @@
       submit_analyses_card_ajax("{% url 'analysis:card' %}",
         "card-wrapper", "card", "detail",
         {{ card.function.id }},
-        {{ card.subjects_ids_json|safe }}, 0);
+        {{ card.subjects|safe }}, 0, "{{ csrf_token }}");
 
       // we want that closing an item in the basket
       // does unselect it and reload the analyses

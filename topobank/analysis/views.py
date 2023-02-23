@@ -15,7 +15,10 @@ from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect, reverse
 from django.conf import settings
 
-import bokeh
+from rest_framework.generics import ListAPIView
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.response import Response
+
 import bokeh.palettes as palettes
 
 from pint import UnitRegistry, UndefinedUnitError
@@ -23,7 +26,7 @@ from pint import UnitRegistry, UndefinedUnitError
 from trackstats.models import Metric
 
 from ..manager.models import Topography, Surface, SurfaceCollection
-from ..manager.utils import instances_to_selection, selection_to_subjects_json, subjects_from_json, subjects_to_json
+from ..manager.utils import instances_to_selection, selection_to_subjects_dict, subjects_from_dict, subjects_to_dict
 from ..usage_stats.utils import increase_statistics_by_date_and_object
 from .models import Analysis, AnalysisFunction, AnalysisCollection
 from .forms import FunctionSelectForm
@@ -169,7 +172,7 @@ class SimpleCardView(TemplateView):
         try:
             function_id = int(request_method.get('function_id'))
             card_id = request_method.get('card_id')
-            subjects_ids_json = request_method.get('subjects_ids_json')
+            subjects = request_method.get('subjects')
         except Exception as exc:
             _log.error("Cannot decode POST arguments from analysis card request. Details: %s", exc)
             raise
@@ -177,11 +180,11 @@ class SimpleCardView(TemplateView):
         function = AnalysisFunction.objects.get(id=function_id)
 
         # Calculate subjects for the analyses, filtered for those which have an implementation
-        subjects_requested = subjects_from_json(subjects_ids_json, function=function)
+        subjects_requested = subjects_from_dict(subjects, function=function)
 
         # The following is needed for re-triggering analyses, now filtered
         # in order to trigger only for subjects which have an implementation
-        subjects_ids_json = subjects_to_json(subjects_requested)
+        subjects = subjects_to_dict(subjects_requested)
 
         #
         # Find the latest analyses for which the user has read permission for the related data
@@ -306,7 +309,6 @@ class SimpleCardView(TemplateView):
         # comprise context for analysis result card
         #
         context.update(dict(
-            bokeh_version=bokeh.__version__,  # is there a way to inject this globally?
             card_id=card_id,
             title=function.name,
             function=function,
@@ -316,7 +318,7 @@ class SimpleCardView(TemplateView):
             analyses_failure=analyses_failure,  # ..the ones which have failures and can't be displayed
             analyses_unready=analyses_unready,  # ..the ones which are still running
             subjects_missing=subjects_missing,  # subjects for which there is no Analysis object yet
-            subjects_ids_json=subjects_ids_json,  # can be used to re-trigger analyses
+            subjects=subjects,  # can be used to re-trigger analyses
             extra_warnings=[],  # use list of dicts of form {'alert_class': 'alert-info', 'message': 'your message'},
             analyses_renew_url=reverse('analysis:renew'),
             dois=dois,
@@ -727,10 +729,10 @@ def submit_analyses_view(request):
     # args_dict = request_method
     try:
         function_id = int(request_method.get('function_id'))
-        subjects_ids_json = request_method.get('subjects_ids_json')
+        subjects = request_method.get('subjects')
         function_kwargs_json = request_method.get('function_kwargs_json')
         function_kwargs = json.loads(function_kwargs_json)
-        subjects = subjects_from_json(subjects_ids_json)
+        subjects = subjects_from_dict(subjects)
     except (KeyError, ValueError, TypeError, json.JSONDecodeError):
         return JsonResponse({'error': 'error in request data'}, status=400)
 
@@ -877,10 +879,9 @@ class AnalysisFunctionDetailView(DetailView):
             raise PermissionDenied()
 
         # filter subjects to those this user is allowed to see
-        effective_topographies, effective_surfaces, subjects_ids_json = selection_to_subjects_json(self.request)
+        effective_topographies, effective_surfaces, subjects = selection_to_subjects_dict(self.request)
 
-        card = dict(function=function,
-                    subjects_ids_json=subjects_ids_json)
+        card = dict(function=function, subjects=subjects)
 
         context['card'] = card
 
@@ -1002,15 +1003,18 @@ class AnalysesListView(FormView):
 
         selected_functions = self._selected_functions(self.request)
 
-        effective_topographies, effective_surfaces, subjects_ids_json = selection_to_subjects_json(self.request)
+        effective_topographies, effective_surfaces, subjects = selection_to_subjects_dict(self.request)
 
         # for displaying result card, we need a dict for each card,
         # which then can be used to load the result data in the background
         cards = []
+        reg = AnalysisRegistry()
         for function in selected_functions:
+            analysis_result_type = reg.get_analysis_result_type_for_function_name(function.name)
             cards.append(dict(id=f"card-{function.pk}",
                               function=function,
-                              subjects_ids_json=subjects_ids_json))
+                              analysis_result_type=analysis_result_type,
+                              subjects=subjects))
 
         context['cards'] = cards
 
