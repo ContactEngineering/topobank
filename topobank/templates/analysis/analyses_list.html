@@ -50,9 +50,11 @@
 {% endwith %}
 <script>
   topobank.{{ card.analysis_result_type }}_card.createCardApp('#{{ card.id }}-app', {
+    apiUrl: "{% url 'analysis:card' %}",
+    csrfToken: '{{ csrf_token }}',
     functionId: '{{ card.function.id }}',
     functionName: '{{ card.function.name }}',
-    subjectIds: JSON.parse(document.getElementById('{{ card.id }}-subjects').textContent)
+    subjects: JSON.parse(document.getElementById('{{ card.id }}-subjects').textContent)
   });
 </script>
 {% endfor %}

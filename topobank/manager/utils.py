@@ -615,11 +615,11 @@ def subjects_to_dict(subjects):
         tmp[ct].append(sub.id)
 
     return {
-        ct.model: sub_ids for ct, sub_ids in tmp.items()
+        f'{ct.app_label}_{ct.model}': sub_ids for ct, sub_ids in tmp.items()
     }
 
 
-def subjects_from_dict(subjects_ids, function=None):
+def subjects_from_dict(subjects_dict, function=None):
     """Return subject instances from ids given as json, optionally filtered.
 
     Parameters
@@ -643,14 +643,15 @@ def subjects_from_dict(subjects_ids, function=None):
 
     """
     subjects = []
-    for subject_type_id_str, subject_object_ids in subjects_ids.items():
-        ct = ContentType.objects.get_for_id(int(subject_type_id_str))  # keys in JSON hashes are always string
+    for subject_app_label_and_model, subject_ids in subjects_dict.items():
+        app_label, model = subject_app_label_and_model.rsplit('_', 1)
+        ct = ContentType.objects.get_by_natural_key(app_label, model)
         if function:
             if not function.is_implemented_for_type(ct):
                 # skip these subjects
                 continue
         query = None
-        for so_id in subject_object_ids:
+        for so_id in subject_ids:
             q = Q(id=so_id)
             query = q if query is None else query | q
         if query is None:

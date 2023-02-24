@@ -8,10 +8,13 @@ export default {
     BokehPlot
   },
   props: {
-    functionName: String,
-    subjectIds: Object,
+    apiUrl: String,
+    csrfToken: String,
+    downloadXlsUrl: String,
     downloadTxtUrl: String,
-    downloadXlsUrl: String
+    functionId: Number,
+    functionName: String,
+    subjects: Object
   },
   data() {
     return {
@@ -19,6 +22,21 @@ export default {
       analyses_available: false,
       has_warnings: false
     }
+  },
+  mounted() {
+    /* Fetch JSON describing the card */
+    fetch(this.apiUrl, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'X-CSRFToken': this.csrfToken
+      },
+      body: JSON.stringify({
+        function_id: this.functionId,
+        subjects: this.subjects
+      })
+    })
   }
 }
 </script>
@@ -78,7 +96,9 @@ export default {
 
       <div class="tab-content">
         <div class="tab-pane show active" id="plot-tab-{{ card_id }}" role="tabpanel" aria-label="Tab showing a plot">
-          {{ subjectIds }}
+          {{ cardId }}
+          {{ functionId }}
+          {{ subjects }}
           <!-- {% include 'analysis/analyses_alerts.html' %} -->
           <!--
           <bokeh-plot

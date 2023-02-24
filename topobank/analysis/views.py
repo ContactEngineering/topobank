@@ -7,17 +7,17 @@ from collections import OrderedDict
 
 from django.contrib.contenttypes.models import ContentType
 from django.http import HttpResponse, Http404, JsonResponse
-from django.views.generic import DetailView, FormView, TemplateView
+from django.views.generic import DetailView, FormView
 from django.urls import reverse_lazy
-from django import template
 from django.core.files.storage import default_storage
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect, reverse
 from django.conf import settings
 
-from rest_framework.generics import ListAPIView
-from rest_framework.pagination import PageNumberPagination
+from rest_framework import status
+from rest_framework.decorators import api_view
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 import bokeh.palettes as palettes
 
@@ -44,7 +44,8 @@ MAX_NUM_POINTS_FOR_SYMBOLS = 50
 LINEWIDTH_FOR_SURFACE_AVERAGE = 4
 
 
-def switch_card_view(request):
+@api_view(['GET', 'POST'])
+def card_view_dispatch(request):
     """Selects appropriate card view upon request.
 
     Within the request, there is hint to which function
@@ -60,11 +61,8 @@ def switch_card_view(request):
     :param request:
     :return: HTTPResponse
     """
-    if not request.is_ajax():
-        return Http404
-
     try:
-        function_id = int(request.POST.get('function_id'))
+        function_id = int(request.data.get('function_id'))
     except (KeyError, ValueError, TypeError):
         return HttpResponse("Error in POST arguments")
 
@@ -79,79 +77,34 @@ def switch_card_view(request):
     metric = Metric.objects.ANALYSES_RESULTS_VIEW_COUNT
     increase_statistics_by_date_and_object(metric, obj=function)
 
-    return view_class.as_view()(request)
+    #return view_class.as_view()(request)
+    context = view_class.get_context_data(request.data, request.user)
 
+    # Returns status code
+    #
+    # - 200 if all analysis are finished (success or failure).
+    # - 202 if there are still analyses which not have been finished,
+    #   this can be used to request the card again later
 
-def _subject_colors(analyses):
-    """Return dict with mapping from subject to color for plotting.
+    num_analyses_avail = len(context['analyses_available'])
+    num_analyses_ready = len(context['analyses_success']) + len(context['analyses_failure'])
 
-    Parameters
-    ----------
-    analyses
-
-    Returns
-    -------
-    dict with key: subject, value: color string suitable or bokeh
-    """
-    pass
+    if (num_analyses_avail > 0) and (num_analyses_ready < num_analyses_avail):
+        return Response(context, status=status.HTTP_202_ACCEPTED)  # signal to caller: please request again
+    else:
+        return Response(context, status=status.HTTP_200_OK)  # request is as complete as possible
 
 
 @register_card_view_class('generic')
-class SimpleCardView(TemplateView):
-    """Very basic display of results. Base class for more complex views.
-
-    Must be used in an AJAX call.
-    """
-
-    template_name_pattern = "analysis/simple_card_{template_flavor}.html"
-
-    def _template_name(self, template_flavor, pat=None):
-        """Build template name.
-
-        Parameters
-        ----------
-        template_flavor: str
-            Template flavor, e.g. 'list' and 'detail'.
-        """
-        if pat is None:
-            pat = self.template_name_pattern
-
-        return pat.format(template_flavor=template_flavor)
-
-    def get_template_names(self):
-        """Return list of possible templates.
-
-        Uses request parameter 'template_flavor'.
-        """
-        try:
-            template_flavor = self.request.POST.get('template_flavor')
-        except (KeyError, ValueError):
-            raise ValueError("Cannot read 'template_flavor' from POST arguments.")
-
-        if template_flavor is None:
-            raise ValueError("Missing 'template_flavor' in POST arguments.")
-
-        template_name = self._template_name(template_flavor)
-
-        #
-        # If template does not exist, return SimpleCardView template
-        #
-        try:
-            template.loader.get_template(template_name)
-        except template.TemplateDoesNotExist:
-            _log.warning(f"Template '{template_name}' not found. Falling back to simple card template.")
-            template_name = self._template_name(template_flavor, SimpleCardView.template_name_pattern)
-
-        return [template_name]
-
-    def get_context_data(self, **kwargs):
+class SimpleCardView(APIView):
+    @staticmethod
+    def get_context_data(data, user):
         """Gets function ids and subject ids from POST parameters.
 
         :return: dict to be used in analysis card templates' context
 
         The returned dict has the following keys:
 
-          card_id: A CSS id referencing the card which is to be delivered
           title: card title
           function: AnalysisFunction instance
           unique_kwargs: dict with common kwargs for all analyses, None if not unique
@@ -163,19 +116,17 @@ class SimpleCardView(TemplateView):
           subjects_requested_json: json representation of list with all requested subjects as 2-tuple
                                    (subject_type.id, subject.id)
         """
-        context = super().get_context_data(**kwargs)
-
-        request = self.request
-        request_method = request.POST
-        user = request.user
-
         try:
-            function_id = int(request_method.get('function_id'))
-            card_id = request_method.get('card_id')
-            subjects = request_method.get('subjects')
+            function_id = int(data.get('function_id'))
+            subjects = data.get('subjects')
         except Exception as exc:
-            _log.error("Cannot decode POST arguments from analysis card request. Details: %s", exc)
+            _log.error("Cannot decode arguments from analysis card request. Details: %s", exc)
             raise
+
+        if function_id is None:
+            raise Http404("Missing parameter `function_id`")
+        if subjects is None:
+            raise Http404("Missing parameter `subjects")
 
         function = AnalysisFunction.objects.get(id=function_id)
 
@@ -200,7 +151,7 @@ class SimpleCardView(TemplateView):
         #
         # collect all keyword arguments and check whether they are equal
         #
-        unique_kwargs: Dict[ContentType, Optional[Any]] = {}  # key: ContentType, value: dict or None
+        unique_kwargs: Dict[str, Optional[Any]] = {}  # key: ContentType, value: dict or None
         # - if a contenttype is missing as key, this means:
         #   There are no analyses available for this contenttype
         # - if a contenttype exists, but value is None, this means:
@@ -209,11 +160,13 @@ class SimpleCardView(TemplateView):
         for analysis in analyses_available:
             kwargs = pickle.loads(analysis.kwargs)
 
-            if analysis.subject_type not in unique_kwargs:
-                unique_kwargs[analysis.subject_type] = kwargs
-            elif unique_kwargs[analysis.subject_type] is not None:  # was unique so far
-                if kwargs != unique_kwargs[analysis.subject_type]:
-                    unique_kwargs[analysis.subject_type] = None
+            subject_type_str = f'{analysis.subject_type.app_label}_{analysis.subject_type.name}'
+
+            if subject_type_str not in unique_kwargs:
+                unique_kwargs[subject_type_str] = kwargs
+            elif unique_kwargs[subject_type_str] is not None:  # was unique so far
+                if kwargs != unique_kwargs[subject_type_str]:
+                    unique_kwargs[subject_type_str] = None
                     # Found differing arguments for this subject_type
                     # We need to continue in the loop, because of the other subject types
 
@@ -308,10 +261,9 @@ class SimpleCardView(TemplateView):
         #
         # comprise context for analysis result card
         #
-        context.update(dict(
-            card_id=card_id,
+        return dict(
             title=function.name,
-            function=function,
+            function_id=function.id         ,
             unique_kwargs=unique_kwargs,
             analyses_available=analyses_available,  # all Analysis objects related to this card
             analyses_success=analyses_success,  # ..the ones which were successful and can be displayed
@@ -322,47 +274,32 @@ class SimpleCardView(TemplateView):
             extra_warnings=[],  # use list of dicts of form {'alert_class': 'alert-info', 'message': 'your message'},
             analyses_renew_url=reverse('analysis:renew'),
             dois=dois,
-        ))
+        )
 
-        return context
 
-    def post(self, request, *args, **kwargs):
-        """
-        Returns status code
+    def post(self, request, format=None):
+        context = self.get_context_data(request.data, request.user)
 
-        - 200 if all analysis are finished (success or failure).
-        - 202 if there are still analyses which not have been finished,
-          this can be used to request the card again later
-
-        :param request:
-        :param args:
-        :param kwargs:
-        :return:
-        """
-        response = super().get(request, *args, **kwargs)
-
+        # Returns status code
         #
-        # Set status code depending on whether all analyses are finished
-        #
-        context = response.context_data
+        # - 200 if all analysis are finished (success or failure).
+        # - 202 if there are still analyses which not have been finished,
+        #   this can be used to request the card again later
+
         num_analyses_avail = len(context['analyses_available'])
         num_analyses_ready = len(context['analyses_success']) + len(context['analyses_failure'])
 
         if (num_analyses_avail > 0) and (num_analyses_ready < num_analyses_avail):
-            response.status_code = 202  # signal to caller: please request again
+            return Response(context, status=status.HTTP_202_ACCEPTED)  # signal to caller: please request again
         else:
-            response.status_code = 200  # request is as complete as possible
-
-        return response
+            return Response(context, status=status.HTTP_200_OK)  # request is as complete as possible
 
 
 @register_card_view_class(ART_SERIES)
 class PlotCardView(SimpleCardView):
-
-    template_name_pattern = "analysis/plot_card_{template_flavor}.html"
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
+    @staticmethod
+    def get_context_data(data, user):
+        context = SimpleCardView.get_context_data(data, user)
         extra_warnings = []
         analyses_success = context['analyses_success']
 
@@ -660,6 +597,9 @@ class PlotCardView(SimpleCardView):
             },
         ])
         context['extra_warnings'] = extra_warnings
+
+        print(context)
+
 
         return context
 

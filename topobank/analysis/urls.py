@@ -53,7 +53,7 @@ urlpatterns = [
     ),
     path(
         'card/',
-        view=login_required(views.switch_card_view),
+        view=login_required(views.card_view_dispatch),
         name='card'
     ),
 ]
