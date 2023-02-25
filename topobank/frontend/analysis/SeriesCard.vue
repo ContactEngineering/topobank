@@ -18,9 +18,13 @@ export default {
   },
   data() {
     return {
-      title: 'Test',
-      analyses_available: false,
-      has_warnings: false
+      analysesAvailable: false,
+      categories: undefined,
+      dataSources: undefined,
+      hasWarnings: false,
+      outputBackend: undefined,
+      plots: undefined,
+      title: this.functionName
     }
   },
   mounted() {
@@ -37,6 +41,22 @@ export default {
         subjects: this.subjects
       })
     })
+        .then(response => response.json())
+        .then(data => {
+          console.log(data);
+          this.title = data.title;
+          this.plots = [{
+            title:"default",
+            xAxisLabel:data.x_axis_label,
+            yAxisLabel:data.y_axis_label,
+            xAxisType:data.x_axis_type,
+            yAxisType:data.y_axis_type
+          }];
+          this.dataSources = data.data_sources;
+          this.categories = data.categories;
+          this.outputBackend = data.outputBackend;
+          this.analysesAvailable = true;
+        });
   }
 }
 </script>
@@ -50,11 +70,11 @@ export default {
       <div class="btn-group btn-group-sm float-right">
         <!--
         <button v-if="!analyses_unready" class="btn btn-primary btn-sm float-right" href="#" data-toggle="modal"
-                data-target="#statusesModal-{{ card_id }}">{% fa5_icon 'tasks' %} Tasks
+                data-target="#statusesModal">{% fa5_icon 'tasks' %} Tasks
         </button>
         -->
         <button class="btn btn-default btn-sm float-right" href="#" data-toggle="modal"
-                data-target="#statusesModal-{{ card_id }}">Tasks
+                data-target="#statusesModal">Tasks
         </button>
         <div class="btn-group btn-group-sm float-right dropdown">
           <a href="{% url 'analysis:function-detail' function.pk %}" class="btn btn-default float-right open-btn">
@@ -78,37 +98,37 @@ export default {
             {% endif %}
             -->
             <a class="dropdown-item" href="#" data-toggle="modal"
-               data-target="#doisModal-{{ card_id }}">References</a>
+               data-target="#doisModal">References</a>
           </div>
         </div>
       </div>
-      <h5>{{ functionName }}</h5>
+      <h5>{{ title }}</h5>
     </div>
     <div class="card-body">
       <ul v-if="has_warnings" class="nav nav-tabs">
         <li class="nav-item" style="list-style-type: none;">
-          <a class="nav-link active" data-toggle="tab" href="#plot-tab-{{ card_id }}">Plot</a>
+          <a class="nav-link active" data-toggle="tab" href="#plot-tab">Plot</a>
         </li>
         <li class="nav-item" style="list-style-type: none;">
-          <a class="nav-link" data-toggle="tab" href="#warnings-tab-{{ card_id }}">Warnings</a>
+          <a class="nav-link" data-toggle="tab" href="#warnings-tab">Warnings</a>
         </li>
       </ul>
 
-      <div class="tab-content">
-        <div class="tab-pane show active" id="plot-tab-{{ card_id }}" role="tabpanel" aria-label="Tab showing a plot">
-          {{ cardId }}
-          {{ functionId }}
-          {{ subjects }}
+      <div v-if="!analysesAvailable" class="tab-content">
+        <span class="spinner"></span>
+        <div>Please wait...</div>
+      </div>
+
+      <div v-if="analysesAvailable" class="tab-content">
+        <div class="tab-pane show active" id="plot-tab" role="tabpanel" aria-label="Tab showing a plot">
           <!-- {% include 'analysis/analyses_alerts.html' %} -->
-          <!--
           <bokeh-plot
-              :plots='[{title:"default", xAxisLabel:"{{ x_axis_label }}", yAxisLabel:"{{ y_axis_label }}", xAxisType:"{{ x_axis_type }}", yAxisType:"{{ y_axis_type }}"}]'
-              :categories='{{ categories|safe }}'
-              :data-sources='{{ data_sources|safe }}'
-              output-backend="{{ output_backend }}"
+              :plots="this.plots"
+              :categories="this.categories"
+              :data-sources="this.dataSources"
+              :output-backend="this.outputBackend"
               ref="plot">
           </bokeh-plot>
-          -->
         </div>
         <!--
         {% include 'analysis/analyses_warnings_tab_pane.html' %}

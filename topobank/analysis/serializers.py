@@ -15,15 +15,15 @@ _log = logging.getLogger(__name__)
 
 class AnalysisSerializer(serializers.ModelSerializer):
     kwargs = serializers.SerializerMethodField()
-    subject = GenericRelatedField({
-        Surface: SurfaceSerializer(),
-        Topography: TopographySerializer()
-    })
+    subject_type = serializers.SerializerMethodField()
 
     def get_kwargs(self, obj):
         return pickle.loads(obj.kwargs)
 
+    def get_subject_type(self, obj):
+        return mangle_content_type(obj.subject_type)
+
     class Meta:
         model = Analysis
-        fields = ['pk', 'function', 'subject', 'kwargs', 'task_state', 'creation_time',
+        fields = ['pk', 'function', 'subject_id', 'subject_type', 'kwargs', 'task_state', 'creation_time',
                   'start_time', 'end_time', 'dois', 'configuration']

@@ -9,6 +9,19 @@
 /* jshint strict:true */
 /* globals Vue:false, Bokeh:false */
 
+import {
+  AjaxDataSource,
+  Circle,
+  CustomJS,
+  CustomJSTickFormatter,
+  HoverTool,
+  Legend,
+  LegendItem,
+  Plotting,
+  SaveTool,
+  TapTool
+} from '@bokeh/bokehjs';
+
 export default {
   name: 'bokeh-plot',
   props: {
@@ -151,25 +164,25 @@ export default {
       switch (layout) {
         case 'web':
           for (const plot of this.bokehPlots) {
-            Plot.figure.sizing_mode = "scale_width";
-            Plot.figure.width = null;
-            Plot.figure.height = 300;
+            plot.figure.sizing_mode = "scale_width";
+            plot.figure.width = null;
+            plot.figure.height = 300;
           }
           this.symbolSize = 10;
           break;
         case 'print-single':
           for (const plot of this.bokehPlots) {
-            Plot.figure.sizing_mode = "fixed";
-            Plot.figure.width = 600;
-            Plot.figure.height = 300;
+            plot.figure.sizing_mode = "fixed";
+            plot.figure.width = 600;
+            plot.figure.height = 300;
           }
           this.symbolSize = 5;
           break;
         case 'print-double':
           for (const plot of this.bokehPlots) {
-            Plot.figure.sizing_mode = "fixed";
-            Plot.figure.width = 400;
-            Plot.figure.height = 250;
+            plot.figure.sizing_mode = "fixed";
+            plot.figure.width = 400;
+            plot.figure.height = 250;
           }
           this.symbolSize = 5;
           break;
@@ -259,7 +272,7 @@ export default {
         for (const plot of this.plots) {
           /* Callback for selection of data points */
           let tools = ["pan", "reset", "wheel_zoom", "box_zoom",
-            new Bokeh.HoverTool({
+            new HoverTool({
               'tooltips': [
                 ['index', '$index'],
                 ['(x,y)', '($x,$y)'],
@@ -271,27 +284,27 @@ export default {
           // let tools = [...this.tools];  // Copy array (= would just be a reference)
           if (this.selectable) {
             const code = "self.onTap(cb_obj, cb_data);";
-            tools.push(new Bokeh.TapTool({
+            tools.push(new TapTool({
               behavior: "select",
-              callback: new Bokeh.CustomJS({
+              callback: new CustomJS({
                 args: {self: this},
                 code: code
               })
             }));
           }
-          const saveTool = new Bokeh.SaveTool();
+          const saveTool = new SaveTool();
           tools.push(saveTool);
 
           /* Determine type of x and y-axis */
-          const xAxisType = Plot.xAxisType === undefined ? "linear" : Plot.xAxisType;
-          const yAxisType = Plot.yAxisType === undefined ? "linear" : Plot.yAxisType;
+          const xAxisType = plot.xAxisType === undefined ? "linear" : plot.xAxisType;
+          const yAxisType = plot.yAxisType === undefined ? "linear" : plot.yAxisType;
 
           /* Create and style figure */
-          const bokehPlotFigure = new Bokeh.Plotting.Figure({
+          const bokehPlotFigure = new Plotting.Figure({
             height: this.height,
             sizing_mode: this.sizingMode,
-            x_axis_label: Plot.xAxisLabel === undefined ? "x" : Plot.xAxisLabel,
-            y_axis_label: Plot.yAxisLabel === undefined ? "y" : Plot.yAxisLabel,
+            x_axis_label: plot.xAxisLabel === undefined ? "x" : plot.xAxisLabel,
+            y_axis_label: plot.yAxisLabel === undefined ? "y" : plot.yAxisLabel,
             x_axis_type: xAxisType,
             y_axis_type: yAxisType,
             tools: tools,
@@ -300,10 +313,10 @@ export default {
 
           /* Change formatters for linear axes */
           if (xAxisType === "linear") {
-            bokehPlotFigure.xaxis.formatter = new Bokeh.CustomJSTickFormatter({code: "return format_exponential(tick);"});
+            bokehPlotFigure.xaxis.formatter = new CustomJSTickFormatter({code: "return format_exponential(tick);"});
           }
           if (yAxisType === "linear") {
-            bokehPlotFigure.yaxis.formatter = new Bokeh.CustomJSTickFormatter({code: "return format_exponential(tick);"});
+            bokehPlotFigure.yaxis.formatter = new CustomJSTickFormatter({code: "return format_exponential(tick);"});
           }
 
           /* This should become a Bokeh theme (supported in BokehJS with 3.0 - but I cannot find the `use_theme` method) */
@@ -340,8 +353,8 @@ export default {
           };
 
           /* Default is x and y */
-          let xData = Plot.xData === undefined ? "data.x" : Plot.xData;
-          let yData = Plot.yData === undefined ? "data.y" : Plot.yData;
+          let xData = plot.xData === undefined ? "data.x" : plot.xData;
+          let yData = plot.yData === undefined ? "data.y" : plot.yData;
 
           /* Scale data if scale factor is given */
           if (dataSource.xScaleFactor !== undefined) {
@@ -353,13 +366,13 @@ export default {
 
           /* Construct conversion function */
           let code = "const data = cb_data.response; return { x: " + xData + ", y: " + yData;
-          if (Plot.auxiliaryDataColumns !== undefined) {
-            for (const [columnName, auxData] of Object.entries(Plot.auxiliaryDataColumns)) {
+          if (plot.auxiliaryDataColumns !== undefined) {
+            for (const [columnName, auxData] of Object.entries(plot.auxiliaryDataColumns)) {
               code += ", " + columnName + ": " + auxData;
             }
           }
-          if (Plot.alphaData !== undefined) {
-            code += ", alpha: " + Plot.alphaData;
+          if (plot.alphaData !== undefined) {
+            code += ", alpha: " + plot.alphaData;
             attrs.alpha = {field: "alpha"};
           }
           if (dataSource.subject_name !== undefined) {
@@ -375,13 +388,13 @@ export default {
           code += " }";
 
           /* Data source: AJAX GET request to storage system retrieving a JSON */
-          const source = new Bokeh.AjaxDataSource({
+          const source = new AjaxDataSource({
             name: dataSource.source_name,
             data_url: dataSource.url,
             method: "GET",
             content_type: "",
             syncable: false,
-            adapter: new Bokeh.CustomJS({code})
+            adapter: new CustomJS({code})
           });
           bokehPlot.sources.unshift(source);
 
@@ -415,10 +428,10 @@ export default {
                 }
               });
           const alphaAttrs = {};
-          if (Plot.alphaData !== undefined) {
+          if (plot.alphaData !== undefined) {
             alphaAttrs.fill_alpha = {field: "alpha"};
           }
-          circle.selection_glyph = new Bokeh.Circle({
+          circle.selection_glyph = new Circle({
             ...alphaAttrs,
             ...{
               fill_color: attrs.color,
@@ -426,7 +439,7 @@ export default {
               line_width: 4
             }
           });
-          circle.nonselection_glyph = new Bokeh.Circle({
+          circle.nonselection_glyph = new Circle({
             ...alphaAttrs,
             ...{
               fill_color: attrs.color,
@@ -440,7 +453,7 @@ export default {
           /* Create legend */
           if (!legendLabels.has(legend_label)) {
             legendLabels.add(legend_label);
-            const item = new Bokeh.LegendItem({
+            const item = new LegendItem({
               label: legend_label,
               renderers: dataSource.showSymbols ? [circle, line] : [line],
               visible: dataSource.visible
@@ -454,9 +467,9 @@ export default {
       /* Render figure(s) to HTML div */
       if (isNewPlot) {
         for (const [index, bokehPlot] of this.bokehPlots.entries()) {
-          bokehPlot.legend = new Bokeh.Legend({items: bokehPlot.legendItems, visible: false});
+          bokehPlot.legend = new Legend({items: bokehPlot.legendItems, visible: false});
           bokehPlot.figure.add_layout(bokehPlot.legend);
-          Bokeh.Plotting.show(bokehPlot.figure, "#bokeh-plot-" + this.uuid + "-" + index);
+          Plotting.show(bokehPlot.figure, "#bokeh-plot-" + this.uuid + "-" + index);
         }
       }
     },
@@ -533,7 +546,8 @@ export default {
 <template>
   <div>
     <div class="tab-content">
-      <div v-for="(plot, index) in plots" :class="(index == 0)?'tab-pane fade show active':'tab-pane fade'" :id="'plot-'+uuid+'-'+index" role="tabpanel" :aria-labelledby="'plot-tab-'+uuid+'-'+index">
+      <div v-for="(plot, index) in plots" :class="(index == 0)?'tab-pane fade show active':'tab-pane fade'"
+           :id="'plot-'+uuid+'-'+index" role="tabpanel" :aria-labelledby="'plot-tab-'+uuid+'-'+index">
         <div :id='"bokeh-plot-"+uuid+"-"+index' ref="bokehPlot"></div>
       </div>
     </div>
@@ -544,8 +558,10 @@ export default {
             <!-- Navigation pills for each individual plot, but only if there is more than one -->
             <ul v-if="plots.length > 1" class="nav nav-pills">
               <li v-for="(plot, index) in plots" class="nav-item">
-                <a :class="(index == 0)?'nav-link active':'nav-link'" :id="'plot-tab-'+uuid+'-'+index" :href="'#plot-'+uuid+'-'+index" data-toggle="tab" role="tab" :aria-controls="'plot-'+uuid+'-'+index" :aria-selected="index == 0">{{
-                    BokehPlot.title
+                <a :class="(index == 0)?'nav-link active':'nav-link'" :id="'plot-tab-'+uuid+'-'+index"
+                   :href="'#plot-'+uuid+'-'+index" data-toggle="tab" role="tab" :aria-controls="'plot-'+uuid+'-'+index"
+                   :aria-selected="index == 0">{{
+                    bokehPlot.title
                   }}</a>
               </li>
             </ul>
@@ -592,7 +608,7 @@ export default {
                      :for='"switch-"+uuid+"-"+category.key+"-"+index'>
                 <span class="dot" v-if="element.color !== null" :style='"background-color: "+element.color'></span>
                 <span v-if="element.has_parent">└─ </span>
-                  {{ element.title }}
+                {{ element.title }}
               </label>
             </div>
           </div>
@@ -619,8 +635,8 @@ export default {
             <div v-if="optionsWidgets.includes('layout')" class="form-group">
               <label :for='"plot-layout-"+uuid' hidden>Plot layout:</label>
               <select class="form-control"
-                     :id='"plot-layout-"+uuid'
-                     v-model="layout">
+                      :id='"plot-layout-"+uuid'
+                      v-model="layout">
                 <option value="web">Optimize plot for web (plot scales with window size)</option>
                 <option value="print-single">Optimize plot for print (single-column layout)</option>
                 <option value="print-double">Optimize plot for print (two-column layout)</option>
@@ -630,8 +646,8 @@ export default {
             <div v-if="optionsWidgets.includes('legend')" class="form-group">
               <label :for='"plot-legend-"+uuid' hidden>Legend:</label>
               <select class="form-control"
-                     :id='"plot-legend-"+uuid'
-                     v-model="legendLocation">
+                      :id='"plot-legend-"+uuid'
+                      v-model="legendLocation">
                 <option value="off">Do not show legend</option>
                 <option value="top_right">Show legend top right</option>
                 <option value="top_left">Show legend top left</option>
@@ -663,7 +679,9 @@ export default {
             </div>
 
             <div v-if="optionsWidgets.includes('opacity')" class="form-group">
-              <label :for='"opacity-slider-"+uuid'>Opacity of lines/symbols (measurements only): <b>{{ opacity }}</b></label>
+              <label :for='"opacity-slider-"+uuid'>Opacity of lines/symbols (measurements only): <b>{{
+                  opacity
+                }}</b></label>
               <input :id='"opacity-slider-"+uuid'
                      type="range"
                      min="0"

@@ -28,12 +28,13 @@ from trackstats.models import Metric
 from ..manager.models import Topography, Surface, SurfaceCollection
 from ..manager.utils import instances_to_selection, selection_to_subjects_dict, subjects_from_dict, subjects_to_dict
 from ..usage_stats.utils import increase_statistics_by_date_and_object
-from .models import Analysis, AnalysisFunction, AnalysisCollection
 from .forms import FunctionSelectForm
+from .functions import ART_SERIES
+from .models import Analysis, AnalysisFunction, AnalysisCollection
 from .utils import get_latest_analyses, request_analysis, renew_analysis, filter_and_order_analyses, \
     palette_for_topographies
 from .registry import AnalysisRegistry, register_card_view_class
-from .functions import ART_SERIES
+from .serializers import AnalysisSerializer
 
 import logging
 
@@ -46,7 +47,7 @@ LINEWIDTH_FOR_SURFACE_AVERAGE = 4
 
 @api_view(['GET', 'POST'])
 def card_view_dispatch(request):
-    """Selects appropriate card view upon request.
+    """Selects appropri ate card view upon request.
 
     Within the request, there is hint to which function
     the request is related to. Depending on the function,
@@ -77,8 +78,13 @@ def card_view_dispatch(request):
     metric = Metric.objects.ANALYSES_RESULTS_VIEW_COUNT
     increase_statistics_by_date_and_object(metric, obj=function)
 
-    #return view_class.as_view()(request)
     context = view_class.get_context_data(request.data, request.user)
+
+    #
+    # context contains models that need to be serialized
+    #
+    for key in ['analyses_available', 'analyses_success', 'analyses_failure', 'analyses_unready']:
+        context[key] = [AnalysisSerializer(a).data for a in context[key]]
 
     # Returns status code
     #
@@ -96,7 +102,7 @@ def card_view_dispatch(request):
 
 
 @register_card_view_class('generic')
-class SimpleCardView(APIView):
+class SimpleCardView:
     @staticmethod
     def get_context_data(data, user):
         """Gets function ids and subject ids from POST parameters.
@@ -111,7 +117,7 @@ class SimpleCardView(APIView):
           analyses_available: list of all analyses which are relevant for this view
           analyses_success: list of successfully finished analyses (result is useable, can be displayed)
           analyses_failure: list of analyses finished with failures (result has traceback, can't be displayed)
-          analyses_unready: list of analyses which are still running
+          analyses_unready: list of analyses which are still running or pending
           subjects_missing: list of subjects for which there is no Analysis object yet
           subjects_requested_json: json representation of list with all requested subjects as 2-tuple
                                    (subject_type.id, subject.id)
@@ -277,24 +283,6 @@ class SimpleCardView(APIView):
         )
 
 
-    def post(self, request, format=None):
-        context = self.get_context_data(request.data, request.user)
-
-        # Returns status code
-        #
-        # - 200 if all analysis are finished (success or failure).
-        # - 202 if there are still analyses which not have been finished,
-        #   this can be used to request the card again later
-
-        num_analyses_avail = len(context['analyses_available'])
-        num_analyses_ready = len(context['analyses_success']) + len(context['analyses_failure'])
-
-        if (num_analyses_avail > 0) and (num_analyses_ready < num_analyses_avail):
-            return Response(context, status=status.HTTP_202_ACCEPTED)  # signal to caller: please request again
-        else:
-            return Response(context, status=status.HTTP_200_OK)  # request is as complete as possible
-
-
 @register_card_view_class(ART_SERIES)
 class PlotCardView(SimpleCardView):
     @staticmethod
@@ -317,8 +305,8 @@ class PlotCardView(SimpleCardView):
             #
             # Prepare plot, controls, and table with special values..
             #
-            context['data_sources'] = json.dumps([])
-            context['categories'] = json.dumps([
+            context['data_sources'] = []
+            context['categories'] = [
                 {
                     'title': "Averages / Measurements",
                     'key': "subject_name",
@@ -327,7 +315,7 @@ class PlotCardView(SimpleCardView):
                     'title': "Data Series",
                     'key': "series_name",
                 },
-            ])
+            ]
             context['extra_warnings'] = extra_warnings
             return context
 
@@ -585,8 +573,8 @@ class PlotCardView(SimpleCardView):
                     is_topography_analysis=is_topography_analysis
                 )]
 
-        context['data_sources'] = json.dumps(data_sources_dict)
-        context['categories'] = json.dumps([
+        context['data_sources'] = data_sources_dict
+        context['categories'] = [
             {
                 'title': "Averages / Measurements",
                 'key': "subject_name",
@@ -595,11 +583,8 @@ class PlotCardView(SimpleCardView):
                 'title': "Data Series",
                 'key': "series_name",
             },
-        ])
+        ]
         context['extra_warnings'] = extra_warnings
-
-        print(context)
-
 
         return context
 

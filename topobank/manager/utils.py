@@ -101,15 +101,13 @@ def recursive_delete(prefix):
 
 def mangle_content_type(ct):
     """Mangle content type into a string that can be used as a Javascript variable name"""
-    #return f'{ct.app_label}_{ct.name}'
-    return ct.name
+    return f'{ct.app_label}_{ct.name}'
 
 
 def demangle_content_type(s):
     """Return content type given its mangled string representation"""
-    #app_label, model = s.rsplit('_', 1)
-    #return ContentType.objects.get_by_natural_key(app_label, model)
-    return ContentType.objects.get_by_natural_key('manager', s)
+    app_label, model = s.rsplit('_', 1)
+    return ContentType.objects.get_by_natural_key(app_label, model)
 
 
 def get_reader_infos():

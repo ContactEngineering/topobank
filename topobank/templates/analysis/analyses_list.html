@@ -52,7 +52,7 @@
   topobank.{{ card.analysis_result_type }}_card.createCardApp('#{{ card.id }}-app', {
     apiUrl: "{% url 'analysis:card' %}",
     csrfToken: '{{ csrf_token }}',
-    functionId: '{{ card.function.id }}',
+    functionId: {{ card.function.id }},
     functionName: '{{ card.function.name }}',
     subjects: JSON.parse(document.getElementById('{{ card.id }}-subjects').textContent)
   });
