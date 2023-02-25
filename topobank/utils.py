@@ -311,6 +311,3 @@ def load_split_dict(storage_prefix, name):
 
     d = json.load(default_storage.open(f'{storage_prefix}/{name}.json'))
     return _unsplit_dict(d)
-
-
-

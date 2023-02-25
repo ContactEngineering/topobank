@@ -99,6 +99,19 @@ def recursive_delete(prefix):
             default_storage.delete(f'{prefix}/{directory}')
 
 
+def mangle_content_type(ct):
+    """Mangle content type into a string that can be used as a Javascript variable name"""
+    #return f'{ct.app_label}_{ct.name}'
+    return ct.name
+
+
+def demangle_content_type(s):
+    """Return content type given its mangled string representation"""
+    #app_label, model = s.rsplit('_', 1)
+    #return ContentType.objects.get_by_natural_key(app_label, model)
+    return ContentType.objects.get_by_natural_key('manager', s)
+
+
 def get_reader_infos():
     reader_infos = []
     for reader_class in surface_topography_readers:
@@ -615,7 +628,7 @@ def subjects_to_dict(subjects):
         tmp[ct].append(sub.id)
 
     return {
-        f'{ct.app_label}_{ct.model}': sub_ids for ct, sub_ids in tmp.items()
+        mangle_content_type(ct): sub_ids for ct, sub_ids in tmp.items()
     }
 
 
@@ -644,8 +657,7 @@ def subjects_from_dict(subjects_dict, function=None):
     """
     subjects = []
     for subject_app_label_and_model, subject_ids in subjects_dict.items():
-        app_label, model = subject_app_label_and_model.rsplit('_', 1)
-        ct = ContentType.objects.get_by_natural_key(app_label, model)
+        ct = demangle_content_type(subject_app_label_and_model)
         if function:
             if not function.is_implemented_for_type(ct):
                 # skip these subjects

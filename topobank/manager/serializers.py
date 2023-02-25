@@ -32,6 +32,7 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
     publication_authors = serializers.CharField(default='')
     publication_date = serializers.CharField(default='')
     creator_name = serializers.SerializerMethodField()
+    label = serializers.SerializerMethodField()
 
     def get_urls(self, obj):
         """Return only those urls which are usable for the user
@@ -64,8 +65,11 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
         return urls
 
     def get_selected(self, obj):
-        topographies, surfaces, tags = self.context['selected_instances']
-        return obj in topographies
+        try:
+            topographies, surfaces, tags = self.context['selected_instances']
+            return obj in topographies
+        except KeyError:
+            return False
 
     def get_key(self, obj):
         return f"topography-{obj.pk}"
@@ -88,11 +92,14 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
     def get_creator_name(self, obj):
         return obj.creator.name
 
+    def get_label(self, obj):
+        return obj.label
+
     class Meta:
         model = Topography
         fields = ['pk', 'type', 'name', 'creator', 'description', 'tags',
                   'urls', 'selected', 'key', 'surface_key', 'title', 'folder', 'version',
-                  'publication_date', 'publication_authors', 'creator_name', 'sharing_status']
+                  'publication_date', 'publication_authors', 'creator_name', 'sharing_status', 'label']
 
 
 class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
@@ -119,6 +126,7 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
     topography_count = serializers.SerializerMethodField()
     category_name = serializers.SerializerMethodField()
     creator_name = serializers.SerializerMethodField()
+    label = serializers.SerializerMethodField()
 
     def get_children(self, obj):
         """Get serialized topographies for given surface.
@@ -185,8 +193,11 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
         return urls
 
     def get_selected(self, obj):
-        topographies, surfaces, tags = self.context['selected_instances']
-        return obj in surfaces
+        try:
+            topographies, surfaces, tags = self.context['selected_instances']
+            return obj in surfaces
+        except KeyError:
+            return False
 
     def get_key(self, obj):
         return f"surface-{obj.pk}"
@@ -224,11 +235,14 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
     def get_creator_name(self, obj):
         return obj.creator.name
 
+    def get_label(self, obj):
+        return obj.label
+
     class Meta:
         model = Surface
         fields = ['pk', 'type', 'name', 'creator', 'creator_name', 'description', 'category', 'category_name', 'tags',
                   'children', 'sharing_status', 'urls', 'selected', 'key', 'title', 'folder', 'version',
-                  'publication_date', 'publication_authors', 'publication_license', 'topography_count']
+                  'publication_date', 'publication_authors', 'publication_license', 'topography_count', 'label']
 
 
 class TagSerializer(serializers.ModelSerializer):
