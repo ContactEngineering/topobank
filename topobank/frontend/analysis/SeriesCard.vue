@@ -47,12 +47,12 @@ export default {
           this.title = data.title;
           this.plots = [{
             title:"default",
-            xAxisLabel:data.x_axis_label,
-            yAxisLabel:data.y_axis_label,
-            xAxisType:data.x_axis_type,
-            yAxisType:data.y_axis_type
+            xAxisLabel:data.xAxisLabel,
+            yAxisLabel:data.yAxisLabel,
+            xAxisType:data.xAxisType,
+            yAxisType:data.yAxisType
           }];
-          this.dataSources = data.data_sources;
+          this.dataSources = data.dataSources;
           this.categories = data.categories;
           this.outputBackend = data.outputBackend;
           this.analysesAvailable = true;

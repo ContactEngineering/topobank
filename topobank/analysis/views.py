@@ -135,25 +135,27 @@ def series_card_view(request):
     # but the only measurement's analysis has no success. In this case there is also
     # no successful analysis to display because the surface has only one measurement.
 
-    context = {}
+    context = {
+        'title': filter.function.name
+    }
 
     nb_analyses_success = len(analyses_success_list)
     if nb_analyses_success == 0:
         #
         # Prepare plot, controls, and table with special values..
         #
-        context['data_sources'] = []
+        context['dataSources'] = []
         context['categories'] = [
             {
                 'title': "Averages / Measurements",
-                'key': "subject_name",
+                'key': "subjectName",
             },
             {
                 'title': "Data Series",
-                'key': "series_name",
+                'key': "seriesName",
             },
         ]
-        context['extra_warnings'] = extra_warnings
+        context['extraWarnings'] = extra_warnings
         return Response(context)
 
     #
@@ -203,11 +205,11 @@ def series_card_view(request):
         return first_analysis_result.get(key) or "linear"
 
     context.update({
-        'x_axis_label': x_axis_label,
-        'y_axis_label': y_axis_label,
-        'x_axis_type': get_axis_type('xscale'),
-        'y_axis_type': get_axis_type('yscale'),
-        'output_backend': settings.BOKEH_OUTPUT_BACKEND
+        'xAxisLabel': x_axis_label,
+        'yAxisLabel': y_axis_label,
+        'xAxisType': get_axis_type('xscale'),
+        'yAxisType': get_axis_type('yscale'),
+        'outputBackend': settings.BOKEH_OUTPUT_BACKEND
     })
 
     #
@@ -391,13 +393,13 @@ def series_card_view(request):
             # Context information for this data source, will be interpreted by client JS code
             #
             data_sources_dict += [{
-                'source_name': f'analysis-{analysis.id}',
-                'subject_name': subject_display_name,
-                'subject_name_index': analysis_idx,
-                'subject_name_has_parent': parent_analysis is not None,
-                'series_name': series_name,
-                'series_name_index': series_name_idx,
-                'has_parent': has_parent,  # can be used for the legend
+                'sourceName': f'analysis-{analysis.id}',
+                'subjectName': subject_display_name,
+                'subjectNameIndex': analysis_idx,
+                'subjectNameHasParent': parent_analysis is not None,
+                'seriesName': series_name,
+                'seriesNameIndex': series_name_idx,
+                'hasParent': has_parent,  # can be used for the legend
                 'xScaleFactor': analysis_xscale,
                 'yScaleFactor': analysis_yscale,
                 'url': series_url,
@@ -407,22 +409,22 @@ def series_card_view(request):
                 'alpha': alpha,
                 'showSymbols': show_symbols,
                 'visible': series_name_idx in visible_series_indices,  # independent of subject
-                'is_surface_analysis': is_surface_analysis,
-                'is_topography_analysis': is_topography_analysis
+                'isSurfaceAnalysis': is_surface_analysis,
+                'isTopographyAnalysis': is_topography_analysis
             }]
 
-    context['data_sources'] = data_sources_dict
+    context['dataSources'] = data_sources_dict
     context['categories'] = [
         {
             'title': "Averages / Measurements",
-            'key': "subject_name",
+            'key': "subjectName",
         },
         {
             'title': "Data Series",
-            'key': "series_name",
+            'key': "seriesName",
         },
     ]
-    context['extra_warnings'] = extra_warnings
+    context['extraWarnings'] = extra_warnings
 
     return Response(context)
 
