@@ -1,4 +1,3 @@
-import pickle
 import json
 
 import itertools
@@ -13,7 +12,6 @@ from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect, reverse
 from django.conf import settings
 
-from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
@@ -24,14 +22,12 @@ from pint import UnitRegistry, UndefinedUnitError
 from trackstats.models import Metric
 
 from ..manager.models import Topography, Surface, SurfaceCollection
-from ..manager.utils import instances_to_selection, selection_to_subjects_dict, subjects_from_dict, subjects_to_dict
+from ..manager.utils import instances_to_selection, selection_to_subjects_dict, subjects_from_dict
 from ..usage_stats.utils import increase_statistics_by_date_and_object
 from .forms import FunctionSelectForm
-from .functions import ART_SERIES
 from .models import Analysis, AnalysisFunction, AnalysisCollection
 from .utils import AnalysisFilter, request_analysis, renew_analysis, filter_and_order_analyses, palette_for_topographies
-from .registry import AnalysisRegistry, register_card_view_class
-from .serializers import AnalysisSerializer
+from .registry import AnalysisRegistry
 
 import logging
 
@@ -42,407 +38,111 @@ MAX_NUM_POINTS_FOR_SYMBOLS = 50
 LINEWIDTH_FOR_SURFACE_AVERAGE = 4
 
 
-@api_view(['GET', 'POST'])
-def card_view_dispatch(request):
-    """Selects appropri ate card view upon request.
+@api_view(['POST'])
+def generic_card_view(request):
+    """Gets function ids and subject ids from POST parameters.
 
-    Within the request, there is hint to which function
-    the request is related to. Depending on the function,
-    another view should be used.
+    :return: dict to be used in analysis card templates' context
 
-    This view here creates than a new view and let
-    it return the response instead.
+    The returned dict has the following keys:
 
-    The request must have a "function_id" in its
-    POST parameters.
-
-    :param request:
-    :return: HTTPResponse
+      title: card title
+      function: AnalysisFunction instance
+      unique_kwargs: dict with common kwargs for all analyses, None if not unique
+      analyses_available: list of all analyses which are relevant for this view
+      analyses_success: list of successfully finished analyses (result is useable, can be displayed)
+      analyses_failure: list of analyses finished with failures (result has traceback, can't be displayed)
+      analyses_unready: list of analyses which are still running or pending
+      subjects_missing: list of subjects for which there is no Analysis object yet
+      subjects_requested_json: json representation of list with all requested subjects as 2-tuple
+                               (subject_type.id, subject.id)
     """
+    user = request.user
+    data = request.data
+
     try:
-        function_id = int(request.data.get('function_id'))
-    except (KeyError, ValueError, TypeError):
-        return HttpResponse("Error in POST arguments")
+        function_id = int(data.get('function_id'))
+        subjects = data.get('subjects')
+    except Exception as exc:
+        _log.error("Cannot decode arguments from analysis card request. Details: %s", exc)
+        raise
 
-    function = AnalysisFunction.objects.get(id=function_id)
+    if function_id is None:
+        raise Http404("Missing parameter `function_id`")
+    if subjects is None:
+        raise Http404("Missing parameter `subjects")
 
-    reg = AnalysisRegistry()
-    view_class = reg.get_card_view_class(reg.get_analysis_result_type_for_function_name(function.name))
+    filter = AnalysisFilter(user, subjects, function_id=function_id)
 
     #
     # for statistics, count views per function
     #
-    metric = Metric.objects.ANALYSES_RESULTS_VIEW_COUNT
-    increase_statistics_by_date_and_object(metric, obj=function)
-
-    context = view_class.get_context_data(request.data, request.user)
+    increase_statistics_by_date_and_object(Metric.objects.ANALYSES_RESULTS_VIEW_COUNT, obj=filter.function)
 
     #
-    # context contains models that need to be serialized
+    # comprise context for analysis result card
     #
-    for key in ['analyses_available', 'analyses_success', 'analyses_failure', 'analyses_unready']:
-        context[key] = [AnalysisSerializer(a).data for a in context[key]]
+    return Response({
+        'title': filter.function.name,
+        'function_id': filter.function.id,
+        'unique_kwargs': filter.unique_kwargs,
+        'analyses_available': filter(),  # all Analysis objects related to this card
+        'analyses_success': filter(['su'], True),  # ..the ones which were successful and can be displayed
+        'analyses_failure': filter(['fa'], True),  # ..the ones which have failures and can't be displayed
+        'analyses_unready': filter(['su', 'fa'], False),  # ..the ones which are still running
+        'subjects_missing': filter.subjects_without_analysis_results,
+        # subjects for which there is no Analysis object yet
+        'subjects': filter.subjects_dict,  # can be used to re-trigger analyses
+        'extra_warnings': [],  # use list of dicts of form {'alert_class': 'alert-info', 'message': 'your message'},
+        'analyses_renew_url': reverse('analysis:renew'),
+        'dois': filter.dois
+    })
 
-    # Returns status code
+
+@api_view(['POST'])
+def series_card_view(request):
+    user = request.user
+    data = request.data
+
+    try:
+        function_id = int(data.get('function_id'))
+        subjects = data.get('subjects')
+    except Exception as exc:
+        _log.error("Cannot decode arguments from analysis card request. Details: %s", exc)
+        raise
+
+    if function_id is None:
+        raise Http404("Missing parameter `function_id`")
+    if subjects is None:
+        raise Http404("Missing parameter `subjects")
+
+    filter = AnalysisFilter(user, subjects, function_id=function_id)
+
     #
-    # - 200 if all analysis are finished (success or failure).
-    # - 202 if there are still analyses which not have been finished,
-    #   this can be used to request the card again later
+    # for statistics, count views per function
+    #
+    increase_statistics_by_date_and_object(Metric.objects.ANALYSES_RESULTS_VIEW_COUNT, obj=filter.function)
 
-    num_analyses_avail = len(context['analyses_available'])
-    num_analyses_ready = len(context['analyses_success']) + len(context['analyses_failure'])
+    extra_warnings = []
+    analyses_success = filter(['su'], True)
 
-    if (num_analyses_avail > 0) and (num_analyses_ready < num_analyses_avail):
-        return Response(context, status=status.HTTP_202_ACCEPTED)  # signal to caller: please request again
-    else:
-        return Response(context, status=status.HTTP_200_OK)  # request is as complete as possible
+    #
+    # order analyses such that surface analyses are coming last (plotted on top)
+    analyses_success_list = filter_and_order_analyses(analyses_success)
+    data_sources_dict = []
 
+    # Special case: It can happen that there is one surface with a successful analysis
+    # but the only measurement's analysis has no success. In this case there is also
+    # no successful analysis to display because the surface has only one measurement.
 
-@register_card_view_class('generic')
-class SimpleCardView:
-    @staticmethod
-    def get_context_data(data, user):
-        """Gets function ids and subject ids from POST parameters.
+    context = {}
 
-        :return: dict to be used in analysis card templates' context
-
-        The returned dict has the following keys:
-
-          title: card title
-          function: AnalysisFunction instance
-          unique_kwargs: dict with common kwargs for all analyses, None if not unique
-          analyses_available: list of all analyses which are relevant for this view
-          analyses_success: list of successfully finished analyses (result is useable, can be displayed)
-          analyses_failure: list of analyses finished with failures (result has traceback, can't be displayed)
-          analyses_unready: list of analyses which are still running or pending
-          subjects_missing: list of subjects for which there is no Analysis object yet
-          subjects_requested_json: json representation of list with all requested subjects as 2-tuple
-                                   (subject_type.id, subject.id)
-        """
-        try:
-            function_id = int(data.get('function_id'))
-            subjects = data.get('subjects')
-        except Exception as exc:
-            _log.error("Cannot decode arguments from analysis card request. Details: %s", exc)
-            raise
-
-        if function_id is None:
-            raise Http404("Missing parameter `function_id`")
-        if subjects is None:
-            raise Http404("Missing parameter `subjects")
-
-        filter = AnalysisFilter(user, subjects, function_id=function_id)
-
+    nb_analyses_success = len(analyses_success_list)
+    if nb_analyses_success == 0:
         #
-        # comprise context for analysis result card
+        # Prepare plot, controls, and table with special values..
         #
-        return dict(
-            title=filter.function.name,
-            function_id=filter.function.id,
-            unique_kwargs=filter.unique_kwargs,
-            analyses_available=filter(),  # all Analysis objects related to this card
-            analyses_success=filter(['su'], True),  # ..the ones which were successful and can be displayed
-            analyses_failure=filter(['fa'], True),  # ..the ones which have failures and can't be displayed
-            analyses_unready=filter(['su', 'fa'], False),  # ..the ones which are still running
-            subjects_missing=filter.subjects_without_analysis_results,  # subjects for which there is no Analysis object yet
-            subjects=filter.subjects_dict,  # can be used to re-trigger analyses
-            extra_warnings=[],  # use list of dicts of form {'alert_class': 'alert-info', 'message': 'your message'},
-            analyses_renew_url=reverse('analysis:renew'),
-            dois=filter.dois,
-        )
-
-
-@register_card_view_class(ART_SERIES)
-class PlotCardView(SimpleCardView):
-    @staticmethod
-    def get_context_data(data, user):
-        context = SimpleCardView.get_context_data(data, user)
-        extra_warnings = []
-        analyses_success = context['analyses_success']
-
-        #
-        # order analyses such that surface analyses are coming last (plotted on top)
-        analyses_success_list = filter_and_order_analyses(analyses_success)
-        data_sources_dict = []
-
-        # Special case: It can happen that there is one surface with a successful analysis
-        # but the only measurement's analysis has no success. In this case there is also
-        # no successful analysis to display because the surface has only one measurement.
-
-        nb_analyses_success = len(analyses_success_list)
-        if nb_analyses_success == 0:
-            #
-            # Prepare plot, controls, and table with special values..
-            #
-            context['data_sources'] = []
-            context['categories'] = [
-                {
-                    'title': "Averages / Measurements",
-                    'key': "subject_name",
-                },
-                {
-                    'title': "Data Series",
-                    'key': "series_name",
-                },
-            ]
-            context['extra_warnings'] = extra_warnings
-            return context
-
-        #
-        # Extract subject names for display
-        #
-        surface_ct = ContentType.objects.get_for_model(Surface)
-        surfacecollection_ct = ContentType.objects.get_for_model(SurfaceCollection)
-        topography_ct = ContentType.objects.get_for_model(Topography)
-
-        subject_names = []  # will be shown under category with key "subject_name" (see plot.js)
-        has_at_least_one_surface_subject = False
-        has_at_least_one_surfacecollection_subject = False
-        for a in analyses_success_list:
-            s = a.subject
-            subject_ct = s.get_content_type()
-            subject_name = s.label.replace("'", "&apos;")
-            if subject_ct == surface_ct:
-                subject_name = f"Average of »{subject_name}«"
-                has_at_least_one_surface_subject = True
-            if subject_ct == surfacecollection_ct:
-                has_at_least_one_surfacecollection_subject = True
-            subject_names.append(subject_name)
-
-        #
-        # Use first analysis to determine some properties for the whole plot
-        #
-        first_analysis_result = analyses_success_list[0].result
-        xunit = first_analysis_result['xunit'] if 'xunit' in first_analysis_result else None
-        yunit = first_analysis_result['yunit'] if 'yunit' in first_analysis_result else None
-
-        ureg = UnitRegistry()  # for unit conversion for each analysis individually, see below
-
-        #
-        # Determine axes labels
-        #
-        x_axis_label = first_analysis_result['xlabel']
-        if xunit is not None:
-            x_axis_label += f' ({xunit})'
-        y_axis_label = first_analysis_result['ylabel']
-        if yunit is not None:
-            y_axis_label += f' ({yunit})'
-
-        #
-        # Context information for the figure
-        #
-        def get_axis_type(key):
-            return first_analysis_result.get(key) or "linear"
-
-        context.update(dict(
-            x_axis_label=x_axis_label,
-            y_axis_label=y_axis_label,
-            x_axis_type=get_axis_type('xscale'),
-            y_axis_type=get_axis_type('yscale'),
-            output_backend=settings.BOKEH_OUTPUT_BACKEND))
-
-        #
-        # First traversal: find all available series names and sort them
-        #
-        # Also collect number of topographies and surfaces
-        #
-        series_names = set()
-        nb_surfaces = 0  # Total number of averages/surfaces shown
-        nb_surfacecollections = 0  # Total number of surface collections shown
-        nb_topographies = 0  # Total number of topography results shown
-        nb_others = 0  # Total number of results for other kinds of subject types
-
-        for analysis in analyses_success_list:
-            #
-            # handle task state
-            #
-            if analysis.task_state != analysis.SUCCESS:
-                continue  # should not happen if only called with successful analyses
-
-            series_names.update([s['name'] if 'name' in s else f'{i}'
-                                 for i, s in enumerate(analysis.result_metadata['series'])])
-
-            if isinstance(analysis.subject, Surface):
-                nb_surfaces += 1
-            elif isinstance(analysis.subject, Topography):
-                nb_topographies += 1
-            elif isinstance(analysis.subject, SurfaceCollection):
-                nb_surfacecollections += 1
-            else:
-                nb_others += 1
-
-        series_names = sorted(list(series_names))  # index of a name in this list is the "series_name_index"
-        visible_series_indices = set()  # elements: series indices, decides whether a series is visible
-
-        #
-        # Prepare helpers for dashes and colors
-        #
-        surface_color_palette = palettes.Greys256  # surfaces are shown in black/grey
-        topography_color_palette = palette_for_topographies(nb_topographies)
-
-        dash_cycle = itertools.cycle(['solid', 'dashed', 'dotted', 'dotdash', 'dashdot'])
-
-        subject_colors = OrderedDict()  # key: subject instance, value: color
-
-        series_dashes = OrderedDict()  # key: series name
-
-        DEFAULT_ALPHA_FOR_TOPOGRAPHIES = 0.3 if has_at_least_one_surface_subject else 1.0
-
-        #
-        # Second traversal: Prepare metadata for plotting
-        #
-        # The plotting is done in Javascript on client side.
-        # The metadata is prepared here, the data itself will be retrieved
-        # by an AJAX request. The url for this request is also prepared here.
-        #
-        surface_index = -1
-        topography_index = -1
-        for analysis_idx, analysis in enumerate(analyses_success_list):
-            #
-            # Define some helper variables
-            #
-            subject = analysis.subject
-
-            is_surface_analysis = isinstance(subject, Surface)
-            is_topography_analysis = isinstance(subject, Topography)
-            # is_surfacecollection_analysis = isinstance(subject, SurfaceCollection)
-
-            #
-            # Change display name depending on whether there is a parent analysis or not
-            #
-            parent_analysis = None
-            if is_topography_analysis and analysis.subject.surface.num_topographies() > 1:
-                for a in analyses_success_list:
-                    if a.subject_type == surface_ct and a.subject_id == analysis.subject.surface.id and \
-                        a.function == analysis.function:
-                        parent_analysis = a
-
-            subject_display_name = subject_names[analysis_idx]
-
-            #
-            # Decide for colors
-            #
-            if is_surface_analysis:
-                # Surface results are plotted in black/grey
-                surface_index += 1
-                subject_colors[subject] = \
-                    surface_color_palette[surface_index * len(surface_color_palette) // nb_surfaces]
-            elif is_topography_analysis:
-                topography_index += 1
-                subject_colors[subject] = topography_color_palette[topography_index]
-            else:
-                subject_colors[subject] = 'black'  # Find better colors later, if needed
-
-            #
-            # Handle unexpected task states for robustness, shouldn't be needed in general
-            #
-            if analysis.task_state != analysis.SUCCESS:
-                # not ready yet
-                continue  # should not happen if only called with successful analyses
-
-            #
-            # Find out scale for data
-            #
-            result_metadata = analysis.result_metadata
-            series_metadata = result_metadata['series']
-
-            if xunit is None:
-                analysis_xscale = 1
-            else:
-                try:
-                    analysis_xscale = ureg.convert(1, result_metadata['xunit'], xunit)
-                except UndefinedUnitError as exc:
-                    err_msg = f"Cannot convert x units when displaying results for analysis with id {analysis.id}. "\
-                              f"Cause: {exc}"
-                    _log.error(err_msg)
-                    extra_warnings.append(
-                        dict(alert_class='alert-warning',
-                             message=err_msg)
-                    )
-                    continue
-            if yunit is None:
-                analysis_yscale = 1
-            else:
-                try:
-                    analysis_yscale = ureg.convert(1, result_metadata['yunit'], yunit)
-                except UndefinedUnitError as exc:
-                    err_msg = f"Cannot convert y units when displaying results for analysis with id {analysis.id}. " \
-                              f"Cause: {exc}"
-                    _log.error(err_msg)
-                    extra_warnings.append(
-                        dict(alert_class='alert-warning',
-                             message=err_msg)
-                    )
-                    continue
-
-            for series_idx, s in enumerate(series_metadata):
-                #
-                # Collect data for visibility of the corresponding series
-                #
-                series_url = reverse('analysis:data', args=(analysis.pk, f'series-{series_idx}.json'))
-                #series_url = default_storage.url(f'{analysis.storage_prefix}/series-{series_idx}.json')
-
-                series_name = s['name'] if 'name' in s else f'{series_idx}'
-                series_name_idx = series_names.index(series_name)
-
-                is_visible = s['visible'] if 'visible' in s else True
-                if is_visible:
-                    visible_series_indices.add(series_name_idx)
-                    # as soon as one dataset wants this series to be visible,
-                    # this series will be visible for all
-
-                #
-                # Find out dashes for data series
-                #
-                if series_name not in series_dashes:
-                    series_dashes[series_name] = next(dash_cycle)
-                    # series_symbols[series_name] = next(symbol_cycle)
-
-                #
-                # Actually plot the line
-                #
-                show_symbols = s['nbDataPoints'] <= MAX_NUM_POINTS_FOR_SYMBOLS if 'nbDataPoints' in s else True
-
-                curr_color = subject_colors[subject]
-                curr_dash = series_dashes[series_name]
-
-                # hover_name = "{} for '{}'".format(series_name, topography_name)
-                line_width = LINEWIDTH_FOR_SURFACE_AVERAGE if is_surface_analysis else 1
-                alpha = DEFAULT_ALPHA_FOR_TOPOGRAPHIES if is_topography_analysis else 1.
-
-                #
-                # Find out whether this dataset for this special series has a parent dataset
-                # in the parent_analysis, which means whether the same series is available there
-                #
-                has_parent = (parent_analysis is not None) and \
-                             any(s['name'] == series_name if 'name' in s else f'{i}' == series_name
-                                 for i, s in enumerate(parent_analysis.result_metadata['series']))
-
-                #
-                # Context information for this data source, will be interpreted by client JS code
-                #
-                data_sources_dict += [dict(
-                    source_name=f'analysis-{analysis.id}',
-                    subject_name=subject_display_name,
-                    subject_name_index=analysis_idx,
-                    subject_name_has_parent=parent_analysis is not None,
-                    series_name=series_name,
-                    series_name_index=series_name_idx,
-                    has_parent=has_parent,  # can be used for the legend
-                    xScaleFactor=analysis_xscale,
-                    yScaleFactor=analysis_yscale,
-                    url=series_url,
-                    color=curr_color,
-                    dash=curr_dash,
-                    width=line_width,
-                    alpha=alpha,
-                    showSymbols=show_symbols,
-                    visible=series_name_idx in visible_series_indices,  # independent of subject
-                    is_surface_analysis=is_surface_analysis,
-                    is_topography_analysis=is_topography_analysis
-                )]
-
-        context['data_sources'] = data_sources_dict
+        context['data_sources'] = []
         context['categories'] = [
             {
                 'title': "Averages / Measurements",
@@ -454,8 +154,277 @@ class PlotCardView(SimpleCardView):
             },
         ]
         context['extra_warnings'] = extra_warnings
+        return Response(context)
 
-        return context
+    #
+    # Extract subject names for display
+    #
+    surface_ct = ContentType.objects.get_for_model(Surface)
+    surfacecollection_ct = ContentType.objects.get_for_model(SurfaceCollection)
+    topography_ct = ContentType.objects.get_for_model(Topography)
+
+    subject_names = []  # will be shown under category with key "subject_name" (see plot.js)
+    has_at_least_one_surface_subject = False
+    has_at_least_one_surfacecollection_subject = False
+    for a in analyses_success_list:
+        s = a.subject
+        subject_ct = s.get_content_type()
+        subject_name = s.label.replace("'", "&apos;")
+        if subject_ct == surface_ct:
+            subject_name = f"Average of »{subject_name}«"
+            has_at_least_one_surface_subject = True
+        if subject_ct == surfacecollection_ct:
+            has_at_least_one_surfacecollection_subject = True
+        subject_names.append(subject_name)
+
+    #
+    # Use first analysis to determine some properties for the whole plot
+    #
+    first_analysis_result = analyses_success_list[0].result
+    xunit = first_analysis_result['xunit'] if 'xunit' in first_analysis_result else None
+    yunit = first_analysis_result['yunit'] if 'yunit' in first_analysis_result else None
+
+    ureg = UnitRegistry()  # for unit conversion for each analysis individually, see below
+
+    #
+    # Determine axes labels
+    #
+    x_axis_label = first_analysis_result['xlabel']
+    if xunit is not None:
+        x_axis_label += f' ({xunit})'
+    y_axis_label = first_analysis_result['ylabel']
+    if yunit is not None:
+        y_axis_label += f' ({yunit})'
+
+    #
+    # Context information for the figure
+    #
+    def get_axis_type(key):
+        return first_analysis_result.get(key) or "linear"
+
+    context.update({
+        'x_axis_label': x_axis_label,
+        'y_axis_label': y_axis_label,
+        'x_axis_type': get_axis_type('xscale'),
+        'y_axis_type': get_axis_type('yscale'),
+        'output_backend': settings.BOKEH_OUTPUT_BACKEND
+    })
+
+    #
+    # First traversal: find all available series names and sort them
+    #
+    # Also collect number of topographies and surfaces
+    #
+    series_names = set()
+    nb_surfaces = 0  # Total number of averages/surfaces shown
+    nb_surfacecollections = 0  # Total number of surface collections shown
+    nb_topographies = 0  # Total number of topography results shown
+    nb_others = 0  # Total number of results for other kinds of subject types
+
+    for analysis in analyses_success_list:
+        #
+        # handle task state
+        #
+        if analysis.task_state != analysis.SUCCESS:
+            continue  # should not happen if only called with successful analyses
+
+        series_names.update([s['name'] if 'name' in s else f'{i}'
+                             for i, s in enumerate(analysis.result_metadata['series'])])
+
+        if isinstance(analysis.subject, Surface):
+            nb_surfaces += 1
+        elif isinstance(analysis.subject, Topography):
+            nb_topographies += 1
+        elif isinstance(analysis.subject, SurfaceCollection):
+            nb_surfacecollections += 1
+        else:
+            nb_others += 1
+
+    series_names = sorted(list(series_names))  # index of a name in this list is the "series_name_index"
+    visible_series_indices = set()  # elements: series indices, decides whether a series is visible
+
+    #
+    # Prepare helpers for dashes and colors
+    #
+    surface_color_palette = palettes.Greys256  # surfaces are shown in black/grey
+    topography_color_palette = palette_for_topographies(nb_topographies)
+
+    dash_cycle = itertools.cycle(['solid', 'dashed', 'dotted', 'dotdash', 'dashdot'])
+
+    subject_colors = OrderedDict()  # key: subject instance, value: color
+
+    series_dashes = OrderedDict()  # key: series name
+
+    DEFAULT_ALPHA_FOR_TOPOGRAPHIES = 0.3 if has_at_least_one_surface_subject else 1.0
+
+    #
+    # Second traversal: Prepare metadata for plotting
+    #
+    # The plotting is done in Javascript on client side.
+    # The metadata is prepared here, the data itself will be retrieved
+    # by an AJAX request. The url for this request is also prepared here.
+    #
+    surface_index = -1
+    topography_index = -1
+    for analysis_idx, analysis in enumerate(analyses_success_list):
+        #
+        # Define some helper variables
+        #
+        subject = analysis.subject
+
+        is_surface_analysis = isinstance(subject, Surface)
+        is_topography_analysis = isinstance(subject, Topography)
+        # is_surfacecollection_analysis = isinstance(subject, SurfaceCollection)
+
+        #
+        # Change display name depending on whether there is a parent analysis or not
+        #
+        parent_analysis = None
+        if is_topography_analysis and analysis.subject.surface.num_topographies() > 1:
+            for a in analyses_success_list:
+                if a.subject_type == surface_ct and a.subject_id == analysis.subject.surface.id and \
+                    a.function == analysis.function:
+                    parent_analysis = a
+
+        subject_display_name = subject_names[analysis_idx]
+
+        #
+        # Decide for colors
+        #
+        if is_surface_analysis:
+            # Surface results are plotted in black/grey
+            surface_index += 1
+            subject_colors[subject] = \
+                surface_color_palette[surface_index * len(surface_color_palette) // nb_surfaces]
+        elif is_topography_analysis:
+            topography_index += 1
+            subject_colors[subject] = topography_color_palette[topography_index]
+        else:
+            subject_colors[subject] = 'black'  # Find better colors later, if needed
+
+        #
+        # Handle unexpected task states for robustness, shouldn't be needed in general
+        #
+        if analysis.task_state != analysis.SUCCESS:
+            # not ready yet
+            continue  # should not happen if only called with successful analyses
+
+        #
+        # Find out scale for data
+        #
+        result_metadata = analysis.result_metadata
+        series_metadata = result_metadata['series']
+
+        if xunit is None:
+            analysis_xscale = 1
+        else:
+            try:
+                analysis_xscale = ureg.convert(1, result_metadata['xunit'], xunit)
+            except UndefinedUnitError as exc:
+                err_msg = f"Cannot convert x units when displaying results for analysis with id {analysis.id}. " \
+                          f"Cause: {exc}"
+                _log.error(err_msg)
+                extra_warnings.append(
+                    dict(alert_class='alert-warning',
+                         message=err_msg)
+                )
+                continue
+        if yunit is None:
+            analysis_yscale = 1
+        else:
+            try:
+                analysis_yscale = ureg.convert(1, result_metadata['yunit'], yunit)
+            except UndefinedUnitError as exc:
+                err_msg = f"Cannot convert y units when displaying results for analysis with id {analysis.id}. " \
+                          f"Cause: {exc}"
+                _log.error(err_msg)
+                extra_warnings.append(
+                    dict(alert_class='alert-warning',
+                         message=err_msg)
+                )
+                continue
+
+        for series_idx, s in enumerate(series_metadata):
+            #
+            # Collect data for visibility of the corresponding series
+            #
+            series_url = reverse('analysis:data', args=(analysis.pk, f'series-{series_idx}.json'))
+            # series_url = default_storage.url(f'{analysis.storage_prefix}/series-{series_idx}.json')
+
+            series_name = s['name'] if 'name' in s else f'{series_idx}'
+            series_name_idx = series_names.index(series_name)
+
+            is_visible = s['visible'] if 'visible' in s else True
+            if is_visible:
+                visible_series_indices.add(series_name_idx)
+                # as soon as one dataset wants this series to be visible,
+                # this series will be visible for all
+
+            #
+            # Find out dashes for data series
+            #
+            if series_name not in series_dashes:
+                series_dashes[series_name] = next(dash_cycle)
+                # series_symbols[series_name] = next(symbol_cycle)
+
+            #
+            # Actually plot the line
+            #
+            show_symbols = s['nbDataPoints'] <= MAX_NUM_POINTS_FOR_SYMBOLS if 'nbDataPoints' in s else True
+
+            curr_color = subject_colors[subject]
+            curr_dash = series_dashes[series_name]
+
+            # hover_name = "{} for '{}'".format(series_name, topography_name)
+            line_width = LINEWIDTH_FOR_SURFACE_AVERAGE if is_surface_analysis else 1
+            alpha = DEFAULT_ALPHA_FOR_TOPOGRAPHIES if is_topography_analysis else 1.
+
+            #
+            # Find out whether this dataset for this special series has a parent dataset
+            # in the parent_analysis, which means whether the same series is available there
+            #
+            has_parent = (parent_analysis is not None) and \
+                         any(s['name'] == series_name if 'name' in s else f'{i}' == series_name
+                             for i, s in enumerate(parent_analysis.result_metadata['series']))
+
+            #
+            # Context information for this data source, will be interpreted by client JS code
+            #
+            data_sources_dict += [{
+                'source_name': f'analysis-{analysis.id}',
+                'subject_name': subject_display_name,
+                'subject_name_index': analysis_idx,
+                'subject_name_has_parent': parent_analysis is not None,
+                'series_name': series_name,
+                'series_name_index': series_name_idx,
+                'has_parent': has_parent,  # can be used for the legend
+                'xScaleFactor': analysis_xscale,
+                'yScaleFactor': analysis_yscale,
+                'url': series_url,
+                'color': curr_color,
+                'dash': curr_dash,
+                'width': line_width,
+                'alpha': alpha,
+                'showSymbols': show_symbols,
+                'visible': series_name_idx in visible_series_indices,  # independent of subject
+                'is_surface_analysis': is_surface_analysis,
+                'is_topography_analysis': is_topography_analysis
+            }]
+
+    context['data_sources'] = data_sources_dict
+    context['categories'] = [
+        {
+            'title': "Averages / Measurements",
+            'key': "subject_name",
+        },
+        {
+            'title': "Data Series",
+            'key': "series_name",
+        },
+    ]
+    context['extra_warnings'] = extra_warnings
+
+    return Response(context)
 
 
 def renew_analyses_view(request):
@@ -478,7 +447,7 @@ def renew_analyses_view(request):
         return JsonResponse({'error': 'error in request data'}, status=400)
 
     try:
-        analyses_ids = [int(x) for x in analyses_ids ]
+        analyses_ids = [int(x) for x in analyses_ids]
         analyses = Analysis.objects.filter(id__in=analyses_ids)
     except Exception:
         return JsonResponse({'error': 'error in request data'}, status=400)

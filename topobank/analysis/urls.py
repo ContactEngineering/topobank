@@ -1,8 +1,10 @@
 from django.urls import path, re_path
 from django.contrib.auth.decorators import login_required
 
-from . import views
 from . import downloads
+from . import functions
+from . import views
+
 
 app_name = "analysis"
 urlpatterns = [
@@ -52,8 +54,13 @@ urlpatterns = [
         name='data'
     ),
     path(
-        'card/',
-        view=login_required(views.card_view_dispatch),
-        name='card'
+        f'card/{functions.ART_GENERIC}',
+        view=login_required(views.generic_card_view),
+        name=f'card-{functions.ART_GENERIC}'
+    ),
+    path(
+        f'card/{functions.ART_SERIES}',
+        view=login_required(views.series_card_view),
+        name=f'card-{functions.ART_SERIES}'
     ),
 ]
