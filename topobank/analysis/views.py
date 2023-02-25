@@ -1,6 +1,5 @@
 import pickle
 import json
-from typing import Optional, Dict, Any
 
 import itertools
 from collections import OrderedDict
@@ -17,7 +16,6 @@ from django.conf import settings
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from rest_framework.views import APIView
 
 import bokeh.palettes as palettes
 
@@ -31,8 +29,7 @@ from ..usage_stats.utils import increase_statistics_by_date_and_object
 from .forms import FunctionSelectForm
 from .functions import ART_SERIES
 from .models import Analysis, AnalysisFunction, AnalysisCollection
-from .utils import get_latest_analyses, request_analysis, renew_analysis, filter_and_order_analyses, \
-    palette_for_topographies
+from .utils import AnalysisFilter, request_analysis, renew_analysis, filter_and_order_analyses, palette_for_topographies
 from .registry import AnalysisRegistry, register_card_view_class
 from .serializers import AnalysisSerializer
 
@@ -134,152 +131,24 @@ class SimpleCardView:
         if subjects is None:
             raise Http404("Missing parameter `subjects")
 
-        function = AnalysisFunction.objects.get(id=function_id)
-
-        # Calculate subjects for the analyses, filtered for those which have an implementation
-        subjects_requested = subjects_from_dict(subjects, function=function)
-
-        # The following is needed for re-triggering analyses, now filtered
-        # in order to trigger only for subjects which have an implementation
-        subjects = subjects_to_dict(subjects_requested)
-
-        #
-        # Find the latest analyses for which the user has read permission for the related data
-        #
-        analyses_available = get_latest_analyses(user, function, subjects_requested)
-
-        #
-        # collect list of subjects for which an analysis instance is missing
-        #
-        subjects_available = [a.subject for a in analyses_available]
-        subjects_missing = [s for s in subjects_requested if s not in subjects_available]
-
-        #
-        # collect all keyword arguments and check whether they are equal
-        #
-        unique_kwargs: Dict[str, Optional[Any]] = {}  # key: ContentType, value: dict or None
-        # - if a contenttype is missing as key, this means:
-        #   There are no analyses available for this contenttype
-        # - if a contenttype exists, but value is None, this means:
-        #   There arguments of the analyses for this contenttype are not unique
-
-        for analysis in analyses_available:
-            kwargs = pickle.loads(analysis.kwargs)
-
-            subject_type_str = f'{analysis.subject_type.app_label}_{analysis.subject_type.name}'
-
-            if subject_type_str not in unique_kwargs:
-                unique_kwargs[subject_type_str] = kwargs
-            elif unique_kwargs[subject_type_str] is not None:  # was unique so far
-                if kwargs != unique_kwargs[subject_type_str]:
-                    unique_kwargs[subject_type_str] = None
-                    # Found differing arguments for this subject_type
-                    # We need to continue in the loop, because of the other subject types
-
-        #
-        # automatically trigger analyses for missing subjects (topographies or surfaces)
-        #
-        # Save keyword arguments which should be used for missing analyses,
-        # sorted by subject type
-        kwargs_for_missing = {}
-        for st in function.get_implementation_types():
-            try:
-                kw = unique_kwargs[st]
-                if kw is None:
-                    kw = {}
-            except KeyError:
-                kw = function.get_default_kwargs(st)
-            kwargs_for_missing[st] = kw
-
-        # For every possible implemented subject type the following is done:
-        # We use the common unique keyword arguments if there are any; if not
-        # the default arguments for the implementation is used
-
-        subjects_triggered = []
-        for subject in subjects_missing:
-            if subject.is_shared(user):
-                ct = ContentType.objects.get_for_model(subject)
-                analysis_kwargs = kwargs_for_missing[ct]
-                triggered_analysis = request_analysis(user, function, subject, **analysis_kwargs)
-                subjects_triggered.append(subject)
-                # topographies_available_ids.append(topo.id)
-                _log.info(f"Triggered analysis {triggered_analysis.id} for function '{function.name}' "
-                          f"and subject '{subject}'.")
-        subjects_missing = [s for s in subjects_missing if s not in subjects_triggered]
-
-        # now all subjects which needed to be triggered, should have been triggered
-        # with common arguments if possible
-        # collect information about available analyses again
-        if len(subjects_triggered) > 0:
-
-            # if no analyses where available before, unique_kwargs is None
-            # which is interpreted as "differing arguments". This is wrong
-            # in that case
-            if len(analyses_available) == 0:
-                unique_kwargs = kwargs_for_missing
-
-            analyses_available = get_latest_analyses(user, function, subjects_requested)
-
-        #
-        # Turn available analyses into a list
-        #
-        analyses_available = list(analyses_available)
-
-        #
-        # Determine status code of request - do we need to trigger request again?
-        #
-        analyses_ready = [a for a in analyses_available
-                          if a.task_state in ['su', 'fa']]
-        # Leave out those analyses which have a state meaning "ready", but
-        # have no result file:
-        ids_of_ready_analyses_with_result_file = [a.id for a in analyses_ready
-                                                  if a.has_result_file]
-        ready_analyses_without_result_file = [a for a in analyses_ready
-                                              if a.id not in ids_of_ready_analyses_with_result_file]
-        analyses_ready = [a for a in analyses_ready
-                          if a.id in ids_of_ready_analyses_with_result_file]
-        analyses_unready = [a for a in analyses_available
-                            if a.id not in ids_of_ready_analyses_with_result_file]
-
-        #
-        # Those analyses, which seem to be ready but have no result, should be re-triggered
-        # and added to the unready results
-        #
-        if len(ready_analyses_without_result_file) > 0:
-            _log.info(f"There are {len(ready_analyses_without_result_file)} analyses marked as ready but "
-                      "without result file. These will be retriggered.")
-        additional_unready_analyses = [renew_analysis(a) for a in ready_analyses_without_result_file]
-        analyses_unready += additional_unready_analyses
-
-        #
-        # collect lists of successful analyses and analyses with failures
-        #
-        # Only the successful ones should show up in the plot
-        # the ones with failure should be shown elsewhere
-        analyses_success = [analysis for analysis in analyses_ready if analysis.task_state == 'su']
-        analyses_failure = [analysis for analysis in analyses_ready if analysis.task_state == 'fa']
-
-        #
-        # Collect dois from all available analyses
-        #
-        dois = sorted(set().union(*[a.dois for a in analyses_available]))
+        filter = AnalysisFilter(user, subjects, function_id=function_id)
 
         #
         # comprise context for analysis result card
         #
         return dict(
-            title=function.name,
-            function_id=function.id         ,
-            unique_kwargs=unique_kwargs,
-            analyses_available=analyses_available,  # all Analysis objects related to this card
-            analyses_success=analyses_success,  # ..the ones which were successful and can be displayed
-            analyses_failure=analyses_failure,  # ..the ones which have failures and can't be displayed
-            analyses_unready=analyses_unready,  # ..the ones which are still running
-            subjects_missing=subjects_missing,  # subjects for which there is no Analysis object yet
-            subjects=subjects,  # can be used to re-trigger analyses
+            title=filter.function.name,
+            function_id=filter.function.id,
+            unique_kwargs=filter.unique_kwargs,
+            analyses_available=filter(),  # all Analysis objects related to this card
+            analyses_success=filter(['su'], True),  # ..the ones which were successful and can be displayed
+            analyses_failure=filter(['fa'], True),  # ..the ones which have failures and can't be displayed
+            analyses_unready=filter(['su', 'fa'], False),  # ..the ones which are still running
+            subjects_missing=filter.subjects_without_analysis_results,  # subjects for which there is no Analysis object yet
+            subjects=filter.subjects_dict,  # can be used to re-trigger analyses
             extra_warnings=[],  # use list of dicts of form {'alert_class': 'alert-info', 'message': 'your message'},
             analyses_renew_url=reverse('analysis:renew'),
-            dois=dois,
+            dois=filter.dois,
         )
 
 

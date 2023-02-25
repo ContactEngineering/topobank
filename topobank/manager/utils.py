@@ -602,21 +602,24 @@ def current_selection_as_basket_items(request):
 
 
 def subjects_to_dict(subjects):
-    """Return JSON code suitable for passing 'subjects_ids' in AJAX call.
-
-    Parameters
-    ----------
-    subjects: sequence of Topography or Surface
-
-    Returns
-    -------
-    As JSON: dict with
-
-        key: content_type id as str (only strings can be keys in JSON hashes)
-        values: array of integers with object ids for given content type (key)
+    """
+    Returns a dictionary suitable for passing 'subjects_ids' in an AJAX call.
 
     Each content type from the given subjects is represented as key.
     Each subject is represented by an id in the array of integers.
+
+    Parameters
+    ----------
+    subjects : list of Topography or Surface
+        Subjects for serialization
+
+    Returns
+    -------
+    A dictionary with
+        key : str
+            Mangled content type string
+        values : list
+            Integers with object ids for given content type (key)
     """
     tmp = {}  # key: ContentType, value: list of subject ids
     for sub in subjects:
@@ -631,27 +634,29 @@ def subjects_to_dict(subjects):
 
 
 def subjects_from_dict(subjects_dict, function=None):
-    """Return subject instances from ids given as json, optionally filtered.
+    """
+    Return subject instances from ids given as a dictionary.
+
+    Each content type from the given subjects is represented as key.
+    Each subject is represented by an id in the array of integers.
 
     Parameters
     ----------
-    subjects_ids_json: JSON encoded dict with
+    subjects_dict: dict
+        A dictionary with
+            key : str
+                Mangled content type string
+            values : list
+                Integers with object ids for given content type (key)
 
-        key: content_type id as str (only strings can be keys in JSON hashes)
-        values: array of integers with object ids for given content type (key)
-
-        Each content type from the given subjects is represented as key.
-        Each subject is represented by an id in the array of integers.
-
-    function: AnalysisFunction instance or None
+    function: AnalysisFunction, optional
         If given an analysis function, the subjects returned will
         be filtered so only subjects are included which have
         an implementation for the given function.
 
     Returns
     -------
-    sequence of subject instances (e.g. Topography or Surface)
-
+    List of subject instances (e.g. Topography or Surface)
     """
     subjects = []
     for subject_app_label_and_model, subject_ids in subjects_dict.items():
@@ -669,6 +674,7 @@ def subjects_from_dict(subjects_dict, function=None):
             continue
         subjects += [s for s in ct.get_all_objects_for_this_type().filter(query)]
     return subjects
+
 
 def surface_collection_name(surface_names, max_total_length=MAX_LENGTH_SURFACE_COLLECTION_NAME):
     """For a given list of names, return a length-limited collection name."""
