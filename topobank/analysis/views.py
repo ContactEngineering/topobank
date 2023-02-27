@@ -209,7 +209,8 @@ def series_card_view(request):
         'yAxisLabel': y_axis_label,
         'xAxisType': get_axis_type('xscale'),
         'yAxisType': get_axis_type('yscale'),
-        'outputBackend': settings.BOKEH_OUTPUT_BACKEND
+        'outputBackend': settings.BOKEH_OUTPUT_BACKEND,
+        'dois': filter.dois
     })
 
     #

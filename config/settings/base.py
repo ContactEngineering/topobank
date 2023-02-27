@@ -81,7 +81,6 @@ THIRD_PARTY_APPS = [
     'rest_framework',
     'fontawesomefree',
     'formtools',
-    'bokeh',
     'termsandconditions',
     'storages',
     'guardian',
