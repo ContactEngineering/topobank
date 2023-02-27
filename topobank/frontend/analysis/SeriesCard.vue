@@ -14,17 +14,17 @@ export default {
   props: {
     apiUrl: String,
     csrfToken: String,
-    downloadXlsUrl: String,
-    downloadTxtUrl: String,
     functionId: Number,
     functionName: String,
     subjects: Object,
+    txtDownloadUrl: String,
     uid: {
       type: Number,
       default() {
         return uuid4();
       }
-    }
+    },
+    xlsxDownloadUrl: String
   },
   data() {
     return {
@@ -76,15 +76,7 @@ export default {
 <template>
   <div class="card search-result-card">
     <div class="card-header">
-      <!--
-      <div v-if="analyses_available" class="btn-group btn-group-sm float-right">
-      -->
       <div class="btn-group btn-group-sm float-right">
-        <!--
-        <button v-if="!analyses_unready" class="btn btn-primary btn-sm float-right" href="#" data-toggle="modal"
-                data-target="#statusesModal">{% fa5_icon 'tasks' %} Tasks
-        </button>
-        -->
         <button class="btn btn-default btn-sm float-right" href="#" data-toggle="modal"
                 data-target="#statusesModal">
           Tasks
@@ -95,20 +87,11 @@ export default {
           </a>
         </div>
       </div>
-      <a href="#" data-toggle="collapse" :data-target="`#sidebar-${uid}`">
+      <a class="text-dark" href="#" data-toggle="collapse" :data-target="`#sidebar-${uid}`">
         <h5><i class="fa fa-bars"></i> {{ title }}</h5>
       </a>
     </div>
     <div class="card-body">
-      <ul v-if="has_warnings" class="nav nav-tabs">
-        <li class="nav-item" style="list-style-type: none;">
-          <a class="nav-link active" data-toggle="tab" href="#plot-tab">Plot</a>
-        </li>
-        <li class="nav-item" style="list-style-type: none;">
-          <a class="nav-link" data-toggle="tab" href="#warnings-tab">Warnings</a>
-        </li>
-      </ul>
-
       <div v-if="!analysesAvailable" class="tab-content">
         <span class="spinner"></span>
         <div>Please wait...</div>
@@ -125,9 +108,6 @@ export default {
               ref="plot">
           </bokeh-plot>
         </div>
-        <!--
-        {% include 'analysis/analyses_warnings_tab_pane.html' %}
-        -->
       </div>
     </div>
     <div :id="`sidebar-${uid}`" class="col-1 col-sm-6 p-0 collapse sidebar position-absolute h-100">
@@ -135,25 +115,22 @@ export default {
       <nav class="card-header navbar navbar-toggleable-xl bg-light flex-column align-items-start h-100">
         <ul class="flex-column navbar-nav">
           <a href="#" data-toggle="collapse" :data-target="`#sidebar-${uid}`">
-            <h5><i class="fa fa-bars"></i> {{ title }}</h5>
+            <h5 class="text-black"><i class="fa fa-bars"></i> {{ title }}</h5>
           </a>
           <li class="nav-item">
-            <a class="nav-link pl-0" :href="txtDownloadUrl">
-              Download TXT
+            Download
+            <a :href="txtDownloadUrl">
+              TXT
             </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link pl-0" :href="xlsxDownloadUrl">Download
+            <a :href="xlsxDownloadUrl">
               XLSX
             </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link pl-0" v-on:click="$refs.plot.download()">
-              Download SVG
+            <a v-on:click="$refs.plot.download()">
+              SVG
             </a>
           </li>
           <li class="nav-item">
-            <a class="nav-link pl-0" href="#" data-toggle="modal" :data-target="`#bibliography-model-${uid}`">
+            <a href="#" data-toggle="modal" :data-target="`#bibliography-model-${uid}`">
               Bibliography
             </a>
           </li>

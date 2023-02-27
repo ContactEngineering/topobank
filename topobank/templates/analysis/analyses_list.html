@@ -51,7 +51,7 @@
 <script>
   {% with api_name='analysis:card-'|add:card.analysis_result_type %}
   topobank.{{ card.analysis_result_type }}_card.createCardApp('#{{ card.id }}-app', {
-    apiUrl: "{% url api_name %}",
+    apiUrl: '{% url api_name %}',
     csrfToken: '{{ csrf_token }}',
     functionId: {{ card.function.id }},
     functionName: '{{ card.function.name }}',
