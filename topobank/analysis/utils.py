@@ -12,8 +12,9 @@ from django.db.models import Q
 
 from topobank.manager.utils import subjects_from_dict, subjects_to_dict, mangle_content_type
 
-from topobank.analysis.models import Analysis, AnalysisFunction
-from topobank.analysis.registry import AnalysisRegistry
+from .models import Analysis, AnalysisFunction
+from .registry import AnalysisRegistry
+from .serializers import AnalysisSerializer
 
 _log = logging.getLogger(__name__)
 
@@ -460,6 +461,19 @@ class AnalysisFilter:
         return self._subjects_dict
 
     def __call__(self, task_states=None, has_result_file=None):
+        """
+        Return list of analyses filtered by arguments (if present).
+
+        Parameters
+        ----------
+        task_states : list of str, optional
+            List of task states to filter for, e.g. ['su', 'fa'] to filter for
+            success and failure. (Default: None)
+        has_result_file : boolean, optional
+            If true, only return analyses that have a results file. If false,
+            return analyses without a results file. Don't filter for results
+            file if unset. (Default: None)
+        """
         if task_states is None:
             if has_result_file is None:
                 return self._analyses
@@ -599,3 +613,26 @@ class AnalysisFilter:
     def _get_dois(self):
         """Collect dois from all available analyses"""
         return sorted(set().union(*[analysis.dois for analysis in self._analyses]))
+
+    def to_representation(self, task_states=None, has_result_file=None, request=None):
+        """
+        Return list of serialized analyses filtered by arguments (if present).
+
+        Parameters
+        ----------
+        task_states : list of str, optional
+            List of task states to filter for, e.g. ['su', 'fa'] to filter for
+            success and failure. (Default: None)
+        has_result_file : boolean, optional
+            If true, only return analyses that have a results file. If false,
+            return analyses without a results file. Don't filter for results
+            file if unset. (Default: None)
+        request : Request, optional
+            request object (for HyperlinkedRelatedField). (Default: None)
+        """
+        if request is None:
+            context = None
+        else:
+            context = {'request': request}
+        return [AnalysisSerializer(analysis, context=context).data for analysis in
+                self(task_states=task_states, has_result_file=has_result_file)]

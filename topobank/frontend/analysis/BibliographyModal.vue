@@ -10,13 +10,13 @@ export default {
       default: []
     },
     uid: {
-      type: Number,
+      type: String,
       default() {
         return uuid4();
       }
     }
   }
-}
+};
 </script>
 
 <template>

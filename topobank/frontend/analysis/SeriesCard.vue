@@ -4,12 +4,14 @@ import {v4 as uuid4} from 'uuid';
 
 import BokehPlot from '../components/BokehPlot.vue';
 import BibliographyModal from './BibliographyModal.vue';
+import TaskStatusModal from './TaskStatusModal.vue';
 
 export default {
   name: 'plot-card',
   components: {
     BibliographyModal,
-    BokehPlot
+    BokehPlot,
+    TaskStatusModal
   },
   props: {
     apiUrl: String,
@@ -19,7 +21,7 @@ export default {
     subjects: Object,
     txtDownloadUrl: String,
     uid: {
-      type: Number,
+      type: String,
       default() {
         return uuid4();
       }
@@ -28,6 +30,7 @@ export default {
   },
   data() {
     return {
+      analyses: [],
       analysesAvailable: false,
       categories: undefined,
       dataSources: undefined,
@@ -40,6 +43,7 @@ export default {
   },
   mounted() {
     /* Fetch JSON describing the card */
+    var _this = this;
     fetch(this.apiUrl, {
       method: 'POST',
       headers: {
@@ -55,22 +59,23 @@ export default {
         .then(response => response.json())
         .then(data => {
           console.log(data);
-          this.title = data.title;
-          this.plots = [{
+          _this.analyses = data.analyses;
+          _this.title = data.plotConfiguration.title;
+          _this.plots = [{
             title: "default",
-            xAxisLabel: data.xAxisLabel,
-            yAxisLabel: data.yAxisLabel,
-            xAxisType: data.xAxisType,
-            yAxisType: data.yAxisType
+            xAxisLabel: data.plotConfiguration.xAxisLabel,
+            yAxisLabel: data.plotConfiguration.yAxisLabel,
+            xAxisType: data.plotConfiguration.xAxisType,
+            yAxisType: data.plotConfiguration.yAxisType
           }];
-          this.dataSources = data.dataSources;
-          this.categories = data.categories;
-          this.outputBackend = data.outputBackend;
-          this.dois = data.dois;
-          this.analysesAvailable = true;
+          _this.dataSources = data.plotConfiguration.dataSources;
+          _this.categories = data.plotConfiguration.categories;
+          _this.outputBackend = data.plotConfiguration.outputBackend;
+          _this.dois = data.dois;
+          _this.analysesAvailable = true;
         });
   }
-}
+};
 </script>
 
 <template>
@@ -78,7 +83,7 @@ export default {
     <div class="card-header">
       <div class="btn-group btn-group-sm float-right">
         <button class="btn btn-default btn-sm float-right" href="#" data-toggle="modal"
-                data-target="#statusesModal">
+                :data-target="`#task-status-modal-${uid}`">
           Tasks
         </button>
         <div class="btn-group btn-group-sm float-right">
@@ -114,8 +119,8 @@ export default {
       <!-- card-header sets the margins identical to the card so the title appears at the same position -->
       <nav class="card-header navbar navbar-toggleable-xl bg-light flex-column align-items-start h-100">
         <ul class="flex-column navbar-nav">
-          <a href="#" data-toggle="collapse" :data-target="`#sidebar-${uid}`">
-            <h5 class="text-black"><i class="fa fa-bars"></i> {{ title }}</h5>
+          <a class="text-dark" href="#" data-toggle="collapse" :data-target="`#sidebar-${uid}`">
+            <h5><i class="fa fa-bars"></i> {{ title }}</h5>
           </a>
           <li class="nav-item">
             Download
@@ -130,7 +135,7 @@ export default {
             </a>
           </li>
           <li class="nav-item">
-            <a href="#" data-toggle="modal" :data-target="`#bibliography-model-${uid}`">
+            <a href="#" data-toggle="modal" :data-target="`#bibliography-modal-${uid}`">
               Bibliography
             </a>
           </li>
@@ -138,5 +143,13 @@ export default {
       </nav>
     </div>
   </div>
-  <bibliography-modal :id="`bibliography-model-${uid}`" :dois="dois"></bibliography-modal>
+  <task-status-modal
+      :id="`task-status-modal-${uid}`"
+      :analyses="analyses"
+      :csrf-token="csrfToken">
+  </task-status-modal>
+  <bibliography-modal
+      :id="`bibliography-modal-${uid}`"
+      :dois="dois">
+  </bibliography-modal>
 </template>

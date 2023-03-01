@@ -129,7 +129,7 @@ def analyses_meta_data_dataframe(analyses, request):
         values += [str(analysis.subject.get_content_type().model), str(analysis.subject.name),
                    str(analysis.subject.creator) if hasattr(analysis.subject, 'creator') else '',
                    analysis.get_kwargs_display(), str(analysis.start_time),
-                   str(analysis.end_time), str(analysis.duration())]
+                   str(analysis.end_time), str(analysis.duration)]
 
         if analysis.configuration is None:
             properties.append("Versions of dependencies")
@@ -208,7 +208,7 @@ def analysis_header_for_txt_file(analysis, as_comment=True):
         f'Further arguments of analysis function: {analysis.get_kwargs_display()}\n' +\
         f'Start time of analysis task: {analysis.start_time}\n' +\
         f'End time of analysis task: {analysis.end_time}\n' +\
-        f'Duration of analysis task: {analysis.duration()}\n'
+        f'Duration of analysis task: {analysis.duration}\n'
     if analysis.configuration is None:
         s += 'Versions of dependencies (like "SurfaceTopography") are unknown for this analysis.\n'
         s += 'Please recalculate in order to have version information here.\n'

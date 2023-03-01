@@ -1,6 +1,7 @@
 """
 Models related to analyses.
 """
+
 import pickle
 import json
 
@@ -10,8 +11,10 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.files.storage import default_storage
 from django.utils import timezone
 
+from celery.result import AsyncResult
+
+from ..users.models import User
 from ..utils import store_split_dict, load_split_dict
-from topobank.users.models import User
 
 from .registry import ImplementationMissingAnalysisFunctionException, AnalysisRegistry
 
@@ -139,6 +142,7 @@ class Analysis(models.Model):
             store_split_dict(self.storage_prefix, RESULT_FILE_BASENAME, self._result)
             self._result = None
 
+    @property
     def duration(self):
         """Returns duration of computation or None if not finished yet.
 
@@ -153,6 +157,12 @@ class Analysis(models.Model):
 
     def get_kwargs_display(self):
         return str(pickle.loads(self.kwargs))
+
+    def get_task_progress(self):
+        """Return progress of task, if running"""
+        r = AsyncResult(self.task_id)
+        print(r.info)
+        return r.info
 
     @property
     def result(self):

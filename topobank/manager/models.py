@@ -36,9 +36,9 @@ from .utils import get_topography_reader, MAX_LENGTH_SURFACE_COLLECTION_NAME
 from topobank.users.models import User
 from topobank.publication.models import Publication, DOICreationException
 from topobank.users.utils import get_default_group
-from topobank.analysis.models import Analysis
-from topobank.analysis.utils import renew_analyses_for_subject
 from topobank.manager.utils import make_dzi, dzi_exists
+
+from topobank.analysis.models import Analysis
 
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 
@@ -503,6 +503,8 @@ class Surface(models.Model, SubjectMixin):
         - with this surfaces as subject
         This is done in that order.
         """
+        from topobank.analysis.utils import renew_analyses_for_subject
+
         if include_topographies:
             _log.info(f"Regenerating analyses of topographies of surface {self.pk}..")
             for topo in self.topography_set.all():

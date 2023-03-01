@@ -8,6 +8,9 @@ from . import views
 
 app_name = "analysis"
 urlpatterns = [
+    #
+    # HTML routes
+    #
     path(
         'list/',  # TODO change to 'function', also rename name
         view=login_required(views.AnalysesListView.as_view()),
@@ -38,21 +41,22 @@ urlpatterns = [
         view=login_required(views.AnalysisFunctionDetailView.as_view()),
         name='function-detail'
     ),
+    #
+    # API routes that return empty JSON
+    #
     path(
         'card/submit/',
         view=login_required(views.submit_analyses_view),
         name='card-submit'
     ),
     path(
-        'renew/',
+        'renew/',  # POST
         view=login_required(views.renew_analyses_view),
         name='renew'
     ),
-    re_path(
-        r'data/(?P<pk>\d+)/(?P<location>.*)$',
-        view=login_required(views.data),
-        name='data'
-    ),
+    #
+    # JSON (API) routes
+    #
     path(
         f'card/{functions.ART_GENERIC}',
         view=login_required(views.generic_card_view),
@@ -62,5 +66,13 @@ urlpatterns = [
         f'card/{functions.ART_SERIES}',
         view=login_required(views.series_card_view),
         name=f'card-{functions.ART_SERIES}'
+    ),
+    #
+    # Data routes (returned data type is unspecified)
+    #
+    re_path(
+        r'data/(?P<pk>\d+)/(?P<location>.*)$',
+        view=login_required(views.data),
+        name='data'
     ),
 ]

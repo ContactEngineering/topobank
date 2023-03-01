@@ -136,6 +136,12 @@ def series_card_view(request):
     # no successful analysis to display because the surface has only one measurement.
 
     context = {
+        'dois': filter.dois,
+        'extraWarnings': extra_warnings,
+        'analyses': filter.to_representation(request=request)
+    }
+
+    plot_configuration = {
         'title': filter.function.name
     }
 
@@ -144,8 +150,8 @@ def series_card_view(request):
         #
         # Prepare plot, controls, and table with special values..
         #
-        context['dataSources'] = []
-        context['categories'] = [
+        plot_configuration['dataSources'] = []
+        plot_configuration['categories'] = [
             {
                 'title': "Averages / Measurements",
                 'key': "subjectName",
@@ -155,7 +161,7 @@ def series_card_view(request):
                 'key': "seriesName",
             },
         ]
-        context['extraWarnings'] = extra_warnings
+        context['plotConfiguration'] = plot_configuration
         return Response(context)
 
     #
@@ -204,13 +210,12 @@ def series_card_view(request):
     def get_axis_type(key):
         return first_analysis_result.get(key) or "linear"
 
-    context.update({
+    plot_configuration.update({
         'xAxisLabel': x_axis_label,
         'yAxisLabel': y_axis_label,
         'xAxisType': get_axis_type('xscale'),
         'yAxisType': get_axis_type('yscale'),
-        'outputBackend': settings.BOKEH_OUTPUT_BACKEND,
-        'dois': filter.dois
+        'outputBackend': settings.BOKEH_OUTPUT_BACKEND
     })
 
     #
@@ -414,44 +419,37 @@ def series_card_view(request):
                 'isTopographyAnalysis': is_topography_analysis
             }]
 
-    context['dataSources'] = data_sources_dict
-    context['categories'] = [
+    plot_configuration['dataSources'] = data_sources_dict
+    plot_configuration['categories'] = [
         {
             'title': "Averages / Measurements",
             'key': "subjectName",
         },
         {
-            'title': "Data Series",
+            'title': "Data series",
             'key': "seriesName",
         },
     ]
-    context['extraWarnings'] = extra_warnings
+
+    context['plotConfiguration'] = plot_configuration
 
     return Response(context)
 
 
+@api_view(['POST'])
 def renew_analyses_view(request):
     """Renew existing analyses.
     :param request:
     :return: HTTPResponse
     """
-    if not request.is_ajax():
-        raise Http404
-
-    request_method = request.POST
     user = request.user
 
     if user.is_anonymous:
         raise PermissionDenied()
 
     try:
-        analyses_ids = request_method.getlist('analyses_ids[]')
-    except (KeyError, ValueError, TypeError, json.JSONDecodeError):
-        return JsonResponse({'error': 'error in request data'}, status=400)
-
-    try:
-        analyses_ids = [int(x) for x in analyses_ids]
-        analyses = Analysis.objects.filter(id__in=analyses_ids)
+        analysis_ids = [int(x) for x in request.data['analysis_ids']]
+        analyses = Analysis.objects.filter(id__in=analysis_ids)
     except Exception:
         return JsonResponse({'error': 'error in request data'}, status=400)
 

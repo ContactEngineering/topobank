@@ -97,7 +97,7 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Topography
-        fields = ['pk', 'type', 'name', 'creator', 'description', 'tags',
+        fields = ['id', 'type', 'name', 'creator', 'description', 'tags',
                   'urls', 'selected', 'key', 'surface_key', 'title', 'folder', 'version',
                   'publication_date', 'publication_authors', 'creator_name', 'sharing_status', 'label']
 
@@ -240,7 +240,7 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Surface
-        fields = ['pk', 'type', 'name', 'creator', 'creator_name', 'description', 'category', 'category_name', 'tags',
+        fields = ['id', 'type', 'name', 'creator', 'creator_name', 'description', 'category', 'category_name', 'tags',
                   'children', 'sharing_status', 'urls', 'selected', 'key', 'title', 'folder', 'version',
                   'publication_date', 'publication_authors', 'publication_license', 'topography_count', 'label']
 
@@ -260,7 +260,7 @@ class TagSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = TagModel
-        fields = ['pk', 'key', 'type', 'title', 'name', 'children',
+        fields = ['id', 'key', 'type', 'title', 'name', 'children',
                   'folder', 'urls', 'selected', 'version', 'publication_date', 'publication_authors']
 
     def __init__(self, *args, **kwargs):
