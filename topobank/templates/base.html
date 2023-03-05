@@ -82,9 +82,34 @@
               {# The icon ist placed after the badge in order to have the badge attached to the icon #}
               <i class="fa fa-bell"></i>
             </a>
-            <div class="dropdown-menu dropdown-menu-right live_notify_list" aria-labelledby="notificationsDropdown">
+            <div class="notification-sidebar">
+              <button class="notification-button" onclick="openSidebar()">Notifications</button>
+              <div class="notification-sidebar-content">
+                <div class="notification-header">
+                    <h2>Notifications</h2>
+                    <button class="close-button" onclick="closeSidebar()">×</button>
+                </div>
+                <ul class="notification-list">
+                  <li><a href="#">Notification 1</a></li>
+                  <li><a href="#">Notification 2</a></li>
+                  <li><a href="#">Notification 3</a></li>
+                  <li><a href="#">Notification 4</a></li>
+                  <li><a href="#">Notification 5</a></li>
+                </ul>
+              </div>
             </div>
           </li>
+        <script>
+          function openSidebar() {
+          document.querySelector('.notification-sidebar').style.right = '0';
+          }
+
+          function closeSidebar() {
+          document.querySelector('.notification-sidebar').style.right = '-300px';
+          }
+        </script>
+
+
         {% else %} {# user is anonymous #}
           <li class="nav-item">
             <a class="btn btn-info" href="{% provider_login_url 'orcid' method="oauth2" %}">
