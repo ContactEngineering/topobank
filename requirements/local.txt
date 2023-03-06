@@ -90,6 +90,8 @@ coverage[toml]==7.0.4
     #   django-coverage-plugin
     #   pytest-cov
     #   topobank (../setup.py)
+crispy-bootstrap4==2022.1
+    # via topobank (../setup.py)
 cryptography==39.0.0
     # via
     #   pyjwt
@@ -114,6 +116,7 @@ dj-inmemorystorage==2.1.0
 django==3.2.16
     # via
     #   collectfast
+    #   crispy-bootstrap4
     #   dj-inmemorystorage
     #   django-allauth
     #   django-appconf
@@ -147,7 +150,9 @@ django-bootstrap-datepicker-plus==4.0.0
 django-coverage-plugin==3.0.0
     # via topobank (../setup.py)
 django-crispy-forms==1.14.0
-    # via topobank (../setup.py)
+    # via
+    #   crispy-bootstrap4
+    #   topobank (../setup.py)
 django-debug-toolbar==3.8.1
     # via topobank (../setup.py)
 django-environ==0.9.0
@@ -540,7 +545,7 @@ sqlparse==0.4.3
     #   topobank (../setup.py)
 stack-data==0.6.2
     # via ipython
-surfacetopography==1.3.3
+surfacetopography==1.4.0
     # via
     #   contactmechanics
     #   topobank (../setup.py)
