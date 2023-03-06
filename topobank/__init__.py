@@ -1,10 +1,6 @@
-# import pkg_resources
-# __version__ = pkg_resources.require("topobank")[0].version
-
-__version__ = "1.0.0"
-__version_info__ = tuple(
-    [
-        int(num) if num.isdigit() else num
-        for num in __version__.replace("-", ".", 1).split(".")
-    ]
-)
+try:
+    from importlib.metadata import version
+    __version__ = version("topobank")
+except PackageNotFoundError:
+    from setuptools_scm import get_version
+    __version__ = get_version()

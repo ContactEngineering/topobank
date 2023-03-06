@@ -169,7 +169,6 @@ def one_empty_surface_testuser_signed_in(no_surfaces_testuser_signed_in, webdriv
 def surface_1_with_topographies_testuser_logged_in(one_empty_surface_testuser_signed_in, webdriver):
 
     datafile_paths_prefix = 'topobank/manager/fixtures/'
-    datafile_paths_prefix = os.path.join(str(settings.ROOT_DIR), datafile_paths_prefix)
 
     data_paths = [ os.path.join(datafile_paths_prefix, fn)
                    for fn in ['example3.di', 'example4.txt']]

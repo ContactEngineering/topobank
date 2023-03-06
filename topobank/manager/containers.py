@@ -15,6 +15,7 @@ from django.utils.timezone import now
 from django.conf import settings
 from django.contrib.staticfiles.storage import staticfiles_storage
 
+import topobank
 from .models import Topography
 
 import SurfaceTopography
@@ -118,7 +119,7 @@ def write_surface_container(file, surfaces):
     # Add metadata file
     #
     metadata = dict(
-        versions=dict(topobank=settings.TOPOBANK_VERSION),
+        versions=dict(topobank=topobank.__version__),
         surfaces=surfaces_dicts,
         creation_time=str(now()),
     )
@@ -150,7 +151,7 @@ def write_surface_container(file, surfaces):
     Version information
     ===================
 
-    TopoBank: {settings.TOPOBANK_VERSION}
+    TopoBank: {topobank.__version__}
     SurfaceTopgoraphy: {SurfaceTopography.__version__}
     """)
 
