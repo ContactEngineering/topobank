@@ -9,6 +9,8 @@ import os
 
 from django.conf import settings
 
+import topobank
+
 from .utils import SurfaceFactory, Topography2DFactory, Topography1DFactory, TagModelFactory, UserFactory, FIXTURE_DIR
 
 from ..containers import write_surface_container
@@ -37,7 +39,7 @@ def test_surface_container(example_authors):
 
     topo1a = Topography1DFactory(surface=surface1)
     topo1b = Topography2DFactory(surface=surface1,
-                                 datafile__from_path=str(settings.ROOT_DIR.path(FIXTURE_DIR + "/example4.txt")),
+                                 datafile__from_path=FIXTURE_DIR + "/example4.txt",
                                  height_scale_editable=False)
     # for topo1b we use a datafile which has an height_scale_factor defined - this is needed in order
     # to test that this factor is NOT exported to meta.yaml -
@@ -101,7 +103,7 @@ def test_surface_container(example_authors):
                 assert squeezed_datafile_name in zf.namelist()
 
         # check version information
-        assert meta['versions']['topobank'] == settings.TOPOBANK_VERSION
+        assert meta['versions']['topobank'] == topobank.__version__
         assert 'creation_time' in meta
 
         # check publication fields

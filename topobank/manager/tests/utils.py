@@ -70,7 +70,7 @@ class Topography1DFactory(factory.django.DjangoModelFactory):
     surface = factory.SubFactory(SurfaceFactory)
     # creator is set automatically to surface's creator if not set, see signals
     name = factory.Sequence(lambda n: "topography-{:05d}".format(n))
-    datafile = factory.django.FileField(from_path=str(settings.ROOT_DIR.path(FIXTURE_DIR + "/line_scan_1.asc")))
+    datafile = factory.django.FileField(from_path=FIXTURE_DIR + "/line_scan_1.asc")
     data_source = 0
     measurement_date = factory.Sequence(lambda n: datetime.date(2019, 1, 1) + datetime.timedelta(days=n))
     size_x = 512
@@ -89,7 +89,7 @@ class Topography2DFactory(Topography1DFactory):
     Generates a 2D Topography.
     """
     size_y = 512
-    datafile = factory.django.FileField(from_path=str(settings.ROOT_DIR.path(FIXTURE_DIR + "/10x10.txt")))
+    datafile = factory.django.FileField(from_path=FIXTURE_DIR + "/10x10.txt")
 
     # noinspection PyMissingOrEmptyDocstring
     class Meta:

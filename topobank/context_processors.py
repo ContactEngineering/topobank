@@ -11,6 +11,7 @@ import scipy
 
 import SurfaceTopography, ContactMechanics, NuMPI, muFFT
 
+import topobank
 from topobank.manager.utils import current_selection_as_basket_items
 
 UNSELECT_ALL_URL = reverse('manager:unselect-all')
@@ -21,7 +22,7 @@ def versions_processor(request):
     # key 'links': dicts with keys display_name:url
     versions = [
         dict(module='TopoBank',
-             version=settings.TOPOBANK_VERSION,
+             version=topobank.__version__,
              license=('MIT', 'https://github.com/ContactEngineering/topobank/blob/develop/LICENSE'),
              links={'Website': 'https://github.com/ComputationalMechanics/TopoBank',
                     'Changelog': static('other/CHANGELOG.md')}),  # needs 'manage.py collectstatic' before!

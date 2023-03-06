@@ -41,6 +41,7 @@ class Version(models.Model):
     major = models.SmallIntegerField()
     minor = models.SmallIntegerField()
     micro = models.SmallIntegerField(null=True)
+    extra = models.CharField(max_length=100, null=True)
 
     # the following can be used to indicate that this
     # version should not be used any more / or the analyses
@@ -55,6 +56,8 @@ class Version(models.Model):
         x = f"{self.major}.{self.minor}"
         if self.micro is not None:
             x += f".{self.micro}"
+        if self.extra is not None:
+            x += self.extra
         return x
 
     def __str__(self):
