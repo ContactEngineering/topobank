@@ -26,7 +26,8 @@ from ..manager.utils import instances_to_selection, selection_to_subjects_dict, 
 from ..usage_stats.utils import increase_statistics_by_date_and_object
 from .forms import FunctionSelectForm
 from .models import Analysis, AnalysisFunction, AnalysisCollection
-from .utils import AnalysisFilter, request_analysis, renew_analysis, filter_and_order_analyses, palette_for_topographies
+from .utils import AnalysisController, request_analysis, renew_analysis, filter_and_order_analyses, \
+    palette_for_topographies
 from .registry import AnalysisRegistry
 
 import logging
@@ -36,6 +37,20 @@ _log = logging.getLogger(__name__)
 SMALLEST_ABSOLUT_NUMBER_IN_LOGPLOTS = 1e-100
 MAX_NUM_POINTS_FOR_SYMBOLS = 50
 LINEWIDTH_FOR_SURFACE_AVERAGE = 4
+
+
+@api_view(['GET'])
+def analysis_status_view(request):
+    user = request.user
+    data = request.data
+
+    if not 'function_id' in data:
+        raise Http404("Missing parameter `function_id`")
+    if not 'subjects' in data:
+        raise Http404("Missing parameter `subjects")
+
+    function_id = int(data.get('function_id'))
+    subjects = data.get('subjects')
 
 
 @api_view(['POST'])
@@ -72,7 +87,7 @@ def generic_card_view(request):
     if subjects is None:
         raise Http404("Missing parameter `subjects")
 
-    filter = AnalysisFilter(user, subjects, function_id=function_id)
+    filter = AnalysisController(user, subjects, function_id=function_id)
 
     #
     # for statistics, count views per function
@@ -104,27 +119,30 @@ def series_card_view(request):
     user = request.user
     data = request.data
 
-    try:
-        function_id = int(data.get('function_id'))
-        subjects = data.get('subjects')
-    except Exception as exc:
-        _log.error("Cannot decode arguments from analysis card request. Details: %s", exc)
-        raise
-
-    if function_id is None:
+    if not 'function_id' in data:
         raise Http404("Missing parameter `function_id`")
-    if subjects is None:
+    if not 'subjects' in data:
         raise Http404("Missing parameter `subjects")
 
-    filter = AnalysisFilter(user, subjects, function_id=function_id)
+    function_id = int(data.get('function_id'))
+    subjects = data.get('subjects')
+
+    controller = AnalysisController(user, subjects, function_id=function_id)
 
     #
     # for statistics, count views per function
     #
-    increase_statistics_by_date_and_object(Metric.objects.ANALYSES_RESULTS_VIEW_COUNT, obj=filter.function)
+    increase_statistics_by_date_and_object(Metric.objects.ANALYSES_RESULTS_VIEW_COUNT, obj=controller.function)
 
-    extra_warnings = []
-    analyses_success = filter(['su'], True)
+    #
+    # Trigger missing analyses
+    #
+    controller.trigger_missing_analyses()
+
+    #
+    # Filter only successful ones
+    #
+    analyses_success = controller(['su'], True)
 
     #
     # order analyses such that surface analyses are coming last (plotted on top)
@@ -136,13 +154,13 @@ def series_card_view(request):
     # no successful analysis to display because the surface has only one measurement.
 
     context = {
-        'dois': filter.dois,
-        'extraWarnings': extra_warnings,
-        'analyses': filter.to_representation(request=request)
+        'dois': controller.dois,
+        'extraWarnings': [],
+        'analyses': controller.to_representation(request=request)
     }
 
     plot_configuration = {
-        'title': filter.function.name
+        'title': controller.function.name
     }
 
     nb_analyses_success = len(analyses_success_list)
@@ -323,6 +341,8 @@ def series_card_view(request):
         result_metadata = analysis.result_metadata
         series_metadata = result_metadata['series']
 
+        extra_warnings = []
+
         if xunit is None:
             analysis_xscale = 1
         else:
@@ -432,6 +452,7 @@ def series_card_view(request):
     ]
 
     context['plotConfiguration'] = plot_configuration
+    context['extraWarnings'] = extra_warnings
 
     return Response(context)
 

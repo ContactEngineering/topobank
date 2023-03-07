@@ -2,8 +2,13 @@
 
 <script>
 
+import TaskStatusRow from "./TaskStatusRow.vue";
+
 export default {
   name: 'task-status-modal',
+  components: {
+    TaskStatusRow
+  },
   props: {
     analyses: {
       type: Object,
@@ -15,21 +20,6 @@ export default {
     return {
       _analyses: this.analyses === undefined ? [] : this.analyses,
       _selectedAnalyses: []
-    }
-  },
-  methods: {
-    renew(url, analysis_ids) {
-      fetch(url, {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'X-CSRFToken': this.csrfToken
-        },
-        body: JSON.stringify({
-          analysis_ids: analysis_ids
-        })
-      })
     }
   },
   mounted: function () {
@@ -63,51 +53,22 @@ export default {
             <table class="table table-hover task-table">
               <thead>
               <tr>
-                <th scope="col"></th>
+                <th scope="col" style="width:5rem"></th>
                 <th scope="col">Task description</th>
-                <th scope="col">Actions</th>
+                <th scope="col" style="width:7rem">Actions</th>
               </tr>
               </thead>
               <tbody>
-              <tr v-for="analysis in _analyses">
-                <td>
-                  <div v-if="analysis.task_state == 'su'" class="btn btn-default bg-success disabled">
-                    <i class="fa fa-check text-white"></i>
-                  </div>
-                  <div v-if="analysis.task_state == 'fa'" class="btn btn-default bg-failure disabled">
-                    <i class="fa fa-xmark text-white"></i>
-                  </div>
-                  <div v-if="analysis.task_state == 'pe'" class="btn btn-default bg-info disabled">
-                    <i class="fa fa-hourglass text-white"></i>
-                  </div>
-                  <div v-if="analysis.task_state == 'st'" class="btn btn-default bg-primary disabled">
-                    <div class="spinner text-white"></div>
-                  </div>
-                </td>
-                <td>
-                  <p>
-                    {{ analysis.function.name }} on {{ analysis.subject.type }}
-                    <a :href="analysis.subject.urls.detail">
-                      {{ analysis.subject.name }}
-                    </a>
-                    with parameters {{ analysis.kwargs }}
-                  </p>
-                  <p>
-                    Task was created {{ analysis.creation_time }}, started running {{ analysis.start_time }}
-                    and ran for {{ analysis.duration }} seconds.
-                  </p>
-                </td>
-                <td>
-                  <a @click="renew(analysis.urls.renew, [analysis.id])" class="btn btn-default">
-                    Renew
-                  </a>
-                </td>
-              </tr>
+                <task-status-row
+                    v-for="analysis in _analyses"
+                    :analysis="analysis"
+                    :csrf-token="csrfToken">
+                </task-status-row>
               </tbody>
             </table>
           </small>
           <div v-if="_analyses.length == 0" class="alert alert-info">
-            No analysis triggered for this function and these subjects.
+            No analysis was triggered for this function and these subjects.
           </div>
         </div>
         <div class="modal-footer">

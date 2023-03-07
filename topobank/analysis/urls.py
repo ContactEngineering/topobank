@@ -57,11 +57,21 @@ urlpatterns = [
     #
     # JSON (API) routes
     #
+    # GET
+    # * Returns analysis status
+    path(f'status/{analysis_id}',
+         view=login_required(views.analysis_status_view),
+         name=f'status'),
     path(
         f'card/{functions.ART_GENERIC}',
         view=login_required(views.generic_card_view),
         name=f'card-{functions.ART_GENERIC}'
     ),
+    # POST
+    # * Triggers analyses if not yet running
+    # * Return state of analyses
+    # * Return plot configuration for finished analyses
+    # This is a post request because the request parameters are complex.
     path(
         f'card/{functions.ART_SERIES}',
         view=login_required(views.series_card_view),
@@ -70,6 +80,11 @@ urlpatterns = [
     #
     # Data routes (returned data type is unspecified)
     #
+    # GET
+    # * Returns a redirect to the actualy data file in the storage (S3) system
+    # The files that can be returned depend on the analysis. This route simply
+    # redirects to the storage. It is up to the visualization application to
+    # request the correct files.
     re_path(
         r'data/(?P<pk>\d+)/(?P<location>.*)$',
         view=login_required(views.data),

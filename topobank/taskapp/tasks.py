@@ -177,13 +177,16 @@ def perform_analysis(self, analysis_id):
             #
             from trackstats.models import Metric
 
-            td = analysis.end_time - analysis.start_time
-            increase_statistics_by_date(metric=Metric.objects.TOTAL_ANALYSIS_CPU_MS,
-                                        increment=1000 * td.total_seconds())
-            increase_statistics_by_date_and_object(
-                metric=Metric.objects.TOTAL_ANALYSIS_CPU_MS,
-                obj=analysis.function,
-                increment=1000 * td.total_seconds())
+            td = analysis.duration
+            if td is not None:
+                increase_statistics_by_date(metric=Metric.objects.TOTAL_ANALYSIS_CPU_MS,
+                                            increment=1000 * td.total_seconds())
+                increase_statistics_by_date_and_object(
+                    metric=Metric.objects.TOTAL_ANALYSIS_CPU_MS,
+                    obj=analysis.function,
+                    increment=1000 * td.total_seconds())
+            else:
+                _log.warning(f'Duration for analysis with {analysis_id} could not be computed.')
 
         except Analysis.DoesNotExist:
             _log.debug(f"Analysis with {analysis_id} does not exist.")

@@ -150,10 +150,10 @@ class Analysis(models.Model):
 
         :return: Returns datetime.timedelta or None
         """
-        if self.end_time is None:
+        if self.end_time is None or self.start_time is None:
             return None
 
-        return self.end_time-self.start_time
+        return self.end_time - self.start_time
 
     def get_kwargs_display(self):
         return str(pickle.loads(self.kwargs))
