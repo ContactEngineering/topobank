@@ -40,7 +40,7 @@ class AnalysisSerializer(serializers.ModelSerializer):
 
     def get_urls(self, obj):
         return {
-            'renew': reverse('analysis:renew')
+            'status': reverse('analysis:status-detail', kwargs=dict(pk=obj.id))
         }
 
     class Meta:

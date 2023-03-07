@@ -1,13 +1,21 @@
 from django.urls import path, re_path
 from django.contrib.auth.decorators import login_required
 
+from rest_framework.routers import DefaultRouter
+
 from . import downloads
 from . import functions
 from . import views
 
+router = DefaultRouter()
+router.register(r'status', views.AnalysisView, basename='status')
+
+print(router.urls)
+
+urlpatterns = router.urls
 
 app_name = "analysis"
-urlpatterns = [
+urlpatterns += [
     #
     # HTML routes
     #
@@ -49,24 +57,6 @@ urlpatterns = [
         view=login_required(views.submit_analyses_view),
         name='card-submit'
     ),
-    path(
-        'renew/',  # POST
-        view=login_required(views.renew_analyses_view),
-        name='renew'
-    ),
-    #
-    # JSON (API) routes
-    #
-    # GET
-    # * Returns analysis status
-    path(f'status/{analysis_id}',
-         view=login_required(views.analysis_status_view),
-         name=f'status'),
-    path(
-        f'card/{functions.ART_GENERIC}',
-        view=login_required(views.generic_card_view),
-        name=f'card-{functions.ART_GENERIC}'
-    ),
     # POST
     # * Triggers analyses if not yet running
     # * Return state of analyses
@@ -89,5 +79,5 @@ urlpatterns = [
         r'data/(?P<pk>\d+)/(?P<location>.*)$',
         view=login_required(views.data),
         name='data'
-    ),
+    )
 ]

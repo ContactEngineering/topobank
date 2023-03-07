@@ -12,6 +12,7 @@ from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect, reverse
 from django.conf import settings
 
+from rest_framework import mixins, viewsets, status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
@@ -26,6 +27,7 @@ from ..manager.utils import instances_to_selection, selection_to_subjects_dict, 
 from ..usage_stats.utils import increase_statistics_by_date_and_object
 from .forms import FunctionSelectForm
 from .models import Analysis, AnalysisFunction, AnalysisCollection
+from .serializers import AnalysisSerializer
 from .utils import AnalysisController, request_analysis, renew_analysis, filter_and_order_analyses, \
     palette_for_topographies
 from .registry import AnalysisRegistry
@@ -38,20 +40,20 @@ SMALLEST_ABSOLUT_NUMBER_IN_LOGPLOTS = 1e-100
 MAX_NUM_POINTS_FOR_SYMBOLS = 50
 LINEWIDTH_FOR_SURFACE_AVERAGE = 4
 
+class AnalysisView(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
+    """Retrieve status of analysis (GET) and renew analysis (POST)"""
+    queryset = Analysis.objects.all()
+    serializer_class = AnalysisSerializer
 
-@api_view(['GET'])
-def analysis_status_view(request):
-    user = request.user
-    data = request.data
-
-    if not 'function_id' in data:
-        raise Http404("Missing parameter `function_id`")
-    if not 'subjects' in data:
-        raise Http404("Missing parameter `subjects")
-
-    function_id = int(data.get('function_id'))
-    subjects = data.get('subjects')
-
+    def update(self, request, *args, **kwargs):
+        """Renew existing analysis."""
+        analysis = self.get_object()
+        if analysis.is_visible_for_user(request.user):
+            new_analysis = renew_analysis(analysis)
+            serializer = self.get_serializer(new_analysis)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        else:
+            return Response({}, status=status.HTTP_403_FORBIDDEN)
 
 @api_view(['POST'])
 def generic_card_view(request):
@@ -455,46 +457,6 @@ def series_card_view(request):
     context['extraWarnings'] = extra_warnings
 
     return Response(context)
-
-
-@api_view(['POST'])
-def renew_analyses_view(request):
-    """Renew existing analyses.
-    :param request:
-    :return: HTTPResponse
-    """
-    user = request.user
-
-    if user.is_anonymous:
-        raise PermissionDenied()
-
-    try:
-        analysis_ids = [int(x) for x in request.data['analysis_ids']]
-        analyses = Analysis.objects.filter(id__in=analysis_ids)
-    except Exception:
-        return JsonResponse({'error': 'error in request data'}, status=400)
-
-    allowed = all(a.is_visible_for_user(user) for a in analyses)
-
-    if allowed:
-        new_analyses = [renew_analysis(a) for a in analyses]
-        status = 200
-
-        #
-        # create a collection of analyses such that points to all analyses
-        #
-        analyses_str = f"{len(analyses)} analyses" if len(analyses) > 1 else "one analysis"
-        collection = AnalysisCollection.objects.create(name=f"Recalculation of {analyses_str}.",
-                                                       combined_task_state=Analysis.PENDING,
-                                                       owner=user)
-        collection.analyses.set(new_analyses)
-        #
-        # Each finished analysis checks whether related collections are finished, see "topobank.taskapp.tasks"
-        #
-    else:
-        status = 403
-
-    return JsonResponse({}, status=status)
 
 
 def submit_analyses_view(request):

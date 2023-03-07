@@ -3,21 +3,57 @@ export default {
   name: 'task-status-row',
   props: {
     analysis: Object,
-    csrfToken: String
+    csrfToken: String,
+    statusTimeout: {
+      type: Number,
+      default: 5000  // milliseconds
+    }
+  },
+  data() {
+    return {
+      _analysis: this.analysis
+    }
+  },
+  mounted() {
+    this.scheduleStatusCheck();
   },
   methods: {
-    renew(url, analysis_ids) {
-      fetch(url, {
-        method: 'POST',
+    scheduleStatusCheck() {
+      if (this._analysis !== undefined) {
+        if (this._analysis.task_state == 'pe' || this._analysis.task_state == 'st') {
+          setTimeout(this.checkStatus, this.statusTimeout);
+        }
+      }
+    },
+    checkStatus() {
+      fetch(this._analysis.urls.status, {
+        method: 'GET',
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
           'X-CSRFToken': this.csrfToken
-        },
-        body: JSON.stringify({
-          analysis_ids: analysis_ids
-        })
+        }
       })
+          .then(response => response.json())
+          .then(data => {
+            console.log(data);
+            this._analysis = data;
+            this.scheduleStatusCheck();
+          })
+    },
+    renew() {
+      fetch(this._analysis.urls.status, {
+        method: 'PUT',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'X-CSRFToken': this.csrfToken
+        }
+      })
+          .then(response => response.json())
+          .then(data => {
+            this._analysis = data;
+          })
     }
   }
 };
@@ -66,7 +102,7 @@ export default {
       </p>
     </td>
     <td>
-      <a @click="renew(analysis.urls.renew, [analysis.id])" class="btn btn-default">
+      <a @click="renew()" class="btn btn-default">
         Renew
       </a>
     </td>
