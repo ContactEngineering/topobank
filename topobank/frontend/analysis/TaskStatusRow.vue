@@ -40,7 +40,6 @@ export default {
       })
           .then(response => response.json())
           .then(data => {
-            console.log(data);
             this._analysis = data;
             this.scheduleStatusCheck();
           })
@@ -56,7 +55,6 @@ export default {
       })
           .then(response => response.json())
           .then(data => {
-            console.log(data);
             this._analysis = data;
             this.scheduleStatusCheck();
           })
