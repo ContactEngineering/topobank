@@ -21,6 +21,7 @@ class AnalysisSerializer(serializers.ModelSerializer):
         Surface: SurfaceSerializer(),
         Topography: TopographySerializer()
     })
+    task_state = serializers.SerializerMethodField()
     task_progress = serializers.SerializerMethodField()
     urls = serializers.SerializerMethodField()
 
@@ -29,6 +30,31 @@ class AnalysisSerializer(serializers.ModelSerializer):
 
     def get_kwargs(self, obj):
         return pickle.loads(obj.kwargs)
+
+    def get_task_state(self, obj):
+        # This is self-reported by the task runner
+        self_reported_task_state = obj.task_state
+        # This is what Celery reports back
+        celery_task_state = obj.get_celery_state()
+
+        if celery_task_state is None:
+            # There is no Celery state, possibly because the Celery task has not yet been created
+            return self_reported_task_state
+
+        if self_reported_task_state == celery_task_state:
+            # We're good!
+            return self_reported_task_state
+        else:
+            if self_reported_task_state == Analysis.SUCCESS:
+                # Something is wrong, but we return success if the task self-reports succes
+                _log.info(f"The task with id {obj.id} self-reported the state '{self_reported_task_state}', "
+                          f"but Celery reported '{celery_task_state}'. I am returning a success.")
+                return Analysis.SUCCESS
+            else:
+                # We return a failure otherwise
+                _log.info(f"The task with id {obj.id} self-reported the state '{self_reported_task_state}', "
+                          f"but Celery reported '{celery_task_state}'. I am returning a failure.")
+                return Analysis.FAILURE
 
     def get_task_progress(self, obj):
         if obj.task_state == Analysis.STARTED:

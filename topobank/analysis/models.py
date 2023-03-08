@@ -11,7 +11,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.files.storage import default_storage
 from django.utils import timezone
 
-from celery.result import AsyncResult
+from celery import result, states
 
 from ..users.models import User
 from ..utils import store_split_dict, load_split_dict
@@ -161,9 +161,27 @@ class Analysis(models.Model):
     def get_kwargs_display(self):
         return str(pickle.loads(self.kwargs))
 
+    def get_celery_state(self):
+        """Return the state of the task reported by Celery"""
+        if self.task_id is None:
+            # Cannot get the state
+            return None
+        r = result.AsyncResult(self.task_id)
+        if r.state == states.SUCCESS:
+            return Analysis.SUCCESS
+        elif r.state == states.STARTED:
+            return Analysis.STARTED
+        elif r.state == states.PENDING:
+            return Analysis.PENDING
+        elif r.state == states.RETRY:
+            return Analysis.RETRY
+        else:
+            # Everything else is interpreted as a failure
+            return Analysis.FAILURE
+
     def get_task_progress(self):
         """Return progress of task, if running"""
-        r = AsyncResult(self.task_id)
+        r = result.AsyncResult(self.task_id)
         return r.info
 
     @property
