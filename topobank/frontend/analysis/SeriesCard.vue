@@ -42,38 +42,42 @@ export default {
     }
   },
   mounted() {
-    /* Fetch JSON describing the card */
-    var _this = this;
-    fetch(this.apiUrl, {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'X-CSRFToken': this.csrfToken
-      },
-      body: JSON.stringify({
-        function_id: this.functionId,
-        subjects: this.subjects
+    this.updateCard();
+  },
+  methods: {
+    updateCard() {
+      /* Fetch JSON describing the card */
+      fetch(this.apiUrl, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'X-CSRFToken': this.csrfToken
+        },
+        body: JSON.stringify({
+          function_id: this.functionId,
+          subjects: this.subjects
+        })
       })
-    })
-        .then(response => response.json())
-        .then(data => {
-          console.log(data);
-          _this.analyses = data.analyses;
-          _this.title = data.plotConfiguration.title;
-          _this.plots = [{
-            title: "default",
-            xAxisLabel: data.plotConfiguration.xAxisLabel,
-            yAxisLabel: data.plotConfiguration.yAxisLabel,
-            xAxisType: data.plotConfiguration.xAxisType,
-            yAxisType: data.plotConfiguration.yAxisType
-          }];
-          _this.dataSources = data.plotConfiguration.dataSources;
-          _this.categories = data.plotConfiguration.categories;
-          _this.outputBackend = data.plotConfiguration.outputBackend;
-          _this.dois = data.dois;
-          _this.analysesAvailable = true;
-        });
+          .then(response => response.json())
+          .then(data => {
+            console.log(data);
+            this.analyses = data.analyses;
+            this.title = data.plotConfiguration.title;
+            this.plots = [{
+              title: "default",
+              xAxisLabel: data.plotConfiguration.xAxisLabel,
+              yAxisLabel: data.plotConfiguration.yAxisLabel,
+              xAxisType: data.plotConfiguration.xAxisType,
+              yAxisType: data.plotConfiguration.yAxisType
+            }];
+            this.dataSources = data.plotConfiguration.dataSources;
+            this.categories = data.plotConfiguration.categories;
+            this.outputBackend = data.plotConfiguration.outputBackend;
+            this.dois = data.dois;
+            this.analysesAvailable = true;
+          });
+    }
   }
 };
 </script>
@@ -83,13 +87,11 @@ export default {
     <div class="card-header">
       <div class="btn-group btn-group-sm float-right">
         <tasks-button :analyses="analyses"
-                     :csrf-token="csrfToken">
+                      :csrf-token="csrfToken">
         </tasks-button>
-        <div class="btn-group btn-group-sm float-right pl-1">
-          <a href="{% url 'analysis:function-detail' function.pk %}" class="btn btn-default float-right">
-            <i class="fa fa-redo"></i>
-          </a>
-        </div>
+        <button @click="updateCard" class="btn btn-default float-right">
+          <i class="fa fa-redo"></i>
+        </button>
         <div class="btn-group btn-group-sm float-right">
           <a href="{% url 'analysis:function-detail' function.pk %}" class="btn btn-default float-right">
             <i class="fa fa-expand"></i>
