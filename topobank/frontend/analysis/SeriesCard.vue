@@ -4,14 +4,14 @@ import {v4 as uuid4} from 'uuid';
 
 import BokehPlot from '../components/BokehPlot.vue';
 import BibliographyModal from './BibliographyModal.vue';
-import TaskButton from './TaskButton.vue';
+import TasksButton from './TasksButton.vue';
 
 export default {
   name: 'series-card',
   components: {
     BibliographyModal,
     BokehPlot,
-    TaskButton
+    TasksButton
   },
   props: {
     apiUrl: String,
@@ -82,9 +82,9 @@ export default {
   <div class="card search-result-card">
     <div class="card-header">
       <div class="btn-group btn-group-sm float-right">
-        <task-button :analyses="analyses"
+        <tasks-button :analyses="analyses"
                      :csrf-token="csrfToken">
-        </task-button>
+        </tasks-button>
         <div class="btn-group btn-group-sm float-right pl-1">
           <a href="{% url 'analysis:function-detail' function.pk %}" class="btn btn-default float-right">
             <i class="fa fa-redo"></i>

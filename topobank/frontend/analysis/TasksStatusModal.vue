@@ -5,7 +5,7 @@
 import TaskStatusRow from "./TaskStatusRow.vue";
 
 export default {
-  name: 'task-status-modal',
+  name: 'tasks-status-modal',
   components: {
     TaskStatusRow
   },

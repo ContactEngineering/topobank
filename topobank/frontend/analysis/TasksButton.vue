@@ -2,12 +2,12 @@
 
 import {v4 as uuid4} from 'uuid';
 
-import TaskStatusModal from './TaskStatusModal.vue';
+import TasksStatusModal from './TasksStatusModal.vue';
 
 export default {
-  name: 'task-button',
+  name: 'tasks-button',
   components: {
-    TaskStatusModal
+    TasksStatusModal
   },
   props: {
     analyses: Object,
@@ -30,9 +30,9 @@ export default {
           :data-target="`#task-status-modal-${uid}`">
     Tasks
   </button>
-  <task-status-modal
+  <tasks-status-modal
       :id="`task-status-modal-${uid}`"
       :analyses="analyses"
       :csrf-token="csrfToken">
-  </task-status-modal>
+  </tasks-status-modal>
 </template>
