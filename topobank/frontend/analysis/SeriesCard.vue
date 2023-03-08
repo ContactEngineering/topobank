@@ -4,14 +4,14 @@ import {v4 as uuid4} from 'uuid';
 
 import BokehPlot from '../components/BokehPlot.vue';
 import BibliographyModal from './BibliographyModal.vue';
-import TaskStatusModal from './TaskStatusModal.vue';
+import TaskButton from './TaskButton.vue';
 
 export default {
-  name: 'plot-card',
+  name: 'series-card',
   components: {
     BibliographyModal,
     BokehPlot,
-    TaskStatusModal
+    TaskButton
   },
   props: {
     apiUrl: String,
@@ -82,10 +82,14 @@ export default {
   <div class="card search-result-card">
     <div class="card-header">
       <div class="btn-group btn-group-sm float-right">
-        <button class="btn btn-default btn-sm float-right" href="#" data-toggle="modal"
-                :data-target="`#task-status-modal-${uid}`">
-          Tasks
-        </button>
+        <task-button :analyses="analyses"
+                     :csrf-token="csrfToken">
+        </task-button>
+        <div class="btn-group btn-group-sm float-right pl-1">
+          <a href="{% url 'analysis:function-detail' function.pk %}" class="btn btn-default float-right">
+            <i class="fa fa-redo"></i>
+          </a>
+        </div>
         <div class="btn-group btn-group-sm float-right">
           <a href="{% url 'analysis:function-detail' function.pk %}" class="btn btn-default float-right">
             <i class="fa fa-expand"></i>
@@ -143,11 +147,6 @@ export default {
       </nav>
     </div>
   </div>
-  <task-status-modal
-      :id="`task-status-modal-${uid}`"
-      :analyses="analyses"
-      :csrf-token="csrfToken">
-  </task-status-modal>
   <bibliography-modal
       :id="`bibliography-modal-${uid}`"
       :dois="dois">
