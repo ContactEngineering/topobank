@@ -50,7 +50,7 @@ class Version(models.Model):
 
     # TODO After upgrade to Django 2.2, use contraints: https://docs.djangoproject.com/en/2.2/ref/models/constraints/
     class Meta:
-        unique_together = (('dependency', 'major', 'minor', 'micro'),)
+        unique_together = (('dependency', 'major', 'minor', 'micro', 'extra'),)
 
     def number_as_string(self):
         x = f"{self.major}.{self.minor}"
@@ -107,9 +107,12 @@ class Analysis(models.Model):
 
     kwargs = models.BinaryField()  # for pickle
 
+    # This is the Celery task id
     task_id = models.CharField(max_length=155, unique=True, null=True)
-    task_state = models.CharField(max_length=7,
-                                  choices=TASK_STATE_CHOICES)
+
+    # This is the self-reported task state. It can differ from what Celery
+    # knows about the task.
+    task_state = models.CharField(max_length=7, choices=TASK_STATE_CHOICES)
 
     creation_time = models.DateTimeField(null=True)
     start_time = models.DateTimeField(null=True)
@@ -142,6 +145,7 @@ class Analysis(models.Model):
             store_split_dict(self.storage_prefix, RESULT_FILE_BASENAME, self._result)
             self._result = None
 
+    @property
     def duration(self):
         """Returns duration of computation or None if not finished yet.
 
@@ -156,6 +160,11 @@ class Analysis(models.Model):
 
     def get_kwargs_display(self):
         return str(pickle.loads(self.kwargs))
+
+    def get_task_progress(self):
+        """Return progress of task, if running"""
+        r = AsyncResult(self.task_id)
+        return r.info
 
     @property
     def result(self):
