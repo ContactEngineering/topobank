@@ -7,7 +7,7 @@ export default {
     csrfToken: String,
     statusTimeout: {
       type: Number,
-      default: 5000  // milliseconds
+      default: 2000  // milliseconds
     }
   },
   data() {
@@ -69,8 +69,8 @@ export default {
       <div v-if="_analysis.task_state == 'su'" class="btn btn-default bg-success disabled">
         <i class="fa fa-check text-white"></i>
       </div>
-      <div v-if="_analysis.task_state == 'fa'" class="btn btn-default bg-failure disabled">
-        <i class="fa fa-xmark text-white"></i>
+      <div v-if="_analysis.task_state == 'fa'" class="btn btn-default bg-danger disabled">
+        <i class="fa fa-circle text-white"></i>
       </div>
       <div v-if="_analysis.task_state == 'pe'" class="btn btn-default bg-light disabled">
         <div class="spinner text-white"></div>
