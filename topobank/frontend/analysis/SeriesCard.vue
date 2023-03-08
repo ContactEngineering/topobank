@@ -16,6 +16,11 @@ export default {
   props: {
     apiUrl: String,
     csrfToken: String,
+    detailUrl: String,
+    enlargeButton: {
+      type: Boolean,
+      default: false
+    },
     functionId: Number,
     functionName: String,
     subjects: Object,
@@ -89,11 +94,11 @@ export default {
         <tasks-button :analyses="analyses"
                       :csrf-token="csrfToken">
         </tasks-button>
-        <button @click="updateCard" class="btn btn-default float-right">
+        <button @click="updateCard" class="btn btn-default float-right ml-1">
           <i class="fa fa-redo"></i>
         </button>
-        <div class="btn-group btn-group-sm float-right">
-          <a href="{% url 'analysis:function-detail' function.pk %}" class="btn btn-default float-right">
+        <div v-if="enlargeButton" class="btn-group btn-group-sm float-right">
+          <a :href="detailUrl" class="btn btn-default float-right">
             <i class="fa fa-expand"></i>
           </a>
         </div>

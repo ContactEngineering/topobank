@@ -18,9 +18,9 @@
       Show card. Will be replaced by AJAX call.
       -->
       <div id="card-wrapper">
-        <div class="card">
+        <div id="app" class="card">
           <div class="card-header">
-            <h3>{{ card.function.name }}</h3>
+            <h5>{{ card.function.name }}</h5>
           </div>
           <div class="card-body">
               <span class="spinner"></span>
@@ -36,47 +36,23 @@
 {% endblock content %}
 
 {% block javascript %}
-  <!-- ----------- for bokeh plot ----- -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/bokeh/3.0.0-dev.4/bokeh.min.js" integrity="sha512-HfciX3GGYUSD5vbnSEFkesyF3KD/ZEMsxRxPQmGoABd3OTSAdY4Hbauw+3ieCBF0KIbV4cZKn9rIW93a882EcA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/bokeh/3.0.0-dev.4/bokeh-api.min.js" integrity="sha512-lM8DqpIFHDJzMhBJ8YW/7UGFPIq1eGStGuPbFf3pWVEPpoZBD3L6PvptqaW0z3GwzC/yPwsaSQVh9JObK9hpUw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/bokeh/3.0.0-dev.4/bokeh-widgets.min.js" integrity="sha512-8gbP3L8XiZSD+zqB50nFZzgPqkg2d00gPGVfevBXFqbC+ob1PLlyqu1ZiU+n6pQ0iVQ4HnXEh5cZ8jKmgJqYsA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/bokeh/3.0.0-dev.4/bokeh-tables.min.js" integrity="sha512-0MPXzezXHxbzck9MBVY6bRNBKK9L6oBEtOM+LrOZu+gN51LyvFYvSLj5FsbxXctf2Lt45wgjp3rFOh8mX/LBiw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
-{#  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-3.0.2.min.js"></script>#}
-{#  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-api-3.0.2.min.js"></script>#}
-{#  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-widgets-3.0.2.min.js"></script>#}
-{#  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-tables-3.0.2.min.js"></script>#}
-
-  <script src="{% static 'js/plot.js' %}"></script>
-
-  <!-- for task progress bar -->
-  <script src="{% static 'celery_progress/celery_progress.js' %}"></script>
-
-  <!-- for datatables -->
-  <script src="{% static 'vendor/datatables/datatables.min.js' %}"></script>
-
-  <script>
-    const result_view_mode = 'detail';
-
-    <!-- Trigger fetching analysis results -->
-    // for the card submit ajax call to insert result card
-    $(document).ready(function () {
-      submit_analyses_card_ajax("{% url 'analysis:card' %}",
-        "card-wrapper", "card", "detail",
-        {{ card.function.id }},
-        {{ card.subjects|safe }}, 0, "{{ csrf_token }}");
-
-      // we want that closing an item in the basket
-      // does unselect it and reload the analyses
-      basket.unselect_handler = function reload (key) {
-         location.reload();  // simplest way now to reduce analyses shown
-        // It would be better to only reload the cards, but so far the "cards" context variable
-        // does not come from an AJAX call
-      };
-    });
-
-    // we don't want error messages if the page is left before everything is loaded
-    install_handler_for_aborting_all_ajax_calls_on_page_leave();
-  </script>
+<!-- create card apps -->
+<script src="{% static 'js/series_card.bundle.js' %}"></script>
+{% with card_data_id=card.id|add:"-subjects" %}
+{{ card.subjects|json_script:card_data_id }}
+{% endwith %}
+<script>
+  {% with api_name='analysis:card-'|add:card.analysis_result_type %}
+  topobank.{{ card.analysis_result_type }}_card.createCardApp('#app', {
+    apiUrl: '{% url api_name %}',
+    csrfToken: '{{ csrf_token }}',
+    detailUrl: "{% url 'analysis:function-detail' card.function.id %}",
+    functionId: {{ card.function.id }},
+    functionName: '{{ card.function.name }}',
+    subjects: JSON.parse(document.getElementById('{{ card.id }}-subjects').textContent)
+  });
+  {% endwith %}
+</script>
 
 {% endblock javascript %}

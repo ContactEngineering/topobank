@@ -36,9 +36,6 @@
 {% endblock content %}
 
 {% block javascript %}
-<!-- for task progress bar -->
-<script src="{% static 'celery_progress/celery_progress.js' %}"></script>
-
 <!-- for crispy form -->
 {{ form.media.js }}
 
@@ -53,6 +50,8 @@
   topobank.{{ card.analysis_result_type }}_card.createCardApp('#{{ card.id }}-app', {
     apiUrl: '{% url api_name %}',
     csrfToken: '{{ csrf_token }}',
+    detailUrl: "{% url 'analysis:function-detail' card.function.id %}",
+    enlargeButton: true,
     functionId: {{ card.function.id }},
     functionName: '{{ card.function.name }}',
     subjects: JSON.parse(document.getElementById('{{ card.id }}-subjects').textContent)

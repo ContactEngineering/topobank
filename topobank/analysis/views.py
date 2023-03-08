@@ -628,7 +628,13 @@ class AnalysisFunctionDetailView(DetailView):
         # filter subjects to those this user is allowed to see
         effective_topographies, effective_surfaces, subjects = selection_to_subjects_dict(self.request)
 
-        card = dict(function=function, subjects=subjects)
+        # get analysis result type
+        analysis_result_type = reg.get_analysis_result_type_for_function_name(function.name)
+
+        card = dict(
+            analysis_result_type=analysis_result_type,
+            function=function,
+            subjects=subjects)
 
         context['card'] = card
 
