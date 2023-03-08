@@ -88,7 +88,7 @@ def request_analysis(user, analysis_func, subject, *other_args, **kwargs):
     #
     # Retrigger an analysis if there was a failure, maybe sth has been fixed in the meantime
     #
-    if analysis.task_state == 'fa':
+    if analysis.task_state == Analysis.FAILURE:
         new_analysis = submit_analysis(users=analysis.users.all(),
                                        analysis_func=analysis_func, subject=subject,
                                        pickled_pyfunc_kwargs=pickled_pyfunc_kwargs)

@@ -31,9 +31,9 @@ class AnalysisSerializer(serializers.ModelSerializer):
         return pickle.loads(obj.kwargs)
 
     def get_task_progress(self, obj):
-        if obj.task_state == 'ru':
+        if obj.task_state == Analysis.STARTED:
             return obj.get_task_progress()
-        elif obj.task_state == 'su':
+        elif obj.task_state == Analysis.SUCCESS:
             return 1.0
         else:
             return 0.0

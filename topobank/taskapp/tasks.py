@@ -111,7 +111,7 @@ def perform_analysis(self, analysis_id):
     analysis.save()
 
     def save_result(result, task_state, dois=[]):
-        _log.debug(f"Saving result of analysis {analysis_id} to storage...")
+        _log.debug(f"Saving result of analysis {analysis_id} with task state '{task_state}' to storage...")
         analysis.task_state = task_state
         #default_storage_replace(f'{analysis.storage_prefix}/result.json',
         #                        io.BytesIO(json.dumps(result, cls=NumpyEncoder).encode('utf-8')))
@@ -122,7 +122,7 @@ def perform_analysis(self, analysis_id):
             analysis.kwargs = pickle.dumps(result['effective_kwargs'])
         analysis.dois = list(dois)  # dois is a set, we need to convert it
         analysis.save()
-        _log.debug("Done saving analysis result.")
+        _log.debug("...done saving analysis result.")
 
     @doi()
     def evaluate_function(subject, **kwargs):

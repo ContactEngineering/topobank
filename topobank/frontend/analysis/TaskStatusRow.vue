@@ -1,9 +1,5 @@
 <script>
 
-function toPercent(x) {
-  return Math.round(x * 100);
-}
-
 export default {
   name: 'task-status-row',
   props: {
@@ -23,6 +19,9 @@ export default {
     this.scheduleStatusCheck();
   },
   methods: {
+    toPercent(x) {
+      return Math.round(x * 100);
+    },
     scheduleStatusCheck() {
       if (this._analysis !== undefined) {
         if (this._analysis.task_state == 'pe' || this._analysis.task_state == 'st') {
@@ -57,7 +56,9 @@ export default {
       })
           .then(response => response.json())
           .then(data => {
+            console.log(data);
             this._analysis = data;
+            this.scheduleStatusCheck();
           })
     }
   }
@@ -67,47 +68,49 @@ export default {
 <template>
   <tr>
     <td>
-      <div v-if="analysis.task_state == 'su'" class="btn btn-default bg-success disabled">
+      <div v-if="_analysis.task_state == 'su'" class="btn btn-default bg-success disabled">
         <i class="fa fa-check text-white"></i>
       </div>
-      <div v-if="analysis.task_state == 'fa'" class="btn btn-default bg-failure disabled">
+      <div v-if="_analysis.task_state == 'fa'" class="btn btn-default bg-failure disabled">
         <i class="fa fa-xmark text-white"></i>
       </div>
-      <div v-if="analysis.task_state == 'pe'" class="btn btn-default bg-light disabled">
+      <div v-if="_analysis.task_state == 'pe'" class="btn btn-default bg-light disabled">
         <div class="spinner text-white"></div>
       </div>
-      <div v-if="analysis.task_state == 'st'" class="btn btn-default bg-light disabled">
-        {{ toPercent(analysis.task_progress) }} %
+      <div v-if="_analysis.task_state == 'st'" class="btn btn-default bg-light disabled">
+        {{ toPercent(_analysis.task_progress) }} %
       </div>
     </td>
     <td>
       <p>
-        Computation of analysis '{{ analysis.function.name }}' on {{ analysis.subject.type }}
-        <a :href="analysis.subject.urls.detail">
-          {{ analysis.subject.name }}
+        Computation of analysis '{{ _analysis.function.name }}' on {{ _analysis.subject.type }}
+        <a :href="_analysis.subject.urls.detail">
+          {{ _analysis.subject.name }}
         </a>.
       </p>
       <p>
-        Parameters: {{ analysis.kwargs }}
+        Parameters: {{ _analysis.kwargs }}
       </p>
-      <p v-if="analysis.task_state == 'su'">
-        This task was created on {{ analysis.creation_time }}, started running {{ analysis.start_time }}
-        and ran for {{ analysis.duration }} seconds.
+      <p v-if="_analysis.task_state == 'su'">
+        This task was created on {{ new Date(_analysis.creation_time) }},
+        started running {{ new Date(_analysis.start_time) }}
+        and ran for {{ Math.round(_analysis.duration) }} seconds.
       </p>
-      <p v-if="analysis.task_state == 'fa'">
-        This task was created on {{ analysis.creation_time }}, started running {{ analysis.start_time }}
+      <p v-if="_analysis.task_state == 'fa'">
+        This task was created on {{ new Date(_analysis.creation_time) }},
+        started running {{ new Date(_analysis.start_time) }}
         but failed.
       </p>
-      <p v-if="analysis.task_state == 'pe'">
-        This task was created on {{ analysis.creation_time }} and is currently waiting to be started.
+      <p v-if="_analysis.task_state == 'pe'">
+        This task was created on {{ new Date(_analysis.creation_time) }} and is currently waiting to be started.
       </p>
-      <p v-if="analysis.task_state == 'st'">
-        This task was created on {{ analysis.creation_time }}, started {{ analysis.start_time }}
+      <p v-if="_analysis.task_state == 'st'">
+        This task was created on {{ new Date(_analysis.creation_time) }}, started {{ new Date(_analysis.start_time) }}
         and is currently running.
       </p>
     </td>
     <td>
-      <a @click="renew()" class="btn btn-default">
+      <a @click="renew" class="btn btn-default">
         Renew
       </a>
     </td>
