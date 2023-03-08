@@ -1,4 +1,9 @@
 <script>
+
+function toPercent(x) {
+  return Math.round(x * 100);
+}
+
 export default {
   name: 'task-status-row',
   props: {
@@ -68,11 +73,11 @@ export default {
       <div v-if="analysis.task_state == 'fa'" class="btn btn-default bg-failure disabled">
         <i class="fa fa-xmark text-white"></i>
       </div>
-      <div v-if="analysis.task_state == 'pe'" class="btn btn-default bg-info disabled">
-        <i class="fa fa-hourglass text-white"></i>
-      </div>
-      <div v-if="analysis.task_state == 'st'" class="btn btn-default bg-primary disabled">
+      <div v-if="analysis.task_state == 'pe'" class="btn btn-default bg-light disabled">
         <div class="spinner text-white"></div>
+      </div>
+      <div v-if="analysis.task_state == 'st'" class="btn btn-default bg-light disabled">
+        {{ toPercent(analysis.task_progress) }} %
       </div>
     </td>
     <td>
