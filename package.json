@@ -13,7 +13,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "@bokeh/bokehjs": "^3.0.3",
     "@bokeh/numbro": "^1.6.2",
@@ -23,8 +23,6 @@
     "flatbush": "^4.0.0",
     "flatpickr": "^4.6.13",
     "hammerjs": "^2.0.8",
-    "jquery": "^3.6.3",
-    "jquery.fancytree": "^2.38.3",
     "mathjax-full": "^3.2.2",
     "nouislider": "^15.7.0",
     "popper.js": "^1.16.1",
