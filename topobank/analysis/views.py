@@ -622,7 +622,6 @@ class AnalysisFunctionDetailView(DetailView):
         # get analysis result type
         visualization_app_name, visualization_type = reg.get_visualization_type_for_function_name(function.name)
         api_name = f'{visualization_app_name}:card-{visualization_type}'
-        print(api_name, reverse(api_name))
         card = dict(
             visualization_type=visualization_type,
             api_url=reverse(api_name),
