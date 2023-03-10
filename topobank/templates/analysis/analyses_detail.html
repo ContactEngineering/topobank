@@ -43,16 +43,14 @@
 {{ card.subjects|json_script:card_data_id }}
 {% endwith %}
 <script>
-  {% with api_name='analysis:card-'|add:card.analysis_result_type %}
-  topobank.{{ card.analysis_result_type }}_card.createCardApp('#app', {
-    apiUrl: '{% url api_name %}',
+  topobank.{{ card.visualization_type }}_card.createCardApp('#app', {
+    apiUrl: '{{ card.api_url }}',
     csrfToken: '{{ csrf_token }}',
     detailUrl: "{% url 'analysis:function-detail' card.function.id %}",
     functionId: {{ card.function.id }},
     functionName: '{{ card.function.name }}',
     subjects: JSON.parse(document.getElementById('{{ card.id }}-subjects').textContent)
   });
-  {% endwith %}
 </script>
 
 {% endblock javascript %}

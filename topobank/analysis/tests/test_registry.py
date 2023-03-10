@@ -7,7 +7,7 @@ from ..registry import AnalysisRegistry
 from ..functions import topography_analysis_function_for_tests, \
     surface_analysis_function_for_tests, \
     surfacecollection_analysis_function_for_tests, \
-    ART_SERIES, ART_GENERIC
+    VIZ_SERIES, VIZ_GENERIC
 from topobank.manager.tests.utils import Topography1DFactory, UserFactory, SurfaceFactory, SurfaceCollectionFactory
 from topobank.manager.models import Topography, Surface, SurfaceCollection
 
@@ -139,6 +139,6 @@ def test_availability_of_implementation_in_plugin(mocker, plugins_installed, plu
 
 def test_card_view_class():
     reg = AnalysisRegistry()
-    assert reg.get_card_view_class(ART_GENERIC) == SimpleCardView
-    assert reg.get_card_view_class(ART_SERIES) == PlotCardView
+    assert reg.get_card_view_class(VIZ_GENERIC) == SimpleCardView
+    assert reg.get_card_view_class(VIZ_SERIES) == PlotCardView
 

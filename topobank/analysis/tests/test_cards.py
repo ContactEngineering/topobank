@@ -13,7 +13,7 @@ from ..models import AnalysisFunction
 from .utils import TopographyAnalysisFactory, SurfaceAnalysisFactory
 from ..views import PlotCardView
 from ..registry import AnalysisRegistry
-from ..functions import ART_SERIES
+from ..functions import VIZ_SERIES
 
 
 @pytest.mark.django_db
@@ -30,7 +30,7 @@ def test_card_template(client, handle_usage_statistics):
     reg = AnalysisRegistry()
     art = reg.get_analysis_result_type_for_function_name(func1.name)
 
-    assert art == ART_SERIES
+    assert art == VIZ_SERIES
 
     topo1 = Topography1DFactory()
 

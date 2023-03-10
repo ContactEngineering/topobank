@@ -10,14 +10,15 @@ import numpy as np
 import logging
 
 from ..utils import SplitDictionaryHere
-from .registry import register_implementation
+#from .registry import register_implementation
 
 _log = logging.getLogger(__name__)
 
 
-# Analysis Result Types ('art' parameter)
-ART_GENERIC = 'generic'
-ART_SERIES = 'series'
+# Visualization types
+APP_NAME = 'analysis'
+VIZ_GENERIC = 'generic'
+VIZ_SERIES = 'series'
 
 
 class ContainerProxy(collections.abc.Iterator):

@@ -1,6 +1,22 @@
 """
 Registry for collection analysis functions.
+
+Each function has an `visualization_type`, determines the type of standardized
+results an analysis function produces. This standardization applies to
+which files are placed in the S3 under the `data` route of the analysis.
+
+The frontend selects a visualization ui app based on the vizui type, that
+expects certain files to be present. This means the same vizui type is
+visualized by the same frontend app, but it may be produced by a different
+analysis function.
+
+As an example, analyses producing simply x-y plots (height distribution,
+autocorrelationm, power spectrum) have the same visualization type and are
+visualized using the same frontend app.
+
+Frontend apps are implemented as Vue.js components.
 """
+
 import inspect
 import logging
 
@@ -39,15 +55,16 @@ class UnimplementedAnalysisFunctionException(RegistryException):
 class AlreadyRegisteredAnalysisFunctionException(RegistryException):  # TODO replace with  AlreadyRegisteredException ?
     """An implementation of an analysis function has already been defined."""
 
-    def __init__(self, art, name, subject_app_label, subject_model):
-        self._art = art
+    def __init__(self, visualization_type, name, subject_app_name, subject_model):
+        self._visualization_type = visualization_type
         self._name = name
-        self._subject_app_label = subject_app_label
+        self._subject_app_name = subject_app_name
         self._subject_model = subject_model
 
     def __str__(self):
-        return f"An implementation for analysis function '{self._name}' (result type: {self._art}) with subject type " +\
-               f"'{self._subject_model}' (app '{self._subject_app_label}') has already been defined."
+        return f"An implementation for analysis function '{self._name}' " \
+               f"(visualization type: {self._visualization_type}) with subject type " \
+               f"'{self._subject_model}' (app '{self._subject_app_name}') has already been defined."
 
 
 class AlreadyRegisteredException(RegistryException):
@@ -63,29 +80,29 @@ class AlreadyRegisteredException(RegistryException):
 class ImplementationMissingAnalysisFunctionException(RegistryException):
     """An analysis function implementation was not found for given subject type."""
 
-    def __init__(self, name, subject_app_label, subject_model):
+    def __init__(self, name, subject_app_name, subject_model):
         self._name = name
-        self._subject_app_label = subject_app_label
+        self._subject_app_name = subject_app_name
         self._subject_model = subject_model
 
     def __str__(self):
         return f"Implementation for analysis function '{self._name}' for " \
-               f"subject type '{self._subject_model}' (app '{self._subject_app_label}')" +\
+               f"subject type '{self._subject_model}' (app '{self._subject_app_name}')" +\
                " not found."
 
 
 class InconsistentAnalysisResultTypeException(RegistryException):
-    """Analysis result type for an analysis function is not unique."""
+    """visualization type for an analysis function is not unique."""
 
-    def __init__(self, name, curr_art, new_art):
+    def __init__(self, name, curr_visualization_type, new_visualization_type):
         self._name = name
-        self._curr_art = curr_art
-        self._new_art = new_art
+        self._curr_visualization_type = curr_visualization_type
+        self._new_visualization_type = new_visualization_type
 
     def __str__(self):
         return f"An implementation for analysis function '{self._name}' was given with "+\
-               f"analysis result type '{self._new_art}', but before "+\
-               f"analysis result type '{self._curr_art}' was defined. It should be unique."
+               f"visualization type '{self._new_visualization_type}', but before "+\
+               f"visualization type '{self._curr_visualization_type}' was defined. It should be unique."
 
 
 class UnknownCardViewFlavorException(RegistryException):
@@ -119,41 +136,42 @@ class AnalysisRegistry(metaclass=Singleton):
     during registration process.
     """
     def __init__(self):
-        self._implementations = {}  # TODO maybe rename to analysis function implementation
-        # key: (art, name, subject_app_label, subject_model)
+        self._analysis_function_implementations = {}
+        # key: (visualization_type, name, subject_app_name, subject_model)
         #      where
-        #      art: str, analysis result type
-        #      name: str, Function name in UI,
-        #      subject_app_label: str, application label for subject_model
+        #      visualization_type: str, visualization type
+        #      function_label: str, Function label in UI,
+        #      subject_app_name: str, application name for subject_model
         #      subject_model: str, e.g. "topography" or "surface",
         #                     should correspond to first argument of analysis function implementations
         #                     and to model class name
         # value: reference to implementation of analysis function
 
         self._download_functions = {}
-        # key: (art, spec, file_format) where
+        # key: (visualization_type, spec, file_format) where
         #
-        #      art: str, analysis result type
+        #      visualization_type: str, visualization type
         #      spec: str, short name for what should be downloaded, e.g. 'results'
         #      file_format: str, e.g. 'txt' or 'xlsx'
         # value: reference to implementation of download function
 
-        self._card_view_classes = {}
-        # key: art: str, analysis result type
-        # value: reference to card view class
+        self._app_name = {}
+        # key: visualization_type: str, visualization type
+        # value: Name of Django app/plugin where the visualization resides
 
-        self._art_by_function_name = {}
-        # key: str, art
+        self._visualization_type_by_function_name = {}
+        # key: visualization_type: str, visualization type
         # value: analysis function name in UI
 
-        self._analysis_result_types = set()
-        # analysis result types (aka arts) which have been seen so far
+        self._visualization_types = set()
+        # visualization types which have been seen so far
 
     ###################################################################
     # Handling of analysis function implementations
     ###################################################################
-    def add_implementation(self, art, name, subject_app_label, func):
-        """Register implementation of an analysis function.
+    def add_implementation(self, visualization_app_name, visualization_type, name, subject_app_name, func):
+        """
+        Register implementation of an analysis function.
 
         Depending on the name of the first argument of the given function,
         this implementation is registered as a function being called for topographies
@@ -164,11 +182,13 @@ class AnalysisRegistry(metaclass=Singleton):
 
         Parameters
         ----------
-        art: str
-            Analysis result type
+        visualization_app_name : str
+            Application name (plugin name) that provides the analysis
+        visualization_type: str
+            visualization type
         name: str
             Function name in the UI
-        subject_app_label: str
+        subject_app_name: str
             Label of app in which the given subject type is expected (e.g. "manager")
         func: function
             Python function which implements the analysis function
@@ -178,17 +198,17 @@ class AnalysisRegistry(metaclass=Singleton):
         func_spec = inspect.getfullargspec(func)
         subject_model = func_spec.args[0]
 
-        _log.debug(f"Adding analysis function implementation for art: {art}, function name: {name}, "
-                   f"app_label: {subject_app_label}, subject_type: {subject_model}..")
+        _log.debug(f"Adding analysis function implementation for art: {visualization_type}, function name: {name}, "
+                   f"app_label: {subject_app_name}, subject_type: {subject_model}..")
 
         #
         # For a given function name, the card view flavor should be unique
         #
-        if name in self._art_by_function_name:
-            curr_art = self._art_by_function_name[name]
-            if curr_art != art:
-                raise InconsistentAnalysisResultTypeException(name, curr_art, art)
-        self._art_by_function_name[name] = art
+        if name in self._visualization_type_by_function_name:
+            curr_visualization_type = self._visualization_type_by_function_name[name]
+            if curr_visualization_type != visualization_type:
+                raise InconsistentAnalysisResultTypeException(name, curr_visualization_type, visualization_type)
+        self._visualization_type_by_function_name[name] = visualization_type
 
         #
         # Do not get subject type of function from database, this is too early.
@@ -200,24 +220,27 @@ class AnalysisRegistry(metaclass=Singleton):
         #
         # Check key
         #
-        key = (art, name, subject_app_label, subject_model)
+        key = (visualization_type, name, subject_app_name, subject_model)
         # We are using the subject_model here because otherwise we have problems
         # during test setup if we use Contenttypes here (not fully ready)
 
         # Each implementation should only be defined once
-        if key in self._implementations:
-            raise AlreadyRegisteredAnalysisFunctionException(art, name, subject_app_label, subject_model)
+        if key in self._analysis_function_implementations:
+            raise AlreadyRegisteredAnalysisFunctionException(
+                visualization_type, name, subject_app_name, subject_model)
 
         #
         # Okay, add this implementation
         #
-        self._analysis_result_types.add(art)
+        self._visualization_types.add(visualization_type)
+        self._app_name[visualization_type] = visualization_app_name
 
         impl = AnalysisFunctionImplementation(func)
-        self._implementations[key] = impl
+        self._analysis_function_implementations[key] = impl
 
     def get_implementation(self, name, subject_type):
-        """Return AnalysisFunctionImplementation for given analysis function and subject type.
+        """
+        Return AnalysisFunctionImplementation for given analysis function and subject type.
 
         Parameters
         ----------
@@ -230,42 +253,46 @@ class AnalysisRegistry(metaclass=Singleton):
         -------
         AnalysisFunctionImplementation instance
         """
-        subject_app_label = subject_type.app_label
+        subject_app_name = subject_type.app_label
         subject_model = subject_type.model
         try:
-            art = self._art_by_function_name[name]
-            return self._implementations[(art, name, subject_app_label, subject_model)]
+            visualization_type = self._visualization_type_by_function_name[name]
+            return self._analysis_function_implementations[(visualization_type, name, subject_app_name, subject_model)]
         except KeyError as exc:
-            raise ImplementationMissingAnalysisFunctionException(name, subject_app_label, subject_model) from exc
+            raise ImplementationMissingAnalysisFunctionException(name, subject_app_name, subject_model) from exc
 
     def get_analysis_function_names(self, user=None):
-        """Returns function names as list.
+        """
+        Returns function names as list.
 
         If given a user, only the functions are returned
         which have at least one implementation for the given user.
         """
-        implementations = self._implementations
+        implementations = self._analysis_function_implementations
         if user is not None:
             # filter for user
             implementations = { k:impl for k, impl in implementations.items()
                                 if impl.is_available_for_user(user) }
 
-        return list(set(name for art, name, subject_app_label, subject_model in implementations.keys()))
+        return list(set(name for visualization_type, name, subject_app_name, subject_model in implementations.keys()))
 
     def get_implementation_types(self, name):
         """Returns list of ContentType which can be given as first argument to function with given name."""
-        return list(set(ContentType.objects.get_by_natural_key(subject_app_label, subject_model)
-                        for art, n, subject_app_label, subject_model in self._implementations.keys() if n==name))
+        return list(set(ContentType.objects.get_by_natural_key(subject_app_name, subject_model)
+                        for visualization_type, n, subject_app_name, subject_model
+                        in self._analysis_function_implementations.keys()
+                        if n == name))
 
-    def get_analysis_result_type_for_function_name(self, requested_name):
-        """Return analysis result type for given function name."""
-        for art, name, subject_app_label, subject_model in self._implementations.keys():
+    def get_visualization_type_for_function_name(self, requested_name):
+        """Return visualization type for given function name."""
+        for visualization_type, name, subject_app_name, subject_model in self._analysis_function_implementations.keys():
             if requested_name == name:
-                return art
+                return self._app_name[visualization_type], visualization_type
         raise ValueError(f"No function registered with given name {requested_name}.")
 
     def sync_analysis_functions(self, cleanup=False):
-        """Make sure all analysis functions are represented in database.
+        """
+        Make sure all analysis functions are represented in database.
 
         It's recommended to run this with cleanup=True if an analysis
         function should be removed.
@@ -320,7 +347,7 @@ class AnalysisRegistry(metaclass=Singleton):
     ###################################################################
     # Handling of download functions
     ###################################################################
-    def add_download_function(self, art, spec, file_format, func):
+    def add_download_function(self, visualization_type, spec, file_format, func):
         """Register implementation of a download function.
 
         You can use the @register_download_function decorator in order to
@@ -328,8 +355,8 @@ class AnalysisRegistry(metaclass=Singleton):
 
         Parameters
         ----------
-        art: str
-            Analysis result type
+        visualization_type: str
+            visualization type
         spec: str
             Short name for what should be downloaded, e.g. 'results'
         file_format: str
@@ -338,23 +365,23 @@ class AnalysisRegistry(metaclass=Singleton):
             Python function which implements the download function
         """
 
-        key = (art, spec, file_format)
+        key = (visualization_type, spec, file_format)
 
         # Each implementation should only be defined once
         if key in self._download_functions:
             raise AlreadyRegisteredException(key)
 
-        self._analysis_result_types.add(art)
+        self._visualization_types.add(visualization_type)
 
         self._download_functions[key] = func
 
-    def get_download_function(self, art, spec, file_format):
+    def get_download_function(self, visualization_type, spec, file_format):
         """Return Python function for given parameters.
 
         Parameters
         ----------
-        art: str
-            Analysis result type
+        visualization_type: str
+            visualization type
         spec: str
             Short name for what should be downloaded, e.g. 'results'
         file_format: str
@@ -370,54 +397,31 @@ class AnalysisRegistry(metaclass=Singleton):
 
         The referenced function returns a HttpResponse with a file download.
         """
-        key = (art, spec, file_format)
+        key = (visualization_type, spec, file_format)
 
         try:
             return self._download_functions[key]
         except KeyError as exc:
             raise UnknownKeyException(key) from exc
 
-    ###################################################################
-    # Handling of card view classes
-    ###################################################################
-    def add_card_view_class(self, art, cls):
-        """Add a card view class for given analysis result type.
-
-        Parameters
-        ----------
-        art: str
-            Analysis result type. Use 'generic' to define a view which is
-            used as fallback when no other view was configured.
-        """
-        if art in self._card_view_classes:
-            raise AlreadyRegisteredException(art)
-        self._card_view_classes[art] = cls
-        self._analysis_result_types.add(art)
-
-    def get_card_view_class(self, art):
-        """Get card view class for given analysis type."""
-        try:
-            return self._card_view_classes[art]
-        except KeyError as exc:
-            if 'generic' in self._card_view_classes:
-                return self._card_view_classes['generic']
-            raise UnknownKeyException(art) from exc
-
 
 ######################################################################################
 # Decorators for registering functions and classes (used from plugins)
 ######################################################################################
-def register_implementation(art="simple", name=None, subject_app_label="manager"):
-    """Decorator for marking a function as implementation for an analysis function.
+def register_implementation(visualization_app_name, visualization_type, name, subject_app_name="manager"):
+    """
+    Decorator for marking a function as implementation for an analysis function.
 
     Parameters
     ----------
-    art: str
-        Analysis result type.
+    visualization_app_name: str
+        App name that provides the analysis function, e.g. "analysis"
+    visualization_type: str
+        Visualization type, e.g. "series"
     name: str
         UI name of analysis function.
-    subject_app_label: str
-        App label where the subject is defined as model, e.g. "manager"
+    subject_app_name: str
+        App name where the subject is defined as model, e.g. "manager"
     """
     def register_decorator(func):
         """
@@ -425,22 +429,23 @@ def register_implementation(art="simple", name=None, subject_app_label="manager"
         :return: decorated function
 
         Depending on the name of the first argument, you get either a Topography
-        or a Surface instance. The model is searched only for the given subject_app_label.
+        or a Surface instance. The model is searched only for the given subject_app_name.
         """
         registry = AnalysisRegistry()  # singleton
-        registry.add_implementation(art, name, subject_app_label, func)
+        registry.add_implementation(visualization_app_name, visualization_type, name, subject_app_name, func)
         return func
 
     return register_decorator
 
 
-def register_download_function(art, spec, file_format):
-    """Decorator for marking a function as a download function.
+def register_download_function(visualization_type, spec, file_format):
+    """
+    Decorator for marking a function as a download function.
 
     Parameters
     ----------
-    art: str
-        Analysis result type.
+    visualization_type: str
+        visualization type.
     spec: str
             Short name for what should be downloaded, e.g. 'results'
     file_format: str
@@ -448,26 +453,8 @@ def register_download_function(art, spec, file_format):
     """
     def register_decorator(func):
         registry = AnalysisRegistry()  # singleton
-        registry.add_download_function(art, spec, file_format, func)
+        registry.add_download_function(visualization_type, spec, file_format, func)
         return func
-
-    return register_decorator
-
-
-def register_card_view_class(art):
-    """Decorator for marking a class as a card view.
-
-    Parameters
-    ----------
-    art: str
-        Analysis result type.
-    func: function
-        Python function which implements the download function
-    """
-    def register_decorator(cls):
-        registry = AnalysisRegistry()  # singleton
-        registry.add_card_view_class(art, cls)
-        return cls
 
     return register_decorator
 

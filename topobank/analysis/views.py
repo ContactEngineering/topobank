@@ -620,10 +620,12 @@ class AnalysisFunctionDetailView(DetailView):
         effective_topographies, effective_surfaces, subjects = selection_to_subjects_dict(self.request)
 
         # get analysis result type
-        analysis_result_type = reg.get_analysis_result_type_for_function_name(function.name)
-
+        visualization_app_name, visualization_type = reg.get_visualization_type_for_function_name(function.name)
+        api_name = f'{visualization_app_name}:card-{visualization_type}'
+        print(api_name, reverse(api_name))
         card = dict(
-            analysis_result_type=analysis_result_type,
+            visualization_type=visualization_type,
+            api_url=reverse(api_name),
             function=function,
             subjects=subjects)
 
@@ -754,10 +756,12 @@ class AnalysesListView(FormView):
         cards = []
         reg = AnalysisRegistry()
         for function in selected_functions:
-            analysis_result_type = reg.get_analysis_result_type_for_function_name(function.name)
+            visualization_app_name, visualization_type = reg.get_visualization_type_for_function_name(function.name)
+            api_name = f'{visualization_app_name}:card-{visualization_type}'
             cards.append(dict(id=f"card-{function.pk}",
                               function=function,
-                              analysis_result_type=analysis_result_type,
+                              visualization_type=visualization_type,
+                              api_url=reverse(api_name),
                               subjects=subjects))
 
         context['cards'] = cards

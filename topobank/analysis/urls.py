@@ -63,9 +63,9 @@ urlpatterns += [
     # * Return plot configuration for finished analyses
     # This is a post request because the request parameters are complex.
     path(
-        f'card/{functions.ART_SERIES}',
+        f'card/{functions.VIZ_SERIES}',
         view=login_required(views.series_card_view),
-        name=f'card-{functions.ART_SERIES}'
+        name=f'card-{functions.VIZ_SERIES}'
     ),
     #
     # Data routes (returned data type is unspecified)
