@@ -32,6 +32,10 @@ class AnalysisSerializer(serializers.ModelSerializer):
         return pickle.loads(obj.kwargs)
 
     def get_task_state(self, obj):
+        """
+        Return the most likely state of the task from the self-reported task
+        information in the database and the information obtained from Celery.
+        """
         # This is self-reported by the task runner
         self_reported_task_state = obj.task_state
         # This is what Celery reports back
