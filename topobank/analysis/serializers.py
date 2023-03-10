@@ -46,15 +46,21 @@ class AnalysisSerializer(serializers.ModelSerializer):
             return self_reported_task_state
         else:
             if self_reported_task_state == Analysis.SUCCESS:
-                # Something is wrong, but we return success if the task self-reports succes
+                # Something is wrong, but we return success if the task self-reports success.
                 _log.info(f"The task with id {obj.id} self-reported the state '{self_reported_task_state}', "
                           f"but Celery reported '{celery_task_state}'. I am returning a success.")
                 return Analysis.SUCCESS
-            else:
-                # We return a failure otherwise
+            elif celery_task_state == Analysis.FAILURE:
+                # Celery seems to think this task failed, we trust it as the self-reported state will
+                # be unreliable in this case.
                 _log.info(f"The task with id {obj.id} self-reported the state '{self_reported_task_state}', "
                           f"but Celery reported '{celery_task_state}'. I am returning a failure.")
                 return Analysis.FAILURE
+            else:
+                # In all other cases, we trust the self-reported state.
+                _log.info(f"The task with id {obj.id} self-reported the state '{self_reported_task_state}', "
+                          f"but Celery reported '{celery_task_state}'. I am returning the self-reported state.")
+                return self_reported_task_state
 
     def get_task_progress(self, obj):
         if obj.task_state == Analysis.STARTED:
