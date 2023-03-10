@@ -77,17 +77,8 @@ def generic_card_view(request):
     user = request.user
     data = request.data
 
-    try:
-        function_id = int(data.get('function_id'))
-        subjects = data.get('subjects')
-    except Exception as exc:
-        _log.error("Cannot decode arguments from analysis card request. Details: %s", exc)
-        raise
-
-    if function_id is None:
-        raise Http404("Missing parameter `function_id`")
-    if subjects is None:
-        raise Http404("Missing parameter `subjects")
+    function_id = int(data.get('function_id'))
+    subjects = data.get('subjects')
 
     filter = AnalysisController(user, subjects, function_id=function_id)
 
@@ -227,14 +218,14 @@ def series_card_view(request):
     #
     # Context information for the figure
     #
-    def get_axis_type(key):
+    def _get_axis_type(key):
         return first_analysis_result.get(key) or "linear"
 
     plot_configuration.update({
         'xAxisLabel': x_axis_label,
         'yAxisLabel': y_axis_label,
-        'xAxisType': get_axis_type('xscale'),
-        'yAxisType': get_axis_type('yscale'),
+        'xAxisType': _get_axis_type('xscale'),
+        'yAxisType': _get_axis_type('yscale'),
         'outputBackend': settings.BOKEH_OUTPUT_BACKEND
     })
 
