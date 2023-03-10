@@ -38,7 +38,9 @@
 {% block javascript %}
 
 <!-- create card apps -->
-<script src="{% static 'js/series_card.bundle.js' %}"></script>
+{% with card_app_js="js/"|add:card.visualization_type|add:"_card.bundle.js" %}
+<script src="{% static card_app_js %}"></script>
+{% endwith %}
 {% with card_data_id=card.id|add:"-subjects" %}
 {{ card.subjects|json_script:card_data_id }}
 {% endwith %}
