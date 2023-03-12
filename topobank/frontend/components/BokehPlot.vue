@@ -106,12 +106,12 @@ export default {
     this.uuid = crypto.randomUUID();
 
     /* For each category, create a list of unique entries */
-    for (const [category_idx, category] of this.categories.entries()) {
+    for (const [categoryIdx, category] of this.categories.entries()) {
       let titles = new Set();
       let elements = [];
       let selection = [];
 
-      // console.log(`Category ${category_idx}: ${category.title} (key: ${category.key})`);
+      // console.log(`Category ${categoryIdx}: ${category.title} (key: ${category.key})`);
       // console.log("===============================================================");
 
       for (const dataSource of this.dataSources) {
@@ -122,20 +122,20 @@ export default {
 
         const title = dataSource[category.key];
         if (!(titles.has(title))) {
-          let element_index = dataSource[category.key + '_index'];
-          let color = category_idx === 0 ? dataSource.color : null;  // The first category defines the color
-          let dash = category_idx === 1 ? dataSource.dash : null;     // The first category defines the line type
-          let has_parent = dataSource[category.key + '_has_parent'];
+          let elementIndex = dataSource[category.key + 'Index'];
+          let color = categoryIdx === 0 ? dataSource.color : null;  // The first category defines the color
+          let dash = categoryIdx === 1 ? dataSource.dash : null;     // The first category defines the line type
+          let hasParent = dataSource[category.key + 'HasParent'];
           titles.add(title);
 
           // need to have the same order as index of category
-          elements[element_index] = {
+          elements[elementIndex] = {
             title: title, color: color, dash: dash,
-            has_parent: has_parent === undefined ? false : has_parent
+            hasParent: hasParent === undefined ? false : hasParent
           };
           // Defaults to showing a data source if it has no 'visible' attribute
           if (dataSource.visible === undefined || dataSource.visible) {
-            selection.push(element_index);
+            selection.push(elementIndex);
           }
         }
       }
@@ -211,35 +211,35 @@ export default {
     dataSources: function (newVal, oldVal) {
       // For some unknown reason, the dataSource watch is triggered even though it is not updated. We have to check
       // manually that the URL has changed.
-      let has_changed = newVal.length !== oldVal.length;
-      if (!has_changed) {
+      let hasChanged = newVal.length !== oldVal.length;
+      if (!hasChanged) {
         for (const [index, val] of newVal.entries()) {
-          has_changed = has_changed || (val.url !== oldVal[index].url);
+          hasChanged = hasChanged || (val.url !== oldVal[index].url);
         }
       }
       // We need to completely rebuild the plot if `dataSources` changes
-      if (has_changed) {
+      if (hasChanged) {
         this.buildPlot();
       }
     }
   },
   methods: {
-    legend_label(dataSource) {
+    legendLabel(dataSource) {
       /* Find number of selected items in second category (e.g. "series_name") */
-      let second_category_in_legend_labels = false;
+      let secondCategoryInLegendLabels = false;
       if ((this.categoryElements.length > 1) && (this.categoryElements[1].selection.length > 1)) {
-        second_category_in_legend_labels = true;
+        secondCategoryInLegendLabels = true;
       }
 
       /* Find a label for the legend */
-      let legend_label = dataSource.source_name;
-      if (dataSource.legend_label !== undefined) {
-        legend_label = dataSource.legend_label;
+      let legendLabel = dataSource.source_name;
+      if (dataSource.legendLabel !== undefined) {
+        legendLabel = dataSource.legendLabel;
       } else if (this.categories.length > 0) {
-        legend_label = dataSource[this.categories[0].key];
-        const has_parent_key = "has_parent";
-        if ((dataSource[has_parent_key] !== undefined) && (dataSource[has_parent_key] === true) && !second_category_in_legend_labels) {
-          legend_label = "└─ " + legend_label;
+        legendLabel = dataSource[this.categories[0].key];
+        const hasParentKey = "hasParent";
+        if ((dataSource[hasParentKey] !== undefined) && (dataSource[hasParentKey] === true) && !secondCategoryInLegendLabels) {
+          legendLabel = "└─ " + legendLabel;
           /* It is not solved yet to get the legend items in the correct order
              to display sublevels only for the correct data series and not for others,
              and at the same time have the same colors and dashed for same subjects
@@ -249,14 +249,14 @@ export default {
           */
 
         }
-        if (second_category_in_legend_labels) {
-          legend_label += ": " + dataSource[this.categories[1].key];
+        if (secondCategoryInLegendLabels) {
+          legendLabel += ": " + dataSource[this.categories[1].key];
         }
       }
 
       // console.log("this.categoryElements[1].selection: " + this.categoryElements[1].selection);
-      // console.log(second_category_in_legend_labels, legend_label);
-      return legend_label;
+      // console.log(secondCategoryInLegendLabels, legendLabel);
+      return legendLabel;
     },
     buildPlot() {
       /* Destroy all lines */
@@ -276,8 +276,8 @@ export default {
               'tooltips': [
                 ['index', '$index'],
                 ['(x,y)', '($x,$y)'],
-                ['subject', '@subject_name'],
-                ['series', '@series_name'],
+                ['subject', '@subjectName'],
+                ['series', '@seriesName'],
               ]
             })
           ];
@@ -375,21 +375,21 @@ export default {
             code += ", alpha: " + plot.alphaData;
             attrs.alpha = {field: "alpha"};
           }
-          if (dataSource.subject_name !== undefined) {
+          if (dataSource.subjectName !== undefined) {
             // For each data point, add the same subject_name
-            code += ", subject_name: " + xData + ".map((value) => '" + dataSource.subject_name + "')";
+            code += ", subjectName: " + xData + ".map((value) => '" + dataSource.subjectName + "')";
           }
-          let series_name = "-";
-          if (dataSource.series_name !== undefined) {
-            series_name = dataSource.series_name;
+          let seriesName = "-";
+          if (dataSource.seriesName !== undefined) {
+            seriesName = dataSource.seriesName;
           }
-          // For each data point, add the same series_name
-          code += ", series_name: " + xData + ".map((value) => '" + series_name + "')";
+          // For each data point, add the same seriesName
+          code += ", seriesName: " + xData + ".map((value) => '" + seriesName + "')";
           code += " }";
 
           /* Data source: AJAX GET request to storage system retrieving a JSON */
           const source = new AjaxDataSource({
-            name: dataSource.source_name,
+            name: dataSource.sourceName,
             data_url: dataSource.url,
             method: "GET",
             content_type: "",
@@ -448,18 +448,18 @@ export default {
           });
           bokehPlot.symbols.unshift(circle);
 
-          let legend_label = this.legend_label(dataSource);
+          let legendLabel = this.legendLabel(dataSource);
 
           /* Create legend */
-          if (!legendLabels.has(legend_label)) {
-            legendLabels.add(legend_label);
+          if (!legendLabels.has(legendLabel)) {
+            legendLabels.add(legendLabel);
             const item = new LegendItem({
-              label: legend_label,
+              label: legendLabel,
               renderers: dataSource.showSymbols ? [circle, line] : [line],
               visible: dataSource.visible
             });
             bokehPlot.legendItems.unshift(item);
-            dataSource.legend_item = item;  // for toggling visibility
+            dataSource.legendItem = item;  // for toggling visibility
           }
         }
       }
@@ -477,12 +477,12 @@ export default {
       for (const [dataSourceIdx, dataSource] of this.dataSources.entries()) {
         let visible = true;
         for (const categoryElem of this.categoryElements) {
-          visible = visible && categoryElem.selection.includes(dataSource[categoryElem.key + '_index']);
+          visible = visible && categoryElem.selection.includes(dataSource[categoryElem.key + 'Index']);
         }
 
-        if (dataSource.hasOwnProperty('legend_item')) {
-          dataSource.legend_item.visible = visible;
-          dataSource.legend_item.label = this.legend_label(dataSource);
+        if (dataSource.hasOwnProperty('legendItem')) {
+          dataSource.legendItem.visible = visible;
+          dataSource.legendItem.label = this.legendLabel(dataSource);
         }
 
         for (const bokehPlot of this.bokehPlots) {
@@ -607,7 +607,7 @@ export default {
               <label class="custom-control-label"
                      :for='"switch-"+uuid+"-"+category.key+"-"+index'>
                 <span class="dot" v-if="element.color !== null" :style='"background-color: "+element.color'></span>
-                <span v-if="element.has_parent">└─ </span>
+                <span v-if="element.hasParent">└─ </span>
                 {{ element.title }}
               </label>
             </div>
