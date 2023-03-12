@@ -18,8 +18,6 @@
 
 {% block javascript %}
 
-<script src="{% static 'js/select.bundle.js' %}"></script>
-
 {# Some JSON code to define JS variables from Django context #}
 {{ category_filter_choices | json_script:"category-filter-choices" }}
 {{ sharing_status_filter_choices | json_script:"sharing-status-filter-choices" }}
@@ -73,7 +71,7 @@
   const base_urls = JSON.parse(document.getElementById('base-urls').textContent);
   const initial_select_tab_state = JSON.parse(document.getElementById('initial-select-tab-state').textContent);
 
-  topobank.select.createSearchResultsApp(
+  topobank.main.createSearchResultsApp(
     '#search-results', event_hub, {
       base_urls: base_urls,
       category: initial_select_tab_state.category,
