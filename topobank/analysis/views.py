@@ -4,7 +4,7 @@ import itertools
 from collections import OrderedDict
 
 from django.contrib.contenttypes.models import ContentType
-from django.http import HttpResponse, Http404, JsonResponse
+from django.http import Http404, JsonResponse
 from django.views.generic import DetailView, FormView
 from django.urls import reverse_lazy
 from django.core.files.storage import default_storage

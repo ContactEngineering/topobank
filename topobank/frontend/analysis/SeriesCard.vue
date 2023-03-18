@@ -115,12 +115,11 @@ export default {
 
       <div v-if="analysesAvailable" class="tab-content">
         <div class="tab-pane show active" role="tabpanel" aria-label="Tab showing a plot">
-          <!-- {% include 'analysis/analyses_alerts.html' %} -->
           <bokeh-plot
-              :plots="this.plots"
-              :categories="this.categories"
-              :data-sources="this.dataSources"
-              :output-backend="this.outputBackend"
+              :plots="plots"
+              :categories="categories"
+              :data-sources="dataSources"
+              :output-backend="outputBackend"
               ref="plot">
           </bokeh-plot>
         </div>
