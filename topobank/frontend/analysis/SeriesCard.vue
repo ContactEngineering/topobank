@@ -41,7 +41,7 @@ export default {
       dataSources: undefined,
       dois: [],
       hasWarnings: false,
-      outputBackend: undefined,
+      outputBackend: "svg",
       plots: undefined,
       title: this.functionName
     }
