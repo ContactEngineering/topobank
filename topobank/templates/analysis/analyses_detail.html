@@ -49,6 +49,7 @@
     apiUrl: '{{ card.api_url }}',
     csrfToken: '{{ csrf_token }}',
     detailUrl: "{% url 'analysis:function-detail' card.function.id %}",
+    enlarged: true,
     functionId: {{ card.function.id }},
     functionName: '{{ card.function.name }}',
     subjects: JSON.parse(document.getElementById('{{ card.id }}-subjects').textContent)
