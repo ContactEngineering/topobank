@@ -548,7 +548,7 @@ export default {
     <div class="tab-content">
       <div v-for="(plot, index) in plots" :class="(index == 0)?'tab-pane fade show active':'tab-pane fade'"
            :id="'plot-'+uuid+'-'+index" role="tabpanel" :aria-labelledby="'plot-tab-'+uuid+'-'+index">
-        <div :id='"bokeh-plot-"+uuid+"-"+index' ref="bokehPlot"></div>
+        <div :id='"bokeh-plot-"+uuid+"-"+index' ref="plot"></div>
       </div>
     </div>
     <div :id='"plot-controls-accordion-"+uuid' class="accordion plot-controls-accordion">
@@ -561,7 +561,7 @@ export default {
                 <a :class="(index == 0)?'nav-link active':'nav-link'" :id="'plot-tab-'+uuid+'-'+index"
                    :href="'#plot-'+uuid+'-'+index" data-toggle="tab" role="tab" :aria-controls="'plot-'+uuid+'-'+index"
                    :aria-selected="index == 0">{{
-                    bokehPlot.title
+                    plot.title
                   }}</a>
               </li>
             </ul>
