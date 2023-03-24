@@ -283,11 +283,11 @@ export default {
           ];
           // let tools = [...this.tools];  // Copy array (= would just be a reference)
           if (this.selectable) {
-            const code = "self.onTap(cb_obj, cb_data);";
+            const code = "on_tap(cb_obj, cb_data);";
             tools.push(new TapTool({
               behavior: "select",
               callback: new CustomJS({
-                args: {self: this},
+                args: {on_tap: this.onTap},
                 code: code
               })
             }));
