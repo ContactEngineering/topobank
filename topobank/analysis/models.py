@@ -95,6 +95,16 @@ class Analysis(models.Model):
         (SUCCESS, 'success'),
     )
 
+    # Mapping Celery states to our state information. Everything not in the
+    # list (e.g. custom Celery states) are interpreted as STARTED.
+    _CELERY_STATE_MAP = {
+        states.SUCCESS: SUCCESS,
+        states.STARTED: STARTED,
+        states.PENDING: PENDING,
+        states.RETRY: RETRY,
+        states.FAILURE: FAILURE
+    }
+
     function = models.ForeignKey('AnalysisFunction', on_delete=models.CASCADE)
 
     # Definition of the subject
@@ -167,17 +177,9 @@ class Analysis(models.Model):
             # Cannot get the state
             return None
         r = result.AsyncResult(self.task_id)
-        if r.state == states.SUCCESS:
-            return Analysis.SUCCESS
-        elif r.state == states.STARTED:
-            return Analysis.STARTED
-        elif r.state == states.PENDING:
-            return Analysis.PENDING
-        elif r.state == states.RETRY:
-            return Analysis.RETRY
-        elif r.state == states.FAILURE:
-            return Analysis.FAILURE
-        else:
+        try:
+            return self._CELERY_STATE_MAP[r.state]
+        except KeyError:
             # Everything else (e.g. a custom state such as 'PROGRESS') is interpreted as a running task
             return Analysis.STARTED
 
