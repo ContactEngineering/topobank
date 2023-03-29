@@ -19,9 +19,6 @@ export default {
     this.scheduleStatusCheck();
   },
   methods: {
-    toPercent(x) {
-      return Math.round(x * 100);
-    },
     scheduleStatusCheck() {
       if (this._analysis !== undefined) {
         if (this._analysis.task_state == 'pe' || this._analysis.task_state == 'st') {
@@ -76,7 +73,7 @@ export default {
         <div class="spinner text-white"></div>
       </div>
       <div v-if="_analysis.task_state == 'st'" class="btn btn-default bg-light disabled">
-        {{ toPercent(_analysis.task_progress) }} %
+        {{ _analysis.task_progress.percent }} %
       </div>
     </td>
     <td>

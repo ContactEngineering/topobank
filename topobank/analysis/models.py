@@ -175,9 +175,11 @@ class Analysis(models.Model):
             return Analysis.PENDING
         elif r.state == states.RETRY:
             return Analysis.RETRY
-        else:
-            # Everything else is interpreted as a failure
+        elif r.state == states.FAILURE:
             return Analysis.FAILURE
+        else:
+            # Everything else (e.g. a custom state such as 'PROGRESS') is interpreted as a running task
+            return Analysis.STARTED
 
     def get_task_progress(self):
         """Return progress of task, if running"""

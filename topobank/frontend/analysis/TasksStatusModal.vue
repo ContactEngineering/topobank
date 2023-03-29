@@ -53,9 +53,9 @@ export default {
             <table class="table table-hover task-table">
               <thead>
               <tr>
-                <th scope="col" style="width:5rem"></th>
+                <th scope="col" style="width:100px"></th>
                 <th scope="col">Task description</th>
-                <th scope="col" style="width:7rem">Actions</th>
+                <th scope="col" style="width:150px">Actions</th>
               </tr>
               </thead>
               <tbody>
