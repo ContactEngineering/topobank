@@ -126,7 +126,7 @@ export default {
         </div>
       </div>
     </div>
-    <div :id="`sidebar-${uid}`" class="col-1 col-sm-6 p-0 collapse sidebar position-absolute h-100">
+    <div :id="`sidebar-${uid}`" class="collapse position-absolute h-100">
       <!-- card-header sets the margins identical to the card so the title appears at the same position -->
       <nav class="card-header navbar navbar-toggleable-xl bg-light flex-column align-items-start h-100">
         <ul class="flex-column navbar-nav">
