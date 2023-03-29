@@ -6,7 +6,7 @@ import tempfile
 import openpyxl
 from openpyxl.worksheet.hyperlink import Hyperlink
 from openpyxl.styles import Font
-from django.http import HttpResponse, HttpResponseForbidden, HttpResponseBadRequest
+from django.http import HttpResponse, HttpResponseForbidden, HttpResponseBadRequest, HttpResponseNotFound
 from django.contrib.contenttypes.models import ContentType
 
 import pandas as pd
@@ -24,16 +24,15 @@ from .functions import VIZ_SERIES
 #######################################################################
 
 
-def download_analyses(request, ids, art, file_format):
+def download_analyses(request, ids, file_format):
     """View returning a file comprised from analyses results.
 
     Parameters
     ----------
     request: HttpRequest
+        The request object
     ids: str
         comma separated string with analyses ids
-    art: str
-        Analysis result type TODO can't this be calculated from analyses?
     file_format: str
         Requested file format, e.g. 'txt' or 'xlsx', depends on what was registerd.
 
@@ -54,8 +53,21 @@ def download_analyses(request, ids, art, file_format):
     analyses = []
     surface_ct = ContentType.objects.get_for_model(Surface)
 
+    registry = AnalysisRegistry()
+    visualization_type = None
     for aid in analyses_ids:
         analysis = Analysis.objects.get(id=aid)
+
+        #
+        # Get visualization configuration
+        #
+        _visualization_app_name, _visualization_type = \
+            registry.get_visualization_type_for_function_name(analysis.function.name)
+        if visualization_type is None:
+            visualization_type = _visualization_type
+        else:
+            if _visualization_type != visualization_type:
+                return HttpResponseNotFound('Cannot combine results of selected analyses into a single download')
 
         #
         # Check whether user has view permission for requested analysis
@@ -77,12 +89,12 @@ def download_analyses(request, ids, art, file_format):
     # Dispatch
     #
     spec = 'results'  # could be used to download different things
-    key = (art, spec, file_format)
+    key = (visualization_type, spec, file_format)
     try:
         download_function = AnalysisRegistry().get_download_function(*key)
     except UnknownKeyException:
         return HttpResponseBadRequest(
-            f"Cannot provide a download for '{spec}' as analysis result type '{art}' in file format '{file_format}'")
+            f"Cannot provide a download for '{spec}' as analysis result type '{visualization_type}' in file format '{file_format}'")
 
     return download_function(request, analyses)
 
@@ -257,7 +269,7 @@ def download_plot_analyses_to_txt(request, analyses):
 
             # Write DOIs
             if len(dois) > 0:
-                f.write('# IF YOU USE THIS DATA IN A PUBLICATION, PLEASE CITE THE FOLLOWING DOIS:\n')
+                f.write('# IF YOU USE THIS DATA IN A PUBLICATION, PLEASE CITE THE FOLLOWING PAPERS:\n')
                 for doi in dois:
                     f.write(f"# - {doi}\n")
                 f.write("#\n")

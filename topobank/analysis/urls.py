@@ -40,7 +40,7 @@ urlpatterns += [
         name='topography'
     ),
     re_path(
-        r'download/(?P<ids>[\d,]+)/(?P<art>[\w\s]+)/(?P<file_format>\w+)$',
+        r'download/(?P<ids>[\d,]+)/(?P<file_format>\w+)$',
         view=login_required(downloads.download_analyses),
         name='download'
     ),

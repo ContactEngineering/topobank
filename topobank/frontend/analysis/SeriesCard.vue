@@ -49,6 +49,12 @@ export default {
   mounted() {
     this.updateCard();
   },
+  computed: {
+    analysisIds() {
+      console.log(this.analyses);
+      return this.analyses.map(a => a.id).join();
+    }
+  },
   methods: {
     updateCard() {
       /* Fetch JSON describing the card */
@@ -133,20 +139,22 @@ export default {
           <a class="text-dark" href="#" data-toggle="collapse" :data-target="`#sidebar-${uid}`">
             <h5><i class="fa fa-bars"></i> {{ title }}</h5>
           </a>
-          <li class="nav-item">
+          <li class="nav-item mb-1 mt-1">
             Download
-            <a :href="txtDownloadUrl">
-              TXT
-            </a>
-            <a :href="xlsxDownloadUrl">
-              XLSX
-            </a>
-            <a v-on:click="$refs.plot.download()">
-              SVG
-            </a>
+            <div class="btn-group ml-1" role="group" aria-label="Download formats">
+              <a :href="`/analysis/download/${analysisIds}/txt`" class="btn btn-default">
+                TXT
+              </a>
+              <a :href="`/analysis/download/${analysisIds}/xlsx`" class="btn btn-default">
+                XLSX
+              </a>
+              <a v-on:click="$refs.plot.download()" class="btn btn-default">
+                SVG
+              </a>
+            </div>
           </li>
-          <li class="nav-item">
-            <a href="#" data-toggle="modal" :data-target="`#bibliography-modal-${uid}`">
+          <li class="nav-item mb-1 mt-1">
+            <a href="#" data-toggle="modal" :data-target="`#bibliography-modal-${uid}`" class="btn btn-default  w-100">
               Bibliography
             </a>
           </li>
