@@ -73,7 +73,7 @@ export default {
         <div class="spinner text-white"></div>
       </div>
       <div v-if="_analysis.task_state == 'st'" class="btn btn-default bg-light disabled">
-        {{ _analysis.task_progress.percent }} %
+        {{ Math.round(_analysis.task_progress.percent) }} %
       </div>
     </td>
     <td>
