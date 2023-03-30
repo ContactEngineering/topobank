@@ -194,7 +194,7 @@ def publications_urls(request, analyses):
     return publication_urls
 
 
-def analysis_header_for_txt_file(analysis, as_comment=True):
+def analysis_header_for_txt_file(analysis, as_comment=True, dois=False):
     """
 
     Parameters
@@ -230,6 +230,13 @@ def analysis_header_for_txt_file(analysis, as_comment=True):
         for version in versions_used:
             s += f"Version of '{version.dependency.import_name}': {version.number_as_string()}\n"
     s += '\n'
+
+    # Write DOIs
+    if dois and len(analysis.dois) > 0:
+        s += 'IF YOU USE THIS DATA IN A PUBLICATION, PLEASE CITE THE FOLLOWING PAPERS:\n'
+        for doi in analysis.dois:
+            s += f'- {doi}\n'
+        s += '\n'
 
     if as_comment:
         s = textwrap.indent(s, '# ', predicate=lambda s: True)  # prepend to all lines, also empty
