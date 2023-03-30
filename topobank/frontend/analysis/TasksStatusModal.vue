@@ -19,17 +19,25 @@ export default {
   data() {
     return {
       _analyses: this.analyses === undefined ? [] : this.analyses,
+      _taskStatuses: this.analyses === undefined ? [] : Array(this.analyses.length).fill(true),
       _selectedAnalyses: []
     }
-  },
-  mounted: function () {
-    console.log(this._analyses);
   },
   watch: {
     analyses: {
       handler(newValue, oldValue) {
         this._analyses = newValue === undefined ? [] : newValue;
-        console.log(this._analyses);
+        this._taskStatuses = Array(this.analyses.length).fill(true);
+      }
+    }
+  },
+  methods: {
+    taskStatusChanged(analysisIndex, taskIsRunning) {
+      let anyTaskWasRunning = this._taskStatuses.some(v => v);
+      this._taskStatuses[analysisIndex] = taskIsRunning;
+      let anyTaskIsRunning = this._taskStatuses.some(v => v);
+      if (anyTaskWasRunning != anyTaskIsRunning) {
+        this.$emit('task-status-changed', anyTaskIsRunning);
       }
     }
   }
@@ -60,9 +68,10 @@ export default {
               </thead>
               <tbody>
                 <task-status-row
-                    v-for="analysis in _analyses"
+                    v-for="(analysis, index) in _analyses"
                     :analysis="analysis"
-                    :csrf-token="csrfToken">
+                    :csrf-token="csrfToken"
+                    @task-status-changed="taskIsRunning => taskStatusChanged(index, taskIsRunning)">
                 </task-status-row>
               </tbody>
             </table>

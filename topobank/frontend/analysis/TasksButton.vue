@@ -18,6 +18,16 @@ export default {
         return uuid4();
       }
     }
+  },
+  data() {
+    return {
+      _anyTaskIsRunning: true  // We assume some task is running and get notified if this is not the case
+    }
+  },
+  methods: {
+    taskStatusChanged(anyTaskIsRunning) {
+      this._anyTaskIsRunning = anyTaskIsRunning;
+    }
   }
 }
 
@@ -28,11 +38,13 @@ export default {
           href="#"
           data-toggle="modal"
           :data-target="`#task-status-modal-${uid}`">
+    <div v-if="_anyTaskIsRunning" class="spinner"></div>
     Tasks
   </button>
   <tasks-status-modal
       :id="`task-status-modal-${uid}`"
       :analyses="analyses"
-      :csrf-token="csrfToken">
+      :csrf-token="csrfToken"
+      @task-status-changed="taskStatusChanged">
   </tasks-status-modal>
 </template>

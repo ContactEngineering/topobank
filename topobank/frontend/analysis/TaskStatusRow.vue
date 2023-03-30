@@ -20,10 +20,17 @@ export default {
   },
   methods: {
     scheduleStatusCheck() {
+      // Tasks are still pending or running if this status check is scheduled
       if (this._analysis !== undefined) {
         if (this._analysis.task_state == 'pe' || this._analysis.task_state == 'st') {
           setTimeout(this.checkStatus, this.statusTimeout);
+        } else {
+          // Task seems to have finished or failed
+          this.$emit('taskStatusChanged', false);
         }
+      } else {
+        // Something is wrong - TODO: We should emit an error here
+        this.$emit('taskStatusChanged', false);
       }
     },
     checkStatus() {
