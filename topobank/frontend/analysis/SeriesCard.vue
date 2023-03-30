@@ -103,8 +103,7 @@ export default {
         <button @click="updateCard" class="btn btn-default float-right ml-1">
           <i class="fa fa-redo"></i>
         </button>
-        <div v-if="!enlarged
-" class="btn-group btn-group-sm float-right">
+        <div v-if="!enlarged" class="btn-group btn-group-sm float-right">
           <a :href="detailUrl" class="btn btn-default float-right">
             <i class="fa fa-expand"></i>
           </a>
