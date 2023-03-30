@@ -26,6 +26,7 @@ export default {
   },
   methods: {
     taskStatusChanged(anyTaskIsRunning) {
+      console.log('TasksButton ' + anyTaskIsRunning);
       this._anyTaskIsRunning = anyTaskIsRunning;
     }
   }

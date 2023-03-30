@@ -23,14 +23,15 @@ export default {
       // Tasks are still pending or running if this status check is scheduled
       if (this._analysis !== undefined) {
         if (this._analysis.task_state == 'pe' || this._analysis.task_state == 'st') {
+          this.$emit('setTaskStatus', true);
           setTimeout(this.checkStatus, this.statusTimeout);
         } else {
           // Task seems to have finished or failed
-          this.$emit('taskStatusChanged', false);
+          this.$emit('setTaskStatus', false);
         }
       } else {
         // Something is wrong - TODO: We should emit an error here
-        this.$emit('taskStatusChanged', false);
+        this.$emit('setTaskStatus', false);
       }
     },
     checkStatus() {
@@ -76,10 +77,10 @@ export default {
       <div v-if="_analysis.task_state == 'fa'" class="btn btn-default bg-danger disabled">
         <i class="fa fa-circle text-white"></i>
       </div>
-      <div v-if="_analysis.task_state == 'pe'" class="btn btn-default bg-light disabled">
+      <div v-if="_analysis.task_state == 'pe' || _analysis.task_progress === null" class="btn btn-default bg-light disabled">
         <div class="spinner text-white"></div>
       </div>
-      <div v-if="_analysis.task_state == 'st'" class="btn btn-default bg-light disabled">
+      <div v-if="_analysis.task_state == 'st' && _analysis.task_progress !== null" class="btn btn-default bg-light disabled">
         {{ Math.round(_analysis.task_progress.percent) }} %
       </div>
     </td>
