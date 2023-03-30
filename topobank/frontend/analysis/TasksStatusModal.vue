@@ -33,7 +33,6 @@ export default {
   },
   methods: {
     setTaskStatus(analysisIndex, taskIsRunning) {
-      console.log('TaskStatusModal ' + analysisIndex + ' ' + taskIsRunning);
       let anyTaskWasRunning = this._taskStatuses.some(v => v);
       this._taskStatuses[analysisIndex] = taskIsRunning;
       let anyTaskIsRunning = this._taskStatuses.some(v => v);
