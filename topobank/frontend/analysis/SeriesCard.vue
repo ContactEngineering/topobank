@@ -51,7 +51,6 @@ export default {
   },
   computed: {
     analysisIds() {
-      console.log(this.analyses);
       return this.analyses.map(a => a.id).join();
     }
   },
@@ -72,7 +71,6 @@ export default {
       })
           .then(response => response.json())
           .then(data => {
-            console.log(data);
             this.analyses = data.analyses;
             this.title = data.plotConfiguration.title;
             this.plots = [{
