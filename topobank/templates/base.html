@@ -389,13 +389,10 @@
 
     <!-- Core JavaScript packages -->
     <script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
-    <script src="{% static 'vendor/jquery-easing/jquery.easing.1.3.js' %}"></script>
-
-    <!-- Unit conversion --->
-    <script src="{% static 'vendor/convert-units/convert-units.js' %}"></script>
 
     <!-- OpenSeadragon -->
     <script src={% static "vendor/openseadragon/openseadragon.min.js" %}></script>
+    <!-- This cannot be installed via NPM because scalebar and FileSaver is not available as a package -->
     <script src={% static "vendor/openseadragon/openseadragon-scalebar.js" %}></script>
     <script src={% static "vendor/openseadragon/FileSaver.min.js" %}></script>
 
