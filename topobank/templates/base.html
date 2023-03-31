@@ -22,7 +22,6 @@
 
     <!-- Bootstrap Core CSS -->
     <link href="{% static 'vendor/bootstrap/css/bootstrap.min.css' %}" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-vue@2.21.2/dist/bootstrap-vue.min.css" rel="stylesheet">
 
     <!-- CSS from sb-admin-2-bs4 template -->
     <link href="{% static 'css/sb-admin-2.css' %}" rel="stylesheet"> <!-- TODO check what is really needed here -->
@@ -387,12 +386,9 @@
       </div>
     </div>
 
-    <!-- Core JavaScript packages -->
-    <script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
-
     <!-- OpenSeadragon -->
-    <script src={% static "vendor/openseadragon/openseadragon.min.js" %}></script>
     <!-- This cannot be installed via NPM because scalebar and FileSaver is not available as a package -->
+    <script src={% static "vendor/openseadragon/openseadragon.min.js" %}></script>
     <script src={% static "vendor/openseadragon/openseadragon-scalebar.js" %}></script>
     <script src={% static "vendor/openseadragon/FileSaver.min.js" %}></script>
 
