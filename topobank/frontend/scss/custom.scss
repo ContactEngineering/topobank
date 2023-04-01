@@ -45,10 +45,6 @@
   }
 }
 
-footer.sticky-footer {
-  background-color: white;
-}
-
 input.checkbox-color:checked+span:after {
   background: currentColor;
   border: currentColor;
@@ -786,7 +782,7 @@ footer.sticky-footer {
 	/* width: calc(100% - 90px); use this with sidebar */
   width: 100%;
 	height: 80px;
-	background-color: #e9ecef;
+	background-color: white;
 }
 footer.sticky-footer .copyright {
 	line-height: 1;

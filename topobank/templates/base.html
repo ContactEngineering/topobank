@@ -20,7 +20,7 @@
 
     <link rel="icon" type="image/x-icon" href="{% static 'images/favicons/favicon.png' %}"/>
 
-    <script src="{% static 'js/main.bundle.js' %}"></script>
+    <script src="{% static 'js/base.bundle.js' %}"></script>
 
     <link href="{% static 'tagulous/lib/select2-4/css/select2.min.css' %}" rel="stylesheet">
 
@@ -481,7 +481,7 @@
       // var csrf_token = '{{ csrf_token }}';  // useful when doing AJAX calls from JS files
       // only create basket if target element exists
       //var basket = $('#basket').length ? create_basket('#basket', {{ basket_items_json|safe }}) : null;
-      var basket = topobank.main.createBasketApp('#basket', event_hub, {
+      var basket = topobank.base.createBasketApp('#basket', event_hub, {
         initial_basket_items: {{ basket_items_json | safe }},
         analysis_list_url: "{% url 'analysis:list' %}",
         manager_download_selection_url: "{% url 'manager:download-selection' %}",

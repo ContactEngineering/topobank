@@ -71,7 +71,7 @@
   const base_urls = JSON.parse(document.getElementById('base-urls').textContent);
   const initial_select_tab_state = JSON.parse(document.getElementById('initial-select-tab-state').textContent);
 
-  topobank.main.createSearchResultsApp(
+  topobank.base.createSearchResultsApp(
     '#search-results', event_hub, {
       base_urls: base_urls,
       category: initial_select_tab_state.category,

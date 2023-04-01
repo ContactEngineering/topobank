@@ -10,7 +10,7 @@ import Basket from './Basket.vue'
 import DeepZoomImage from '../components/DeepZoomImage.vue';
 import SearchResults from './SearchResults.vue';
 
-import '../scss/custom.scss';
+import 'topobank/scss/custom.scss';
 
 /**
  * Make jQuery and Bokeh available globally
