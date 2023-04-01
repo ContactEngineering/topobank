@@ -87,22 +87,6 @@
       tree_mode: initial_select_tab_state.tree_mode
     }
   );
-
-  $(document).ready(function () {
-    // Make sure, that a selected item, which is deselected in the basket
-    // is also deselected everywhere in the search result tree
-    basket.unselect_handler = function unselect_nodes(key) {
-      search_results_vm.set_selected_by_key(key, false);
-    };
-
-    // If a search term was given, put it into the search field, so it can be modified
-    if (initial_select_tab_state['search_term'].length > 0) {
-      $('#global-search-input').val(initial_select_tab_state['search_term']);
-    }
-  });
-
-  // we don't want error messages if the page is left before everything is loaded
-  install_handler_for_aborting_all_ajax_calls_on_page_leave();
 </script>
 
 {% endblock javascript %}

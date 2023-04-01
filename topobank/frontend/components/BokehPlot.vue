@@ -22,6 +22,8 @@ import {
   TapTool
 } from '@bokeh/bokehjs';
 
+import {format_exponential} from "topobank/utils/formatting";
+
 export default {
   name: 'bokeh-plot',
   props: {
