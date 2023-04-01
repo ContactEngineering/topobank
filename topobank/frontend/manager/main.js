@@ -1,8 +1,24 @@
+import jQuery from 'jquery';
+
 import {createApp} from 'vue';
+
+import bootstrap from 'bootstrap';
+
+import * as Bokeh from '@bokeh/bokehjs';
 
 import Basket from './Basket.vue'
 import DeepZoomImage from '../components/DeepZoomImage.vue';
 import SearchResults from './SearchResults.vue';
+
+import '../scss/custom.scss';
+
+/**
+ * Make jQuery and Bokeh available globally
+ */
+
+window.$ = window.jQuery = jQuery;
+window.Bokeh = Bokeh;
+window.bootstrap = bootstrap;
 
 /**
  * Used to display "basket" on top if screen for all selected items in session

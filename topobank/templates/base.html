@@ -20,16 +20,9 @@
 
     <link rel="icon" type="image/x-icon" href="{% static 'images/favicons/favicon.png' %}"/>
 
-    <!-- Bootstrap Core CSS -->
-    <link href="{% static 'vendor/bootstrap/css/bootstrap.min.css' %}" rel="stylesheet">
-
-    <!-- CSS from sb-admin-2-bs4 template -->
-    <link href="{% static 'css/sb-admin-2.css' %}" rel="stylesheet"> <!-- TODO check what is really needed here -->
+    <script src="{% static 'js/main.bundle.js' %}"></script>
 
     <link href="{% static 'tagulous/lib/select2-4/css/select2.min.css' %}" rel="stylesheet">
-
-    <!-- This file stores project-specific CSS -->
-    <link href="{% static 'css/project.css' %}" rel="stylesheet">
 
     {% block extra_css %}{% endblock extra_css %}
 
@@ -39,9 +32,6 @@
 </head>
 
 <body id="page-top">
-
-    <!-- jquery must be loaded early, e.g. because of datepicker -->
-    <script src="{% static 'vendor/jquery/jquery-3.6.0.min.js' %}"></script>
 
     <div class="fixed-top">
     <nav class="navbar navbar-expand-md navbar-dark bg-dark">
@@ -483,7 +473,6 @@
     {% register_notify_callbacks callbacks='fill_notification_badge_or_hide_if_none,fill_notification_list_with_linked_items' %}
 
     <script src="https://unpkg.com/mitt/dist/mitt.umd.js"></script>
-    <script src="{% static 'js/main.bundle.js' %}"></script>
 
     <script>
       // Some globals on each page

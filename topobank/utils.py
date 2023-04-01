@@ -7,7 +7,7 @@ import io
 import json
 import numpy as np
 
-from bokeh.core.json_encoder import BokehJSONEncoder
+from bokeh.core.json_encoder import JSONEncoder
 
 from django.core.files.storage import default_storage
 from django.utils import formats
@@ -246,7 +246,7 @@ def store_split_dict(storage_prefix, name, src_dict):
     # We're using our own JSON encoder here, because it represents NaN values as "NaN" (with quotes),
     # which is JSON compatible (only works with Numpy arrays)
     # encoder_cls = NumpyEncoder
-    encoder_cls = BokehJSONEncoder
+    encoder_cls = JSONEncoder
     # TODO replace this encoder with NumyEncoder again when updating from bokeh3.0.0-dev4 to 3.1
 
     def _split_dict(d):
