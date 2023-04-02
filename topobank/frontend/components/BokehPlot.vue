@@ -22,7 +22,7 @@ import {
   TapTool
 } from '@bokeh/bokehjs';
 
-import {format_exponential} from "topobank/utils/formatting";
+import {formatExponential} from "topobank/utils/formatting";
 
 export default {
   name: 'bokeh-plot',
@@ -315,10 +315,20 @@ export default {
 
           /* Change formatters for linear axes */
           if (xAxisType === "linear") {
-            bokehPlotFigure.xaxis.formatter = new CustomJSTickFormatter({code: "return format_exponential(tick);"});
+            bokehPlotFigure.xaxis.formatter = new CustomJSTickFormatter({
+              code: "return formatExponential(tick);",
+              args: {
+                formatExponential: formatExponential  // inject formatting function into local scope
+              }
+            });
           }
           if (yAxisType === "linear") {
-            bokehPlotFigure.yaxis.formatter = new CustomJSTickFormatter({code: "return format_exponential(tick);"});
+            bokehPlotFigure.yaxis.formatter = new CustomJSTickFormatter({
+              code: "return formatExponential(tick);",
+              args: {
+                formatExponential: formatExponential  // inject formatting function into local scope
+              }
+            });
           }
 
           /* This should become a Bokeh theme (supported in BokehJS with 3.0 - but I cannot find the `use_theme` method) */

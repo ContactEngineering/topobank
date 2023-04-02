@@ -32,7 +32,7 @@ function unicodeSuperscript(s) {
  *
  * @returns {Formatter} A formatter for general values.
  */
-export function formatWxponential(d, maxNumberOfDecimalPlaces) {
+export function formatExponential(d, maxNumberOfDecimalPlaces) {
   if (maxNumberOfDecimalPlaces === void 0) {
     maxNumberOfDecimalPlaces = 3;
   }
