@@ -1,10 +1,13 @@
 import jQuery from 'jquery';
-
-import {createApp} from 'vue';
+window.$ = window.jQuery = jQuery;
 
 // TODO: Bootstrap can be imported here but does not register event handlers globally
 //import * as bootstrap from 'bootstrap';
+
+import {createApp} from 'vue';
+
 import * as Bokeh from '@bokeh/bokehjs';
+window.Bokeh = Bokeh;
 
 import DeepZoomImage from '../components/DeepZoomImage.vue';
 
@@ -12,20 +15,6 @@ import Basket from './Basket.vue'
 import SearchResults from './SearchResults.vue';
 
 import 'topobank/scss/custom.scss';
-
-/**
- * Make jQuery and Bokeh available globally
- */
-
-window.$ = window.jQuery = jQuery;
-window.Bokeh = Bokeh;
-//window.bootstrap = bootstrap;
-
-/**
- * Enable Bootstrap data API
- */
-
-//jQuery(document).on('.data-api');
 
 /**
  * Used to display "basket" on top if screen for all selected items in session
