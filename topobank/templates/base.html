@@ -43,10 +43,59 @@
 
     <!-- jquery must be loaded early, e.g. because of datepicker -->
     <script src="{% static 'vendor/jquery/jquery-3.6.0.min.js' %}"></script>
+    <!-- sidebar test -->
+    <div class="wrapper" id="sidebarMain">
+    <!-- Sidebar -->
 
+    <nav id="sidebar" data-target="collapseNotificationContent">
+        <ul class="list-unstyled components">
+            <li id="notificationContent">
+                  <div>
+                    <div class="live_notify_list" id="collapsibleBell">
+                    </div>
+                  </div>
+            </li>
+          <li id="informationContent">
+              <div>
+                <a class="sidepanel-information-fb" target="_blank"
+                   href="https://github.com/ContactEngineering/TopoBank/discussions">Feedback</a>
+                <a class="dropdown-item" data-toggle="modal" data-target="#versionModal">Version information</a>
+                <a class="dropdown-item" href="{% url 'terms' %}">Terms &amp; conditions</a>
+                <div class="dropdown-divider"></div>
+                <a class="dropdown-item" target="_blank" href="https://doi.org/10.1088/2051-672X/ac860a">Read our
+                  paper!</a>
+                <div class="dropdown-divider"></div>
+                <a class="dropdown-item" href="{% url 'help' %}">Help</a>
+                <div class="dropdown-divider"></div>
+                <a class="dropdown-item" data-toggle="modal" data-target="#contactModal">Contact</a>
+              </div>
+          </li>
+          <li id="UserProfileDetailsContent">
+           <div>
+            {% if not request.user.is_anonymous and request.user.username %}
+            <a class="dropdown-item" href="{% url 'users:detail' request.user.username %}">User profile</a>
+            <a class="dropdown-item" href="{% url 'plugins:plugins-list' %}">Plugins</a>
+            <div class="dropdown-divider"></div>
+            {% if request.user.is_staff %}
+              <a class="dropdown-item" href="{% url 'admin:index' %}">Admin interface</a>
+              <a class="dropdown-item" href="{% url 'watchman:dashboard' %}">Watchman dashboard</a>
+              <a class="dropdown-item" href="{% url 'watchman:status' %}">Watchman status (JSON)</a>
+              <div class="dropdown-divider"></div>
+            {% endif %}
+            <a class="dropdown-item" data-toggle="modal" data-target="#logoutModal">Sign Out</a>
+            {% else %}
+            <a class="dropdown-item" href="{% provider_login_url 'orcid' method="oauth2" %}">Sign in</a>
+            {% endif %}
+          </div>
+          </li>
+
+        </ul>
+    </nav>
+
+</div>
+    <!-- sidebar test end-->
     <div class="fixed-top">
     <nav class="navbar navbar-expand-md navbar-dark bg-dark">
-
       <!-- Navbar -->
 
       {# Logo / name of the application #}
@@ -73,18 +122,40 @@
         </div>
       </form>
       </div>
+
       <ul class="navbar-nav ml-auto">
         {% if not request.user.is_anonymous %}
+        <!-- test
+              <div id="content">
+          <nav class="navbar navbar-expand-lg">
+            <div class="container-fluid">
+             <button class="sidepanelBellIcon" type="button" data-toggle="collapseNotificationContent" id="sidebarCollapse" onclick="openNav()">
+              <i class="fa fa-bell notificationIcon" style="color: rgba(255,255,255,.5)"></i>
+            </button>
+              <span> {% live_notify_badge badge_class="badge badge-info badge-pill live_notify_badge" %}</span>
+            </div>
+          </nav>
+        </div>
+
+        end test-->
           <li class="nav-item dropdown no-arrow">
-            <a class="nav-link dropdown-toggle" id="notificationsDropdown" role="button" data-toggle="dropdown"
-               aria-haspopup="true" aria-expanded="false">
+            <a class="nav-link dropdown-toggle" id="helpDropdown" role="button" data-toggle="dropdown"
+             aria-haspopup="true" aria-expanded="false" onclick="openNotificationNav()">
               {% live_notify_badge badge_class="badge badge-info badge-pill live_notify_badge" %}
-              {# The icon ist placed after the badge in order to have the badge attached to the icon #}
               <i class="fa fa-bell"></i>
             </a>
-            <div class="dropdown-menu dropdown-menu-right live_notify_list" aria-labelledby="notificationsDropdown">
+            <!--
+            <div class="collapse position-absolute live_notify_list" id="collapsibleBell">
+              <div class="dropdown-menu dropdown-menu-right my-6" aria-labelledby="notificationsDropdown">
+              </div>
             </div>
+            Original notif  button
+            -->
           </li>
+
+
+
+
         {% else %} {# user is anonymous #}
           <li class="nav-item">
             <a class="btn btn-info" href="{% provider_login_url 'orcid' method="oauth2" %}">
@@ -95,9 +166,10 @@
 
         <li class="nav-item dropdown no-arrow">
           <a class="nav-link dropdown-toggle" id="helpDropdown" role="button" data-toggle="dropdown"
-             aria-haspopup="true" aria-expanded="false">
+             aria-haspopup="true" aria-expanded="false" onclick="openInfoNav()">
             <i class="fa fa-info-circle fa-fw"></i>
           </a>
+          <!--
           <div class="dropdown-menu dropdown-menu-right help-dropdown" aria-labelledby="helpDropdown">
             <a class="dropdown-item" target="_blank" href="https://github.com/ContactEngineering/TopoBank/discussions">Feedback</a>
             <a class="dropdown-item" data-toggle="modal" data-target="#versionModal">Version information</a>
@@ -109,16 +181,19 @@
             <div class="dropdown-divider"></div>
             <a class="dropdown-item" data-toggle="modal" data-target="#contactModal">Contact</a>
           </div>
+          Original help button
+          -->
         </li>
 
         <li class="nav-item dropdown no-arrow">
           <a class="nav-link dropdown-toggle" id="userDropdown" role="button" data-toggle="dropdown"
-             aria-haspopup="true" aria-expanded="false">
+             aria-haspopup="true" aria-expanded="false" onclick="openUserNav()">
             <i class="fa fa-user-circle fa-fw" aria-hidden="true"></i>
             {% if not request.user.is_anonymous %}
               {{ request.user.name }}
             {% endif %}
           </a>
+          <!--
           <div class="dropdown-menu dropdown-menu-right user-dropdown" aria-labelledby="userDropdown">
             {% if not request.user.is_anonymous and request.user.username %}
             <a class="dropdown-item" href="{% url 'users:detail' request.user.username %}">User profile</a>
@@ -135,6 +210,8 @@
             <a class="dropdown-item" href="{% provider_login_url 'orcid' method="oauth2" %}">Sign in</a>
             {% endif %}
           </div>
+          original user button
+          -->
         </li>
 
       </ul>
@@ -525,7 +602,61 @@
     <script src="{% static 'js/dzi.js' %}"></script>
 
     {% block javascript %}{% endblock javascript %}
+<!--sidebar js -->
+    <script>
+      function openNotificationNav() {
+        console.log('entered notification');
+        if (document.getElementById("sidebarMain").style.display = 'none') {
+          document.getElementById("sidebarMain").style.display = 'block';
+          document.getElementById("sidebarMain").style.transition = "all 0.3s";
+          document.getElementById("notificationContent").style.display = "block";
+          document.getElementById("informationContent").style.display = "none";
+          document.getElementById("UserProfileDetailsContent").style.display = "none";
+        }
+      }
 
+      function openInfoNav() {
+        console.log('entered info');
+        if (document.getElementById("sidebarMain").style.display = 'none') {
+          document.getElementById("sidebarMain").style.display = 'block';
+          document.getElementById("sidebarMain").style.transition = "all 0.3s";
+          document.getElementById("informationContent").style.display = "block";
+          document.getElementById("notificationContent").style.display = "none";
+          document.getElementById("UserProfileDetailsContent").style.display = "none";
+        }
+      }
+
+      function openUserNav() {
+        console.log('entered user');
+        if (document.getElementById("sidebarMain").style.display = 'none') {
+          document.getElementById("sidebarMain").style.display = 'block';
+          document.getElementById("sidebarMain").style.transition = "all 0.3s";
+          document.getElementById("UserProfileDetailsContent").style.display = "block";
+          document.getElementById("notificationContent").style.display = "none";
+          document.getElementById("informationContent").style.display = "none";
+
+
+        }
+      }
+
+      function closeNav() {
+        console.log('close btn pressed');
+        if (document.getElementById("sidebarMain").style.display === 'block') {
+          document.getElementById("sidebarMain").style.display = 'none';
+          document.getElementById("sidebarMain").style.transition = "all 0.3s";
+        }
+      }
+      document.addEventListener('click', function(event) {
+        // check if the clicked element is not a child of the sidebar
+        if (!sidebar.contains(event.target)) {
+          // call the closeNav function
+          closeNav();
+        }
+      });
+
+
+
+    </script>
 </body>
 
 </html>

@@ -575,3 +575,93 @@ ul.timeline > li > .timeline-panel:after {
 	font-size: 3rem
 }
 }
+
+/*side bar css*/
+.sidepanelBellIcon{
+  background: none;
+  border: none;
+}
+.notificationIcon{
+  color: rgba(255,255,255,.5) !important;
+}
+.sidepanelWrapper {
+    float: right;
+    display: flex;
+    width: 100%;
+    align-items: stretch;
+}
+#sidebar.active {
+    margin-left: -250px;
+}
+#sidebarMain{
+  display: none;
+}
+#sidebar {
+  background-color:#bddcfb;
+    color: #090808;
+  transition: transform 0.3s ease-out;
+  min-width: 250px;
+  max-width: 258px;
+  min-height: 100vh;
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 999;
+  overflow-x: clip;
+  padding-top: 100px;
+  font-size: 16px;
+  line-height: 1.5;
+  letter-spacing: 0.5px;
+  border: 1px solid #3e3434;
+}
+
+
+#sidebar ul.components {
+    padding: 20px 0;
+    border-bottom: 1px solid white;
+}
+
+#sidebar ul p {
+    color: #fff;
+    padding: 10px;
+}
+
+#sidebar ul li a {
+    padding: 10px;
+    font-size: 1.1em;
+    display: block;
+    color: #080909;
+}
+#sidebar ul li a:hover {
+    color: darkblue;
+    background: deepskyblue;
+}
+
+#sidebar ul li.active > a, a[aria-expanded="true"] {
+    color: #fff;
+    background: none;
+}
+ul ul a {
+    font-size: 0.9em !important;
+    padding-left: 30px !important;
+    background: none;
+}
+
+
+#informationContent ,#UserProfileDetailsContent,#notificationContent{
+  display: none;
+}
+.signoutClass,contactClass,versionInfoClass,fbInforClass{
+  color: black!important;
+}
+.signoutClass,contactClass,versionInfoClass,fbInforClass:hover{
+  color: darkgray!important;
+    background: #fff!important;
+}
+.dropdown-divider {
+  height: 0;
+  margin: 0.5rem 0;
+  overflow: hidden;
+  border-top: 1px solid white;
+}
