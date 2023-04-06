@@ -1,5 +1,10 @@
 # Changelog for *TopoBank*
 
+## 1.0.3 (2023-04-06)
+
+- BUG: Plugin version configuration could not be saved if there is are changes
+  on top of the semantic version
+
 ## 1.0.2 (2023-04-06)
 
 - MAINT: Upgrade of SurfaceTopography to 1.6.0
