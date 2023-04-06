@@ -2,7 +2,7 @@
 
 ## 1.0.2 (2023-04-06)
 
-
+- MAINT: Upgrade of SurfaceTopography to 1.6.0
 
 ## 1.0.1 (2023-02-02)
 
@@ -28,7 +28,7 @@
 - MAINT: Fixed missing "plugin.txt" for Docker image in
   production
 - MAINT: Removed firefox from production's Dockerfile
-- MAINT: Upgrade of SurfaceTopograpy to 1.3.3 (#950)
+- MAINT: Upgrade of SurfaceTopography to 1.3.3 (#950)
 - MAINT: Renamed "Sign in via ORCID" to "Sign in"
 - MAINT: Default AWS access information to None
 - MAINT: Added django-watchman, added celery check
