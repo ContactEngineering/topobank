@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 1.0.2 (2023-04-06)
+
+
+
 ## 1.0.1 (2023-02-02)
 
 - BUG: Fixed comparative analysis (#962)
