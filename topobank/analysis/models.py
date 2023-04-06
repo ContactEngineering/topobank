@@ -3,7 +3,6 @@ Models related to analyses.
 """
 import pickle
 import json
-import operator
 
 from django.db import models
 from django.contrib.contenttypes.fields import GenericForeignKey
@@ -11,12 +10,10 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.files.storage import default_storage
 from django.utils import timezone
 
-from guardian.shortcuts import get_users_with_perms
-
 from ..utils import store_split_dict, load_split_dict
 from topobank.users.models import User
 
-from .registry import ImplementationMissingAnalysisFunctionException, AnalysisRegistry, AnalysisFunctionImplementation
+from .registry import ImplementationMissingAnalysisFunctionException, AnalysisRegistry
 
 RESULT_FILE_BASENAME = 'result'
 
