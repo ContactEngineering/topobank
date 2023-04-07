@@ -40,6 +40,7 @@ SMALLEST_ABSOLUT_NUMBER_IN_LOGPLOTS = 1e-100
 MAX_NUM_POINTS_FOR_SYMBOLS = 50
 LINEWIDTH_FOR_SURFACE_AVERAGE = 4
 
+
 class AnalysisView(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
     """Retrieve status of analysis (GET) and renew analysis (POST)"""
     queryset = Analysis.objects.all()
@@ -54,6 +55,7 @@ class AnalysisView(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         else:
             return Response({}, status=status.HTTP_403_FORBIDDEN)
+
 
 @api_view(['POST'])
 def generic_card_view(request):
@@ -450,60 +452,38 @@ def series_card_view(request):
     return Response(context)
 
 
+@api_view(['POST'])
 def submit_analyses_view(request):
     """Requests analyses.
     :param request:
     :return: HTTPResponse
     """
-    if not request.is_ajax():
-        raise Http404
-
-    request_method = request.POST
     user = request.user
+    data = request.data
 
     if user.is_anonymous:
         raise PermissionDenied()
 
-    # args_dict = request_method
-    try:
-        function_id = int(request_method.get('function_id'))
-        subjects = request_method.get('subjects')
-        function_kwargs_json = request_method.get('function_kwargs_json')
-        function_kwargs = json.loads(function_kwargs_json)
-        subjects = subjects_from_dict(subjects)
-    except (KeyError, ValueError, TypeError, json.JSONDecodeError):
-        return JsonResponse({'error': 'error in request data'}, status=400)
+    function_id = int(data.get('function_id'))
+    subjects = data.get('subjects')
+    function_kwargs = data.get('function_kwargs')
+
+    controller = AnalysisController(user, subjects, function_id=function_id, function_kwargs=function_kwargs)
 
     #
-    # Interpret given arguments
+    # Trigger missing analyses
     #
-    function = AnalysisFunction.objects.get(id=function_id)
+    controller.trigger_missing_analyses()
 
-    allowed = True
-    for subject in subjects:
-        allowed &= subject.is_shared(user)
-        if not allowed:
-            break
+    # allowed = True
+    # for subject in subjects:
+    #    allowed &= subject.is_shared(user)
+    #    if not allowed:
+    #        break
 
-    if allowed:
-        analyses = [request_analysis(user, function, subject, **function_kwargs) for subject in subjects]
-
-        status = 200
-
-        #
-        # create a collection of analyses such that points to all analyses
-        #
-        collection = AnalysisCollection.objects.create(name=f"{function.name} for {len(subjects)} subjects.",
-                                                       combined_task_state=Analysis.PENDING,
-                                                       owner=user)
-        collection.analyses.set(analyses)
-        #
-        # Each finished analysis checks whether related collections are finished, see "topobank.taskapp.tasks"
-        #
-    else:
-        status = 403
-
-    return JsonResponse({}, status=status)
+    return Response({
+        'analyses': controller.to_representation(request=request)
+    }, status=200)
 
 
 def data(request, pk, location):

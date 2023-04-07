@@ -389,7 +389,7 @@ def palette_for_topographies(nb_topographies):
 class AnalysisController:
     """Retrieve status of analysis for a set of subjects"""
 
-    def __init__(self, user, subjects, function=None, function_id=None):
+    def __init__(self, user, subjects, function=None, function_id=None, function_kwargs=None):
         """
 
         Parameters
