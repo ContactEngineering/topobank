@@ -661,3 +661,29 @@ class AnalysisController:
             context = {'request': request}
         return [AnalysisSerializer(analysis, context=context).data for analysis in
                 self(task_states=task_states, has_result_file=has_result_file)]
+
+    def get_context(self, task_states=None, has_result_file=None, request=None):
+        """
+        Construct a standardized context dictionary.
+
+        Parameters
+        ----------
+        task_states : list of str, optional
+            List of task states to filter for, e.g. ['su', 'fa'] to filter for
+            success and failure. (Default: None)
+        has_result_file : boolean, optional
+            If true, only return analyses that have a results file. If false,
+            return analyses without a results file. Don't filter for results
+            file if unset. (Default: None)
+        request : Request, optional
+            request object (for HyperlinkedRelatedField). (Default: None)
+        """
+        return {
+            'analyses': self.to_representation(task_states=task_states, has_result_file=has_result_file,
+                                               request=request),
+            'dois': self.dois,
+            'function_name': self.function.name,
+            'function_id': self.function.id,
+            'subjects': self.subjects_dict,  # can be used to re-trigger analyses
+            'unique_kwargs': self.unique_kwargs
+        }

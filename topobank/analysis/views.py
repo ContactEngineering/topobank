@@ -76,31 +76,36 @@ def generic_card_view(request):
       subjects_requested_json: json representation of list with all requested subjects as 2-tuple
                                (subject_type.id, subject.id)
     """
-    filter = AnalysisController.from_request(request)
+    controller = AnalysisController.from_request(request)
 
     #
     # for statistics, count views per function
     #
-    increase_statistics_by_date_and_object(Metric.objects.ANALYSES_RESULTS_VIEW_COUNT, obj=filter.function)
+    increase_statistics_by_date_and_object(Metric.objects.ANALYSES_RESULTS_VIEW_COUNT, obj=controller.function)
+
+    #
+    # get standard context dictionary
+    #
+    context = controller.get_context(request=request)
+
+    #
+    # Update context
+    #
+    context.update({
+        'title': controller.function.name,
+        'analyses_available': controller(),  # all Analysis objects related to this card
+        'analyses_success': controller(['su'], True),  # ..the ones which were successful and can be displayed
+        'analyses_failure': controller(['fa'], True),  # ..the ones which have failures and can't be displayed
+        'analyses_unready': controller(['su', 'fa'], False),  # ..the ones which are still running
+        'subjects_missing': controller.subjects_without_analysis_results,
+        'extra_warnings': [],  # use list of dicts of form {'alert_class': 'alert-info', 'message': 'your message'},
+        'analyses_renew_url': reverse('analysis:renew')
+    })
 
     #
     # comprise context for analysis result card
     #
-    return Response({
-        'title': filter.function.name,
-        'function_id': filter.function.id,
-        'unique_kwargs': filter.unique_kwargs,
-        'analyses_available': filter(),  # all Analysis objects related to this card
-        'analyses_success': filter(['su'], True),  # ..the ones which were successful and can be displayed
-        'analyses_failure': filter(['fa'], True),  # ..the ones which have failures and can't be displayed
-        'analyses_unready': filter(['su', 'fa'], False),  # ..the ones which are still running
-        'subjects_missing': filter.subjects_without_analysis_results,
-        # subjects for which there is no Analysis object yet
-        'subjects': filter.subjects_dict,  # can be used to re-trigger analyses
-        'extra_warnings': [],  # use list of dicts of form {'alert_class': 'alert-info', 'message': 'your message'},
-        'analyses_renew_url': reverse('analysis:renew'),
-        'dois': filter.dois
-    })
+    return Response(context)
 
 
 @api_view(['POST'])
@@ -131,11 +136,7 @@ def series_card_view(request):
     # but the only measurement's analysis has no success. In this case there is also
     # no successful analysis to display because the surface has only one measurement.
 
-    context = {
-        'dois': controller.dois,
-        'extraWarnings': [],
-        'analyses': controller.to_representation(request=request)
-    }
+    context = controller.get_context(request=request)
 
     plot_configuration = {
         'title': controller.function.name
