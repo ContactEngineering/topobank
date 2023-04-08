@@ -76,13 +76,7 @@ def generic_card_view(request):
       subjects_requested_json: json representation of list with all requested subjects as 2-tuple
                                (subject_type.id, subject.id)
     """
-    user = request.user
-    data = request.data
-
-    function_id = int(data.get('function_id'))
-    subjects = data.get('subjects')
-
-    filter = AnalysisController(user, subjects, function_id=function_id)
+    filter = AnalysisController.from_request(request)
 
     #
     # for statistics, count views per function
@@ -111,18 +105,7 @@ def generic_card_view(request):
 
 @api_view(['POST'])
 def series_card_view(request):
-    user = request.user
-    data = request.data
-
-    if not 'function_id' in data:
-        raise Http404("Missing parameter `function_id`")
-    if not 'subjects' in data:
-        raise Http404("Missing parameter `subjects")
-
-    function_id = int(data.get('function_id'))
-    subjects = data.get('subjects')
-
-    controller = AnalysisController(user, subjects, function_id=function_id)
+    controller = AnalysisController.from_request(request)
 
     #
     # for statistics, count views per function
@@ -458,17 +441,7 @@ def submit_analyses_view(request):
     :param request:
     :return: HTTPResponse
     """
-    user = request.user
-    data = request.data
-
-    if user.is_anonymous:
-        raise PermissionDenied()
-
-    function_id = int(data.get('function_id'))
-    subjects = data.get('subjects')
-    function_kwargs = data.get('function_kwargs')
-
-    controller = AnalysisController(user, subjects, function_id=function_id, function_kwargs=function_kwargs)
+    controller = AnalysisController.from_request(request)
 
     #
     # Trigger missing analyses

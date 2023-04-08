@@ -425,6 +425,31 @@ class AnalysisController:
 
         self._reset_cache()
 
+    @staticmethod
+    def from_request(request):
+        """
+        Construct an `AnalysisControlLer` object from a request object.
+
+        Parameters
+        ----------
+        request : rest_framework.request.Request
+            REST request object
+
+        Returns
+        controller : AnalysisController
+            The analysis controller object
+        """
+        user = request.user
+        data = request.data
+
+        function_id = int(data.get('function_id'))
+        subjects = data.get('subjects')
+        function_kwargs = data.get('function_kwargs')
+
+        print(f'function_id = {function_id}, subjects = {subjects}, function_kwargs = {function_kwargs}')
+
+        return AnalysisController(user, subjects, function_id=function_id, function_kwargs=function_kwargs)
+
     def _reset_cache(self):
         self._dois = None
         self._unique_kwargs = None
