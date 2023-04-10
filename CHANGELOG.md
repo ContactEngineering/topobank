@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 1.0.4 (2023-04-10)
+
+- BUG: Duration of analysis object should not be a property
+
 ## 1.0.3 (2023-04-06)
 
 - BUG: Plugin version configuration could not be saved if there is are changes

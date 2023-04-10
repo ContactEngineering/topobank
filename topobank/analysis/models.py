@@ -142,7 +142,6 @@ class Analysis(models.Model):
             store_split_dict(self.storage_prefix, RESULT_FILE_BASENAME, self._result)
             self._result = None
 
-    @property
     def duration(self):
         """Returns duration of computation or None if not finished yet.
 
