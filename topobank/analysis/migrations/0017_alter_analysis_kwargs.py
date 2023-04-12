@@ -11,6 +11,13 @@ def forward_func(apps, schema_editor):
     Analysis = apps.get_model('analysis', 'analysis')
     for analysis in Analysis.objects.all():
         analysis.kwargs = pickle.loads(analysis.kwargs_pickle)
+        # Remove superfluous information that cannot be JSON serialized
+        if 'progress_recorder' in analysis.kwargs:
+            del analysis.kwargs['progress_recorder']
+        if 'storage_prefix' in analysis.kwargs:
+            del analysis.kwargs['storage_prefix']
+        if 'dois' in analysis.kwargs:
+            del analysis.kwargs['dois']
         analysis.save()
 
 def reverse_func(apps, schema_editor):
