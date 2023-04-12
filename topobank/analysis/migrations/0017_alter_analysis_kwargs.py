@@ -41,7 +41,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='analysis',
             name='kwargs',
-            field=models.JSONField(),
+            field=models.JSONField(null=True),
         ),
         migrations.RunPython(
             forward_func,
