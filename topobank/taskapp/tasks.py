@@ -113,13 +113,12 @@ def perform_analysis(self, analysis_id):
     def save_result(result, task_state, dois=[]):
         _log.debug(f"Saving result of analysis {analysis_id} with task state '{task_state}' to storage...")
         analysis.task_state = task_state
-        #default_storage_replace(f'{analysis.storage_prefix}/result.json',
-        #                        io.BytesIO(json.dumps(result, cls=NumpyEncoder).encode('utf-8')))
+        print('result =', result)
         store_split_dict(analysis.storage_prefix, RESULT_FILE_BASENAME, result)
-        #analysis.result = pickle.dumps(result)  # can also be an exception in case of errors!
         analysis.end_time = timezone.now()  # with timezone
         if 'effective_kwargs' in result:
-            analysis.kwargs = pickle.dumps(result['effective_kwargs'])
+            print('effective_kwargs =', result['effective_kwargs'])
+            analysis.kwargs = result['effective_kwargs']
         analysis.dois = list(dois)  # dois is a set, we need to convert it
         analysis.save()
         _log.debug("...done saving analysis result.")
@@ -132,8 +131,7 @@ def perform_analysis(self, analysis_id):
     # actually perform analysis
     #
     try:
-        # noinspection PickleLoad
-        kwargs = pickle.loads(analysis.kwargs)
+        kwargs = analysis.kwargs
         subject = analysis.subject
         kwargs['progress_recorder'] = progress_recorder
         kwargs['storage_prefix'] = analysis.storage_prefix

@@ -115,7 +115,7 @@ class Analysis(models.Model):
     # According to GitHub #208, each user should be able to see analysis with parameters chosen by himself
     users = models.ManyToManyField(User)
 
-    kwargs = models.BinaryField()  # for pickle
+    kwargs = models.JSONField(null=True)
 
     # This is the Celery task id
     task_id = models.CharField(max_length=155, unique=True, null=True)
@@ -169,7 +169,7 @@ class Analysis(models.Model):
         return self.end_time - self.start_time
 
     def get_kwargs_display(self):
-        return str(pickle.loads(self.kwargs))
+        return str(self.kwargs)
 
     def get_celery_state(self):
         """Return the state of the task reported by Celery"""

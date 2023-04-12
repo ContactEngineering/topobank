@@ -40,13 +40,13 @@ class AnalysisFunctionFactory(factory.django.DjangoModelFactory):
 
 def _analysis_result(analysis):
     func = analysis.function.python_function(ContentType.objects.get_for_model(analysis.subject))
-    result = func(analysis.subject, **pickle.loads(analysis.kwargs))
+    result = func(analysis.subject, **analysis.kwargs)
     return result
 
 
 def _analysis_pickled_default_kwargs(analysis):
     subject_type = ContentType.objects.get_for_model(analysis.subject)
-    return pickle.dumps(analysis.function.get_default_kwargs(subject_type))
+    return analysis.function.get_default_kwargs(subject_type)
 
 
 class AnalysisFactory(factory.django.DjangoModelFactory):

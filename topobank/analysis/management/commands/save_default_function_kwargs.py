@@ -55,7 +55,7 @@ class Command(BaseCommand):
         # they are missing. So we can assure that all analysis have all values for all parameters.
         #
         for a in Analysis.objects.all():
-            analysis_kwargs = pickle.loads(a.kwargs)
+            analysis_kwargs = a.kwargs
             try:
                 impl = a.function.get_implementation(a.subject_type)
             except ImplementationMissingAnalysisFunctionException:

@@ -1,7 +1,6 @@
 import inspect
 import logging
 import math
-import pickle
 from collections import OrderedDict
 from typing import Any, Dict, Optional
 
@@ -66,18 +65,17 @@ def request_analysis(user, analysis_func, subject, *other_args, **kwargs):
     #
     # Search for analyses with same topography, function and (pickled) function args
     #
-    pickled_pyfunc_kwargs = pickle.dumps(pyfunc_kwargs)
     analysis = Analysis.objects.filter( \
         Q(subject_type=subject_type)
         & Q(subject_id=subject.id)
         & Q(function=analysis_func)
-        & Q(kwargs=pickled_pyfunc_kwargs)).order_by('start_time').last()  # will be None if not found
+        & Q(kwargs=pyfunc_kwargs)).order_by('start_time').last()  # will be None if not found
     # what if pickle protocol changes? -> No match, old must be sorted out later
     # See also GH 426.
 
     if analysis is None:
         analysis = submit_analysis(users=[user], analysis_func=analysis_func, subject=subject,
-                                   pickled_pyfunc_kwargs=pickled_pyfunc_kwargs)
+                                   pyfunc_kwargs=pyfunc_kwargs)
         _log.info(f"Submitted new analysis for {analysis_func.name} and {subject.name} (user: {user.id})..")
     elif user not in analysis.users.all():
         analysis.users.add(user)
@@ -91,7 +89,7 @@ def request_analysis(user, analysis_func, subject, *other_args, **kwargs):
     if analysis.task_state == Analysis.FAILURE:
         new_analysis = submit_analysis(users=analysis.users.all(),
                                        analysis_func=analysis_func, subject=subject,
-                                       pickled_pyfunc_kwargs=pickled_pyfunc_kwargs)
+                                       pyfunc_kwargs=pyfunc_kwargs)
         _log.info(f"Submitted analysis {analysis.id} again because of failure..")
         analysis.delete()
         analysis = new_analysis
@@ -107,7 +105,7 @@ def request_analysis(user, analysis_func, subject, *other_args, **kwargs):
         & Q(users__in=[user]))
     for a in other_analyses_with_same_user:
         a.users.remove(user)
-        _log.info("Removed user %s from analysis %s with kwargs %s.", user, analysis, pickle.loads(analysis.kwargs))
+        _log.info("Removed user %s from analysis %s with kwargs %s.", user, analysis, analysis.kwargs)
 
     return analysis
 
@@ -170,28 +168,28 @@ def renew_analysis(analysis, use_default_kwargs=False):
     subject_type = ContentType.objects.get_for_model(analysis.subject)
 
     if use_default_kwargs:
-        pickled_pyfunc_kwargs = pickle.dumps(func.get_default_kwargs(subject_type=subject_type))
+        pyfunc_kwargs = func.get_default_kwargs(subject_type=subject_type)
     else:
-        pickled_pyfunc_kwargs = analysis.kwargs
+        pyfunc_kwargs = analysis.kwargs
 
     _log.info(f"Renewing analysis {analysis.id} for {len(users)} users, function {func.name}, "
               f"subject type {subject_type}, subject id {analysis.subject.id} .. "
-              f"kwargs: {pickle.loads(pickled_pyfunc_kwargs)}")
+              f"kwargs: {pyfunc_kwargs}")
     analysis.delete()
     return submit_analysis(users, func, subject=analysis.subject,
-                           pickled_pyfunc_kwargs=pickled_pyfunc_kwargs)
+                           pyfunc_kwargs=pyfunc_kwargs)
 
 
-def submit_analysis(users, analysis_func, subject, pickled_pyfunc_kwargs=None):
+def submit_analysis(users, analysis_func, subject, pyfunc_kwargs=None):
     """Create an analysis entry and submit a task to the task queue.
 
     :param users: sequence of User instances; users which should see the analysis
     :param subject: instance which will be subject of the analysis (first argument of analysis function)
     :param analysis_func: AnalysisFunc instance
-    :param pickled_pyfunc_kwargs: pickled kwargs for function which should be saved to database
+    :param pyfunc_kwargs: kwargs for function which should be saved to database
     :returns: Analysis object
 
-    If None is given for 'pickled_pyfunc_kwargs', the default arguments for the given analysis function are used.
+    If None is given for 'pyfunc_kwargs', the default arguments for the given analysis function are used.
     The default arguments are the ones used in the function implementation (python function).
 
     Typical instances as subjects are topographies or surfaces.
@@ -201,15 +199,15 @@ def submit_analysis(users, analysis_func, subject, pickled_pyfunc_kwargs=None):
     #
     # create entry in Analysis table
     #
-    if pickled_pyfunc_kwargs is None:
+    if pyfunc_kwargs is None:
         # Instead of an empty dict, we explicitly store the current default arguments of the analysis function
-        pickled_pyfunc_kwargs = pickle.dumps(analysis_func.get_default_kwargs(subject_type=subject_type))
+        pyfunc_kwargs = analysis_func.get_default_kwargs(subject_type=subject_type)
 
     analysis = Analysis.objects.create(
         subject=subject,
         function=analysis_func,
         task_state=Analysis.PENDING,
-        kwargs=pickled_pyfunc_kwargs)
+        kwargs=pyfunc_kwargs)
 
     analysis.users.set(users)
 
@@ -222,7 +220,7 @@ def submit_analysis(users, analysis_func, subject, pickled_pyfunc_kwargs=None):
         & Q(subject_type=subject_type)
         & Q(subject_id=subject.id)
         & Q(function=analysis_func)
-        & Q(kwargs=pickled_pyfunc_kwargs)
+        & Q(kwargs=pyfunc_kwargs)
         & Q(task_state__in=[Analysis.FAILURE, Analysis.SUCCESS])).delete()
 
     #
@@ -573,7 +571,7 @@ class AnalysisController:
         #   There arguments of the analyses for this contenttype are not unique
 
         for analysis in self._analyses:
-            kwargs = pickle.loads(analysis.kwargs)
+            kwargs = analysis.kwargs
 
             subject_type_str = mangle_content_type(analysis.subject_type)
 

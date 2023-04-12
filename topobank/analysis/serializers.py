@@ -29,7 +29,7 @@ class AnalysisSerializer(serializers.ModelSerializer):
         return obj.duration
 
     def get_kwargs(self, obj):
-        return pickle.loads(obj.kwargs)
+        return obj.kwargs
 
     def get_task_state(self, obj):
         """
