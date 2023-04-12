@@ -115,7 +115,7 @@ class Analysis(models.Model):
     # According to GitHub #208, each user should be able to see analysis with parameters chosen by himself
     users = models.ManyToManyField(User)
 
-    kwargs = models.JSONField(null=True)
+    kwargs = models.JSONField()
 
     # This is the Celery task id
     task_id = models.CharField(max_length=155, unique=True, null=True)
