@@ -3,11 +3,21 @@ import numpy as np
 from django.core.serializers.json import DjangoJSONEncoder
 
 
+def nan_to_none(obj):
+    if isinstance(obj, dict):
+        return {k: nan_to_none(v) for k, v in obj.items()}
+    elif isinstance(obj, list) or isinstance(obj, np.ndarray):
+        return [nan_to_none(v) for v in obj]
+    elif isinstance(obj, float) and np.isnan(obj):
+        return None
+    return obj
+
+
 class ExtendedJSONEncoder(DjangoJSONEncoder):
     """
     Customized JSON encoder that gracefully handles:
-    * numpy arrays
-    * NaNs
+    * numpy arrays, which will be converted to JSON arrays
+    * NaNs and Infs, which will be converted to null
     """
 
     _TYPE_MAP = {
@@ -34,4 +44,10 @@ class ExtendedJSONEncoder(DjangoJSONEncoder):
             return self._TYPE_MAP[type(obj)](obj)
         except KeyError:
             # Pass it on the Django encoder
-            return super().default(self, obj)
+            return super().default(obj)
+
+    def encode(self, obj, *args, **kwargs):
+        # Solution suggested here:
+        # https://stackoverflow.com/questions/28639953/python-json-encoder-convert-nans-to-null-instead
+        obj = nan_to_none(obj)
+        return super().encode(obj, *args, **kwargs)
