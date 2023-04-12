@@ -113,11 +113,11 @@ def perform_analysis(self, analysis_id):
     def save_result(result, task_state, dois=[]):
         _log.debug(f"Saving result of analysis {analysis_id} with task state '{task_state}' to storage...")
         analysis.task_state = task_state
-        print('result =', result)
         store_split_dict(analysis.storage_prefix, RESULT_FILE_BASENAME, result)
         analysis.end_time = timezone.now()  # with timezone
         if 'effective_kwargs' in result:
-            print('effective_kwargs =', result['effective_kwargs'])
+            # If 'effective_kwargs' is in results, then we override the keyword arguments passed to this analysis.
+            # The 'effective_kwargs' are then the arguments required to reproduce this result.
             analysis.kwargs = result['effective_kwargs']
         analysis.dois = list(dois)  # dois is a set, we need to convert it
         analysis.save()
@@ -133,14 +133,12 @@ def perform_analysis(self, analysis_id):
     try:
         kwargs = analysis.kwargs
         subject = analysis.subject
-        kwargs['progress_recorder'] = progress_recorder
-        kwargs['storage_prefix'] = analysis.storage_prefix
+        _log.debug(f"Evaluating analysis function '{analysis.function.name}' on subject '{subject}' with "
+                   f"kwargs {kwargs} and storage prefix '{analysis.storage_prefix}'...")
         # also request citation information
         dois = set()
-        kwargs['dois'] = dois
-        _log.debug("Evaluating analysis function '%s' on subject '%s' with kwargs %s and storage prefix '%s'...",
-                   analysis.function.name, subject, kwargs, analysis.storage_prefix)
-        result = evaluate_function(subject, **kwargs)
+        result = evaluate_function(subject, progress_recorder=progress_recorder, storage_prefix=analysis.storage_prefix,
+                                   dois=dois, **kwargs)
         save_result(result, Analysis.SUCCESS, dois)
     except (Topography.DoesNotExist, Surface.DoesNotExist, IntegrityError) as exc:
         _log.warning("Subject for analysis %s doesn't exist any more, so that analysis will be deleted...",
