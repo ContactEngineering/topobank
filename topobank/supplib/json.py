@@ -6,7 +6,7 @@ from django.core.serializers.json import DjangoJSONEncoder
 def nan_to_none(obj):
     if isinstance(obj, dict):
         return {k: nan_to_none(v) for k, v in obj.items()}
-    elif isinstance(obj, list) or isinstance(obj, np.ndarray):
+    elif isinstance(obj, list) or isinstance(obj, set) or isinstance(obj, np.ndarray):
         return [nan_to_none(v) for v in obj]
     elif isinstance(obj, float) and np.isnan(obj):
         return None
