@@ -105,6 +105,7 @@ class Analysis(models.Model):
         states.FAILURE: FAILURE
     }
 
+    # Actual implementation of the analysis as a Python function
     function = models.ForeignKey('AnalysisFunction', on_delete=models.CASCADE)
 
     # Definition of the subject
@@ -115,6 +116,7 @@ class Analysis(models.Model):
     # According to GitHub #208, each user should be able to see analysis with parameters chosen by himself
     users = models.ManyToManyField(User)
 
+    # Keyword agruments passed to the Python analysis function
     kwargs = models.JSONField(null=True)
 
     # This is the Celery task id
@@ -124,6 +126,7 @@ class Analysis(models.Model):
     # knows about the task.
     task_state = models.CharField(max_length=7, choices=TASK_STATE_CHOICES)
 
+    # Time stamps
     creation_time = models.DateTimeField(null=True)
     start_time = models.DateTimeField(null=True)
     end_time = models.DateTimeField(null=True)
@@ -131,6 +134,7 @@ class Analysis(models.Model):
     # Bibliography
     dois = models.JSONField(default=list)
 
+    # Server configuration (version information)
     configuration = models.ForeignKey(Configuration, null=True, on_delete=models.SET_NULL)
 
     class Meta:
