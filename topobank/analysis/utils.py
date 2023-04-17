@@ -410,6 +410,7 @@ class AnalysisController:
             raise ValueError('Please provide either `function` or `function_id`')
         else:
             self._function = function
+        self._function_kwargs = function_kwargs
 
         # Calculate subjects for the analyses, filtered for those which have an implementation
         self._subjects = subjects_from_dict(subjects, function=self._function)
@@ -521,14 +522,14 @@ class AnalysisController:
         It is not guaranteed that there are results for the returned analyses
         or if these analyses are marked as successful.
         """
-
-        # Create query from subjects
+        # Query for subjects
         query = None
         for subject in self._subjects:
             ct = ContentType.objects.get_for_model(subject)
             q = Q(subject_type_id=ct.id) & Q(subject_id=subject.id)
             query = q if query is None else query | q
 
+        # If there are no subjects, return empty queryset
         if query is None:
             return Analysis.objects.none()
 
@@ -540,7 +541,15 @@ class AnalysisController:
                          f"for this user. Returning empty queryset.")
             return Analysis.objects.none()
 
-        analyses = Analysis.objects.filter(Q(users=self._user) & Q(function=self._function) & query) \
+        # Add user and function to query
+        query = Q(users=self._user) & Q(function=self._function) & query
+
+        # Add kwargs (if specified)
+        if self._function_kwargs is not None:
+            query = Q(kwargs=self._function_kwargs) & query
+
+        # Find analyses
+        analyses = Analysis.objects.filter(query) \
             .order_by('subject_type_id', 'subject_id', '-start_time').distinct("subject_type_id", 'subject_id')
 
         # filter by current visibility for user
@@ -601,7 +610,16 @@ class AnalysisController:
                     kw = {}
             except KeyError:
                 kw = self._function.get_default_kwargs(st)
+            if self._function_kwargs is not None:
+                for key, value in self._function_kwargs.items():
+                    if key in kw:
+                        kw[key] = value
+                    else:
+                        raise KeyError(f"'{key}' is not a keyword argument of analysis function "
+                                       f"'{self._function.name}' for subject '{st}'.")
             kwargs_for_missing[st] = kw
+
+        print(f'unique_kwargs = {self.unique_kwargs}, kwargs_for_missing = {kwargs_for_missing}')
 
         # For every possible implemented subject type the following is done:
         # We use the common unique keyword arguments if there are any; if not

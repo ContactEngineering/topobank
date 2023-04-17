@@ -117,7 +117,7 @@ class Analysis(models.Model):
     users = models.ManyToManyField(User)
 
     # Keyword agruments passed to the Python analysis function
-    kwargs = models.JSONField(null=True)
+    kwargs = models.JSONField()
 
     # This is the Celery task id
     task_id = models.CharField(max_length=155, unique=True, null=True)

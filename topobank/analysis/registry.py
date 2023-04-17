@@ -499,6 +499,8 @@ class AnalysisFunctionImplementation:
             del dkw['storage_prefix']
         if 'progress_recorder' in dkw:
             del dkw['progress_recorder']
+        if 'dois' in dkw:
+            del dkw['dois']
         return dkw
 
     def eval(self, subject, **kwargs):
