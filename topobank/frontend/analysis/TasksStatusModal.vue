@@ -19,19 +19,31 @@ export default {
   data() {
     return {
       _analyses: this.analyses === undefined ? [] : this.analyses,
-      _taskStatuses: this.analyses === undefined ? [] : Array(this.analyses.length).fill(true),
+      _taskStatuses: this.analyses === undefined ? [] : this.getInitialTaskStatuses(this.analyses),
       _selectedAnalyses: []
     }
   },
   watch: {
     analyses: {
       handler(newValue, oldValue) {
+        let anyTaskWasRunning = this._taskStatuses.some(v => v);
         this._analyses = newValue === undefined ? [] : newValue;
-        this._taskStatuses = Array(this.analyses.length).fill(true);
+        this._taskStatuses = newValue === undefined ? [] : this.getInitialTaskStatuses(newValue);
+        let anyTaskIsRunning = this._taskStatuses.some(v => v);
+        if (anyTaskWasRunning != anyTaskIsRunning) {
+          this.$emit('task-status-changed', anyTaskIsRunning);
+        }
       }
     }
   },
+  mounted() {
+    let anyTaskIsRunning = this._taskStatuses.some(v => v);
+    this.$emit('task-status-changed', anyTaskIsRunning);
+  },
   methods: {
+    getInitialTaskStatuses(analyses) {
+      return analyses.map(a => a.task_state == 'pe' || a.task_state == 'st');
+    },
     setTaskStatus(analysisIndex, taskIsRunning) {
       let anyTaskWasRunning = this._taskStatuses.some(v => v);
       this._taskStatuses[analysisIndex] = taskIsRunning;
