@@ -129,6 +129,7 @@ def series_card_view(request):
 
     #
     # order analyses such that surface analyses are coming last (plotted on top)
+    #
     analyses_success_list = filter_and_order_analyses(analyses_success)
     data_sources_dict = []
 

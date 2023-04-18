@@ -76,12 +76,12 @@ def request_analysis(user, analysis_func, subject, *other_args, **kwargs):
     if analysis is None:
         analysis = submit_analysis(users=[user], analysis_func=analysis_func, subject=subject,
                                    pyfunc_kwargs=pyfunc_kwargs)
-        _log.info(f"Submitted new analysis for {analysis_func.name} and {subject.name} (user: {user.id})..")
+        _log.info(f"Submitted new analysis for {analysis_func.name} and {subject.name} (User {user})...")
     elif user not in analysis.users.all():
         analysis.users.add(user)
-        _log.info(f"Added user {user.id} to existing analysis {analysis.id}.")
+        _log.info(f"Added user {user} to existing analysis {analysis.id}.")
     else:
-        _log.debug(f"User {user.id} already registered for analysis {analysis.id}.")
+        _log.debug(f"User {user} already registered for analysis {analysis.id}.")
 
     #
     # Retrigger an analysis if there was a failure, maybe sth has been fixed in the meantime
@@ -105,7 +105,7 @@ def request_analysis(user, analysis_func, subject, *other_args, **kwargs):
         & Q(users__in=[user]))
     for a in other_analyses_with_same_user:
         a.users.remove(user)
-        _log.info("Removed user %s from analysis %s with kwargs %s.", user, analysis, analysis.kwargs)
+        _log.info(f"Removed user {user} from analysis {analysis} with kwargs {analysis.kwargs}.")
 
     return analysis
 
@@ -571,55 +571,34 @@ class AnalysisController:
     def _get_unique_kwargs(self):
         """
         Collect all keyword arguments and check whether they are equal.
-        Returns a dictionary with keyword arguments for each content type.
+        Returns a dictionary with unique keyword arguments.
         """
-        unique_kwargs: Dict[str, Optional[Any]] = {}  # key: ContentType, value: dict or None
-        # - if a contenttype is missing as key, this means:
-        #   There are no analyses available for this contenttype
-        # - if a contenttype exists, but value is None, this means:
-        #   There arguments of the analyses for this contenttype are not unique
-
+        unique_kwargs = None
         for analysis in self._analyses:
             kwargs = analysis.kwargs
-
-            subject_type_str = mangle_content_type(analysis.subject_type)
-
-            if subject_type_str not in unique_kwargs:
-                unique_kwargs[subject_type_str] = kwargs
-            elif unique_kwargs[subject_type_str] is not None:  # was unique so far
-                if kwargs != unique_kwargs[subject_type_str]:
-                    unique_kwargs[subject_type_str] = None
-                    # Found differing arguments for this subject_type
-                    # We need to continue in the loop, because of the other subject types
-
-        return unique_kwargs
+            if unique_kwargs is None:
+                unique_kwargs = kwargs
+            else:
+                for key, value in kwargs.items():
+                    if key in unique_kwargs:
+                        if unique_kwargs[key] != value:
+                            # Delete nonunique key
+                            del unique_kwargs[key]
+        return {} if unique_kwargs is None else unique_kwargs
 
     def trigger_missing_analyses(self):
-        """Trigger analyses that are missing"""
-        #
-        # automatically trigger analyses for missing subjects (topographies or surfaces)
-        #
-        # Save keyword arguments which should be used for missing analyses,
-        # sorted by subject type
+        """
+        Automatically trigger analyses for missing subjects (topographies,
+        surfaces or surface collections).
 
-        kwargs_for_missing = {}
-        for st in self._function.get_implementation_types():
-            try:
-                kw = self.unique_kwargs[st]
-                if kw is None:
-                    kw = {}
-            except KeyError:
-                kw = self._function.get_default_kwargs(st)
-            if self._function_kwargs is not None:
-                for key, value in self._function_kwargs.items():
-                    if key in kw:
-                        kw[key] = value
-                    else:
-                        raise KeyError(f"'{key}' is not a keyword argument of analysis function "
-                                       f"'{self._function.name}' for subject '{st}'.")
-            kwargs_for_missing[st] = kw
+        Save keyword arguments which should be used for missing analyses,
+        sorted by subject type.
+        """
 
-        print(f'unique_kwargs = {self.unique_kwargs}, kwargs_for_missing = {kwargs_for_missing}')
+        function_kwargs = self.unique_kwargs
+        # Manually provided function kwargs override unique kwargs from prior analysis query
+        if self._function_kwargs is not None:
+            function_kwargs.update(self._function_kwargs)
 
         # For every possible implemented subject type the following is done:
         # We use the common unique keyword arguments if there are any; if not
@@ -628,26 +607,14 @@ class AnalysisController:
         subjects_triggered = []
         for subject in self.subjects_without_analysis_results:
             if subject.is_shared(self._user):
-                ct = ContentType.objects.get_for_model(subject)
-                analysis_kwargs = kwargs_for_missing[ct]
-                triggered_analysis = request_analysis(self._user, self._function, subject, **analysis_kwargs)
-                subjects_triggered.append(subject)
-                # topographies_available_ids.append(topo.id)
+                triggered_analysis = request_analysis(self._user, self._function, subject, **function_kwargs)
+                subjects_triggered += [subject]
                 _log.info(f"Triggered analysis {triggered_analysis.id} for function '{self._function.name}' "
                           f"and subject '{subject}'.")
-        # subjects_without_analysis_results = [s for s in subjects_without_analysis_results if s not in subjects_triggered]
 
-        # now all subjects which needed to be triggered, should have been triggered
-        # with common arguments if possible
-        # collect information about available analyses again
+        # Now all subjects which needed to be triggered, should have been triggered with common arguments if possible
+        # collect information about available analyses again.
         if len(subjects_triggered) > 0:
-
-            # if no analyses where available before, unique_kwargs is None
-            # which is interpreted as "differing arguments". This is wrong
-            # in that case
-            if len(self._analyses) == 0:
-                unique_kwargs = kwargs_for_missing
-
             self._analyses = self._get_latest_analyses()
             self._reset_cache()
 
@@ -701,5 +668,5 @@ class AnalysisController:
             'functionName': self.function.name,
             'functionId': self.function.id,
             'subjects': self.subjects_dict,  # can be used to re-trigger analyses
-            'functionKwargs': self.unique_kwargs
+            'uniqueKwargs': self.unique_kwargs
         }

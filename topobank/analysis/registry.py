@@ -67,6 +67,24 @@ class AlreadyRegisteredAnalysisFunctionException(RegistryException):  # TODO rep
                f"'{self._subject_model}' (app '{self._subject_app_name}') has already been defined."
 
 
+MAINRclass DefaultKwargsDifferException(RegistryException):
+    def __init__(self, name, subject_app_name1, subject_model1, default_kwargs1, subject_app_name2, subject_model2,
+                 default_kwargs2):
+        self._name = name
+        self._subject_app_name1 = subject_app_name1
+        self._subject_model1 = subject_model1
+        self._default_kwargs1 = default_kwargs1
+        self._subject_app_name2 = subject_app_name2
+        self._subject_model2 = subject_model2
+        self._default_kwargs2 = default_kwargs2
+
+    def __str__(self):
+        return f"Analysis function '{self._name}' has already been registered for model " \
+               f"'{self._subject_app_name1}|{self._subject_model1}' with default keyword arguments " \
+               f"'{self._default_kwargs1}. The implementation for '{self._subject_app_name2}|{self._subject_model2}' " \
+               f"has different default keyword arguments of '{self._default_kwargs2}."
+
+
 class AlreadyRegisteredException(RegistryException):
     """A function has already been registered for the given key."""
 
@@ -136,11 +154,10 @@ class AnalysisRegistry(metaclass=Singleton):
     during registration process.
     """
     def __init__(self):
-        self._analysis_function_implementations = {}
-        # key: (visualization_type, name, subject_app_name, subject_model)
+        self._analysis_functions = {}
+        # key: (name, subject_app_name, subject_model)
         #      where
-        #      visualization_type: str, visualization type
-        #      function_label: str, Function label in UI,
+        #      name: str, Unique function name,
         #      subject_app_name: str, application name for subject_model
         #      subject_model: str, e.g. "topography" or "surface",
         #                     should correspond to first argument of analysis function implementations
@@ -160,11 +177,8 @@ class AnalysisRegistry(metaclass=Singleton):
         # value: Name of Django app/plugin where the visualization resides
 
         self._visualization_type_by_function_name = {}
-        # key: visualization_type: str, visualization type
-        # value: analysis function name in UI
-
-        self._visualization_types = set()
-        # visualization types which have been seen so far
+        # key: name: str, Unique function name,
+        # value: visualization_type: str, visualization type
 
     ###################################################################
     # Handling of analysis function implementations
@@ -194,21 +208,29 @@ class AnalysisRegistry(metaclass=Singleton):
             Python function which implements the analysis function
         """
 
-        # Find out name of first argument
-        func_spec = inspect.getfullargspec(func)
-        subject_model = func_spec.args[0]
+        # Construct implementation
+        impl = AnalysisFunctionImplementation(func)
+        subject_model = impl.get_subject_model()
 
-        _log.debug(f"Adding analysis function implementation for art: {visualization_type}, function name: {name}, "
-                   f"app_label: {subject_app_name}, subject_type: {subject_model}..")
+        _log.debug(f"Adding implementation for analysis function '{name}' for subject "
+                   f"'{subject_app_name}|{subject_model}' with visualization type '{visualization_type}'.")
 
-        #
-        # For a given function name, the card view flavor should be unique
-        #
+        # Idiot check: For a given function name, the card view flavor should be unique
         if name in self._visualization_type_by_function_name:
             curr_visualization_type = self._visualization_type_by_function_name[name]
             if curr_visualization_type != visualization_type:
                 raise InconsistentAnalysisResultTypeException(name, curr_visualization_type, visualization_type)
-        self._visualization_type_by_function_name[name] = visualization_type
+        else:
+            self._visualization_type_by_function_name[name] = visualization_type
+
+        # Idiot check: Make sure same visualization types reside in the same app
+        if visualization_type in self._app_name:
+            if self._app_name[visualization_type] != visualization_app_name:
+                raise RuntimeError(f"Visualization type '{visualization_type}' has already been registered within "
+                                   f"Django app '{self._app_name[visualization_type]}'. Cannot register another "
+                                   f"implementation within a different app '{visualization_app_name}'.")
+        else:
+            self._app_name[visualization_type] = visualization_app_name
 
         #
         # Do not get subject type of function from database, this is too early.
@@ -217,26 +239,26 @@ class AnalysisRegistry(metaclass=Singleton):
         # Django itself has a cache for content types, we don't have to implement an own one.
         #
 
-        #
-        # Check key
-        #
-        key = (visualization_type, name, subject_app_name, subject_model)
+        # Construct key
+        key = (name, subject_app_name, subject_model)
         # We are using the subject_model here because otherwise we have problems
         # during test setup if we use Contenttypes here (not fully ready)
 
-        # Each implementation should only be defined once
-        if key in self._analysis_function_implementations:
-            raise AlreadyRegisteredAnalysisFunctionException(
-                visualization_type, name, subject_app_name, subject_model)
+        default_kwargs = impl.get_default_kwargs()
+        for (_name, _subject_app_name, _subject_model), _impl in self._analysis_functions.items():
+            if _name == name:
+                # Idiot check: Cannot register two implementations of same name for same subject type
+                if (_subject_app_name, _subject_model) == (subject_app_name, subject_model):
+                    raise AlreadyRegisteredAnalysisFunctionException(name, subject_app_name, subject_model)
+                # Idiot check: Implementations of same name (but different subject type) should have identical default
+                # arguments.
+                _default_kwargs = _impl.get_default_kwargs()
+                if _default_kwargs != default_kwargs:
+                    raise DefaultKwargsDifferException(name, subject_app_name, subject_model, default_kwargs,
+                                                       _subject_app_name, _subject_model, _default_kwargs)
 
-        #
-        # Okay, add this implementation
-        #
-        self._visualization_types.add(visualization_type)
-        self._app_name[visualization_type] = visualization_app_name
-
-        impl = AnalysisFunctionImplementation(func)
-        self._analysis_function_implementations[key] = impl
+        # We are good: Actually register the implementation
+        self._analysis_functions[key] = impl
 
     def get_implementation(self, name, subject_type):
         """
@@ -256,8 +278,7 @@ class AnalysisRegistry(metaclass=Singleton):
         subject_app_name = subject_type.app_label
         subject_model = subject_type.model
         try:
-            visualization_type = self._visualization_type_by_function_name[name]
-            return self._analysis_function_implementations[(visualization_type, name, subject_app_name, subject_model)]
+            return self._analysis_functions[(name, subject_app_name, subject_model)]
         except KeyError as exc:
             raise ImplementationMissingAnalysisFunctionException(name, subject_app_name, subject_model) from exc
 
@@ -268,27 +289,31 @@ class AnalysisRegistry(metaclass=Singleton):
         If given a user, only the functions are returned
         which have at least one implementation for the given user.
         """
-        implementations = self._analysis_function_implementations
+        implementations = self._analysis_functions
         if user is not None:
             # filter for user
             implementations = { k:impl for k, impl in implementations.items()
                                 if impl.is_available_for_user(user) }
 
-        return list(set(name for visualization_type, name, subject_app_name, subject_model in implementations.keys()))
+        return list(set(name for name, subject_app_name, subject_model in implementations.keys()))
 
     def get_implementation_types(self, name):
         """Returns list of ContentType which can be given as first argument to function with given name."""
         return list(set(ContentType.objects.get_by_natural_key(subject_app_name, subject_model)
-                        for visualization_type, n, subject_app_name, subject_model
-                        in self._analysis_function_implementations.keys()
+                        for n, subject_app_name, subject_model in self._analysis_functions.keys()
                         if n == name))
 
     def get_visualization_type_for_function_name(self, requested_name):
         """Return visualization type for given function name."""
-        for visualization_type, name, subject_app_name, subject_model in self._analysis_function_implementations.keys():
-            if requested_name == name:
-                return self._app_name[visualization_type], visualization_type
-        raise ValueError(f"No function registered with given name {requested_name}.")
+        try:
+            visualization_type = self._visualization_type_by_function_name[requested_name]
+        except KeyError as exc:
+            raise ValueError(f"No function registered with given name {requested_name}.") from exc
+        try:
+            visualization_app_name = self._app_name[visualization_type]
+        except KeyError as exc:
+            raise ValueError(f"No app name registered with visualization type {visualization_type}.") from exc
+        return visualization_app_name, visualization_type
 
     def sync_analysis_functions(self, cleanup=False):
         """
@@ -370,8 +395,6 @@ class AnalysisRegistry(metaclass=Singleton):
         # Each implementation should only be defined once
         if key in self._download_functions:
             raise AlreadyRegisteredException(key)
-
-        self._visualization_types.add(visualization_type)
 
         self._download_functions[key] = func
 
@@ -488,10 +511,11 @@ class AnalysisFunctionImplementation:
         }
 
     def get_default_kwargs(self):
-        """Return default keyword arguments as dict.
+        """
+        Return default keyword arguments as dict.
 
         Administrative arguments like
-        'storage_prefix' and 'progress_recorder'
+        'storage_prefix', 'progress_recorder' and 'dois'
         which are common to all functions, are excluded.
         """
         dkw = self._get_default_args(self._pyfunc)
@@ -521,6 +545,9 @@ class AnalysisFunctionImplementation:
         plugins_available = Organization.objects.get_plugins_available(user)
         return app.name in plugins_available
 
+    def get_subject_model(self):
+        argspec = inspect.getfullargspec(self._pyfunc)
+        return argspec.args[0]
 
 def _get_app_config_for_obj(obj):
     """For given object, find out app config it belongs to."""
