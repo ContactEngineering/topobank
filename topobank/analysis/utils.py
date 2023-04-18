@@ -110,6 +110,7 @@ def request_analysis(user, analysis_func, subject, *other_args, **kwargs):
     return analysis
 
 
+# This used only in the `trigger_analyses` management command
 def renew_analyses_for_subject(subject):
     """Renew all analyses for the given subject.
 
