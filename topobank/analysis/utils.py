@@ -698,8 +698,8 @@ class AnalysisController:
             'analyses': self.to_representation(task_states=task_states, has_result_file=has_result_file,
                                                request=request),
             'dois': self.dois,
-            'function_name': self.function.name,
-            'function_id': self.function.id,
+            'functionName': self.function.name,
+            'functionId': self.function.id,
             'subjects': self.subjects_dict,  # can be used to re-trigger analyses
-            'unique_kwargs': self.unique_kwargs
+            'functionKwargs': self.unique_kwargs
         }

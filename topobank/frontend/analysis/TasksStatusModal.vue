@@ -26,6 +26,7 @@ export default {
   watch: {
     analyses: {
       handler(newValue, oldValue) {
+        console.log('TasksStatusModal.watch.analyses -> ' + newValue + ', ' + oldValue);
         let anyTaskWasRunning = this._taskStatuses.some(v => v);
         this._analyses = newValue === undefined ? [] : newValue;
         this._taskStatuses = newValue === undefined ? [] : this.getInitialTaskStatuses(newValue);
@@ -45,6 +46,7 @@ export default {
       return analyses.map(a => a.task_state == 'pe' || a.task_state == 'st');
     },
     setTaskStatus(analysisIndex, taskIsRunning) {
+      console.log('TaskStatusRow.setTaskStatus -> ' + analysisIndex + ', ' + taskIsRunning);
       let anyTaskWasRunning = this._taskStatuses.some(v => v);
       this._taskStatuses[analysisIndex] = taskIsRunning;
       let anyTaskIsRunning = this._taskStatuses.some(v => v);

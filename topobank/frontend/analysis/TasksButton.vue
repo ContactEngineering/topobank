@@ -27,6 +27,7 @@ export default {
   methods: {
     taskStatusChanged(anyTaskIsRunning) {
       this._anyTaskIsRunning = anyTaskIsRunning;
+      this.$emit('task-status-changed', anyTaskIsRunning);
     }
   }
 }
