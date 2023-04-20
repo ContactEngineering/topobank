@@ -26,6 +26,9 @@ import {formatExponential} from "topobank/utils/formatting";
 
 export default {
   name: 'bokeh-plot',
+  emits: [
+    'selected'
+  ],
   props: {
     categories: {
       // Defining selection categories. For each category, there will be an accordion with the possibility to show/hide

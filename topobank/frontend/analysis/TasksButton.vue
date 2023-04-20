@@ -6,6 +6,9 @@ import TasksStatusModal from './TasksStatusModal.vue';
 
 export default {
   name: 'tasks-button',
+  emits: [
+      'taskStatusChanged'
+  ],
   components: {
     TasksStatusModal
   },
@@ -26,8 +29,9 @@ export default {
   },
   methods: {
     taskStatusChanged(anyTaskIsRunning) {
+      console.log('TasksButton.taskStatusChanged ' + anyTaskIsRunning);
       this._anyTaskIsRunning = anyTaskIsRunning;
-      this.$emit('task-status-changed', anyTaskIsRunning);
+      this.$emit('taskStatusChanged', anyTaskIsRunning);
     }
   }
 }

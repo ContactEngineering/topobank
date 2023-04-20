@@ -6,6 +6,9 @@ import TaskStatusRow from "./TaskStatusRow.vue";
 
 export default {
   name: 'tasks-status-modal',
+  emits: [
+    'taskStatusChanged'
+  ],
   components: {
     TaskStatusRow
   },
@@ -32,14 +35,14 @@ export default {
         this._taskStatuses = newValue === undefined ? [] : this.getInitialTaskStatuses(newValue);
         let anyTaskIsRunning = this._taskStatuses.some(v => v);
         if (anyTaskWasRunning != anyTaskIsRunning) {
-          this.$emit('task-status-changed', anyTaskIsRunning);
+          this.$emit('taskStatusChanged', anyTaskIsRunning);
         }
       }
     }
   },
   mounted() {
     let anyTaskIsRunning = this._taskStatuses.some(v => v);
-    this.$emit('task-status-changed', anyTaskIsRunning);
+    this.$emit('taskStatusChanged', anyTaskIsRunning);
   },
   methods: {
     getInitialTaskStatuses(analyses) {
@@ -51,7 +54,7 @@ export default {
       this._taskStatuses[analysisIndex] = taskIsRunning;
       let anyTaskIsRunning = this._taskStatuses.some(v => v);
       if (anyTaskWasRunning != anyTaskIsRunning) {
-        this.$emit('task-status-changed', anyTaskIsRunning);
+        this.$emit('taskStatusChanged', anyTaskIsRunning);
       }
     }
   }
