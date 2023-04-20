@@ -23,7 +23,7 @@ class AnalysisSerializer(serializers.ModelSerializer):
     })
     task_state = serializers.SerializerMethodField()
     task_progress = serializers.SerializerMethodField()
-    urls = serializers.SerializerMethodField()
+    api = serializers.SerializerMethodField()
 
     def get_duration(self, obj):
         return obj.duration
@@ -74,13 +74,14 @@ class AnalysisSerializer(serializers.ModelSerializer):
         else:
             return 0.0
 
-    def get_urls(self, obj):
+    def get_api(self, obj):
         return {
-            'status': reverse('analysis:status-detail', kwargs=dict(pk=obj.id))
+            'dataUrl': reverse('analysis:data', kwargs=dict(pk=obj.id, location='')),
+            'statusUrl': reverse('analysis:status-detail', kwargs=dict(pk=obj.id))
         }
 
     class Meta:
         model = Analysis
         fields = ['id', 'function', 'subject', 'kwargs', 'task_progress', 'task_state', 'creation_time', 'start_time',
-                  'end_time', 'dois', 'configuration', 'duration', 'urls']
+                  'end_time', 'dois', 'configuration', 'duration', 'api']
         depth = 1
