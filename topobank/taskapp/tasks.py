@@ -141,8 +141,8 @@ def perform_analysis(self, analysis_id):
                                    dois=dois, **kwargs)
         save_result(result, Analysis.SUCCESS, dois)
     except (Topography.DoesNotExist, Surface.DoesNotExist, IntegrityError) as exc:
-        _log.warning("Subject for analysis %s doesn't exist any more, so that analysis will be deleted...",
-                     analysis.id)
+        _log.warning(f"Subject for analysis '{analysis.id}' doesn't exist any more, so that analysis will be "
+                     f"deleted...")
         analysis.delete()
         # we want a real exception here so celery's flower can show the task as failure
         raise
