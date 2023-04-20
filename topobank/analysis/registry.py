@@ -67,7 +67,7 @@ class AlreadyRegisteredAnalysisFunctionException(RegistryException):  # TODO rep
                f"'{self._subject_model}' (app '{self._subject_app_name}') has already been defined."
 
 
-MAINRclass DefaultKwargsDifferException(RegistryException):
+class DefaultKwargsDifferException(RegistryException):
     def __init__(self, name, subject_app_name1, subject_model1, default_kwargs1, subject_app_name2, subject_model2,
                  default_kwargs2):
         self._name = name
