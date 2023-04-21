@@ -10,7 +10,10 @@ from django.db import migrations, models
 def forward_func(apps, schema_editor):
     Analysis = apps.get_model('analysis', 'analysis')
     for analysis in Analysis.objects.all():
-        analysis.kwargs = pickle.loads(analysis.kwargs_pickle)
+        kwargs = pickle.loads(analysis.kwargs_pickle)
+        if kwargs is None:
+            kwargs = {}  # We don't allow None kwargs
+        analysis.kwargs = kwargs
         # Remove superfluous information that cannot be JSON serialized
         if 'progress_recorder' in analysis.kwargs:
             del analysis.kwargs['progress_recorder']
@@ -41,7 +44,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='analysis',
             name='kwargs',
-            field=models.JSONField(),
+            field=models.JSONField(default={}),
         ),
         migrations.RunPython(
             forward_func,
