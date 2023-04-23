@@ -2,7 +2,7 @@
 
 <script>
 
-import TaskStateRow from "./TaskStatusRow.vue";
+import TaskStateRow from "./TaskStateRow.vue";
 
 export default {
   name: 'task-states-modal',

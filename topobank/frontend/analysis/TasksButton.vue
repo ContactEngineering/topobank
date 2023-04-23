@@ -2,7 +2,7 @@
 
 import {v4 as uuid4} from 'uuid';
 
-import TaskStatesModal from './TasksStatusModal.vue';
+import TaskStatesModal from './TaskStatesModal.vue';
 
 // Count the number of unique entries in the array `arr`.
 function countUniqueEntries(arr, requiredKeys) {
