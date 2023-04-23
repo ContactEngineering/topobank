@@ -41,6 +41,9 @@ export default {
       dataSources: undefined,
       dois: [],
       hasWarnings: false,
+      _nbFailed: 0,
+      _nbRunningOrPending: 0,
+      _nbSuccess: 0,
       outputBackend: "svg",
       plots: undefined,
       title: this.functionName
@@ -86,6 +89,15 @@ export default {
             this.dois = data.dois;
             this.analysesAvailable = true;
           });
+    },
+    taskStateChanged(nbRunningOrPending, nbSuccess, nbFailed) {
+      if (nbRunningOrPending == 0 && this._nbRunningOrPending > 0) {
+          // All tasks finished, reload card
+          this.updateCard();
+      }
+      this._nbRunningOrPending = nbRunningOrPending;
+      this._nbSuccess = nbSuccess;
+      this._nbFailed = nbFailed;
     }
   }
 };
@@ -96,7 +108,8 @@ export default {
     <div class="card-header">
       <div class="btn-group btn-group-sm float-right">
         <tasks-button :analyses="analyses"
-                      :csrf-token="csrfToken">
+                      :csrf-token="csrfToken"
+                      @task-state-changed="taskStateChanged">
         </tasks-button>
         <button @click="updateCard" class="btn btn-default float-right ml-1">
           <i class="fa fa-redo"></i>
