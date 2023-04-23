@@ -35,18 +35,17 @@ export default {
   },
   data() {
     return {
-      analyses: [],
-      analysesAvailable: false,
-      categories: undefined,
-      dataSources: undefined,
-      dois: [],
-      hasWarnings: false,
+      _analyses: [],
+      _analysesAvailable: false,
+      _categories: undefined,
+      _dataSources: undefined,
+      _dois: [],
       _nbFailed: 0,
       _nbRunningOrPending: 0,
       _nbSuccess: 0,
-      outputBackend: "svg",
-      plots: undefined,
-      title: this.functionName
+      _outputBackend: "svg",
+      _plots: undefined,
+      _title: this.functionName
     }
   },
   mounted() {
@@ -54,7 +53,7 @@ export default {
   },
   computed: {
     analysisIds() {
-      return this.analyses.map(a => a.id).join();
+      return this._analyses.map(a => a.id).join();
     }
   },
   methods: {
@@ -74,20 +73,20 @@ export default {
       })
           .then(response => response.json())
           .then(data => {
-            this.analyses = data.analyses;
-            this.title = data.plotConfiguration.title;
-            this.plots = [{
+            this._analyses = data.analyses;
+            this._title = data.plotConfiguration.title;
+            this._plots = [{
               title: "default",
               xAxisLabel: data.plotConfiguration.xAxisLabel,
               yAxisLabel: data.plotConfiguration.yAxisLabel,
               xAxisType: data.plotConfiguration.xAxisType,
               yAxisType: data.plotConfiguration.yAxisType
             }];
-            this.dataSources = data.plotConfiguration.dataSources;
-            this.categories = data.plotConfiguration.categories;
-            this.outputBackend = data.plotConfiguration.outputBackend;
-            this.dois = data.dois;
-            this.analysesAvailable = true;
+            this._dataSources = data.plotConfiguration.dataSources;
+            this._categories = data.plotConfiguration.categories;
+            this._outputBackend = data.plotConfiguration.outputBackend;
+            this._dois = data.dois;
+            this._analysesAvailable = true;
           });
     },
     taskStateChanged(nbRunningOrPending, nbSuccess, nbFailed) {
@@ -107,7 +106,7 @@ export default {
   <div class="card search-result-card">
     <div class="card-header">
       <div class="btn-group btn-group-sm float-right">
-        <tasks-button :analyses="analyses"
+        <tasks-button :analyses="_analyses"
                       :csrf-token="csrfToken"
                       @task-state-changed="taskStateChanged">
         </tasks-button>
@@ -121,22 +120,22 @@ export default {
         </div>
       </div>
       <a class="text-dark" href="#" data-toggle="collapse" :data-target="`#sidebar-${uid}`">
-        <h5><i class="fa fa-bars"></i> {{ title }}</h5>
+        <h5><i class="fa fa-bars"></i> {{ _title }}</h5>
       </a>
     </div>
     <div class="card-body">
-      <div v-if="!analysesAvailable" class="tab-content">
+      <div v-if="!_analysesAvailable" class="tab-content">
         <span class="spinner"></span>
         <div>Please wait...</div>
       </div>
 
-      <div v-if="analysesAvailable" class="tab-content">
+      <div v-if="_analysesAvailable" class="tab-content">
         <div class="tab-pane show active" role="tabpanel" aria-label="Tab showing a plot">
           <bokeh-plot
-              :plots="plots"
-              :categories="categories"
-              :data-sources="dataSources"
-              :output-backend="outputBackend"
+              :plots="_plots"
+              :categories="_categories"
+              :data-sources="_dataSources"
+              :output-backend="_outputBackend"
               ref="plot">
           </bokeh-plot>
         </div>
@@ -147,7 +146,7 @@ export default {
       <nav class="card-header navbar navbar-toggleable-xl bg-light flex-column align-items-start h-100">
         <ul class="flex-column navbar-nav">
           <a class="text-dark" href="#" data-toggle="collapse" :data-target="`#sidebar-${uid}`">
-            <h5><i class="fa fa-bars"></i> {{ title }}</h5>
+            <h5><i class="fa fa-bars"></i> {{ _title }}</h5>
           </a>
           <li class="nav-item mb-1 mt-1">
             Download
@@ -174,6 +173,6 @@ export default {
   </div>
   <bibliography-modal
       :id="`bibliography-modal-${uid}`"
-      :dois="dois">
+      :dois="_dois">
   </bibliography-modal>
 </template>
