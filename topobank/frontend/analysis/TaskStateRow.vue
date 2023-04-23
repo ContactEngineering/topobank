@@ -64,6 +64,7 @@ export default {
           })
     },
     renew() {
+      this.$emit('setTaskState', 'pe');
       fetch(this._analysis.api.statusUrl, {
         method: 'PUT',
         headers: {
