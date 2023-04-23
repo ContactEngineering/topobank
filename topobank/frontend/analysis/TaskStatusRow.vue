@@ -1,14 +1,14 @@
 <script>
 
 export default {
-  name: 'task-status-row',
+  name: 'task-state-row',
   emits: [
-    'setTaskStatus'
+    'setTaskState'
   ],
   props: {
     analysis: Object,
     csrfToken: String,
-    statusTimeout: {
+    pollingInterval: {
       type: Number,
       default: 2000  // milliseconds
     }
@@ -16,56 +16,51 @@ export default {
   data() {
     return {
       _analysis: this.analysis,
-      _error: null
+      _error: null,
     }
   },
   mounted() {
-    this.scheduleStatusCheck();
+    this.scheduleStateCheck();
   },
   methods: {
-    scheduleStatusCheck() {
-      // Tasks are still pending or running if this status check is scheduled
+    scheduleStateCheck() {
+      // Tasks are still pending or running if this state check is scheduled
       if (this._analysis !== undefined) {
         if (this._analysis.task_state == 'pe' || this._analysis.task_state == 'st') {
-          this.$emit('setTaskStatus', true);
-          setTimeout(this.checkStatus, this.statusTimeout);
+          setTimeout(this.checkState, this.pollingInterval);
         } else if (this._analysis.task_state == 'fa') {
           // This is failure. Query reason.
-          console.log('failed!!');
           fetch(`${this._analysis.api.dataUrl}/result.json`, {
             method: 'GET',
             headers: {
               'Accept': 'application/json',
-              'Content-Type': 'application/json',
               'X-CSRFToken': this.csrfToken
             }
           })
               .then(response => response.json())
               .then(result => {
-                console.log(result);
+                this._error = result;
               });
-        } else {
-          // Task seems to have finished or failed
-          this.$emit('setTaskStatus', false);
         }
-      } else {
-        // Something is wrong - TODO: We should emit an error here
-        this.$emit('setTaskStatus', false);
       }
     },
-    checkStatus() {
+    checkState() {
       fetch(this._analysis.api.statusUrl, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
-          'Content-Type': 'application/json',
           'X-CSRFToken': this.csrfToken
         }
       })
           .then(response => response.json())
           .then(data => {
+            if (this._analysis.task_state != data.task_state) {
+              // State has changed
+              this.$emit('setTaskState', data.task_state);
+            }
+            // Update current state of the analysis
             this._analysis = data;
-            this.scheduleStatusCheck();
+            this.scheduleStateCheck();
           })
     },
     renew() {
@@ -80,7 +75,7 @@ export default {
           .then(response => response.json())
           .then(data => {
             this._analysis = data;
-            this.scheduleStatusCheck();
+            this.scheduleStateCheck();
           })
     }
   }
@@ -107,7 +102,7 @@ export default {
     </td>
     <td>
       <p>
-        Computation of analysis '{{ _analysis.function.name }}' on {{ _analysis.subject.type }}
+        Computation of analysis <i>{{ _analysis.function.name }}</i> on {{ _analysis.subject.type }}
         <a :href="_analysis.subject.urls.detail">
           {{ _analysis.subject.name }}
         </a>.
@@ -123,7 +118,10 @@ export default {
       <p v-if="_analysis.task_state == 'fa'">
         This task was created on {{ new Date(_analysis.creation_time) }},
         started running {{ new Date(_analysis.start_time) }}
-        but failed.
+        but failed
+          <span v-if="_error !== null">
+            with message <i>{{ _error.message }}</i>
+          </span>.
       </p>
       <p v-if="_analysis.task_state == 'pe'">
         This task was created on {{ new Date(_analysis.creation_time) }} and is currently waiting to be started.

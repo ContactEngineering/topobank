@@ -2,15 +2,15 @@
 
 <script>
 
-import TaskStatusRow from "./TaskStatusRow.vue";
+import TaskStateRow from "./TaskStatusRow.vue";
 
 export default {
-  name: 'tasks-status-modal',
+  name: 'task-states-modal',
   emits: [
-    'taskStatusChanged'
+    'taskStateChanged'
   ],
   components: {
-    TaskStatusRow
+    TaskStateRow
   },
   props: {
     analyses: {
@@ -22,40 +22,29 @@ export default {
   data() {
     return {
       _analyses: this.analyses === undefined ? [] : this.analyses,
-      _taskStatuses: this.analyses === undefined ? [] : this.getInitialTaskStatuses(this.analyses),
+      _taskStates: this.analyses === undefined ? [] : this.getInitialTaskStates(this.analyses),
       _selectedAnalyses: []
     }
   },
   watch: {
     analyses: {
       handler(newValue, oldValue) {
-        console.log('TasksStatusModal.watch.analyses -> ' + newValue + ', ' + oldValue);
-        let anyTaskWasRunning = this._taskStatuses.some(v => v);
         this._analyses = newValue === undefined ? [] : newValue;
-        this._taskStatuses = newValue === undefined ? [] : this.getInitialTaskStatuses(newValue);
-        let anyTaskIsRunning = this._taskStatuses.some(v => v);
-        if (anyTaskWasRunning != anyTaskIsRunning) {
-          this.$emit('taskStatusChanged', anyTaskIsRunning);
-        }
+        this._taskStates = newValue === undefined ? [] : this.getInitialTaskStates(newValue);
+        this.$emit('taskStateChanged', this._taskStates);
       }
     }
   },
   mounted() {
-    let anyTaskIsRunning = this._taskStatuses.some(v => v);
-    this.$emit('taskStatusChanged', anyTaskIsRunning);
+    this.$emit('taskStateChanged', this._taskStates);
   },
   methods: {
-    getInitialTaskStatuses(analyses) {
-      return analyses.map(a => a.task_state == 'pe' || a.task_state == 'st');
+    getInitialTaskStates(analyses) {
+      return analyses.map(a => a.task_state);
     },
-    setTaskStatus(analysisIndex, taskIsRunning) {
-      console.log('TaskStatusRow.setTaskStatus -> ' + analysisIndex + ', ' + taskIsRunning);
-      let anyTaskWasRunning = this._taskStatuses.some(v => v);
-      this._taskStatuses[analysisIndex] = taskIsRunning;
-      let anyTaskIsRunning = this._taskStatuses.some(v => v);
-      if (anyTaskWasRunning != anyTaskIsRunning) {
-        this.$emit('taskStatusChanged', anyTaskIsRunning);
-      }
+    setTaskState(analysisIndex, taskState) {
+      this._taskStates[analysisIndex] = taskState;
+      this.$emit('taskStateChanged', this._taskStates);
     }
   }
 };
@@ -63,12 +52,12 @@ export default {
 
 <template>
   <div class="modal fade" tabindex="-1" role="dialog"
-       aria-labelledby="statusesModalLabel"
+       aria-labelledby="taskStatesModalLabel"
        aria-hidden="true">
     <div class="modal-dialog modal-xl" role="document">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title" id="statusesModalLabel">Tasks</h5>
+          <h5 class="modal-title" id="taskStatesModalLabel">Tasks</h5>
           <button class="close" type="button" data-dismiss="modal" aria-label="Close">
             <span aria-hidden="true">×</span>
           </button>
@@ -84,12 +73,12 @@ export default {
               </tr>
               </thead>
               <tbody>
-                <task-status-row
+                <task-state-row
                     v-for="(analysis, index) in _analyses"
                     :analysis="analysis"
                     :csrf-token="csrfToken"
-                    @set-task-status="(taskIsRunning) => setTaskStatus(index, taskIsRunning)">
-                </task-status-row>
+                    @set-task-state="(taskState) => setTaskState(index, taskState)">
+                </task-state-row>
               </tbody>
             </table>
           </small>
