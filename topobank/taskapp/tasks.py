@@ -115,10 +115,6 @@ def perform_analysis(self, analysis_id):
         analysis.task_state = task_state
         store_split_dict(analysis.storage_prefix, RESULT_FILE_BASENAME, result)
         analysis.end_time = timezone.now()  # with timezone
-        if 'effective_kwargs' in result:
-            # If 'effective_kwargs' is in results, then we override the keyword arguments passed to this analysis.
-            # The 'effective_kwargs' are then the arguments required to reproduce this result.
-            analysis.kwargs = result['effective_kwargs']
         analysis.dois = list(dois)  # dois is a set, we need to convert it
         analysis.save()
         _log.debug("...done saving analysis result.")
