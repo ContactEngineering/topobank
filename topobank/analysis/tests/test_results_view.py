@@ -17,7 +17,6 @@ from django.urls import reverse
 
 import topobank
 from topobank.manager.models import Topography, Surface
-from topobank.manager.utils import subjects_to_json
 from topobank.manager.tests.utils import SurfaceFactory, UserFactory, \
     Topography1DFactory, Topography2DFactory, two_topos
 from topobank.taskapp.tasks import current_configuration, perform_analysis
@@ -76,7 +75,7 @@ def test_analysis_times(client, two_topos, test_analysis_function, handle_usage_
 
     response = client.post(reverse("analysis:card"),
                            data={
-                               'subjects_ids_json': subjects_to_json([topo]),
+                               'subjects': [topo],
                                'function_id': test_analysis_function.id,
                                'card_id': "card-1",
                                'template_flavor': 'list',
@@ -169,7 +168,7 @@ def test_show_only_last_analysis(client, two_topos, test_analysis_function, hand
     #
     response = client.post(reverse("analysis:card"),
                            data={
-                               'subjects_ids_json': subjects_to_json([topo1, topo2]),
+                               'subjects': [topo1, topo2],
                                'function_id': test_analysis_function.id,
                                'card_id': 1,
                                'template_flavor': 'list'
@@ -221,7 +220,7 @@ def test_warnings_for_different_arguments(client, handle_usage_statistics):
     #
     response = client.post(reverse("analysis:card"),
                            data={
-                               'subjects_ids_json': subjects_to_json([topo1a, topo1b, topo2a, surf1, surf2]),
+                               'subjects': [topo1a, topo1b, topo2a, surf1, surf2],
                                'function_id': func.id,
                                'card_id': "card-1",
                                'template_flavor': 'list'
@@ -760,7 +759,7 @@ def test_view_shared_analysis_results(client, handle_usage_statistics):
 
     response = client.post(reverse("analysis:card"),
                            data={
-                               'subjects_ids_json': subjects_to_json([topo1a, topo1b, topo2a]),
+                               'subjects_ids_json': [topo1a, topo1b, topo2a],
                                'function_id': func1.id,
                                'card_id': 1,
                                'template_flavor': 'list'
@@ -788,7 +787,7 @@ def test_view_shared_analysis_results(client, handle_usage_statistics):
 
     response = client.post(reverse("analysis:card"),
                            data={
-                               'subjects_ids_json': subjects_to_json([topo1a, topo1b, topo2a]),
+                               'subjects_ids_json': [topo1a, topo1b, topo2a],
                                'function_id': func1.id,
                                'card_id': 1,
                                'template_flavor': 'list'

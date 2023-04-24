@@ -9,9 +9,8 @@ from topobank.analysis.utils import mangle_sheet_name, request_analysis, round_t
 from topobank.analysis.tests.utils import TopographyAnalysisFactory, AnalysisFunctionFactory
 from topobank.manager.tests.utils import UserFactory
 from topobank.manager.models import Topography
-from topobank.manager.tests.utils import two_topos  # or fixture
 
-from ..utils import get_latest_analyses
+from ..utils import AnalysisController
 
 
 @pytest.mark.django_db

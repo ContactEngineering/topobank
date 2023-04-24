@@ -211,7 +211,6 @@ def store_split_dict(storage_prefix, name, src_dict):
 
     # We're using our own JSON encoder here, because it represents NaN values as "NaN" (with quotes),
     # which is JSON compatible (only works with Numpy arrays)
-    # encoder_cls = NumpyEncoder
     encoder_cls = ExtendedJSONEncoder
 
     def _split_dict(d):

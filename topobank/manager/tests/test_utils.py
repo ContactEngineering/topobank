@@ -11,7 +11,7 @@ from django.contrib.contenttypes.models import ContentType
 from ..tests.utils import two_topos, Topography1DFactory, Topography2DFactory, SurfaceFactory, \
     TagModelFactory, UserFactory, user_three_topographies_three_surfaces_three_tags
 from ..utils import selection_to_instances, instances_to_selection, tags_for_user, \
-    instances_to_topographies, surfaces_for_user, subjects_to_json, instances_to_surfaces, \
+    instances_to_topographies, surfaces_for_user, instances_to_surfaces, \
     current_selection_as_surface_list, surface_collection_name
 from ..models import Surface, Topography, TagModel
 
@@ -202,25 +202,6 @@ def test_instances_to_surfaces(user_three_topographies_three_surfaces_three_tags
 
     # also two tags can be given
     assert list(instances_to_surfaces([], [tag2, tag3])) == [surface2, surface3]
-
-
-@pytest.mark.django_db
-def test_subjects_to_json():
-    surf1 = SurfaceFactory()
-    surf2 = SurfaceFactory()
-    topo1a = Topography1DFactory(surface=surf1)
-    topo1b = Topography1DFactory(surface=surf1)
-    topo2a = Topography1DFactory(surface=surf2)
-
-    stj = subjects_to_json([surf1, surf2, topo1a, topo1b, topo2a])
-    subjects_ids = json.loads(stj)
-
-    surf_ct = ContentType.objects.get_for_model(surf1)
-    topo_ct = ContentType.objects.get_for_model(topo1a)
-
-    assert set(subjects_ids[str(surf_ct.id)]) == set([surf1.id, surf2.id])
-    assert set(subjects_ids[str(topo_ct.id)]) == set([topo1a.id, topo1b.id, topo2a.id])
-
 
 @pytest.mark.django_db
 def test_related_surfaces_for_selection(rf):

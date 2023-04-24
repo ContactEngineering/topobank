@@ -5,7 +5,7 @@ from django.core.exceptions import PermissionDenied
 from ..utils import selection_from_session, selection_to_instances
 from .utils import UserFactory, SurfaceFactory, Topography1DFactory
 from topobank.analysis.tests.utils import TopographyAnalysisFactory, AnalysisFunctionFactory
-from topobank.analysis.functions import ART_SERIES
+from topobank.analysis.functions import VIZ_SERIES
 from topobank.utils import assert_in_content, assert_not_in_content
 
 #
@@ -123,7 +123,7 @@ def test_download_analyses_without_permission(client, test_analysis_function, ha
 
     response = client.get(reverse('analysis:download',
                                   kwargs=dict(ids=f"{analysis.id}",
-                                              art=ART_SERIES,
+                                              art=VIZ_SERIES,
                                               file_format='txt')))
     assert response.status_code == 403
 

@@ -2,7 +2,7 @@ import pytest
 
 from django.contrib.contenttypes.models import ContentType
 
-from ..views import SimpleCardView, PlotCardView
+from ..views import generic_card_view, series_card_view
 from ..registry import AnalysisRegistry
 from ..functions import topography_analysis_function_for_tests, \
     surface_analysis_function_for_tests, \

@@ -6,7 +6,6 @@ from django.shortcuts import reverse
 from trackstats.models import Metric, Period
 
 from topobank.analysis.tests.utils import TopographyAnalysisFactory, AnalysisFunctionFactory
-from topobank.manager.utils import subjects_to_json
 
 
 @pytest.mark.django_db
@@ -28,7 +27,7 @@ def test_counts_analyses_views(client, test_analysis_function, mocker, handle_us
             'function_id': test_analysis_function.id,
             'card_id': 'card',
             'template_flavor': 'list',
-            'subjects_ids_json': subjects_to_json([topography]),
+            'subjects_ids_json': [topography],
         }, HTTP_X_REQUESTED_WITH='XMLHttpRequest')  # we need an AJAX request
         return response
 

@@ -6,12 +6,11 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.files.storage import default_storage
 
 from topobank.manager.tests.utils import Topography1DFactory, Topography2DFactory, UserFactory, SurfaceFactory
-from topobank.manager.utils import subjects_to_json
 from topobank.manager.models import Analysis, Topography, Surface
 
 from ..models import AnalysisFunction
 from .utils import TopographyAnalysisFactory, SurfaceAnalysisFactory
-from ..views import PlotCardView
+from ..views import series_card_view
 from ..registry import AnalysisRegistry
 from ..functions import VIZ_SERIES
 
@@ -40,7 +39,7 @@ def test_card_template(client, handle_usage_statistics):
         'function_id': func1.id,
         'card_id': 'card',
         'template_flavor': 'list',
-        'subjects_ids_json': subjects_to_json([topo1]),
+        'subjects_ids': topo1,
     }, HTTP_X_REQUESTED_WITH='XMLHttpRequest')  # we need an AJAX request
 
     assert response.template_name == ['analysis/plot_card_list.html']
