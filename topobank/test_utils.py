@@ -68,7 +68,8 @@ def test_store_split_dict_with_nan():
     result_from_storage = load_split_dict(storage_prefix, "result")
     assert result_from_storage['name'] == result_dict['name']
     assert np.array_equal(result_from_storage['series'][0]['x'], series_0.dict['x'])
-    assert np.array_equal(result_from_storage['series'][0]['y'], series_0.dict['y'], equal_nan=True)
+    y = [np.nan if _y is None else _y for _y in result_from_storage['series'][0]['y']]  # np.nans will be read as None
+    assert np.array_equal(y, series_0.dict['y'], equal_nan=True)
 
 
 
