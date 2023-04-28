@@ -35,7 +35,7 @@ def test_perform_analysis(mocker, two_topos, test_analysis_function, settings):
     analysis = TopographyAnalysisFactory.create(
         subject=topo,
         function=af,
-        kwargs=pickle.dumps(func_kwargs))
+        kwargs=func_kwargs)
     analysis.save()
 
     settings.CELERY_TASK_ALWAYS_EAGER = True  # perform tasks locally
@@ -68,7 +68,7 @@ def test_perform_analysis(mocker, two_topos, test_analysis_function, settings):
     analysis2 = TopographyAnalysisFactory.create(
         subject=topo2,
         function=af,
-        kwargs=pickle.dumps(func_kwargs))
+        kwargs=func_kwargs)
 
     analysis2.save()
     perform_analysis(analysis2.id)

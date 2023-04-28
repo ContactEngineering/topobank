@@ -119,7 +119,7 @@ def test_analysis_times(two_topos, test_analysis_function):
             subject=Topography.objects.first(),
             function=test_analysis_function,
             task_state=Analysis.SUCCESS,
-            kwargs=pickle.dumps({'a': 2, 'b': 4}),
+            kwargs={'a': 2, 'b': 4},
             start_time=datetime.datetime(2018, 1, 1, 12),
             end_time=datetime.datetime(2018, 1,  1, 13),
     )

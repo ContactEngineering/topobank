@@ -77,7 +77,7 @@ class Command(BaseCommand):
 
             if changed:
                 if not options['dry_run']:
-                    a.kwargs = pickle.dumps(analysis_kwargs)
+                    a.kwargs = analysis_kwargs
                     a.save()
                 num_changed_analyses_by_function[a.function] += 1
 

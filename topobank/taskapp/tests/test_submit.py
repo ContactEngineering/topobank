@@ -28,7 +28,7 @@ def test_request_analysis(mocker, test_analysis_function):
 
     # just an abbreviation
     def assert_correct_args(analysis, expected_kwargs):
-        kwargs = pickle.loads(analysis.kwargs)
+        kwargs = analysis.kwargs
         assert kwargs == expected_kwargs
         assert user in analysis.users.all()  # make sure the user has been set
 
@@ -75,8 +75,8 @@ def test_unmark_other_analyses_during_request_analysis(mocker, test_analysis_fun
 
     topo = Topography1DFactory()
 
-    a1 = TopographyAnalysisFactory(subject=topo, function=af, kwargs=pickle.dumps(dict(a=9, b=19)), users=[])
-    a2 = TopographyAnalysisFactory(subject=topo, function=af, kwargs=pickle.dumps(dict(a=29, b=39)), users=[user])
+    a1 = TopographyAnalysisFactory(subject=topo, function=af, kwargs=dict(a=9, b=19), users=[])
+    a2 = TopographyAnalysisFactory(subject=topo, function=af, kwargs=dict(a=29, b=39), users=[user])
 
     a3 = request_analysis(user, af, topo, a=1, b=2)
 
@@ -96,7 +96,7 @@ def test_unmark_other_analyses_during_request_analysis(mocker, test_analysis_fun
     assert a2 not in analyses
     assert a3 in analyses
 
-    assert pickle.loads(analyses[0].kwargs) == dict(a=1, b=2, bins=15, window='hann')
+    assert analyses[0].kwargs == dict(a=1, b=2, bins=15, window='hann')
 
 
 

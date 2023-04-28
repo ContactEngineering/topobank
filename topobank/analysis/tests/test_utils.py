@@ -48,7 +48,7 @@ def test_latest_analyses(two_topos, test_analysis_function):
         subject=topo1,
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
-        kwargs=pickle.dumps({}),
+        kwargs={},
         start_time=datetime.datetime(2018, 1, 1, 12),
         end_time=datetime.datetime(2018, 1, 1, 13, 1, 1),
     )
@@ -60,7 +60,7 @@ def test_latest_analyses(two_topos, test_analysis_function):
         subject=topo1,
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
-        kwargs=pickle.dumps({}),
+        kwargs={},
         start_time=datetime.datetime(2018, 1, 2, 12),
         end_time=datetime.datetime(2018, 1, 2, 13, 1, 1),
     )
@@ -74,7 +74,7 @@ def test_latest_analyses(two_topos, test_analysis_function):
         subject=topo2,
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
-        kwargs=pickle.dumps({}),
+        kwargs={},
         start_time=datetime.datetime(2018, 1, 3, 12),
         end_time=datetime.datetime(2018, 1, 3, 13, 1, 1),
     )
@@ -86,7 +86,7 @@ def test_latest_analyses(two_topos, test_analysis_function):
         subject=topo2,
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
-        kwargs=pickle.dumps({}),
+        kwargs={},
         start_time=datetime.datetime(2018, 1, 5, 12),
         end_time=datetime.datetime(2018, 1, 5, 13, 1, 1),
     )
@@ -98,7 +98,7 @@ def test_latest_analyses(two_topos, test_analysis_function):
         subject=topo2,
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
-        kwargs=pickle.dumps({}),
+        kwargs={},
         start_time=datetime.datetime(2018, 1, 4, 12),
         end_time=datetime.datetime(2018, 1, 4, 13, 1, 1),
     )
