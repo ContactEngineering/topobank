@@ -30,15 +30,13 @@ import tempfile
 from bokeh.models import DataRange1d, LinearColorMapper, ColorBar
 from bokeh.plotting import figure
 
+from ..analysis.models import Analysis
 from ..plots import configure_plot
-from .utils import get_topography_reader, MAX_LENGTH_SURFACE_COLLECTION_NAME
+from ..publication.models import Publication, DOICreationException
+from ..users.models import User
+from ..users.utils import get_default_group
 
-from topobank.users.models import User
-from topobank.publication.models import Publication, DOICreationException
-from topobank.users.utils import get_default_group
-from topobank.manager.utils import make_dzi, dzi_exists
-
-from topobank.analysis.models import Analysis
+from .utils import get_topography_reader, make_dzi, dzi_exists, MAX_LENGTH_SURFACE_COLLECTION_NAME
 
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 
@@ -503,7 +501,7 @@ class Surface(models.Model, SubjectMixin):
         - with this surfaces as subject
         This is done in that order.
         """
-        from topobank.analysis.utils import renew_analyses_for_subject
+        from ..analysis.utils import renew_analyses_for_subject
 
         if include_topographies:
             _log.info(f"Regenerating analyses of topographies of surface {self.pk}..")
@@ -922,6 +920,7 @@ class Topography(models.Model, SubjectMixin):
 
     def renew_analyses(self):
         """Submit all analysis for this topography."""
+        from ..analysis.utils import renew_analyses_for_subject
         renew_analyses_for_subject(self)
 
     def to_dict(self):

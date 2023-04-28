@@ -2,14 +2,30 @@ import pytest
 
 from django.contrib.contenttypes.models import ContentType
 
-from ..views import generic_card_view, series_card_view
-from ..registry import AnalysisRegistry
+from ...manager.tests.utils import Topography1DFactory, SurfaceFactory, SurfaceCollectionFactory
+from ...manager.models import Topography, Surface, SurfaceCollection
+from ...users.tests.factories import UserFactory
 from ..functions import topography_analysis_function_for_tests, \
     surface_analysis_function_for_tests, \
     surfacecollection_analysis_function_for_tests, \
     VIZ_SERIES, VIZ_GENERIC
-from topobank.manager.tests.utils import Topography1DFactory, UserFactory, SurfaceFactory, SurfaceCollectionFactory
-from topobank.manager.models import Topography, Surface, SurfaceCollection
+from ..registry import AnalysisRegistry, AlreadyRegisteredAnalysisFunctionException, register_implementation
+from ..urls import app_name
+
+
+@pytest.mark.django_db
+def test_register_function_with_different_kwargs():
+    def func1(topography, a=1, b="foo", progress_recorder=None, storage_prefix=None):
+        pass
+    def func2(topography, a=1, b="foo", c="bar", progress_recorder=None, storage_prefix=None):
+        pass
+    def func3(topography, a=1, b="bar", progress_recorder=None, storage_prefix=None):
+        pass
+    register_implementation(app_name, VIZ_SERIES, "test2")(func1)
+    with pytest.raises(AlreadyRegisteredAnalysisFunctionException):
+        register_implementation(app_name, VIZ_SERIES, "test2")(func2)
+    with pytest.raises(AlreadyRegisteredAnalysisFunctionException):
+        register_implementation(app_name, VIZ_SERIES, "test2")(func3)
 
 
 @pytest.mark.django_db
@@ -21,11 +37,11 @@ def test_analysis_function_implementation_for_topography():
     impl = reg.get_implementation("test", ct)
 
     assert impl.python_function() == topography_analysis_function_for_tests
-    assert impl.get_default_kwargs() == dict(a=1, b="foo", bins=15, window="hann")
+    assert impl.get_default_kwargs() == dict(a=1, b="foo")
 
     t = Topography1DFactory()
     result = impl.eval(t, a=2, b="bar")
-    assert result['comment'] == 'Arguments: a is 2, b is bar, bins is 15 and window is hann'
+    assert result['comment'] == 'Arguments: a is 2 and b is foo'
 
     # test function should be available because defined in analysis module
     u = UserFactory()
@@ -41,11 +57,11 @@ def test_analysis_function_implementation_for_surface():
     impl = reg.get_implementation("test", ct)
 
     assert impl.python_function() == surface_analysis_function_for_tests
-    assert impl.get_default_kwargs() == dict(a=1, c="bar")
+    assert impl.get_default_kwargs() == dict(a=1, b="foo")
 
     s = SurfaceFactory()
     result = impl.eval(s, a=2, c="bar")
-    assert result['comment'] == 'a is 2 and c is bar'
+    assert result['comment'] == 'a is 2 and b is foo'
 
     # test function should be available because defined in analysis module
     u = UserFactory()
@@ -61,7 +77,7 @@ def test_analysis_function_implementation_for_surfacecollection():
     impl = reg.get_implementation("test", ct)
 
     assert impl.python_function() == surfacecollection_analysis_function_for_tests
-    assert impl.get_default_kwargs() == dict(a=1, d="bar")
+    assert impl.get_default_kwargs() == dict(a=1, b="foo")
 
     s1 = SurfaceFactory()
     s2 = SurfaceFactory()
@@ -69,7 +85,7 @@ def test_analysis_function_implementation_for_surfacecollection():
 
     sc = SurfaceCollectionFactory(surfaces=[s1, s2, s3])
     result = impl.eval(sc, a=2, d="bar")
-    assert result['comment'] == 'a is 2 and d is bar'
+    assert result['comment'] == 'a is 2 and b is foo'
 
     # test function should be available because defined in analysis module
     u = UserFactory()

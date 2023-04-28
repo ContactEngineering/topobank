@@ -27,9 +27,10 @@ def test_card_template(client, handle_usage_statistics):
     func1 = AnalysisFunction.objects.get(name="test")
 
     reg = AnalysisRegistry()
-    art = reg.get_analysis_result_type_for_function_name(func1.name)
+    viz_app_name, viz_type = reg.get_visualization_type_for_function_name(func1.name)
 
-    assert art == VIZ_SERIES
+    assert viz_app_name == 'analysis'
+    assert viz_type == VIZ_SERIES
 
     topo1 = Topography1DFactory()
 

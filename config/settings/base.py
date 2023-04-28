@@ -1,7 +1,7 @@
 """
 Base settings to build other settings files upon.
 """
-import os
+
 import random
 import string
 
@@ -254,7 +254,6 @@ EMAIL_BACKEND = env('DJANGO_EMAIL_BACKEND', default='django.core.mail.backends.s
 ADMIN_URL = 'admin/'
 # https://docs.djangoproject.com/en/dev/ref/settings/#admins
 ADMINS = [
-    ("""Michael Röttger""", 'roettger@tf.uni-freiburg.de'),
     ("""Lars Pastewka""", 'lars.pastewka@imtek.uni-freiburg.de')
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#managers

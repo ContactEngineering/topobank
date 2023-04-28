@@ -106,7 +106,7 @@ def test_analysis_function(test_analysis_function):
     surface = SurfaceFactory()
     t = Topography1DFactory(surface=surface)
     result = test_analysis_function.eval(t, a=2, b="bar")
-    assert result['comment'] == 'Arguments: a is 2, b is bar, bins is 15 and window is hann'
+    assert result['comment'] == 'Arguments: a is 2 and b is foo'
 
 
 @pytest.mark.django_db

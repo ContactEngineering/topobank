@@ -10,11 +10,9 @@ from . import views
 router = DefaultRouter()
 router.register(r'status', views.AnalysisView, basename='status')
 
-print(router.urls)
-
 urlpatterns = router.urls
 
-app_name = "analysis"
+app_name = functions.APP_NAME
 urlpatterns += [
     #
     # HTML routes

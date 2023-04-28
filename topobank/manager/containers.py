@@ -2,18 +2,17 @@
 Import and export surfaces through archives aka "surface containers".
 """
 
-import zipfile
-import os.path
-import yaml
-import textwrap
 import json
 import logging
 import math
+import os.path
+import textwrap
+import yaml
+import zipfile
 
+from django.conf import settings
 from django.utils.text import slugify
 from django.utils.timezone import now
-from django.conf import settings
-from django.contrib.staticfiles.storage import staticfiles_storage
 
 import topobank
 from .models import Topography
@@ -195,7 +194,7 @@ def write_surface_container(file, surfaces):
             #
             # Also add license file
             #
-            zf.write(staticfiles_storage.path(f"other/{license}-legalcode.txt"),
+            zf.write(f'{os.path.dirname(__file__)}/../static/other/{license}-legalcode.txt',
                      arcname=license_file_in_archive)
 
     zf.writestr("README.txt", textwrap.dedent(readme_txt))

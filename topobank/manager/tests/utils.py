@@ -12,9 +12,9 @@ import logging
 import datetime
 import factory
 
+from ...users.tests.factories import UserFactory
 from ..models import Topography, Surface, SurfaceCollection, TagModel
 from ..views import SurfaceListView
-from topobank.users.tests.factories import UserFactory
 
 
 FIXTURE_DIR = os.path.join(

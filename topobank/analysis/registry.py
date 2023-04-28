@@ -249,7 +249,8 @@ class AnalysisRegistry(metaclass=Singleton):
             if _name == name:
                 # Idiot check: Cannot register two implementations of same name for same subject type
                 if (_subject_app_name, _subject_model) == (subject_app_name, subject_model):
-                    raise AlreadyRegisteredAnalysisFunctionException(name, subject_app_name, subject_model)
+                    raise AlreadyRegisteredAnalysisFunctionException(visualization_type, name, subject_app_name,
+                                                                     subject_model)
                 # Idiot check: Implementations of same name (but different subject type) should have identical default
                 # arguments.
                 _default_kwargs = _impl.get_default_kwargs()
