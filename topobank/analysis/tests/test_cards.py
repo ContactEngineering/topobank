@@ -3,60 +3,20 @@ import json
 
 from django.shortcuts import reverse
 from django.contrib.contenttypes.models import ContentType
-from django.core.files.storage import default_storage
 
-from topobank.manager.tests.utils import Topography1DFactory, Topography2DFactory, UserFactory, SurfaceFactory
-from topobank.manager.models import Analysis, Topography, Surface
-
+from ...manager.tests.utils import Topography1DFactory, Topography2DFactory, UserFactory, SurfaceFactory
+from ...manager.models import Analysis, Topography, Surface
+from ...manager.utils import subjects_to_dict
 from ..models import AnalysisFunction
-from .utils import TopographyAnalysisFactory, SurfaceAnalysisFactory
-from ..views import series_card_view
-from ..registry import AnalysisRegistry
 from ..functions import VIZ_SERIES
+from .utils import TopographyAnalysisFactory, SurfaceAnalysisFactory
 
 
 @pytest.mark.django_db
-def test_card_template(client, handle_usage_statistics):
-    """Check whether correct template is selected."""
+def test_series_card_data_sources(rf, handle_usage_statistics):
+    from django.urls import get_resolver
+    print(get_resolver().reverse_dict.keys())
 
-    #
-    # Create database objects
-    #
-    password = "secret"
-    user = UserFactory(password=password)
-    func1 = AnalysisFunction.objects.get(name="test")
-
-    reg = AnalysisRegistry()
-    viz_app_name, viz_type = reg.get_visualization_type_for_function_name(func1.name)
-
-    assert viz_app_name == 'analysis'
-    assert viz_type == VIZ_SERIES
-
-    topo1 = Topography1DFactory()
-
-    assert client.login(username=user.username, password=password)
-
-    response = client.post(reverse('analysis:card'), data={
-        'function_id': func1.id,
-        'card_id': 'card',
-        'template_flavor': 'list',
-        'subjects_ids': topo1,
-    }, HTTP_X_REQUESTED_WITH='XMLHttpRequest')  # we need an AJAX request
-
-    assert response.template_name == ['analysis/plot_card_list.html']
-
-    response = client.post(reverse('analysis:card'), data={
-        'function_id': func1.id,
-        'card_id': 'card',
-        'template_flavor': 'detail',
-        'subjects_ids_json': subjects_to_json([topo1]),
-    }, HTTP_X_REQUESTED_WITH='XMLHttpRequest')  # we need an AJAX request
-
-    assert response.template_name == ['analysis/plot_card_detail.html']
-
-
-@pytest.mark.django_db
-def test_plot_card_data_sources(rf, handle_usage_statistics):
     #
     # Create database objects
     #
@@ -69,7 +29,7 @@ def test_plot_card_data_sources(rf, handle_usage_statistics):
 
     analysis = TopographyAnalysisFactory(subject=topo1, function=func1, users=[user])
 
-    request = rf.post(reverse('analysis:card'), data={
+    request = rf.post(reverse(f'analysis:card/{VIZ_SERIES}'), data={
         'function_id': func1.id,
         'card_id': 'card',
         'template_flavor': 'detail',
@@ -121,7 +81,7 @@ def test_plot_card_data_sources(rf, handle_usage_statistics):
 
 
 @pytest.mark.django_db
-def test_plot_card_if_no_successful_topo_analysis(client, handle_usage_statistics):
+def test_series_card_if_no_successful_topo_analysis(client, handle_usage_statistics):
     #
     # Create database objects
     #
@@ -152,13 +112,12 @@ def test_plot_card_if_no_successful_topo_analysis(client, handle_usage_statistic
     # login and request plot card view
     assert client.login(username=user.username, password=password)
 
-    response = client.post(reverse('analysis:card'), data={
+    response = client.post(reverse(f'analysis:card/{VIZ_SERIES}'), data={
         'function_id': func1.id,
         'card_id': 'card',
         'template_flavor': 'list',
-        'subjects_ids_json': subjects_to_json([topo, topo.surface]),  # also request results for surface here
+        'subjects_ids_json': subjects_to_dict([topo, topo.surface]),  # also request results for surface here
     }, HTTP_X_REQUESTED_WITH='XMLHttpRequest')  # we need an AJAX request
 
     # should return without errors
     assert response.status_code == 200
-
