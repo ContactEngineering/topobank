@@ -113,7 +113,7 @@ def test_show_only_last_analysis(client, two_topos, test_analysis_function, hand
         subject=topo1,
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
-        kwargs=pickle.dumps({}),
+        kwargs={},
         start_time=datetime.datetime(2018, 1, 1, 12),
         end_time=datetime.datetime(2018, 1, 1, 13, 1, 1),
         result=result,
@@ -126,7 +126,7 @@ def test_show_only_last_analysis(client, two_topos, test_analysis_function, hand
         subject=topo1,
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
-        kwargs=pickle.dumps({}),
+        kwargs={},
         start_time=datetime.datetime(2018, 1, 2, 12),
         end_time=datetime.datetime(2018, 1, 2, 13, 1, 1),
         result=result,
@@ -141,7 +141,7 @@ def test_show_only_last_analysis(client, two_topos, test_analysis_function, hand
         subject=topo2,
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
-        kwargs=pickle.dumps({}),
+        kwargs={},
         start_time=datetime.datetime(2018, 1, 3, 12),
         end_time=datetime.datetime(2018, 1, 3, 13, 1, 1),
         result=result,
@@ -154,7 +154,7 @@ def test_show_only_last_analysis(client, two_topos, test_analysis_function, hand
         subject=topo2,
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
-        kwargs=pickle.dumps({}),
+        kwargs={},
         start_time=datetime.datetime(2018, 1, 4, 12),
         end_time=datetime.datetime(2018, 1, 4, 13, 1, 1),
         result=result,
@@ -199,8 +199,8 @@ def test_warnings_for_different_arguments(client, handle_usage_statistics):
     #
     # Generate analyses for topographies with differing arguments
     #
-    kwargs_1a = pickle.dumps(dict(a=1, b=2))
-    kwargs_1b = pickle.dumps(dict(a=1, b=3))  # differing from kwargs_1a!
+    kwargs_1a = dict(a=1, b=2)
+    kwargs_1b = dict(a=1, b=3)  # differing from kwargs_1a!
     ana1a = TopographyAnalysisFactory(subject=topo1a, function=func, kwargs=kwargs_1a)
     ana1b = TopographyAnalysisFactory(subject=topo1b, function=func, kwargs=kwargs_1b)
     ana2a = TopographyAnalysisFactory(subject=topo2a, function=func)  # default arguments
@@ -208,8 +208,8 @@ def test_warnings_for_different_arguments(client, handle_usage_statistics):
     #
     # Generate analyses for surfaces with differing arguments
     #
-    kwargs_1 = pickle.dumps(dict(a=1, c=2))
-    kwargs_2 = pickle.dumps(dict(a=1, c=3))  # differing from kwargs_1a!
+    kwargs_1 = dict(a=1, b=2)
+    kwargs_2 = dict(a=1, b=3)  # differing from kwargs_1a!
     ana1 = SurfaceAnalysisFactory(subject=surf1, function=func, kwargs=kwargs_1)
     ana2 = SurfaceAnalysisFactory(subject=surf2, function=func, kwargs=kwargs_2)
 
@@ -274,7 +274,7 @@ def test_show_multiple_analyses_for_two_functions(client, two_topos):
                 subject=topo,
                 function=af,
                 task_state=Analysis.SUCCESS,
-                kwargs=pickle.dumps({'bins': 10}),
+                kwargs={'bins': 10},
                 start_time=datetime.datetime(2018, 1, 1, counter),
                 end_time=datetime.datetime(2018, 1, 1, counter + 1),
             )
@@ -354,7 +354,7 @@ def ids_downloadable_analyses(two_topos, settings, test_analysis_function, mocke
         analysis = TopographyAnalysisFactory.create(
             subject=topos[k],
             function=test_analysis_function,
-            kwargs=pickle.dumps({}),
+            kwargs={},
             configuration=config)
 
         # we insert our result instead of the real function's result
