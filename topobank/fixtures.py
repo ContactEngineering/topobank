@@ -10,15 +10,17 @@ import logging
 from freezegun import freeze_time
 from trackstats.models import Domain, Metric
 
-from topobank.manager.tests.utils import SurfaceFactory
-from topobank.users.tests.factories import UserFactory
+from pytest_django.lazy_django import skip_if_no_django
+
+from .manager.tests.utils import SurfaceFactory
+from .users.tests.factories import UserFactory
 
 ################################################################################
 # remove these deps once the fixtures have been moved to extension projects
 from io import StringIO
 
-from topobank.analysis.models import AnalysisFunction
-from topobank.analysis.tests.utils import TopographyAnalysisFactory
+from .analysis.models import AnalysisFunction
+from .analysis.tests.utils import TopographyAnalysisFactory
 ################################################################################
 
 _log = logging.getLogger(__name__)
@@ -36,7 +38,7 @@ def handle_usage_statistics():
     -------
         None
     """
-    from topobank.usage_stats.utils import register_metrics
+    from .usage_stats.utils import register_metrics
     register_metrics()
     yield
     #
@@ -96,7 +98,7 @@ def user_alice_logged_in(live_server, browser, user_alice, handle_usage_statisti
 @pytest.fixture(scope="function", autouse=True)
 def sync_analysis_functions(db):
     _log.info("Syncing analysis functions in registry with database objects..")
-    from topobank.analysis.registry import AnalysisRegistry
+    from .analysis.registry import AnalysisRegistry
     reg = AnalysisRegistry()
     reg.sync_analysis_functions(cleanup=True)
     _log.info("Done synchronizing registry with database.")
@@ -104,7 +106,7 @@ def sync_analysis_functions(db):
 
 @pytest.fixture(scope="function")
 def test_analysis_function(db):
-    from topobank.analysis.models import AnalysisFunction
+    from .analysis.models import AnalysisFunction
     return AnalysisFunction.objects.get(name="test")
 
 
@@ -209,3 +211,21 @@ def example_contact_analysis(test_analysis_function):
     return analysis
 
 
+@pytest.fixture()
+def api_rf():
+    """APIRequestFactory instance"""
+    skip_if_no_django()
+
+    from rest_framework.test import APIRequestFactory
+
+    return APIRequestFactory()
+
+
+@pytest.fixture()
+def api_client():
+    """APIClient instance"""
+    skip_if_no_django()
+
+    from rest_framework.test import APIClient
+
+    return APIClient()
