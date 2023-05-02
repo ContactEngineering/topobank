@@ -523,17 +523,6 @@ class AnalysisController:
         It is not guaranteed that there are results for the returned analyses
         or if these analyses are marked as successful.
         """
-        # Query for subjects
-        query = None
-        for subject in self._subjects:
-            ct = ContentType.objects.get_for_model(subject)
-            q = Q(subject_type_id=ct.id) & Q(subject_id=subject.id)
-            query = q if query is None else query | q
-
-        # If there are no subjects, return empty queryset
-        if query is None:
-            return Analysis.objects.none()
-
         # Check if function is available for user, if not return emtpy queryset
         reg = AnalysisRegistry()
         if self._function.name not in reg.get_analysis_function_names(self._user):
@@ -542,12 +531,23 @@ class AnalysisController:
                          f"for this user. Returning empty queryset.")
             return Analysis.objects.none()
 
+        # Query for subjects
+        query = None
+        for subject in self._subjects:
+            ct = ContentType.objects.get_for_model(subject)
+            q = Q(subject_type_id=ct.id) & Q(subject_id=subject.id)
+            query = q if query is None else query | q
+
         # Add user and function to query
         query = Q(users=self._user) & Q(function=self._function) & query
 
         # Add kwargs (if specified)
         if self._function_kwargs is not None:
             query = Q(kwargs=self._function_kwargs) & query
+
+        # If there are no subjects, return empty queryset
+        if query is None:
+            return Analysis.objects.none()
 
         # Find analyses
         analyses = Analysis.objects.filter(query) \

@@ -5,7 +5,6 @@ from operator import itemgetter
 import pytest
 from django.core.management import call_command
 from django.shortcuts import reverse
-from django.conf import settings
 
 import os.path
 import logging
@@ -186,7 +185,7 @@ def export_reponse_as_html(response, fname='/tmp/response.html'):  # pragma: no 
     f.close()
 
 
-def ordereddicts_to_dicts(input_ordered_dict, sorted_by='pk'):
+def ordereddicts_to_dicts(input_ordered_dict, sorted_by='id'):
     """Convert an ordered dict to a list of dicts, also sorted."""
     result = json.loads(json.dumps(input_ordered_dict))
     if sorted_by is not None:

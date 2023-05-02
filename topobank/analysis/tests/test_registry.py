@@ -41,7 +41,7 @@ def test_analysis_function_implementation_for_topography():
 
     t = Topography1DFactory()
     result = impl.eval(t, a=2, b="bar")
-    assert result['comment'] == 'Arguments: a is 2 and b is foo'
+    assert result['comment'] == 'Arguments: a is 2 and b is bar'
 
     # test function should be available because defined in analysis module
     u = UserFactory()
@@ -60,8 +60,8 @@ def test_analysis_function_implementation_for_surface():
     assert impl.get_default_kwargs() == dict(a=1, b="foo")
 
     s = SurfaceFactory()
-    result = impl.eval(s, a=2, c="bar")
-    assert result['comment'] == 'a is 2 and b is foo'
+    result = impl.eval(s, a=2, b="bar")
+    assert result['comment'] == 'a is 2 and b is bar'
 
     # test function should be available because defined in analysis module
     u = UserFactory()
@@ -84,8 +84,8 @@ def test_analysis_function_implementation_for_surfacecollection():
     s3 = SurfaceFactory()
 
     sc = SurfaceCollectionFactory(surfaces=[s1, s2, s3])
-    result = impl.eval(sc, a=2, d="bar")
-    assert result['comment'] == 'a is 2 and b is foo'
+    result = impl.eval(sc, a=2, b="bar")
+    assert result['comment'] == 'a is 2 and b is bar'
 
     # test function should be available because defined in analysis module
     u = UserFactory()

@@ -1,16 +1,13 @@
 import pytest
-import pickle
 import math
 import datetime
 from django.contrib.contenttypes.models import ContentType
 
-from topobank.analysis.models import Analysis, AnalysisFunction
-from topobank.analysis.utils import mangle_sheet_name, request_analysis, round_to_significant_digits
-from topobank.analysis.tests.utils import TopographyAnalysisFactory, AnalysisFunctionFactory
-from topobank.manager.tests.utils import UserFactory
-from topobank.manager.models import Topography
-
-from ..utils import AnalysisController
+from ...analysis.models import Analysis, AnalysisFunction
+from ...analysis.utils import mangle_sheet_name, request_analysis, round_to_significant_digits
+from ...analysis.tests.utils import TopographyAnalysisFactory, AnalysisFunctionFactory
+from ...manager.models import Topography
+from ...manager.tests.utils import UserFactory, two_topos
 
 
 @pytest.mark.django_db

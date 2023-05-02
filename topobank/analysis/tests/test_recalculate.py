@@ -2,13 +2,14 @@ import pytest
 from django.shortcuts import reverse
 from django.db import transaction
 
-from topobank.manager.tests.utils import SurfaceFactory, Topography1DFactory, UserFactory
-from topobank.analysis.tests.utils import TopographyAnalysisFactory
-from topobank.analysis.models import Analysis, AnalysisCollection
+from ...analysis.models import Analysis
+from ...analysis.tests.utils import TopographyAnalysisFactory
+from ...manager.tests.utils import SurfaceFactory, Topography1DFactory, UserFactory
+from ...manager.utils import subjects_to_dict
 
 
 @pytest.mark.django_db
-def test_submit_analyses_api(client, test_analysis_function, handle_usage_statistics):
+def test_submit_analyses_api(api_client, test_analysis_function, handle_usage_statistics):
     """Test API to submit new analyses."""
 
     user = UserFactory()
@@ -18,15 +19,15 @@ def test_submit_analyses_api(client, test_analysis_function, handle_usage_statis
 
     func = test_analysis_function
 
-    client.force_login(user)
+    api_client.force_login(user)
 
     with transaction.atomic():
         # trigger "recalculate" for two topographies
-        response = client.post(reverse('analysis:card-submit'), {
+        response = api_client.post(reverse('analysis:card-submit'), {
             'function_id': func.id,
-            'subjects': [topo1, topo2],
-            'function_kwargs_json': '{}'
-        }, HTTP_X_REQUESTED_WITH='XMLHttpRequest')  # we need an AJAX request
+            'subjects': subjects_to_dict([topo1, topo2]),
+            'function_kwargs': {}
+        })  # we need an AJAX request
         assert response.status_code == 200
 
     #

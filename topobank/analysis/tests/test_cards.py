@@ -1,8 +1,7 @@
 import pytest
-import json
 
-from django.shortcuts import reverse
 from django.contrib.contenttypes.models import ContentType
+from django.urls import reverse, reverse_lazy
 
 from ...manager.tests.utils import Topography1DFactory, Topography2DFactory, UserFactory, SurfaceFactory
 from ...manager.models import Analysis, Topography, Surface
@@ -29,8 +28,7 @@ def test_series_card_data_sources(api_rf, handle_usage_statistics):
 
     analysis = TopographyAnalysisFactory(subject=topo1, function=func1, users=[user])
 
-    #request = rf.post(reverse(f'analysis:card/{VIZ_SERIES}'), data={
-    request = api_rf.post('/analysis/card/series', data={
+    request = api_rf.post(reverse(f'analysis:card-{VIZ_SERIES}'), data={
         'function_id': func1.id,
         'subjects': subjects_to_dict([topo1]),
     }, format='json')
@@ -111,8 +109,7 @@ def test_series_card_if_no_successful_topo_analysis(api_client, handle_usage_sta
     # login and request plot card view
     assert api_client.login(username=user.username, password=password)
 
-    #response = api_client.post(reverse(f'analysis:card/{VIZ_SERIES}'), data={
-    response = api_client.post('/analysis/card/series', data={
+    response = api_client.post(reverse(f'analysis:card-{VIZ_SERIES}'), data={
         'function_id': func1.id,
         'subjects': subjects_to_dict([topo, topo.surface]),  # also request results for surface here
     }, format='json')  # we need an AJAX request

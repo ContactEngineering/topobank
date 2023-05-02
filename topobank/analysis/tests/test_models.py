@@ -101,12 +101,12 @@ def test_exception_implementation_missing():
 def test_analysis_function(test_analysis_function):
     ct = ContentType.objects.get_for_model(Topography)
     assert test_analysis_function.python_function(ct) == topography_analysis_function_for_tests
-    assert test_analysis_function.get_default_kwargs(ct) == dict(a=1, b="foo", bins=15, window='hann')
+    assert test_analysis_function.get_default_kwargs(ct) == dict(a=1, b="foo")
 
     surface = SurfaceFactory()
     t = Topography1DFactory(surface=surface)
     result = test_analysis_function.eval(t, a=2, b="bar")
-    assert result['comment'] == 'Arguments: a is 2 and b is foo'
+    assert result['comment'] == 'Arguments: a is 2 and b is bar'
 
 
 @pytest.mark.django_db
@@ -163,9 +163,7 @@ def test_default_function_kwargs():
 
     func = AnalysisFunction.objects.get(name='test')
 
-    expected_kwargs = dict(
-        a=1, b="foo", bins=15, window="hann",
-    )
+    expected_kwargs = dict(a=1, b="foo")
     ct = ContentType.objects.get_for_model(Topography)
     assert func.get_default_kwargs(ct) == expected_kwargs
 

@@ -36,26 +36,20 @@ def test_request_analysis(mocker, test_analysis_function):
     analysis = request_analysis(user, af, topo, a=13, b=24)
     assert_correct_args(analysis,
                         dict(a=13,
-                             b=24,
-                             bins=15,
-                             window='hann'))  # check default parameters in database
+                             b=24))  # check default parameters in database
 
 
     # test case 2
-    analysis = request_analysis(user, af, topo, 1, 2, bins=10)
+    analysis = request_analysis(user, af, topo, 1, 2)
     assert_correct_args(analysis,
                         dict(a=1,
-                             b=2,
-                             bins=10,
-                             window='hann'))
+                             b=2))
 
     # test case 3
-    analysis = request_analysis(user, af, topo, 2, 1, window='hamming', bins=5)
+    analysis = request_analysis(user, af, topo, 2, 1)
     assert_correct_args(analysis,
                         dict(a=2,
-                             b=1,
-                             bins=5,
-                             window='hamming'))
+                             b=1))
 
 
 @pytest.mark.django_db
