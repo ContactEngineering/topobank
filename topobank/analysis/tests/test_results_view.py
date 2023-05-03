@@ -76,8 +76,12 @@ def test_analysis_times(api_client, two_topos, test_analysis_function, handle_us
 
     assert response.status_code == 200
 
-    assert_in_content(response, "2018-01-01 12:00:00")  # start_time
-    assert_in_content(response, "1:01:01")  # duration
+    print(response.data)
+
+    analyses = response.data['analyses']
+    assert len(analyses) == 1
+    assert analyses[0]['start_time'] == "2018-01-01T12:00:00+01:00"
+    assert analyses[0]['duration'] == datetime.timedelta(seconds=3661)
 
 
 @pytest.mark.django_db
@@ -166,11 +170,10 @@ def test_show_only_last_analysis(api_client, two_topos, test_analysis_function, 
 
     assert response.status_code == 200
 
-    assert_in_content(response, b"2018-01-02 12:00:00")
-    assert_in_content(response, b"2018-01-04 12:00:00")
-
-    assert_not_in_content(response, b"2018-01-01 12:00:00")
-    assert_not_in_content(response, b"2018-01-03 12:00:00")
+    analyses = response.data['analyses']
+    assert len(analyses) == 2
+    assert analyses[0]['start_time'] == "2018-01-02T12:00:00+01:00"
+    assert analyses[1]['start_time'] == "2018-01-04T12:00:00+01:00"
 
 
 @pytest.mark.django_db
@@ -215,6 +218,9 @@ def test_warnings_for_different_arguments(api_client, handle_usage_statistics):
                                follow=True)
 
     assert response.status_code == 200
+
+    print(response)
+    print(response.data)
 
     assert_in_content(response,
                       "Arguments for this analysis function differ among chosen "
@@ -697,7 +703,7 @@ def test_publication_link_in_xlsx_download(client, two_analyses_two_publications
 
 
 @pytest.mark.django_db
-def test_view_shared_analysis_results(client, handle_usage_statistics):
+def test_view_shared_analysis_results(api_client, handle_usage_statistics):
     password = 'abcd$1234'
 
     #
@@ -738,17 +744,14 @@ def test_view_shared_analysis_results(client, handle_usage_statistics):
     #
     # Now we change to the analysis card view and look what we get
     #
-    assert client.login(username=user1.username, password=password)
+    assert api_client.login(username=user1.username, password=password)
 
-    response = client.post(reverse("analysis:card"),
-                           data={
-                               'subjects_ids_json': [topo1a, topo1b, topo2a],
-                               'function_id': func1.id,
-                               'card_id': 1,
-                               'template_flavor': 'list'
-                           },
-                           HTTP_X_REQUESTED_WITH='XMLHttpRequest',
-                           follow=True)
+    response = api_client.post(reverse("analysis:card-series"),
+                               data={
+                                   'subjects': subjects_to_dict([topo1a, topo1b, topo2a]),
+                                   'function_id': func1.id},
+                               format='json',
+                               follow=True)
 
     # Function should still have three analyses, all successful (the default when using the factory)
     assert func1.analysis_set.count() == 3
@@ -757,31 +760,33 @@ def test_view_shared_analysis_results(client, handle_usage_statistics):
     assert response.status_code == 200
 
     # We should see start times of all three topographies
-    assert_in_content(response, '2019-01-01 12:00:00')  # topo1a
-    assert_in_content(response, '2019-01-01 13:00:00')  # topo1b
-    assert_in_content(response, '2019-01-01 14:00:00')  # topo2a
+    analyses = response.data['analyses']
+    assert len(analyses) == 3
+    assert analyses[0]['start_time'] == '2019-01-01T12:00:00+01:00'  # topo1a
+    assert analyses[1]['start_time'] == '2019-01-01T13:00:00+01:00'  # topo1b
+    assert analyses[2]['start_time'] == '2019-01-01T14:00:00+01:00'  # topo2a
 
-    client.logout()
+    api_client.logout()
 
     #
     # user 2 cannot access results from topo1, it is not shared
     #
-    assert client.login(username=user2.username, password=password)
+    assert api_client.login(username=user2.username, password=password)
 
-    response = client.post(reverse("analysis:card"),
-                           data={
-                               'subjects_ids_json': [topo1a, topo1b, topo2a],
-                               'function_id': func1.id,
-                               'card_id': 1,
-                               'template_flavor': 'list'
-                           },
-                           HTTP_X_REQUESTED_WITH='XMLHttpRequest',
-                           follow=True)
+    response = api_client.post(reverse("analysis:card"),
+                               data={
+                                   'subjects': subjects_to_dict([topo1a, topo1b, topo2a]),
+                                   'function_id': func1.id
+                               },
+                               format='json',
+                               follow=True)
 
     assert response.status_code == 200
 
-    assert_not_in_content(response, '2019-01-01 12:00:00')  # topo1a
-    assert_not_in_content(response, '2019-01-01 13:00:00')  # topo1b
-    assert_in_content(response, '2019-01-01 14:00:00')  # topo2a
+    analyses = response.data['analyses']
+    assert len(analyses) == 3
+    assert analyses[0]['start_time'] != '2019-01-01T12:00:00+01:00'  # topo1a
+    assert analyses[1]['start_time'] != '2019-01-01T13:00:00+01:00'  # topo1b
+    assert analyses[2]['start_time'] == '2019-01-01T14:00:00+01:00'  # topo2a
 
-    client.logout()
+    api_client.logout()

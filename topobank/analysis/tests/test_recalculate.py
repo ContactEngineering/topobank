@@ -27,7 +27,7 @@ def test_submit_analyses_api(api_client, test_analysis_function, handle_usage_st
             'function_id': func.id,
             'subjects': subjects_to_dict([topo1, topo2]),
             'function_kwargs': {}
-        })  # we need an AJAX request
+        }, format='json')  # we need an AJAX request
         assert response.status_code == 200
 
     #
@@ -81,10 +81,14 @@ def test_renew_analyses_api(client, test_analysis_function):
 
     with transaction.atomic():
         # trigger "renew" for two specific analyses
-        response = client.post(reverse('analysis:renew'), {
-            'analyses_ids[]': [analysis1a.id, analysis2a.id],
-        }, HTTP_X_REQUESTED_WITH='XMLHttpRequest')  # we need an AJAX request
-        assert response.status_code == 200
+
+        response = client.put(reverse('analysis:status-detail', kwargs=dict(pk=analysis1a.pk)),
+                              format='json')  # we need an AJAX request
+        assert response.status_code == 201
+
+        response = client.put(reverse('analysis:status-detail', kwargs=dict(pk=analysis2a.pk)),
+                              format='json')  # we need an AJAX request
+        assert response.status_code == 201
 
     #
     # Old analyses should be deleted
@@ -102,6 +106,3 @@ def test_renew_analyses_api(client, test_analysis_function):
 
     assert user in analysis1b.users.all()
     assert user in analysis2b.users.all()
-
-
-

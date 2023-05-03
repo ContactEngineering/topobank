@@ -129,7 +129,7 @@ def test_download_analyses_without_permission(client, test_analysis_function, ha
 
 @pytest.mark.parametrize('route', ['analysis:card-submit', 'analysis:card-series'])
 @pytest.mark.django_db
-def test_submit_analyses_without_permission(api_rf, handle_usage_statistics):
+def test_submit_analyses_without_permission(api_rf, handle_usage_statistics, route):
     #
     # This test uses a request factory instead of a client
     # therefore the middleware is not used and we have to
@@ -137,8 +137,7 @@ def test_submit_analyses_without_permission(api_rf, handle_usage_statistics):
     # Using the request factory is more lightweight
     # and probably should be used more in tests for Topobank.
     #
-    request = api_rf.post(reverse('analysis:card-submit'),
-                          format='json')
+    request = api_rf.post(reverse(route), format='json')
     from guardian.utils import get_anonymous_user
     request.user = get_anonymous_user()
     from ...analysis.views import submit_analyses_view

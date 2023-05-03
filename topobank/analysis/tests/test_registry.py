@@ -151,10 +151,3 @@ def test_availability_of_implementation_in_plugin(mocker, plugins_installed, plu
 
     # now check whether the implementation is available or not as expected
     assert impl.is_available_for_user(u) == expected_is_available
-
-
-def test_card_view_class():
-    reg = AnalysisRegistry()
-    assert reg.get_card_view_class(VIZ_GENERIC) == SimpleCardView
-    assert reg.get_card_view_class(VIZ_SERIES) == PlotCardView
-
