@@ -275,7 +275,7 @@ class AnalysisController:
         else:
             context = {'request': request}
         return [AnalysisSerializer(analysis, context=context).data for analysis in
-                self(task_states=task_states, has_result_file=has_result_file)]
+                self.get(task_states=task_states, has_result_file=has_result_file)]
 
     def get_context(self, task_states=None, has_result_file=None, request=None):
         """
