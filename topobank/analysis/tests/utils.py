@@ -1,17 +1,17 @@
 from dataclasses import dataclass
 import logging
-import pickle
 import datetime
 import numpy as np
-
 
 from django.contrib.contenttypes.models import ContentType
 import factory
 import pytest
 
+from SurfaceTopography import NonuniformLineScan as STNonuniformLineScan
+from SurfaceTopography import Topography as STTopography
+
+from ...manager.tests.utils import Topography2DFactory, SurfaceFactory, SurfaceCollectionFactory
 from ..models import Analysis, AnalysisFunction
-from topobank.manager.tests.utils import Topography2DFactory, SurfaceFactory, SurfaceCollectionFactory
-from SurfaceTopography import Topography as STTopography, NonuniformLineScan as STNonuniformLineScan
 
 _log = logging.getLogger(__name__)
 

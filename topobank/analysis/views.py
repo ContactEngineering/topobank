@@ -25,12 +25,12 @@ from trackstats.models import Metric
 from ..manager.models import Topography, Surface, SurfaceCollection
 from ..manager.utils import instances_to_selection, selection_to_subjects_dict, subjects_from_dict
 from ..usage_stats.utils import increase_statistics_by_date_and_object
+from .controller import AnalysisController
 from .forms import FunctionSelectForm
 from .models import Analysis, AnalysisFunction, AnalysisCollection
-from .serializers import AnalysisSerializer
-from .utils import AnalysisController, request_analysis, renew_analysis, filter_and_order_analyses, \
-    palette_for_topographies
 from .registry import AnalysisRegistry
+from .serializers import AnalysisSerializer
+from .utils import renew_analysis, filter_and_order_analyses, palette_for_topographies
 
 import logging
 
@@ -93,10 +93,10 @@ def generic_card_view(request):
     #
     context.update({
         'title': controller.function.name,
-        'analyses_available': controller(),  # all Analysis objects related to this card
-        'analyses_success': controller(['su'], True),  # ..the ones which were successful and can be displayed
-        'analyses_failure': controller(['fa'], True),  # ..the ones which have failures and can't be displayed
-        'analyses_unready': controller(['su', 'fa'], False),  # ..the ones which are still running
+        'analyses_available': controller.get(),  # all Analysis objects related to this card
+        'analyses_success': controller.get(['su'], True),  # ..the ones which were successful and can be displayed
+        'analyses_failure': controller.get(['fa'], True),  # ..the ones which have failures and can't be displayed
+        'analyses_unready': controller.get(['su', 'fa'], False),  # ..the ones which are still running
         'subjects_missing': controller.subjects_without_analysis_results,
         'extra_warnings': [],  # use list of dicts of form {'alert_class': 'alert-info', 'message': 'your message'},
         'analyses_renew_url': reverse('analysis:renew')
@@ -125,7 +125,7 @@ def series_card_view(request):
     #
     # Filter only successful ones
     #
-    analyses_success = controller(['su'], True)
+    analyses_success = controller.get(['su'], True)
 
     #
     # order analyses such that surface analyses are coming last (plotted on top)

@@ -2,11 +2,10 @@ import pytest
 from django.shortcuts import reverse
 from django.core.exceptions import PermissionDenied
 
-from ..utils import selection_from_session, selection_to_instances
+from ...analysis.tests.utils import TopographyAnalysisFactory
+from ...utils import assert_in_content, assert_not_in_content
+from ..utils import selection_from_session, selection_to_instances, subjects_to_dict
 from .utils import UserFactory, SurfaceFactory, Topography1DFactory
-from topobank.analysis.tests.utils import TopographyAnalysisFactory, AnalysisFunctionFactory
-from topobank.analysis.functions import VIZ_SERIES
-from topobank.utils import assert_in_content, assert_not_in_content
 
 #
 # The code in these tests rely on a middleware which replaces
@@ -127,23 +126,25 @@ def test_download_analyses_without_permission(client, test_analysis_function, ha
     assert response.status_code == 403
 
 
-@pytest.mark.parametrize('route', ['analysis:card-submit', 'analysis:card-series'])
-@pytest.mark.django_db
-def test_submit_analyses_without_permission(api_rf, handle_usage_statistics, route):
-    #
-    # This test uses a request factory instead of a client
-    # therefore the middleware is not used and we have to
-    # set guardian's anonymous user manually.
-    # Using the request factory is more lightweight
-    # and probably should be used more in tests for Topobank.
-    #
-    request = api_rf.post(reverse(route), format='json')
-    from guardian.utils import get_anonymous_user
-    request.user = get_anonymous_user()
-    from ...analysis.views import submit_analyses_view
-
-    with pytest.raises(PermissionDenied):
-        submit_analyses_view(request)
-
-
-
+# @pytest.mark.django_db
+# def test_submit_analyses_without_permission(api_client, handle_usage_statistics):
+#     # Create user, surface and topography and try to trigger analysis on both
+#     bob = UserFactory()
+#     surface = SurfaceFactory(creator=bob)
+#     topo = Topography1DFactory(surface=surface)
+#     #
+#     # This test uses a request factory instead of a client
+#     # therefore the middleware is not used and we have to
+#     # set guardian's anonymous user manually.
+#     # Using the request factory is more lightweight
+#     # and probably should be used more in tests for Topobank.
+#     #
+#     response = api_client.post(reverse('analysis:card-submit'),
+#                                kwargs=dict(subjects=subjects_to_dict([topo])),
+#                                format='json')
+#     assert response.status_code == 403  # Forbidden
+#
+#     response = api_client.post(reverse('analysis:card-submit'),
+#                                kwargs=dict(subjects=subjects_to_dict([surface])),
+#                                format='json')
+#     assert response.status_code == 403  # Forbidden

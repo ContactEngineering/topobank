@@ -542,7 +542,7 @@ class AnalysisFunctionImplementation:
         elif app.name == 'topobank.analysis':  # special case, should be always available
             return True
 
-        from topobank.organizations.models import Organization
+        from ..organizations.models import Organization
         plugins_available = Organization.objects.get_plugins_available(user)
         return app.name in plugins_available
 

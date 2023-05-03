@@ -3,10 +3,12 @@ import math
 import datetime
 from django.contrib.contenttypes.models import ContentType
 
-from ...analysis.models import Analysis, AnalysisFunction
+from ...analysis.controller import AnalysisController
+from ...analysis.models import Analysis
 from ...analysis.utils import mangle_sheet_name, request_analysis, round_to_significant_digits
-from ...analysis.tests.utils import TopographyAnalysisFactory, AnalysisFunctionFactory
+from ...analysis.tests.utils import TopographyAnalysisFactory
 from ...manager.models import Topography
+from ...manager.utils import subjects_to_dict
 from ...manager.tests.utils import UserFactory, two_topos
 
 
@@ -103,14 +105,14 @@ def test_latest_analyses(two_topos, test_analysis_function):
     analysis.users.add(user)
 
     tt = ContentType.objects.get_for_model(Topography)
-    analyses = get_latest_analyses(user, test_analysis_function, [topo1, topo2])
+    analyses = AnalysisController(user, subjects=subjects_to_dict([topo1, topo2]), function=test_analysis_function)
 
     assert len(analyses) == 2  # one analysis per function and topography
 
     # both topographies should be in there
 
-    at1 = analyses.get(subject_type=tt, subject_id=topo1.id)
-    at2 = analyses.get(subject_type=tt, subject_id=topo2.id)
+    at1, = analyses.get(subject_type=tt, subject_id=topo1.id)
+    at2, = analyses.get(subject_type=tt, subject_id=topo2.id)
 
     from django.conf import settings
 
@@ -125,7 +127,7 @@ def test_latest_analyses(two_topos, test_analysis_function):
 @pytest.mark.django_db
 def test_latest_analyses_if_no_analyses(test_analysis_function):
     user = UserFactory()
-    assert get_latest_analyses(user, test_analysis_function, []).count() == 0
+    assert len(AnalysisController(user, function=test_analysis_function)) == 0
 
 
 def test_mangle_sheet_name():
