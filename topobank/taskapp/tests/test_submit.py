@@ -1,11 +1,10 @@
 import pytest
-import pickle
 
-from topobank.analysis.models import Analysis
-from topobank.analysis.utils import request_analysis, submit_analysis
+from ...manager.tests.utils import Topography1DFactory, UserFactory
 
-from topobank.analysis.tests.utils import AnalysisFunctionFactory, TopographyAnalysisFactory
-from topobank.manager.tests.utils import Topography1DFactory, UserFactory
+from ...analysis.models import Analysis
+from ...analysis.controller import request_analysis
+from ...analysis.tests.utils import TopographyAnalysisFactory
 
 
 @pytest.mark.django_db

@@ -13,98 +13,6 @@ from .models import Analysis, AnalysisFunction
 _log = logging.getLogger(__name__)
 
 
-def request_analysis(user, analysis_func, subject, *other_args, **kwargs):
-    """Request an analysis for a given user.
-
-    :param user: User instance, user who want to see this analysis
-    :param subject: instance which will be used as first argument to analysis function
-    :param analysis_func: AnalysisFunc instance
-    :param other_args: other positional arguments for analysis_func
-    :param kwargs: keyword arguments for analysis func
-    :returns: Analysis object
-
-    The returned analysis can be a precomputed one or a new analysis is
-    submitted may or may not be completed in future. Check database fields
-    (e.g. task_state) in order to check for completion.
-
-    The analysis will be marked such that the "users" field points to
-    the given user and that there is no other analysis for same function
-    and subject that points to that user.
-    """
-
-    #
-    # Build function signature with current arguments
-    #
-    subject_type = ContentType.objects.get_for_model(subject)
-    pyfunc = analysis_func.python_function(subject_type)
-
-    sig = inspect.signature(pyfunc)
-
-    bound_sig = sig.bind(subject, *other_args, **kwargs)
-    bound_sig.apply_defaults()
-
-    pyfunc_kwargs = dict(bound_sig.arguments)
-
-    # subject will always be second positional argument
-    # and has an extra column, do not safe reference
-    del pyfunc_kwargs[subject_type.model]  # will delete 'topography' or 'surface' or whatever the subject name is
-
-    # progress recorder should also not be saved:
-    if 'progress_recorder' in pyfunc_kwargs:
-        del pyfunc_kwargs['progress_recorder']
-
-    # same for storage prefix
-    if 'storage_prefix' in pyfunc_kwargs:
-        del pyfunc_kwargs['storage_prefix']
-
-    #
-    # Search for analyses with same topography, function and (pickled) function args
-    #
-    analysis = Analysis.objects.filter( \
-        Q(subject_type=subject_type)
-        & Q(subject_id=subject.id)
-        & Q(function=analysis_func)
-        & Q(kwargs=pyfunc_kwargs)).order_by('start_time').last()  # will be None if not found
-    # what if pickle protocol changes? -> No match, old must be sorted out later
-    # See also GH 426.
-
-    if analysis is None:
-        analysis = submit_analysis(users=[user], analysis_func=analysis_func, subject=subject,
-                                   pyfunc_kwargs=pyfunc_kwargs)
-        _log.info(f"Submitted new analysis for {analysis_func.name} and {subject.name} (User {user})...")
-    elif user not in analysis.users.all():
-        analysis.users.add(user)
-        _log.info(f"Added user {user} to existing analysis {analysis.id}.")
-    else:
-        _log.debug(f"User {user} already registered for analysis {analysis.id}.")
-
-    #
-    # Retrigger an analysis if there was a failure, maybe sth has been fixed in the meantime
-    #
-    if analysis.task_state == Analysis.FAILURE:
-        new_analysis = submit_analysis(users=analysis.users.all(),
-                                       analysis_func=analysis_func, subject=subject,
-                                       pyfunc_kwargs=pyfunc_kwargs)
-        _log.info(f"Submitted analysis {analysis.id} again because of failure..")
-        analysis.delete()
-        analysis = new_analysis
-
-    #
-    # Remove user from other analyses with same topography and function
-    #
-    other_analyses_with_same_user = Analysis.objects.filter(
-        ~Q(id=analysis.id)
-        & Q(subject_type=subject_type)
-        & Q(subject_id=subject.id)
-        & Q(function=analysis_func)
-        & Q(users__in=[user]))
-    for a in other_analyses_with_same_user:
-        a.users.remove(user)
-        _log.info(f"Removed user {user} from analysis {analysis} with kwargs {analysis.kwargs}.")
-
-    return analysis
-
-
 # This used only in the `trigger_analyses` management command
 def renew_analyses_for_subject(subject):
     """Renew all analyses for the given subject.
@@ -378,4 +286,3 @@ def palette_for_topographies(nb_topographies):
         # we don't want to have yellow as first color
         topography_colors = topography_colors[nb_topographies // 2:] + topography_colors[:nb_topographies // 2]
     return topography_colors
-

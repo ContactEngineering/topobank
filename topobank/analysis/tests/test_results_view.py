@@ -773,7 +773,7 @@ def test_view_shared_analysis_results(api_client, handle_usage_statistics):
     #
     assert api_client.login(username=user2.username, password=password)
 
-    response = api_client.post(reverse("analysis:card"),
+    response = api_client.post(reverse("analysis:card-series"),
                                data={
                                    'subjects': subjects_to_dict([topo1a, topo1b, topo2a]),
                                    'function_id': func1.id

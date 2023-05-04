@@ -3,9 +3,9 @@ import math
 import datetime
 from django.contrib.contenttypes.models import ContentType
 
-from ...analysis.controller import AnalysisController
+from ...analysis.controller import AnalysisController, request_analysis
 from ...analysis.models import Analysis
-from ...analysis.utils import mangle_sheet_name, request_analysis, round_to_significant_digits
+from ...analysis.utils import mangle_sheet_name, round_to_significant_digits
 from ...analysis.tests.utils import TopographyAnalysisFactory
 from ...manager.models import Topography
 from ...manager.utils import subjects_to_dict
