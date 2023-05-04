@@ -257,11 +257,12 @@ class TagSerializer(serializers.ModelSerializer):
     version = serializers.CharField(default='')
     publication_authors = serializers.CharField(default='')
     publication_date = serializers.CharField(default='')
+    label = serializers.SerializerMethodField()
 
     class Meta:
         model = TagModel
-        fields = ['id', 'key', 'type', 'title', 'name', 'children',
-                  'folder', 'urls', 'selected', 'version', 'publication_date', 'publication_authors']
+        fields = ['id', 'key', 'type', 'title', 'name', 'children', 'folder', 'urls', 'selected', 'version',
+                  'publication_date', 'publication_authors', 'label']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -283,13 +284,12 @@ class TagSerializer(serializers.ModelSerializer):
         return obj in tags
 
     def get_children(self, obj):
-
         result = []
 
         #
         # Assume that all surfaces and topographies given in the context are already filtered
         #
-        surfaces = self.context['surfaces'].filter(tags__pk=obj.pk)  #  .order_by('name')
+        surfaces = self.context['surfaces'].filter(tags__pk=obj.pk)  # .order_by('name')
         topographies = self.context['topographies'].filter(tags__pk=obj.pk)  # .order_by('name')
         tags = [x for x in obj.children.all() if x in self.context['tags_for_user']]
 
@@ -301,3 +301,6 @@ class TagSerializer(serializers.ModelSerializer):
         result.extend(TagSerializer(tags, many=True, context=self.context).data)
 
         return result
+
+    def get_label(self, obj):
+        return obj.label
