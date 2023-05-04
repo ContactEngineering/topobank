@@ -2,14 +2,150 @@ import inspect
 import logging
 
 from django.contrib.contenttypes.models import ContentType
+from django.db import transaction
 from django.db.models import Q
 
 from ..manager.utils import subjects_from_dict, subjects_to_dict
+
+from ..taskapp.tasks import perform_analysis
 
 from .models import Analysis, AnalysisFunction
 from .serializers import AnalysisSerializer
 
 _log = logging.getLogger(__name__)
+
+
+# This used only in the `trigger_analyses` management command
+def renew_analyses_for_subject(subject):
+    """Renew all analyses for the given subject.
+
+    At first all existing analyses for the given subject
+    will be deleted. Only analyses for the default parameters
+    will be automatically generated at the moment.
+
+    Implementation Note:
+
+    This method cannot be easily used in a post_save signal,
+    because the pre_delete signal deletes the datafile and
+    this also then triggers "renew_analyses".
+    """
+    analysis_funcs = AnalysisFunction.objects.all()
+
+    # collect users which are allowed to use these analyses by default
+    users_for_subject = subject.get_users_with_perms()
+
+    def submit_all(subj=subject):
+        """Trigger analyses for this subject for all available analyses functions."""
+        _log.info(f"Deleting all analyses for {subj.get_content_type().name} {subj.id}...")
+        subj.analyses.all().delete()
+        _log.info(f"Triggering analyses for {subj.get_content_type().name} {subj.id} and all analysis functions...")
+        for af in analysis_funcs:
+            subject_type = subj.get_content_type()
+            if af.is_implemented_for_type(subject_type):
+                # filter also for users who are allowed to use the function
+                users = [u for u in users_for_subject if af.get_implementation(subject_type).is_available_for_user(u)]
+                try:
+                    submit_analysis(users, af, subject=subj)
+                except Exception as err:
+                    _log.error(f"Cannot submit analysis for function '{af.name}' and subject '{subj}' "
+                               f"({subj.get_content_type().name} {subj.id}). Reason: {str(err)}")
+
+    transaction.on_commit(lambda: submit_all(subject))
+
+
+def renew_analysis(analysis, use_default_kwargs=False):
+    """Delete existing analysis and recreate and submit with same arguments and users.
+
+    Parameters
+    ----------
+    analysis: Analysis
+        Analysis instance to be renewed.
+    use_default_kwargs: boolean
+        If True, use default arguments of the corresponding analysis function implementation.
+        If False (default), use the keyword arguments of the given analysis.
+
+    Returns
+    -------
+    New analysis object.
+    """
+    users = analysis.users.all()
+    func = analysis.function
+
+    subject_type = ContentType.objects.get_for_model(analysis.subject)
+
+    if use_default_kwargs:
+        pyfunc_kwargs = func.get_default_kwargs(subject_type=subject_type)
+    else:
+        pyfunc_kwargs = analysis.kwargs
+
+    _log.info(f"Renewing analysis {analysis.id} for {len(users)} users, function {func.name}, "
+              f"subject type {subject_type}, subject id {analysis.subject.id} .. "
+              f"kwargs: {pyfunc_kwargs}")
+    analysis.delete()
+    return submit_analysis(users, func, subject=analysis.subject,
+                           pyfunc_kwargs=pyfunc_kwargs)
+
+
+def submit_analysis(users, analysis_func, subject, pyfunc_kwargs=None):
+    """Create an analysis entry and submit a task to the task queue.
+
+    :param users: sequence of User instances; users which should see the analysis
+    :param subject: instance which will be subject of the analysis (first argument of analysis function)
+    :param analysis_func: AnalysisFunc instance
+    :param pyfunc_kwargs: kwargs for function which should be saved to database
+    :returns: Analysis object
+
+    If None is given for 'pyfunc_kwargs', the default arguments for the given analysis function are used.
+    The default arguments are the ones used in the function implementation (python function).
+
+    Typical instances as subjects are topographies or surfaces.
+    """
+    subject_type = ContentType.objects.get_for_model(subject)
+
+    #
+    # create entry in Analysis table
+    #
+    if pyfunc_kwargs is None:
+        # Instead of an empty dict, we explicitly store the current default arguments of the analysis function
+        pyfunc_kwargs = analysis_func.get_default_kwargs(subject_type=subject_type)
+
+    analysis = Analysis.objects.create(
+        subject=subject,
+        function=analysis_func,
+        task_state=Analysis.PENDING,
+        kwargs=pyfunc_kwargs)
+
+    analysis.users.set(users)
+
+    #
+    # delete all completed old analyses for same function and subject and arguments
+    # There should be only one analysis per function, subject and arguments
+    #
+    Analysis.objects.filter(
+        ~Q(id=analysis.id)
+        & Q(subject_type=subject_type)
+        & Q(subject_id=subject.id)
+        & Q(function=analysis_func)
+        & Q(kwargs=pyfunc_kwargs)
+        & Q(task_state__in=[Analysis.FAILURE, Analysis.SUCCESS])).delete()
+
+    #
+    # TODO delete all started old analyses, where the task does not exist any more
+    #
+    # maybe_aborted_analyses = Analysis.objects.filter(
+    #    ~Q(id=analysis.id)
+    #    & Q(topography=topography)
+    #    & Q(function=analysis_func)
+    #    & Q(task_state__in=[Analysis.STARTED]))
+    # How to find out if task is still running?
+    #
+    # for a in maybe_aborted_analyses:
+    #    result = app.AsyncResult(a.task_id)
+
+    # Send task to the queue if the analysis has been created
+    transaction.on_commit(lambda: perform_analysis.delay(analysis.id))
+
+    return analysis
 
 
 def request_analysis(user, analysis_func, subject, *other_args, **kwargs):

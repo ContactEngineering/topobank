@@ -199,8 +199,8 @@ def test_warnings_for_different_arguments(api_client, handle_usage_statistics):
     #
     # Generate analyses for surfaces with differing arguments
     #
-    kwargs_1 = dict(a=1, b=2)
-    kwargs_2 = dict(a=1, b=3)  # differing from kwargs_1a!
+    kwargs_1 = dict(a=2, b=2)
+    kwargs_2 = dict(a=2, b=3)  # differing from kwargs_1a!
     ana1 = SurfaceAnalysisFactory(subject=surf1, function=func, kwargs=kwargs_1)
     ana2 = SurfaceAnalysisFactory(subject=surf2, function=func, kwargs=kwargs_2)
 
@@ -784,6 +784,7 @@ def test_view_shared_analysis_results(api_client, handle_usage_statistics):
     assert response.status_code == 200
 
     analyses = response.data['analyses']
+    print(analyses)
     assert len(analyses) == 3
     assert analyses[0]['start_time'] != '2019-01-01T12:00:00+01:00'  # topo1a
     assert analyses[1]['start_time'] != '2019-01-01T13:00:00+01:00'  # topo1b

@@ -1,6 +1,5 @@
-import json
-
 import itertools
+import logging
 from collections import OrderedDict
 
 from django.contrib.contenttypes.models import ContentType
@@ -25,14 +24,12 @@ from trackstats.models import Metric
 from ..manager.models import Topography, Surface, SurfaceCollection
 from ..manager.utils import instances_to_selection, selection_to_subjects_dict, subjects_from_dict
 from ..usage_stats.utils import increase_statistics_by_date_and_object
-from .controller import AnalysisController
+from .controller import AnalysisController, renew_analysis
 from .forms import FunctionSelectForm
 from .models import Analysis, AnalysisFunction, AnalysisCollection
 from .registry import AnalysisRegistry
 from .serializers import AnalysisSerializer
-from .utils import renew_analysis, filter_and_order_analyses, palette_for_topographies
-
-import logging
+from .utils import filter_and_order_analyses, palette_for_topographies
 
 _log = logging.getLogger(__name__)
 
