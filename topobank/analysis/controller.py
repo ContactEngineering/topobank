@@ -312,6 +312,7 @@ class AnalysisController:
     def _reset_cache(self):
         self._dois = None
         self._unique_kwargs = None
+        self._has_nonunique_kwargs = None
         self._subjects_without_analysis_results = None
 
     @property
@@ -323,8 +324,14 @@ class AnalysisController:
     @property
     def unique_kwargs(self):
         if self._unique_kwargs is None:
-            self._unique_kwargs = self._get_unique_kwargs()
+            self._unique_kwargs, self._has_nonunique_kwargs = self._get_unique_kwargs()
         return self._unique_kwargs
+
+    @property
+    def has_nonunique_kwargs(self):
+        if self._has_nonunique_kwargs is None:
+            self._unique_kwargs, self._has_nonunique_kwargs = self._get_unique_kwargs()
+        return self._has_nonunique_kwargs
 
     @property
     def subjects_without_analysis_results(self):
@@ -439,6 +446,7 @@ class AnalysisController:
         Returns a dictionary with unique keyword arguments.
         """
         unique_kwargs = None
+        has_nonunique_kwargs = False
         for analysis in self._analyses:
             kwargs = analysis.kwargs
             if unique_kwargs is None:
@@ -449,7 +457,8 @@ class AnalysisController:
                         if unique_kwargs[key] != value:
                             # Delete nonunique key
                             del unique_kwargs[key]
-        return {} if unique_kwargs is None else unique_kwargs
+                            has_nonunique_kwargs = True
+        return {} if unique_kwargs is None else unique_kwargs, has_nonunique_kwargs
 
     def trigger_missing_analyses(self):
         """
@@ -533,5 +542,6 @@ class AnalysisController:
             'functionName': self.function.name,
             'functionId': self.function.id,
             'subjects': self.subjects_dict,  # can be used to re-trigger analyses
-            'uniqueKwargs': self.unique_kwargs
+            'uniqueKwargs': self.unique_kwargs,
+            'hasNonuniqueKwargs': self.has_nonunique_kwargs
         }

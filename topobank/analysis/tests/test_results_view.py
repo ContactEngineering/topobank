@@ -218,24 +218,7 @@ def test_warnings_for_different_arguments(api_client, handle_usage_statistics):
                                follow=True)
 
     assert response.status_code == 200
-
-    print(response)
-    print(response.data)
-
-    assert_in_content(response,
-                      "Arguments for this analysis function differ among chosen "
-                      "subjects of type 'manager | topography'")
-    assert_in_content(response,
-                      "Arguments for this analysis function differ among chosen "
-                      "subjects of type 'manager | surface'")
-
-    # arguments should be visible in output
-    #
-    # import html.parser
-    # unescaped = html.unescape(response.content.decode())
-    #
-    # assert str(dict(bins=10)) in unescaped
-    # assert str(dict(bins=20)) in unescaped
+    assert response.data['hasNonuniqueKwargs']
 
 
 # Maybe the following test can be rewritten as an integration test for usage with selenium
