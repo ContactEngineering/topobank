@@ -404,13 +404,6 @@ class AnalysisController:
         # Query for user
         query = Q(users=self._user)
 
-        # Query for subjects
-        if self._subjects is not None:
-            for subject in self._subjects:
-                ct = ContentType.objects.get_for_model(subject)
-                q = Q(subject_type_id=ct.id) & Q(subject_id=subject.id)
-                query = q if query is None else query | q
-
         # Add function to query
         if self._function is not None:
             query = Q(function=self._function) & query
@@ -418,6 +411,15 @@ class AnalysisController:
         # Add kwargs (if specified)
         if self._function_kwargs is not None:
             query = Q(kwargs=self._function_kwargs) & query
+
+        # Query for subjects
+        if self._subjects is not None and len(self._subjects) > 0:
+            subjects_query = None
+            for subject in self._subjects:
+                ct = ContentType.objects.get_for_model(subject)
+                q = Q(subject_type_id=ct.id) & Q(subject_id=subject.id)
+                subjects_query = q if subjects_query is None else subjects_query | q
+            query = subjects_query & query
 
         # Find analyses
         analyses = Analysis.objects.filter(query) \

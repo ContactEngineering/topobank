@@ -431,6 +431,9 @@ def series_card_view(request):
     context['plotConfiguration'] = plot_configuration
     context['extraWarnings'] = extra_warnings
 
+    print('CARD')
+    print(context['analyses'])
+
     return Response(context)
 
 
