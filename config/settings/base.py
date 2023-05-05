@@ -2,6 +2,7 @@
 Base settings to build other settings files upon.
 """
 
+import os.path
 import random
 import string
 
@@ -406,10 +407,13 @@ STATIC_ROOT = env.str('DJANGO_STATIC_ROOT', default=(environ.Path(__file__) - 3)
 # https://docs.djangoproject.com/en/dev/ref/settings/#static-url
 STATIC_URL = '/static/'
 # https://docs.djangoproject.com/en/dev/ref/contrib/staticfiles/#std:setting-STATICFILES_DIRS
-STATICFILES_DIRS = [
-    str(APPS_DIR.path('static')),
-    str(APPS_DIR.path('../../static'))
-]
+STATICFILES_DIRS = []
+for d in [environ.Path(topobank.__file__).path('static'), APPS_DIR.path('static'), APPS_DIR.path('../../static')]:
+    d = str(d)
+    if os.path.exists(d):
+        STATICFILES_DIRS += [d]
+    else:
+        print(f"Skipping path '{d}' for static files since it does not exist.")
 # https://docs.djangoproject.com/en/dev/ref/contrib/staticfiles/#staticfiles-finders
 STATICFILES_FINDERS = [
     'django.contrib.staticfiles.finders.FileSystemFinder',
