@@ -76,8 +76,6 @@ def test_analysis_times(api_client, two_topos, test_analysis_function, handle_us
 
     assert response.status_code == 200
 
-    print(response.data)
-
     analyses = response.data['analyses']
     assert len(analyses) == 1
     assert analyses[0]['start_time'] == "2018-01-01T12:00:00+01:00"
@@ -453,8 +451,6 @@ def test_analysis_download_as_xlsx(client, two_topos, ids_downloadable_analyses,
 
     xlsx = openpyxl.load_workbook(tmp.name)
 
-    print(xlsx.sheetnames)
-
     assert len(xlsx.worksheets) == 1 + 1 + 2 * 2  # INDEX, META DATA, 2*2 analysis sheets
 
     def assert_data_equal(sheet, exp_data):
@@ -590,8 +586,6 @@ def test_analysis_download_as_xlsx_despite_slash_in_sheetname(client, two_topos,
     tmp.seek(0)
 
     xlsx = openpyxl.load_workbook(tmp.name)
-
-    print(xlsx.sheetnames)
 
     assert len(xlsx.worksheets) == 1 + 1 + 2 * 2
 
@@ -766,11 +760,9 @@ def test_view_shared_analysis_results(api_client, handle_usage_statistics):
 
     assert response.status_code == 200
 
+    # We should see start times of just one topography
     analyses = response.data['analyses']
-    print(analyses)
-    assert len(analyses) == 3
-    assert analyses[0]['start_time'] != '2019-01-01T12:00:00+01:00'  # topo1a
-    assert analyses[1]['start_time'] != '2019-01-01T13:00:00+01:00'  # topo1b
-    assert analyses[2]['start_time'] == '2019-01-01T14:00:00+01:00'  # topo2a
+    assert len(analyses) == 1
+    assert analyses[0]['start_time'] == '2019-01-01T14:00:00+01:00'  # topo2a
 
     api_client.logout()
