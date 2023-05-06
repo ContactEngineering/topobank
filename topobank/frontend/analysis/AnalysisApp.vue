@@ -55,7 +55,7 @@ export default {
         <div v-for="card in visibleCards" class="col-lg-6 mb-4">
             <component :is="`${card.visualization_type}-card`"
                        :csrf-token="csrfToken"
-                       enlarged="false"
+                       :enlarged="false"
                        :function-id="card.id"
                        :function-name="card.name"
                        :subjects="subjects">
