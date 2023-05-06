@@ -6,58 +6,20 @@
 {% block content %}
 
 <div class="tab-content mt-2">
-  <div id="analyses" class="tab-pane active">
-
-    {% crispy form form.helper %}
-
-    <!--
-    Show one card for each analysis function
-    -->
-    <div class="row">
-      {% for card in cards %}
-      <div class="col-lg-6 mb-4">
-        <div id="{{ card.id }}-app" class="card search-result-card">
-          <div class="card-header">
-            <h5>{{ card.function.name }}</h5>
-          </div>
-          <div class="card-body">
-            <span class="spinner"></span>
-            <div id="{{ card.id }}-wait-text">
-              Please wait...
-            </div>
-          </div>
-        </div>
-      </div>
-      {% endfor %}
-    </div>
-
-  </div>
+  <div id="analyses" class="tab-pane active"></div>
 </div>
 {% endblock content %}
 
 {% block javascript %}
-<!-- for crispy form -->
-{{ form.media.js }}
 
 <!-- create card apps -->
-{% for card in cards %}
-{% with card_app_js="js/"|add:card.visualization_type|add:"_card.bundle.js" %}
-<script src="{% static card_app_js %}"></script>
-{% endwith %}
-{% with card_data_id=card.id|add:"-subjects" %}
-{{ card.subjects|json_script:card_data_id }}
-{% endwith %}
+{{ subjects|json_script:'subjects' }}
+<script src="{% static 'js/analysis_app.bundle.js' %}"></script>
 <script>
-  topobank.{{ card.visualization_type }}_card.createCardApp('#{{ card.id }}-app', {
-    apiUrl: '{{ card.api_url }}',
+  topobank.analysis_app.createAnalysisApp('#analyses', {
     csrfToken: '{{ csrf_token }}',
-    detailUrl: "{% url 'analysis:function-detail' card.function.id %}",
-    enlarged: false,
-    functionId: {{ card.function.id }},
-    functionName: '{{ card.function.name }}',
-    subjects: JSON.parse(document.getElementById('{{ card.id }}-subjects').textContent)
+    subjects: JSON.parse(document.getElementById('subjects').textContent)
   });
 </script>
-{% endfor %}
 
 {% endblock javascript %}

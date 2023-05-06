@@ -3,7 +3,7 @@ import logging
 from collections import OrderedDict
 
 from django.contrib.contenttypes.models import ContentType
-from django.http import Http404, JsonResponse
+from django.http import Http404
 from django.views.generic import DetailView, FormView
 from django.urls import reverse_lazy
 from django.core.files.storage import default_storage
@@ -11,7 +11,7 @@ from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect, reverse
 from django.conf import settings
 
-from rest_framework import mixins, viewsets, status
+from rest_framework import generics, mixins, viewsets, status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
@@ -22,13 +22,13 @@ from pint import UnitRegistry, UndefinedUnitError
 from trackstats.models import Metric
 
 from ..manager.models import Topography, Surface, SurfaceCollection
-from ..manager.utils import instances_to_selection, selection_to_subjects_dict, subjects_from_dict
+from ..manager.utils import instances_to_selection, selection_to_subjects_dict
 from ..usage_stats.utils import increase_statistics_by_date_and_object
 from .controller import AnalysisController, renew_analysis
 from .forms import FunctionSelectForm
 from .models import Analysis, AnalysisFunction, AnalysisCollection
 from .registry import AnalysisRegistry
-from .serializers import AnalysisSerializer
+from .serializers import AnalysisResultSerializer, AnalysisFunctionSerializer
 from .utils import filter_and_order_analyses, palette_for_topographies
 
 _log = logging.getLogger(__name__)
@@ -38,10 +38,10 @@ MAX_NUM_POINTS_FOR_SYMBOLS = 50
 LINEWIDTH_FOR_SURFACE_AVERAGE = 4
 
 
-class AnalysisView(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
-    """Retrieve status of analysis (GET) and renew analysis (POST)"""
+class AnalysisResultView(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
+    """Retrieve status of analysis (GET) and renew analysis (PUT)"""
     queryset = Analysis.objects.all()
-    serializer_class = AnalysisSerializer
+    serializer_class = AnalysisResultSerializer
 
     def update(self, request, *args, **kwargs):
         """Renew existing analysis."""
@@ -52,6 +52,12 @@ class AnalysisView(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         else:
             return Response({}, status=status.HTTP_403_FORBIDDEN)
+
+
+class AnalysisFunctionView(generics.ListAPIView):
+    """Retrieve status of analysis (GET) and renew analysis (PUT)"""
+    queryset = AnalysisFunction.objects.all().order_by('name')
+    serializer_class = AnalysisFunctionSerializer
 
 
 @api_view(['POST'])
@@ -703,20 +709,7 @@ class AnalysesListView(FormView):
 
         effective_topographies, effective_surfaces, subjects = selection_to_subjects_dict(self.request)
 
-        # for displaying result card, we need a dict for each card,
-        # which then can be used to load the result data in the background
-        cards = []
-        reg = AnalysisRegistry()
-        for function in selected_functions:
-            visualization_app_name, visualization_type = reg.get_visualization_type_for_function_name(function.name)
-            api_name = f'{visualization_app_name}:card-{visualization_type}'
-            cards.append(dict(id=f"card-{function.pk}",
-                              function=function,
-                              visualization_type=visualization_type,
-                              api_url=reverse(api_name),
-                              subjects=subjects))
-
-        context['cards'] = cards
+        context['subjects'] = subjects
 
         # Decide whether to open extra tabs for surface/topography details
         tabs = extra_tabs_if_single_item_selected(effective_topographies, effective_surfaces)

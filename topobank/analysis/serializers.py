@@ -1,5 +1,4 @@
 import logging
-import pickle
 
 from django.shortcuts import reverse
 
@@ -9,12 +8,13 @@ from generic_relations.relations import GenericRelatedField
 
 from ..manager.models import Surface, Topography
 from ..manager.serializers import SurfaceSerializer, TopographySerializer
-from .models import Analysis
+from .models import Analysis, AnalysisFunction
+from .registry import AnalysisRegistry
 
 _log = logging.getLogger(__name__)
 
 
-class AnalysisSerializer(serializers.ModelSerializer):
+class AnalysisResultSerializer(serializers.ModelSerializer):
     duration = serializers.SerializerMethodField()
     kwargs = serializers.SerializerMethodField()
     subject = GenericRelatedField({
@@ -85,3 +85,20 @@ class AnalysisSerializer(serializers.ModelSerializer):
         fields = ['id', 'function', 'subject', 'kwargs', 'task_progress', 'task_state', 'creation_time', 'start_time',
                   'end_time', 'dois', 'configuration', 'duration', 'api']
         depth = 1
+
+
+class AnalysisFunctionSerializer(serializers.ModelSerializer):
+    visualization_app_name = serializers.SerializerMethodField()
+    visualization_type = serializers.SerializerMethodField()
+
+    def get_visualization_app_name(self, obj):
+        app_name, type = AnalysisRegistry().get_visualization_type_for_function_name(obj.name)
+        return app_name
+
+    def get_visualization_type(self, obj):
+        app_name, type = AnalysisRegistry().get_visualization_type_for_function_name(obj.name)
+        return type
+
+    class Meta:
+        model = AnalysisFunction
+        fields = ['id', 'name', 'visualization_app_name', 'visualization_type']

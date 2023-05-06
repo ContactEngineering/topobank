@@ -10,7 +10,7 @@ from ..manager.utils import subjects_from_dict, subjects_to_dict
 from ..taskapp.tasks import perform_analysis
 
 from .models import Analysis, AnalysisFunction
-from .serializers import AnalysisSerializer
+from .serializers import AnalysisResultSerializer
 
 _log = logging.getLogger(__name__)
 
@@ -518,7 +518,7 @@ class AnalysisController:
             context = None
         else:
             context = {'request': request}
-        return [AnalysisSerializer(analysis, context=context).data for analysis in
+        return [AnalysisResultSerializer(analysis, context=context).data for analysis in
                 self.get(task_states=task_states, has_result_file=has_result_file)]
 
     def get_context(self, task_states=None, has_result_file=None, request=None):

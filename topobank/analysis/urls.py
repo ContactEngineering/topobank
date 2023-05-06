@@ -8,7 +8,7 @@ from . import functions
 from . import views
 
 router = DefaultRouter()
-router.register(r'status', views.AnalysisView, basename='status')
+router.register(r'status', views.AnalysisResultView, basename='status')
 
 urlpatterns = router.urls
 
@@ -54,6 +54,12 @@ urlpatterns += [
         'card/submit/',
         view=login_required(views.submit_analyses_view),
         name='card-submit'
+    ),
+    # Return function implementations
+    path(
+        'registry/',
+        view=login_required(views.AnalysisFunctionView().as_view()),
+        name='registry'
     ),
     # POST
     # * Triggers analyses if not yet running
