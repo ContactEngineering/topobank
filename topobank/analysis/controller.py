@@ -10,6 +10,7 @@ from ..manager.utils import subjects_from_dict, subjects_to_dict, dict_from_b64,
 from ..taskapp.tasks import perform_analysis
 
 from .models import Analysis, AnalysisFunction
+from .registry import ImplementationMissingAnalysisFunctionException
 from .serializers import AnalysisResultSerializer
 from .utils import find_children
 
@@ -277,10 +278,12 @@ class AnalysisController:
         self._function_kwargs = function_kwargs
 
         # Calculate subjects for the analyses, filtered for those which have an implementation
-        self._subjects = None if subjects is None else subjects_from_dict(subjects, function=self._function)
+        self._subjects = None if subjects is None else subjects_from_dict(subjects)
 
+        print(self.function.name, 'A:', subjects, self._subjects)
         if with_children:
             self._subjects = find_children(self._subjects)
+        print(self.function.name, 'B:', self._subjects)
 
         # Find the latest analyses for which the user has read permission for the related data
         self._analyses = self._get_latest_analyses()
@@ -507,10 +510,14 @@ class AnalysisController:
         subjects_triggered = []
         for subject in self.subjects_without_analysis_results:
             if subject.is_shared(self._user):
-                triggered_analysis = request_analysis(self._user, self._function, subject, **function_kwargs)
-                subjects_triggered += [subject]
-                _log.info(f"Triggered analysis {triggered_analysis.id} for function '{self._function.name}' "
-                          f"and subject '{subject}'.")
+                try:
+                    triggered_analysis = request_analysis(self._user, self._function, subject, **function_kwargs)
+                    subjects_triggered += [subject]
+                    _log.info(f"Triggered analysis {triggered_analysis.id} for function '{self._function.name}' "
+                              f"and subject '{subject}'.")
+                except ImplementationMissingAnalysisFunctionException:
+                    _log.info(f"Dit NOT trigger analysis for function '{self._function.name}' "
+                              f"and subject '{subject}' because the implementation is missing.")
 
         # Now all subjects which needed to be triggered, should have been triggered with common arguments if possible
         # collect information about available analyses again.

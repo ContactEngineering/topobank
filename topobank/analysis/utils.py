@@ -62,7 +62,7 @@ def round_to_significant_digits(x, num_dig_digits):
 def filter_and_order_analyses(analyses):
     """Order analyses such that surface analyses are coming last (plotted on top).
 
-    The analyses are filtered that that surface analyses
+    The analyses are filtered such that surface analyses
     are only included if there are more than 1 measurement.
 
     Parameters
@@ -75,7 +75,7 @@ def filter_and_order_analyses(analyses):
     Ordered list of analyses. Analyses for measurements
     are listed directly after corresponding surface.
     """
-    from topobank.manager.models import Surface, SurfaceCollection, Topography
+    from ..manager.models import Surface, SurfaceCollection, Topography
 
     surface_ct = ContentType.objects.get_for_model(Surface)
     surfacecollection_ct = ContentType.objects.get_for_model(SurfaceCollection)

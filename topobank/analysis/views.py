@@ -126,7 +126,7 @@ def series_card_view(request):
     #
     # Filter only successful ones
     #
-    analyses_success = controller.get(['su'], True)
+    analyses_success = controller.get(task_states=['su'], has_result_file=True)
 
     #
     # order analyses such that surface analyses are coming last (plotted on top)
@@ -145,7 +145,6 @@ def series_card_view(request):
     }
 
     nb_analyses_success = len(analyses_success_list)
-    print(controller.function.name, analyses_success, controller.get(), nb_analyses_success)
     if nb_analyses_success == 0:
         #
         # Prepare plot, controls, and table with special values..
