@@ -11,6 +11,7 @@ from ..taskapp.tasks import perform_analysis
 
 from .models import Analysis, AnalysisFunction
 from .serializers import AnalysisResultSerializer
+from .utils import find_children
 
 _log = logging.getLogger(__name__)
 
@@ -243,7 +244,7 @@ def request_analysis(user, analysis_func, subject, *other_args, **kwargs):
 class AnalysisController:
     """Retrieve and toggle status of analyses"""
 
-    def __init__(self, user, subjects=None, function=None, function_id=None, function_kwargs=None):
+    def __init__(self, user, subjects=None, function=None, function_id=None, function_kwargs=None, with_children=True):
         """
         Construct a controller object that filters for specific user, subjects,
         functions, and function arguments. If a parameter is None, then it
@@ -259,6 +260,9 @@ class AnalysisController:
             Analysis function object. (Default: None)
         function_id : int, optional
             id of analysis function. (Default: None)
+        with_children : bool, optional
+            Also return analyses of children, i.e. of topographies that belong
+            to a surface. (Default: True)
         """
         self._user = user
         if function is None:
@@ -275,13 +279,16 @@ class AnalysisController:
         # Calculate subjects for the analyses, filtered for those which have an implementation
         self._subjects = None if subjects is None else subjects_from_dict(subjects, function=self._function)
 
+        if with_children:
+            self._subjects = find_children(self._subjects)
+
         # Find the latest analyses for which the user has read permission for the related data
         self._analyses = self._get_latest_analyses()
 
         self._reset_cache()
 
     @staticmethod
-    def from_request(request):
+    def from_request(request, with_children=True):
         """
         Construct an `AnalysisControlLer` object from a request object.
 
@@ -289,8 +296,12 @@ class AnalysisController:
         ----------
         request : rest_framework.request.Request
             REST request object
+        with_children : bool, optional
+            Also return analyses of children, i.e. of topographies that belong
+            to a surface. (Default: True)
 
         Returns
+        -------
         controller : AnalysisController
             The analysis controller object
         """
@@ -307,7 +318,8 @@ class AnalysisController:
         if function_kwargs is not None and isinstance(function_kwargs, str):
             function_kwargs = dict_from_b64(function_kwargs)
 
-        return AnalysisController(user, subjects=subjects, function_id=function_id, function_kwargs=function_kwargs)
+        return AnalysisController(user, subjects=subjects, function_id=function_id, function_kwargs=function_kwargs,
+                                  with_children=with_children)
 
     def _reset_cache(self):
         self._dois = None

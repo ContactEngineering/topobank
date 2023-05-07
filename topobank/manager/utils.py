@@ -1144,5 +1144,3 @@ def make_dzi(data, path_prefix, physical_sizes=None, unit=None, quality=95, colo
             target_name = f'{path_prefix}/{storage_filename}'
             # Upload to S3
             default_storage_replace(target_name, File(open(filename, mode='rb')))
-
-

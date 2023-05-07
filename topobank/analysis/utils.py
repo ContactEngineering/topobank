@@ -5,6 +5,9 @@ from collections import OrderedDict
 from bokeh import palettes as palettes
 from django.contrib.contenttypes.models import ContentType
 
+from ..manager.models import Surface
+
+
 _log = logging.getLogger(__name__)
 
 
@@ -147,3 +150,25 @@ def palette_for_topographies(nb_topographies):
         # we don't want to have yellow as first color
         topography_colors = topography_colors[nb_topographies // 2:] + topography_colors[:nb_topographies // 2]
     return topography_colors
+
+
+def find_children(subjects):
+    """
+    Find all children for listed subjects. For example, a Topography is a child
+    of a Surface.
+
+    Parameters
+    ----------
+    subjects : list of Topography or Surface
+        List of subjects.
+
+    Returns
+    -------
+    List of Topography or Surface
+        List of subjects, updated with children.
+    """
+    additional_subjects = []
+    for subject in subjects:
+        if isinstance(subject, Surface):
+            additional_subjects += list(subject.topography_set.all())
+    return list(set(subjects + additional_subjects))

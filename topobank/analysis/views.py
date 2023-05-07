@@ -145,6 +145,7 @@ def series_card_view(request):
     }
 
     nb_analyses_success = len(analyses_success_list)
+    print(controller.function.name, analyses_success, controller.get(), nb_analyses_success)
     if nb_analyses_success == 0:
         #
         # Prepare plot, controls, and table with special values..

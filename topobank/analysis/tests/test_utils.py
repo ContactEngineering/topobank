@@ -3,13 +3,14 @@ import math
 import datetime
 from django.contrib.contenttypes.models import ContentType
 
+from ...manager.models import Topography, Surface
+from ...manager.utils import subjects_to_dict
+from ...manager.tests.utils import UserFactory, two_topos, user_three_topographies_three_surfaces_three_tags
+
 from ...analysis.controller import AnalysisController, request_analysis
 from ...analysis.models import Analysis
-from ...analysis.utils import mangle_sheet_name, round_to_significant_digits
+from ...analysis.utils import mangle_sheet_name, round_to_significant_digits, find_children
 from ...analysis.tests.utils import TopographyAnalysisFactory
-from ...manager.models import Topography
-from ...manager.utils import subjects_to_dict
-from ...manager.tests.utils import UserFactory, two_topos
 
 
 @pytest.mark.django_db
@@ -156,3 +157,10 @@ def test_round_to_significant_digits(x, num_sig_digits, rounded):
         assert math.isnan(round_to_significant_digits(x, num_sig_digits))
     else:
         assert math.isclose(round_to_significant_digits(x, num_sig_digits), rounded, abs_tol=1e-20)
+
+
+def test_find_children(user_three_topographies_three_surfaces_three_tags):
+    topo1, topo2, topo3 = Topography.objects.all()
+    surf1, surf2, surf3 = Surface.objects.all()
+
+    assert set(find_children([surf1, surf2, topo3])) == set([surf1, surf2, topo1, topo2, topo3])

@@ -562,8 +562,7 @@ class SurfaceCollection(models.Model, SubjectMixin):
 
 
 class Topography(models.Model, SubjectMixin):
-    """Topography Measurement of a Surface.
-    """
+    """Topography measurement of a surface."""
 
     # TODO After upgrade to Django 2.2, use constraints: https://docs.djangoproject.com/en/2.2/ref/models/constraints/
     class Meta:

@@ -12,7 +12,7 @@ from ..utils import selection_to_instances, instances_to_selection, tags_for_use
     instances_to_topographies, surfaces_for_user, instances_to_surfaces, \
     current_selection_as_surface_list, surface_collection_name, subjects_to_dict, subjects_from_dict, \
     subjects_to_b64, subjects_from_b64
-from ..models import Surface, Topography, TagModel
+from ..models import Surface, Topography
 
 
 @pytest.fixture
