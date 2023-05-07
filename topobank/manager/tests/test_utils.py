@@ -4,15 +4,14 @@ and other things in topobank.manager.utils
 """
 
 import pytest
-import json
 from django.shortcuts import reverse
-from django.contrib.contenttypes.models import ContentType
 
 from ..tests.utils import two_topos, Topography1DFactory, Topography2DFactory, SurfaceFactory, \
     TagModelFactory, UserFactory, user_three_topographies_three_surfaces_three_tags
 from ..utils import selection_to_instances, instances_to_selection, tags_for_user, \
     instances_to_topographies, surfaces_for_user, instances_to_surfaces, \
-    current_selection_as_surface_list, surface_collection_name
+    current_selection_as_surface_list, surface_collection_name, subjects_to_dict, subjects_from_dict, \
+    subjects_to_url, subjects_from_url
 from ..models import Surface, Topography, TagModel
 
 
@@ -254,3 +253,15 @@ def test_related_surfaces_for_selection(rf):
 ])
 def test_surface_collection_name(surface_names, exp_name, max_total_length):
     assert surface_collection_name(surface_names, max_total_length=max_total_length) == exp_name
+
+
+def test_subjects_to_dict(user_three_topographies_three_surfaces_three_tags):
+    topo1, topo2, topo3 = Topography.objects.all()
+    surf1, surf2, surf3 = Surface.objects.all()
+    assert subjects_from_dict(subjects_to_dict([topo1, topo2, surf3])) == [topo1, topo2, surf3]
+
+
+def test_subjects_to_url(user_three_topographies_three_surfaces_three_tags):
+    topo1, topo2, topo3 = Topography.objects.all()
+    surf1, surf2, surf3 = Surface.objects.all()
+    assert subjects_from_url(subjects_to_url([topo1, topo2, surf3])) == [topo1, topo2, surf3]

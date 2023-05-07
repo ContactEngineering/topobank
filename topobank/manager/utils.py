@@ -1,3 +1,4 @@
+import base64
 import json
 import logging
 import markdown2
@@ -603,14 +604,15 @@ def current_selection_as_basket_items(request):
 
 def subjects_to_dict(subjects):
     """
-    Returns a dictionary suitable for passing 'subjects_ids' in an AJAX call.
+    Returns a dictionary suitable for passing subjects (topography,
+    surfaces or surface collections) in an AJAX call.
 
     Each content type from the given subjects is represented as key.
     Each subject is represented by an id in the array of integers.
 
     Parameters
     ----------
-    subjects : list of Topography or Surface
+    subjects : list of Topography or Surface or SurfaceCollection
         Subjects for serialization
 
     Returns
@@ -674,6 +676,39 @@ def subjects_from_dict(subjects_dict, function=None):
             continue
         subjects += [s for s in ct.get_all_objects_for_this_type().filter(query)]
     return subjects
+
+
+def subjects_to_url(subjects):
+    """
+    Turns and encode URL into a list of subjects.
+
+    Parameters
+    ----------
+    url : str
+        Encoded subjects
+
+    Returns
+    -------
+    List of subject instances (e.g. Topography or Surface)
+    """
+    return base64.urlsafe_b64encode(json.dumps(subjects_to_dict(subjects)).encode())
+
+
+def subjects_from_url(url):
+    """
+    Returns a string suitable for passing subjects (topography,
+    surfaces or surface collections) in an URL.
+
+    Parameters
+    ----------
+    subjects : list of Topography or Surface or SurfaceCollection
+        Subjects for serialization
+
+    Returns
+    -------
+    Encoded dictionary object.
+    """
+    return subjects_from_dict(json.loads(base64.urlsafe_b64decode(url).decode()))
 
 
 def surface_collection_name(surface_names, max_total_length=MAX_LENGTH_SURFACE_COLLECTION_NAME):
