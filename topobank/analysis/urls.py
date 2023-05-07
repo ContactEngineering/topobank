@@ -22,26 +22,6 @@ urlpatterns += [
         view=login_required(views.AnalysesResultListView.as_view()),
         name='list'
     ),
-    path(
-        'html/collection/<int:collection_id>/',
-        view=login_required(views.AnalysesResultListView.as_view()),
-        name='collection'
-    ),
-    path(
-        'html/surface/<int:surface_id>/',
-        view=login_required(views.AnalysesResultListView.as_view()),
-        name='surface'
-    ),
-    path(
-        'html/topography/<int:topography_id>/',
-        view=login_required(views.AnalysesResultListView.as_view()),
-        name='topography'
-    ),
-    re_path(
-        r'html/download/(?P<ids>[\d,]+)/(?P<file_format>\w+)$',
-        view=login_required(downloads.download_analyses),
-        name='download'
-    ),
     re_path(
         r'html/function/(?P<pk>[\d,]+)/$',
         view=login_required(views.AnalysisResultDetailView.as_view()),
@@ -80,8 +60,13 @@ urlpatterns += [
     # redirects to the storage. It is up to the visualization application to
     # request the correct files.
     re_path(
-        r'api/data/(?P<pk>\d+)/(?P<location>.*)$',
+        r'data/(?P<pk>\d+)/(?P<location>.*)$',
         view=login_required(views.data),
         name='data'
+    ),
+    re_path(
+        r'download/(?P<ids>[\d,]+)/(?P<file_format>\w+)$',
+        view=login_required(downloads.download_analyses),
+        name='download'
     )
 ]

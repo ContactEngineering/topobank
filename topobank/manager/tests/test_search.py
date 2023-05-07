@@ -4,9 +4,11 @@ import pytest
 from django.shortcuts import reverse
 from rest_framework.test import APIRequestFactory
 
-from ..views import SurfaceSearchPaginator, SurfaceListView, TagTreeView
-from .utils import ordereddicts_to_dicts, Topography1DFactory, UserFactory, SurfaceFactory, search_surfaces
 from ..models import TagModel
+from ..views import SurfaceSearchPaginator, SurfaceListView, TagTreeView
+from ..utils import subjects_to_b64
+
+from .utils import ordereddicts_to_dicts, Topography1DFactory, UserFactory, SurfaceFactory, search_surfaces
 
 
 def assert_dict_equal(a, b):
@@ -94,12 +96,12 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
 
     surface3_prefix = f"/manager/surface/{surface3.pk}/"
 
-    topo1a_analyze = f"/analysis/topography/{topo1a.pk}/"
-    topo1b_analyze = f"/analysis/topography/{topo1b.pk}/"
-    topo2a_analyze = f"/analysis/topography/{topo2a.pk}/"
-    topo2b_analyze = f"/analysis/topography/{topo2b.pk}/"
-    surface1_analyze = f"/analysis/surface/{surface1.pk}/"
-    surface2_analyze = f"/analysis/surface/{surface2.pk}/"
+    topo1a_analyze = f"/analysis/html/list/?subjects={subjects_to_b64([topo1a])}"
+    topo1b_analyze = f"/analysis/html/list/?subjects={subjects_to_b64([topo1b])}"
+    topo2a_analyze = f"/analysis/html/list/?subjects={subjects_to_b64([topo2a])}"
+    topo2b_analyze = f"/analysis/html/list/?subjects={subjects_to_b64([topo2b])}"
+    surface1_analyze = f"/analysis/html/list/?subjects={subjects_to_b64([surface1])}"
+    surface2_analyze = f"/analysis/html/list/?subjects={subjects_to_b64([surface2])}"
 
     expected_dicts = [
         {
@@ -523,12 +525,12 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
 
     surface3_prefix = f"/manager/surface/{surface3.pk}/"
 
-    topo1a_analyze = f"/analysis/topography/{topo1a.pk}/"
-    topo1b_analyze = f"/analysis/topography/{topo1b.pk}/"
-    topo2a_analyze = f"/analysis/topography/{topo2a.pk}/"
-    topo2b_analyze = f"/analysis/topography/{topo2b.pk}/"
-    surface1_analyze = f"/analysis/surface/{surface1.pk}/"
-    surface2_analyze = f"/analysis/surface/{surface2.pk}/"
+    topo1a_analyze = f"/analysis/html/list/?subjects={subjects_to_b64([topo1a])}"
+    topo1b_analyze = f"/analysis/html/list/?subjects={subjects_to_b64([topo1b])}"
+    topo2a_analyze = f"/analysis/html/list/?subjects={subjects_to_b64([topo2a])}"
+    topo2b_analyze = f"/analysis/html/list/?subjects={subjects_to_b64([topo2b])}"
+    surface1_analyze = f"/analysis/html/list/?subjects={subjects_to_b64([surface1])}"
+    surface2_analyze = f"/analysis/html/list/?subjects={subjects_to_b64([surface2])}"
 
     expected_dict_topo1a = {
         'creator': user_url,

@@ -167,6 +167,9 @@ def find_children(subjects):
     List of Topography or Surface
         List of subjects, updated with children.
     """
+    if subjects is None:
+        return None
+
     additional_subjects = []
     for subject in subjects:
         if isinstance(subject, Surface):
