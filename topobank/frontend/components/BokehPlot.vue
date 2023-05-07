@@ -145,6 +145,10 @@ export default {
         }
       }
 
+      // Removed undefined entries from elements array
+      elements = elements.filter(e => e !== undefined);
+
+      // Add to category information
       this.categoryElements.push({
         key: category.key,
         title: category.title,
@@ -160,11 +164,11 @@ export default {
   },
   watch: {
     categoryElements: {
-      handler: function () {
+      handler() {
         this.refreshPlot();
       }, deep: true
     },
-    layout: function (layout) {
+    layout(layout) {
       /* Predefined layouts */
       switch (layout) {
         case 'web':
@@ -195,16 +199,16 @@ export default {
 
       this.refreshPlot();
     },
-    opacity: function () {
+    opacity() {
       this.refreshPlot();
     },
-    symbolSize: function () {
+    symbolSize() {
       this.refreshPlot();
     },
-    lineWidth: function () {
+    lineWidth() {
       this.refreshPlot();
     },
-    legendLocation: function (newVal) {
+    legendLocation(newVal) {
       const visible = newVal !== "off";
       for (const bokehPlot of this.bokehPlots) {
         bokehPlot.legend.visible = visible;
@@ -213,7 +217,7 @@ export default {
         }
       }
     },
-    dataSources: function (newVal, oldVal) {
+    dataSources(newVal, oldVal) {
       // For some unknown reason, the dataSource watch is triggered even though it is not updated. We have to check
       // manually that the URL has changed.
       let hasChanged = newVal.length !== oldVal.length;
