@@ -16,7 +16,7 @@ export default {
     props: {
         apiUrl: {
             type: String,
-            default: '/analysis/card/series'
+            default: '/analysis/api/card/series'
         },
         csrfToken: String,
         detailUrl: String,

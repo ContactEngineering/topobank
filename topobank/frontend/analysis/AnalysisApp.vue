@@ -12,6 +12,10 @@ export default {
         ContactMechanicsCard
     },
     props: {
+        apiRegistryUrl: {
+            type: String,
+            default: '/analysis/api/registry'
+        },
         csrfToken: String,
         subjects: String
     },
@@ -22,7 +26,7 @@ export default {
         }
     },
     mounted() {
-        fetch('/analysis/registry', {method: 'GET', headers: {'X-CSRFToken': this.csrfToken}})
+        fetch(this.apiRegistryUrl, {method: 'GET', headers: {'X-CSRFToken': this.csrfToken}})
             .then(response => response.json())
             .then(data => {
                 this._cards = data.map(function (v) {

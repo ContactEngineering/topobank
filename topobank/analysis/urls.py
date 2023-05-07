@@ -18,32 +18,32 @@ urlpatterns += [
     # HTML routes
     #
     path(
-        'list/',  # TODO change to 'function', also rename name
+        'html/list/',  # TODO change to 'function', also rename name
         view=login_required(views.AnalysesResultListView.as_view()),
         name='list'
     ),
     path(
-        'collection/<int:collection_id>/',
+        'html/collection/<int:collection_id>/',
         view=login_required(views.AnalysesResultListView.as_view()),
         name='collection'
     ),
     path(
-        'surface/<int:surface_id>/',
+        'html/surface/<int:surface_id>/',
         view=login_required(views.AnalysesResultListView.as_view()),
         name='surface'
     ),
     path(
-        'topography/<int:topography_id>/',
+        'html/topography/<int:topography_id>/',
         view=login_required(views.AnalysesResultListView.as_view()),
         name='topography'
     ),
     re_path(
-        r'download/(?P<ids>[\d,]+)/(?P<file_format>\w+)$',
+        r'html/download/(?P<ids>[\d,]+)/(?P<file_format>\w+)$',
         view=login_required(downloads.download_analyses),
         name='download'
     ),
     re_path(
-        r'function/(?P<pk>[\d,]+)/$',
+        r'html/function/(?P<pk>[\d,]+)/$',
         view=login_required(views.AnalysisResultDetailView.as_view()),
         name='function-detail'
     ),
@@ -51,13 +51,13 @@ urlpatterns += [
     # API routes that return empty JSON
     #
     path(
-        'card/submit/',
+        'api/submit/',
         view=login_required(views.submit_analyses_view),
         name='card-submit'
     ),
     # Return function implementations
     path(
-        'registry/',
+        'api/registry/',
         view=login_required(views.AnalysisFunctionView().as_view()),
         name='registry'
     ),
@@ -67,7 +67,7 @@ urlpatterns += [
     # * Return plot configuration for finished analyses
     # This is a post request because the request parameters are complex.
     path(
-        f'card/{functions.VIZ_SERIES}',
+        f'api/card/{functions.VIZ_SERIES}',
         view=login_required(views.series_card_view),
         name=f'card-{functions.VIZ_SERIES}'
     ),
@@ -80,7 +80,7 @@ urlpatterns += [
     # redirects to the storage. It is up to the visualization application to
     # request the correct files.
     re_path(
-        r'data/(?P<pk>\d+)/(?P<location>.*)$',
+        r'api/data/(?P<pk>\d+)/(?P<location>.*)$',
         view=login_required(views.data),
         name='data'
     )
