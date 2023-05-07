@@ -60,7 +60,7 @@ export default {
         </div>
     </div>
     <div class="row">
-        <div v-for="card in visibleCards" class="col-lg-6 mb-4">
+        <div v-for="card in this._cards" :class="{ 'col-lg-6': true, 'mb-4': true, 'd-none': !card.visible }">
             <component :is="`${card.visualization_type}-card`"
                        :csrf-token="csrfToken"
                        :enlarged="false"

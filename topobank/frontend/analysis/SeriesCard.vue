@@ -43,6 +43,7 @@ export default {
             _categories: undefined,
             _dataSources: undefined,
             _dois: [],
+            _messages: [],
             _nbFailed: 0,
             _nbRunningOrPending: 0,
             _nbSuccess: 0,
@@ -98,6 +99,7 @@ export default {
                     this._categories = data.plotConfiguration.categories;
                     this._outputBackend = data.plotConfiguration.outputBackend;
                     this._dois = data.dois;
+                    this._messages = data.messages;
                     this._analysesAvailable = true;
                 });
         },
@@ -143,6 +145,9 @@ export default {
 
             <div v-if="_analysesAvailable" class="tab-content">
                 <div class="tab-pane show active" role="tabpanel" aria-label="Tab showing a plot">
+                    <div :class="['alert', message.alertClass]" v-for="message in _messages">
+                        {{ message.message }}
+                    </div>
                     <bokeh-plot
                             :plots="_plots"
                             :categories="_categories"
