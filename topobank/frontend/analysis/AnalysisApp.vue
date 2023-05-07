@@ -1,27 +1,33 @@
 <script>
 
 import SeriesCard from './SeriesCard.vue';
+import RoughnessParametersCard from 'topobank_statistics/RoughnessParametersCard.vue';
+import ContactMechanicsCard from 'topobank_contact/ContactMechanicsCard.vue';
 
 export default {
     name: 'analysis-app',
     components: {
-        SeriesCard
+        SeriesCard,
+        RoughnessParametersCard,
+        ContactMechanicsCard
     },
     props: {
         csrfToken: String,
         subjects: Object
     },
     data() {
-      return {
-          _cards: [],
-          _visible: []
-      }
+        return {
+            _cards: [],
+            _visible: []
+        }
     },
     mounted() {
         fetch('/analysis/registry', {method: 'GET', headers: {'X-CSRFToken': this.csrfToken}})
             .then(response => response.json())
             .then(data => {
-                this._cards = data.map(function(v) { return {...v, visible: false}});
+                this._cards = data.map(function (v) {
+                    return {...v, visible: false}
+                });
             });
     },
     computed: {
@@ -48,7 +54,9 @@ export default {
                     {{ card.name }}
                 </label>
             </div>
-            <small id="hint_id_functions" class="form-text text-muted">Select one or multiple analysis functions.</small>
+            <small id="hint_id_functions" class="form-text text-muted">
+                Select one or multiple analysis functions.
+            </small>
         </div>
     </div>
     <div class="row">
