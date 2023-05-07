@@ -6,7 +6,7 @@ from guardian.shortcuts import get_perms
 import logging
 
 from .models import Surface, Topography, TagModel
-from .utils import get_search_term, filtered_topographies
+from .utils import get_search_term, filtered_topographies, subjects_to_b64
 
 _log = logging.getLogger(__name__)
 
@@ -52,7 +52,7 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
 
         if 'view_surface' in perms:
             urls['detail'] = reverse('manager:topography-detail', kwargs=dict(pk=obj.pk))
-            urls['analyze'] = reverse('analysis:topography', kwargs=dict(topography_id=obj.pk))
+            urls['analyze'] = f"{reverse('analysis:list')}?subjects={subjects_to_b64([obj])}"
 
         if 'change_surface' in perms:
             urls.update({
@@ -168,7 +168,7 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
             urls['detail'] = reverse('manager:surface-detail', kwargs=dict(pk=obj.pk))
             if obj.num_topographies() > 0:
                 urls.update({
-                    'analyze': reverse('analysis:surface', kwargs=dict(surface_id=obj.id)),
+                    'analyze': f"{reverse('analysis:list')}?subjects={subjects_to_b64([obj])}"
                 })
             urls['download'] = reverse('manager:surface-download', kwargs=dict(surface_id=obj.id))
 

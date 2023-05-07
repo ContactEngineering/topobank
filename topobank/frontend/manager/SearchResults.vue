@@ -36,7 +36,7 @@ export default {
     surface_create_url: String,
     tree_mode: String
   },
-  inject: ['event_hub'],
+  inject: ['eventHub'],
   data() {
     return {
       _category: this.category,
@@ -64,7 +64,7 @@ export default {
     };
   },
   created() {
-    this.event_hub.on('basket-unselect-successful', this.unselect);
+    this.eventHub.on('basket-unselect-successful', this.unselect);
   },
   mounted() {
     // this is not accessible from the scope of the callback function of fancy tree
@@ -136,7 +136,7 @@ export default {
                     .then(response => response.json())
                     .then(reponse_data => {
                       // console.log("Selected: " + node.data.name + " " + node.key);
-                      _this.event_hub.emit('basket-update', reponse_data);
+                      _this.eventHub.emit('basket-update', reponse_data);
                       _this.set_selected_by_key(node.key, true);
                     })
                     .catch(error => {
@@ -147,7 +147,7 @@ export default {
                     .then(response => response.json())
                     .then(reponse_data => {
                       // console.log("Unselected: " + node.data.name + " " + node.key);
-                      _this.event_hub.emit('basket-update', reponse_data);
+                      _this.eventHub.emit('basket-update', reponse_data);
                       _this.set_selected_by_key(node.key, false);
                     })
                     .catch(error => {

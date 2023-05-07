@@ -4,8 +4,7 @@ from collections import OrderedDict
 
 from django.contrib.contenttypes.models import ContentType
 from django.http import Http404
-from django.views.generic import DetailView, FormView
-from django.urls import reverse_lazy
+from django.views.generic import DetailView, TemplateView
 from django.core.files.storage import default_storage
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect, reverse
@@ -22,10 +21,9 @@ from pint import DimensionalityError, UnitRegistry, UndefinedUnitError
 from trackstats.models import Metric
 
 from ..manager.models import Topography, Surface, SurfaceCollection
-from ..manager.utils import instances_to_selection, selection_to_subjects_dict
+from ..manager.utils import instances_to_selection, selection_to_subjects_dict, subjects_from_b64
 from ..usage_stats.utils import increase_statistics_by_date_and_object
 from .controller import AnalysisController, renew_analysis
-from .forms import FunctionSelectForm
 from .models import Analysis, AnalysisFunction, AnalysisCollection
 from .registry import AnalysisRegistry
 from .serializers import AnalysisResultSerializer, AnalysisFunctionSerializer
@@ -90,7 +88,6 @@ def generic_card_view(request):
     # get standard context dictionary
     #
     context = controller.get_context(request=request)
-
 
     #
     # Update context
@@ -615,116 +612,38 @@ class AnalysisFunctionDetailView(DetailView):
         return context
 
 
-class AnalysesListView(FormView):
+class AnalysesListView(TemplateView):
     """View showing analyses from multiple functions.
     """
-    form_class = FunctionSelectForm
-    success_url = reverse_lazy('analysis:list')
     template_name = "analysis/analyses_list.html"
-
-    def get_initial(self):
-
-        user = self.request.user
-
-        if 'collection_id' in self.kwargs:
-            analysis_collection_id = self.kwargs['collection_id']
-            try:
-                analysis_collection = AnalysisCollection.objects.get(id=analysis_collection_id)
-            except AnalysisCollection.DoesNotExist:
-                raise Http404("Collection does not exist")
-
-            if analysis_collection.owner != user:
-                raise PermissionDenied()
-
-            functions = set(a.function for a in analysis_collection.analyses.all())
-            surfaces = set(a.subject for a in analysis_collection.analyses.all() if a.is_surface_related)
-            topographies = set(a.subject for a in analysis_collection.analyses.all() if a.is_topography_related)
-
-            # as long as we have the current UI (before implementing GH #304)
-            # we also set the collection's function and topographies as selection
-            selection = instances_to_selection(topographies=topographies, surfaces=surfaces)
-            self.request.session['selection'] = tuple(selection)
-            self.request.session['selected_functions'] = tuple(f.id for f in functions)
-
-        elif 'surface_id' in self.kwargs:
-            surface_id = self.kwargs['surface_id']
-            try:
-                surface = Surface.objects.get(id=surface_id)
-            except Surface.DoesNotExist:
-                raise PermissionDenied()
-
-            if not user.has_perm('view_surface', surface):
-                raise PermissionDenied()
-
-            #
-            # So we have an existing surface and are allowed to view it, so we select it
-            #
-            self.request.session['selection'] = ['surface-{}'.format(surface_id)]
-
-        elif 'topography_id' in self.kwargs:
-            topo_id = self.kwargs['topography_id']
-            try:
-                topo = Topography.objects.get(id=topo_id)
-            except Topography.DoesNotExist:
-                raise PermissionDenied()
-
-            if not user.has_perm('view_surface', topo.surface):
-                raise PermissionDenied()
-
-            #
-            # So we have an existing topography and are allowed to view it, so we select it
-            #
-            self.request.session['selection'] = ['topography-{}'.format(topo_id)]
-
-        return dict(
-            functions=AnalysesListView._selected_functions(self.request),
-        )
-
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs['user'] = self.request.user
-        return kwargs
-
-    def form_valid(self, form):
-        functions = form.cleaned_data.get('functions', [])
-        self.request.session['selected_functions'] = list(t.id for t in functions)
-        return super().form_valid(form)
-
-    @staticmethod
-    def _selected_functions(request):
-        """Returns selected functions as saved in session or, if given, in POST parameters.
-
-        Functions are ordered by name.
-        """
-        function_ids = request.session.get('selected_functions', [])
-        functions = AnalysisFunction.objects.filter(id__in=function_ids).order_by('name')
-
-        # filter function by those which have available implementations for the given user
-        return functions.filter(name__in=AnalysisRegistry().get_analysis_function_names(request.user))
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        selected_functions = self._selected_functions(self.request)
+        topographies = []
+        surfaces = []
 
-        effective_topographies, effective_surfaces, subjects = selection_to_subjects_dict(self.request)
+        subjects = self.request.GET.get('subjects')
+        if subjects is not None:
+            subjects = subjects_from_b64(subjects)
 
-        context['subjects'] = subjects
+            # Update session to reflect selection
+            topographies = [t for t in subjects if isinstance(t, Topography)]
+            surfaces = [t for t in subjects if isinstance(t, Surface)]
+            self.request.session['selection'] = instances_to_selection(topographies=topographies, surfaces=surfaces)
 
         # Decide whether to open extra tabs for surface/topography details
-        tabs = extra_tabs_if_single_item_selected(effective_topographies, effective_surfaces)
-        tabs.append(
-            {
-                'title': f"Analyze",
-                'icon': "chart-area",
-                'icon-style-prefix': 'fas',
-                'href': self.request.path,
-                'active': True,
-                'login_required': False,
-                'tooltip': "Results for selected analysis functions",
-                'show_basket': True,
-            }
-        )
+        tabs = extra_tabs_if_single_item_selected(topographies, surfaces)
+        tabs.append({
+            'title': f"Analyze",
+            'icon': "chart-area",
+            'icon-style-prefix': 'fas',
+            'href': self.request.path,
+            'active': True,
+            'login_required': False,
+            'tooltip': "Results for selected analysis functions",
+            'show_basket': True,
+        })
         context['extra_tabs'] = tabs
 
         return context

@@ -19,9 +19,9 @@ import 'topobank/scss/custom.scss';
 /**
  * Used to display "basket" on top if screen for all selected items in session
  */
-export function createBasketApp(el, event_hub, props) {
+export function createBasketApp(el, eventHub, props) {
     let app = createApp(Basket, props);
-    app.provide('event_hub', event_hub);
+    app.provide('eventHub', eventHub);
     app.mount(el);
     return app;
 }
@@ -38,9 +38,9 @@ export function createDeepZoomImage(el, props) {
 /**
  * Used to display search results/list of digital surface twins
  */
-export function createSearchResultsApp(el, event_hub, props) {
+export function createSearchResultsApp(el, eventHub, props) {
     let app = createApp(SearchResults, props);
-    app.provide('event_hub', event_hub);
+    app.provide('eventHub', eventHub);
     app.mount(el);
     return app;
 }

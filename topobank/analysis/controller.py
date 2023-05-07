@@ -301,15 +301,11 @@ class AnalysisController:
         if function_id is not None:
             function_id = int(function_id)
         subjects = data.get('subjects')
-        if subjects is None:
-            subjects = data.get('subjects_b64')
-            if subjects is not None:
-                subjects = dict_from_b64(subjects)
+        if subjects is not None and isinstance(subjects, str):
+            subjects = dict_from_b64(subjects)
         function_kwargs = data.get('function_kwargs')
-        if function_kwargs is None:
-            function_kwargs = data.get('function_kwargs_b64')
-            if function_kwargs is not None:
-                function_kwargs = dict_from_b64(function_kwargs)
+        if function_kwargs is not None and isinstance(function_kwargs, str):
+            function_kwargs = dict_from_b64(function_kwargs)
 
         return AnalysisController(user, subjects=subjects, function_id=function_id, function_kwargs=function_kwargs)
 

@@ -478,14 +478,14 @@
 
     <script>
       // Some globals on each page
-      var event_hub = mitt();
+      var eventHub = mitt();
       // only create basket if target element exists
-      var basket = topobank.base.createBasketApp('#basket', event_hub, {
-        initial_basket_items: {{ basket_items_json | safe }},
-        analysis_list_url: "{% url 'analysis:list' %}",
-        manager_download_selection_url: "{% url 'manager:download-selection' %}",
-        manager_select_url: "{% url 'manager:select' %}",
-        csrf_token: '{{ csrf_token }}'
+      var basket = topobank.base.createBasketApp('#basket', eventHub, {
+        initialBasketItems: {{ basket_items_json | safe }},
+        analysisListUrl: "{% url 'analysis:list' %}",
+        managerDownloadSelectionUrl: "{% url 'manager:download-selection' %}",
+        managerSelectUrl: "{% url 'manager:select' %}",
+        csrfToken: '{{ csrf_token }}'
       });
       var unselect_all_url = '{{ unselect_all_url|safe }}';
     </script>

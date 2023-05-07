@@ -680,12 +680,12 @@ def subjects_from_dict(subjects_dict, function=None):
 
 def dict_to_b64(d):
     """URL-safe base64 encoding of a dictionary."""
-    return base64.urlsafe_b64encode(json.dumps(d).encode())
+    return base64.urlsafe_b64encode(json.dumps(d).encode()).decode()
 
 
 def dict_from_b64(s):
     """Return dictionary given a base64 encoded variant"""
-    return json.loads(base64.urlsafe_b64decode(s).decode())
+    return json.loads(base64.urlsafe_b64decode(s.encode()).decode())
 
 
 def subjects_to_b64(subjects):

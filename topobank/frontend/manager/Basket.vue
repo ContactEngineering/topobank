@@ -8,13 +8,13 @@ export default {
         BasketElement
     },
     props: {
-        analysis_list_url: String,
-        csrf_token: String,
-        initial_basket_items: Object,
-        manager_download_selection_url: String,
-        manager_select_url: String
+        analysisListUrl: String,
+        csrfToken: String,
+        initialBasketItems: Object,
+        managerDownloadSelectionUrl: String,
+        managerSelectUrl: String
     },
-    inject: ['event_hub'],
+    inject: ['eventHub'],
     data() {
         return {
             keys: [],
@@ -22,11 +22,11 @@ export default {
         };
     },
     created() {
-        this.event_hub.on('basket-unselect', this.unselect);
-        this.event_hub.on('basket-update', this.update);
+        this.eventHub.on('basket-unselect', this.unselect);
+        this.eventHub.on('basket-update', this.update);
     },
     mounted() {
-        this.update(this.initial_basket_items);
+        this.update(this.initialBasketItems);
     },
     methods: {
         get_element(key) {
@@ -38,7 +38,7 @@ export default {
 
             if (basket_items === undefined) {
                 console.debug("Using initial basket items for upate.");
-                basket_items = this.initial_basket_items;
+                basket_items = this.initialBasketItems;
             }
 
             basket_items.forEach(function (item) {
@@ -54,12 +54,12 @@ export default {
 
         unselect_all() {
             const _this = this;
-            fetch(unselect_all_url, {method: 'POST', headers: {'X-CSRFToken': this.csrf_token}})
+            fetch(unselect_all_url, {method: 'POST', headers: {'X-CSRFToken': this.csrfToken}})
                 .then(response => response.json())
                 .then(data => {
                     console.log("keys to unselect: ", _this.keys);
                     _this.keys.forEach(function (key) {
-                        _this.event_hub.emit('basket-unselect-successful', key);
+                        _this.eventHub.emit('basket-unselect-successful', key);
                     });
                     _this.update(data);
                 })
@@ -67,21 +67,36 @@ export default {
                     console.error("Could not unselect: " + error);
                 });
         },
-
         unselect(key) {
             // First call unselect url for this element
             // then the additional handler if needed
             const elem = this.elements[key];
             const _this = this;
-            fetch(elem.unselect_url, {method: 'POST', headers: {'X-CSRFToken': this.csrf_token}})
+            fetch(elem.unselect_url, {method: 'POST', headers: {'X-CSRFToken': this.csrfToken}})
                 .then(response => response.json())
                 .then(data => {
                     _this.update(data);
-                    _this.event_hub.emit('basket-unselect-successful', key);
+                    _this.eventHub.emit('basket-unselect-successful', key);
                 })
                 .catch(error => {
                     console.error("Could not unselect: " + error);
                 });
+        },
+        analyze() {
+            // Construct subjects dictionary
+            let subjects = {}
+            for (const [key, value] of Object.entries(this.elements)) {
+                let [type, id] = key.split('-');
+                type = 'manager_' + type;
+                id = Number(id);
+                if (subjects[type] === undefined)
+                    subjects[type] = [id];
+                else
+                    subjects[type].push(id);
+            }
+            // Encode to base64 for passing in URL
+            let subjects_b64 = btoa(JSON.stringify(subjects));
+            window.location.href = `${this.analysisListUrl}?subjects=${subjects_b64}`;
         }
     }
 }
@@ -91,7 +106,7 @@ export default {
 <template>
     <div v-if="keys.length">
         <basket-element v-for="key in keys" v-bind:elem="get_element(key)" v-bind:key="key"></basket-element>
-        <a class="btn btn-sm btn-outline-success" :href="analysis_list_url">
+        <a class="btn btn-sm btn-outline-success" @click="analyze">
             Analyze
         </a>
         <div class="btn-group btn-group-sm float-right" role="group" aria-label="Actions on current selection">
@@ -99,7 +114,7 @@ export default {
                 Clear selection
             </button>
             <a class="btn btn-sm btn-outline-secondary"
-               :href="manager_download_selection_url"
+               :href="managerDownloadSelectionUrl"
                type="button"
                id="download-selection">
                 Download selected datasets
@@ -108,6 +123,6 @@ export default {
     </div>
     <div class="m-1" v-else>No items selected yet. In order to select for <em>comparative studies</em>,
         please check individual items on the
-        <a class="text-dark" href="{{ manager_select_url }}">datasets</a> tab.
+        <a class="text-dark" href="{{ managerSelectUrl }}">datasets</a> tab.
     </div>
 </template>
