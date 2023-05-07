@@ -26,7 +26,7 @@ export default {
         },
         functionId: Number,
         functionName: String,
-        subjects: Object,
+        subjects: String,
         txtDownloadUrl: String,
         uid: {
             type: String,
@@ -143,7 +143,11 @@ export default {
                 <div>Please wait...</div>
             </div>
 
-            <div v-if="_analysesAvailable" class="tab-content">
+            <div v-if="_analysesAvailable && _analyses.length == 0" class="tab-content">
+                This analysis reported no results for the selected datasets.
+            </div>
+
+            <div v-if="_analysesAvailable && _analyses.length > 0" class="tab-content">
                 <div class="tab-pane show active" role="tabpanel" aria-label="Tab showing a plot">
                     <div :class="['alert', message.alertClass]" v-for="message in _messages">
                         {{ message.message }}

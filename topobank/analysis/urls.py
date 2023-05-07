@@ -19,22 +19,22 @@ urlpatterns += [
     #
     path(
         'list/',  # TODO change to 'function', also rename name
-        view=login_required(views.AnalysesListView.as_view()),
+        view=login_required(views.AnalysesResultListView.as_view()),
         name='list'
     ),
     path(
         'collection/<int:collection_id>/',
-        view=login_required(views.AnalysesListView.as_view()),
+        view=login_required(views.AnalysesResultListView.as_view()),
         name='collection'
     ),
     path(
         'surface/<int:surface_id>/',
-        view=login_required(views.AnalysesListView.as_view()),
+        view=login_required(views.AnalysesResultListView.as_view()),
         name='surface'
     ),
     path(
         'topography/<int:topography_id>/',
-        view=login_required(views.AnalysesListView.as_view()),
+        view=login_required(views.AnalysesResultListView.as_view()),
         name='topography'
     ),
     re_path(
@@ -44,7 +44,7 @@ urlpatterns += [
     ),
     re_path(
         r'function/(?P<pk>[\d,]+)/$',
-        view=login_required(views.AnalysisFunctionDetailView.as_view()),
+        view=login_required(views.AnalysisResultDetailView.as_view()),
         name='function-detail'
     ),
     #

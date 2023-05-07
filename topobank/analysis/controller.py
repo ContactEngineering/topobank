@@ -409,6 +409,10 @@ class AnalysisController:
         It is not guaranteed that there are results for the returned analyses
         or if these analyses are marked as successful.
         """
+        # Return no results if subjects is empty list
+        if self._subjects is not None and len(self._subjects) == 0:
+            return []
+
         # Query for user
         query = Q(users=self._user)
 

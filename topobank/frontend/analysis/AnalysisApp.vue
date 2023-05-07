@@ -13,7 +13,7 @@ export default {
     },
     props: {
         csrfToken: String,
-        subjects: Object
+        subjects: String
     },
     data() {
         return {

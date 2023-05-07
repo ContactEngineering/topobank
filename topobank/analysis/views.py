@@ -53,7 +53,7 @@ class AnalysisResultView(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
 
 
 class AnalysisFunctionView(generics.ListAPIView):
-    """Retrieve status of analysis (GET) and renew analysis (PUT)"""
+    """Access to analysis function registry"""
     queryset = AnalysisFunction.objects.all().order_by('name')
     serializer_class = AnalysisFunctionSerializer
 
@@ -557,7 +557,7 @@ def extra_tabs_if_single_item_selected(topographies, surfaces):
     return tabs
 
 
-class AnalysisFunctionDetailView(DetailView):
+class AnalysisResultDetailView(DetailView):
     """Show analyses for a given analysis function.
     """
     model = AnalysisFunction
@@ -612,7 +612,7 @@ class AnalysisFunctionDetailView(DetailView):
         return context
 
 
-class AnalysesListView(TemplateView):
+class AnalysesResultListView(TemplateView):
     """View showing analyses from multiple functions.
     """
     template_name = "analysis/analyses_list.html"
