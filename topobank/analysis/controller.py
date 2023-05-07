@@ -5,7 +5,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 from django.db.models import Q
 
-from ..manager.utils import subjects_from_dict, subjects_to_dict
+from ..manager.utils import subjects_from_dict, subjects_to_dict, dict_from_b64, subjects_to_b64
 
 from ..taskapp.tasks import perform_analysis
 
@@ -275,10 +275,6 @@ class AnalysisController:
         # Calculate subjects for the analyses, filtered for those which have an implementation
         self._subjects = None if subjects is None else subjects_from_dict(subjects, function=self._function)
 
-        # The following is needed for re-triggering analyses, now filtered
-        # in order to trigger only for subjects which have an implementation
-        self._subjects_dict = None if self._subjects is None else subjects_to_dict(self._subjects)
-
         # Find the latest analyses for which the user has read permission for the related data
         self._analyses = self._get_latest_analyses()
 
@@ -305,7 +301,15 @@ class AnalysisController:
         if function_id is not None:
             function_id = int(function_id)
         subjects = data.get('subjects')
+        if subjects is None:
+            subjects = data.get('subjects_b64')
+            if subjects is not None:
+                subjects = dict_from_b64(subjects)
         function_kwargs = data.get('function_kwargs')
+        if function_kwargs is None:
+            function_kwargs = data.get('function_kwargs_b64')
+            if function_kwargs is not None:
+                function_kwargs = dict_from_b64(function_kwargs)
 
         return AnalysisController(user, subjects=subjects, function_id=function_id, function_kwargs=function_kwargs)
 
@@ -349,7 +353,15 @@ class AnalysisController:
 
     @property
     def subjects_dict(self):
-        return self._subjects_dict
+        # The following is needed for re-triggering analyses, now filtered
+        # in order to trigger only for subjects which have an implementation
+        return None if self._subjects is None else subjects_to_dict(self._subjects)
+
+    @property
+    def subjects_b64(self):
+        # The following is needed for re-triggering analyses, now filtered
+        # in order to trigger only for subjects which have an implementation
+        return None if self._subjects is None else subjects_to_b64(self._subjects)
 
     def get(self, task_states=None, has_result_file=None, subject_type=None, subject_id=None):
         """
