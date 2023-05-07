@@ -17,7 +17,7 @@ from rest_framework.response import Response
 
 import bokeh.palettes as palettes
 
-from pint import UnitRegistry, UndefinedUnitError
+from pint import DimensionalityError, UnitRegistry, UndefinedUnitError
 
 from trackstats.models import Metric
 
@@ -102,7 +102,7 @@ def generic_card_view(request):
         'analyses_failure': controller.get(['fa'], True),  # ..the ones which have failures and can't be displayed
         'analyses_unready': controller.get(['su', 'fa'], False),  # ..the ones which are still running
         'subjects_missing': controller.subjects_without_analysis_results,
-        'extra_warnings': [],  # use list of dicts of form {'alert_class': 'alert-info', 'message': 'your message'},
+        'messages': [],  # use list of dicts of form {'alertClass': 'alert-info', 'message': 'your message'},
         'analyses_renew_url': reverse('analysis:renew')
     })
 
@@ -325,19 +325,19 @@ def series_card_view(request):
         result_metadata = analysis.result_metadata
         series_metadata = result_metadata['series']
 
-        extra_warnings = []
+        messages = []
 
         if xunit is None:
             analysis_xscale = 1
         else:
             try:
                 analysis_xscale = ureg.convert(1, result_metadata['xunit'], xunit)
-            except UndefinedUnitError as exc:
+            except (UndefinedUnitError, DimensionalityError) as exc:
                 err_msg = f"Cannot convert x units when displaying results for analysis with id {analysis.id}. " \
                           f"Cause: {exc}"
                 _log.error(err_msg)
-                extra_warnings.append(
-                    dict(alert_class='alert-warning',
+                messages.append(
+                    dict(alertClass='alert-danger',
                          message=err_msg)
                 )
                 continue
@@ -346,12 +346,12 @@ def series_card_view(request):
         else:
             try:
                 analysis_yscale = ureg.convert(1, result_metadata['yunit'], yunit)
-            except UndefinedUnitError as exc:
+            except (UndefinedUnitError, DimensionalityError) as exc:
                 err_msg = f"Cannot convert y units when displaying results for analysis with id {analysis.id}. " \
                           f"Cause: {exc}"
                 _log.error(err_msg)
-                extra_warnings.append(
-                    dict(alert_class='alert-warning',
+                messages.append(
+                    dict(alertClass='alert-danger',
                          message=err_msg)
                 )
                 continue
@@ -436,7 +436,7 @@ def series_card_view(request):
     ]
 
     context['plotConfiguration'] = plot_configuration
-    context['extraWarnings'] = extra_warnings
+    context['messages'] = messages
 
     return Response(context)
 
