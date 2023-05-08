@@ -187,7 +187,7 @@
         {# Buttons #}
         <div class="row p-3">
           <div class="col">
-            <a href="{% url 'analysis:topography' topography.id %}" class="btn btn-default btn-block btn-lg">
+            <a href="{% url 'analysis:list' %}?subjects={{ subjects_b64 }}" class="btn btn-default btn-block btn-lg">
               {% fa5_icon 'chart-area' %} Analyze this measurement
             </a>
             {% if "change_surface" in surface_perms %}

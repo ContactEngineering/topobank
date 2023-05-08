@@ -5,7 +5,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 from django.db.models import Q
 
-from ..manager.utils import subjects_from_dict, subjects_to_dict, dict_from_b64, subjects_to_b64
+from ..manager.utils import subjects_from_dict, subjects_to_dict, dict_from_base64, subjects_to_base64
 
 from ..taskapp.tasks import perform_analysis
 
@@ -316,10 +316,10 @@ class AnalysisController:
             function_id = int(function_id)
         subjects = data.get('subjects')
         if subjects is not None and isinstance(subjects, str):
-            subjects = dict_from_b64(subjects)
+            subjects = dict_from_base64(subjects)
         function_kwargs = data.get('function_kwargs')
         if function_kwargs is not None and isinstance(function_kwargs, str):
-            function_kwargs = dict_from_b64(function_kwargs)
+            function_kwargs = dict_from_base64(function_kwargs)
 
         return AnalysisController(user, subjects=subjects, function_id=function_id, function_kwargs=function_kwargs,
                                   with_children=with_children)
@@ -372,7 +372,7 @@ class AnalysisController:
     def subjects_b64(self):
         # The following is needed for re-triggering analyses, now filtered
         # in order to trigger only for subjects which have an implementation
-        return None if self._subjects is None else subjects_to_b64(self._subjects)
+        return None if self._subjects is None else subjects_to_base64(self._subjects)
 
     def get(self, task_states=None, has_result_file=None, subject_type=None, subject_id=None):
         """

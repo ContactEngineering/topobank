@@ -21,7 +21,7 @@ from pint import DimensionalityError, UnitRegistry, UndefinedUnitError
 from trackstats.models import Metric
 
 from ..manager.models import Topography, Surface, SurfaceCollection
-from ..manager.utils import instances_to_selection, selection_to_subjects_dict, subjects_from_b64
+from ..manager.utils import instances_to_selection, selection_to_subjects_dict, subjects_from_base64
 from ..usage_stats.utils import increase_statistics_by_date_and_object
 from .controller import AnalysisController, renew_analysis
 from .models import Analysis, AnalysisFunction, AnalysisCollection
@@ -623,14 +623,22 @@ class AnalysesResultListView(TemplateView):
         topographies = []
         surfaces = []
 
+        # Find out what the subjects are. The usual query is a base64 encoded
+        # subjects dictionary passed as the 'subjects' argument.
         subjects = self.request.GET.get('subjects')
+        topography = self.request.GET.get('topography')
+        surface = self.request.GET.get('surface')
         if subjects is not None:
-            subjects = subjects_from_b64(subjects)
+            subjects = subjects_from_base64(subjects)
 
             # Update session to reflect selection
             topographies = [t for t in subjects if isinstance(t, Topography)]
             surfaces = [t for t in subjects if isinstance(t, Surface)]
             self.request.session['selection'] = instances_to_selection(topographies=topographies, surfaces=surfaces)
+        elif topography is not None:
+            pass
+        elif surface is not None:
+            pass
 
         # Decide whether to open extra tabs for surface/topography details
         tabs = extra_tabs_if_single_item_selected(topographies, surfaces)

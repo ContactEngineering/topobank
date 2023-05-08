@@ -2,7 +2,7 @@ import pytest
 from django.shortcuts import reverse
 
 from ..serializers import SurfaceSerializer
-from ..utils import subjects_to_b64
+from ..utils import subjects_to_base64
 from .utils import SurfaceFactory, Topography1DFactory, UserFactory, ordereddicts_to_dicts
 
 
@@ -37,9 +37,9 @@ def test_surface_serializer(rf):
     topo1a_prefix = f"/manager/topography/{topo1a.pk}/"
     topo1b_prefix = f"/manager/topography/{topo1b.pk}/"
 
-    topo1a_analyze = f"/analysis/html/list/?subjects={subjects_to_b64([topo1a])}"
-    topo1b_analyze = f"/analysis/html/list/?subjects={subjects_to_b64([topo1b])}"
-    surface1_analyze = f"/analysis/html/list/?subjects={subjects_to_b64([surface1])}"
+    topo1a_analyze = f"/analysis/html/list/?subjects={subjects_to_base64([topo1a])}"
+    topo1b_analyze = f"/analysis/html/list/?subjects={subjects_to_base64([topo1b])}"
+    surface1_analyze = f"/analysis/html/list/?subjects={subjects_to_base64([surface1])}"
 
     assert result[0] == {
 

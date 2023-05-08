@@ -678,17 +678,17 @@ def subjects_from_dict(subjects_dict, function=None):
     return subjects
 
 
-def dict_to_b64(d):
+def dict_to_base64(d):
     """URL-safe base64 encoding of a dictionary."""
     return base64.urlsafe_b64encode(json.dumps(d).encode()).decode()
 
 
-def dict_from_b64(s):
+def dict_from_base64(s):
     """Return dictionary given a base64 encoded variant"""
     return json.loads(base64.urlsafe_b64decode(s.encode()).decode())
 
 
-def subjects_to_b64(subjects):
+def subjects_to_base64(subjects):
     """
     Turns and encode URL into a list of subjects.
 
@@ -701,10 +701,10 @@ def subjects_to_b64(subjects):
     -------
     List of subject instances (e.g. Topography or Surface)
     """
-    return dict_to_b64(subjects_to_dict(subjects))
+    return dict_to_base64(subjects_to_dict(subjects))
 
 
-def subjects_from_b64(url):
+def subjects_from_base64(url):
     """
     Returns a string suitable for passing subjects (topography,
     surfaces or surface collections) in an URL.
@@ -718,7 +718,7 @@ def subjects_from_b64(url):
     -------
     Encoded dictionary object.
     """
-    return subjects_from_dict(dict_from_b64(url))
+    return subjects_from_dict(dict_from_base64(url))
 
 
 def surface_collection_name(surface_names, max_total_length=MAX_LENGTH_SURFACE_COLLECTION_NAME):

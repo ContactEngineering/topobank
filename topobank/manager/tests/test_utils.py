@@ -11,7 +11,7 @@ from ..tests.utils import two_topos, Topography1DFactory, Topography2DFactory, S
 from ..utils import selection_to_instances, instances_to_selection, tags_for_user, \
     instances_to_topographies, surfaces_for_user, instances_to_surfaces, \
     current_selection_as_surface_list, surface_collection_name, subjects_to_dict, subjects_from_dict, \
-    subjects_to_b64, subjects_from_b64
+    subjects_to_base64, subjects_from_base64
 from ..models import Surface, Topography
 
 
@@ -264,4 +264,4 @@ def test_subjects_to_dict(user_three_topographies_three_surfaces_three_tags):
 def test_subjects_to_url(user_three_topographies_three_surfaces_three_tags):
     topo1, topo2, topo3 = Topography.objects.all()
     surf1, surf2, surf3 = Surface.objects.all()
-    assert subjects_from_b64(subjects_to_b64([topo1, topo2, surf3])) == [topo1, topo2, surf3]
+    assert subjects_from_base64(subjects_to_base64([topo1, topo2, surf3])) == [topo1, topo2, surf3]

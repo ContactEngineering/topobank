@@ -54,7 +54,7 @@ from .serializers import SurfaceSerializer, TagSerializer
 from .utils import selected_instances, bandwidths_data, get_topography_reader, tags_for_user, get_reader_infos, \
     mailto_link_for_reporting_an_error, current_selection_as_basket_items, filtered_surfaces, \
     filtered_topographies, get_search_term, get_category, get_sharing_status, get_tree_mode, \
-    get_permission_table_data
+    get_permission_table_data, subjects_to_base64
 from ..usage_stats.utils import increase_statistics_by_date, increase_statistics_by_date_and_object
 from ..users.models import User
 from ..publication.models import Publication, MAX_LEN_AUTHORS_FIELD
@@ -688,11 +688,12 @@ def topography_plot(request, pk):
 class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
     model = Topography
     context_object_name = 'topography'
-
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
         topo = self.object
+        context['subjects_b64'] = subjects_to_base64([topo])
+
         try:
             context['topography_next'] = topo.get_next_by_measurement_date(surface=topo.surface).id
         except Topography.DoesNotExist:
@@ -891,6 +892,8 @@ class SurfaceDetailView(DetailView):
         context = super().get_context_data(**kwargs)
 
         surface = self.object
+        context['subjects_b64'] = subjects_to_base64([surface])
+
         #
         # Count this event for statistics
         #

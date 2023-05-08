@@ -6,7 +6,7 @@ from rest_framework.test import APIRequestFactory
 
 from ..models import TagModel
 from ..views import SurfaceSearchPaginator, SurfaceListView, TagTreeView
-from ..utils import subjects_to_b64
+from ..utils import subjects_to_base64
 
 from .utils import ordereddicts_to_dicts, Topography1DFactory, UserFactory, SurfaceFactory, search_surfaces
 
@@ -96,12 +96,12 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
 
     surface3_prefix = f"/manager/surface/{surface3.pk}/"
 
-    topo1a_analyze = f"/analysis/html/list/?subjects={subjects_to_b64([topo1a])}"
-    topo1b_analyze = f"/analysis/html/list/?subjects={subjects_to_b64([topo1b])}"
-    topo2a_analyze = f"/analysis/html/list/?subjects={subjects_to_b64([topo2a])}"
-    topo2b_analyze = f"/analysis/html/list/?subjects={subjects_to_b64([topo2b])}"
-    surface1_analyze = f"/analysis/html/list/?subjects={subjects_to_b64([surface1])}"
-    surface2_analyze = f"/analysis/html/list/?subjects={subjects_to_b64([surface2])}"
+    topo1a_analyze = f"/analysis/html/list/?subjects={subjects_to_base64([topo1a])}"
+    topo1b_analyze = f"/analysis/html/list/?subjects={subjects_to_base64([topo1b])}"
+    topo2a_analyze = f"/analysis/html/list/?subjects={subjects_to_base64([topo2a])}"
+    topo2b_analyze = f"/analysis/html/list/?subjects={subjects_to_base64([topo2b])}"
+    surface1_analyze = f"/analysis/html/list/?subjects={subjects_to_base64([surface1])}"
+    surface2_analyze = f"/analysis/html/list/?subjects={subjects_to_base64([surface2])}"
 
     expected_dicts = [
         {
@@ -525,12 +525,12 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
 
     surface3_prefix = f"/manager/surface/{surface3.pk}/"
 
-    topo1a_analyze = f"/analysis/html/list/?subjects={subjects_to_b64([topo1a])}"
-    topo1b_analyze = f"/analysis/html/list/?subjects={subjects_to_b64([topo1b])}"
-    topo2a_analyze = f"/analysis/html/list/?subjects={subjects_to_b64([topo2a])}"
-    topo2b_analyze = f"/analysis/html/list/?subjects={subjects_to_b64([topo2b])}"
-    surface1_analyze = f"/analysis/html/list/?subjects={subjects_to_b64([surface1])}"
-    surface2_analyze = f"/analysis/html/list/?subjects={subjects_to_b64([surface2])}"
+    topo1a_analyze = f"/analysis/html/list/?subjects={subjects_to_base64([topo1a])}"
+    topo1b_analyze = f"/analysis/html/list/?subjects={subjects_to_base64([topo1b])}"
+    topo2a_analyze = f"/analysis/html/list/?subjects={subjects_to_base64([topo2a])}"
+    topo2b_analyze = f"/analysis/html/list/?subjects={subjects_to_base64([topo2b])}"
+    surface1_analyze = f"/analysis/html/list/?subjects={subjects_to_base64([surface1])}"
+    surface2_analyze = f"/analysis/html/list/?subjects={subjects_to_base64([surface2])}"
 
     expected_dict_topo1a = {
         'creator': user_url,
