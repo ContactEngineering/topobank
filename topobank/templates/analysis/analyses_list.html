@@ -6,18 +6,21 @@
 {% block content %}
 
 <div class="tab-content mt-2">
-  <div id="analyses" class="tab-pane active"></div>
+  <div id="analyses" class="tab-pane active">
+    <div class="tab-content">
+      <span class="spinner"></span>
+      <div>Please wait...</div>
+    </div>
+  </div>
 </div>
 {% endblock content %}
 
 {% block javascript %}
 
-<!-- create card apps -->
-{{ subjects|json_script:'subjects' }}
 <script src="{% static 'js/analysis_app.bundle.js' %}"></script>
 <script>
   const params = new URLSearchParams(window.location.search);
-  topobank.analysis_app.createAnalysisApp('#analyses', {
+  topobank.analysis_app.createAnalysisResultsListApp('#analyses', {
     csrfToken: '{{ csrf_token }}',
     subjects: params.get('subjects')
   });

@@ -1,8 +1,15 @@
 import {createApp} from 'vue';
-import AnalysisApp from './AnalysisApp.vue';
+import AnalysisResultsList from './AnalysisResultsList.vue';
+import AnalysisResultsDetail from './AnalysisResultsDetail.vue';
 
-export function createAnalysisApp(el, props) {
-    let app = createApp(AnalysisApp, props);
+export function createAnalysisResultsListApp(el, props) {
+    let app = createApp(AnalysisResultsList, props);
+    app.mount(el);
+    return app;
+}
+
+export function createAnalysisResultsDetailApp(el, props) {
+    let app = createApp(AnalysisResultsDetail, props);
     app.mount(el);
     return app;
 }

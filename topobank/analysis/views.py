@@ -577,14 +577,9 @@ class AnalysisResultDetailView(DetailView):
 
         # get analysis result type
         visualization_app_name, visualization_type = reg.get_visualization_type_for_function_name(function.name)
-        api_name = f'{visualization_app_name}:card-{visualization_type}'
-        card = dict(
-            visualizationType=visualization_type,
-            apiUrl=reverse(api_name),
-            function=function,
-            subjects=subjects)
 
-        context['card'] = card
+        context['function'] = function
+        context['visualization_type'] = visualization_type
 
         # Decide whether to open extra tabs for surface/topography details
         tabs = extra_tabs_if_single_item_selected(effective_topographies, effective_surfaces)

@@ -12,21 +12,19 @@
 {% block content %}
 
   <div class="tab-content mt-2">
-    <div class="tab-pane active">
+    <div id="app" class="tab-pane active">
       <!--
       Show card. Will be replaced by AJAX call.
       -->
-      <div id="card-wrapper">
-        <div id="app" class="card">
-          <div class="card-header">
-            <h5>{{ card.function.name }}</h5>
-          </div>
-          <div class="card-body">
-              <span class="spinner"></span>
-              <div id="card-wait-text">
-                Please wait...
-              </div>
-          </div>
+      <div class="card">
+        <div class="card-header">
+          <h5>{{ function.name }}</h5>
+        </div>
+        <div class="card-body">
+            <span class="spinner"></span>
+            <div id="card-wait-text">
+              Please wait...
+            </div>
         </div>
       </div>
     </div>
@@ -36,22 +34,15 @@
 
 {% block javascript %}
 
-<!-- create card apps -->
-{% with card_app_js="js/"|add:card.visualization_type|add:"_card.bundle.js" %}
-<script src="{% static card_app_js %}"></script>
-{% endwith %}
-{% with card_data_id=card.id|add:"-subjects" %}
-{{ card.subjects|json_script:card_data_id }}
-{% endwith %}
+<script src="{% static 'js/analysis_app.bundle.js' %}"></script>
 <script>
-  topobank.{{ card.visualization_type }}_card.createCardApp('#app', {
-    apiUrl: '{{ card.api_url }}',
+  const params = new URLSearchParams(window.location.search);
+  topobank.analysis_app.createAnalysisResultsDetailApp('#app', {
     csrfToken: '{{ csrf_token }}',
-    detailUrl: "{% url 'analysis:results-detail' card.function.id %}",
-    enlarged: true,
-    functionId: {{ card.function.id }},
-    functionName: '{{ card.function.name }}',
-    subjects: JSON.parse(document.getElementById('{{ card.id }}-subjects').textContent)
+    functionId: {{ function.id }},
+    functionName: '{{ function.name }}',
+    visualizationType: '{{ visualization_type }}',
+    subjects: params.get('subjects')
   });
 </script>
 

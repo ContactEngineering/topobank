@@ -6,3 +6,4 @@ def test_api():
     assert reverse('analysis:registry') == '/analysis/api/registry/'
     assert reverse('analysis:data', kwargs=dict(pk=123, location='abc')) == '/analysis/data/123/abc'
     assert reverse('analysis:results-list') == '/analysis/html/list/'
+    assert reverse('analysis:results-detail', kwargs=dict(pk=123)) == '/analysis/html/detail/123/'

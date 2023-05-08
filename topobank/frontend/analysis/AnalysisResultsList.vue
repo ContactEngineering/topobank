@@ -5,7 +5,7 @@ import RoughnessParametersCard from 'topobank_statistics/RoughnessParametersCard
 import ContactMechanicsCard from 'topobank_contact/ContactMechanicsCard.vue';
 
 export default {
-    name: 'analysis-app',
+    name: 'analysis-results-list',
     components: {
         SeriesCard,
         RoughnessParametersCard,

@@ -4,6 +4,7 @@ import {v4 as uuid4} from 'uuid';
 
 import BokehPlot from '../components/BokehPlot.vue';
 import BibliographyModal from './BibliographyModal.vue';
+import CardExpandButton from './CardExpandButton.vue';
 import TasksButton from './TasksButton.vue';
 
 export default {
@@ -11,6 +12,7 @@ export default {
     components: {
         BibliographyModal,
         BokehPlot,
+        CardExpandButton,
         TasksButton
     },
     props: {
@@ -19,7 +21,10 @@ export default {
             default: '/analysis/api/card/series'
         },
         csrfToken: String,
-        detailUrl: String,
+        detailUrl: {
+            type: String,
+            default: '/analysis/html/detail/'
+        },
         enlarged: {
             type: Boolean,
             default: true
@@ -126,11 +131,12 @@ export default {
                 <button @click="updateCard" class="btn btn-default float-right ml-1">
                     <i class="fa fa-redo"></i>
                 </button>
-                <div v-if="!enlarged" class="btn-group btn-group-sm float-right">
-                    <a :href="detailUrl" class="btn btn-default float-right">
-                        <i class="fa fa-expand"></i>
-                    </a>
-                </div>
+                <card-expand-button v-if="!enlarged"
+                                    :detail-url="detailUrl"
+                                    :function-id="functionId"
+                                    :subjects="subjects"
+                                    class="btn-group btn-group-sm float-right">
+                </card-expand-button>
             </div>
             <a class="text-dark" href="#" data-toggle="collapse" :data-target="`#sidebar-${uid}`">
                 <h5><i class="fa fa-bars"></i> {{ _title }}</h5>
