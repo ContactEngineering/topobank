@@ -262,7 +262,7 @@ def test_show_multiple_analyses_for_two_functions(client, two_topos):
     #
     # Check response when selecting only first function, both analyses should be shown
     #
-    response = client.post(reverse("analysis:list"),
+    response = client.post(reverse("analysis:results-list"),
                            data={
                                'functions': [af1.id],
                            }, follow=True)
@@ -275,7 +275,7 @@ def test_show_multiple_analyses_for_two_functions(client, two_topos):
     #
     # Check response when selecting only both functions, both analyses should be shown
     #
-    response = client.post(reverse("analysis:list"),
+    response = client.post(reverse("analysis:results-list"),
                            data={
                                'functions': [af1.id, af2.id],
                            }, follow=True)

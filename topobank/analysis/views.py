@@ -579,8 +579,8 @@ class AnalysisResultDetailView(DetailView):
         visualization_app_name, visualization_type = reg.get_visualization_type_for_function_name(function.name)
         api_name = f'{visualization_app_name}:card-{visualization_type}'
         card = dict(
-            visualization_type=visualization_type,
-            api_url=reverse(api_name),
+            visualizationType=visualization_type,
+            apiUrl=reverse(api_name),
             function=function,
             subjects=subjects)
 
@@ -592,7 +592,7 @@ class AnalysisResultDetailView(DetailView):
             {
                 'title': f"Analyze",
                 'icon': "chart-area",
-                'href': reverse('analysis:list'),
+                'href': reverse('analysis:results-list'),
                 'active': False,
                 'login_required': False,
                 'tooltip': "Results for selected analysis functions",

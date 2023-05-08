@@ -14,7 +14,7 @@ export default {
     props: {
         apiRegistryUrl: {
             type: String,
-            default: '/analysis/api/registry'
+            default: '/analysis/api/registry/'
         },
         csrfToken: String,
         subjects: String

@@ -20,21 +20,17 @@ urlpatterns += [
     path(
         'html/list/',  # TODO change to 'function', also rename name
         view=login_required(views.AnalysesResultListView.as_view()),
-        name='list'
+        name='results-list'
     ),
     re_path(
-        r'html/function/(?P<pk>[\d,]+)/$',
+        r'html/detail/(?P<pk>[\d,]+)/$',
         view=login_required(views.AnalysisResultDetailView.as_view()),
-        name='function-detail'
+        name='results-detail'
     ),
     #
     # API routes that return empty JSON
     #
-    path(
-        'api/submit/',
-        view=login_required(views.submit_analyses_view),
-        name='card-submit'
-    ),
+    # GET
     # Return function implementations
     path(
         'api/registry/',

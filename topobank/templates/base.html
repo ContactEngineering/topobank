@@ -482,7 +482,7 @@
       // only create basket if target element exists
       var basket = topobank.base.createBasketApp('#basket', eventHub, {
         initialBasketItems: {{ basket_items_json | safe }},
-        analysisListUrl: "{% url 'analysis:list' %}",
+        analysisListUrl: "{% url 'analysis:results-list' %}",
         managerDownloadSelectionUrl: "{% url 'manager:download-selection' %}",
         managerSelectUrl: "{% url 'manager:select' %}",
         csrfToken: '{{ csrf_token }}'

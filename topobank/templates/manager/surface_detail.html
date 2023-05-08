@@ -314,7 +314,7 @@
             <div class="col">
 
               {% if surface.num_topographies > 0 %}
-                <a href="{% url 'analysis:list' %}?subjects={{ subjects_b64 }}" class="btn btn-default btn-block btn-lg">
+                <a href="{% url 'analysis:results-list' %}?subjects={{ subjects_b64 }}" class="btn btn-default btn-block btn-lg">
                     {% fa5_icon 'chart-area' %} Analyze this digital surface twin
                 </a>
               {% endif %}

@@ -85,7 +85,6 @@ export default {
             })
                 .then(response => response.json())
                 .then(data => {
-                    console.log(data);
                     this._analyses = data.analyses;
                     this._title = data.plotConfiguration.title;
                     this._plots = [{

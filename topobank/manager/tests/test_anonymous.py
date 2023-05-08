@@ -124,28 +124,3 @@ def test_download_analyses_without_permission(client, test_analysis_function, ha
                                   kwargs=dict(ids=f"{analysis.id}",
                                               file_format='txt')))
     assert response.status_code == 403
-
-
-@pytest.mark.skip("card-submit is earmarked for removal")
-@pytest.mark.django_db
-def test_submit_analyses_without_permission(api_client, handle_usage_statistics):
-    # Create user, surface and topography and try to trigger analysis on both
-    bob = UserFactory()
-    surface = SurfaceFactory(creator=bob)
-    topo = Topography1DFactory(surface=surface)
-    #
-    # This test uses a request factory instead of a client
-    # therefore the middleware is not used and we have to
-    # set guardian's anonymous user manually.
-    # Using the request factory is more lightweight
-    # and probably should be used more in tests for Topobank.
-    #
-    response = api_client.post(reverse('analysis:card-submit'),
-                               kwargs=dict(subjects=subjects_to_dict([topo])),
-                               format='json')
-    assert response.status_code == 403  # Forbidden
-
-    response = api_client.post(reverse('analysis:card-submit'),
-                               kwargs=dict(subjects=subjects_to_dict([surface])),
-                               format='json')
-    assert response.status_code == 403  # Forbidden
