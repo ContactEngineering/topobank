@@ -26,17 +26,23 @@ export default {
         }
     },
     mounted() {
+        const _this = this;
         fetch(this.apiRegistryUrl, {method: 'GET', headers: {'X-CSRFToken': this.csrfToken}})
             .then(response => response.json())
             .then(data => {
                 this._cards = data.map(function (v) {
-                    return {...v, visible: false}
+                    return {...v, visible: _this.$cookies.get(`card-${v.id}`)}
                 });
             });
     },
     computed: {
         visibleCards() {
             return this._cards.filter(v => v.visible);
+        }
+    },
+    methods: {
+        updateCookie(event) {
+            this.$cookies.set(`card-${event.target.value}`, event.target.checked);
         }
     }
 };
@@ -52,7 +58,8 @@ export default {
                        class="custom-control-input"
                        name="functions"
                        :value="card.id"
-                       :id="`id_functions_${card.id}`">
+                       :id="`id_functions_${card.id}`"
+                       @click="updateCookie">
                 <label class="custom-control-label"
                        :for="`id_functions_${card.id}`">
                     {{ card.name }}
