@@ -590,7 +590,7 @@ class AnalysisResultDetailView(DetailView):
                 'href': f"{reverse('analysis:results-list')}?subjects={self.request.GET.get('subjects')}",
                 'active': False,
                 'login_required': False,
-                'tooltip': "Results for selected analysis functions",
+                'tooltip': "Results for selected analysis functions"
             },
             {
                 'title': f"{function.name}",
