@@ -31,8 +31,11 @@ export default {
             .then(response => response.json())
             .then(data => {
                 this._cards = data.map(function (v) {
-                    return {...v, visible: _this.$cookies.get(`card-${v.id}`)}
+                    let visible = _this.$cookies.get(`card-${v.id}`);
+                    visible = visible === null ? false : visible === 'true';
+                    return {...v, visible: visible}
                 });
+                console.log(this._cards);
             });
     },
     computed: {
