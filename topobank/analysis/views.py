@@ -587,7 +587,7 @@ class AnalysisResultDetailView(DetailView):
             {
                 'title': f"Analyze",
                 'icon': "chart-area",
-                'href': reverse('analysis:results-list'),
+                'href': f"{reverse('analysis:results-list')}?subjects={self.request.GET.get('subjects')}",
                 'active': False,
                 'login_required': False,
                 'tooltip': "Results for selected analysis functions",
@@ -595,7 +595,7 @@ class AnalysisResultDetailView(DetailView):
             {
                 'title': f"{function.name}",
                 'icon': "chart-area",
-                'href': self.request.path,
+                'href': f"{self.request.path}?subjects={self.request.GET.get('subjects')}",
                 'active': True,
                 'login_required': False,
                 'tooltip': f"Results for analysis '{function.name}'",
@@ -641,7 +641,7 @@ class AnalysesResultListView(TemplateView):
             'title': f"Analyze",
             'icon': "chart-area",
             'icon-style-prefix': 'fas',
-            'href': self.request.path,
+            'href': f"{reverse('analysis:results-list')}?subjects={self.request.GET.get('subjects')}",
             'active': True,
             'login_required': False,
             'tooltip': "Results for selected analysis functions",
