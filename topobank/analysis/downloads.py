@@ -1,9 +1,11 @@
 """
 Views and helper functions for downloading analyses.
 """
+
 import tempfile
 
 import openpyxl
+import pint
 from openpyxl.worksheet.hyperlink import Hyperlink
 from openpyxl.styles import Font
 from django.http import HttpResponse, HttpResponseForbidden, HttpResponseBadRequest, HttpResponseNotFound
@@ -259,6 +261,8 @@ def download_plot_analyses_to_txt(request, analyses):
         -------
         HTTPResponse
     """
+    ureg = pint.UnitRegistry()
+    ureg.default_format = '~P'  # short and pretty
 
     # Collect publication links, if any
     publication_urls = publications_urls(request, analyses)
@@ -292,8 +296,25 @@ def download_plot_analyses_to_txt(request, analyses):
         f.write(analysis_header_for_txt_file(analysis))
 
         result = analysis.result
-        xunit_str = '' if result['xunit'] is None else ' ({})'.format(result['xunit'])
-        yunit_str = '' if result['yunit'] is None else ' ({})'.format(result['yunit'])
+        xunit = result['xunit']
+        yunit = result['yunit']
+
+        # Convert units to SI
+        print(xunit, yunit)
+        xconv = 1
+        if xunit is not None:
+            u = ureg(xunit).to_base_units()
+            xunit = str(u.u)
+            xconv = u.m
+        yconv = 1
+        if yunit is not None:
+            u = ureg(yunit).to_base_units()
+            yunit = str(u.u)
+            yconv = u.m
+        print(xunit, yunit, xconv, yconv)
+
+        xunit_str = '' if xunit is None else ' ({})'.format(xunit)
+        yunit_str = '' if yunit is None else ' ({})'.format(yunit)
         header = 'Columns: {}{}, {}{}'.format(result['xlabel'], xunit_str, result['ylabel'], yunit_str)
 
         std_err_y_in_series = any('std_err_y' in s.keys() for s in result['series'])
@@ -304,10 +325,10 @@ def download_plot_analyses_to_txt(request, analyses):
                 '# could be computed because the average contains only a single data point.\n\n'])
 
         for series in result['series']:
-            series_data = [series['x'], series['y']]
+            series_data = [np.array(series['x']) * xconv, np.array(series['y']) * yconv]
             if std_err_y_in_series:
                 try:
-                    std_err_y = series['std_err_y']
+                    std_err_y = series['std_err_y'] * yconv
                     if hasattr(std_err_y, 'filled'):
                         std_err_y = std_err_y.filled(np.nan)
                     series_data.append(std_err_y)
