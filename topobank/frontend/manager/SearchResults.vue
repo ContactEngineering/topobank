@@ -355,7 +355,8 @@ export default {
 
 <template>
     <basket :csrf-token="csrf_token"
-            :basket-items="_selection">
+            :basket-items="_selection"
+            @unselect-successful="unselect">
     </basket>
     <form>
         <div class="d-flex flex-row">

@@ -32,10 +32,6 @@ export default {
             _elements: {} // key: key like "surface-1", value is object, see below
         };
     },
-    created() {
-        //this.eventHub.on('basket-unselect', this.unselect);
-        //this.eventHub.on('basket-update', this.update);
-    },
     mounted() {
         this.update(this.basketItems);
     },
@@ -69,7 +65,7 @@ export default {
                 .then(data => {
                     console.log("keys to unselect: ", _this._keys);
                     _this._keys.forEach(function (key) {
-                        //_this.eventHub.emit('basket-unselect-successful', key);
+                        _this.$emit('unselect-successful', key);
                     });
                     _this.update(data);
                 })
@@ -86,7 +82,7 @@ export default {
                 .then(response => response.json())
                 .then(data => {
                     _this.update(data);
-                    //_this.eventHub.emit('basket-unselect-successful', key);
+                    _this.$emit('unselect-successful', key);
                 })
                 .catch(error => {
                     console.error("Could not unselect: " + error);
@@ -120,7 +116,11 @@ export default {
 <template>
     <div id="basket-container" class="container-fluid bg-light border py-2 mb-5">
         <div v-if="_keys.length">
-            <basket-element v-for="key in _keys" v-bind:elem="get_element(key)" v-bind:key="key"></basket-element>
+            <basket-element v-for="key in _keys"
+                            v-bind:elem="get_element(key)"
+                            v-bind:key="key"
+                            @unselect="unselect">
+            </basket-element>
             <a class="btn btn-sm btn-outline-success" @click="analyze">
                 Analyze
             </a>
