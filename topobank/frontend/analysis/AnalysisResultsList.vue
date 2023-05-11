@@ -3,10 +3,12 @@
 import SeriesCard from './SeriesCard.vue';
 import RoughnessParametersCard from 'topobank_statistics/RoughnessParametersCard.vue';
 import ContactMechanicsCard from 'topobank_contact/ContactMechanicsCard.vue';
+import Basket from "topobank/manager/Basket.vue";
 
 export default {
     name: 'analysis-results-list',
     components: {
+        Basket,
         SeriesCard,
         RoughnessParametersCard,
         ContactMechanicsCard
@@ -38,6 +40,16 @@ export default {
             });
     },
     computed: {
+        subjectsAsBasketItems() {
+            const subjects = JSON.parse(atob(this.subjects));
+            let basket = [];
+            for (const [key, value] of Object.entries(subjects)) {
+                for (const id of value) {
+                    basket.push(`${key}-${id}`);
+                }
+            }
+            return basket;
+        },
         visibleCards() {
             return this._cards.filter(v => v.visible);
         }
@@ -51,6 +63,9 @@ export default {
 </script>
 
 <template>
+    <basket :csrf-token="csrfToken"
+            :basket-items="subjectsAsBasketItems">
+    </basket>
     <div class="row">
         <div class="col-12 form-group">
             <div v-for="card in this._cards"
