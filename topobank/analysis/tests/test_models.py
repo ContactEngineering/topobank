@@ -130,7 +130,7 @@ def test_analysis_times(two_topos, test_analysis_function):
     assert analysis.end_time == datetime.datetime(2018, 1, 1, 13)
     assert analysis.duration == datetime.timedelta(0, 3600)
 
-    assert analysis.get_kwargs_display() == str({'a': 2, 'b': 4})
+    assert analysis.kwargs == {'a': 2, 'b': 4}
 
 
 @pytest.mark.django_db

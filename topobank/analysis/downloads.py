@@ -21,6 +21,7 @@ from ..manager.models import Surface
 from .registry import register_download_function, AnalysisRegistry, UnknownKeyException
 from .functions import VIZ_SERIES
 
+
 #######################################################################
 # Download views
 #######################################################################
@@ -135,14 +136,17 @@ def analyses_meta_data_dataframe(analyses, request):
                 properties += ['PLEASE CITE THESE DOIs', '']
                 values += [', '.join(dois), '']
 
-        properties += ['Subject Type', 'Subject Name',
-                       'Creator',
-                       'Further arguments of analysis function', 'Start time of analysis task',
+        properties += ['Subject Type', 'Subject Name', 'Creator', 'Instrument name', 'Instrument type',
+                       'Instrument parameters', 'Further arguments of analysis function', 'Start time of analysis task',
                        'End time of analysis task', 'Duration of analysis task']
 
         values += [str(analysis.subject.get_content_type().model), str(analysis.subject.name),
                    str(analysis.subject.creator) if hasattr(analysis.subject, 'creator') else '',
-                   analysis.get_kwargs_display(), str(analysis.start_time),
+                   str(analysis.subject.instrument_name) if hasattr(analysis.subject, 'instrument_name') else '',
+                   str(analysis.subject.instrument_type) if hasattr(analysis.subject, 'instrument_type') else '',
+                   str(analysis.subject.instrument_parameters)
+                   if hasattr(analysis.subject, 'instrument_parameters') else '',
+                   str(analysis.kwargs), str(analysis.start_time),
                    str(analysis.end_time), str(analysis.duration)]
 
         if analysis.configuration is None:
@@ -212,17 +216,22 @@ def analysis_header_for_txt_file(analysis, as_comment=True, dois=False):
     """
 
     subject = analysis.subject
-    subject_creator = subject.creator if hasattr(subject, 'creator') else ''
     subject_type_str = analysis.subject_type.model.title()
     headline = f"{subject_type_str}: {subject.name}"
 
-    s = f'{headline}\n' +\
-        '='*len(headline) + '\n' +\
-        f'Creator: {subject_creator}\n' +\
-        f'Further arguments of analysis function: {analysis.get_kwargs_display()}\n' +\
-        f'Start time of analysis task: {analysis.start_time}\n' +\
-        f'End time of analysis task: {analysis.end_time}\n' +\
-        f'Duration of analysis task: {analysis.duration}\n'
+    s = f'{headline}\n' + '=' * len(headline) + '\n'
+    if hasattr(subject, 'creator'):
+        s += f'Creator: {subject.creator}\n'
+    if hasattr(subject, 'instrument_name'):
+        s += f'Instrument name: {subject.instrument_name}\n'
+    if hasattr(subject, 'instrument_type'):
+        s += f'Instrument type: {subject.instrument_type}\n'
+    if hasattr(subject, 'instrument_parameters'):
+        s += f'Instrument parameters: {subject.instrument_parameters}\n'
+    s += f'Further arguments of analysis function: {analysis.kwargs}\n' + \
+         f'Start time of analysis task: {analysis.start_time}\n' + \
+         f'End time of analysis task: {analysis.end_time}\n' + \
+         f'Duration of analysis task: {analysis.duration}\n'
     if analysis.configuration is None:
         s += 'Versions of dependencies (like "SurfaceTopography") are unknown for this analysis.\n'
         s += 'Please recalculate in order to have version information here.\n'
@@ -472,8 +481,6 @@ def download_plot_analyses_to_xlsx(request, analyses):
             sheet["D1"].value = "Click to jump back to INDEX"
             sheet["D1"].style = "Hyperlink"
 
-
-
     excel_writer.close()
 
     filename = '{}.xlsx'.format(analysis.function.name).replace(' ', '_')
@@ -487,7 +494,7 @@ def download_plot_analyses_to_xlsx(request, analyses):
 
     index_headers = ["Subject Name", "Subject Type", "Function Name", "Data Series", "Link"]
     for col_idx, col_header in enumerate(index_headers):
-        header_cell = index_ws.cell(row=1, column=col_idx+1)
+        header_cell = index_ws.cell(row=1, column=col_idx + 1)
         header_cell.value = col_header
         header_cell.font = bold_font
 
@@ -512,7 +519,7 @@ def download_plot_analyses_to_xlsx(request, analyses):
         hyperlink_cell.style = "Hyperlink"
 
     for entry_idx, index_entry in enumerate(index_entries):
-        create_index_entry(entry_idx+2, index_entry)
+        create_index_entry(entry_idx + 2, index_entry)
     # create_index_entry(len(index_entries) + 2, ("META DATA", '', '', '', 'META DATA'))
 
     # increase column width on index page
@@ -532,5 +539,3 @@ def download_plot_analyses_to_xlsx(request, analyses):
     response['Content-Disposition'] = 'attachment; filename="{}"'.format(filename)
 
     return response
-
-

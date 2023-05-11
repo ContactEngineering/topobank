@@ -172,9 +172,6 @@ class Analysis(models.Model):
 
         return self.end_time - self.start_time
 
-    def get_kwargs_display(self):
-        return str(self.kwargs)
-
     def get_celery_state(self):
         """Return the state of the task reported by Celery"""
         if self.task_id is None:
