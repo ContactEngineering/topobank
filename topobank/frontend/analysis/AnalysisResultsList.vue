@@ -35,7 +35,6 @@ export default {
                     visible = visible === null ? false : visible === 'true';
                     return {...v, visible: visible}
                 });
-                console.log(this._cards);
             });
     },
     computed: {

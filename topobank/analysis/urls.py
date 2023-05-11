@@ -28,7 +28,7 @@ urlpatterns += [
         name='results-detail'
     ),
     #
-    # API routes that return empty JSON
+    # API routes
     #
     # GET
     # Return function implementations

@@ -8,58 +8,68 @@ export default {
         BasketElement
     },
     props: {
-        analysisListUrl: String,
+        analysisListUrl: {
+            type: String,
+            default: '/analysis/html/list/'
+        },
         csrfToken: String,
-        initialBasketItems: Object,
-        managerDownloadSelectionUrl: String,
-        managerSelectUrl: String
+        basketItems: {
+            type: Object,
+            default: []
+        },
+        managerDownloadSelectionUrl: {
+            type: String,
+            default: '/manager/select/download'
+        },
+        managerSelectUrl: {
+            type: String,
+            default: '/manager/select'
+        }
     },
-    inject: ['eventHub'],
     data() {
         return {
-            keys: [],
-            elements: {} // key: key like "surface-1", value is object, see below
+            _keys: [],
+            _elements: {} // key: key like "surface-1", value is object, see below
         };
     },
     created() {
-        this.eventHub.on('basket-unselect', this.unselect);
-        this.eventHub.on('basket-update', this.update);
+        //this.eventHub.on('basket-unselect', this.unselect);
+        //this.eventHub.on('basket-update', this.update);
     },
     mounted() {
-        this.update(this.initialBasketItems);
+        this.update(this.basketItems);
     },
     methods: {
         get_element(key) {
-            return this.elements[key];
+            return this._elements[key];
         },
-        update(basket_items) {
+        update(basketItems) {
             let elements = {};
             let keys = [];
 
-            if (basket_items === undefined) {
+            if (basketItems === undefined) {
                 console.debug("Using initial basket items for upate.");
-                basket_items = this.initialBasketItems;
+                basketItems = this.basketItems;
             }
 
-            basket_items.forEach(function (item) {
+            basketItems.forEach(function (item) {
                 keys.push(item.key);
                 elements[item.key] = item;
             });
             keys.sort((key_a, key_b) => elements[key_a].label.toLowerCase() > elements[key_b].label.toLowerCase());
-            // we want always the same order, independent from traversal order
+            // we want always the same order, independent of traversal order
 
-            this.elements = elements;
-            this.keys = keys;
+            this._elements = elements;
+            this._keys = keys;
         },
-
         unselect_all() {
             const _this = this;
             fetch(unselect_all_url, {method: 'POST', headers: {'X-CSRFToken': this.csrfToken}})
                 .then(response => response.json())
                 .then(data => {
-                    console.log("keys to unselect: ", _this.keys);
-                    _this.keys.forEach(function (key) {
-                        _this.eventHub.emit('basket-unselect-successful', key);
+                    console.log("keys to unselect: ", _this._keys);
+                    _this._keys.forEach(function (key) {
+                        //_this.eventHub.emit('basket-unselect-successful', key);
                     });
                     _this.update(data);
                 })
@@ -70,13 +80,13 @@ export default {
         unselect(key) {
             // First call unselect url for this element
             // then the additional handler if needed
-            const elem = this.elements[key];
+            const elem = this._elements[key];
             const _this = this;
             fetch(elem.unselect_url, {method: 'POST', headers: {'X-CSRFToken': this.csrfToken}})
                 .then(response => response.json())
                 .then(data => {
                     _this.update(data);
-                    _this.eventHub.emit('basket-unselect-successful', key);
+                    //_this.eventHub.emit('basket-unselect-successful', key);
                 })
                 .catch(error => {
                     console.error("Could not unselect: " + error);
@@ -85,9 +95,8 @@ export default {
         analyze() {
             // Construct subjects dictionary
             let subjects = {}
-            for (const [key, value] of Object.entries(this.elements)) {
+            for (const [key, value] of Object.entries(this._elements)) {
                 let [type, id] = key.split('-');
-                type = 'manager_' + type;
                 id = Number(id);
                 if (subjects[type] === undefined)
                     subjects[type] = [id];
@@ -98,31 +107,38 @@ export default {
             let subjects_b64 = btoa(JSON.stringify(subjects));
             window.location.href = `${this.analysisListUrl}?subjects=${subjects_b64}`;
         }
+    },
+    watch: {
+        basketItems(newValue, oldValue) {
+            this.update(newValue);
+        }
     }
 }
 
 </script>
 
 <template>
-    <div v-if="keys.length">
-        <basket-element v-for="key in keys" v-bind:elem="get_element(key)" v-bind:key="key"></basket-element>
-        <a class="btn btn-sm btn-outline-success" @click="analyze">
-            Analyze
-        </a>
-        <div class="btn-group btn-group-sm float-right" role="group" aria-label="Actions on current selection">
-            <button class="btn btn-sm btn-outline-secondary" v-on:click="unselect_all" id="unselect-all">
-                Clear selection
-            </button>
-            <a class="btn btn-sm btn-outline-secondary"
-               :href="managerDownloadSelectionUrl"
-               type="button"
-               id="download-selection">
-                Download selected datasets
+    <div id="basket-container" class="container-fluid bg-light border py-2 mb-5">
+        <div v-if="_keys.length">
+            <basket-element v-for="key in _keys" v-bind:elem="get_element(key)" v-bind:key="key"></basket-element>
+            <a class="btn btn-sm btn-outline-success" @click="analyze">
+                Analyze
             </a>
+            <div class="btn-group btn-group-sm float-right" role="group" aria-label="Actions on current selection">
+                <button class="btn btn-sm btn-outline-secondary" v-on:click="unselect_all" id="unselect-all">
+                    Clear selection
+                </button>
+                <a class="btn btn-sm btn-outline-secondary"
+                   :href="managerDownloadSelectionUrl"
+                   type="button"
+                   id="download-selection">
+                    Download selected datasets
+                </a>
+            </div>
         </div>
-    </div>
-    <div class="m-1" v-else>No items selected yet. In order to select for <em>comparative studies</em>,
-        please check individual items on the
-        <a class="text-dark" href="{{ managerSelectUrl }}">datasets</a> tab.
+        <div class="m-1" v-else>No items selected yet. In order to select for comparative studies,
+            please check individual items on the
+            <a class="text-dark" href="{{ managerSelectUrl }}">datasets</a> tab.
+        </div>
     </div>
 </template>

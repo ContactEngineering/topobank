@@ -17,16 +17,6 @@ import SearchResults from './SearchResults.vue';
 import 'topobank/scss/custom.scss';
 
 /**
- * Used to display "basket" on top if screen for all selected items in session
- */
-export function createBasketApp(el, eventHub, props) {
-    let app = createApp(Basket, props);
-    app.provide('eventHub', eventHub);
-    app.mount(el);
-    return app;
-}
-
-/**
  * Wrapper for an OpenSeadragon instance (with a scale bar)
  */
 export function createDeepZoomImage(el, props) {
@@ -38,9 +28,8 @@ export function createDeepZoomImage(el, props) {
 /**
  * Used to display search results/list of digital surface twins
  */
-export function createSearchResultsApp(el, eventHub, props) {
+export function createSearchResultsApp(el, props) {
     let app = createApp(SearchResults, props);
-    app.provide('eventHub', eventHub);
     app.mount(el);
     return app;
 }

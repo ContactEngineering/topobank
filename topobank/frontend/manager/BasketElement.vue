@@ -8,11 +8,10 @@ export default {
   props: {
     elem: Object // object with keys: 'name', 'type'
   },
-  inject: ['eventHub'],
   methods: {
     // the following method is called when the "x" symbol is clicked in a basket item
     handle_close(event) {
-      this.eventHub.emit('basket-unselect', this.elem.key);  // See basket's "created" where event handlers are defined
+      //this.eventHub.emit('basket-unselect', this.elem.key);  // See basket's "created" where event handlers are defined
     }
   }
 }
