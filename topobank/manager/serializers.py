@@ -6,12 +6,18 @@ from guardian.shortcuts import get_perms
 import logging
 
 from .models import Surface, Topography, TagModel
-from .utils import get_search_term, filtered_topographies, subjects_to_base64
+from .utils import get_search_term, filtered_topographies, subjects_to_base64, mangle_content_type
 
 _log = logging.getLogger(__name__)
 
 
 class TopographySerializer(serializers.HyperlinkedModelSerializer):
+    class Meta:
+        model = Topography
+        fields = ['id', 'type', 'name', 'creator', 'description', 'tags',
+                  'urls', 'selected', 'key', 'surface_key', 'title', 'folder', 'version',
+                  'publication_date', 'publication_authors', 'creator_name', 'sharing_status', 'label']
+
     title = serializers.CharField(source='name')
 
     creator = serializers.HyperlinkedRelatedField(
@@ -27,7 +33,7 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
     sharing_status = serializers.SerializerMethodField()
     folder = serializers.BooleanField(default=False)
     tags = serializers.SerializerMethodField()
-    type = serializers.CharField(default='topography')
+    type = serializers.CharField(default=mangle_content_type(Meta.model))
     version = serializers.CharField(default='')
     publication_authors = serializers.CharField(default='')
     publication_date = serializers.CharField(default='')
@@ -95,14 +101,14 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
     def get_label(self, obj):
         return obj.label
 
-    class Meta:
-        model = Topography
-        fields = ['id', 'type', 'name', 'creator', 'description', 'tags',
-                  'urls', 'selected', 'key', 'surface_key', 'title', 'folder', 'version',
-                  'publication_date', 'publication_authors', 'creator_name', 'sharing_status', 'label']
-
 
 class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
+    class Meta:
+        model = Surface
+        fields = ['id', 'type', 'name', 'creator', 'creator_name', 'description', 'category', 'category_name', 'tags',
+                  'children', 'sharing_status', 'urls', 'selected', 'key', 'title', 'folder', 'version',
+                  'publication_date', 'publication_authors', 'publication_license', 'topography_count', 'label']
+
     title = serializers.CharField(source='name')
     children = serializers.SerializerMethodField()
 
@@ -118,7 +124,7 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
     folder = serializers.BooleanField(default=True)
     sharing_status = serializers.SerializerMethodField()
     tags = serializers.SerializerMethodField()
-    type = serializers.CharField(default='surface')
+    type = serializers.CharField(default=mangle_content_type(Meta.model))
     version = serializers.SerializerMethodField()
     publication_date = serializers.SerializerMethodField()
     publication_authors = serializers.SerializerMethodField()
@@ -238,31 +244,24 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
     def get_label(self, obj):
         return obj.label
 
-    class Meta:
-        model = Surface
-        fields = ['id', 'type', 'name', 'creator', 'creator_name', 'description', 'category', 'category_name', 'tags',
-                  'children', 'sharing_status', 'urls', 'selected', 'key', 'title', 'folder', 'version',
-                  'publication_date', 'publication_authors', 'publication_license', 'topography_count', 'label']
-
 
 class TagSerializer(serializers.ModelSerializer):
-    urls = serializers.SerializerMethodField()
-    title = serializers.CharField(source='label')
-    children = serializers.SerializerMethodField()
-    folder = serializers.BooleanField(default=True)
-    type = serializers.CharField(default='tag')
-    key = serializers.SerializerMethodField()
-    selected = serializers.SerializerMethodField()
-    type = serializers.CharField(default='tag')
-    version = serializers.CharField(default='')
-    publication_authors = serializers.CharField(default='')
-    publication_date = serializers.CharField(default='')
-    label = serializers.SerializerMethodField()
-
     class Meta:
         model = TagModel
         fields = ['id', 'key', 'type', 'title', 'name', 'children', 'folder', 'urls', 'selected', 'version',
                   'publication_date', 'publication_authors', 'label']
+
+    children = serializers.SerializerMethodField()
+    folder = serializers.BooleanField(default=True)
+    key = serializers.SerializerMethodField()
+    label = serializers.SerializerMethodField()
+    publication_authors = serializers.CharField(default='')
+    publication_date = serializers.CharField(default='')
+    selected = serializers.SerializerMethodField()
+    title = serializers.CharField(source='label')
+    type = serializers.CharField(default=mangle_content_type(Meta.model))
+    urls = serializers.SerializerMethodField()
+    version = serializers.CharField(default='')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

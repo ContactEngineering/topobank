@@ -8,6 +8,7 @@ import traceback
 from django.shortcuts import reverse
 from guardian.shortcuts import get_objects_for_user, get_users_with_perms
 from django.conf import settings
+from django.contrib.contenttypes.models import ContentType
 from django.db.models import Q, Value, Count
 from django.db.models.functions import Replace
 from django.core.exceptions import PermissionDenied
@@ -100,15 +101,23 @@ def recursive_delete(prefix):
             default_storage.delete(f'{prefix}/{directory}')
 
 
-def mangle_content_type(ct):
+def mangle_content_type(obj, default_app_label='manager'):
     """Mangle content type into a string that can be used as a Javascript variable name"""
-    return f'{ct.app_label}_{ct.name}'
+    if not isinstance(obj, ContentType):
+        obj = ContentType.objects.get_for_model(obj)
+    if obj.app_label == default_app_label:
+        return obj.name
+    else:
+        return f'{obj.app_label}_{obj.name}'
 
 
-def demangle_content_type(s):
+def demangle_content_type(s, default_app_label='manager'):
     """Return content type given its mangled string representation"""
-    app_label, model = s.rsplit('_', 1)
-    return ContentType.objects.get_by_natural_key(app_label, model)
+    s = s.split('_', maxsplit=1)
+    if len(s) == 1:
+        return ContentType.objects.get_by_natural_key(default_app_label, *s)
+    else:
+        return ContentType.objects.get_by_natural_key(*s)
 
 
 def get_reader_infos():
