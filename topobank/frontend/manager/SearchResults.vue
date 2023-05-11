@@ -32,7 +32,10 @@ export default {
         category_filter_choices: Object,
         csrf_token: String,
         current_page: Number,
-        initialSelection: [],
+        initialSelection: {
+            type: Array,
+            default: []
+        },
         is_anonymous: Boolean,
         is_loading: Boolean,
         page_size: Number,
@@ -46,19 +49,19 @@ export default {
         return {
             _selection: this.initialSelection,
             _category: this.category,
-            _current_page: this.current_page,
-            _is_loading: this.is_loading,
-            _num_items: null,
-            _num_items_on_current_page: null,
-            _num_pages: null,
-            _page_range: null,
-            _page_size: this.page_size,
-            _page_urls: null,
-            _search_term: this.search_term,
-            _sharing_status: this.sharing_status,
+            _currentPage: this.current_page,
+            _isLoading: this.is_loading,
+            _numItems: null,
+            _numItemsOnCurrentPage: null,
+            _numPages: null,
+            _pageRange: null,
+            _pageSize: this.page_size,
+            _pageUrls: null,
+            _searchTerm: this.search_term,
+            _sharingStatus: this.sharing_status,
             _tree: null,
-            _tree_mode: this.tree_mode,
-            _tree_mode_infos: {
+            _treeMode: this.tree_mode,
+            _treeModeInfos: {
                 "surface list": {
                     element_kind: "digital surface twins",
                     hint: 'Analyze selected items by clicking on the "Analyze" button.',
@@ -119,17 +122,17 @@ export default {
                 },
                 postProcess(event, data) {
                     // console.log("PostProcess: ", data);
-                    _this._num_pages = data.response.num_pages;
-                    _this._num_items = data.response.num_items;
-                    _this._current_page = data.response.current_page;
-                    _this._num_items_on_current_page = data.response.num_items_on_current_page;
-                    _this._page_range = data.response.page_range;
-                    _this._page_urls = data.response.page_urls;
-                    _this._page_size = data.response.page_size;
+                    _this._numPages = data.response.num_pages;
+                    _this._numItems = data.response.num_items;
+                    _this._currentPage = data.response.current_page;
+                    _this._numItemsOnCurrentPage = data.response.num_items_on_currentPage;
+                    _this._pageRange = data.response.page_range;
+                    _this._pageUrls = data.response.page_urls;
+                    _this._pageSize = data.response.page_size;
                     // assuming the Ajax response contains a list of child nodes:
                     // We replace the result
                     data.result = data.response.page_results;
-                    _this._is_loading = false;
+                    _this._isLoading = false;
                 },
                 select(event, data) {
                     const node = data.node;
@@ -267,18 +270,18 @@ export default {
         search_url() {
             // Returns URL object
 
-            let url = new URL(this.base_urls[this._tree_mode]);
+            let url = new URL(this.base_urls[this._treeMode]);
 
             // replace page_size parameter
             // ref: https://usefulangle.com/post/81/javascript-change-url-parameters
             let query_params = url.searchParams;
 
-            query_params.set("search", this._search_term);  // empty string -> no search
+            query_params.set("search", this._searchTerm);  // empty string -> no search
             query_params.set("category", this._category);
-            query_params.set("sharing_status", this._sharing_status);
-            query_params.set('page_size', this._page_size);
-            query_params.set('page', this._current_page);
-            query_params.set('tree_mode', this._tree_mode);
+            query_params.set("sharing_status", this._sharingStatus);
+            query_params.set('page_size', this._pageSize);
+            query_params.set('page', this._currentPage);
+            query_params.set('tree_mode', this._treeMode);
             url.search = query_params.toString();
             // url = url.toString();
 
@@ -299,20 +302,20 @@ export default {
                           </div>
                         </td>
                     `);
-                this._is_loading = true;
+                this._isLoading = true;
             }
         },
-        clear_search_term() {
+        clear_searchTerm() {
             console.log("Clearing search term...");
-            this._search_term = '';
+            this._searchTerm = '';
             this.reload();
         },
         reload() {
             /* Reload means: the tree must be completely reloaded,
                with currently set state of the select tab,
                except of the page number which should be 1. */
-            this._current_page = 1;
-            console.log("Reloading tree, tree mode: " + this._tree_mode + " current page: " + this._current_page);
+            this._currentPage = 1;
+            console.log("Reloading tree, tree mode: " + this._treeMode + " current page: " + this._currentPage);
 
             this._tree.setOption('source', {
                 url: this.search_url.toString(),
@@ -323,8 +326,8 @@ export default {
         load_page(page_no) {
             page_no = parseInt(page_no);
 
-            if ((page_no >= 1) && (page_no <= this._page_range.length)) {
-                let page_url = new URL(this._page_urls[page_no - 1]);
+            if ((page_no >= 1) && (page_no <= this._pageRange.length)) {
+                let page_url = new URL(this._pageUrls[page_no - 1]);
 
                 console.log("Loading page " + page_no + " from " + page_url + "..");
                 this._tree.setOption('source', {
@@ -360,11 +363,11 @@ export default {
     </basket>
     <form>
         <div class="d-flex flex-row">
-            <div v-if="_search_term" class="form-group flex-fill mr-2">
+            <div v-if="_searchTerm" class="form-group flex-fill mr-2">
                 <button class="btn btn-warning form-control" type="button"
                         id="clear-search-term-btn"
-                        @click="clear_search_term">
-                    Clear filter for <b>{{ _search_term }}</b>
+                        @click="clear_searchTerm">
+                    Clear filter for <b>{{ _searchTerm }}</b>
                 </button>
             </div>
             <div v-else class="form-group flex-fill mr-2">
@@ -383,9 +386,9 @@ export default {
             </div>
 
             <div class="form-group mr-2">
-                <select name="sharing_status" class="form-control" v-model="_sharing_status" @change="reload">
+                <select name="sharing_status" class="form-control" v-model="_sharingStatus" @change="reload">
                     <option v-for="(choice_label, choice_val) in sharing_status_filter_choices"
-                            v-bind:value="choice_val" v-bind:selected="choice_val==_sharing_status">
+                            v-bind:value="choice_val" v-bind:selected="choice_val==_sharingStatus">
                         {{ choice_label }}
                     </option>
                 </select>
@@ -400,12 +403,12 @@ export default {
                          value: 'tag tree',
                          icon_class: 'fas fa-tag'}]"
                        class="btn"
-                       v-bind:class="{active: _tree_mode==choice.value,
-                                    'btn-success': _tree_mode==choice.value,
-                                    'btn-default': _tree_mode!=choice.value}">
+                       v-bind:class="{active: _treeMode==choice.value,
+                                    'btn-success': _treeMode==choice.value,
+                                    'btn-default': _treeMode!=choice.value}">
                     <input type="radio" class="btn-group-toggle" autocomplete="off"
                            name="tree_mode"
-                           v-bind:value="choice.value" v-model="_tree_mode" @change="reload">
+                           v-bind:value="choice.value" v-model="_treeMode" @change="reload">
                     <span><i v-bind:class="choice.icon_class"></i> {{ choice.label }}</span>
                 </label>
             </div>
@@ -416,15 +419,15 @@ export default {
         <div class="col-md-8">
             <nav aria-label="Pagination">
                 <ul id="pagination" class="pagination">
-                    <li class="page-item" v-bind:class="{ disabled: _current_page <= 1 }">
-                        <a class="page-link" v-on:click="load_page(_current_page-1)">Previous</a>
+                    <li class="page-item" v-bind:class="{ disabled: _currentPage <= 1 }">
+                        <a class="page-link" v-on:click="load_page(_currentPage-1)">Previous</a>
                     </li>
-                    <li class="page-item" v-bind:class="{ active: _current_page==page_no}"
-                        v-for="page_no in _page_range">
+                    <li class="page-item" v-bind:class="{ active: _currentPage==page_no}"
+                        v-for="page_no in _pageRange">
                         <a class="page-link" v-on:click="load_page(page_no)">{{ page_no }}</a>
                     </li>
-                    <li class="page-item" v-bind:class="{ disabled: _current_page >=_num_pages }">
-                        <a class="page-link" v-on:click="load_page(_current_page+1)">Next</a>
+                    <li class="page-item" v-bind:class="{ disabled: _currentPage >=_numPages }">
+                        <a class="page-link" v-on:click="load_page(_currentPage+1)">Next</a>
                     </li>
 
                     <li class="ml-2">
@@ -432,7 +435,7 @@ export default {
                             <div class="input-group-prepend">
                                 <label class="input-group-text" for="page-size-select">Page size</label>
                             </div>
-                            <select name="page_size" class="custom-select" id="page-size-select" v-model="_page_size"
+                            <select name="page_size" class="custom-select" id="page-size-select" v-model="_pageSize"
                                     @change="reload()">
                                 <option v-for="ps in [10,25,50,100]" v-bind:class="{selected: ps==page_size}">{{
                                     ps
@@ -478,11 +481,11 @@ export default {
         </table>
     </div>
     <div>
-    <span v-if="!_is_loading">
-      Showing {{ _num_items_on_current_page }} {{ _tree_mode_infos[_tree_mode].element_kind }} out of {{
-        _num_items
+    <span v-if="!_isLoading">
+      Showing {{ _numItemsOnCurrentPage }} {{ _treeModeInfos[_treeMode].element_kind }} out of {{
+        _numItems
         }}.
-      {{ _tree_mode_infos[_tree_mode].hint }}
+      {{ _treeModeInfos[_treeMode].hint }}
     </span>
     </div>
 </template>
