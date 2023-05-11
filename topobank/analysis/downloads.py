@@ -246,6 +246,31 @@ def analysis_header_for_txt_file(analysis, as_comment=True, dois=False):
     return s
 
 
+def _get_si_unit_conversion(result):
+    """Return SI units and conversion factors"""
+
+    # Unit conversion tool
+    ureg = pint.UnitRegistry()
+    ureg.default_format = '~P'  # short and pretty
+
+    # Get original units from result dictionary
+    xunit = result['xunit']
+    yunit = result['yunit']
+
+    # Convert units to SI
+    xconv = 1
+    if xunit is not None:
+        u = ureg(xunit).to_base_units()
+        xunit = str(u.u)
+        xconv = u.m
+    yconv = 1
+    if yunit is not None:
+        u = ureg(yunit).to_base_units()
+        yunit = str(u.u)
+        yconv = u.m
+    return xunit, xconv, yunit, yconv
+
+
 @register_download_function(VIZ_SERIES, 'results', 'txt')
 def download_plot_analyses_to_txt(request, analyses):
     """Download plot data for given analyses as CSV file.
@@ -261,9 +286,6 @@ def download_plot_analyses_to_txt(request, analyses):
         -------
         HTTPResponse
     """
-    ureg = pint.UnitRegistry()
-    ureg.default_format = '~P'  # short and pretty
-
     # Collect publication links, if any
     publication_urls = publications_urls(request, analyses)
 
@@ -296,22 +318,7 @@ def download_plot_analyses_to_txt(request, analyses):
         f.write(analysis_header_for_txt_file(analysis))
 
         result = analysis.result
-        xunit = result['xunit']
-        yunit = result['yunit']
-
-        # Convert units to SI
-        print(xunit, yunit)
-        xconv = 1
-        if xunit is not None:
-            u = ureg(xunit).to_base_units()
-            xunit = str(u.u)
-            xconv = u.m
-        yconv = 1
-        if yunit is not None:
-            u = ureg(yunit).to_base_units()
-            yunit = str(u.u)
-            yconv = u.m
-        print(xunit, yunit, xconv, yconv)
+        xunit, xconv, yunit, yconv = _get_si_unit_conversion(result)
 
         xunit_str = '' if xunit is None else ' ({})'.format(xunit)
         yunit_str = '' if yunit is None else ' ({})'.format(yunit)
@@ -363,7 +370,6 @@ def download_plot_analyses_to_xlsx(request, analyses):
     -------
     HTTPResponse
     """
-
     # Pack analysis results into a single text file.
     excel_file_buffer = io.BytesIO()
     excel_writer = pd.ExcelWriter(excel_file_buffer)
@@ -405,20 +411,21 @@ def download_plot_analyses_to_xlsx(request, analyses):
 
     for analysis_idx, analysis in enumerate(analyses):
         result = analysis.result
-        column1 = '{} ({})'.format(result['xlabel'], result['xunit'])
-        column2 = '{} ({})'.format(result['ylabel'], result['yunit'])
-        column3 = 'standard error of {} ({})'.format(result['ylabel'], result['yunit'])
+        xunit, xconv, yunit, yconv = _get_si_unit_conversion(result)
+        column1 = '{} ({})'.format(result['xlabel'], xunit)
+        column2 = '{} ({})'.format(result['ylabel'], yunit)
+        column3 = 'standard error of {} ({})'.format(result['ylabel'], yunit)
         column4 = 'comment'
 
         for series_idx, series in enumerate(result['series']):
-            df_columns_dict = {column1: series['x'], column2: series['y']}
+            df_columns_dict = {column1: np.array(series['x']) * xconv, column2: np.array(series['y']) * yconv}
             try:
                 std_err_y_mask = series['std_err_y'].mask
             except (AttributeError, KeyError) as exc:
                 std_err_y_mask = np.zeros(len(series['y']), dtype=bool)
 
             try:
-                df_columns_dict[column3] = series['std_err_y']
+                df_columns_dict[column3] = np.array(series['std_err_y']) * yconv
                 df_columns_dict[column4] = [comment_on_average(y, masked)
                                             for y, masked in zip(series['y'], std_err_y_mask)]
             except KeyError:
