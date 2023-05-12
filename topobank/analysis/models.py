@@ -3,7 +3,6 @@ Models related to analyses.
 """
 import pickle
 import json
-import operator
 
 from django.db import models
 from django.contrib.contenttypes.fields import GenericForeignKey
@@ -11,12 +10,10 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.files.storage import default_storage
 from django.utils import timezone
 
-from guardian.shortcuts import get_users_with_perms
-
 from ..utils import store_split_dict, load_split_dict
 from topobank.users.models import User
 
-from .registry import ImplementationMissingAnalysisFunctionException, AnalysisRegistry, AnalysisFunctionImplementation
+from .registry import ImplementationMissingAnalysisFunctionException, AnalysisRegistry
 
 RESULT_FILE_BASENAME = 'result'
 
@@ -50,7 +47,7 @@ class Version(models.Model):
 
     # TODO After upgrade to Django 2.2, use contraints: https://docs.djangoproject.com/en/2.2/ref/models/constraints/
     class Meta:
-        unique_together = (('dependency', 'major', 'minor', 'micro'),)
+        unique_together = (('dependency', 'major', 'minor', 'micro', 'extra'),)
 
     def number_as_string(self):
         x = f"{self.major}.{self.minor}"
@@ -107,9 +104,12 @@ class Analysis(models.Model):
 
     kwargs = models.BinaryField()  # for pickle
 
+    # This is the Celery task id
     task_id = models.CharField(max_length=155, unique=True, null=True)
-    task_state = models.CharField(max_length=7,
-                                  choices=TASK_STATE_CHOICES)
+
+    # This is the self-reported task state. It can differ from what Celery
+    # knows about the task.
+    task_state = models.CharField(max_length=7, choices=TASK_STATE_CHOICES)
 
     creation_time = models.DateTimeField(null=True)
     start_time = models.DateTimeField(null=True)
@@ -156,6 +156,11 @@ class Analysis(models.Model):
 
     def get_kwargs_display(self):
         return str(pickle.loads(self.kwargs))
+
+    def get_task_progress(self):
+        """Return progress of task, if running"""
+        r = AsyncResult(self.task_id)
+        return r.info
 
     @property
     def result(self):
