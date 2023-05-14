@@ -41,11 +41,17 @@ export default {
     },
     computed: {
         subjectsAsBasketItems() {
+            console.log(this.subjects);
             const subjects = JSON.parse(atob(this.subjects));
             let basket = [];
             for (const [key, value] of Object.entries(subjects)) {
                 for (const id of value) {
-                    basket.push(`${key}-${id}`);
+                    basket.push({
+                        key: `${key}-${id}`,
+                        type: key,
+                        id: id,
+                        label: null
+                    });
                 }
             }
             return basket;

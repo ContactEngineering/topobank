@@ -4,9 +4,10 @@ import VueCookies from 'vue-cookies';
 import AnalysisResultsList from './AnalysisResultsList.vue';
 import AnalysisResultsDetail from './AnalysisResultsDetail.vue';
 
-export function createAnalysisResultsListApp(el, props) {
+export function createAnalysisResultsListApp(el, csrfToken, props) {
     let app = createApp(AnalysisResultsList, props);
     app.use(VueCookies);
+    app.provide('csrfToken', csrfToken);
     app.mount(el);
     return app;
 }

@@ -28,8 +28,9 @@ export function createDeepZoomImage(el, props) {
 /**
  * Used to display search results/list of digital surface twins
  */
-export function createSearchResultsApp(el, props) {
+export function createSearchResultsApp(el, csrfToken, props) {
     let app = createApp(SearchResults, props);
+    app.provide('csrfToken', csrfToken);
     app.mount(el);
     return app;
 }

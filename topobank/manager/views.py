@@ -35,6 +35,7 @@ from formtools.wizard.views import SessionWizardView
 from guardian.decorators import permission_required_or_403
 from guardian.shortcuts import get_users_with_perms, get_objects_for_user
 from notifications.signals import notify
+from rest_framework import viewsets
 from rest_framework.decorators import api_view
 from rest_framework.generics import ListAPIView
 from rest_framework.pagination import PageNumberPagination
@@ -50,7 +51,7 @@ from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyW
 from .forms import TopographyForm, SurfaceForm, SurfaceShareForm, SurfacePublishForm
 from .models import Topography, Surface, TagModel, NewPublicationTooFastException, LoadTopographyException, \
     PlotTopographyException, PublicationException, _upload_path_for_datafile
-from .serializers import SurfaceSerializer, TagSerializer
+from .serializers import SurfaceSerializer, TopographySerializer, TagSerializer
 from .utils import selected_instances, bandwidths_data, get_topography_reader, tags_for_user, get_reader_infos, \
     mailto_link_for_reporting_an_error, current_selection_as_basket_items, filtered_surfaces, \
     filtered_topographies, get_search_term, get_category, get_sharing_status, get_tree_mode, \
@@ -2089,3 +2090,21 @@ def dzi(request, pk, dzi_filename):
     # okay, we have a valid topography and the user is allowed to see it
 
     return redirect(default_storage.url(f'{topo.storage_prefix}/dzi/{dzi_filename}'))
+
+
+class SurfaceViewSet(viewsets.ModelViewSet):
+    """Retrieve status of analysis (GET) and renew analysis (PUT)"""
+    queryset = Surface.objects.all()
+    serializer_class = SurfaceSerializer
+
+
+class TopographyViewSet(viewsets.ModelViewSet):
+    """Retrieve status of analysis (GET) and renew analysis (PUT)"""
+    queryset = Topography.objects.all()
+    serializer_class = TopographySerializer
+
+
+class TagViewSet(viewsets.ModelViewSet):
+    """Retrieve status of analysis (GET) and renew analysis (PUT)"""
+    queryset = TagModel.objects.all()
+    serializer_class = TagSerializer

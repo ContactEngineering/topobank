@@ -36,9 +36,6 @@ export default {
         this.update(this.basketItems);
     },
     methods: {
-        get_element(key) {
-            return this._elements[key];
-        },
         update(basketItems) {
             let elements = {};
             let keys = [];
@@ -52,7 +49,7 @@ export default {
                 keys.push(item.key);
                 elements[item.key] = item;
             });
-            keys.sort((key_a, key_b) => elements[key_a].label.toLowerCase() > elements[key_b].label.toLowerCase());
+            keys.sort();
             // we want always the same order, independent of traversal order
 
             this._elements = elements;
@@ -116,9 +113,8 @@ export default {
 <template>
     <div id="basket-container" class="container-fluid bg-light border rounded shadow-sm py-2 mb-5">
         <div v-if="_keys.length">
-            <basket-element v-for="key in _keys"
-                            v-bind:elem="get_element(key)"
-                            v-bind:key="key"
+            <basket-element v-for="elem in _elements"
+                            v-bind:elem="elem"
                             @unselect="unselect">
             </basket-element>
             <a class="btn btn-sm btn-outline-success" @click="analyze">

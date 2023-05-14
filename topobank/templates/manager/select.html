@@ -72,7 +72,7 @@
   const initial_select_tab_state = JSON.parse(document.getElementById('initial-select-tab-state').textContent);
 
   topobank.base.createSearchResultsApp(
-    '#search-results', {
+    '#search-results', '{{ csrf_token }}', {
       base_urls: base_urls,
       category: initial_select_tab_state.category,
       category_filter_choices: category_filter_choices,

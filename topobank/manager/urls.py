@@ -2,6 +2,8 @@ from django.urls import re_path, path
 from django.contrib.auth.decorators import login_required
 from django.views.generic import TemplateView
 
+from rest_framework.routers import DefaultRouter
+
 from . import views
 from . import forms
 
@@ -12,8 +14,15 @@ WIZARD_FORMS = [
     ('units', forms.TopographyWizardUnitsForm),
 ]
 
+router = DefaultRouter()
+router.register(r'api/surface', views.SurfaceViewSet, basename='surface')
+router.register(r'api/topography', views.TopographyViewSet, basename='topography')
+router.register(r'api/tag', views.TagViewSet, basename='tag')
+
+urlpatterns = router.urls
+
 app_name = "manager"
-urlpatterns = [
+urlpatterns += [
     #
     # HTML routes
     #
@@ -131,47 +140,47 @@ urlpatterns = [
     # API routes
     #
     path(
-        'surface/search/',  # TODO check URL, rename?
+        'api/search/',  # TODO check URL, rename?
         view=login_required(views.SurfaceListView.as_view()),  # TODO Check view name, rename?
         name='search'  # TODO rename?
     ),
     path(
-        'tag/tree/',
+        'api/tag-tree/',
         view=login_required(views.TagTreeView.as_view()),
         name='tag-list'  # TODO rename
     ),
     re_path(
-       r'surface/(?P<pk>\d+)/select/$',
+       r'api/selection/surface/(?P<pk>\d+)/select/$',
        view=login_required(views.select_surface),
        name='surface-select'
     ),
     re_path(
-       r'surface/(?P<pk>\d+)/unselect/$',
+       r'api/selection/surface/(?P<pk>\d+)/unselect/$',
        view=login_required(views.unselect_surface),
        name='surface-unselect'
     ),
     re_path(
-        r'topography/(?P<pk>\d+)/select/$',
+        r'api/selection/topography/(?P<pk>\d+)/select/$',
         view=login_required(views.select_topography),
         name='topography-select'
     ),
     re_path(
-        r'topography/(?P<pk>\d+)/unselect/$',
+        r'api/selection/topography/(?P<pk>\d+)/unselect/$',
         view=login_required(views.unselect_topography),
         name='topography-unselect'
     ),
     re_path(
-       r'tag/(?P<pk>\d+)/select/$',
+       r'api/selection/tag/(?P<pk>\d+)/select/$',
        view=login_required(views.select_tag),
        name='tag-select'
     ),
     re_path(
-       r'tag/(?P<pk>\d+)/unselect/$',
+       r'api/selection/tag/(?P<pk>\d+)/unselect/$',
        view=login_required(views.unselect_tag),
        name='tag-unselect'
     ),
     path(
-        'unselect-all/',
+        'api/selection/unselect-all/',
         view=login_required(views.unselect_all),
         name='unselect-all'
     ),
