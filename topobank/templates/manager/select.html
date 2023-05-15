@@ -73,19 +73,18 @@
 
   topobank.base.createSearchResultsApp(
     '#search-results', '{{ csrf_token }}', {
-      base_urls: base_urls,
+      baseUrls: base_urls,
       category: initial_select_tab_state.category,
-      category_filter_choices: category_filter_choices,
-      csrf_token: '{{ csrf_token }}',
-      current_page: initial_select_tab_state.current_page,
-      is_anonymous: {{ request.user.is_anonymous|yesno:'true,false' }},
+      categoryFilterChoices: category_filter_choices,
+      currentPage: initial_select_tab_state.current_page,
+      isAnonymous: {{ request.user.is_anonymous|yesno:'true,false' }},
       initialSelection: {{ basket_items_json | safe }},
-      page_size: initial_select_tab_state.page_size,
-      search_term: initial_select_tab_state.search_term,
-      sharing_status: initial_select_tab_state.sharing_status,
-      sharing_status_filter_choices: sharing_status_filter_choices,
-      surface_create_url: "{% url 'manager:surface-create' %}",
-      tree_mode: initial_select_tab_state.tree_mode
+      pageSize: initial_select_tab_state.page_size,
+      searchTerm: initial_select_tab_state.search_term,
+      sharingStatus: initial_select_tab_state.sharing_status,
+      sharingStatusFilterChoices: sharing_status_filter_choices,
+      surfaceCreateUrl: "{% url 'manager:surface-create' %}",
+      treeMode: initial_select_tab_state.tree_mode
     }
   );
 </script>

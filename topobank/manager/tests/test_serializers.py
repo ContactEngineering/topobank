@@ -34,8 +34,11 @@ def test_surface_serializer(rf):
     #
     user_url = request.build_absolute_uri(user.get_absolute_url())
     surface1_prefix = f"/manager/surface/{surface1.pk}/"
+    surface1_select_prefix = f"/manager/api/selection/surface/{surface1.pk}/"
     topo1a_prefix = f"/manager/topography/{topo1a.pk}/"
+    topo1a_select_prefix = f"/manager/api/selection/topography/{topo1a.pk}/"
     topo1b_prefix = f"/manager/topography/{topo1b.pk}/"
+    topo1b_select_prefix = f"/manager/api/selection/topography/{topo1b.pk}/"
 
     topo1a_analyze = f"/analysis/html/list/?subjects={subjects_to_base64([topo1a])}"
     topo1b_analyze = f"/analysis/html/list/?subjects={subjects_to_base64([topo1b])}"
@@ -65,9 +68,9 @@ def test_surface_serializer(rf):
              'version': '',
              'urls': {'delete': topo1a_prefix + 'delete/',
                       'detail': topo1a_prefix,
-                      'select': topo1a_prefix + 'select/',
+                      'select': topo1a_select_prefix + 'select/',
                       'analyze': topo1a_analyze,
-                      'unselect': topo1a_prefix + 'unselect/',
+                      'unselect': topo1a_select_prefix + 'unselect/',
                       'update': topo1a_prefix + 'update/'}},
             {'creator': user_url,
              'creator_name': user.name,
@@ -88,9 +91,9 @@ def test_surface_serializer(rf):
              'version': '',
              'urls': {'delete': topo1b_prefix + 'delete/',
                       'detail': topo1b_prefix,
-                      'select': topo1b_prefix + 'select/',
+                      'select': topo1b_select_prefix + 'select/',
                       'analyze': topo1b_analyze,
-                      'unselect': topo1b_prefix + 'unselect/',
+                      'unselect': topo1b_select_prefix + 'unselect/',
                       'update': topo1b_prefix + 'update/'}},
 
         ],
@@ -116,11 +119,11 @@ def test_surface_serializer(rf):
                  'delete': surface1_prefix + 'delete/',
                  'detail': surface1_prefix,
                  'download': surface1_prefix + 'download/',
-                 'select': surface1_prefix + 'select/',
+                 'select': surface1_select_prefix + 'select/',
                  'share': surface1_prefix + 'share/',
                  'publish': surface1_prefix + 'publish/',
                  'analyze': surface1_analyze,
-                 'unselect': surface1_prefix + 'unselect/',
+                 'unselect': surface1_select_prefix + 'unselect/',
                  'update': surface1_prefix + 'update/'}
 
     }

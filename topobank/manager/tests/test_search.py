@@ -87,14 +87,21 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
     user_url = request.build_absolute_uri(user.get_absolute_url())
 
     surface1_prefix = f"/manager/surface/{surface1.pk}/"
+    surface1_select_prefix = f"/manager/api/selection/surface/{surface1.pk}/"
     topo1a_prefix = f"/manager/topography/{topo1a.pk}/"
+    topo1a_select_prefix = f"/manager/api/selection/topography/{topo1a.pk}/"
     topo1b_prefix = f"/manager/topography/{topo1b.pk}/"
+    topo1b_select_prefix = f"/manager/api/selection/topography/{topo1b.pk}/"
 
     surface2_prefix = f"/manager/surface/{surface2.pk}/"
+    surface2_select_prefix = f"/manager/api/selection/surface/{surface2.pk}/"
     topo2a_prefix = f"/manager/topography/{topo2a.pk}/"
+    topo2a_select_prefix = f"/manager/api/selection/topography/{topo2a.pk}/"
     topo2b_prefix = f"/manager/topography/{topo2b.pk}/"
+    topo2b_select_prefix = f"/manager/api/selection/topography/{topo2b.pk}/"
 
     surface3_prefix = f"/manager/surface/{surface3.pk}/"
+    surface3_select_prefix = f"/manager/api/selection/surface/{surface3.pk}/"
 
     topo1a_analyze = f"/analysis/html/list/?subjects={subjects_to_base64([topo1a])}"
     topo1b_analyze = f"/analysis/html/list/?subjects={subjects_to_base64([topo1b])}"
@@ -127,9 +134,9 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                  'version': '',
                  'urls': {'delete': topo1a_prefix + 'delete/',
                           'detail': topo1a_prefix,
-                          'select': topo1a_prefix + 'select/',
+                          'select': topo1a_select_prefix + 'select/',
                           'analyze': topo1a_analyze,
-                          'unselect': topo1a_prefix + 'unselect/',
+                          'unselect': topo1a_select_prefix + 'unselect/',
                           'update': topo1a_prefix + 'update/'}},
                 {'creator': user_url,
                  'creator_name': user.name,
@@ -150,9 +157,9 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                  'version': '',
                  'urls': {'delete': topo1b_prefix + 'delete/',
                           'detail': topo1b_prefix,
-                          'select': topo1b_prefix + 'select/',
+                          'select': topo1b_select_prefix + 'select/',
                           'analyze': topo1b_analyze,
-                          'unselect': topo1b_prefix + 'unselect/',
+                          'unselect': topo1b_select_prefix + 'unselect/',
                           'update': topo1b_prefix + 'update/'}},
 
             ],
@@ -178,11 +185,11 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                      'delete': surface1_prefix + 'delete/',
                      'detail': surface1_prefix,
                      'download': surface1_prefix + 'download/',
-                     'select': surface1_prefix + 'select/',
+                     'select': surface1_select_prefix + 'select/',
                      'share': surface1_prefix + 'share/',
                      'publish': surface1_prefix + 'publish/',
                      'analyze': surface1_analyze,
-                     'unselect': surface1_prefix + 'unselect/',
+                     'unselect': surface1_select_prefix + 'unselect/',
                      'update': surface1_prefix + 'update/'}
         },
         {
@@ -208,9 +215,9 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                  'version': '',
                  'urls': {'delete': topo2a_prefix + 'delete/',
                           'detail': topo2a_prefix,
-                          'select': topo2a_prefix + 'select/',
+                          'select': topo2a_select_prefix + 'select/',
                           'analyze': topo2a_analyze,
-                          'unselect': topo2a_prefix + 'unselect/',
+                          'unselect': topo2a_select_prefix + 'unselect/',
                           'update': topo2a_prefix + 'update/'}},
                 {'creator': user_url,
                  'creator_name': user.name,
@@ -231,9 +238,9 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                  'version': '',
                  'urls': {'delete': topo2b_prefix + 'delete/',
                           'detail': topo2b_prefix,
-                          'select': topo2b_prefix + 'select/',
+                          'select': topo2b_select_prefix + 'select/',
                           'analyze': topo2b_analyze,
-                          'unselect': topo2b_prefix + 'unselect/',
+                          'unselect': topo2b_select_prefix + 'unselect/',
                           'update': topo2b_prefix + 'update/'}},
 
             ],
@@ -259,11 +266,11 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                      'delete': surface2_prefix + 'delete/',
                      'detail': surface2_prefix,
                      'download': surface2_prefix + 'download/',
-                     'select': surface2_prefix + 'select/',
+                     'select': surface2_select_prefix + 'select/',
                      'share': surface2_prefix + 'share/',
                      'publish': surface2_prefix + 'publish/',
                      'analyze': surface2_analyze,
-                     'unselect': surface2_prefix + 'unselect/',
+                     'unselect': surface2_select_prefix + 'unselect/',
                      'update': surface2_prefix + 'update/'}
         },
         {
@@ -292,11 +299,11 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                      'delete': surface3_prefix + 'delete/',
                      'detail': surface3_prefix,
                      'download': surface3_prefix + 'download/',
-                     'select': surface3_prefix + 'select/',
+                     'select': surface3_select_prefix + 'select/',
                      'share': surface3_prefix + 'share/',
                      'publish': surface3_prefix + 'publish/',
                      # 'analyze': surface3_prefix + 'show-analyses/', # this should be missing
-                     'unselect': surface3_prefix + 'unselect/',
+                     'unselect': surface3_select_prefix + 'unselect/',
                      'update': surface3_prefix + 'update/'}
         },
     ]
@@ -341,9 +348,9 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                  'version': '',
                  'urls': {'delete': topo2a_prefix + 'delete/',
                           'detail': topo2a_prefix,
-                          'select': topo2a_prefix + 'select/',
+                          'select': topo2a_select_prefix + 'select/',
                           'analyze': topo2a_analyze,
-                          'unselect': topo2a_prefix + 'unselect/',
+                          'unselect': topo2a_select_prefix + 'unselect/',
                           'update': topo2a_prefix + 'update/'}},
             ],
             'creator': user_url,
@@ -368,11 +375,11 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                      'delete': surface2_prefix + 'delete/',
                      'detail': surface2_prefix,
                      'download': surface2_prefix + 'download/',
-                     'select': surface2_prefix + 'select/',
+                     'select': surface2_select_prefix + 'select/',
                      'share': surface2_prefix + 'share/',
                      'publish': surface2_prefix + 'publish/',
                      'analyze': surface2_analyze,
-                     'unselect': surface2_prefix + 'unselect/',
+                     'unselect': surface2_select_prefix + 'unselect/',
                      'update': surface2_prefix + 'update/'}
         },
     ]
@@ -418,9 +425,9 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                  'version': '',
                  'urls': {'delete': topo1a_prefix + 'delete/',
                           'detail': topo1a_prefix,
-                          'select': topo1a_prefix + 'select/',
+                          'select': topo1a_select_prefix + 'select/',
                           'analyze': topo1a_analyze,
-                          'unselect': topo1a_prefix + 'unselect/',
+                          'unselect': topo1a_select_prefix + 'unselect/',
                           'update': topo1a_prefix + 'update/'}},
                 {'creator': user_url,
                  'creator_name': user.name,
@@ -441,9 +448,9 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                  'version': '',
                  'urls': {'delete': topo1b_prefix + 'delete/',
                           'detail': topo1b_prefix,
-                          'select': topo1b_prefix + 'select/',
+                          'select': topo1b_select_prefix + 'select/',
                           'analyze': topo1b_analyze,
-                          'unselect': topo1b_prefix + 'unselect/',
+                          'unselect': topo1b_select_prefix + 'unselect/',
                           'update': topo1b_prefix + 'update/'}},
 
             ],
@@ -469,11 +476,11 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                      'delete': surface1_prefix + 'delete/',
                      'detail': surface1_prefix,
                      'download': surface1_prefix + 'download/',
-                     'select': surface1_prefix + 'select/',
+                     'select': surface1_select_prefix + 'select/',
                      'share': surface1_prefix + 'share/',
                      'publish': surface1_prefix + 'publish/',
                      'analyze': surface1_analyze,
-                     'unselect': surface1_prefix + 'unselect/',
+                     'unselect': surface1_select_prefix + 'unselect/',
                      'update': surface1_prefix + 'update/'}
         },
     ]
@@ -516,14 +523,21 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
     user_url = request.build_absolute_uri(user.get_absolute_url())
 
     surface1_prefix = f"/manager/surface/{surface1.pk}/"
+    surface1_select_prefix = f"/manager/api/selection/surface/{surface1.pk}/"
     topo1a_prefix = f"/manager/topography/{topo1a.pk}/"
+    topo1a_select_prefix = f"/manager/api/selection/topography/{topo1a.pk}/"
     topo1b_prefix = f"/manager/topography/{topo1b.pk}/"
+    topo1b_select_prefix = f"/manager/api/selection/topography/{topo1b.pk}/"
 
     surface2_prefix = f"/manager/surface/{surface2.pk}/"
+    surface2_select_prefix = f"/manager/api/selection/surface/{surface2.pk}/"
     topo2a_prefix = f"/manager/topography/{topo2a.pk}/"
+    topo2a_select_prefix = f"/manager/api/selection/topography/{topo2a.pk}/"
     topo2b_prefix = f"/manager/topography/{topo2b.pk}/"
+    topo2b_select_prefix = f"/manager/api/selection/topography/{topo2b.pk}/"
 
     surface3_prefix = f"/manager/surface/{surface3.pk}/"
+    surface3_select_prefix = f"/manager/api/selection/surface/{surface3.pk}/"
 
     topo1a_analyze = f"/analysis/html/list/?subjects={subjects_to_base64([topo1a])}"
     topo1b_analyze = f"/analysis/html/list/?subjects={subjects_to_base64([topo1b])}"
@@ -552,9 +566,9 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
         'version': '',
         'urls': {'delete': topo1a_prefix + 'delete/',
                  'detail': topo1a_prefix,
-                 'select': topo1a_prefix + 'select/',
+                 'select': topo1a_select_prefix + 'select/',
                  'analyze': topo1a_analyze,
-                 'unselect': topo1a_prefix + 'unselect/',
+                 'unselect': topo1a_select_prefix + 'unselect/',
                  'update': topo1a_prefix + 'update/'}
     }
     expected_dict_topo1b = {
@@ -577,9 +591,9 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
         'version': '',
         'urls': {'delete': topo1b_prefix + 'delete/',
                  'detail': topo1b_prefix,
-                 'select': topo1b_prefix + 'select/',
+                 'select': topo1b_select_prefix + 'select/',
                  'analyze': topo1b_analyze,
-                 'unselect': topo1b_prefix + 'unselect/',
+                 'unselect': topo1b_select_prefix + 'unselect/',
                  'update': topo1b_prefix + 'update/'}
     }
 
@@ -603,9 +617,9 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
         'version': '',
         'urls': {'delete': topo2a_prefix + 'delete/',
                  'detail': topo2a_prefix,
-                 'select': topo2a_prefix + 'select/',
+                 'select': topo2a_select_prefix + 'select/',
                  'analyze': topo2a_analyze,
-                 'unselect': topo2a_prefix + 'unselect/',
+                 'unselect': topo2a_select_prefix + 'unselect/',
                  'update': topo2a_prefix + 'update/'}
     }
 
@@ -629,9 +643,9 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
         'version': '',
         'urls': {'delete': topo2b_prefix + 'delete/',
                  'detail': topo2b_prefix,
-                 'select': topo2b_prefix + 'select/',
+                 'select': topo2b_select_prefix + 'select/',
                  'analyze': topo2b_analyze,
-                 'unselect': topo2b_prefix + 'unselect/',
+                 'unselect': topo2b_select_prefix + 'unselect/',
                  'update': topo2b_prefix + 'update/'}
     }
 
@@ -661,11 +675,11 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
                  'delete': surface1_prefix + 'delete/',
                  'detail': surface1_prefix,
                  'download': surface1_prefix + 'download/',
-                 'select': surface1_prefix + 'select/',
+                 'select': surface1_select_prefix + 'select/',
                  'share': surface1_prefix + 'share/',
                  'publish': surface1_prefix + 'publish/',
                  'analyze': surface1_analyze,
-                 'unselect': surface1_prefix + 'unselect/',
+                 'unselect': surface1_select_prefix + 'unselect/',
                  'update': surface1_prefix + 'update/'}
     }
 
@@ -675,11 +689,11 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
     train_tgv_pk = TagModel.objects.get(name='train/tgv').pk
     train_ice_restaurant_pk = TagModel.objects.get(name='train/ice/restaurant').pk
 
-    bike_prefix = f"/manager/tag/{bike_pk}/"
-    train_prefix = f"/manager/tag/{train_pk}/"
-    train_ice_prefix = f"/manager/tag/{train_ice_pk}/"
-    train_tgv_prefix = f"/manager/tag/{train_tgv_pk}/"
-    train_ice_restaurant_prefix = f"/manager/tag/{train_ice_restaurant_pk}/"
+    bike_select_prefix = f"/manager/api/selection/tag/{bike_pk}/"
+    train_select_prefix = f"/manager/api/selection/tag/{train_pk}/"
+    train_ice_select_prefix = f"/manager/api/selection/tag/{train_ice_pk}/"
+    train_tgv_select_prefix = f"/manager/api/selection/tag/{train_tgv_pk}/"
+    train_ice_restaurant_select_prefix = f"/manager/api/selection/tag/{train_ice_restaurant_pk}/"
 
     expected_dicts = [
         {
@@ -700,8 +714,8 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
                 expected_dict_surface1,
             ],
             'urls': {
-                'select': bike_prefix + 'select/',
-                'unselect': bike_prefix + 'unselect/'
+                'select': bike_select_prefix + 'select/',
+                'unselect': bike_select_prefix + 'unselect/'
             }
         },
         {
@@ -749,14 +763,14 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
                                 expected_dict_topo2b
                             ],
                             'urls': {
-                                'select': train_ice_restaurant_prefix + 'select/',
-                                'unselect': train_ice_restaurant_prefix + 'unselect/'
+                                'select': train_ice_restaurant_select_prefix + 'select/',
+                                'unselect': train_ice_restaurant_select_prefix + 'unselect/'
                             }
                         }
                     ],
                     'urls': {
-                        'select': train_ice_prefix+'select/',
-                        'unselect': train_ice_prefix+'unselect/'
+                        'select': train_ice_select_prefix+'select/',
+                        'unselect': train_ice_select_prefix+'unselect/'
                     }
                 },
                 {
@@ -776,14 +790,14 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
                         expected_dict_surface1
                     ],
                     'urls': {
-                        'select': train_tgv_prefix + 'select/',
-                        'unselect': train_tgv_prefix + 'unselect/'
+                        'select': train_tgv_select_prefix + 'select/',
+                        'unselect': train_tgv_select_prefix + 'unselect/'
                     }
                 }
             ],
             'urls': {
-                'select': train_prefix + 'select/',
-                'unselect': train_prefix + 'unselect/'
+                'select': train_select_prefix + 'select/',
+                'unselect': train_select_prefix + 'unselect/'
             }
         },
 
@@ -826,8 +840,8 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
                 expected_dict_topo2a,
             ],
             'urls': {
-                'select': bike_prefix + 'select/',
-                'unselect': bike_prefix + 'unselect/'
+                'select': bike_select_prefix + 'select/',
+                'unselect': bike_select_prefix + 'unselect/'
             }
         },
         {
@@ -860,15 +874,15 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
                         expected_dict_topo2a
                     ],
                     'urls': {
-                        'select': train_ice_prefix + 'select/',
-                        'unselect': train_ice_prefix + 'unselect/'
+                        'select': train_ice_select_prefix + 'select/',
+                        'unselect': train_ice_select_prefix + 'unselect/'
                     }
                 },
 
             ],
             'urls': {
-                'select': train_prefix + 'select/',
-                'unselect': train_prefix + 'unselect/'
+                'select': train_select_prefix + 'select/',
+                'unselect': train_select_prefix + 'unselect/'
             }
         },
 

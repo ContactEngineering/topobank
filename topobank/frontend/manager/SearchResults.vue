@@ -26,41 +26,41 @@ export default {
     components: {
         Basket
     },
+    inject: ['csrfToken'],
     props: {
-        base_urls: Object,
+        baseUrls: Object,
         category: String,
-        category_filter_choices: Object,
-        csrf_token: String,
-        current_page: Number,
+        categoryFilterChoices: Object,
+        currentPage: Number,
         initialSelection: {
             type: Array,
             default: []
         },
-        is_anonymous: Boolean,
-        is_loading: Boolean,
-        page_size: Number,
-        sharing_status: String,
-        sharing_status_filter_choices: Object,
-        search_term: String,
-        surface_create_url: String,
-        tree_mode: String
+        isAnonymous: Boolean,
+        isLoading: Boolean,
+        pageSize: Number,
+        sharingStatus: String,
+        sharingStatusFilterChoices: Object,
+        searchTerm: String,
+        surfaceCreateUrl: String,
+        treeMode: String
     },
     data() {
         return {
             _selection: this.initialSelection,
             _category: this.category,
-            _currentPage: this.current_page,
-            _isLoading: this.is_loading,
+            _currentPage: this.currentPage,
+            _isLoading: this.isLoading,
             _numItems: null,
             _numItemsOnCurrentPage: null,
             _numPages: null,
             _pageRange: null,
-            _pageSize: this.page_size,
+            _pageSize: this.pageSize,
             _pageUrls: null,
-            _searchTerm: this.search_term,
-            _sharingStatus: this.sharing_status,
+            _searchTerm: this.searchTerm,
+            _sharingStatus: this.sharingStatus,
             _tree: null,
-            _treeMode: this.tree_mode,
+            _treeMode: this.treeMode,
             _treeModeInfos: {
                 "surface list": {
                     element_kind: "digital surface twins",
@@ -270,19 +270,19 @@ export default {
         search_url() {
             // Returns URL object
 
-            let url = new URL(this.base_urls[this._treeMode]);
+            let url = new URL(this.baseUrls[this._treeMode]);
 
             // replace page_size parameter
             // ref: https://usefulangle.com/post/81/javascript-change-url-parameters
-            let query_params = url.searchParams;
+            let queryParams = url.searchParams;
 
-            query_params.set("search", this._searchTerm);  // empty string -> no search
-            query_params.set("category", this._category);
-            query_params.set("sharing_status", this._sharingStatus);
-            query_params.set('page_size', this._pageSize);
-            query_params.set('page', this._currentPage);
-            query_params.set('tree_mode', this._treeMode);
-            url.search = query_params.toString();
+            queryParams.set("search", this._searchTerm);  // empty string -> no search
+            queryParams.set("category", this._category);
+            queryParams.set("sharing_status", this._sharingStatus);
+            queryParams.set('page_size', this._pageSize);
+            queryParams.set('page', this._currentPage);
+            queryParams.set('tree_mode', this._treeMode);
+            url.search = queryParams.toString();
             // url = url.toString();
 
             console.log("Requested search URL: " + url.toString());
@@ -323,20 +323,20 @@ export default {
             });
             this.setLoadingIndicator();
         },
-        loadPage(page_no) {
-            page_no = parseInt(page_no);
+        loadPage(pageNo) {
+            pageNo = parseInt(pageNo);
 
-            if ((page_no >= 1) && (page_no <= this._pageRange.length)) {
-                let page_url = new URL(this._pageUrls[page_no - 1]);
+            if ((pageNo >= 1) && (pageNo <= this._pageRange.length)) {
+                let page_url = new URL(this._pageUrls[pageNo - 1]);
 
-                console.log("Loading page " + page_no + " from " + page_url + "..");
+                console.log("Loading page " + pageNo + " from " + page_url + "..");
                 this._tree.setOption('source', {
                     url: page_url,
                     cache: false,
                 });
                 this.setLoadingIndicator();
             } else {
-                console.warn("Cannot load page " + page_no + ", because the page number is invalid.")
+                console.warn("Cannot load page " + pageNo + ", because the page number is invalid.")
             }
         },
         setSelectedByKey(key, selected) {
@@ -385,7 +385,7 @@ export default {
 
             <div class="form-group mr-2">
                 <select name="category" class="form-control" v-model="_category" @change="reload">
-                    <option v-for="(choice_label, choice_val) in category_filter_choices"
+                    <option v-for="(choice_label, choice_val) in categoryFilterChoices"
                             v-bind:value="choice_val" v-bind:selected="choice_val==_category">
                         {{ choice_label }}
                     </option>
@@ -394,7 +394,7 @@ export default {
 
             <div class="form-group mr-2">
                 <select name="sharing_status" class="form-control" v-model="_sharingStatus" @change="reload">
-                    <option v-for="(choice_label, choice_val) in sharing_status_filter_choices"
+                    <option v-for="(choice_label, choice_val) in sharingStatusFilterChoices"
                             v-bind:value="choice_val" v-bind:selected="choice_val==_sharingStatus">
                         {{ choice_label }}
                     </option>
@@ -444,7 +444,7 @@ export default {
                             </div>
                             <select name="page_size" class="custom-select" id="page-size-select" v-model="_pageSize"
                                     @change="reload()">
-                                <option v-for="ps in [10,25,50,100]" v-bind:class="{selected: ps==page_size}">{{
+                                <option v-for="ps in [10,25,50,100]" v-bind:class="{selected: ps==pageSize}">{{
                                     ps
                                     }}
                                 </option>
@@ -456,13 +456,13 @@ export default {
         </div>
 
         <div class="col-md-4">
-            <div v-if="is_anonymous" class="form-group">
+            <div v-if="isAnonymous" class="form-group">
                 <button class="btn btn-primary form-control disabled"
                         title="Please sign-in to use this feature">Create digital surface twin
                 </button>
             </div>
-            <div v-if="!is_anonymous" class="form-group" title="Create a new digital surface twin">
-                <a class="btn btn-primary form-control" :href="surface_create_url">Create digital
+            <div v-if="!isAnonymous" class="form-group" title="Create a new digital surface twin">
+                <a class="btn btn-primary form-control" :href="surfaceCreateUrl">Create digital
                     surface
                     twin</a>
             </div>
