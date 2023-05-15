@@ -2,6 +2,8 @@ from django.urls import re_path, path
 from django.contrib.auth.decorators import login_required
 from django.views.generic import TemplateView
 
+from rest_framework.routers import DefaultRouter
+
 from . import views
 from . import forms
 
@@ -12,8 +14,18 @@ WIZARD_FORMS = [
     ('units', forms.TopographyWizardUnitsForm),
 ]
 
+router = DefaultRouter()
+router.register(r'api/surface', views.SurfaceViewSet, basename='surface')
+router.register(r'api/topography', views.TopographyViewSet, basename='topography')
+router.register(r'api/tag', views.TagViewSet, basename='tag')
+
+urlpatterns = router.urls
+
 app_name = "manager"
-urlpatterns = [
+urlpatterns += [
+    #
+    # HTML routes
+    #
     re_path(
         r'topography/(?P<pk>\d+)/$',
         view=login_required(views.TopographyDetailView.as_view()),
@@ -28,16 +40,6 @@ urlpatterns = [
         r'topography/(?P<pk>\d+)/delete/$',
         view=login_required(views.TopographyDeleteView.as_view()),
         name='topography-delete'
-    ),
-    re_path(
-        r'topography/(?P<pk>\d+)/select/$',
-        view=login_required(views.select_topography),
-        name='topography-select'
-    ),
-    re_path(
-        r'topography/(?P<pk>\d+)/unselect/$',
-        view=login_required(views.unselect_topography),
-        name='topography-unselect'
     ),
     re_path(
         r'topography/(?P<pk>\d+)/thumbnail/$',
@@ -100,16 +102,6 @@ urlpatterns = [
         name='surface-publication-error'
     ),
     re_path(
-       r'surface/(?P<pk>\d+)/select/$',
-       view=login_required(views.select_surface),
-       name='surface-select'
-    ),
-    re_path(
-       r'surface/(?P<pk>\d+)/unselect/$',
-       view=login_required(views.unselect_surface),
-       name='surface-unselect'
-    ),
-    re_path(
         r'surface/(?P<surface_id>\d+)/download/$',
         view=login_required(views.download_surface),
         name='surface-download'
@@ -120,21 +112,6 @@ urlpatterns = [
         name='surface-create'
     ),
     path(
-        'tag/tree/',
-        view=login_required(views.TagTreeView.as_view()),
-        name='tag-list'  # TODO rename
-    ),
-    re_path(
-       r'tag/(?P<pk>\d+)/select/$',
-       view=login_required(views.select_tag),
-       name='tag-select'
-    ),
-    re_path(
-       r'tag/(?P<pk>\d+)/unselect/$',
-       view=login_required(views.unselect_tag),
-       name='tag-unselect'
-    ),
-    path(
         'select/',
         view=login_required(views.SelectView.as_view()),
         name='select'
@@ -143,16 +120,6 @@ urlpatterns = [
         'select/download/',
         view=login_required(views.download_selection_as_surfaces),
         name='download-selection'
-    ),
-    path(
-       'unselect-all/',
-       view=login_required(views.unselect_all),
-       name='unselect-all'
-    ),
-    path(
-        'surface/search/',  # TODO check URL, rename?
-        view=login_required(views.SurfaceListView.as_view()),  # TODO Check view name, rename?
-        name='search'  # TODO rename?
     ),
     path(
         'access-denied/',
@@ -168,5 +135,53 @@ urlpatterns = [
         'publications/',
         view=login_required(views.PublicationListView.as_view()),
         name='publications'
+    ),
+    #
+    # API routes
+    #
+    path(
+        'api/search/',  # TODO check URL, rename?
+        view=login_required(views.SurfaceListView.as_view()),  # TODO Check view name, rename?
+        name='search'  # TODO rename?
+    ),
+    path(
+        'api/tag-tree/',
+        view=login_required(views.TagTreeView.as_view()),
+        name='tag-list'  # TODO rename
+    ),
+    re_path(
+       r'api/selection/surface/(?P<pk>\d+)/select/$',
+       view=login_required(views.select_surface),
+       name='surface-select'
+    ),
+    re_path(
+       r'api/selection/surface/(?P<pk>\d+)/unselect/$',
+       view=login_required(views.unselect_surface),
+       name='surface-unselect'
+    ),
+    re_path(
+        r'api/selection/topography/(?P<pk>\d+)/select/$',
+        view=login_required(views.select_topography),
+        name='topography-select'
+    ),
+    re_path(
+        r'api/selection/topography/(?P<pk>\d+)/unselect/$',
+        view=login_required(views.unselect_topography),
+        name='topography-unselect'
+    ),
+    re_path(
+       r'api/selection/tag/(?P<pk>\d+)/select/$',
+       view=login_required(views.select_tag),
+       name='tag-select'
+    ),
+    re_path(
+       r'api/selection/tag/(?P<pk>\d+)/unselect/$',
+       view=login_required(views.unselect_tag),
+       name='tag-unselect'
+    ),
+    path(
+        'api/selection/unselect-all/',
+        view=login_required(views.unselect_all),
+        name='unselect-all'
     ),
 ]

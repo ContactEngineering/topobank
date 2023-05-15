@@ -33,7 +33,7 @@ def tab_navigation(context):
                     continue  # tab is skipped
 
                 tab.setdefault('href', request_path)
-                tab.setdefault('active', tab['href'] == request_path)  # in order to make tab definition short
+                tab.setdefault('active', tab['href'].startswith(request_path))  # in order to make tab definition short
                 tab.setdefault('icon', 'cog')  # just some icon that we see one is missing
                 tab.setdefault('title', '')
                 tab.setdefault('show_basket', False)
@@ -41,7 +41,7 @@ def tab_navigation(context):
 
                 # we want to be able to see variable "show_basket"
                 # of the  active tab
-                if tab['href'] == request_path:
+                if tab['href'].startswith(request_path):
                     active_tab = tab.copy()
 
     # calculate minimum number of tabs

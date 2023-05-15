@@ -1,7 +1,8 @@
 """
 Base settings to build other settings files upon.
 """
-import os
+
+import os.path
 import random
 import string
 
@@ -82,7 +83,6 @@ THIRD_PARTY_APPS = [
     'rest_framework',
     'fontawesomefree',
     'formtools',
-    'bokeh',
     'termsandconditions',
     'storages',
     'guardian',
@@ -255,7 +255,6 @@ EMAIL_BACKEND = env('DJANGO_EMAIL_BACKEND', default='django.core.mail.backends.s
 ADMIN_URL = 'admin/'
 # https://docs.djangoproject.com/en/dev/ref/settings/#admins
 ADMINS = [
-    ("""Michael Röttger""", 'roettger@tf.uni-freiburg.de'),
     ("""Lars Pastewka""", 'lars.pastewka@imtek.uni-freiburg.de')
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#managers
@@ -408,9 +407,13 @@ STATIC_ROOT = env.str('DJANGO_STATIC_ROOT', default=(environ.Path(__file__) - 3)
 # https://docs.djangoproject.com/en/dev/ref/settings/#static-url
 STATIC_URL = '/static/'
 # https://docs.djangoproject.com/en/dev/ref/contrib/staticfiles/#std:setting-STATICFILES_DIRS
-STATICFILES_DIRS = [
-    str(APPS_DIR.path('static')),
-]
+STATICFILES_DIRS = []
+for d in [APPS_DIR.path('static'), APPS_DIR.path('../../static')]:
+    d = str(d)
+    if os.path.exists(d):
+        STATICFILES_DIRS += [d]
+    else:
+        print(f"Skipping path '{d}' for static files since it does not exist.")
 # https://docs.djangoproject.com/en/dev/ref/contrib/staticfiles/#staticfiles-finders
 STATICFILES_FINDERS = [
     'django.contrib.staticfiles.finders.FileSystemFinder',

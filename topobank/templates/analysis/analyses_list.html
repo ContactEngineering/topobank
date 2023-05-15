@@ -1,102 +1,30 @@
 {% extends 'base.html' %}
 {% load icon_tags %}
 {% load crispy_forms_tags %}
-{% load analysis_tags %}
 {% load static %}
-
-{% block extra_css %}
-  {{ form.media.css }}
-  <link type="text/css" href="{% static 'vendor/datatables/datatables.min.css' %}" rel="stylesheet">
-{% endblock extra_css %}
-
 
 {% block content %}
 
-  <div class="tab-content mt-2">
-    <div id="analyses" class="tab-pane active">
-
-      {% crispy form form.helper %}
-
-      <!--
-      Show one card for each analysis function
-
-      Will be replaced by AJAX call.
-      -->
-      <div class="row">
-        {% for card in cards %}
-          <div class="col-lg-6 mb-4">
-            <div id="{{ card.id }}-wrapper">
-              <div class="card search-result-card">
-                <div class="card-header">
-                  <h5>{{ card.function.name }}</h5>
-                </div>
-                <div class="card-body">
-                    <span class="spinner"></span>
-                    <div id="{{ card.id }}-wait-text">
-                      Please wait...
-                    </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        {% endfor %}
-      </div>
-
+<div class="tab-content mt-2">
+  <div id="analyses" class="tab-pane active">
+    <div class="tab-content">
+      <span class="spinner"></span>
+      <div>Please wait...</div>
     </div>
   </div>
+</div>
+
 {% endblock content %}
 
 {% block javascript %}
-  <!-- ----------- for bokeh plot ----- -->
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/bokeh/3.0.0-dev.4/bokeh.min.js" integrity="sha512-HfciX3GGYUSD5vbnSEFkesyF3KD/ZEMsxRxPQmGoABd3OTSAdY4Hbauw+3ieCBF0KIbV4cZKn9rIW93a882EcA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/bokeh/3.0.0-dev.4/bokeh-api.min.js" integrity="sha512-lM8DqpIFHDJzMhBJ8YW/7UGFPIq1eGStGuPbFf3pWVEPpoZBD3L6PvptqaW0z3GwzC/yPwsaSQVh9JObK9hpUw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/bokeh/3.0.0-dev.4/bokeh-widgets.min.js" integrity="sha512-8gbP3L8XiZSD+zqB50nFZzgPqkg2d00gPGVfevBXFqbC+ob1PLlyqu1ZiU+n6pQ0iVQ4HnXEh5cZ8jKmgJqYsA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/bokeh/3.0.0-dev.4/bokeh-tables.min.js" integrity="sha512-0MPXzezXHxbzck9MBVY6bRNBKK9L6oBEtOM+LrOZu+gN51LyvFYvSLj5FsbxXctf2Lt45wgjp3rFOh8mX/LBiw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="{% static 'js/analysis_app.bundle.js' %}"></script>
+<script>
+  const params = new URLSearchParams(window.location.search);
+  topobank.analysis_app.createAnalysisResultsListApp('#analyses', '{{ csrf_token }}', {
+    csrfToken: '{{ csrf_token }}',
+    subjects: params.get('subjects')
+  });
+</script>
 
-  {#  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-3.0.2.min.js"></script>#}
-  {#  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-api-3.0.2.min.js"></script>#}
-  {#  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-widgets-3.0.2.min.js"></script>#}
-  {#  <script src="https://cdn.bokeh.org/bokeh/release/bokeh-tables-3.0.2.min.js"></script>#}
-
-  <script src="{% static 'js/plot.js' %}"></script>
-
-  <!-- for task progress bar -->
-  <script src="{% static 'celery_progress/celery_progress.js' %}"></script>
-
-  <!-- for datatables -->
-  <script src="{% static 'vendor/datatables/datatables.min.js' %}"></script>
-
-  <script>
-    const result_view_mode = 'list';
-
-    $(document).ready(function () {
-      <!-- Trigger fetching analysis results -->
-      // for each card submit ajax call to insert result card
-      {% url 'analysis:card' as card_url %}
-      {% for card in cards %}
-        {#console.log("analysis-list.html:")#}
-        {#console.log("{{ card_url }}", "card-{{ forloop.counter }}", "list", {{ card.function.id }});#}
-        {#console.log("subjects_ids_json:");#}
-        {#console.log({{ card.subjects_ids_json|safe }});#}
-        submit_analyses_card_ajax("{{ card_url }}", "{{ card.id }}-wrapper", "{{ card.id }}",
-                                  "list", {{ card.function.id }},
-                                  {{ card.subjects_ids_json|safe }}, 0);
-      {% endfor %}
-
-      // we want that closing an item in the basket
-      // does unselect it and reload the analyses
-      basket.unselect_handler = function reload (key) {
-         location.reload();  // simplest way now to reduce analyses shown
-        // It would be better to only reload the cards, but so far the "cards" context variable
-        // does not come from an AJAX call
-      };
-    });
-
-    // we don't want error messages if the page is left before everything is loaded
-    install_handler_for_aborting_all_ajax_calls_on_page_leave();
-  </script>
-
-  <!-- for crispy form -->
-  {{ form.media.js }}
 {% endblock javascript %}

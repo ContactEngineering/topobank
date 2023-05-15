@@ -10,14 +10,15 @@ import numpy as np
 import logging
 
 from ..utils import SplitDictionaryHere
-from .registry import register_implementation
+#from .registry import register_implementation
 
 _log = logging.getLogger(__name__)
 
 
-# Analysis Result Types ('art' parameter)
-ART_GENERIC = 'generic'
-ART_SERIES = 'series'
+# Visualization types
+APP_NAME = 'analysis'
+VIZ_GENERIC = 'generic'
+VIZ_SERIES = 'series'
 
 
 class ContainerProxy(collections.abc.Iterator):
@@ -131,8 +132,7 @@ def make_alert_entry(level, subject_name, subject_url, data_series_name, detail_
 
 
 # This function will be registered in tests by a fixture
-def topography_analysis_function_for_tests(topography, a=1, b="foo", bins=15, window="hann",
-                                           progress_recorder=None, storage_prefix=None):
+def topography_analysis_function_for_tests(topography, a=1, b="foo", progress_recorder=None, storage_prefix=None):
     """This function can be registered for tests.
 
     The arguments have no meaning. Result are two series.
@@ -157,11 +157,11 @@ def topography_analysis_function_for_tests(topography, a=1, b="foo", bins=15, wi
                 ),
             ],
             'alerts': [dict(alert_class='alert-info', message="This is a test for a measurement alert.")],
-            'comment': f"Arguments: a is {a}, b is {b}, bins is {bins} and window is {window}"}
+            'comment': f"Arguments: a is {a} and b is {b}"}
 
 
 # This function will be registered in tests by a fixture
-def surface_analysis_function_for_tests(surface, a=1, c="bar", progress_recorder=None, storage_prefix=None):
+def surface_analysis_function_for_tests(surface, a=1, b="foo", progress_recorder=None, storage_prefix=None):
     """This function can be registered for tests."""
     return {'name': 'Test result for test function called for surface {}.'.format(surface),
             'xunit': 'm',
@@ -170,11 +170,11 @@ def surface_analysis_function_for_tests(surface, a=1, c="bar", progress_recorder
             'ylabel': 'y',
             'series': [],
             'alerts': [dict(alert_class='alert-info', message="This is a test for a surface alert.")],
-            'comment': f"a is {a} and c is {c}"}
+            'comment': f"a is {a} and b is {b}"}
 
 
 # This function will be registered in tests by a fixture
-def surfacecollection_analysis_function_for_tests(surfacecollection, a=1, d="bar",
+def surfacecollection_analysis_function_for_tests(surfacecollection, a=1, b="foo",
                                                   progress_recorder=None, storage_prefix=None):
     """This function can be registered for tests.
 
@@ -203,4 +203,4 @@ def surfacecollection_analysis_function_for_tests(surfacecollection, a=1, d="bar
             'ylabel': 'y',
             'series': [],
             'alerts': [dict(alert_class='alert-info', message="This is a test for an alert.")],
-            'comment': f"a is {a} and d is {d}"}
+            'comment': f"a is {a} and b is {b}"}

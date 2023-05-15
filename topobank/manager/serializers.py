@@ -6,12 +6,18 @@ from guardian.shortcuts import get_perms
 import logging
 
 from .models import Surface, Topography, TagModel
-from .utils import get_search_term, filtered_topographies
+from .utils import get_search_term, filtered_topographies, subjects_to_base64, mangle_content_type
 
 _log = logging.getLogger(__name__)
 
 
 class TopographySerializer(serializers.HyperlinkedModelSerializer):
+    class Meta:
+        model = Topography
+        fields = ['id', 'type', 'name', 'creator', 'description', 'tags',
+                  'urls', 'selected', 'key', 'surface_key', 'title', 'folder', 'version',
+                  'publication_date', 'publication_authors', 'creator_name', 'sharing_status', 'label']
+
     title = serializers.CharField(source='name')
 
     creator = serializers.HyperlinkedRelatedField(
@@ -27,11 +33,12 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
     sharing_status = serializers.SerializerMethodField()
     folder = serializers.BooleanField(default=False)
     tags = serializers.SerializerMethodField()
-    type = serializers.CharField(default='topography')
+    type = serializers.CharField(default='topography')  # should be output of mangle_content_type(Meta.model)
     version = serializers.CharField(default='')
     publication_authors = serializers.CharField(default='')
     publication_date = serializers.CharField(default='')
     creator_name = serializers.SerializerMethodField()
+    label = serializers.SerializerMethodField()
 
     def get_urls(self, obj):
         """Return only those urls which are usable for the user
@@ -51,7 +58,7 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
 
         if 'view_surface' in perms:
             urls['detail'] = reverse('manager:topography-detail', kwargs=dict(pk=obj.pk))
-            urls['analyze'] = reverse('analysis:topography', kwargs=dict(topography_id=obj.pk))
+            urls['analyze'] = f"{reverse('analysis:results-list')}?subjects={subjects_to_base64([obj])}"
 
         if 'change_surface' in perms:
             urls.update({
@@ -64,8 +71,11 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
         return urls
 
     def get_selected(self, obj):
-        topographies, surfaces, tags = self.context['selected_instances']
-        return obj in topographies
+        try:
+            topographies, surfaces, tags = self.context['selected_instances']
+            return obj in topographies
+        except KeyError:
+            return False
 
     def get_key(self, obj):
         return f"topography-{obj.pk}"
@@ -88,14 +98,17 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
     def get_creator_name(self, obj):
         return obj.creator.name
 
-    class Meta:
-        model = Topography
-        fields = ['pk', 'type', 'name', 'creator', 'description', 'tags',
-                  'urls', 'selected', 'key', 'surface_key', 'title', 'folder', 'version',
-                  'publication_date', 'publication_authors', 'creator_name', 'sharing_status']
+    def get_label(self, obj):
+        return obj.label
 
 
 class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
+    class Meta:
+        model = Surface
+        fields = ['id', 'type', 'name', 'creator', 'creator_name', 'description', 'category', 'category_name', 'tags',
+                  'children', 'sharing_status', 'urls', 'selected', 'key', 'title', 'folder', 'version',
+                  'publication_date', 'publication_authors', 'publication_license', 'topography_count', 'label']
+
     title = serializers.CharField(source='name')
     children = serializers.SerializerMethodField()
 
@@ -111,7 +124,7 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
     folder = serializers.BooleanField(default=True)
     sharing_status = serializers.SerializerMethodField()
     tags = serializers.SerializerMethodField()
-    type = serializers.CharField(default='surface')
+    type = serializers.CharField(default='surface')  # should be output of mangle_content_type(Meta.model)
     version = serializers.SerializerMethodField()
     publication_date = serializers.SerializerMethodField()
     publication_authors = serializers.SerializerMethodField()
@@ -119,6 +132,7 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
     topography_count = serializers.SerializerMethodField()
     category_name = serializers.SerializerMethodField()
     creator_name = serializers.SerializerMethodField()
+    label = serializers.SerializerMethodField()
 
     def get_children(self, obj):
         """Get serialized topographies for given surface.
@@ -160,7 +174,7 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
             urls['detail'] = reverse('manager:surface-detail', kwargs=dict(pk=obj.pk))
             if obj.num_topographies() > 0:
                 urls.update({
-                    'analyze': reverse('analysis:surface', kwargs=dict(surface_id=obj.id)),
+                    'analyze': f"{reverse('analysis:results-list')}?subjects={subjects_to_base64([obj])}"
                 })
             urls['download'] = reverse('manager:surface-download', kwargs=dict(surface_id=obj.id))
 
@@ -185,8 +199,11 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
         return urls
 
     def get_selected(self, obj):
-        topographies, surfaces, tags = self.context['selected_instances']
-        return obj in surfaces
+        try:
+            topographies, surfaces, tags = self.context['selected_instances']
+            return obj in surfaces
+        except KeyError:
+            return False
 
     def get_key(self, obj):
         return f"surface-{obj.pk}"
@@ -224,30 +241,27 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
     def get_creator_name(self, obj):
         return obj.creator.name
 
-    class Meta:
-        model = Surface
-        fields = ['pk', 'type', 'name', 'creator', 'creator_name', 'description', 'category', 'category_name', 'tags',
-                  'children', 'sharing_status', 'urls', 'selected', 'key', 'title', 'folder', 'version',
-                  'publication_date', 'publication_authors', 'publication_license', 'topography_count']
+    def get_label(self, obj):
+        return obj.label
 
 
 class TagSerializer(serializers.ModelSerializer):
-    urls = serializers.SerializerMethodField()
-    title = serializers.CharField(source='label')
-    children = serializers.SerializerMethodField()
-    folder = serializers.BooleanField(default=True)
-    type = serializers.CharField(default='tag')
-    key = serializers.SerializerMethodField()
-    selected = serializers.SerializerMethodField()
-    type = serializers.CharField(default='tag')
-    version = serializers.CharField(default='')
-    publication_authors = serializers.CharField(default='')
-    publication_date = serializers.CharField(default='')
-
     class Meta:
         model = TagModel
-        fields = ['pk', 'key', 'type', 'title', 'name', 'children',
-                  'folder', 'urls', 'selected', 'version', 'publication_date', 'publication_authors']
+        fields = ['id', 'key', 'type', 'title', 'name', 'children', 'folder', 'urls', 'selected', 'version',
+                  'publication_date', 'publication_authors', 'label']
+
+    children = serializers.SerializerMethodField()
+    folder = serializers.BooleanField(default=True)
+    key = serializers.SerializerMethodField()
+    label = serializers.SerializerMethodField()
+    publication_authors = serializers.CharField(default='')
+    publication_date = serializers.CharField(default='')
+    selected = serializers.SerializerMethodField()
+    title = serializers.CharField(source='label')
+    type = serializers.CharField(default='tag')  # should be output of mangle_content_type(Meta.model)
+    urls = serializers.SerializerMethodField()
+    version = serializers.CharField(default='')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -269,13 +283,12 @@ class TagSerializer(serializers.ModelSerializer):
         return obj in tags
 
     def get_children(self, obj):
-
         result = []
 
         #
         # Assume that all surfaces and topographies given in the context are already filtered
         #
-        surfaces = self.context['surfaces'].filter(tags__pk=obj.pk)  #  .order_by('name')
+        surfaces = self.context['surfaces'].filter(tags__pk=obj.pk)  # .order_by('name')
         topographies = self.context['topographies'].filter(tags__pk=obj.pk)  # .order_by('name')
         tags = [x for x in obj.children.all() if x in self.context['tags_for_user']]
 
@@ -287,3 +300,6 @@ class TagSerializer(serializers.ModelSerializer):
         result.extend(TagSerializer(tags, many=True, context=self.context).data)
 
         return result
+
+    def get_label(self, obj):
+        return obj.label

@@ -111,18 +111,13 @@ def perform_analysis(self, analysis_id):
     analysis.save()
 
     def save_result(result, task_state, dois=[]):
-        _log.debug(f"Saving result of analysis {analysis_id} to storage...")
+        _log.debug(f"Saving result of analysis {analysis_id} with task state '{task_state}' to storage...")
         analysis.task_state = task_state
-        #default_storage_replace(f'{analysis.storage_prefix}/result.json',
-        #                        io.BytesIO(json.dumps(result, cls=NumpyEncoder).encode('utf-8')))
         store_split_dict(analysis.storage_prefix, RESULT_FILE_BASENAME, result)
-        #analysis.result = pickle.dumps(result)  # can also be an exception in case of errors!
         analysis.end_time = timezone.now()  # with timezone
-        if 'effective_kwargs' in result:
-            analysis.kwargs = pickle.dumps(result['effective_kwargs'])
         analysis.dois = list(dois)  # dois is a set, we need to convert it
         analysis.save()
-        _log.debug("Done saving analysis result.")
+        _log.debug("...done saving analysis result.")
 
     @doi()
     def evaluate_function(subject, **kwargs):
@@ -132,21 +127,18 @@ def perform_analysis(self, analysis_id):
     # actually perform analysis
     #
     try:
-        # noinspection PickleLoad
-        kwargs = pickle.loads(analysis.kwargs)
+        kwargs = analysis.kwargs
         subject = analysis.subject
-        kwargs['progress_recorder'] = progress_recorder
-        kwargs['storage_prefix'] = analysis.storage_prefix
+        _log.debug(f"Evaluating analysis function '{analysis.function.name}' on subject '{subject}' with "
+                   f"kwargs {kwargs} and storage prefix '{analysis.storage_prefix}'...")
         # also request citation information
         dois = set()
-        kwargs['dois'] = dois
-        _log.debug("Evaluating analysis function '%s' on subject '%s' with kwargs %s and storage prefix '%s'...",
-                   analysis.function.name, subject, kwargs, analysis.storage_prefix)
-        result = evaluate_function(subject, **kwargs)
+        result = evaluate_function(subject, progress_recorder=progress_recorder, storage_prefix=analysis.storage_prefix,
+                                   dois=dois, **kwargs)
         save_result(result, Analysis.SUCCESS, dois)
     except (Topography.DoesNotExist, Surface.DoesNotExist, IntegrityError) as exc:
-        _log.warning("Subject for analysis %s doesn't exist any more, so that analysis will be deleted...",
-                     analysis.id)
+        _log.warning(f"Subject for analysis '{analysis.id}' doesn't exist any more, so that analysis will be "
+                     f"deleted...")
         analysis.delete()
         # we want a real exception here so celery's flower can show the task as failure
         raise
@@ -177,13 +169,16 @@ def perform_analysis(self, analysis_id):
             #
             from trackstats.models import Metric
 
-            td = analysis.end_time - analysis.start_time
-            increase_statistics_by_date(metric=Metric.objects.TOTAL_ANALYSIS_CPU_MS,
-                                        increment=1000 * td.total_seconds())
-            increase_statistics_by_date_and_object(
-                metric=Metric.objects.TOTAL_ANALYSIS_CPU_MS,
-                obj=analysis.function,
-                increment=1000 * td.total_seconds())
+            td = analysis.duration
+            if td is not None:
+                increase_statistics_by_date(metric=Metric.objects.TOTAL_ANALYSIS_CPU_MS,
+                                            increment=1000 * td.total_seconds())
+                increase_statistics_by_date_and_object(
+                    metric=Metric.objects.TOTAL_ANALYSIS_CPU_MS,
+                    obj=analysis.function,
+                    increment=1000 * td.total_seconds())
+            else:
+                _log.warning(f'Duration for analysis with {analysis_id} could not be computed.')
 
         except Analysis.DoesNotExist:
             _log.debug(f"Analysis with {analysis_id} does not exist.")

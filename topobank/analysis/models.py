@@ -1,6 +1,7 @@
 """
 Models related to analyses.
 """
+
 import pickle
 import json
 
@@ -10,8 +11,10 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.files.storage import default_storage
 from django.utils import timezone
 
+from celery import result, states
+
+from ..users.models import User
 from ..utils import store_split_dict, load_split_dict
-from topobank.users.models import User
 
 from .registry import ImplementationMissingAnalysisFunctionException, AnalysisRegistry
 
@@ -92,6 +95,17 @@ class Analysis(models.Model):
         (SUCCESS, 'success'),
     )
 
+    # Mapping Celery states to our state information. Everything not in the
+    # list (e.g. custom Celery states) are interpreted as STARTED.
+    _CELERY_STATE_MAP = {
+        states.SUCCESS: SUCCESS,
+        states.STARTED: STARTED,
+        states.PENDING: PENDING,
+        states.RETRY: RETRY,
+        states.FAILURE: FAILURE
+    }
+
+    # Actual implementation of the analysis as a Python function
     function = models.ForeignKey('AnalysisFunction', on_delete=models.CASCADE)
 
     # Definition of the subject
@@ -102,7 +116,8 @@ class Analysis(models.Model):
     # According to GitHub #208, each user should be able to see analysis with parameters chosen by himself
     users = models.ManyToManyField(User)
 
-    kwargs = models.BinaryField()  # for pickle
+    # Keyword agruments passed to the Python analysis function
+    kwargs = models.JSONField(default=dict)
 
     # This is the Celery task id
     task_id = models.CharField(max_length=155, unique=True, null=True)
@@ -111,6 +126,7 @@ class Analysis(models.Model):
     # knows about the task.
     task_state = models.CharField(max_length=7, choices=TASK_STATE_CHOICES)
 
+    # Time stamps
     creation_time = models.DateTimeField(null=True)
     start_time = models.DateTimeField(null=True)
     end_time = models.DateTimeField(null=True)
@@ -118,6 +134,7 @@ class Analysis(models.Model):
     # Bibliography
     dois = models.JSONField(default=list)
 
+    # Server configuration (version information)
     configuration = models.ForeignKey(Configuration, null=True, on_delete=models.SET_NULL)
 
     class Meta:
@@ -142,6 +159,7 @@ class Analysis(models.Model):
             store_split_dict(self.storage_prefix, RESULT_FILE_BASENAME, self._result)
             self._result = None
 
+    @property
     def duration(self):
         """Returns duration of computation or None if not finished yet.
 
@@ -149,13 +167,27 @@ class Analysis(models.Model):
 
         :return: Returns datetime.timedelta or None
         """
-        if self.end_time is None:
+        if self.end_time is None or self.start_time is None:
             return None
 
-        return self.end_time-self.start_time
+        return self.end_time - self.start_time
 
-    def get_kwargs_display(self):
-        return str(pickle.loads(self.kwargs))
+    def get_celery_state(self):
+        """Return the state of the task reported by Celery"""
+        if self.task_id is None:
+            # Cannot get the state
+            return None
+        r = result.AsyncResult(self.task_id)
+        try:
+            return self._CELERY_STATE_MAP[r.state]
+        except KeyError:
+            # Everything else (e.g. a custom state such as 'PROGRESS') is interpreted as a running task
+            return Analysis.STARTED
+
+    def get_task_progress(self):
+        """Return progress of task, if running"""
+        r = result.AsyncResult(self.task_id)
+        return r.info
 
     def get_task_progress(self):
         """Return progress of task, if running"""

@@ -1,59 +1,68 @@
 from django.urls import path, re_path
 from django.contrib.auth.decorators import login_required
 
-from . import views
-from . import downloads
+from rest_framework.routers import DefaultRouter
 
-app_name = "analysis"
-urlpatterns = [
+from . import downloads
+from . import functions
+from . import views
+
+router = DefaultRouter()
+router.register(r'status', views.AnalysisResultView, basename='status')
+
+urlpatterns = router.urls
+
+app_name = functions.APP_NAME
+urlpatterns += [
+    #
+    # HTML routes
+    #
     path(
-        'list/',  # TODO change to 'function', also rename name
-        view=login_required(views.AnalysesListView.as_view()),
-        name='list'
-    ),
-    path(
-        'collection/<int:collection_id>/',
-        view=login_required(views.AnalysesListView.as_view()),
-        name='collection'
-    ),
-    path(
-        'surface/<int:surface_id>/',
-        view=login_required(views.AnalysesListView.as_view()),
-        name='surface'
-    ),
-    path(
-        'topography/<int:topography_id>/',
-        view=login_required(views.AnalysesListView.as_view()),
-        name='topography'
+        'html/list/',  # TODO change to 'function', also rename name
+        view=login_required(views.AnalysesResultListView.as_view()),
+        name='results-list'
     ),
     re_path(
-        r'download/(?P<ids>[\d,]+)/(?P<art>[\w\s]+)/(?P<file_format>\w+)$',
-        view=login_required(downloads.download_analyses),
-        name='download'
+        r'html/detail/(?P<pk>[\d,]+)/$',
+        view=login_required(views.AnalysisResultDetailView.as_view()),
+        name='results-detail'
     ),
-    re_path(
-        r'function/(?P<pk>[\d,]+)/$',
-        view=login_required(views.AnalysisFunctionDetailView.as_view()),
-        name='function-detail'
-    ),
+    #
+    # API routes
+    #
+    # GET
+    # Return function implementations
     path(
-        'card/submit/',
-        view=login_required(views.submit_analyses_view),
-        name='card-submit'
+        'api/registry/',
+        view=login_required(views.AnalysisFunctionView().as_view()),
+        name='registry'
     ),
+    # POST
+    # * Triggers analyses if not yet running
+    # * Return state of analyses
+    # * Return plot configuration for finished analyses
+    # This is a post request because the request parameters are complex.
     path(
-        'renew/',
-        view=login_required(views.renew_analyses_view),
-        name='renew'
+        f'api/card/{functions.VIZ_SERIES}',
+        view=login_required(views.series_card_view),
+        name=f'card-{functions.VIZ_SERIES}'
     ),
+    #
+    # Data routes (returned data type is unspecified)
+    #
+    # GET
+    # * Returns a redirect to the actualy data file in the storage (S3) system
+    # The files that can be returned depend on the analysis. This route simply
+    # redirects to the storage. It is up to the visualization application to
+    # request the correct files.
     re_path(
         r'data/(?P<pk>\d+)/(?P<location>.*)$',
         view=login_required(views.data),
         name='data'
     ),
-    path(
-        'card/',
-        view=login_required(views.switch_card_view),
-        name='card'
-    ),
+    re_path(
+        r'download/(?P<ids>[\d,]+)/(?P<file_format>\w+)$',
+        view=login_required(downloads.download_analyses),
+        name='download'
+    )
 ]

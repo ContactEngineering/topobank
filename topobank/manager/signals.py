@@ -1,7 +1,6 @@
 from django.db.models.signals import pre_delete, post_delete, pre_save, post_save
 from django.dispatch import receiver
 from django.core.cache import cache
-from guardian.shortcuts import assign_perm
 from notifications.models import Notification
 from django.contrib.contenttypes.models import ContentType
 from allauth.account.signals import user_logged_in

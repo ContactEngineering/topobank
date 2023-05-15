@@ -35,6 +35,7 @@ from formtools.wizard.views import SessionWizardView
 from guardian.decorators import permission_required_or_403
 from guardian.shortcuts import get_users_with_perms, get_objects_for_user
 from notifications.signals import notify
+from rest_framework import viewsets
 from rest_framework.decorators import api_view
 from rest_framework.generics import ListAPIView
 from rest_framework.pagination import PageNumberPagination
@@ -50,11 +51,11 @@ from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyW
 from .forms import TopographyForm, SurfaceForm, SurfaceShareForm, SurfacePublishForm
 from .models import Topography, Surface, TagModel, NewPublicationTooFastException, LoadTopographyException, \
     PlotTopographyException, PublicationException, _upload_path_for_datafile
-from .serializers import SurfaceSerializer, TagSerializer
+from .serializers import SurfaceSerializer, TopographySerializer, TagSerializer
 from .utils import selected_instances, bandwidths_data, get_topography_reader, tags_for_user, get_reader_infos, \
     mailto_link_for_reporting_an_error, current_selection_as_basket_items, filtered_surfaces, \
     filtered_topographies, get_search_term, get_category, get_sharing_status, get_tree_mode, \
-    get_permission_table_data
+    get_permission_table_data, subjects_to_base64
 from ..usage_stats.utils import increase_statistics_by_date, increase_statistics_by_date_and_object
 from ..users.models import User
 from ..publication.models import Publication, MAX_LEN_AUTHORS_FIELD
@@ -688,11 +689,12 @@ def topography_plot(request, pk):
 class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
     model = Topography
     context_object_name = 'topography'
-
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
         topo = self.object
+        context['subjects_b64'] = subjects_to_base64([topo])
+
         try:
             context['topography_next'] = topo.get_next_by_measurement_date(surface=topo.surface).id
         except Topography.DoesNotExist:
@@ -891,6 +893,8 @@ class SurfaceDetailView(DetailView):
         context = super().get_context_data(**kwargs)
 
         surface = self.object
+        context['subjects_b64'] = subjects_to_base64([surface])
+
         #
         # Count this event for statistics
         #
@@ -2086,3 +2090,21 @@ def dzi(request, pk, dzi_filename):
     # okay, we have a valid topography and the user is allowed to see it
 
     return redirect(default_storage.url(f'{topo.storage_prefix}/dzi/{dzi_filename}'))
+
+
+class SurfaceViewSet(viewsets.ModelViewSet):
+    """Retrieve status of analysis (GET) and renew analysis (PUT)"""
+    queryset = Surface.objects.all()
+    serializer_class = SurfaceSerializer
+
+
+class TopographyViewSet(viewsets.ModelViewSet):
+    """Retrieve status of analysis (GET) and renew analysis (PUT)"""
+    queryset = Topography.objects.all()
+    serializer_class = TopographySerializer
+
+
+class TagViewSet(viewsets.ModelViewSet):
+    """Retrieve status of analysis (GET) and renew analysis (PUT)"""
+    queryset = TagModel.objects.all()
+    serializer_class = TagSerializer

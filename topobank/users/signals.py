@@ -1,18 +1,10 @@
 from allauth.account.signals import user_signed_up, user_logged_in
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from django.contrib.staticfiles.storage import staticfiles_storage
-from django.core.files import File
-from django.shortcuts import reverse
 from django.utils.timezone import now
 
 from trackstats.models import StatisticByDate, Metric, Period
-from notifications.signals import notify
 
-import os.path
-import yaml
-
-from topobank.manager.models import Surface, Topography
 from .models import User
 from .utils import get_default_group
 

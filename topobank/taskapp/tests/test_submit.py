@@ -1,11 +1,10 @@
 import pytest
-import pickle
 
-from topobank.analysis.models import Analysis
-from topobank.analysis.utils import request_analysis, submit_analysis
+from ...manager.tests.utils import Topography1DFactory, UserFactory
 
-from topobank.analysis.tests.utils import AnalysisFunctionFactory, TopographyAnalysisFactory
-from topobank.manager.tests.utils import Topography1DFactory, UserFactory
+from ...analysis.models import Analysis
+from ...analysis.controller import request_analysis
+from ...analysis.tests.utils import TopographyAnalysisFactory
 
 
 @pytest.mark.django_db
@@ -28,7 +27,7 @@ def test_request_analysis(mocker, test_analysis_function):
 
     # just an abbreviation
     def assert_correct_args(analysis, expected_kwargs):
-        kwargs = pickle.loads(analysis.kwargs)
+        kwargs = analysis.kwargs
         assert kwargs == expected_kwargs
         assert user in analysis.users.all()  # make sure the user has been set
 
@@ -36,26 +35,20 @@ def test_request_analysis(mocker, test_analysis_function):
     analysis = request_analysis(user, af, topo, a=13, b=24)
     assert_correct_args(analysis,
                         dict(a=13,
-                             b=24,
-                             bins=15,
-                             window='hann'))  # check default parameters in database
+                             b=24))  # check default parameters in database
 
 
     # test case 2
-    analysis = request_analysis(user, af, topo, 1, 2, bins=10)
+    analysis = request_analysis(user, af, topo, 1, 2)
     assert_correct_args(analysis,
                         dict(a=1,
-                             b=2,
-                             bins=10,
-                             window='hann'))
+                             b=2))
 
     # test case 3
-    analysis = request_analysis(user, af, topo, 2, 1, window='hamming', bins=5)
+    analysis = request_analysis(user, af, topo, 2, 1)
     assert_correct_args(analysis,
                         dict(a=2,
-                             b=1,
-                             bins=5,
-                             window='hamming'))
+                             b=1))
 
 
 @pytest.mark.django_db
@@ -75,8 +68,8 @@ def test_unmark_other_analyses_during_request_analysis(mocker, test_analysis_fun
 
     topo = Topography1DFactory()
 
-    a1 = TopographyAnalysisFactory(subject=topo, function=af, kwargs=pickle.dumps(dict(a=9, b=19)), users=[])
-    a2 = TopographyAnalysisFactory(subject=topo, function=af, kwargs=pickle.dumps(dict(a=29, b=39)), users=[user])
+    a1 = TopographyAnalysisFactory(subject=topo, function=af, kwargs=dict(a=9, b=19), users=[])
+    a2 = TopographyAnalysisFactory(subject=topo, function=af, kwargs=dict(a=29, b=39), users=[user])
 
     a3 = request_analysis(user, af, topo, a=1, b=2)
 
@@ -96,7 +89,7 @@ def test_unmark_other_analyses_during_request_analysis(mocker, test_analysis_fun
     assert a2 not in analyses
     assert a3 in analyses
 
-    assert pickle.loads(analyses[0].kwargs) == dict(a=1, b=2, bins=15, window='hann')
+    assert analyses[0].kwargs == dict(a=1, b=2, bins=15, window='hann')
 
 
 

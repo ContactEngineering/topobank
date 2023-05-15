@@ -4,15 +4,15 @@ from django.core.files.storage import default_storage
 import numpy as np
 import json
 
-from bokeh.core.json_encoder import BokehJSONEncoder
+from topobank.supplib.json import ExtendedJSONEncoder
 
-from .utils import store_split_dict, load_split_dict, SplitDictionaryHere, NumpyEncoder
+from .utils import store_split_dict, load_split_dict, SplitDictionaryHere
 
 
 def test_used_json_encoder_with_nan():
     data = {'x': np.array([np.nan, np.nan])}
-    encoded_data = json.dumps(data, cls=BokehJSONEncoder)
-    assert '"NaN"' in encoded_data
+    encoded_data = json.dumps(data, cls=ExtendedJSONEncoder)
+    assert 'null' in encoded_data
 
 
 def test_store_split_dict_with_supplementary():
@@ -60,7 +60,7 @@ def test_store_split_dict_with_nan():
     # So `NaN` should be represented as `"NaN"` which is JSON compatible and seems
     # to work with bokehjs
     series_0_json_file = default_storage.open(f"{storage_prefix}/series-0.json")
-    assert b'"NaN"' in series_0_json_file.read()
+    assert b'null' in series_0_json_file.read()
 
     #
     # Also check whether load_split_dict can reproduce the result
@@ -68,7 +68,8 @@ def test_store_split_dict_with_nan():
     result_from_storage = load_split_dict(storage_prefix, "result")
     assert result_from_storage['name'] == result_dict['name']
     assert np.array_equal(result_from_storage['series'][0]['x'], series_0.dict['x'])
-    assert np.array_equal(result_from_storage['series'][0]['y'], series_0.dict['y'], equal_nan=True)
+    y = [np.nan if _y is None else _y for _y in result_from_storage['series'][0]['y']]  # np.nans will be read as None
+    assert np.array_equal(y, series_0.dict['y'], equal_nan=True)
 
 
 
