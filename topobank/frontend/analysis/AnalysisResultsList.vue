@@ -50,7 +50,9 @@ export default {
                         key: `${key}-${id}`,
                         type: key,
                         id: id,
-                        label: null
+                        label: null,
+                        select_url: `/manager/api/selection/${key}/${id}/select/`,
+                        unselect_url: `/manager/api/selection/${key}/${id}/unselect/`
                     });
                 }
             }
@@ -63,6 +65,9 @@ export default {
     methods: {
         updateCookie(event) {
             this.$cookies.set(`card-${event.target.value}`, event.target.checked);
+        },
+        basketItemsChanged(basket, key) {
+            basket.analyze();  // reload page
         }
     }
 };
@@ -70,7 +75,8 @@ export default {
 
 <template>
     <basket :csrf-token="csrfToken"
-            :basket-items="subjectsAsBasketItems">
+            :basket-items="subjectsAsBasketItems"
+            @unselect-successful="basketItemsChanged">
     </basket>
     <div class="row">
         <div class="col-12 form-group">

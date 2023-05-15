@@ -60,7 +60,6 @@ export default {
             fetch(unselect_all_url, {method: 'POST', headers: {'X-CSRFToken': this.csrfToken}})
                 .then(response => response.json())
                 .then(data => {
-                    console.log("keys to unselect: ", _this._keys);
                     _this._keys.forEach(function (key) {
                         _this.$emit('unselect-successful', key);
                     });
@@ -79,13 +78,13 @@ export default {
                 .then(response => response.json())
                 .then(data => {
                     _this.update(data);
-                    _this.$emit('unselect-successful', key);
+                    _this.$emit('unselect-successful', _this, key);
                 })
                 .catch(error => {
                     console.error("Could not unselect: " + error);
                 });
         },
-        analyze() {
+        getSubjects() {
             // Construct subjects dictionary
             let subjects = {}
             for (const [key, value] of Object.entries(this._elements)) {
@@ -96,9 +95,14 @@ export default {
                 else
                     subjects[type].push(id);
             }
+            return subjects;
+        },
+        getSubjectsBase64() {
+            return btoa(JSON.stringify(this.getSubjects()));
+        },
+        analyze() {
             // Encode to base64 for passing in URL
-            let subjects_b64 = btoa(JSON.stringify(subjects));
-            window.location.href = `${this.analysisListUrl}?subjects=${subjects_b64}`;
+            window.location.href = `${this.analysisListUrl}?subjects=${this.getSubjectsBase64()}`;
         }
     },
     watch: {
