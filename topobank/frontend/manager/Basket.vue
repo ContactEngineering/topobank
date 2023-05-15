@@ -12,10 +12,26 @@ export default {
             type: String,
             default: '/analysis/html/list/'
         },
+        apiUnselectAllUrl: {
+            type: String,
+            default: '/manager/api/selection/unselect-all/'
+        },
         csrfToken: String,
         basketItems: {
             type: Object,
             default: []
+        },
+        hasAnalyzeButton: {
+            type: Boolean,
+            default: true
+        },
+        hasClearButton: {
+            type: Boolean,
+            default: true
+        },
+        hasDownloadButton: {
+            type: Boolean,
+            default: true
         },
         managerDownloadSelectionUrl: {
             type: String,
@@ -24,7 +40,7 @@ export default {
         managerSelectUrl: {
             type: String,
             default: '/manager/select'
-        }
+        },
     },
     data() {
         return {
@@ -55,15 +71,17 @@ export default {
             this._elements = elements;
             this._keys = keys;
         },
-        unselect_all() {
+        unselectAll() {
             const _this = this;
-            fetch(unselect_all_url, {method: 'POST', headers: {'X-CSRFToken': this.csrfToken}})
+            fetch(this.apiUnselectAllUrl, {
+                method: 'POST',
+                headers: {'X-CSRFToken': this.csrfToken}
+            })
                 .then(response => response.json())
                 .then(data => {
-                    _this._keys.forEach(function (key) {
-                        _this.$emit('unselect-successful', key);
-                    });
+                    console.log(data);
                     _this.update(data);
+                    _this.$emit('unselect-successful', this, this._keys);
                 })
                 .catch(error => {
                     console.error("Could not unselect: " + error);
@@ -74,11 +92,14 @@ export default {
             // then the additional handler if needed
             const elem = this._elements[key];
             const _this = this;
-            fetch(elem.unselect_url, {method: 'POST', headers: {'X-CSRFToken': this.csrfToken}})
+            fetch(elem.unselect_url, {
+                method: 'POST',
+                headers: {'X-CSRFToken': this.csrfToken}
+            })
                 .then(response => response.json())
                 .then(data => {
                     _this.update(data);
-                    _this.$emit('unselect-successful', _this, key);
+                    _this.$emit('unselect-successful', _this, this._keys);
                 })
                 .catch(error => {
                     console.error("Could not unselect: " + error);
@@ -121,17 +142,24 @@ export default {
                             v-bind:elem="elem"
                             @unselect="unselect">
             </basket-element>
-            <a class="btn btn-sm btn-outline-success" @click="analyze">
+            <a v-if="hasAnalyzeButton"
+               class="btn btn-sm btn-outline-success"
+               @click="analyze">
                 Analyze
             </a>
-            <div class="btn-group btn-group-sm float-right" role="group" aria-label="Actions on current selection">
-                <button class="btn btn-sm btn-outline-secondary" v-on:click="unselect_all" id="unselect-all">
+            <div v-if="hasClearButton || hasDownloadButton"
+                 class="btn-group btn-group-sm float-right"
+                 role="group"
+                 aria-label="Actions on current selection">
+                <button v-if="hasClearButton"
+                        class="btn btn-sm btn-outline-secondary"
+                        @click="unselectAll">
                     Clear selection
                 </button>
-                <a class="btn btn-sm btn-outline-secondary"
+                <a v-if="hasDownloadButton"
+                   class="btn btn-sm btn-outline-secondary"
                    :href="managerDownloadSelectionUrl"
-                   type="button"
-                   id="download-selection">
+                   type="button">
                     Download selected datasets
                 </a>
             </div>

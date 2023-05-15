@@ -76,6 +76,9 @@ export default {
 <template>
     <basket :csrf-token="csrfToken"
             :basket-items="subjectsAsBasketItems"
+            :has-analyze-button="false"
+            :has-clear-button="false"
+            :has-download-button="false"
             @unselect-successful="basketItemsChanged">
     </basket>
     <div class="row">

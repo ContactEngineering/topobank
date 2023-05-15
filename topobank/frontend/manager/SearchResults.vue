@@ -264,7 +264,7 @@ export default {
                 },
             }
         ); // fancytree()
-        this.set_loading_indicator();
+        this.setLoadingIndicator();
     },   // mounted()
     computed: {
         search_url() {
@@ -291,7 +291,7 @@ export default {
         },
     },
     methods: {
-        set_loading_indicator() {
+        setLoadingIndicator() {
             // hack: replace loading indicator from fancytree by own indicator with spinner
             let loading_node = $('tr.fancytree-statusnode-loading');
             if (loading_node) {
@@ -305,7 +305,7 @@ export default {
                 this._isLoading = true;
             }
         },
-        clear_searchTerm() {
+        clearSearchTerm() {
             console.log("Clearing search term...");
             this._searchTerm = '';
             this.reload();
@@ -321,9 +321,9 @@ export default {
                 url: this.search_url.toString(),
                 cache: false,
             });
-            this.set_loading_indicator();
+            this.setLoadingIndicator();
         },
-        load_page(page_no) {
+        loadPage(page_no) {
             page_no = parseInt(page_no);
 
             if ((page_no >= 1) && (page_no <= this._pageRange.length)) {
@@ -334,12 +334,12 @@ export default {
                     url: page_url,
                     cache: false,
                 });
-                this.set_loading_indicator();
+                this.setLoadingIndicator();
             } else {
                 console.warn("Cannot load page " + page_no + ", because the page number is invalid.")
             }
         },
-        set_selected_by_key(key, selected) {
+        setSelectedByKey(key, selected) {
             // Set selection on all nodes with given key and
             // set it to "selected" (bool)
             this._tree.findAll(function (node) {
@@ -349,8 +349,15 @@ export default {
                 // we only want to set the checkbox here, we don't want to simulate the click
             })
         },
-        unselect(key) {
-            this.set_selected_by_key(key, false);
+        setSelectedKeys(keys) {
+            // Select on all nodes with key in `keys`
+            console.log(this._tree);
+            this._tree.visit(function (node) {
+                node.setSelected(keys.includes(node.key), {noEvents: true});
+            })
+        },
+        unselect(basket, keys) {
+            this.setSelectedKeys(keys);
         }
     }
 }
@@ -366,7 +373,7 @@ export default {
             <div v-if="_searchTerm" class="form-group flex-fill mr-2">
                 <button class="btn btn-warning form-control" type="button"
                         id="clear-search-term-btn"
-                        @click="clear_searchTerm">
+                        @click="clearSearchTerm">
                     Clear filter for <b>{{ _searchTerm }}</b>
                 </button>
             </div>
@@ -420,14 +427,14 @@ export default {
             <nav aria-label="Pagination">
                 <ul id="pagination" class="pagination">
                     <li class="page-item" v-bind:class="{ disabled: _currentPage <= 1 }">
-                        <a class="page-link" v-on:click="load_page(_currentPage-1)">Previous</a>
+                        <a class="page-link" v-on:click="loadPage(_currentPage-1)">Previous</a>
                     </li>
                     <li class="page-item" v-bind:class="{ active: _currentPage==page_no}"
                         v-for="page_no in _pageRange">
-                        <a class="page-link" v-on:click="load_page(page_no)">{{ page_no }}</a>
+                        <a class="page-link" v-on:click="loadPage(page_no)">{{ page_no }}</a>
                     </li>
                     <li class="page-item" v-bind:class="{ disabled: _currentPage >=_numPages }">
-                        <a class="page-link" v-on:click="load_page(_currentPage+1)">Next</a>
+                        <a class="page-link" v-on:click="loadPage(_currentPage+1)">Next</a>
                     </li>
 
                     <li class="ml-2">
