@@ -189,6 +189,11 @@ class Analysis(models.Model):
         r = result.AsyncResult(self.task_id)
         return r.info
 
+    def get_task_progress(self):
+        """Return progress of task, if running"""
+        r = AsyncResult(self.task_id)
+        return r.info
+
     @property
     def result(self):
         """Return result object or None if there is nothing yet."""

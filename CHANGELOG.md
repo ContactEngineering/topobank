@@ -1,5 +1,22 @@
 # Changelog for *TopoBank*
 
+## 1.0.5 (2023-04-17)
+
+- DEP: Upgrade of SurfaceTopography to 1.6.2
+
+## 1.0.4 (2023-04-10)
+
+- BUG: Duration of analysis object should not be a property
+
+## 1.0.3 (2023-04-06)
+
+- BUG: Plugin version configuration could not be saved if there is are changes
+  on top of the semantic version
+
+## 1.0.2 (2023-04-06)
+
+- DEP: Upgrade of SurfaceTopography to 1.6.0
+
 ## 1.0.1 (2023-02-02)
 
 - BUG: Fixed comparative analysis (#962)
@@ -24,10 +41,10 @@
 - MAINT: Fixed missing "plugin.txt" for Docker image in
   production
 - MAINT: Removed firefox from production's Dockerfile
-- MAINT: Upgrade of SurfaceTopograpy to 1.3.3 (#950)
 - MAINT: Renamed "Sign in via ORCID" to "Sign in"
 - MAINT: Default AWS access information to None
 - MAINT: Added django-watchman, added celery check
+- DEP: Upgrade of SurfaceTopography to 1.3.3 (#950)
 
 ## 0.92.0 (2022-12-14)
 
@@ -243,7 +260,7 @@
   fix_height_scale (#763)
 - BUG: Missing permissions in Docker container to
   start Postgres server (#756)
-- MAINT: Upgrade to SurfaceTopography 0.99.1
+- DEP: Upgrade to SurfaceTopography 0.99.1
 
 ## 0.16.1 (2021-10-25)
 
@@ -261,7 +278,7 @@
   measurement (#747)
 - BUG: Improved error message in case of server 
   error in analysis result (#746)
-- MAINT: Upgrade to SurfaceTopography 0.98.2 (#751)
+- DEP: Upgrade to SurfaceTopography 0.98.2 (#751)
 
 ## 0.16.0 (2021-10-18)
 
@@ -295,13 +312,13 @@
 - MAINT: Decapitalized analysis function names (e.g.
   "Roughness Parameters" -> "Roughness parameters")
 - MAINT: Removed error bars on analysis results
-- MAINT: Upgrade to Django 3.2
-- MAINT: Upgrade to fontawesome 5
-- MAINT: Upgrade to Postgres 13.4
-- MAINT: Upgrade to SurfaceTopography 0.98.0 (#730, #734)
-- MAINT: Upgrade to ContactMechanics 0.91.0
-- MAINT: Upgrade of several other packages
-- MAINT: Upgrade of sqlparse because of CVE
+- DEP: Upgrade to Django 3.2
+- DEP: Upgrade to fontawesome 5
+- DEP: Upgrade to Postgres 13.4
+- DEP: Upgrade to SurfaceTopography 0.98.0 (#730, #734)
+- DEP: Upgrade to ContactMechanics 0.91.0
+- DEP: Upgrade of several other packages
+- DEP: Upgrade of sqlparse because of CVE
 
 ## 0.15.1 (2021-08-05)
 
@@ -327,10 +344,10 @@
   as newer DI files that contain 32-bit data (#695)  
 - BUG: Unified order of measurements in surface details
   and when switching between measurements (#703)
-- MAINT: Upgrade for several dependencies, e.g. 
+- DEP: Upgrade for several dependencies, e.g. 
   SurfaceTopography to version 0.95.1 (#697),
   upgrade of urllib3 because of a CVE
-- MAINT: Using now PostgreSQL also for tests because
+- DEP: Using now PostgreSQL also for tests because
   of JSON fields
 
 ## 0.14.0 (2021-07-01)
