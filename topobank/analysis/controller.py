@@ -280,10 +280,8 @@ class AnalysisController:
         # Calculate subjects for the analyses, filtered for those which have an implementation
         self._subjects = None if subjects is None else subjects_from_dict(subjects)
 
-        print(self.function.name, 'A:', subjects, self._subjects)
         if with_children:
             self._subjects = find_children(self._subjects)
-        print(self.function.name, 'B:', self._subjects)
 
         # Find the latest analyses for which the user has read permission for the related data
         self._analyses = self._get_latest_analyses()
