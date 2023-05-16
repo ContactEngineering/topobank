@@ -565,4 +565,7 @@ def _get_app_config_for_obj(obj):
             if ("." not in search_path) or app:
                 break
             search_path, _ = search_path.rsplit(".", 1)
+    if app is None:
+        raise RuntimeError(f'Could not find app config for {obj.__module__}. '
+                           f'Is the Django app installed and registered?')
     return app
