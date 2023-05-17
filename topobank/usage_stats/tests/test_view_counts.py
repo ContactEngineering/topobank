@@ -6,7 +6,7 @@ from django.shortcuts import reverse
 from trackstats.models import Metric, Period
 
 from ...analysis.tests.utils import TopographyAnalysisFactory
-from ...manager.utils import subjects_to_dict
+from ...manager.utils import subjects_to_base64
 
 
 @pytest.mark.django_db
@@ -24,10 +24,9 @@ def test_counts_analyses_views(api_client, test_analysis_function, mocker, handl
     # the views the user sees, load that URL via ajax which is not executed
     # during this test - so we must imitate the AJAX call here
     def send_card_request():
-        response = api_client.post(reverse('analysis:card-series'), data={
-            'function_id': test_analysis_function.id,
-            'subjects': subjects_to_dict([topography]),
-        }, format='json')  # we need an AJAX request
+        response = api_client.get(
+            reverse('analysis:card-series', kwargs=dict(function_id=test_analysis_function.id)) +
+            '?subjects=' + subjects_to_base64([topography]))
         return response
 
     record_mock = mocker.patch('trackstats.models.StatisticByDateAndObject.objects.record')

@@ -245,7 +245,8 @@ def request_analysis(user, analysis_func, subject, *other_args, **kwargs):
 class AnalysisController:
     """Retrieve and toggle status of analyses"""
 
-    def __init__(self, user, subjects=None, function=None, function_id=None, function_kwargs=None, with_children=True):
+    def __init__(self, user, subjects=None, function=None, function_id=None, function_kwargs=None, with_children=True,
+                 function_required=True):
         """
         Construct a controller object that filters for specific user, subjects,
         functions, and function arguments. If a parameter is None, then it
@@ -264,6 +265,10 @@ class AnalysisController:
         with_children : bool, optional
             Also return analyses of children, i.e. of topographies that belong
             to a surface. (Default: True)
+        function_required : bool, optional
+            If true, the controller raises an error if the request does not
+            contain information on the specific function to filter for.
+            (Default: True)
         """
         self._user = user
         if function is None:
@@ -274,7 +279,11 @@ class AnalysisController:
         elif function_id is None:
             self._function = function
         else:
-            raise ValueError('Please provide either `function` or `function_id`, not both')
+            raise ValueError('Please provide either `function` or `function_id`, not both.')
+
+        if self._function is None and function_required:
+            raise ValueError('Please restrict this analysis controller to a specific function.')
+
         self._function_kwargs = function_kwargs
 
         # Calculate subjects for the analyses, filtered for those which have an implementation
@@ -289,7 +298,7 @@ class AnalysisController:
         self._reset_cache()
 
     @staticmethod
-    def from_request(request, with_children=True):
+    def from_request(request, with_children=True, function_required=True, **kwargs):
         """
         Construct an `AnalysisControlLer` object from a request object.
 
@@ -300,6 +309,10 @@ class AnalysisController:
         with_children : bool, optional
             Also return analyses of children, i.e. of topographies that belong
             to a surface. (Default: True)
+        function_required : bool, optional
+            If true, the controller raises an error if the request does not
+            contain information on the specific function to filter for.
+            (Default: True)
 
         Returns
         -------
@@ -307,20 +320,27 @@ class AnalysisController:
             The analysis controller object
         """
         user = request.user
-        data = request.data
+        data = request.data | kwargs
+        q = request.GET  # Querydict
 
         function_id = data.get('function_id')
         if function_id is not None:
             function_id = int(function_id)
+
         subjects = data.get('subjects')
+        if subjects is None:
+            subjects = q.get('subjects')
         if subjects is not None and isinstance(subjects, str):
             subjects = dict_from_base64(subjects)
+
         function_kwargs = data.get('function_kwargs')
+        if function_kwargs is None:
+            function_kwargs = q.get('function_kwargs')
         if function_kwargs is not None and isinstance(function_kwargs, str):
             function_kwargs = dict_from_base64(function_kwargs)
 
         return AnalysisController(user, subjects=subjects, function_id=function_id, function_kwargs=function_kwargs,
-                                  with_children=with_children)
+                                  with_children=with_children, function_required=function_required)
 
     def _reset_cache(self):
         self._dois = None
@@ -449,6 +469,8 @@ class AnalysisController:
         # Find analyses
         analyses = Analysis.objects.filter(query) \
             .order_by('subject_type_id', 'subject_id', '-start_time').distinct("subject_type_id", 'subject_id')
+
+        print(analyses, [analysis for analysis in analyses if analysis.is_visible_for_user(self._user)])
 
         # filter by current visibility for user
         return [analysis for analysis in analyses if analysis.is_visible_for_user(self._user)]

@@ -109,9 +109,9 @@ def generic_card_view(request):
     return Response(context)
 
 
-@api_view(['POST'])
-def series_card_view(request):
-    controller = AnalysisController.from_request(request)
+@api_view(['GET'])
+def series_card_view(request, **kwargs):
+    controller = AnalysisController.from_request(request, **kwargs)
 
     #
     # for statistics, count views per function

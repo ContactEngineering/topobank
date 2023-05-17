@@ -22,8 +22,8 @@ urlpatterns += [
         view=login_required(views.AnalysesResultListView.as_view()),
         name='results-list'
     ),
-    re_path(
-        r'html/detail/(?P<pk>[\d,]+)/$',
+    path(
+        r'html/detail/<int:pk>/',
         view=login_required(views.AnalysisResultDetailView.as_view()),
         name='results-detail'
     ),
@@ -37,13 +37,13 @@ urlpatterns += [
         view=login_required(views.AnalysisFunctionView().as_view()),
         name='registry'
     ),
-    # POST
+    # GET
     # * Triggers analyses if not yet running
     # * Return state of analyses
     # * Return plot configuration for finished analyses
     # This is a post request because the request parameters are complex.
     path(
-        f'api/card/{functions.VIZ_SERIES}',
+        f'api/card/{functions.VIZ_SERIES}/<int:function_id>',
         view=login_required(views.series_card_view),
         name=f'card-{functions.VIZ_SERIES}'
     ),
