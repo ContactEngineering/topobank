@@ -119,11 +119,14 @@ export default {
     <div class="card search-result-card">
         <div class="card-header">
             <div class="btn-group btn-group-sm float-right">
-                <tasks-button :analyses="_analyses"
+                <tasks-button v-if="_analysesAvailable"
+                              :analyses="_analyses"
                               :csrf-token="csrfToken"
                               @task-state-changed="taskStateChanged">
                 </tasks-button>
-                <button @click="updateCard" class="btn btn-default float-right ml-1">
+                <button v-if="_analysesAvailable"
+                        @click="updateCard"
+                        class="btn btn-default float-right ml-1">
                     <i class="fa fa-redo"></i>
                 </button>
                 <card-expand-button v-if="!enlarged"
