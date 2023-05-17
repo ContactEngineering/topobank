@@ -12,7 +12,7 @@ from ..functions import topography_analysis_function_for_tests, surface_analysis
     surfacecollection_analysis_function_for_tests, VIZ_SERIES
 from ..registry import AnalysisRegistry, AlreadyRegisteredAnalysisFunctionException, register_implementation
 from ..urls import app_name
-from ..views import AnalysisFunctionView
+# from ..views import registry_view
 
 
 @pytest.mark.django_db
