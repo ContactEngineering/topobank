@@ -324,6 +324,8 @@ class AnalysisController:
         q = request.GET  # Querydict
 
         function_id = data.get('function_id')
+        if function_id is None:
+            function_id = q.get('function_id')
         if function_id is not None:
             function_id = int(function_id)
 
