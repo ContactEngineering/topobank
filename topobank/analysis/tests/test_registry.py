@@ -148,7 +148,14 @@ def test_availability_of_implementation_in_plugin(api_rf, mocker, plugins_instal
     # now check whether the implementation is available or not as expected
     assert impl.is_available_for_user(u) == expected_is_available
 
-    # Check implementation list from an API call
-    #request = api_rf.get(reverse('analysis:registry'))
-    #response = AnalysisFunctionView().as_view()(request)
-    #print(response)
+    # Check implementation list via API call
+    # request = api_rf.get('/analysis/api/registry/')
+    # request.user = u  # We need to set the user to mock authentication
+    # view = AnalysisFunctionView().as_view()
+    # response = view(request)
+    # assert response.status_code == 200
+    # print(response.data)
+    # analysis_function_names = set(a['name'] for a in response.data)
+    # print(plugins_installed)
+    # print(plugins_available_for_org)
+    # print(analysis_function_names)

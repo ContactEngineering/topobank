@@ -34,7 +34,7 @@ urlpatterns += [
     # Return function implementations
     path(
         'api/registry/',
-        view=login_required(views.AnalysisFunctionView().as_view()),
+        view=login_required(views.registry_view),
         name='registry'
     ),
     # GET

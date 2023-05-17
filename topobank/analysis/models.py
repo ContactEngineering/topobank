@@ -344,6 +344,25 @@ class AnalysisFunction(models.Model):
             return False
         return True
 
+    def is_available_for_user(self, user, models=None):
+        """
+        Check if this analysis function is available to the user. The function
+        is available to `user` if it is available for any of the `models`
+        specified.
+        """
+        if models is None:
+            from ..manager.models import SurfaceCollection, Surface, Topography
+            models = set([SurfaceCollection, Surface, Topography])
+
+        is_available_to_user = False
+        for model in models:
+            try:
+                impl = self.get_implementation(ContentType.objects.get_for_model(model))
+                is_available_to_user |= impl.is_available_for_user(user)
+            except ImplementationMissingAnalysisFunctionException:
+                pass
+        return is_available_to_user
+
     def get_default_kwargs(self, subject_type):
         """Return default keyword arguments as dict.
 

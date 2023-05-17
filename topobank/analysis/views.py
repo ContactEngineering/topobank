@@ -52,10 +52,17 @@ class AnalysisResultView(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
             return Response({}, status=status.HTTP_403_FORBIDDEN)
 
 
-class AnalysisFunctionView(generics.ListAPIView):
+@api_view(['GET'])
+def registry_view(request):
     """Access to analysis function registry"""
-    queryset = AnalysisFunction.objects.all().order_by('name')
-    serializer_class = AnalysisFunctionSerializer
+    _models = [SurfaceCollection, Surface, Topography]
+
+    # Find out which analysis function are actually available to the user
+    r = []
+    for analysis_function in AnalysisFunction.objects.all().order_by('name'):
+        if analysis_function.is_available_for_user(request.user):
+            r += [AnalysisFunctionSerializer(analysis_function).data]
+    return Response(r)
 
 
 @api_view(['POST'])
