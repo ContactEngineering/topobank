@@ -557,10 +557,23 @@ ul.timeline > li > .timeline-panel:after {
 	white-space: normal;
 	font-size: 0.9em;
 }
-.navbar-expand .navbar-nav .user-dropdown .dropdown-item {
+.navbar-expand .navbar-nav .user-dropdown  {
 	word-wrap: break-word;
 	white-space: normal;
 	font-size: 0.9em;
+}
+#mark-all-as-read-btn{
+  word-wrap: break-word;
+	white-space: normal;
+  line-height: 1.42857143;
+  padding: unset!important;
+}
+#notification-msg{
+  word-wrap: break-word!important;
+  word-break: break-word;
+  color: blue;
+  max-width: fit-content!important;
+  display: block!important;
 }
 .navbar-expand .navbar-nav .alerts-dropdown .dropdown-divider {
 	border-top: 1px solid #e5e5e5;
@@ -614,6 +627,7 @@ ul.timeline > li > .timeline-panel:after {
   bottom: 0;
   z-index: 999;
   overflow-x: clip;
+  padding: 12px;
   /*padding-top: 100px;*/
   font-size: 16px;
   line-height: 1.5;
