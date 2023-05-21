@@ -1,10 +1,12 @@
+import logging
+
 from django.db.models.signals import pre_delete, post_delete, pre_save, post_save
 from django.dispatch import receiver
 from django.core.cache import cache
-from notifications.models import Notification
 from django.contrib.contenttypes.models import ContentType
+
 from allauth.account.signals import user_logged_in
-import logging
+from notifications.models import Notification
 
 from .models import Topography, Surface
 from .views import DEFAULT_SELECT_TAB_STATE
