@@ -15,9 +15,9 @@ WIZARD_FORMS = [
 ]
 
 router = DefaultRouter()
-router.register(r'api/surface', views.SurfaceViewSet, basename='surface')
-router.register(r'api/topography', views.TopographyViewSet, basename='topography')
-router.register(r'api/tag', views.TagViewSet, basename='tag')
+router.register(r'api/surface', views.SurfaceViewSet, basename='surface-api')
+router.register(r'api/topography', views.TopographyViewSet, basename='topography-api')
+router.register(r'api/tag', views.TagViewSet, basename='tag-api')
 
 urlpatterns = router.urls
 
@@ -27,17 +27,17 @@ urlpatterns += [
     # HTML routes
     #
     re_path(
-        r'topography/(?P<pk>\d+)/$',
+        r'html/topography/(?P<pk>\d+)/$',
         view=login_required(views.TopographyDetailView.as_view()),
         name='topography-detail'
     ),
     re_path(
-        r'topography/(?P<pk>\d+)/update/$',
+        r'html/topography/(?P<pk>\d+)/update/$',
         view=login_required(views.TopographyUpdateView.as_view()),
         name='topography-update'
     ),
     re_path(
-        r'topography/(?P<pk>\d+)/delete/$',
+        r'html/topography/(?P<pk>\d+)/delete/$',
         view=login_required(views.TopographyDeleteView.as_view()),
         name='topography-delete'
     ),
@@ -52,89 +52,92 @@ urlpatterns += [
         name='topography-dzi'
     ),
     re_path(
-        r'topography/(?P<pk>\d+)/plot/$',
+        r'html/topography/(?P<pk>\d+)/plot/$',
         view=login_required(views.topography_plot),
         name='topography-plot'
     ),
     re_path(
-        r'surface/(?P<surface_id>\d+)/new-topography/$',
+        r'html/surface/(?P<surface_id>\d+)/new-topography/$',
         view=login_required(views.TopographyCreateWizard.as_view(WIZARD_FORMS)),
         name='topography-create'
     ),
     re_path(
-        r'surface/(?P<surface_id>\d+)/new-topography/corrupted$',
+        r'html/surface/(?P<surface_id>\d+)/new-topography/corrupted$',
         view=login_required(views.CorruptedTopographyView.as_view()),
         name='topography-corrupted'
     ),
     re_path(
-        r'surface/(?P<pk>\d+)/$',
+        r'html/surface/(?P<pk>\d+)/$',
         view=login_required(views.SurfaceDetailView.as_view()),
         name='surface-detail'
     ),
     re_path(
-        r'surface/(?P<pk>\d+)/update/$',
+        r'html/surface/(?P<pk>\d+)/update/$',
         view=login_required(views.SurfaceUpdateView.as_view()),
         name='surface-update'
     ),
     re_path(
-       r'surface/(?P<pk>\d+)/delete/$',
+       r'html/surface/(?P<pk>\d+)/delete/$',
        view=login_required(views.SurfaceDeleteView.as_view()),
        name='surface-delete'
     ),
     re_path(
-       r'surface/(?P<pk>\d+)/share/$',
+       r'html/surface/(?P<pk>\d+)/share/$',
        view=login_required(views.SurfaceShareView.as_view()),
        name='surface-share'
     ),
     re_path(
-       r'surface/(?P<pk>\d+)/publish/$',
+       r'html/surface/(?P<pk>\d+)/publish/$',
        view=login_required(views.SurfacePublishView.as_view()),
        name='surface-publish'
     ),
     re_path(
-        r'surface/(?P<pk>\d+)/publication-rate-too-high/$',
+        r'html/surface/(?P<pk>\d+)/publication-rate-too-high/$',
         view=login_required(views.PublicationRateTooHighView.as_view()),
         name='surface-publication-rate-too-high'
     ),
     re_path(
-        r'surface/(?P<pk>\d+)/publication-error/$',
+        r'html/surface/(?P<pk>\d+)/publication-error/$',
         view=login_required(views.PublicationErrorView.as_view()),
         name='surface-publication-error'
     ),
-    re_path(
-        r'surface/(?P<surface_id>\d+)/download/$',
-        view=login_required(views.download_surface),
-        name='surface-download'
-    ),
     path(
-        'surface/new/',
+        'html/surface/new/',
         view=login_required(views.SurfaceCreateView.as_view()),
         name='surface-create'
     ),
     path(
-        'select/',
+        'html/select/',
         view=login_required(views.SelectView.as_view()),
         name='select'
     ),
+    path(
+        'html/access-denied/',
+        view=TemplateView.as_view(template_name="403.html"),
+        name='access-denied'
+    ),
+    path(
+        'html/sharing/',
+        view=login_required(views.sharing_info),
+        name='sharing-info'
+    ),
+    path(
+        'html/publications/',
+        view=login_required(views.PublicationListView.as_view()),
+        name='publications'
+    ),
+    #
+    # Data routes
+    #
     path(
         'select/download/',
         view=login_required(views.download_selection_as_surfaces),
         name='download-selection'
     ),
-    path(
-        'access-denied/',
-        view=TemplateView.as_view(template_name="403.html"),
-        name='access-denied'
-    ),
-    path(
-        'sharing/',
-        view=login_required(views.sharing_info),
-        name='sharing-info'
-    ),
-    path(
-        'publications/',
-        view=login_required(views.PublicationListView.as_view()),
-        name='publications'
+    re_path(
+        r'surface/(?P<surface_id>\d+)/download/$',
+        view=login_required(views.download_surface),
+        name='surface-download'
     ),
     #
     # API routes
