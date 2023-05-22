@@ -152,7 +152,7 @@ def test_surface_routes(api_client, is_authenticated, two_topos, handle_usage_st
         assert data == surface1_dict
     else:
         # Anonymous user does not have access by default
-        assert response.status_code == 403
+        assert response.status_code == 404
 
     response = api_client.get(reverse('manager:surface-api-detail', kwargs=dict(pk=surface2.id)))
     if is_authenticated:
@@ -161,7 +161,7 @@ def test_surface_routes(api_client, is_authenticated, two_topos, handle_usage_st
         assert data == surface2_dict
     else:
         # Anonymous user does not have access by default
-        assert response.status_code == 403
+        assert response.status_code == 404
 
 
 @pytest.mark.django_db
@@ -241,7 +241,7 @@ def test_topography_routes(api_client, is_authenticated, two_topos, handle_usage
         assert data == topo1_dict
     else:
         # Anonymous user does not have access by default
-        assert response.status_code == 403
+        assert response.status_code == 404
 
     response = api_client.get(reverse('manager:topography-api-detail', kwargs=dict(pk=topo2.id)))
     if is_authenticated:
@@ -250,4 +250,4 @@ def test_topography_routes(api_client, is_authenticated, two_topos, handle_usage
         assert data == topo2_dict
     else:
         # Anonymous user does not have access by default
-        assert response.status_code == 403
+        assert response.status_code == 404

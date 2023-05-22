@@ -40,8 +40,7 @@ from rest_framework import viewsets
 from rest_framework.decorators import api_view
 from rest_framework.generics import ListAPIView
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.permissions import IsAuthenticatedOrReadOnly, BasePermission, DjangoModelPermissions, \
-    DjangoObjectPermissions, SAFE_METHODS
+from rest_framework.permissions import IsAuthenticatedOrReadOnly, DjangoObjectPermissions, SAFE_METHODS
 from rest_framework.response import Response
 from rest_framework.utils.urls import remove_query_param, replace_query_param
 from trackstats.models import Metric, Period
@@ -2109,6 +2108,10 @@ class AllObjectPermissions(DjangoObjectPermissions):
         'PATCH': ['%(app_label)s.change_%(model_name)s'],
         'DELETE': ['%(app_label)s.delete_%(model_name)s'],
     }
+
+    def has_permission(self, request, view):
+        # Permissions are handled on a per-object basis
+        return True
 
 
 class ParentSurfacePermissions(AllObjectPermissions):

@@ -2,14 +2,12 @@ import logging
 
 from django.core.cache import cache
 from django.contrib.contenttypes.models import ContentType
-from django.contrib.auth.models import Group, Permission
 from django.db.models.signals import pre_delete, post_delete, pre_save, post_save
 from django.dispatch import receiver
 
 from allauth.account.signals import user_logged_in
 from notifications.models import Notification
 
-from ..users.models import DEFAULT_GROUP_NAME
 from .models import Topography, Surface
 from .views import DEFAULT_SELECT_TAB_STATE
 from .utils import recursive_delete
@@ -17,38 +15,6 @@ from .utils import recursive_delete
 _log = logging.getLogger(__name__)
 
 
-@receiver(post_save, sender=Group)
-def set_default_permissions(sender, instance, created, **kwargs):
-    """
-    This receiver sets default groups permissions.
-
-    All users need basic access to the Surface object. There are
-    additional per object permissions, but the REST framework checks
-    per-model permissions before checking per-object permissions.
-    """
-    if created and instance.name == DEFAULT_GROUP_NAME:
-        ct = ContentType.objects.get_for_model(Surface)
-        add_surface, created = Permission.objects.get_or_create(content_type=ct, name='Can add surface',
-                                                                codename='add_surface')
-        change_surface, created = Permission.objects.get_or_create(content_type=ct, name='Can change surface',
-                                                                   codename='change_surface')
-        delete_surface, created = Permission.objects.get_or_create(content_type=ct, name='Can delete surface',
-                                                                   codename='delete_surface')
-        view_surface, created = Permission.objects.get_or_create(content_type=ct, name='Can view surface',
-                                                                 codename='view_surface')
-        add_topography, created = Permission.objects.get_or_create(content_type=ct, name='Can add topography',
-                                                                   codename='add_topography')
-        change_topography, created = Permission.objects.get_or_create(content_type=ct, name='Can change topography',
-                                                                      codename='change_topography')
-        delete_topography, created = Permission.objects.get_or_create(content_type=ct, name='Can delete topography',
-                                                                      codename='delete_topography')
-        view_topography, created = Permission.objects.get_or_create(content_type=ct, name='Can view topography',
-                                                                    codename='view_topography')
-        instance.permissions.add(add_surface, change_surface, delete_surface, view_surface,
-                                 add_topography, change_topography, delete_topography, view_topography)
-
-
-#
 # @receiver(post_save, sender=Surface)
 # def grant_surface_permissions_to_owner(sender, instance, created, **kwargs):
 #
