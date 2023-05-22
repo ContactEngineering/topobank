@@ -31,14 +31,17 @@ from django_tables2 import RequestConfig
 from django.contrib.staticfiles.storage import staticfiles_storage
 from django.contrib import messages
 
-from formtools.wizard.views import SessionWizardView
 from guardian.decorators import permission_required_or_403
 from guardian.shortcuts import get_users_with_perms, get_objects_for_user
+from formtools.wizard.views import SessionWizardView
 from notifications.signals import notify
+
 from rest_framework import viewsets
 from rest_framework.decorators import api_view
 from rest_framework.generics import ListAPIView
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.permissions import IsAuthenticatedOrReadOnly, BasePermission, DjangoModelPermissions, \
+    DjangoObjectPermissions, SAFE_METHODS
 from rest_framework.response import Response
 from rest_framework.utils.urls import remove_query_param, replace_query_param
 from trackstats.models import Metric, Period
@@ -541,7 +544,7 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
                               'fill_undefined_data_mode', 'detrend_mode', 'datafile', 'data_source',
                               'instrument_type',  # , 'instrument_parameters'
                               # 'tip_radius_value', 'tip_radius_unit',
-                             }
+                              }
         significant_fields_with_changes = set(changed_fields).intersection(significant_fields)
 
         instrument_fields = set(['instrument_type', 'instrument_parameters'])
@@ -689,6 +692,7 @@ def topography_plot(request, pk):
 class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
     model = Topography
     context_object_name = 'topography'
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
@@ -922,7 +926,7 @@ class SurfaceDetailView(DetailView):
 
             bw_left = [bw['lower_bound'] for bw in bw_data_without_errors]
             bw_right = [bw['upper_bound'] for bw in bw_data_without_errors]
-            bw_center = np.exp((np.log(bw_left)+np.log(bw_right))/2)  # we want to center on log scale
+            bw_center = np.exp((np.log(bw_left) + np.log(bw_right)) / 2)  # we want to center on log scale
             bw_rel_cutoff = [bw['short_reliability_cutoff'] for bw in bw_data_without_errors]
             bw_names = [bw['topography'].name for bw in bw_data_without_errors]
             bw_topography_links = [bw['link'] for bw in bw_data_without_errors]
@@ -1410,9 +1414,9 @@ class SurfacePublishView(FormView):
         context['max_len_authors_field'] = MAX_LEN_AUTHORS_FIELD
         user = self.request.user
         context['user_dict'] = dict(
-            first_name = user.first_name,
-            last_name = user.last_name,
-            orcid_id = user.orcid_id
+            first_name=user.first_name,
+            last_name=user.last_name,
+            orcid_id=user.orcid_id
         )
         context['configured_for_doi_generation'] = settings.PUBLICATION_DOI_MANDATORY
         return context
@@ -1475,7 +1479,6 @@ class PublicationErrorView(TemplateView):
         return context
 
 
-
 class SharingInfoTable(tables.Table):
     surface = tables.Column(linkify=lambda **kwargs: kwargs['record']['surface'].get_absolute_url(),
                             accessor='surface__name')
@@ -1483,7 +1486,7 @@ class SharingInfoTable(tables.Table):
     created_by = tables.Column(linkify=lambda **kwargs: kwargs['record']['created_by'].get_absolute_url(),
                                accessor='created_by__name')
     shared_with = tables.Column(linkify=lambda **kwargs: kwargs['record']['shared_with'].get_absolute_url(),
-                               accessor='shared_with__name')
+                                accessor='shared_with__name')
     allow_change = tables.BooleanColumn()
     selected = tables.CheckBoxColumn(attrs={
         'th__input': {'class': 'select-all-checkbox'},
@@ -1500,10 +1503,10 @@ class SharingInfoTable(tables.Table):
     # def render_created_by(self, value):
     #     return self._render_user(value)
 
-    #def render_shared_with(self, value):
+    # def render_shared_with(self, value):
     #    return self._render_user(value)
 
-    #def _render_user(self, user):
+    # def _render_user(self, user):
     #    if self._request.user == user:
     #        return "You"
     #    return user.name
@@ -2092,19 +2095,71 @@ def dzi(request, pk, dzi_filename):
     return redirect(default_storage.url(f'{topo.storage_prefix}/dzi/{dzi_filename}'))
 
 
+class AllObjectPermissions(DjangoObjectPermissions):
+    """
+    Add restrictions to GET, OPTIONS and HEAD that are not present in the
+    default `DjangoObjectPermissions`.
+    """
+    perms_map = {
+        'GET': ['%(app_label)s.view_%(model_name)s'],
+        'OPTIONS': ['%(app_label)s.view_%(model_name)s'],
+        'HEAD': ['%(app_label)s.view_%(model_name)s'],
+        'POST': ['%(app_label)s.add_%(model_name)s'],
+        'PUT': ['%(app_label)s.change_%(model_name)s'],
+        'PATCH': ['%(app_label)s.change_%(model_name)s'],
+        'DELETE': ['%(app_label)s.delete_%(model_name)s'],
+    }
+
+
+class ParentSurfacePermissions(AllObjectPermissions):
+    """
+    Delegate permissions check to read/write/etc the parent `Surface` container
+    object, not the actual `Topography` or `Tag`.
+
+    Note that the model still needs to have correct permissions, i.e. a
+    `Topography` needs to have permission `manager.add_topography` etc set.
+    """
+    def has_object_permission(self, request, view, obj):
+        user = request.user
+
+        perms = self.get_required_object_permissions(request.method, Surface)
+
+        if not user.has_perms(perms, obj.surface):
+            # If the user does not have permissions we need to determine if
+            # they have read permissions to see 403, or not, and simply see
+            # a 404 response.
+
+            if request.method in SAFE_METHODS:
+                # Read permissions already checked and failed, no need
+                # to make another lookup.
+                raise Http404
+
+            read_perms = self.get_required_object_permissions('GET', Surface)
+            if not user.has_perms(read_perms, obj.surface):
+                raise Http404
+
+            # Has read permissions.
+            return False
+
+        return True
+
+
 class SurfaceViewSet(viewsets.ModelViewSet):
     """Retrieve status of analysis (GET) and renew analysis (PUT)"""
     queryset = Surface.objects.all()
     serializer_class = SurfaceSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly, AllObjectPermissions]
 
 
 class TopographyViewSet(viewsets.ModelViewSet):
     """Retrieve status of analysis (GET) and renew analysis (PUT)"""
     queryset = Topography.objects.all()
     serializer_class = TopographySerializer
+    permission_classes = [IsAuthenticatedOrReadOnly, ParentSurfacePermissions]
 
 
 class TagViewSet(viewsets.ModelViewSet):
     """Retrieve status of analysis (GET) and renew analysis (PUT)"""
     queryset = TagModel.objects.all()
     serializer_class = TagSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly, ParentSurfacePermissions]

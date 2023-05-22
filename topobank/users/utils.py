@@ -1,4 +1,5 @@
 from django.contrib.auth.models import Group
+
 from .models import DEFAULT_GROUP_NAME
 
 
