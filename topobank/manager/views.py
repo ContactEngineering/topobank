@@ -36,11 +36,10 @@ from guardian.shortcuts import get_users_with_perms, get_objects_for_user
 from formtools.wizard.views import SessionWizardView
 from notifications.signals import notify
 
-from rest_framework import viewsets
+from rest_framework import generics, mixins, viewsets
 from rest_framework.decorators import api_view
-from rest_framework.generics import ListAPIView
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.permissions import IsAuthenticatedOrReadOnly, DjangoObjectPermissions, SAFE_METHODS
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from rest_framework.utils.urls import remove_query_param, replace_query_param
 from trackstats.models import Metric, Period
@@ -49,21 +48,23 @@ from celery import chain
 
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 
-from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm
-from .forms import TopographyForm, SurfaceForm, SurfaceShareForm, SurfacePublishForm
-from .models import Topography, Surface, TagModel, NewPublicationTooFastException, LoadTopographyException, \
-    PlotTopographyException, PublicationException, _upload_path_for_datafile
-from .serializers import SurfaceSerializer, TopographySerializer, TagSerializer
-from .utils import selected_instances, bandwidths_data, get_topography_reader, tags_for_user, get_reader_infos, \
-    mailto_link_for_reporting_an_error, current_selection_as_basket_items, filtered_surfaces, \
-    filtered_topographies, get_search_term, get_category, get_sharing_status, get_tree_mode, \
-    get_permission_table_data, subjects_to_base64
 from ..usage_stats.utils import increase_statistics_by_date, increase_statistics_by_date_and_object
 from ..users.models import User
 from ..publication.models import Publication, MAX_LEN_AUTHORS_FIELD
 from .containers import write_surface_container
 from ..taskapp.tasks import renew_squeezed_datafile, renew_bandwidth_cache, \
     renew_topography_images, renew_analyses_related_to_topography
+
+from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm
+from .forms import TopographyForm, SurfaceForm, SurfaceShareForm, SurfacePublishForm
+from .models import Topography, Surface, TagModel, NewPublicationTooFastException, LoadTopographyException, \
+    PlotTopographyException, PublicationException, _upload_path_for_datafile
+from .permissions import ObjectPermissions, ObjectPermissionsFilter, ParentObjectPermissions
+from .serializers import SurfaceSerializer, TopographySerializer, TagSerializer
+from .utils import selected_instances, bandwidths_data, get_topography_reader, tags_for_user, get_reader_infos, \
+    mailto_link_for_reporting_an_error, current_selection_as_basket_items, filtered_surfaces, \
+    filtered_topographies, get_search_term, get_category, get_sharing_status, get_tree_mode, \
+    get_permission_table_data, subjects_to_base64
 
 # create dicts with labels and option values for Select tab
 CATEGORY_FILTER_CHOICES = {'all': 'All categories',
@@ -1765,7 +1766,7 @@ class SurfaceSearchPaginator(PageNumberPagination):
         return urls
 
 
-class TagTreeView(ListAPIView):
+class TagTreeView(generics.ListAPIView):
     """
     Generate tree of tags with surfaces and topographies underneath.
     """
@@ -1800,7 +1801,9 @@ class TagTreeView(ListAPIView):
         return context
 
 
-class SurfaceListView(ListAPIView):
+# FIXME!!! This should be folded into the `SurfaceViewSet`, but handling
+#  selections should be moved to the client first.
+class SurfaceListView(generics.ListAPIView):
     """
     List all surfaces with topographies underneath.
     """
@@ -2094,75 +2097,21 @@ def dzi(request, pk, dzi_filename):
     return redirect(default_storage.url(f'{topo.storage_prefix}/dzi/{dzi_filename}'))
 
 
-class AllObjectPermissions(DjangoObjectPermissions):
-    """
-    Add restrictions to GET, OPTIONS and HEAD that are not present in the
-    default `DjangoObjectPermissions`.
-    """
-    perms_map = {
-        'GET': ['%(app_label)s.view_%(model_name)s'],
-        'OPTIONS': ['%(app_label)s.view_%(model_name)s'],
-        'HEAD': ['%(app_label)s.view_%(model_name)s'],
-        'POST': ['%(app_label)s.add_%(model_name)s'],
-        'PUT': ['%(app_label)s.change_%(model_name)s'],
-        'PATCH': ['%(app_label)s.change_%(model_name)s'],
-        'DELETE': ['%(app_label)s.delete_%(model_name)s'],
-    }
-
-    def has_permission(self, request, view):
-        # Permissions are handled on a per-object basis
-        return True
-
-
-class ParentSurfacePermissions(AllObjectPermissions):
-    """
-    Delegate permissions check to read/write/etc the parent `Surface` container
-    object, not the actual `Topography` or `Tag`.
-
-    Note that the model still needs to have correct permissions, i.e. a
-    `Topography` needs to have permission `manager.add_topography` etc set.
-    """
-    def has_object_permission(self, request, view, obj):
-        user = request.user
-
-        perms = self.get_required_object_permissions(request.method, Surface)
-
-        if not user.has_perms(perms, obj.surface):
-            # If the user does not have permissions we need to determine if
-            # they have read permissions to see 403, or not, and simply see
-            # a 404 response.
-
-            if request.method in SAFE_METHODS:
-                # Read permissions already checked and failed, no need
-                # to make another lookup.
-                raise Http404
-
-            read_perms = self.get_required_object_permissions('GET', Surface)
-            if not user.has_perms(read_perms, obj.surface):
-                raise Http404
-
-            # Has read permissions.
-            return False
-
-        return True
-
-
-class SurfaceViewSet(viewsets.ModelViewSet):
-    """Retrieve status of analysis (GET) and renew analysis (PUT)"""
+class SurfaceViewSet(mixins.CreateModelMixin,
+                     mixins.RetrieveModelMixin,
+                     mixins.UpdateModelMixin,
+                     mixins.DestroyModelMixin,
+                     viewsets.GenericViewSet):
     queryset = Surface.objects.all()
     serializer_class = SurfaceSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly, AllObjectPermissions]
+    permission_classes = [IsAuthenticatedOrReadOnly, ObjectPermissions]
 
 
-class TopographyViewSet(viewsets.ModelViewSet):
-    """Retrieve status of analysis (GET) and renew analysis (PUT)"""
+class TopographyViewSet(mixins.CreateModelMixin,
+                        mixins.RetrieveModelMixin,
+                        mixins.UpdateModelMixin,
+                        mixins.DestroyModelMixin,
+                        viewsets.GenericViewSet):
     queryset = Topography.objects.all()
     serializer_class = TopographySerializer
-    permission_classes = [IsAuthenticatedOrReadOnly, ParentSurfacePermissions]
-
-
-class TagViewSet(viewsets.ModelViewSet):
-    """Retrieve status of analysis (GET) and renew analysis (PUT)"""
-    queryset = TagModel.objects.all()
-    serializer_class = TagSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly, ParentSurfacePermissions]
+    permission_classes = [IsAuthenticatedOrReadOnly, ParentObjectPermissions]

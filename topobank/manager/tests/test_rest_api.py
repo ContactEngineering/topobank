@@ -136,14 +136,8 @@ def test_surface_routes(api_client, is_authenticated, two_topos, handle_usage_st
     if is_authenticated:
         api_client.force_authenticate(user)
 
-    #    response = api_client.get(reverse('manager:surface-api-list'))
-    #    if is_authenticated:
-    #        assert response.status_code == 200
-    #        data = json.loads(json.dumps(response.data))  # Convert OrderedDict to dict
-    #        assert data == [surface1_dict, surface2_dict]
-    #    else:
-    #        # Anonymous user does not have access by default
-    #        assert response.status_code == 403
+    response = api_client.get(reverse('manager:surface-api-list'))
+    assert response.status_code == 405
 
     response = api_client.get(reverse('manager:surface-api-detail', kwargs=dict(pk=surface1.id)))
     if is_authenticated:
@@ -225,14 +219,8 @@ def test_topography_routes(api_client, is_authenticated, two_topos, handle_usage
     if is_authenticated:
         api_client.force_authenticate(user)
 
-    #    response = api_client.get(reverse('manager:topography-api-list'))
-    #    if is_authenticated:
-    #        assert response.status_code == 200
-    #        data = json.loads(json.dumps(response.data))  # Convert OrderedDict to dict
-    #        assert data == [topo1_dict, topo2_dict]
-    #    else:
-    #        # Anonymous user does not have access by default
-    #        assert response.status_code == 403
+    response = api_client.get(reverse('manager:topography-api-list'))
+    assert response.status_code == 405
 
     response = api_client.get(reverse('manager:topography-api-detail', kwargs=dict(pk=topo1.id)))
     if is_authenticated:

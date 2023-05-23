@@ -8,7 +8,6 @@ import traceback
 from django.shortcuts import reverse
 from guardian.shortcuts import get_objects_for_user, get_users_with_perms
 from django.conf import settings
-from django.contrib.contenttypes.models import ContentType
 from django.db.models import Q, Value, Count
 from django.db.models.functions import Replace
 from django.core.exceptions import PermissionDenied
