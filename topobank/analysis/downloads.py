@@ -353,7 +353,7 @@ def download_plot_analyses_to_txt(request, analyses):
 
     # Prepare response object.
     response = HttpResponse(f.getvalue(), content_type='application/text')
-    filename = '{}.txt'.format(analysis.function.name).replace(' ', '_')
+    filename = f'{slugify(analysis.function.name)}.txt'
     response['Content-Disposition'] = 'attachment; filename="{}"'.format(filename)
 
     # Close file and return response.
@@ -481,7 +481,7 @@ def download_plot_analyses_to_xlsx(request, analyses):
 
     excel_writer.close()
 
-    filename = '{}.xlsx'.format(analysis.function.name).replace(' ', '_')
+    filename = f'{slugify(analysis.function.name)}.xlsx'
     #
     # Create INDEX sheet with links in Openpyxl
     #
@@ -607,7 +607,7 @@ def download_plot_analyses_to_csv(request, analyses):
             }
             try:
                 std_err_y_mask = series['std_err_y'].mask
-            except (AttributeError, KeyError) as exc:.append
+            except (AttributeError, KeyError) as exc:
                 std_err_y_mask = np.zeros(len(series['y']), dtype=bool)
 
             try:
@@ -620,9 +620,9 @@ def download_plot_analyses_to_csv(request, analyses):
             data = pd.concat([data, pd.DataFrame(df_columns_dict)])
 
     f = io.StringIO()
-    data.to_csv(f)
+    data.to_csv(f, sep=';', index_label='Index')
     response = HttpResponse(f.getvalue(), content_type='application/text')
-    filename = '{}.csv'.format(slugify(analysis.function.name))
+    filename = f'{slugify(analysis.function.name)}.csv'
     response['Content-Disposition'] = 'attachment; filename="{}"'.format(filename)
 
     return response
