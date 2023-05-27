@@ -18,12 +18,13 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
                   'urls', 'selected', 'key', 'surface_key', 'title', 'folder', 'version',
                   'publication_date', 'publication_authors', 'creator_name', 'sharing_status', 'label']
 
-    title = serializers.CharField(source='name')
+    title = serializers.CharField(source='name', read_only=True)  # set this through name
 
     creator = serializers.HyperlinkedRelatedField(
         read_only=True,
         view_name='users:detail',
         lookup_field='username',
+        default=serializers.CurrentUserDefault()
     )
 
     urls = serializers.SerializerMethodField()
@@ -31,12 +32,15 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
     key = serializers.SerializerMethodField()
     surface_key = serializers.SerializerMethodField()
     sharing_status = serializers.SerializerMethodField()
-    folder = serializers.BooleanField(default=False)
+    # `folder` is Fancytree-specific, see
+    # https://wwwendt.de/tech/fancytree/doc/jsdoc/global.html#NodeData
+    folder = serializers.BooleanField(default=False, read_only=True)
     tags = serializers.SerializerMethodField()
-    type = serializers.CharField(default='topography')  # should be output of mangle_content_type(Meta.model)
-    version = serializers.CharField(default='')
-    publication_authors = serializers.CharField(default='')
-    publication_date = serializers.CharField(default='')
+    # `type` should be the output of mangle_content_type(Meta.model)
+    type = serializers.CharField(default='topography', read_only=True)
+    version = serializers.CharField(default='', read_only=True)
+    publication_authors = serializers.CharField(default='', read_only=True)
+    publication_date = serializers.CharField(default='', read_only=True)
     creator_name = serializers.SerializerMethodField()
     label = serializers.SerializerMethodField()
 
@@ -115,16 +119,19 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
     creator = serializers.HyperlinkedRelatedField(
         read_only=True,
         view_name='users:detail',
-        lookup_field='username',
+        lookup_field='username'
     )
 
     urls = serializers.SerializerMethodField()
     selected = serializers.SerializerMethodField()
     key = serializers.SerializerMethodField()
-    folder = serializers.BooleanField(default=True)
+    # `folder` is Fancytree-specific, see
+    # https://wwwendt.de/tech/fancytree/doc/jsdoc/global.html#NodeData
+    folder = serializers.BooleanField(default=True, read_only=True)
     sharing_status = serializers.SerializerMethodField()
     tags = serializers.SerializerMethodField()
-    type = serializers.CharField(default='surface')  # should be output of mangle_content_type(Meta.model)
+    # `type` should be the output of mangle_content_type(Meta.model)
+    type = serializers.CharField(default='surface', read_only=True)
     version = serializers.SerializerMethodField()
     publication_date = serializers.SerializerMethodField()
     publication_authors = serializers.SerializerMethodField()
@@ -252,16 +259,19 @@ class TagSerializer(serializers.ModelSerializer):
                   'publication_date', 'publication_authors', 'label']
 
     children = serializers.SerializerMethodField()
-    folder = serializers.BooleanField(default=True)
+    # `folder` is Fancytree-specific, see
+    # https://wwwendt.de/tech/fancytree/doc/jsdoc/global.html#NodeData
+    folder = serializers.BooleanField(default=True, read_only=True)
     key = serializers.SerializerMethodField()
     label = serializers.SerializerMethodField()
-    publication_authors = serializers.CharField(default='')
-    publication_date = serializers.CharField(default='')
+    publication_authors = serializers.CharField(default='', read_only=True)
+    publication_date = serializers.CharField(default='', read_only=True)
     selected = serializers.SerializerMethodField()
-    title = serializers.CharField(source='label')
-    type = serializers.CharField(default='tag')  # should be output of mangle_content_type(Meta.model)
+    title = serializers.CharField(source='label', read_only=True)
+    # `type` should be the output of mangle_content_type(Meta.model)
+    type = serializers.CharField(default='tag', read_only=True)
     urls = serializers.SerializerMethodField()
-    version = serializers.CharField(default='')
+    version = serializers.CharField(default='', read_only=True)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
