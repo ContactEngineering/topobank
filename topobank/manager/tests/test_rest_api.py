@@ -269,6 +269,29 @@ def test_create_surface_routes(api_client, two_users, handle_usage_statistics):
 
 
 @pytest.mark.django_db
+def test_delete_surface_routes(api_client, two_topos, handle_usage_statistics):
+    topo1, topo2 = two_topos
+    user = topo1.creator
+    surface1 = topo1.surface
+    surface2 = topo2.surface
+
+    # Delete as anonymous user should fail
+    response = api_client.delete(reverse('manager:surface-api-detail', kwargs=dict(pk=surface1.id)),
+                                 format='json')
+    assert response.status_code == 403
+
+    assert Surface.objects.count() == 2
+
+    # Delete as user should succeed
+    api_client.force_authenticate(user)
+    response = api_client.delete(reverse('manager:surface-api-detail', kwargs=dict(pk=surface1.id)),
+                                 format='json')
+    assert response.status_code == 204  # Success, no content
+
+    assert Surface.objects.count() == 1
+
+
+@pytest.mark.django_db
 def test_delete_topography_routes(api_client, two_topos, handle_usage_statistics):
     topo1, topoe2 = two_topos
     user = topo1.creator
@@ -287,6 +310,36 @@ def test_delete_topography_routes(api_client, two_topos, handle_usage_statistics
     assert response.status_code == 204  # Success, no content
 
     assert Topography.objects.count() == 1
+
+
+@pytest.mark.django_db
+def test_patch_surface_routes(api_client, two_topos, handle_usage_statistics):
+    topo1, topo2 = two_topos
+    user = topo1.creator
+    surface1 = topo1.surface
+    surface2 = topo2.surface
+
+    new_name = 'My new name'
+
+    # Patch as anonymous user should fail
+    response = api_client.patch(reverse('manager:surface-api-detail', kwargs=dict(pk=surface1.id)),
+                                data={'name': new_name},
+                                format='json')
+    assert response.status_code == 403
+
+    assert Surface.objects.count() == 2
+
+    # Patch as user should succeed
+    api_client.force_authenticate(user)
+    response = api_client.patch(reverse('manager:surface-api-detail', kwargs=dict(pk=surface1.id)),
+                                data={'name': new_name},
+                                format='json')
+    assert response.status_code == 200  # Success, no content
+
+    assert Surface.objects.count() == 2
+
+    surface1, surface2 = Surface.objects.all()
+    assert surface1.name == new_name
 
 
 @pytest.mark.django_db
