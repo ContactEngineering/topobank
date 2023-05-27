@@ -7,12 +7,13 @@ from django.shortcuts import reverse
 from guardian.shortcuts import get_anonymous_user
 
 from ...manager.utils import subjects_to_base64
-from .utils import two_topos
+from ...manager.models import Surface
+from .utils import two_topos, two_users
 
 
 @pytest.mark.django_db
 @pytest.mark.parametrize('is_authenticated', [True, False])
-def test_surface_routes(api_client, is_authenticated, two_topos, handle_usage_statistics):
+def test_surface_retrieve_routes(api_client, is_authenticated, two_topos, handle_usage_statistics):
     topo1, topo2 = two_topos
     user = topo1.creator
     assert topo2.creator == user
@@ -160,7 +161,7 @@ def test_surface_routes(api_client, is_authenticated, two_topos, handle_usage_st
 
 @pytest.mark.django_db
 @pytest.mark.parametrize('is_authenticated', [True, False])
-def test_topography_routes(api_client, is_authenticated, two_topos, handle_usage_statistics):
+def test_topography_retrieve_routes(api_client, is_authenticated, two_topos, handle_usage_statistics):
     topo1, topo2 = two_topos
     user = topo1.creator
     assert topo2.creator == user
@@ -239,3 +240,29 @@ def test_topography_routes(api_client, is_authenticated, two_topos, handle_usage
     else:
         # Anonymous user does not have access by default
         assert response.status_code == 404
+
+
+@pytest.mark.django_db
+def test_create_delete_routes(api_client, two_users, handle_usage_statistics):
+    user1, user2 = two_users
+
+    surface1_dict = {'label': 'Surface 1',
+                     'name': 'Surface 1',
+                     'title': 'Surface 1'}
+
+    # Create as anonymous user should fail
+    response = api_client.post(reverse('manager:surface-api-list'),
+                               data=surface1_dict, format='json')
+    assert response.status_code == 403
+
+    assert Surface.objects.count() == 0
+
+    # Create as user1 should succeed
+    api_client.force_authenticate(user1)
+    response = api_client.post(reverse('manager:surface-api-list'),
+                               data=surface1_dict, format='json')
+    assert response.status_code == 201
+
+    assert Surface.objects.count() == 1
+    s, = Surface.objects.all()
+    assert s.creator.name == user1.name
