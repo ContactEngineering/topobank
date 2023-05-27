@@ -32,14 +32,12 @@ export default {
         functionId: Number,
         functionName: String,
         subjects: String,
-        txtDownloadUrl: String,
         uid: {
             type: String,
             default() {
                 return uuid4();
             }
-        },
-        xlsxDownloadUrl: String
+        }
     },
     data() {
         return {
@@ -177,6 +175,9 @@ export default {
                         <div class="btn-group ml-1" role="group" aria-label="Download formats">
                             <a :href="`/analysis/download/${analysisIds}/txt`" class="btn btn-default">
                                 TXT
+                            </a>
+                            <a :href="`/analysis/download/${analysisIds}/csv`" class="btn btn-default">
+                                CSV
                             </a>
                             <a :href="`/analysis/download/${analysisIds}/xlsx`" class="btn btn-default">
                                 XLSX
