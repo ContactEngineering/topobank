@@ -255,7 +255,7 @@ def test_create_surface_routes(api_client, two_users, handle_usage_statistics):
                                data=surface1_dict, format='json')
     assert response.status_code == 403
 
-    assert Surface.objects.count() == 0
+    assert Surface.objects.count() == 3
 
     # Create as user1 should succeed
     api_client.force_authenticate(user1)
@@ -263,8 +263,8 @@ def test_create_surface_routes(api_client, two_users, handle_usage_statistics):
                                data=surface1_dict, format='json')
     assert response.status_code == 201
 
-    assert Surface.objects.count() == 1
-    s, = Surface.objects.all()
+    assert Surface.objects.count() == 4
+    _, _, _, s = Surface.objects.all()
     assert s.creator.name == user1.name
 
 
