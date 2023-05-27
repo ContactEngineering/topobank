@@ -8,7 +8,6 @@ import traceback
 from django.shortcuts import reverse
 from guardian.shortcuts import get_objects_for_user, get_users_with_perms
 from django.conf import settings
-from django.contrib.contenttypes.models import ContentType
 from django.db.models import Q, Value, Count
 from django.db.models.functions import Replace
 from django.core.exceptions import PermissionDenied
@@ -170,7 +169,7 @@ def surfaces_for_user(user, perms=['view_surface']):
     :param perms: list of permission codenames, default is ['view_surface']
     :return: queryset of surfaces
     """
-    from topobank.manager.models import Surface
+    from .models import Surface
     return get_objects_for_user(user, perms, klass=Surface, accept_global_perms=False)
 
 

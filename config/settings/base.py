@@ -3,6 +3,7 @@ Base settings to build other settings files upon.
 """
 
 import os.path
+import logging
 import random
 import string
 
@@ -15,6 +16,8 @@ from django.core.exceptions import ImproperlyConfigured
 from watchman import constants as watchman_constants
 
 import topobank
+
+_log = logging.getLogger(__name__)
 
 def random_string(l=16):
     return ''.join(random.choice(string.ascii_lowercase) for i in range(l))
@@ -116,6 +119,7 @@ for entry_point in iter_entry_points(group='topobank.plugins', name=None):
     if entry_point.module_name in TOPOBANK_PLUGINS_EXCLUDE:
         continue
     PLUGIN_APPS.append(entry_point.module_name)
+_log.info('Topobank detected the following plugins:', PLUGIN_APPS)
 
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
 # Remove duplicate entries
@@ -344,12 +348,13 @@ ACCOUNT_LOGOUT_ON_GET = True  # True: disable intermediate page
 # This seems to fit well: https://www.django-rest-framework.org/tutorial/4-authentication-and-permissions/
 #
 REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+    ],
     'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAuthenticated',
-    ),
-    # 'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
-    #'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    #'PAGE_SIZE': 2,
+        # Anonymous user is not authenticated by needs read-only access
+        'rest_framework.permissions.IsAuthenticatedOrReadOnly',
+    )
 }
 
 #
@@ -413,7 +418,7 @@ for d in [APPS_DIR.path('static'), APPS_DIR.path('../../static')]:
     if os.path.exists(d):
         STATICFILES_DIRS += [d]
     else:
-        print(f"Skipping path '{d}' for static files since it does not exist.")
+        _log.info(f"Skipping path '{d}' for static files since it does not exist.")
 # https://docs.djangoproject.com/en/dev/ref/contrib/staticfiles/#staticfiles-finders
 STATICFILES_FINDERS = [
     'django.contrib.staticfiles.finders.FileSystemFinder',

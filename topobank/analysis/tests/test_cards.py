@@ -5,7 +5,7 @@ from django.urls import reverse, reverse_lazy
 
 from ...manager.tests.utils import Topography1DFactory, Topography2DFactory, UserFactory, SurfaceFactory
 from ...manager.models import Analysis, Topography, Surface
-from ...manager.utils import subjects_to_dict
+from ...manager.utils import subjects_to_dict, subjects_to_base64
 from ..models import AnalysisFunction
 from ..functions import VIZ_SERIES
 from ..views import series_card_view
@@ -13,9 +13,7 @@ from .utils import TopographyAnalysisFactory, SurfaceAnalysisFactory
 
 
 @pytest.mark.django_db
-def test_series_card_data_sources(api_rf, handle_usage_statistics):
-    from django.urls import get_resolver
-
+def test_series_card_data_sources(api_client, handle_usage_statistics):
     #
     # Create database objects
     #
@@ -28,12 +26,14 @@ def test_series_card_data_sources(api_rf, handle_usage_statistics):
 
     analysis = TopographyAnalysisFactory(subject=topo1, function=func1, users=[user])
 
-    request = api_rf.post(reverse(f'analysis:card-{VIZ_SERIES}'), data={
-        'function_id': func1.id,
-        'subjects': subjects_to_dict([topo1]),
-    }, format='json')
-    request.user = user
-    response = series_card_view(request)
+    #
+    # login and request plot card view
+    #
+    assert api_client.login(username=user.username, password=password)
+
+    url = reverse(f'analysis:card-{VIZ_SERIES}', kwargs=dict(function_id=func1.id)) \
+          + '?subjects=' + subjects_to_base64([topo1])
+    response = api_client.get(url)
 
     data_sources = response.data['plotConfiguration']['dataSources']
 
@@ -109,10 +109,9 @@ def test_series_card_if_no_successful_topo_analysis(api_client, handle_usage_sta
     # login and request plot card view
     assert api_client.login(username=user.username, password=password)
 
-    response = api_client.post(reverse(f'analysis:card-{VIZ_SERIES}'), data={
-        'function_id': func1.id,
-        'subjects': subjects_to_dict([topo, topo.surface]),  # also request results for surface here
-    }, format='json')  # we need an AJAX request
+    response = api_client.get(
+        reverse(f'analysis:card-{VIZ_SERIES}', kwargs=dict(function_id=func1.id)) +
+        '?subjects=' + subjects_to_base64([topo, topo.surface]))  # also request results for surface here
 
     # should return without errors
     assert response.status_code == 200

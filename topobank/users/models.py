@@ -90,12 +90,13 @@ class User(GuardianUserMixin, AbstractUser):
     def is_anonymous(self):
         """Return whether user is anonymous.
 
-        If available, guardians AnonymousUser is taken into account here,
-        otherwise the default implementation.
-
-        Returns
-        -------
-        boolean
+        We have a piece of middleware, that replaces the default anymous
+        user with django-guardian `AnonymousUser`. This is needed to give
+        the world (as the anonymous user) access to published data sets.
+        Since django-guardians anonymous user is a real user, `is_anonymous`
+        returns False and `is_authenticated` returns True by default. We
+        adjust these properties here to reflect the anonymous state of the
+        user.
         """
         try:
             # we might get an exception if the migrations
@@ -104,9 +105,24 @@ class User(GuardianUserMixin, AbstractUser):
         except ProgrammingError:
             return super().is_anonymous
 
-    # @property
-    # def is_authenticated(self):  # needed in "termsandconditions" to distinguish from real user
-    #     return not self.is_anonymous
+    @property
+    def is_authenticated(self):
+        """Return whether user is anonymous.
+
+        We have a piece of middleware, that replaces the default anymous
+        user with django-guardian `AnonymousUser`. This is needed to give
+        the world (as the anonymous user) access to published data sets.
+        Since django-guardians anonymous user is a real user, `is_anonymous`
+        returns False and `is_authenticated` returns True by default. We
+        adjust these properties here to reflect the anonymous state of the
+        user.
+        """
+        try:
+            # we might get an exception if the migrations
+            # haven't been performed yet
+            return self.id != get_anonymous_user().id
+        except ProgrammingError:
+            return super().is_anonymous
 
     class Meta:
         permissions = (

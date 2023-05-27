@@ -10,6 +10,7 @@ from openpyxl.worksheet.hyperlink import Hyperlink
 from openpyxl.styles import Font
 from django.http import HttpResponse, HttpResponseForbidden, HttpResponseBadRequest, HttpResponseNotFound
 from django.contrib.contenttypes.models import ContentType
+from django.utils.text import slugify
 
 import pandas as pd
 import io
@@ -47,10 +48,6 @@ def download_analyses(request, ids, file_format):
     #
     # Check permissions and collect analyses
     #
-    user = request.user
-    if not user.is_authenticated:
-        return HttpResponseForbidden()
-
     analyses_ids = [int(i) for i in ids.split(',')]
 
     analyses = []
@@ -75,7 +72,7 @@ def download_analyses(request, ids, file_format):
         #
         # Check whether user has view permission for requested analysis
         #
-        if not analysis.is_visible_for_user(user):
+        if not analysis.is_visible_for_user(request.user):
             return HttpResponseForbidden()
 
         #
@@ -356,12 +353,26 @@ def download_plot_analyses_to_txt(request, analyses):
 
     # Prepare response object.
     response = HttpResponse(f.getvalue(), content_type='application/text')
-    filename = '{}.txt'.format(analysis.function.name).replace(' ', '_')
+    filename = f'{slugify(analysis.function.name)}.txt'
     response['Content-Disposition'] = 'attachment; filename="{}"'.format(filename)
 
     # Close file and return response.
     f.close()
     return response
+
+
+def _comment_on_average(y, std_err_y_masked):
+    """Calculate a comment.
+
+    Parameters:
+        y: float
+        std_err_y_masked: boolean
+    """
+    if np.isnan(y):
+        return 'average could not be computed'
+    elif std_err_y_masked:
+        return 'no error could be computed because the average contains only a single data point'
+    return ''
 
 
 @register_download_function(VIZ_SERIES, 'results', 'xlsx')
@@ -403,19 +414,6 @@ def download_plot_analyses_to_xlsx(request, analyses):
             for k, idx in enumerate(indices):
                 subject_names_in_sheet_names[idx] += f" ({k + 1})"
 
-    def comment_on_average(y, std_err_y_masked):
-        """Calculate a comment.
-
-        Parameters:
-            y: float
-            std_err_y_masked: boolean
-        """
-        if np.isnan(y):
-            return 'average could not be computed'
-        elif std_err_y_masked:
-            return 'no error could be computed because the average contains only a single data point'
-        return ''
-
     index_entries = []  # tuples with (subject name, subject type, function name, data series, hyperlink to sheet)
 
     for analysis_idx, analysis in enumerate(analyses):
@@ -435,7 +433,7 @@ def download_plot_analyses_to_xlsx(request, analyses):
 
             try:
                 df_columns_dict[column3] = np.array(series['std_err_y']) * yconv
-                df_columns_dict[column4] = [comment_on_average(y, masked)
+                df_columns_dict[column4] = [_comment_on_average(y, masked)
                                             for y, masked in zip(series['y'], std_err_y_mask)]
             except KeyError:
                 pass
@@ -483,7 +481,7 @@ def download_plot_analyses_to_xlsx(request, analyses):
 
     excel_writer.close()
 
-    filename = '{}.xlsx'.format(analysis.function.name).replace(' ', '_')
+    filename = f'{slugify(analysis.function.name)}.xlsx'
     #
     # Create INDEX sheet with links in Openpyxl
     #
@@ -536,6 +534,95 @@ def download_plot_analyses_to_xlsx(request, analyses):
         response = HttpResponse(tmp.read(),
                                 content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
+    response['Content-Disposition'] = 'attachment; filename="{}"'.format(filename)
+
+    return response
+
+
+@register_download_function(VIZ_SERIES, 'results', 'csv')
+def download_plot_analyses_to_csv(request, analyses):
+    """Download plot data for given analyses as CSV file.
+
+    Parameters
+    ----------
+    request
+        HTTPRequest
+    analyses
+        Sequence of Analysis instances
+
+    Returns
+    -------
+    HTTPResponse
+    """
+    analysis = analyses[0]
+    result = analysis.result
+    xunit, xconv, yunit, yconv = _get_si_unit_conversion(result)
+    column1 = '{} ({})'.format(result['xlabel'], xunit)
+    column2 = '{} ({})'.format(result['ylabel'], yunit)
+    column3 = 'standard error of {} ({})'.format(result['ylabel'], yunit)
+    column4 = 'comment'
+
+    column_subject_type = 'Subject Type'
+    column_subject_name = 'Subject name'
+    column_function_name = 'Function Name'
+    column_data_series = 'Data Series'
+
+    data = pd.DataFrame(columns=[
+        column_subject_type,
+        column_subject_name,
+        column_function_name,
+        column_data_series,
+        column1,
+        column2,
+        column3,
+        column4
+    ])
+
+    for analysis_idx, analysis in enumerate(analyses):
+        # Get results and compute unit conversion factors
+        result = analysis.result
+        xunit, xconv, yunit, yconv = _get_si_unit_conversion(result)
+
+        # FIXME! Check that columns are actually identical
+        #_column1 = '{} ({})'.format(result['xlabel'], xunit)
+        #_column2 = '{} ({})'.format(result['ylabel'], yunit)
+        #_column3 = 'standard error of {} ({})'.format(result['ylabel'], yunit)
+        #_column4 = 'comment'
+
+        # Get metadata
+        subject_type = analysis.subject.get_content_type().name  # human-readable name
+        if subject_type == 'topography':
+            subject_type = 'measurement'  # this is how topographies are denoted in the UI
+
+        for series_idx, series in enumerate(result['series']):
+            x = np.array(series['x'])
+            y = np.array(series['y'])
+            df_columns_dict = {
+                column_subject_type: len(x) * [subject_type],
+                column_subject_name: len(x) * [analysis.subject.name],
+                column_function_name: len(x) * [analysis.function.name],
+                column_data_series: len(x) * [series['name']],
+                column1: x * xconv,
+                column2: y * yconv
+            }
+            try:
+                std_err_y_mask = series['std_err_y'].mask
+            except (AttributeError, KeyError) as exc:
+                std_err_y_mask = np.zeros(len(series['y']), dtype=bool)
+
+            try:
+                df_columns_dict[column3] = np.array(series['std_err_y']) * yconv
+                df_columns_dict[column4] = [_comment_on_average(y, masked)
+                                            for y, masked in zip(series['y'], std_err_y_mask)]
+            except KeyError:
+                pass
+
+            data = pd.concat([data, pd.DataFrame(df_columns_dict)])
+
+    f = io.StringIO()
+    data.to_csv(f, sep=';', index_label='Index')
+    response = HttpResponse(f.getvalue(), content_type='application/text')
+    filename = f'{slugify(analysis.function.name)}.csv'
     response['Content-Disposition'] = 'attachment; filename="{}"'.format(filename)
 
     return response

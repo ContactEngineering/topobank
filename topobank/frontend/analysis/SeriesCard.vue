@@ -32,14 +32,12 @@ export default {
         functionId: Number,
         functionName: String,
         subjects: String,
-        txtDownloadUrl: String,
         uid: {
             type: String,
             default() {
                 return uuid4();
             }
-        },
-        xlsxDownloadUrl: String
+        }
     },
     data() {
         return {
@@ -76,17 +74,12 @@ export default {
         updateCard() {
             this._analysesAvailable = false;
             /* Fetch JSON describing the card */
-            fetch(this.apiUrl, {
-                method: 'POST',
+            fetch(`${this.apiUrl}/${this.functionId}?subjects=${this.subjects}`, {
+                method: 'GET',
                 headers: {
                     'Accept': 'application/json',
-                    'Content-Type': 'application/json',
                     'X-CSRFToken': this.csrfToken
-                },
-                body: JSON.stringify({
-                    function_id: this.functionId,
-                    subjects: this.subjects
-                })
+                }
             })
                 .then(response => response.json())
                 .then(data => {
@@ -124,11 +117,14 @@ export default {
     <div class="card search-result-card">
         <div class="card-header">
             <div class="btn-group btn-group-sm float-right">
-                <tasks-button :analyses="_analyses"
+                <tasks-button v-if="_analysesAvailable"
+                              :analyses="_analyses"
                               :csrf-token="csrfToken"
                               @task-state-changed="taskStateChanged">
                 </tasks-button>
-                <button @click="updateCard" class="btn btn-default float-right ml-1">
+                <button v-if="_analysesAvailable"
+                        @click="updateCard"
+                        class="btn btn-default float-right ml-1">
                     <i class="fa fa-redo"></i>
                 </button>
                 <card-expand-button v-if="!enlarged"
@@ -179,6 +175,9 @@ export default {
                         <div class="btn-group ml-1" role="group" aria-label="Download formats">
                             <a :href="`/analysis/download/${analysisIds}/txt`" class="btn btn-default">
                                 TXT
+                            </a>
+                            <a :href="`/analysis/download/${analysisIds}/csv`" class="btn btn-default">
+                                CSV
                             </a>
                             <a :href="`/analysis/download/${analysisIds}/xlsx`" class="btn btn-default">
                                 XLSX

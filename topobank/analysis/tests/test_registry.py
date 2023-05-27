@@ -1,16 +1,18 @@
 import pytest
 
+from django.contrib.auth.models import Group
 from django.contrib.contenttypes.models import ContentType
+from django.shortcuts import reverse
 
 from ...manager.tests.utils import Topography1DFactory, SurfaceFactory, SurfaceCollectionFactory
 from ...manager.models import Topography, Surface, SurfaceCollection
+from ...organizations.tests.test_models import OrganizationFactory
 from ...users.tests.factories import UserFactory
-from ..functions import topography_analysis_function_for_tests, \
-    surface_analysis_function_for_tests, \
-    surfacecollection_analysis_function_for_tests, \
-    VIZ_SERIES, VIZ_GENERIC
+from ..functions import topography_analysis_function_for_tests, surface_analysis_function_for_tests, \
+    surfacecollection_analysis_function_for_tests, VIZ_SERIES
 from ..registry import AnalysisRegistry, AlreadyRegisteredAnalysisFunctionException, register_implementation
 from ..urls import app_name
+# from ..views import registry_view
 
 
 @pytest.mark.django_db
@@ -105,12 +107,8 @@ def test_analysis_function_implementation_for_surfacecollection():
                             (["topobank_plugin_A", "topobank_plugin_B"], "topobank_plugin_A, topobank_plugin_B", "topobank_C", False),
                          ])
 @pytest.mark.django_db
-def test_availability_of_implementation_in_plugin(mocker, plugins_installed, plugins_available_for_org,
+def test_availability_of_implementation_in_plugin(api_rf, mocker, plugins_installed, plugins_available_for_org,
                                                   fake_func_module, expected_is_available):
-
-    from topobank.organizations.tests.test_models import OrganizationFactory
-    from django.contrib.auth.models import Group
-
     group = Group.objects.create(name="University")
     u = UserFactory()
     u.groups.add(group)
@@ -129,9 +127,7 @@ def test_availability_of_implementation_in_plugin(mocker, plugins_installed, plu
 
     # mock .__module__ for python function such we can test for different fake origins
     # for the underlying python function
-    import topobank.analysis.functions
-    m1 = mocker.patch.object(topobank.analysis.functions.topography_analysis_function_for_tests,
-                             "__module__", fake_func_module)
+    m1 = mocker.patch.object(topography_analysis_function_for_tests, "__module__", fake_func_module)
 
     def my_get_app_config(x):
         class FakeApp:
@@ -151,3 +147,15 @@ def test_availability_of_implementation_in_plugin(mocker, plugins_installed, plu
 
     # now check whether the implementation is available or not as expected
     assert impl.is_available_for_user(u) == expected_is_available
+
+    # Check implementation list via API call
+    # request = api_rf.get('/analysis/api/registry/')
+    # request.user = u  # We need to set the user to mock authentication
+    # view = AnalysisFunctionView().as_view()
+    # response = view(request)
+    # assert response.status_code == 200
+    # print(response.data)
+    # analysis_function_names = set(a['name'] for a in response.data)
+    # print(plugins_installed)
+    # print(plugins_available_for_org)
+    # print(analysis_function_names)

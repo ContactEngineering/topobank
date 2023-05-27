@@ -2,7 +2,6 @@
 Models related to analyses.
 """
 
-import pickle
 import json
 
 from django.db import models
@@ -11,7 +10,8 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.files.storage import default_storage
 from django.utils import timezone
 
-from celery import result, states
+import celery.result
+import celery.states
 
 from ..users.models import User
 from ..utils import store_split_dict, load_split_dict
@@ -98,11 +98,11 @@ class Analysis(models.Model):
     # Mapping Celery states to our state information. Everything not in the
     # list (e.g. custom Celery states) are interpreted as STARTED.
     _CELERY_STATE_MAP = {
-        states.SUCCESS: SUCCESS,
-        states.STARTED: STARTED,
-        states.PENDING: PENDING,
-        states.RETRY: RETRY,
-        states.FAILURE: FAILURE
+        celery.states.SUCCESS: SUCCESS,
+        celery.states.STARTED: STARTED,
+        celery.states.PENDING: PENDING,
+        celery.states.RETRY: RETRY,
+        celery.states.FAILURE: FAILURE
     }
 
     # Actual implementation of the analysis as a Python function
@@ -177,7 +177,7 @@ class Analysis(models.Model):
         if self.task_id is None:
             # Cannot get the state
             return None
-        r = result.AsyncResult(self.task_id)
+        r = celery.result.AsyncResult(self.task_id)
         try:
             return self._CELERY_STATE_MAP[r.state]
         except KeyError:
@@ -186,12 +186,12 @@ class Analysis(models.Model):
 
     def get_task_progress(self):
         """Return progress of task, if running"""
-        r = result.AsyncResult(self.task_id)
+        r = celery.result.AsyncResult(self.task_id)
         return r.info
 
     def get_task_progress(self):
         """Return progress of task, if running"""
-        r = AsyncResult(self.task_id)
+        r = celery.result.AsyncResult(self.task_id)
         return r.info
 
     @property
@@ -343,6 +343,25 @@ class AnalysisFunction(models.Model):
         except ImplementationMissingAnalysisFunctionException:
             return False
         return True
+
+    def is_available_for_user(self, user, models=None):
+        """
+        Check if this analysis function is available to the user. The function
+        is available to `user` if it is available for any of the `models`
+        specified.
+        """
+        if models is None:
+            from ..manager.models import SurfaceCollection, Surface, Topography
+            models = set([SurfaceCollection, Surface, Topography])
+
+        is_available_to_user = False
+        for model in models:
+            try:
+                impl = self.get_implementation(ContentType.objects.get_for_model(model))
+                is_available_to_user |= impl.is_available_for_user(user)
+            except ImplementationMissingAnalysisFunctionException:
+                pass
+        return is_available_to_user
 
     def get_default_kwargs(self, subject_type):
         """Return default keyword arguments as dict.

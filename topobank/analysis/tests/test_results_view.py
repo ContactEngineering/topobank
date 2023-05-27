@@ -15,7 +15,7 @@ import pytest
 from django.urls import reverse
 
 import topobank
-from ...manager.utils import subjects_to_dict
+from ...manager.utils import subjects_to_dict, subjects_to_base64
 from ...manager.models import Topography, Surface
 from ...manager.tests.utils import SurfaceFactory, UserFactory, Topography1DFactory, Topography2DFactory, two_topos
 from ...taskapp.tasks import current_configuration, perform_analysis
@@ -68,11 +68,9 @@ def test_analysis_times(api_client, two_topos, test_analysis_function, handle_us
     analysis.users.add(user)
     analysis.save()
 
-    response = api_client.post(reverse("analysis:card-series"),
-                               data={'subjects': subjects_to_dict([topo]),
-                                     'function_id': test_analysis_function.id},
-                               format='json',
-                               follow=True)
+    response = api_client.get(
+        reverse("analysis:card-series", kwargs=dict(function_id=test_analysis_function.id)) +
+        '?subjects=' + subjects_to_base64([topo]))
 
     assert response.status_code == 200
 
@@ -158,13 +156,9 @@ def test_show_only_last_analysis(api_client, two_topos, test_analysis_function, 
     # Check response, for both topographies only the
     # latest results should be shown
     #
-    response = api_client.post(reverse("analysis:card-series"),
-                               data={
-                                   'subjects': subjects_to_dict([topo1, topo2]),
-                                   'function_id': test_analysis_function.id
-                               },
-                               format='json',
-                               follow=True)
+    response = api_client.get(
+        reverse("analysis:card-series", kwargs=dict(function_id=test_analysis_function.id)) +
+        '?subjects=' + subjects_to_base64([topo1, topo2]))
 
     assert response.status_code == 200
 
@@ -207,13 +201,9 @@ def test_warnings_for_different_arguments(api_client, handle_usage_statistics):
     #
     # request card, there should be warnings, one for topographies and one for surfaces
     #
-    response = api_client.post(reverse("analysis:card-series"),
-                               data={
-                                   'subjects': subjects_to_dict([topo1a, topo1b, topo2a, surf1, surf2]),
-                                   'function_id': func.id
-                               },
-                               format='json',
-                               follow=True)
+    response = api_client.get(
+        reverse("analysis:card-series", kwargs=dict(function_id=func.id)) +
+        '?subjects=' + subjects_to_base64([topo1a, topo1b, topo2a, surf1, surf2]))
 
     assert response.status_code == 200
     assert response.data['hasNonuniqueKwargs']
@@ -723,12 +713,9 @@ def test_view_shared_analysis_results(api_client, handle_usage_statistics):
     #
     assert api_client.login(username=user1.username, password=password)
 
-    response = api_client.post(reverse("analysis:card-series"),
-                               data={
-                                   'subjects': subjects_to_dict([topo1a, topo1b, topo2a]),
-                                   'function_id': func1.id},
-                               format='json',
-                               follow=True)
+    response = api_client.get(
+        reverse("analysis:card-series", kwargs=dict(function_id=func1.id)) +
+        '?subjects=' + subjects_to_base64([topo1a, topo1b, topo2a]))
 
     # Function should still have three analyses, all successful (the default when using the factory)
     assert func1.analysis_set.count() == 3
@@ -750,13 +737,9 @@ def test_view_shared_analysis_results(api_client, handle_usage_statistics):
     #
     assert api_client.login(username=user2.username, password=password)
 
-    response = api_client.post(reverse("analysis:card-series"),
-                               data={
-                                   'subjects': subjects_to_dict([topo1a, topo1b, topo2a]),
-                                   'function_id': func1.id
-                               },
-                               format='json',
-                               follow=True)
+    response = api_client.get(
+        reverse("analysis:card-series", kwargs=dict(function_id=func1.id)) +
+        '?subjects=' + subjects_to_base64([topo1a, topo1b, topo2a]))
 
     assert response.status_code == 200
 
