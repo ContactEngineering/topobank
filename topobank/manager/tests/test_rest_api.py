@@ -7,7 +7,7 @@ from django.shortcuts import reverse
 from guardian.shortcuts import get_anonymous_user
 
 from ...manager.utils import subjects_to_base64
-from ...manager.models import Surface
+from ...manager.models import Surface, Topography
 from .utils import two_topos, two_users
 
 
@@ -243,7 +243,7 @@ def test_topography_retrieve_routes(api_client, is_authenticated, two_topos, han
 
 
 @pytest.mark.django_db
-def test_create_delete_routes(api_client, two_users, handle_usage_statistics):
+def test_create_routes(api_client, two_users, handle_usage_statistics):
     user1, user2 = two_users
 
     surface1_dict = {'label': 'Surface 1',
@@ -266,3 +266,24 @@ def test_create_delete_routes(api_client, two_users, handle_usage_statistics):
     assert Surface.objects.count() == 1
     s, = Surface.objects.all()
     assert s.creator.name == user1.name
+
+
+@pytest.mark.django_db
+def test_delete_routes(api_client, two_topos, handle_usage_statistics):
+    topo1, topoe2 = two_topos
+    user = topo1.creator
+
+    # Delete as anonymous user should fail
+    response = api_client.delete(reverse('manager:surface-api-detail', kwargs=dict(pk=topo1.id)),
+                                 format='json')
+    assert response.status_code == 403
+
+    assert Topography.objects.count() == 2
+
+    # Delete as user should succeed
+    api_client.force_authenticate(user)
+    response = api_client.delete(reverse('manager:surface-api-detail', kwargs=dict(pk=topo1.id)),
+                                 format='json')
+    assert response.status_code == 204  # Success, no content
+
+    assert Surface.objects.count() == 1
