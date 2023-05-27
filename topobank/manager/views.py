@@ -37,7 +37,7 @@ from formtools.wizard.views import SessionWizardView
 from notifications.signals import notify
 
 from rest_framework import generics, mixins, viewsets
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
@@ -1871,6 +1871,7 @@ def set_surface_select_status(request, pk, select_status):
 
 
 @api_view(['POST'])
+@permission_classes([])  # We need to override permissions because the anonymous user has read-only access
 def select_surface(request, pk):
     """Marks the given surface as 'selected' in session.
 
@@ -1884,6 +1885,7 @@ def select_surface(request, pk):
 
 
 @api_view(['POST'])
+@permission_classes([])  # We need to override permissions because the anonymous user has read-only access
 def unselect_surface(request, pk):
     """Marks the given surface as 'unselected' in session.
 
@@ -1931,6 +1933,7 @@ def set_topography_select_status(request, pk, select_status):
 
 
 @api_view(['POST'])
+@permission_classes([])  # We need to override permissions because the anonymous user has read-only access
 def select_topography(request, pk):
     """Marks the given topography as 'selected' in session.
 
@@ -1944,6 +1947,7 @@ def select_topography(request, pk):
 
 
 @api_view(['POST'])
+@permission_classes([])  # We need to override permissions because the anonymous user has read-only access
 def unselect_topography(request, pk):
     """Marks the given topography as 'selected' in session.
 
@@ -1993,6 +1997,7 @@ def set_tag_select_status(request, pk, select_status):
 
 
 @api_view(['POST'])
+@permission_classes([])  # We need to override permissions because the anonymous user has read-only access
 def select_tag(request, pk):
     """Marks the given tag as 'selected' in session.
 
@@ -2006,6 +2011,7 @@ def select_tag(request, pk):
 
 
 @api_view(['POST'])
+@permission_classes([])  # We need to override permissions because the anonymous user has read-only access
 def unselect_tag(request, pk):
     """Marks the given tag as 'unselected' in session.
 
@@ -2019,6 +2025,7 @@ def unselect_tag(request, pk):
 
 
 @api_view(['POST'])
+@permission_classes([])  # We need to override permissions because the anonymous user has read-only access
 def unselect_all(request):
     """Removes all selections from session.
 
@@ -2106,6 +2113,11 @@ class SurfaceViewSet(mixins.CreateModelMixin,
     serializer_class = SurfaceSerializer
     permission_classes = [IsAuthenticatedOrReadOnly, ObjectPermissions]
 
+    def perform_create(self, serializer):
+        # Set creator to current user when creating a new surface
+        print('is_authenticated =', self.request.user.is_authenticated)
+        serializer.save(creator=self.request.user)
+
 
 class TopographyViewSet(mixins.CreateModelMixin,
                         mixins.RetrieveModelMixin,
@@ -2115,3 +2127,7 @@ class TopographyViewSet(mixins.CreateModelMixin,
     queryset = Topography.objects.all()
     serializer_class = TopographySerializer
     permission_classes = [IsAuthenticatedOrReadOnly, ParentObjectPermissions]
+
+    def perform_create(self, serializer):
+        # Set creator to current user when creating a new topography
+        serializer.save(creator=self.request.user)

@@ -23,7 +23,7 @@ def test_anonymous_user_only_published_as_default(client):
 
 
 @pytest.mark.django_db
-def test_anonymous_user_can_see_published(client, handle_usage_statistics, example_authors):
+def test_anonymous_user_can_see_published(api_client, handle_usage_statistics, example_authors):
     #
     # publish a surface
     #
@@ -35,7 +35,7 @@ def test_anonymous_user_can_see_published(client, handle_usage_statistics, examp
     pub = surface.publish('cc0-1.0', example_authors)
 
     # no one is logged in now, assuming the select tab sends a search request
-    response = client.get(reverse('manager:search'))
+    response = api_client.get(reverse('manager:search'))
 
     # should see the published surface
     assert_in_content(response, surface_name)
@@ -83,34 +83,34 @@ def test_anonymous_user_cannot_change(client, handle_usage_statistics):
     topo = Topography1DFactory(surface=surface)
 
     response = client.get(reverse('manager:topography-delete', kwargs=dict(pk=topo.pk)))
-    assert response.status_code == 403
+    assert response.status_code == 302  # Redirect to login page
 
     response = client.post(reverse('manager:topography-delete', kwargs=dict(pk=topo.pk)))
-    assert response.status_code == 403
+    assert response.status_code == 302  # Redirect to login page
 
     response = client.get(reverse('manager:topography-update', kwargs=dict(pk=topo.pk)))
-    assert response.status_code == 403
+    assert response.status_code == 302  # Redirect to login page
 
     response = client.post(reverse('manager:topography-update', kwargs=dict(pk=topo.pk)))
-    assert response.status_code == 403
+    assert response.status_code == 302  # Redirect to login page
 
     response = client.get(reverse('manager:surface-delete', kwargs=dict(pk=surface.pk)))
-    assert response.status_code == 403
+    assert response.status_code == 302  # Redirect to login page
 
     response = client.post(reverse('manager:surface-delete', kwargs=dict(pk=surface.pk)))
-    assert response.status_code == 403
+    assert response.status_code == 302  # Redirect to login page
 
     response = client.get(reverse('manager:surface-update', kwargs=dict(pk=surface.pk)))
-    assert response.status_code == 403
+    assert response.status_code == 302  # Redirect to login page
 
     response = client.post(reverse('manager:surface-update', kwargs=dict(pk=surface.pk)))
-    assert response.status_code == 403
+    assert response.status_code == 302  # Redirect to login page
 
     response = client.post(reverse('manager:surface-publish', kwargs=dict(pk=surface.pk)))
-    assert response.status_code == 403
+    assert response.status_code == 302  # Redirect to login page
 
     response = client.post(reverse('manager:surface-share', kwargs=dict(pk=surface.pk)))
-    assert response.status_code == 403
+    assert response.status_code == 302  # Redirect to login page
 
 
 @pytest.mark.django_db

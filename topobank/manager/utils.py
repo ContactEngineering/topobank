@@ -169,7 +169,7 @@ def surfaces_for_user(user, perms=['view_surface']):
     :param perms: list of permission codenames, default is ['view_surface']
     :return: queryset of surfaces
     """
-    from topobank.manager.models import Surface
+    from .models import Surface
     return get_objects_for_user(user, perms, klass=Surface, accept_global_perms=False)
 
 

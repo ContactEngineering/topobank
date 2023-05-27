@@ -249,3 +249,10 @@ def user_three_topographies_three_surfaces_three_tags():
     surface3 = SurfaceFactory(creator=user, tags=[tag3])  # empty
 
     return user, (topo1a, topo1b, topo2a), (surface1, surface2, surface3), (tag1, tag2, tag3)
+
+
+@pytest.fixture
+def two_users():
+    user1 = UserFactory(username='testuser1', password='abcd$1234')
+    user2 = UserFactory(username='testuser2', password='abcd$1234')
+    return user1, user2

@@ -1,5 +1,4 @@
 from django.urls import path, re_path
-from django.contrib.auth.decorators import login_required
 
 from rest_framework.routers import DefaultRouter
 
@@ -19,12 +18,12 @@ urlpatterns += [
     #
     path(
         'html/list/',  # TODO change to 'function', also rename name
-        view=login_required(views.AnalysesResultListView.as_view()),
+        view=views.AnalysesResultListView.as_view(),
         name='results-list'
     ),
     path(
         r'html/detail/<int:pk>/',
-        view=login_required(views.AnalysisResultDetailView.as_view()),
+        view=views.AnalysisResultDetailView.as_view(),
         name='results-detail'
     ),
     #
@@ -34,7 +33,7 @@ urlpatterns += [
     # Return function implementations
     path(
         'api/registry/',
-        view=login_required(views.registry_view),
+        view=views.registry_view,
         name='registry'
     ),
     # GET
@@ -44,7 +43,7 @@ urlpatterns += [
     # This is a post request because the request parameters are complex.
     path(
         f'api/card/{functions.VIZ_SERIES}/<int:function_id>',
-        view=login_required(views.series_card_view),
+        view=views.series_card_view,
         name=f'card-{functions.VIZ_SERIES}'
     ),
     #
@@ -57,12 +56,12 @@ urlpatterns += [
     # request the correct files.
     re_path(
         r'data/(?P<pk>\d+)/(?P<location>.*)$',
-        view=login_required(views.data),
+        view=views.data,
         name='data'
     ),
     re_path(
         r'download/(?P<ids>[\d,]+)/(?P<file_format>\w+)$',
-        view=login_required(downloads.download_analyses),
+        view=downloads.download_analyses,
         name='download'
     )
 ]

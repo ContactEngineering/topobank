@@ -348,12 +348,13 @@ ACCOUNT_LOGOUT_ON_GET = True  # True: disable intermediate page
 # This seems to fit well: https://www.django-rest-framework.org/tutorial/4-authentication-and-permissions/
 #
 REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+    ],
     'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAuthenticated',
-    ),
-    # 'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
-    #'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    #'PAGE_SIZE': 2,
+        # Anonymous user is not authenticated by needs read-only access
+        'rest_framework.permissions.IsAuthenticatedOrReadOnly',
+    )
 }
 
 #

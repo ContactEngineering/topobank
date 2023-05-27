@@ -20,6 +20,10 @@ router.register(r'api/topography', views.TopographyViewSet, basename='topography
 
 urlpatterns = router.urls
 
+# Note: We only require a login for routes that can change a dataset. We don't
+# require a login to see the dataset, because the anonymous user should be
+# allowed to see its datasets. (Those are the ones that were published.)
+
 app_name = "manager"
 urlpatterns += [
     #
@@ -27,7 +31,7 @@ urlpatterns += [
     #
     re_path(
         r'html/topography/(?P<pk>\d+)/$',
-        view=login_required(views.TopographyDetailView.as_view()),
+        view=views.TopographyDetailView.as_view(),
         name='topography-detail'
     ),
     re_path(
@@ -42,17 +46,17 @@ urlpatterns += [
     ),
     re_path(
         r'topography/(?P<pk>\d+)/thumbnail/$',
-        view=login_required(views.thumbnail),
+        view=views.thumbnail,
         name='topography-thumbnail'
     ),
     re_path(
         r'topography/(?P<pk>\d+)/dzi/(?P<dzi_filename>.*)$',
-        view=login_required(views.dzi),
+        view=views.dzi,
         name='topography-dzi'
     ),
     re_path(
         r'html/topography/(?P<pk>\d+)/plot/$',
-        view=login_required(views.topography_plot),
+        view=views.topography_plot,
         name='topography-plot'
     ),
     re_path(
@@ -67,7 +71,7 @@ urlpatterns += [
     ),
     re_path(
         r'html/surface/(?P<pk>\d+)/$',
-        view=login_required(views.SurfaceDetailView.as_view()),
+        view=views.SurfaceDetailView.as_view(),
         name='surface-detail'
     ),
     re_path(
@@ -107,7 +111,7 @@ urlpatterns += [
     ),
     path(
         'html/select/',
-        view=login_required(views.SelectView.as_view()),
+        view=views.SelectView.as_view(),
         name='select'
     ),
     path(
@@ -130,12 +134,12 @@ urlpatterns += [
     #
     path(
         'select/download/',
-        view=login_required(views.download_selection_as_surfaces),
+        view=views.download_selection_as_surfaces,
         name='download-selection'
     ),
     re_path(
         r'surface/(?P<surface_id>\d+)/download/$',
-        view=login_required(views.download_surface),
+        view=views.download_surface,
         name='surface-download'
     ),
     #
@@ -143,47 +147,47 @@ urlpatterns += [
     #
     path(
         'api/search/',  # TODO check URL, rename?
-        view=login_required(views.SurfaceListView.as_view()),  # TODO Check view name, rename?
+        view=views.SurfaceListView.as_view(),  # TODO Check view name, rename?
         name='search'  # TODO rename?
     ),
     path(
         'api/tag-tree/',
-        view=login_required(views.TagTreeView.as_view()),
+        view=views.TagTreeView.as_view(),
         name='tag-list'  # TODO rename
     ),
     re_path(
        r'api/selection/surface/(?P<pk>\d+)/select/$',
-       view=login_required(views.select_surface),
+       view=views.select_surface,
        name='surface-select'
     ),
     re_path(
        r'api/selection/surface/(?P<pk>\d+)/unselect/$',
-       view=login_required(views.unselect_surface),
+       view=views.unselect_surface,
        name='surface-unselect'
     ),
     re_path(
         r'api/selection/topography/(?P<pk>\d+)/select/$',
-        view=login_required(views.select_topography),
+        view=views.select_topography,
         name='topography-select'
     ),
     re_path(
         r'api/selection/topography/(?P<pk>\d+)/unselect/$',
-        view=login_required(views.unselect_topography),
+        view=views.unselect_topography,
         name='topography-unselect'
     ),
     re_path(
        r'api/selection/tag/(?P<pk>\d+)/select/$',
-       view=login_required(views.select_tag),
+       view=views.select_tag,
        name='tag-select'
     ),
     re_path(
        r'api/selection/tag/(?P<pk>\d+)/unselect/$',
-       view=login_required(views.unselect_tag),
+       view=views.unselect_tag,
        name='tag-unselect'
     ),
     path(
         'api/selection/unselect-all/',
-        view=login_required(views.unselect_all),
+        view=views.unselect_all,
         name='unselect-all'
     ),
 ]

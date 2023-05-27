@@ -29,7 +29,7 @@ def test_download_plot_analyses_to_txt(rf):
 
 @pytest.mark.parametrize("user_has_plugin", [False, True])
 @pytest.mark.django_db
-def test_download_view_permission_for_function_from_plugin(mocker,client, user_has_plugin, handle_usage_statistics):
+def test_download_view_permission_for_function_from_plugin(mocker, client, user_has_plugin, handle_usage_statistics):
     """Simple test, whether analyses which should not be visible lead to an error during download.
     """
     func = AnalysisFunction.objects.get(name="test")
