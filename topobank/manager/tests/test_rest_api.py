@@ -269,18 +269,20 @@ def test_create_surface_routes(api_client, two_users, handle_usage_statistics):
 
 
 @pytest.mark.django_db
-def test_delete_surface_routes(api_client, two_topos, handle_usage_statistics):
-    topo1, topo2 = two_topos
+def test_delete_surface_routes(api_client, two_users, handle_usage_statistics):
+    user1, user2 = two_users
+    topo1, topo2, topo3 = Topography.objects.all()
     user = topo1.creator
     surface1 = topo1.surface
     surface2 = topo2.surface
+    surface3 = topo3.surface
 
     # Delete as anonymous user should fail
     response = api_client.delete(reverse('manager:surface-api-detail', kwargs=dict(pk=surface1.id)),
                                  format='json')
     assert response.status_code == 403
 
-    assert Surface.objects.count() == 2
+    assert Surface.objects.count() == 3
 
     # Delete as user should succeed
     api_client.force_authenticate(user)
@@ -288,7 +290,44 @@ def test_delete_surface_routes(api_client, two_topos, handle_usage_statistics):
                                  format='json')
     assert response.status_code == 204  # Success, no content
 
-    assert Surface.objects.count() == 1
+    assert Surface.objects.count() == 2
+
+    # Delete of a surface of another user should fail
+    response = api_client.delete(reverse('manager:surface-api-detail', kwargs=dict(pk=surface2.id)),
+                                 format='json')
+    assert response.status_code == 404  # The user cannot see the surface, hence 404
+
+    assert Surface.objects.count() == 2
+
+    # Delete of a surface of another user should fail, even if shared
+    surface2.share(user1, allow_change=False)
+    response = api_client.delete(reverse('manager:surface-api-detail', kwargs=dict(pk=surface2.id)),
+                                 format='json')
+    assert response.status_code == 403  # The user can see the surface but not delete it, hence 403
+
+    assert Surface.objects.count() == 2
+
+    # Delete of a surface of another user should faile even if shared with write permission
+    surface2.share(user1, allow_change=True)
+    response = api_client.delete(reverse('manager:surface-api-detail', kwargs=dict(pk=surface2.id)),
+                                 format='json')
+    assert response.status_code == 403  # The user can see the surface but not delete it, hence 403
+    assert Surface.objects.count() == 2
+
+    # Delete of a published surface should always fail
+    pub = surface3.publish('cc0', 'Bob')
+    assert Surface.objects.count() == 3
+    response = api_client.delete(reverse('manager:surface-api-detail', kwargs=dict(pk=pub.surface.id)),
+                                 format='json')
+    assert response.status_code == 403
+    assert Surface.objects.count() == 3
+
+    # Delete of a published surface should even fail for the owner
+    api_client.force_authenticate(pub.surface.creator)
+    response = api_client.delete(reverse('manager:surface-api-detail', kwargs=dict(pk=pub.surface.id)),
+                                 format='json')
+    assert response.status_code == 403
+    assert Surface.objects.count() == 3
 
 
 @pytest.mark.django_db
@@ -343,9 +382,10 @@ def test_patch_surface_routes(api_client, two_topos, handle_usage_statistics):
 
 
 @pytest.mark.django_db
-def test_patch_topography_routes(api_client, two_topos, handle_usage_statistics):
-    topo1, topo2 = two_topos
-    user = topo1.creator
+def test_patch_topography_routes(api_client, two_users, handle_usage_statistics):
+    user1, user2 = two_users
+    topo1, topo2, topo3 = Topography.objects.all()
+    assert topo1.creator == user1
 
     new_name = 'My new name'
 
@@ -355,16 +395,64 @@ def test_patch_topography_routes(api_client, two_topos, handle_usage_statistics)
                                 format='json')
     assert response.status_code == 403
 
-    assert Topography.objects.count() == 2
+    assert Topography.objects.count() == 3
 
     # Patch as user should succeed
-    api_client.force_authenticate(user)
+    api_client.force_authenticate(user1)
     response = api_client.patch(reverse('manager:topography-api-detail', kwargs=dict(pk=topo1.id)),
                                 data={'name': new_name},
                                 format='json')
     assert response.status_code == 200  # Success, no content
 
-    assert Topography.objects.count() == 2
-
-    topo1, topo2 = Topography.objects.all()
+    assert Topography.objects.count() == 3
+    topo1, topo2, topo3 = Topography.objects.all()
     assert topo1.name == new_name
+
+    new_name = 'My second new name'
+
+    # Patch of a topography of another user should fail
+    response = api_client.patch(reverse('manager:topography-api-detail', kwargs=dict(pk=topo2.id)),
+                                data={'name': new_name},
+                                format='json')
+    assert response.status_code == 404  # The user cannot see the surface, hence 404
+
+    assert Topography.objects.count() == 3
+
+    # Patch of a topography of another user should fail, even if shared
+    topo2.surface.share(user1, allow_change=False)
+    response = api_client.patch(reverse('manager:topography-api-detail', kwargs=dict(pk=topo2.id)),
+                                data={'name': new_name},
+                                format='json')
+    assert response.status_code == 403  # The user can see the surface but not patch it, hence 403
+
+    assert Topography.objects.count() == 3
+
+    # Patch of a surface of another user should succeed if shared with write permission
+    topo2.surface.share(user1, allow_change=True)
+    response = api_client.patch(reverse('manager:topography-api-detail', kwargs=dict(pk=topo2.id)),
+                                data={'name': new_name},
+                                format='json')
+    assert response.status_code == 200  # Success, no content
+    assert Topography.objects.count() == 3
+    topo1, topo2, topo3 = Topography.objects.all()
+    assert topo2.name == new_name
+
+    new_name = 'My third new name'
+
+    # Patch of a published surface should always fail
+    pub = topo3.surface.publish('cc0', 'Bob')
+    topo_pub, = pub.surface.topography_set.all()
+    assert Topography.objects.count() == 4
+    response = api_client.patch(reverse('manager:topography-api-detail', kwargs=dict(pk=topo_pub.id)),
+                                data={'name': new_name},
+                                format='json')
+    assert response.status_code == 403  # The user can see the surface but not patch it, hence 403
+    assert Surface.objects.count() == 4
+
+    # Delete of a published surface should even fail for the owner
+    api_client.force_authenticate(pub.surface.creator)
+    response = api_client.patch(reverse('manager:topography-api-detail', kwargs=dict(pk=topo_pub.id)),
+                                data={'name': new_name},
+                                format='json')
+    assert response.status_code == 403  # The user can see the surface but not patch it, hence 403
+    assert Surface.objects.count() == 4

@@ -255,4 +255,14 @@ def user_three_topographies_three_surfaces_three_tags():
 def two_users():
     user1 = UserFactory(username='testuser1', password='abcd$1234')
     user2 = UserFactory(username='testuser2', password='abcd$1234')
+
+    surface1 = SurfaceFactory(creator=user1)
+    topo1 = Topography1DFactory(surface=surface1)
+
+    surface2 = SurfaceFactory(creator=user2)
+    topo2 = Topography1DFactory(surface=surface2)
+
+    surface3 = SurfaceFactory(creator=user2)
+    topo3 = Topography1DFactory(surface=surface3)
+
     return user1, user2
