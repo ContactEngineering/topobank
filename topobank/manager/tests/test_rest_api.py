@@ -243,7 +243,7 @@ def test_topography_retrieve_routes(api_client, is_authenticated, two_topos, han
 
 
 @pytest.mark.django_db
-def test_create_routes(api_client, two_users, handle_usage_statistics):
+def test_create_surface_routes(api_client, two_users, handle_usage_statistics):
     user1, user2 = two_users
 
     surface1_dict = {'label': 'Surface 1',
@@ -269,12 +269,12 @@ def test_create_routes(api_client, two_users, handle_usage_statistics):
 
 
 @pytest.mark.django_db
-def test_delete_routes(api_client, two_topos, handle_usage_statistics):
+def test_delete_topography_routes(api_client, two_topos, handle_usage_statistics):
     topo1, topoe2 = two_topos
     user = topo1.creator
 
     # Delete as anonymous user should fail
-    response = api_client.delete(reverse('manager:surface-api-detail', kwargs=dict(pk=topo1.id)),
+    response = api_client.delete(reverse('manager:topography-api-detail', kwargs=dict(pk=topo1.id)),
                                  format='json')
     assert response.status_code == 403
 
@@ -282,8 +282,36 @@ def test_delete_routes(api_client, two_topos, handle_usage_statistics):
 
     # Delete as user should succeed
     api_client.force_authenticate(user)
-    response = api_client.delete(reverse('manager:surface-api-detail', kwargs=dict(pk=topo1.id)),
+    response = api_client.delete(reverse('manager:topography-api-detail', kwargs=dict(pk=topo1.id)),
                                  format='json')
     assert response.status_code == 204  # Success, no content
 
-    assert Surface.objects.count() == 1
+    assert Topography.objects.count() == 1
+
+
+@pytest.mark.django_db
+def test_patch_topography_routes(api_client, two_topos, handle_usage_statistics):
+    topo1, topo2 = two_topos
+    user = topo1.creator
+
+    new_name = 'My new name'
+
+    # Patch as anonymous user should fail
+    response = api_client.patch(reverse('manager:topography-api-detail', kwargs=dict(pk=topo1.id)),
+                                data={'name': new_name},
+                                format='json')
+    assert response.status_code == 403
+
+    assert Topography.objects.count() == 2
+
+    # Patch as user should succeed
+    api_client.force_authenticate(user)
+    response = api_client.patch(reverse('manager:topography-api-detail', kwargs=dict(pk=topo1.id)),
+                                data={'name': new_name},
+                                format='json')
+    assert response.status_code == 200  # Success, no content
+
+    assert Topography.objects.count() == 2
+
+    topo1, topo2 = Topography.objects.all()
+    assert topo1.name == new_name
