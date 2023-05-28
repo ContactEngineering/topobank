@@ -41,8 +41,7 @@ export default {
     },
     data() {
         return {
-            _analyses: [],
-            _analysesAvailable: false,
+            _analyses: null,
             _categories: undefined,
             _dataSources: undefined,
             _dois: [],
@@ -72,11 +71,8 @@ export default {
         }
     },
     methods: {
-        toggleSidebar() {
-            this._sidebarVisible = !this._sidebarVisible;
-        },
         updateCard() {
-            this._analysesAvailable = false;
+            this._analyses = null;
             /* Fetch JSON describing the card */
             fetch(`${this.apiUrl}/${this.functionId}?subjects=${this.subjects}`, {
                 method: 'GET',
@@ -101,7 +97,6 @@ export default {
                     this._outputBackend = data.plotConfiguration.outputBackend;
                     this._dois = data.dois;
                     this._messages = data.messages;
-                    this._analysesAvailable = this._analyses.length > 0;
                 });
         },
         taskStateChanged(nbRunningOrPending, nbSuccess, nbFailed) {
@@ -121,12 +116,12 @@ export default {
     <div class="card search-result-card">
         <div class="card-header">
             <div class="btn-group btn-group-sm float-right">
-                <tasks-button v-if="_analysesAvailable"
+                <tasks-button v-if="_analyses !== null && _analyses.length > 0"
                               :analyses="_analyses"
                               :csrf-token="csrfToken"
                               @task-state-changed="taskStateChanged">
                 </tasks-button>
-                <button v-if="_analysesAvailable"
+                <button v-if="_analyses !== null && _analyses.length > 0"
                         @click="updateCard"
                         class="btn btn-default float-right ml-1">
                     <i class="fa fa-redo"></i>
@@ -138,28 +133,28 @@ export default {
                                     class="btn-group btn-group-sm float-right">
                 </card-expand-button>
             </div>
-            <h5 v-if="!_analysesAvailable"
+            <h5 v-if="_analyses === null"
                 class="text-dark">
                 {{ _title }}
             </h5>
-            <a v-if="_analysesAvailable"
+            <a v-if="_analyses !== null && _analyses.length > 0"
                class="text-dark"
                href="#"
-               @click="toggleSidebar">
+               @click="_sidebarVisible=true">
                 <h5><i class="fa fa-bars"></i> {{ _title }}</h5>
             </a>
         </div>
         <div class="card-body">
-            <div v-if="!_analysesAvailable" class="tab-content">
+            <div v-if="_analyses === null" class="tab-content">
                 <span class="spinner"></span>
                 <div>Please wait...</div>
             </div>
 
-            <div v-if="_analysesAvailable" class="tab-content">
+            <div v-if="_analyses !== null && _analyses.length == 0" class="tab-content">
                 This analysis reported no results for the selected datasets.
             </div>
 
-            <div v-if="_analysesAvailable" class="tab-content">
+            <div v-if="_analyses !== null && _analyses.length > 0" class="tab-content">
                 <div class="tab-pane show active" role="tabpanel" aria-label="Tab showing a plot">
                     <div :class="['alert', message.alertClass]" v-for="message in _messages">
                         {{ message.message }}
@@ -181,29 +176,39 @@ export default {
                 <ul class="flex-column navbar-nav">
                     <a class="text-dark"
                        href="#"
-                       @click="toggleSidebar">
+                       @click="_sidebarVisible=false">
                         <h5><i class="fa fa-bars"></i> {{ _title }}</h5>
                     </a>
                     <li class="nav-item mb-1 mt-1">
                         Download
                         <div class="btn-group ml-1" role="group" aria-label="Download formats">
-                            <a :href="`/analysis/download/${analysisIds}/txt`" class="btn btn-default">
+                            <a :href="`/analysis/download/${analysisIds}/txt`"
+                               class="btn btn-default"
+                               @click="_sidebarVisible=false">
                                 TXT
                             </a>
-                            <a :href="`/analysis/download/${analysisIds}/csv`" class="btn btn-default">
+                            <a :href="`/analysis/download/${analysisIds}/csv`"
+                               class="btn btn-default"
+                               @click="_sidebarVisible=false">
                                 CSV
                             </a>
-                            <a :href="`/analysis/download/${analysisIds}/xlsx`" class="btn btn-default">
+                            <a :href="`/analysis/download/${analysisIds}/xlsx`"
+                               class="btn btn-default"
+                               @click="_sidebarVisible=false">
                                 XLSX
                             </a>
-                            <a @click="$refs.plot.download()" class="btn btn-default">
+                            <a @click="_sidebarVisible=false; $refs.plot.download()"
+                               class="btn btn-default">
                                 SVG
                             </a>
                         </div>
                     </li>
                     <li class="nav-item mb-1 mt-1">
-                        <a href="#" data-toggle="modal" :data-target="`#bibliography-modal-${uid}`"
-                           class="btn btn-default  w-100">
+                        <a href="#"
+                           data-toggle="modal"
+                           :data-target="`#bibliography-modal-${uid}`"
+                           class="btn btn-default w-100"
+                           @click="_sidebarVisible=false">
                             Bibliography
                         </a>
                     </li>
