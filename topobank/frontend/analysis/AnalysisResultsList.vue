@@ -47,7 +47,6 @@ export default {
     },
     computed: {
         subjectsAsBasketItems() {
-            console.log(this.subjects);
             const subjects = JSON.parse(atob(this.subjects));
             let basket = [];
             for (const [key, value] of Object.entries(subjects)) {

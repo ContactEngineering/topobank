@@ -52,6 +52,7 @@ export default {
             _nbSuccess: 0,
             _outputBackend: "svg",
             _plots: undefined,
+            _sidebarVisible: false,
             _title: this.functionName
         }
     },
@@ -71,6 +72,9 @@ export default {
         }
     },
     methods: {
+        toggleSidebar() {
+            this._sidebarVisible = !this._sidebarVisible;
+        },
         updateCard() {
             this._analysesAvailable = false;
             /* Fetch JSON describing the card */
@@ -97,7 +101,7 @@ export default {
                     this._outputBackend = data.plotConfiguration.outputBackend;
                     this._dois = data.dois;
                     this._messages = data.messages;
-                    this._analysesAvailable = true;
+                    this._analysesAvailable = this._analyses.length > 0;
                 });
         },
         taskStateChanged(nbRunningOrPending, nbSuccess, nbFailed) {
@@ -134,7 +138,14 @@ export default {
                                     class="btn-group btn-group-sm float-right">
                 </card-expand-button>
             </div>
-            <a class="text-dark" href="#" data-toggle="collapse" :data-target="`#sidebar-${uid}`">
+            <h5 v-if="!_analysesAvailable"
+                class="text-dark">
+                {{ _title }}
+            </h5>
+            <a v-if="_analysesAvailable"
+               class="text-dark"
+               href="#"
+               @click="toggleSidebar">
                 <h5><i class="fa fa-bars"></i> {{ _title }}</h5>
             </a>
         </div>
@@ -144,30 +155,33 @@ export default {
                 <div>Please wait...</div>
             </div>
 
-            <div v-if="_analysesAvailable && _analyses.length == 0" class="tab-content">
+            <div v-if="_analysesAvailable" class="tab-content">
                 This analysis reported no results for the selected datasets.
             </div>
 
-            <div v-if="_analysesAvailable && _analyses.length > 0" class="tab-content">
+            <div v-if="_analysesAvailable" class="tab-content">
                 <div class="tab-pane show active" role="tabpanel" aria-label="Tab showing a plot">
                     <div :class="['alert', message.alertClass]" v-for="message in _messages">
                         {{ message.message }}
                     </div>
                     <bokeh-plot
-                            :plots="_plots"
-                            :categories="_categories"
-                            :data-sources="_dataSources"
-                            :output-backend="_outputBackend"
-                            ref="plot">
+                        :plots="_plots"
+                        :categories="_categories"
+                        :data-sources="_dataSources"
+                        :output-backend="_outputBackend"
+                        ref="plot">
                     </bokeh-plot>
                 </div>
             </div>
         </div>
-        <div :id="`sidebar-${uid}`" class="collapse position-absolute h-100">
+        <div v-if="_sidebarVisible"
+             class="position-absolute h-100">
             <!-- card-header sets the margins identical to the card so the title appears at the same position -->
             <nav class="card-header navbar navbar-toggleable-xl bg-light flex-column align-items-start h-100">
                 <ul class="flex-column navbar-nav">
-                    <a class="text-dark" href="#" data-toggle="collapse" :data-target="`#sidebar-${uid}`">
+                    <a class="text-dark"
+                       href="#"
+                       @click="toggleSidebar">
                         <h5><i class="fa fa-bars"></i> {{ _title }}</h5>
                     </a>
                     <li class="nav-item mb-1 mt-1">
@@ -182,7 +196,7 @@ export default {
                             <a :href="`/analysis/download/${analysisIds}/xlsx`" class="btn btn-default">
                                 XLSX
                             </a>
-                            <a v-on:click="$refs.plot.download()" class="btn btn-default">
+                            <a @click="$refs.plot.download()" class="btn btn-default">
                                 SVG
                             </a>
                         </div>
@@ -198,7 +212,7 @@ export default {
         </div>
     </div>
     <bibliography-modal
-            :id="`bibliography-modal-${uid}`"
-            :dois="_dois">
+        :id="`bibliography-modal-${uid}`"
+        :dois="_dois">
     </bibliography-modal>
 </template>

@@ -133,7 +133,7 @@ def analyses_meta_data_dataframe(analyses, request):
                 properties += ['PLEASE CITE THESE DOIs', '']
                 values += [', '.join(dois), '']
 
-        properties += ['Subject Type', 'Subject Name', 'Creator', 'Instrument name', 'Instrument type',
+        properties += ['Subject type', 'Subject name', 'Creator', 'Instrument name', 'Instrument type',
                        'Instrument parameters', 'Further arguments of analysis function', 'Start time of analysis task',
                        'End time of analysis task', 'Duration of analysis task']
 
@@ -461,10 +461,10 @@ def download_plot_analyses_to_xlsx(request, analyses):
             sheet["A2"] = "Subject"
             sheet["A2"].font = bold_font
             sheet["B2"] = analysis.subject.name
-            sheet["A3"] = "Subject Type"
+            sheet["A3"] = "Subject type"
             sheet["A3"].font = bold_font
             sheet["B3"] = subject_type
-            sheet["A4"] = "Data Series"
+            sheet["A4"] = "Data series"
             sheet["A4"].font = bold_font
             sheet["B4"] = series['name']
             sheet.column_dimensions['A'].width = 20
@@ -490,7 +490,7 @@ def download_plot_analyses_to_xlsx(request, analyses):
 
     index_ws = wb.create_sheet("INDEX", 0)
 
-    index_headers = ["Subject Name", "Subject Type", "Function Name", "Data Series", "Link"]
+    index_headers = ["Subject name", "Subject type", "Function name", "Data series", "Link"]
     for col_idx, col_header in enumerate(index_headers):
         header_cell = index_ws.cell(row=1, column=col_idx + 1)
         header_cell.value = col_header
@@ -562,10 +562,10 @@ def download_plot_analyses_to_csv(request, analyses):
     column3 = 'standard error of {} ({})'.format(result['ylabel'], yunit)
     column4 = 'comment'
 
-    column_subject_type = 'Subject Type'
+    column_subject_type = 'Subject type'
     column_subject_name = 'Subject name'
-    column_function_name = 'Function Name'
-    column_data_series = 'Data Series'
+    column_function_name = 'Function name'
+    column_data_series = 'Data series'
 
     data = pd.DataFrame(columns=[
         column_subject_type,
