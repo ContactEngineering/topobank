@@ -413,9 +413,10 @@ STATIC_ROOT = env.str('DJANGO_STATIC_ROOT', default=(environ.Path(__file__) - 3)
 STATIC_URL = '/static/'
 # https://docs.djangoproject.com/en/dev/ref/contrib/staticfiles/#std:setting-STATICFILES_DIRS
 STATICFILES_DIRS = []
-for d in [APPS_DIR.path('static'), APPS_DIR.path('../../static')]:
+for d in ['/static', APPS_DIR.path('static'), APPS_DIR.path('../../static')]:
     d = str(d)
     if os.path.exists(d):
+        _log.info(f"Adding path '{d}' to static files.")
         STATICFILES_DIRS += [d]
     else:
         _log.info(f"Skipping path '{d}' for static files since it does not exist.")
