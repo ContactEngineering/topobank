@@ -520,8 +520,8 @@ def test_analysis_download_as_xlsx(client, two_topos, ids_downloadable_analyses,
 
     # subject names should also be included, as well as the creator
     for t in topos:
-        assert ('Subject Type', 'topography') in vals
-        assert ('Subject Name', t.name) in vals
+        assert ('Subject type', 'topography') in vals
+        assert ('Subject name', t.name) in vals
         assert ('Creator', str(t.creator)) in vals
 
     # Check links on INDEX sheet
@@ -530,7 +530,7 @@ def test_analysis_download_as_xlsx(client, two_topos, ids_downloadable_analyses,
     function_name = Analysis.objects.get(id=ids_downloadable_analyses[0]).function.name
 
     assert list(ws.values) == [
-        ("Subject Name", "Subject Type", "Function Name", "Data Series", "Link"),
+        ("Subject name", "Subject type", "Function name", "Data series", "Link"),
         (first_topo_name, "measurement", function_name,
          "First Series", "Click to jump to sheet 'analysis-0-series-0'"),
         (first_topo_name, "measurement", function_name,
