@@ -1,16 +1,10 @@
 <script>
 
-import SeriesCard from './SeriesCard.vue';
-import RoughnessParametersCard from 'topobank_statistics/RoughnessParametersCard.vue';
-import ContactMechanicsCard from 'topobank_contact/ContactMechanicsCard.vue';
+import AnalysisCards from 'config/analysis_cards';
 
 export default {
     name: 'analysis-results-detail',
-    components: {
-        SeriesCard,
-        RoughnessParametersCard,
-        ContactMechanicsCard
-    },
+    components: AnalysisCards,
     props: {
         csrfToken: String,
         functionId: Number,

@@ -177,7 +177,20 @@ def request_analysis(user, analysis_func, subject, *other_args, **kwargs):
 
     sig = inspect.signature(pyfunc)
 
-    bound_sig = sig.bind(subject, *other_args, **kwargs)
+    #
+    # Sanitize keyword arguments
+    #
+    sanitized_kwargs = kwargs.copy()
+    for key in kwargs.keys():
+        if key not in sig.parameters:
+            _log.warning(f"Keyword argument '{key}' is not supported by this analysis function. The argument has "
+                         f"been ignored.")
+            del sanitized_kwargs[key]
+
+    #
+    # Bind keyword arguments to function
+    #
+    bound_sig = sig.bind(subject, *other_args, **sanitized_kwargs)
     bound_sig.apply_defaults()
 
     pyfunc_kwargs = dict(bound_sig.arguments)

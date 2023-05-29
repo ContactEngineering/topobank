@@ -35,7 +35,7 @@ def test_request_analysis(mocker, test_analysis_function):
     analysis = request_analysis(user, af, topo, a=13, b=24)
     assert_correct_args(analysis,
                         dict(a=13,
-                             b=24))  # check default parameters in database
+                             b=24))
 
 
     # test case 2
@@ -49,6 +49,12 @@ def test_request_analysis(mocker, test_analysis_function):
     assert_correct_args(analysis,
                         dict(a=2,
                              b=1))
+
+    # test case 4
+    analysis = request_analysis(user, af, topo, a=1, c=24)  # Parameter c does not exist and will be sanitized
+    assert_correct_args(analysis,
+                        dict(a=1,
+                             b='foo'))  # this is the default parameter
 
 
 @pytest.mark.django_db
