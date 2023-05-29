@@ -100,7 +100,7 @@ def test_exception_implementation_missing():
 @pytest.mark.django_db
 def test_analysis_function(test_analysis_function):
     ct = ContentType.objects.get_for_model(Topography)
-    assert test_analysis_function.python_function(ct) == topography_analysis_function_for_tests
+    assert test_analysis_function.get_python_function(ct) == topography_analysis_function_for_tests
     assert test_analysis_function.get_default_kwargs(ct) == dict(a=1, b="foo")
 
     surface = SurfaceFactory()

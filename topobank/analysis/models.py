@@ -311,7 +311,7 @@ class AnalysisFunction(models.Model):
         """
         return AnalysisRegistry().get_implementation(self.name, subject_type=subject_type)
 
-    def python_function(self, subject_type):
+    def get_python_function(self, subject_type):
         """Return function for given first argument type.
 
         Parameters
@@ -329,7 +329,26 @@ class AnalysisFunction(models.Model):
         ImplementationMissingException
             if implementation for given subject type does not exist
         """
-        return AnalysisRegistry().get_implementation(self.name, subject_type).python_function()
+        return self.get_implementation(subject_type).python_function
+
+    def get_signature(self, subject_type):
+        """Return signature of function for given first argument type.
+
+        Parameters
+        ----------
+        subject_type: ContentType
+            Type of first argument of analysis function
+
+        Returns
+        -------
+        inspect.signature
+
+        Raises
+        ------
+        ImplementationMissingException
+            if implementation for given subject type does not exist
+        """
+        return self.get_implementation(subject_type).signature
 
     def get_implementation_types(self):
         """Return list of content types for which this function is implemented.
@@ -339,7 +358,7 @@ class AnalysisFunction(models.Model):
     def is_implemented_for_type(self, subject_type):
         """Returns True if function is implemented for given content type, else False"""
         try:
-            self.python_function(subject_type)
+            self.get_python_function(subject_type)
         except ImplementationMissingAnalysisFunctionException:
             return False
         return True
@@ -380,7 +399,7 @@ class AnalysisFunction(models.Model):
 
         dict
         """
-        return self.get_implementation(subject_type).get_default_kwargs()
+        return self.get_implementation(subject_type).default_kwargs
 
     def eval(self, subject, **kwargs):
         """Call appropriate python function.

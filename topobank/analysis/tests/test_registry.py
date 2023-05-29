@@ -38,8 +38,8 @@ def test_analysis_function_implementation_for_topography():
 
     impl = reg.get_implementation("test", ct)
 
-    assert impl.python_function() == topography_analysis_function_for_tests
-    assert impl.get_default_kwargs() == dict(a=1, b="foo")
+    assert impl.python_function == topography_analysis_function_for_tests
+    assert impl.default_kwargs == dict(a=1, b="foo")
 
     t = Topography1DFactory()
     result = impl.eval(t, a=2, b="bar")
@@ -58,8 +58,8 @@ def test_analysis_function_implementation_for_surface():
 
     impl = reg.get_implementation("test", ct)
 
-    assert impl.python_function() == surface_analysis_function_for_tests
-    assert impl.get_default_kwargs() == dict(a=1, b="foo")
+    assert impl.python_function == surface_analysis_function_for_tests
+    assert impl.default_kwargs == dict(a=1, b="foo")
 
     s = SurfaceFactory()
     result = impl.eval(s, a=2, b="bar")
@@ -78,8 +78,8 @@ def test_analysis_function_implementation_for_surfacecollection():
 
     impl = reg.get_implementation("test", ct)
 
-    assert impl.python_function() == surfacecollection_analysis_function_for_tests
-    assert impl.get_default_kwargs() == dict(a=1, b="foo")
+    assert impl.python_function == surfacecollection_analysis_function_for_tests
+    assert impl.default_kwargs == dict(a=1, b="foo")
 
     s1 = SurfaceFactory()
     s2 = SurfaceFactory()
@@ -123,7 +123,7 @@ def test_availability_of_implementation_in_plugin(api_rf, mocker, plugins_instal
     ct = ContentType.objects.get_for_model(Topography)
 
     impl = reg.get_implementation("test", ct)
-    assert impl.python_function() == topography_analysis_function_for_tests
+    assert impl.python_function == topography_analysis_function_for_tests
 
     # mock .__module__ for python function such we can test for different fake origins
     # for the underlying python function

@@ -22,7 +22,7 @@ def test_perform_analysis(mocker, two_topos, test_analysis_function, settings):
 
     m = mocker.patch('topobank.analysis.registry.AnalysisFunctionImplementation.python_function',
                      new_callable=mocker.PropertyMock)
-    m.return_value = lambda: my_func  # we need a function which returns a function
+    m.return_value = my_func
 
     af = test_analysis_function
     topo = Topography.objects.first()  # doesn't matter

@@ -39,12 +39,16 @@ class AnalysisFunctionFactory(factory.django.DjangoModelFactory):
 
 
 def _analysis_result(analysis):
-    func = analysis.function.python_function(ContentType.objects.get_for_model(analysis.subject))
+    func = analysis.function.get_python_function(ContentType.objects.get_for_model(analysis.subject))
+    print(ContentType.objects.get_for_model(analysis.subject),
+          analysis.kwargs,
+          analysis.function.get_default_kwargs(ContentType.objects.get_for_model(analysis.subject)),
+          func)
     result = func(analysis.subject, **analysis.kwargs)
     return result
 
 
-def _analysis_pickled_default_kwargs(analysis):
+def _analysis_default_kwargs(analysis):
     subject_type = ContentType.objects.get_for_model(analysis.subject)
     return analysis.function.get_default_kwargs(subject_type)
 
@@ -70,7 +74,7 @@ class AnalysisFactory(factory.django.DjangoModelFactory):
     subject_type = factory.LazyAttribute(
             lambda o: ContentType.objects.get_for_model(o.subject))
 
-    kwargs = factory.LazyAttribute(_analysis_pickled_default_kwargs)
+    kwargs = factory.LazyAttribute(_analysis_default_kwargs)
     result = factory.LazyAttribute(_analysis_result)
 
     task_state = Analysis.SUCCESS

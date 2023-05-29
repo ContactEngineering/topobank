@@ -244,7 +244,7 @@ class AnalysisRegistry(metaclass=Singleton):
         # We are using the subject_model here because otherwise we have problems
         # during test setup if we use Contenttypes here (not fully ready)
 
-        default_kwargs = impl.get_default_kwargs()
+        default_kwargs = impl.default_kwargs
         for (_name, _subject_app_name, _subject_model), _impl in self._analysis_functions.items():
             if _name == name:
                 # Idiot check: Cannot register two implementations of same name for same subject type
@@ -253,7 +253,7 @@ class AnalysisRegistry(metaclass=Singleton):
                                                                      subject_model)
                 # Idiot check: Implementations of same name (but different subject type) should have identical default
                 # arguments.
-                _default_kwargs = _impl.get_default_kwargs()
+                _default_kwargs = _impl.default_kwargs
                 if _default_kwargs != default_kwargs:
                     raise DefaultKwargsDifferException(name, subject_app_name, subject_model, default_kwargs,
                                                        _subject_app_name, _subject_model, _default_kwargs)
@@ -495,23 +495,28 @@ class AnalysisFunctionImplementation:
         """
         self._pyfunc = pyfunc
 
+    @property
     def python_function(self):
         """Return reference to corresponding Python function."""
         return self._pyfunc
 
+    @property
+    def signature(self):
+        return inspect.signature(self._pyfunc)
+
     @staticmethod
-    def _get_default_args(func):
+    def _get_default_args(signature):
         # thanks to mgilson, his answer on SO:
         # https://stackoverflow.com/questions/12627118/get-a-function-arguments-default-value#12627202
 
-        signature = inspect.signature(func)
         return {
             k: v.default
             for k, v in signature.parameters.items()
             if v.default is not inspect.Parameter.empty
         }
 
-    def get_default_kwargs(self):
+    @property
+    def default_kwargs(self):
         """
         Return default keyword arguments as dict.
 
@@ -519,7 +524,7 @@ class AnalysisFunctionImplementation:
         'storage_prefix', 'progress_recorder' and 'dois'
         which are common to all functions, are excluded.
         """
-        dkw = self._get_default_args(self._pyfunc)
+        dkw = self._get_default_args(self.signature)
         if 'storage_prefix' in dkw:
             del dkw['storage_prefix']
         if 'progress_recorder' in dkw:
@@ -530,7 +535,7 @@ class AnalysisFunctionImplementation:
 
     def eval(self, subject, **kwargs):
         """Evaluate implementation on given subject with given arguments."""
-        return self.python_function()(subject, **kwargs)
+        return self.python_function(subject, **kwargs)
 
     def is_available_for_user(self, user):
         """Return whether this implementation is available for the given user."""

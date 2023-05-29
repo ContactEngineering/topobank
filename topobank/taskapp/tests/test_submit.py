@@ -68,7 +68,7 @@ def test_unmark_other_analyses_during_request_analysis(mocker, test_analysis_fun
 
     m = mocker.patch('topobank.analysis.registry.AnalysisFunctionImplementation.python_function',
                      new_callable=mocker.PropertyMock)
-    m.return_value = lambda: lambda topography, a, b, bins=15, window='hann': None
+    m.return_value = lambda topography, a, b, bins=15, window='hann': None
 
     af = test_analysis_function
 
@@ -95,7 +95,7 @@ def test_unmark_other_analyses_during_request_analysis(mocker, test_analysis_fun
     assert a2 not in analyses
     assert a3 in analyses
 
-    assert analyses[0].kwargs == dict(a=1, b=2, bins=15, window='hann')
+    assert analyses[0].kwargs == dict(a=1, b=2)
 
 
 

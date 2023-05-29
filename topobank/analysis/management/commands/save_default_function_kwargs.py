@@ -40,7 +40,7 @@ class Command(BaseCommand):
         for af in AnalysisFunction.objects.all():
             for impl in af.implementations.all():
                 try:
-                    dkw = impl.get_default_kwargs()
+                    dkw = impl.default_kwargs
                 except AttributeError as err:
                     self.stdout.write(self.style.WARNING(f"Cannot use implementation '{impl}'. Skipping it."))
                     continue
