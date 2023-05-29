@@ -550,17 +550,28 @@ ul.timeline > li > .timeline-panel:after {
 .navbar-expand .navbar-nav .alerts-dropdown {
 	min-width: 20em;
 }
-.navbar-expand .navbar-nav .alerts-dropdown .dropdown-item {
+.navbar-expand .navbar-nav .alerts-dropdown {
 	line-height: 1.42857143;
 	color: #333;
-	word-wrap: break-word;
+	word-wrap: break-word!important;
 	white-space: normal;
-	font-size: 0.9em;
+	font-size: 10px!important;
 }
-.navbar-expand .navbar-nav .user-dropdown .dropdown-item {
-	word-wrap: break-word;
+
+#mark-all-as-read-btn{
+  word-wrap: break-word;
 	white-space: normal;
-	font-size: 0.9em;
+  line-height: 1.42857143;
+  padding: unset!important;
+  width: 237px;
+  vertical-align: -19px;
+}
+#notification-msg{
+  word-wrap: break-word!important;
+  word-break: break-word;
+  max-width: fit-content!important;
+  display: block!important;
+  color: blue;
 }
 .navbar-expand .navbar-nav .alerts-dropdown .dropdown-divider {
 	border-top: 1px solid #e5e5e5;
@@ -614,7 +625,7 @@ ul.timeline > li > .timeline-panel:after {
   bottom: 0;
   z-index: 999;
   overflow-x: clip;
-  /*padding-top: 100px;*/
+  padding: 12px;
   font-size: 16px;
   line-height: 1.5;
   letter-spacing: 0.5px;
@@ -681,3 +692,21 @@ ul ul a {
   border-top: 1px solid white;
 }
 
+.sidebarMainBlock {
+  display: block!important;
+ transition: ease-in;
+  transition-duration: 0.3s;
+
+}
+
+.info-block{
+  display: block!important;
+}
+
+.notification-block{
+  display: block!important;
+}
+
+.user-block{
+  display: block!important;
+}
