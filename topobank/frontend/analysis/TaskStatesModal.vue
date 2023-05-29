@@ -62,8 +62,8 @@ export default {
                         <span aria-hidden="true">×</span>
                     </button>
                 </div>
-                <div v-if="_analyses.length > 0" class="modal-body">
-                    <small>
+                <div class="modal-body">
+                    <small v-if="_analyses.length > 0">
                         <table class="table table-hover task-table">
                             <thead>
                             <tr>
