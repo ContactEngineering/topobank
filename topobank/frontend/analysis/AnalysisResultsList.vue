@@ -1,17 +1,13 @@
 <script>
 
-import SeriesCard from './SeriesCard.vue';
-import RoughnessParametersCard from 'topobank_statistics/RoughnessParametersCard.vue';
-import ContactMechanicsCard from 'topobank_contact/ContactMechanicsCard.vue';
 import Basket from "topobank/manager/Basket.vue";
+import AnalysisCards from 'config/analysis_cards';
 
 export default {
     name: 'analysis-results-list',
     components: {
         Basket,
-        SeriesCard,
-        RoughnessParametersCard,
-        ContactMechanicsCard
+        ...AnalysisCards
     },
     props: {
         apiRegistryUrl: {
