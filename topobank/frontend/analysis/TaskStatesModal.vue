@@ -12,6 +12,7 @@ export default {
     components: {
         TaskStateRow
     },
+    inject: ['csrfToken'],
     props: {
         analyses: {
             type: Object,

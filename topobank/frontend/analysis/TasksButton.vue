@@ -34,6 +34,7 @@ export default {
     components: {
         TaskStatesModal
     },
+    inject: ['csrfToken'],
     props: {
         analyses: Object,
         uid: {

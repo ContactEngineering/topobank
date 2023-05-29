@@ -15,6 +15,7 @@ export default {
         CardExpandButton,
         TasksButton
     },
+    inject: ['csrfToken'],
     props: {
         apiUrl: {
             type: String,

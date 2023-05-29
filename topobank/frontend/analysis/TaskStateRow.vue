@@ -5,6 +5,7 @@ export default {
     emits: [
         'setTaskState'
     ],
+    inject: ['csrfToken'],
     props: {
         analysis: Object,
         pollingInterval: {
