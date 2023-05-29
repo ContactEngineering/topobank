@@ -72,7 +72,6 @@ export default {
     },
     methods: {
         updateCard() {
-            this._analyses = null;
             /* Fetch JSON describing the card */
             fetch(`${this.apiUrl}/${this.functionId}?subjects=${this.subjects}`, {
                 method: 'GET',
