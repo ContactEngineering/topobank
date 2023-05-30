@@ -1,5 +1,11 @@
 # Changelog for *TopoBank*
 
+## 1.1.0 (not yet published)
+
+- ENH: Unified single page application for analyses, including rewritten
+  task status
+- ENH: CSV download for analyses 
+
 ## 1.0.5 (2023-04-17)
 
 - DEP: Upgrade of SurfaceTopography to 1.6.2
