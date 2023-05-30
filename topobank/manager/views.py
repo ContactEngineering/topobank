@@ -7,7 +7,7 @@ from io import BytesIO
 import dateutil.parser
 import django_tables2 as tables
 import numpy as np
-
+from slugify import slugify
 from bokeh.embed import components
 from bokeh.models import TapTool, OpenURL
 from bokeh.plotting import figure, ColumnDataSource
@@ -1649,7 +1649,7 @@ def download_surface(request, surface_id):
         except Exception:  # not interested here, why it fails
             renew_publication_container = True
     else:
-        container_filename = DEFAULT_CONTAINER_FILENAME
+        container_filename= slugify(surface.name) #container_filename = DEFAULT_CONTAINER_FILENAME
 
     if content_data is None:
         container_bytes = BytesIO()
