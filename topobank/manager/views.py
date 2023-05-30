@@ -62,7 +62,7 @@ from ..publication.models import Publication, MAX_LEN_AUTHORS_FIELD
 from .containers import write_surface_container
 from ..taskapp.tasks import renew_squeezed_datafile, renew_bandwidth_cache, \
     renew_topography_images, renew_analyses_related_to_topography
-
+from slugify import slugify
 # create dicts with labels and option values for Select tab
 CATEGORY_FILTER_CHOICES = {'all': 'All categories',
                            **{cc[0]: cc[1] + " only" for cc in Surface.CATEGORY_CHOICES}}
@@ -1646,7 +1646,7 @@ def download_surface(request, surface_id):
         except Exception:  # not interested here, why it fails
             renew_publication_container = True
     else:
-        container_filename = DEFAULT_CONTAINER_FILENAME
+        container_filename= slugify(surface.name) #container_filename = DEFAULT_CONTAINER_FILENAME
 
     if content_data is None:
         container_bytes = BytesIO()
