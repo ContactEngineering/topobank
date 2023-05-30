@@ -1,48 +1,41 @@
 {% extends 'base.html' %}
-{% load icon_tags %}
-{% load crispy_forms_tags %}
-{% load analysis_tags %}
 {% load static %}
-
-
-{% block extra_css %}
-  {{ form.media.css }}
-{% endblock extra_css %}
 
 {% block content %}
 
-  <div class="tab-content mt-2">
-    <div id="app" class="tab-pane active">
-      <!--
-      Show card. Will be replaced by AJAX call.
-      -->
-      <div class="card">
-        <div class="card-header">
-          <h5>{{ function.name }}</h5>
-        </div>
-        <div class="card-body">
-            <span class="spinner"></span>
-            <div id="card-wait-text">
-              Please wait...
+    <div class="tab-content mt-2">
+        <div id="app" class="tab-pane active">
+            <!--
+            Show card. Will be replaced by AJAX call.
+            -->
+            <div class="card">
+                <div class="card-header">
+                    <h5>{{ function.name }}</h5>
+                </div>
+                <div class="card-body">
+                    <span class="spinner"></span>
+                    <div id="card-wait-text">
+                        Please wait...
+                    </div>
+                </div>
             </div>
         </div>
-      </div>
     </div>
-  </div>
 
 {% endblock content %}
 
 {% block javascript %}
 
-<script src="{% static 'js/analysis_app.bundle.js' %}"></script>
-<script>
-  const params = new URLSearchParams(window.location.search);
-  topobank.analysis_app.createAnalysisResultsDetailApp('#app', '{{ csrf_token }}', {
-    functionId: {{ function.id }},
-    functionName: '{{ function.name }}',
-    visualizationType: '{{ visualization_type }}',
-    subjects: params.get('subjects')
-  });
-</script>
+    <script src="{% static 'js/analysis_app.bundle.js' %}"></script>
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        topobank.analysis_app.createAnalysisResultsDetailApp('#app', {
+            csrfToken: '{{ csrf_token }}',
+            functionId: {{ function.id }},
+            functionName: '{{ function.name }}',
+            visualizationType: '{{ visualization_type }}',
+            subjects: params.get('subjects')
+        });
+    </script>
 
 {% endblock javascript %}

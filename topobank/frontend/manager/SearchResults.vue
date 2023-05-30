@@ -387,18 +387,18 @@ export default {
 
             <div class="form-group mr-2">
                 <select name="category" class="form-control" v-model="_category" @change="reload">
-                    <option v-for="(choice_label, choice_val) in categoryFilterChoices"
-                            v-bind:value="choice_val" v-bind:selected="choice_val==_category">
-                        {{ choice_label }}
+                    <option v-for="(choiceLabel, choiceVal) in categoryFilterChoices"
+                            v-bind:value="choiceVal" v-bind:selected="choiceVal==_category">
+                        {{ choiceLabel }}
                     </option>
                 </select>
             </div>
 
             <div class="form-group mr-2">
                 <select name="sharing_status" class="form-control" v-model="_sharingStatus" @change="reload">
-                    <option v-for="(choice_label, choice_val) in sharingStatusFilterChoices"
-                            v-bind:value="choice_val" v-bind:selected="choice_val==_sharingStatus">
-                        {{ choice_label }}
+                    <option v-for="(choiceLabel, choiceVal) in sharingStatusFilterChoices"
+                            v-bind:value="choiceVal" v-bind:selected="choiceVal==_sharingStatus">
+                        {{ choiceLabel }}
                     </option>
                 </select>
             </div>
@@ -446,9 +446,7 @@ export default {
                             </div>
                             <select name="page_size" class="custom-select" id="page-size-select" v-model="_pageSize"
                                     @change="reload()">
-                                <option v-for="ps in [10,25,50,100]" v-bind:class="{selected: ps==pageSize}">{{
-                                    ps
-                                    }}
+                                <option v-for="ps in [10,25,50,100]" v-bind:class="{selected: ps==pageSize}">{{ ps }}
                                 </option>
                             </select>
                         </div>
@@ -460,13 +458,14 @@ export default {
         <div class="col-md-4">
             <div v-if="isAnonymous" class="form-group">
                 <button class="btn btn-primary form-control disabled"
-                        title="Please sign-in to use this feature">Create digital surface twin
+                        title="Please sign-in to use this feature">
+                    Create digital surface twin
                 </button>
             </div>
             <div v-if="!isAnonymous" class="form-group" title="Create a new digital surface twin">
-                <a class="btn btn-primary form-control" :href="surfaceCreateUrl">Create digital
-                    surface
-                    twin</a>
+                <a class="btn btn-primary form-control" :href="surfaceCreateUrl">
+                    Create digital surface twin
+                </a>
             </div>
         </div>
     </div>
@@ -491,9 +490,7 @@ export default {
     </div>
     <div>
     <span v-if="!_isLoading">
-      Showing {{ _numItemsOnCurrentPage }} {{ _treeModeInfos[_treeMode].element_kind }} out of {{
-        _numItems
-        }}.
+      Showing {{ _numItemsOnCurrentPage }} {{ _treeModeInfos[_treeMode].element_kind }} out of {{ _numItems }}.
       {{ _treeModeInfos[_treeMode].hint }}
     </span>
     </div>

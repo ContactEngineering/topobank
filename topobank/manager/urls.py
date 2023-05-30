@@ -70,7 +70,7 @@ urlpatterns += [
         name='topography-corrupted'
     ),
     re_path(
-        r'html/surface/(?P<pk>\d+)/$',
+        r'html/surface/$',
         view=views.SurfaceDetailView.as_view(),
         name='surface-detail'
     ),

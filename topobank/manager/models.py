@@ -222,7 +222,7 @@ class Surface(models.Model, SubjectMixin):
         return [self]
 
     def get_absolute_url(self):
-        return reverse('manager:surface-detail', kwargs=dict(pk=self.pk))
+        return f"{reverse('manager:surface-detail')}?surface={self.pk}",
 
     def num_topographies(self):
         return self.topography_set.count()

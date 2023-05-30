@@ -373,7 +373,7 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
                 'title': f"{surface}",
                 'icon': "gem",
                 'icon_style_prefix': 'far',
-                'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
+                'href': f"{reverse('manager:surface-detail')}?surface={surface.pk}",
                 'active': False,
                 'tooltip': f"Properties of surface '{surface.label}'"
             },
@@ -474,7 +474,7 @@ class CorruptedTopographyView(TemplateView):
                 'title': f"{surface}",
                 'icon': "gem",
                 'icon_style_prefix': 'far',
-                'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
+                'href': f"{reverse('manager:surface-detail')}?surface={surface.pk}",
                 'active': False,
                 'tooltip': f"Properties of surface '{surface.label}'"
             },
@@ -580,7 +580,7 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
                 'title': f"{topo.surface.label}",
                 'icon': "gem",
                 'icon_style_prefix': 'far',
-                'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
+                'href': f"{reverse('manager:surface-detail')}?surface={topo.surface.pk}",
                 'active': False,
                 'tooltip': f"Properties of surface '{topo.surface.label}'"
             },
@@ -684,7 +684,7 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
                 'title': f"{topo.surface.label}",
                 'icon': "gem",
                 'icon_style_prefix': 'far',
-                'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
+                'href': f"{reverse('manager:surface-detail')}?surface={topo.surface.pk}",
                 'active': False,
                 'login_required': False,
                 'tooltip': f"Properties of surface '{topo.surface.label}'"
@@ -713,7 +713,7 @@ class TopographyDeleteView(TopographyUpdatePermissionMixin, DeleteView):
         topo = self.object
         surface = topo.surface
 
-        link = reverse('manager:surface-detail', kwargs=dict(pk=surface.pk))
+        link = f"{reverse('manager:surface-detail')}?surface={surface.pk}"
         #
         # notify other users
         #
@@ -736,7 +736,7 @@ class TopographyDeleteView(TopographyUpdatePermissionMixin, DeleteView):
                 'title': f"{topo.surface.label}",
                 'icon': "gem",
                 'icon_style_prefix': 'far',
-                'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
+                'href': f"{reverse('manager:surface-detail')}?surface={topo.surface.pk}",
                 'active': False,
                 'tooltip': f"Properties of surface '{topo.surface.label}'"
             },
@@ -829,7 +829,7 @@ class SurfaceCreateView(ORCIDUserRequiredMixin, CreateView):
         return initial
 
     def get_success_url(self):
-        return reverse('manager:surface-detail', kwargs=dict(pk=self.object.pk))
+        return f"{reverse('manager:surface-detail')}?surface={self.object.pk}",
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -847,207 +847,8 @@ class SurfaceCreateView(ORCIDUserRequiredMixin, CreateView):
         return context
 
 
-class SurfaceDetailView(DetailView):
-    model = Surface
-    context_object_name = 'surface'
-
-    @surface_view_permission_required
-    def dispatch(self, request, *args, **kwargs):
-        return super().dispatch(request, *args, *kwargs)
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-
-        surface = self.object
-        context['subjects_b64'] = subjects_to_base64([surface])
-
-        #
-        # Count this event for statistics
-        #
-        increase_statistics_by_date_and_object(Metric.objects.SURFACE_VIEW_COUNT,
-                                               period=Period.DAY, obj=surface)
-
-        #
-        # bandwidth data
-        #
-        bw_data = bandwidths_data(surface.topography_set.all())
-
-        # filter out all entries with errors and display error messages
-        bw_data_with_errors = [x for x in bw_data if x['error_message'] is not None]
-        bw_data_without_errors = [x for x in bw_data if x['error_message'] is None]
-
-        context['bandwidths_data_with_errors'] = bw_data_with_errors
-
-        #
-        # Plot bandwidths with bokeh
-        #
-
-        if len(bw_data_without_errors) > 0:
-
-            bar_height = 0.95
-
-            bw_left = [bw['lower_bound'] for bw in bw_data_without_errors]
-            bw_right = [bw['upper_bound'] for bw in bw_data_without_errors]
-            bw_center = np.exp((np.log(bw_left) + np.log(bw_right)) / 2)  # we want to center on log scale
-            bw_rel_cutoff = [bw['short_reliability_cutoff'] for bw in bw_data_without_errors]
-            bw_names = [bw['topography'].name for bw in bw_data_without_errors]
-            bw_topography_links = [bw['link'] for bw in bw_data_without_errors]
-            bw_thumbnail_links = [reverse('manager:topography-thumbnail',
-                                          kwargs=dict(pk=bw['topography'].pk))
-                                  for bw in bw_data_without_errors]
-            bw_has_rel_cutoff = [u is not None for u in bw_rel_cutoff]
-
-            bw_y = list(range(0, len(bw_data_without_errors)))
-
-            bw_rel_cutoff_source = ColumnDataSource(
-                dict(
-                    y=[y for y, has_rel_cutoff in zip(bw_y, bw_has_rel_cutoff) if has_rel_cutoff],
-                    left=[left for left, has_rel_cutoff in zip(bw_left, bw_has_rel_cutoff) if has_rel_cutoff],
-                    right=[right for right, has_rel_cutoff in zip(bw_rel_cutoff, bw_has_rel_cutoff) if has_rel_cutoff],
-                    name=[name for name, has_rel_cutoff in zip(bw_names, bw_has_rel_cutoff) if has_rel_cutoff]
-                )
-            )
-            bw_source = ColumnDataSource(
-                dict(
-                    y=bw_y, left=bw_left, right=bw_right, center=bw_center,
-                    name=bw_names,
-                    topography_link=bw_topography_links,
-                    thumbnail_link=bw_thumbnail_links
-                )
-            )
-
-            x_range = (min(bw_left), max(bw_right))
-
-            TOOL_TIPS = """
-            <div class="bandwidth-hover-box">
-                <img src="@thumbnail_link" height="80" width="80" alt="Thumbnail is missing, sorry">
-                <span>@name</span>
-            </div>
-            """
-
-            plot = figure(x_range=x_range,
-                          x_axis_label="Bandwidth",
-                          x_axis_type="log",
-                          sizing_mode='stretch_width',
-                          tools=["tap", "hover"],
-                          toolbar_location=None,
-                          tooltips=TOOL_TIPS)
-
-            unrel_hbar_renderer = plot.hbar(y="y", left="left", right="right", height=bar_height, color='#dc3545',
-                                            name='bandwidths', legend_label="Unreliable bandwidth",
-                                            source=bw_rel_cutoff_source)
-            unrel_hbar_renderer.nonselection_glyph = None  # makes glyph invariant on selection
-
-            hbar_renderer = plot.hbar(y="y", left="left", right="right", height=bar_height, color='#2c90d9',
-                                      name='bandwidths', legend_label="Reliable bandwidth", source=bw_source,
-                                      level="underlay")
-            hbar_renderer.nonselection_glyph = None  # makes glyph invariant on selection
-
-            plot.hover.renderers = [hbar_renderer]
-            plot.yaxis.visible = False
-            plot.grid.visible = False
-            plot.outline_line_color = None
-            plot.legend.location = "top_left"
-            plot.legend.title = "Measurement artifacts"
-            plot.legend.title_text_font_style = "bold"
-            plot.legend.background_fill_color = "#f0f0f0"
-            plot.legend.border_line_width = 3
-            plot.legend.border_line_cap = "round"
-
-            # make that 1 single topography does not look like a block
-            if len(bw_data_without_errors) == 1:
-                plot.y_range.end = bar_height * 1.5
-
-            # make clicking a bar going opening a new page
-            taptool = plot.select(type=TapTool)
-            taptool.callback = OpenURL(url="@topography_link", same_tab=True)
-
-            # include plot into response
-            bw_plot_script, bw_plot_div = components(plot)
-            context['plot_script'] = bw_plot_script
-            context['plot_div'] = bw_plot_div
-
-        #
-        # permission data
-        #
-        ACTIONS = ['view', 'change', 'delete', 'share']  # defines the order of permissions in table
-
-        surface_perms_table = get_permission_table_data(surface, self.request.user, ACTIONS)
-
-        context['permission_table'] = {
-            'head': [''] + ACTIONS,
-            'body': surface_perms_table
-        }
-
-        #
-        # Build tab information
-        #
-        context['extra_tabs'] = [
-            {
-                'title': surface.label,
-                'icon': "gem",
-                'icon_style_prefix': 'far',
-                'href': self.request.path,
-                'active': True,
-                'login_required': False,
-                'tooltip': f"Properties of surface '{surface.label}'"
-            }
-        ]
-
-        #
-        # Build urls for version selection in dropdown
-        #
-        def version_label_from_publication(pub):
-            return f'Version {pub.version} ({pub.datetime.date()})' if pub else 'Work in progress'
-
-        if surface.is_published:
-            original_surface = surface.publication.original_surface
-            context['this_version_label'] = version_label_from_publication(surface.publication)
-            context['publication_url'] = self.request.build_absolute_uri(surface.publication.get_absolute_url())
-            context['license_info'] = settings.CC_LICENSE_INFOS[surface.publication.license]
-        else:
-            original_surface = surface
-            context['this_version_label'] = version_label_from_publication(None)
-
-        publications = Publication.objects.filter(original_surface=original_surface).order_by('version')
-        version_dropdown_items = []
-
-        if self.request.user.has_perm('view_surface', original_surface):
-            # Only add link to original surface if user is allowed to view
-            version_dropdown_items.append({
-                'label': version_label_from_publication(None),
-                'surface': original_surface,
-            })
-
-        for pub in publications:
-            version_dropdown_items.append({
-                'label': version_label_from_publication(pub),
-                'surface': pub.surface,
-            })
-        context['version_dropdown_items'] = version_dropdown_items
-
-        version_badge_text = ''
-        if surface.is_published:
-            if context['this_version_label'] != version_dropdown_items[-1]['label']:
-                version_badge_text += 'Newer version available'
-        elif len(publications) > 0:
-            version_badge_text += 'Published versions available'
-
-        context['version_badge_text'] = version_badge_text
-
-        # add formats to show citations for
-        context['citation_flavors'] = [
-            ('Text format with link', 'html', False),  # title, flavor, use <pre><code>...</code></pre>
-            ('RIS format', 'ris', True),
-            ('BibTeX format', 'bibtex', True),
-            ('BibLaTeX format', 'biblatex', True),
-        ]
-
-        # add flag whether publications are allowed by settings and permissions
-        context['publication_allowed'] = settings.PUBLICATION_ENABLED \
-                                         and self.request.user.has_perm('publish_surface', surface)
-
-        return context
+class SurfaceDetailView(TemplateView):
+    template_name = "manager/surface_detail.html"
 
 
 class SurfaceUpdateView(UpdateView):
@@ -1076,9 +877,9 @@ class SurfaceUpdateView(UpdateView):
             notify.send(sender=user, verb='change', target=surface,
                         recipient=u,
                         description=notification_msg,
-                        href=reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)))
+                        href=f"{reverse('manager:surface-detail')}?surface={surface.pk}")
 
-        return super().form_valid(form)
+            return super().form_valid(form)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1089,7 +890,7 @@ class SurfaceUpdateView(UpdateView):
                 'title': f"{surface.label}",
                 'icon': "gem",
                 'icon_style_prefix': 'far',
-                'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
+                'href': f"{reverse('manager:surface-detail')}?surface={surface.pk}",
                 'active': False,
                 'tooltip': f"Properties of surface '{surface.label}'"
             },
@@ -1105,7 +906,7 @@ class SurfaceUpdateView(UpdateView):
         return context
 
     def get_success_url(self):
-        return reverse('manager:surface-detail', kwargs=dict(pk=self.object.pk))
+        return f"{reverse('manager:surface-detail')}?surface={self.object.pk}"
 
 
 class SurfaceDeleteView(DeleteView):
@@ -1144,7 +945,7 @@ class SurfaceDeleteView(DeleteView):
                 'title': f"{surface.label}",
                 'icon': "gem",
                 'icon_style_prefix': 'far',
-                'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
+                'href': f"{reverse('manager:surface-detail')}?surface={surface.pk}",
                 'active': False,
                 'tooltip': f"Properties of surface '{surface.label}'"
             },
@@ -1170,7 +971,8 @@ class SurfaceShareView(FormMixin, DetailView):
         return super().dispatch(request, *args, *kwargs)
 
     def get_success_url(self):
-        return reverse('manager:surface-detail', kwargs=dict(pk=self.object.pk))
+        return f"{reverse('manager:surface-detail')}?surface={self.object.pk}"
+
 
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
@@ -1222,7 +1024,7 @@ class SurfaceShareView(FormMixin, DetailView):
                 'title': f"{surface.label}",
                 'icon': "gem",
                 'icon_style_prefix': 'far',
-                'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
+                'href': f"{reverse('manager:surface-detail')}?surface={surface.pk}",
                 'active': False,
                 'tooltip': f"Properties of surface '{surface.label}'"
             },
@@ -1237,7 +1039,7 @@ class SurfaceShareView(FormMixin, DetailView):
         context['surface'] = surface
         context['instance_label'] = surface.label
         context['instance_type_label'] = "surface"
-        context['cancel_url'] = reverse('manager:surface-detail', kwargs=dict(pk=surface.pk))
+        context['cancel_url'] = f"{reverse('manager:surface-detail')}?surface={surface.pk}"
 
         return context
 
@@ -1360,7 +1162,7 @@ class SurfacePublishView(FormView):
                 'title': f"{surface.label}",
                 'icon': "gem",
                 'icon_style_prefix': 'far',
-                'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
+                'href': f"{reverse('manager:surface-detail')}?surface={surface.pk}",
                 'active': False,
                 'tooltip': f"Properties of surface '{surface.label}'"
             },
@@ -1399,7 +1201,7 @@ class PublicationRateTooHighView(TemplateView):
                 'title': f"{surface.label}",
                 'icon': "gem",
                 'icon_style_prefix': 'far',
-                'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
+                'href': f"{reverse('manager:surface-detail')}?surface={surface.pk}",
                 'active': False,
                 'tooltip': f"Properties of surface '{surface.label}'"
             },
@@ -1427,7 +1229,7 @@ class PublicationErrorView(TemplateView):
                 'title': f"{surface.label}",
                 'icon': "gem",
                 'icon_style_prefix': 'far',
-                'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
+                'href': f"{reverse('manager:surface-detail')}?surface={surface.pk}",
                 'active': False,
                 'tooltip': f"Properties of surface '{surface.label}'"
             },

@@ -39,7 +39,14 @@ class TopographySearchSerializer(serializers.ModelSerializer):
         model = Topography
         fields = ['id', 'type', 'name', 'creator', 'description', 'tags',
                   'urls', 'selected', 'key', 'surface_key', 'title', 'folder', 'version',
-                  'publication_date', 'publication_authors', 'creator_name', 'sharing_status', 'label']
+                  'publication_date', 'publication_authors',
+                  'datafile_format',
+                  'measurement_date',
+                  'resolution_x', 'resolution_y',
+                  'size_x', 'size_y', 'size_editable',
+                  'unit', 'unit_editable',
+                  'height_scale', 'height_scale_editable',
+                  'creator_name', 'sharing_status', 'label']
 
     creator = serializers.HyperlinkedRelatedField(
         read_only=True,
@@ -204,7 +211,7 @@ class SurfaceSearchSerializer(serializers.ModelSerializer):
             'unselect': reverse('manager:surface-unselect', kwargs=dict(pk=obj.pk))
         }
         if 'view_surface' in perms:
-            urls['detail'] = reverse('manager:surface-detail', kwargs=dict(pk=obj.pk))
+            urls['detail'] = f"{reverse('manager:surface-detail')}?surface={obj.pk}",
             if obj.num_topographies() > 0:
                 urls.update({
                     'analyze': f"{reverse('analysis:results-list')}?subjects={subjects_to_base64([obj])}"
