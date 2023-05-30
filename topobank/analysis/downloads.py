@@ -564,12 +564,20 @@ def download_plot_analyses_to_csv(request, analyses):
 
     column_subject_type = 'Subject type'
     column_subject_name = 'Subject name'
+    column_creator = 'Creator'
+    column_instrument_name = 'Instrument name'
+    column_instrument_type = 'Instrument type'
+    column_instrument_parameters = 'Instrument parameters'
     column_function_name = 'Function name'
     column_data_series = 'Data series'
 
     data = pd.DataFrame(columns=[
         column_subject_type,
         column_subject_name,
+        column_creator,
+        column_instrument_name,
+        column_instrument_type,
+        column_instrument_parameters,
         column_function_name,
         column_data_series,
         column1,
@@ -584,15 +592,20 @@ def download_plot_analyses_to_csv(request, analyses):
         xunit, xconv, yunit, yconv = _get_si_unit_conversion(result)
 
         # FIXME! Check that columns are actually identical
-        #_column1 = '{} ({})'.format(result['xlabel'], xunit)
-        #_column2 = '{} ({})'.format(result['ylabel'], yunit)
-        #_column3 = 'standard error of {} ({})'.format(result['ylabel'], yunit)
-        #_column4 = 'comment'
+        # _column1 = '{} ({})'.format(result['xlabel'], xunit)
+        # _column2 = '{} ({})'.format(result['ylabel'], yunit)
+        # _column3 = 'standard error of {} ({})'.format(result['ylabel'], yunit)
+        # _column4 = 'comment'
 
         # Get metadata
         subject_type = analysis.subject.get_content_type().name  # human-readable name
         if subject_type == 'topography':
             subject_type = 'measurement'  # this is how topographies are denoted in the UI
+        creator = str(analysis.subject.creator) if hasattr(analysis.subject, 'creator') else ''
+        instrument_name = str(analysis.subject.instrument_name) if hasattr(analysis.subject, 'instrument_name') else ''
+        instrument_type = str(analysis.subject.instrument_type) if hasattr(analysis.subject, 'instrument_type') else ''
+        instrument_parameters = str(analysis.subject.instrument_parameters) \
+            if hasattr(analysis.subject, 'instrument_parameters') else ''
 
         for series_idx, series in enumerate(result['series']):
             x = np.array(series['x'])
@@ -600,6 +613,10 @@ def download_plot_analyses_to_csv(request, analyses):
             df_columns_dict = {
                 column_subject_type: len(x) * [subject_type],
                 column_subject_name: len(x) * [analysis.subject.name],
+                column_creator: len(x) * [creator],
+                column_instrument_name: len(x) * [instrument_name],
+                column_instrument_type: len(x) * [instrument_type],
+                column_instrument_parameters: len(x) * [instrument_parameters],
                 column_function_name: len(x) * [analysis.function.name],
                 column_data_series: len(x) * [series['name']],
                 column1: x * xconv,
