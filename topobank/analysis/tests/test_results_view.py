@@ -444,7 +444,7 @@ def test_analysis_download_as_xlsx(client, two_topos, ids_downloadable_analyses,
     assert len(xlsx.worksheets) == 1 + 1 + 2 * 2  # INDEX, META DATA, 2*2 analysis sheets
 
     def assert_data_equal(sheet, exp_data):
-        first_data_row = 5
+        first_data_row = 9
         last_data_col = 2
         data = np.array(list(sheet.values))[first_data_row:, :last_data_col + 1]
         np.testing.assert_equal(data, exp_data)
@@ -530,15 +530,20 @@ def test_analysis_download_as_xlsx(client, two_topos, ids_downloadable_analyses,
     function_name = Analysis.objects.get(id=ids_downloadable_analyses[0]).function.name
 
     assert list(ws.values) == [
-        ("Subject name", "Subject type", "Function name", "Data series", "Link"),
+        ("Subject name", "Subject type", "Function name", "Data series", "Link",
+         "Creator", "Instrument name", "Instrument type", "Instrument parameters"),
         (first_topo_name, "measurement", function_name,
-         "First Series", "Click to jump to sheet 'analysis-0-series-0'"),
+         "First Series", "Click to jump to sheet 'analysis-0-series-0'",
+         str(topos[0].creator), None, 'undefined', '{}'),
         (first_topo_name, "measurement", function_name,
-         "Second Series", "Click to jump to sheet 'analysis-0-series-1'"),
+         "Second Series", "Click to jump to sheet 'analysis-0-series-1'",
+         str(topos[0].creator), None, 'undefined', '{}'),
         (second_topo_name, "measurement", function_name,
-         "First Series", "Click to jump to sheet 'analysis-1-series-0'"),
+         "First Series", "Click to jump to sheet 'analysis-1-series-0'",
+         str(topos[1].creator), None, 'undefined', '{}'),
         (second_topo_name, "measurement", function_name,
-         "Second Series", "Click to jump to sheet 'analysis-1-series-1'"),
+         "Second Series", "Click to jump to sheet 'analysis-1-series-1'",
+         str(topos[1].creator), None, 'undefined', '{}'),
     ]
 
     first_link_cell = ws["E2"]
