@@ -424,6 +424,12 @@ def download_plot_analyses_to_xlsx(request, analyses):
         column3 = 'standard error of {} ({})'.format(result['ylabel'], yunit)
         column4 = 'comment'
 
+        creator = str(analysis.subject.creator) if hasattr(analysis.subject, 'creator') else ''
+        instrument_name = str(analysis.subject.instrument_name) if hasattr(analysis.subject, 'instrument_name') else ''
+        instrument_type = str(analysis.subject.instrument_type) if hasattr(analysis.subject, 'instrument_type') else ''
+        instrument_parameters = str(analysis.subject.instrument_parameters) \
+            if hasattr(analysis.subject, 'instrument_parameters') else ''
+
         for series_idx, series in enumerate(result['series']):
             df_columns_dict = {column1: np.array(series['x']) * xconv, column2: np.array(series['y']) * yconv}
             try:
@@ -448,14 +454,15 @@ def download_plot_analyses_to_xlsx(request, analyses):
             if subject_type == 'topography':
                 subject_type = 'measurement'  # this is how topographies are denoted in the UI
             index_entries.append((analysis.subject.name, subject_type,
-                                  analysis.function.name, series['name'], sheet_name))
+                                  analysis.function.name, series['name'], sheet_name,
+                                  creator, instrument_name, instrument_type, instrument_parameters))
 
             #
             # Write data sheet to excel file
             #
-            df.to_excel(excel_writer, sheet_name=sheet_name, freeze_panes=(6, 1), startcol=0, startrow=5)
+            df.to_excel(excel_writer, sheet_name=sheet_name, freeze_panes=(10, 1), startcol=0, startrow=9)
             sheet = excel_writer.sheets[sheet_name]
-            sheet["A1"] = "Analysis"
+            sheet["A1"] = "Function name"
             sheet["A1"].font = bold_font
             sheet["B1"] = analysis.function.name
             sheet["A2"] = "Subject"
@@ -464,9 +471,21 @@ def download_plot_analyses_to_xlsx(request, analyses):
             sheet["A3"] = "Subject type"
             sheet["A3"].font = bold_font
             sheet["B3"] = subject_type
-            sheet["A4"] = "Data series"
+            sheet["A4"] = "Creator"
             sheet["A4"].font = bold_font
-            sheet["B4"] = series['name']
+            sheet["B4"] = creator
+            sheet["A5"] = "Instrument name"
+            sheet["A5"].font = bold_font
+            sheet["B5"] = instrument_name
+            sheet["A6"] = "Instrument type"
+            sheet["A6"].font = bold_font
+            sheet["B6"] = instrument_type
+            sheet["A7"] = "Instrument parameters"
+            sheet["A7"].font = bold_font
+            sheet["B7"] = instrument_parameters
+            sheet["A8"] = "Data series"
+            sheet["A8"].font = bold_font
+            sheet["B8"] = series['name']
             sheet.column_dimensions['A'].width = 20
             sheet.column_dimensions['B'].width = 20
             sheet.column_dimensions['C'].width = 20
@@ -490,7 +509,8 @@ def download_plot_analyses_to_xlsx(request, analyses):
 
     index_ws = wb.create_sheet("INDEX", 0)
 
-    index_headers = ["Subject name", "Subject type", "Function name", "Data series", "Link"]
+    index_headers = ["Subject name", "Subject type", "Function name", "Data series", "Link", "Creator",
+                     "Instrument name", "Instrument type", "Instrument parameters"]
     for col_idx, col_header in enumerate(index_headers):
         header_cell = index_ws.cell(row=1, column=col_idx + 1)
         header_cell.value = col_header
@@ -498,15 +518,19 @@ def download_plot_analyses_to_xlsx(request, analyses):
 
     def create_index_entry(row, index_entry):
         """Create a row on the index sheet."""
-        subject_name, subject_type, function_name, data_series, sheet_name = index_entry
+        subject_name, subject_type, function_name, data_series, sheet_name, creator, instrument_name, instrument_type, \
+            instrument_parameters = index_entry
         index_ws.cell(row=row, column=1).value = subject_name
         index_ws.cell(row=row, column=2).value = subject_type
         index_ws.cell(row=row, column=3).value = function_name
         index_ws.cell(row=row, column=4).value = data_series
+        index_ws.cell(row=row, column=6).value = creator
+        index_ws.cell(row=row, column=7).value = instrument_name
+        index_ws.cell(row=row, column=8).value = instrument_type
+        index_ws.cell(row=row, column=9).value = instrument_parameters
         hyperlink_cell = index_ws.cell(row=row, column=5)
         hyperlink_label = f"Click to jump to sheet '{sheet_name}'"
         hyperlink_location = f"'{sheet_name}'!B2"  # don't use # here before sheet name, does not work
-
         # Hyperlink class: target keyword seems to be used for external links
         # hyperlink_cell.value = f'=HYPERLINK("{hyperlink_location}", "{hyperlink_label}")'
         # didn't manage to get it working with HYPERLINK function
