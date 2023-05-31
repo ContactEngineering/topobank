@@ -103,35 +103,35 @@
               </div>
           </li>
           <li id="UserProfileDetailsContent">
-           <div>
+           <div class="btn-group-vertical">
             {% if not request.user.is_anonymous and request.user.username %}
-            <a class="dropdown-item" href="{% url 'users:detail' request.user.username %}">User profile</a>
-            <a class="dropdown-item" href="{% url 'plugins:plugins-list' %}">Plugins</a>
+            <a class="btn btn-default" role="button" href="{% url 'users:detail' request.user.username %}">User profile</a>
+            <a class="btn btn-default" role="button" href="{% url 'plugins:plugins-list' %}">Plugins</a>
             <div class="dropdown-divider"></div>
             {% if request.user.is_staff %}
-              <a class="dropdown-item" href="{% url 'admin:index' %}">Admin interface</a>
-              <a class="dropdown-item" href="{% url 'watchman:dashboard' %}">Watchman dashboard</a>
-              <a class="dropdown-item" href="{% url 'watchman:status' %}">Watchman status (JSON)</a>
+              <a class="btn btn-default" role="button" href="{% url 'admin:index' %}">Admin interface</a>
+              <a class="btn btn-default" role="button" href="{% url 'watchman:dashboard' %}">Watchman dashboard</a>
+              <a class="btn btn-default" role="button" href="{% url 'watchman:status' %}">Watchman status (JSON)</a>
               <div class="dropdown-divider"></div>
              <div>
-                <a class="sidepanel-information-fb" target="_blank"
+                <a class="btn btn-default" role="button" target="_blank"
                    href="https://github.com/ContactEngineering/TopoBank/discussions">Feedback</a>
-                <a class="dropdown-item" data-toggle="modal" data-target="#versionModal">Version information</a>
-                <a class="dropdown-item" href="{% url 'terms' %}">Terms &amp; conditions</a>
+                <a class="btn btn-default" role="button" data-toggle="modal" data-target="#versionModal">Version information</a>
+                <a class="btn btn-default" role="button" href="{% url 'terms' %}">Terms &amp; conditions</a>
                 <div class="dropdown-divider"></div>
-                <a class="dropdown-item" target="_blank" href="https://doi.org/10.1088/2051-672X/ac860a">Read our
+                <a class="btn btn-default" role="button" target="_blank" href="https://doi.org/10.1088/2051-672X/ac860a">Read our
                   paper!</a>
                 <div class="dropdown-divider"></div>
-                <a class="dropdown-item" href="{% url 'help' %}">Help</a>
+                <a class="btn btn-default" role="button" href="{% url 'help' %}">Help</a>
                 <div class="dropdown-divider"></div>
-                <a class="dropdown-item" data-toggle="modal" data-target="#contactModal">Contact</a>
+                <a class="btn btn-default" role="button" data-toggle="modal" data-target="#contactModal">Contact</a>
               </div>
 
 
             {% endif %}
-            <a class="dropdown-item" data-toggle="modal" data-target="#logoutModal">Sign Out</a>
+            <a class="btn btn-default" role="button" data-toggle="modal" data-target="#logoutModal">Sign Out</a>
             {% else %}
-            <a class="dropdown-item" href="{% provider_login_url 'orcid' method="oauth2" %}">Sign in</a>
+            <a class="btn btn-default" role="button" href="{% provider_login_url 'orcid' method="oauth2" %}">Sign in</a>
             {% endif %}
           </div>
           </li>
@@ -168,20 +168,6 @@
              aria-haspopup="true" aria-expanded="false" onclick="openInfoNav()">
             <!-- <i class="fa fa-info-circle fa-fw"></i> -->
           </a>
-          <!--
-          <div class="dropdown-menu dropdown-menu-right help-dropdown" aria-labelledby="helpDropdown">
-            <a class="dropdown-item" target="_blank" href="https://github.com/ContactEngineering/TopoBank/discussions">Feedback</a>
-            <a class="dropdown-item" data-toggle="modal" data-target="#versionModal">Version information</a>
-            <a class="dropdown-item" href="{% url 'terms' %}">Terms &amp; conditions</a>
-            <div class="dropdown-divider"></div>
-            <a class="dropdown-item" target="_blank" href="https://doi.org/10.1088/2051-672X/ac860a">Read our paper!</a>
-            <div class="dropdown-divider"></div>
-            <a class="dropdown-item" href="{% url 'help' %}">Help</a>
-            <div class="dropdown-divider"></div>
-            <a class="dropdown-item" data-toggle="modal" data-target="#contactModal">Contact</a>
-          </div>
-          Original help button
-          -->
         </li>
 
         <li class="nav-item dropdown no-arrow">
@@ -192,25 +178,6 @@
               {{ request.user.name }}
             {% endif %}
           </a>
-          <!--
-          <div class="dropdown-menu dropdown-menu-right user-dropdown" aria-labelledby="userDropdown">
-            {% if not request.user.is_anonymous and request.user.username %}
-            <a class="dropdown-item" href="{% url 'users:detail' request.user.username %}">User profile</a>
-            <a class="dropdown-item" href="{% url 'plugins:plugins-list' %}">Plugins</a>
-            <div class="dropdown-divider"></div>
-            {% if request.user.is_staff %}
-              <a class="dropdown-item" href="{% url 'admin:index' %}">Admin interface</a>
-              <a class="dropdown-item" href="{% url 'watchman:dashboard' %}">Watchman dashboard</a>
-              <a class="dropdown-item" href="{% url 'watchman:status' %}">Watchman status (JSON)</a>
-              <div class="dropdown-divider"></div>
-            {% endif %}
-            <a class="dropdown-item" data-toggle="modal" data-target="#logoutModal">Sign Out</a>
-            {% else %}
-            <a class="dropdown-item" href="{% provider_login_url 'orcid' method="oauth2" %}">Sign in</a>
-            {% endif %}
-          </div>
-          original user button
-          -->
         </li>
 
       </ul>
@@ -534,7 +501,7 @@
                     var ts = new Date(item.timestamp);
                       message = message + " (<span>" + ts.toLocaleString() + "</span>)";
                                     }
-                return '<span style="display: block;width: 250px;word-break: break-word!important;text-wrap: normal;word-wrap: break-word!important;border-bottom: 1px solid white;padding-top: 10px; padding-bottom: 10px">' + message + '</span>';;
+                return '<a style="display: block;width: 250px;word-break: break-word!important;text-wrap: normal;word-wrap: break-word!important;border-bottom: 1px solid white;padding-top: 10px; padding-bottom: 10px">' + message + '</a>';;
               // return ('<span class="dropdown-item-textwrap" id="notification-msg" href=' + href + "> " + message + '</span>');
             }).join('')
 
