@@ -105,33 +105,31 @@
           <li id="UserProfileDetailsContent">
            <div class="btn-group-vertical">
             {% if not request.user.is_anonymous and request.user.username %}
-            <a class="btn btn-default" role="button" href="{% url 'users:detail' request.user.username %}">User profile</a>
-            <a class="btn btn-default" role="button" href="{% url 'plugins:plugins-list' %}">Plugins</a>
+            <a class="btn btn-default btn-lg" role="button" href="{% url 'users:detail' request.user.username %}">User profile</a>
+            <a class="btn btn-default btn-lg" role="button" href="{% url 'plugins:plugins-list' %}">Plugins</a>
             <div class="dropdown-divider"></div>
             {% if request.user.is_staff %}
-              <a class="btn btn-default" role="button" href="{% url 'admin:index' %}">Admin interface</a>
-              <a class="btn btn-default" role="button" href="{% url 'watchman:dashboard' %}">Watchman dashboard</a>
-              <a class="btn btn-default" role="button" href="{% url 'watchman:status' %}">Watchman status (JSON)</a>
+              <a class="btn btn-default btn-lg" role="button" href="{% url 'admin:index' %}">Admin interface</a>
+              <a class="btn btn-default btn-lg" role="button" href="{% url 'watchman:dashboard' %}">Watchman dashboard</a>
+              <a class="btn btn-default btn-lg" role="button" href="{% url 'watchman:status' %}">Watchman status (JSON)</a>
               <div class="dropdown-divider"></div>
-             <div>
-                <a class="btn btn-default" role="button" target="_blank"
+                <a class="btn btn-default btn-lg" role="button" target="_blank"
                    href="https://github.com/ContactEngineering/TopoBank/discussions">Feedback</a>
-                <a class="btn btn-default" role="button" data-toggle="modal" data-target="#versionModal">Version information</a>
-                <a class="btn btn-default" role="button" href="{% url 'terms' %}">Terms &amp; conditions</a>
+                <a class="btn btn-default btn-lg" role="button" data-toggle="modal" data-target="#versionModal">Version information</a>
+                <a class="btn btn-default btn-lg" role="button" href="{% url 'terms' %}">Terms &amp; conditions</a>
                 <div class="dropdown-divider"></div>
-                <a class="btn btn-default" role="button" target="_blank" href="https://doi.org/10.1088/2051-672X/ac860a">Read our
+                <a class="btn btn-default btn-lg" role="button" target="_blank" href="https://doi.org/10.1088/2051-672X/ac860a">Read our
                   paper!</a>
                 <div class="dropdown-divider"></div>
-                <a class="btn btn-default" role="button" href="{% url 'help' %}">Help</a>
+                <a class="btn btn-default btn-lg" role="button" href="{% url 'help' %}">Help</a>
                 <div class="dropdown-divider"></div>
-                <a class="btn btn-default" role="button" data-toggle="modal" data-target="#contactModal">Contact</a>
-              </div>
+                <a class="btn btn-default btn-lg" role="button" data-toggle="modal" data-target="#contactModal">Contact</a>
 
 
             {% endif %}
-            <a class="btn btn-default" role="button" data-toggle="modal" data-target="#logoutModal">Sign Out</a>
+            <a class="btn btn-default btn-lg" role="button" data-toggle="modal" data-target="#logoutModal">Sign Out</a>
             {% else %}
-            <a class="btn btn-default" role="button" href="{% provider_login_url 'orcid' method="oauth2" %}">Sign in</a>
+            <a class="btn btn-default btn-lg" role="button" href="{% provider_login_url 'orcid' method="oauth2" %}">Sign in</a>
             {% endif %}
           </div>
           </li>
