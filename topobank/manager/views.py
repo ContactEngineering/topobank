@@ -7,7 +7,6 @@ from io import BytesIO
 import dateutil.parser
 import django_tables2 as tables
 import numpy as np
-
 from bokeh.embed import components
 from bokeh.models import TapTool, OpenURL
 from bokeh.plotting import figure, ColumnDataSource
@@ -30,6 +29,7 @@ from django.views.generic.edit import FormMixin
 from django_tables2 import RequestConfig
 from django.contrib.staticfiles.storage import staticfiles_storage
 from django.contrib import messages
+from django.utils.text import slugify
 
 from guardian.decorators import permission_required_or_403
 from guardian.shortcuts import get_users_with_perms, get_objects_for_user
@@ -1649,7 +1649,7 @@ def download_surface(request, surface_id):
         except Exception:  # not interested here, why it fails
             renew_publication_container = True
     else:
-        container_filename = DEFAULT_CONTAINER_FILENAME
+        container_filename = slugify(surface.name) + ".zip"
 
     if content_data is None:
         container_bytes = BytesIO()

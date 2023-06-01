@@ -1,5 +1,6 @@
 from django.shortcuts import reverse
 from django.core.files.storage import default_storage
+from django.utils.text import slugify
 from rest_framework.test import APIRequestFactory
 
 from trackstats.models import Metric, Period
@@ -1610,7 +1611,7 @@ def test_download_of_unpublished_surface(client, handle_usage_statistics):
     response = client.get(reverse('manager:surface-download', kwargs=dict(surface_id=surface.id)),
                           follow=True)
     assert response.status_code == 200
-    assert response['Content-Disposition'] == f'attachment; filename="{DEFAULT_CONTAINER_FILENAME}"'
+    assert response['Content-Disposition'] == f'attachment; filename="{slugify(surface.name) + ".zip"}"'
 
 
 
