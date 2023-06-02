@@ -661,7 +661,7 @@ def download_plot_analyses_to_csv(request, analyses):
             data = pd.concat([data, pd.DataFrame(df_columns_dict)])
 
     f = io.StringIO()
-    data.to_csv(f, sep=';', index_label='Index')
+    data.to_csv(f, sep=';', index=False)
     response = HttpResponse(f.getvalue(), content_type='application/text')
     filename = f'{slugify(analysis.function.name)}.csv'
     response['Content-Disposition'] = 'attachment; filename="{}"'.format(filename)
