@@ -139,7 +139,7 @@ export default {
                     const is_selected = node.isSelected();
                     if (node.data.urls !== undefined) {
                         if (is_selected) {
-                            fetch(node.data.urls.select, {method: 'POST', headers: {'X-CSRFToken': _this.csrf_token}})
+                            fetch(node.data.urls.select, {method: 'POST', headers: {'X-CSRFToken': _this.csrfToken}})
                                 .then(response => response.json())
                                 .then(data => {
                                     _this._selection = data;
@@ -149,7 +149,7 @@ export default {
                                     console.error("Could not select: " + error);
                                 });
                         } else {
-                            fetch(node.data.urls.unselect, {method: 'POST', headers: {'X-CSRFToken': _this.csrf_token}})
+                            fetch(node.data.urls.unselect, {method: 'POST', headers: {'X-CSRFToken': _this.csrfToken}})
                                 .then(response => response.json())
                                 .then(data => {
                                     _this._selection = data;
@@ -364,7 +364,7 @@ export default {
 </script>
 
 <template>
-    <basket :csrf-token="csrf_token"
+    <basket :csrf-token="csrfToken"
             :basket-items="_selection"
             @unselect-successful="unselect">
     </basket>

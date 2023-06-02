@@ -1,5 +1,20 @@
 # Changelog for *TopoBank*
 
+## 1.1.0 (not yet published)
+
+- ENH: Unified single page application for analyses, including rewritten
+  task status
+- ENH: Unified single page application for analyses, including rewritten
+  task status (#795, #796)
+- ENH: Webpack based bundling (for the analysis app, #565, #800)
+- ENH: CSV download for analyses 
+- ENH: Upgrade to Vue 3
+- MAINT: Converted pickled binary dictionaries to JSON fields (#573)
+- MAINT: Analysis function now has permalink (#824)
+- MAINT: Analysis downloads now contain instrument information (#983)
+- MAINT: Analysis downloads are now in SI units (#583)
+- MAINT: Additional assorted fixes (#118, #169, #499, #624, #671, #857, #897)
+
 ## 1.0.5 (2023-04-17)
 
 - DEP: Upgrade of SurfaceTopography to 1.6.2

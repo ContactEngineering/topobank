@@ -15,7 +15,7 @@ from django.core.files.base import ContentFile
 from django.contrib.contenttypes.fields import GenericRelation
 from django.contrib.contenttypes.models import ContentType
 
-from guardian.shortcuts import assign_perm, remove_perm, get_users_with_perms
+from guardian.shortcuts import assign_perm, remove_perm, get_users_with_perms, get_anonymous_user
 import tagulous.models as tm
 
 import PIL
@@ -370,6 +370,9 @@ class Surface(models.Model, SubjectMixin):
 
         # Add read permission for everyone
         assign_perm('view_surface', get_default_group(), self)
+
+        # Add read permission for anonymous user
+        assign_perm('view_surface', get_anonymous_user(), self)
 
         from guardian.shortcuts import get_perms
         # TODO for unknown reasons, when not in Docker, the published surfaces are still changeable
