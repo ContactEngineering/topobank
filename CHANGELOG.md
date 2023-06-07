@@ -3,8 +3,6 @@
 ## 1.1.0 (not yet published)
 
 - ENH: Unified single page application for analyses, including rewritten
-  task status
-- ENH: Unified single page application for analyses, including rewritten
   task status (#795, #796)
 - ENH: Webpack based bundling (for the analysis app, #565, #800)
 - ENH: CSV download for analyses 
