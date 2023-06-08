@@ -562,9 +562,10 @@ ul.timeline > li > .timeline-panel:after {
   word-wrap: break-word;
 	white-space: normal;
   line-height: 1.42857143;
-  padding: unset!important;
+  padding-bottom: 32px;
   width: 237px;
-  vertical-align: -19px;
+  vertical-align: -26px;
+  font-size: inherit;
 }
 #notification-msg{
   word-wrap: break-word!important;
@@ -607,7 +608,7 @@ ul.timeline > li > .timeline-panel:after {
   margin-left: -250px;
 }
 
-#sidebarMain {
+#sidebar-main {
   display: none;
 }
 
@@ -647,6 +648,8 @@ ul.timeline > li > .timeline-panel:after {
   padding: 10px;
   display: block;
   color: #080909;
+  width: 233px;
+  text-align: center;
 }
 
 #sidebar ul li a:hover {
@@ -656,8 +659,9 @@ ul.timeline > li > .timeline-panel:after {
   border-bottom: 1px solid;
   border-bottom-color: #ccc;
   border-bottom-color: rgba(255, 255, 255, 0.2);
-  background-color: rgba(255, 255, 255, 0.2);
+  /*background-color: rgba(255, 255, 255, 0.2);*/
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+  color: #0056b3;
 }
 
 #sidebar ul li.active > a, a[aria-expanded="true"] {
@@ -692,7 +696,7 @@ ul ul a {
   border-top: 1px solid white;
 }
 
-.sidebarMainBlock {
+.sidebar-main-block {
   display: block!important;
  transition: ease-in;
   transition-duration: 0.3s;
