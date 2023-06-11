@@ -20,7 +20,7 @@ classifiers = [
     'Framework :: Django :: 3.2',
     'Framework :: Celery',
     'Intended Audience :: Developers',
-    'License :: OSI Approved :: MIT Licensev',
+    'License :: OSI Approved :: MIT License',
     'Operating System :: POSIX',
     'Programming Language :: Python',
     'Programming Language :: Python :: 3',
