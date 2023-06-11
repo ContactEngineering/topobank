@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-## 1.1.0 (not yet published)
+## 1.1.0 (2023-06-11)
 
 - ENH: Unified single page application for analyses, including rewritten
   task status (#795, #796)
