@@ -603,11 +603,11 @@ export default {
                                    v-model="category.isAllSelected"
                                    v-on:change="selectAll(category)"
                                    :indeterminate.prop="category.isIndeterminate">
-                            <label class="custom-control-label btn-block text-left"
+                            <label class="custom-control-label btn-block text-start"
                                    :for='"select-all-"+uuid+"-"+category.key'>
                             </label>
                         </div>
-                        <button class="btn btn-link btn-block text-left accordion-button collapsed"
+                        <button class="btn btn-link btn-block text-start accordion-button collapsed"
                                 type="button"
                                 data-toggle="collapse"
                                 :data-target='"#collapse-"+uuid+"-"+category.key'
@@ -642,7 +642,7 @@ export default {
             <div class="card">
                 <div :id='"heading-plot-options-"+uuid' class="card-header plot-controls-card-header">
                     <h2 class="mb-0">
-                        <button class="btn btn-link btn-block text-left accordion-button collapsed"
+                        <button class="btn btn-link btn-block text-start accordion-button collapsed"
                                 type="button"
                                 data-toggle="collapse"
                                 :data-target='"#collapse-plot-options-"+uuid'

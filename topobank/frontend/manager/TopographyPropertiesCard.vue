@@ -60,19 +60,19 @@ export default {
 <template>
     <div class="card mb-1">
         <div class="card-header">
-            <div class="btn-group btn-group-sm float-right">
+            <div class="btn-group btn-group-sm float-end">
                 <button v-if="!_editing"
-                        class="btn btn-default float-right ml-1"
+                        class="btn btn-default float-end ml-1"
                         @click="_editing=true">
                     Edit
                 </button>
                 <button v-if="_editing"
-                        class="btn btn-danger float-right ml-1"
+                        class="btn btn-danger float-end ml-1"
                         @click="_editing=false">
                     Discard
                 </button>
                 <button v-if="_editing"
-                        class="btn btn-success float-right ml-1"
+                        class="btn btn-success float-end ml-1"
                         @click="_editing=false">
                     SAVE
                 </button>

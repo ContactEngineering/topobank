@@ -149,7 +149,7 @@ export default {
                 Analyze
             </a>
             <div v-if="hasClearButton || hasDownloadButton"
-                 class="btn-group btn-group-sm float-right"
+                 class="btn-group btn-group-sm float-end"
                  role="group"
                  aria-label="Actions on current selection">
                 <button v-if="hasClearButton"

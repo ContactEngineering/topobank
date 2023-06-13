@@ -66,7 +66,7 @@ export default {
 </script>
 
 <template>
-    <button class="btn btn-default btn-sm float-right"
+    <button class="btn btn-default btn-sm float-end"
             href="#"
             data-toggle="modal"
             :data-target="`#task-states-modal-${uid}`">

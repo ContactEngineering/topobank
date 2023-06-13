@@ -11,9 +11,9 @@ export default {
 </script>
 
 <template>
-    <div class="btn-group btn-group-sm float-right">
+    <div class="btn-group btn-group-sm float-end">
         <a :href="`${detailUrl}${functionId}/?subjects=${subjects}`"
-           class="btn btn-default float-right">
+           class="btn btn-default float-end">
             <i class="fa fa-expand"></i>
         </a>
     </div>

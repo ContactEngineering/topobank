@@ -19,12 +19,12 @@ a format name in order to expand. If you need another format, please
            data-toggle="collapse" data-target="#card-body-{{ flavor }}"
            aria-expanded="{{ forloop.first|yesno:'true,false' }}"
            aria-controls="card-body-{{ flavor }}">
-        <h3 class="float-left">{{ flavor_title}}</h3>
+        <h3 class="float-start">{{ flavor_title}}</h3>
       </btn>
     </div>
     <div id="card-body-{{ flavor }}" class="collapse {% if forloop.first %}show{% endif %} text-dark"
          data-parent="#accordion">
-      <button class="btn btn-secondary clipboard-btn float-right"
+      <button class="btn btn-secondary clipboard-btn float-end"
               type="button"
               aria-label="Copy to clipboard"
               data-clipboard-target="#citation-{{ flavor }}-format"
