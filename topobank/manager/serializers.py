@@ -37,16 +37,11 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
 class TopographySearchSerializer(serializers.ModelSerializer):
     class Meta:
         model = Topography
-        fields = ['id', 'type', 'name', 'creator', 'description', 'tags',
-                  'urls', 'selected', 'key', 'surface_key', 'title', 'folder', 'version',
-                  'publication_date', 'publication_authors',
-                  'datafile_format',
-                  'measurement_date',
-                  'resolution_x', 'resolution_y',
-                  'size_x', 'size_y', 'size_editable',
-                  'unit', 'unit_editable',
-                  'height_scale', 'height_scale_editable',
-                  'creator_name', 'sharing_status', 'label']
+        fields = ['id', 'type', 'name', 'creator', 'description', 'tags', 'urls', 'selected', 'key', 'surface_key',
+                  'title', 'folder', 'version', 'publication_date', 'publication_authors', 'datafile_format',
+                  'measurement_date', 'resolution_x', 'resolution_y', 'size_x', 'size_y', 'size_editable', 'unit',
+                  'unit_editable', 'height_scale', 'height_scale_editable', 'creator_name', 'sharing_status', 'label',
+                  'is_periodic', 'thumbnail']
 
     creator = serializers.HyperlinkedRelatedField(
         read_only=True,

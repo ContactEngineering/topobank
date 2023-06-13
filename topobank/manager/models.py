@@ -2,15 +2,7 @@
 Basic models for the web app for handling topography data.
 """
 
-import io
-import logging
-import math
-import matplotlib.pyplot, matplotlib.cm
-import numpy as np
-import os.path
-import PIL
 import sys
-import tempfile
 
 from django.db import models
 from django.shortcuts import reverse
@@ -839,7 +831,8 @@ class Topography(models.Model, SubjectMixin):
         """
         return self.surface.is_shared(with_user, allow_change=allow_change)
 
-    def topography(self, allow_cache=settings.DEFAULT_ALLOW_CACHE_FOR_LOW_LEVEL_TOPOGRAPHY, allow_squeezed=True):
+    def topography(self, allow_cache=settings.DEFAULT_ALLOW_CACHE_FOR_LOW_LEVEL_TOPOGRAPHY, allow_squeezed=True,
+                   return_reader=False):
         """Return a SurfaceTopography.Topography/UniformLineScan/NonuniformLineScan instance.
 
         This instance is guaranteed to
@@ -870,6 +863,10 @@ class Topography(models.Model, SubjectMixin):
             If True (default), the instance is allowed to be generated
             from a squeezed datafile which is not the original datafile.
             This is often faster than the original file format.
+
+        return_reader: bool
+            If True, return a tuple containing the topography and the reader.
+            (Default: False)
         """
         if not _IN_CELERY_WORKER_PROCESS and self.size_y is not None:
             _log.warning('You are requesting to load a (2D) topography and you are not within in a Celery worker '
@@ -881,6 +878,7 @@ class Topography(models.Model, SubjectMixin):
         #
         # Try to get topography from cache if possible
         #
+        toporeader = None
         topo = cache.get(cache_key) if allow_cache else None
         if topo is None:
             # Build dictionary with instrument information from database... this may override data provided by the
@@ -963,7 +961,10 @@ class Topography(models.Model, SubjectMixin):
         else:
             _log.info(f"Using topography from cache for id {self.id}.")
 
-        return topo
+        if return_reader:
+            return topo, toporeader
+        else:
+            return topo
 
     def to_dict(self):
         """Create dictionary for export of metadata to json or yaml"""
@@ -1377,11 +1378,25 @@ class Topography(models.Model, SubjectMixin):
         _log.info(f"Renewing squeezed datafile for topography {self.id}..")
         with tempfile.NamedTemporaryFile() as tmp:
             # Reread topography from original file
-            st_topo = self.topography(allow_cache=False, allow_squeezed=False)
+            st_topo, st_toporeader = self.topography(allow_cache=False, allow_squeezed=False, return_reader=True)
+
+            # Populate datafile information in the database.
+            # (We never load the topography, so we don't know this until here.
+            # Note that datafile format information is initially undefined, which means autodetect.)
+            self.datafile_format = st_toporeader.format()
+
+            # Populate resolution information in the database.
+            # (Note that resolution information is initially undefined.)
+            if st_topo.dim == 1:
+                self.resolution_x, = st_topo.nb_grid_pts
+                self.resolution_y = None  # This indicates that this is a line scan
+            elif st_topo.dim == 2:
+                self.resolution_x, self.resolution_y = st_topo.nb_grid_pts
+            else:
+                raise NotImplementedError(f'Cannot handle topographies of dimension {st_topo.dim}.')
 
             # Check whether original data file has undefined data point and update database accordingly.
-            # (We never load the topography so we don't know this until here. `has_undefined_data` can be
-            # undefined.)
+            # (`has_undefined_data` can be undefined if undetermined.)
             parent_topo = st_topo
             while hasattr(parent_topo, 'parent_topography'):
                 parent_topo = parent_topo.parent_topography

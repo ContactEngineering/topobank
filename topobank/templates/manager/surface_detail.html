@@ -16,7 +16,7 @@
     <script>
         const params = new URLSearchParams(window.location.search);
         topobank.surface_detail_app.createSurfaceDetailApp('#app', '{{ csrf_token }}', {
-            surfaceId: params.get('surface')
+            surfaceId: Number.parseInt(params.get('surface'))
         });
     </script>
 
