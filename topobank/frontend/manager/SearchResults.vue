@@ -198,18 +198,18 @@ export default {
 
                     // Tags
                     if (node.data.category) {
-                        description_html += `<p class='badge badge-secondary mr-1'>${node.data.category_name}</p>`;
+                        description_html += `<p class='badge bg-secondary me-1'>${node.data.category_name}</p>`;
                     }
 
                     if (node.data.sharing_status == "own") {
-                        description_html += `<p class='badge badge-info mr-1'>Created by you</p>`;
+                        description_html += `<p class='badge bg-info me-1'>Created by you</p>`;
                     } else if (node.data.sharing_status == "shared") {
-                        description_html += `<p class='badge badge-info mr-1'>Shared by ${node.data.creator_name}</p>`;
+                        description_html += `<p class='badge bg-info me-1'>Shared by ${node.data.creator_name}</p>`;
                     }
 
                     if (node.data.tags !== undefined) {
                         node.data.tags.forEach(function (tag) {
-                            description_html += "<p class='badge badge-success mr-1'>" + tag + "</p>";
+                            description_html += "<p class='badge bg-success me-1'>" + tag + "</p>";
                         });
                     }
 
@@ -371,21 +371,21 @@ export default {
             @unselect-successful="unselect">
     </basket>
     <form>
-        <div class="d-flex flex-row">
-            <div v-if="_searchTerm" class="form-group flex-fill mr-2">
+        <div class="d-flex flex-row mb-2">
+            <div v-if="_searchTerm" class="form-group flex-fill me-2">
                 <button class="btn btn-warning form-control" type="button"
                         id="clear-search-term-btn"
                         @click="clearSearchTerm">
                     Clear filter for <b>{{ _searchTerm }}</b>
                 </button>
             </div>
-            <div v-else class="form-group flex-fill mr-2">
+            <div v-else class="form-group flex-fill me-2">
                 <button class="btn btn-outline-info form-control disabled" type="button">
                     Not filtered for search term
                 </button>
             </div>
 
-            <div class="form-group mr-2">
+            <div class="form-group me-2">
                 <select name="category" class="form-control" v-model="_category" @change="reload">
                     <option v-for="(choiceLabel, choiceVal) in categoryFilterChoices"
                             v-bind:value="choiceVal" v-bind:selected="choiceVal==_category">
@@ -394,7 +394,7 @@ export default {
                 </select>
             </div>
 
-            <div class="form-group mr-2">
+            <div class="form-group me-2">
                 <select name="sharing_status" class="form-control" v-model="_sharingStatus" @change="reload">
                     <option v-for="(choiceLabel, choiceVal) in sharingStatusFilterChoices"
                             v-bind:value="choiceVal" v-bind:selected="choiceVal==_sharingStatus">
@@ -403,7 +403,7 @@ export default {
                 </select>
             </div>
 
-            <div id="tree-selector" class="form-group btn-group btn-group-toggle">
+            <div id="tree-selector" class="btn-group">
                 <label v-for="choice in
                      [ { label: 'Surface list',
                          value: 'surface list',
@@ -411,11 +411,13 @@ export default {
                        { label:'Tag tree',
                          value: 'tag tree',
                          icon_class: 'fas fa-tag'}]"
-                       class="btn"
                        v-bind:class="{active: _treeMode==choice.value,
+                                    'btn': true,
                                     'btn-success': _treeMode==choice.value,
-                                    'btn-default': _treeMode!=choice.value}">
-                    <input type="radio" class="btn-group-toggle" autocomplete="off"
+                                    'btn-outline-success': _treeMode!=choice.value}">
+                    <input type="radio"
+                           class="btn-check"
+                           autocomplete="off"
                            name="tree_mode"
                            v-bind:value="choice.value" v-model="_treeMode" @change="reload">
                     <span><i v-bind:class="choice.icon_class"></i> {{ choice.label }}</span>
@@ -439,7 +441,7 @@ export default {
                         <a class="page-link" v-on:click="loadPage(_currentPage+1)">Next</a>
                     </li>
 
-                    <li class="ml-2">
+                    <li class="ms-2">
                         <div class="input-group nav-item">
                             <div class="input-group-prepend">
                                 <label class="input-group-text" for="page-size-select">Page size</label>

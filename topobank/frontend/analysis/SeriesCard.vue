@@ -122,7 +122,7 @@ export default {
                 </tasks-button>
                 <button v-if="_analyses !== null && _analyses.length > 0"
                         @click="updateCard"
-                        class="btn btn-default float-end ml-1">
+                        class="btn btn-default float-end ms-1">
                     <i class="fa fa-redo"></i>
                 </button>
                 <card-expand-button v-if="!enlarged"
@@ -180,7 +180,7 @@ export default {
                     </a>
                     <li class="nav-item mb-1 mt-1">
                         Download
-                        <div class="btn-group ml-1" role="group" aria-label="Download formats">
+                        <div class="btn-group ms-1" role="group" aria-label="Download formats">
                             <a :href="`/analysis/download/${analysisIds}/txt`"
                                class="btn btn-default"
                                @click="_sidebarVisible=false">

@@ -62,30 +62,30 @@ export default {
         <div class="card-header">
             <div class="btn-group btn-group-sm float-end">
                 <button v-if="!_editing"
-                        class="btn btn-default float-end ml-1"
+                        class="btn btn-default float-end ms-1"
                         @click="_editing=true">
                     Edit
                 </button>
                 <button v-if="_editing"
-                        class="btn btn-danger float-end ml-1"
+                        class="btn btn-danger float-end ms-1"
                         @click="_editing=false">
                     Discard
                 </button>
                 <button v-if="_editing"
-                        class="btn btn-success float-end ml-1"
+                        class="btn btn-success float-end ms-1"
                         @click="_editing=false">
                     SAVE
                 </button>
             </div>
             <div v-if="_data !== null && _data.resolution_y !== null">
                 <h5 class="d-inline">Topography map</h5>
-                <span class="badge badge-info ml-2">{{ _data.resolution_x }} &times; {{ _data.resolution_y }} data points</span>
-                <span class="badge badge-warning ml-1">{{ _data.datafile_format }}</span>
+                <span class="badge bg-info ms-2">{{ _data.resolution_x }} &times; {{ _data.resolution_y }} data points</span>
+                <span class="badge bg-warning ms-1">{{ _data.datafile_format }}</span>
             </div>
             <div v-if="_data !== null && _data.resolution_y === null">
                 <h5 class="d-inline">Line scan</h5>
-                <div class="badge badge-info ml-2">{{ _data.resolution_x }} data points</div>
-                <div class="badge badge-warning ml-1">{{ _data.datafile_format }}</div>
+                <div class="badge bg-info ms-2">{{ _data.resolution_x }} data points</div>
+                <div class="badge bg-warning ms-1">{{ _data.datafile_format }}</div>
             </div>
         </div>
         <div class="card-body">

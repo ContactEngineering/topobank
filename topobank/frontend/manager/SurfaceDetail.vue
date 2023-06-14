@@ -166,7 +166,7 @@ export default {
                                 aria-expanded="false">
                             ...this_version_label...
                             ...if version_badge_text...
-                            <span class="badge badge-warning">...version_badge_text...</span>
+                            <span class="badge bg-warning">...version_badge_text...</span>
                             ...endif...
                         </button>
                         <div class="dropdown-menu" id="versions-dropdown">
@@ -185,13 +185,13 @@ export default {
                     <div class="card">
                         <div class="card-body">
                             <div>
-                                <span class="badge badge-secondary surface-category-headline">
+                                <span class="badge bg-secondary surface-category-headline">
                                   ...surface.get_category_display|default_if_none:"category not defined yet"...
                                 </span>
                             </div>
                             <div>
                                 ...for tag in surface.tags.all...
-                                <span class="badge badge-success">...tag.name...</span>
+                                <span class="badge bg-success">...tag.name...</span>
                                 ...endfor...
                             </div>
                         </div>

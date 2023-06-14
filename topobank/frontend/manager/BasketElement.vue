@@ -40,17 +40,17 @@ export default {
 </script>
 
 <template>
-  <span v-if="elem.type=='surface'" class="badge badge-pill badge-primary mr-1 basket-element">
+  <span v-if="elem.type=='surface'" class="badge rounded-pill bg-primary me-1 basket-element">
     <span class="far fa-gem"></span>
     {{ elem.label }}
     <span class="fas fa-times" v-on:click="handle_close"></span>
   </span>
-    <span v-else-if="elem.type=='tag'" class="badge badge-pill badge-info mr-1 basket-element">
+    <span v-else-if="elem.type=='tag'" class="badge rounded-pill bg-info me-1 basket-element">
     <span class="fas fa-tag"></span>
     {{ elem.label }}
     <span class="fas fa-times" v-on:click="handle_close"></span>
   </span>
-    <span v-else class="badge badge-pill badge-secondary mr-1 basket-element">
+    <span v-else class="badge rounded-pill bg-secondary me-1 basket-element">
     <span class="far fa-file"></span>
     {{ elem.label }}
     <span class="fas fa-times" v-on:click="handle_close"></span>

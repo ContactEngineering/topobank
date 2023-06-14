@@ -72,9 +72,9 @@ export default {
             :data-target="`#task-states-modal-${uid}`">
         <span v-if="_nbRunningOrPending > 0" class="spinner"></span>
         Tasks
-        <span v-if="_nbRunningOrPending > 0" class="badge badge-secondary ml-1">{{ _nbRunningOrPending }}</span>
-        <span v-if="_nbSuccess > 0" class="badge badge-success ml-1">{{ _nbSuccess }}</span>
-        <span v-if="_nbFailed > 0" class="badge badge-danger ml-1">{{ _nbFailed }}</span>
+        <span v-if="_nbRunningOrPending > 0" class="badge bg-secondary ms-1">{{ _nbRunningOrPending }}</span>
+        <span v-if="_nbSuccess > 0" class="badge bg-success ms-1">{{ _nbSuccess }}</span>
+        <span v-if="_nbFailed > 0" class="badge bg-danger ms-1">{{ _nbFailed }}</span>
     </button>
     <task-states-modal
             :id="`task-states-modal-${uid}`"
