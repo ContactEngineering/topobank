@@ -41,7 +41,7 @@ class TopographySearchSerializer(serializers.ModelSerializer):
                   'title', 'folder', 'version', 'publication_date', 'publication_authors', 'datafile_format',
                   'measurement_date', 'resolution_x', 'resolution_y', 'size_x', 'size_y', 'size_editable', 'unit',
                   'unit_editable', 'height_scale', 'height_scale_editable', 'creator_name', 'sharing_status', 'label',
-                  'is_periodic', 'thumbnail']
+                  'is_periodic', 'thumbnail', 'tags', 'instrument_name', 'instrument_type', 'instrument_parameters']
 
     creator = serializers.HyperlinkedRelatedField(
         read_only=True,
