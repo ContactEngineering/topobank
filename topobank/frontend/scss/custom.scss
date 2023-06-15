@@ -1,5 +1,8 @@
 // Include any default variable overrides here (though functions won't be available)
 
+$font-family-sans-serif: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans",
+  "Liberation Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji" !default;
+
 @import "../../../../node_modules/bootstrap/scss/bootstrap";
 
 // Then add additional custom code here
@@ -269,14 +272,14 @@ section[title="Terms and Conditions"] div.toc-container, #tc-terms-html {
 
 /** vertical navigation */
 .nav-pills-custom .nav-link {
-    background: #f8f9fa;  /* bootstrap's 'secondary' */
+    background: $white;
     position: relative;
-    border: 1px solid #fbfcfd;
+    border: 1px solid $white;
 }
 
 .nav-pills-custom .nav-link.active {
-    background: #2b90d9;  /* bootstrap's 'primary' */
-    border: 1px solid #2b90d9;
+    background: $primary;
+    border: 1px solid $primary;
 }
 
 /* Add indicator arrow for the active tab */
@@ -285,7 +288,7 @@ section[title="Terms and Conditions"] div.toc-container, #tc-terms-html {
         content: '';
         display: block;
         border-top: 8px solid transparent;
-        border-left: 10px solid #2b90d9;
+        border-left: 10px solid $primary;
         border-bottom: 8px solid transparent;
         position: absolute;
         top: 50%;
@@ -585,7 +588,7 @@ body.fixed-nav.sidebar-toggled #content-wrapper {
 	width: 100%;
 }
 .navbar-nav .nav-item.active .nav-link {
-	color: #337ab7;
+	color: $primary;
 }
 .navbar-nav .nav-item.dropdown .dropdown-toggle::after {
 	width: 1rem;
