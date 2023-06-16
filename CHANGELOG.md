@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-## 1.1.1 (not yet released)
+## 1.1.1 (2023-06-16)
 
 - BUG: More robust handling of complete worker failures
 
