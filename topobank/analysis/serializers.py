@@ -15,6 +15,12 @@ _log = logging.getLogger(__name__)
 
 
 class AnalysisResultSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Analysis
+        fields = ['id', 'function', 'subject', 'kwargs', 'task_progress', 'task_state', 'creation_time', 'start_time',
+                  'end_time', 'dois', 'configuration', 'duration', 'api', 'error']
+        depth = 1
+
     duration = serializers.SerializerMethodField()
     kwargs = serializers.SerializerMethodField()
     subject = GenericRelatedField({
@@ -24,6 +30,7 @@ class AnalysisResultSerializer(serializers.ModelSerializer):
     task_state = serializers.SerializerMethodField()
     task_progress = serializers.SerializerMethodField()
     api = serializers.SerializerMethodField()
+    error = serializers.SerializerMethodField()
 
     def get_duration(self, obj):
         return obj.duration
@@ -67,9 +74,10 @@ class AnalysisResultSerializer(serializers.ModelSerializer):
                 return self_reported_task_state
 
     def get_task_progress(self, obj):
-        if obj.task_state == Analysis.STARTED:
+        task_state = self.get_task_state(obj)
+        if task_state == Analysis.STARTED:
             return obj.get_task_progress()
-        elif obj.task_state == Analysis.SUCCESS:
+        elif task_state == Analysis.SUCCESS:
             return 1.0
         else:
             return 0.0
@@ -80,11 +88,8 @@ class AnalysisResultSerializer(serializers.ModelSerializer):
             'statusUrl': reverse('analysis:status-detail', kwargs=dict(pk=obj.id))
         }
 
-    class Meta:
-        model = Analysis
-        fields = ['id', 'function', 'subject', 'kwargs', 'task_progress', 'task_state', 'creation_time', 'start_time',
-                  'end_time', 'dois', 'configuration', 'duration', 'api']
-        depth = 1
+    def get_error(self, obj):
+        return obj.get_error()
 
 
 class AnalysisFunctionSerializer(serializers.ModelSerializer):

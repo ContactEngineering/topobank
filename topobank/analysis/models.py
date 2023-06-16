@@ -186,8 +186,24 @@ class Analysis(models.Model):
 
     def get_task_progress(self):
         """Return progress of task, if running"""
+        if self.task_id is None:
+            return None
         r = celery.result.AsyncResult(self.task_id)
-        return r.info
+        if isinstance(r.info, Exception):
+            raise r.info  # The Celery process failed with some specific exception, reraise here
+        else:
+            return r.info
+
+    def get_error(self):
+        """Return a string representation of any error"""
+        if self.task_id is None:
+            return None
+        r = celery.result.AsyncResult(self.task_id)
+        if isinstance(r.info, Exception):
+            return(str(r.info))
+        else:
+            # No error occurred
+            return None
 
     @property
     def result(self):

@@ -29,18 +29,25 @@ export default {
                 if (this._analysis.task_state == 'pe' || this._analysis.task_state == 'st') {
                     setTimeout(this.checkState, this.pollingInterval);
                 } else if (this._analysis.task_state == 'fa') {
-                    // This is failure. Query reason.
-                    fetch(`${this._analysis.api.dataUrl}/result.json`, {
-                        method: 'GET',
-                        headers: {
-                            'Accept': 'application/json',
-                            'X-CSRFToken': this.csrfToken
-                        }
-                    })
-                        .then(response => response.json())
-                        .then(result => {
-                            this._error = result;
-                        });
+                    // This is a failure. Query reason.
+                    if (this._analysis.error === null) {
+                      // The analysis function did not raise an exception itself. This means it acutally finished and
+                      // we have a result.json, that should contain an error message.
+                        fetch(`${this._analysis.api.dataUrl}/result.json`, {
+                            method: 'GET',
+                            headers: {
+                                'Accept': 'application/json',
+                                'X-CSRFToken': this.csrfToken
+                            }
+                        })
+                            .then(response => response.json())
+                            .then(result => {
+                                this._error = result.message;
+                            });
+                    } else {
+                        // The analysis function failed and we have an error message (Python exception).
+                        this._error = this._analysis.error;
+                    }
                 }
             }
         },
@@ -122,7 +129,7 @@ export default {
                 started running {{ new Date(_analysis.start_time) }}
                 but failed
                 <span v-if="_error !== null">
-            with message <i>{{ _error.message }}</i>
+            with message <i>{{ _error }}</i>
           </span>.
             </p>
             <p v-if="_analysis.task_state == 'pe'">

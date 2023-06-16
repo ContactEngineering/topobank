@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 1.1.1 (not yet released)
+
+- BUG: More robust handling of complete worker failures
+
 ## 1.1.0 (2023-06-11)
 
 - ENH: Unified single page application for analyses, including rewritten
