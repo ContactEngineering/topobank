@@ -17,6 +17,7 @@ Commits
 -------
 Prepend you commits with a shortcut indicating the type of changes they contain:
 * BUG: Bug fix
+* BUILD: Changes to the build system
 * CI: Changes to the CI configuration
 * DEP: Update in 3rd-party dependencies
 * DOC: Changes to documentation strings
