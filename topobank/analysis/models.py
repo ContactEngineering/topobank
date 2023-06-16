@@ -189,11 +189,6 @@ class Analysis(models.Model):
         r = celery.result.AsyncResult(self.task_id)
         return r.info
 
-    def get_task_progress(self):
-        """Return progress of task, if running"""
-        r = celery.result.AsyncResult(self.task_id)
-        return r.info
-
     @property
     def result(self):
         """Return result object or None if there is nothing yet."""
