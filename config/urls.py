@@ -81,9 +81,6 @@ urlpatterns = [
                   # progress bar during file upload
                   re_path(r'^progressbarupload/', include('progressbarupload.urls')),
 
-                  # progress bar for celery tasks
-                  re_path(r'^celery-progress/', include('celery_progress.urls')),
-
                   # for notifications - see package djano-notifications
                   re_path('^inbox/notifications/', include(notifications.urls, namespace='notifications')),
                   # Your stuff: custom urls includes go here

@@ -93,7 +93,6 @@ THIRD_PARTY_APPS = [
     'django_select2',
     'django_tables2',
     'progressbarupload',
-    'celery_progress',
     'notifications',
     'django_filters',
     'tagulous',

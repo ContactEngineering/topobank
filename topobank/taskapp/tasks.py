@@ -2,7 +2,6 @@
 Definition of celery tasks used in TopoBank.
 """
 
-import pickle
 import traceback
 
 from django.utils import timezone
@@ -10,7 +9,6 @@ from django.db.utils import IntegrityError
 from django.conf import settings
 from django.shortcuts import reverse
 
-from celery_progress.backend import ProgressRecorder
 from celery.signals import after_setup_task_logger
 from celery.app.log import TaskFormatter
 from celery.utils.log import get_task_logger
@@ -37,6 +35,30 @@ EXCEPTION_CLASSES_FOR_INCOMPATIBILITIES = (IncompatibleTopographyException, Inco
                                            CannotPerformAnalysisError)
 
 _log = get_task_logger(__name__)
+
+
+class ProgressRecorder:
+    def __init__(self, task):
+        self.task = task
+
+    def set_progress(self, current, total, description=""):
+        percent = 0
+        if total > 0:
+            percent = (Decimal(current) / Decimal(total)) * Decimal(100)
+            percent = float(round(percent, 2))
+        state = PROGRESS_STATE
+        meta = {
+            'pending': False,
+            'current': current,
+            'total': total,
+            'percent': percent,
+            'description': description
+        }
+        self.task.update_state(
+            state=state,
+            meta=meta
+        )
+        return state, meta
 
 
 @after_setup_task_logger.connect

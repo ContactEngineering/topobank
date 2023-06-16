@@ -185,7 +185,7 @@ def surfacecollection_analysis_function_for_tests(surfacecollection, a=1, b="foo
         Just a parameter as example.
     d: str
         Another example parameter.
-    progress_recorder: celery_progress.backend.ProgressRecorder instance
+    progress_recorder: ProgressRecorder instance
         If given, a progress recorder used as callback for reporting progress to
         user interface.
     storage_prefix: str or None
