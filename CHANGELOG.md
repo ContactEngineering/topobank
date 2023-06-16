@@ -3,6 +3,7 @@
 ## 1.1.1 (2023-06-16)
 
 - BUG: More robust handling of complete worker failures
+- MAINT: Removed dependency on unused `celery-progress` package
 
 ## 1.1.0 (2023-06-11)
 
