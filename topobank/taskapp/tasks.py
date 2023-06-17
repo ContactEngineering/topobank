@@ -3,6 +3,7 @@ Definition of celery tasks used in TopoBank.
 """
 
 import traceback
+from decimal import Decimal
 
 from django.utils import timezone
 from django.db.utils import IntegrityError
@@ -37,7 +38,11 @@ EXCEPTION_CLASSES_FOR_INCOMPATIBILITIES = (IncompatibleTopographyException, Inco
 _log = get_task_logger(__name__)
 
 
+# From https://github.com/czue/celery-progress/blob/master/celery_progress/backend.py
+# (MIT licensed)
 class ProgressRecorder:
+    PROGRESS_STATE = 'PROGRESS'
+
     def __init__(self, task):
         self.task = task
 
@@ -46,7 +51,7 @@ class ProgressRecorder:
         if total > 0:
             percent = (Decimal(current) / Decimal(total)) * Decimal(100)
             percent = float(round(percent, 2))
-        state = PROGRESS_STATE
+        state = self.PROGRESS_STATE
         meta = {
             'pending': False,
             'current': current,

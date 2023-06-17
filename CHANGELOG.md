@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 1.1.2 (2023-06-17)
+
+- BUG: Fixed missing imports
+
 ## 1.1.1 (2023-06-16)
 
 - BUG: More robust handling of complete worker failures
