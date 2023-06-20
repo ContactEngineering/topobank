@@ -67,7 +67,7 @@
           <div class="input-group-append">
             <button class="btn btn-outline-secondary" type="submit">{% fa5_icon 'search' %}</button>
             <button class="btn btn-outline-secondary" type="button"
-                    data-toggle="modal" data-target="#searchHelpModal"
+                    data-toggle="modal" data-target="#search-help-modal"
                     title="Tipps for searching">{% fa5_icon 'info-circle' %}</button>
           </div>
         </div>
@@ -79,19 +79,19 @@
             <div class="wrapper" id="sidebar-main">
     <!-- Sidebar -->
 
-    <nav id="sidebar" data-target="collapseNotificationContent">
+    <nav id="sidebar" data-target="collapse-notification-content">
         <ul class="list-unstyled components">
-            <li id="notificationContent">
+            <li id="notification-content">
                   <div class="notif-container">
                     <div class="live_notify_list" id="collapsible-bell">
                     </div>
                   </div>
             </li>
-          <li id="informationContent">
+          <li id="information-content">
               <div>
                 <a class="sidepanel-information-fb" target="_blank"
                    href="https://github.com/ContactEngineering/TopoBank/discussions">Feedback</a>
-                <a class="dropdown-item" data-toggle="modal" data-target="#versionModal">Version information</a>
+                <a class="dropdown-item" data-toggle="modal" data-target="#version-modal">Version information</a>
                 <a class="dropdown-item" href="{% url 'terms' %}">Terms &amp; conditions</a>
                 <div class="dropdown-divider"></div>
                 <a class="dropdown-item" target="_blank" href="https://doi.org/10.1088/2051-672X/ac860a">Read our
@@ -99,10 +99,10 @@
                 <div class="dropdown-divider"></div>
                 <a class="dropdown-item" href="{% url 'help' %}">Help</a>
                 <div class="dropdown-divider"></div>
-                <a class="dropdown-item" data-toggle="modal" data-target="#contactModal">Contact</a>
+                <a class="dropdown-item" data-toggle="modal" data-target="#contact-modal">Contact</a>
               </div>
           </li>
-          <li id="UserProfileDetailsContent">
+          <li id="user-profile-details-content">
            <div class="btn-group-vertical">
             {% if not request.user.is_anonymous and request.user.username %}
             <a class="btn btn-default btn-lg" role="button" href="{% url 'users:detail' request.user.username %}">User profile</a>
@@ -115,7 +115,7 @@
               <div class="dropdown-divider"></div>
                 <a class="btn btn-default btn-lg" role="button" target="_blank"
                    href="https://github.com/ContactEngineering/TopoBank/discussions">Feedback</a>
-                <a class="btn btn-default btn-lg" role="button" data-toggle="modal" data-target="#versionModal">Version information</a>
+                <a class="btn btn-default btn-lg" role="button" data-toggle="modal" data-target="#version-modal">Version information</a>
                 <a class="btn btn-default btn-lg" role="button" href="{% url 'terms' %}">Terms &amp; conditions</a>
                 <div class="dropdown-divider"></div>
                 <a class="btn btn-default btn-lg" role="button" target="_blank" href="https://doi.org/10.1088/2051-672X/ac860a">Read our
@@ -123,11 +123,11 @@
                 <div class="dropdown-divider"></div>
                 <a class="btn btn-default btn-lg" role="button" href="{% url 'help' %}">Help</a>
                 <div class="dropdown-divider"></div>
-                <a class="btn btn-default btn-lg" role="button" data-toggle="modal" data-target="#contactModal">Contact</a>
+                <a class="btn btn-default btn-lg" role="button" data-toggle="modal" data-target="#contact-modal">Contact</a>
 
 
             {% endif %}
-            <a class="btn btn-default btn-lg" role="button" data-toggle="modal" data-target="#logoutModal">Sign Out</a>
+            <a class="btn btn-default btn-lg" role="button" data-toggle="modal" data-target="#logout-modal">Sign Out</a>
             {% else %}
             <a class="btn btn-default btn-lg" role="button" href="{% provider_login_url 'orcid' method="oauth2" %}">Sign in</a>
             {% endif %}
@@ -164,7 +164,6 @@
         <li class="nav-item dropdown no-arrow">
           <a class="nav-link dropdown-toggle" id="help-dropdown" role="button" data-toggle="dropdown"
              aria-haspopup="true" aria-expanded="false" onclick="openInfoNav()">
-            <!-- <i class="fa fa-info-circle fa-fw"></i> -->
           </a>
         </li>
 
@@ -242,12 +241,12 @@
     </a>
 
     <!-- Logout Modal-->
-    <div class="modal fade" id="logoutModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel"
+    <div class="modal fade" id="logout-modal" tabindex="-1" role="dialog" aria-labelledby="example-modal-label"
          aria-hidden="true">
       <div class="modal-dialog" role="document">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="exampleModalLabel">Ready to Leave?</h5>
+            <h5 class="modal-title" id="example-modal-label">Ready to Leave?</h5>
             <button class="close" type="button" data-dismiss="modal" aria-label="Close">
               <span aria-hidden="true">×</span>
             </button>
@@ -262,12 +261,12 @@
     </div>
 
     <!-- Version Modal-->
-    <div class="modal fade" id="versionModal" tabindex="-1" role="dialog" aria-labelledby="versionModalLabel"
+    <div class="modal fade" id="version-modal" tabindex="-1" role="dialog" aria-labelledby="version-modal-label"
          aria-hidden="true">
       <div class="modal-dialog" role="document">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="versionModalLabel">Version information</h5>
+            <h5 class="modal-title" id="version-modal-label">Version information</h5>
             <button class="close" type="button" data-dismiss="modal" aria-label="Close">
               <span aria-hidden="true">×</span>
             </button>
@@ -317,12 +316,12 @@
     </div>
 
     <!-- Contact Modal-->
-    <div class="modal fade" id="contactModal" tabindex="-1" role="dialog" aria-labelledby="contactModalLabel"
+    <div class="modal fade" id="contact-modal" tabindex="-1" role="dialog" aria-labelledby="contact-modal-label"
          aria-hidden="true">
       <div class="modal-dialog" role="document">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="contactModalLabel">Contact</h5>
+            <h5 class="modal-title" id="contact-modal-label">Contact</h5>
             <button class="close" type="button" data-dismiss="modal" aria-label="Close">
               <span aria-hidden="true">×</span>
             </button>
@@ -357,12 +356,12 @@
     </div>
 
     <!-- Search Help Modal-->
-    <div class="modal fade" id="searchHelpModal" tabindex="-1" role="dialog" aria-labelledby="searchHelpModalLabel"
+    <div class="modal fade" id="search-help-modal" tabindex="-1" role="dialog" aria-labelledby="search-help-modal-label"
          aria-hidden="true">
       <div class="modal-dialog modal-xl" role="document">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="searchHelpModalLabel">Tips for Searching</h5>
+            <h5 class="modal-title" id="search-help-modal-label">Tips for Searching</h5>
             <button class="close" type="button" data-dismiss="modal" aria-label="Close">
               <span aria-hidden="true">×</span>
             </button>
@@ -500,15 +499,13 @@
                       message = message + " (<span>" + ts.toLocaleString() + "</span>)";
                                     }
                 return '<a style="display: block;width: 250px;word-break: break-word!important;text-wrap: normal;word-wrap: break-word!important;border-bottom: 1px solid white;padding-right: 20px; padding-top: 10px; padding-bottom: 10px">' + message + '</a>';;
-              // return ('<span class="dropdown-item-textwrap" id="notification-msg" href=' + href + "> " + message + '</span>');
             }).join('')
 
             if (messages.length==0) {
                 messages = no_unread_notifications_html;
             }
             else {
-                //messages += '<div class="dropdown-divider"></div>';
-                messages += `<div class="btn btn-primary form-control" id="mark-all-as-read-btn" style="font-weight:normal!important">Mark all as read</div>`;
+                messages += `<div class="btn btn-primary form-control" id="mark-all-as-read-btn" >Mark all as read</div>`;
             }
 
             // Not clear yet how to mark only those as read which where shown in the list,
@@ -573,12 +570,11 @@
         console.log('entered notification');
         if (document.getElementById("sidebar-main").style.display = 'none') {
           let sidebarElement  = document.getElementById("sidebar-main");
-          let notificationContentElement = document.getElementById("notificationContent");
-          let infoElement = document.getElementById("informationContent");
-          let userProfileElement = document.getElementById("UserProfileDetailsContent");
+          let notificationContentElement = document.getElementById("notification-content");
+          let infoElement = document.getElementById("information-content");
+          let userProfileElement = document.getElementById("user-profile-details-content");
           sidebarElement.classList.add("sidebar-main-block");
           notificationContentElement.classList.add("notification-block");
-          infoElement.classList.remove("info-block")
           userProfileElement.classList.remove("user-block")
         }
       }
@@ -587,9 +583,9 @@
         console.log('entered info');
         if (document.getElementById("sidebar-main").style.display = 'none') {
           let sidebarElement  = document.getElementById("sidebar-main");
-          let notificationContentElement = document.getElementById("notificationContent");
-          let infoElement = document.getElementById("informationContent");
-          let userProfileElement = document.getElementById("UserProfileDetailsContent");
+          let notificationContentElement = document.getElementById("notification-content");
+          let infoElement = document.getElementById("information-content");
+          let userProfileElement = document.getElementById("user-profile-details-content");
           sidebarElement.classList.add("sidebar-main-block");
           infoElement.classList.add("info-block");
           notificationContentElement.classList.remove("notification-block");
@@ -602,9 +598,9 @@
         console.log('entered user');
         if (document.getElementById("sidebar-main").style.display = 'none') {
           let sidebarElement  = document.getElementById("sidebar-main");
-          let notificationContentElement = document.getElementById("notificationContent");
-          let infoElement = document.getElementById("informationContent");
-          let userProfileElement = document.getElementById("UserProfileDetailsContent");
+          let notificationContentElement = document.getElementById("notification-content");
+          let infoElement = document.getElementById("information-content");
+          let userProfileElement = document.getElementById("user-profile-details-content");
           sidebarElement.classList.add("sidebar-main-block");
           userProfileElement.classList.add("user-block");
           notificationContentElement.classList.remove("notification-block");
@@ -613,10 +609,10 @@
       }
 
 
-document.addEventListener("click", function(){
-let sidebarElement = document.getElementById("sidebar-main");
-sidebarElement.classList.remove("sidebar-main-block");
-});
+      document.addEventListener("click", function(){
+      let sidebarElement = document.getElementById("sidebar-main");
+      sidebarElement.classList.remove("sidebar-main-block");
+      });
 
 
     </script>

@@ -588,16 +588,16 @@ ul.timeline > li > .timeline-panel:after {
 }
 }
 /*side bar css*/
-.sidepanelBellIcon {
+.sidepanel-bell-icon {
   background: none;
   border: none;
 }
 
-.notificationIcon {
+.notification-icon {
   color: rgba(255, 255, 255, .5) !important;
 }
 
-.sidepanelWrapper {
+.sidepanel-wrapper {
   float: right;
   display: flex;
   width: 100%;
@@ -613,7 +613,7 @@ ul.timeline > li > .timeline-panel:after {
 }
 
 #sidebar {
-  background-color: #cce5ff;
+  background-color: #343840!important;
   color: #090808;
   font-size: 16px;
   transition: transform 0.3s ease-out;
@@ -650,6 +650,7 @@ ul.timeline > li > .timeline-panel:after {
   color: #080909;
   width: 233px;
   text-align: center;
+  background-color: #e7e7e7;
 }
 
 #sidebar ul li a:hover {
@@ -676,15 +677,15 @@ ul ul a {
 }
 
 
-#informationContent, #UserProfileDetailsContent, #notificationContent {
+#information-content, #user-profile-details-content, #notification-content {
   display: none;
 }
 
-.signoutClass, contactClass, versionInfoClass, fbInforClass {
+.signout-class, contact-class, version-info-class, fb-in-for-class {
   color: black !important;
 }
 
-.signoutClass, contactClass, versionInfoClass, fbInforClass:hover {
+.signout-class, contact-class, version-info-class, fb-in-for-class:hover {
   color: darkgray !important;
   background: #fff !important;
 }
