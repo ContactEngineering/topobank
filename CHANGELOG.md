@@ -1,5 +1,10 @@
 # Changelog for *TopoBank*
 
+## 1.1.3 (2023-06-27)
+
+- MAINT: Updated SurfaceTopography to 1.7.0
+  (to add support for PLU, FRT and HFM files)
+
 ## 1.1.2 (2023-06-17)
 
 - BUG: Fixed missing imports
