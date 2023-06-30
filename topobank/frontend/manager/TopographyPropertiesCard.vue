@@ -310,7 +310,9 @@ export default {
                     <div class="col-12">
                         <div class="row" v-if="_descriptionVisible">
                             <div class="col-12">
-                                <b-form-textarea placeholder="Please provide a short description of this measurement"
+                                <label for="input-descriptions">Description</label>
+                                <b-form-textarea id="input-description"
+                                                 placeholder="Please provide a short description of this measurement"
                                                  v-model="_data.description"
                                                  :disabled="!_editing"
                                                  rows="5">
