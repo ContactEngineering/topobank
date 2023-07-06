@@ -116,6 +116,7 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
     publication_date = serializers.SerializerMethodField()
     publication_authors = serializers.SerializerMethodField()
     publication_license = serializers.SerializerMethodField()
+    publication_doi = serializers.SerializerMethodField()
     topography_count = serializers.SerializerMethodField()
     category_name = serializers.SerializerMethodField()
     creator_name = serializers.SerializerMethodField()
@@ -204,16 +205,19 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
         return [t.name for t in obj.tags.all()]
 
     def get_version(self, obj):
-        return obj.publication.version if obj.is_published else ''
+        return obj.publication.version if obj.is_published else None
 
     def get_publication_date(self, obj):
-        return obj.publication.datetime.date() if obj.is_published else ''
+        return obj.publication.datetime.date() if obj.is_published else None
 
     def get_publication_authors(self, obj):
-        return obj.publication.get_authors_string() if obj.is_published else ''
+        return obj.publication.get_authors_string() if obj.is_published else None
 
     def get_publication_license(self, obj):
-        return obj.publication.license if obj.is_published else ''
+        return obj.publication.license if obj.is_published else None
+
+    def get_publication_doi(self, obj):
+        return obj.publication.doi_url if obj.is_published else None
 
     def get_topography_count(self, obj):
         return obj.topography_set.count()
@@ -228,7 +232,8 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
         model = Surface
         fields = ['pk', 'type', 'name', 'creator', 'creator_name', 'description', 'category', 'category_name', 'tags',
                   'children', 'sharing_status', 'urls', 'selected', 'key', 'title', 'folder', 'version',
-                  'publication_date', 'publication_authors', 'publication_license', 'topography_count']
+                  'publication_doi', 'publication_date', 'publication_authors', 'publication_license',
+                  'topography_count']
 
 
 class TagSerializer(serializers.ModelSerializer):
