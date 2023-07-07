@@ -187,8 +187,8 @@ export default {
                     });
 
                     let description_html = "";
-                    //doi badge added here
-                  if (node.data.publication_doi) {
+                    // DOI badge added here
+                    if (node.data.publication_doi) {
                         description_html += `<p class="badge badge-warning">DOI</p><p class='badge badge-info mr-1'>${node.data.publication_doi}</p>`;
                     }
                     // License image
