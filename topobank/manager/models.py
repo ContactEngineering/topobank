@@ -4,7 +4,6 @@ Basic models for the web app for handling topography data.
 
 import sys
 
-import datacite.errors
 from django.db import models
 from django.shortcuts import reverse
 from django.utils import timezone
@@ -16,7 +15,7 @@ from django.core.files.base import ContentFile
 from django.contrib.contenttypes.fields import GenericRelation
 from django.contrib.contenttypes.models import ContentType
 
-from guardian.shortcuts import assign_perm, remove_perm, get_users_with_perms
+from guardian.shortcuts import assign_perm, remove_perm, get_users_with_perms, get_anonymous_user
 import tagulous.models as tm
 
 import PIL
@@ -31,20 +30,19 @@ import tempfile
 from bokeh.models import DataRange1d, LinearColorMapper, ColorBar
 from bokeh.plotting import figure
 
+from ..analysis.models import Analysis
 from ..plots import configure_plot
-from .utils import get_topography_reader
+from ..publication.models import Publication, DOICreationException
+from ..users.models import User
+from ..users.utils import get_default_group
 
-from topobank.users.models import User
-from topobank.publication.models import Publication, DOICreationException
-from topobank.users.utils import get_default_group
-from topobank.analysis.models import Analysis
-from topobank.analysis.utils import renew_analyses_for_subject
-from topobank.manager.utils import make_dzi, dzi_exists
+from .utils import get_topography_reader, make_dzi, dzi_exists, MAX_LENGTH_SURFACE_COLLECTION_NAME
 
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 
 
 _log = logging.getLogger(__name__)
+
 
 MAX_LENGTH_DATAFILE_FORMAT = 15  # some more characters than currently needed, we may have sub formats in future
 MAX_NUM_POINTS_FOR_SYMBOLS_IN_LINE_SCAN_PLOT = 100
@@ -301,9 +299,9 @@ class Surface(models.Model, SubjectMixin):
         #
         # Request all standard analyses to be available for that user
         #
-        _log.info("After sharing surface %d with user %d, requesting all standard analyses..", self.id, with_user.id)
-        from topobank.analysis.models import AnalysisFunction
-        from topobank.analysis.utils import request_analysis
+        _log.info(f"After sharing surface {self.id} with user {with_user.id}, requesting all standard analyses...")
+        from ..analysis.models import AnalysisFunction
+        from ..analysis.controller import request_analysis
         analysis_funcs = AnalysisFunction.objects.all()
         for topo in self.topography_set.all():
             for af in analysis_funcs:
@@ -360,6 +358,10 @@ class Surface(models.Model, SubjectMixin):
         - removes edit, share and delete permission from everyone
         - add read permission for everyone
         """
+        # Superusers cannot publish
+        if self.creator.is_superuser:
+            raise PublicationException("Superusers cannot publish!")
+
         # Remove edit, share and delete permission from everyone
         users = get_users_with_perms(self)
         for u in users:
@@ -368,6 +370,9 @@ class Surface(models.Model, SubjectMixin):
 
         # Add read permission for everyone
         assign_perm('view_surface', get_default_group(), self)
+
+        # Add read permission for anonymous user
+        assign_perm('view_surface', get_anonymous_user(), self)
 
         from guardian.shortcuts import get_perms
         # TODO for unknown reasons, when not in Docker, the published surfaces are still changeable
@@ -439,7 +444,8 @@ class Surface(models.Model, SubjectMixin):
             copy.set_publication_permissions()
         except PublicationException as exc:
             # see GH 704
-            _log.error(f"Could not set permission for copied surface to publish .. deleting copy of surface {self.pk}.")
+            _log.error(f"Could not set permission for copied surface to publish ... "
+                       f"deleting copy (surface {copy.pk}) of surface {self.pk}.")
             copy.delete()
             raise
 
@@ -469,8 +475,10 @@ class Surface(models.Model, SubjectMixin):
                 pub.create_doi()
             except DOICreationException as exc:
                 _log.error("DOI creation failed, reason: %s", exc)
-                _log.warning("Cannot create publication with DOI, deleting publication instance.")
-                pub.delete()
+                _log.warning(f"Cannot create publication with DOI, deleting copy (surface {copy.pk}) of "
+                             f"surface {self.pk} and publication instance.")
+                pub.delete()  # need to delete pub first because it references copy
+                copy.delete()
                 raise PublicationException(f"Cannot create DOI, reason: {exc}") from exc
         else:
             _log.info("Skipping creation of DOI, because it is not configured as mandatory.")
@@ -496,11 +504,13 @@ class Surface(models.Model, SubjectMixin):
         - with this surfaces as subject
         This is done in that order.
         """
+        from ..analysis.controller import renew_analyses_for_subject
+
         if include_topographies:
-            _log.info("Regenerating analyses of topographies of surface %d..", self.pk)
+            _log.info(f"Regenerating analyses of topographies of surface {self.pk}..")
             for topo in self.topography_set.all():
                 topo.renew_analyses()
-        _log.info("Regenerating analyses directly related to surface %d..", self.pk)
+        _log.info(f"Regenerating analyses directly related to surface {self.pk}..")
         renew_analyses_for_subject(self)
 
     def related_surfaces(self):
@@ -520,7 +530,7 @@ def _upload_path_for_thumbnail(instance, filename):
 
 class SurfaceCollection(models.Model, SubjectMixin):
     """A collection of surfaces."""
-    name = models.CharField(max_length=160)
+    name = models.CharField(max_length=MAX_LENGTH_SURFACE_COLLECTION_NAME)
     surfaces = models.ManyToManyField(Surface)
     # We have a manytomany field, because a surface could be part of multiple collections.
 
@@ -555,8 +565,7 @@ class SurfaceCollection(models.Model, SubjectMixin):
 
 
 class Topography(models.Model, SubjectMixin):
-    """Topography Measurement of a Surface.
-    """
+    """Topography measurement of a surface."""
 
     # TODO After upgrade to Django 2.2, use constraints: https://docs.djangoproject.com/en/2.2/ref/models/constraints/
     class Meta:
@@ -913,6 +922,7 @@ class Topography(models.Model, SubjectMixin):
 
     def renew_analyses(self):
         """Submit all analysis for this topography."""
+        from ..analysis.controller import renew_analyses_for_subject
         renew_analyses_for_subject(self)
 
     def to_dict(self):

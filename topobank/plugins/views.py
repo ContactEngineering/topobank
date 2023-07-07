@@ -25,7 +25,7 @@ class PluginListView(TemplateView):
                 'icon': "plug",
                 'href': self.request.path,
                 'active': True,
-                'tooltip': f"Installed Plugins"
+                'tooltip': f"Installed plugins"
             }
         ]
         return context

@@ -18,7 +18,8 @@ Moved to settings_.
 User Accounts
 -------------
 
-The application uses `ORCID`_ for user authentication, so you need an ORCID account to use it.
+The application uses `ORCID`_ for user authentication,
+so you need an ORCID account to use it.
 
 If you need a super user or staff user during development, e.g. for acccessing the admin page,
 connect to the datbase and set the :code:`is_superuser` or :code:`is_staff` flags manually.

@@ -7,7 +7,6 @@ from io import BytesIO
 import dateutil.parser
 import django_tables2 as tables
 import numpy as np
-
 from bokeh.embed import components
 from bokeh.models import TapTool, OpenURL
 from bokeh.plotting import figure, ColumnDataSource
@@ -30,14 +29,17 @@ from django.views.generic.edit import FormMixin
 from django_tables2 import RequestConfig
 from django.contrib.staticfiles.storage import staticfiles_storage
 from django.contrib import messages
+from django.utils.text import slugify
 
-from formtools.wizard.views import SessionWizardView
 from guardian.decorators import permission_required_or_403
 from guardian.shortcuts import get_users_with_perms, get_objects_for_user
+from formtools.wizard.views import SessionWizardView
 from notifications.signals import notify
-from rest_framework.decorators import api_view
-from rest_framework.generics import ListAPIView
+
+from rest_framework import generics, mixins, viewsets
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from rest_framework.utils.urls import remove_query_param, replace_query_param
 from trackstats.models import Metric, Period
@@ -46,21 +48,23 @@ from celery import chain
 
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 
-from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm
-from .forms import TopographyForm, SurfaceForm, SurfaceShareForm, SurfacePublishForm
-from .models import Topography, Surface, TagModel, NewPublicationTooFastException, LoadTopographyException, \
-    PlotTopographyException, PublicationException, _upload_path_for_datafile
-from .serializers import SurfaceSerializer, TagSerializer
-from .utils import selected_instances, bandwidths_data, get_topography_reader, tags_for_user, get_reader_infos, \
-    mailto_link_for_reporting_an_error, current_selection_as_basket_items, filtered_surfaces, \
-    filtered_topographies, get_search_term, get_category, get_sharing_status, get_tree_mode, \
-    get_permission_table_data
 from ..usage_stats.utils import increase_statistics_by_date, increase_statistics_by_date_and_object
 from ..users.models import User
 from ..publication.models import Publication, MAX_LEN_AUTHORS_FIELD
 from .containers import write_surface_container
 from ..taskapp.tasks import renew_squeezed_datafile, renew_bandwidth_cache, \
     renew_topography_images, renew_analyses_related_to_topography
+
+from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm
+from .forms import TopographyForm, SurfaceForm, SurfaceShareForm, SurfacePublishForm
+from .models import Topography, Surface, TagModel, NewPublicationTooFastException, LoadTopographyException, \
+    PlotTopographyException, PublicationException, _upload_path_for_datafile
+from .permissions import ObjectPermissions, ObjectPermissionsFilter, ParentObjectPermissions
+from .serializers import SurfaceSerializer, TopographySerializer, TagSerializer
+from .utils import selected_instances, bandwidths_data, get_topography_reader, tags_for_user, get_reader_infos, \
+    mailto_link_for_reporting_an_error, current_selection_as_basket_items, filtered_surfaces, \
+    filtered_topographies, get_search_term, get_category, get_sharing_status, get_tree_mode, \
+    get_permission_table_data, subjects_to_base64
 
 # create dicts with labels and option values for Select tab
 CATEGORY_FILTER_CHOICES = {'all': 'All categories',
@@ -540,7 +544,7 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
                               'fill_undefined_data_mode', 'detrend_mode', 'datafile', 'data_source',
                               'instrument_type',  # , 'instrument_parameters'
                               # 'tip_radius_value', 'tip_radius_unit',
-                             }
+                              }
         significant_fields_with_changes = set(changed_fields).intersection(significant_fields)
 
         instrument_fields = set(['instrument_type', 'instrument_parameters'])
@@ -693,6 +697,8 @@ class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
         context = super().get_context_data(**kwargs)
 
         topo = self.object
+        context['subjects_b64'] = subjects_to_base64([topo])
+
         try:
             context['topography_next'] = topo.get_next_by_measurement_date(surface=topo.surface).id
         except Topography.DoesNotExist:
@@ -891,6 +897,8 @@ class SurfaceDetailView(DetailView):
         context = super().get_context_data(**kwargs)
 
         surface = self.object
+        context['subjects_b64'] = subjects_to_base64([surface])
+
         #
         # Count this event for statistics
         #
@@ -918,7 +926,7 @@ class SurfaceDetailView(DetailView):
 
             bw_left = [bw['lower_bound'] for bw in bw_data_without_errors]
             bw_right = [bw['upper_bound'] for bw in bw_data_without_errors]
-            bw_center = np.exp((np.log(bw_left)+np.log(bw_right))/2)  # we want to center on log scale
+            bw_center = np.exp((np.log(bw_left) + np.log(bw_right)) / 2)  # we want to center on log scale
             bw_rel_cutoff = [bw['short_reliability_cutoff'] for bw in bw_data_without_errors]
             bw_names = [bw['topography'].name for bw in bw_data_without_errors]
             bw_topography_links = [bw['link'] for bw in bw_data_without_errors]
@@ -1406,9 +1414,9 @@ class SurfacePublishView(FormView):
         context['max_len_authors_field'] = MAX_LEN_AUTHORS_FIELD
         user = self.request.user
         context['user_dict'] = dict(
-            first_name = user.first_name,
-            last_name = user.last_name,
-            orcid_id = user.orcid_id
+            first_name=user.first_name,
+            last_name=user.last_name,
+            orcid_id=user.orcid_id
         )
         context['configured_for_doi_generation'] = settings.PUBLICATION_DOI_MANDATORY
         return context
@@ -1471,7 +1479,6 @@ class PublicationErrorView(TemplateView):
         return context
 
 
-
 class SharingInfoTable(tables.Table):
     surface = tables.Column(linkify=lambda **kwargs: kwargs['record']['surface'].get_absolute_url(),
                             accessor='surface__name')
@@ -1479,7 +1486,7 @@ class SharingInfoTable(tables.Table):
     created_by = tables.Column(linkify=lambda **kwargs: kwargs['record']['created_by'].get_absolute_url(),
                                accessor='created_by__name')
     shared_with = tables.Column(linkify=lambda **kwargs: kwargs['record']['shared_with'].get_absolute_url(),
-                               accessor='shared_with__name')
+                                accessor='shared_with__name')
     allow_change = tables.BooleanColumn()
     selected = tables.CheckBoxColumn(attrs={
         'th__input': {'class': 'select-all-checkbox'},
@@ -1496,10 +1503,10 @@ class SharingInfoTable(tables.Table):
     # def render_created_by(self, value):
     #     return self._render_user(value)
 
-    #def render_shared_with(self, value):
+    # def render_shared_with(self, value):
     #    return self._render_user(value)
 
-    #def _render_user(self, user):
+    # def _render_user(self, user):
     #    if self._request.user == user:
     #        return "You"
     #    return user.name
@@ -1642,7 +1649,7 @@ def download_surface(request, surface_id):
         except Exception:  # not interested here, why it fails
             renew_publication_container = True
     else:
-        container_filename = DEFAULT_CONTAINER_FILENAME
+        container_filename = slugify(surface.name) + ".zip"
 
     if content_data is None:
         container_bytes = BytesIO()
@@ -1759,7 +1766,7 @@ class SurfaceSearchPaginator(PageNumberPagination):
         return urls
 
 
-class TagTreeView(ListAPIView):
+class TagTreeView(generics.ListAPIView):
     """
     Generate tree of tags with surfaces and topographies underneath.
     """
@@ -1794,7 +1801,9 @@ class TagTreeView(ListAPIView):
         return context
 
 
-class SurfaceListView(ListAPIView):
+# FIXME!!! This should be folded into the `SurfaceViewSet`, but handling
+#  selections should be moved to the client first.
+class SurfaceListView(generics.ListAPIView):
     """
     List all surfaces with topographies underneath.
     """
@@ -1862,6 +1871,7 @@ def set_surface_select_status(request, pk, select_status):
 
 
 @api_view(['POST'])
+@permission_classes([])  # We need to override permissions because the anonymous user has read-only access
 def select_surface(request, pk):
     """Marks the given surface as 'selected' in session.
 
@@ -1875,6 +1885,7 @@ def select_surface(request, pk):
 
 
 @api_view(['POST'])
+@permission_classes([])  # We need to override permissions because the anonymous user has read-only access
 def unselect_surface(request, pk):
     """Marks the given surface as 'unselected' in session.
 
@@ -1922,6 +1933,7 @@ def set_topography_select_status(request, pk, select_status):
 
 
 @api_view(['POST'])
+@permission_classes([])  # We need to override permissions because the anonymous user has read-only access
 def select_topography(request, pk):
     """Marks the given topography as 'selected' in session.
 
@@ -1935,6 +1947,7 @@ def select_topography(request, pk):
 
 
 @api_view(['POST'])
+@permission_classes([])  # We need to override permissions because the anonymous user has read-only access
 def unselect_topography(request, pk):
     """Marks the given topography as 'selected' in session.
 
@@ -1984,6 +1997,7 @@ def set_tag_select_status(request, pk, select_status):
 
 
 @api_view(['POST'])
+@permission_classes([])  # We need to override permissions because the anonymous user has read-only access
 def select_tag(request, pk):
     """Marks the given tag as 'selected' in session.
 
@@ -1997,6 +2011,7 @@ def select_tag(request, pk):
 
 
 @api_view(['POST'])
+@permission_classes([])  # We need to override permissions because the anonymous user has read-only access
 def unselect_tag(request, pk):
     """Marks the given tag as 'unselected' in session.
 
@@ -2010,6 +2025,7 @@ def unselect_tag(request, pk):
 
 
 @api_view(['POST'])
+@permission_classes([])  # We need to override permissions because the anonymous user has read-only access
 def unselect_all(request):
     """Removes all selections from session.
 
@@ -2051,7 +2067,7 @@ def thumbnail(request, pk):
     try:
         response.write(image.file.read())
     except Exception as exc:
-        _log.warning("Cannot load thumbnail for topography %d. Reason: %s", topo.id, exc)
+        _log.warning(f"Cannot load thumbnail for topography {topo.id}. Reason: {exc}")
         # return some default image so the client gets sth in any case
         with staticfiles_storage.open('images/thumbnail_unavailable.png', mode='rb') as img_file:
             response.write(img_file.read())
@@ -2086,3 +2102,32 @@ def dzi(request, pk, dzi_filename):
     # okay, we have a valid topography and the user is allowed to see it
 
     return redirect(default_storage.url(f'{topo.storage_prefix}/dzi/{dzi_filename}'))
+
+
+class SurfaceViewSet(mixins.CreateModelMixin,
+                     mixins.RetrieveModelMixin,
+                     mixins.UpdateModelMixin,
+                     mixins.DestroyModelMixin,
+                     viewsets.GenericViewSet):
+    queryset = Surface.objects.all()
+    serializer_class = SurfaceSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly, ObjectPermissions]
+
+    def perform_create(self, serializer):
+        # Set creator to current user when creating a new surface
+        print('is_authenticated =', self.request.user.is_authenticated)
+        serializer.save(creator=self.request.user)
+
+
+class TopographyViewSet(mixins.CreateModelMixin,
+                        mixins.RetrieveModelMixin,
+                        mixins.UpdateModelMixin,
+                        mixins.DestroyModelMixin,
+                        viewsets.GenericViewSet):
+    queryset = Topography.objects.all()
+    serializer_class = TopographySerializer
+    permission_classes = [IsAuthenticatedOrReadOnly, ParentObjectPermissions]
+
+    def perform_create(self, serializer):
+        # Set creator to current user when creating a new topography
+        serializer.save(creator=self.request.user)

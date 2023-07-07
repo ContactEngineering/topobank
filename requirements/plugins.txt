@@ -1,2 +1,0 @@
-topobank-statistics==0.92.1
-topobank-contact==0.92.1

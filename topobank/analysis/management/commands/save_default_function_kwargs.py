@@ -40,7 +40,7 @@ class Command(BaseCommand):
         for af in AnalysisFunction.objects.all():
             for impl in af.implementations.all():
                 try:
-                    dkw = impl.get_default_kwargs()
+                    dkw = impl.default_kwargs
                 except AttributeError as err:
                     self.stdout.write(self.style.WARNING(f"Cannot use implementation '{impl}'. Skipping it."))
                     continue
@@ -55,7 +55,7 @@ class Command(BaseCommand):
         # they are missing. So we can assure that all analysis have all values for all parameters.
         #
         for a in Analysis.objects.all():
-            analysis_kwargs = pickle.loads(a.kwargs)
+            analysis_kwargs = a.kwargs
             try:
                 impl = a.function.get_implementation(a.subject_type)
             except ImplementationMissingAnalysisFunctionException:
@@ -77,7 +77,7 @@ class Command(BaseCommand):
 
             if changed:
                 if not options['dry_run']:
-                    a.kwargs = pickle.dumps(analysis_kwargs)
+                    a.kwargs = analysis_kwargs
                     a.save()
                 num_changed_analyses_by_function[a.function] += 1
 

@@ -1,21 +1,77 @@
 # Changelog for *TopoBank*
 
-## 0.92.1 (not published yet)
+## 1.1.3 (2023-06-27)
+
+- MAINT: Updated SurfaceTopography to 1.7.0
+  (to add support for PLU, FRT and HFM files)
+
+## 1.1.2 (2023-06-17)
+
+- BUG: Fixed missing imports
+
+## 1.1.1 (2023-06-16)
+
+- BUG: More robust handling of complete worker failures
+- MAINT: Removed dependency on unused `celery-progress` package
+
+## 1.1.0 (2023-06-11)
+
+- ENH: Unified single page application for analyses, including rewritten
+  task status (#795, #796)
+- ENH: Webpack based bundling (for the analysis app, #565, #800)
+- ENH: CSV download for analyses 
+- ENH: Upgrade to Vue 3
+- MAINT: Converted pickled binary dictionaries to JSON fields (#573)
+- MAINT: Analysis function now has permalink (#824)
+- MAINT: Analysis downloads now contain instrument information (#983)
+- MAINT: Analysis downloads are now in SI units (#583)
+- MAINT: Additional assorted fixes (#118, #169, #499, #624, #671, #857, #897)
+
+## 1.0.5 (2023-04-17)
+
+- DEP: Upgrade of SurfaceTopography to 1.6.2
+
+## 1.0.4 (2023-04-10)
+
+- BUG: Duration of analysis object should not be a property
+
+## 1.0.3 (2023-04-06)
+
+- BUG: Plugin version configuration could not be saved if there is are changes
+  on top of the semantic version
+
+## 1.0.2 (2023-04-06)
+
+- DEP: Upgrade of SurfaceTopography to 1.6.0
+
+## 1.0.1 (2023-02-02)
+
+- BUG: Fixed comparative analysis (#962)
+- BUG: Remove copy of surface when publication fails
+
+## 1.0.0 (2023-01-31)
 
 - ENH: Added surface collection as analysis subject,
   now analysis functions can be implemented which 
   process a bunch of surfaces (#900)
+- ENH: Added output of DOIs related to analyses
+  to downloads and to display of results of analyses
+  using the standard plot card view (#171)
 - ENH: Also save creation time of analyses and show it 
   in the modal dialog for the tasks (#899)
 - BUG: Fixed problem loading SUR files (#945)
+- BUG: Fixed problem with surface collection name (#953)
+- MAINT: Fined-grained enabling of tabnav tabs in settings file
+- MAINT: Moved `allauth`-dependent views into `views_allauth`
+- MAINT: Added license information to version information modal
 - MAINT: Improved log messages of command "create_images"
 - MAINT: Fixed missing "plugin.txt" for Docker image in
   production
 - MAINT: Removed firefox from production's Dockerfile
-- MAINT: Upgrade of SurfaceTopograpy to 1.3.1
 - MAINT: Renamed "Sign in via ORCID" to "Sign in"
 - MAINT: Default AWS access information to None
 - MAINT: Added django-watchman, added celery check
+- DEP: Upgrade of SurfaceTopography to 1.3.3 (#950)
 
 ## 0.92.0 (2022-12-14)
 
@@ -231,7 +287,7 @@
   fix_height_scale (#763)
 - BUG: Missing permissions in Docker container to
   start Postgres server (#756)
-- MAINT: Upgrade to SurfaceTopography 0.99.1
+- DEP: Upgrade to SurfaceTopography 0.99.1
 
 ## 0.16.1 (2021-10-25)
 
@@ -249,7 +305,7 @@
   measurement (#747)
 - BUG: Improved error message in case of server 
   error in analysis result (#746)
-- MAINT: Upgrade to SurfaceTopography 0.98.2 (#751)
+- DEP: Upgrade to SurfaceTopography 0.98.2 (#751)
 
 ## 0.16.0 (2021-10-18)
 
@@ -283,13 +339,13 @@
 - MAINT: Decapitalized analysis function names (e.g.
   "Roughness Parameters" -> "Roughness parameters")
 - MAINT: Removed error bars on analysis results
-- MAINT: Upgrade to Django 3.2
-- MAINT: Upgrade to fontawesome 5
-- MAINT: Upgrade to Postgres 13.4
-- MAINT: Upgrade to SurfaceTopography 0.98.0 (#730, #734)
-- MAINT: Upgrade to ContactMechanics 0.91.0
-- MAINT: Upgrade of several other packages
-- MAINT: Upgrade of sqlparse because of CVE
+- DEP: Upgrade to Django 3.2
+- DEP: Upgrade to fontawesome 5
+- DEP: Upgrade to Postgres 13.4
+- DEP: Upgrade to SurfaceTopography 0.98.0 (#730, #734)
+- DEP: Upgrade to ContactMechanics 0.91.0
+- DEP: Upgrade of several other packages
+- DEP: Upgrade of sqlparse because of CVE
 
 ## 0.15.1 (2021-08-05)
 
@@ -315,10 +371,10 @@
   as newer DI files that contain 32-bit data (#695)  
 - BUG: Unified order of measurements in surface details
   and when switching between measurements (#703)
-- MAINT: Upgrade for several dependencies, e.g. 
+- DEP: Upgrade for several dependencies, e.g. 
   SurfaceTopography to version 0.95.1 (#697),
   upgrade of urllib3 because of a CVE
-- MAINT: Using now PostgreSQL also for tests because
+- DEP: Using now PostgreSQL also for tests because
   of JSON fields
 
 ## 0.14.0 (2021-07-01)

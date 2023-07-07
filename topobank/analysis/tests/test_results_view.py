@@ -4,9 +4,7 @@ Test for results view.
 
 import datetime
 import openpyxl
-import pickle
 import tempfile
-import json
 
 import ContactMechanics
 import NuMPI
@@ -16,17 +14,14 @@ import numpy as np
 import pytest
 from django.urls import reverse
 
-from topobank.manager.models import Topography, Surface
-from topobank.manager.utils import subjects_to_json
-from topobank.manager.tests.utils import SurfaceFactory, UserFactory, \
-    Topography1DFactory, Topography2DFactory, two_topos
-from topobank.taskapp.tasks import current_configuration, perform_analysis
-from topobank.utils import assert_in_content, assert_not_in_content
-
-from .utils import TopographyAnalysisFactory, SurfaceAnalysisFactory
-
+import topobank
+from ...manager.utils import subjects_to_dict, subjects_to_base64
+from ...manager.models import Topography, Surface
+from ...manager.tests.utils import SurfaceFactory, UserFactory, Topography1DFactory, Topography2DFactory, two_topos
+from ...taskapp.tasks import current_configuration, perform_analysis
+from ...utils import assert_in_content, assert_not_in_content
 from ..models import Analysis, AnalysisFunction
-from ..functions import ART_SERIES
+from .utils import TopographyAnalysisFactory, SurfaceAnalysisFactory
 
 
 def selection_from_instances(instances):
@@ -56,13 +51,12 @@ def test_selection_from_instances(mocker):
 
 
 @pytest.mark.django_db
-def test_analysis_times(client, two_topos, test_analysis_function, handle_usage_statistics):
-
+def test_analysis_times(api_client, two_topos, test_analysis_function, handle_usage_statistics):
     topo = Topography.objects.first()
 
     # we make sure to have to right user who has access
     user = topo.surface.creator
-    client.force_login(user)
+    api_client.force_login(user)
 
     analysis = TopographyAnalysisFactory.create(
         subject=topo,
@@ -74,30 +68,25 @@ def test_analysis_times(client, two_topos, test_analysis_function, handle_usage_
     analysis.users.add(user)
     analysis.save()
 
-    response = client.post(reverse("analysis:card"),
-                           data={
-                               'subjects_ids_json': subjects_to_json([topo]),
-                               'function_id': test_analysis_function.id,
-                               'card_id': "card-1",
-                               'template_flavor': 'list',
-                           },
-                           HTTP_X_REQUESTED_WITH='XMLHttpRequest',
-                           follow=True)
+    response = api_client.get(
+        reverse("analysis:card-series", kwargs=dict(function_id=test_analysis_function.id)) +
+        '?subjects=' + subjects_to_base64([topo]))
 
     assert response.status_code == 200
 
-    assert_in_content(response, "2018-01-01 12:00:00")  # start_time
-    assert_in_content(response, "1:01:01")  # duration
+    analyses = response.data['analyses']
+    assert len(analyses) == 1
+    assert analyses[0]['start_time'] == "2018-01-01T12:00:00+01:00"
+    assert analyses[0]['duration'] == datetime.timedelta(seconds=3661)
 
 
 @pytest.mark.django_db
-def test_show_only_last_analysis(client, two_topos, test_analysis_function, handle_usage_statistics):
-
+def test_show_only_last_analysis(api_client, two_topos, test_analysis_function, handle_usage_statistics):
     topo1 = Topography.objects.first()
     topo2 = Topography.objects.last()
 
     user = topo1.surface.creator
-    client.force_login(user)
+    api_client.force_login(user)
 
     result = {'name': 'test function',
               'xlabel': 'x',
@@ -114,7 +103,7 @@ def test_show_only_last_analysis(client, two_topos, test_analysis_function, hand
         subject=topo1,
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
-        kwargs=pickle.dumps({}),
+        kwargs={},
         start_time=datetime.datetime(2018, 1, 1, 12),
         end_time=datetime.datetime(2018, 1, 1, 13, 1, 1),
         result=result,
@@ -127,7 +116,7 @@ def test_show_only_last_analysis(client, two_topos, test_analysis_function, hand
         subject=topo1,
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
-        kwargs=pickle.dumps({}),
+        kwargs={},
         start_time=datetime.datetime(2018, 1, 2, 12),
         end_time=datetime.datetime(2018, 1, 2, 13, 1, 1),
         result=result,
@@ -142,7 +131,7 @@ def test_show_only_last_analysis(client, two_topos, test_analysis_function, hand
         subject=topo2,
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
-        kwargs=pickle.dumps({}),
+        kwargs={},
         start_time=datetime.datetime(2018, 1, 3, 12),
         end_time=datetime.datetime(2018, 1, 3, 13, 1, 1),
         result=result,
@@ -155,7 +144,7 @@ def test_show_only_last_analysis(client, two_topos, test_analysis_function, hand
         subject=topo2,
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
-        kwargs=pickle.dumps({}),
+        kwargs={},
         start_time=datetime.datetime(2018, 1, 4, 12),
         end_time=datetime.datetime(2018, 1, 4, 13, 1, 1),
         result=result,
@@ -167,27 +156,20 @@ def test_show_only_last_analysis(client, two_topos, test_analysis_function, hand
     # Check response, for both topographies only the
     # latest results should be shown
     #
-    response = client.post(reverse("analysis:card"),
-                           data={
-                               'subjects_ids_json': subjects_to_json([topo1, topo2]),
-                               'function_id': test_analysis_function.id,
-                               'card_id': 1,
-                               'template_flavor': 'list'
-                           },
-                           HTTP_X_REQUESTED_WITH='XMLHttpRequest',
-                           follow=True)
+    response = api_client.get(
+        reverse("analysis:card-series", kwargs=dict(function_id=test_analysis_function.id)) +
+        '?subjects=' + subjects_to_base64([topo1, topo2]))
 
     assert response.status_code == 200
 
-    assert_in_content(response, b"2018-01-02 12:00:00")
-    assert_in_content(response, b"2018-01-04 12:00:00")
-
-    assert_not_in_content(response, b"2018-01-01 12:00:00")
-    assert_not_in_content(response, b"2018-01-03 12:00:00")
+    analyses = response.data['analyses']
+    assert len(analyses) == 2
+    assert analyses[0]['start_time'] == "2018-01-02T12:00:00+01:00"
+    assert analyses[1]['start_time'] == "2018-01-04T12:00:00+01:00"
 
 
 @pytest.mark.django_db
-def test_warnings_for_different_arguments(client, handle_usage_statistics):
+def test_warnings_for_different_arguments(api_client, handle_usage_statistics):
     user = UserFactory()
     surf1 = SurfaceFactory(creator=user)
     surf2 = SurfaceFactory(creator=user)
@@ -200,8 +182,8 @@ def test_warnings_for_different_arguments(client, handle_usage_statistics):
     #
     # Generate analyses for topographies with differing arguments
     #
-    kwargs_1a = pickle.dumps(dict(a=1, b=2))
-    kwargs_1b = pickle.dumps(dict(a=1, b=3))  # differing from kwargs_1a!
+    kwargs_1a = dict(a=1, b=2)
+    kwargs_1b = dict(a=1, b=3)  # differing from kwargs_1a!
     ana1a = TopographyAnalysisFactory(subject=topo1a, function=func, kwargs=kwargs_1a)
     ana1b = TopographyAnalysisFactory(subject=topo1b, function=func, kwargs=kwargs_1b)
     ana2a = TopographyAnalysisFactory(subject=topo2a, function=func)  # default arguments
@@ -209,42 +191,22 @@ def test_warnings_for_different_arguments(client, handle_usage_statistics):
     #
     # Generate analyses for surfaces with differing arguments
     #
-    kwargs_1 = pickle.dumps(dict(a=1, c=2))
-    kwargs_2 = pickle.dumps(dict(a=1, c=3))  # differing from kwargs_1a!
+    kwargs_1 = dict(a=2, b=2)
+    kwargs_2 = dict(a=2, b=3)  # differing from kwargs_1a!
     ana1 = SurfaceAnalysisFactory(subject=surf1, function=func, kwargs=kwargs_1)
     ana2 = SurfaceAnalysisFactory(subject=surf2, function=func, kwargs=kwargs_2)
 
-    client.force_login(user)
+    api_client.force_login(user)
 
     #
     # request card, there should be warnings, one for topographies and one for surfaces
     #
-    response = client.post(reverse("analysis:card"),
-                           data={
-                               'subjects_ids_json': subjects_to_json([topo1a, topo1b, topo2a, surf1, surf2]),
-                               'function_id': func.id,
-                               'card_id': "card-1",
-                               'template_flavor': 'list'
-                           },
-                           HTTP_X_REQUESTED_WITH='XMLHttpRequest',
-                           follow=True)
+    response = api_client.get(
+        reverse("analysis:card-series", kwargs=dict(function_id=func.id)) +
+        '?subjects=' + subjects_to_base64([topo1a, topo1b, topo2a, surf1, surf2]))
 
     assert response.status_code == 200
-
-    assert_in_content(response,
-                      "Arguments for this analysis function differ among chosen "
-                      "subjects of type 'manager | topography'")
-    assert_in_content(response,
-                      "Arguments for this analysis function differ among chosen "
-                      "subjects of type 'manager | surface'")
-
-    # arguments should be visible in output
-    #
-    # import html.parser
-    # unescaped = html.unescape(response.content.decode())
-    #
-    # assert str(dict(bins=10)) in unescaped
-    # assert str(dict(bins=20)) in unescaped
+    assert response.data['hasNonuniqueKwargs']
 
 
 # Maybe the following test can be rewritten as an integration test for usage with selenium
@@ -275,7 +237,7 @@ def test_show_multiple_analyses_for_two_functions(client, two_topos):
                 subject=topo,
                 function=af,
                 task_state=Analysis.SUCCESS,
-                kwargs=pickle.dumps({'bins': 10}),
+                kwargs={'bins': 10},
                 start_time=datetime.datetime(2018, 1, 1, counter),
                 end_time=datetime.datetime(2018, 1, 1, counter + 1),
             )
@@ -290,7 +252,7 @@ def test_show_multiple_analyses_for_two_functions(client, two_topos):
     #
     # Check response when selecting only first function, both analyses should be shown
     #
-    response = client.post(reverse("analysis:list"),
+    response = client.post(reverse("analysis:results-list"),
                            data={
                                'functions': [af1.id],
                            }, follow=True)
@@ -303,7 +265,7 @@ def test_show_multiple_analyses_for_two_functions(client, two_topos):
     #
     # Check response when selecting only both functions, both analyses should be shown
     #
-    response = client.post(reverse("analysis:list"),
+    response = client.post(reverse("analysis:results-list"),
                            data={
                                'functions': [af1.id, af2.id],
                            }, follow=True)
@@ -355,7 +317,7 @@ def ids_downloadable_analyses(two_topos, settings, test_analysis_function, mocke
         analysis = TopographyAnalysisFactory.create(
             subject=topos[k],
             function=test_analysis_function,
-            kwargs=pickle.dumps({}),
+            kwargs={},
             configuration=config)
 
         # we insert our result instead of the real function's result
@@ -372,13 +334,12 @@ def ids_downloadable_analyses(two_topos, settings, test_analysis_function, mocke
 
 @pytest.mark.django_db
 def test_analysis_download_as_txt(client, two_topos, ids_downloadable_analyses, settings, handle_usage_statistics):
-
     user = two_topos[0].surface.creator  # we need a user which is allowed to download
     client.force_login(user)
 
     ids_str = ",".join(str(i) for i in ids_downloadable_analyses)
     download_url = reverse('analysis:download',
-                           kwargs=dict(ids=ids_str, art=ART_SERIES, file_format='txt'))
+                           kwargs=dict(ids=ids_str, file_format='txt'))
 
     response = client.get(download_url)
 
@@ -395,7 +356,7 @@ def test_analysis_download_as_txt(client, two_topos, ids_downloadable_analyses, 
     assert ContactMechanics.__version__ in txt
     assert NuMPI.__version__ in txt
     assert muFFT.version.description() in txt
-    assert settings.TOPOBANK_VERSION in txt
+    assert topobank.__version__ in txt
 
     # check whether creator of topography is listed
     topo1, topo2 = two_topos
@@ -470,7 +431,7 @@ def test_analysis_download_as_xlsx(client, two_topos, ids_downloadable_analyses,
 
     ids_str = ",".join(str(i) for i in ids_downloadable_analyses)
     download_url = reverse('analysis:download',
-                           kwargs=dict(ids=ids_str, art=ART_SERIES, file_format='xlsx'))
+                           kwargs=dict(ids=ids_str, file_format='xlsx'))
 
     response = client.get(download_url)
 
@@ -480,12 +441,10 @@ def test_analysis_download_as_xlsx(client, two_topos, ids_downloadable_analyses,
 
     xlsx = openpyxl.load_workbook(tmp.name)
 
-    print(xlsx.sheetnames)
-
     assert len(xlsx.worksheets) == 1 + 1 + 2 * 2  # INDEX, META DATA, 2*2 analysis sheets
 
     def assert_data_equal(sheet, exp_data):
-        first_data_row = 5
+        first_data_row = 9
         last_data_col = 2
         data = np.array(list(sheet.values))[first_data_row:, :last_data_col + 1]
         np.testing.assert_equal(data, exp_data)
@@ -557,12 +516,12 @@ def test_analysis_download_as_xlsx(client, two_topos, ids_downloadable_analyses,
     assert_version_in_vals('ContactMechanics', ContactMechanics.__version__)
     assert_version_in_vals('NuMPI', NuMPI.__version__)
     assert_version_in_vals('muFFT', muFFT.version.description())
-    assert_version_in_vals('topobank', settings.TOPOBANK_VERSION)
+    assert_version_in_vals('topobank', topobank.__version__)
 
     # subject names should also be included, as well as the creator
     for t in topos:
-        assert ('Subject Type', 'topography') in vals
-        assert ('Subject Name', t.name) in vals
+        assert ('Subject type', 'topography') in vals
+        assert ('Subject name', t.name) in vals
         assert ('Creator', str(t.creator)) in vals
 
     # Check links on INDEX sheet
@@ -571,15 +530,20 @@ def test_analysis_download_as_xlsx(client, two_topos, ids_downloadable_analyses,
     function_name = Analysis.objects.get(id=ids_downloadable_analyses[0]).function.name
 
     assert list(ws.values) == [
-        ("Subject Name", "Subject Type", "Function Name", "Data Series", "Link"),
+        ("Subject name", "Subject type", "Function name", "Data series", "Link",
+         "Creator", "Instrument name", "Instrument type", "Instrument parameters"),
         (first_topo_name, "measurement", function_name,
-         "First Series", "Click to jump to sheet 'analysis-0-series-0'"),
+         "First Series", "Click to jump to sheet 'analysis-0-series-0'",
+         str(topos[0].creator), None, 'undefined', '{}'),
         (first_topo_name, "measurement", function_name,
-         "Second Series", "Click to jump to sheet 'analysis-0-series-1'"),
+         "Second Series", "Click to jump to sheet 'analysis-0-series-1'",
+         str(topos[0].creator), None, 'undefined', '{}'),
         (second_topo_name, "measurement", function_name,
-         "First Series", "Click to jump to sheet 'analysis-1-series-0'"),
+         "First Series", "Click to jump to sheet 'analysis-1-series-0'",
+         str(topos[1].creator), None, 'undefined', '{}'),
         (second_topo_name, "measurement", function_name,
-         "Second Series", "Click to jump to sheet 'analysis-1-series-1'"),
+         "Second Series", "Click to jump to sheet 'analysis-1-series-1'",
+         str(topos[1].creator), None, 'undefined', '{}'),
     ]
 
     first_link_cell = ws["E2"]
@@ -606,7 +570,7 @@ def test_analysis_download_as_xlsx_despite_slash_in_sheetname(client, two_topos,
 
     ids_str = ",".join(str(i) for i in ids_downloadable_analyses)
     download_url = reverse('analysis:download',
-                           kwargs=dict(ids=ids_str, art=ART_SERIES, file_format='xlsx'))
+                           kwargs=dict(ids=ids_str, file_format='xlsx'))
 
     response = client.get(download_url)
 
@@ -617,8 +581,6 @@ def test_analysis_download_as_xlsx_despite_slash_in_sheetname(client, two_topos,
     tmp.seek(0)
 
     xlsx = openpyxl.load_workbook(tmp.name)
-
-    print(xlsx.sheetnames)
 
     assert len(xlsx.worksheets) == 1 + 1 + 2 * 2
 
@@ -632,7 +594,7 @@ def test_download_analysis_results_without_permission(client, two_topos, ids_dow
 
     ids_str = ",".join(str(i) for i in ids_downloadable_analyses)
     download_url = reverse('analysis:download',
-                           kwargs=dict(ids=ids_str, art=ART_SERIES, file_format='txt'))
+                           kwargs=dict(ids=ids_str, file_format='txt'))
 
     response = client.get(download_url)
     assert response.status_code == 403  # Permission denied
@@ -673,7 +635,6 @@ def test_publication_link_in_txt_download(client, two_analyses_two_publications,
     # Now two publications are involved in these analyses
     #
     download_url = reverse('analysis:download', kwargs=dict(ids=f"{analysis1.id},{analysis2.id}",
-                                                            art=ART_SERIES,
                                                             file_format='txt'))
     user = UserFactory(username='testuser')
     client.force_login(user)
@@ -694,7 +655,6 @@ def test_publication_link_in_xlsx_download(client, two_analyses_two_publications
     # Now two publications are involved in these analyses
     #
     download_url = reverse('analysis:download', kwargs=dict(ids=f"{analysis1.id},{analysis2.id}",
-                                                            art=ART_SERIES,
                                                             file_format='xlsx'))
     user = UserFactory()
     client.force_login(user)
@@ -715,7 +675,7 @@ def test_publication_link_in_xlsx_download(client, two_analyses_two_publications
 
 
 @pytest.mark.django_db
-def test_view_shared_analysis_results(client, handle_usage_statistics):
+def test_view_shared_analysis_results(api_client, handle_usage_statistics):
     password = 'abcd$1234'
 
     #
@@ -756,17 +716,11 @@ def test_view_shared_analysis_results(client, handle_usage_statistics):
     #
     # Now we change to the analysis card view and look what we get
     #
-    assert client.login(username=user1.username, password=password)
+    assert api_client.login(username=user1.username, password=password)
 
-    response = client.post(reverse("analysis:card"),
-                           data={
-                               'subjects_ids_json': subjects_to_json([topo1a, topo1b, topo2a]),
-                               'function_id': func1.id,
-                               'card_id': 1,
-                               'template_flavor': 'list'
-                           },
-                           HTTP_X_REQUESTED_WITH='XMLHttpRequest',
-                           follow=True)
+    response = api_client.get(
+        reverse("analysis:card-series", kwargs=dict(function_id=func1.id)) +
+        '?subjects=' + subjects_to_base64([topo1a, topo1b, topo2a]))
 
     # Function should still have three analyses, all successful (the default when using the factory)
     assert func1.analysis_set.count() == 3
@@ -775,31 +729,28 @@ def test_view_shared_analysis_results(client, handle_usage_statistics):
     assert response.status_code == 200
 
     # We should see start times of all three topographies
-    assert_in_content(response, '2019-01-01 12:00:00')  # topo1a
-    assert_in_content(response, '2019-01-01 13:00:00')  # topo1b
-    assert_in_content(response, '2019-01-01 14:00:00')  # topo2a
+    analyses = response.data['analyses']
+    assert len(analyses) == 3
+    assert analyses[0]['start_time'] == '2019-01-01T12:00:00+01:00'  # topo1a
+    assert analyses[1]['start_time'] == '2019-01-01T13:00:00+01:00'  # topo1b
+    assert analyses[2]['start_time'] == '2019-01-01T14:00:00+01:00'  # topo2a
 
-    client.logout()
+    api_client.logout()
 
     #
     # user 2 cannot access results from topo1, it is not shared
     #
-    assert client.login(username=user2.username, password=password)
+    assert api_client.login(username=user2.username, password=password)
 
-    response = client.post(reverse("analysis:card"),
-                           data={
-                               'subjects_ids_json': subjects_to_json([topo1a, topo1b, topo2a]),
-                               'function_id': func1.id,
-                               'card_id': 1,
-                               'template_flavor': 'list'
-                           },
-                           HTTP_X_REQUESTED_WITH='XMLHttpRequest',
-                           follow=True)
+    response = api_client.get(
+        reverse("analysis:card-series", kwargs=dict(function_id=func1.id)) +
+        '?subjects=' + subjects_to_base64([topo1a, topo1b, topo2a]))
 
     assert response.status_code == 200
 
-    assert_not_in_content(response, '2019-01-01 12:00:00')  # topo1a
-    assert_not_in_content(response, '2019-01-01 13:00:00')  # topo1b
-    assert_in_content(response, '2019-01-01 14:00:00')  # topo2a
+    # We should see start times of just one topography
+    analyses = response.data['analyses']
+    assert len(analyses) == 1
+    assert analyses[0]['start_time'] == '2019-01-01T14:00:00+01:00'  # topo2a
 
-    client.logout()
+    api_client.logout()

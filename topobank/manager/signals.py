@@ -1,11 +1,12 @@
+import logging
+
+from django.core.cache import cache
+from django.contrib.contenttypes.models import ContentType
 from django.db.models.signals import pre_delete, post_delete, pre_save, post_save
 from django.dispatch import receiver
-from django.core.cache import cache
-from guardian.shortcuts import assign_perm
-from notifications.models import Notification
-from django.contrib.contenttypes.models import ContentType
+
 from allauth.account.signals import user_logged_in
-import logging
+from notifications.models import Notification
 
 from .models import Topography, Surface
 from .views import DEFAULT_SELECT_TAB_STATE
@@ -13,7 +14,7 @@ from .utils import recursive_delete
 
 _log = logging.getLogger(__name__)
 
-#
+
 # @receiver(post_save, sender=Surface)
 # def grant_surface_permissions_to_owner(sender, instance, created, **kwargs):
 #
@@ -63,8 +64,8 @@ def remove_files(sender, instance, **kwargs):
             _log.info(f'Deleting {datafile.name}...')
             datafile.delete()
         except Exception as exc:
-            _log.warning("Topography id %d, attribute '%s': Cannot delete data file '%s', reason: %s",
-                         instance.id, datafile_attr_name, datafile.name, str(exc))
+            _log.warning(f"Topography id {instance.id}, attribute '{datafile_attr_name}': Cannot delete data file "
+                         f"{datafile.name}', reason: {str(exc)}")
 
     datafile_path = instance.datafile.name
     squeezed_datafile_path = instance.squeezed_datafile.name
@@ -80,15 +81,15 @@ def remove_files(sender, instance, **kwargs):
     # Otherwise we abort deletion.
     if datafile_path is not None and not datafile_path.startswith(instance.storage_prefix):
         _log.warning(f'Datafile is stored at location {datafile_path}, but storage prefix is '
-                     f'{instance.storage_prefix}. I will not attempt to deleting everything at this prefix.')
+                     f'{instance.storage_prefix}. I will not attempt to delete everything at this prefix.')
         return
     if squeezed_datafile_path is not None and not squeezed_datafile_path.startswith(instance.storage_prefix):
         _log.warning(f'Squeezed datafile is stored at location {squeezed_datafile_path}, but storage prefix is '
-                     f'{instance.storage_prefix}. I will not attempt to deleting everything at this prefix.')
+                     f'{instance.storage_prefix}. I will not attempt to delete everything at this prefix.')
         return
     if thumbnail_path is not None and not thumbnail_path.startswith(instance.storage_prefix):
         _log.warning(f'Thumbnail is stored at location {thumbnail_path}, but storage prefix is '
-                     f'{instance.storage_prefix}. I will not attempt to deleting everything at this prefix.')
+                     f'{instance.storage_prefix}. I will not attempt to delete everything at this prefix.')
         return
     recursive_delete(instance.storage_prefix)
 
@@ -124,6 +125,7 @@ def remove_notifications_for_surface(sender, instance, using, **kwargs):
 @receiver(post_delete, sender=Topography)
 def remove_notifications_for_topography(sender, instance, using, **kwargs):
     _remove_notifications(instance)
+
 
 @receiver(user_logged_in)
 def set_default_select_tab_state(request, user, **kwargs):

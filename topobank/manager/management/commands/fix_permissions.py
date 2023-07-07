@@ -1,7 +1,8 @@
+import logging
+from collections import defaultdict
+
 from django.core.management.base import BaseCommand
 from guardian.shortcuts import assign_perm
-from collections import defaultdict
-import logging
 
 from topobank.manager.models import Surface
 
@@ -31,13 +32,14 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-
+        # Fix object permissions
         fixed_published_surfaces = set()
         fixed_unpublished_surfaces = set()
         num_fixed_permissions_for_unpublished = defaultdict(lambda : 0)
 
         for surface in Surface.objects.all():
             creator = surface.creator
+            print(surface, creator, creator.get_all_permissions())
             if surface.is_published:
                 if any(creator.has_perm(p, surface) for p in ALL_PERMISSIONS):
                     if not options['dry_run']:
@@ -46,6 +48,7 @@ class Command(BaseCommand):
                     fixed_published_surfaces.add(surface)
             else:
                 for perm in ALL_PERMISSIONS:
+                    print(perm, creator.has_perm(perm, surface))
                     if not creator.has_perm(perm, surface):
                         if not options['dry_run']:
                             assign_perm(perm, surface.creator, surface)

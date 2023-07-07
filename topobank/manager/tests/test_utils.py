@@ -4,16 +4,15 @@ and other things in topobank.manager.utils
 """
 
 import pytest
-import json
 from django.shortcuts import reverse
-from django.contrib.contenttypes.models import ContentType
 
 from ..tests.utils import two_topos, Topography1DFactory, Topography2DFactory, SurfaceFactory, \
     TagModelFactory, UserFactory, user_three_topographies_three_surfaces_three_tags
 from ..utils import selection_to_instances, instances_to_selection, tags_for_user, \
-    instances_to_topographies, surfaces_for_user, subjects_to_json, instances_to_surfaces, \
-    current_selection_as_surface_list
-from ..models import Surface, Topography, TagModel
+    instances_to_topographies, surfaces_for_user, instances_to_surfaces, \
+    current_selection_as_surface_list, surface_collection_name, subjects_to_dict, subjects_from_dict, \
+    subjects_to_base64, subjects_from_base64
+from ..models import Surface, Topography
 
 
 @pytest.fixture
@@ -203,25 +202,6 @@ def test_instances_to_surfaces(user_three_topographies_three_surfaces_three_tags
     # also two tags can be given
     assert list(instances_to_surfaces([], [tag2, tag3])) == [surface2, surface3]
 
-
-@pytest.mark.django_db
-def test_subjects_to_json():
-    surf1 = SurfaceFactory()
-    surf2 = SurfaceFactory()
-    topo1a = Topography1DFactory(surface=surf1)
-    topo1b = Topography1DFactory(surface=surf1)
-    topo2a = Topography1DFactory(surface=surf2)
-
-    stj = subjects_to_json([surf1, surf2, topo1a, topo1b, topo2a])
-    subjects_ids = json.loads(stj)
-
-    surf_ct = ContentType.objects.get_for_model(surf1)
-    topo_ct = ContentType.objects.get_for_model(topo1a)
-
-    assert set(subjects_ids[str(surf_ct.id)]) == set([surf1.id, surf2.id])
-    assert set(subjects_ids[str(topo_ct.id)]) == set([topo1a.id, topo1b.id, topo2a.id])
-
-
 @pytest.mark.django_db
 def test_related_surfaces_for_selection(rf):
     user = UserFactory()
@@ -262,3 +242,26 @@ def test_related_surfaces_for_selection(rf):
     assert current_selection_as_surface_list(get_request(topographies=[topo1a],
                                                          surfaces=[surf1],
                                                          tags=[tag2])) == [surf1]
+
+@pytest.mark.parametrize(["surface_names", "exp_name", "max_total_length"], [
+    (["A"], "Surface 'A'", 11),
+    (["A", "B"], "Surface 'A', Surface 'B'", 30),
+    (["AAAAA"], "Surface 'AAAAA'", 15),
+    (["AAAAAA"], "Surface 'A...", 14),
+    (["AAA", "BBB", "CCCCCCCCCCCCCCCCCCCCCCCC"],
+      "Surface 'AAA', Surface 'BBB' and 1 more", 40),
+])
+def test_surface_collection_name(surface_names, exp_name, max_total_length):
+    assert surface_collection_name(surface_names, max_total_length=max_total_length) == exp_name
+
+
+def test_subjects_to_dict(user_three_topographies_three_surfaces_three_tags):
+    topo1, topo2, topo3 = Topography.objects.all()
+    surf1, surf2, surf3 = Surface.objects.all()
+    assert subjects_from_dict(subjects_to_dict([topo1, topo2, surf3])) == [topo1, topo2, surf3]
+
+
+def test_subjects_to_url(user_three_topographies_three_surfaces_three_tags):
+    topo1, topo2, topo3 = Topography.objects.all()
+    surf1, surf2, surf3 = Surface.objects.all()
+    assert subjects_from_base64(subjects_to_base64([topo1, topo2, surf3])) == [topo1, topo2, surf3]

@@ -1,9 +1,8 @@
 """
 Models related to analyses.
 """
-import pickle
+
 import json
-import operator
 
 from django.db import models
 from django.contrib.contenttypes.fields import GenericForeignKey
@@ -11,12 +10,13 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.files.storage import default_storage
 from django.utils import timezone
 
-from guardian.shortcuts import get_users_with_perms
+import celery.result
+import celery.states
 
+from ..users.models import User
 from ..utils import store_split_dict, load_split_dict
-from topobank.users.models import User
 
-from .registry import ImplementationMissingAnalysisFunctionException, AnalysisRegistry, AnalysisFunctionImplementation
+from .registry import ImplementationMissingAnalysisFunctionException, AnalysisRegistry
 
 RESULT_FILE_BASENAME = 'result'
 
@@ -41,6 +41,7 @@ class Version(models.Model):
     major = models.SmallIntegerField()
     minor = models.SmallIntegerField()
     micro = models.SmallIntegerField(null=True)
+    extra = models.CharField(max_length=100, null=True)
 
     # the following can be used to indicate that this
     # version should not be used any more / or the analyses
@@ -49,12 +50,14 @@ class Version(models.Model):
 
     # TODO After upgrade to Django 2.2, use contraints: https://docs.djangoproject.com/en/2.2/ref/models/constraints/
     class Meta:
-        unique_together = (('dependency', 'major', 'minor', 'micro'),)
+        unique_together = (('dependency', 'major', 'minor', 'micro', 'extra'),)
 
     def number_as_string(self):
         x = f"{self.major}.{self.minor}"
         if self.micro is not None:
             x += f".{self.micro}"
+        if self.extra is not None:
+            x += self.extra
         return x
 
     def __str__(self):
@@ -92,6 +95,17 @@ class Analysis(models.Model):
         (SUCCESS, 'success'),
     )
 
+    # Mapping Celery states to our state information. Everything not in the
+    # list (e.g. custom Celery states) are interpreted as STARTED.
+    _CELERY_STATE_MAP = {
+        celery.states.SUCCESS: SUCCESS,
+        celery.states.STARTED: STARTED,
+        celery.states.PENDING: PENDING,
+        celery.states.RETRY: RETRY,
+        celery.states.FAILURE: FAILURE
+    }
+
+    # Actual implementation of the analysis as a Python function
     function = models.ForeignKey('AnalysisFunction', on_delete=models.CASCADE)
 
     # Definition of the subject
@@ -102,12 +116,17 @@ class Analysis(models.Model):
     # According to GitHub #208, each user should be able to see analysis with parameters chosen by himself
     users = models.ManyToManyField(User)
 
-    kwargs = models.BinaryField()  # for pickle
+    # Keyword agruments passed to the Python analysis function
+    kwargs = models.JSONField(default=dict)
 
+    # This is the Celery task id
     task_id = models.CharField(max_length=155, unique=True, null=True)
-    task_state = models.CharField(max_length=7,
-                                  choices=TASK_STATE_CHOICES)
 
+    # This is the self-reported task state. It can differ from what Celery
+    # knows about the task.
+    task_state = models.CharField(max_length=7, choices=TASK_STATE_CHOICES)
+
+    # Time stamps
     creation_time = models.DateTimeField(null=True)
     start_time = models.DateTimeField(null=True)
     end_time = models.DateTimeField(null=True)
@@ -115,6 +134,7 @@ class Analysis(models.Model):
     # Bibliography
     dois = models.JSONField(default=list)
 
+    # Server configuration (version information)
     configuration = models.ForeignKey(Configuration, null=True, on_delete=models.SET_NULL)
 
     class Meta:
@@ -139,6 +159,7 @@ class Analysis(models.Model):
             store_split_dict(self.storage_prefix, RESULT_FILE_BASENAME, self._result)
             self._result = None
 
+    @property
     def duration(self):
         """Returns duration of computation or None if not finished yet.
 
@@ -146,13 +167,43 @@ class Analysis(models.Model):
 
         :return: Returns datetime.timedelta or None
         """
-        if self.end_time is None:
+        if self.end_time is None or self.start_time is None:
             return None
 
-        return self.end_time-self.start_time
+        return self.end_time - self.start_time
 
-    def get_kwargs_display(self):
-        return str(pickle.loads(self.kwargs))
+    def get_celery_state(self):
+        """Return the state of the task reported by Celery"""
+        if self.task_id is None:
+            # Cannot get the state
+            return None
+        r = celery.result.AsyncResult(self.task_id)
+        try:
+            return self._CELERY_STATE_MAP[r.state]
+        except KeyError:
+            # Everything else (e.g. a custom state such as 'PROGRESS') is interpreted as a running task
+            return Analysis.STARTED
+
+    def get_task_progress(self):
+        """Return progress of task, if running"""
+        if self.task_id is None:
+            return None
+        r = celery.result.AsyncResult(self.task_id)
+        if isinstance(r.info, Exception):
+            raise r.info  # The Celery process failed with some specific exception, reraise here
+        else:
+            return r.info
+
+    def get_error(self):
+        """Return a string representation of any error"""
+        if self.task_id is None:
+            return None
+        r = celery.result.AsyncResult(self.task_id)
+        if isinstance(r.info, Exception):
+            return(str(r.info))
+        else:
+            # No error occurred
+            return None
 
     @property
     def result(self):
@@ -271,7 +322,7 @@ class AnalysisFunction(models.Model):
         """
         return AnalysisRegistry().get_implementation(self.name, subject_type=subject_type)
 
-    def python_function(self, subject_type):
+    def get_python_function(self, subject_type):
         """Return function for given first argument type.
 
         Parameters
@@ -289,7 +340,26 @@ class AnalysisFunction(models.Model):
         ImplementationMissingException
             if implementation for given subject type does not exist
         """
-        return AnalysisRegistry().get_implementation(self.name, subject_type).python_function()
+        return self.get_implementation(subject_type).python_function
+
+    def get_signature(self, subject_type):
+        """Return signature of function for given first argument type.
+
+        Parameters
+        ----------
+        subject_type: ContentType
+            Type of first argument of analysis function
+
+        Returns
+        -------
+        inspect.signature
+
+        Raises
+        ------
+        ImplementationMissingException
+            if implementation for given subject type does not exist
+        """
+        return self.get_implementation(subject_type).signature
 
     def get_implementation_types(self):
         """Return list of content types for which this function is implemented.
@@ -299,10 +369,29 @@ class AnalysisFunction(models.Model):
     def is_implemented_for_type(self, subject_type):
         """Returns True if function is implemented for given content type, else False"""
         try:
-            self.python_function(subject_type)
+            self.get_python_function(subject_type)
         except ImplementationMissingAnalysisFunctionException:
             return False
         return True
+
+    def is_available_for_user(self, user, models=None):
+        """
+        Check if this analysis function is available to the user. The function
+        is available to `user` if it is available for any of the `models`
+        specified.
+        """
+        if models is None:
+            from ..manager.models import SurfaceCollection, Surface, Topography
+            models = set([SurfaceCollection, Surface, Topography])
+
+        is_available_to_user = False
+        for model in models:
+            try:
+                impl = self.get_implementation(ContentType.objects.get_for_model(model))
+                is_available_to_user |= impl.is_available_for_user(user)
+            except ImplementationMissingAnalysisFunctionException:
+                pass
+        return is_available_to_user
 
     def get_default_kwargs(self, subject_type):
         """Return default keyword arguments as dict.
@@ -321,7 +410,7 @@ class AnalysisFunction(models.Model):
 
         dict
         """
-        return self.get_implementation(subject_type).get_default_kwargs()
+        return self.get_implementation(subject_type).default_kwargs
 
     def eval(self, subject, **kwargs):
         """Call appropriate python function.

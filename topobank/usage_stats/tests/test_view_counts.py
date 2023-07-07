@@ -5,12 +5,12 @@ from django.shortcuts import reverse
 
 from trackstats.models import Metric, Period
 
-from topobank.analysis.tests.utils import TopographyAnalysisFactory, AnalysisFunctionFactory
-from topobank.manager.utils import subjects_to_json
+from ...analysis.tests.utils import TopographyAnalysisFactory
+from ...manager.utils import subjects_to_base64
 
 
 @pytest.mark.django_db
-def test_counts_analyses_views(client, test_analysis_function, mocker, handle_usage_statistics):
+def test_counts_analyses_views(api_client, test_analysis_function, mocker, handle_usage_statistics):
 
     analysis = TopographyAnalysisFactory.create(function=test_analysis_function)
     topography = analysis.subject
@@ -18,18 +18,15 @@ def test_counts_analyses_views(client, test_analysis_function, mocker, handle_us
 
     metric = Metric.objects.ANALYSES_RESULTS_VIEW_COUNT
 
-    client.force_login(user)
+    api_client.force_login(user)
 
     # we have to test here with the 'analysis:card' URL because
     # the views the user sees, load that URL via ajax which is not executed
     # during this test - so we must imitate the AJAX call here
     def send_card_request():
-        response = client.post(reverse('analysis:card'), data={
-            'function_id': test_analysis_function.id,
-            'card_id': 'card',
-            'template_flavor': 'list',
-            'subjects_ids_json': subjects_to_json([topography]),
-        }, HTTP_X_REQUESTED_WITH='XMLHttpRequest')  # we need an AJAX request
+        response = api_client.get(
+            reverse('analysis:card-series', kwargs=dict(function_id=test_analysis_function.id)) +
+            '?subjects=' + subjects_to_base64([topography]))
         return response
 
     record_mock = mocker.patch('trackstats.models.StatisticByDateAndObject.objects.record')
@@ -59,5 +56,5 @@ def test_counts_analyses_views(client, test_analysis_function, mocker, handle_us
                                        period=Period.DAY,
                                        value=1, date=yesterday)
 
-    client.logout()
+    api_client.logout()
 

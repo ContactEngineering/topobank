@@ -20,17 +20,11 @@
 
     <link rel="icon" type="image/x-icon" href="{% static 'images/favicons/favicon.png' %}"/>
 
-    <!-- Bootstrap Core CSS -->
-    <link href="{% static 'vendor/bootstrap/css/bootstrap.min.css' %}" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-vue@2.21.2/dist/bootstrap-vue.min.css" rel="stylesheet">
+    <script src="{% static 'js/base.bundle.js' %}"></script>
 
-    <!-- CSS from sb-admin-2-bs4 template -->
-    <link href="{% static 'css/sb-admin-2.css' %}" rel="stylesheet"> <!-- TODO check what is really needed here -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-Fy6S3B9q64WdZWQUiU+q4/2Lc9npb8tCaSX9FK7E8HnRr0Jz8D6OP9dO5Vg3Q9ct" crossorigin="anonymous"></script>
 
     <link href="{% static 'tagulous/lib/select2-4/css/select2.min.css' %}" rel="stylesheet">
-
-    <!-- This file stores project-specific CSS -->
-    <link href="{% static 'css/project.css' %}" rel="stylesheet">
 
     {% block extra_css %}{% endblock extra_css %}
 
@@ -40,9 +34,6 @@
 </head>
 
 <body id="page-top">
-
-    <!-- jquery must be loaded early, e.g. because of datepicker -->
-    <script src="{% static 'vendor/jquery/jquery-3.6.0.min.js' %}"></script>
 
     <div class="fixed-top">
     <nav class="navbar navbar-expand-md navbar-dark bg-dark">
@@ -100,12 +91,10 @@
           </a>
           <div class="dropdown-menu dropdown-menu-right help-dropdown" aria-labelledby="helpDropdown">
             <a class="dropdown-item" target="_blank" href="https://github.com/ContactEngineering/TopoBank/discussions">Feedback</a>
-            <a class="dropdown-item" data-toggle="modal" data-target="#versionModal">Version Information</a>
-            <a class="dropdown-item" href="{% url 'terms' %}">Terms &amp; Conditions</a>
+            <a class="dropdown-item" data-toggle="modal" data-target="#versionModal">Version information</a>
+            <a class="dropdown-item" href="{% url 'terms' %}">Terms &amp; conditions</a>
             <div class="dropdown-divider"></div>
-            <a class="dropdown-item" href="{% url 'plugins:plugins-list' %}">Plugins</a>
-            <div class="dropdown-divider"></div>
-            <a class="dropdown-item" target="_blank" href="https://doi.org/10.1088/2051-672X/ac860a">Publication about this site</a>
+            <a class="dropdown-item" target="_blank" href="https://doi.org/10.1088/2051-672X/ac860a">Read our paper!</a>
             <div class="dropdown-divider"></div>
             <a class="dropdown-item" href="{% url 'help' %}">Help</a>
             <div class="dropdown-divider"></div>
@@ -123,19 +112,18 @@
           </a>
           <div class="dropdown-menu dropdown-menu-right user-dropdown" aria-labelledby="userDropdown">
             {% if not request.user.is_anonymous and request.user.username %}
-            <a class="dropdown-item" href="{% url 'users:detail' request.user.username %}"><i class="fa fa-user fa-fw"></i> User Profile</a>
-            <!-- a class="dropdown-item" ><i class="fa fa-cog fa-fw"></i> Settings<a> -->
+            <a class="dropdown-item" href="{% url 'users:detail' request.user.username %}">User profile</a>
+            <a class="dropdown-item" href="{% url 'plugins:plugins-list' %}">Plugins</a>
             <div class="dropdown-divider"></div>
             {% if request.user.is_staff %}
-              <a class="dropdown-item" href="{% url 'admin:index' %}"><i class="fa fa-table fa-fw"></i> Admin interface</a>
-              <a class="dropdown-item" href="{% url 'watchman:dashboard' %}"><i class="fa fa-list fa-fw"></i> Watchman dashboard</a>
-              <a class="dropdown-item" href="{% url 'watchman:status' %}"><i class="fa fa-info fa-fw"></i> Watchman status (JSON)</a>
+              <a class="dropdown-item" href="{% url 'admin:index' %}">Admin interface</a>
+              <a class="dropdown-item" href="{% url 'watchman:dashboard' %}">Watchman dashboard</a>
+              <a class="dropdown-item" href="{% url 'watchman:status' %}">Watchman status (JSON)</a>
               <div class="dropdown-divider"></div>
             {% endif %}
-            <a class="dropdown-item" data-toggle="modal" data-target="#logoutModal">
-              <i class="fa fa-sign-out fa-fw"></i>Sign Out</a>
+            <a class="dropdown-item" data-toggle="modal" data-target="#logoutModal">Sign Out</a>
             {% else %}
-            <a class="dropdown-item" href="{% provider_login_url 'orcid' method="oauth2" %}">Sign in via ORCID</a>
+            <a class="dropdown-item" href="{% provider_login_url 'orcid' method="oauth2" %}">Sign in</a>
             {% endif %}
           </div>
         </li>
@@ -150,7 +138,7 @@
     {% tab_navigation %}
   </div>
 
-    <div id="wrapper" class="mt-5">
+    <div id="wrapper">
       <div id="content-wrapper">
 
         <div class="container-fluid mt-1">
@@ -217,7 +205,7 @@
           <div class="modal-body">Select "Sign Out" below if you are ready to end your current session.</div>
           <div class="modal-footer">
             <button class="btn btn-secondary" type="button" data-dismiss="modal">Cancel</button>
-            <a class="btn btn-primary" href="{% url 'account_logout' %}">{% trans "Sign Out" %}</a>
+            <a class="btn btn-primary" href="{% url 'account_logout' %}">{% trans "Sign out" %}</a>
           </div>
         </div>
       </div>
@@ -229,17 +217,19 @@
       <div class="modal-dialog" role="document">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="versionModalLabel">Version Information</h5>
+            <h5 class="modal-title" id="versionModalLabel">Version information</h5>
             <button class="close" type="button" data-dismiss="modal" aria-label="Close">
               <span aria-hidden="true">×</span>
             </button>
           </div>
           <div class="modal-body">
+            <p>This cloud platform is build from open source packages.</p>
             <table class="table table-striped">
               <thead>
                 <tr>
                   <th>Module</th>
                   <th>Version</th> {#  Maybe also add links? #}
+                  <th>License</th>
                   <th>Links</th>
                 </tr>
               </thead>
@@ -248,6 +238,9 @@
                   <tr>
                     <td>{{ v.module }}</td>
                     <td>{{ v.version }}</td>
+                    <td>
+                      <a href="{{ v.license.1 }}">{{ v.license.0 }}</a>
+                    </td>
                     <td>
                       {% for name,href in v.links.items %}
                         <a href="{{ href }}">{{ name }}</a>
@@ -259,6 +252,7 @@
                   <tr>
                     <td>OpenSeadragon</td>
                     <td id="openseadragon-version"></td>
+                    <td><a href="https://github.com/ContactEngineering/topobank/blob/develop/LICENSE-openseadragon.txt">BSD 3-Clause</a></td>
                     <td><a href="https://openseadragon.github.io/">Website</a></td>
                   </tr>
               </tbody>
@@ -384,18 +378,8 @@
       </div>
     </div>
 
-
-    <!-- Core JavaScript packages -->
-    <script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
-    <script src="{% static 'vendor/jquery-easing/jquery.easing.1.3.js' %}"></script>
-
-    <!-- Unit conversion --->
-    <script src="{% static 'vendor/convert-units/convert-units.js' %}"></script>
-
-    <!-- D3  -->
-    <script src="https://d3js.org/d3.v5.min.js"></script>
-
     <!-- OpenSeadragon -->
+    <!-- This cannot be installed via NPM because scalebar and FileSaver is not available as a package -->
     <script src={% static "vendor/openseadragon/openseadragon.min.js" %}></script>
     <script src={% static "vendor/openseadragon/openseadragon-scalebar.js" %}></script>
     <script src={% static "vendor/openseadragon/FileSaver.min.js" %}></script>
@@ -487,39 +471,8 @@
             })
           }
       }
-
-      $(document).ready(function () {
-        $('#openseadragon-version').text(OpenSeadragon.version.versionStr);
-      });
     </script>
     {% register_notify_callbacks callbacks='fill_notification_badge_or_hide_if_none,fill_notification_list_with_linked_items' %}
-
-    {# vuejs for interactivity #}
-
-    {% if debug %}
-    {# During development we use a vue online, so vuejs is not in production mode #}
-    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.11/dist/vue.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap-vue@2.21.2/dist/bootstrap-vue.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap-vue@2.21.2/dist/bootstrap-vue-icons.js"></script>
-    {% else %}
-    {# In production, we use a minified version of vuejs #}
-    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.11/dist/vue.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap-vue@2.21.2/dist/bootstrap-vue.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap-vue@2.21.2/dist/bootstrap-vue-icons.min.js"></script>
-    {% endif %}
-    <script src="{% static 'js/basket.js' %}"></script>
-    <script>
-      // Some globals on each page
-      var event_hub = new Vue(); // used to register event handlers and to pass events
-      var csrf_token = '{{ csrf_token }}';  // useful when doing AJAX calls from JS files
-      // only create basket if target element exists
-      var basket = $('#basket').length ? make_basket({{ basket_items_json|safe }}) : null;
-      var unselect_all_url = '{{ unselect_all_url|safe }}';
-    </script>
-
-    <!-- Custom scripts for all pages -->
-    <script src="{% static 'js/project.js' %}"></script>
-    <script src="{% static 'js/dzi.js' %}"></script>
 
     {% block javascript %}{% endblock javascript %}
 

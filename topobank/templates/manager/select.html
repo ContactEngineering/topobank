@@ -4,238 +4,89 @@
 {% load guardian_tags %}
 {% load static i18n %}
 
-{% block extra_css %}
-
-  <!-- Include Fancytree skin  -->
-  <!-- link href="{# static 'vendor/fancytree/skin-awesome/ui.fancytree.min.css' #}" rel="stylesheet" -->
-  <!-- TODO Use CDN? -->
-  <link href="https://unpkg.com/jquery.fancytree@2.38.0/dist/skin-awesome/ui.fancytree.min.css" rel="stylesheet"
-        xmlns:vbind="http://www.w3.org/1999/xhtml" xmlns:vbind="http://www.w3.org/1999/xhtml"
-        xmlns:v-bind="http://www.w3.org/1999/xhtml">
-{% endblock extra_css %}
-
-
 {% block content %}
 
+{# full text search in names, descriptions, tags #}
 
-  {# full text search in names, descriptions, tags #}
-
-  <div class="tab-content mt-2">
-    <div class="tab-pane active">
-
-
-      <div id="search-results">
-        <form>
-          <div class="form-row justify-content-around">
-
-            {# Display button for search term #}
-            <div v-if="search_term" class="form-group col-md-4">
-              <button class="btn btn-warning form-control" type="button"
-                      id="clear-search-term-btn"
-                      @click="clear_search_term">
-                Clear filter for <b>[[ search_term ]]</b>
-              </button>
-            </div>
-            <div v-else class="form-group col-md-4">
-              <button class="btn btn-outline-info form-control disabled" type="button">
-                Not filtered for search term
-              </button>
-            </div>
-
-            {# Display select for category #}
-            <div class="form-group col-md-2">
-              <select name="category" class="form-control" v-model="category" @change="reload">
-                <option v-for="(choice_label, choice_val) in category_filter_choices"
-                        v-bind:value="choice_val" v-bind:selected="choice_val==category">
-                  [[ choice_label ]]
-                </option>
-              </select>
-            </div>
-
-            {# Display select for sharing status #}
-            <div class="form-group col-md-2">
-              <select name="sharing_status" class="form-control" v-model="sharing_status" @change="reload">
-                <option v-for="(choice_label, choice_val) in sharing_status_filter_choices"
-                        v-bind:value="choice_val" v-bind:selected="choice_val==sharing_status">
-                  [[ choice_label ]]
-                </option>
-              </select>
-            </div>
-
-            <div id="tree-selector" class="form-group btn-group btn-group-toggle">
-              <label v-for="choice in
-                     [ { label: 'Surface list',
-                         value: 'surface list',
-                         icon_class: 'far fa-gem'},
-                       { label:'Tag tree',
-                         value: 'tag tree',
-                         icon_class: 'fas fa-tag'}]"
-                     class="btn"
-                     v-bind:class="{active: tree_mode==choice.value,
-                                    'btn-success': tree_mode==choice.value,
-                                    'btn-default': tree_mode!=choice.value}">
-                <input type="radio" class="btn-group-toggle" autocomplete="off"
-                       name="tree_mode"
-                       v-bind:value="choice.value" v-model="tree_mode" @change="reload">
-                <span><i v-bind:class="choice.icon_class"></i> [[ choice.label ]]</span>
-              </label>
-            </div>
-          </div>
-        </form>
-
-        <div class="row">
-          <div class="col-md-8">
-            <nav aria-label="Pagination">
-              <ul id="pagination" class="pagination">
-                <li class="page-item" v-bind:class="{ disabled: current_page <= 1 }">
-                  <a class="page-link" v-on:click="load_page(current_page-1)">Previous</a>
-                </li>
-                <li class="page-item" v-bind:class="{ active: current_page==page_no}" v-for="page_no in page_range">
-                  <a class="page-link" v-on:click="load_page(page_no)">[[ page_no ]]</a>
-                </li>
-                <li class="page-item" v-bind:class="{ disabled: current_page >=num_pages }">
-                  <a class="page-link" v-on:click="load_page(current_page+1)">Next</a>
-                </li>
-
-                <li class="ml-2">
-                  <div class="input-group nav-item">
-                    <div class="input-group-prepend">
-                      <label class="input-group-text" for="page-size-select">Page size</label>
-                    </div>
-                    <select name="page_size" class="custom-select" id="page-size-select" v-model="page_size"
-                            @change="reload()">
-                      <option v-for="ps in [10,25,50,100]" v-bind:class="{selected: ps==page_size}">[[ps]]</option>
-                    </select>
-                  </div>
-                </li>
-              </ul>
-            </nav>
-          </div>
-
-          <div class="col-md-4">
-            {% if request.user.is_anonymous %}
-              <div class="form-group">
-                <button class="btn btn-primary form-control disabled"
-                        title="Please sign-in to use this feature">Create digital surface twin
-                </button>
-              </div>
-            {% else %}
-              <div class="form-group" title="Create a new digital surface twin">
-                <a class="btn btn-primary form-control" href="{% url 'manager:surface-create' %}">Create digital
-                  surface
-                  twin</a>
-              </div>
-            {% endif %}
-          </div>
-        </div>
-
-        <div id="scrollParent">
-          <table id="surface-tree" class="table table-condensed surface-tree">
-            <colgroup>
-              <col width="150rem"></col>
-              <col></col>
-              <col width="100rem"></col>
-            </colgroup>
-            <thead>
-            <tr>
-              <th scope="col">Select</th>
-              <th scope="col">Description</th>
-              <th scope="col">Actions</th>
-            </tr>
-            </thead>
-            <tbody>
-            </tbody>
-          </table>
-        </div>
-        <div>
-          <span v-if="!is_loading">Showing [[ num_items_on_current_page ]] [[ tree_mode_infos[tree_mode].element_kind ]]
-            out of [[ num_items ]].
-            [[ tree_mode_infos[tree_mode].hint ]]</span>
-        </div>
-      </div>
-    </div>
+<div class="tab-content mt-2">
+  <div class="tab-pane active">
+    <div id="search-results"></div>
   </div>
+</div>
 
 {% endblock content %}
 
 {% block javascript %}
 
-  <script src="https://unpkg.com/jquery-highlight@3.3.0/jquery.highlight.js"></script>
-  <script src="https://unpkg.com/jquery.fancytree@2.33.0/dist/jquery.fancytree-all-deps.min.js"></script>
-  <script src="https://unpkg.com/jquery.fancytree@2.33.0/dist/modules/jquery.fancytree.glyph.js"></script>
-  <script src="https://unpkg.com/jquery.fancytree@2.33.0/dist/modules/jquery.fancytree.table.js"></script>
-  <script src="https://unpkg.com/jquery.fancytree@2.33.0/dist/modules/jquery.fancytree.filter.js"></script>
+{# Some JSON code to define JS variables from Django context #}
+{{ category_filter_choices | json_script:"category-filter-choices" }}
+{{ sharing_status_filter_choices | json_script:"sharing-status-filter-choices" }}
+{{ select_tab_state | json_script:"initial-select-tab-state" }}
+{{ base_urls | json_script:"base-urls" }}
 
-  {# Some JSON code to define JS variables from Django context #}
-  {{ category_filter_choices | json_script:"category-filter-choices" }}
-  {{ sharing_status_filter_choices | json_script:"sharing-status-filter-choices" }}
-  {{ select_tab_state | json_script:"initial-select-tab-state" }}
-  {{ base_urls | json_script:"base-urls" }}
-
-  <script>
-    function item_button_link_attributes(urls, urlname) {
-      let attr = "";
-      if (urls.hasOwnProperty(urlname)) {
-        attr = `href="${urls[urlname]}"`;
-      } else {
-        attr = "href='#' disabled";
-      }
-      return attr;
+<script>
+  function item_button_link_attributes(urls, urlname) {
+    let attr = "";
+    if (urls.hasOwnProperty(urlname)) {
+      attr = `href="${urls[urlname]}"`;
+    } else {
+      attr = "href='#' disabled";
     }
+    return attr;
+  }
 
-    function item_buttons(urls) {
-      // urls: object with url names as keys and urls as values
-      //
-      // Use this function to compile buttons for surfaces and topographies in the result table
-      // Returns buttons as HTML.
-      let result = "";
-      if (urls.hasOwnProperty('detail')) {
-        result += `
+  function item_buttons(urls) {
+    // urls: object with url names as keys and urls as values
+    //
+    // Use this function to compile buttons for surfaces and topographies in the result table
+    // Returns buttons as HTML.
+    let result = "";
+    if (urls.hasOwnProperty('detail')) {
+      result += `
                 <a href="${urls['detail']}" class="btn btn-default" type="button">
                     View
                 </a>
               `
-      }
-      if (urls.hasOwnProperty('analyze')) {
-        result += `
+    }
+    if (urls.hasOwnProperty('analyze')) {
+      result += `
                 <a href="${urls['analyze']}" class="btn btn-default" type="button">
                     Analyze
                 </a>
               `
-      }
-      if (urls.hasOwnProperty('download')) {
-        result += `
+    }
+    if (urls.hasOwnProperty('download')) {
+      result += `
                 <a href="${urls['download']}" class="btn btn-default" type="button">
                     Download
                 </a>
               `
-      }
-      return result;
     }
+    return result;
+  }
 
-    // Pass some data from Django context to Javascript
-    const category_filter_choices = JSON.parse(document.getElementById('category-filter-choices').textContent);
-    const sharing_status_filter_choices = JSON.parse(document.getElementById('sharing-status-filter-choices').textContent);
-    const base_urls = JSON.parse(document.getElementById('base-urls').textContent);
-    const initial_select_tab_state = JSON.parse(document.getElementById('initial-select-tab-state').textContent);
+  // Pass some data from Django context to Javascript
+  const category_filter_choices = JSON.parse(document.getElementById('category-filter-choices').textContent);
+  const sharing_status_filter_choices = JSON.parse(document.getElementById('sharing-status-filter-choices').textContent);
+  const base_urls = JSON.parse(document.getElementById('base-urls').textContent);
+  const initial_select_tab_state = JSON.parse(document.getElementById('initial-select-tab-state').textContent);
 
-    $(document).ready(function () {
-      // Make sure, that a selected item, which is deselected in the basket
-      // is also deselected everywhere in the search result tree
-      basket.unselect_handler = function unselect_nodes(key) {
-        search_results_vm.set_selected_by_key(key, false);
-      };
-
-      // If a search term was given, put it into the search field, so it can be modified
-      if (initial_select_tab_state['search_term'].length > 0) {
-        $('#global-search-input').val(initial_select_tab_state['search_term']);
-      }
-    });
-
-    // we don't want error messages if the page is left before everything is loaded
-    install_handler_for_aborting_all_ajax_calls_on_page_leave();
-  </script>
-
-  <script src="{% static 'js/trees.js' %}"></script>
+  topobank.base.createSearchResultsApp(
+    '#search-results', '{{ csrf_token }}', {
+      baseUrls: base_urls,
+      category: initial_select_tab_state.category,
+      categoryFilterChoices: category_filter_choices,
+      currentPage: initial_select_tab_state.current_page,
+      isAnonymous: {{ request.user.is_anonymous|yesno:'true,false' }},
+      initialSelection: {{ basket_items_json | safe }},
+      pageSize: initial_select_tab_state.page_size,
+      searchTerm: initial_select_tab_state.search_term,
+      sharingStatus: initial_select_tab_state.sharing_status,
+      sharingStatusFilterChoices: sharing_status_filter_choices,
+      surfaceCreateUrl: "{% url 'manager:surface-create' %}",
+      treeMode: initial_select_tab_state.tree_mode
+    }
+  );
+</script>
 
 {% endblock javascript %}

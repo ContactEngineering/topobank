@@ -1,17 +1,16 @@
 import pytest
-import pickle
 import math
 import datetime
 from django.contrib.contenttypes.models import ContentType
 
-from topobank.analysis.models import Analysis, AnalysisFunction
-from topobank.analysis.utils import mangle_sheet_name, request_analysis, round_to_significant_digits
-from topobank.analysis.tests.utils import TopographyAnalysisFactory, AnalysisFunctionFactory
-from topobank.manager.tests.utils import UserFactory
-from topobank.manager.models import Topography
-from topobank.manager.tests.utils import two_topos  # or fixture
+from ...manager.models import Topography, Surface
+from ...manager.utils import subjects_to_dict
+from ...manager.tests.utils import UserFactory, two_topos, user_three_topographies_three_surfaces_three_tags
 
-from ..utils import get_latest_analyses
+from ...analysis.controller import AnalysisController, request_analysis
+from ...analysis.models import Analysis
+from ...analysis.utils import mangle_sheet_name, round_to_significant_digits, find_children
+from ...analysis.tests.utils import TopographyAnalysisFactory
 
 
 @pytest.mark.django_db
@@ -49,7 +48,7 @@ def test_latest_analyses(two_topos, test_analysis_function):
         subject=topo1,
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
-        kwargs=pickle.dumps({}),
+        kwargs={},
         start_time=datetime.datetime(2018, 1, 1, 12),
         end_time=datetime.datetime(2018, 1, 1, 13, 1, 1),
     )
@@ -61,7 +60,7 @@ def test_latest_analyses(two_topos, test_analysis_function):
         subject=topo1,
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
-        kwargs=pickle.dumps({}),
+        kwargs={},
         start_time=datetime.datetime(2018, 1, 2, 12),
         end_time=datetime.datetime(2018, 1, 2, 13, 1, 1),
     )
@@ -75,7 +74,7 @@ def test_latest_analyses(two_topos, test_analysis_function):
         subject=topo2,
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
-        kwargs=pickle.dumps({}),
+        kwargs={},
         start_time=datetime.datetime(2018, 1, 3, 12),
         end_time=datetime.datetime(2018, 1, 3, 13, 1, 1),
     )
@@ -87,7 +86,7 @@ def test_latest_analyses(two_topos, test_analysis_function):
         subject=topo2,
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
-        kwargs=pickle.dumps({}),
+        kwargs={},
         start_time=datetime.datetime(2018, 1, 5, 12),
         end_time=datetime.datetime(2018, 1, 5, 13, 1, 1),
     )
@@ -99,7 +98,7 @@ def test_latest_analyses(two_topos, test_analysis_function):
         subject=topo2,
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
-        kwargs=pickle.dumps({}),
+        kwargs={},
         start_time=datetime.datetime(2018, 1, 4, 12),
         end_time=datetime.datetime(2018, 1, 4, 13, 1, 1),
     )
@@ -107,14 +106,14 @@ def test_latest_analyses(two_topos, test_analysis_function):
     analysis.users.add(user)
 
     tt = ContentType.objects.get_for_model(Topography)
-    analyses = get_latest_analyses(user, test_analysis_function, [topo1, topo2])
+    analyses = AnalysisController(user, subjects=subjects_to_dict([topo1, topo2]), function=test_analysis_function)
 
     assert len(analyses) == 2  # one analysis per function and topography
 
     # both topographies should be in there
 
-    at1 = analyses.get(subject_type=tt, subject_id=topo1.id)
-    at2 = analyses.get(subject_type=tt, subject_id=topo2.id)
+    at1, = analyses.get(subject_type=tt, subject_id=topo1.id)
+    at2, = analyses.get(subject_type=tt, subject_id=topo2.id)
 
     from django.conf import settings
 
@@ -129,7 +128,7 @@ def test_latest_analyses(two_topos, test_analysis_function):
 @pytest.mark.django_db
 def test_latest_analyses_if_no_analyses(test_analysis_function):
     user = UserFactory()
-    assert get_latest_analyses(user, test_analysis_function, []).count() == 0
+    assert len(AnalysisController(user, function=test_analysis_function)) == 0
 
 
 def test_mangle_sheet_name():
@@ -158,3 +157,10 @@ def test_round_to_significant_digits(x, num_sig_digits, rounded):
         assert math.isnan(round_to_significant_digits(x, num_sig_digits))
     else:
         assert math.isclose(round_to_significant_digits(x, num_sig_digits), rounded, abs_tol=1e-20)
+
+
+def test_find_children(user_three_topographies_three_surfaces_three_tags):
+    topo1, topo2, topo3 = Topography.objects.all()
+    surf1, surf2, surf3 = Surface.objects.all()
+
+    assert set(find_children([surf1, surf2, topo3])) == set([surf1, surf2, topo1, topo2, topo3])

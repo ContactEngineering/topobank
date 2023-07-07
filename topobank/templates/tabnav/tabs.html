@@ -1,4 +1,4 @@
-{% load icon_tags %}
+{% load icon_tags static %}
 
 <ul role="tablist" class="nav nav-tabs lined-tabs flex-column flex-sm-row bg-light w-100 shadow">
   {% for tab in tabs %}
@@ -20,31 +20,3 @@
     </li>
   {% endif %}
 </ul>
-{% if active_tab.show_basket %}
-    {# display selected items in session #}
-    <div id="basket-container" class="container-fluid bg-light shadow border-bottom py-2">
-      <div id="basket">
-        <div v-if="keys.length">
-          <basket-element v-for="key in keys" v-bind:elem="get_element(key)" v-bind:key="key"></basket-element>
-          <a class="btn btn-sm btn-outline-success" href="{% url 'analysis:list' %}">
-            {% fa5_icon 'chart-area' %} Analyze
-          </a>
-          <div class="btn-group btn-group-sm float-right" role="group" aria-label="Actions on current selection">
-            <button class="btn btn-sm btn-outline-secondary" v-on:click="unselect_all" id="unselect-all">
-              {% fa5_icon 'times' %} Clear selection
-            </button>
-            <a class="btn btn-sm btn-outline-secondary"
-               href="{% url 'manager:download-selection' %}"
-               type="button"
-               id="download-selection">
-              {% fa5_icon 'download' %} Download selected datasets
-            </a>
-          </div>
-        </div>
-        <div class="m-1" v-else>No items selected yet. In order to select for <em>comparative studies</em>,
-          please check individual items on the
-          <a class="text-dark" href="{% url 'manager:select' %}">{% fa5_icon 'check-square' 'far' %} Find & select</a> tab.
-        </div>
-      </div>
-    </div>
-{% endif %}

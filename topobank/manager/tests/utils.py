@@ -5,16 +5,15 @@ from operator import itemgetter
 import pytest
 from django.core.management import call_command
 from django.shortcuts import reverse
-from django.conf import settings
 
 import os.path
 import logging
 import datetime
 import factory
 
+from ...users.tests.factories import UserFactory
 from ..models import Topography, Surface, SurfaceCollection, TagModel
 from ..views import SurfaceListView
-from topobank.users.tests.factories import UserFactory
 
 
 FIXTURE_DIR = os.path.join(
@@ -70,7 +69,7 @@ class Topography1DFactory(factory.django.DjangoModelFactory):
     surface = factory.SubFactory(SurfaceFactory)
     # creator is set automatically to surface's creator if not set, see signals
     name = factory.Sequence(lambda n: "topography-{:05d}".format(n))
-    datafile = factory.django.FileField(from_path=str(settings.ROOT_DIR.path(FIXTURE_DIR + "/line_scan_1.asc")))
+    datafile = factory.django.FileField(from_path=FIXTURE_DIR + "/line_scan_1.asc")
     data_source = 0
     measurement_date = factory.Sequence(lambda n: datetime.date(2019, 1, 1) + datetime.timedelta(days=n))
     size_x = 512
@@ -89,7 +88,7 @@ class Topography2DFactory(Topography1DFactory):
     Generates a 2D Topography.
     """
     size_y = 512
-    datafile = factory.django.FileField(from_path=str(settings.ROOT_DIR.path(FIXTURE_DIR + "/10x10.txt")))
+    datafile = factory.django.FileField(from_path=FIXTURE_DIR + "/10x10.txt")
 
     # noinspection PyMissingOrEmptyDocstring
     class Meta:
@@ -186,7 +185,7 @@ def export_reponse_as_html(response, fname='/tmp/response.html'):  # pragma: no 
     f.close()
 
 
-def ordereddicts_to_dicts(input_ordered_dict, sorted_by='pk'):
+def ordereddicts_to_dicts(input_ordered_dict, sorted_by='id'):
     """Convert an ordered dict to a list of dicts, also sorted."""
     result = json.loads(json.dumps(input_ordered_dict))
     if sorted_by is not None:
@@ -250,3 +249,20 @@ def user_three_topographies_three_surfaces_three_tags():
     surface3 = SurfaceFactory(creator=user, tags=[tag3])  # empty
 
     return user, (topo1a, topo1b, topo2a), (surface1, surface2, surface3), (tag1, tag2, tag3)
+
+
+@pytest.fixture
+def two_users():
+    user1 = UserFactory(username='testuser1', password='abcd$1234')
+    user2 = UserFactory(username='testuser2', password='abcd$1234')
+
+    surface1 = SurfaceFactory(creator=user1)
+    topo1 = Topography1DFactory(surface=surface1)
+
+    surface2 = SurfaceFactory(creator=user2)
+    topo2 = Topography1DFactory(surface=surface2)
+
+    surface3 = SurfaceFactory(creator=user2)
+    topo3 = Topography1DFactory(surface=surface3)
+
+    return user1, user2

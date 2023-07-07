@@ -3,12 +3,11 @@ import re
 from django.forms import forms, ModelMultipleChoiceField
 from django import forms
 from django_select2.forms import ModelSelect2MultipleWidget
-from django.contrib.postgres.forms import JSONField as JSONField4Form
 from django.conf import settings
 import bleach  # using bleach instead of django.utils.html.escape because it allows more (e.g. for markdown)
 
 from crispy_forms.helper import FormHelper
-from crispy_forms.layout import Submit, Layout, Field, HTML, Div, Fieldset, MultiField, ButtonHolder
+from crispy_forms.layout import Submit, Layout, Field, HTML, Div, Fieldset
 from crispy_forms.bootstrap import FormActions
 
 from tagulous.forms import TagField
@@ -20,11 +19,11 @@ except ModuleNotFoundError:
 
 import logging
 
-from SurfaceTopography.Exceptions import CannotDetectFileFormat, CorruptFile, UnknownFileFormatGiven, ReadFileError
+from SurfaceTopography.Exceptions import CannotDetectFileFormat, CorruptFile, ReadFileError, UnknownFileFormat, \
+    UnsupportedFormatFeature
 
 from topobank.manager.utils import get_topography_reader
 from .models import Topography, Surface, MAX_LENGTH_DATAFILE_FORMAT
-from ..publication.models import MAX_LEN_AUTHORS_FIELD
 
 from topobank.users.models import User
 
@@ -113,7 +112,7 @@ class TopographyFileUploadForm(forms.ModelForm):
         try:
             toporeader = get_topography_reader(datafile)
             datafile_format = toporeader.format()
-        except UnknownFileFormatGiven as exc:
+        except UnknownFileFormat as exc:
             msg = f"The format of the given file '{datafile.name}' is unkown. "
             msg += "Please try another file or contact us."
             raise forms.ValidationError(msg, code='invalid_topography_file')
@@ -124,6 +123,10 @@ class TopographyFileUploadForm(forms.ModelForm):
         except CorruptFile as exc:
             msg = f"File '{datafile.name}' has a known format, but is seems corrupted. "
             msg += "Please check the file or contact us."
+            raise forms.ValidationError(msg, code='invalid_topography_file')
+        except UnsupportedFormatFeature as exc:
+            msg = f"File '{datafile.name}' has a known format, but it has features that are unsupported by our reader. "
+            msg += "Please contact us about this file."
             raise forms.ValidationError(msg, code='invalid_topography_file')
         except ReadFileError as exc:
             msg = f"Error while reading file contents of file '{datafile.name}'. "
