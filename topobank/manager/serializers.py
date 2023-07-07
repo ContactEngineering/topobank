@@ -1,9 +1,8 @@
-from django.shortcuts import reverse
-
-from rest_framework import serializers
-from guardian.shortcuts import get_perms
-
 import logging
+
+from django.shortcuts import reverse
+from guardian.shortcuts import get_perms
+from rest_framework import serializers
 
 from .models import Surface, Topography, TagModel
 from .utils import get_search_term, filtered_topographies, subjects_to_base64, mangle_content_type
@@ -111,7 +110,8 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
         model = Surface
         fields = ['id', 'type', 'name', 'creator', 'creator_name', 'description', 'category', 'category_name', 'tags',
                   'children', 'sharing_status', 'urls', 'selected', 'key', 'title', 'folder', 'version',
-                  'publication_date', 'publication_authors', 'publication_license', 'topography_count', 'label']
+                  'publication_doi', 'publication_date', 'publication_authors', 'publication_license',
+                  'topography_count', 'label']
 
     title = serializers.CharField(source='name')
     children = serializers.SerializerMethodField()
