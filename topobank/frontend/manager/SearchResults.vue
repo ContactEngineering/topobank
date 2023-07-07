@@ -187,7 +187,10 @@ export default {
                     });
 
                     let description_html = "";
-
+                    //doi badge added here
+                  if (node.data.publication_doi) {
+                        description_html += `<p class="badge badge-warning">DOI</p><p class='badge badge-info mr-1'>${node.data.publication_doi}</p>`;
+                    }
                     // License image
                     if (node.data.publication_license) {
                         description_html += `<img src="/static/images/cc/${node.data.publication_license}.svg" title="Dataset can be reused under the terms of a Creative Commons license." style="float:right">`;

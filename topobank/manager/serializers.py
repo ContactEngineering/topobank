@@ -241,7 +241,8 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
         return obj.publication.license if obj.is_published else None
 
     def get_publication_doi(self, obj):
-        return obj.publication.doi_url if obj.is_published else None
+        #return obj.publication.doi_url if obj.is_published else None
+        return '10.1234/5678'
 
     def get_topography_count(self, obj):
         return obj.topography_set.count()
