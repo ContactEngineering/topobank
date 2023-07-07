@@ -21,7 +21,7 @@ from .models import Analysis
 from ..manager.models import Surface
 from .registry import register_download_function, AnalysisRegistry, UnknownKeyException
 from .functions import VIZ_SERIES
-
+from .utils import filter_and_order_analyses
 
 #######################################################################
 # Download views
@@ -88,6 +88,7 @@ def download_analyses(request, ids, file_format):
     #
     # Dispatch
     #
+    analyses = filter_and_order_analyses(analyses)
     spec = 'results'  # could be used to download different things
     key = (visualization_type, spec, file_format)
     try:
@@ -292,6 +293,10 @@ def download_plot_analyses_to_txt(request, analyses):
         -------
         HTTPResponse
     """
+    # Sort results such that surfaces and corresponding topographies
+    # occur next to each other in the file
+    analyses = filter_and_order_analyses(analyses)
+
     # Collect publication links, if any
     publication_urls = publications_urls(request, analyses)
 
