@@ -2,8 +2,11 @@
 
 ## 1.1.4 (2023-07-24)
 
+- ENH: DOI badge
 - MAINT: Updated SurfaceTopography to 1.8.0
   (to add support for LEXT and DATX files, but fixes for Mitutoyo files)
+- MAINT: Fixed sort order of analysis downloads
+- MAINT: Added django-request-profiler middleware
 
 ## 1.1.3 (2023-06-27)
 
