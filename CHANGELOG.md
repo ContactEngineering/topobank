@@ -1,5 +1,10 @@
 # Changelog for *TopoBank*
 
+## 1.1.4 (2023-07-24)
+
+- MAINT: Updated SurfaceTopography to 1.8.0
+  (to add support for LEXT and DATX files, but fixes for Mitutoyo files)
+
 ## 1.1.3 (2023-06-27)
 
 - MAINT: Updated SurfaceTopography to 1.7.0
