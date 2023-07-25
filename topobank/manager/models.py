@@ -15,7 +15,7 @@ from django.core.files.base import ContentFile
 from django.contrib.contenttypes.fields import GenericRelation
 from django.contrib.contenttypes.models import ContentType
 
-from guardian.shortcuts import assign_perm, remove_perm, get_users_with_perms
+from guardian.shortcuts import assign_perm, remove_perm, get_users_with_perms, get_anonymous_user
 import tagulous.models as tm
 
 import PIL
@@ -30,15 +30,13 @@ import tempfile
 from bokeh.models import DataRange1d, LinearColorMapper, ColorBar
 from bokeh.plotting import figure
 
+from ..analysis.models import Analysis
 from ..plots import configure_plot
-from .utils import get_topography_reader, MAX_LENGTH_SURFACE_COLLECTION_NAME
+from ..publication.models import Publication, DOICreationException
+from ..users.models import User
+from ..users.utils import get_default_group
 
-from topobank.users.models import User
-from topobank.publication.models import Publication, DOICreationException
-from topobank.users.utils import get_default_group
-from topobank.analysis.models import Analysis
-from topobank.analysis.utils import renew_analyses_for_subject
-from topobank.manager.utils import make_dzi, dzi_exists
+from .utils import get_topography_reader, make_dzi, dzi_exists, MAX_LENGTH_SURFACE_COLLECTION_NAME
 
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 
@@ -302,8 +300,8 @@ class Surface(models.Model, SubjectMixin):
         # Request all standard analyses to be available for that user
         #
         _log.info(f"After sharing surface {self.id} with user {with_user.id}, requesting all standard analyses...")
-        from topobank.analysis.models import AnalysisFunction
-        from topobank.analysis.utils import request_analysis
+        from ..analysis.models import AnalysisFunction
+        from ..analysis.controller import request_analysis
         analysis_funcs = AnalysisFunction.objects.all()
         for topo in self.topography_set.all():
             for af in analysis_funcs:
@@ -372,6 +370,9 @@ class Surface(models.Model, SubjectMixin):
 
         # Add read permission for everyone
         assign_perm('view_surface', get_default_group(), self)
+
+        # Add read permission for anonymous user
+        assign_perm('view_surface', get_anonymous_user(), self)
 
         from guardian.shortcuts import get_perms
         # TODO for unknown reasons, when not in Docker, the published surfaces are still changeable
@@ -503,6 +504,8 @@ class Surface(models.Model, SubjectMixin):
         - with this surfaces as subject
         This is done in that order.
         """
+        from ..analysis.controller import renew_analyses_for_subject
+
         if include_topographies:
             _log.info(f"Regenerating analyses of topographies of surface {self.pk}..")
             for topo in self.topography_set.all():
@@ -562,8 +565,7 @@ class SurfaceCollection(models.Model, SubjectMixin):
 
 
 class Topography(models.Model, SubjectMixin):
-    """Topography Measurement of a Surface.
-    """
+    """Topography measurement of a surface."""
 
     # TODO After upgrade to Django 2.2, use constraints: https://docs.djangoproject.com/en/2.2/ref/models/constraints/
     class Meta:
@@ -920,6 +922,7 @@ class Topography(models.Model, SubjectMixin):
 
     def renew_analyses(self):
         """Submit all analysis for this topography."""
+        from ..analysis.controller import renew_analyses_for_subject
         renew_analyses_for_subject(self)
 
     def to_dict(self):

@@ -26,12 +26,11 @@ def test_grouping_by_function(surface_1_with_topographies_testuser_logged_in, we
     import pickle
     for func in funcs:
         for topo in topos:
-            a  = Analysis.objects.create(function=func, topography=topo,
-                                         kwargs=pickle.dumps({}))
+            a  = Analysis.objects.create(function=func, topography=topo, kwargs={})
             a.task_state = Analysis.SUCCESS
             xx = list(range(10)) # just to fake some values
             yy = list(range(20))
-            a.result = pickle.dumps(dict(
+            a.result = dict(
                         name=func.name,
                         scalars=dict(
                             mean_slope=1,
@@ -51,7 +50,7 @@ def test_grouping_by_function(surface_1_with_topographies_testuser_logged_in, we
                                  style='r-',
                                  )
                         ]
-            ))
+            )
             a.save()
 
 

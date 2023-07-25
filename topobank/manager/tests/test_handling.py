@@ -1,5 +1,6 @@
 from django.shortcuts import reverse
 from django.core.files.storage import default_storage
+from django.utils.text import slugify
 from rest_framework.test import APIRequestFactory
 
 from trackstats.models import Metric, Period
@@ -644,7 +645,7 @@ def test_upload_topography_and_name_like_an_existing_for_same_surface(client):
 
 @pytest.mark.django_db
 def test_trying_upload_of_topography_file_with_unknown_format(client, django_user_model, handle_usage_statistics):
-    input_file_path = Path(FIXTURE_DIR + "/../../static/js/project.js")  # this is nonsense
+    input_file_path = Path(FIXTURE_DIR + "/../../static/other/CHANGELOG.md")  # this is nonsense
 
     username = 'testuser'
     password = 'abcd$1234'
@@ -1610,7 +1611,7 @@ def test_download_of_unpublished_surface(client, handle_usage_statistics):
     response = client.get(reverse('manager:surface-download', kwargs=dict(surface_id=surface.id)),
                           follow=True)
     assert response.status_code == 200
-    assert response['Content-Disposition'] == f'attachment; filename="{DEFAULT_CONTAINER_FILENAME}"'
+    assert response['Content-Disposition'] == f'attachment; filename="{slugify(surface.name) + ".zip"}"'
 
 
 

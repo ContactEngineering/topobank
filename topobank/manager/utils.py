@@ -1,3 +1,4 @@
+import base64
 import json
 import logging
 import markdown2
@@ -99,6 +100,25 @@ def recursive_delete(prefix):
             default_storage.delete(f'{prefix}/{directory}')
 
 
+def mangle_content_type(obj, default_app_label='manager'):
+    """Mangle content type into a string that can be used as a Javascript variable name"""
+    if not isinstance(obj, ContentType):
+        obj = ContentType.objects.get_for_model(obj)
+    if obj.app_label == default_app_label:
+        return obj.name
+    else:
+        return f'{obj.app_label}_{obj.name}'
+
+
+def demangle_content_type(s, default_app_label='manager'):
+    """Return content type given its mangled string representation"""
+    s = s.split('_', maxsplit=1)
+    if len(s) == 1:
+        return ContentType.objects.get_by_natural_key(default_app_label, *s)
+    else:
+        return ContentType.objects.get_by_natural_key(*s)
+
+
 def get_reader_infos():
     reader_infos = []
     for reader_class in surface_topography_readers:
@@ -149,7 +169,7 @@ def surfaces_for_user(user, perms=['view_surface']):
     :param perms: list of permission codenames, default is ['view_surface']
     :return: queryset of surfaces
     """
-    from topobank.manager.models import Surface
+    from .models import Surface
     return get_objects_for_user(user, perms, klass=Surface, accept_global_perms=False)
 
 
@@ -541,23 +561,26 @@ def instances_to_basket_items(topographies, surfaces, tags):
 
     """
     basket_items = []
-    for s in surfaces:
-        unselect_url = reverse('manager:surface-unselect', kwargs=dict(pk=s.pk))
-        basket_items.append(dict(label=str(s),
+    for surface in surfaces:
+        unselect_url = reverse('manager:surface-unselect', kwargs=dict(pk=surface.pk))
+        basket_items.append(dict(label=str(surface),
                                  type="surface",
+                                 id=surface.pk,
                                  unselect_url=unselect_url,
-                                 key=f"surface-{s.pk}"))
-    for topo in topographies:
-        unselect_url = reverse('manager:topography-unselect', kwargs=dict(pk=topo.pk))
-        basket_items.append(dict(label=topo.name,
+                                 key=f"surface-{surface.pk}"))
+    for topography in topographies:
+        unselect_url = reverse('manager:topography-unselect', kwargs=dict(pk=topography.pk))
+        basket_items.append(dict(label=topography.name,
                                  type="topography",
+                                 id=topography.pk,
                                  unselect_url=unselect_url,
-                                 key=f"topography-{topo.pk}",
-                                 surface_key=f"surface-{topo.surface.pk}"))
+                                 key=f"topography-{topography.pk}",
+                                 surface_key=f"surface-{topography.surface.pk}"))
     for tag in tags:
         unselect_url = reverse('manager:tag-unselect', kwargs=dict(pk=tag.pk))
         basket_items.append(dict(label=tag.name,
                                  type="tag",
+                                 id=tag.pk,
                                  unselect_url=unselect_url,
                                  key=f"tag-{tag.pk}"))
 
@@ -590,22 +613,26 @@ def current_selection_as_basket_items(request):
     return instances_to_basket_items(topographies, surfaces, tags)
 
 
-def subjects_to_json(subjects):
-    """Return JSON code suitable for passing 'subjects_ids' in AJAX call.
-
-    Parameters
-    ----------
-    subjects: sequence of Topography or Surface
-
-    Returns
-    -------
-    As JSON: dict with
-
-        key: content_type id as str (only strings can be keys in JSON hashes)
-        values: array of integers with object ids for given content type (key)
+def subjects_to_dict(subjects):
+    """
+    Returns a dictionary suitable for passing subjects (topography,
+    surfaces or surface collections) in an AJAX call.
 
     Each content type from the given subjects is represented as key.
     Each subject is represented by an id in the array of integers.
+
+    Parameters
+    ----------
+    subjects : list of Topography or Surface or SurfaceCollection
+        Subjects for serialization
+
+    Returns
+    -------
+    A dictionary with
+        key : str
+            Mangled content type string
+        values : list
+            Integers with object ids for given content type (key)
     """
     tmp = {}  # key: ContentType, value: list of subject ids
     for sub in subjects:
@@ -614,45 +641,45 @@ def subjects_to_json(subjects):
             tmp[ct] = []
         tmp[ct].append(sub.id)
 
-    result = {
-        ct.id: sub_ids for ct, sub_ids in tmp.items()
+    return {
+        mangle_content_type(ct): sub_ids for ct, sub_ids in tmp.items()
     }
-    return json.dumps(result)
 
 
-def subjects_from_json(subjects_ids_json, function=None):
-    """Return subject instances from ids given as json, optionally filtered.
+def subjects_from_dict(subjects_dict, function=None):
+    """
+    Return subject instances from ids given as a dictionary.
+
+    Each content type from the given subjects is represented as key.
+    Each subject is represented by an id in the array of integers.
 
     Parameters
     ----------
-    subjects_ids_json: JSON encoded dict with
+    subjects_dict: dict
+        A dictionary with
+            key : str
+                Mangled content type string
+            values : list
+                Integers with object ids for given content type (key)
 
-        key: content_type id as str (only strings can be keys in JSON hashes)
-        values: array of integers with object ids for given content type (key)
-
-        Each content type from the given subjects is represented as key.
-        Each subject is represented by an id in the array of integers.
-
-    function: AnalysisFunction instance or None
+    function: AnalysisFunction, optional
         If given an analysis function, the subjects returned will
         be filtered so only subjects are included which have
         an implementation for the given function.
 
     Returns
     -------
-    sequence of subject instances (e.g. Topography or Surface)
-
+    List of subject instances (e.g. Topography or Surface)
     """
-    subjects_ids = json.loads(subjects_ids_json)
     subjects = []
-    for subject_type_id_str, subject_object_ids in subjects_ids.items():
-        ct = ContentType.objects.get_for_id(int(subject_type_id_str))  # keys in JSON hashes are always string
+    for subject_app_label_and_model, subject_ids in subjects_dict.items():
+        ct = demangle_content_type(subject_app_label_and_model)
         if function:
             if not function.is_implemented_for_type(ct):
                 # skip these subjects
                 continue
         query = None
-        for so_id in subject_object_ids:
+        for so_id in subject_ids:
             q = Q(id=so_id)
             query = q if query is None else query | q
         if query is None:
@@ -660,6 +687,50 @@ def subjects_from_json(subjects_ids_json, function=None):
             continue
         subjects += [s for s in ct.get_all_objects_for_this_type().filter(query)]
     return subjects
+
+
+def dict_to_base64(d):
+    """URL-safe base64 encoding of a dictionary."""
+    return base64.urlsafe_b64encode(json.dumps(d).encode()).decode()
+
+
+def dict_from_base64(s):
+    """Return dictionary given a base64 encoded variant"""
+    return json.loads(base64.urlsafe_b64decode(s.encode()).decode())
+
+
+def subjects_to_base64(subjects):
+    """
+    Turns and encode URL into a list of subjects.
+
+    Parameters
+    ----------
+    url : str
+        Encoded subjects
+
+    Returns
+    -------
+    List of subject instances (e.g. Topography or Surface)
+    """
+    return dict_to_base64(subjects_to_dict(subjects))
+
+
+def subjects_from_base64(url):
+    """
+    Returns a string suitable for passing subjects (topography,
+    surfaces or surface collections) in an URL.
+
+    Parameters
+    ----------
+    subjects : list of Topography or Surface or SurfaceCollection
+        Subjects for serialization
+
+    Returns
+    -------
+    Encoded dictionary object.
+    """
+    return subjects_from_dict(dict_from_base64(url))
+
 
 def surface_collection_name(surface_names, max_total_length=MAX_LENGTH_SURFACE_COLLECTION_NAME):
     """For a given list of names, return a length-limited collection name."""
@@ -687,7 +758,7 @@ def surface_collection_name(surface_names, max_total_length=MAX_LENGTH_SURFACE_C
     return coll_name
 
 
-def selection_to_subjects_json(request):
+def selection_to_subjects_dict(request):
     """Convert current selection into list of subjects as json.
 
     If 2 or more surfaces are created, also adds a SurfaceCollection
@@ -752,9 +823,9 @@ def selection_to_subjects_json(request):
 
     # we collect effective topographies and surfaces because we have so far implementations
     # for analysis functions for topographies and surfaces
-    subjects_ids_json = subjects_to_json(effective_topographies + effective_surfaces + effective_surface_collections)
+    subjects_ids = subjects_to_dict(effective_topographies + effective_surfaces + effective_surface_collections)
 
-    return effective_topographies, effective_surfaces, subjects_ids_json
+    return effective_topographies, effective_surfaces, subjects_ids
 
 
 def mailto_link_for_reporting_an_error(subject, info, err_msg, traceback) -> str:
@@ -1084,5 +1155,3 @@ def make_dzi(data, path_prefix, physical_sizes=None, unit=None, quality=95, colo
             target_name = f'{path_prefix}/{storage_filename}'
             # Upload to S3
             default_storage_replace(target_name, File(open(filename, mode='rb')))
-
-

@@ -1,7 +1,8 @@
 import pytest
 from django.shortcuts import reverse
 
-from ..serializers import TopographySerializer, SurfaceSerializer
+from ..serializers import SurfaceSerializer
+from ..utils import subjects_to_base64
 from .utils import SurfaceFactory, Topography1DFactory, UserFactory, ordereddicts_to_dicts
 
 
@@ -33,12 +34,16 @@ def test_surface_serializer(rf):
     #
     user_url = request.build_absolute_uri(user.get_absolute_url())
     surface1_prefix = f"/manager/surface/{surface1.pk}/"
-    topo1a_prefix = f"/manager/topography/{topo1a.pk}/"
-    topo1b_prefix = f"/manager/topography/{topo1b.pk}/"
+    surface1_html_prefix = f"/manager/html/surface/{surface1.pk}/"
+    surface1_select_prefix = f"/manager/api/selection/surface/{surface1.pk}/"
+    topo1a_html_prefix = f"/manager/html/topography/{topo1a.pk}/"
+    topo1a_select_prefix = f"/manager/api/selection/topography/{topo1a.pk}/"
+    topo1b_html_prefix = f"/manager/html/topography/{topo1b.pk}/"
+    topo1b_select_prefix = f"/manager/api/selection/topography/{topo1b.pk}/"
 
-    topo1a_analyze = f"/analysis/topography/{topo1a.pk}/"
-    topo1b_analyze = f"/analysis/topography/{topo1b.pk}/"
-    surface1_analyze = f"/analysis/surface/{surface1.pk}/"
+    topo1a_analyze = f"/analysis/html/list/?subjects={subjects_to_base64([topo1a])}"
+    topo1b_analyze = f"/analysis/html/list/?subjects={subjects_to_base64([topo1b])}"
+    surface1_analyze = f"/analysis/html/list/?subjects={subjects_to_base64([surface1])}"
 
     assert result[0] == {
 
@@ -52,7 +57,8 @@ def test_surface_serializer(rf):
              'key': f'topography-{topo1a.pk}',
              'surface_key': f'surface-{surface1.pk}',
              'name': topo1a.name,
-             'pk': topo1a.pk,
+             'label': topo1a.name,
+             'id': topo1a.id,
              'publication_authors': '',
              'publication_date': '',
              'selected': True,
@@ -61,12 +67,12 @@ def test_surface_serializer(rf):
              'title': topo1a.name,
              'type': 'topography',
              'version': '',
-             'urls': {'delete': topo1a_prefix + 'delete/',
-                      'detail': topo1a_prefix,
-                      'select': topo1a_prefix + 'select/',
+             'urls': {'delete': topo1a_html_prefix + 'delete/',
+                      'detail': topo1a_html_prefix,
+                      'select': topo1a_select_prefix + 'select/',
                       'analyze': topo1a_analyze,
-                      'unselect': topo1a_prefix + 'unselect/',
-                      'update': topo1a_prefix + 'update/'}},
+                      'unselect': topo1a_select_prefix + 'unselect/',
+                      'update': topo1a_html_prefix + 'update/'}},
             {'creator': user_url,
              'creator_name': user.name,
              'description': '',
@@ -74,7 +80,8 @@ def test_surface_serializer(rf):
              'key': f'topography-{topo1b.pk}',
              'surface_key': f'surface-{surface1.pk}',
              'name': topo1b.name,
-             'pk': topo1b.pk,
+             'label': topo1b.name,
+             'id': topo1b.id,
              'publication_authors': '',
              'publication_date': '',
              'selected': False,
@@ -83,12 +90,12 @@ def test_surface_serializer(rf):
              'title': topo1b.name,
              'type': 'topography',
              'version': '',
-             'urls': {'delete': topo1b_prefix + 'delete/',
-                      'detail': topo1b_prefix,
-                      'select': topo1b_prefix + 'select/',
+             'urls': {'delete': topo1b_html_prefix + 'delete/',
+                      'detail': topo1b_html_prefix,
+                      'select': topo1b_select_prefix + 'select/',
                       'analyze': topo1b_analyze,
-                      'unselect': topo1b_prefix + 'unselect/',
-                      'update': topo1b_prefix + 'update/'}},
+                      'unselect': topo1b_select_prefix + 'unselect/',
+                      'update': topo1b_html_prefix + 'update/'}},
 
         ],
         'creator': user_url,
@@ -97,7 +104,8 @@ def test_surface_serializer(rf):
         'folder': True,
         'key': f'surface-{surface1.pk}',
         'name': surface1.name,
-        'pk': surface1.pk,
+        'label': surface1.name,
+        'id': surface1.id,
         'publication_authors': '',
         'publication_date': '',
         'publication_license': '',
@@ -108,15 +116,15 @@ def test_surface_serializer(rf):
         'topography_count': 2,
         'type': 'surface',
         'version': '',
-        'urls': {'add_topography': surface1_prefix + 'new-topography/',
-                 'delete': surface1_prefix + 'delete/',
-                 'detail': surface1_prefix,
+        'urls': {'add_topography': surface1_html_prefix + 'new-topography/',
+                 'delete': surface1_html_prefix + 'delete/',
+                 'detail': surface1_html_prefix,
                  'download': surface1_prefix + 'download/',
-                 'select': surface1_prefix + 'select/',
-                 'share': surface1_prefix + 'share/',
-                 'publish': surface1_prefix + 'publish/',
+                 'select': surface1_select_prefix + 'select/',
+                 'share': surface1_html_prefix + 'share/',
+                 'publish': surface1_html_prefix + 'publish/',
                  'analyze': surface1_analyze,
-                 'unselect': surface1_prefix + 'unselect/',
-                 'update': surface1_prefix + 'update/'}
+                 'unselect': surface1_select_prefix + 'unselect/',
+                 'update': surface1_html_prefix + 'update/'}
 
     }

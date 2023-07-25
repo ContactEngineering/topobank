@@ -1,11 +1,12 @@
+import logging
+
+from django.core.cache import cache
+from django.contrib.contenttypes.models import ContentType
 from django.db.models.signals import pre_delete, post_delete, pre_save, post_save
 from django.dispatch import receiver
-from django.core.cache import cache
-from guardian.shortcuts import assign_perm
-from notifications.models import Notification
-from django.contrib.contenttypes.models import ContentType
+
 from allauth.account.signals import user_logged_in
-import logging
+from notifications.models import Notification
 
 from .models import Topography, Surface
 from .views import DEFAULT_SELECT_TAB_STATE
@@ -13,7 +14,7 @@ from .utils import recursive_delete
 
 _log = logging.getLogger(__name__)
 
-#
+
 # @receiver(post_save, sender=Surface)
 # def grant_surface_permissions_to_owner(sender, instance, created, **kwargs):
 #
@@ -124,6 +125,7 @@ def remove_notifications_for_surface(sender, instance, using, **kwargs):
 @receiver(post_delete, sender=Topography)
 def remove_notifications_for_topography(sender, instance, using, **kwargs):
     _remove_notifications(instance)
+
 
 @receiver(user_logged_in)
 def set_default_select_tab_state(request, user, **kwargs):

@@ -1,5 +1,40 @@
 # Changelog for *TopoBank*
 
+## 1.1.4 (2023-07-24)
+
+- ENH: DOI badge
+- MAINT: Updated SurfaceTopography to 1.8.0
+  (to add support for LEXT and DATX files, but fixes for Mitutoyo files)
+- MAINT: Fixed sort order of analysis downloads
+- MAINT: Added django-request-profiler middleware
+
+## 1.1.3 (2023-06-27)
+
+- MAINT: Updated SurfaceTopography to 1.7.0
+  (to add support for PLU, FRT and HFM files)
+
+## 1.1.2 (2023-06-17)
+
+- BUG: Fixed missing imports
+
+## 1.1.1 (2023-06-16)
+
+- BUG: More robust handling of complete worker failures
+- MAINT: Removed dependency on unused `celery-progress` package
+
+## 1.1.0 (2023-06-11)
+
+- ENH: Unified single page application for analyses, including rewritten
+  task status (#795, #796)
+- ENH: Webpack based bundling (for the analysis app, #565, #800)
+- ENH: CSV download for analyses 
+- ENH: Upgrade to Vue 3
+- MAINT: Converted pickled binary dictionaries to JSON fields (#573)
+- MAINT: Analysis function now has permalink (#824)
+- MAINT: Analysis downloads now contain instrument information (#983)
+- MAINT: Analysis downloads are now in SI units (#583)
+- MAINT: Additional assorted fixes (#118, #169, #499, #624, #671, #857, #897)
+
 ## 1.0.5 (2023-04-17)
 
 - DEP: Upgrade of SurfaceTopography to 1.6.2

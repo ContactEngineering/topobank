@@ -1,7 +1,9 @@
 """
 Base settings to build other settings files upon.
 """
-import os
+
+import os.path
+import logging
 import random
 import string
 
@@ -14,6 +16,8 @@ from django.core.exceptions import ImproperlyConfigured
 from watchman import constants as watchman_constants
 
 import topobank
+
+_log = logging.getLogger(__name__)
 
 def random_string(l=16):
     return ''.join(random.choice(string.ascii_lowercase) for i in range(l))
@@ -82,7 +86,6 @@ THIRD_PARTY_APPS = [
     'rest_framework',
     'fontawesomefree',
     'formtools',
-    'bokeh',
     'termsandconditions',
     'storages',
     'guardian',
@@ -90,13 +93,13 @@ THIRD_PARTY_APPS = [
     'django_select2',
     'django_tables2',
     'progressbarupload',
-    'celery_progress',
     'notifications',
     'django_filters',
     'tagulous',
     'trackstats',
     'fullurl',
     'watchman',
+    'request_profiler',
 ]
 LOCAL_APPS = [
     # Your stuff: custom apps go here
@@ -116,6 +119,7 @@ for entry_point in iter_entry_points(group='topobank.plugins', name=None):
     if entry_point.module_name in TOPOBANK_PLUGINS_EXCLUDE:
         continue
     PLUGIN_APPS.append(entry_point.module_name)
+_log.info('Topobank detected the following plugins:', PLUGIN_APPS)
 
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
 # Remove duplicate entries
@@ -180,6 +184,8 @@ AUTH_PASSWORD_VALIDATORS = [
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#middleware
 MIDDLEWARE = [
+    # Request profiler needs to be first
+    'request_profiler.middleware.ProfilingMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -192,8 +198,14 @@ MIDDLEWARE = [
     'topobank.middleware.anonymous_user_middleware',  # we need guardian's kind of anonymous user for API calls
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'topobank.usage_stats.middleware.count_request_middleware',
 ]
+
+#
+# Usage statistics
+#
+ENABLE_USAGE_STATS = env('TOPOBANK_ENABLE_USAGE_STATS', default=False)
+if ENABLE_USAGE_STATS:
+    MIDDLEWARE += ['topobank.usage_stats.middleware.count_request_middleware']
 
 # TEMPLATES
 # ------------------------------------------------------------------------------
@@ -255,7 +267,6 @@ EMAIL_BACKEND = env('DJANGO_EMAIL_BACKEND', default='django.core.mail.backends.s
 ADMIN_URL = 'admin/'
 # https://docs.djangoproject.com/en/dev/ref/settings/#admins
 ADMINS = [
-    ("""Michael Röttger""", 'roettger@tf.uni-freiburg.de'),
     ("""Lars Pastewka""", 'lars.pastewka@imtek.uni-freiburg.de')
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#managers
@@ -345,12 +356,13 @@ ACCOUNT_LOGOUT_ON_GET = True  # True: disable intermediate page
 # This seems to fit well: https://www.django-rest-framework.org/tutorial/4-authentication-and-permissions/
 #
 REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+    ],
     'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAuthenticated',
-    ),
-    # 'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
-    #'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    #'PAGE_SIZE': 2,
+        # Anonymous user is not authenticated by needs read-only access
+        'rest_framework.permissions.IsAuthenticatedOrReadOnly',
+    )
 }
 
 #
@@ -408,9 +420,14 @@ STATIC_ROOT = env.str('DJANGO_STATIC_ROOT', default=(environ.Path(__file__) - 3)
 # https://docs.djangoproject.com/en/dev/ref/settings/#static-url
 STATIC_URL = '/static/'
 # https://docs.djangoproject.com/en/dev/ref/contrib/staticfiles/#std:setting-STATICFILES_DIRS
-STATICFILES_DIRS = [
-    str(APPS_DIR.path('static')),
-]
+STATICFILES_DIRS = []
+for d in ['/static', APPS_DIR.path('static'), APPS_DIR.path('../../static')]:
+    d = str(d)
+    if os.path.exists(d):
+        _log.info(f"Adding path '{d}' to static files.")
+        STATICFILES_DIRS += [d]
+    else:
+        _log.info(f"Skipping path '{d}' for static files since it does not exist.")
 # https://docs.djangoproject.com/en/dev/ref/contrib/staticfiles/#staticfiles-finders
 STATICFILES_FINDERS = [
     'django.contrib.staticfiles.finders.FileSystemFinder',
@@ -615,3 +632,14 @@ WATCHMAN_CHECKS = watchman_constants.DEFAULT_CHECKS + ('topobank.taskapp.utils.c
 #
 TABNAV_DISPLAY_HOME_TAB = True
 TABNAV_DISPLAY_SHARING_TAB = True
+
+
+#
+# Request profiler
+#
+
+# Default configuration is to ingore staff user, we override this here to log all requests
+REQUEST_PROFILER_GLOBAL_EXCLUDE_FUNC = lambda x: True
+
+# Keep records for two weeks
+REQUEST_PROFILER_LOG_TRUNCATION_DAYS = 14

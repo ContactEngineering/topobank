@@ -6,7 +6,7 @@ from django.shortcuts import reverse
 
 from topobank.analysis.downloads import download_plot_analyses_to_txt
 from topobank.analysis.tests.utils import TopographyAnalysisFactory, AnalysisFunction
-from topobank.analysis.functions import ART_SERIES
+from topobank.analysis.functions import VIZ_SERIES
 from topobank.utils import assert_in_content
 
 import pytest
@@ -18,7 +18,6 @@ def test_download_plot_analyses_to_txt(rf):
     analysis = TopographyAnalysisFactory(function=func)
     request = rf.get(reverse('analysis:download',
                              kwargs=dict(ids=str(analysis.id),
-                                         art=ART_SERIES,
                                          file_format='txt')))
 
     response = download_plot_analyses_to_txt(request, [analysis])
@@ -30,7 +29,7 @@ def test_download_plot_analyses_to_txt(rf):
 
 @pytest.mark.parametrize("user_has_plugin", [False, True])
 @pytest.mark.django_db
-def test_download_view_permission_for_function_from_plugin(mocker,client, user_has_plugin, handle_usage_statistics):
+def test_download_view_permission_for_function_from_plugin(mocker, client, user_has_plugin, handle_usage_statistics):
     """Simple test, whether analyses which should not be visible lead to an error during download.
     """
     func = AnalysisFunction.objects.get(name="test")
@@ -42,7 +41,6 @@ def test_download_view_permission_for_function_from_plugin(mocker,client, user_h
 
     response = client.get(reverse('analysis:download',
                           kwargs=dict(ids=str(analysis.id),
-                                      art=ART_SERIES,
                                       file_format='txt')))
     if user_has_plugin:
         assert response.status_code == 200

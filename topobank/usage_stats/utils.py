@@ -1,5 +1,6 @@
 from datetime import date
 
+from django.conf import settings
 from django.db import transaction
 from django.db.models import F
 from trackstats.models import StatisticByDate, StatisticByDateAndObject, Period
@@ -135,6 +136,9 @@ def increase_statistics_by_date(metric, period=Period.DAY, increment=1):
     -------
         None
     """
+    if not settings.ENABLE_USAGE_STATS:
+        return
+
     today = date.today()
 
     if StatisticByDate.objects.filter(metric=metric, period=period, date=today).exists():
@@ -179,6 +183,9 @@ def increase_statistics_by_date_and_object(metric, obj, period=Period.DAY, incre
     -------
         None
     """
+    if not settings.ENABLE_USAGE_STATS:
+        return
+
     today = date.today()
 
     from django.contrib.contenttypes.models import ContentType

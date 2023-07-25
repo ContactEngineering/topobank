@@ -7,7 +7,7 @@ from django.contrib import admin
 from django.views.generic import TemplateView, RedirectView
 from django.views import defaults as default_views
 from django.apps import apps
-from django.contrib.auth.decorators import user_passes_test, login_required
+from django.contrib.auth.decorators import user_passes_test
 
 import notifications.urls
 
@@ -80,9 +80,6 @@ urlpatterns = [
 
                   # progress bar during file upload
                   re_path(r'^progressbarupload/', include('progressbarupload.urls')),
-
-                  # progress bar for celery tasks
-                  re_path(r'^celery-progress/', include('celery_progress.urls')),
 
                   # for notifications - see package djano-notifications
                   re_path('^inbox/notifications/', include(notifications.urls, namespace='notifications')),
@@ -157,7 +154,7 @@ def plugin_urls(urllist, app_name):
             def plugin_available_check(user):
                 return app_name in Organization.objects.get_plugins_available(user)
             callback_decorator = user_passes_test(plugin_available_check, login_url='/403/', redirect_field_name=None)
-            entry.callback = callback_decorator(login_required(entry.callback))
+            entry.callback = callback_decorator(entry.callback)
     return urllist
 
 

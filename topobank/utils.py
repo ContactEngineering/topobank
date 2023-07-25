@@ -5,15 +5,13 @@ Some helper functions
 import datetime
 import io
 import json
-import numpy as np
-
-from bokeh.core.json_encoder import BokehJSONEncoder
 
 from django.core.files.storage import default_storage
 from django.utils import formats
 from django.test import SimpleTestCase
 
-from topobank.manager.utils import default_storage_replace
+from .manager.utils import default_storage_replace
+from .supplib.json import ExtendedJSONEncoder
 
 DEFAULT_DEBUG_HTML_FILENAME = '/tmp/response.html'
 JSON_CONSTANTS = {
@@ -139,39 +137,6 @@ class Singleton(type):
         return cls._instances[cls]
 
 
-class NumpyEncoder(json.JSONEncoder):
-    """ Custom encoder for numpy data types """
-    # Code taken from https://github.com/hmallen/numpyencoder and modified
-    # for returning "NaN" for NaN
-
-    def default(self, obj):
-        if isinstance(obj, (np.int_, np.intc, np.intp, np.int8,
-                            np.int16, np.int32, np.int64, np.uint8,
-                            np.uint16, np.uint32, np.uint64)):
-
-            return int(obj)
-
-        elif isinstance(obj, (float, np.float_, np.float16, np.float32, np.float64)):
-            if np.isnan(obj):
-                return "NaN"  # As string this is JSON compatible, but not as NaN
-            else:
-                return float(obj)
-
-        elif isinstance(obj, (np.complex_, np.complex64, np.complex128)):
-            return {'real': obj.real, 'imag': obj.imag}
-
-        elif isinstance(obj, (np.ndarray,)):
-            return obj.tolist()
-
-        elif isinstance(obj, (np.bool_)):
-            return bool(obj)
-
-        elif isinstance(obj, (np.void)):
-            return None
-
-        return json.JSONEncoder.default(self, obj)
-
-
 class SplitDictionaryHere:
     """Wrapper class for usage with `store_split_dict`.
 
@@ -179,6 +144,7 @@ class SplitDictionaryHere:
     `store_split_dict` stores it in a separate file in storage.
     See there for more information.
     """
+
     def __init__(self, name, dict, supplementary={}):
         """
 
@@ -245,9 +211,7 @@ def store_split_dict(storage_prefix, name, src_dict):
 
     # We're using our own JSON encoder here, because it represents NaN values as "NaN" (with quotes),
     # which is JSON compatible (only works with Numpy arrays)
-    # encoder_cls = NumpyEncoder
-    encoder_cls = BokehJSONEncoder
-    # TODO replace this encoder with NumyEncoder again when updating from bokeh3.0.0-dev4 to 3.1
+    encoder_cls = ExtendedJSONEncoder
 
     def _split_dict(d):
         if isinstance(d, SplitDictionaryHere):
@@ -289,6 +253,7 @@ def load_split_dict(storage_prefix, name):
     Original dict as stored with `store_split_dict`, but without the wrapper classes
     of type `SplitDictionaryHere`.
     """
+
     def _unsplit_dict(d):
         if hasattr(d, 'items'):
             new_d = {}
@@ -311,6 +276,3 @@ def load_split_dict(storage_prefix, name):
 
     d = json.load(default_storage.open(f'{storage_prefix}/{name}.json'))
     return _unsplit_dict(d)
-
-
-
