@@ -99,6 +99,7 @@ THIRD_PARTY_APPS = [
     'trackstats',
     'fullurl',
     'watchman',
+    'request_profiler',
 ]
 LOCAL_APPS = [
     # Your stuff: custom apps go here
@@ -625,3 +626,11 @@ WATCHMAN_CHECKS = watchman_constants.DEFAULT_CHECKS + ('topobank.taskapp.utils.c
 #
 TABNAV_DISPLAY_HOME_TAB = True
 TABNAV_DISPLAY_SHARING_TAB = True
+
+
+#
+# Request profiler
+#
+
+# Default configuration is to ingore staff user, we override this here to log all requests
+REQUEST_PROFILER_GLOBAL_EXCLUDE_FUNC = lambda x: True
