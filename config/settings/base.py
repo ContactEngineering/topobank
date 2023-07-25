@@ -634,3 +634,6 @@ TABNAV_DISPLAY_SHARING_TAB = True
 
 # Default configuration is to ingore staff user, we override this here to log all requests
 REQUEST_PROFILER_GLOBAL_EXCLUDE_FUNC = lambda x: True
+
+# Keep records for two weeks
+REQUEST_PROFILER_LOG_TRUNCATION_DAYS = 14
