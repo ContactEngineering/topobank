@@ -198,8 +198,14 @@ MIDDLEWARE = [
     'topobank.middleware.anonymous_user_middleware',  # we need guardian's kind of anonymous user for API calls
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'topobank.usage_stats.middleware.count_request_middleware',
 ]
+
+#
+# Usage statistics
+#
+ENABLE_USAGE_STATS = env('TOPOBANK_ENABLE_USAGE_STATS', default=False)
+if ENABLE_USAGE_STATS:
+    MIDDLEWARE += ['topobank.usage_stats.middleware.count_request_middleware']
 
 # TEMPLATES
 # ------------------------------------------------------------------------------
