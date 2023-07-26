@@ -143,7 +143,7 @@ export default {
                                 .then(response => response.json())
                                 .then(data => {
                                     _this._selection = data;
-                                    _this.set_selected_by_key(node.key, true);
+                                    _this.setSelectedByKey(node.key, true);
                                 })
                                 .catch(error => {
                                     console.error("Could not select: " + error);
@@ -153,7 +153,7 @@ export default {
                                 .then(response => response.json())
                                 .then(data => {
                                     _this._selection = data;
-                                    _this.set_selected_by_key(node.key, false);
+                                    _this.setSelectedByKey(node.key, false);
                                 })
                                 .catch(error => {
                                     console.error("Could not unselect: " + error);
