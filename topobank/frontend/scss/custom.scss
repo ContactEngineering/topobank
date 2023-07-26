@@ -1044,6 +1044,7 @@ ul.timeline > li > .timeline-panel:after {
 	font-size: 3rem
 }
 }
+
 /*side bar css*/
 .sidepanel-bell-icon {
   background: none;
@@ -1059,10 +1060,6 @@ ul.timeline > li > .timeline-panel:after {
   display: flex;
   width: 100%;
   align-items: stretch;
-}
-
-#sidebar.active {
-  margin-left: -250px;
 }
 
 #sidebar-main {
@@ -1090,12 +1087,6 @@ ul.timeline > li > .timeline-panel:after {
   border: 1px solid #b8daff;
 }
 
-
-#sidebar ul.components {
-  padding: 20px 0;
-  border-bottom: 1px solid white;
-}
-
 #sidebar ul p {
   color: #fff;
   padding: 10px;
@@ -1109,30 +1100,6 @@ ul.timeline > li > .timeline-panel:after {
   text-align: center;
   background-color: #e7e7e7;
 }
-
-#sidebar ul li a:hover {
-  /*color: white;
-  background: #e9ecef;*/
-  border-radius: 6px;
-  border-bottom: 1px solid;
-  border-bottom-color: #ccc;
-  border-bottom-color: rgba(255, 255, 255, 0.2);
-  /*background-color: rgba(255, 255, 255, 0.2);*/
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
-  color: #0056b3;
-}
-
-#sidebar ul li.active > a, a[aria-expanded="true"] {
-  color: #fff;
-  background: none;
-}
-
-ul ul a {
-  font-size: 0.9em !important;
-  padding-left: 30px !important;
-  background: none;
-}
-
 
 #information-content, #user-profile-details-content, #notification-content {
   display: none;
@@ -1156,9 +1123,8 @@ ul ul a {
 
 .sidebar-main-block {
   display: block!important;
- transition: ease-in;
+  transition: ease-in;
   transition-duration: 0.3s;
-
 }
 
 .info-block{
@@ -1172,4 +1138,3 @@ ul ul a {
 .user-block{
   display: block!important;
 }
-
