@@ -414,7 +414,7 @@
 <script src="{% static 'notifications/notify.js' %}" type="text/javascript"></script>
 <script>
 
-  var no_unread_notifications_html = '<span class="text-white">No unread notifications</span>';
+  var no_unread_notifications_html = '<div class="btn btn-secondary form-control" id="mark-all-as-read-btn" >No unread notifications</div>';
 
   function fill_notification_badge_or_hide_if_none(data) {
     var badges = document.getElementsByClassName(notify_badge_class);
