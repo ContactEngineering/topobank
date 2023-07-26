@@ -1138,3 +1138,17 @@ ul.timeline > li > .timeline-panel:after {
 .user-block{
   display: block!important;
 }
+
+.notification-item {
+  display: block;
+  width: 250px;
+  word-break: break-word !important;
+  text-wrap: normal;
+  word-wrap: break-word !important;
+  border-bottom: 1px solid white;
+  padding-left: 20px;
+  padding-right: 20px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  margin-bottom: 5px;
+}
