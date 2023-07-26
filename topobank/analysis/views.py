@@ -631,12 +631,16 @@ class AnalysesResultListView(TemplateView):
         topography = self.request.GET.get('topography')
         surface = self.request.GET.get('surface')
         if subjects is not None:
-            subjects = subjects_from_base64(subjects)
+            try:
+                subjects = subjects_from_base64(subjects)
+            except:
+                subjects = None
 
-            # Update session to reflect selection
-            topographies = [t for t in subjects if isinstance(t, Topography)]
-            surfaces = [t for t in subjects if isinstance(t, Surface)]
-            self.request.session['selection'] = instances_to_selection(topographies=topographies, surfaces=surfaces)
+            if subjects is not None:
+                # Update session to reflect selection
+                topographies = [t for t in subjects if isinstance(t, Topography)]
+                surfaces = [t for t in subjects if isinstance(t, Surface)]
+                self.request.session['selection'] = instances_to_selection(topographies=topographies, surfaces=surfaces)
         elif topography is not None:
             pass
         elif surface is not None:
