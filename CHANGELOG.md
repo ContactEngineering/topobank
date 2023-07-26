@@ -1,8 +1,9 @@
 # Changelog for *TopoBank*
 
-## 1.1.4 (2023-07-24)
+## 1.2.0 (2023-07-26)
 
 - ENH: DOI badge
+- ENH: Sidebar instead of dropdown for notifications and user menu
 - MAINT: Updated SurfaceTopography to 1.8.0
   (to add support for LEXT and DATX files, but fixes for Mitutoyo files)
 - MAINT: Fixed sort order of analysis downloads
