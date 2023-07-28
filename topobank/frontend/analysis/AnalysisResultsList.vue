@@ -37,13 +37,21 @@ export default {
                 this._cards = data.map(function (v) {
                     let visible = _this.$cookies.get(`card-${v.id}`);
                     visible = visible === null ? false : visible === 'true';
-                    return {...v, visible: visible}
+                    return {...v, isCurrentlyVisible: visible, isOrWasVisible: visible}
                 });
             });
     },
     computed: {
         subjectsAsBasketItems() {
-            const subjects = JSON.parse(atob(this.subjects));
+            let subjects = [];
+            try {
+              subjects = JSON.parse(atob(this.subjects));
+            }
+            catch(err) {
+              // Ignore errors that occur while parsing the subjects line
+              //console.log(`Error encountered while parsing subjects string: ${err}.`);
+              console.log(err);
+            }
             let basket = [];
             for (const [key, value] of Object.entries(subjects)) {
                 for (const id of value) {
@@ -60,7 +68,7 @@ export default {
             return basket;
         },
         visibleCards() {
-            return this._cards.filter(v => v.visible);
+            return this._cards.filter(v => v.isCurrentlyVisible);
         }
     },
     methods: {
@@ -69,6 +77,9 @@ export default {
         },
         basketItemsChanged(basket, key) {
             basket.analyze();  // reload page
+        },
+        visibilityChanged(card) {
+          card.isOrWasVisible = true;
         }
     }
 };
@@ -86,7 +97,8 @@ export default {
         <div class="col-12 form-group">
             <div v-for="card in this._cards"
                  class="custom-control custom-checkbox custom-control-inline">
-                <input v-model="card.visible"
+                <input v-model="card.isCurrentlyVisible"
+                       v-on:change="visibilityChanged(card)"
                        type="checkbox"
                        class="custom-control-input"
                        name="functions"
@@ -104,8 +116,10 @@ export default {
         </div>
     </div>
     <div class="row">
-        <div v-for="card in this._cards" :class="{ 'col-lg-6': true, 'mb-4': true, 'd-none': !card.visible }">
-            <component :is="`${card.visualization_type}-card`"
+        <div v-for="card in this._cards"
+             :class="{ 'col-lg-6': true, 'mb-4': true, 'd-none': !card.isCurrentlyVisible }">
+            <component v-if="card.isOrWasVisible"
+                       :is="`${card.visualization_type}-card`"
                        :csrf-token="csrfToken"
                        :enlarged="false"
                        :function-id="card.id"
