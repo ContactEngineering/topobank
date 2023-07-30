@@ -37,9 +37,9 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
     tags = serializers.SerializerMethodField()
     # `type` should be the output of mangle_content_type(Meta.model)
     type = serializers.CharField(default='topography', read_only=True)
-    version = serializers.CharField(default='', read_only=True)
-    publication_authors = serializers.CharField(default='', read_only=True)
-    publication_date = serializers.CharField(default='', read_only=True)
+    version = serializers.CharField(default=None, read_only=True)
+    publication_authors = serializers.CharField(default=None, read_only=True)
+    publication_date = serializers.CharField(default=None, read_only=True)
     creator_name = serializers.SerializerMethodField()
     label = serializers.SerializerMethodField()
 

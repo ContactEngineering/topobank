@@ -1,6 +1,7 @@
 import pytest
 import datetime
 from freezegun import freeze_time
+from django.conf import settings
 from django.shortcuts import reverse
 
 from trackstats.models import Metric, Period
@@ -36,13 +37,17 @@ def test_counts_analyses_views(api_client, test_analysis_function, mocker, handl
 
     today = datetime.date.today()
 
-    record_mock.assert_called_with(metric=metric, object=test_analysis_function,
-                                   period=Period.DAY,
-                                   value=1, date=today)
+    if settings.ENABLE_USAGE_STATS:
+        record_mock.assert_called_with(metric=metric, object=test_analysis_function,
+                                       period=Period.DAY,
+                                       value=1, date=today)
     response = send_card_request()
     assert response.status_code == 200
 
-    assert record_mock.call_count == 2
+    if settings.ENABLE_USAGE_STATS:
+        assert record_mock.call_count == 2
+    else:
+        assert record_mock.call_count == 0
 
     #
     # Fake request from yesterday

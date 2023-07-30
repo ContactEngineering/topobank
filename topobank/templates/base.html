@@ -80,11 +80,11 @@
                 </li>
                 <li id="user-profile-details-content">
                   {% if not request.user.is_anonymous and request.user.username %}
-                    <a class="btn btn-default" role="button"
+                    <a class="btn btn-secondary" role="button"
                        href="{% url 'users:detail' request.user.username %}">User profile</a>
                     {% if request.user.is_staff %}
                       <div class="btn-group-vertical mt-2">
-                        <a class="btn btn-default" role="button" href="{% url 'admin:index' %}">Admin
+                        <a class="btn btn-secondary" role="button" href="{% url 'admin:index' %}">Admin
                           interface</a>
                         <a class="btn btn-default" role="button" href="{% url 'watchman:dashboard' %}">Watchman
                           dashboard</a>

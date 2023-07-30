@@ -1,4 +1,5 @@
 from django.shortcuts import reverse
+from django.conf import settings
 from django.core.files.storage import default_storage
 from django.utils.text import slugify
 from rest_framework.test import APIRequestFactory
@@ -81,10 +82,11 @@ def test_download_selection(client, mocker, handle_usage_statistics):
     # each downloaded surface is counted once
     metric = Metric.objects.SURFACE_DOWNLOAD_COUNT
     today = datetime.date.today()
-    record_mock.assert_any_call(metric=metric, object=surface1, period=Period.DAY,
-                                value=1, date=today)
-    record_mock.assert_any_call(metric=metric, object=surface2, period=Period.DAY,
-                                value=1, date=today)
+    if settings.ENABLE_USAGE_STATS:
+        record_mock.assert_any_call(metric=metric, object=surface1, period=Period.DAY,
+                                    value=1, date=today)
+        record_mock.assert_any_call(metric=metric, object=surface2, period=Period.DAY,
+                                    value=1, date=today)
 
 
 #######################################################################

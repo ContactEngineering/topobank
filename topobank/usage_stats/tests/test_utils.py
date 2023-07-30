@@ -1,6 +1,8 @@
 import pytest
 import datetime
 
+from django.conf import settings
+
 from freezegun import freeze_time
 
 from topobank.manager.tests.utils import Topography1DFactory, SurfaceFactory, UserFactory
@@ -9,9 +11,9 @@ from topobank.analysis.tests.utils import AnalysisFunctionFactory, TopographyAna
 from ..utils import increase_statistics_by_date, increase_statistics_by_date_and_object, current_statistics
 
 
+@pytest.mark.skipif(not settings.ENABLE_USAGE_STATS, reason='Usage statistics not enabled')
 @pytest.mark.django_db
 def test_increase_statistics_by_date(handle_usage_statistics):
-
     from trackstats.models import Metric, Domain, StatisticByDate
 
     Domain.objects.TESTDOMAIN = Domain.objects.register(ref='test', name='A test domain')
@@ -46,9 +48,9 @@ def test_increase_statistics_by_date(handle_usage_statistics):
         assert s.date == yesterday
 
 
+@pytest.mark.skipif(not settings.ENABLE_USAGE_STATS, reason='Usage statistics not enabled')
 @pytest.mark.django_db
 def test_increase_statistics_by_date_and_object(handle_usage_statistics):
-
     from trackstats.models import Metric, Domain, StatisticByDateAndObject
 
     Domain.objects.TESTDOMAIN = Domain.objects.register(ref='test', name='A test domain')
@@ -121,7 +123,6 @@ def stats_instances(db, test_analysis_function):
 @pytest.mark.parametrize('with_publication', [False, True])
 @pytest.mark.django_db
 def test_current_statistics(stats_instances, with_publication):
-
     user_1, user_2, surf_1A = stats_instances
 
     if with_publication:
