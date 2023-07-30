@@ -120,3 +120,8 @@ DATABASES = {
 #   backend. SVG has problems with zooming plots.
 # - 'webgl': Accelerates some plots using WebGL
 BOKEH_OUTPUT_BACKEND = 'canvas'
+
+# Enable usage stats in tests
+if not ENABLE_USAGE_STATS:
+    ENABLE_USAGE_STATS = True
+    MIDDLEWARE += ['topobank.usage_stats.middleware.count_request_middleware']
