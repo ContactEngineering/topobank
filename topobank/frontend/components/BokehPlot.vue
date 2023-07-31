@@ -508,14 +508,14 @@ export default {
                     const line = bokehPlot.lines[dataSourceIdx];
                     line.visible = visible;
                     line.glyph.line_width = Number(this.lineWidth) * dataSource.width;
-                    if (dataSource.is_topography_analysis) {
+                    if (dataSource.isTopographyAnalysis) {
                         line.glyph.line_alpha = Number(this.opacity);
                     }
 
                     const symbol = bokehPlot.symbols[dataSourceIdx];
                     symbol.visible = visible && (dataSource.showSymbols === undefined || dataSource.showSymbols);
                     symbol.glyph.size = Number(this.symbolSize);
-                    if (dataSource.is_topography_analysis) {
+                    if (dataSource.isTopographyAnalysis) {
                         symbol.glyph.line_alpha = Number(this.opacity);
                         symbol.glyph.fill_alpha = Number(this.opacity);
                     }
