@@ -91,25 +91,24 @@
                         <a class="btn btn-default" role="button" href="{% url 'watchman:status' %}">Watchman
                           status (JSON)</a>
                       </div>
-                      <div class="btn-group-vertical mt-2">
-                        <a class="btn btn-default" role="button" data-toggle="modal"
-                           data-target="#version-modal">Version information</a>
-                        <a class="btn btn-default" role="button"
-                           href="{% url 'plugins:plugins-list' %}">Plugins</a>
-                      </div>
-                      <a class="btn btn-default mt-2" role="button" href="{% url 'terms' %}">Terms &amp; conditions</a>
-                      <div class="btn-group-vertical mt-2">
-                        <a class="btn btn-default" role="button" href="{% url 'help' %}">Help</a>
-                        <a class="btn btn-default" role="button" target="_blank"
-                           href="https://github.com/ContactEngineering/TopoBank/discussions">Feedback</a>
-                        <a class="btn btn-default" role="button" data-toggle="modal"
-                           data-target="#contact-modal">Contact</a>
-                      </div>
-                      <a class="btn btn-default mt-2" role="button" target="_blank"
-                         href="https://doi.org/10.1088/2051-672X/ac860a">Read our
-                        paper!</a>
-
                     {% endif %}
+                    <div class="btn-group-vertical mt-2">
+                      <a class="btn btn-default" role="button" data-toggle="modal"
+                         data-target="#version-modal">Version information</a>
+                      <a class="btn btn-default" role="button"
+                         href="{% url 'plugins:plugins-list' %}">Plugins</a>
+                    </div>
+                    <a class="btn btn-default mt-2" role="button" href="{% url 'terms' %}">Terms &amp; conditions</a>
+                    <div class="btn-group-vertical mt-2">
+                      <a class="btn btn-default" role="button" href="{% url 'help' %}">Help</a>
+                      <a class="btn btn-default" role="button" target="_blank"
+                         href="https://github.com/ContactEngineering/TopoBank/discussions">Feedback</a>
+                      <a class="btn btn-default" role="button" data-toggle="modal"
+                         data-target="#contact-modal">Contact</a>
+                    </div>
+                    <a class="btn btn-default mt-2" role="button" target="_blank"
+                       href="https://doi.org/10.1088/2051-672X/ac860a">Read our
+                      paper!</a>
                     <a class="btn btn-default mt-2" role="button" data-toggle="modal" data-target="#logout-modal">Sign
                       Out</a>
                   {% else %}
