@@ -368,7 +368,7 @@ export default {
                     let attrs = {
                         visible: dataSource.visible,
                         color: dataSource.color,
-                        alpha: dataSource.alpha
+                        alpha: dataSource.isTopographyAnalysis ? Number(this.opacity) : dataSource.alpha
                     };
 
                     /* Default is x and y */
