@@ -4,6 +4,7 @@
 
 - ENH: DOI badge
 - ENH: Sidebar instead of dropdown for notifications and user menu
+- BUG: Plot collapses when switching back to web view (#1001)
 - MAINT: Updated SurfaceTopography to 1.8.0
   (to add support for LEXT and DATX files, but fixes for Mitutoyo files)
 - MAINT: Only load those analysis results that the user wants to see

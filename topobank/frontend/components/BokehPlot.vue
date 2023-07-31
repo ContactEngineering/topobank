@@ -85,6 +85,9 @@ export default {
         sizingMode: {
             type: String, default: "scale_width"
         },
+        aspectRatio: {
+            type: Number, default: 2
+        },
         selectable: {
             type: Boolean, default: false
         },
@@ -173,9 +176,9 @@ export default {
             switch (layout) {
                 case 'web':
                     for (const plot of this.bokehPlots) {
-                        plot.figure.sizing_mode = "scale_width";
-                        plot.figure.width = null;
-                        plot.figure.height = 300;
+                        plot.figure.sizing_mode = this.sizingMode;
+                        plot.figure.aspect_ratio = this.aspectRatio;
+                        plot.figure.height = this.height;
                     }
                     this.symbolSize = 10;
                     break;
@@ -312,6 +315,7 @@ export default {
                     const bokehPlotFigure = new Plotting.Figure({
                         height: this.height,
                         sizing_mode: this.sizingMode,
+                        aspect_ratio: this.aspectRatio,
                         x_axis_label: plot.xAxisLabel === undefined ? "x" : plot.xAxisLabel,
                         y_axis_label: plot.yAxisLabel === undefined ? "y" : plot.yAxisLabel,
                         x_axis_type: xAxisType,
