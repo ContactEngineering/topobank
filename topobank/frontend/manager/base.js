@@ -17,10 +17,24 @@ import SearchResults from './SearchResults.vue';
 import 'topobank/scss/custom.scss';
 
 /**
+ * Event bus for initiating DZI download
+ */
+import mitt from 'mitt';
+const eventHub = mitt();
+
+/**
+ * Return event hub
+ */
+export function getEventHub() {
+    return eventHub;
+}
+
+/**
  * Wrapper for an OpenSeadragon instance (with a scale bar)
  */
 export function createDeepZoomImage(el, props) {
     let app = createApp(DeepZoomImage, props);
+    app.provide('eventHub', eventHub);
     app.mount(el);
     return app;
 }

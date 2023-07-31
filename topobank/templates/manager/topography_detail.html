@@ -197,8 +197,7 @@
               </a>
             {% endif %}
 
-            <a class="btn btn-default btn-block btn-lg"
-               v-on:click="$refs.dzi.download()">
+            <a class="btn btn-default btn-block btn-lg" onclick="topobank.base.getEventHub().emit('download-dzi')">
               {% fa5_icon 'download' %} Download PNG
             </a>
 
@@ -222,11 +221,10 @@
 
 {% block javascript %}
 
-
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/bokeh/3.0.3/bokeh.min.js" integrity="sha512-HfciX3GGYUSD5vbnSEFkesyF3KD/ZEMsxRxPQmGoABd3OTSAdY4Hbauw+3ieCBF0KIbV4cZKn9rIW93a882EcA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/bokeh/3.0.3/bokeh-api.min.js" integrity="sha512-lM8DqpIFHDJzMhBJ8YW/7UGFPIq1eGStGuPbFf3pWVEPpoZBD3L6PvptqaW0z3GwzC/yPwsaSQVh9JObK9hpUw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/bokeh/3.0.3/bokeh-widgets.min.js" integrity="sha512-8gbP3L8XiZSD+zqB50nFZzgPqkg2d00gPGVfevBXFqbC+ob1PLlyqu1ZiU+n6pQ0iVQ4HnXEh5cZ8jKmgJqYsA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/bokeh/3.0.3/bokeh-tables.min.js" integrity="sha512-0MPXzezXHxbzck9MBVY6bRNBKK9L6oBEtOM+LrOZu+gN51LyvFYvSLj5FsbxXctf2Lt45wgjp3rFOh8mX/LBiw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bokeh/3.0.3/bokeh.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bokeh/3.0.3/bokeh-api.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bokeh/3.0.3/bokeh-widgets.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bokeh/3.0.3/bokeh-tables.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
   {# Some JSON code to define JS variables from Django context #}
   {{ category_filter_choices | json_script:"category-filter-choices" }}

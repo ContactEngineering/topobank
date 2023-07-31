@@ -6,6 +6,7 @@
 
 export default {
   name: 'deep-zoom-image',
+  inject: ['eventHub'],
   props: {
     prefixUrl: String,
     colorbar: {
@@ -38,6 +39,7 @@ export default {
     this.uuid = crypto.randomUUID();
   },
   mounted: function () {
+    this.eventHub.on('download-dzi', this.download);
     this.requestDzi();
   },
   watch: {
