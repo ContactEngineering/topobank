@@ -74,7 +74,7 @@
               <ul class="list-unstyled components">
                 <li id="notification-content">
                   <div class="notif-container">
-                    <div class="live_notify_list" id="collapsible-bell">
+                    <div class="live_notify_list">
                     </div>
                   </div>
                 </li>
@@ -497,7 +497,7 @@
     }
   }
 </script>
-{% register_notify_callbacks callbacks='fill_notification_badge_or_hide_if_none,fill_notification_list_with_linked_items' %}
+{% register_notify_callbacks fetch=100 callbacks='fill_notification_badge_or_hide_if_none,fill_notification_list_with_linked_items' %}
 
 {% block javascript %}{% endblock javascript %}
 <!--sidebar js -->

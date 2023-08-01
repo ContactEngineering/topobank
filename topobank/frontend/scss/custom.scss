@@ -1073,13 +1073,13 @@ ul.timeline > li > .timeline-panel:after {
   transition: transform 0.3s ease-out;
   min-width: 250px;
   max-width: 258px;
-  min-height: 100vh;
   position: fixed;
   top: 56px;
   right: 0;
   bottom: 0;
   z-index: 999;
   overflow-x: clip;
+  overflow-y: scroll;
   padding: 12px;
   font-size: 16px;
   line-height: 1.5;
