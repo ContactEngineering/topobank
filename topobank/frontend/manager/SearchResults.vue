@@ -189,7 +189,7 @@ export default {
                     let description_html = "";
                     // DOI badge added here
                     if (node.data.publication_doi) {
-                        description_html += `<a class="badge badge-dark mr-1" href="https://doi.org/${node.data.publication_doi}">DOI ${node.data.publication_doi}</a>`;
+                        description_html += `<a class="badge badge-dark mr-1" href="https://doi.org/${node.data.publication_doi}">${node.data.publication_doi}</a>`;
                     }
                     // License image
                     if (node.data.publication_license) {
