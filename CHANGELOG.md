@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-## 1.2.0 (2023-07-26)
+## 1.2.0 (2023-08-01)
 
 - ENH: DOI badge
 - ENH: Sidebar instead of dropdown for notifications and user menu
