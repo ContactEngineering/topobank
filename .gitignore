@@ -324,11 +324,6 @@ tags
 ### VirtualEnv template
 # Virtualenv
 # http://iamzed.com/2009/05/07/a-primer-on-virtualenv/
-[Bb]in
-[Ii]nclude
-[Ll]ib
-[Ll]ib64
-[Ss]cripts
 pyvenv.cfg
 pip-selfcheck.json
 
@@ -355,7 +350,7 @@ topobank.db
 orcid.yaml
 
 # Locally generated pip packages
-compose/local/django/pip-packages/*
+docker/local/django/pip-packages/*
 
 # temporary files from soffice
 .~lock.*#
