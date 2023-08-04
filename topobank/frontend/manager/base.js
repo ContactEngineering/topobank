@@ -1,4 +1,5 @@
 import jQuery from 'jquery';
+
 window.$ = window.jQuery = jQuery;
 
 // TODO: Bootstrap can be imported here but does not register event handlers globally
@@ -7,6 +8,7 @@ window.$ = window.jQuery = jQuery;
 import {createApp} from 'vue';
 
 import * as Bokeh from '@bokeh/bokehjs';
+
 window.Bokeh = Bokeh;
 
 import DeepZoomImage from '../components/DeepZoomImage.vue';
@@ -20,6 +22,7 @@ import 'topobank/scss/custom.scss';
  * Event bus for initiating DZI download
  */
 import mitt from 'mitt';
+
 const eventHub = mitt();
 
 /**
@@ -32,8 +35,9 @@ export function getEventHub() {
 /**
  * Wrapper for an OpenSeadragon instance (with a scale bar)
  */
-export function createDeepZoomImage(el, props) {
+export function createDeepZoomImage(el, csrfToken, props) {
     let app = createApp(DeepZoomImage, props);
+    app.provide('csrfToken', csrfToken);
     app.provide('eventHub', eventHub);
     app.mount(el);
     return app;
@@ -45,6 +49,7 @@ export function createDeepZoomImage(el, props) {
 export function createSearchResultsApp(el, csrfToken, props) {
     let app = createApp(SearchResults, props);
     app.provide('csrfToken', csrfToken);
+    app.provide('eventHub', eventHub);
     app.mount(el);
     return app;
 }

@@ -20,7 +20,6 @@ export default {
             type: String,
             default: '/analysis/api/card/series'
         },
-        csrfToken: String,
         detailUrl: {
             type: String,
             default: '/analysis/html/detail/'
@@ -39,6 +38,7 @@ export default {
             }
         }
     },
+    inject: ['csrfToken'],
     data() {
         return {
             _analyses: null,

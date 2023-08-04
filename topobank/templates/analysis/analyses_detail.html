@@ -37,8 +37,7 @@
 <script src="{% static 'js/analysis_app.bundle.js' %}"></script>
 <script>
   const params = new URLSearchParams(window.location.search);
-  topobank.analysis_app.createAnalysisResultsDetailApp('#app', {
-    csrfToken: '{{ csrf_token }}',
+  topobank.analysis_app.createAnalysisResultsDetailApp('#app', '{{ csrf_token }}', {
     functionId: {{ function.id }},
     functionName: '{{ function.name }}',
     visualizationType: '{{ visualization_type }}',

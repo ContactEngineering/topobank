@@ -16,9 +16,9 @@ export default {
         analyses: {
             type: Object,
             default: []
-        },
-        csrfToken: String
+        }
     },
+    inject: ['csrfToken'],
     data() {
         return {
             _analyses: this.analyses === undefined ? [] : this.analyses,

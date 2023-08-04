@@ -16,7 +16,6 @@ export default {
             type: String,
             default: '/manager/api/selection/unselect-all/'
         },
-        csrfToken: String,
         basketItems: {
             type: Object,
             default: []
@@ -42,6 +41,7 @@ export default {
             default: '/manager/select'
         },
     },
+    inject: ['csrfToken'],
     data() {
         return {
             _keys: [],

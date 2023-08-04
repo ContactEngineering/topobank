@@ -36,7 +36,6 @@ export default {
     },
     props: {
         analyses: Object,
-        csrfToken: String,
         uid: {
             type: String,
             default() {
@@ -44,6 +43,7 @@ export default {
             }
         }
     },
+    inject: ['csrfToken'],
     data() {
         return {
             _anyTaskIsRunning: true,  // We assume some task is running and get notified if this is not the case

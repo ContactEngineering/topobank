@@ -6,12 +6,12 @@ export default {
     name: 'analysis-results-detail',
     components: AnalysisCards,
     props: {
-        csrfToken: String,
         functionId: Number,
         functionName: String,
         visualizationType: String,
         subjects: String
     },
+    inject: ['csrfToken'],
     data() {
         return {
             _cards: [],

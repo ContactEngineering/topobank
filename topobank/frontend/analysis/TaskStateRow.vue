@@ -7,12 +7,12 @@ export default {
     ],
     props: {
         analysis: Object,
-        csrfToken: String,
         pollingInterval: {
             type: Number,
             default: 2000  // milliseconds
         }
     },
+    inject: ['csrfToken'],
     data() {
         return {
             _analysis: this.analysis,

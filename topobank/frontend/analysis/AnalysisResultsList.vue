@@ -14,9 +14,9 @@ export default {
             type: String,
             default: '/analysis/api/registry/'
         },
-        csrfToken: String,
         subjects: String
     },
+    inject: ['csrfToken'],
     data() {
         return {
             _cards: [],

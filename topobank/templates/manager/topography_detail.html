@@ -231,7 +231,7 @@
 
   {% if topography.size_y %}
     <script>
-      topobank.base.createDeepZoomImage('#topography-deep-zoom-image', {
+      topobank.base.createDeepZoomImage('#topography-deep-zoom-image', '{{ csrf_token }}', {
         prefixUrl: "{% url 'manager:topography-dzi' pk=topography.pk dzi_filename='' %}",
         colorbar: true
       });
