@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 1.2.1 (2023-08-04)
+
+- MAINT: Unified CSRF injection
+
 ## 1.2.0 (2023-08-01)
 
 - ENH: DOI badge
