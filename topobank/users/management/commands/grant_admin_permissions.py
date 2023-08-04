@@ -11,7 +11,6 @@ from request_profiler.models import ProfilingRecord, RuleSet
 from topobank.organizations.models import Organization
 from topobank.users.models import User
 
-# from topobank.manager.models import Surface, Topography
 from topobank.analysis.models import Analysis
 
 _log = logging.getLogger(__name__)
