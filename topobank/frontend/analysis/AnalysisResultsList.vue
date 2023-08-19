@@ -86,8 +86,7 @@ export default {
 </script>
 
 <template>
-    <basket :csrf-token="csrfToken"
-            :basket-items="subjectsAsBasketItems"
+    <basket :basket-items="subjectsAsBasketItems"
             :has-analyze-button="false"
             :has-clear-button="false"
             :has-download-button="false"
@@ -120,7 +119,6 @@ export default {
              :class="{ 'col-lg-6': true, 'mb-4': true, 'd-none': !card.isCurrentlyVisible }">
             <component v-if="card.isOrWasVisible"
                        :is="`${card.visualization_type}-card`"
-                       :csrf-token="csrfToken"
                        :enlarged="false"
                        :function-id="card.id"
                        :function-name="card.name"

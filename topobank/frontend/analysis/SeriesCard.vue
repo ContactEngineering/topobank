@@ -117,7 +117,6 @@ export default {
             <div class="btn-group btn-group-sm float-right">
                 <tasks-button v-if="_analyses !== null && _analyses.length > 0"
                               :analyses="_analyses"
-                              :csrf-token="csrfToken"
                               @task-state-changed="taskStateChanged">
                 </tasks-button>
                 <button v-if="_analyses !== null && _analyses.length > 0"

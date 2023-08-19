@@ -76,7 +76,6 @@ export default {
                             <task-state-row
                                     v-for="(analysis, index) in _analyses"
                                     :analysis="analysis"
-                                    :csrf-token="csrfToken"
                                     @set-task-state="(taskState) => setTaskState(index, taskState)">
                             </task-state-row>
                             </tbody>

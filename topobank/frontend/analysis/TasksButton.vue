@@ -79,7 +79,6 @@ export default {
     <task-states-modal
             :id="`task-states-modal-${uid}`"
             :analyses="analyses"
-            :csrf-token="csrfToken"
             @task-state-changed="taskStateChanged">
     </task-states-modal>
 </template>

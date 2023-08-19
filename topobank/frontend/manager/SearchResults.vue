@@ -367,8 +367,7 @@ export default {
 </script>
 
 <template>
-    <basket :csrf-token="csrfToken"
-            :basket-items="_selection"
+    <basket :basket-items="_selection"
             @unselect-successful="unselect">
     </basket>
     <form>
