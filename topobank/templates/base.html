@@ -518,12 +518,9 @@
   }
 
   function toggleUserNav() {
-    console.log("toggleUserNav");
     let sidebarElement = document.getElementById("sidebar-main");
     let notificationContentElement = document.getElementById("notification-content");
     let userProfileElement = document.getElementById("user-profile-details-content");
-    console.log(sidebarElement.classList);
-    console.log(userProfileElement.classList);
     if (!userProfileElement.classList.contains("user-block")) {
       sidebarElement.classList.add("sidebar-main-block");
       userProfileElement.classList.add("user-block");
