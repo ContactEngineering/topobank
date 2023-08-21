@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 1.2.2 (2023-08-21)
+
+- MAINT: More fixes to CSRF injection
+
 ## 1.2.1 (2023-08-04)
 
 - MAINT: Unified CSRF injection
