@@ -1,5 +1,10 @@
 # Changelog for *TopoBank*
 
+## 1.2.4 (2023-08-29)
+
+- MAINT: Updated SurfaceTopography to 1.10.0
+  (to add support for PLUX and WSXM files, bug fixes for GWY and text)
+
 ## 1.2.3 (2023-08-28)
 
 - MAINT: Updated SurfaceTopography to 1.9.0
